@@ -13896,10 +13896,10 @@
     "semantic_hash": "565223afebd2554f3651f42f4fb78c49"
   },
   "docs/api-inventory.json": {
-    "mtime": 1789911842.022857,
-    "seen": 1789911962.843992,
-    "ast_hash": "e864eff9e4fa587549ebcdfbbd296a20",
-    "semantic_hash": "e864eff9e4fa587549ebcdfbbd296a20"
+    "mtime": 1789912696.525443,
+    "seen": 1789913303.526939,
+    "ast_hash": "b9e36b957178e3592d26a573c0f4708c",
+    "semantic_hash": "b9e36b957178e3592d26a573c0f4708c"
   },
   "packages/sdk/browser.ts": {
     "mtime": 1789911841.9637272,
@@ -13974,16 +13974,16 @@
     "semantic_hash": "368a5114fe873f2a8c8fc5502b90f63b"
   },
   "scripts/sdk-api-model.mjs": {
-    "mtime": 1789910325.1312706,
-    "seen": 1789910664.031277,
-    "ast_hash": "7d9b3d661a375c28b18dfc85961f71e1",
-    "semantic_hash": "7d9b3d661a375c28b18dfc85961f71e1"
+    "mtime": 1789912694.6485147,
+    "seen": 1789913303.526939,
+    "ast_hash": "62ce8dc99b585bb52344feef9a1eab68",
+    "semantic_hash": ""
   },
   "test/integration/sdk-facade.test.mjs": {
-    "mtime": 1789910579.5024638,
-    "seen": 1789910664.03135,
-    "ast_hash": "3836a0ba32acfec0682f5e0376adf495",
-    "semantic_hash": "3836a0ba32acfec0682f5e0376adf495"
+    "mtime": 1789912738.782691,
+    "seen": 1789913303.526939,
+    "ast_hash": "a4fcb3102981d6f52d34d6924bbc953b",
+    "semantic_hash": ""
   },
   "packages/sdk/package.json": {
     "mtime": 1789911030.7140238,
@@ -13996,5 +13996,11 @@
     "seen": 1789911962.911597,
     "ast_hash": "ac8f0885f17e3fda40b3700859290d3b",
     "semantic_hash": "ac8f0885f17e3fda40b3700859290d3b"
+  },
+  "docs/SDK_FACADE.md": {
+    "mtime": 1789910568.3047519,
+    "seen": 1789913303.526939,
+    "ast_hash": "",
+    "semantic_hash": "fc9b9bfb100e4412ad5c2fcbca86053f"
   }
 }

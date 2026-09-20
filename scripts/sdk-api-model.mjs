@@ -59,7 +59,9 @@ export function analyzeEntries() {
         kind: exportKind(symbol, checker),
         module: definingModule(symbol, checker),
         entries: [],
-        identity: checker.getFullyQualifiedName(target),
+        identity: checker
+          .getFullyQualifiedName(target)
+          .replace(`${ROOT.replaceAll('\\', '/')}/`, ''),
       };
       row.entries.push(entry);
       rows.set(key, row);

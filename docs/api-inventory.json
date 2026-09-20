@@ -15,7 +15,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageSelectionRequests.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lodPolicy\".adaptivePixelError"
+      "bindingIdentity": "\"packages/sdk-core/lodPolicy\".adaptivePixelError"
     },
     {
       "name": "addScaledVector3",
@@ -26,7 +26,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/visibilityShadingNormal.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".addScaledVector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".addScaledVector3"
     },
     {
       "name": "addTransformNode",
@@ -40,7 +40,7 @@
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTree\".addTransformNode"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".addTransformNode"
     },
     {
       "name": "AnthropicToolDefinition",
@@ -51,7 +51,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/types\".AnthropicToolDefinition"
+      "bindingIdentity": "\"packages/sdk-core/llm/types\".AnthropicToolDefinition"
     },
     {
       "name": "applyMatrix3Vector3",
@@ -62,7 +62,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/visibilityShadingNormal.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".applyMatrix3Vector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".applyMatrix3Vector3"
     },
     {
       "name": "assertCacheIdentity",
@@ -73,7 +73,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/cacheContracts\".assertCacheIdentity"
+      "bindingIdentity": "\"packages/sdk-core/cacheContracts\".assertCacheIdentity"
     },
     {
       "name": "assertCachePointer",
@@ -84,7 +84,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/cacheContracts\".assertCachePointer"
+      "bindingIdentity": "\"packages/sdk-core/cacheContracts\".assertCachePointer"
     },
     {
       "name": "assertCacheReady",
@@ -95,7 +95,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/cacheContracts\".assertCacheReady"
+      "bindingIdentity": "\"packages/sdk-core/cacheContracts\".assertCacheReady"
     },
     {
       "name": "assertFormat",
@@ -106,7 +106,7 @@
       "classification": "public",
       "affectedConsumers": ["test/integration/contrat-public.test.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/cacheContracts\".assertFormat"
+      "bindingIdentity": "\"packages/sdk-core/cacheContracts\".assertFormat"
     },
     {
       "name": "assertManifestBinary",
@@ -117,7 +117,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryTypes\".assertManifestBinary"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryTypes\".assertManifestBinary"
     },
     {
       "name": "assertSceneProxy",
@@ -128,7 +128,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneProxy\".assertSceneProxy"
+      "bindingIdentity": "\"packages/sdk-core/sceneProxy\".assertSceneProxy"
     },
     {
       "name": "AssetScope",
@@ -152,7 +152,7 @@
         "packages/sdk-node/index.mts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".AssetScope"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".AssetScope"
     },
     {
       "name": "autonomousPagesBackend",
@@ -163,7 +163,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/autonomousPages\".autonomousPagesBackend"
+      "bindingIdentity": "\"packages/sdk-browser/autonomousPages\".autonomousPagesBackend"
     },
     {
       "name": "BackendCapabilities",
@@ -177,7 +177,7 @@
         "packages/sdk-browser/backendTypes.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/metricsContracts\".BackendCapabilities"
+      "bindingIdentity": "\"packages/sdk-core/metricsContracts\".BackendCapabilities"
     },
     {
       "name": "BackendContext",
@@ -188,7 +188,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/backendTypes\".BackendContext"
+      "bindingIdentity": "\"packages/sdk-browser/backendTypes\".BackendContext"
     },
     {
       "name": "BackendDiagnostic",
@@ -199,7 +199,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/backendTypes\".BackendDiagnostic"
+      "bindingIdentity": "\"packages/sdk-browser/backendTypes\".BackendDiagnostic"
     },
     {
       "name": "BackendFactory",
@@ -210,7 +210,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/backendTypes\".BackendFactory"
+      "bindingIdentity": "\"packages/sdk-browser/backendTypes\".BackendFactory"
     },
     {
       "name": "barycentric",
@@ -221,7 +221,7 @@
       "classification": "experimental",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/oracles\".barycentric"
+      "bindingIdentity": "\"packages/sdk-core/oracles\".barycentric"
     },
     {
       "name": "basisMatrix4",
@@ -232,7 +232,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/lightingObservationTransforms.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4Trs\".basisMatrix4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4Trs\".basisMatrix4"
     },
     {
       "name": "BatchJob",
@@ -243,7 +243,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".BatchJob"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".BatchJob"
     },
     {
       "name": "BatchOptions",
@@ -254,7 +254,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".BatchOptions"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".BatchOptions"
     },
     {
       "name": "BatchOutcome",
@@ -265,7 +265,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".BatchOutcome"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".BatchOutcome"
     },
     {
       "name": "BatchSummary",
@@ -276,7 +276,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".BatchSummary"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".BatchSummary"
     },
     {
       "name": "biasedDepthBits",
@@ -287,7 +287,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/hizNearestBound.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/depthLayer\".biasedDepthBits"
+      "bindingIdentity": "\"packages/sdk-core/depthLayer\".biasedDepthBits"
     },
     {
       "name": "BOUNCE_PROBES_PER_FRAME",
@@ -301,7 +301,7 @@
         "packages/sdk-browser/gpuBounceProbes.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceContracts\".BOUNCE_PROBES_PER_FRAME"
+      "bindingIdentity": "\"packages/sdk-core/bounceContracts\".BOUNCE_PROBES_PER_FRAME"
     },
     {
       "name": "BOUNCE_SETTINGS",
@@ -324,7 +324,7 @@
         "packages/sdk-browser/webgpuPagesRuntime.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceContracts\".BOUNCE_SETTINGS"
+      "bindingIdentity": "\"packages/sdk-core/bounceContracts\".BOUNCE_SETTINGS"
     },
     {
       "name": "bounceBatchOf",
@@ -338,7 +338,7 @@
         "packages/sdk-browser/gpuBounceSurface.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceBudget\".bounceBatchOf"
+      "bindingIdentity": "\"packages/sdk-core/bounceBudget\".bounceBatchOf"
     },
     {
       "name": "BounceBudget",
@@ -349,7 +349,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceBudget\".BounceBudget"
+      "bindingIdentity": "\"packages/sdk-core/bounceBudget\".BounceBudget"
     },
     {
       "name": "BounceCascadeLevel",
@@ -360,7 +360,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceCascades\".BounceCascadeLevel"
+      "bindingIdentity": "\"packages/sdk-core/bounceCascades\".BounceCascadeLevel"
     },
     {
       "name": "BounceCascades",
@@ -374,7 +374,7 @@
         "packages/sdk-browser/bounceUniform.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceCascades\".BounceCascades"
+      "bindingIdentity": "\"packages/sdk-core/bounceCascades\".BounceCascades"
     },
     {
       "name": "BounceOccupancy",
@@ -385,7 +385,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bounceSchedule.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceOccupancy\".BounceOccupancy"
+      "bindingIdentity": "\"packages/sdk-core/bounceOccupancy\".BounceOccupancy"
     },
     {
       "name": "BOX_VALUES",
@@ -409,7 +409,7 @@
         "packages/sdk-browser/webgpuTransformCisaillementFixture.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBox\".BOX_VALUES"
+      "bindingIdentity": "\"packages/sdk-core/mathBox\".BOX_VALUES"
     },
     {
       "name": "boxConeRejects",
@@ -423,7 +423,7 @@
         "packages/sdk-browser/pageCone.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCone\".boxConeRejects"
+      "bindingIdentity": "\"packages/sdk-core/mathCone\".boxConeRejects"
     },
     {
       "name": "boxCornersInto",
@@ -438,7 +438,7 @@
         "packages/sdk-browser/hizCorners.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBox\".boxCornersInto"
+      "bindingIdentity": "\"packages/sdk-core/mathBox\".boxCornersInto"
     },
     {
       "name": "boxEmpty",
@@ -457,7 +457,7 @@
         "packages/sdk-browser/webgpuPagesTransform.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBox\".boxEmpty"
+      "bindingIdentity": "\"packages/sdk-core/mathBox\".boxEmpty"
     },
     {
       "name": "boxExpandByPoint",
@@ -472,7 +472,7 @@
         "packages/sdk-browser/threeLod.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBox\".boxExpandByPoint"
+      "bindingIdentity": "\"packages/sdk-core/mathBox\".boxExpandByPoint"
     },
     {
       "name": "boxIsEmpty",
@@ -488,7 +488,7 @@
         "packages/sdk-browser/webgpuPagesTransform.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBox\".boxIsEmpty"
+      "bindingIdentity": "\"packages/sdk-core/mathBox\".boxIsEmpty"
     },
     {
       "name": "boxTransform",
@@ -507,7 +507,7 @@
         "packages/sdk-browser/webgpuTransformCisaillementFixture.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBox\".boxTransform"
+      "bindingIdentity": "\"packages/sdk-core/mathBox\".boxTransform"
     },
     {
       "name": "boxTransformBatch",
@@ -521,7 +521,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/mathBatchRuntime.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatch\".boxTransformBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatch\".boxTransformBatch"
     },
     {
       "name": "boxTransformUnionBatch",
@@ -535,7 +535,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatch\".boxTransformUnionBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatch\".boxTransformUnionBatch"
     },
     {
       "name": "boxUnion",
@@ -551,7 +551,7 @@
         "packages/sdk-browser/webgpuPagesTransform.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBox\".boxUnion"
+      "bindingIdentity": "\"packages/sdk-core/mathBox\".boxUnion"
     },
     {
       "name": "boxUnionBatch",
@@ -565,7 +565,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/mathBatchBoxes.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatch\".boxUnionBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatch\".boxUnionBatch"
     },
     {
       "name": "CAMERA_SCENARIOS",
@@ -576,7 +576,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/paths\".CAMERA_SCENARIOS"
+      "bindingIdentity": "\"packages/sdk-core/paths\".CAMERA_SCENARIOS"
     },
     {
       "name": "CameraFrame",
@@ -587,7 +587,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/engineCamera.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCamera\".CameraFrame"
+      "bindingIdentity": "\"packages/sdk-core/mathCamera\".CameraFrame"
     },
     {
       "name": "CameraPose",
@@ -609,7 +609,7 @@
         "packages/sdk-browser/explorerViewportApi.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".CameraPose"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".CameraPose"
     },
     {
       "name": "CANCEL_GRACE_MS",
@@ -620,7 +620,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/compilerProcess\".CANCEL_GRACE_MS"
+      "bindingIdentity": "\"packages/sdk-node/compilerProcess\".CANCEL_GRACE_MS"
     },
     {
       "name": "CapabilityTier",
@@ -631,7 +631,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/safety\".CapabilityTier"
+      "bindingIdentity": "\"packages/sdk-core/safety\".CapabilityTier"
     },
     {
       "name": "clipPlanesFromMatrix",
@@ -647,7 +647,7 @@
         "packages/sdk-browser/pageSelectionMath.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathFrustum\".clipPlanesFromMatrix"
+      "bindingIdentity": "\"packages/sdk-core/mathFrustum\".clipPlanesFromMatrix"
     },
     {
       "name": "CLUSTERED_BLEND_FORMAT_VERSION",
@@ -661,7 +661,7 @@
         "test/fixtures/manifestBinary.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".CLUSTERED_BLEND_FORMAT_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".CLUSTERED_BLEND_FORMAT_VERSION"
     },
     {
       "name": "clusterErrorAtDepth",
@@ -672,7 +672,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageSelectionProjection.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/projectionOracles\".clusterErrorAtDepth"
+      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".clusterErrorAtDepth"
     },
     {
       "name": "clusterErrorPixels",
@@ -691,7 +691,7 @@
         "test/justesse/erreur-ecran-borne.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/projectionOracles\".clusterErrorPixels"
+      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".clusterErrorPixels"
     },
     {
       "name": "ClusterGroup",
@@ -702,7 +702,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".ClusterGroup"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".ClusterGroup"
     },
     {
       "name": "ClusterManifest",
@@ -745,7 +745,7 @@
         "test/fixtures/manifestBinary.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".ClusterManifest"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".ClusterManifest"
     },
     {
       "name": "clusterSphereValid",
@@ -759,7 +759,7 @@
         "packages/sdk-browser/pageSelectionProjection.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".clusterSphereValid"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".clusterSphereValid"
     },
     {
       "name": "ClusterStructure",
@@ -770,7 +770,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageSelectionHelpers.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".ClusterStructure"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".ClusterStructure"
     },
     {
       "name": "compact",
@@ -781,7 +781,7 @@
       "classification": "experimental",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/oracles\".compact"
+      "bindingIdentity": "\"packages/sdk-core/oracles\".compact"
     },
     {
       "name": "compareImages",
@@ -801,7 +801,7 @@
         "scripts/mesure/rapport.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/compareImages\".compareImages"
+      "bindingIdentity": "\"packages/sdk-core/compareImages\".compareImages"
     },
     {
       "name": "COMPARISON_LIBRARIES",
@@ -815,7 +815,7 @@
       "classification": "experimental",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/competitors\".COMPARISON_LIBRARIES"
+      "bindingIdentity": "\"packages/sdk-core/competitors\".COMPARISON_LIBRARIES"
     },
     {
       "name": "ComparisonLayout",
@@ -826,7 +826,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/comparison\".ComparisonLayout"
+      "bindingIdentity": "\"packages/sdk-browser/comparison\".ComparisonLayout"
     },
     {
       "name": "CompetitorRecord",
@@ -837,7 +837,7 @@
       "classification": "experimental",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/competitors\".CompetitorRecord"
+      "bindingIdentity": "\"packages/sdk-core/competitors\".CompetitorRecord"
     },
     {
       "name": "CompetitorStatus",
@@ -848,7 +848,7 @@
       "classification": "experimental",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/competitors\".CompetitorStatus"
+      "bindingIdentity": "\"packages/sdk-core/competitors\".CompetitorStatus"
     },
     {
       "name": "CompilationJob",
@@ -859,7 +859,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CompilationJob"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CompilationJob"
     },
     {
       "name": "CompilationJobOptions",
@@ -870,7 +870,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CompilationJobOptions"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CompilationJobOptions"
     },
     {
       "name": "CompilationPointer",
@@ -881,7 +881,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CompilationPointer"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CompilationPointer"
     },
     {
       "name": "CompilationResult",
@@ -892,7 +892,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CompilationResult"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CompilationResult"
     },
     {
       "name": "CompilationSummary",
@@ -903,7 +903,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CompilationSummary"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CompilationSummary"
     },
     {
       "name": "COMPILER_LINE_LIMIT",
@@ -914,7 +914,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/compilerProcess\".COMPILER_LINE_LIMIT"
+      "bindingIdentity": "\"packages/sdk-node/compilerProcess\".COMPILER_LINE_LIMIT"
     },
     {
       "name": "COMPILER_OPTIONS_SCHEMA",
@@ -925,7 +925,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/compilerOptionsSchema\".COMPILER_OPTIONS_SCHEMA"
+      "bindingIdentity": "\"packages/sdk-core/llm/compilerOptionsSchema\".COMPILER_OPTIONS_SCHEMA"
     },
     {
       "name": "CompilerEvent",
@@ -936,7 +936,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CompilerEvent"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CompilerEvent"
     },
     {
       "name": "composeMatrix4",
@@ -951,7 +951,7 @@
         "packages/sdk-browser/hostWorldMatrices.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4Compose\".composeMatrix4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4Compose\".composeMatrix4"
     },
     {
       "name": "composeMatrix4Batch",
@@ -965,7 +965,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4Compose\".composeMatrix4Batch"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4Compose\".composeMatrix4Batch"
     },
     {
       "name": "CONE_LENGTH_RATIO",
@@ -976,7 +976,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageCone.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCone\".CONE_LENGTH_RATIO"
+      "bindingIdentity": "\"packages/sdk-core/mathCone\".CONE_LENGTH_RATIO"
     },
     {
       "name": "CONE_LENGTH_RATIO_WGSL",
@@ -987,7 +987,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuDagShader.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCone\".CONE_LENGTH_RATIO_WGSL"
+      "bindingIdentity": "\"packages/sdk-core/mathCone\".CONE_LENGTH_RATIO_WGSL"
     },
     {
       "name": "CONE_ORTHO_EPS",
@@ -998,7 +998,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageCone.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCone\".CONE_ORTHO_EPS"
+      "bindingIdentity": "\"packages/sdk-core/mathCone\".CONE_ORTHO_EPS"
     },
     {
       "name": "CONE_ORTHO_EPS_WGSL",
@@ -1009,7 +1009,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuDagShader.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCone\".CONE_ORTHO_EPS_WGSL"
+      "bindingIdentity": "\"packages/sdk-core/mathCone\".CONE_ORTHO_EPS_WGSL"
     },
     {
       "name": "coneRejects",
@@ -1020,7 +1020,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/oracles/volumes.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/projectionOracles\".coneRejects"
+      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".coneRejects"
     },
     {
       "name": "copyMatrix4",
@@ -1036,7 +1036,7 @@
         "packages/sdk-browser/taaMotion.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4\".copyMatrix4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4\".copyMatrix4"
     },
     {
       "name": "copyScaledVector3",
@@ -1047,7 +1047,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/visibilityShadingNormal.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".copyScaledVector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".copyScaledVector3"
     },
     {
       "name": "createBatchProgress",
@@ -1058,7 +1058,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/progress\".createBatchProgress"
+      "bindingIdentity": "\"packages/sdk-node/progress\".createBatchProgress"
     },
     {
       "name": "createBounceBudget",
@@ -1069,7 +1069,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuBounceProbes.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceBudget\".createBounceBudget"
+      "bindingIdentity": "\"packages/sdk-core/bounceBudget\".createBounceBudget"
     },
     {
       "name": "createBounceCascades",
@@ -1080,7 +1080,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuBounceProbes.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceCascades\".createBounceCascades"
+      "bindingIdentity": "\"packages/sdk-core/bounceCascades\".createBounceCascades"
     },
     {
       "name": "createBounceOccupancy",
@@ -1091,7 +1091,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuBounceProbes.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceOccupancy\".createBounceOccupancy"
+      "bindingIdentity": "\"packages/sdk-core/bounceOccupancy\".createBounceOccupancy"
     },
     {
       "name": "createCameraFrame",
@@ -1105,7 +1105,7 @@
         "packages/sdk-browser/engineCamera.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCamera\".createCameraFrame"
+      "bindingIdentity": "\"packages/sdk-core/mathCamera\".createCameraFrame"
     },
     {
       "name": "createCompilationJob",
@@ -1116,7 +1116,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/index\".createCompilationJob"
+      "bindingIdentity": "\"packages/sdk-node/index\".createCompilationJob"
     },
     {
       "name": "createDefaultLightingSceneLights",
@@ -1127,7 +1127,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingSceneControls\".createDefaultLightingSceneLights"
+      "bindingIdentity": "\"packages/sdk-core/lightingSceneControls\".createDefaultLightingSceneLights"
     },
     {
       "name": "createDiagnosticChannel",
@@ -1138,7 +1138,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/diagnosticChannel\".createDiagnosticChannel"
+      "bindingIdentity": "\"packages/sdk-browser/diagnosticChannel\".createDiagnosticChannel"
     },
     {
       "name": "createExplorer",
@@ -1152,7 +1152,7 @@
         "test/integration/validation-ressources.test.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/explorer\".createExplorer"
+      "bindingIdentity": "\"packages/sdk-browser/explorer\".createExplorer"
     },
     {
       "name": "createExplorerJob",
@@ -1163,7 +1163,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/index\".createExplorerJob"
+      "bindingIdentity": "\"packages/sdk-browser/index\".createExplorerJob"
     },
     {
       "name": "createGpuPageCache",
@@ -1174,7 +1174,7 @@
       "classification": "public",
       "affectedConsumers": ["test/integration/contrat-public.test.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/gpuPages\".createGpuPageCache"
+      "bindingIdentity": "\"packages/sdk-browser/gpuPages\".createGpuPageCache"
     },
     {
       "name": "createJob",
@@ -1185,7 +1185,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/jobs\".createJob"
+      "bindingIdentity": "\"packages/sdk-core/jobs\".createJob"
     },
     {
       "name": "createLightingExperimentBackend",
@@ -1196,7 +1196,7 @@
       "classification": "experimental",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/lightingExperimentBackend\".createLightingExperimentBackend"
+      "bindingIdentity": "\"packages/sdk-browser/lightingExperimentBackend\".createLightingExperimentBackend"
     },
     {
       "name": "createLightingScene",
@@ -1207,7 +1207,7 @@
       "classification": "experimental",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingExperimentScene\".createLightingScene"
+      "bindingIdentity": "\"packages/sdk-core/lightingExperimentScene\".createLightingScene"
     },
     {
       "name": "createPageIntegrationPlan",
@@ -1218,7 +1218,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageIntegrationTask.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationPlan\".createPageIntegrationPlan"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationPlan\".createPageIntegrationPlan"
     },
     {
       "name": "createPageStreamer",
@@ -1229,7 +1229,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/streamingPages\".createPageStreamer"
+      "bindingIdentity": "\"packages/sdk-browser/streamingPages\".createPageStreamer"
     },
     {
       "name": "createPathGovernor",
@@ -1240,7 +1240,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/mathBatchState.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathPathGovernor\".createPathGovernor"
+      "bindingIdentity": "\"packages/sdk-core/mathPathGovernor\".createPathGovernor"
     },
     {
       "name": "createSafetyPolicy",
@@ -1251,7 +1251,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/safety\".createSafetyPolicy"
+      "bindingIdentity": "\"packages/sdk-core/safety\".createSafetyPolicy"
     },
     {
       "name": "createSceneLightStore",
@@ -1268,7 +1268,7 @@
         "packages/sdk-browser/webgpuPagesStateLights.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightStore\".createSceneLightStore"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".createSceneLightStore"
     },
     {
       "name": "createShadowPlan",
@@ -1282,7 +1282,7 @@
         "packages/sdk-browser/webgpuPagesStateLights.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowPlan\".createShadowPlan"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowPlan\".createShadowPlan"
     },
     {
       "name": "createTerminalProgress",
@@ -1293,7 +1293,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/progress\".createTerminalProgress"
+      "bindingIdentity": "\"packages/sdk-node/progress\".createTerminalProgress"
     },
     {
       "name": "createTransformTree",
@@ -1307,7 +1307,7 @@
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTree\".createTransformTree"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".createTransformTree"
     },
     {
       "name": "createTransport",
@@ -1318,7 +1318,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingTransport\".createTransport"
+      "bindingIdentity": "\"packages/sdk-core/lightingTransport\".createTransport"
     },
     {
       "name": "crossVector3",
@@ -1333,7 +1333,7 @@
         "packages/sdk-browser/visibilityShadingNormal.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".crossVector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".crossVector3"
     },
     {
       "name": "CullingHierarchy",
@@ -1344,7 +1344,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageSelectionHelpers.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".CullingHierarchy"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".CullingHierarchy"
     },
     {
       "name": "CUTOUT_SHEET_FILE",
@@ -1358,7 +1358,7 @@
         "test/integration/feuille-decoupes.test.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".CUTOUT_SHEET_FILE"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".CUTOUT_SHEET_FILE"
     },
     {
       "name": "CUTOUT_SHEET_VERSION",
@@ -1372,7 +1372,7 @@
         "test/integration/feuille-decoupes.test.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".CUTOUT_SHEET_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".CUTOUT_SHEET_VERSION"
     },
     {
       "name": "CutoutModel",
@@ -1383,7 +1383,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CutoutModel"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CutoutModel"
     },
     {
       "name": "CutoutReviewOptions",
@@ -1394,7 +1394,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CutoutReviewOptions"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CutoutReviewOptions"
     },
     {
       "name": "CutoutReviewSummary",
@@ -1405,7 +1405,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".CutoutReviewSummary"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".CutoutReviewSummary"
     },
     {
       "name": "DAG_ERROR_MODEL",
@@ -1419,7 +1419,7 @@
         "packages/sdk-browser/pageSelectionTemplate.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".DAG_ERROR_MODEL"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".DAG_ERROR_MODEL"
     },
     {
       "name": "DagReport",
@@ -1430,7 +1430,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/dagContracts\".DagReport"
+      "bindingIdentity": "\"packages/sdk-core/dagContracts\".DagReport"
     },
     {
       "name": "DagWarning",
@@ -1441,7 +1441,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-node/contracts.ts", "packages/sdk-node/progressDag.mts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/dagContracts\".DagWarning"
+      "bindingIdentity": "\"packages/sdk-core/dagContracts\".DagWarning"
     },
     {
       "name": "dagWarningsDiagnostic",
@@ -1452,7 +1452,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/explorerBackends.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/dagWarnings\".dagWarningsDiagnostic"
+      "bindingIdentity": "\"packages/sdk-core/dagWarnings\".dagWarningsDiagnostic"
     },
     {
       "name": "decodeManifestBinary",
@@ -1463,7 +1463,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryDecode\".decodeManifestBinary"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryDecode\".decodeManifestBinary"
     },
     {
       "name": "decodeManifestPreviews",
@@ -1474,7 +1474,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-node/cutoutThumb.mts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryDecode\".decodeManifestPreviews"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryDecode\".decodeManifestPreviews"
     },
     {
       "name": "decodeSceneProxy",
@@ -1485,7 +1485,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/sceneProxyLoad.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneProxy\".decodeSceneProxy"
+      "bindingIdentity": "\"packages/sdk-core/sceneProxy\".decodeSceneProxy"
     },
     {
       "name": "decomposeMatrix4",
@@ -1502,7 +1502,7 @@
         "packages/sdk-browser/webgpuPagesTransform.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4Trs\".decomposeMatrix4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4Trs\".decomposeMatrix4"
     },
     {
       "name": "decomposeMatrix4Batch",
@@ -1516,7 +1516,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchTransforms\".decomposeMatrix4Batch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchTransforms\".decomposeMatrix4Batch"
     },
     {
       "name": "DEFAULT_BACKENDS",
@@ -1527,7 +1527,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/defaultBackends\".DEFAULT_BACKENDS"
+      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".DEFAULT_BACKENDS"
     },
     {
       "name": "DEFAULT_SCOPE",
@@ -1542,7 +1542,7 @@
         "packages/sdk-node/index.mts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".DEFAULT_SCOPE"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".DEFAULT_SCOPE"
     },
     {
       "name": "DEPTH_LAYER_BIAS_UNITS",
@@ -1553,7 +1553,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/hizNearestBound.test.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/depthLayer\".DEPTH_LAYER_BIAS_UNITS"
+      "bindingIdentity": "\"packages/sdk-core/depthLayer\".DEPTH_LAYER_BIAS_UNITS"
     },
     {
       "name": "depthLayerUnits",
@@ -1572,7 +1572,7 @@
         "packages/sdk-browser/webgpuVisibilityPipelines.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/depthLayer\".depthLayerUnits"
+      "bindingIdentity": "\"packages/sdk-core/depthLayer\".depthLayerUnits"
     },
     {
       "name": "desiredFaceSide",
@@ -1583,7 +1583,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowAtlas\".desiredFaceSide"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowAtlas\".desiredFaceSide"
     },
     {
       "name": "detectCapabilities",
@@ -1594,7 +1594,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/capabilities\".detectCapabilities"
+      "bindingIdentity": "\"packages/sdk-browser/capabilities\".detectCapabilities"
     },
     {
       "name": "determinantMatrix4",
@@ -1611,7 +1611,7 @@
         "packages/sdk-browser/webgpuTransformCisaillement.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4\".determinantMatrix4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4\".determinantMatrix4"
     },
     {
       "name": "DiagnosticCapabilities",
@@ -1622,7 +1622,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/diagnostics\".DiagnosticCapabilities"
+      "bindingIdentity": "\"packages/sdk-core/diagnostics\".DiagnosticCapabilities"
     },
     {
       "name": "DiagnosticCapability",
@@ -1633,7 +1633,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/diagnostics\".DiagnosticCapability"
+      "bindingIdentity": "\"packages/sdk-core/diagnostics\".DiagnosticCapability"
     },
     {
       "name": "DiagnosticChannel",
@@ -1644,7 +1644,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/diagnosticChannel\".DiagnosticChannel"
+      "bindingIdentity": "\"packages/sdk-browser/diagnosticChannel\".DiagnosticChannel"
     },
     {
       "name": "DiagnosticChannelOptions",
@@ -1655,7 +1655,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/diagnosticChannel\".DiagnosticChannelOptions"
+      "bindingIdentity": "\"packages/sdk-browser/diagnosticChannel\".DiagnosticChannelOptions"
     },
     {
       "name": "DiagnosticDetail",
@@ -1666,7 +1666,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/backendTypes\".DiagnosticDetail"
+      "bindingIdentity": "\"packages/sdk-browser/backendTypes\".DiagnosticDetail"
     },
     {
       "name": "DiagnosticMode",
@@ -1693,7 +1693,7 @@
         "packages/sdk-browser/webgpuPagesStateRun.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/diagnostics\".DiagnosticMode"
+      "bindingIdentity": "\"packages/sdk-core/diagnostics\".DiagnosticMode"
     },
     {
       "name": "DiagnosticObserver",
@@ -1704,7 +1704,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/diagnosticChannel\".DiagnosticObserver"
+      "bindingIdentity": "\"packages/sdk-browser/diagnosticChannel\".DiagnosticObserver"
     },
     {
       "name": "DIAGNOSTICS",
@@ -1718,7 +1718,7 @@
         "packages/sdk-browser/explorerDiagnosticApi.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/diagnostics\".DIAGNOSTICS"
+      "bindingIdentity": "\"packages/sdk-core/diagnostics\".DIAGNOSTICS"
     },
     {
       "name": "disabledStageProfile",
@@ -1733,7 +1733,7 @@
         "packages/sdk-browser/webgpuPages.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stageProfile\".disabledStageProfile"
+      "bindingIdentity": "\"packages/sdk-core/stageProfile\".disabledStageProfile"
     },
     {
       "name": "dot",
@@ -1744,7 +1744,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/projectionOracles\".dot"
+      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".dot"
     },
     {
       "name": "dotVector3",
@@ -1758,7 +1758,7 @@
         "packages/sdk-browser/lightingObservationTransforms.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".dotVector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".dotVector3"
     },
     {
       "name": "edge",
@@ -1769,7 +1769,7 @@
       "classification": "experimental",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/oracles\".edge"
+      "bindingIdentity": "\"packages/sdk-core/oracles\".edge"
     },
     {
       "name": "encodeManifestBinary",
@@ -1780,7 +1780,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryEncode\".encodeManifestBinary"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryEncode\".encodeManifestBinary"
     },
     {
       "name": "EngineError",
@@ -1816,7 +1816,7 @@
         "packages/sdk-browser/webgpuTransformFiniteTransform.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/cacheContracts\".EngineError"
+      "bindingIdentity": "\"packages/sdk-core/cacheContracts\".EngineError"
     },
     {
       "name": "EngineProfiler",
@@ -1827,7 +1827,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/telemetry\".EngineProfiler"
+      "bindingIdentity": "\"packages/sdk-browser/telemetry\".EngineProfiler"
     },
     {
       "name": "exactPagesBackend",
@@ -1841,7 +1841,7 @@
         "test/justesse/cameraSitesMoteurs.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/exactPagesBackend\".exactPagesBackend"
+      "bindingIdentity": "\"packages/sdk-browser/exactPagesBackend\".exactPagesBackend"
     },
     {
       "name": "exclusiveScan",
@@ -1852,7 +1852,7 @@
       "classification": "experimental",
       "affectedConsumers": ["packages/sdk-browser/gpuDrawCpu.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/oracles\".exclusiveScan"
+      "bindingIdentity": "\"packages/sdk-core/oracles\".exclusiveScan"
     },
     {
       "name": "Explorer",
@@ -1863,7 +1863,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/explorer\".Explorer"
+      "bindingIdentity": "\"packages/sdk-browser/explorer\".Explorer"
     },
     {
       "name": "EXPLORER_OPTIONS_SCHEMA",
@@ -1874,7 +1874,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/explorerOptionsSchema\".EXPLORER_OPTIONS_SCHEMA"
+      "bindingIdentity": "\"packages/sdk-core/llm/explorerOptionsSchema\".EXPLORER_OPTIONS_SCHEMA"
     },
     {
       "name": "ExplorerOptions",
@@ -1885,7 +1885,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/explorerOptions\".ExplorerOptions"
+      "bindingIdentity": "\"packages/sdk-browser/explorerOptions\".ExplorerOptions"
     },
     {
       "name": "ExplorerTarget",
@@ -1896,7 +1896,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/explorerTarget\".ExplorerTarget"
+      "bindingIdentity": "\"packages/sdk-browser/explorerTarget\".ExplorerTarget"
     },
     {
       "name": "exportLightingGltf",
@@ -1907,7 +1907,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingSceneGltf\".exportLightingGltf"
+      "bindingIdentity": "\"packages/sdk-core/lightingSceneGltf\".exportLightingGltf"
     },
     {
       "name": "faceCountOf",
@@ -1918,7 +1918,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesEncodeShadows.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowFaces\".faceCountOf"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".faceCountOf"
     },
     {
       "name": "FORMAT_VERSION",
@@ -1932,7 +1932,7 @@
         "test/integration/contrat-public.test.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".FORMAT_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".FORMAT_VERSION"
     },
     {
       "name": "FrameMetrics",
@@ -1959,7 +1959,7 @@
         "packages/sdk-browser/telemetry.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/metricsContracts\".FrameMetrics"
+      "bindingIdentity": "\"packages/sdk-core/metricsContracts\".FrameMetrics"
     },
     {
       "name": "frameStatistics",
@@ -1974,7 +1974,7 @@
         "packages/sdk-browser/telemetry.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stats\".frameStatistics"
+      "bindingIdentity": "\"packages/sdk-core/stats\".frameStatistics"
     },
     {
       "name": "framingFromBounds",
@@ -1985,7 +1985,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/framing\".framingFromBounds"
+      "bindingIdentity": "\"packages/sdk-browser/framing\".framingFromBounds"
     },
     {
       "name": "FRUSTUM_PLANE_VALUES",
@@ -2001,7 +2001,7 @@
         "packages/sdk-browser/webgpuBlendState.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathFrustum\".FRUSTUM_PLANE_VALUES"
+      "bindingIdentity": "\"packages/sdk-core/mathFrustum\".FRUSTUM_PLANE_VALUES"
     },
     {
       "name": "frustumClipBox",
@@ -2017,7 +2017,7 @@
         "packages/sdk-browser/pageSelectionMath.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathFrustumBox\".frustumClipBox"
+      "bindingIdentity": "\"packages/sdk-core/mathFrustumBox\".frustumClipBox"
     },
     {
       "name": "frustumExcludesBox",
@@ -2039,7 +2039,7 @@
         "test/justesse/inverseTransposeCas.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathFrustumBox\".frustumExcludesBox"
+      "bindingIdentity": "\"packages/sdk-core/mathFrustumBox\".frustumExcludesBox"
     },
     {
       "name": "frustumFarPlane",
@@ -2053,7 +2053,7 @@
         "packages/sdk-browser/pageSelectionCutSelect.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathFrustum\".frustumFarPlane"
+      "bindingIdentity": "\"packages/sdk-core/mathFrustum\".frustumFarPlane"
     },
     {
       "name": "frustumKeepsBoxBatch",
@@ -2067,7 +2067,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchCulling\".frustumKeepsBoxBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchCulling\".frustumKeepsBoxBatch"
     },
     {
       "name": "frustumPlanesFromMatrix",
@@ -2082,7 +2082,7 @@
         "test/justesse/inverseTransposeCas.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathFrustum\".frustumPlanesFromMatrix"
+      "bindingIdentity": "\"packages/sdk-core/mathFrustum\".frustumPlanesFromMatrix"
     },
     {
       "name": "frustumPlanesToLocal",
@@ -2097,7 +2097,7 @@
         "test/justesse/inverseTransposeCas.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathFrustum\".frustumPlanesToLocal"
+      "bindingIdentity": "\"packages/sdk-core/mathFrustum\".frustumPlanesToLocal"
     },
     {
       "name": "GeminiFunctionDeclaration",
@@ -2108,7 +2108,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/types\".GeminiFunctionDeclaration"
+      "bindingIdentity": "\"packages/sdk-core/llm/types\".GeminiFunctionDeclaration"
     },
     {
       "name": "GeometryPageDescriptor",
@@ -2122,7 +2122,7 @@
         "packages/sdk-browser/manifestPageIndex.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".GeometryPageDescriptor"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".GeometryPageDescriptor"
     },
     {
       "name": "getSdkProvenance",
@@ -2133,7 +2133,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/provenance\".getSdkProvenance"
+      "bindingIdentity": "\"packages/sdk-node/provenance\".getSdkProvenance"
     },
     {
       "name": "getWebGeometryLlmPrompt",
@@ -2144,7 +2144,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/systemPrompt\".getWebGeometryLlmPrompt"
+      "bindingIdentity": "\"packages/sdk-core/llm/systemPrompt\".getWebGeometryLlmPrompt"
     },
     {
       "name": "getWebGeometryTools",
@@ -2155,7 +2155,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/toolDefinitions\".getWebGeometryTools"
+      "bindingIdentity": "\"packages/sdk-core/llm/toolDefinitions\".getWebGeometryTools"
     },
     {
       "name": "GpuFrameMs",
@@ -2166,7 +2166,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuTimingTypes.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/metricsContracts\".GpuFrameMs"
+      "bindingIdentity": "\"packages/sdk-core/metricsContracts\".GpuFrameMs"
     },
     {
       "name": "GpuMemoryFrameMetrics",
@@ -2177,7 +2177,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/gpuMemoryContracts\".GpuMemoryFrameMetrics"
+      "bindingIdentity": "\"packages/sdk-core/gpuMemoryContracts\".GpuMemoryFrameMetrics"
     },
     {
       "name": "GpuPassBlock",
@@ -2188,7 +2188,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/stageMapping\".GpuPassBlock"
+      "bindingIdentity": "\"packages/sdk-browser/stageMapping\".GpuPassBlock"
     },
     {
       "name": "gpuPassBlockOf",
@@ -2199,7 +2199,7 @@
       "classification": "public",
       "affectedConsumers": ["scripts/mesure/seriePasses.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/stageMapping\".gpuPassBlockOf"
+      "bindingIdentity": "\"packages/sdk-browser/stageMapping\".gpuPassBlockOf"
     },
     {
       "name": "gpuPassBlockTotals",
@@ -2210,7 +2210,7 @@
       "classification": "public",
       "affectedConsumers": ["scripts/mesure/seriePasses.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/gpuPassBlocks\".gpuPassBlockTotals"
+      "bindingIdentity": "\"packages/sdk-browser/gpuPassBlocks\".gpuPassBlockTotals"
     },
     {
       "name": "GpuPassBlockTotals",
@@ -2221,7 +2221,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/gpuPassBlocks\".GpuPassBlockTotals"
+      "bindingIdentity": "\"packages/sdk-browser/gpuPassBlocks\".GpuPassBlockTotals"
     },
     {
       "name": "gpuPassStageOf",
@@ -2232,7 +2232,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/stageMapping\".gpuPassStageOf"
+      "bindingIdentity": "\"packages/sdk-browser/stageMapping\".gpuPassStageOf"
     },
     {
       "name": "GpuPassTiming",
@@ -2243,7 +2243,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/metricsContracts\".GpuPassTiming"
+      "bindingIdentity": "\"packages/sdk-core/metricsContracts\".GpuPassTiming"
     },
     {
       "name": "GpuPassTimings",
@@ -2261,7 +2261,7 @@
         "packages/sdk-browser/webgpuPagesStateTiming.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/metricsContracts\".GpuPassTimings"
+      "bindingIdentity": "\"packages/sdk-core/metricsContracts\".GpuPassTimings"
     },
     {
       "name": "GpuTimingMethod",
@@ -2272,7 +2272,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/stageProfiler.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stageProfile\".GpuTimingMethod"
+      "bindingIdentity": "\"packages/sdk-core/stageProfile\".GpuTimingMethod"
     },
     {
       "name": "HALF_PI",
@@ -2283,7 +2283,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageCone.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCone\".HALF_PI"
+      "bindingIdentity": "\"packages/sdk-core/mathCone\".HALF_PI"
     },
     {
       "name": "HALF_PI_WGSL",
@@ -2294,7 +2294,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuDagShader.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCone\".HALF_PI_WGSL"
+      "bindingIdentity": "\"packages/sdk-core/mathCone\".HALF_PI_WGSL"
     },
     {
       "name": "HIERARCHY_ROOT",
@@ -2311,7 +2311,7 @@
         "packages/sdk-browser/mathBatchHierarchy.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatch\".HIERARCHY_ROOT"
+      "bindingIdentity": "\"packages/sdk-core/mathBatch\".HIERARCHY_ROOT"
     },
     {
       "name": "hierarchyUpdateBatch",
@@ -2325,7 +2325,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/mathBatchHierarchy.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatch\".hierarchyUpdateBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatch\".hierarchyUpdateBatch"
     },
     {
       "name": "HIZ_NOTHING",
@@ -2336,7 +2336,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizOracles\".HIZ_NOTHING"
+      "bindingIdentity": "\"packages/sdk-core/hizOracles\".HIZ_NOTHING"
     },
     {
       "name": "hizBuildFlat",
@@ -2347,7 +2347,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/hizDepth.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizPyramidFlat\".hizBuildFlat"
+      "bindingIdentity": "\"packages/sdk-core/hizPyramidFlat\".hizBuildFlat"
     },
     {
       "name": "hizBuildPyramid",
@@ -2362,7 +2362,7 @@
         "packages/sdk-browser/gpuHizOracle.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizOracles\".hizBuildPyramid"
+      "bindingIdentity": "\"packages/sdk-core/hizOracles\".hizBuildPyramid"
     },
     {
       "name": "HizFlat",
@@ -2373,7 +2373,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/hizTypes.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizPyramidFlat\".HizFlat"
+      "bindingIdentity": "\"packages/sdk-core/hizPyramidFlat\".HizFlat"
     },
     {
       "name": "hizFlatLayout",
@@ -2384,7 +2384,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizPyramidFlat\".hizFlatLayout"
+      "bindingIdentity": "\"packages/sdk-core/hizPyramidFlat\".hizFlatLayout"
     },
     {
       "name": "hizFlatLevels",
@@ -2395,7 +2395,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizPyramidFlat\".hizFlatLevels"
+      "bindingIdentity": "\"packages/sdk-core/hizPyramidFlat\".hizFlatLevels"
     },
     {
       "name": "hizFootprintFar",
@@ -2406,7 +2406,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/hiz-pyramide.perf.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizOracles\".hizFootprintFar"
+      "bindingIdentity": "\"packages/sdk-core/hizOracles\".hizFootprintFar"
     },
     {
       "name": "hizFootprintFarFlat",
@@ -2417,7 +2417,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/hizOcclusion.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizPyramidFlat\".hizFootprintFarFlat"
+      "bindingIdentity": "\"packages/sdk-core/hizPyramidFlat\".hizFootprintFarFlat"
     },
     {
       "name": "hizOccluded",
@@ -2431,7 +2431,7 @@
         "packages/sdk-browser/hizOcclusion.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizOracles\".hizOccluded"
+      "bindingIdentity": "\"packages/sdk-core/hizOracles\".hizOccluded"
     },
     {
       "name": "hizReduceCeil",
@@ -2445,7 +2445,7 @@
         "packages/sdk-browser/gpuHizOracle.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/hizOracles\".hizReduceCeil"
+      "bindingIdentity": "\"packages/sdk-core/hizOracles\".hizReduceCeil"
     },
     {
       "name": "hslToLinearRgb",
@@ -2456,7 +2456,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/backendCommon.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathColor\".hslToLinearRgb"
+      "bindingIdentity": "\"packages/sdk-core/mathColor\".hslToLinearRgb"
     },
     {
       "name": "httpPageSource",
@@ -2467,7 +2467,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/gpuPages\".httpPageSource"
+      "bindingIdentity": "\"packages/sdk-browser/gpuPages\".httpPageSource"
     },
     {
       "name": "IDENTITY_MATRIX4",
@@ -2488,7 +2488,7 @@
         "packages/sdk-browser/webgpuCutRepriseFixture.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4\".IDENTITY_MATRIX4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4\".IDENTITY_MATRIX4"
     },
     {
       "name": "invertMatrix4",
@@ -2508,7 +2508,7 @@
         "packages/sdk-browser/webgpuPagesTransform.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4Inverse\".invertMatrix4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4Inverse\".invertMatrix4"
     },
     {
       "name": "invertMatrix4Batch",
@@ -2522,7 +2522,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchTransforms\".invertMatrix4Batch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchTransforms\".invertMatrix4Batch"
     },
     {
       "name": "isBinaryManifest",
@@ -2533,7 +2533,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryTypes\".isBinaryManifest"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryTypes\".isBinaryManifest"
     },
     {
       "name": "JobProgress",
@@ -2544,7 +2544,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/jobs\".JobProgress"
+      "bindingIdentity": "\"packages/sdk-core/jobs\".JobProgress"
     },
     {
       "name": "JobSnapshot",
@@ -2555,7 +2555,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-node/contracts.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/jobs\".JobSnapshot"
+      "bindingIdentity": "\"packages/sdk-core/jobs\".JobSnapshot"
     },
     {
       "name": "JobStatus",
@@ -2566,7 +2566,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/jobs\".JobStatus"
+      "bindingIdentity": "\"packages/sdk-core/jobs\".JobStatus"
     },
     {
       "name": "JsonSchemaObject",
@@ -2577,7 +2577,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/types\".JsonSchemaObject"
+      "bindingIdentity": "\"packages/sdk-core/llm/types\".JsonSchemaObject"
     },
     {
       "name": "JsonSchemaProperty",
@@ -2588,7 +2588,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/types\".JsonSchemaProperty"
+      "bindingIdentity": "\"packages/sdk-core/llm/types\".JsonSchemaProperty"
     },
     {
       "name": "lengthSqVector3",
@@ -2602,7 +2602,7 @@
         "packages/sdk-browser/visibilityShadingNormal.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".lengthSqVector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".lengthSqVector3"
     },
     {
       "name": "LIGHT_FIELD",
@@ -2613,7 +2613,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightStore\".LIGHT_FIELD"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".LIGHT_FIELD"
     },
     {
       "name": "LIGHT_KIND",
@@ -2627,7 +2627,7 @@
         "packages/sdk-browser/webgpuPagesEncodeShadows.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".LIGHT_KIND"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".LIGHT_KIND"
     },
     {
       "name": "LIGHT_SETTINGS",
@@ -2653,7 +2653,7 @@
         "packages/sdk-browser/webgpuPagesPrepareSunFar.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".LIGHT_SETTINGS"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".LIGHT_SETTINGS"
     },
     {
       "name": "LightingCapabilities",
@@ -2667,7 +2667,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/lightingCapabilities.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightCapabilities\".LightingCapabilities"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightCapabilities\".LightingCapabilities"
     },
     {
       "name": "LightingExperimentRayDiagnostics",
@@ -2678,7 +2678,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/lightingObservationContracts\".LightingExperimentRayDiagnostics"
+      "bindingIdentity": "\"packages/sdk-browser/lightingObservationContracts\".LightingExperimentRayDiagnostics"
     },
     {
       "name": "LightingExperimentRenderState",
@@ -2689,7 +2689,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/lightingObservationContracts\".LightingExperimentRenderState"
+      "bindingIdentity": "\"packages/sdk-browser/lightingObservationContracts\".LightingExperimentRenderState"
     },
     {
       "name": "LightingSceneLight",
@@ -2700,7 +2700,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingSceneTypes\".LightingSceneLight"
+      "bindingIdentity": "\"packages/sdk-core/lightingSceneTypes\".LightingSceneLight"
     },
     {
       "name": "linearPartDeterminant",
@@ -2711,7 +2711,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/socleEcarts.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4\".linearPartDeterminant"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4\".linearPartDeterminant"
     },
     {
       "name": "linearPartScale",
@@ -2722,7 +2722,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageCone.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathSingular\".linearPartScale"
+      "bindingIdentity": "\"packages/sdk-core/mathSingular\".linearPartScale"
     },
     {
       "name": "linearToSrgb",
@@ -2736,7 +2736,7 @@
         "packages/sdk-browser/visibilityMath.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathColor\".linearToSrgb"
+      "bindingIdentity": "\"packages/sdk-core/mathColor\".linearToSrgb"
     },
     {
       "name": "linearToSrgbBatch",
@@ -2750,7 +2750,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchColor\".linearToSrgbBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchColor\".linearToSrgbBatch"
     },
     {
       "name": "LlmToolFormat",
@@ -2761,7 +2761,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/types\".LlmToolFormat"
+      "bindingIdentity": "\"packages/sdk-core/llm/types\".LlmToolFormat"
     },
     {
       "name": "LOD_QUALITY",
@@ -2775,7 +2775,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lodPolicy\".LOD_QUALITY"
+      "bindingIdentity": "\"packages/sdk-core/lodPolicy\".LOD_QUALITY"
     },
     {
       "name": "lodQuality",
@@ -2786,7 +2786,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lodPolicy\".lodQuality"
+      "bindingIdentity": "\"packages/sdk-core/lodPolicy\".lodQuality"
     },
     {
       "name": "LodQualityId",
@@ -2797,7 +2797,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lodPolicy\".LodQualityId"
+      "bindingIdentity": "\"packages/sdk-core/lodPolicy\".LodQualityId"
     },
     {
       "name": "lookAtNode",
@@ -2808,7 +2808,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeLookAt\".lookAtNode"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeLookAt\".lookAtNode"
     },
     {
       "name": "makeCameraPath",
@@ -2819,7 +2819,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/paths\".makeCameraPath"
+      "bindingIdentity": "\"packages/sdk-core/paths\".makeCameraPath"
     },
     {
       "name": "MANIFEST_BINARY_MAGIC",
@@ -2830,7 +2830,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryFormat\".MANIFEST_BINARY_MAGIC"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".MANIFEST_BINARY_MAGIC"
     },
     {
       "name": "MANIFEST_BINARY_VERSION",
@@ -2841,7 +2841,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryFormat\".MANIFEST_BINARY_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".MANIFEST_BINARY_VERSION"
     },
     {
       "name": "ManifestBinaryDescriptor",
@@ -2852,7 +2852,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryTypes\".ManifestBinaryDescriptor"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryTypes\".ManifestBinaryDescriptor"
     },
     {
       "name": "manifestBinaryRanges",
@@ -2863,7 +2863,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryLayout\".manifestBinaryRanges"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryLayout\".manifestBinaryRanges"
     },
     {
       "name": "MATH_PATH_CONTRACT",
@@ -2874,7 +2874,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathPathContracts\".MATH_PATH_CONTRACT"
+      "bindingIdentity": "\"packages/sdk-core/mathPathContracts\".MATH_PATH_CONTRACT"
     },
     {
       "name": "MathPath",
@@ -2885,7 +2885,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/mathBatchLot.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathPathContracts\".MathPath"
+      "bindingIdentity": "\"packages/sdk-core/mathPathContracts\".MathPath"
     },
     {
       "name": "MathPathMetrics",
@@ -2896,7 +2896,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/mathBatchState.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathPathContracts\".MathPathMetrics"
+      "bindingIdentity": "\"packages/sdk-core/mathPathContracts\".MathPathMetrics"
     },
     {
       "name": "MathPathMode",
@@ -2910,7 +2910,7 @@
         "packages/sdk-browser/mathBatchState.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathPathContracts\".MathPathMode"
+      "bindingIdentity": "\"packages/sdk-core/mathPathContracts\".MathPathMode"
     },
     {
       "name": "MathPathOperation",
@@ -2921,7 +2921,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathPathContracts\".MathPathOperation"
+      "bindingIdentity": "\"packages/sdk-core/mathPathContracts\".MathPathOperation"
     },
     {
       "name": "MATRIX_VALUES",
@@ -2946,7 +2946,7 @@
         "packages/sdk-browser/replicateInstances.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchStrides\".MATRIX_VALUES"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchStrides\".MATRIX_VALUES"
     },
     {
       "name": "matrixAtRenderOrigin",
@@ -2960,7 +2960,7 @@
         "packages/sdk-browser/taaFrame.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathRenderOrigin\".matrixAtRenderOrigin"
+      "bindingIdentity": "\"packages/sdk-core/mathRenderOrigin\".matrixAtRenderOrigin"
     },
     {
       "name": "matrixWindingCw",
@@ -2979,7 +2979,7 @@
         "packages/sdk-browser/webgpuPagesWinding.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/matrixOrientation\".matrixWindingCw"
+      "bindingIdentity": "\"packages/sdk-core/matrixOrientation\".matrixWindingCw"
     },
     {
       "name": "MAX_DEPTH_LAYER",
@@ -2993,7 +2993,7 @@
         "packages/sdk-browser/webgpuPagesPrepareVisibility.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/depthLayer\".MAX_DEPTH_LAYER"
+      "bindingIdentity": "\"packages/sdk-core/depthLayer\".MAX_DEPTH_LAYER"
     },
     {
       "name": "MAX_SHADOW_SLICES",
@@ -3004,7 +3004,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuShadowAtlas.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".MAX_SHADOW_SLICES"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".MAX_SHADOW_SLICES"
     },
     {
       "name": "maxStretch",
@@ -3031,7 +3031,7 @@
         "test/justesse/erreur-ecran-cpu-gpu.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/projectionOracles\".maxStretch"
+      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".maxStretch"
     },
     {
       "name": "McpToolDefinition",
@@ -3042,7 +3042,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/types\".McpToolDefinition"
+      "bindingIdentity": "\"packages/sdk-core/llm/types\".McpToolDefinition"
     },
     {
       "name": "MeasuredCosts",
@@ -3053,7 +3053,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/safety\".MeasuredCosts"
+      "bindingIdentity": "\"packages/sdk-core/safety\".MeasuredCosts"
     },
     {
       "name": "multiplyMatrix4",
@@ -3080,7 +3080,7 @@
         "packages/sdk-browser/webgpuPagesTransform.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4\".multiplyMatrix4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4\".multiplyMatrix4"
     },
     {
       "name": "multiplyMatrix4Batch",
@@ -3094,7 +3094,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/mathBatchRuntime.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatch\".multiplyMatrix4Batch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatch\".multiplyMatrix4Batch"
     },
     {
       "name": "nodeWorldDirection",
@@ -3105,7 +3105,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeRead\".nodeWorldDirection"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldDirection"
     },
     {
       "name": "nodeWorldMirrorsFaces",
@@ -3116,7 +3116,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeRead\".nodeWorldMirrorsFaces"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldMirrorsFaces"
     },
     {
       "name": "nodeWorldPosition",
@@ -3127,7 +3127,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeRead\".nodeWorldPosition"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldPosition"
     },
     {
       "name": "nodeWorldQuaternion",
@@ -3138,7 +3138,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeRead\".nodeWorldQuaternion"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldQuaternion"
     },
     {
       "name": "nodeWorldScale",
@@ -3149,7 +3149,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeRead\".nodeWorldScale"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldScale"
     },
     {
       "name": "NORMAL_MATRIX_VALUES",
@@ -3163,7 +3163,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchStrides\".NORMAL_MATRIX_VALUES"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchStrides\".NORMAL_MATRIX_VALUES"
     },
     {
       "name": "normalizeVector3",
@@ -3177,7 +3177,7 @@
         "packages/sdk-browser/webgpuPagesEncodeShadows.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".normalizeVector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".normalizeVector3"
     },
     {
       "name": "normalMatrix3",
@@ -3196,7 +3196,7 @@
         "packages/sdk-browser/webglClusterRenderer.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix3\".normalMatrix3"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix3\".normalMatrix3"
     },
     {
       "name": "normalMatrix3Batch",
@@ -3210,7 +3210,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchTransforms\".normalMatrix3Batch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchTransforms\".normalMatrix3Batch"
     },
     {
       "name": "OcclusionFrameMetrics",
@@ -3221,7 +3221,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/occlusionMetricsContracts\".OcclusionFrameMetrics"
+      "bindingIdentity": "\"packages/sdk-core/occlusionMetricsContracts\".OcclusionFrameMetrics"
     },
     {
       "name": "OpenAiToolDefinition",
@@ -3232,7 +3232,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/types\".OpenAiToolDefinition"
+      "bindingIdentity": "\"packages/sdk-core/llm/types\".OpenAiToolDefinition"
     },
     {
       "name": "packDrawIndirect",
@@ -3246,7 +3246,7 @@
         "packages/sdk-browser/gpuDrawCpu.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/oracles\".packDrawIndirect"
+      "bindingIdentity": "\"packages/sdk-core/oracles\".packDrawIndirect"
     },
     {
       "name": "Page",
@@ -3262,7 +3262,7 @@
         "packages/sdk-browser/threeLodHelpers.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".Page"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".Page"
     },
     {
       "name": "PAGE_DECODE_FAILURES",
@@ -3273,7 +3273,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PAGE_DECODE_FAILURES"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PAGE_DECODE_FAILURES"
     },
     {
       "name": "PAGE_DECODE_PROTOCOL",
@@ -3295,7 +3295,7 @@
         "packages/sdk-browser/pageDecodeWorker.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PAGE_DECODE_PROTOCOL"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PAGE_DECODE_PROTOCOL"
     },
     {
       "name": "PAGE_INTEGRATION_FAILURES",
@@ -3306,7 +3306,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PAGE_INTEGRATION_FAILURES"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PAGE_INTEGRATION_FAILURES"
     },
     {
       "name": "PAGE_INTEGRATION_PROTOCOL",
@@ -3322,7 +3322,7 @@
         "packages/sdk-browser/pageIntegrationWorker.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PAGE_INTEGRATION_PROTOCOL"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PAGE_INTEGRATION_PROTOCOL"
     },
     {
       "name": "PAGE_SLICE_STRIDE",
@@ -3336,7 +3336,7 @@
         "packages/sdk-browser/pageIntegrationTask.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PAGE_SLICE_STRIDE"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PAGE_SLICE_STRIDE"
     },
     {
       "name": "PAGE_SPEC_STRIDE",
@@ -3350,7 +3350,7 @@
         "packages/sdk-browser/pageIntegrationTask.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PAGE_SPEC_STRIDE"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PAGE_SPEC_STRIDE"
     },
     {
       "name": "pageCarriesClusterError",
@@ -3364,7 +3364,7 @@
         "packages/sdk-browser/pageSelectionProjection.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".pageCarriesClusterError"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".pageCarriesClusterError"
     },
     {
       "name": "PageDecodeAnswer",
@@ -3382,7 +3382,7 @@
         "packages/sdk-browser/pageDecodeWorker.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeAnswer"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeAnswer"
     },
     {
       "name": "PageDecodeCancel",
@@ -3393,7 +3393,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageDecodeWorker.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeCancel"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeCancel"
     },
     {
       "name": "PageDecodeDone",
@@ -3409,7 +3409,7 @@
         "packages/sdk-browser/pageDecodeTask.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeDone"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeDone"
     },
     {
       "name": "PageDecodeFailed",
@@ -3420,7 +3420,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageDecodeTask.test.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeFailed"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeFailed"
     },
     {
       "name": "pageDecodeFailureCode",
@@ -3431,7 +3431,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageDecodeTask.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".pageDecodeFailureCode"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".pageDecodeFailureCode"
     },
     {
       "name": "PageDecodeFailureCode",
@@ -3442,7 +3442,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeFailureCode"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeFailureCode"
     },
     {
       "name": "PageDecodeGeometryPayload",
@@ -3453,7 +3453,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageDecodeTask.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeGeometryPayload"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeGeometryPayload"
     },
     {
       "name": "PageDecodeOp",
@@ -3464,7 +3464,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageDecodeHost.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeOp"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeOp"
     },
     {
       "name": "PageDecodeRequest",
@@ -3480,7 +3480,7 @@
         "packages/sdk-browser/pageDecodeWorker.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeRequest"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeRequest"
     },
     {
       "name": "PageDecodeShare",
@@ -3491,7 +3491,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageDecodeWorker.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".PageDecodeShare"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeShare"
     },
     {
       "name": "pageDecodeWorkerCount",
@@ -3505,7 +3505,7 @@
         "packages/sdk-browser/pageDecodeHost.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageDecodeContracts\".pageDecodeWorkerCount"
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".pageDecodeWorkerCount"
     },
     {
       "name": "PageIntegrationAnswer",
@@ -3520,7 +3520,7 @@
         "packages/sdk-browser/pageIntegrationTask.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PageIntegrationAnswer"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PageIntegrationAnswer"
     },
     {
       "name": "PageIntegrationDone",
@@ -3531,7 +3531,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PageIntegrationDone"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PageIntegrationDone"
     },
     {
       "name": "PageIntegrationFailed",
@@ -3542,7 +3542,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PageIntegrationFailed"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PageIntegrationFailed"
     },
     {
       "name": "PageIntegrationFailureCode",
@@ -3553,7 +3553,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PageIntegrationFailureCode"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PageIntegrationFailureCode"
     },
     {
       "name": "PageIntegrationPlan",
@@ -3564,7 +3564,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageIntegrationTask.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationPlan\".PageIntegrationPlan"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationPlan\".PageIntegrationPlan"
     },
     {
       "name": "PageIntegrationRequest",
@@ -3579,7 +3579,7 @@
         "packages/sdk-browser/pageIntegrationWorker.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".PageIntegrationRequest"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".PageIntegrationRequest"
     },
     {
       "name": "pageRowsOf",
@@ -3590,7 +3590,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesEncodeShadows.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowPages\".pageRowsOf"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowPages\".pageRowsOf"
     },
     {
       "name": "PageSource",
@@ -3604,7 +3604,7 @@
         "packages/sdk-browser/gpuPages.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/cacheContracts\".PageSource"
+      "bindingIdentity": "\"packages/sdk-core/cacheContracts\".PageSource"
     },
     {
       "name": "Patch",
@@ -3615,7 +3615,7 @@
       "classification": "public",
       "affectedConsumers": ["test/fixtures/lightingTransportScene.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingSceneTypes\".Patch"
+      "bindingIdentity": "\"packages/sdk-core/lightingSceneTypes\".Patch"
     },
     {
       "name": "PathGovernor",
@@ -3626,7 +3626,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/mathBatchState.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathPathGovernor\".PathGovernor"
+      "bindingIdentity": "\"packages/sdk-core/mathPathGovernor\".PathGovernor"
     },
     {
       "name": "perspectiveProjection",
@@ -3643,7 +3643,7 @@
         "packages/sdk-browser/engineCamera.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCamera\".perspectiveProjection"
+      "bindingIdentity": "\"packages/sdk-core/mathCamera\".perspectiveProjection"
     },
     {
       "name": "planPageIntegration",
@@ -3654,7 +3654,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageIntegrationTask.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationPlan\".planPageIntegration"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationPlan\".planPageIntegration"
     },
     {
       "name": "POINT_FACE_AXES",
@@ -3665,7 +3665,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/scenesSocleConsommateurs.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowFaces\".POINT_FACE_AXES"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".POINT_FACE_AXES"
     },
     {
       "name": "POINT_FACES",
@@ -3680,7 +3680,7 @@
         "packages/sdk-browser/gpuShadowAtlas.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".POINT_FACES"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".POINT_FACES"
     },
     {
       "name": "PointOfInterest",
@@ -3691,7 +3691,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/explorerOptions\".PointOfInterest"
+      "bindingIdentity": "\"packages/sdk-browser/explorerOptions\".PointOfInterest"
     },
     {
       "name": "POSITION_VALUES",
@@ -3710,7 +3710,7 @@
         "packages/sdk-browser/mathBatchHierarchy.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchStrides\".POSITION_VALUES"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchStrides\".POSITION_VALUES"
     },
     {
       "name": "PreparationProgress",
@@ -3725,7 +3725,7 @@
         "packages/sdk-node/contracts.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".PreparationProgress"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".PreparationProgress"
     },
     {
       "name": "prepare",
@@ -3736,7 +3736,7 @@
       "classification": "public",
       "affectedConsumers": ["test/integration/contrat-public.test.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/index\".prepare"
+      "bindingIdentity": "\"packages/sdk-node/index\".prepare"
     },
     {
       "name": "prepareMany",
@@ -3747,7 +3747,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/index\".prepareMany"
+      "bindingIdentity": "\"packages/sdk-node/index\".prepareMany"
     },
     {
       "name": "PrepareOptions",
@@ -3758,7 +3758,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".PrepareOptions"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".PrepareOptions"
     },
     {
       "name": "presentationColorDiagnostic",
@@ -3769,7 +3769,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/presentationDiagnostic\".presentationColorDiagnostic"
+      "bindingIdentity": "\"packages/sdk-browser/presentationDiagnostic\".presentationColorDiagnostic"
     },
     {
       "name": "PREVIEW_ATLAS_COLOR",
@@ -3780,7 +3780,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesPrepareTextures.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_COLOR"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_COLOR"
     },
     {
       "name": "PREVIEW_ATLAS_DATA",
@@ -3791,7 +3791,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesPrepareTextures.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_DATA"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_DATA"
     },
     {
       "name": "PREVIEW_ATLAS_NAMES",
@@ -3802,7 +3802,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_NAMES"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_NAMES"
     },
     {
       "name": "PREVIEW_BASE",
@@ -3813,7 +3813,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesPrepareTextures.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/texturePreviewLevels\".PREVIEW_BASE"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".PREVIEW_BASE"
     },
     {
       "name": "PREVIEW_MAX_LEVELS",
@@ -3824,7 +3824,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/texturePreviewLevels\".PREVIEW_MAX_LEVELS"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".PREVIEW_MAX_LEVELS"
     },
     {
       "name": "previewFirstLevel",
@@ -3838,7 +3838,7 @@
         "test/fixtures/manifestBinary.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/texturePreviewLevels\".previewFirstLevel"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewFirstLevel"
     },
     {
       "name": "previewIsWhole",
@@ -3852,7 +3852,7 @@
         "packages/sdk-browser/webgpuTileCatalogue.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/texturePreviewLevels\".previewIsWhole"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewIsWhole"
     },
     {
       "name": "previewLastLevel",
@@ -3863,7 +3863,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/textureTiles.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/texturePreviewLevels\".previewLastLevel"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewLastLevel"
     },
     {
       "name": "previewLevelCount",
@@ -3874,7 +3874,7 @@
       "classification": "public",
       "affectedConsumers": ["test/fixtures/manifestBinary.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/texturePreviewLevels\".previewLevelCount"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewLevelCount"
     },
     {
       "name": "previewLevelSize",
@@ -3889,7 +3889,7 @@
         "test/fixtures/manifestBinary.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/texturePreviewLevels\".previewLevelSize"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewLevelSize"
     },
     {
       "name": "previewPixelBytes",
@@ -3900,7 +3900,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/texturePreviewLevels\".previewPixelBytes"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewPixelBytes"
     },
     {
       "name": "Primitive",
@@ -3917,7 +3917,7 @@
         "packages/sdk-browser/primitiveLookup.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".Primitive"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".Primitive"
     },
     {
       "name": "PrimitiveDagWarning",
@@ -3928,7 +3928,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/dagWarnings\".PrimitiveDagWarning"
+      "bindingIdentity": "\"packages/sdk-core/dagWarnings\".PrimitiveDagWarning"
     },
     {
       "name": "primitiveIsDrawable",
@@ -3939,7 +3939,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".primitiveIsDrawable"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".primitiveIsDrawable"
     },
     {
       "name": "primitiveUsesClusterErrors",
@@ -3953,7 +3953,7 @@
         "packages/sdk-browser/pageSelectionTemplate.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".primitiveUsesClusterErrors"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".primitiveUsesClusterErrors"
     },
     {
       "name": "PROBE_FLOATS",
@@ -3969,7 +3969,7 @@
         "packages/sdk-browser/webgpuPagesPrepareBounce.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/bounceContracts\".PROBE_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/bounceContracts\".PROBE_FLOATS"
     },
     {
       "name": "ProgressPointer",
@@ -3980,7 +3980,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".ProgressPointer"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".ProgressPointer"
     },
     {
       "name": "ProgressStream",
@@ -3991,7 +3991,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".ProgressStream"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".ProgressStream"
     },
     {
       "name": "PROXY_CHILD_WORDS",
@@ -4002,7 +4002,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bounceNodeWgsl.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".PROXY_CHILD_WORDS"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".PROXY_CHILD_WORDS"
     },
     {
       "name": "PROXY_CHILDREN",
@@ -4013,7 +4013,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bounceTraceWgsl.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".PROXY_CHILDREN"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".PROXY_CHILDREN"
     },
     {
       "name": "PROXY_NODE_FLOATS",
@@ -4028,7 +4028,7 @@
         "packages/sdk-browser/residentProxyBuffer.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".PROXY_NODE_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".PROXY_NODE_FLOATS"
     },
     {
       "name": "PROXY_NODE_WORDS",
@@ -4039,7 +4039,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bounceNodeWgsl.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".PROXY_NODE_WORDS"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".PROXY_NODE_WORDS"
     },
     {
       "name": "PROXY_TRIANGLE_FLOATS",
@@ -4050,7 +4050,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bounceTraceWgsl.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".PROXY_TRIANGLE_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".PROXY_TRIANGLE_FLOATS"
     },
     {
       "name": "QUATERNION_VALUES",
@@ -4069,7 +4069,7 @@
         "packages/sdk-browser/mathBatchHierarchy.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchStrides\".QUATERNION_VALUES"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchStrides\".QUATERNION_VALUES"
     },
     {
       "name": "RECTS_PER_SLICE",
@@ -4084,7 +4084,7 @@
         "packages/sdk-browser/webgpuPagesEncodeShadows.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowSlices\".RECTS_PER_SLICE"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowSlices\".RECTS_PER_SLICE"
     },
     {
       "name": "referenceBackend",
@@ -4095,7 +4095,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/referenceBackend\".referenceBackend"
+      "bindingIdentity": "\"packages/sdk-browser/referenceBackend\".referenceBackend"
     },
     {
       "name": "referenceScreenError",
@@ -4106,7 +4106,7 @@
       "classification": "experimental",
       "affectedConsumers": ["packages/sdk-browser/gpuDagShaderError.test.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/screenErrorVariant\".referenceScreenError"
+      "bindingIdentity": "\"packages/sdk-core/screenErrorVariant\".referenceScreenError"
     },
     {
       "name": "regionRect",
@@ -4117,7 +4117,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesEncodeShadows.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowVolume\".regionRect"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowVolume\".regionRect"
     },
     {
       "name": "removeTransformNode",
@@ -4128,7 +4128,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeStructure\".removeTransformNode"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeStructure\".removeTransformNode"
     },
     {
       "name": "RenderBackend",
@@ -4139,7 +4139,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/backendTypes\".RenderBackend"
+      "bindingIdentity": "\"packages/sdk-browser/backendTypes\".RenderBackend"
     },
     {
       "name": "reparentTransformNode",
@@ -4150,7 +4150,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeStructure\".reparentTransformNode"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeStructure\".reparentTransformNode"
     },
     {
       "name": "replicateInstances",
@@ -4161,7 +4161,7 @@
       "classification": "public",
       "affectedConsumers": ["test/integration/instances-repliquees.test.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/replicateInstances\".replicateInstances"
+      "bindingIdentity": "\"packages/sdk-browser/replicateInstances\".replicateInstances"
     },
     {
       "name": "ResidentPage",
@@ -4172,7 +4172,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/gpuPageTypes\".ResidentPage"
+      "bindingIdentity": "\"packages/sdk-browser/gpuPageTypes\".ResidentPage"
     },
     {
       "name": "reviewCutouts",
@@ -4183,7 +4183,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/cutoutReview\".reviewCutouts"
+      "bindingIdentity": "\"packages/sdk-node/cutoutReview\".reviewCutouts"
     },
     {
       "name": "runCameraPath",
@@ -4194,7 +4194,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/cameraPath\".runCameraPath"
+      "bindingIdentity": "\"packages/sdk-browser/cameraPath\".runCameraPath"
     },
     {
       "name": "RuntimeEvent",
@@ -4205,7 +4205,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/explorerSession.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/events\".RuntimeEvent"
+      "bindingIdentity": "\"packages/sdk-core/events\".RuntimeEvent"
     },
     {
       "name": "SafetyConfig",
@@ -4216,7 +4216,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/safety\".SafetyConfig"
+      "bindingIdentity": "\"packages/sdk-core/safety\".SafetyConfig"
     },
     {
       "name": "SafetyDecision",
@@ -4227,7 +4227,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/safety\".SafetyDecision"
+      "bindingIdentity": "\"packages/sdk-core/safety\".SafetyDecision"
     },
     {
       "name": "scaleVector3",
@@ -4241,7 +4241,7 @@
         "packages/sdk-browser/visibilityShadingNormal.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".scaleVector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".scaleVector3"
     },
     {
       "name": "Scene",
@@ -4257,7 +4257,7 @@
         "test/fixtures/lightingTransportScene.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingSceneTypes\".Scene"
+      "bindingIdentity": "\"packages/sdk-core/lightingSceneTypes\".Scene"
     },
     {
       "name": "SCENE_LIGHT_BUFFER_FLOATS",
@@ -4268,7 +4268,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesStateLights.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_BUFFER_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_BUFFER_FLOATS"
     },
     {
       "name": "SCENE_LIGHT_FLOATS",
@@ -4279,7 +4279,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_FLOATS"
     },
     {
       "name": "SCENE_LIGHT_HEADER_FLOATS",
@@ -4290,7 +4290,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_HEADER_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_HEADER_FLOATS"
     },
     {
       "name": "SCENE_LIGHT_VERSION",
@@ -4301,7 +4301,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SCENE_LIGHT_VERSION"
     },
     {
       "name": "SCENE_PROXY_HEADER_WORDS",
@@ -4312,7 +4312,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".SCENE_PROXY_HEADER_WORDS"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".SCENE_PROXY_HEADER_WORDS"
     },
     {
       "name": "SCENE_PROXY_MAGIC",
@@ -4323,7 +4323,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".SCENE_PROXY_MAGIC"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".SCENE_PROXY_MAGIC"
     },
     {
       "name": "SCENE_PROXY_VERSION",
@@ -4334,7 +4334,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".SCENE_PROXY_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".SCENE_PROXY_VERSION"
     },
     {
       "name": "SceneEnvironment",
@@ -4345,7 +4345,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/explorerLightApi.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".SceneEnvironment"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SceneEnvironment"
     },
     {
       "name": "SceneLight",
@@ -4361,7 +4361,7 @@
         "packages/sdk-browser/webgpuPagesLightResources.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".SceneLight"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SceneLight"
     },
     {
       "name": "SceneLightingView",
@@ -4372,7 +4372,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/explorerLightApi.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".SceneLightingView"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SceneLightingView"
     },
     {
       "name": "SceneLightStore",
@@ -4389,7 +4389,7 @@
         "packages/sdk-browser/webgpuPagesStateLights.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightStore\".SceneLightStore"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".SceneLightStore"
     },
     {
       "name": "SceneProxy",
@@ -4409,7 +4409,7 @@
         "packages/sdk-browser/webgpuSunFarHold.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".SceneProxy"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".SceneProxy"
     },
     {
       "name": "SceneProxyColumns",
@@ -4420,7 +4420,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".SceneProxyColumns"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".SceneProxyColumns"
     },
     {
       "name": "SceneProxyDescriptor",
@@ -4431,7 +4431,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/proxyContracts\".SceneProxyDescriptor"
+      "bindingIdentity": "\"packages/sdk-core/proxyContracts\".SceneProxyDescriptor"
     },
     {
       "name": "screenErrorBound",
@@ -4442,7 +4442,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuDagOracleMath.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/projectionOracles\".screenErrorBound"
+      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".screenErrorBound"
     },
     {
       "name": "screenErrorVariant",
@@ -4453,7 +4453,7 @@
       "classification": "experimental",
       "affectedConsumers": ["packages/sdk-browser/gpuDagPipeline.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/screenErrorVariant\".screenErrorVariant"
+      "bindingIdentity": "\"packages/sdk-core/screenErrorVariant\".screenErrorVariant"
     },
     {
       "name": "ScreenErrorVariant",
@@ -4467,7 +4467,7 @@
         "packages/sdk-browser/gpuDagShaderError.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/screenErrorVariant\".ScreenErrorVariant"
+      "bindingIdentity": "\"packages/sdk-core/screenErrorVariant\".ScreenErrorVariant"
     },
     {
       "name": "SDK_VERSION",
@@ -4478,7 +4478,7 @@
       "classification": "public",
       "affectedConsumers": ["test/integration/contrat-public.test.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".SDK_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".SDK_VERSION"
     },
     {
       "name": "setNodeAutoUpdate",
@@ -4492,7 +4492,7 @@
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTree\".setNodeAutoUpdate"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeAutoUpdate"
     },
     {
       "name": "setNodeLocalMatrix",
@@ -4506,7 +4506,7 @@
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTree\".setNodeLocalMatrix"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeLocalMatrix"
     },
     {
       "name": "setNodePosition",
@@ -4517,7 +4517,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTree\".setNodePosition"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodePosition"
     },
     {
       "name": "setNodeQuaternion",
@@ -4528,7 +4528,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTree\".setNodeQuaternion"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeQuaternion"
     },
     {
       "name": "setNodeScale",
@@ -4539,7 +4539,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTree\".setNodeScale"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeScale"
     },
     {
       "name": "setScreenErrorVariant",
@@ -4550,7 +4550,7 @@
       "classification": "experimental",
       "affectedConsumers": ["packages/sdk-browser/explorerSession.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/screenErrorVariant\".setScreenErrorVariant"
+      "bindingIdentity": "\"packages/sdk-core/screenErrorVariant\".setScreenErrorVariant"
     },
     {
       "name": "SHADOW_CULL_FLOATS",
@@ -4564,7 +4564,7 @@
         "packages/sdk-browser/webgpuPagesEncodeShadows.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowFaces\".SHADOW_CULL_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".SHADOW_CULL_FLOATS"
     },
     {
       "name": "SHADOW_FACE_FLOATS",
@@ -4575,7 +4575,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuShadowAtlas.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowFaces\".SHADOW_FACE_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".SHADOW_FACE_FLOATS"
     },
     {
       "name": "SHADOW_FACE_SIDES",
@@ -4586,7 +4586,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowAtlas\".SHADOW_FACE_SIDES"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowAtlas\".SHADOW_FACE_SIDES"
     },
     {
       "name": "SHADOW_PAGE",
@@ -4597,7 +4597,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesEncodeShadows.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowPages\".SHADOW_PAGE"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowPages\".SHADOW_PAGE"
     },
     {
       "name": "SHADOW_SLICE_FLOATS",
@@ -4612,7 +4612,7 @@
         "packages/sdk-browser/visibilityShaderRequest.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowFaces\".SHADOW_SLICE_FLOATS"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".SHADOW_SLICE_FLOATS"
     },
     {
       "name": "ShadowFrameMetrics",
@@ -4623,7 +4623,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/shadowMetricsContracts\".ShadowFrameMetrics"
+      "bindingIdentity": "\"packages/sdk-core/shadowMetricsContracts\".ShadowFrameMetrics"
     },
     {
       "name": "ShadowPlan",
@@ -4634,7 +4634,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesStateLights.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowPlan\".ShadowPlan"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowPlan\".ShadowPlan"
     },
     {
       "name": "ShadowViewpoint",
@@ -4645,7 +4645,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesEncodeShadows.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightContracts\".ShadowViewpoint"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".ShadowViewpoint"
     },
     {
       "name": "SINGULAR_DETERMINANT_WGSL",
@@ -4659,7 +4659,7 @@
         "packages/sdk-browser/inverseTransposeWgsl.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathSingular\".SINGULAR_DETERMINANT_WGSL"
+      "bindingIdentity": "\"packages/sdk-core/mathSingular\".SINGULAR_DETERMINANT_WGSL"
     },
     {
       "name": "SLICE_OFFSET_WORDS",
@@ -4670,7 +4670,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageArrivalSpecs.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".SLICE_OFFSET_WORDS"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".SLICE_OFFSET_WORDS"
     },
     {
       "name": "SLICE_PAGE_INDEX",
@@ -4681,7 +4681,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".SLICE_PAGE_INDEX"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".SLICE_PAGE_INDEX"
     },
     {
       "name": "SLICE_WORDS",
@@ -4692,7 +4692,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageArrivalSpecs.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".SLICE_WORDS"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".SLICE_WORDS"
     },
     {
       "name": "SlimClusterManifest",
@@ -4706,7 +4706,7 @@
         "packages/sdk-node/cutoutThumb.mts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryTypes\".SlimClusterManifest"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryTypes\".SlimClusterManifest"
     },
     {
       "name": "SlimPrimitive",
@@ -4717,7 +4717,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryTypes\".SlimPrimitive"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryTypes\".SlimPrimitive"
     },
     {
       "name": "SlimPrimitiveBinary",
@@ -4728,7 +4728,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryTypes\".SlimPrimitiveBinary"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryTypes\".SlimPrimitiveBinary"
     },
     {
       "name": "solveTransportOracle",
@@ -4739,7 +4739,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingTransportOracle\".solveTransportOracle"
+      "bindingIdentity": "\"packages/sdk-core/lightingTransportOracle\".solveTransportOracle"
     },
     {
       "name": "sortPages",
@@ -4754,7 +4754,7 @@
         "packages/sdk-browser/webgpuRowSlots.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationPlan\".sortPages"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationPlan\".sortPages"
     },
     {
       "name": "SPEC_PAGE_INDEX",
@@ -4765,7 +4765,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageArrivalSpecs.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".SPEC_PAGE_INDEX"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".SPEC_PAGE_INDEX"
     },
     {
       "name": "SPEC_STREAM_OFFSET",
@@ -4776,7 +4776,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageArrivalSpecs.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".SPEC_STREAM_OFFSET"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".SPEC_STREAM_OFFSET"
     },
     {
       "name": "SPEC_TRIANGLES",
@@ -4787,7 +4787,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageArrivalSpecs.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/pageIntegrationContracts\".SPEC_TRIANGLES"
+      "bindingIdentity": "\"packages/sdk-core/pageIntegrationContracts\".SPEC_TRIANGLES"
     },
     {
       "name": "SPHERE_VALUES",
@@ -4801,7 +4801,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchStrides\".SPHERE_VALUES"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchStrides\".SPHERE_VALUES"
     },
     {
       "name": "sphereFromBounds",
@@ -4816,7 +4816,7 @@
         "packages/sdk-browser/threeBounds.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathSphere\".sphereFromBounds"
+      "bindingIdentity": "\"packages/sdk-core/mathSphere\".sphereFromBounds"
     },
     {
       "name": "sphereFromBoundsBatch",
@@ -4830,7 +4830,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchCulling\".sphereFromBoundsBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchCulling\".sphereFromBoundsBatch"
     },
     {
       "name": "srgbToLinear",
@@ -4846,7 +4846,7 @@
         "packages/sdk-browser/visibilityMath.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathColor\".srgbToLinear"
+      "bindingIdentity": "\"packages/sdk-core/mathColor\".srgbToLinear"
     },
     {
       "name": "srgbToLinearBatch",
@@ -4860,7 +4860,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchColor\".srgbToLinearBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchColor\".srgbToLinearBatch"
     },
     {
       "name": "StablePreview",
@@ -4877,7 +4877,7 @@
         "packages/sdk-browser/explorerSceneApi.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/contractsBase\".StablePreview"
+      "bindingIdentity": "\"packages/sdk-core/contractsBase\".StablePreview"
     },
     {
       "name": "STAGE_LABELS",
@@ -4888,7 +4888,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stageProfile\".STAGE_LABELS"
+      "bindingIdentity": "\"packages/sdk-core/stageProfile\".STAGE_LABELS"
     },
     {
       "name": "stageLabel",
@@ -4899,7 +4899,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/stageProfiler.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stageProfile\".stageLabel"
+      "bindingIdentity": "\"packages/sdk-core/stageProfile\".stageLabel"
     },
     {
       "name": "StageProfile",
@@ -4914,7 +4914,7 @@
         "packages/sdk-browser/stageProfiler.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stageProfile\".StageProfile"
+      "bindingIdentity": "\"packages/sdk-core/stageProfile\".StageProfile"
     },
     {
       "name": "StageProfileEntry",
@@ -4925,7 +4925,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/stageProfiler.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stageProfile\".StageProfileEntry"
+      "bindingIdentity": "\"packages/sdk-core/stageProfile\".StageProfileEntry"
     },
     {
       "name": "stageQuantiles",
@@ -4936,7 +4936,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/stageProfiler.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stageProfile\".stageQuantiles"
+      "bindingIdentity": "\"packages/sdk-core/stageProfile\".stageQuantiles"
     },
     {
       "name": "StageQuantiles",
@@ -4947,7 +4947,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stageProfile\".StageQuantiles"
+      "bindingIdentity": "\"packages/sdk-core/stageProfile\".StageQuantiles"
     },
     {
       "name": "StreamBundle",
@@ -4958,7 +4958,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/manifestPageIndex.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".StreamBundle"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".StreamBundle"
     },
     {
       "name": "StreamCatalogue",
@@ -4969,7 +4969,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageSelectionHelpers.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".StreamCatalogue"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".StreamCatalogue"
     },
     {
       "name": "summarize",
@@ -4980,7 +4980,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/cameraPath.ts", "scripts/mesure/rapport.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/stats\".summarize"
+      "bindingIdentity": "\"packages/sdk-core/stats\".summarize"
     },
     {
       "name": "Surface",
@@ -4991,7 +4991,7 @@
       "classification": "public",
       "affectedConsumers": ["test/fixtures/lightingTransportScene.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingSceneTypes\".Surface"
+      "bindingIdentity": "\"packages/sdk-core/lightingSceneTypes\".Surface"
     },
     {
       "name": "SurfaceBuffer",
@@ -5002,7 +5002,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/surfaceBuffer\".SurfaceBuffer"
+      "bindingIdentity": "\"packages/sdk-browser/surfaceBuffer\".SurfaceBuffer"
     },
     {
       "name": "SurfaceCapture",
@@ -5013,7 +5013,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/surfaceBuffer\".SurfaceCapture"
+      "bindingIdentity": "\"packages/sdk-browser/surfaceBuffer\".SurfaceCapture"
     },
     {
       "name": "TelemetryReport",
@@ -5024,7 +5024,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/telemetryTypes\".TelemetryReport"
+      "bindingIdentity": "\"packages/sdk-browser/telemetryTypes\".TelemetryReport"
     },
     {
       "name": "TerminalProgress",
@@ -5035,7 +5035,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".TerminalProgress"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".TerminalProgress"
     },
     {
       "name": "TerminalProgressOptions",
@@ -5046,7 +5046,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-node/contracts\".TerminalProgressOptions"
+      "bindingIdentity": "\"packages/sdk-node/contracts\".TerminalProgressOptions"
     },
     {
       "name": "TEXTURE_PREVIEW_VERSION",
@@ -5057,7 +5057,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesPrepareTextures.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/manifestBinaryFormat\".TEXTURE_PREVIEW_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".TEXTURE_PREVIEW_VERSION"
     },
     {
       "name": "TextureFrameMetrics",
@@ -5068,7 +5068,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuTileCounters.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/textureMetricsContracts\".TextureFrameMetrics"
+      "bindingIdentity": "\"packages/sdk-core/textureMetricsContracts\".TextureFrameMetrics"
     },
     {
       "name": "textureLevelUrl",
@@ -5079,7 +5079,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/textureLevelReader.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/textureLevelUrl\".textureLevelUrl"
+      "bindingIdentity": "\"packages/sdk-core/textureLevelUrl\".textureLevelUrl"
     },
     {
       "name": "TexturePreview",
@@ -5094,7 +5094,7 @@
         "packages/sdk-browser/webgpuTileCatalogue.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".TexturePreview"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".TexturePreview"
     },
     {
       "name": "threeLodBackend",
@@ -5105,7 +5105,7 @@
       "classification": "public",
       "affectedConsumers": ["test/justesse/cameraSitesMoteurs.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/threeLod\".threeLodBackend"
+      "bindingIdentity": "\"packages/sdk-browser/threeLod\".threeLodBackend"
     },
     {
       "name": "toAnthropicTool",
@@ -5116,7 +5116,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/toolDefinitions\".toAnthropicTool"
+      "bindingIdentity": "\"packages/sdk-core/llm/toolDefinitions\".toAnthropicTool"
     },
     {
       "name": "toGeminiTool",
@@ -5127,7 +5127,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/toolDefinitions\".toGeminiTool"
+      "bindingIdentity": "\"packages/sdk-core/llm/toolDefinitions\".toGeminiTool"
     },
     {
       "name": "toMcpTool",
@@ -5138,7 +5138,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/toolDefinitions\".toMcpTool"
+      "bindingIdentity": "\"packages/sdk-core/llm/toolDefinitions\".toMcpTool"
     },
     {
       "name": "toOpenAiTool",
@@ -5149,7 +5149,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/toolDefinitions\".toOpenAiTool"
+      "bindingIdentity": "\"packages/sdk-core/llm/toolDefinitions\".toOpenAiTool"
     },
     {
       "name": "transformAffinePoint",
@@ -5168,7 +5168,7 @@
         "packages/sdk-browser/webgpuShadowBounds.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".transformAffinePoint"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".transformAffinePoint"
     },
     {
       "name": "transformDirectionsBatch",
@@ -5182,7 +5182,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchPoints\".transformDirectionsBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchPoints\".transformDirectionsBatch"
     },
     {
       "name": "transformDirectionVector3",
@@ -5193,7 +5193,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/visibilityShadingNormal.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".transformDirectionVector3"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".transformDirectionVector3"
     },
     {
       "name": "transformHomogeneousPoint",
@@ -5207,7 +5207,7 @@
         "packages/sdk-browser/visibilityProjection.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathVector\".transformHomogeneousPoint"
+      "bindingIdentity": "\"packages/sdk-core/mathVector\".transformHomogeneousPoint"
     },
     {
       "name": "transformPointsBatch",
@@ -5221,7 +5221,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchPoints\".transformPointsBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchPoints\".transformPointsBatch"
     },
     {
       "name": "transformPointsByMatricesBatch",
@@ -5235,7 +5235,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathBatchPoints\".transformPointsByMatricesBatch"
+      "bindingIdentity": "\"packages/sdk-core/mathBatchPoints\".transformPointsByMatricesBatch"
     },
     {
       "name": "TransformTree",
@@ -5246,7 +5246,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/hostWorldTree.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTree\".TransformTree"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".TransformTree"
     },
     {
       "name": "uniformScaleMatrix4",
@@ -5257,7 +5257,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/lightingObservationTransforms.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathMatrix4Trs\".uniformScaleMatrix4"
+      "bindingIdentity": "\"packages/sdk-core/mathMatrix4Trs\".uniformScaleMatrix4"
     },
     {
       "name": "UNSPLIT_PASS",
@@ -5268,7 +5268,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/geometryContracts\".UNSPLIT_PASS"
+      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".UNSPLIT_PASS"
     },
     {
       "name": "updateCameraFrame",
@@ -5282,7 +5282,7 @@
         "packages/sdk-browser/engineCamera.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathCamera\".updateCameraFrame"
+      "bindingIdentity": "\"packages/sdk-core/mathCamera\".updateCameraFrame"
     },
     {
       "name": "updateNodeMatrixWorld",
@@ -5296,7 +5296,7 @@
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeUpdate\".updateNodeMatrixWorld"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeUpdate\".updateNodeMatrixWorld"
     },
     {
       "name": "updateNodeWorldMatrix",
@@ -5307,7 +5307,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathTransformTreeUpdate\".updateNodeWorldMatrix"
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeUpdate\".updateNodeWorldMatrix"
     },
     {
       "name": "userNotice",
@@ -5318,7 +5318,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/events\".userNotice"
+      "bindingIdentity": "\"packages/sdk-core/events\".userNotice"
     },
     {
       "name": "UserNotice",
@@ -5329,7 +5329,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/events\".UserNotice"
+      "bindingIdentity": "\"packages/sdk-core/events\".UserNotice"
     },
     {
       "name": "validateSceneEnvironment",
@@ -5340,7 +5340,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightValidate\".validateSceneEnvironment"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightValidate\".validateSceneEnvironment"
     },
     {
       "name": "validateSceneLight",
@@ -5351,7 +5351,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/importedLights.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightValidate\".validateSceneLight"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightValidate\".validateSceneLight"
     },
     {
       "name": "Vec3",
@@ -5365,7 +5365,7 @@
         "test/fixtures/lightingTransportScene.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/lightingSceneTypes\".Vec3"
+      "bindingIdentity": "\"packages/sdk-core/lightingSceneTypes\".Vec3"
     },
     {
       "name": "viewToRenderOrigin",
@@ -5376,7 +5376,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/cameraRenderOrigin.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathRenderOrigin\".viewToRenderOrigin"
+      "bindingIdentity": "\"packages/sdk-core/mathRenderOrigin\".viewToRenderOrigin"
     },
     {
       "name": "WEB_GEOMETRY_RUNTIME_TOOLS",
@@ -5387,7 +5387,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/runtimeToolsSchema\".WEB_GEOMETRY_RUNTIME_TOOLS"
+      "bindingIdentity": "\"packages/sdk-core/llm/runtimeToolsSchema\".WEB_GEOMETRY_RUNTIME_TOOLS"
     },
     {
       "name": "WEB_GEOMETRY_SYSTEM_PROMPT",
@@ -5398,7 +5398,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/systemPrompt\".WEB_GEOMETRY_SYSTEM_PROMPT"
+      "bindingIdentity": "\"packages/sdk-core/llm/systemPrompt\".WEB_GEOMETRY_SYSTEM_PROMPT"
     },
     {
       "name": "WebGeometryTool",
@@ -5409,7 +5409,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/llm/types\".WebGeometryTool"
+      "bindingIdentity": "\"packages/sdk-core/llm/types\".WebGeometryTool"
     },
     {
       "name": "webgpuPagesBackend",
@@ -5430,7 +5430,7 @@
         "test/justesse/cameraSitesMoteurs.mjs"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-browser/webgpuPages\".webgpuPagesBackend"
+      "bindingIdentity": "\"packages/sdk-browser/webgpuPages\".webgpuPagesBackend"
     },
     {
       "name": "worldToRenderOrigin",
@@ -5445,7 +5445,7 @@
         "packages/sdk-browser/taaMotion.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/mathRenderOrigin\".worldToRenderOrigin"
+      "bindingIdentity": "\"packages/sdk-core/mathRenderOrigin\".worldToRenderOrigin"
     },
     {
       "name": "writeFace",
@@ -5456,7 +5456,7 @@
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesEncodeShadows.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"/Users/pasquelin/Applications/webGeometry-121-sdk-facade/packages/sdk-core/sceneLightShadowFaces\".writeFace"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".writeFace"
     },
     {
       "name": "CameraOptics",
