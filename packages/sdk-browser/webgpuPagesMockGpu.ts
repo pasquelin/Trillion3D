@@ -101,11 +101,11 @@ export function mockGpu(
     createPipelineLayout: () => ({}),
     createRenderPipeline: (desc: {
       vertex?: { entryPoint?: string };
-      fragment?: { targets?: Array<{ format?: string }> };
+      fragment?: { entryPoint?: string; targets?: Array<{ format?: string }> };
     }) => {
       if (rejectR32 && desc.fragment?.targets?.[0]?.format === 'r32uint')
         throw new Error('NO_R32UINT');
-      return { entryPoint: desc.vertex?.entryPoint };
+      return { entryPoint: desc.vertex?.entryPoint, fragment: desc.fragment?.entryPoint };
     },
     createBindGroup: (desc: unknown) => desc,
     createCommandEncoder: createMockCommandEncoderFactory({
