@@ -5,9 +5,11 @@ import { examples } from '../../js/gallery/catalog.js';
 import { engineExample, ExampleCard } from './ExampleCard.jsx';
 import { themeOf, themes } from './roadmapThemes.js';
 import { ThemeTabs } from './ThemeTabs.jsx';
+import { galleryRoadmapEntry } from './roadmapRelated.js';
 
 const PAGE_SIZE = 24;
 const READY = [engineExample, ...examples].map((entry) => ({ ...entry, status: 'ready' }));
+const ROADMAP = roadmap.entries.map(galleryRoadmapEntry);
 const normalized = (value) =>
   value
     .normalize('NFD')
@@ -25,7 +27,7 @@ export function Gallery({ locale = 'en' }) {
   const [expanded, setExpanded] = useState('');
   const entries = useMemo(
     () =>
-      [...READY, ...roadmap.entries].filter(
+      [...READY, ...ROADMAP].filter(
         (entry) =>
           (category === 'all' || themeOf(entry) === category) &&
           searchable(entry).includes(normalized(query)),
@@ -34,7 +36,7 @@ export function Gallery({ locale = 'en' }) {
   );
   const categories = themes
     .map(([value]) => value)
-    .filter((value) => [...READY, ...roadmap.entries].some((entry) => themeOf(entry) === value));
+    .filter((value) => [...READY, ...ROADMAP].some((entry) => themeOf(entry) === value));
   const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
   const visible = entries.slice(
     Math.min(page, pages - 1) * PAGE_SIZE,
