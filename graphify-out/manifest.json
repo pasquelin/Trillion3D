@@ -12534,9 +12534,9 @@
     "semantic_hash": ""
   },
   "docs/js/engine-scene/lifecycle.js": {
-    "mtime": 1789893069.919251,
-    "seen": 1789893244.900405,
-    "ast_hash": "7ce55f9d7f7766f3265af9c6e809bb8c",
+    "mtime": 1789895792.7465684,
+    "seen": 1789895915.987241,
+    "ast_hash": "d770f45491a524907af85f0c3c25a831",
     "semantic_hash": ""
   },
   "docs/js/gallery/catalog.js": {
@@ -12636,9 +12636,9 @@
     "semantic_hash": ""
   },
   "docs/js/portal/routes.js": {
-    "mtime": 1789891549.2067783,
-    "seen": 1789891738.182562,
-    "ast_hash": "051d216fe2415a996b9e0326ccc43ade",
+    "mtime": 1789895109.2332306,
+    "seen": 1789895204.624346,
+    "ast_hash": "a55daabfcace59ef1d82d00c3333bed5",
     "semantic_hash": ""
   },
   "docs/js/portal/search.js": {
@@ -12666,9 +12666,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-portal.test.mjs": {
-    "mtime": 1789894655.8535998,
-    "seen": 1789894795.8986728,
-    "ast_hash": "f58cd26e78d28aa424bcf53b62944ca0",
+    "mtime": 1789895140.9105425,
+    "seen": 1789895204.6262999,
+    "ast_hash": "98790c0dd23e7faa3d46d4e2c95ab8d3",
     "semantic_hash": ""
   },
   "scripts/docs-scene.mjs": {
@@ -12876,9 +12876,9 @@
     "semantic_hash": ""
   },
   "docs/react/App.jsx": {
-    "mtime": 1789894661.002892,
-    "seen": 1789894795.897105,
-    "ast_hash": "d2243c7d538710613bf1e69da455129c",
+    "mtime": 1789895113.1143706,
+    "seen": 1789895204.6243489,
+    "ast_hash": "ca3ed9535dfa04ba2515cdd64754b878",
     "semantic_hash": ""
   },
   "docs/react/Entry.jsx": {
@@ -12888,9 +12888,9 @@
     "semantic_hash": ""
   },
   "docs/react/components/Canvas.jsx": {
-    "mtime": 1789892354.887305,
-    "seen": 1789892479.4036522,
-    "ast_hash": "9a59d4e5c607955b7ca5dc7b7055cd92",
+    "mtime": 1789895760.957323,
+    "seen": 1789895915.987284,
+    "ast_hash": "cd65f2f5e05bb9528539885e55296e5b",
     "semantic_hash": ""
   },
   "docs/react/components/CodeBlock.jsx": {
@@ -12924,9 +12924,9 @@
     "semantic_hash": ""
   },
   "docs/react/engine-scene/EnginePreview.jsx": {
-    "mtime": 1789894161.272861,
-    "seen": 1789894795.897114,
-    "ast_hash": "93c9df5798bb11dec21d2293a70d28e0",
+    "mtime": 1789895760.9772084,
+    "seen": 1789895915.9872918,
+    "ast_hash": "edfcef49e0fcc52c4a777f79eb5e90d7",
     "semantic_hash": ""
   },
   "docs/react/engine-scene/Guide.jsx": {
@@ -12984,9 +12984,9 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/usePlaygroundMotion.js": {
-    "mtime": 1789892247.6615493,
-    "seen": 1789892479.403667,
-    "ast_hash": "b67be4a2c6edd2c165f9ce401114b0eb",
+    "mtime": 1789895113.1142032,
+    "seen": 1789895204.624367,
+    "ast_hash": "6426f242c4b13e7affcff6602af9014a",
     "semantic_hash": ""
   },
   "docs/react/main.jsx": {
@@ -13014,9 +13014,9 @@
     "semantic_hash": ""
   },
   "docs/react/portal/Layout.jsx": {
-    "mtime": 1789892011.006525,
-    "seen": 1789892479.403671,
-    "ast_hash": "ca3ce91e6ad010eee074d3dd6cf7ffa4",
+    "mtime": 1789895109.3233526,
+    "seen": 1789895204.624371,
+    "ast_hash": "1605127ea2caf8b64c3db7bf74403176",
     "semantic_hash": ""
   },
   "docs/react/portal/Sidebar.jsx": {
@@ -13056,9 +13056,27 @@
     "semantic_hash": ""
   },
   "docs/react/portal/entryLinks.js": {
-    "mtime": 1789894634.7243645,
-    "seen": 1789894795.89713,
-    "ast_hash": "debfdddbb3db383d040450ed0144dd76",
+    "mtime": 1789895146.5519655,
+    "seen": 1789895204.624374,
+    "ast_hash": "ef8752df513ba13d98f004090eeaa752",
+    "semantic_hash": ""
+  },
+  "docs/react/portal/NotFound.jsx": {
+    "mtime": 1789895113.2083755,
+    "seen": 1789895204.624372,
+    "ast_hash": "29a19d96a90c8d14ed1ddbeed22d7a0e",
+    "semantic_hash": ""
+  },
+  "scripts/docs-not-found.test.mjs": {
+    "mtime": 1789895160.7811236,
+    "seen": 1789895204.626299,
+    "ast_hash": "1695e9479a2dd7164ca737051acceb00",
+    "semantic_hash": ""
+  },
+  "docs/react/engine-scene/SceneControls.jsx": {
+    "mtime": 1789895760.8121915,
+    "seen": 1789895915.987294,
+    "ast_hash": "050c1fafb4bc6ea0a579a460eb8291d4",
     "semantic_hash": ""
   }
 }
