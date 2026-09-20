@@ -35,7 +35,7 @@ const explorer = await createExplorer('viewer', {
     id: 'architecture',
     title: 'Architecture & rules',
     description: 'What the engine promises and the conventions every function below follows.',
-    html: `<p>The mission, in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/AGENTS.md">AGENTS.md</a>: virtualized geometry for the web at the performance of the best desktop engines — geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal antialiasing, fixed streaming and memory budgets. The lighting is what the geometry is for; its stages are in <code>docs/SPEC_ENGINE_WITHOUT_THREE.md</code> §8.</p>
+    html: `<p>The mission, in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/architecture/PRODUCT_PRINCIPLES.md">Product principles</a>: virtualized geometry for the web at the performance of the best desktop engines — geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal antialiasing, fixed streaming and memory budgets. The lighting is what the geometry is for; its stages are in <code>docs/SPEC_ENGINE_WITHOUT_THREE.md</code> §8.</p>
 <h3 class="text-lg font-bold mt-4">Conventions of the math API</h3>
 <ul class="list-disc pl-6 space-y-1">
 <li><strong>Column-major 4×4 matrices</strong> in sixteen consecutive numbers, <code>[12..14]</code> the translation — a host-library matrix copies without reordering.</li>

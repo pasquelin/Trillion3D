@@ -4,6 +4,7 @@ import { posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { gitPaths } from './git-paths.mjs';
+import { repositoryFiles } from './repository-files.mjs';
 
 const sourcePattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx)$/;
 const testPattern = /\.test\.(?:ts|mts|mjs)$/;
@@ -66,13 +67,18 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+export function existingChangedFiles(changed, root = process.cwd()) {
+  const maintained = new Set(repositoryFiles(root));
+  return [...changed].filter((file) => maintained.has(file));
+}
+
 async function main() {
   const base = process.env.WEB_GEOMETRY_BASE_REF ?? 'develop';
   const changed = new Set([
     ...(await gitPaths(['diff', '--name-only', '-z', base, '--'])),
     ...(await gitPaths(['ls-files', '--others', '--exclude-standard', '-z'])),
   ]);
-  const existing = [...changed].filter((file) => existsSync(file));
+  const existing = existingChangedFiles(changed);
   const paths = await gitPaths(['ls-files', '-z']);
   const files = new Map(
     [...new Set([...paths, ...existing])]
