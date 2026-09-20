@@ -1,4 +1,22 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+/** Synchronous configuration readers keep their contract without buffering child stdout. */
+export function gitPathsSync(args, cwd = process.cwd()) {
+  const directory = mkdtempSync(join(tmpdir(), 'geometry-git-output-'));
+  let descriptor;
+  try {
+    const output = join(directory, 'paths');
+    descriptor = openSync(output, 'w');
+    execFileSync('git', args, { cwd, stdio: ['ignore', descriptor, 'inherit'] });
+    return readFileSync(output, 'utf8').split('\0').filter(Boolean);
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
 
 /** Read NUL-separated paths without the synchronous child's output-buffer limit. */
 export async function gitPaths(args, cwd = process.cwd()) {

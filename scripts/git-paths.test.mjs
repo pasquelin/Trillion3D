@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { gitPaths } from './git-paths.mjs';
+import { gitPaths, gitPathsSync } from './git-paths.mjs';
 
 test('reads every Git path beyond 1 MiB, preserving Unicode and embedded newlines', async () => {
   const cwd = mkdtempSync(join(tmpdir(), 'geometry-git-paths-'));
@@ -21,7 +21,12 @@ test('reads every Git path beyond 1 MiB, preserving Unicode and embedded newline
     assert.ok(Buffer.byteLength(expected.join('\0')) > 1024 * 1024);
     const actual = await gitPaths(['ls-files', '--others', '--exclude-standard', '-z'], cwd);
     assert.deepEqual(actual.sort(), expected.sort());
+    assert.deepEqual(
+      gitPathsSync(['ls-files', '--others', '--exclude-standard', '-z'], cwd).sort(),
+      expected.sort(),
+    );
     await assert.rejects(gitPaths(['not-a-git-command'], cwd), /git exited/);
+    assert.throws(() => gitPathsSync(['not-a-git-command'], cwd));
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
