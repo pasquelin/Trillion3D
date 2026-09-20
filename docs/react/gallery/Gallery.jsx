@@ -4,7 +4,8 @@ import { Alert, Field } from '../components/UI.jsx';
 import { examples } from '../../js/gallery/catalog.js';
 import { engineExample, ExampleCard } from './ExampleCard.jsx';
 import { PlannedCard } from './PlannedCard.jsx';
-import { themeLabel, themeOf, themes } from './roadmapThemes.js';
+import { themeOf, themes } from './roadmapThemes.js';
+import { ThemeTabs } from './ThemeTabs.jsx';
 
 const PAGE_SIZE = 24;
 const READY = [engineExample, ...examples].map((entry) => ({ ...entry, status: 'ready' }));
@@ -70,30 +71,17 @@ export function Gallery({ locale = 'en' }) {
           />
         </Field>
       </div>
-      <div className="overflow-x-auto mb-4">
-        <div
-          className="tabs tabs-box bg-base-200 w-max min-w-full"
-          role="tablist"
-          aria-label={french ? 'Catégories d’exemples' : 'Example categories'}
-        >
-          {['all', ...categories].map((item) => (
-            <button
-              key={item}
-              type="button"
-              role="tab"
-              className={`tab whitespace-nowrap ${category === item ? 'tab-active' : ''}`}
-              aria-selected={category === item}
-              aria-pressed={category === item}
-              onClick={() => {
-                setCategory(item);
-                setPage(0);
-                setExpanded('');
-              }}
-            >
-              {item === 'all' ? (french ? 'Tous' : 'All') : themeLabel(item, locale)}
-            </button>
-          ))}
-        </div>
+      <div className="mb-4">
+        <ThemeTabs
+          active={category}
+          available={categories}
+          locale={locale}
+          onSelect={(item) => {
+            setCategory(item);
+            setPage(0);
+            setExpanded('');
+          }}
+        />
       </div>
       <p className="text-sm opacity-70 mb-4" role="status">
         {entries.length} {french ? 'résultats affichés' : 'results shown'} · {READY.length}{' '}
