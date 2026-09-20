@@ -4,6 +4,7 @@ import {
   createWaterCompositePipeline,
 } from './webgpuWaterPipelines.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
+import { sameLighting } from './webgpuBlendLighting.ts';
 import type { TransmissionBackdrop } from './webgpuPagesStateGpu.ts';
 
 /** Label of the measured pass; its GPU duration is read under this name. */
@@ -31,7 +32,7 @@ export async function createWaterComposite(device: GPUDevice) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const packed = new Float32Array(WATER_VIEW_SIZE / 4);
-  let bound: (object | undefined)[] = [],
+  let bound: (WaterCompositeResources & { lighting: BlendLighting }) | undefined,
     group: GPUBindGroup | undefined;
   return {
     /** Inverse view-projection and viewport of the image: what reconstructs a world position from
@@ -42,33 +43,23 @@ export async function createWaterComposite(device: GPUDevice) {
       packed[17] = height;
       device.queue.writeBuffer(view, 0, packed);
     },
+    /** The backdrop names its views and its surfaces: its identity is theirs, it changes on resize. */
     bind(resources: WaterCompositeResources, lighting: BlendLighting) {
       const b = WATER_BINDINGS,
-        { backdrop, uniform, volumes } = resources,
-        surfaces = backdrop.surfaces.views();
-      const named = [
-        ...surfaces,
-        backdrop.waterDepthView,
-        backdrop.colorView,
-        backdrop.depthView,
-        uniform,
-        volumes,
-        lighting.directLights,
-        lighting.tileLights,
-        lighting.shadowSlices,
-        lighting.shadowAtlas,
-        lighting.shadowSampler,
-        lighting.bounceGrid,
-        lighting.probes,
-        lighting.proxy,
-      ];
-      if (group && named.length === bound.length && named.every((item, i) => item === bound[i]))
+        { backdrop, uniform, volumes } = resources;
+      if (
+        bound &&
+        bound.backdrop === backdrop &&
+        bound.uniform === uniform &&
+        bound.volumes === volumes &&
+        sameLighting(bound.lighting, lighting)
+      )
         return;
-      bound = named;
+      bound = { backdrop, uniform, volumes, lighting };
       group = device.createBindGroup({
         layout,
         entries: [
-          ...surfaces.map((resource, binding) => ({ binding, resource })),
+          ...backdrop.surfaces.views().map((resource, binding) => ({ binding, resource })),
           { binding: b.depth, resource: backdrop.waterDepthView },
           { binding: b.backdrop, resource: backdrop.colorView },
           { binding: b.backdropDepth, resource: backdrop.depthView },
@@ -101,7 +92,7 @@ export async function createWaterComposite(device: GPUDevice) {
     dispose() {
       view.destroy();
       group = undefined;
-      bound = [];
+      bound = undefined;
     },
   };
 }
