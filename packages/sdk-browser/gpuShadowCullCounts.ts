@@ -26,8 +26,12 @@ export function sumKeptClusters(words: Uint32Array, regions: number) {
  */
 export function createGpuShadowCullCounts(device: GPUDevice) {
   const counted: ShadowCullCounts = { frame: -1, regions: 0, kept: 0 };
-  let sampledRegions = 0;
+  let sampledRegions = 0,
+    sampledFrame = -1;
+  // The three fields move together, when the sample returns: a count is never named by a
+  // frame it does not describe.
   const reader = createGpuPeriodicReadback((mapped) => {
+    counted.frame = sampledFrame;
     counted.regions = sampledRegions;
     counted.kept = sumKeptClusters(new Uint32Array(mapped), sampledRegions);
   });
@@ -44,7 +48,7 @@ export function createGpuShadowCullCounts(device: GPUDevice) {
       if (!regions || !reader.due(frame)) return;
       reader.copy(encoder, indirect, 0, regions * DRAW_INDIRECT_STRIDE);
       sampledRegions = regions;
-      counted.frame = frame;
+      sampledFrame = frame;
       reader.sampled(frame);
     },
     /** Requests mapping of the sample, once the frame that copied it is submitted. */
