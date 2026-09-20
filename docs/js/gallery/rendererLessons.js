@@ -6,6 +6,7 @@ const title = (en, fr) => ({ en, fr });
 const control = (id, en, fr, min, max, value, step) => ({
   id,
   label: title(en, fr),
+  type: min === 0 && max === 1 && step === 1 ? 'boolean' : 'range',
   min,
   max,
   value,
@@ -102,21 +103,53 @@ export const rendererLessons = [
   {
     id: 'runtime-pixel-error',
     category: 'streaming',
-    functions: ['setPixelError'],
-    title: title('Set the live LOD threshold', 'Régler le seuil LOD en direct'),
-    description: title(
-      'Change the projected-error threshold while the same streamed scene stays framed.',
-      'Changez le seuil d’erreur projetée en gardant la même scène streamée cadrée.',
+    functions: ['setPixelError', 'setDiagnostic'],
+    title: title(
+      'Cross the observatory at any scale',
+      'Traverser l’observatoire à toutes les échelles',
     ),
-    controls: [control('pixelError', 'Pixel error', 'Erreur en pixels', 0, 8, 0, 0.25)],
-    kind: 'lod',
+    description: title(
+      'Move through a detailed architectural scene while its geometry adapts to the view.',
+      'Parcourez une scène architecturale détaillée dont la géométrie s’adapte à la vue.',
+    ),
+    controls: [
+      control('pixelError', 'Detail tolerance', 'Tolérance de détail', 0, 8, 1, 0.25),
+      {
+        ...control(
+          'showLevels',
+          'Show detail levels',
+          'Afficher les niveaux de détail',
+          0,
+          1,
+          0,
+          1,
+        ),
+        legend: [
+          { color: '#38bdf8', label: title('Exact detail', 'Détail exact') },
+          { color: '#f59e0b', label: title('Coarse fallback', 'Relais simplifié') },
+        ],
+      },
+    ],
+    kind: 'lod-diagnostic',
+    initialPose: { position: [19, 13, 22], target: [0, 3, 0] },
+    referenceCoverage: { webgl_lod: 'full', webgl_batch_lod_bvh: 'partial' },
+    referenceReview: {
+      urls: [
+        'https://threejs.org/examples/webgl_lod.html',
+        'https://threejs.org/examples/webgl_batch_lod_bvh.html',
+      ],
+      observed:
+        'A deep field makes distance and changing mesh density legible throughout the image; the batched variant adds many instances and spatial queries.',
+      originalGoal:
+        'A navigable original observatory keeps architecture readable in beauty mode, then exposes the continuously selected cluster cut on demand.',
+    },
     try: title(
-      'Raise the threshold while watching triangle count.',
-      'Montez le seuil en observant le nombre de triangles.',
+      'Orbit from the dome to the colonnade, then raise tolerance and reveal the selected levels.',
+      'Tournez autour du dôme et de la colonnade, puis augmentez la tolérance et affichez les niveaux sélectionnés.',
     ),
     changes: title(
-      'The selected DAG cut becomes coarser.',
-      'La coupe sélectionnée dans le DAG devient plus grossière.',
+      'The triangle count falls as tolerance rises; level colours show where fine details give way.',
+      'Le nombre de triangles baisse avec la tolérance ; les couleurs montrent où les détails fins cèdent.',
     ),
   },
   {
