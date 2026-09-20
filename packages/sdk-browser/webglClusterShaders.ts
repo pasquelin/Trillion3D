@@ -25,6 +25,7 @@ vec3 H=normalize(V+L);float nh=max(dot(N,H),0.0),vh=max(dot(V,H),0.0);float a=ma
 float d0=nh*nh*(a2-1.0)+1.0,D=a2/(PI*d0*d0);float gv=nl*sqrt(nv*nv*(1.0-a2)+a2),gl=nv*sqrt(nl*nl*(1.0-a2)+a2);
 float Vis=0.5/(gv+gl+1e-7);vec3 F=fresnel(vh,mix(vec3(0.04),base,metal));return(base*(1.0-metal)/PI+D*Vis*F)*nl;}
 float attenuation(float distance,float range){float a=1.0/max(distance*distance,0.01);if(range>0.0){float r=distance/range;a*=pow(clamp(1.0-r*r*r*r,0.0,1.0),2.0);}return a;}
+float spotFactor(float cosine,float inner,float outer){return inner<=outer?(cosine>=outer?1.0:0.0):smoothstep(outer,inner,cosine);}
 vec3 aces(vec3 c){c/=0.6;c=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.13383,0.04823,0.01566,0.83777)*c;
 vec3 a=c*(c+0.0245786)-0.000090537,b=c*(0.983729*c+0.4329510)+0.238081;c=a/b;
 return clamp(mat3(1.60475,-0.10208,-0.00327,-0.53108,1.10813,-0.07276,-0.07367,-0.00605,1.07602)*c,0.0,1.0);}
@@ -39,7 +40,7 @@ vec3 rgb=vec3(0.0),V=normalize(-viewPosition);float ao=1.0;if((mapMask&16)!=0)ao
 vec4 positionRange=lightData[i*4],directionKind=lightData[i*4+1],colorIntensity=lightData[i*4+2],cone=lightData[i*4+3];
 int kind=int(directionKind.w);if(kind==3){rgb+=base.rgb*(1.0-metal)/PI*colorIntensity.rgb*colorIntensity.w*ao;continue;}
 vec3 L;float falloff=1.0;if(kind==0)L=normalize(-directionKind.xyz);else{vec3 delta=positionRange.xyz-viewPosition;float d=length(delta);L=delta/max(d,1e-6);falloff=attenuation(d,positionRange.w);
-if(kind==2){float c=dot(L,normalize(-directionKind.xyz));falloff*=smoothstep(cone.y,cone.x,c);}}
+if(kind==2){float c=dot(L,normalize(-directionKind.xyz));falloff*=spotFactor(c,cone.x,cone.y);}}
 rgb+=brdf(N,V,L,base.rgb,metal,rough)*colorIntensity.rgb*colorIntensity.w*falloff;}}
-else rgb=base.rgb;
+else rgb=base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;if(toneMapped)rgb=aces(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,base.a);}`;
