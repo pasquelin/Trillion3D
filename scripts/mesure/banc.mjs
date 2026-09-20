@@ -27,6 +27,8 @@ import { startServer } from './serveur.mjs';
 import { readBounds } from './page.mjs';
 import { imageDiff, resume } from './rapport.mjs';
 import { benchLights } from './lampes.mjs';
+import { measurementProvenance } from './report/provenance.mjs';
+import { recordInputs, recordCuts } from './report/evidence.mjs';
 import { runSerie } from './serie.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
@@ -68,6 +70,8 @@ async function main() {
 
   const report = {
     startedAt: new Date().toISOString(),
+    provenance: measurementProvenance(),
+    campaignIdentity: process.env.WG_CAMPAIGN_IDENTITY ?? null,
     commande: `node scripts/mesure/banc.mjs ${process.argv.slice(2).join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     scene,
@@ -81,6 +85,7 @@ async function main() {
     errors: [],
   };
 
+  await recordInputs(report, sides);
   const server = await startServer({
     port: settings.port,
     mounts,
@@ -94,6 +99,7 @@ async function main() {
   // ("WebGL2 unavailable"). Relaunching browser frees GPU process between series.
   const onFreshPage = async (run) => {
     const browser = await launchChrome({ headless: !settings.visible, args: FLAGS });
+    report.provenance.browser = browser.version();
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
     });
@@ -174,6 +180,7 @@ async function main() {
   }
 
   report.finishedAt = new Date().toISOString();
+  recordCuts(report, sides, OUT);
   await writeFile(join(OUT, 'mesure.json'), JSON.stringify(report, null, 1));
   await writeFile(join(OUT, 'resume.md'), resume(report));
   process.stdout.write(`\nJSON: ${join(OUT, 'mesure.json')}\nSummary: ${join(OUT, 'resume.md')}\n`);
