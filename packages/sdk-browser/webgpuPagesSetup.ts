@@ -131,8 +131,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
       : 16 * 1024 * 1024,
   );
   // Milliseconds a frame's tile pass may spend, the reference's fixed upload cadence in the
-  // frame's own unit: a value under zero would defer everything, so it is brought back to zero,
-  // where one tile per pass still lands.
+  // frame's own unit; normalised to zero, where one tile per pass still lands.
   const textureUploadMs = Math.max(
     0,
     Number.isFinite(context.maxTextureUploadMsPerFrame)
