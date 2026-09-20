@@ -68,7 +68,7 @@ export function writeConeVolume(
 
 /**
  * Box that reject opposes to a region of a cascade. An orthography has no apex: the region
- * cuts a sub-box of the window box — its rectangle on the light plane, the whole depth along
+ * cuts a sub-box of the extent box — its rectangle on the light plane, the whole depth along
  * the axis — and that box, in the frame of the last composed face, is the volume. The cull
  * shader reads a negative half-angle as "box": centre, then the three axes with their
  * half-extents, the depth one in `far`.

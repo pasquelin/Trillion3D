@@ -1,6 +1,6 @@
 // `cascadeSlide`: a still camera, or a step smaller than a page, keeps the sun cascades; a
-// step of whole pages slides the window and only the entering strip restarts; a step of a
-// window side or more restarts the cascade in full.
+// step of whole pages slides the extent and only the entering strip restarts; a step of a
+// extent side or more restarts the cascade in full.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from './sceneLightStore.ts';
@@ -65,7 +65,7 @@ test('a step smaller than a texel of the near cascade stales nothing', () => {
     position: [VIEW.position[0] + texel * 0.25, VIEW.position[1], VIEW.position[2]],
   };
   plan.plan(store, nudged, next, next * 16);
-  assert.equal(plan.counts.invalidatedPages, 0, 'the world window is the same');
+  assert.equal(plan.counts.invalidatedPages, 0, 'the world extent is the same');
   assert.equal(plan.counts.reused, 1);
 });
 
@@ -90,7 +90,7 @@ test('a step of one page along the light plane slides the near cascade: one stri
     assert.equal(plan.regions.faceOf(region), 0, 'the coarser cascades did not move by a page');
 });
 
-test('a step of a whole window side restarts the cascade in full', () => {
+test('a step of a whole extent side restarts the cascade in full', () => {
   const store = createSceneLightStore();
   const plan = createShadowPlan(24);
   store.add(SUN);

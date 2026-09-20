@@ -16,8 +16,8 @@ import {
 export const MAX_SHADOW_REGIONS = LIGHT_SETTINGS.shadowUpdatesPerFrame * POINT_FACES;
 /**
  * Fourth float of a drawn face's rectangle: `1 + wx + 16·wy`, the physical page of the
- * window origin, so the read wraps window coordinates onto the face. Zero says "never
- * drawn"; a point or spot face, whose window never slides, carries one.
+ * extent origin, so the read wraps extent coordinates onto the face. Zero says "never
+ * drawn"; a point or spot face, whose extent never slides, carries one.
  */
 export const WRAP_BASE = 16;
 export const wrapKey = (wx: number, wy: number) => 1 + wx + WRAP_BASE * wy;
@@ -46,7 +46,7 @@ export function createShadowSlicePack(size: number, faceStride: number) {
       return true;
     },
     /**
-     * Writes a region into both buffers. The matrix is that of the whole window, never of the
+     * Writes a region into both buffers. The matrix is that of the whole extent, never of the
      * region: that is what makes the page draw identical to the bit. `matrices` carries it at
      * `matrixBase`; nothing is copied into an intermediate array, and two regions of the same
      * face rewrite the same numbers there.
@@ -57,7 +57,7 @@ export function createShadowSlicePack(size: number, faceStride: number) {
      * zero radius, and the comparison then strips nothing.
      *
      * `shiftX`/`shiftY` translate the draw matrix alone, in clip units: whole pages, so the
-     * region's window pages land on their physical pages. The slice keeps the window matrix
+     * region's extent pages land on their physical pages. The slice keeps the extent matrix
      * and `wrap`, the key the read unwraps it with.
      */
     writeRegion(

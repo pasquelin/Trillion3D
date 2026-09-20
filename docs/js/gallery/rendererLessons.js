@@ -80,7 +80,7 @@ export const rendererLessons = [
       'Tournez le soleil, puis zoomez ou orbitez à soleil fixe, et lisez les pages d’ombre que chaque geste redessine.',
     ),
     changes: title(
-      'A new sun direction restarts every page of the four cascades; a camera move slides their windows by whole pages and redraws only the strips that enter; a still camera redraws nothing.',
+      'A new sun direction restarts every page of the four cascades; a camera move slides their extents by whole pages and redraws only the strips that enter; a still camera redraws nothing.',
       'Une nouvelle direction du soleil relance toutes les pages des quatre cascades ; un déplacement de caméra fait glisser leurs fenêtres par pages entières et ne redessine que les bandes qui entrent ; une caméra immobile ne redessine rien.',
     ),
   },

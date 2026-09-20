@@ -34,7 +34,7 @@ rerun benchmarks.
 
 Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the public `sceneLighting` option of `createExplorer` (`pageTemoin.mjs`, served to page under `/mesure/` and imported by URL). Nothing is hardcoded: everything comes from `explorer.lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
 
-The mapping is exact in Three units: linear color, unscaled radiometric intensity, `distance` = range, `decay` = 2, yielding windowed inverse square of `directIncidence`; spotlight cone edge is matched by penumbra. Each side publishes in its `lampesTemoin` record what it received, or `null` if not rendered with Three.
+The mapping is exact in Three units: linear color, unscaled radiometric intensity, `distance` = range, `decay` = 2, yielding extented inverse square of `directIncidence`; spotlight cone edge is matched by penumbra. Each side publishes in its `lampesTemoin` record what it received, or `null` if not rendered with Three.
 
 What the witness does not render, named rather than guessed: **no shadow casting** — the SDK's Three renderer does not enable shadow maps. A fidelity campaign is run `--ombres off` on both sides, otherwise measured delta reflects shadows rendered solely by our engine.
 
@@ -43,8 +43,8 @@ What the witness does not render, named rather than guessed: **no shadow casting
 - `--empreinte-ombres`: flushes shadow page queue, re-reads depth atlas, and publishes footprint in `series[].sides[].atlasOmbres` (`hash`, `written`, `pagesEnAttente`, `images`). Disabled by default: this is a 64 MB read, not an image timing. Use only with deterministic poses and lights.
 - `--instances N` (1, 4, 9 or 12): SDK places N grid copies of the object (`replicaCount`). Default 1. Runs affecting instancing should measure both counts, and the report shows published geometry memory per line ("geometry (MB)" column: page cache bytes plus vertex buffers, `null` if unrecorded).
 - `--chemin-math auto|js|wasm` (default `auto`): execution path for core batch computations. `auto` lets governor decide by measurement — no hardcoded threshold in code —, `js` and `wasm` force it for the entire run, comparing paths on identical scene, poses and cache. The "Batch Math Path" table in `resume.md` publishes, per side and per operation, the path taken, medians in nanoseconds per item, transitions, and item count; full report in `series[].sides[].cheminCalcul`. Unexecuted operation median is "unmeasured", never zero.
-- `--visible`: opens a real window. Without a window, display caps at 60 Hz on macOS.
-- `--images-profil` (default 120): number of trailing measured frames included in the per-stage profile. The profile is reset before that moving-window suffix; it does not substitute a still-pose loop for the measured path.
+- `--visible`: opens a real extent. Without an extent, display caps at 60 Hz on macOS.
+- `--images-profil` (default 120): number of trailing measured frames included in the per-stage profile. The profile is reset before that moving-extent suffix; it does not substitute a still-pose loop for the measured path.
 
 The measured camera path also advances once per `requestAnimationFrame` on both sides. Its
 `rafIntervalMs` distribution is the real moving-frame envelope, including browser backpressure and
