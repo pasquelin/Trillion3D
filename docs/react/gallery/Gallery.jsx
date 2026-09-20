@@ -4,7 +4,7 @@ import { Alert, Field } from '../components/UI.jsx';
 import { examples } from '../../js/gallery/catalog.js';
 import { engineExample, ExampleCard } from './ExampleCard.jsx';
 import { PlannedCard } from './PlannedCard.jsx';
-import { categoryLabel } from './roadmapLabels.js';
+import { themeLabel, themeOf, themes } from './roadmapThemes.js';
 
 const PAGE_SIZE = 24;
 const READY = [engineExample, ...examples].map((entry) => ({ ...entry, status: 'ready' }));
@@ -19,8 +19,7 @@ const searchable = (entry) =>
   );
 
 export function Gallery({ locale = 'en' }) {
-  const [query, setQuery] = useState(''),
-    [status, setStatus] = useState('all');
+  const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all'),
     [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState('');
@@ -28,15 +27,14 @@ export function Gallery({ locale = 'en' }) {
     () =>
       [...READY, ...roadmap.entries].filter(
         (entry) =>
-          (status === 'all' || entry.status === status) &&
-          (category === 'all' || entry.category === category) &&
+          (category === 'all' || themeOf(entry) === category) &&
           searchable(entry).includes(normalized(query)),
       ),
-    [query, status, category],
+    [query, category],
   );
-  const categories = [
-    ...new Set([...READY, ...roadmap.entries].map(({ category: value }) => value)),
-  ];
+  const categories = themes
+    .map(([value]) => value)
+    .filter((value) => [...READY, ...roadmap.entries].some((entry) => themeOf(entry) === value));
   const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
   const visible = entries.slice(
     Math.min(page, pages - 1) * PAGE_SIZE,
@@ -72,45 +70,30 @@ export function Gallery({ locale = 'en' }) {
           />
         </Field>
       </div>
-      <div className="flex flex-wrap gap-3 items-end mb-4">
+      <div className="overflow-x-auto mb-4">
         <div
-          className="tabs tabs-box bg-base-200"
+          className="tabs tabs-box bg-base-200 w-max min-w-full"
           role="tablist"
-          aria-label={french ? 'État' : 'Status'}
+          aria-label={french ? 'Catégories d’exemples' : 'Example categories'}
         >
-          {['all', 'ready', 'planned'].map((item) => (
+          {['all', ...categories].map((item) => (
             <button
               key={item}
               type="button"
               role="tab"
-              className={`tab ${status === item ? 'tab-active' : ''}`}
-              aria-selected={status === item}
-              aria-pressed={status === item}
+              className={`tab whitespace-nowrap ${category === item ? 'tab-active' : ''}`}
+              aria-selected={category === item}
+              aria-pressed={category === item}
               onClick={() => {
-                setStatus(item);
+                setCategory(item);
                 setPage(0);
+                setExpanded('');
               }}
             >
-              {
-                {
-                  all: french ? 'Tous' : 'All',
-                  ready: french ? 'Prêts' : 'Ready',
-                  planned: french ? 'En création' : 'In development',
-                }[item]
-              }
+              {item === 'all' ? (french ? 'Tous' : 'All') : themeLabel(item, locale)}
             </button>
           ))}
         </div>
-        <Field label={french ? 'Catégorie' : 'Category'}>
-          <select className="select select-sm" value={category} onChange={filter(setCategory)}>
-            <option value="all">{french ? 'Toutes' : 'All'}</option>
-            {categories.map((item) => (
-              <option key={item} value={item}>
-                {roadmap.categories[item]?.[french ? 'fr' : 'en'] ?? categoryLabel(item, locale)}
-              </option>
-            ))}
-          </select>
-        </Field>
       </div>
       <p className="text-sm opacity-70 mb-4" role="status">
         {entries.length} {french ? 'résultats affichés' : 'results shown'} · {READY.length}{' '}
