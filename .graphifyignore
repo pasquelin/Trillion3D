@@ -1,2 +1,5 @@
 # Generated documentation bundles are build outputs, not source modules.
 /docs/runtime/
+
+# Generated report evidence; maintained exporters and presentation are indexed.
+docs/reports/
