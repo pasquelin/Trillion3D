@@ -30,8 +30,8 @@ test('ignored personal content stays outside shared checks and force-addition is
     git('rm', '--cached', 'docs/PRIVATE.md');
     const changed = new Set(['docs/PRIVATE.md', 'docs/guide.md']);
     assert.deepEqual(existingChangedFiles(changed, root), ['docs/guide.md']);
-    writeFileSync(join(root, 'personal/helper.mjs'), "import { hidden } from '@web-geometry/sdk';");
-    writeFileSync(join(root, 'consumer.mjs'), "import { visible } from '@web-geometry/sdk';");
+    writeFileSync(join(root, 'personal/helper.mjs'), "import { hidden } from 'web-geometry';");
+    writeFileSync(join(root, 'consumer.mjs'), "import { visible } from 'web-geometry';");
     assert.deepEqual([...consumerImports(root)], [['visible', new Set(['consumer.mjs'])]]);
   } finally {
     rmSync(root, { recursive: true, force: true });

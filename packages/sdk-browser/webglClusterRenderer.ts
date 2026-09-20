@@ -15,6 +15,9 @@ import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './webglClus
 import { WebglClusterMaterialUniforms } from './webglClusterMaterialUniforms.ts';
 import { createClusterProgram } from './webglClusterProgram.ts';
 import { validateClusterMeshes } from './webglClusterValidation.ts';
+import type * as THREE from 'three';
+import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './webglClusterSubmit.ts';
+type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 const IDENTITY_MATRIX3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
@@ -32,17 +35,7 @@ export class WebglClusterRenderer {
     ClusterDrawMesh['geometry']['attributes']
   >();
   private materialUniforms: WebglClusterMaterialUniforms;
-  private multiDraw: {
-    multiDrawElementsWEBGL(
-      mode: number,
-      counts: Int32Array,
-      countsOffset: number,
-      type: number,
-      offsets: Int32Array,
-      offsetsOffset: number,
-      drawCount: number,
-    ): void;
-  } | null;
+  private multiDraw: MultiDraw | null;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     const program = (this.program = createClusterProgram(gl));
@@ -64,7 +57,7 @@ export class WebglClusterRenderer {
       this.uniforms.set(name, this.gl.getUniformLocation(this.program, name));
     return this.uniforms.get(name)!;
   }
-  private material(material: Exclude<ClusterDrawMesh['material'], unknown[]>, toneMapped: boolean) {
+  private material(material: Material, toneMapped: boolean, side?: number, bias?: Material) {
     const source = material as { opacity: number },
       mat = visMaterial(material);
     const basic = material as import('three').MeshBasicMaterial,
@@ -76,7 +69,7 @@ export class WebglClusterRenderer {
       mat.baseColor[0],
       mat.baseColor[1],
       mat.baseColor[2],
-      source.opacity,
+      material.transparent ? source.opacity : 1,
     );
     this.materialUniforms.f1(4, 'metalFactor', mat.metalness);
     this.materialUniforms.f1(5, 'roughFactor', mat.roughness);
@@ -133,7 +126,46 @@ export class WebglClusterRenderer {
       aoMap?.channel ?? 0,
       mat.emissiveMap?.channel ?? 0,
     );
-    this.state.apply(material, mat.doubleSided, mat.backSide);
+    const doubleSided = side === undefined ? mat.doubleSided : false,
+      backSide = side === undefined ? mat.backSide : side === 1;
+    this.state.apply(material, doubleSided, backSide, bias);
+  }
+  private pass(
+    mesh: ClusterDrawMesh | THREE.Mesh,
+    material: THREE.Material,
+    toneMapped: boolean,
+    diagnostic: boolean,
+    passSide?: number,
+    polygonMaterial?: THREE.Material,
+  ) {
+    if (!material.visible) return 0;
+    this.material(material, toneMapped, passSide, polygonMaterial);
+    if (diagnostic) submitDiagnosticMesh(this.gl, mesh);
+    else submitClusterMesh(this.gl, this.multiDraw, mesh as ClusterDrawMesh);
+    return 1;
+  }
+  private mesh(
+    mesh: ClusterDrawMesh | THREE.Mesh,
+    camera: HostDrawCamera,
+    toneMapped: boolean,
+    diagnostic: boolean,
+  ) {
+    const gl = this.gl;
+    this.geometry.bind(mesh.geometry);
+    const model = mesh.matrix.elements;
+    multiplyMatrix4(this.modelView, camera.view, model);
+    this.state.applyWinding(model);
+    gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelView);
+    normalMatrix3(this.normal, this.modelView);
+    setMatrix3(gl, this.at('normalMatrix'), this.normal);
+    let submitted = 0;
+    if (Array.isArray(mesh.material)) {
+      const source = (mesh as ClusterDrawMesh)._sideSplitSource!;
+      const polygon = (mesh as ClusterDrawMesh)._sideSplitPolygonMaterials;
+      submitted += this.pass(mesh, source, toneMapped, diagnostic, 1, polygon?.[0]);
+      submitted += this.pass(mesh, source, toneMapped, diagnostic, 0, polygon?.[1]);
+    } else submitted = this.pass(mesh, mesh.material, toneMapped, diagnostic);
+    return submitted;
   }
   draw(
     meshes: readonly ClusterDrawMesh[],
@@ -141,54 +173,22 @@ export class WebglClusterRenderer {
     camera: HostDrawCamera,
     toneMapped: boolean,
     srgbDestination: boolean,
+    diagnosticMeshes: readonly THREE.Mesh[] = [],
   ) {
     const gl = this.gl;
     const lightReason = unsupportedClusterLight(scene);
     if (lightReason) throw new Error(`Unsupported autonomous cluster light: ${lightReason}`);
-    validateClusterMeshes(meshes, this.validatedMaterials);
+    validateClusterMeshes(meshes, diagnosticMeshes, this.validatedMaterials);
     this.state.invalidate();
     gl.useProgram(this.program);
     gl.disable(gl.STENCIL_TEST);
-    gl.disable(gl.BLEND);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
     this.textures.invalidateBindings();
-    let submitted = 0,
-      previousMaterial: Exclude<ClusterDrawMesh['material'], unknown[]> | undefined;
-    for (const mesh of meshes) {
-      if (Array.isArray(mesh.material) || !mesh.material.visible) continue;
-      this.geometry.bind(mesh.geometry);
-      if (mesh.material !== previousMaterial) {
-        this.material(mesh.material, toneMapped);
-        previousMaterial = mesh.material;
-      }
-      const model = mesh.matrix.elements;
-      multiplyMatrix4(this.modelView, camera.view, model);
-      this.state.applyWinding(model);
-      gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelView);
-      normalMatrix3(this.normal, this.modelView);
-      setMatrix3(gl, this.at('normalMatrix'), this.normal);
-      if (this.multiDraw)
-        this.multiDraw.multiDrawElementsWEBGL(
-          gl.TRIANGLES,
-          mesh._multiDrawCounts,
-          0,
-          gl.UNSIGNED_INT,
-          mesh._multiDrawStarts,
-          0,
-          mesh._multiDrawCount,
-        );
-      else
-        for (let i = 0; i < mesh._multiDrawCount; i++)
-          gl.drawElements(
-            gl.TRIANGLES,
-            mesh._multiDrawCounts[i],
-            gl.UNSIGNED_INT,
-            mesh._multiDrawStarts[i],
-          );
-      submitted++;
-    }
+    let submitted = 0;
+    for (const mesh of meshes) submitted += this.mesh(mesh, camera, toneMapped, false);
+    for (const mesh of diagnosticMeshes) submitted += this.mesh(mesh, camera, toneMapped, true);
     return submitted;
   }
   dispose() {
