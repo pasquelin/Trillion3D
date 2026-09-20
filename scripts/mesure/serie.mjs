@@ -55,6 +55,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowDigest: settings.shadowDigest,
     // Textures read from the cache: only for an engine that reads the atlas, never the witness.
     textureSource: settings.textureSource,
+    textureUploadMs: settings.textureUploadMs,
     temporalAntialiasing: settings.temporalAntialiasing,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
@@ -103,14 +104,14 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     drawnTriangles: metrics.drawnTriangles ?? null,
     // Triangles actually submitted to draw, recorded on the last measured frame — `imageDuReleve`
     // names it. `submittedTriangles` is the opaque pass, `totalSubmittedTriangles` adds the
-    // transparent passes. `null` when the GPU count had not yet returned at that
-    // moment: the GPU-chosen cut publishes its totals after the fact.
+    // transparent passes. `null` when the GPU count had not yet returned: the GPU-chosen cut
+    // publishes its totals after the fact.
     submittedTriangles: metrics.submittedTriangles ?? null,
     totalSubmittedTriangles: metrics.totalSubmittedTriangles ?? null,
     imageDuReleve: settings.frames > 0 ? settings.frames - 1 : null,
-    // Was the recorded frame held? A held frame re-encodes only a present: its
-    // submitted triangles are zero because it drew nothing, not because nothing counted.
-    // Without this witness, that zero is indistinguishable from an empty frame. `null` outside this engine.
+    // Was the recorded frame held? A held frame re-encodes only a present: its submitted triangles
+    // are zero because it drew nothing, not because nothing counted. Without this witness, that
+    // zero is indistinguishable from an empty frame. `null` outside this engine.
     imageTenue: metrics.frameHeld ?? null,
     // Selection fallback: true when this engine had a GPU-chosen cut and
     // abandoned it for the CPU backup cut. `null` on an engine with no GPU cut.
@@ -154,9 +155,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     lampesFichier: result.importedLights ?? null,
     // What the Three witness received from the store; `null` when this side does not draw through Three.
     lampesTemoin: result.lampesTemoin ?? null,
-    // Shadow-atlas fingerprint, read once the queue is empty. Two runs that
-    // differ only by `--ombres-pages` must yield the same: that is the proof that drawing
-    // by pages is bit-identical to a full redraw.
+    // Shadow-atlas fingerprint, read once the queue is empty. Two runs that differ only by
+    // `--ombres-pages` must yield the same: the proof that page drawing equals a full redraw.
     atlasOmbres: result.shadowAtlas ?? null,
     objetMobile: result.movingNode ?? null,
     charge: { debut, fin },

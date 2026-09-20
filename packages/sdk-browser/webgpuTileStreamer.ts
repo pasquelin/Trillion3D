@@ -1,26 +1,26 @@
 import { TILE_BYTES } from './textureTiles.ts';
 import type { TextureLevelReader } from './textureLevelReader.ts';
-import {
-  createWebgpuTileAtlas,
-  type TileTexture,
-  type WebgpuTileAtlas,
-} from './webgpuTileAtlas.ts';
+import { createWebgpuTileAtlas, type TileTexture } from './webgpuTileAtlas.ts';
 import { createWebgpuTileFeedback } from './webgpuTileFeedback.ts';
 import { createTileSources } from './webgpuTileSources.ts';
 import { createWebgpuTileReduce } from './webgpuTileReduce.ts';
-import type { TileKey } from './webgpuTilePageTable.ts';
 import { createTileCounters } from './webgpuTileCounters.ts';
-
-type Request = { atlas: WebgpuTileAtlas; key: TileKey; weight: number };
+import { createTileRequests } from './webgpuTileRequests.ts';
 
 /**
- * Tile streamer: what the image asked becomes resident, under a per-image byte budget, most looked-
- * at tile first. Image-feedback counters name the tiles; the streamer touches those that reside,
- * reads the cooked levels of the others and copies them as soon as their bytes are there, yielding
- * the least looked-at slots when the pool is full.
+ * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
+ * milliseconds, most looked-at tile first. Image-feedback counters name the tiles; the streamer
+ * touches those that reside, reads the cooked levels of the others and copies them as soon as
+ * their bytes are there, yielding the least looked-at slots when the pool is full.
+ *
+ * Both budgets are fixed by the host, never read off the machine. The millisecond one is what
+ * keeps a cold traversal from stalling the frame: a pass stops copying once it has spent it, the
+ * remainder is deferred to the next pass — shown meanwhile by its finest resident ancestor level —
+ * and the worst pass of the session is published (`textureUploadPeakMs`), since a stutter is a
+ * peak, never a median.
  *
  * Nothing waits here: a tile whose level is still being read will come back on the next feedback.
- * Only the barrier (`flush`) asks for convergence — every pixel speaks, the budget is lifted, and
+ * Only the barrier (`flush`) asks for convergence — every pixel speaks, the budgets are lifted, and
  * the loop replays until no requested tile is missing.
  */
 export function createWebgpuTileStreamer(options: {
@@ -30,12 +30,17 @@ export function createWebgpuTileStreamer(options: {
   layersPerAtlas: number;
   /** Tile bytes admitted per image outside a barrier. */
   budgetBytes: number;
+  /** Milliseconds a pass may spend copying tiles outside a barrier; the rest is deferred. */
+  budgetMs: number;
+  /** Clock the budget is read on; `performance.now` unless a test drives it. */
+  now?: () => number;
   readLevel?: TextureLevelReader;
   onFailure: (phase: string, error: unknown) => void;
   /** Colour tiles have just arrived or left: what a cutout-foliage shadow must follow. */
   onColorChanged: () => void;
 }) {
-  const { device } = options;
+  const { device } = options,
+    now = options.now ?? (() => performance.now());
   const color = createWebgpuTileAtlas(device, {
     kind: 'color',
     format: 'rgba8unorm-srgb',
@@ -59,33 +64,10 @@ export function createWebgpuTileStreamer(options: {
     counters,
     onFailure: options.onFailure,
   });
+  const requests = createTileRequests({ feedback, color, data, counters });
   const flushAll = () => {
     color.flush(device);
     data.flush(device);
-  };
-  /** Tiles the last image feedback names, resident ones touched along the way. */
-  const requests = (frame: number) => {
-    const counts = feedback.take();
-    const out: Request[] = [];
-    if (!counts) return out;
-    let requested = 0,
-      atLevel = 0,
-      gap = 0;
-    for (let index = 0; index < counts.length; index++) {
-      const weight = counts[index];
-      if (!weight) continue;
-      const atlas = index < color.pages.entries ? color : data;
-      const key = atlas.pages.tileOf(index);
-      requested++;
-      const served = atlas.servedLevel(key) - key.level;
-      if (served === 0) atLevel++;
-      gap += served;
-      if (!atlas.touch(key, frame)) out.push({ atlas, key, weight });
-    }
-    counters.requested = requested;
-    counters.atLevel = atLevel;
-    counters.missingAverage = requested ? gap / requested : 0;
-    return out.sort((a, b) => b.weight - a.weight);
   };
   return {
     color,
@@ -99,26 +81,29 @@ export function createWebgpuTileStreamer(options: {
       flushAll();
     },
     /**
-     * One pass: requested tiles, served in weight order under the byte budget; `unbounded` lifts the
-     * budget. Returns what was served and what still waits for its bytes; a pool refusal is neither —
-     * nothing will come, the coarse level holds, and the image can settle on it — and is counted in
-     * the atlas metrics.
+     * One pass: requested tiles, served in weight order until the byte or the millisecond budget is
+     * spent; `unbounded` lifts both. The first tile of a pass is always attempted, so a budget under
+     * one copy still makes progress. Returns what was served and what still waits — for its bytes,
+     * or for the next pass; a pool refusal is neither — nothing will come, the coarse level holds,
+     * and the image can settle on it — and is counted in the atlas metrics.
      */
     pump(frame: number, unbounded = false) {
-      const started = performance.now();
+      const started = now();
       let served = 0,
         waiting = 0,
         bytes = 0,
+        index = 0,
         colorServed = false,
         encoder: GPUCommandEncoder | undefined;
       const open = () => (encoder ??= device.createCommandEncoder({ label: 'WG texture tiles' }));
-      const wanted = requests(frame);
+      const wanted = requests.take(frame);
       counters.worked = wanted.length > 0;
-      for (const request of wanted) {
-        if (!unbounded && bytes >= options.budgetBytes) {
-          waiting++;
-          continue;
-        }
+      const spent = () =>
+        !unbounded &&
+        served > 0 &&
+        (bytes >= options.budgetBytes || now() - started >= options.budgetMs);
+      for (; index < wanted.length && !spent(); index++) {
+        const request = wanted[index];
         let verdict: ReturnType<typeof sources.serve> = 'waiting';
         try {
           verdict = sources.serve(request.atlas, request.key, frame, open);
@@ -135,12 +120,14 @@ export function createWebgpuTileStreamer(options: {
       if (encoder) device.queue.submit([encoder.finish()]);
       sources.endPass();
       flushAll();
+      requests.defer(wanted, index);
       counters.served += served;
-      counters.pending = waiting;
+      counters.deferred = requests.deferred;
+      counters.pending = waiting + requests.deferred;
       counters.bytesLastFrame = bytes;
-      counters.lastMs = performance.now() - started;
+      counters.pass(now() - started, unbounded);
       if (colorServed) options.onColorChanged();
-      return { served, waiting };
+      return { served, waiting: counters.pending };
     },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
      *  pass wrote it — is reduced to counters for the phase, copied to their readback then zeroed. */

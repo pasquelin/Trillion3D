@@ -44,6 +44,14 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       description:
         'Size of the virtual texture pool in bytes (default 512 MiB, split equally between color and data atlases).',
     },
+    maxTextureUploadMsPerFrame: {
+      type: 'number',
+      default: 1.0,
+      minimum: 0,
+      maximum: 16.0,
+      description:
+        'CPU time budget per frame for copying virtual texture tiles into the pools (in milliseconds). Default 1.0 ms; tiles beyond it wait for the next frame and show their coarser level meanwhile.',
+    },
     temporalAntialiasing: {
       type: 'boolean',
       default: true,

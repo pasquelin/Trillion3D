@@ -11,6 +11,10 @@ import { pageBufferCap } from './gpuPageResize.ts';
 export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024;
 /** 512 MiB, split equally between the colour atlas and the data atlas, in 63.5 MiB layers. */
 export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
+/** CPU milliseconds a frame's tile pass may spend copying tiles: the same order as the shadow
+ *  stage's budget, and the reference's fixed number of tile uploads per frame in the frame's own
+ *  unit. What it defers shows its coarser resident level until the next pass. */
+export const DEFAULT_TEXTURE_UPLOAD_MS = 1;
 
 /** Why a pool does not make the requested size, or `null` when it does. */
 export type PoolClamp =

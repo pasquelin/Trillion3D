@@ -64,6 +64,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
       niveauxManquants: Math.round(tiles.missingAverage * 100),
       tuilesServies: tiles.served,
       tuilesEnAttente: tiles.pending,
+      tuilesReportees: tiles.deferred,
     });
   if (!tiles?.worked)
     stages.setReason('textures', {
