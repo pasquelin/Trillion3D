@@ -4,7 +4,7 @@ import { SectionHeader } from '../components/SectionHeader.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { CodeBlock } from '../components/CodeBlock.jsx';
 import { ExampleLayout } from '../components/ExampleLayout.jsx';
-import { Alert, Button, Field, Form, Range, Select } from '../components/UI.jsx';
+import { Alert, Button, Field, Form, Range, Select, Toggle } from '../components/UI.jsx';
 import { examples } from '../../js/gallery/catalog.js';
 import { rendererInitialState } from '../../js/gallery/rendererLessons.js';
 import { rendererCodeFor } from '../../js/gallery/rendererLessonCode.js';
@@ -42,16 +42,26 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }) {
             <div className="flex flex-wrap gap-4">
               {lesson.controls.map((item) => (
                 <Field key={item.id} label={local(item.label, locale)} className="grow">
-                  <Range
-                    aria-label={local(item.label, locale)}
-                    min={item.min}
-                    max={item.max}
-                    step={item.step}
-                    value={state[item.id] ?? item.value}
-                    onChange={(event) =>
-                      setState({ ...state, [item.id]: Number(event.target.value) })
-                    }
-                  />
+                  {item.type === 'boolean' ? (
+                    <Toggle
+                      aria-label={local(item.label, locale)}
+                      checked={(state[item.id] ?? item.value) === 1}
+                      onChange={(event) =>
+                        setState({ ...state, [item.id]: event.target.checked ? 1 : 0 })
+                      }
+                    />
+                  ) : (
+                    <Range
+                      aria-label={local(item.label, locale)}
+                      min={item.min}
+                      max={item.max}
+                      step={item.step}
+                      value={state[item.id] ?? item.value}
+                      onChange={(event) =>
+                        setState({ ...state, [item.id]: Number(event.target.value) })
+                      }
+                    />
+                  )}
                 </Field>
               ))}
             </div>

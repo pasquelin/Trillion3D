@@ -10,14 +10,7 @@ ${light('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
   if (lesson.kind === 'moving-point')
     return light('moving', `${state.x}, 4, 2`, '1, 0.8, 0.55', LESSON_POINT_INTENSITY);
   if (lesson.kind === 'shadow-switch')
-    return light(
-      'switch',
-      '0, 4, 2',
-      '1, 0.8, 0.55',
-      LESSON_POINT_INTENSITY,
-      0.1,
-      state.shadow === 1,
-    );
+    return `explorer.addLight({ id: 'switch', kind: 'point', position: [-3, 7, 10], color: [1, 0.72, 0.42], intensity: 1800, range: 30, emitterRadius: 0.1, castsShadow: ${state.shadow === 1} });`;
   if (lesson.kind === 'emitter-radius')
     return light('envelope', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY, state.radius);
   const created = light('lifecycle', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY);
@@ -29,5 +22,6 @@ export function lightingLessonCode(lesson, state) {
     manifest: lesson.manifest,
     importedLights: lesson.importedLights,
     sceneFill: lesson.sceneFill,
+    initialPose: lesson.initialPose,
   });
 }
