@@ -10,11 +10,14 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
  * CPU bounds of an image, in order: for each, its public name and the profile stage it deposits
- * into. Name, stage and write index all come from this one table. The first two cover what the image
- * does before opening its own timer; the four after encode are sampled by the host, which deposits
- * them by name.
+ * into. Name, stage and write index all come from this one table. The first four cover what the
+ * image does before opening its own timer; the four after encode are sampled by the host, which
+ * deposits them by name. `tilesPumpMs` deposits into no stage: the streamer measures its own pass
+ * and files it under `textures` only when it served something, so a stage here would count it twice.
  */
 const CPU = cpuStepTable([
+  ['gateMs', 'animations'],
+  ['tilesPumpMs', null],
   ['worldMs', 'animations'],
   ['blendWorldMs', 'transparents'],
   ['lightsMs', 'lights'],
@@ -128,6 +131,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
     pagesVoulues: rt.run.visible,
     grappesDuDag: rt.run.gpuSelection?.pageCount ?? 0,
   });
+  stages.setCounts('animations', timing.worldCounts);
   stages.setCounts('partition', timing.partitionCounts);
   timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
   timing.encodeCounts.appelsDeMelange = rt.run.blendDrawCalls;
