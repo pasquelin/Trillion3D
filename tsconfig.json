@@ -15,7 +15,8 @@
   "include": [
     "packages/sdk-core/**/*.ts",
     "packages/sdk-browser/**/*.ts",
-    "packages/sdk-node/**/*.mts"
+    "packages/sdk-node/**/*.mts",
+    "packages/sdk/**/*.{ts,mts}"
   ],
   "exclude": ["**/*.test.ts", "**/*.test.mjs", "**/target/**"]
 }
