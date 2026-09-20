@@ -1,4 +1,3 @@
-# esbuild's install script only checks its native binary, which it finds in its platform package
-# anyway; allowing it avoids pnpm's warning on each install. It is the only allowed dependency script.
+# esbuild verifies its platform-specific binary during installation.
 allowBuilds:
   esbuild: true
