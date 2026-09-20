@@ -2,20 +2,28 @@ import { lightDirection, type SceneLight, type ShadowViewpoint } from './sceneLi
 import type { createShadowChanges } from './sceneLightShadowChanges.ts';
 import { writeFace } from './sceneLightShadowFaces.ts';
 import { pageRowsOf } from './sceneLightShadowPages.ts';
-import type { createShadowSliceTable } from './sceneLightShadowSlices.ts';
+import {
+  CASCADE_SLIDE,
+  CASCADE_WHOLE,
+  cascadeShift,
+  type createShadowSliceTable,
+} from './sceneLightShadowSlices.ts';
 import { sunCascadeOf } from './sceneLightSunCascades.ts';
 
 /** Matrix of a face, the time to project a box: allocated once, never per frame. */
 const matrix = new Float32Array(16);
+/** Non-negative remainder: a window origin left of the world origin still lands in the face. */
+const mod = (value: number, rows: number) => ((value % rows) + rows) % rows;
 
 /**
  * What stales the pages of a shadow light, and nothing more.
  *
  * - **The light has moved, changed range or slice**: all its maps are wrong, all
  *   their pages go back to waiting.
- * - **A sun cascade describes another world extent**: that cascade restarts in full.
- *   As long as the extent is the same — still camera, or a move smaller than a texel of the
- *   alignment grid —, the map is kept as-is, even if the camera has moved.
+ * - **A sun cascade window has slid by whole pages**: only the strip that entered restarts;
+ *   the pages that stayed inside still describe the same world. As long as the window is the
+ *   same — still camera, or a move smaller than a page —, the map is kept as-is. A slide of a
+ *   window side or more, a new depth anchor or a new radius restart the cascade in full.
  * - **An object has moved in the light's range**: only the pages its projected box covers
  *   restart. The rest of the face still describes the scene, since nothing else has changed.
  */
@@ -44,7 +52,21 @@ export function invalidateLightPages(
     let all = whole;
     if (sun) {
       const cascade = sunCascadeOf(view, lightDirection(light), face, side);
-      if (slices.cascadeChanged(slice, face, cascade.center, cascade.radius)) all = true;
+      const verdict = slices.cascadeSlide(
+        slice,
+        face,
+        rows,
+        cascade.originX,
+        cascade.originY,
+        cascade.anchor,
+        cascade.radius,
+      );
+      // The window is addressed by absolute page modulo the face: its origin's physical page
+      // follows it, whether the pages are kept, slid or restarted whole.
+      dirty.setWindow(slice, face, mod(cascade.originX, rows), mod(cascade.originY, rows));
+      if (verdict === CASCADE_WHOLE) all = true;
+      else if (verdict === CASCADE_SLIDE && !all)
+        dirty.slide(slice, face, rows, cascadeShift.x, cascadeShift.y, nowMs, frame);
     }
     if (all) {
       dirty.whole(slice, face, rows, nowMs, frame);

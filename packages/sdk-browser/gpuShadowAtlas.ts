@@ -1,14 +1,10 @@
-import {
-  LIGHT_SETTINGS,
-  MAX_SHADOW_SLICES,
-  POINT_FACES,
-  RECTS_PER_SLICE,
-  SHADOW_FACE_FLOATS,
-  SHADOW_SLICE_FLOATS,
-} from '../sdk-core/index.ts';
+import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
 import { SHADOW_DEPTH_SHADER } from './gpuShadowShader.ts';
+import { MAX_SHADOW_REGIONS, createShadowSlicePack } from './gpuShadowSlicePack.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 import { DEPTH_COMPARE } from './depthConvention.ts';
+
+export { MAX_SHADOW_REGIONS, wrapKey } from './gpuShadowSlicePack.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'WG shadow atlas v1';
@@ -16,12 +12,6 @@ export const SHADOW_PASS = 'WG shadow atlas v1';
 const FACE_STRIDE = 256;
 /** Bytes actually read of an entry: the matrix, the atlas rectangle, the light envelope. */
 const FACE_BYTES = 96;
-/**
- * Regions at most in a frame: the buffer cap, not a quality setting. A wholly stale face fits
- * in a single region, so this cap is at least what the old four-light cap allowed; the
- * millisecond budget almost always stops first.
- */
-export const MAX_SHADOW_REGIONS = LIGHT_SETTINGS.shadowUpdatesPerFrame * POINT_FACES;
 export const shadowAtlasBytes = () => LIGHT_SETTINGS.shadowAtlasSize ** 2 * 4;
 
 export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
@@ -54,8 +44,8 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     size: MAX_SHADOW_SLICES * SHADOW_SLICE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  const slicePacked = new Float32Array(MAX_SHADOW_SLICES * SHADOW_SLICE_FLOATS);
-  const facePacked = new Float32Array((MAX_SHADOW_REGIONS * FACE_STRIDE) / 4);
+  const pack = createShadowSlicePack(size, FACE_STRIDE),
+    { slicePacked, facePacked } = pack;
   const release = () => {
     texture.destroy();
     faceUniform.destroy();
@@ -114,64 +104,11 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       faceGroup,
       faceStride: FACE_STRIDE,
       allocationBytes: shadowAtlasBytes() + faceUniform.size + sliceBuffer.size,
-      /**
-       * Writes a region into both buffers: that of the frame matrices, read by dynamic offset,
-       * and that of the slices, reread by deferred resolve. The matrix is that of the whole
-       * face, never of the region: that is what makes the page draw identical to the bit.
-       * `matrices` carries it at `matrixBase`; nothing is copied into an intermediate array, and
-       * two regions of the same face rewrite the same numbers there.
-       *
-       * `center` and `radius` tell the light envelope to the only buffer that reads it, the
-       * draw one: the shadow shader writes no depth for a surface locked inside it. A light
-       * without an envelope — a directional, or a light with no declared radius — carries a
-       * zero radius, and the comparison then strips nothing.
-       */
-      writeRegion(
-        index: number,
-        slice: number,
-        face: number,
-        matrices: Float32Array,
-        matrixBase: number,
-        rects: Int32Array,
-        center: readonly number[] | undefined,
-        radius: number,
-      ) {
-        const rect = slice * RECTS_PER_SLICE + face * 3,
-          x = rects[rect] / size,
-          y = rects[rect + 1] / size,
-          side = rects[rect + 2];
-        const uniform = (index * FACE_STRIDE) / 4,
-          entry = slice * SHADOW_SLICE_FLOATS + face * SHADOW_FACE_FLOATS;
-        for (let i = 0; i < 16; i++) {
-          facePacked[uniform + i] = matrices[matrixBase + i];
-          slicePacked[entry + i] = matrices[matrixBase + i];
-        }
-        const span = side / size;
-        facePacked[uniform + 16] = x;
-        facePacked[uniform + 17] = y;
-        facePacked[uniform + 18] = span;
-        facePacked[uniform + 19] = side;
-        slicePacked[entry + 16] = x;
-        slicePacked[entry + 17] = y;
-        slicePacked[entry + 18] = span;
-        slicePacked[entry + 19] = side > 0 ? 1 : 0;
-        facePacked[uniform + 20] = center ? center[0] : 0;
-        facePacked[uniform + 21] = center ? center[1] : 0;
-        facePacked[uniform + 22] = center ? center[2] : 0;
-        facePacked[uniform + 23] = center ? radius : 0;
-        return side;
-      },
+      writeRegion: pack.writeRegion,
+      writeSliceInfo: pack.writeSliceInfo,
       flushRegions(count: number) {
         if (count)
           device.queue.writeBuffer(faceUniform, 0, facePacked, 0, (count * FACE_STRIDE) / 4);
-      },
-      /** Slice header: faces, tangent half-angle, side in texels, near plane. */
-      writeSliceInfo(slice: number, faces: number, tanHalfFov: number, side: number, near: number) {
-        const base = slice * SHADOW_SLICE_FLOATS + POINT_FACES * SHADOW_FACE_FLOATS;
-        slicePacked[base] = faces;
-        slicePacked[base + 1] = tanHalfFov;
-        slicePacked[base + 2] = side;
-        slicePacked[base + 3] = near;
       },
       /**
        * Pushes the slices the scheduler just redrew, and them alone: the others already describe

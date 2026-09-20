@@ -67,12 +67,13 @@ export function writeConeVolume(
 }
 
 /**
- * Sphere that reject opposes to a region of a cascade. An orthography has no apex: the
- * region cuts a sub-box of the cascade box, shifted in the map plane by the
- * share the region occupies, and the sphere that circumscribes it is the volume. Half-angle π:
- * reject only does the distance test, as for the whole cascade.
+ * Box that reject opposes to a region of a cascade. An orthography has no apex: the region
+ * cuts a sub-box of the window box — its rectangle on the light plane, the whole depth along
+ * the axis — and that box, in the frame of the last composed face, is the volume. The cull
+ * shader reads a negative half-angle as "box": centre, then the three axes with their
+ * half-extents, the depth one in `far`.
  */
-export function writeSphereVolume(
+export function writeBoxVolume(
   cull: Float32Array,
   base: number,
   boxCenter: readonly number[],
@@ -82,17 +83,16 @@ export function writeSphereVolume(
 ) {
   const u = ((rect[0] + rect[1]) / 2) * radius,
     v = ((rect[2] + rect[3]) / 2) * radius;
-  for (let a = 0; a < 3; a++)
+  for (let a = 0; a < 3; a++) {
     cull[base + a] = boxCenter[a] + faceBasis[a] * u + faceBasis[3 + a] * v;
-  cull[base + 3] = Math.hypot(
-    ((rect[1] - rect[0]) / 2) * radius,
-    ((rect[3] - rect[2]) / 2) * radius,
-    halfDepth,
-  );
-  cull[base + 4] = 0;
-  cull[base + 5] = 1;
-  cull[base + 6] = 0;
-  cull[base + 7] = Math.PI;
+    cull[base + 4 + a] = faceBasis[6 + a];
+    cull[base + 8 + a] = faceBasis[a];
+    cull[base + 12 + a] = faceBasis[3 + a];
+  }
+  cull[base + 3] = halfDepth;
+  cull[base + 7] = -1;
+  cull[base + 11] = ((rect[1] - rect[0]) / 2) * radius;
+  cull[base + 15] = ((rect[3] - rect[2]) / 2) * radius;
 }
 
 /** Normalised rectangle of a page region in its face: `y` goes down in the draw frame. */

@@ -1,10 +1,12 @@
-// `cascadeChanged`: a still camera, or a step smaller than a texel, keeps the sun
-// cascades; as soon as the world window moves, the cascade restarts in full.
+// `cascadeSlide`: a still camera, or a step smaller than a page, keeps the sun cascades; a
+// step of whole pages slides the window and only the entering strip restarts; a step of a
+// window side or more restarts the cascade in full.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from './sceneLightStore.ts';
 import { createShadowPlan } from './sceneLightShadowPlan.ts';
 import { sunCascadeOf } from './sceneLightSunCascades.ts';
+import { pageRowsOf } from './sceneLightShadowPages.ts';
 import type { SceneLight, ShadowViewpoint } from './sceneLightContracts.ts';
 
 const VIEW: ShadowViewpoint = {
@@ -19,7 +21,7 @@ const VIEW: ShadowViewpoint = {
 const SUN: SceneLight = {
   id: 'sun',
   kind: 'directional',
-  direction: [0.1, -0.9, 0.4],
+  direction: [0, -1, 0],
   color: [1, 1, 1],
   intensity: 1,
   castsShadow: true,
@@ -67,16 +69,40 @@ test('a step smaller than a texel of the near cascade stales nothing', () => {
   assert.equal(plan.counts.reused, 1);
 });
 
-test('a move that changes the world window stales the whole cascade, not a strip', () => {
+test('a step of one page along the light plane slides the near cascade: one strip restarts, not the face', () => {
   const store = createSceneLightStore();
   const plan = createShadowPlan(24);
   store.add(SUN);
   const next = settle(plan, store, VIEW);
+  const slice = store.sliceOf(store.slotOf('sun'));
+  const rows = pageRowsOf(plan.slices.side[slice]);
+  const { pageMetres } = sunCascadeOf(VIEW, SUN.direction!, 0, plan.slices.side[slice]);
+  // The sun points straight down: the light plane is the ground, `x` one of its axes.
   const moved: ShadowViewpoint = {
     ...VIEW,
-    position: [VIEW.position[0] + 40, VIEW.position[1], VIEW.position[2] + 40],
+    position: [VIEW.position[0] + pageMetres, VIEW.position[1], VIEW.position[2]],
   };
   plan.plan(store, moved, next, next * 16);
-  assert.ok(plan.counts.invalidatedPages > 0, 'the window has slid: pages restart');
+  assert.equal(plan.counts.invalidatedPages, rows, 'one column of the near cascade entered');
+  assert.equal(plan.regions.pages, rows, 'and it is drawn this frame');
+  assert.equal(plan.counts.pendingPages, 0);
+  for (let region = 0; region < plan.regions.count; region++)
+    assert.equal(plan.regions.faceOf(region), 0, 'the coarser cascades did not move by a page');
+});
+
+test('a step of a whole window side restarts the cascade in full', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(24);
+  store.add(SUN);
+  const next = settle(plan, store, VIEW);
+  const slice = store.sliceOf(store.slotOf('sun'));
+  const rows = pageRowsOf(plan.slices.side[slice]);
+  const { radius } = sunCascadeOf(VIEW, SUN.direction!, 0, plan.slices.side[slice]);
+  const moved: ShadowViewpoint = {
+    ...VIEW,
+    position: [VIEW.position[0] + 2 * radius, VIEW.position[1], VIEW.position[2]],
+  };
+  plan.plan(store, moved, next, next * 16);
+  assert.ok(plan.counts.invalidatedPages >= rows * rows, 'the whole near cascade restarts');
   assert.equal(plan.counts.reused, 0);
 });

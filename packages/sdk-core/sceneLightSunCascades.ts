@@ -1,11 +1,22 @@
 import { LIGHT_SETTINGS, type ShadowViewpoint } from './sceneLightContracts.ts';
+import { faceFrame } from './sceneLightShadowMath.ts';
+import { pageRowsOf } from './sceneLightShadowPages.ts';
 
-/** Sphere a cascade covers, and the box its map draws, both in metres. */
+/**
+ * Sphere a cascade covers and the window its map draws, both in metres. The window is a
+ * whole number of pages on the light plane: `originX` and `originY` are the absolute page
+ * column and row (draw frame, `y` down) of its top-left page, `anchor` its depth coordinate
+ * along the light axis, snapped to a grid of one window side.
+ */
 interface SunCascade {
+  /** World centre of the window: page-snapped in the light plane, `anchor` along the axis. */
   center: [number, number, number];
   radius: number;
-  /** Centre of the projection box: what reject reports the region it cuts to. */
-  boxCenter: [number, number, number];
+  /** Side of a page in metres, `2r / rows`. */
+  pageMetres: number;
+  originX: number;
+  originY: number;
+  anchor: number;
 }
 
 /**
@@ -97,8 +108,14 @@ const sphere = { distance: 0, radius: 0 };
 const cascade: SunCascade = {
   center: [0, 0, 0],
   radius: 1,
-  boxCenter: [0, 0, 0],
+  pageMetres: 1,
+  originX: 0,
+  originY: 0,
+  anchor: 0,
 };
+const right = new Float64Array(3),
+  up = new Float64Array(3),
+  eye = new Float64Array(3);
 
 /**
  * Sphere circumscribed to the camera frustum between two distances, centred on the view axis. A
@@ -123,10 +140,12 @@ function frustumSphere(view: ShadowViewpoint, near: number, far: number) {
 }
 
 /**
- * Cascade `index` of a directional light: its sphere, then the box its map draws —
- * the sphere pulled back toward the sun by `sunCascadeDepthScale` radii, so that what sits between
- * the cascade and the sun casts its shadow there. The centre is aligned on the map's texel
- * grid: without that alignment, a camera step of half a texel would make every contour shiver.
+ * Cascade `index` of a directional light: its sphere, then the window its map draws. The
+ * window is aligned on the page grid of the light plane — the `faceFrame` axes the view is
+ * composed with —, so a camera step moves it by whole pages and the pages it keeps still
+ * describe the same world: only the entering strip is redrawn (virtual shadow map clipmaps).
+ * Along the light axis the window is anchored on a grid of one window side, `2r`: depth is
+ * then the same for every page of the window, and a move of that size restarts it whole.
  *
  * The returned object is reused from one call to the next: the scheduler allocates nothing per frame.
  */
@@ -138,17 +157,28 @@ export function sunCascadeOf(
 ) {
   const bornes = splitsDe(view);
   const { distance, radius } = frustumSphere(view, bornes[index], bornes[index + 1]);
-  const texel = (2 * radius) / Math.max(1, side);
+  const rows = pageRowsOf(side),
+    page = (2 * radius) / rows;
+  faceFrame(axis, right, up);
+  for (let a = 0; a < 3; a++) eye[a] = view.position[a] + view.forward[a] * distance;
+  let u = 0,
+    v = 0,
+    w = 0;
   for (let a = 0; a < 3; a++) {
-    const value = view.position[a] + view.forward[a] * distance;
-    // Alignment is on the world axes: those of the map turn with the cascade, those
-    // of the world never move, and it is frame-to-frame stability that is sought.
-    cascade.center[a] = Math.round(value / texel) * texel;
+    u += eye[a] * right[a];
+    v += eye[a] * up[a];
+    w += eye[a] * axis[a];
   }
+  // Page rank of the window centre; the draw frame counts rows downward, hence `-v`.
+  const pageX = Math.round(u / page),
+    pageY = Math.round(-v / page),
+    anchorRank = Math.round(w / (2 * radius));
   cascade.radius = radius;
-  // Projection box: side `2r`, depth `(depthScale + 1)·r`, hence a centre pulled back by
-  // `(depthScale − 1)·r/2` toward the sun relative to the sphere centre.
-  const back = (radius * (LIGHT_SETTINGS.sunCascadeDepthScale - 1)) / 2;
-  for (let a = 0; a < 3; a++) cascade.boxCenter[a] = cascade.center[a] - axis[a] * back;
+  cascade.pageMetres = page;
+  cascade.originX = pageX - (rows >> 1);
+  cascade.originY = pageY - (rows >> 1);
+  cascade.anchor = anchorRank * 2 * radius;
+  for (let a = 0; a < 3; a++)
+    cascade.center[a] = right[a] * pageX * page - up[a] * pageY * page + axis[a] * cascade.anchor;
   return cascade;
 }
