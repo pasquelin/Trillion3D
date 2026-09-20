@@ -11,6 +11,7 @@ import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { EngineProfiler } from './telemetry.ts';
 import type { ComparisonLayout } from './comparison.ts';
+import type { createSceneDrawer } from './explorerDrawScene.ts';
 
 type Inputs = {
   check: () => void;
@@ -39,6 +40,7 @@ type Inputs = {
   profiler: EngineProfiler;
   pageIdByUrl: Map<string, number>;
   streamer: ReturnType<typeof createPageStreamer>;
+  drawScene: ReturnType<typeof createSceneDrawer>;
 };
 
 export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
@@ -62,6 +64,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     profiler,
     pageIdByUrl,
     streamer,
+    drawScene,
   } = inputs;
   const auditFrame = createHostFrameCostAudit();
   const render = (pose?: CameraPose): FrameMetrics => {
@@ -105,6 +108,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
         scope,
         emit,
         diagnose,
+        drawScene,
       });
     }
     fillMetrics(state.active);

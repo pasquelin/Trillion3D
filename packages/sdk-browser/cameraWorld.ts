@@ -56,6 +56,18 @@ export type CameraMotion = { last?: Float64Array; lastMs?: number };
 
 /** The camera the host hands to the engine. Only this file names it. */
 export type HostCamera = THREE.PerspectiveCamera;
+export type HostDrawCamera = {
+  projection: Float32Array;
+  world: Float64Array;
+  view: Float64Array;
+  eye: Float32Array;
+};
+export const createHostDrawCamera = (): HostDrawCamera => ({
+  projection: new Float32Array(16),
+  world: new Float64Array(16),
+  view: new Float64Array(16),
+  eye: new Float32Array(3),
+});
 
 export function resolveCameraWorld<T extends THREE.Camera>(camera: T): T {
   camera.updateWorldMatrix(true, false);
@@ -76,6 +88,17 @@ export function readCameraWorld(into: EngineCamera, camera: HostCamera): EngineC
   resolveCameraWorld(camera);
   copyElements(into.world, camera.matrixWorld.elements);
   return writeEngineCamera(into, camera);
+}
+
+/** Flat camera matrices for a draw that retains the host renderer's finite-depth projection. */
+export function readHostDrawCamera(into: HostDrawCamera, camera: HostCamera) {
+  resolveCameraWorld(camera);
+  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  into.projection.set(camera.projectionMatrix.elements);
+  into.world.set(camera.matrixWorld.elements);
+  into.view.set(camera.matrixWorldInverse.elements);
+  into.eye.set(into.world.subarray(12, 15));
+  return into;
 }
 
 const poseTranslation = new Float64Array(3),

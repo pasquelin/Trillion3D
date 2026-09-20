@@ -5,6 +5,7 @@ import { createExplorerHostFrame } from './explorerHostFrame.ts';
 import { createExplorerLifecycle } from './explorerLifecycle.ts';
 import type { ExplorerResources, prepareExplorer } from './explorerPrepare.ts';
 import type { ExplorerSession } from './explorerSession.ts';
+import { createSceneDrawer } from './explorerDrawScene.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 type Inputs = {
@@ -43,11 +44,21 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     check,
     setPose,
   } = host;
+  const drawScene = renderer
+    ? createSceneDrawer(renderer, camera)
+    : Object.assign(
+        () => {
+          throw new Error('The direct GPU path has no host scene drawer');
+        },
+        { dispose() {} },
+      );
+  if (renderer) hostedControls.push({ dispose: drawScene.dispose });
   const { render, profiler, streaming } = createExplorerHostFrame(session, {
     prepared,
     resources,
     host,
     backends,
+    drawScene,
   });
   const capture = createExplorerCapture({
     canvas,
@@ -59,6 +70,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     state,
     check,
     diagnose,
+    drawScene,
   });
   const { dispose, flush, awaitPages } = createExplorerLifecycle(session, {
     check,
