@@ -1,3 +1,4 @@
+import { ReportNavigation } from '../reports/Navigation.jsx';
 import { SECTIONS } from '../../js/docsModel.js';
 import { entryRoute, routeHref } from '../../js/portal/routes.js';
 import { searchEntries } from '../../js/portal/search.js';
@@ -37,7 +38,9 @@ export function Sidebar({ entries, route, query, t, inputRef, onQuery, onClose }
           />
         </div>
         <nav>
-          {!groups.length ? (
+          {route.area === 'reports' && !query ? (
+            <ReportNavigation route={route} onClose={onClose} />
+          ) : !groups.length ? (
             <p className="empty-search" role="status">
               {t(route.locale, 'sidebar.noResults')}
             </p>

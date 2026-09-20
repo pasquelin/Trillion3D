@@ -874,6 +874,26 @@ kbd {
   }
 }
 
+/* Keep the shared header readable as the primary navigation grows. */
+@media (min-width: 901px) and (max-width: 1250px) {
+  .site-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .top-nav {
+    justify-content: center;
+  }
+  .search-button span,
+  .search-button kbd {
+    display: none;
+  }
+  .search-button {
+    min-width: 2.35rem;
+    width: 2.35rem;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
 .scene-controls {
   container-type: inline-size;
 }
