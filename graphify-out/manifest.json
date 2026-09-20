@@ -6882,9 +6882,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/tests/base.rs": {
-    "mtime": 1789893235.7268245,
-    "seen": 1789893450.2079659,
-    "ast_hash": "d420a7b0520e63c7052470bbe2aa85fb",
+    "mtime": 1789894469.475595,
+    "seen": 1789894517.395971,
+    "ast_hash": "d8611b7a190eed6556e6d1969fa948e1",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/tests/part2.rs": {
@@ -6906,9 +6906,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/tests/mod.rs": {
-    "mtime": 1789891913.4494421,
-    "seen": 1789893450.2079942,
-    "ast_hash": "68bbaf36a8b3f8877e69b446bf0d92e2",
+    "mtime": 1789894469.4759686,
+    "seen": 1789894517.396003,
+    "ast_hash": "020aa0ab985db2ad12b483470d0933c5",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/tests/part6.rs": {
@@ -6924,9 +6924,9 @@
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/tests/fixtures.rs": {
-    "mtime": 1789891913.447868,
-    "seen": 1789893450.207977,
-    "ast_hash": "aa8c27e49ca0dbade3053ad997316781",
+    "mtime": 1789894469.47583,
+    "seen": 1789894517.395984,
+    "ast_hash": "c306acd5987b3e5d4bcb9af7389f3949",
     "semantic_hash": ""
   },
   "packages/asset-compiler-rust/src/tests/usd_golden.rs": {
@@ -12675,6 +12675,12 @@
     "mtime": 1789893235.8156483,
     "seen": 1789893450.2093272,
     "ast_hash": "97c611cc8bff7867e93da30d99e17544",
+    "semantic_hash": ""
+  },
+  "packages/asset-compiler-rust/src/tests/directories.rs": {
+    "mtime": 1789894469.4756756,
+    "seen": 1789894517.3959832,
+    "ast_hash": "dffc50a683d696d33dc1fee4aec157d0",
     "semantic_hash": ""
   }
 }
