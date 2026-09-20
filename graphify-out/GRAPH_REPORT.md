@@ -1,485 +1,487 @@
 # Graph Report - webGeometry-123-installed-artifact  (2026-09-20)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 2248 files · ~1,151,643 words
+- Verdict: corpus is large enough that graph structure adds value.
+- Unclassified: 3883 file(s) not represented in the graph (top: .bin 3650, .gltf 91, .meta 20)
 
 ## Summary
-- 14100 nodes · 37652 edges · 701 communities (477 shown, 224 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 1676 edges (avg confidence: 0.85)
+- 14098 nodes · 37641 edges · 706 communities (479 shown, 227 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 1678 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9a17c012`
+- Built from commit: `5f16587e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- manifestBinaryPreview.test.ts
-- visibilityTypes.ts
-- webgpuPages.ts
-- textureTiles.ts
-- sdk-core/bench/oracles/volumes.mjs
-- ref_node_fs
-- Path
-- sdk-browser/hiz.ts
-- Report.jsx
-- demosCamera.js
-- webgpuPagesServices.ts
-- RenderBackend
-- docs-i18n.test.mjs
-- cameraMoteur
-- engine.js
-- math.ts
-- hierarchieRejeuNous.mjs
-- Plugin
-- SceneTables
-- std
-- common/diagnostics.ts
-- gpuRasterContract.ts
-- decodage-worker.perf.mjs
-- explorerScene.ts
-- hiz-pyramide.perf.mjs
-- socle.mjs
-- preuveSceneCommune.mjs
-- bounceNodeWgsl.ts
-- clusterBatches.ts
-- llm.ts
-- ref_node_test
-- webgpuPagesHelpers.ts
-- gpuPartitionContract.ts
-- cutoutShow.mts
-- mathPathGovernor.ts
-- mesure/rapport.mjs
-- sdk-core/index.ts
-- EngineError
-- webgpuPagesSetup.ts
-- compile_layer
-- visibilityShadingNormal.ts
-- scene
-- visibilityPageWgsl.test.ts
-- preview_first_level
-- Gallery.jsx
+- Manifeste binaire (3)
+- Mathématiques du tampon de visibilité
+- Sélection DAG et pages WebGPU
+- sdk-browser · TileSource
+- sdk-browser · makeEnv
+- Scripts de build et distribution (2)
+- Greffons de scène du compilateur
+- Pyramide Hi-Z et occlusion
+- reports · keyboard
+- js · choice
+- Résidence et amorçage GPU (2)
+- sdk-browser · DagBuffers
+- js · B
+- Sélection des pages visibles
+- js · constructor
+- Équivalence du socle mesuré (2)
+- Rejeu de la hiérarchie
+- Greffons et pilotes de scène
+- Tables de scène à l'import
+- Verrou CLI et fixtures du compilateur
+- Télémétrie et métriques (2)
+- Raster de calcul
+- Banc de décodage wasm
+- Scène de l'explorateur et chargement (3)
+- Oracles de projection
+- Socle de mesure des bancs (2)
+- Pages de preuve navigateur
+- sdk-core · reduce
+- Lots de grappes
+- llm · packages_sdk_core_index_compiler_options_schema
+- sdk-browser · graphe
+- sdk-browser · DrawnMirror
+- Partition GPU et classification
+- sdk-node · Answer
+- Gouverneur du chemin mathématique
+- Rapport de mesure
+- Intégration des pages arrivées
+- Lignes de page et double face
+- sdk-browser · Arrival
+- Pilote USD et fidélité
+- Vecteurs et normale d'ombrage
+- scene · FILE_INVALID
+- Nuanceurs WGSL de visibilité
+- Aperçus de textures et pyramide (4)
+- gallery · Tab
 - packages_sdk_core_manifestbinary_assertmanifestbinary
-- sdk-browser/gpuTiming.ts
-- webglClusterRendererPage.mjs
-- SurfaceBuffer
-- sdk-browser/gpuDraw.ts
-- super
-- Banc de mesure commun (scripts/mesure/banc.mjs)
-- pageSelection.ts
+- Étapes et profilage de trame
+- appui · sceneInputs
+- Contrat backend et dessin
+- Dessin GPU et contrat
+- tests · compiler_accessor_decode
+- mesure · Bancs de performance packages/<paquet>/bench (pnpm run perf:all)
+- Routage des conteneurs d'archives
 - packages_sdk_core_index_createpageintegrationplan
-- UI.jsx
-- mathBatchState.ts
-- index.mts
-- bundle_dag_pages
-- yaml.rs
-- lignes-dessinables.perf.mjs
-- asset-compiler-rust/src/lib.rs
-- Changes
-- normale-eclairage-petite-echelle.mjs
-- lightingTransport.ts
+- components · copy
+- Arbre monde et lots de maths (2)
+- SDK Node : contrats et progression
+- Couches de profondeur
+- unity · Overrides
+- Lignes dessinables et validation
+- Écriture de la scène source
+- Références et changements Unity
+- justesse · compte
+- Transport de lumière
 - packages_sdk_browser_pageselection_acceptpagearray
-- gpuDagLayout.ts
-- shared_math_tests.rs
-- harness.rs
-- streamingPriority.ts
-- browser.ts
-- hierarchie.perf.mjs
-- erreur-ecran-cpu-gpu.mjs
-- agrege.mjs
-- webgpuPagesStateRun.ts
-- recipes.js
-- compiler_primitive_warn.rs
-- explorerComposeSurface.test.ts
-- import
-- manifest_binary.rs
-- normals/tests.rs
-- transparents-ordres.perf.mjs
-- lightingObservationMeshes.ts
-- oracle/scene.rs
-- coupe-difference.perf.mjs
-- pageWebgpu.mjs
-- webgpuPagesDrops.ts
-- preview_tests.rs
-- visibilityBuffer.ts
-- cameraWorld.ts
-- oracle.mjs
-- build_dag_tallied
-- GoldenRun
-- webgpuPagesTransform.ts
-- temp_dir
-- unity/textures.rs
-- explorerCapabilities.ts
-- cutoutReview.mts
-- adressage-cpu.mjs
-- ma/report.rs
-- usd/material.rs
-- dag.rs
-- inverse-transposee-petite-echelle.mjs
-- webgpuTileRequestWgsl.ts
-- pageDecodeShared.ts
-- webgpuBlendState.ts
-- compile_ma
-- Out
-- dds/header.rs
-- unity/materials.rs
-- index.js
-- Codes de sortie et d'erreur
-- parse_batch
-- image.rs
-- ref_node_assert_strict
-- Fixture de correction — pilote unitypackage, conteneur
-- usd_matiere.rs
-- packedWorldsToRenderOrigin
-- multiplyMatrix4
-- manifestBinaryLayout.ts
-- image/exr.rs
-- reduce_group
-- AGENTS.md — agent rules
-- pageDecodeTask.ts
-- pageSelectionHelpers.ts
-- cadre-vue.perf.mjs
-- tests/coplanar.rs
-- image/psd.rs
-- world.rs
-- Options
-- visibilityWrapModes.test.ts
-- gpuSelection.ts
-- oracle/geometry.rs
-- cameraSelectionUniforms
-- webgpuResidencySetsFixture.ts
-- Bin
-- gpuBounceProbes.ts
-- image/bmp.rs
-- eac.rs
-- texture_preview.rs
-- streamingPages.ts
-- qem_tests.rs
-- blend/light.rs
+- Uniformes de sélection et justesse
+- Maths partagées et BVH
+- Bancs de calcul Rust (2)
+- justesse · nettementDeFace
+- Erreurs moteur et cache
+- Bancs de hiérarchie
+- Erreur d'écran CPU contre GPU
+- Socle du banc sdk-core
+- Adoption et reprise de la coupe
+- offline · recipe
+- src · DAG_ROOT_SHARE
+- Monde et ombrage Maya
+- unity · PathBuf
+- Manifeste binaire (Rust)
+- Normales et jointures
+- justesse · ECHELLES
+- Observation de l'éclairage
+- proxy · Into
+- Coupe en différence
+- Pages de justesse WebGPU
+- sdk-browser · BIT
+- manifest_binary · encode_previews_rejects_a_null_dimension
+- Mathématiques du tampon de visibilité (2)
+- Encodage des dessins WebGPU
 - Banc de mesure commun
-- manifestBinaryFormat.ts
-- scripts
-- bad
-- lightingExperimentScene.ts
-- archive/tests.rs
-- SDK API Inventory
-- local_trs
-- demoDrawScene.js
-- Native compiler reference (docs/COMPILER.md)
-- external.rs
-- sections.rs
-- Row
-- ktx2/bytes.rs
-- Refus nommé
-- ref_node_fs_promises
-- manifestBinaryDecode.ts
-- sceneLightValidate.ts
-- backendCommon.ts
-- Fixture dorée — pilote TIFF
-- package.json
-- serde_json
-- unitypackage.rs
-- profile.rs
-- Archive
-- image_as_registry
-- gpuDagShader.ts
-- serie.mjs
-- rgba_from
-- tests/exr.rs
-- Palette
-- parts
-- Codec
-- image/gif.rs
-- image/png.rs
-- ogawa.rs
-- At<'a>
-- dds/bytes.rs
-- unity_projet.rs
-- webgpuBlendShader.ts
-- surgery.rs
-- dag/tests/part5.rs
-- evaluate.js
-- property.rs
-- apply_decisions
-- sceneGeometry.js
-- dna/read.rs
-- mesures_travail.rs
-- ImageDecoded
-- demosMatrix.js
-- Attr
-- g7_etiquettes.rs
-- hizNearestBound.test.ts
-- walk.rs
-- gpuShadowAtlas.ts
-- WEBP
-- image/hdr.rs
-- image/ktx2.rs
-- .param
-- taaFrame.ts
-- formules-ts.perf.mjs
-- Compter ce qu'on ne rend pas
-- object.rs
-- Scene
-- docs-scene.test.mjs
-- wasm_math.rs
-- volumesCasTronc.mjs
-- progress.mts
-- h3_proxy.rs
-- Decisions
-- src/coplanar.rs
-- Cache format 1 and 2 (docs/FORMAT.md)
-- entries
-- tests/tiff.rs
-- attrs.rs
-- blend/mesh.rs
-- ma/texture.rs
-- docs-editor.test.mjs
-- route
+- Construction du DAG
+- Tests dorés du compilateur
+- Transformations et collecte des pages
+- Aperçus de textures (étage)
+- unity · FILTER_UNSUPPORTED
+- sdk-browser · Inputs
+- sdk-node · SheetTexture
+- Adressage et bouclage des textures
+- Refus d'attributs Maya
+- Matériaux USD
+- DAG et stratégie de coupe
+- Justesse de l'inverse transposée
+- sdk-browser · Device
+- Décodage partagé des pages
+- Plan de mélange des transparents
+- Pilote Maya et matrices posées
+- blend · .indices
+- dds · ALPHA_MODE_MASK
+- Matériaux et projet Unity
+- i18n · FRENCH
+- docs · Crate texture2ddecoder 0.1.2 (décodeur de blocs)
+- Lots et annulation
+- Décodage d'images
+- sdk-browser · PrefixResult
+- Fixtures de correction zip
+- Matières et couches USD
+- reports · reading
+- Matrices et origine de rendu
+- Lots et annulation (2)
+- Décodage EXR
+- dag · Item
+- CLAUDE.md — project entry rule
+- sdk-browser · DecodeWorkerScope
+- Gabarits de sélection de pages
+- Pages autonomes (2)
+- Couches coplanaires
+- Décodage PSD
+- Monde et composition USD
+- Lecture et écriture glTF (3)
+- sdk-browser · poseRotation
+- Runtime DAG sur GPU
+- Oracle : rayons et indirect
+- justesse · Pose
+- mesure · rec
+- Minuterie et phases de travail
+- Sondes et rebond GPU
+- Décodage BMP
+- Blocs EAC du KTX2
+- Aperçus de textures (étage) (2)
+- Diffusion des pages en continu
+- src · Fn
+- blend · LA_AREA
+- Faces et volumes d'ombre
+- Manifeste binaire (2)
+- Scripts npm et build
+- Encodage du manifeste binaire
+- Scène d'expérience d'éclairage
+- Archives zip et USDZ
+- docs · Collision-free Export Inventory
+- unity · Value
+- js · scratch
+- Documentation et frontières
+- Ressources externes à l'import
+- Sections et pixels PSD
+- Rapport des bancs de calcul
+- Blocs de test KTX2
+- Fixtures dorées des pilotes
+- integration · lignesFautives
+- sdk-node · nameOf
+- Magasin des lumières de scène
+- Backends de rendu exacts
+- Refus nommés et fixtures dorées
+- Configuration du dépôt
+- Jeux de bancs Rust
+- Extraction unitypackage
+- Profils et couleurs TIFF
+- Archive Alembic
+- Registre des images de test (2)
+- Nuanceurs DAG WGSL
+- Budget et ouvriers du compilateur (3)
+- Aperçus de textures et pyramide (2)
+- src · arena_free
+- Palette et albédo
+- alembic · MAX_CORNERS
+- Codecs DDS
+- Décodage GIF
+- Décodage PNG
+- Alembic : format Ogawa
+- Blender : pointeurs bruts
+- Tests DDS
+- Projet et propriétés Unity
+- sdk-browser · AtlasResources
+- tests · HEADER
+- Groupes et bissection du DAG
+- gallery · round
+- Propriétés Alembic
+- cutout · BTreeMap
+- gallery · COLORS
+- dna · Option
+- Fixtures de grille et ratios
+- image · IntoIterator
+- js · vector
+- ma · Item
+- bench_calculs · Option
+- sdk-browser · box
+- Parcours des objets Alembic
+- Atlas d'ombres GPU
+- Décodage WebP
+- Décodage HDR
+- Décodage KTX2
+- Géométrie Alembic
+- sdk-browser · TaaFrameState
+- Formules communes TypeScript
+- ma · Fixture blend/limites — licence CC0
+- Lecture du format Blender (3)
+- appui · BOITES
+- scripts · onOpen
+- src · BOX_VALUES
+- Frustum, boîtes et volumes
+- sdk-node · PhaseState
+- oracles · referenceLinearToSrgb8
+- tests · CUTOUT_ALPHA
+- src · COPLANAR_MAX_LAYER
+- docs · clustered-blend : mélange statique dans le DAG (format 2)
+- cutout · BTreeSet
+- tests · a_tiff_outside_profile_comes_out_as_a_report_reason_never_as_a_panic
+- blend · .bools
+- blend · .face
+- ma · CLAMP
+- code · reset
+- Bacs à sable des pilotes
 - packages_sdk_core_index_assertmanifestbinary
-- material
-- lampes_emetteur.rs
-- simplify.rs
-- sdk-browser/gpuPages.ts
-- webgpuPagesRuntime.ts
-- pageThreeMesure.mjs
-- ma_driver.rs
-- alembic/tests.rs
-- pageDecodeHost.ts
-- .selected
-- Ngon
-- texture-echantillonnee.perf.mjs
-- webgpuTransparentTable.test.ts
-- Scene
-- pageSelectionCutState.ts
-- compiler_lock.rs
-- couches-coplanaires.perf.mjs
-- Parts
-- autonomousPages.ts
+- tests · Bits
+- tests · DEMI_DIAGONALE
+- proxy · CELL_ERROR_FACTOR
+- Cache de pages GPU
+- Encodage des dessins WebGPU (2)
+- Banc de mesure commun (2)
+- tests · String
+- alembic · a_group_above_the_allocation_ceiling_is_refused_by_name
+- sdk-browser · avecCoeurs
+- Commandes et document Maya (2)
+- scene · .begin
+- bench · passeTexture
+- sdk-browser · item
+- Lecture du format Blender (4)
+- État de la coupe de sélection
+- src · CACHE_LOCK_FILE
+- Pipelines de visibilité
+- unity · Fn
+- bench · geometrie
 - docs_js_engine_depth_compare_or_equal
-- rendererLessons.js
-- ClusterPlane
-- image/dds.rs
-- gpuDeviceLedger.ts
-- Document
-- tests/icc.rs
-- inverseTransposeF32.mjs
-- Surface
-- emitter.rs
-- tests/ktx2.rs
-- graphify-libelles.mjs
-- .load
-- g9_accessor.rs
-- atlas_textures
-- ref_node_path
-- load_decisions
-- usd/texture.rs
-- scanlines.rs
-- fixture.rs
-- generate-sdk-facade.mjs
-- ktx2/header.rs
-- mesh/build.rs
-- App.jsx
-- geometry_page.rs
-- read
-- webgpuPageRow.ts
-- unity_sparse.rs
-- Token
-- compilerOptions
-- normale-ombrage.mjs
-- crate
-- stageMapping.ts
-- report
-- TGA
-- pageRaster.ts
-- normalTransformCas.mjs
-- blend.rs
-- BlendFile
-- descripteur.rs
-- TextureTable
-- sampling.rs
-- subset.rs
-- usd/light.rs
-- erreur-ecran-hors-axe.mjs
-- rapportMemoire.mjs
-- active.rs
-- vecteurs-transport.perf.mjs
-- devDependencies
-- tests/psd.rs
-- tests/dds.rs
-- Footprint
-- image/icc.rs
-- blend/envelope.rs
-- webgpuTileScratch.ts
-- usd/xform.rs
-- alpha.rs
-- createExplorer (explorateur navigateur)
-- invalid
-- layer.rs
-- explorerBackends.ts
-- prune_cache
-- scenesNormale.mjs
-- sceneLightShadowPages.ts
-- g12_statistiques.rs
-- JPEG
-- Import drivers and their named refusal codes
-- b2_manifeste.rs
-- Fixture de correction — pilote usdz, conteneur
-- src/uri.rs
-- manifest_binary/tests.rs
-- TIFF
-- alembic/xform.rs
-- draw.js
-- .render
-- test/assets — corpus de formats sources, livré hors dépôt et ignoré par git
-- common/contracts.ts
+- gallery · initial
+- tests · Surface
+- image · CODEC_UNSUPPORTED
+- sdk-browser · GpuDeviceLedgerSnapshot
+- ma · Default
+- tests · a_png_icc_profile_is_counted_unless_it_names_srgb
+- Justesse de la transformation normale
+- usd · HashMap
+- compiler_lights · DERIVED
+- tests · ASTC_4X4
+- scripts · graph
+- Importer<'_>
+- bench_calculs · LECTURES
+- texture_preview · Option
+- Tests navigateur Node
+- Backends de rendu exacts (2)
+- ma · cone_angles
+- hdr · EXPONENT_BIAS
+- bench_calculs · NAMES
+- scripts · category
+- En-tête et DFD du KTX2
+- mesh · AtomicBool
+- portal · searchText
+- src · FLAG_COLOR
+- usd · Fn
+- sdk-browser · DeferredBindings
+- tests · DELTA
+- ma · Item (2)
+- . · declaration
+- oracles · attribut
+- src · budget_de_decompression_refuse_avant_toute_decompression
+- API et session de l'explorateur (2)
+- coplanar · Counts
+- image · FOOTER_BYTES
+- tests · HALF_PI
+- justesse · pire
+- blend · POINTER
+- blend · HashMap
+- Descripteurs et n-gones Blender (2)
+- texture_preview · BTreeMap
+- usd · CLAMP
+- usd · FAMILY
+- usd · DEFAULT_CONE
+- Erreur d'écran hors axe
+- scene · AtomicBool
+- blend · EXCLUDE
+- bench · longueurs
+- . · codemirror
+- tests · ALPHA
+- sdk-browser · .dispose
+- coplanar · Result
+- image · APP2
+- blend · Display
+- sdk-browser · MipPipeline
+- usd · INVERT
+- blend · ALPHA_CHANNEL
+- docs · Statut de l'occlusion Hi-Z
+- src · Option
+- usd · DEFAULT_METERS_PER_UNIT
+- sdk-core · translation
+- src · Fn (2)
+- Normale d'ombrage mesurée
+- unity · Map
+- bench_calculs · Bits
+- image · .accepts_head
+- Notices des fixtures
+- bench_calculs · Bits (2)
+- USDZ_LAYOUT_INVALID
+- src · Option (2)
+- manifest_binary · String
+- image · DEPTH
+- alembic · Result
+- gallery · make
+- unity · MESH_FILTER
+- limites/truncated.unity : 31 octets, refus propre sans panique ni allocation non bornée
+- tests · PathBuf
 - test_justesse_normaltransformcas_deg
-- visibilityShaderIdHoistEquivalence.test.ts
-- find_overlaps
-- sdk-browser/package.json
-- hiz.mjs
-- exports
-- split
-- build_dag_primitive
-- webgpuPagesPrepareTextures.ts
-- CompilerError
-- pageDecodeNodeWorker.mjs
-- compile
-- ModelImport
-- Project
-- evaluateDetail.js
-- Batch A — maths and side enum (#76)
-- PrimitiveInputs
-- normalTransform.test.ts
-- collect_with_world
-- webglClusterTextures.ts
-- webgpuBindEntries.test.ts
+- oracles · Vec3
+- coplanar · BTreeMap
+- sdk-browser · node
+- Socle des consommateurs
+- . · import
+- src · Debug
+- proxy · Attribute
+- sdk-browser · GeometryBlock
+- Erreurs du compilateur et USDZ
+- oracles · .constructor
+- offline · fullCoverage
+- unity · .scale
+- unity · MAX_SCAN_DEPTH
+- js · round
+- docs · Batch E2 — WebGL2 surface foundation (#108)
+- appui · tour
+- sdk-browser · NOYAU
+- coplanar · PROGRESS_STEP
+- docs_js_engine_hierarchy_root
+- sdk-browser · HizDeviceOverrides
 - ref_packages_sdk_browser_gpuraster_ts
-- compiler_world.rs
-- b4_capacites.rs
-- stage_textures
-- Builder
+- Matrices monde du compilateur
+- bench_calculs · NEUTRE
+- src · BTreeMap
+- Constructeur YAML Unity
 - ref_packages_sdk_browser_visibilitybuffer_ts
 - ref_src_lab_modelcampaign_ts
-- WebglClusterMaterialUniforms
-- Web Geometry SDK guide (docs/SDK.md)
-- ma/xform.rs
-- tests/bmp.rs
-- visit.rs
-- geometry_page_codec_tests.rs
-- AtlasKind
-- WebglClusterRenderer
-- AlphaShape
-- bounds.rs
-- Specification — WebGeometry without Three.js: engine, editor, final bake
-- attributs-telemetrie.perf.mjs
+- sdk-browser · Anisotropy
+- docs · atlasClasses — one or two material-atlas size classes
+- ma · AXES
+- tests · all_writings_of_the_format_yield_the_same_pixels
+- tests · Arc
+- src · PLAN
+- Aperçus de textures et pyramide (3)
+- sdk-browser · .constructor
+- bench · parcours
+- scripts · MANIFESTE
+- docs · 0. Goal and non-goals
+- sdk-browser · digests
 - ref_wg_fixture_capturerun_mjs
-- socleConsommateursBrowser.mjs
-- sdk-node/package.json
+- appui · matrices32
+- sdk-node · node
 - ext_index_js
 - packages_sdk_core_index_page_decode_protocol
-- compilerProcess.mts
-- webgpuShadowBounds.ts
-- write_autonomous_scene
-- Structure
-- gallery/code.js
-- ma_xform.rs
-- At
-- cache_key
-- Command
-- placement.rs
-- read_opacity
-- page-codec/package.json
-- webglClusterRenderer.ts
-- declared.rs
-- sdk-core/package.json
-- tsconfig.core.json
-- dfd.rs
-- topology.rs
-- tests/hdr.rs
-- The three streams: stderr events, stdout pointer, stdin cancel
-- build
-- required_index
-- unity_instances.rs
-- rapportCalcul.test.mjs
-- pageEclairage.test.mjs
-- gpuLightTilesRankEquivalence.test.ts
-- node_triangles
-- imageTenueCouleurPage.mjs
-- Constantes de structure : 128 tri, groupes 8–32, page 128 Kio
-- drawRun.mjs
-- obj_fixture
-- usd/read.rs
-- measure.rs
-- faces.rs
-- image_registry.rs
-- manifeste-binaire.perf.mjs
-- proxy.rs
-- kinetic-garden/cache/native/full/manifest.json
-- coplanar_assign.rs
-- load_model_file
-- webgpuPagesStateTiming.ts
-- chunks.rs
+- bench_calculs · SPAN
+- sdk-browser · record
+- src · ANIMATED
+- unity · ADDED_COMPONENT
+- gallery · q
+- tests · String (2)
+- Lecture du format Blender (2)
+- src · les_mesures_et_la_provenance_sortent_de_lidentite
+- Commandes et document Maya
+- coplanar · Option
+- manifest_binary · .i32
+- page-codec · node
+- sdk-browser · ClusterLight
+- Clés et orientation KTX2
+- sdk-core · node
+- . · lib
+- ktx2 · FLAGS
+- src · Bits
+- tests · both_precisions_yield_the_reference_values
+- docs · Mesures : importMs, compileMs, wallMs, phaseElapsedMs
+- Descripteurs et n-gones Blender (4)
+- Validation du compilateur
+- tests · MAT
+- plugins · PathBuf
+- mesure · canvasMock
+- oracles · CompactResult
+- Budget et ouvriers du compilateur
+- Contrat backend et dessin (3)
+- docs · Quatre critères de parité
+- appui · drawCase
+- tests · gltf_sources_never_go_through_the_importer
+- usd · AssetPath
+- cutout · ABSENT
+- ma · Item (3)
+- Diffusion des pages en continu (2)
+- bench · passe
+- Proxy de scène du compilateur
+- full · compiler
+- tests · assign_layers_breaks_area_ties_by_source_order
+- Chargement des modèles
+- Étapes et profilage de trame (2)
+- png · CHUNK_HEADER
 - private_tmp_webgeometry_146_progressive_scroll_dist_sdk_browser_index_js
-- select_nodes
-- import/light.rs
-- pageCone.ts
-- primitive
-- dds/refus.rs
-- Report
-- extras.rs
-- webglClusterGeometry.ts
-- ngones.rs
-- oracle.rs
-- .next
-- import.rs
-- webgpuBudgetRanking.test.ts
+- src · BTreeMap (2)
+- fixtures · readLightingGltf
+- sdk-browser · blocs
+- import · Option
+- dds · ARRAY_SIZE
+- Rapport et table des textures
+- usd · DEFAULT_IOR
+- sdk-browser · Attribute
+- Descripteurs et n-gones Blender (3)
+- src · KIND_POINT
+- png · Item
+- Import Unity et maillages
+- Maillages et jeux de faces
 - packages_sdk_core_index_sortpages
-- three-vs-core-matrices.perf.mjs
-- .prettierrc.json
-- browser.d.ts
-- publish
-- profil-etapes.perf.mjs
-- ma/mesh.rs
-- web-geometry-compiler
-- web-geometry-page-codec
-- normale-eclairage-substitutions-refusees.browser.mjs
+- bench · oracle
+- . · printWidth
+- types · browser.d
+- Verrou CLI et fixtures du compilateur (2)
+- bench · depose
+- ma · Face
+- asset-compiler-rust · web-geometry-compiler
+- page-codec-wasm · web-geometry-page-codec
+- Descripteurs et n-gones Blender (5)
 - packages_sdk_browser_gpudraw_base_slots
 - packages_sdk_browser_gpudraw_bin_back
 - packages_sdk_browser_gpudraw_bin_front
-- webgpuSunFarHold.test.ts
+- sdk-browser · assertAdoption
 - packages_sdk_browser_gpudraw_bin_none
 - packages_sdk_browser_pageselection_pagerec
 - packages_sdk_browser_pageselection_projectedpageerror
-- Les quatre commandes : test, test:gpu, perf:all, validate
-- Répondre en français concis, ne pas coder sans demande
+- docs · Dépôt autonome, sans voisin sur disque
+- . · Répondre en français concis, ne pas coder sans demande
 - packages_sdk_browser_pageselection_selectvisiblepages
-- city/cache/native/full/manifest.json
-- Fichiers source acceptés
-- socleEquivalence.mjs
-- tests/gif.rs
-- builtin.rs
+- full · compiler (2)
+- docs · Fichiers source acceptés
+- Équivalence du socle mesuré
+- Descripteurs et n-gones Blender
+- unity · BUILTIN_GUID
 - packages_sdk_browser_gpudagselection_dag_selection_shader
-- alembic/archive.rs
-- convex-prism/cache/native/full/manifest.json
+- scene · .accepts_head
+- full · compiler (3)
 - packages_sdk_browser_gpudagselection_evaluatedagselectionkernel
-- streaming.ts
-- gpuTiming.test.ts
+- src · POSITION_VALUES
+- bench · couverture
 - packages_sdk_browser_gpudagselection_packdagselection
 - thread
 - packages_sdk_browser_gpudagselection_packeddag
-- compiler_lights.rs
+- src · fbx_intensity_scale
 - packages_sdk_browser_gpudagselection_packedworldstorenderorigin
-- Web Geometry README
-- provenance.mts
-- job.rs
+- docs · Source Ownership and Integration
+- sdk-node · .cancel
+- oracle · Into
 - ref_15_virtualized_integration_implementation_engines_ts
 - ref_node_stream
 - write_page
-- declarations.rs
-- task.md
-- .named
-- unity_maillages.rs
-- Projet
+- Bancs de calcul Rust
+- ISSUE_TEMPLATE · Code Context
+- document · .remember
+- tests · MAT (2)
+- tests · Value
 - packages_sdk_browser_gpudraw_compactslotlayout
 - packages_sdk_browser_gpudraw_creategpudraw
 - ref_vite_deps_three_js
@@ -491,24 +493,24 @@
 - packages_sdk_browser_gpudraw_drawbindentries
 - packages_sdk_browser_gpudraw_drawitem
 - packages_sdk_browser_gpudraw_evaluatedrawcompact
-- sdk/package.json
+- sdk · private
 - packages_sdk_browser_webgpupages_outputcolordiagnostic
-- eclairage-pixel.perf.mjs
-- /__wg-fixture/beautyRun.mjs
-- PULL_REQUEST_TEMPLATE.md
-- .prefab_instance
+- src · Result
+- /__wg-fixture/beautyRun
+- .github · Local review before push
+- unity · Value (2)
 - docs_js_gallery_index_examples
 - packages_sdk_browser_gpudraw_indirectfordraw
-- lib.sh
-- post-commit
+- .githooks · refuse
+- .githooks · delegate script
 - packages_sdk_browser_gpudraw_max_draw_slots
-- roles/coder.md
-- roles/reviewer.md
-- post-checkout
-- pre-commit
-- pre-push
+- roles/coder
+- roles/reviewer
+- .githooks · post-checkout
+- .githooks · pre-commit
+- .githooks · pre-push
 - packages_sdk_browser_gpudraw_page_bind_align
-- check-pr-body.sh
+- scripts · check-pr-body.sh
 - packages_sdk_browser_gpudraw_slotcount
 - packages_sdk_core_bench_socle_graine
 - packages_sdk_browser_gpuhiz_creategpuhiz
@@ -547,11 +549,11 @@
 - packages_sdk_browser_pageselection_indexpagesbyurl
 - docs_js_viewrenderer_escapehtml
 - packages_sdk_browser_pageselection_pagerequesturl
-- of
+- usd · ALPHA_CHANNEL
 - packages_sdk_browser_pageselection_requeststamps
 - packages_sdk_browser_pageselection_resolvepixelerror
 - packages_sdk_browser_pageselection_selectionresult
-- fixture
+- Tests du pilote GIF
 - packages_sdk_browser_telemetry_telemetryreport
 - packages_sdk_browser_visibilitybuffer_clusterhash
 - packages_sdk_browser_visibilitybuffer_shade_shader
@@ -655,58 +657,63 @@
 - packages_sdk_core_manifestbinary_slimprimitivebinary
 - packages_sdk_core_manifestbinary_texture_preview_version
 - packages_sdk_core_scenelightshadowplan_rects_per_slice
-- /15-virtualized-integration/implementation/engines.ts
-- /src/lab/modelCampaign.ts
-- /.vite/deps/three.js
-- bent-prism/cache/native/full/manifest.json
-- contour/cache/native/full/manifest.json
-- indexed/cache/native/full/manifest.json
-- curve-control/cache/native/full/manifest.json
-- lettering/cache/native/full/manifest.json
-- difference/cache/native/full/manifest.json
-- reference-ue5.test.mjs
-- kinetic-garden/README.md
-- loft/cache/native/full/manifest.json
-- hard-edges/cache/native/full/manifest.json
-- height-palette/cache/native/full/manifest.json
-- implicit-shell/cache/native/full/manifest.json
-- portail-documentation.test.mjs
-- prism/cache/native/full/manifest.json
-- rational-roof/cache/native/full/manifest.json
-- refinement/cache/native/full/manifest.json
-- tests/webp.rs
-- ribbon/cache/native/full/manifest.json
-- sampling/cache/native/full/manifest.json
-- sculpture/cache/native/full/manifest.json
-- terrain/cache/native/full/manifest.json
-- painted/cache/native/full/manifest.json
-- terrain-hit/cache/native/full/manifest.json
-- uv-tiles/cache/native/full/manifest.json
-- highlight-entry.mjs
+- Transport de lumière (2)
+- Empaquetage des pages DAG
+- manifest_binary · vector_into_accepts_an_empty_vector_when_the_expected_length_is_zero
+- /15-virtualized-integration/implementation/engines
+- /src/lab/modelCampaign
+- /.vite/deps/three
+- full · compiler (4)
+- full · compiler (5)
+- full · compiler (6)
+- tests · a_raised_token_stops_a_mesh_before_its_last_face
+- full · compiler (7)
+- full · compiler (8)
+- Budget et ouvriers du compilateur (2)
+- full · compiler (9)
+- integration · valeurConstante
+- kinetic-garden/README
+- full · compiler (10)
+- full · compiler (11)
+- full · compiler (12)
+- full · compiler (13)
+- unity · Document
+- full · compiler (14)
+- full · compiler (15)
+- full · compiler (16)
+- tests · MAX_ALLOC
+- full · compiler (17)
+- full · compiler (18)
+- full · compiler (19)
+- full · compiler (20)
+- full · compiler (21)
+- full · compiler (22)
+- full · compiler (23)
+- docs · highlightCode
 - private_tmp_webgeometry_107_learning_portal_dist_sdk_browser_index_js
-- vessel/cache/native/full/manifest.json
-- wide-indices/cache/native/full/manifest.json
-- explorerMetrics.ts
-- sceneLightShadowFaces.ts
-- CodeInput.jsx
-- normales.rs
-- ClusterBatches
-- workflow-gates.test.mjs
-- Emitter
-- uri_pilotes.rs
-- qe
-- WebglClusterState
-- sdk-api-model.mjs
-- fields.rs
+- full · compiler (24)
+- full · compiler (25)
+- Lecture et écriture glTF (2)
+- sdk-core · SunCascade
+- components · CodeInput
+- manifest_binary · Result
+- mesh · AtomicBool (2)
+- Scripts de build et distribution (3)
+- sdk-node · controller
+- src · stride
+- src · Result (2)
+- js · f
+- sdk-browser · Material
+- private_tmp_webgeometry_154_transparent_readback_dist_sdk_browser_index_js
+- ref_dist_sdk_browser_index_js
+- users_pasquelin_applications_webgeometry_121_sdk_facade_dist_sdk_browser_index_js
+- scripts · addConsumer
 - private_tmp_webgeometry_131_renderer_gallery_dist_sdk_browser_index_js
-- plan_buffers
-- lighting.ts
+- src · BTreeMap (3)
+- sdk-core · Slices
 - private_tmp_webgeometry_139_renderer_scenes_dist_sdk_browser_index_js
-- SceneProxy
-- Classes de matériau et rangement du compilateur
-- backendTypes.ts
-- unique_id
-- webglClusterProgram.ts
+- classes-materiaux · Scènes de mesure — les classes de matériau
+- API et session de l'explorateur
 - packages_sdk_browser_gpudraw_gpudraw
 - packages_sdk_browser_gpupassblocks_gpupassstageof
 
@@ -719,20 +726,20 @@
 6. `RenderBackend` - 76 edges
 7. `collectClusterPages()` - 63 edges
 8. `selectVisiblePages()` - 62 edges
-9. `graine()` - 61 edges
-10. `Options` - 61 edges
+9. `Options` - 61 edges
+10. `graine()` - 61 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Une page neuve par série (contexte WebGL rendu au navigateur)` --semantically_similar_to--> `Fixture minimale`  [INFERRED] [semantically similar]
   scripts/mesure/README.md → packages/asset-compiler-rust/fixtures/dds/README.md
-- `perspectiveProjection()` --references--> `3. Browser runtime (TypeScript, WGSL, GLSL)`  [INFERRED]
-  packages/sdk-core/mathCamera.ts → docs/SPEC_ENGINE_WITHOUT_THREE.md
-- `prepareCones()` --references--> `3. Browser runtime (TypeScript, WGSL, GLSL)`  [INFERRED]
-  packages/sdk-browser/webgpuPagesPrepare.ts → docs/SPEC_ENGINE_WITHOUT_THREE.md
-- `collectClusterPages()` --references--> `3. Browser runtime (TypeScript, WGSL, GLSL)`  [INFERRED]
-  packages/sdk-browser/pageSelectionCollect.ts → docs/SPEC_ENGINE_WITHOUT_THREE.md
-- `selectVisiblePages()` --references--> `3. Browser runtime (TypeScript, WGSL, GLSL)`  [INFERRED]
-  packages/sdk-browser/pageSelectionCut.ts → docs/SPEC_ENGINE_WITHOUT_THREE.md
+- `Original offline geometry recipes` --references--> `createExplorer()`  [INFERRED]
+  docs/js/gallery/offline/README.md → packages/sdk-browser/explorer.ts
+- `createExplorer()` --documents--> `Interactive browser startup (README.md)`  [INFERRED]
+  packages/sdk-browser/explorer.ts → README.md
+- `createExplorer()` --documents--> `Interactive browser startup (docs/README.md)`  [INFERRED]
+  packages/sdk-browser/explorer.ts → docs/README.md
+- `createExplorer()` --documents--> `Interactive browser startup (docs/SDK.md)`  [INFERRED]
+  packages/sdk-browser/explorer.ts → docs/SDK.md
 
 ## Import Cycles
 - 2-file cycle: `packages/asset-compiler-rust/src/plugins/image.rs -> packages/asset-compiler-rust/src/plugins/image/decoded.rs -> packages/asset-compiler-rust/src/plugins/image.rs`
@@ -745,291 +752,291 @@
 - **Inventory Environment Surfaces** — docs_api_inventory_common_environment_exports, docs_api_inventory_browser_environment_exports, docs_api_inventory_node_environment_exports [EXTRACTED 1.00]
 - **SDK Environment Facade Partition** — docs_sdk_facade_node_esm_branch, docs_sdk_facade_browser_bundler_branch, docs_sdk_facade_common_worker_branch, docs_sdk_facade_safe_common_fallback [EXTRACTED 1.00]
 
-## Communities (701 total, 224 thin omitted)
+## Communities (706 total, 227 thin omitted)
 
 ### Community 0 - "Manifeste binaire (3)"
-Cohesion: 0.12
-Nodes (35): referenceExpectedGeometry(), referencePreviewPixelBytes(), cas, DIMENSIONS, inputs, packages_sdk_core_contracts_assertcacheidentity, packages_sdk_core_contracts_clustered_blend_format_version, packages_sdk_core_contracts_clustermanifest (+27 more)
+Cohesion: 0.06
+Nodes (76): referenceExpectedGeometry(), referencePreviewPixelBytes(), cas, DIMENSIONS, inputs, packages_sdk_core_contracts_assertcacheidentity, packages_sdk_core_contracts_clustered_blend_format_version, packages_sdk_core_contracts_clustergroup (+68 more)
 
 ### Community 1 - "Mathématiques du tampon de visibilité"
-Cohesion: 0.04
-Nodes (99): alphaGarde(), fillAffine(), fillReference(), rasterAvec(), alea, atlas, cas, points (+91 more)
+Cohesion: 0.05
+Nodes (92): alphaGarde(), fillAffine(), fillReference(), rasterAvec(), lignesConsommateursBrowser(), frameB, frameBitangents, frameN (+84 more)
 
 ### Community 2 - "Sélection DAG et pages WebGPU"
-Cohesion: 0.11
-Nodes (39): target(), installGpuDeviceLedger(), readShadowAtlasDigest(), ShadowAtlasDigest, scratch(), view(), webgpuPagesBackend(), captureImage() (+31 more)
+Cohesion: 0.10
+Nodes (51): target(), defaultEngineCamera(), packDagSelection(), PackedDag, readShadowAtlasDigest(), ShadowAtlasDigest, scratch(), view() (+43 more)
 
 ### Community 3 - "sdk-browser · TileSource"
-Cohesion: 0.10
-Nodes (46): entryLevel(), entryPlace(), levelSize, MAX_LEVELS, packEntry(), placeIndex(), placeOf(), POOL_LAYER_BYTES (+38 more)
+Cohesion: 0.08
+Nodes (55): TextureLevelReader, entryLevel(), entryPlace(), levelSize, MAX_LEVELS, packEntry(), placeIndex(), placeOf() (+47 more)
 
-### Community 4 - "sdk-browser · hostileRig"
+### Community 4 - "sdk-browser · makeEnv"
 Cohesion: 0.04
-Nodes (40): Build and local preview, referenceBoxClip(), assertSameCamera(), FIELDS, pose(), copie(), finite(), LIGHT_SLOTS (+32 more)
+Nodes (32): referenceBoxClip(), referenceCollectPendingUrls(), referenceResidency(), assertSameCamera(), FIELDS, canvas, pose(), CLEFS (+24 more)
 
-### Community 5 - "Options et poses du banc"
-Cohesion: 0.05
-Nodes (64): assertReport(), assetPath(), object(), REPORT_VERSION, useReports(), json(), load(), ref_node_fs (+56 more)
+### Community 5 - "Scripts de build et distribution (2)"
+Cohesion: 0.04
+Nodes (87): moteur webgl2 (autonomous-pages-webgl), AUTONOMOUS_SCENE_UNAVAILABLE, moteur webgl (exact-cluster-pages), /mesure/poses.mjs, ref_node_crypto, ref_node_fs, ref_node_http, typescript (+79 more)
 
 ### Community 6 - "Greffons de scène du compilateur"
-Cohesion: 0.03
-Nodes (113): AsRef, ordering, atomic(), Result, store_object(), base_key(), import_source(), reusable() (+105 more)
+Cohesion: 0.04
+Nodes (54): base_key(), import_source(), reusable(), PathBuf, Result, String, source_root(), ALEMBIC (+46 more)
 
 ### Community 7 - "Pyramide Hi-Z et occlusion"
-Cohesion: 0.05
-Nodes (83): passeOptimisee(), alea, cam, grande, jeux, occluders, profondeur, pyramide (+75 more)
+Cohesion: 0.06
+Nodes (75): cas(), alea, cam, grande, jeux, occluders, profondeur, pyramide (+67 more)
 
 ### Community 8 - "reports · keyboard"
 Cohesion: 0.07
-Nodes (69): assessment(), ASSESSMENT_LABELS, engineTone(), flattenFields(), missingMetric(), comparison(), equal(), COPY (+61 more)
+Nodes (68): assessment(), ASSESSMENT_LABELS, engineTone(), flattenFields(), missingMetric(), comparison(), equal(), COPY (+60 more)
 
 ### Community 9 - "js · choice"
-Cohesion: 0.05
-Nodes (60): drawCurve(), drawVectors(), canvasView(), formatNumber(), matrixView(), slider(), swatchView(), valueView() (+52 more)
+Cohesion: 0.06
+Nodes (43): drawCurve(), drawVectors(), canvasView(), formatNumber(), matrixView(), slider(), swatchView(), valueView() (+35 more)
 
 ### Community 10 - "Résidence et amorçage GPU (2)"
-Cohesion: 0.08
-Nodes (38): BootstrapOptions, Cache, createWebgpuBootstrap(), Diagnostics, Tracking, createBudgetRanking(), createDenseKeySet(), DenseKeySet (+30 more)
+Cohesion: 0.04
+Nodes (94): UPLOAD_SLICE_MS, lecteursOptimisee(), createBlendCopy(), createExactPagesRequestData(), createExactPagesRequests(), ExactPagesRequestContext, pageBufferCap(), applyArrivalPlan() (+86 more)
 
-### Community 11 - "Garde zéro Three.js"
-Cohesion: 0.05
-Nodes (13): RenderBackend, referenceEmpileEnAttente(), referenceRetireDeLaFile(), adresses(), file(), passeOptimisee(), passeReference(), rafale() (+5 more)
+### Community 11 - "sdk-browser · DagBuffers"
+Cohesion: 0.09
+Nodes (40): bounceGroup(), bounceLayout(), selectionListCap(), LEVEL_QUEUES, createDagPipeline(), DagBuffers, createDagResources(), dropValidation() (+32 more)
 
 ### Community 12 - "js · B"
-Cohesion: 0.08
-Nodes (34): B, BOUNDS, F, CAM, CAMERA, HOST, HOST_CAMERA, ORIGIN (+26 more)
+Cohesion: 0.07
+Nodes (35): B, BOUNDS, F, CAM, CAMERA, HOST, HOST_CAMERA, ORIGIN (+27 more)
 
 ### Community 13 - "Sélection des pages visibles"
 Cohesion: 0.06
-Nodes (67): dag(), etatDeCoupe(), anneauParLaCoupe(), anneauParSeconde(), scene(), cam, decritC4, decritC6 (+59 more)
+Nodes (67): dag(), etatDeCoupe(), racine(), anneauParLaCoupe(), anneauParSeconde(), cam, dense, image (+59 more)
 
 ### Community 14 - "js · constructor"
-Cohesion: 0.09
-Nodes (41): Ar(), bn(), Br(), cn(), De(), Ee(), en(), Fe() (+33 more)
+Cohesion: 0.11
+Nodes (33): Ar(), bn(), Br(), cn(), D(), De(), dn(), en() (+25 more)
 
 ### Community 15 - "Équivalence du socle mesuré (2)"
-Cohesion: 0.09
-Nodes (62): clipper(), boxTransformBatch(), boxTransformUnionBatch(), boxUnionBatch(), HIERARCHY_ROOT, hierarchyUpdateBatch(), multiplyMatrix4Batch(), scratchUnionBox (+54 more)
+Cohesion: 0.08
+Nodes (68): recomposition(), clipper(), boxTransformBatch(), boxTransformUnionBatch(), boxUnionBatch(), HIERARCHY_ROOT, hierarchyUpdateBatch(), multiplyMatrix4Batch() (+60 more)
 
 ### Community 16 - "Rejeu de la hiérarchie"
 Cohesion: 0.05
-Nodes (82): joueNous(), projectionNous(), parArbre(), scratch, socle(), buildTrees(), basePose(), count (+74 more)
+Nodes (76): joueNous(), projectionNous(), hostLocalInto(), parArbre(), scratch, socle(), basePose(), count (+68 more)
 
 ### Community 17 - "Greffons et pilotes de scène"
 Cohesion: 0.04
-Nodes (37): compilererror, P, append(), claiming(), descriptor(), extension_of(), fingerprint(), Plugin (+29 more)
+Nodes (43): compilererror, json, openusd, P, append(), claiming(), descriptor(), extension_of() (+35 more)
 
 ### Community 18 - "Tables de scène à l'import"
-Cohesion: 0.08
-Nodes (13): DEFAULT_FILTER, String, SceneTables, BTreeMap, HashMap, Instant, PathBuf, Result (+5 more)
-
-### Community 19 - "Verrou CLI et fixtures du compilateur (2)"
 Cohesion: 0.05
-Nodes (62): common, main(), PathBuf, Result, source_files(), feuille(), RgbaImage, un_alpha_deja_binaire_est_propose_en_decoupe() (+54 more)
+Nodes (25): DEFAULT_FILTER, String, SceneTables, BTreeMap, HashMap, Instant, PathBuf, Result (+17 more)
 
-### Community 20 - "Étapes et profilage de trame (2)"
-Cohesion: 0.05
-Nodes (58): runCameraPath(), createExactPagesCpu(), Explorer, createExplorerApi(), Inputs, createExplorerCameraApi(), Inputs, createExplorerSceneApi() (+50 more)
+### Community 19 - "Verrou CLI et fixtures du compilateur"
+Cohesion: 0.07
+Nodes (45): common, elapsed_ms, main(), PathBuf, Result, source_files(), feuille(), RgbaImage (+37 more)
+
+### Community 20 - "Télémétrie et métriques (2)"
+Cohesion: 0.06
+Nodes (40): runCameraPath(), total(), Explorer, active(), nextFrame(), COMPARISON_LIBRARIES, CompetitorRecord, CompetitorStatus (+32 more)
 
 ### Community 21 - "Raster de calcul"
-Cohesion: 0.11
-Nodes (30): DEPTH_COMPARE_OR_EQUAL, createGpuRaster(), CNT_COARSE, CNT_FINE, CNT_HUGE, CNT_LARGE, COMPUTE_ALL, DISPATCH_BASE (+22 more)
+Cohesion: 0.07
+Nodes (47): DEPTH_COMPARE_OR_EQUAL, GROW, IN, K, SLACK, DEPTH_GROW, ERR_K, INPUT_K (+39 more)
 
 ### Community 22 - "Banc de décodage wasm"
-Cohesion: 0.07
-Nodes (38): encodeGeometryPage(), GEOMETRY_ATTRIBUTES, alea, hostiles(), LARGEURS, page(), pageBrute(), sommetsPlats() (+30 more)
+Cohesion: 0.09
+Nodes (36): encodeGeometryPage(), GEOMETRY_ATTRIBUTES, alea, dossier, MODULE, page(), tache, worker (+28 more)
 
 ### Community 23 - "Scène de l'explorateur et chargement (3)"
-Cohesion: 0.05
-Nodes (65): boiteVersTableau(), cas, grande, orpheline, passeBounds(), passeCollect(), petite, recDe() (+57 more)
+Cohesion: 0.06
+Nodes (43): BACKEND_METRIC_KEYS, BackendMetrics, ComposedMetric, boiteVersTableau(), cas, grande, orpheline, passeBounds() (+35 more)
 
 ### Community 24 - "Oracles de projection"
 Cohesion: 0.05
-Nodes (63): image, impaire, passeReference(), petite, referenceBuild(), referenceRejects(), referenceRowsOf(), reprise (+55 more)
+Nodes (64): parcours(), image, impaire, passeOptimisee(), passeReference(), petite, referenceBuild(), referenceRejects() (+56 more)
 
 ### Community 25 - "Socle de mesure des bancs (2)"
-Cohesion: 0.04
-Nodes (98): BOITES, matriceOrdinaire(), MATRICES, remplitBoites(), remplitMatrices(), TAILLES, boites(), camera() (+90 more)
+Cohesion: 0.03
+Nodes (92): boites(), camera(), coupe(), MAUVAIS, page(), rectangles(), catalogueDePages(), manifesteEtScene() (+84 more)
 
 ### Community 26 - "Pages de preuve navigateur"
 Cohesion: 0.12
 Nodes (48): deplace(), executer(), executionComplete(), jusquaTenue(), scene(), executer(), sequence(), dallePixels() (+40 more)
 
-### Community 27 - "sdk-browser · SunFarCounts"
-Cohesion: 0.11
-Nodes (31): PROXY_COUNT_OFFSET, PROXY_COUNTING_OFFSET, PROXY_COUNTS, PROXY_HEADER_WORDS, PROXY_LAYOUT_WORD, PROXY_PARAM_FLOATS, albedoBuffer(), createGpuBounceProxy() (+23 more)
+### Community 27 - "sdk-core · reduce"
+Cohesion: 0.20
+Nodes (18): createBounceOccupancy(), dilate(), mark(), reduce(), PROXY_CHILD_WORDS, PROXY_CHILDREN, PROXY_NODE_WORDS, PROXY_TRIANGLE_FLOATS (+10 more)
 
 ### Community 28 - "Lots de grappes"
-Cohesion: 0.09
-Nodes (22): ClusterBatchStats, biasedMaterial(), buildLayerGroups(), everyGroup(), groupForPage(), identityMatrixTexture(), neutraliseBatchingShader(), ShaderHook (+14 more)
+Cohesion: 0.10
+Nodes (27): ClusterBatches, ClusterBatchStats, attributes(), drawOf(), fixture, resident(), biasedMaterial(), buildLayerGroups() (+19 more)
 
 ### Community 29 - "llm · packages_sdk_core_index_compiler_options_schema"
 Cohesion: 0.16
 Nodes (27): packages_sdk_core_index_compiler_options_schema, packages_sdk_core_index_explorer_options_schema, packages_sdk_core_index_getwebgeometryllmprompt, packages_sdk_core_index_getwebgeometrytools, packages_sdk_core_index_toanthropictool, packages_sdk_core_index_togeminitool, packages_sdk_core_index_tomcptool, packages_sdk_core_index_toopenaitool (+19 more)
 
-### Community 30 - "sdk-browser · couverture"
-Cohesion: 0.06
-Nodes (50): BackendContext, exactPagesBackend(), engine(), engine(), framingSphere, canvas, taille(), harnais() (+42 more)
+### Community 30 - "sdk-browser · graphe"
+Cohesion: 0.18
+Nodes (25): exactPagesBackend(), engine(), dessine(), litEngine(), veille(), Cluster, clusterSphere(), DAG (+17 more)
 
 ### Community 31 - "sdk-browser · DrawnMirror"
-Cohesion: 0.19
-Nodes (24): appendAll(), colorScratch, DrawnMirror, DrawnMirrorFlag, markDrawnDiverged(), MAX_BUDGET_PIXEL_ERROR, partitionByPass(), triangleSum() (+16 more)
+Cohesion: 0.16
+Nodes (28): enginePose(), appendAll(), colorScratch, DrawnMirror, DrawnMirrorFlag, markDrawnDiverged(), MAX_BUDGET_PIXEL_ERROR, outputColorDiagnostic() (+20 more)
 
 ### Community 32 - "Partition GPU et classification"
-Cohesion: 0.04
-Nodes (104): ancree(), referencePartitionUniform(), referenceSplitDouble(), alea, double(), floats, HOSTILES, image() (+96 more)
+Cohesion: 0.05
+Nodes (74): ancree(), referencePartitionUniform(), referenceSplitDouble(), alea, double(), floats, HOSTILES, image() (+66 more)
 
 ### Community 33 - "sdk-node · Answer"
-Cohesion: 0.14
-Nodes (29): packages_sdk_core_index_default_scope, decodeManifestPreviews(), blocks(), drawFile(), drawThumbnail(), imageKind, iterm(), kitty() (+21 more)
+Cohesion: 0.21
+Nodes (17): blocks(), drawFile(), drawThumbnail(), iterm(), kitty(), link(), Answer, answerOf() (+9 more)
 
 ### Community 34 - "Gouverneur du chemin mathématique"
 Cohesion: 0.11
 Nodes (10): MathPath, createPathGovernor(), Operation, PATH_EXPLORE_EVERY, PATH_MIN_SAMPLES, PATH_SWITCH_RUNS, PathGovernor, CLOCK_RESOLUTION_MS (+2 more)
 
 ### Community 35 - "Rapport de mesure"
-Cohesion: 0.17
-Nodes (16): budgets(), compteurs(), couverture(), diffText(), etapes(), mo(), ms(), num() (+8 more)
+Cohesion: 0.09
+Nodes (28): budgets(), compteurs(), couverture(), diffText(), etapes(), mo(), ms(), num() (+20 more)
 
 ### Community 36 - "Intégration des pages arrivées"
-Cohesion: 0.08
-Nodes (45): lightingCapabilitiesOf(), ArrivalRec, SpecRec, counters, inline, inlineKnown, laneKnown, openLane() (+37 more)
+Cohesion: 0.07
+Nodes (53): ArrivalRec, SpecRec, createPageIntegrationRunner(), IntegrationWorkerScope, runner, scope, CLUSTERED_BLEND_FORMAT_VERSION, SDK_VERSION (+45 more)
 
-### Community 37 - "sdk-browser · Diagnose"
-Cohesion: 0.17
-Nodes (19): checked(), loadClusterPages(), Diagnose, loadExplorerManifest(), jsonResource(), loadClusterManifest(), LoadedManifest, located() (+11 more)
+### Community 37 - "Lignes de page et double face"
+Cohesion: 0.06
+Nodes (43): mask(), packages_sdk_browser_visibilitybuffer_assertvisibilitypagetriangles, packages_sdk_browser_visibilitybuffer_flag_back, packages_sdk_browser_visibilitybuffer_flag_double, packages_sdk_browser_visibilitybuffer_flag_has_map, packages_sdk_browser_visibilitybuffer_flag_has_normal, packages_sdk_browser_visibilitybuffer_flag_has_normal_map, packages_sdk_browser_visibilitybuffer_flag_has_orm (+35 more)
 
-### Community 38 - "sdk-browser · ExactPagesRequestContext"
-Cohesion: 0.10
-Nodes (29): lecteursOptimisee(), createExactPagesRequestData(), createExactPagesRequests(), ExactPagesRequestContext, pageBufferCap(), applyArrivalPlan(), createArrivalSpecs(), ArrivalPlan (+21 more)
+### Community 38 - "sdk-browser · Arrival"
+Cohesion: 0.18
+Nodes (14): Arrival, ArrivalTarget, createArrivalQueue(), ArrivalPlan, counters, inline, inlineKnown, laneKnown (+6 more)
 
 ### Community 39 - "Pilote USD et fidélité"
 Cohesion: 0.06
 Nodes (56): cle_dans_un_cache_neuf(), String, trois_cles(), trois_imports_dun_obj_rendent_la_meme_cle(), trois_imports_dune_couche_usd_rendent_la_meme_cle(), a_polygon_becomes_a_fan_of_triangles(), compile_layer(), plugin() (+48 more)
 
 ### Community 40 - "Vecteurs et normale d'ombrage"
-Cohesion: 0.07
-Nodes (33): avec(), identite(), createObservationTransforms(), frameB, frameBitangents, frameN, frameNormals, frameOut (+25 more)
+Cohesion: 0.08
+Nodes (41): Build and local preview, createObservationTransforms(), frameB, frameBitangents, frameN, frameNormals, frameOut, frameQ (+33 more)
 
-### Community 41 - "blend · NGON_UNCUT"
-Cohesion: 0.21
-Nodes (11): mesh_json(), NGON_UNCUT, Primitive, AtomicBool, Geometry, HashMap, Option, Result (+3 more)
+### Community 41 - "scene · FILE_INVALID"
+Cohesion: 0.10
+Nodes (20): archive, FILE_INVALID, HDF5_UNSUPPORTED, NAME, NOT_FROZEN, SIZE_UNSUPPORTED, TOPOLOGY_INVALID, VALUES_INVALID (+12 more)
 
 ### Community 42 - "Nuanceurs WGSL de visibilité"
-Cohesion: 0.15
-Nodes (30): wgslFloat(), COMPUTE_TAKES_WGSL, rasterKernels(), RASTER_PIXEL_WGSL, rasterSource(), SHADOW_DEPTH_SHADER, BARY_WEIGHTS_WGSL, EDGE_WGSL (+22 more)
+Cohesion: 0.09
+Nodes (38): SHADOW_DEPTH_SHADER, TILE_BORDER, TILE_SIZE, TRIANGLE_PALETTE_WGSL, packages_sdk_browser_visibilitybuffer_flag_unlit_view, BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_BINDING (+30 more)
 
 ### Community 43 - "Aperçus de textures et pyramide (4)"
-Cohesion: 0.21
-Nodes (17): dimensions(), empreinte(), preview_geometry(), reference_geometry(), reference_pixel_bytes(), row(), Bits, Trois (+9 more)
+Cohesion: 0.30
+Nodes (13): dimensions(), empreinte(), preview_geometry(), reference_geometry(), reference_pixel_bytes(), row(), Bits, Trois (+5 more)
 
 ### Community 44 - "gallery · Tab"
-Cohesion: 0.09
-Nodes (30): docs_data_gallery_roadmap, Pagination(), clamp(), ProgressiveList(), progressiveRange(), TabsMenu(), CardSummary(), engineExample (+22 more)
+Cohesion: 0.10
+Nodes (27): docs_data_gallery_roadmap, syncRendererState(), TabsMenu(), CardSummary(), engineExample, ExampleCard(), local(), PlannedDetails() (+19 more)
 
 ### Community 46 - "Étapes et profilage de trame"
-Cohesion: 0.19
-Nodes (14): createGpuTiming(), createTimingResources(), instrumentTimingEncoder(), TimingPart, createSampleEmitter(), summarizeTimestamps(), timingEntries(), TimingEntry (+6 more)
+Cohesion: 0.15
+Nodes (16): createGpuTiming(), createTimingResources(), instrumentTimingEncoder(), TimingPart, createSampleEmitter(), summarizeTimestamps(), timingEntries(), TimingEntry (+8 more)
 
 ### Community 47 - "appui · sceneInputs"
-Cohesion: 0.18
-Nodes (21): createHostDrawCamera(), readHostDrawCamera(), curvedComparison(), curvedPixels(), planarWitness(), sceneInputs(), curvedOracleQuality(), errors() (+13 more)
+Cohesion: 0.19
+Nodes (22): createHostDrawCamera(), readHostDrawCamera(), WebglClusterRenderer, curvedComparison(), curvedPixels(), planarWitness(), sceneInputs(), curvedOracleQuality() (+14 more)
 
-### Community 48 - "sdk-browser · .dispose"
-Cohesion: 0.29
-Nodes (5): SurfaceBuffer, feedback, feedbackAttachment(), shadeColorAttachments(), surfaceColorAttachments()
+### Community 48 - "Contrat backend et dessin"
+Cohesion: 0.08
+Nodes (23): createExplorerApi(), Inputs, createExplorerCameraApi(), Inputs, ExplorerRuntimeSurface, createExplorerLightApi(), Inputs, PointOfInterest (+15 more)
 
 ### Community 49 - "Dessin GPU et contrat"
-Cohesion: 0.05
-Nodes (71): /__wg-fixture/drawRun.mjs, prefixParallel(), PrefixResult, prefixSerial(), U32(), residentFlags(), writeTriangleTotals(), createGpuDrawBuffers() (+63 more)
+Cohesion: 0.08
+Nodes (49): /__wg-fixture/drawRun.mjs, writeTriangleTotals(), createGpuDrawBuffers(), BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE, CompactResult (+41 more)
 
-### Community 50 - "Lecture et écriture glTF (2)"
-Cohesion: 0.02
-Nodes (59): parse_compiler_args(), Arc, AtomicBool, Result, String, Attribute, Result, Value (+51 more)
+### Community 50 - "tests · compiler_accessor_decode"
+Cohesion: 0.03
+Nodes (45): Attribute, Result, Value, store_page(), plane_groups(), Surface, readable(), Option (+37 more)
 
 ### Community 51 - "mesure · Bancs de performance packages/<paquet>/bench (pnpm run perf:all)"
 Cohesion: 0.11
 Nodes (22): docs/TESTS.md — documentation complète des tests et bancs, allowBuilds: esbuild — seul script de dépendance autorisé, Assets du banc : .mesure/assets (WG_ASSETS), emerald-square et emerald-square-derived, clé du manifeste, Banc de mesure commun (scripts/mesure/banc.mjs), Bancs de performance packages/<paquet>/bench (pnpm run perf:all), --camera-mobile : seule façon de voir le coût d'une sélection, --chemin-math auto|js|wasm : le gouverneur arbitre par la mesure, aucun seuil dans le code, Compteurs de triangles et de repli (selectedTriangles, drawnTriangles, uncoveredTriangles, submittedTriangles, imageTenue, hiZ, repliSelectionGpu) (+14 more)
 
-### Community 52 - "Adoption et reprise de la coupe"
-Cohesion: 0.12
-Nodes (29): createSelectionUniforms(), GpuCut, catalogueIndexOf(), indexPagesByUrl(), pageRequestUrl(), vuesSansEstampille, ESCALATION_SLACK, PageRec (+21 more)
+### Community 52 - "Routage des conteneurs d'archives"
+Cohesion: 0.11
+Nodes (27): ambiguous(), claim(), HEAD_BYTES, prepare_source(), project(), route(), Routed, RoutedSource (+19 more)
 
 ### Community 54 - "components · copy"
 Cohesion: 0.05
-Nodes (66): highlightLines(), localizedCanvasContext(), demoFor(), issueUrl(), apiScenario(), related, relatedSection, byId() (+58 more)
+Nodes (69): highlightLines(), localizedCanvasContext(), sceneCopy, sceneControlsCopy, byId(), guidance, guidanceFor(), rendererInitialState() (+61 more)
 
 ### Community 55 - "Arbre monde et lots de maths (2)"
-Cohesion: 0.06
-Nodes (53): SdkWasm, hostWorldLot(), hostWorldNodeCount(), compare(), ECHELLES, POSITIONS, ROTATIONS, createHierarchyLot() (+45 more)
+Cohesion: 0.04
+Nodes (92): ecritPage(), exacte(), exactPagesBounds(), exactPagesCount(), exactPagesLot(), ManifestPage, loadPreparedScene(), manquante() (+84 more)
 
 ### Community 56 - "SDK Node : contrats et progression"
 Cohesion: 0.15
-Nodes (27): AssetScope, DEFAULT_SCOPE, JobSnapshot, CANCEL_GRACE_MS, COMPILER_LINE_LIMIT, BatchJob, BatchOptions, BatchOutcome (+19 more)
+Nodes (27): DagWarning, CANCEL_GRACE_MS, COMPILER_LINE_LIMIT, isBatchSummary(), lineReader(), resolveCompilerExecutable(), runCompiler(), BatchJob (+19 more)
 
 ### Community 57 - "Couches de profondeur"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (20): DepthLayerScene, BTreeMap, BTreeSet, Fn, Option, Result, Sync, Value (+12 more)
 
-### Community 58 - "Constructeur YAML Unity"
-Cohesion: 0.19
-Nodes (20): Document, Entry, header_fields(), integer(), named(), number(), number_at(), reference() (+12 more)
+### Community 58 - "unity · Overrides"
+Cohesion: 0.16
+Nodes (22): local_trs(), Overrides, Yaml, Document, Entry, header_fields(), integer(), named() (+14 more)
 
 ### Community 59 - "Lignes dessinables et validation"
 Cohesion: 0.07
-Nodes (51): alea, cas, demandes, ecrivain(), etatComplet(), etatF5, etrangeres, images (+43 more)
+Nodes (50): alea, cas, demandes, ecrivain(), etatComplet(), etatF5, etrangeres, images (+42 more)
 
-### Community 60 - "Empaquetage des pages DAG"
-Cohesion: 0.07
-Nodes (24): cachelock, compile, Result, Value, share_bootstrap_bundles(), cache_format(), CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION (+16 more)
+### Community 60 - "Écriture de la scène source"
+Cohesion: 0.04
+Nodes (43): cachelock, compile, compile(), Fn, Result, Sync, Value, Result (+35 more)
 
 ### Community 61 - "Références et changements Unity"
-Cohesion: 0.13
-Nodes (14): cover(), material_slot(), Option, Changes, BTreeMap, Item, Iterator, Option (+6 more)
+Cohesion: 0.09
+Nodes (20): Aim, Builder<'_, '_>, Option, Overrides, cover(), material_slot(), MAX_SLOTS, Option (+12 more)
 
 ### Community 62 - "justesse · compte"
 Cohesion: 0.12
-Nodes (21): cas, lignes, angleEntre(), AVANT, BALAYAGE, cas, mesure(), nonRegression (+13 more)
+Nodes (22): cas, ECHELLES, lignes, angleEntre(), AVANT, BALAYAGE, cas, mesure() (+14 more)
 
 ### Community 63 - "Transport de lumière"
-Cohesion: 0.13
-Nodes (37): createTransport(), snapshot(), update(), packages_sdk_core_lightingtransport_lighting_transport_algorithm_version, packages_sdk_core_lightingtransport_lightingtransporterror, UNSUPPORTED, LIGHTING_TRANSPORT_ALGORITHM_VERSION, LIGHTING_TRANSPORT_FORMAT_VERSION (+29 more)
+Cohesion: 0.17
+Nodes (30): Scene, createTransport(), snapshot(), update(), packages_sdk_core_lightingtransport_lighting_transport_algorithm_version, packages_sdk_core_lightingtransport_lightingtransporterror, UNSUPPORTED, LIGHTING_TRANSPORT_ALGORITHM_VERSION (+22 more)
 
-### Community 65 - "Oracle DAG et plancher de coupe"
-Cohesion: 0.06
-Nodes (73): assertSameSelection(), cam, coupeSansElagage(), pages, POSES, SEUILS, Descente, descenteComptee() (+65 more)
+### Community 65 - "Uniformes de sélection et justesse"
+Cohesion: 0.04
+Nodes (120): assertSameSelection(), cam, coupeSansElagage(), pages, POSES, SEUILS, cam, image() (+112 more)
 
 ### Community 66 - "Maths partagées et BVH"
 Cohesion: 0.08
 Nodes (35): enclosing_sphere, COUNT, empreinte_f32(), empreinte_f64(), empreinte_ordre(), row_bisection(), row_boites(), row_points() (+27 more)
 
-### Community 67 - "Bancs de calcul Rust"
+### Community 67 - "Bancs de calcul Rust (2)"
+Cohesion: 0.08
+Nodes (33): black_box, border_survived, cluster_adjacency, Locale, localise, empreinte(), reference_affiner(), row() (+25 more)
+
+### Community 68 - "justesse · nettementDeFace"
+Cohesion: 0.08
+Nodes (25): kind(), aCetteEchelle(), champs, changements, cpus, { index, fausses, population }, packed, parEchelle (+17 more)
+
+### Community 69 - "Erreurs moteur et cache"
 Cohesion: 0.05
-Nodes (38): black_box, border_survived, cluster_adjacency, Locale, localise, empreinte(), reference_bordure(), row() (+30 more)
-
-### Community 68 - "sdk-browser · PriorityCamera"
-Cohesion: 0.13
-Nodes (19): lignesConsommateursBrowser(), records(), bounds, boundsScreenRadius(), boundsSphere(), boxSphere(), centre, orderPendingUrls() (+11 more)
-
-### Community 69 - "API et session de l'explorateur (2)"
-Cohesion: 0.07
-Nodes (28): Interactive browser startup (README.md), Interactive browser startup (packages/README.md), Interactive browser startup (docs/README.md), Interactive browser startup (docs/SDK.md), Interactive browser startup (docs/API.md), Interactive browser startup (docs/architecture/INTEGRATION.md), Original offline geometry recipes, BackendDiagnostic (+20 more)
+Nodes (62): Interactive browser startup (README.md), Interactive browser startup (packages/README.md), Interactive browser startup (docs/README.md), Interactive browser startup (docs/SDK.md), Interactive browser startup (docs/API.md), Interactive browser startup (docs/architecture/INTEGRATION.md), Original offline geometry recipes, DEFAULT_CLEAR_COLOR (+54 more)
 
 ### Community 70 - "Bancs de hiérarchie"
 Cohesion: 0.10
 Nodes (37): joueThree(), plansMoteur(), projectionMoteur(), regleCameraThree(), systeme(), alea, cameraAuHasard(), chainesFigees() (+29 more)
 
 ### Community 71 - "Erreur d'écran CPU contre GPU"
-Cohesion: 0.04
-Nodes (52): referenceUpdateResidency(), residencyColumn(), alea, base, bits, conesReference, etirements(), images (+44 more)
+Cohesion: 0.07
+Nodes (32): ancienne(), applique(), CAS, deplacement(), familles, { hasard, entre, log }, norme(), pireDuCas() (+24 more)
 
 ### Community 72 - "Socle du banc sdk-core"
 Cohesion: 0.09
-Nodes (34): chargeBaseline(), cleDeLigne(), commitCourant(), compareBaseline(), niveauEcart(), sauveBaseline(), SEUIL_AVERTISSEMENT, SEUIL_ECHEC (+26 more)
+Nodes (36): chargeBaseline(), cleDeLigne(), commitCourant(), compareBaseline(), niveauEcart(), sauveBaseline(), SEUIL_AVERTISSEMENT, SEUIL_ECHEC (+28 more)
 
-### Community 73 - "sdk-browser · FrameGateSources"
+### Community 73 - "Adoption et reprise de la coupe"
 Cohesion: 0.13
-Nodes (22): createExplorerLightApi(), banc(), proche(), api(), banc(), createFrameGateCore(), FrameGateCore, FrameGateSources (+14 more)
+Nodes (32): CameraMotion, createFrameGateCore(), FrameGateCore, FrameGateSources, bumpResources(), bumpScene(), bumpView(), createFrameHold() (+24 more)
 
 ### Community 74 - "offline · recipe"
 Cohesion: 0.22
@@ -1039,29 +1046,29 @@ Nodes (24): lettering(), paintedTerrain(), splitEdges(), uvTiles(), implicitShel
 Cohesion: 0.16
 Nodes (15): DAG_ROOT_SHARE, dag_warnings(), DagShape, level_report(), primitive_event(), DagCluster, Self, Value (+7 more)
 
-### Community 76 - "sdk-browser · HostSurface"
-Cohesion: 0.21
-Nodes (9): createBackendPresenter(), HostSurface, surface, compile(), createCanvasBlit(), createChecks(), executer(), sourcePresentee() (+1 more)
+### Community 76 - "Monde et ombrage Maya"
+Cohesion: 0.15
+Nodes (18): MAX_DEPTH, AtomicBool, Document, HashMap, Option, Scene, scene(), visit() (+10 more)
 
 ### Community 77 - "unity · PathBuf"
-Cohesion: 0.22
-Nodes (15): carry_report(), import(), load_gltf(), Models, read_manifest(), HashMap, Option, PathBuf (+7 more)
+Cohesion: 0.24
+Nodes (14): carry_report(), import(), load_gltf(), Models, read_manifest(), HashMap, Option, PathBuf (+6 more)
 
 ### Community 78 - "Manifeste binaire (Rust)"
-Cohesion: 0.04
-Nodes (44): BUNDLE_SHA, BUNDLE_U32, COLUMNS, CULLING_NODES, FLAG_CLUSTER_ERROR, FLAG_COARSE, FLAG_GEOMETRY, FLAG_GROUP (+36 more)
+Cohesion: 0.05
+Nodes (40): BUNDLE_SHA, BUNDLE_U32, COLUMNS, CULLING_NODES, FLAG_CLUSTER_ERROR, FLAG_COARSE, FLAG_GEOMETRY, FLAG_GROUP (+32 more)
 
 ### Community 79 - "Normales et jointures"
 Cohesion: 0.08
-Nodes (26): compute(), fill(), is_hard(), Face, Node, Option, Surface, World (+18 more)
+Nodes (27): Entry, compute(), fill(), is_hard(), Face, Node, Option, Surface (+19 more)
 
-### Community 80 - "Ordre des transparents"
-Cohesion: 0.16
-Nodes (26): alea, batisItems(), benchSide(), FACES, glisse, imageA(), ITEMS, plansDe() (+18 more)
+### Community 80 - "justesse · ECHELLES"
+Cohesion: 0.17
+Nodes (20): coneContextFor(), coneCullsPage(), coneCullsPageWith(), createConeContext(), cas, ECHELLES, gardees, lignes (+12 more)
 
 ### Community 81 - "Observation de l'éclairage"
 Cohesion: 0.13
-Nodes (24): packages_sdk_browser_backendtypes_backendcapabilities, createLightingExperimentBackend(), LightingExperimentRayDiagnostics, LightingExperimentRenderState, MAX_CACHE_DIMENSION, MAX_DIRECT_SAMPLES, MAX_EMITTERS, MAX_REFLECTION_SAMPLES (+16 more)
+Nodes (25): packages_sdk_browser_backendtypes_backendcapabilities, createLightingExperimentBackend(), LightingExperimentRayDiagnostics, LightingExperimentRenderState, MAX_CACHE_DIMENSION, MAX_DIRECT_SAMPLES, MAX_EMITTERS, MAX_REFLECTION_SAMPLES (+17 more)
 
 ### Community 82 - "proxy · Into"
 Cohesion: 0.19
@@ -1075,57 +1082,57 @@ Nodes (36): alea, bootstrapKey, classement(), classementOptimisee, classementRef
 Cohesion: 0.10
 Nodes (17): SELECTION_LIST_CAP, erreursPage, ici, BORNES, ici, PROFONDEURS, argument, cas (+9 more)
 
-### Community 85 - "sdk-browser · CaptureOptions"
+### Community 85 - "sdk-browser · BIT"
 Cohesion: 0.08
-Nodes (42): sameRenderOrigin(), holdHostCamera(), HostCamera, resolveCameraWorld(), threeReference(), rootWorldsToRenderOrigin(), readbackBytesPerRow(), readGpuImage() (+34 more)
+Nodes (49): sameRenderOrigin(), rootWorldsToRenderOrigin(), readGpuImage(), dropTaaHistory(), taaSettled(), BIT, holdWebgpuFrame(), keepWebgpuFrame() (+41 more)
 
 ### Community 86 - "manifest_binary · encode_previews_rejects_a_null_dimension"
 Cohesion: 0.29
 Nodes (9): a_sidecar_of_an_older_version_is_refused(), encode_previews_rejects_a_decreasing_texture_index(), encode_previews_rejects_a_first_level_that_disagrees_with_the_dimensions(), encode_previews_rejects_more_baked_levels_than_the_tail_leaves(), encode_previews_rejects_the_wrong_pixel_byte_length(), preview(), TexturePreview, templates() (+1 more)
 
-### Community 87 - "Caméra moteur et tampon"
-Cohesion: 0.16
-Nodes (23): defaultEngineCamera(), empty(), packages_sdk_browser_visibilitybuffer_packvisibilityid, packages_sdk_browser_visibilitybuffer_rastervisibilityids, packages_sdk_browser_visibilitybuffer_shadevisibility, packages_sdk_browser_visibilitybuffer_unpackvisibilityid, packages_sdk_browser_visibilitybuffer_vis_invalid, packages_sdk_browser_visibilitybuffer_vis_max_page_triangles (+15 more)
+### Community 87 - "Mathématiques du tampon de visibilité (2)"
+Cohesion: 0.09
+Nodes (33): Pose, Site, colorOf(), opaqueBackgroundRgba(), pa, pb, pc, project() (+25 more)
 
 ### Community 88 - "Encodage des dessins WebGPU"
-Cohesion: 0.05
-Nodes (99): enginePose(), poseRotation, poseScale, poseTranslation, DEPTH_CLEAR, screenErrorColor(), screenErrorRatio(), computeSpanFor() (+91 more)
+Cohesion: 0.08
+Nodes (58): screenErrorColor(), screenErrorRatio(), composesOffscreen(), leafCone(), sideOf(), projectedPageError(), pageIsDoubleSided(), packages_sdk_browser_visibilitybuffer_page_info_stride (+50 more)
 
-### Community 89 - "Oracle et serveur de mesure"
-Cohesion: 0.05
-Nodes (62): moteur webgl2 (autonomous-pages-webgl), AUTONOMOUS_SCENE_UNAVAILABLE, moteur webgl (exact-cluster-pages), Lampes du contrat posées par une règle générique, aucune scène nommée, /mesure/poses.mjs, ref_node_crypto, ref_node_http, typescript (+54 more)
+### Community 89 - "Banc de mesure commun"
+Cohesion: 0.08
+Nodes (41): Caméra mobile : la seule façon de voir le coût d'une sélection, Couverture : zéro est la valeur attendue, drawnTriangles, hiZ (compteurs d'occultation), imageTenue (contrat frameHeld), Lampes du contrat posées par une règle générique, aucune scène nommée, mesure.json, null = non mesuré, jamais déduit, jamais zéro (+33 more)
 
 ### Community 90 - "Construction du DAG"
-Cohesion: 0.10
-Nodes (31): hashset, build_dag_tallied(), DagCluster, Fn, Option, Result, Sync, cluster_adjacency() (+23 more)
+Cohesion: 0.07
+Nodes (42): extend_aabb, hashset, empreinte(), point_reference(), row(), Bits, sphere_reference(), bounding_sphere() (+34 more)
 
 ### Community 91 - "Tests dorés du compilateur"
 Cohesion: 0.02
 Nodes (147): Un conteneur ne doit rien changer au projet qu'il emballe (fixture double : dans / hors paquet), La clé de cache ne figure pas dans expected.json (usd), usda et usdc doivent donner la même scène intermédiaire : le pilote lit un document, pas une écriture, La couche racine est la première entrée du paquet, ni devinée ni cherchée (spécification AOUSD), La clé de cache ne figure pas dans expected.json (zip) : elle sert à l'égalité des deux compilations, Un conteneur ne doit rien changer à la scène qu'il emballe : mêmes compilations, clé de cache comprise, alembic_digest(), an_hdf5_container_and_a_truncated_archive_are_refused_by_name() (+139 more)
 
 ### Community 92 - "Transformations et collecte des pages"
-Cohesion: 0.07
-Nodes (48): racine(), etHierarchies(), paires, transformations, un(), demandee(), ecrit(), lotBoxesReady() (+40 more)
+Cohesion: 0.06
+Nodes (62): casBoites, etHierarchies(), paires, transformations, un(), casTronc, options, resultats (+54 more)
 
 ### Community 93 - "Aperçus de textures (étage)"
-Cohesion: 0.10
-Nodes (29): instant, cancellation_is_honoured_between_two_images_not_mid_decode(), one_thread(), ThreadPool, Value, scene_with_two_textures(), a_missing_image_file_is_reported_and_yields_no_preview(), an_undecodable_image_is_reported_and_yields_no_preview() (+21 more)
+Cohesion: 0.11
+Nodes (28): instant, cancellation_is_honoured_between_two_images_not_mid_decode(), one_thread(), ThreadPool, Value, scene_with_two_textures(), a_missing_image_file_is_reported_and_yields_no_preview(), an_undecodable_image_is_reported_and_yields_no_preview() (+20 more)
 
 ### Community 94 - "unity · FILTER_UNSUPPORTED"
 Cohesion: 0.21
 Nodes (16): filter(), FILTER_UNSUPPORTED, FILTERS, REPEAT, resolve(), HashMap, Option, Scene (+8 more)
 
 ### Community 95 - "sdk-browser · Inputs"
-Cohesion: 0.12
-Nodes (24): DEFAULT_PIXEL_RATIO, devicePixels(), SDK_BUILD_PROVENANCE, detectCapabilities(), configureExplorer(), Inputs, directWebgpu(), captureTarget (+16 more)
+Cohesion: 0.09
+Nodes (32): ARRIVAL_BUDGET_MS, ARRIVAL_QUEUE_BATCH, DEFAULT_CACHED_PAGES, DEFAULT_HEIGHT, DEFAULT_PAGE_WORKERS, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH, devicePixels() (+24 more)
 
 ### Community 96 - "sdk-node · SheetTexture"
-Cohesion: 0.12
-Nodes (23): CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION, packages_sdk_core_index_cutout_sheet_file, packages_sdk_core_index_cutout_sheet_version, leaf(), Loaded, nameOf(), reviewCutouts() (+15 more)
+Cohesion: 0.13
+Nodes (16): CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION, packages_sdk_core_index_cutout_sheet_file, packages_sdk_core_index_cutout_sheet_version, leaf(), keyboard(), passe(), isSheet() (+8 more)
 
 ### Community 97 - "Adressage et bouclage des textures"
-Cohesion: 0.07
-Nodes (54): wrapLinear(), wrapNibble(), COUTURES, lots, regle(), texture, UV, regle() (+46 more)
+Cohesion: 0.05
+Nodes (76): APPELS, carte(), WRAP_COORD_WGSL, WRAP_ENTRIES, WRAP_MAP, WRAP_S_MIRROR, WRAP_S_REPEAT, WRAP_SOURCE (+68 more)
 
 ### Community 98 - "Refus d'attributs Maya"
 Cohesion: 0.06
@@ -1137,27 +1144,27 @@ Nodes (18): base_colour(), build(), connected_texture(), connection(), DEFAULT_D
 
 ### Community 100 - "DAG et stratégie de coupe"
 Cohesion: 0.07
-Nodes (21): build_culling_bvh, build_dag_tallied, groups, hashmap, meshopt, CULLING_BRANCHING, CULLING_LEAF, CullingNode (+13 more)
+Nodes (22): build_culling_bvh, build_dag_tallied, crate, groups, hashmap, meshopt, CULLING_BRANCHING, CULLING_LEAF (+14 more)
 
 ### Community 101 - "Justesse de l'inverse transposée"
-Cohesion: 0.04
-Nodes (65): kind(), cas, ECHELLES, gardees, lignes, packed, uniforms, coneRejette (+57 more)
+Cohesion: 0.10
+Nodes (25): coneRejette, desaccords, dessineCpu, dessineGpu, index, reflexions, supprimesVisibles, camera (+17 more)
 
 ### Community 102 - "sdk-browser · Device"
-Cohesion: 0.21
-Nodes (8): SHADE_REQUEST_WGSL, BLEND_REQUEST_WGSL, Device, FEEDBACK_EVERY, FEEDBACK_STRIDE, WebgpuTileFeedback, WebgpuTileReduce, TILE_REQUEST_WGSL
+Cohesion: 0.33
+Nodes (5): Device, FEEDBACK_EVERY, FEEDBACK_STRIDE, WebgpuTileFeedback, WebgpuTileReduce
 
 ### Community 103 - "Décodage partagé des pages"
 Cohesion: 0.11
-Nodes (41): createPageDecodePool(), Waiting, workerError(), attachPageArena(), ATTR_BASE, ATTRS, awaitSharedPage(), beginSharedPage() (+33 more)
+Nodes (40): createPageDecodePool(), Waiting, workerError(), attachPageArena(), ATTR_BASE, ATTRS, awaitSharedPage(), beginSharedPage() (+32 more)
 
 ### Community 104 - "Plan de mélange des transparents"
-Cohesion: 0.06
-Nodes (72): compteAppels(), createBlendCopy(), readThreeBox(), BlendLighting, blendBindGroup(), drawBlendPass(), offsets, BlendExpand (+64 more)
+Cohesion: 0.04
+Nodes (115): alea, batisItems(), benchSide(), FACES, glisse, imageA(), ITEMS, plansDe() (+107 more)
 
-### Community 105 - "tests · String"
-Cohesion: 0.16
-Nodes (16): compile_ma(), a_face_citing_the_lowest_edge_index_is_refused_by_name(), an_intermediate_or_invisible_shape_never_reaches_the_scene(), four_triangles(), String, the_faces_no_shading_group_claims_still_reach_the_scene(), two_transforms_of_the_same_name_under_two_parents_stay_two_nodes(), a_place2d_texture_placement_is_counted_rather_than_silently_dropped() (+8 more)
+### Community 105 - "Pilote Maya et matrices posées"
+Cohesion: 0.10
+Nodes (29): compile_ma(), HEAD, matrix(), normals(), quad(), String, Value, shaded() (+21 more)
 
 ### Community 106 - "blend · .indices"
 Cohesion: 0.20
@@ -1172,44 +1179,44 @@ Cohesion: 0.14
 Nodes (21): alpha(), ALPHA_CLIP, BASE_COLOR, BASE_MAP, CULL, CUTOFF, emission(), EMISSION_COLOR (+13 more)
 
 ### Community 109 - "i18n · FRENCH"
-Cohesion: 0.07
-Nodes (24): boundsFr, cameraFr, enumsFr, guidesFr, FRENCH, localizedEntry(), localizeEntries(), STRINGS (+16 more)
+Cohesion: 0.13
+Nodes (12): boundsFr, cameraFr, enumsFr, guidesFr, FRENCH, STRINGS, supportedLocales, lifecycleFr (+4 more)
 
 ### Community 110 - "docs · Crate texture2ddecoder 0.1.2 (décodeur de blocs)"
 Cohesion: 0.11
 Nodes (22): Codes de sortie et d'erreur, Import FBX/OBJ via ufbx, Import USD/USDZ, Licence CC0-1.0 (alembic/procedural-static), Fixtures Alembic limites (hdf5.abc, truncated.abc), Fixture Alembic procedural-static (scene.abc, Ogawa), Licence CC0-1.0 (blend/limites), Licence CC0-1.0 (blend/procedural-materials) (+14 more)
 
 ### Community 111 - "Lots et annulation"
-Cohesion: 0.06
-Nodes (50): Arc, Result, String, run_batch(), cache_identity(), number(), parse_batch(), Option (+42 more)
+Cohesion: 0.18
+Nodes (19): Arc, Result, String, run_batch(), Cancellation, emit(), error_value(), listen_stdin() (+11 more)
 
 ### Community 112 - "Décodage d'images"
 Cohesion: 0.14
 Nodes (17): by_extension(), by_head(), decode(), DECODERS, extensions(), float_budget(), FLOAT_PIXEL_BYTES, ImageDecoder (+9 more)
 
-### Community 113 - "sdk-browser · Copy"
+### Community 113 - "sdk-browser · PrefixResult"
 Cohesion: 0.04
-Nodes (28): render(), LIMITS, mask(), pending(), IDENTITY, tenue(), config, gpu() (+20 more)
+Nodes (37): render(), prefixParallel(), PrefixResult, prefixSerial(), U32(), CpuStepSummary, createCpuStepProfile(), taille() (+29 more)
 
 ### Community 114 - "Fixtures de correction zip"
-Cohesion: 0.17
-Nodes (21): ARCHIVE_EMPTY, tools/archive_limits.py, ARCHIVE_PATH_ESCAPE, ARCHIVE_UNREADABLE, Aucun script n'a sa place dans une fixture, Licence CC0-1.0, Égalité des deux compilations, clé de cache comprise, Un conteneur ne doit rien changer à ce qu'il emballe (+13 more)
+Cohesion: 0.16
+Nodes (23): ARCHIVE_EMPTY, tools/archive_limits.py, ARCHIVE_PATH_ESCAPE, ARCHIVE_UNREADABLE, Aucun script n'a sa place dans une fixture, Licence CC0-1.0, Chemin de calcul en lot arbitré par la mesure (aucun seuil écrit), Égalité des deux compilations, clé de cache comprise (+15 more)
 
 ### Community 115 - "Matières et couches USD"
 Cohesion: 0.10
 Nodes (28): compile_layer, a_metal_roughness_input_bound_to_another_channel_is_counted_by_its_name(), a_shared_metal_roughness_texture_wins_over_the_factors_instead_of_being_cancelled_by_them(), an_opacity_bound_to_the_base_colour_texture_reaches_the_alpha_and_the_blend_mode(), an_opacity_carried_by_a_second_image_is_counted_rather_than_loaded_and_dropped(), compile(), layer(), pbr() (+20 more)
 
-### Community 116 - "Uniformes de sélection et justesse"
-Cohesion: 0.05
-Nodes (53): cam, image(), montage(), MONTAGES, pages, Poser, REGIMES, culling() (+45 more)
+### Community 116 - "reports · reading"
+Cohesion: 0.16
+Nodes (16): assertReport(), assetPath(), object(), REPORT_VERSION, useReports(), json(), load(), flags (+8 more)
 
 ### Community 117 - "Matrices et origine de rendu"
-Cohesion: 0.05
-Nodes (63): referenceVisibilityDepth(), createRenderOriginFrame(), holdRenderOriginFrame(), RenderOriginFrame, updateRenderOriginFrame(), DEFAULT_OPTICS, writeEngineCamera(), createObservationMeshes() (+55 more)
+Cohesion: 0.10
+Nodes (30): createRenderOriginFrame(), holdRenderOriginFrame(), RenderOriginFrame, updateRenderOriginFrame(), DEFAULT_OPTICS, writeEngineCamera(), clip, fov (+22 more)
 
-### Community 118 - "Manifeste binaire"
-Cohesion: 0.13
-Nodes (25): packages_sdk_core_contracts_engineerror, packages_sdk_core_contracts_primitive, encodeManifestBinary(), BYTES_PER_ELEMENT, COLUMN_KIND, COLUMN_NAMES, COLUMN_STRIDE, ColumnName (+17 more)
+### Community 118 - "Lots et annulation (2)"
+Cohesion: 0.16
+Nodes (18): cache_identity(), number(), parse_batch(), Option, PathBuf, Result, String, Value (+10 more)
 
 ### Community 119 - "Décodage EXR"
 Cohesion: 0.07
@@ -1223,17 +1230,17 @@ Nodes (20): border_survived(), live_triangles(), lock_triangles_touching(), lost
 Cohesion: 0.13
 Nodes (18): AGENTS.md — agent rules, TODO.md holds one line per open task, Compiler reclassifies a wrongly-declared blended material at import, Duplicate-block gate (>=12 lines, >=100 tokens), graphify knowledge-graph reading rules, 200 physical lines per maintained source file, Measure before optimising, Do not write code until the user asks (+10 more)
 
-### Community 122 - "sdk-browser · Decodeur"
-Cohesion: 0.12
-Nodes (21): chargeDecodeur(), Decodeur, geometryPayload(), indisponible(), runPageDecodeTask(), cancelled, DecodeWorkerScope, reply() (+13 more)
+### Community 122 - "sdk-browser · DecodeWorkerScope"
+Cohesion: 0.22
+Nodes (7): cancelled, DecodeWorkerScope, reply(), scope, SOURCE, PAGE_DECODE_PROTOCOL, PageDecodeAnswer
 
 ### Community 123 - "Gabarits de sélection de pages"
-Cohesion: 0.16
-Nodes (21): referenceCollectClusterPages(), cullingBounds(), cullingLinks, clusterErrorFields(), cullingNodes(), NO_CLUSTER_ERROR, packages_sdk_browser_pageselectionhelpers_objects, pageIsDoubleSided() (+13 more)
+Cohesion: 0.08
+Nodes (38): referenceCollectClusterPages(), cullingBounds(), cullingLinks, clusterErrorFields(), cullingNodes(), NO_CLUSTER_ERROR, packages_sdk_browser_pageselectionhelpers_objects, streamPlacement() (+30 more)
 
 ### Community 124 - "Pages autonomes (2)"
-Cohesion: 0.10
-Nodes (22): deplaceInstance(), instanceEtBase(), memeResultat(), page(), root(), anneau, grande, grosseInstance (+14 more)
+Cohesion: 0.09
+Nodes (23): deplaceInstance(), instanceEtBase(), memeResultat(), page(), root(), anneau, grande, grosseInstance (+15 more)
 
 ### Community 125 - "Couches coplanaires"
 Cohesion: 0.12
@@ -1244,40 +1251,40 @@ Cohesion: 0.07
 Nodes (23): ALPHA_IGNORED, CHANNELS_UNSUPPORTED, COLOR_MODE_UNSUPPORTED, COMPOSITE_MISSING, COMPRESSION_UNSUPPORTED, DATA_TRUNCATED, DEPTH_8, DEPTH_UNSUPPORTED (+15 more)
 
 ### Community 127 - "Monde et composition USD"
-Cohesion: 0.03
-Nodes (60): archive, elapsed_ms, json, openusd, ALEMBIC, FILE_INVALID, HDF5_UNSUPPORTED, NAME (+52 more)
+Cohesion: 0.05
+Nodes (38): CAMERA, CLEARCOAT, COMPOSITION, CURVES, FACE_HOLE, FACE_INVALID, IOR, LIGHT (+30 more)
 
-### Community 128 - "Budget et ouvriers du compilateur (2)"
-Cohesion: 0.03
-Nodes (101): Options, Arc, AtomicBool, PathBuf, a01_un_position_sparse_de_2_puissance_61_est_refuse_sans_panique(), a01_un_sparse_realiste_hors_budget_est_refuse_par_l_admission(), PathBuf, sparse_position_fixture() (+93 more)
+### Community 128 - "Lecture et écriture glTF (3)"
+Cohesion: 0.11
+Nodes (29): fixture(), fixture_named(), read_gltf(), read_json(), Option, PathBuf, Value, write_gltf() (+21 more)
 
-### Community 129 - "sdk-browser · CARTE"
-Cohesion: 0.13
-Nodes (25): CARTE, lecture(), lectureDonnee(), quartet(), siCarte(), VisMaterial, APPELS, carte() (+17 more)
+### Community 129 - "sdk-browser · poseRotation"
+Cohesion: 0.12
+Nodes (17): poseRotation, poseScale, poseTranslation, DEPTH_NEAR, depthDistance(), borne(), CORNERS, webGL (+9 more)
 
-### Community 130 - "Lancements de coupe et relevé"
-Cohesion: 0.08
-Nodes (50): DAG_LEVEL_WGSL_AVANT, encodeAvant(), NOYAUX_AVANT, ressourcesAvant(), createDagDispatch(), DagResources, DagRuntimeState, DagResources (+42 more)
+### Community 130 - "Runtime DAG sur GPU"
+Cohesion: 0.05
+Nodes (61): DAG_LEVEL_WGSL_AVANT, encodeAvant(), NOYAUX_AVANT, ressourcesAvant(), referenceUpdateResidency(), residencyColumn(), alea, base (+53 more)
 
 ### Community 131 - "Oracle : rayons et indirect"
 Cohesion: 0.19
 Nodes (26): albedo_of(), cross(), dot(), normal_of(), normalise(), World, scale(), sub() (+18 more)
 
-### Community 132 - "Caméra monde et contrat"
-Cohesion: 0.05
-Nodes (57): referenceWindingCw(), alea, clusters(), courante, gros, imageDeSens(), optimiseeVue, referenceVue (+49 more)
-
-### Community 133 - "sdk-browser · goneOf"
+### Community 132 - "justesse · Pose"
 Cohesion: 0.13
-Nodes (16): createCutDelta(), check(), frame(), keysOf(), rec(), reference(), scene(), flags (+8 more)
+Nodes (27): DEPLACE_ET_TOURNE, Pose, Rig, sousRig(), uniformes(), VIEWPORT, Pose, DEPLACE_ET_TOURNE (+19 more)
 
-### Community 134 - "import · Option"
-Cohesion: 0.13
-Nodes (16): Bin, Importer, index_bytes(), mesh_json(), MeshOut, Option, Value, index_bytes_encodes_u16_at_and_below_the_boundary() (+8 more)
+### Community 133 - "mesure · rec"
+Cohesion: 0.16
+Nodes (13): check(), keyOf(), reference(), weighed(), flags, { gltf, binary }, gltfOf(), height (+5 more)
+
+### Community 134 - "Minuterie et phases de travail"
+Cohesion: 0.15
+Nodes (13): Attached, JobPhases, Arc, Drop, Instant, Option, Self, Value (+5 more)
 
 ### Community 135 - "Sondes et rebond GPU"
-Cohesion: 0.04
-Nodes (75): BOUNCE_APPLY_WGSL, bounceGroup(), bounceLayout(), BOUNCE_GRID_WGSL, INVERSE_PI_WGSL, BounceBinding, bounceLimitFailure(), ensureBounceFits() (+67 more)
+Cohesion: 0.03
+Nodes (90): BOUNCE_APPLY_WGSL, bounceApplyWgsl(), BOUNCE_GRID_WGSL, INVERSE_PI_WGSL, BounceBinding, bounceLimitFailure(), ensureBounceFits(), plannedBindings() (+82 more)
 
 ### Community 136 - "Décodage BMP"
 Cohesion: 0.10
@@ -1288,12 +1295,12 @@ Cohesion: 0.17
 Nodes (15): BLOCK, channel(), eight_bits(), GREEN, INDEX_BITS, MAX, MODIFIERS, planes() (+7 more)
 
 ### Community 138 - "Aperçus de textures (étage) (2)"
-Cohesion: 0.08
-Nodes (32): atomicusize, decodedimage, levels, Baked, level_path(), one_image(), report(), BTreeMap (+24 more)
+Cohesion: 0.10
+Nodes (23): atomicusize, levels, level_template(), PREVIEW_BASE, PREVIEW_MAX_ALLOC, PREVIEW_MAX_LEVELS, PreviewInputs, PreviewSource (+15 more)
 
-### Community 139 - "Diffusion des pages en continu (2)"
-Cohesion: 0.09
-Nodes (31): Arrival, ArrivalTarget, createArrivalQueue(), admission(), alea, arrivees(), catalogue, octetsDe() (+23 more)
+### Community 139 - "Diffusion des pages en continu"
+Cohesion: 0.16
+Nodes (17): BackendDiagnostic, createStreamingCache(), createStreamingFetcher(), createPageStreamer(), createStreamingQueue(), job(), optimiseeAdmission(), compacteFile() (+9 more)
 
 ### Community 140 - "src · Fn"
 Cohesion: 0.18
@@ -1303,25 +1310,25 @@ Nodes (14): compact_region(), Fn, Result, simplify_with_locked_vertices(), a_mes
 Cohesion: 0.14
 Nodes (18): area_radius(), build(), cone(), energy(), LA_AREA, LA_AREA_DISK, LA_AREA_ELLIPSE, LA_AREA_SQUARE (+10 more)
 
-### Community 142 - "Banc de mesure commun"
-Cohesion: 0.22
-Nodes (17): Caméra mobile : la seule façon de voir le coût d'une sélection, Chemin de calcul en lot arbitré par la mesure (aucun seuil écrit), Couverture : zéro est la valeur attendue, drawnTriangles, hiZ (compteurs d'occultation), imageTenue (contrat frameHeld), mesure.json, null = non mesuré, jamais déduit, jamais zéro (+9 more)
+### Community 142 - "Faces et volumes d'ombre"
+Cohesion: 0.15
+Nodes (16): axis, corner, direction(), mulScratch, multiply4(), referenceComposeFace(), referenceConeAxisCosine(), referenceFaceBasis (+8 more)
 
 ### Community 143 - "Manifeste binaire (2)"
 Cohesion: 0.05
-Nodes (43): ColumnKind, FLAG_CLUSTER_ERROR, FLAG_COARSE, FLAG_GEOMETRY, FLAG_GROUP, FLAG_PARENT_ERROR, FLAG_PARENT_ERROR_FINITE, FLAG_PARENT_SPHERE (+35 more)
+Nodes (42): ColumnKind, FLAG_CLUSTER_ERROR, FLAG_COARSE, FLAG_GEOMETRY, FLAG_GROUP, FLAG_PARENT_ERROR, FLAG_PARENT_ERROR_FINITE, FLAG_PARENT_SPHERE (+34 more)
 
 ### Community 144 - "Scripts npm et build"
 Cohesion: 0.06
-Nodes (35): scripts, bench:calculs:natif, bench:calculs:natif-g, build, build:docs, build:native, build:wasm, check:changed (+27 more)
+Nodes (33): scripts, bench:calculs:natif, bench:calculs:natif-g, build, build:docs, build:native, build:wasm, check:changed (+25 more)
 
 ### Community 145 - "Encodage du manifeste binaire"
-Cohesion: 0.11
-Nodes (33): array(), as_i32(), as_u32(), bad(), Column, integer(), number(), numbers_into() (+25 more)
+Cohesion: 0.18
+Nodes (24): array(), as_i32(), as_u32(), bad(), integer(), number(), numbers_into(), object() (+16 more)
 
 ### Community 146 - "Scène d'expérience d'éclairage"
-Cohesion: 0.15
-Nodes (32): createLightingScene(), createDefaultLightingSceneLights(), LIGHTING_CAMERA_POSES, validateLightingSceneControls(), createLightingSceneGeometry(), createLightingScenePatches(), Face, exportLightingGltf() (+24 more)
+Cohesion: 0.21
+Nodes (23): createLightingScene(), createDefaultLightingSceneLights(), LIGHTING_CAMERA_POSES, validateLightingSceneControls(), createLightingSceneGeometry(), createLightingScenePatches(), Face, exportLightingGltf() (+15 more)
 
 ### Community 147 - "Archives zip et USDZ"
 Cohesion: 0.09
@@ -1331,13 +1338,13 @@ Nodes (28): fs, cleanup(), Entry, Entry<'a>, extracted(), Outcome, padding(), a_
 Cohesion: 0.09
 Nodes (31): SDK API Inventory, Export Binding Identity, Browser SDK Entry Point, Browser Environment Exports, Collision-free Export Inventory, Common Environment Exports, Core SDK Entry Point, Experimental SDK Bindings (+23 more)
 
-### Community 149 - "unity · Builder<'_, '_>"
-Cohesion: 0.11
-Nodes (12): Aim, Builder<'_, '_>, Option, Overrides, local_trs(), MAX_SLOTS, Overrides, Yaml (+4 more)
+### Community 149 - "unity · Value"
+Cohesion: 0.33
+Nodes (3): Value, Trs, .IDENTITY
 
-### Community 150 - "js · drawFrustum"
-Cohesion: 0.70
-Nodes (4): drawFrustum(), drawGrid(), drawScene(), legend()
+### Community 150 - "js · scratch"
+Cohesion: 0.11
+Nodes (22): drawFrustum(), drawGrid(), drawScene(), legend(), BOXES, frustumOf(), depthAt(), drawDepth() (+14 more)
 
 ### Community 151 - "Documentation et frontières"
 Cohesion: 0.17
@@ -1360,80 +1367,80 @@ Cohesion: 0.10
 Nodes (20): block(), chain(), container(), DEPTH, described(), FACES, FORMAT, HEADER_END (+12 more)
 
 ### Community 156 - "Fixtures dorées des pilotes"
-Cohesion: 0.24
-Nodes (28): APNG — l'image par défaut sort, l'animation est comptée, Arrondi au plus proche contre troncature du décodeur externe, Import PSD limité au composite aplati, Copier depuis test-assets pour que la dorée n'en dépende pas, Dé-prémultiplication de l'alpha, Double lecture par un décodeur indépendant, Fixtures écrites octet par octet depuis la spécification publique, L'encodeur des fixtures ne partage aucune ligne avec le décodeur (+20 more)
+Cohesion: 0.25
+Nodes (26): APNG — l'image par défaut sort, l'animation est comptée, Arrondi au plus proche contre troncature du décodeur externe, Import PSD limité au composite aplati, Copier depuis test-assets pour que la dorée n'en dépende pas, Dé-prémultiplication de l'alpha, Double lecture par un décodeur indépendant, Fixtures écrites octet par octet depuis la spécification publique, L'encodeur des fixtures ne partage aucune ligne avec le décodeur (+18 more)
 
-### Community 157 - "integration · onOpen"
-Cohesion: 0.04
-Nodes (47): esbuild, ref_node_fs_promises, ref_node_module, ref_react_dom_server, buildPortal(), root, buildRuntime(), buildStyles() (+39 more)
+### Community 157 - "integration · lignesFautives"
+Cohesion: 0.06
+Nodes (26): file(), root, browser, CALCULS, ECRIT_L_HOTE, FRONTIERE, M4A, AUTORISES (+18 more)
 
-### Community 158 - "Décodage du manifeste binaire"
-Cohesion: 0.16
-Nodes (15): packages_sdk_core_contracts_clustergroup, packages_sdk_core_contracts_clusterstructure, packages_sdk_core_contracts_cullinghierarchy, packages_sdk_core_contracts_geometrypagedescriptor, packages_sdk_core_contracts_page, packages_sdk_core_contracts_streambundle, packages_sdk_core_contracts_streamcatalogue, decodeManifestBinary() (+7 more)
+### Community 158 - "sdk-node · nameOf"
+Cohesion: 0.19
+Nodes (18): packages_sdk_core_index_default_scope, imageKind, ask(), Loaded, nameOf(), reviewCutouts(), sheetsOf(), thumbnailsOf() (+10 more)
 
 ### Community 159 - "Magasin des lumières de scène"
-Cohesion: 0.26
-Nodes (13): attachContractLights(), harness(), coneAngle(), direction(), emitterRadius(), finite(), normalized(), range() (+5 more)
+Cohesion: 0.28
+Nodes (13): declareImportedLights(), ImportedLightsFile, withinBudget(), coneAngle(), direction(), emitterRadius(), finite(), normalized() (+5 more)
 
-### Community 160 - "Backends de rendu exacts (2)"
-Cohesion: 0.07
-Nodes (57): ARRIVAL_BUDGET_MS, ARRIVAL_QUEUE_BATCH, baseCapabilities, clusterColor(), clusterHue(), DEFAULT_CLEAR_COLOR, DEFAULT_FOV, DEFAULT_HEIGHT (+49 more)
+### Community 160 - "Backends de rendu exacts"
+Cohesion: 0.06
+Nodes (65): createAutonomousGeometry(), GeometryEnvironment, createAutonomousInstances(), InstanceEnvironment, autonomousBootstrap(), prepareAutonomousManifest(), autonomousPagesBackend(), AutonomousRenderState (+57 more)
 
 ### Community 161 - "Refus nommés et fixtures dorées"
 Cohesion: 0.16
-Nodes (21): Double lecture par un décodeur indépendant, Fixture dorée — pilote TGA, Fixture dorée — pilote TIFF, Fixture dorée — pilote WebP, sans perte uniquement, image-animation-unsupported, image-decode-failed, image-lossy-unsupported, image-profile-unsupported (+13 more)
+Nodes (23): Double lecture par un décodeur indépendant, Fixture dorée — pilote TGA, Fixture dorée — pilote TIFF, Fixture dorée — pilote WebP, sans perte uniquement, image-animation-unsupported, image-decode-failed, image-depth-unsupported, image-lossy-unsupported (+15 more)
 
 ### Community 162 - "Configuration du dépôt"
 Cohesion: 0.06
 Nodes (35): bin, web-geometry-compile, dependencies, meshoptimizer, engines, node, files, jscpd (+27 more)
 
 ### Community 163 - "Jeux de bancs Rust"
-Cohesion: 0.11
+Cohesion: 0.10
 Nodes (23): clair(), cut(), Jeu, jeux(), materials(), primitive(), BTreeMap, BTreeSet (+15 more)
 
 ### Community 164 - "Extraction unitypackage"
 Cohesion: 0.11
-Nodes (25): Entry, GzDecoder, ASSET, ended(), extract(), first_line(), GZIP_MAGIC, index() (+17 more)
+Nodes (24): GzDecoder, ASSET, ended(), extract(), first_line(), GZIP_MAGIC, index(), MAX_PATHNAME_BYTES (+16 more)
 
 ### Community 165 - "Profils et couleurs TIFF"
-Cohesion: 0.16
-Nodes (19): BIG, BITS_PER_SAMPLE, check(), CLASSIC, colors(), COMPRESSION, COMPRESSIONS, depth() (+11 more)
+Cohesion: 0.07
+Nodes (34): enclosing_sphere_contains_every_input(), the_culling_hierarchy_owns_every_cluster_once_and_bounds_its_subtree(), BIG, BITS_PER_SAMPLE, check(), CLASSIC, colors(), COMPRESSION (+26 more)
 
 ### Community 166 - "Archive Alembic"
-Cohesion: 0.25
-Nodes (7): Archive, Cursor<'a>, indexed_metas(), Option, Result, Self, String
+Cohesion: 0.16
+Nodes (10): Cursor<'a>, DIGEST_BYTES, indexed_metas(), MAX_DEPTH, META_INLINE, meta_value(), Option, Result (+2 more)
 
-### Community 167 - "Registre des images de test"
-Cohesion: 0.13
-Nodes (11): image_as_registry, BC1_SRGB, BC1_UNORM, declared(), the_same_block_declared_unorm_then_srgb_yields_two_transfers(), BLOCKS, EAC_R11, EAC_RG11 (+3 more)
+### Community 167 - "Registre des images de test (2)"
+Cohesion: 0.12
+Nodes (13): image_as_registry, BLOCKS, EAC_R11, EAC_RG11, TABLE_13, zstandard_supercompression_is_bounded_by_the_announced_length(), ZSTD_DATA, MAX_ALLOC (+5 more)
 
 ### Community 168 - "Nuanceurs DAG WGSL"
-Cohesion: 0.06
-Nodes (44): referenceParseDagOutput(), releve(), DAG_COMPACT_WGSL, DAG_FLOOR_WGSL, CLUSTER_LEVEL_SHIFT, OUT_COUNT, OUT_DRAWN_TRIANGLES, OUT_FLAGS (+36 more)
+Cohesion: 0.03
+Nodes (79): referenceParseDagOutput(), releve(), DAG_COMPACT_WGSL, DAG_FLOOR_WGSL, dagWorkLayout(), CLUSTER_LEVEL_SHIFT, CLUSTER_TRANSPARENT, OUT_COUNT (+71 more)
 
-### Community 169 - "mesure · sample"
-Cohesion: 0.23
-Nodes (13): packages_sdk_browser_gpupassblocks_gpupassblockof, gpuPassBlockTotals, GpuPassBlock, gpuPassBlockOf(), gpuTotalsBy(), packages_sdk_core_index_gpupasstimings, distribution(), machineLoad() (+5 more)
+### Community 169 - "Budget et ouvriers du compilateur (3)"
+Cohesion: 0.16
+Nodes (15): Options, Arc, AtomicBool, PathBuf, a01_un_position_sparse_de_2_puissance_61_est_refuse_sans_panique(), a01_un_sparse_realiste_hors_budget_est_refuse_par_l_admission(), PathBuf, sparse_position_fixture() (+7 more)
 
 ### Community 170 - "Aperçus de textures et pyramide (2)"
-Cohesion: 0.12
-Nodes (23): a_transparent_texel_color_enters_the_mean_as_on_the_card(), each_level_is_derived_from_the_quantized_previous_level(), the_same_bytes_reduce_differently_for_each_atlas(), a_level_that_cannot_be_written_keeps_the_tail_and_bakes_nothing(), a_small_image_bakes_nothing_to_disk(), an_existing_level_file_is_left_untouched(), levels_above_the_tail_are_written_once_per_atlas_as_lossless_png(), TexturePreview (+15 more)
+Cohesion: 0.11
+Nodes (25): a_transparent_texel_color_enters_the_mean_as_on_the_card(), each_level_is_derived_from_the_quantized_previous_level(), the_same_bytes_reduce_differently_for_each_atlas(), a_level_that_cannot_be_written_keeps_the_tail_and_bakes_nothing(), a_small_image_bakes_nothing_to_disk(), an_existing_level_file_is_left_untouched(), levels_above_the_tail_are_written_once_per_atlas_as_lossless_png(), TexturePreview (+17 more)
 
-### Community 171 - "tests · both_precisions_yield_the_reference_values"
-Cohesion: 0.17
-Nodes (13): an_exr_associated_alpha_comes_out_straight_without_dividing_by_zero(), DROIT, MAX_ALLOC, pixels(), STOCKE, the_allocation_ceiling_counts_sixteen_bytes_per_pixel(), what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic(), a_ktx2_outside_the_list_or_truncated_comes_out_as_a_report_reason_never_as_a_panic() (+5 more)
+### Community 171 - "src · arena_free"
+Cohesion: 0.13
+Nodes (10): math, fuite(), arena_alloc(), CONTRACT, math_hierarchy_update_batch(), MAX_BYTES, WORD, page_alloc() (+2 more)
 
 ### Community 172 - "Palette et albédo"
 Cohesion: 0.15
 Nodes (19): albedo, btreemap, diffuse_share(), factor(), pack(), Palette, FnMut, Option (+11 more)
 
-### Community 173 - "Maillages et jeux de faces"
-Cohesion: 0.17
-Nodes (21): builder, assign(), Counted, FaceSet, MAX_CORNERS, Part, parts(), AtomicBool (+13 more)
+### Community 173 - "alembic · MAX_CORNERS"
+Cohesion: 0.26
+Nodes (12): builder, assign(), Counted, FaceSet, MAX_CORNERS, Part, parts(), AtomicBool (+4 more)
 
 ### Community 174 - "Codecs DDS"
-Cohesion: 0.10
-Nodes (23): decode(), from_pixels(), Result, Surface, Codec, from_dxgi(), from_fourcc(), from_masks() (+15 more)
+Cohesion: 0.11
+Nodes (22): decode(), from_pixels(), Result, Surface, Codec, from_dxgi(), from_fourcc(), from_masks() (+14 more)
 
 ### Community 175 - "Décodage GIF"
 Cohesion: 0.12
@@ -1444,7 +1451,7 @@ Cohesion: 0.10
 Nodes (16): ANIMATION, ANIMATION_CHUNK, BIT_DEPTH, declarations(), DEPTH, FIRST_CHUNK, GAMMA_CHUNK, LINEAR_GAMMA (+8 more)
 
 ### Community 177 - "Alembic : format Ogawa"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (17): ADDRESS, DATA_BIT, FROZEN, HDF5_MAGIC, invalid(), is_data(), MAGIC, MAX_CHILDREN (+9 more)
 
 ### Community 178 - "Blender : pointeurs bruts"
@@ -1459,21 +1466,21 @@ Nodes (18): Bits, CAPS, CAPS_TEXTURE, color_block(), container(), dx10(), FLAGS,
 Cohesion: 0.14
 Nodes (23): a_material_that_is_both_transparent_and_cut_out_stays_blended(), a_meta_file_id_beyond_the_float_range_still_names_its_mesh(), MODEL, BUILTIN, cube(), enfants(), HEAD, instancie() (+15 more)
 
-### Community 181 - "Convention de profondeur"
-Cohesion: 0.05
-Nodes (63): bounceApplyWgsl(), ACES_WGSL, DEPTH_COMPARE, depthDistance(), borne(), CORNERS, webGL, webGPU (+55 more)
+### Community 181 - "sdk-browser · AtlasResources"
+Cohesion: 0.06
+Nodes (58): computeSpanFor(), DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL, requestsComputeRaster(), SHADE_STAGE, shadeVariantFragment(), skipsSecondaryPass(), variesShade() (+50 more)
 
 ### Community 182 - "tests · HEADER"
 Cohesion: 0.31
 Nodes (13): declared_field(), field(), HEADER, link_field(), named(), put(), BlendFile, socket() (+5 more)
 
 ### Community 183 - "Groupes et bissection du DAG"
-Cohesion: 0.13
-Nodes (12): bisect_centres, empreinte(), reference_affiner(), row(), Bits, voisinage(), group_clusters(), refine_bisection() (+4 more)
+Cohesion: 0.21
+Nodes (6): bisect_centres, group_clusters(), refine_bisection(), refine_bisection_ignores_a_neighbour_outside_the_slice(), refine_bisection_moves_a_member_whose_neighbours_are_mostly_on_the_other_side(), refine_bisection_on_a_single_member_slice_leaves_it_in_place_and_clears_present()
 
 ### Community 184 - "gallery · round"
 Cohesion: 0.10
-Nodes (32): pair(), PAIR_CONTROLS, show(), vector(), docs_js_engine_addscaledvector3, Ce(), docs_js_engine_copyscaledvector3, docs_js_engine_crossvector3 (+24 more)
+Nodes (31): pair(), PAIR_CONTROLS, vector(), docs_js_engine_addscaledvector3, Ce(), docs_js_engine_copyscaledvector3, docs_js_engine_crossvector3, docs_js_engine_dotvector3 (+23 more)
 
 ### Community 185 - "Propriétés Alembic"
 Cohesion: 0.18
@@ -1484,8 +1491,8 @@ Cohesion: 0.27
 Nodes (11): apply_decisions(), Candidate, candidates(), CutoutApplied, refusal(), BTreeMap, BTreeSet, Option (+3 more)
 
 ### Community 187 - "gallery · COLORS"
-Cohesion: 0.24
-Nodes (13): arrow(), beam(), box(), COLORS, FACES, frameBox(), geometryFor(), pushTriangle() (+5 more)
+Cohesion: 0.22
+Nodes (14): arrow(), beam(), box(), COLORS, FACES, frameBox(), geometryFor(), pushTriangle() (+6 more)
 
 ### Community 188 - "dna · Option"
 Cohesion: 0.32
@@ -1496,12 +1503,12 @@ Cohesion: 0.21
 Nodes (13): duration, a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases(), a14_la_duree_annoncee_contient_la_publication_et_la_purge(), a14_un_travail_ne_publie_pas_les_phases_du_precedent(), grid_that_simplifies(), longest_phase(), phase(), AtomicBool (+5 more)
 
 ### Community 190 - "image · IntoIterator"
-Cohesion: 0.10
-Nodes (23): basisu, blocks_as_shared, Cow, format, header, IntoIterator, image(), BlockDecode (+15 more)
+Cohesion: 0.08
+Nodes (27): basisu, blocks_as_shared, Cow, format, header, IntoIterator, image(), BlockDecode (+19 more)
 
-### Community 191 - "js · round"
-Cohesion: 0.10
-Nodes (32): BATCH_DEMOS, frustumOf(), poseMatrix(), scratch(), docs_js_engine_adjugatefactor, Be(), docs_js_engine_decomposematrix4, docs_js_engine_determinantmatrix4 (+24 more)
+### Community 191 - "js · vector"
+Cohesion: 0.12
+Nodes (29): poseMatrix(), scratch(), docs_js_engine_adjugatefactor, docs_js_engine_applymatrix3vector3, docs_js_engine_composematrix4, docs_js_engine_decomposematrix4, docs_js_engine_determinantmatrix4, dr() (+21 more)
 
 ### Community 192 - "ma · Item"
 Cohesion: 0.16
@@ -1513,15 +1520,15 @@ Nodes (13): le_noeud_fautif_en_tete_au_milieu_ou_en_queue_donne_le_meme_message(
 
 ### Community 194 - "sdk-browser · box"
 Cohesion: 0.16
-Nodes (10): hizNearestBound(), scratch, scratchWords, bits, f32, auditPoses(), compareAudit(), emptyTotals() (+2 more)
+Nodes (12): hizNearestBound(), scratch, scratchWords, bits, f32, auditPoses(), compareAudit(), emptyTotals() (+4 more)
 
 ### Community 195 - "Parcours des objets Alembic"
-Cohesion: 0.26
-Nodes (10): geometry, Kind, Object, AtomicBool, Option, Properties, Result, Scene (+2 more)
+Cohesion: 0.20
+Nodes (13): geometry, Kind, meta_value, Object, Kind, kind_of(), AtomicBool, Option (+5 more)
 
 ### Community 196 - "Atlas d'ombres GPU"
-Cohesion: 0.12
-Nodes (25): createGpuLightTiles(), GpuLightTiles, createCheckedShaderModule(), createGpuShadowAtlas(), GpuShadowAtlas, MAX_SHADOW_REGIONS, shadowAtlasBytes(), BINDING_TYPES (+17 more)
+Cohesion: 0.18
+Nodes (16): createGpuLightTiles(), GpuLightTiles, createCheckedShaderModule(), createGpuShadowAtlas(), GpuShadowAtlas, MAX_SHADOW_REGIONS, shadowAtlasBytes(), BINDING_TYPES (+8 more)
 
 ### Community 197 - "Décodage WebP"
 Cohesion: 0.12
@@ -1537,11 +1544,11 @@ Nodes (13): DATA_TRUNCATED, FORMAT_UNSUPPORTED, HEADER_INVALID, HEADER_TRUNCATED
 
 ### Community 200 - "Géométrie Alembic"
 Cohesion: 0.25
-Nodes (12): Geometry, GeomParam, read_param(), Option, Properties, Result, Scope, f32s() (+4 more)
+Nodes (13): Archive, Geometry, GeomParam, read_param(), Option, Properties, Result, Scope (+5 more)
 
-### Community 201 - "sdk-browser · DeferredBindings"
-Cohesion: 0.05
-Nodes (55): PROXY_HEADER_BYTES, residentProxyWgsl(), ZERO_DIRECT, createDeferredProgram(), DeferredBindings, DeferredProgram, DeferredSources, DirectLightResources (+47 more)
+### Community 201 - "sdk-browser · TaaFrameState"
+Cohesion: 0.09
+Nodes (36): makeFullscreenPipeline(), anchored, beginTaaFrame(), createTaaCheckpoint(), createTaaFrameState(), encodeTaaPass(), packed, TaaFrameState (+28 more)
 
 ### Community 202 - "Formules communes TypeScript"
 Cohesion: 0.15
@@ -1555,54 +1562,45 @@ Nodes (19): Une face Maya cite ses arêtes, pas ses sommets, Compter ce qu'on ne
 Cohesion: 0.26
 Nodes (17): AXIS_ANGLE, euler(), IDENTITY, local(), MAX_DEPTH, multiply(), OB_MESH, ORDERS (+9 more)
 
-### Community 205 - "alembic · BTreeMap"
-Cohesion: 0.11
-Nodes (15): f32_bytes(), BTreeMap, HashMap, Option, Part, String, Value, Scene (+7 more)
+### Community 205 - "appui · BOITES"
+Cohesion: 0.18
+Nodes (13): avec(), BOITES, identite(), matriceOrdinaire(), MATRICES, remplitBoites(), remplitMatrices(), TAILLES (+5 more)
 
-### Community 206 - "engine-scene · addEventListener"
-Cohesion: 0.08
-Nodes (23): engineDiagnosticsCode, engineExampleCode, sceneCopy, sceneControlsCopy, syncRendererState(), SCENE_BACKGROUND, Accordion(), Canvas() (+15 more)
+### Community 206 - "scripts · onOpen"
+Cohesion: 0.09
+Nodes (13): ref_react_dom_server, labels, mathExamples, root, SvgNode, writeGarden(), accessor(), surface() (+5 more)
 
 ### Community 207 - "src · BOX_VALUES"
-Cohesion: 0.11
-Nodes (24): math, box_transform_batch(), box_transform_one(), BOX_VALUES, CORNER_VALUES, chaine(), compose_matrix4_one(), hierarchy_update_batch() (+16 more)
+Cohesion: 0.24
+Nodes (10): box_transform_batch(), box_transform_one(), BOX_VALUES, CORNER_VALUES, js_max(), js_min(), MATRIX_VALUES, multiply_matrix4_batch() (+2 more)
 
 ### Community 208 - "Frustum, boîtes et volumes"
 Cohesion: 0.07
 Nodes (43): alea, boitesDeVueHierarchiques, boitesHierarchiques, branche, cameras, conesHierarchiques, dans(), ECHELLES (+35 more)
 
 ### Community 209 - "sdk-node · PhaseState"
-Cohesion: 0.14
-Nodes (12): packages_sdk_core_index_dagwarning, controller, [
-  input,
-  output,
-  scope = 'slice',
-  budget = '150000',
-  resourceBaseUrl,
-  threads = '2',
-  ramBudgetMb = '256',
-  simplification = 'none',
-], triangleBudget, clip(), createBatchProgress(), createTerminalProgress(), PHASES (+4 more)
+Cohesion: 0.20
+Nodes (9): packages_sdk_core_index_dagwarning, clip(), createBatchProgress(), createTerminalProgress(), PHASES, PhaseState, SPINNER, capture() (+1 more)
 
-### Community 210 - "bench_calculs · Bits"
+### Community 210 - "oracles · referenceLinearToSrgb8"
 Cohesion: 0.16
-Nodes (13): empreinte(), reference_stage_proxy(), row(), Bits, Result, SceneProxy, SOUS_TRIANGLES, une_scene_ecrite_en_clair_pose_cinq_coupes_des_deux_cotes() (+5 more)
+Nodes (11): bounds, boundsSphere(), centre, referenceOrder(), referencePriorities(), projectScratch, radicalInverse(), referenceComposeView() (+3 more)
 
-### Community 211 - "src · CUTOUT_ALPHA"
-Cohesion: 0.14
-Nodes (14): CUTOUT_ALPHA, Decisions, DECISIONS_FILE, read_answers(), BTreeMap, Item, Iterator, Option (+6 more)
+### Community 211 - "tests · CUTOUT_ALPHA"
+Cohesion: 0.13
+Nodes (29): CUTOUT_ALPHA, Decisions, DECISIONS_FILE, load_decisions(), read_answers(), BTreeMap, Item, Iterator (+21 more)
 
 ### Community 212 - "src · COPLANAR_MAX_LAYER"
-Cohesion: 0.13
-Nodes (20): accessor, counts, assign_depth_layers(), COPLANAR_MAX_LAYER, COPLANAR_STAGE, CoplanarBounds, CoplanarInputs, CoplanarResult (+12 more)
+Cohesion: 0.15
+Nodes (17): accessor, counts, assign_depth_layers(), COPLANAR_MAX_LAYER, COPLANAR_STAGE, CoplanarInputs, CoplanarResult, offset_quantum() (+9 more)
 
 ### Community 213 - "docs · clustered-blend : mélange statique dans le DAG (format 2)"
 Cohesion: 0.21
 Nodes (15): Cache format 1 and 2 (docs/FORMAT.md), Autonomous scene (scene.gltf) built from verified pages, Cluster DAG, clustered-blend : mélange statique dans le DAG (format 2), clusters.bin — typed-array column sidecar, clusters.json : manifeste compilé, Hiérarchie de culling (BVH plat, 15 nombres par nœud), Flat culling hierarchy (culling BVH) (+7 more)
 
 ### Community 214 - "cutout · BTreeSet"
-Cohesion: 0.27
-Nodes (13): build_sheet(), draw_weights(), entries(), Entry, image_name(), BTreeMap, BTreeSet, Option (+5 more)
+Cohesion: 0.19
+Nodes (18): build_sheet(), draw_weights(), entries(), Entry, image_name(), BTreeMap, BTreeSet, Option (+10 more)
 
 ### Community 215 - "tests · a_tiff_outside_profile_comes_out_as_a_report_reason_never_as_a_panic"
 Cohesion: 0.15
@@ -1621,12 +1619,12 @@ Cohesion: 0.18
 Nodes (17): candidates(), CLAMP, connected(), image(), IMAGES_DIRECTORY, MIRRORS, moved(), of() (+9 more)
 
 ### Community 219 - "code · reset"
-Cohesion: 0.21
-Nodes (10): executionSource(), runModule(), formatNumericText(), resolveSdkImports(), CodeEditor(), run(), ref_node_worker_threads, createWorker() (+2 more)
+Cohesion: 0.19
+Nodes (11): executionSource(), runModule(), formatNumericText(), resolveSdkImports(), CodeEditor(), run(), @codemirror/lang-javascript, ref_node_worker_threads (+3 more)
 
-### Community 220 - "Routage des conteneurs d'archives"
-Cohesion: 0.06
-Nodes (53): io, ambiguous(), HEAD_BYTES, prepare_source(), project(), route(), Routed, RoutedSource (+45 more)
+### Community 220 - "Bacs à sable des pilotes"
+Cohesion: 0.09
+Nodes (36): io, a_gzipped_file_gives_exactly_the_same_scene_as_the_zstandard_one(), a_packed_image_is_carried_through_byte_for_byte(), converted(), find(), one_shared_mesh_becomes_one_gltf_mesh_instanced_three_times(), Option, PathBuf (+28 more)
 
 ### Community 222 - "tests · Bits"
 Cohesion: 0.17
@@ -1641,100 +1639,104 @@ Cohesion: 0.18
 Nodes (17): CELL_ERROR_FACTOR, CELL_LADDER, cell_of(), count_at(), divisions(), kept(), key_of(), longest_edge() (+9 more)
 
 ### Community 225 - "Cache de pages GPU"
-Cohesion: 0.27
-Nodes (14): commitGpuPage(), evictResident(), createGpuPageLoader(), createGpuPagePins(), createGpuPageReader(), createPageBuffer(), pageBufferBytes(), resizeGpuPages() (+6 more)
+Cohesion: 0.29
+Nodes (13): commitGpuPage(), evictResident(), createGpuPageLoader(), createGpuPagePins(), createGpuPageReader(), createPageBuffer(), pageBufferBytes(), resizeGpuPages() (+5 more)
 
-### Community 226 - "Coût CPU et image tenue"
+### Community 226 - "Encodage des dessins WebGPU (2)"
 Cohesion: 0.05
-Nodes (74): CpuStepSummary, createCpuStepProfile(), CPU, EXACT_CPU_STEP, createHostFrameCostAudit(), frameCostAuditEnabled(), gpuFrameCostSnapshot(), HostRenderer (+66 more)
+Nodes (61): GpuBounceProbes, writeSplitDouble(), GpuPartition, GpuRaster, GpuRestCompact, GpuSunFarShadow, SurfaceCapture, packages_sdk_browser_visibilitybuffer_vis_max_pages (+53 more)
 
 ### Community 227 - "Banc de mesure commun (2)"
 Cohesion: 0.10
-Nodes (26): ref_three_addons_loaders_gltfloader_js, poseCalme(), positionLampeMobile(), posterCapture(), reglerReservoirs(), reseauDepuis(), appliquer(), creer() (+18 more)
+Nodes (26): poseCalme(), positionLampeMobile(), posterCapture(), reglerReservoirs(), reseauDepuis(), appliquer(), creer(), creerEclairageTemoin() (+18 more)
 
-### Community 228 - "Pilote Maya et matrices posées"
-Cohesion: 0.18
-Nodes (14): HEAD, matrix(), normals(), quad(), String, Value, shaded(), translations() (+6 more)
+### Community 228 - "tests · String"
+Cohesion: 0.21
+Nodes (15): import_key(), obj_source(), String, a_missing_library_is_counted_by_its_name(), a_modified_mtl_gives_another_key_and_another_colour(), a_texture_name_that_needs_escaping_stays_rereadable(), a_truncated_library_is_counted_by_its_name(), two_folders_with_the_same_obj_each_keep_their_mtl() (+7 more)
 
 ### Community 229 - "alembic · a_group_above_the_allocation_ceiling_is_refused_by_name"
-Cohesion: 0.18
-Nodes (5): magic, an_xform_operation_stack_composes_the_gltf_matrix(), refused(), PathBuf, written()
+Cohesion: 0.20
+Nodes (4): magic, refused(), PathBuf, written()
 
 ### Community 230 - "sdk-browser · avecCoeurs"
-Cohesion: 0.24
-Nodes (15): configurePageDecoders(), count(), counters, decodePageOffThread(), onThread(), openPool(), ownBuffer(), pageDecodeStats() (+7 more)
+Cohesion: 0.27
+Nodes (13): count(), counters, decodePageOffThread(), onThread(), openPool(), ownBuffer(), pageDecodeStats(), refuse() (+5 more)
+
+### Community 231 - "Commandes et document Maya (2)"
+Cohesion: 0.18
+Nodes (4): Document, meters(), Attr, Option
 
 ### Community 232 - "scene · .begin"
-Cohesion: 0.23
+Cohesion: 0.21
 Nodes (6): cross(), newell(), Ngon, AtomicBool, Option, side()
 
 ### Community 233 - "bench · passeTexture"
-Cohesion: 0.13
-Nodes (15): referenceTextureRgba(), alea, casTexture, contenuApres, contenuAvant, decalee, grandeTexture, minuscule (+7 more)
+Cohesion: 0.14
+Nodes (14): alea, casTexture, contenuApres, contenuAvant, decalee, grandeTexture, minuscule, octets() (+6 more)
 
 ### Community 234 - "sdk-browser · item"
-Cohesion: 0.23
-Nodes (7): createTransparentTable(), drawRank(), cpuOrder(), walk(), TRANSPARENT_GROUP, TRANSPARENT_NONE, visitOrder()
+Cohesion: 0.17
+Nodes (12): compactPasses(), createTransparentCompaction(), TransparentCompaction, TRANSPARENT_COMPACT_SHADER, createTransparentTable(), drawRank(), cpuOrder(), walk() (+4 more)
 
 ### Community 235 - "Lecture du format Blender (4)"
 Cohesion: 0.24
 Nodes (9): pointer_at(), AtomicBool, BlendFile, HashMap, Option, Result, String, Scene (+1 more)
 
-### Community 236 - "Coupe projetée de la sélection (3)"
+### Community 236 - "État de la coupe de sélection"
 Cohesion: 0.05
-Nodes (85): 3. Browser runtime (TypeScript, WGSL, GLSL), centre, referenceCutSelects(), referenceErrorFloorPixels(), referenceNodeDecision(), referenceProjectCentre(), referenceProjectedClusterError(), MatrixElements (+77 more)
+Nodes (91): 3. Browser runtime (TypeScript, WGSL, GLSL), centre, referenceCutSelects(), referenceErrorFloorPixels(), referenceNodeDecision(), referenceProjectCentre(), referenceProjectedClusterError(), ConeContext (+83 more)
 
 ### Community 237 - "src · CACHE_LOCK_FILE"
 Cohesion: 0.17
 Nodes (10): CACHE_LOCK_FILE, CacheLock, Drop, Duration, File, Result, Self, STEP (+2 more)
 
 ### Community 238 - "Pipelines de visibilité"
-Cohesion: 0.23
-Nodes (11): alea, couche(), couches(), HOSTILES, paires(), referenceBiasedDepthBits(), referenceDepthLayerUnits(), biasedDepthBits() (+3 more)
+Cohesion: 0.13
+Nodes (19): alea, couche(), couches(), HOSTILES, paires(), referenceBiasedDepthBits(), referenceDepthLayerUnits(), biasedDepthBits() (+11 more)
 
-### Community 239 - "Monde et ombrage Maya"
-Cohesion: 0.06
-Nodes (50): MAX_DEPTH, AtomicBool, Document, HashMap, Option, Scene, scene(), visit() (+42 more)
+### Community 239 - "unity · Fn"
+Cohesion: 0.15
+Nodes (22): bind(), Builder<'_, '_>, Fn, Option, Value, array(), index(), merge() (+14 more)
 
-### Community 240 - "Pages autonomes"
-Cohesion: 0.07
-Nodes (37): createAutonomousGeometry(), GeometryEnvironment, environnement(), fakeScene(), makeRec(), scenario(), createAutonomousInstances(), InstanceEnvironment (+29 more)
+### Community 240 - "bench · geometrie"
+Cohesion: 0.22
+Nodes (13): environnement(), fakeScene(), makeRec(), scenario(), cas(), coupes(), empreinte(), geometrie (+5 more)
 
 ### Community 242 - "gallery · initial"
-Cohesion: 0.05
-Nodes (50): configureSceneCamera(), mountScene(), createLightingControls(), createSceneTelemetry(), cameraLessonCode(), change(), cameraLessonDefinitions, range() (+42 more)
+Cohesion: 0.06
+Nodes (45): configureSceneCamera(), mountScene(), createLightingControls(), createSceneTelemetry(), cameraLessonCode(), change(), cameraLessonDefinitions, range() (+37 more)
 
-### Community 243 - "tests · NEUTRAL"
-Cohesion: 0.21
-Nodes (14): collections, coplanar, digest, ClusterPlane, NEUTRAL, collect_drops_mask_blend_and_transmissive_materials(), collect_keeps_the_largest_areas_per_primitive_and_counts_the_rest(), collect_one_node() (+6 more)
+### Community 243 - "tests · Surface"
+Cohesion: 0.32
+Nodes (11): coplanar, ClusterPlane, collect_drops_mask_blend_and_transmissive_materials(), collect_keeps_the_largest_areas_per_primitive_and_counts_the_rest(), collect_one_node(), collect_with_world_matches_collect_for_a_mirrored_node(), flat_primitive(), Option (+3 more)
 
 ### Community 244 - "image · CODEC_UNSUPPORTED"
 Cohesion: 0.12
 Nodes (9): CODEC_UNSUPPORTED, DATA_TRUNCATED, DDS, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC, Result (+1 more)
 
 ### Community 245 - "sdk-browser · GpuDeviceLedgerSnapshot"
-Cohesion: 0.21
-Nodes (9): BYTES_PER_BLOCK, BYTES_PER_TEXEL, extent(), GpuDeviceLedger, gpuDeviceLedgerOf(), GpuDeviceLedgerSnapshot, LedgerDevice, ledgers (+1 more)
+Cohesion: 0.22
+Nodes (9): BYTES_PER_BLOCK, BYTES_PER_TEXEL, extent(), GpuDeviceLedger, GpuDeviceLedgerSnapshot, installGpuDeviceLedger(), LedgerDevice, ledgers (+1 more)
 
 ### Community 246 - "ma · Default"
-Cohesion: 0.19
-Nodes (12): Document, leaf(), Link, Node, read(), Attr, Default, HashMap (+4 more)
+Cohesion: 0.23
+Nodes (11): Document, Link, Node, read(), Attr, Default, HashMap, Option (+3 more)
 
 ### Community 247 - "tests · a_png_icc_profile_is_counted_unless_it_names_srgb"
-Cohesion: 0.19
-Nodes (10): a_jpeg_icc_profile_is_counted_unless_it_names_srgb(), a_psd_icc_profile_is_counted_unless_it_names_srgb(), avec_app2(), avec_ressource(), IGNORED, jpeg_sans_profil(), MAX_ALLOC, OTHER (+2 more)
+Cohesion: 0.18
+Nodes (11): a_jpeg_icc_profile_is_counted_unless_it_names_srgb(), a_psd_icc_profile_is_counted_unless_it_names_srgb(), avec_app2(), avec_ressource(), IGNORED, jpeg_sans_profil(), MAX_ALLOC, OTHER (+3 more)
 
 ### Community 248 - "Justesse de la transformation normale"
-Cohesion: 0.23
-Nodes (21): AXE, tourneeDe180(), Vec, packages_sdk_core_index_singular_determinant_wgsl, lignes, angleEntre(), apresLeLot(), avantLeLot() (+13 more)
+Cohesion: 0.25
+Nodes (20): AXE, tourneeDe180(), Vec, lignes, angleEntre(), apresLeLot(), avantLeLot(), cofacteur() (+12 more)
 
 ### Community 249 - "usd · HashMap"
 Cohesion: 0.21
 Nodes (10): BTreeSet, HashMap, Option, Part, Prim, Self, Value, World (+2 more)
 
 ### Community 250 - "compiler_lights · DERIVED"
-Cohesion: 0.22
-Nodes (10): centre_of(), declared(), DERIVED, Emitter<'a>, INVALID, Option, Result, Self (+2 more)
+Cohesion: 0.14
+Nodes (18): centre_of(), declared(), DERIVED, Emitter, Emitter<'a>, bound_nodes(), emits(), radius() (+10 more)
 
 ### Community 251 - "tests · ASTC_4X4"
 Cohesion: 0.14
@@ -1756,25 +1758,25 @@ Nodes (14): Lus, already_marked_valid_accessor_yields_same_fields_without_revali
 Cohesion: 0.23
 Nodes (13): atlas_textures(), AtlasTexture, BTreeSet, Option, Result, Value, texture_index(), used_materials() (+5 more)
 
-### Community 256 - "Scripts de build et distribution (3)"
+### Community 256 - "Tests navigateur Node"
 Cohesion: 0.03
-Nodes (77): ref_node_child_process, ref_node_os, ref_node_path, ref_node_url, archiveur(), main(), MANIFESTE, RACINE (+69 more)
+Nodes (67): run(), packages_sdk_node_index_default_scope, esbuild, ref_node_fs_promises, ref_node_module, ref_node_os, ref_node_path, ref_node_url (+59 more)
 
-### Community 257 - "tests · PathBuf"
-Cohesion: 0.37
-Nodes (15): load_decisions(), appliquer(), dossier(), ecrire(), PathBuf, String, Value, sans_feuille_le_melange_reste_du_melange() (+7 more)
+### Community 257 - "Backends de rendu exacts (2)"
+Cohesion: 0.18
+Nodes (13): applyColor(), attachContractLights(), CONTRACT_LIGHTS_LIGHTING, CONTRACT_LIGHTS_UNSUPPORTED, createContractLights(), createLight(), RETIRES, spotPenumbra() (+5 more)
 
-### Community 258 - "usd · Prim"
-Cohesion: 0.25
-Nodes (13): Bound, image(), resolve(), AssetPath, Option, Prim, String, Value (+5 more)
+### Community 258 - "ma · cone_angles"
+Cohesion: 0.06
+Nodes (31): attach_lights(), light_extension(), light_node(), LightSource, Option, String, Value, a_hard_edge_splits_the_normals_of_the_two_smooth_faces_it_borders() (+23 more)
 
 ### Community 259 - "hdr · EXPONENT_BIAS"
 Cohesion: 0.20
 Nodes (14): decode(), EXPONENT_BIAS, F64_EXPONENT_BIAS, F64_MANTISSA_BITS, new_rle(), NEW_RLE_WIDTHS, old_rle(), OLD_RUN_MARKER (+6 more)
 
-### Community 260 - "tests · NAMES"
-Cohesion: 0.14
-Nodes (14): compile_one(), digests(), NAMES, String, Value, run(), stable(), an_unreadable_tga_comes_out_as_a_report_reason_never_as_a_panic() (+6 more)
+### Community 260 - "bench_calculs · NAMES"
+Cohesion: 0.22
+Nodes (13): compile_one(), digests(), NAMES, String, Value, run(), stable(), a_ktx2_outside_the_list_or_truncated_comes_out_as_a_report_reason_never_as_a_panic() (+5 more)
 
 ### Community 261 - "scripts · category"
 Cohesion: 0.11
@@ -1785,48 +1787,48 @@ Cohesion: 0.11
 Nodes (25): BASIS_LZ, chain(), HEADER_END, LEVEL_ENTRY, long(), NONE, parse(), Range (+17 more)
 
 ### Community 263 - "mesh · AtomicBool"
-Cohesion: 0.25
-Nodes (9): Builder, point(), AtomicBool, Geometry, HashMap, Option, Part, Range (+1 more)
+Cohesion: 0.23
+Nodes (10): Builder, point(), AtomicBool, Geometry, HashMap, Option, Part, Range (+2 more)
 
 ### Community 264 - "portal · searchText"
-Cohesion: 0.09
-Nodes (37): ISSUES, REPOSITORY, SECTIONS, AREAS, decodeId(), DEFAULT_ROUTE, entryRoute(), LEGACY_SECTIONS (+29 more)
+Cohesion: 0.05
+Nodes (66): demoFor(), ISSUES, issueUrl(), REPOSITORY, SECTIONS, apiScenario(), related, relatedSection (+58 more)
 
 ### Community 265 - "src · FLAG_COLOR"
-Cohesion: 0.12
-Nodes (21): Attribute, sans_attribut_facultatif_la_page_ne_porte_que_ses_positions(), encode(), FLAG_COLOR, FLAG_NORMAL, FLAG_TANGENT, FLAG_UV, FLAG_UV1 (+13 more)
+Cohesion: 0.15
+Nodes (13): Attribute, sans_attribut_facultatif_la_page_ne_porte_que_ses_positions(), encode(), FLAG_COLOR, FLAG_NORMAL, FLAG_TANGENT, FLAG_UV, FLAG_UV1 (+5 more)
 
 ### Community 266 - "usd · Fn"
 Cohesion: 0.25
 Nodes (9): Primvar, Primvar<T>, read(), Fn, Option, Prim, Self, Value (+1 more)
 
-### Community 267 - "Lignes de page et double face"
+### Community 267 - "sdk-browser · DeferredBindings"
 Cohesion: 0.04
-Nodes (91): appareil, etat(), geometrie(), grand, petit, referenceVertexBytes(), createDeferredLighting(), createGpuPresenter() (+83 more)
+Nodes (88): appareil, etat(), geometrie(), grand, petit, referenceVertexBytes(), holdHostCamera(), resolveCameraWorld() (+80 more)
 
 ### Community 268 - "tests · DELTA"
 Cohesion: 0.25
 Nodes (13): compile_after_cube(), DELTA, DENSE, MAT, merged_primitive(), MODEL, morph_targets_follow_the_model_into_the_scene(), resolved() (+5 more)
 
 ### Community 269 - "ma · Item (2)"
-Cohesion: 0.22
-Nodes (9): read(), Reader, Item, Iterator, Option, Result, String, Statement (+1 more)
+Cohesion: 0.23
+Nodes (8): read(), Reader, Item, Iterator, Option, Result, String, Token
 
 ### Community 270 - ". · declaration"
 Cohesion: 0.13
 Nodes (14): compilerOptions, declaration, lib, module, moduleResolution, outDir, rewriteRelativeImportExtensions, rootDir (+6 more)
 
 ### Community 271 - "oracles · attribut"
-Cohesion: 0.11
-Nodes (15): frameB, frameBitangents, frameN, frameNormals, frameOut, frameQ, frameT, frameTangents (+7 more)
+Cohesion: 0.12
+Nodes (14): frameB, frameBitangents, frameN, frameNormals, frameOut, frameQ, frameT, frameTangents (+6 more)
 
 ### Community 272 - "src · budget_de_decompression_refuse_avant_toute_decompression"
-Cohesion: 0.09
-Nodes (21): attributes, crate, decode(), en_tete_trop_court_puis_magie_puis_bornes(), Header, MAGIC, mots(), page() (+13 more)
+Cohesion: 0.15
+Nodes (15): attributes, decode(), en_tete_trop_court_puis_magie_puis_bornes(), Header, MAGIC, mots(), page(), PageError (+7 more)
 
-### Community 273 - "sdk-browser · sample"
-Cohesion: 0.26
-Nodes (12): DEFERRED_LIGHTING_PASS, LIGHT_TILES_PASS, REST_COMPACT_PASS, SHADOW_PASS, addGpuPasses(), bounceGpuMs(), directLightTimings(), gpuPassStageOf() (+4 more)
+### Community 273 - "API et session de l'explorateur (2)"
+Cohesion: 0.07
+Nodes (32): DEFAULT_FOV, DiagnosticDetail, DEFERRED_LIGHTING_PASS, createDiagnosticChannel(), DiagnosticChannel, DiagnosticChannelOptions, DiagnosticObserver, newSessionId() (+24 more)
 
 ### Community 274 - "coplanar · Counts"
 Cohesion: 0.22
@@ -1836,13 +1838,13 @@ Nodes (12): key(), layers(), Overlap, Surface, Counts, MAX_LISTED, overlap_pairs
 Cohesion: 0.16
 Nodes (7): FOOTER_BYTES, FOOTER_SIGNATURE, has_footer(), HEADER_BYTES, header_is_coherent(), Result, TGA
 
-### Community 276 - "Mathématiques du tampon de visibilité (2)"
-Cohesion: 0.29
-Nodes (11): colorOf(), fillTriangle(), opaqueBackgroundRgba(), pa, pb, pc, project(), projectAttribute() (+3 more)
+### Community 276 - "tests · HALF_PI"
+Cohesion: 0.18
+Nodes (12): grid_fixture_displaced(), HALF_PI, portable_sin(), compile_dag_bundles_clusters_for_streaming_and_names_their_group(), compile_dag_covers_transparent_primitives_and_records_their_source_rank(), a17_l_avancement_d_une_compilation_ne_recule_jamais(), a17_le_proxy_et_les_lampes_sont_des_phases_connues(), ratios() (+4 more)
 
 ### Community 277 - "justesse · pire"
-Cohesion: 0.13
-Nodes (17): verdict(), orientees, TOUS, DEG, TOLERANCE_NORME, AXES, DECROCHE_DEG, ECHELLES (+9 more)
+Cohesion: 0.09
+Nodes (29): verdict(), STANDARD_LIGHTING_WGSL, orientees, TOUS, TOUS, TOUTES, verdicts(), DEG (+21 more)
 
 ### Community 278 - "blend · POINTER"
 Cohesion: 0.20
@@ -1852,13 +1854,13 @@ Nodes (11): at, Dna, Field, Layout, POINTER, HashMap, Option, String (+3 more)
 Cohesion: 0.21
 Nodes (10): BlendFile, Block, HashMap, Item, Iterator, Option, Result, walk() (+2 more)
 
-### Community 280 - "Descripteurs et n-gones Blender"
-Cohesion: 0.08
-Nodes (35): a_hostile_sdna_is_refused_by_name_never_by_panic(), a_view_never_reads_past_the_end_of_its_block(), file(), sdna(), the_size_ceiling_holds_whatever_the_envelope(), a_lamp_type_this_driver_does_not_convert_is_counted_by_its_name(), converted(), FIELDS (+27 more)
+### Community 280 - "Descripteurs et n-gones Blender (2)"
+Cohesion: 0.22
+Nodes (13): declared(), level(), LINEAR, orientation_and_swizzle_keys_are_applied_or_counted(), PREMULTIPLIED, RGBA8_UNORM, rows(), Fn (+5 more)
 
-### Community 281 - "import · HashMap"
-Cohesion: 0.23
-Nodes (8): HashMap, Option, PathBuf, Value, switched_on(), TextureTable, TextureTable<'a>, WrapMode
+### Community 281 - "texture_preview · BTreeMap"
+Cohesion: 0.20
+Nodes (14): decodedimage, Baked, level_path(), one_image(), report(), BTreeMap, Result, String (+6 more)
 
 ### Community 282 - "usd · CLAMP"
 Cohesion: 0.23
@@ -1869,16 +1871,16 @@ Cohesion: 0.30
 Nodes (13): attribute_text(), BINDING, bound_at(), FAMILY, Part, parts(), Option, Prim (+5 more)
 
 ### Community 284 - "usd · DEFAULT_CONE"
-Cohesion: 0.11
-Nodes (41): alpha(), base(), build(), emission(), number(), opacity_texture(), resolve(), roughness() (+33 more)
+Cohesion: 0.08
+Nodes (52): alpha(), base(), build(), emission(), number(), opacity_texture(), resolve(), roughness() (+44 more)
 
 ### Community 285 - "Erreur d'écran hors axe"
-Cohesion: 0.10
-Nodes (18): aPlat, approche, avecNoeud, boiteFin, boiteGrossier, camera, culling, fin (+10 more)
+Cohesion: 0.09
+Nodes (19): aPlat, approche, avecNoeud, boiteFin, boiteGrossier, camera, culling, empaquete() (+11 more)
 
-### Community 286 - "mesure · serie"
-Cohesion: 0.31
-Nodes (9): borne(), memoire(), num(), plusLourdes(), go(), mo(), n(), n2() (+1 more)
+### Community 286 - "scene · AtomicBool"
+Cohesion: 0.13
+Nodes (9): AtomicBool, Fn, Option, PathBuf, Scene, Sync, Value, UNITY (+1 more)
 
 ### Community 287 - "blend · EXCLUDE"
 Cohesion: 0.33
@@ -1895,10 +1897,6 @@ Nodes (26): devDependencies, codemirror, @codemirror/lang-javascript, @codemirro
 ### Community 290 - "tests · ALPHA"
 Cohesion: 0.15
 Nodes (10): Politique PSD : le composite aplati seulement, jamais de calques recomposés, Fixture dorée — pilote PSD et PSB (composite aplati), Refus PSD nommés : depth, color-mode (CMJN), channels, compression (ZIP), composite-missing, data-truncated, header-invalid, a_header_outside_domain_is_refused_by_name(), ALPHA, GRIS, MAX_ALLOC, RVB (+2 more)
-
-### Community 291 - "tests · ALPHA (2)"
-Cohesion: 0.12
-Nodes (15): enclosing_sphere_contains_every_input(), the_culling_hierarchy_owns_every_cluster_once_and_bounds_its_subtree(), ALPHA, bc7_block(), check(), COLORS, each_declared_compressed_codec_yields_the_reference_pixels(), GREEN (+7 more)
 
 ### Community 292 - "coplanar · Result"
 Cohesion: 0.22
@@ -1936,9 +1934,9 @@ Nodes (9): Accessor<'_>, Result, Accessor, reserve(), Option, Result, SparseAcce
 Cohesion: 0.26
 Nodes (14): anchored(), DEFAULT_METERS_PER_UNIT, field(), metadata(), meters_per_unit(), Option, PathBuf, Prim (+6 more)
 
-### Community 301 - "Erreurs moteur et cache (2)"
-Cohesion: 0.19
-Nodes (13): DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS, DEFAULT_BACKENDS, Inputs, prepareExplorerBackends(), createExplorerPageSources(), Progress, declareImportedLights() (+5 more)
+### Community 301 - "sdk-core · translation"
+Cohesion: 0.18
+Nodes (10): linearPartDeterminant(), IDENTITY, matrixWindingCw(), balayage(), conditionnement(), echelle, euler, position (+2 more)
 
 ### Community 302 - "src · Fn (2)"
 Cohesion: 0.29
@@ -1948,11 +1946,11 @@ Nodes (11): other_scope(), prune_cache(), referenced_objects(), BTreeSet, Fn, Op
 Cohesion: 0.21
 Nodes (11): attribut(), attributs(), GARNITURES, NORMALES, POIDS, POSES, reperes(), sommet() (+3 more)
 
-### Community 304 - "sdk-core · clip"
-Cohesion: 0.31
-Nodes (13): createShadowDirty(), clearFace(), clip, countPages(), faceDirty(), markBoxPages(), markWholeFace(), maskBase() (+5 more)
+### Community 304 - "unity · Map"
+Cohesion: 0.30
+Nodes (10): apply(), members(), retarget(), Map, String, Value, Rule, Rule<'a> (+2 more)
 
-### Community 305 - "bench_calculs · Bits (2)"
+### Community 305 - "bench_calculs · Bits"
 Cohesion: 0.25
 Nodes (13): level_error_stats, a_large_level_with_heavy_poison_remains_identical(), duplicates_and_poison_do_not_diverge_the_triplet(), empreinte(), erreurs(), memes_stats(), reference_stats(), row() (+5 more)
 
@@ -1960,21 +1958,21 @@ Nodes (13): level_error_stats, a_large_level_with_heavy_poison_remains_identical
 Cohesion: 0.18
 Nodes (17): Never copy Unreal code, shaders or assets, Progressive colour-texture previews fixed end to end, Import drivers and their named refusal codes, Fixtures Alembic, Alembic limites fixture notice (CC0-1.0), Alembic procedural-static notice (CC0-1.0), Fixture des aperçus progressifs de textures, Fixtures Blender (+9 more)
 
-### Community 308 - "bench_calculs · Bits (3)"
+### Community 308 - "bench_calculs · Bits (2)"
 Cohesion: 0.32
 Nodes (10): ColonneAncienne, empreinte(), nombre_ancien(), optimise_colonnes(), reference_colonnes(), row(), Bits, Option (+2 more)
 
 ### Community 309 - "USDZ_LAYOUT_INVALID"
-Cohesion: 0.31
-Nodes (11): Spécification AOUSD (USD / USDZ), La clé de cache ne figure pas dans l'attendu, La première entrée du paquet est la couche racine, Fixtures de correction — pilote usd, Fixture de correction — pilote usdz, conteneur, test-assets/tools/model_formats_blender.py, pilote usd, pilote usdz (+3 more)
+Cohesion: 0.33
+Nodes (10): Spécification AOUSD (USD / USDZ), La clé de cache ne figure pas dans l'attendu, La première entrée du paquet est la couche racine, Fixtures de correction — pilote usd, Fixture de correction — pilote usdz, conteneur, test-assets/tools/model_formats_blender.py, pilote usd, pilote usdz (+2 more)
 
 ### Community 310 - "src · Option (2)"
 Cohesion: 0.23
 Nodes (10): component(), decode(), encode_relative(), lechappement_et_le_decodage_sont_inverses(), resolve_under(), Option, PathBuf, Result (+2 more)
 
 ### Community 311 - "manifest_binary · String"
-Cohesion: 0.20
-Nodes (16): digests(), Result, String, sha_columns(), texture_digests(), a_url_that_leaves_the_template_is_refused(), coarse_page(), columns_declare_their_own_offsets_and_lengths() (+8 more)
+Cohesion: 0.27
+Nodes (11): a_url_that_leaves_the_template_is_refused(), coarse_page(), columns_declare_their_own_offsets_and_lengths(), digests_reads_back_every_sha_column(), exact_page(), String, Value, sample() (+3 more)
 
 ### Community 312 - "image · DEPTH"
 Cohesion: 0.17
@@ -1985,36 +1983,36 @@ Cohesion: 0.29
 Nodes (13): arity(), IDENTITY, is_finite(), matrix(), multiply(), operation(), rotation(), Matrix (+5 more)
 
 ### Community 314 - "gallery · make"
-Cohesion: 0.23
-Nodes (24): base(), draw(), drawCamera(), drawTransform(), drawVectors(), line(), make(), polygon() (+16 more)
+Cohesion: 0.26
+Nodes (23): base(), draw(), drawCamera(), drawTransform(), drawVectors(), line(), make(), polygon() (+15 more)
 
 ### Community 315 - "unity · MESH_FILTER"
 Cohesion: 0.20
 Nodes (9): Builder<'_, '_>, MESH_FILTER, MESH_RENDERER, Document, HashSet, Option, Rc, Value (+1 more)
 
 ### Community 316 - "limites/truncated.unity : 31 octets, refus propre sans panique ni allocation non bornée"
-Cohesion: 0.13
-Nodes (19): Licence CC0-1.0 — fixture ma (scene.ma, checker.png), Fixture dorée — pilote TGA, Fixture Unity cc0-import-project, globalScale / useFileScale du .meta : l'échelle d'import s'applique aux nœuds, jamais à la géométrie, fileID de vrai projet au-delà de 2^53 : lus au travers d'un flottant, l'objet disparaîtrait, limites/truncated.unity : 31 octets, refus propre sans panique ni allocation non bornée, Licence CC0-1.0 — fixture unitypackage, Arbre reconstruit par GUID : pathname → chemin, asset et asset.meta recopiés (metaFiles: 11) (+11 more)
+Cohesion: 0.11
+Nodes (21): Licence CC0-1.0 — fixture ma (scene.ma, checker.png), Fixture dorée — pilote TGA, Fixture Unity cc0-import-project, globalScale / useFileScale du .meta : l'échelle d'import s'applique aux nœuds, jamais à la géométrie, fileID de vrai projet au-delà de 2^53 : lus au travers d'un flottant, l'objet disparaîtrait, limites/truncated.unity : 31 octets, refus propre sans panique ni allocation non bornée, Licence CC0-1.0 — fixture unitypackage, Arbre reconstruit par GUID : pathname → chemin, asset et asset.meta recopiés (metaFiles: 11) (+13 more)
 
-### Community 317 - "sdk-core · sdk/index"
-Cohesion: 0.17
-Nodes (13): DagReport, DagWarning, PrimitiveDagWarning, Primitive, GpuMemoryFrameMetrics, adaptivePixelError(), LOD_QUALITY, lodQuality() (+5 more)
+### Community 317 - "tests · PathBuf"
+Cohesion: 0.21
+Nodes (12): a02_deux_fils_sur_un_meme_cache_laissent_un_pointeur_lisible(), assert_cache_coherent(), chaque_modele_repart_avec_sa_feuille(), feuille_de_reponses(), feuille_png(), PathBuf, Value, scene_feuillage() (+4 more)
 
 ### Community 319 - "oracles · Vec3"
 Cohesion: 0.25
 Nodes (16): hoisted(), IDENTITY, LARGE_SCALE, Mat4, mat4Multiply(), mat4MulVec4(), MIRROR_X, NEAR_SINGULAR (+8 more)
 
 ### Community 320 - "coplanar · BTreeMap"
-Cohesion: 0.31
-Nodes (10): find_overlaps(), BTreeMap, Counts, Option, Rect, Result, Surface, Search (+2 more)
+Cohesion: 0.21
+Nodes (13): CoplanarBounds, find_overlaps(), BTreeMap, Counts, Option, Rect, Result, Surface (+5 more)
 
 ### Community 321 - "sdk-browser · node"
 Cohesion: 0.17
 Nodes (11): engines, node, exports, files, three, name, peerDependencies, three (+3 more)
 
-### Community 322 - "oracles · depthCam"
+### Community 322 - "Socle des consommateurs"
 Cohesion: 0.24
-Nodes (9): parcours(), depthCam, projScratch, referenceHizTestRect(), viewProjScratch, hizTestRect(), premierNiveau(), bothAgree() (+1 more)
+Nodes (12): faceAncienne(), faceNouvelle(), leve(), lignesConsommateursCore(), essaie(), EPSILON, packSurface(), bitangent (+4 more)
 
 ### Community 323 - ". · import"
 Cohesion: 0.18
@@ -2029,72 +2027,76 @@ Cohesion: 0.18
 Nodes (16): build_dag_primitive(), DagResult, Attribute, Fn, Option, Result, Sync, Value (+8 more)
 
 ### Community 326 - "sdk-browser · GeometryBlock"
-Cohesion: 0.10
-Nodes (27): TextureLevelReader, packages_sdk_browser_visibilitybuffer_texturergba, GeometryBlock, GeometryBlocks, prepareWebgpuGeometry(), adder(), collectWebgpuMaterialTextures(), compteMateriauxEtTangentes() (+19 more)
+Cohesion: 0.13
+Nodes (18): entry(), packages_sdk_browser_visibilitybuffer_texturergba, GeometryBlock, GeometryBlocks, prepareWebgpuGeometry(), adder(), collectWebgpuMaterialTextures(), compteMateriauxEtTangentes() (+10 more)
 
 ### Community 327 - "Erreurs du compilateur et USDZ"
 Cohesion: 0.08
-Nodes (28): atomic, CompressionMethod, From, CompilerError, Display, Error, Into, Self (+20 more)
+Nodes (27): atomic, CompressionMethod, From, CompilerError, Display, Error, Into, Self (+19 more)
 
 ### Community 328 - "oracles · .constructor"
 Cohesion: 0.17
 Nodes (6): DeadNodeWorker, dossier, FlakyNodeWorker, NodeDomWorker, pont(), withNodeWorkerShim()
 
-### Community 329 - "Écriture de la scène source"
-Cohesion: 0.12
-Nodes (16): compile(), Fn, Result, Sync, Value, copy_source_bin(), BTreeSet, PathBuf (+8 more)
+### Community 329 - "offline · fullCoverage"
+Cohesion: 0.22
+Nodes (9): engineDiagnosticsCode, engineExampleCode, fullCoverage, offlineExamples, qualifications, offlineNotesFr, offlineTitlesFr, offlineLessons (+1 more)
 
 ### Community 330 - "unity · .scale"
 Cohesion: 0.22
 Nodes (12): document(), ModelImport, names(), read(), Default, HashMap, Option, Self (+4 more)
 
-### Community 331 - "unity · Document"
-Cohesion: 0.06
-Nodes (34): Builder<'_, '_>, Document, Option, Rc, convert(), PathBuf, Result, World (+26 more)
+### Community 331 - "unity · MAX_SCAN_DEPTH"
+Cohesion: 0.15
+Nodes (16): assets_root(), MAX_SCAN_DEPTH, MAX_TEXT_BYTES, meta_of(), Project, read_text(), AtomicBool, FnMut (+8 more)
 
-### Community 332 - "js · round (2)"
+### Community 332 - "js · round"
 Cohesion: 0.09
-Nodes (28): builtTree(), POSE, read(), docs_js_engine_addtransformnode, an(), docs_js_engine_boxempty, docs_js_engine_boxexpandbypoint, docs_js_engine_createtransformtree (+20 more)
+Nodes (29): builtTree(), POSE, read(), docs_js_engine_addtransformnode, an(), docs_js_engine_boxempty, docs_js_engine_boxexpandbypoint, docs_js_engine_createtransformtree (+21 more)
 
 ### Community 333 - "docs · Batch E2 — WebGL2 surface foundation (#108)"
 Cohesion: 0.15
 Nodes (12): Batch A — maths and side enum (#76), Batch E1 — the image reaches the surface (#77), Batch E2 — WebGL2 surface foundation (#108), Batch E3 — autonomous opaque cluster drawing (#113), Camera — `packages/sdk-core/mathCamera.ts`, `packages/sdk-browser/engineCamera.ts`, `cameraWorld.ts`, Colours — `packages/sdk-core/mathColor.ts`, Engine API, batch by batch, Explorer startup (#111) (+4 more)
 
-### Community 334 - "src · BTreeMap"
+### Community 334 - "appui · tour"
 Cohesion: 0.22
-Nodes (9): CompiledPrimitive, PrimitiveInputs, BTreeMap, BTreeSet, Fn, Option, Sync, Value (+1 more)
+Nodes (10): alea, hostiles(), LARGEURS, page(), pageBrute(), sommetsPlats(), courte, faussee (+2 more)
 
 ### Community 335 - "sdk-browser · NOYAU"
-Cohesion: 0.20
-Nodes (9): INVERSE_TRANSPOSE_BEFORE_WGSL, INVERSE_TRANSPOSE_WGSL, verdict(), NORMAL_TRANSFORM_WGSL, STANDARD_LIGHTING_WGSL, echoue(), SEUIL, occurrences() (+1 more)
+Cohesion: 0.22
+Nodes (8): INVERSE_TRANSPOSE_BEFORE_WGSL, INVERSE_TRANSPOSE_WGSL, verdict(), NORMAL_TRANSFORM_WGSL, echoue(), packages_sdk_core_index_singular_determinant_wgsl, occurrences(), substitueFormeAvant()
 
 ### Community 336 - "coplanar · PROGRESS_STEP"
 Cohesion: 0.36
 Nodes (9): collect(), collect_with_world(), opaque_exact(), priority_of(), PROGRESS_STEP, Option, Result, Value (+1 more)
 
-### Community 337 - "sdk-browser · Anisotropy"
+### Community 337 - "docs_js_engine_hierarchy_root"
 Cohesion: 0.20
-Nodes (5): Anisotropy, Texture, TextureRecord, WebglClusterTextures, wrap()
+Nodes (11): BATCH_DEMOS, Be(), docs_js_engine_hierarchy_root, docs_js_engine_hierarchyupdatebatch, docs_js_engine_matrix_values, docs_js_engine_multiplymatrix4, docs_js_engine_multiplymatrix4batch, O() (+3 more)
 
 ### Community 338 - "sdk-browser · HizDeviceOverrides"
-Cohesion: 0.09
-Nodes (22): hizDevice(), HizDeviceOverrides, Recorded, stubTextures(), stubVis(), orderBlendPasses(), BACK, FRONT (+14 more)
+Cohesion: 0.07
+Nodes (17): referenceWindingCw(), alea, clusters(), courante, gros, imageDeSens(), optimiseeVue, referenceVue (+9 more)
 
 ### Community 340 - "Matrices monde du compilateur"
-Cohesion: 0.11
-Nodes (20): empreinte(), row(), Bits, IDENTITY, local_matrix(), MAX_DEPTH, multiply(), numbers() (+12 more)
+Cohesion: 0.12
+Nodes (18): empreinte(), row(), Bits, IDENTITY, local_matrix(), MAX_DEPTH, multiply(), numbers() (+10 more)
 
 ### Community 341 - "bench_calculs · NEUTRE"
 Cohesion: 0.22
 Nodes (9): compact_region, Compacte, index_bytes, empreinte_compacte(), empreinte_octets(), NEUTRE, reference_compacte(), rows() (+1 more)
 
-### Community 342 - "src · BTreeMap (2)"
+### Community 342 - "src · BTreeMap"
 Cohesion: 0.24
 Nodes (10): BTreeMap, BTreeSet, Fn, Result, Sync, TexturePreview, ThreadPool, Value (+2 more)
 
-### Community 343 - "unity · GAME_OBJECT"
-Cohesion: 0.12
-Nodes (22): Builder, GAME_OBJECT, IGNORED, LOD_GROUP, MAX_DEPTH, PREFAB_INSTANCE, RECT_TRANSFORM, renderers() (+14 more)
+### Community 343 - "Constructeur YAML Unity"
+Cohesion: 0.11
+Nodes (24): Builder, GAME_OBJECT, IGNORED, LOD_GROUP, MAX_DEPTH, PREFAB_INSTANCE, RECT_TRANSFORM, renderers() (+16 more)
+
+### Community 346 - "sdk-browser · Anisotropy"
+Cohesion: 0.07
+Nodes (14): WebglClusterMaterialUniforms, multiplyMatrix4(), compile(), createClusterProgram(), IDENTITY_MATRIX3, CLUSTER_FRAGMENT, CLUSTER_VERTEX, Anisotropy (+6 more)
 
 ### Community 347 - "docs · atlasClasses — one or two material-atlas size classes"
 Cohesion: 0.19
@@ -2108,49 +2110,49 @@ Nodes (14): AXES, inherits(), local(), offset(), order(), ORDERS, PLANES, root()
 Cohesion: 0.20
 Nodes (7): ALPHA_32, DAMIER, MAX_ALLOC, OPAQUE, REFERENCE, rendu(), RgbaImage
 
-### Community 350 - "usd · MAX_DEPTH"
-Cohesion: 0.35
-Nodes (11): data_key(), INVISIBLE, is_light(), MAX_DEPTH, node(), report(), Option, Prim (+3 more)
+### Community 350 - "tests · Arc"
+Cohesion: 0.17
+Nodes (6): parse_compiler_args(), Arc, AtomicBool, Result, String, parse_accepts_five_to_eight_args()
 
 ### Community 351 - "src · PLAN"
-Cohesion: 0.22
-Nodes (14): le_decodeur_refuse_ce_que_l_encodeur_n_ecrit_jamais(), page_brute(), aller_retour(), attributs(), hostile(), maillage(), memes_triangles(), page_doree_relue_au_bit_pres() (+6 more)
+Cohesion: 0.36
+Nodes (10): aller_retour(), attributs(), hostile(), maillage(), memes_triangles(), page_doree_relue_au_bit_pres(), PLAN, Attribute (+2 more)
 
 ### Community 352 - "Aperçus de textures et pyramide (3)"
 Cohesion: 0.24
 Nodes (8): linear_to_srgb(), srgb_table(), AtlasKind, chain(), decode_table(), encode(), halve(), RgbaImage
 
-### Community 353 - "sdk-browser · .constructor (2)"
-Cohesion: 0.18
-Nodes (5): WebglClusterLights, WebglClusterOwner, WebglClusterRenderer, Matrix3UniformCache, setClusterSamplers()
+### Community 353 - "sdk-browser · .constructor"
+Cohesion: 0.26
+Nodes (8): HostDrawCamera, ClusterDrawMesh, WebglClusterScene, WebglClusterOwner, heldRestore(), readPixel(), texturedTriangle(), waitFor()
 
-### Community 354 - "tests · .looks_like_cutout"
-Cohesion: 0.29
-Nodes (7): AlphaShape, Value, apercu(), deux_images_distinctes_gardent_deux_lignes(), deux_textures_dune_meme_image_ne_font_quune_ligne(), forme(), TexturePreview
+### Community 354 - "bench · parcours"
+Cohesion: 0.23
+Nodes (10): alea, atlas, cas, points, referenceSampleLinear(), referenceSampleMap(), referenceSampleTexel(), referenceSrgbToLinear() (+2 more)
 
-### Community 355 - "dag · Bits"
-Cohesion: 0.24
-Nodes (11): extend_aabb, empreinte(), point_reference(), row(), Bits, sphere_reference(), bounding_sphere(), cluster_bounds() (+3 more)
+### Community 355 - "scripts · MANIFESTE"
+Cohesion: 0.27
+Nodes (10): archiveur(), main(), MANIFESTE, RACINE, rustc(), SORTIES, fichierFactice(), leb128() (+2 more)
 
 ### Community 356 - "docs · 0. Goal and non-goals"
 Cohesion: 0.20
 Nodes (9): 0. Goal and non-goals, 1. Target architecture, 2. Native compiler (Rust), 4. Edit mode, 5. Final mode (bake), 6. Bench and proof, 7. Risks and decisions taken, 8. Lighting: the target and the web strategy (+1 more)
 
-### Community 357 - "Télémétrie et métriques (2)"
-Cohesion: 0.16
-Nodes (14): alea, digests, intervalles, page(), OPTIONAL, referenceDecode(), referenceHex(), referenceIntervals() (+6 more)
+### Community 357 - "sdk-browser · digests"
+Cohesion: 0.20
+Nodes (13): alea, digests, intervalles, page(), OPTIONAL, referenceDecode(), referenceHex(), referenceIntervals() (+5 more)
 
-### Community 359 - "Socle des consommateurs"
-Cohesion: 0.07
-Nodes (41): affines, alea, bord(), BORDS, matrices, matrices32, nombre(), paires (+33 more)
+### Community 359 - "appui · matrices32"
+Cohesion: 0.13
+Nodes (24): affines, alea, bord(), BORDS, matrices, matrices32, nombre(), paires (+16 more)
 
 ### Community 360 - "sdk-node · node"
 Cohesion: 0.20
 Nodes (9): engines, node, exports, ./cli, files, name, private, type (+1 more)
 
-### Community 363 - "sdk-node · .event"
-Cohesion: 0.29
-Nodes (6): isBatchSummary(), lineReader(), nativeCompilerPath(), resolveCompilerExecutable(), runCompiler(), TerminalProgress
+### Community 363 - "bench_calculs · SPAN"
+Cohesion: 0.22
+Nodes (10): directions(), empreinte_bourrage(), empreinte_vecteurs(), row_bourrage(), row_normalisation(), Bits, SPAN, normalized_or() (+2 more)
 
 ### Community 364 - "sdk-browser · record"
 Cohesion: 0.22
@@ -2161,16 +2163,16 @@ Cohesion: 0.38
 Nodes (6): ANIMATED, deformed(), Option, Result, Value, write_autonomous_scene()
 
 ### Community 366 - "unity · ADDED_COMPONENT"
-Cohesion: 0.17
-Nodes (6): ADDED_COMPONENT, ADDED_UNPLACED, BTreeSet, Scene, Yaml, Structure
+Cohesion: 0.20
+Nodes (5): ADDED_COMPONENT, ADDED_UNPLACED, BTreeSet, Scene, Structure
 
 ### Community 367 - "gallery · q"
 Cohesion: 0.29
 Nodes (12): codeFor(), codeForAdvanced(), q(), source(), codeForBounds(), codeForScene(), number(), source() (+4 more)
 
 ### Community 368 - "tests · String (2)"
-Cohesion: 0.39
-Nodes (8): node_named, a_rotate_axis_turns_the_point_before_the_rotation(), a_shear_is_composed_into_the_node_matrix(), an_offset_parent_matrix_applies_after_the_local_pose(), posed(), posed_matrix(), String, the_single_components_of_a_transform_pose_it_like_the_compound_attributes()
+Cohesion: 0.33
+Nodes (9): node_named, a_node_that_does_not_inherit_its_transform_leaves_its_parent_behind(), a_rotate_axis_turns_the_point_before_the_rotation(), a_shear_is_composed_into_the_node_matrix(), an_offset_parent_matrix_applies_after_the_local_pose(), posed(), posed_matrix(), String (+1 more)
 
 ### Community 369 - "Lecture du format Blender (2)"
 Cohesion: 0.10
@@ -2181,24 +2183,24 @@ Cohesion: 0.33
 Nodes (7): cache_key(), linked_images(), Result, String, Value, stable(), VOLATILE
 
 ### Community 371 - "Commandes et document Maya"
-Cohesion: 0.16
-Nodes (9): boolean(), Command, number(), Option, Self, String, valued(), Document (+1 more)
+Cohesion: 0.24
+Nodes (8): boolean(), Command, number(), Option, Self, String, valued(), Statement
 
 ### Community 372 - "coplanar · Option"
 Cohesion: 0.33
 Nodes (5): extend_box(), Option, Surface, Value, world_plane()
 
-### Community 373 - "import · Material"
-Cohesion: 0.42
-Nodes (8): bound(), declared(), Opacity, opacity_from_transparency(), read_opacity(), Material, MaterialMap, Option
+### Community 373 - "manifest_binary · .i32"
+Cohesion: 0.18
+Nodes (4): Column, encode_previews(), Result, TexturePreview
 
 ### Community 374 - "page-codec · node"
 Cohesion: 0.22
 Nodes (8): engines, node, exports, files, name, private, type, version
 
 ### Community 375 - "sdk-browser · ClusterLight"
-Cohesion: 0.12
-Nodes (20): HostDrawCamera, ClusterDrawMesh, BLACK, clusterMaterialReason(), DEFAULT_VIS_MATERIAL, isTransmissive(), textureReason(), WHITE (+12 more)
+Cohesion: 0.13
+Nodes (15): BLACK, clusterMaterialReason(), DEFAULT_VIS_MATERIAL, textureReason(), WHITE, clusterWebglCompatibility(), position, ClusterLight (+7 more)
 
 ### Community 376 - "Clés et orientation KTX2"
 Cohesion: 0.31
@@ -2213,36 +2215,36 @@ Cohesion: 0.22
 Nodes (8): ./tsconfig.json, compilerOptions, lib, noEmit, types, exclude, extends, include
 
 ### Community 379 - "ktx2 · FLAGS"
-Cohesion: 0.21
-Nodes (12): basic(), Descriptor, FLAGS, LENGTH, LINEAR, OFFSET, PREMULTIPLIED, read() (+4 more)
+Cohesion: 0.19
+Nodes (13): basic(), Descriptor, FLAGS, LENGTH, LINEAR, OFFSET, PREMULTIPLIED, read() (+5 more)
 
 ### Community 380 - "src · Bits"
 Cohesion: 0.19
 Nodes (14): empreinte(), liens(), reference_classe(), row(), Bits, classify_topology(), edge_key(), classify_link() (+6 more)
 
-### Community 381 - "tests · BLANC"
-Cohesion: 0.18
-Nodes (9): BLANC, GRIS, MAX_ALLOC, PALE, REFERENCE_4X2, REFERENCE_8X1, the_allocation_ceiling_counts_sixteen_bytes_per_pixel(), VERT_VIF (+1 more)
+### Community 381 - "tests · both_precisions_yield_the_reference_values"
+Cohesion: 0.10
+Nodes (24): fixture(), an_exr_associated_alpha_comes_out_straight_without_dividing_by_zero(), DROIT, MAX_ALLOC, pixels(), STOCKE, the_allocation_ceiling_counts_sixteen_bytes_per_pixel(), what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() (+16 more)
 
 ### Community 382 - "docs · Mesures : importMs, compileMs, wallMs, phaseElapsedMs"
 Cohesion: 0.12
 Nodes (22): formatVersion separated from compilerVersion, Un coût en pixels n'est pas un veto, Who owns the canvas, the loop and the preparation, Cache key — SHA-256 over the product's identity, Purge automatique du cache après chaque job, Cooperative cancellation and atomic writes, Découpes déclarées en mélange : feuille de réponses, Événements JSON par ligne et ratio de progression (+14 more)
 
-### Community 383 - "mesh · Value"
-Cohesion: 0.47
-Nodes (8): build(), emit(), Part, parts(), Option, Surface, Value, World
+### Community 383 - "Descripteurs et n-gones Blender (4)"
+Cohesion: 0.36
+Nodes (8): a_concave_polygon_keeps_its_own_area(), a_convex_polygon_is_cut_exactly_like_the_fan(), a_diagonal_through_a_corner_is_not_an_ear(), a_self_crossing_ring_is_cut_rather_than_looping(), collinear_corners_do_not_stall_the_cut(), cut(), flat_ring(), the_newell_sum_measures_the_polygon()
 
 ### Community 384 - "Validation du compilateur"
-Cohesion: 0.12
-Nodes (34): GltfBuffers, range(), Result, Value, validate(), accessor(), BTreeSet, Option (+26 more)
+Cohesion: 0.10
+Nodes (37): GltfBuffers, range(), Result, Value, validate(), accessor(), BTreeSet, Option (+29 more)
 
 ### Community 385 - "tests · MAT"
 Cohesion: 0.24
 Nodes (12): a_null_material_override_leaves_its_slot_without_a_material(), a_prefab_instance_removes_and_adds_objects_of_its_source(), instance(), MAT, matiere(), OUTER, rank_of(), retouche() (+4 more)
 
-### Community 386 - "mesure · operation"
-Cohesion: 0.36
-Nodes (3): cheminsCalcul(), module(), ns()
+### Community 386 - "plugins · PathBuf"
+Cohesion: 0.29
+Nodes (10): assert_claims(), assert_refusals(), a_bmp_outside_policy_comes_out_as_a_report_reason_never_as_a_panic(), declared(), fixture(), a_gif_outside_policy_comes_out_as_a_report_reason_never_as_a_panic(), what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic(), PathBuf (+2 more)
 
 ### Community 387 - "mesure · canvasMock"
 Cohesion: 0.60
@@ -2252,13 +2254,13 @@ Nodes (4): measureView(), canvasMock(), explorerMock(), mesurer()
 Cohesion: 0.43
 Nodes (6): compactRank(), CompactResult, compactSerial(), countOneBits(), assertSame(), WORDS
 
-### Community 389 - "src · Result"
-Cohesion: 0.67
-Nodes (6): node_triangles(), parse_glb(), primitive_triangles(), Result, Value, source_stats()
+### Community 389 - "Budget et ouvriers du compilateur"
+Cohesion: 0.36
+Nodes (10): compiled(), la_scene_nommee_emporte_ses_propres_lampes(), les_enfants_des_racines_de_la_scene_suivent(), rewrite(), Option, PathBuf, Value, sans_scenes_toutes_les_racines_sont_compilees() (+2 more)
 
 ### Community 390 - "Contrat backend et dessin (3)"
-Cohesion: 0.43
-Nodes (6): createHeldFrame(), cas(), executer(), lire(), POINTS, scene()
+Cohesion: 0.29
+Nodes (8): createHeldFrame(), rendu(), texture(), cas(), executer(), lire(), POINTS, scene()
 
 ### Community 391 - "docs · Quatre critères de parité"
 Cohesion: 0.24
@@ -2277,24 +2279,24 @@ Cohesion: 0.26
 Nodes (18): asset(), components(), first(), flag(), integers(), matrix(), metadata(), number() (+10 more)
 
 ### Community 395 - "cutout · ABSENT"
-Cohesion: 0.22
-Nodes (10): ABSENT, BAND, CONTOUR, contour_distance(), MAX_BETWEEN, measure(), MIN_ABSENT, MIN_AT_CONTOUR (+2 more)
+Cohesion: 0.16
+Nodes (12): ABSENT, AlphaShape, BAND, CONTOUR, contour_distance(), MAX_BETWEEN, measure(), MIN_ABSENT (+4 more)
 
 ### Community 396 - "ma · Item (3)"
 Cohesion: 0.24
 Nodes (10): components(), Face, indices(), polygons(), Item, Iterator, Option, String (+2 more)
 
-### Community 397 - "tests · a_format_outside_the_registry_is_named_in_the_report"
-Cohesion: 0.33
-Nodes (5): encoded(), MAX_ALLOC, png_and_jpeg_are_each_decoded_by_their_own_plugin(), ImageFormat, the_registry_fingerprint_names_every_plugin_and_both_contracts()
+### Community 397 - "Diffusion des pages en continu (2)"
+Cohesion: 0.25
+Nodes (9): admission(), alea, arrivees(), catalogue, octetsDe(), optimiseeAdmission(), travaux, referenceAdmission() (+1 more)
 
 ### Community 398 - "bench · passe"
-Cohesion: 0.20
-Nodes (11): alea, cas, empreinte(), refusees, valides, zeros, referenceHexDigits(), referenceWriteSha() (+3 more)
+Cohesion: 0.22
+Nodes (9): alea, cas, empreinte(), refusees, valides, zeros, referenceHexDigits(), referenceWriteSha() (+1 more)
 
 ### Community 399 - "Proxy de scène du compilateur"
-Cohesion: 0.12
-Nodes (22): mesh_scales(), primitives_by_mesh(), PROXY_CELL_METRES, PROXY_CHILD_WORDS, PROXY_CHILDREN, PROXY_ERROR_METRES, PROXY_LEAF_TRIANGLES, PROXY_NODE_FLOATS (+14 more)
+Cohesion: 0.06
+Nodes (42): empreinte(), reference_stage_proxy(), row(), Bits, Result, SceneProxy, SOUS_TRIANGLES, une_scene_ecrite_en_clair_pose_cinq_coupes_des_deux_cotes() (+34 more)
 
 ### Community 400 - "full · compiler"
 Cohesion: 0.29
@@ -2308,37 +2310,37 @@ Nodes (6): assign_layers_breaks_area_ties_by_source_order(), assign_layers_caps_
 Cohesion: 0.12
 Nodes (22): relative_image_uri(), rewrite_images(), BTreeMap, Option, Result, Value, unsplit_material(), validate_manifest() (+14 more)
 
-### Community 403 - "sdk-browser · GpuCutMarks"
-Cohesion: 0.43
-Nodes (6): SelectionSubmission, WEBGPU_STAGES, StageProfiler, GpuCutMarks, WebgpuTimingState, GpuPassTimings
+### Community 403 - "Étapes et profilage de trame (2)"
+Cohesion: 0.08
+Nodes (34): SDK_BUILD_PROVENANCE, CPU, createExactPagesCpu(), createHostFrameCostAudit(), frameCostAuditEnabled(), gpuFrameCostSnapshot(), HostRenderer, logFrameCostAudit() (+26 more)
 
 ### Community 404 - "png · CHUNK_HEADER"
 Cohesion: 0.40
 Nodes (5): CHUNK_HEADER, Chunks, CRC, of(), SIGNATURE
 
-### Community 406 - "src · BTreeMap (3)"
+### Community 406 - "src · BTreeMap (2)"
 Cohesion: 0.39
 Nodes (11): check_acyclic(), children_of(), NodeSelection, BTreeMap, BTreeSet, Result, Value, scene_nodes() (+3 more)
 
-### Community 407 - "import · cone_angles"
-Cohesion: 0.27
-Nodes (7): attach_lights(), light_extension(), light_node(), LightSource, Option, String, Value
+### Community 407 - "fixtures · readLightingGltf"
+Cohesion: 0.45
+Nodes (7): readLightingGltf(), close(), cross(), dot(), firstHit(), sub(), unit()
 
-### Community 408 - "sdk-browser · camera"
-Cohesion: 0.05
-Nodes (57): alea, blocs, blocVide, casPages, hostiles, pages, passeCones(), unePage (+49 more)
+### Community 408 - "sdk-browser · blocs"
+Cohesion: 0.15
+Nodes (20): alea, blocs, blocVide, casPages, hostiles, pages, passeCones(), unePage (+12 more)
 
-### Community 409 - "import · Option (2)"
-Cohesion: 0.20
-Nodes (9): bounds(), primitive(), Option, Value, Vertices, AtomicBool, HashMap, Option (+1 more)
+### Community 409 - "import · Option"
+Cohesion: 0.43
+Nodes (5): bounds(), primitive(), Option, Value, Vertices
 
 ### Community 410 - "dds · ARRAY_SIZE"
 Cohesion: 0.28
 Nodes (8): a_dds_outside_the_list_or_truncated_comes_out_as_a_report_reason_never_as_a_panic(), ARRAY_SIZE, CAPS2, DEPTH, dxt1(), MISC_FLAGS_2, patched(), the_nine_level_bc1_yields_its_level_zero_and_counts_its_chain()
 
 ### Community 411 - "Rapport et table des textures"
-Cohesion: 0.22
-Nodes (15): lit(), map_options(), map_texture(), map_value(), material_json(), Material, MaterialMap, Option (+7 more)
+Cohesion: 0.07
+Nodes (38): lit(), map_options(), map_texture(), map_value(), material_json(), Material, MaterialMap, Option (+30 more)
 
 ### Community 412 - "usd · DEFAULT_IOR"
 Cohesion: 0.30
@@ -2349,8 +2351,8 @@ Cohesion: 0.22
 Nodes (7): Attribute, CachedAttribute, CachedGeometry, Geometry, glType(), upload(), WebglClusterGeometry
 
 ### Community 414 - "Descripteurs et n-gones Blender (3)"
-Cohesion: 0.15
-Nodes (19): a_concave_polygon_keeps_its_own_area(), a_convex_polygon_is_cut_exactly_like_the_fan(), a_diagonal_through_a_corner_is_not_an_ear(), a_self_crossing_ring_is_cut_rather_than_looping(), collinear_corners_do_not_stall_the_cut(), cut(), flat_ring(), the_newell_sum_measures_the_polygon() (+11 more)
+Cohesion: 0.26
+Nodes (11): accessor(), corners(), cut_area(), prepared_area(), rendered_area(), String, Value, the_ma_driver_keeps_the_area_of_a_concave_polygon() (+3 more)
 
 ### Community 415 - "src · KIND_POINT"
 Cohesion: 0.20
@@ -2361,28 +2363,24 @@ Cohesion: 0.40
 Nodes (4): Chunks<'a>, Item, Iterator, Option
 
 ### Community 417 - "Import Unity et maillages"
-Cohesion: 0.07
-Nodes (27): build, changes, convert, H, Hash, Hasher, import_source, lighting (+19 more)
+Cohesion: 0.03
+Nodes (69): build, changes, collections, convert, digest, H, Hash, Hasher (+61 more)
 
-### Community 418 - "sdk-browser · rec"
-Cohesion: 0.52
-Nodes (4): check(), keyOf(), reference(), weighed()
+### Community 418 - "Maillages et jeux de faces"
+Cohesion: 0.38
+Nodes (9): a_concave_polygon_keeps_its_own_area(), a_face_index_outside_the_positions_is_refused_by_name(), a_raised_token_stops_a_mesh_before_its_last_face(), faces_are_fanned_backwards_and_split_by_face_set(), AtomicBool, Geometry, running(), three_faces() (+1 more)
 
 ### Community 420 - "bench · oracle"
 Cohesion: 0.03
-Nodes (102): packages_sdk_core_bench_oracles_batch_duel_n, prepareBatchData(), alea, flatOf(), LINEAR_SRGB_REFERENCE_GAP, N, points(), quaternion() (+94 more)
+Nodes (107): differencesImage(), boxes(), packages_sdk_core_bench_oracles_batch_duel_n, prepareBatchData(), alea, duel(), flatOf(), LINEAR_SRGB_REFERENCE_GAP (+99 more)
 
 ### Community 421 - ". · printWidth"
 Cohesion: 0.50
 Nodes (3): printWidth, singleQuote, trailingComma
 
-### Community 422 - "types · dist_sdk_browser_index"
-Cohesion: 0.40
-Nodes (4): dist_sdk_browser_index, private_tmp_webgeometry_154_transparent_readback_dist_sdk_browser_index_js, ref_dist_sdk_browser_index_js, users_pasquelin_applications_webgeometry_121_sdk_facade_dist_sdk_browser_index_js
-
-### Community 423 - "src · Result (2)"
-Cohesion: 0.47
-Nodes (5): Publication, publish(), Result, TexturePreview, Value
+### Community 423 - "Verrou CLI et fixtures du compilateur (2)"
+Cohesion: 0.05
+Nodes (72): AsRef, ordering, dir_bytes(), prune_textures(), BTreeSet, Result, String, Publication (+64 more)
 
 ### Community 424 - "bench · depose"
 Cohesion: 0.23
@@ -2392,9 +2390,9 @@ Nodes (11): ETAPE_DE, referenceAddCpuSteps(), referenceDirectLightTimings(), ref
 Cohesion: 0.38
 Nodes (10): build(), edge_rank(), read(), resolve(), Face, Option, corner(), World (+2 more)
 
-### Community 431 - "justesse · ECHELLES"
-Cohesion: 0.21
-Nodes (11): ECHELLES, TOUS, TOUTES, verdicts(), eclairageGpu(), executer(), GROUPE, SHADER_ECLAIRAGE() (+3 more)
+### Community 431 - "Descripteurs et n-gones Blender (5)"
+Cohesion: 0.33
+Nodes (9): a_lamp_type_this_driver_does_not_convert_is_counted_by_its_name(), converted(), FIELDS, lamp_file(), packed(), Value, SCALE, span() (+1 more)
 
 ### Community 439 - "docs · Dépôt autonome, sans voisin sur disque"
 Cohesion: 0.20
@@ -2405,78 +2403,78 @@ Cohesion: 0.29
 Nodes (6): compiler, formatVersion, key, scope, status, url
 
 ### Community 444 - "Équivalence du socle mesuré"
-Cohesion: 0.06
-Nodes (55): cisaillement(), normeColonne(), recomposition(), croise(), echantillon, fini(), lignesEquivalence(), lignesOperations() (+47 more)
+Cohesion: 0.03
+Nodes (93): cisaillement(), normeColonne(), croise(), echantillon, fini(), lignesEquivalence(), lignesOperations(), noeudsHierarchie (+85 more)
 
-### Community 445 - "tests · ALPHA_TRANSPARENT"
-Cohesion: 0.20
-Nodes (7): ALPHA_TRANSPARENT, MAX_ALLOC, OPAQUE, PREMIERE_IMAGE_FIN, REFERENCE, rendu(), RgbaImage
+### Community 445 - "Descripteurs et n-gones Blender"
+Cohesion: 0.31
+Nodes (8): a_concave_polygon_keeps_its_own_area(), an_old_header_reads_and_its_fields_resolve_by_name(), block(), headers_outside_the_subset_are_refused_by_name(), legacy_file(), read(), Value, section()
 
 ### Community 446 - "unity · BUILTIN_GUID"
 Cohesion: 0.27
 Nodes (10): accessor(), BUILTIN_GUID, Builtins, CUBE, FACES, HALF, HashMap, Option (+2 more)
 
-### Community 448 - "Archive Alembic (2)"
-Cohesion: 0.22
-Nodes (7): meta_value, DIGEST_BYTES, MAX_DEPTH, META_INLINE, meta_value(), Kind, kind_of()
+### Community 448 - "scene · .accepts_head"
+Cohesion: 0.24
+Nodes (3): FBX, OBJ, UfbxDriver
 
 ### Community 449 - "full · compiler (3)"
 Cohesion: 0.29
 Nodes (6): compiler, formatVersion, key, scope, status, url
 
-### Community 451 - "Erreurs moteur et cache"
-Cohesion: 0.13
-Nodes (29): prepared(), assertCacheIdentity(), assertCachePointer(), assertCacheReady(), assertFormat(), CLUSTERED_BLEND_FORMAT_VERSION, DAG_ERROR_MODEL, FORMAT_VERSION (+21 more)
+### Community 451 - "src · POSITION_VALUES"
+Cohesion: 0.44
+Nodes (9): chaine(), compose_matrix4_one(), hierarchy_update_batch(), POSITION_VALUES, QUATERNION_VALUES, un_enfant_est_le_produit_du_monde_de_son_parent_par_sa_locale(), un_parent_qui_ne_precede_pas_son_enfant_fait_une_racine(), une_racine_recopie_sa_matrice_locale() (+1 more)
+
+### Community 452 - "bench · couverture"
+Cohesion: 0.31
+Nodes (7): alea, clusters(), lampes(), scene(), vue, referenceClusterSphere(), referenceScreenCoverage()
 
 ### Community 456 - "src · fbx_intensity_scale"
-Cohesion: 0.14
-Nodes (18): convert(), LUMENS_PER_WATT, MAX_RANGE, QUARTER_PI, RANGE_CUTOFF_IRRADIANCE, report(), BTreeSet, Fn (+10 more)
+Cohesion: 0.09
+Nodes (29): convert(), axis(), colour_of(), cone_of(), number(), range_of(), Option, Value (+21 more)
 
 ### Community 458 - "docs · Source Ownership and Integration"
 Cohesion: 0.16
 Nodes (15): Intégration Web / Electron / Node, Source Ownership and Integration, Web Geometry Principles, Documentation index (docs/README.md), 1. Structure — vérifié par le test, 2. Octets par triangle — la seule comparaison de mémoire qui tienne, 3. Millisecondes — la forme, pas le verdict, 4. Réponse courte (+7 more)
 
-### Community 459 - "sdk-node · sha256"
-Cohesion: 0.83
-Nodes (3): getSdkProvenance(), visit(), sha256()
+### Community 459 - "sdk-node · .cancel"
+Cohesion: 0.27
+Nodes (3): CompilationJob, visit(), sha256()
 
 ### Community 460 - "oracle · Into"
 Cohesion: 0.50
 Nodes (11): bad(), count(), job_of(), light_of(), number(), Into, Option, Result (+3 more)
 
-### Community 464 - "psd · LAYERS_AT"
-Cohesion: 0.60
-Nodes (5): a_psd_s_layers_are_counted_since_only_the_composite_comes_out(), an_extra_plane_is_transparency_only_if_the_file_declares_it(), avec_compte_de_calques(), decode(), LAYERS_AT
-
 ### Community 465 - "ISSUE_TEMPLATE · Code Context"
 Cohesion: 0.33
 Nodes (5): Code Context, Links, Problem, Proof, Required Work
 
-### Community 466 - "Document"
-Cohesion: 0.32
-Nodes (5): Document, Document, Option, String, under()
+### Community 466 - "document · .remember"
+Cohesion: 0.53
+Nodes (3): leaf(), Document, Option
 
 ### Community 467 - "tests · MAT (2)"
-Cohesion: 0.20
-Nodes (11): the_transforms_of_an_imported_model_compose_down_to_its_meshes(), a_renderer_listed_in_two_lod_levels_is_kept_at_the_finest_one(), MAT, material_of_child(), matiere(), MODEL, String, Value (+3 more)
+Cohesion: 0.16
+Nodes (13): the_transforms_of_an_imported_model_compose_down_to_its_meshes(), a_renderer_listed_in_two_lod_levels_is_kept_at_the_finest_one(), MAT, material_of_child(), matiere(), MODEL, String, Value (+5 more)
 
-### Community 468 - "tests · .drop"
-Cohesion: 0.21
-Nodes (6): glb(), material_index(), Projet, Drop, PathBuf, Value
+### Community 468 - "tests · Value"
+Cohesion: 0.18
+Nodes (7): encode_glb(), Value, compile_accepts_glb_without_manifest(), glb(), Projet, Drop, PathBuf
 
 ### Community 481 - "sdk · private"
 Cohesion: 0.50
 Nodes (3): private, sideEffects, type
 
-### Community 483 - "bench · passe (2)"
-Cohesion: 0.23
-Nodes (10): alea, camera, depthCam, HOSTILES, matiere(), page(), pixels(), texture() (+2 more)
+### Community 483 - "src · Result"
+Cohesion: 0.36
+Nodes (8): localise(), Result, localise_accepts_exactly_sixty_five_thousand_five_hundred_thirty_five_vertices(), localise_deduplicates_repeated_vertices_in_first_seen_order(), localise_on_empty_indices_returns_empty_lists(), localise_rejects_an_index_that_exceeds_the_declared_vertex_count(), localise_rejects_one_vertex_past_the_sixty_five_thousand_five_hundred_thirty_five_limit(), localise_uses_the_declared_vertex_count_not_a_positions_buffer()
 
 ### Community 485 - ".github · Local review before push"
 Cohesion: 0.40
 Nodes (4): Local review before push, Not proven / left out, Proof, What changed
 
-### Community 486 - "unity · Value"
+### Community 486 - "unity · Value (2)"
 Cohesion: 0.31
 Nodes (6): adopt(), Builder<'_, '_>, Document, Option, Rc, Value
 
@@ -2484,9 +2482,21 @@ Nodes (6): adopt(), Builder<'_, '_>, Document, Option, Rc, Value
 Cohesion: 0.33
 Nodes (9): ALPHA_CHANNEL, cutoff(), mode(), of(), Opacity, Option, Prim, Value (+1 more)
 
-### Community 543 - "tests · gamma"
-Cohesion: 0.11
-Nodes (27): fixture(), assert_claims(), assert_refusals(), a_bmp_outside_policy_comes_out_as_a_report_reason_never_as_a_panic(), declared(), decoded_rgba8(), fixture(), a_gif_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() (+19 more)
+### Community 543 - "Tests du pilote GIF"
+Cohesion: 0.09
+Nodes (21): decoded_rgba8(), ALPHA_TRANSPARENT, MAX_ALLOC, OPAQUE, PREMIERE_IMAGE_FIN, REFERENCE, rendu(), rendu_octets() (+13 more)
+
+### Community 647 - "Transport de lumière (2)"
+Cohesion: 0.33
+Nodes (7): Surface, illuminatedScene(), value(), pointLight(), scene(), sceneFromSurfaces(), sceneWithBlocker()
+
+### Community 648 - "Empaquetage des pages DAG"
+Cohesion: 0.29
+Nodes (7): cache_format(), CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION, Option, Value, SOURCE_FORMAT_VERSION, unsupported()
+
+### Community 649 - "manifest_binary · vector_into_accepts_an_empty_vector_when_the_expected_length_is_zero"
+Cohesion: 0.43
+Nodes (7): vector_into_accepts_an_empty_vector_when_the_expected_length_is_zero(), vector_into_names_only_the_faulty_entry_and_stops_there(), vector_into_rejects_a_nan_or_infinity_that_a_producer_serialized_as_null(), vector_into_rejects_a_wrong_length_without_writing_anything(), vector_into_reserve_does_not_change_the_bytes_it_writes(), vector_into_writes_the_same_bytes_as_a_manual_concatenation_including_hostile_floats(), vector_into()
 
 ### Community 653 - "full · compiler (4)"
 Cohesion: 0.29
@@ -2500,6 +2510,10 @@ Nodes (6): compiler, formatVersion, key, scope, status, url
 Cohesion: 0.29
 Nodes (6): compiler, formatVersion, key, scope, status, url
 
+### Community 656 - "tests · a_raised_token_stops_a_mesh_before_its_last_face"
+Cohesion: 0.46
+Nodes (5): a_hostile_sdna_is_refused_by_name_never_by_panic(), a_view_never_reads_past_the_end_of_its_block(), file(), sdna(), the_size_ceiling_holds_whatever_the_envelope()
+
 ### Community 657 - "full · compiler (7)"
 Cohesion: 0.29
 Nodes (6): compiler, formatVersion, key, scope, status, url
@@ -2507,6 +2521,10 @@ Nodes (6): compiler, formatVersion, key, scope, status, url
 ### Community 658 - "full · compiler (8)"
 Cohesion: 0.29
 Nodes (6): compiler, formatVersion, key, scope, status, url
+
+### Community 659 - "Budget et ouvriers du compilateur (2)"
+Cohesion: 0.46
+Nodes (7): cle_et_sidecar(), png(), PathBuf, String, source_texturee(), une_image_liee_absente_puis_presente_change_la_cle_exposee(), une_image_liee_modifiee_change_la_cle_exposee()
 
 ### Community 660 - "full · compiler (9)"
 Cohesion: 0.29
@@ -2532,9 +2550,9 @@ Nodes (6): compiler, formatVersion, key, scope, status, url
 Cohesion: 0.29
 Nodes (6): compiler, formatVersion, key, scope, status, url
 
-### Community 667 - "integration · signatureArguments"
-Cohesion: 0.22
-Nodes (9): DOCS, ENTRIES, ENTRY_POINTS, exported(), exportsOf, resolveFrom(), ROOT, surfaceOf() (+1 more)
+### Community 667 - "unity · Document"
+Cohesion: 0.48
+Nodes (4): Builder<'_, '_>, Document, Option, Rc
 
 ### Community 668 - "full · compiler (14)"
 Cohesion: 0.29
@@ -2548,9 +2566,9 @@ Nodes (6): compiler, formatVersion, key, scope, status, url
 Cohesion: 0.29
 Nodes (6): compiler, formatVersion, key, scope, status, url
 
-### Community 671 - "Registre des images de test (2)"
+### Community 671 - "tests · MAX_ALLOC"
 Cohesion: 0.11
-Nodes (19): Chemin Basis Universal (UASTC / ETC1S + BASIS_LZ), Fixture dorée — pilote KTX 2.0, Ce qu'un conteneur KTX2 déclare : transfert, alpha prémultiplié, KTXorientation, KTXswizzle, Socle image::blocks partagé avec le pilote dds (texture2ddecoder), Supercompression = emballage sans effet sur les texels, APNG : l'image par défaut sort, l'animation est comptée (image-animation-first-frame), Fixture dorée — pilote PNG, Priorité de la courbe de transfert : iCCP, puis sRGB, puis gAMA (+11 more)
+Nodes (17): Chemin Basis Universal (UASTC / ETC1S + BASIS_LZ), Fixture dorée — pilote KTX 2.0, Ce qu'un conteneur KTX2 déclare : transfert, alpha prémultiplié, KTXorientation, KTXswizzle, Socle image::blocks partagé avec le pilote dds (texture2ddecoder), Supercompression = emballage sans effet sur les texels, APNG : l'image par défaut sort, l'animation est comptée (image-animation-first-frame), Fixture dorée — pilote PNG, Priorité de la courbe de transfert : iCCP, puis sRGB, puis gAMA (+9 more)
 
 ### Community 672 - "full · compiler (17)"
 Cohesion: 0.29
@@ -2588,37 +2606,50 @@ Nodes (6): compiler, formatVersion, key, scope, status, url
 Cohesion: 0.29
 Nodes (6): compiler, formatVersion, key, scope, status, url
 
-### Community 683 - "sdk-browser · ComposedMetric"
-Cohesion: 0.15
-Nodes (9): BACKEND_METRIC_KEYS, BackendMetrics, ComposedMetric, createExplorerMetrics(), publishMetric(), State, mathBatchMetrics(), pageIntegrationStats() (+1 more)
+### Community 683 - "Lecture et écriture glTF (2)"
+Cohesion: 0.29
+Nodes (4): refusal(), Option, String, Value
 
-### Community 684 - "Faces et volumes d'ombre"
-Cohesion: 0.05
-Nodes (66): faceNouvelle(), axis, corner, direction(), mulScratch, multiply4(), referenceComposeFace(), referenceConeAxisCosine() (+58 more)
+### Community 684 - "sdk-core · SunCascade"
+Cohesion: 0.09
+Nodes (24): cascade, frustumSphere(), referenceSunCascadeOf(), sphere, splits, sunCascadeSplits(), alea, AXE (+16 more)
 
 ### Community 685 - "components · CodeInput"
-Cohesion: 0.29
-Nodes (6): codeHighlight, CodeInput(), codemirror, @codemirror/lang-javascript, @codemirror/language, @lezer/highlight
-
-### Community 686 - "tests · close"
-Cohesion: 0.24
-Nodes (6): a_hard_edge_splits_the_normals_of_the_two_smooth_faces_it_borders(), LEFT, RIGHT, roof(), Geometry, sharp_faces_keep_their_own_normal_and_smooth_faces_share_it()
-
-### Community 687 - "sdk-browser · .autonomousDraw"
-Cohesion: 0.16
-Nodes (8): ClusterBatches, attributes(), drawOf(), fixture, resident(), page(), BatchPage, createExactPagesClusterBatches()
-
-### Community 688 - "integration · checkBody"
 Cohesion: 0.33
-Nodes (6): commit(), env, git(), makeRepo(), ok(), repo
+Nodes (5): codeHighlight, CodeInput(), codemirror, @codemirror/language, @lezer/highlight
 
-### Community 689 - "emitter · Value"
-Cohesion: 0.36
-Nodes (8): Emitter, bound_nodes(), emits(), radius(), reach(), Option, Value, transform_point
+### Community 686 - "manifest_binary · Result"
+Cohesion: 0.73
+Nodes (5): digests(), Result, String, sha_columns(), texture_digests()
 
-### Community 691 - "tests · AWKWARD"
+### Community 687 - "mesh · AtomicBool (2)"
+Cohesion: 0.47
+Nodes (4): AtomicBool, HashMap, Option, Surface
+
+### Community 688 - "Scripts de build et distribution (3)"
+Cohesion: 0.10
+Nodes (29): ref_node_child_process, gitPaths(), lineCount(), lineLimitViolations(), main(), MAX_LINES, nulSeparated(), buildDist() (+21 more)
+
+### Community 689 - "sdk-node · controller"
 Cohesion: 0.33
-Nodes (9): assert_round_trip(), AWKWARD, ESCAPED, only_image_uri(), PathBuf, String, source(), the_maya_driver_writes_an_escaped_image_uri() (+1 more)
+Nodes (5): controller, [
+  input,
+  output,
+  scope = 'slice',
+  budget = '150000',
+  resourceBaseUrl,
+  threads = '2',
+  ramBudgetMb = '256',
+  simplification = 'none',
+], triangleBudget, prepare(), withFinalMetrics()
+
+### Community 690 - "src · stride"
+Cohesion: 0.50
+Nodes (4): le_decodeur_refuse_ce_que_l_encodeur_n_ecrit_jamais(), page_brute(), stride, web_geometry_page_codec_as_codec
+
+### Community 691 - "src · Result (2)"
+Cohesion: 0.40
+Nodes (5): Result, TexturePreview, Value, split(), Templates
 
 ### Community 692 - "js · f"
 Cohesion: 0.29
@@ -2632,37 +2663,21 @@ Nodes (3): depthFunction(), Material, WebglClusterState
 Cohesion: 0.33
 Nodes (8): addConsumer(), analyzeEntries(), consumerImports(), definingModule(), ENTRIES, exportKind(), ROOT, sourceFiles()
 
-### Community 698 - "compiler_lights · range_of"
-Cohesion: 0.43
-Nodes (7): axis(), colour_of(), cone_of(), number(), range_of(), Option, Value
-
-### Community 700 - "src · BTreeMap (4)"
+### Community 700 - "src · BTreeMap (3)"
 Cohesion: 0.43
 Nodes (7): BufferPlan, dense_bytes(), plan_buffers(), BTreeMap, BTreeSet, Result, Value
 
-### Community 704 - "sdk-core · Inputs"
-Cohesion: 0.06
-Nodes (71): alea, clusters(), lampes(), scene(), vue, referenceClusterSphere(), referenceScreenCoverage(), DIRECT_SHADOW_WGSL (+63 more)
-
-### Community 707 - "proxy · Value"
-Cohesion: 0.33
-Nodes (3): Value, SceneProxy, SceneProxy
+### Community 704 - "sdk-core · Slices"
+Cohesion: 0.04
+Nodes (105): flushedSlices, planShadowRegions(), rectScratch, shadowViewpointOf(), viewpoint, banc(), LAMPE, createWebgpuLightState() (+97 more)
 
 ### Community 711 - "classes-materiaux · Scènes de mesure — les classes de matériau"
 Cohesion: 0.40
 Nodes (5): Classes de matériau et rangement du compilateur, Étape coplanar-depth-layers-v1, Scènes de mesure — les classes de matériau, Fixtures de correction — couches coplanaires, Rayon d'émetteur dérivé de l'enveloppe émissive
 
 ### Community 712 - "API et session de l'explorateur"
-Cohesion: 0.09
-Nodes (41): awaitBackendPages(), PageBackend, createComparisonCompositor(), createExplorerCapture(), Inputs, disposeSource(), Inputs, createSceneDrawer() (+33 more)
-
-### Community 713 - "compiler_lights · BTreeSet"
-Cohesion: 0.40
-Nodes (4): BTreeSet, String, Value, unique_id()
-
-### Community 714 - "sdk-browser · compile"
-Cohesion: 0.53
-Nodes (4): compile(), createClusterProgram(), CLUSTER_FRAGMENT, CLUSTER_VERTEX
+Cohesion: 0.06
+Nodes (43): awaitBackendPages(), PageBackend, RenderBackend, HostCamera, ComparisonLayout, createComparisonCompositor(), createExplorerCapture(), Inputs (+35 more)
 
 ## Ambiguous Edges - Review These
 - `Fixture dorée — pilote GIF, une seule image` → `Fixture dorée — pilote PNG`  [AMBIGUOUS]
@@ -2671,7 +2686,7 @@ Nodes (4): compile(), createClusterProgram(), CLUSTER_FRAGMENT, CLUSTER_VERTEX
   packages/asset-compiler-rust/fixtures/ktx2/README.md · relation: conceptually_related_to
 - `Fixture de correction — pilote unitypackage, conteneur` → `Fixture de correction — pilote zip, conteneur`  [AMBIGUOUS]
   packages/asset-compiler-rust/fixtures/unitypackage/README.md · relation: conceptually_related_to
-- `Fixtures de correction — pilote usd` → `Fixture de correction — pilote zip, conteneur`  [AMBIGUOUS]
+- `Fixture de correction — pilote zip, conteneur` → `Fixtures de correction — pilote usd`  [AMBIGUOUS]
   packages/asset-compiler-rust/fixtures/usd/README.md · relation: conceptually_related_to
 - `Égalité des deux compilations, clé de cache comprise` → `La clé de cache ne figure pas dans l'attendu`  [AMBIGUOUS]
   packages/asset-compiler-rust/fixtures/usdz/README.md · relation: conceptually_related_to
@@ -2685,9 +2700,9 @@ Nodes (4): compile(), createClusterProgram(), CLUSTER_FRAGMENT, CLUSTER_VERTEX
   README.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **2572 isolated node(s):** `GroupColumns`, `PartCursors`, `ColumnView`, `PreviewColumns`, `CountKey` (+2567 more)
+- **2570 isolated node(s):** `lib.sh script`, `printWidth`, `singleQuote`, `trailingComma`, `compiler` (+2565 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 4448 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **224 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **227 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -2698,7 +2713,7 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Fixture de correction — pilote unitypackage, conteneur` and `Fixture de correction — pilote zip, conteneur`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **What is the exact relationship between `Fixtures de correction — pilote usd` and `Fixture de correction — pilote zip, conteneur`?**
+- **What is the exact relationship between `Fixture de correction — pilote zip, conteneur` and `Fixtures de correction — pilote usd`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Égalité des deux compilations, clé de cache comprise` and `La clé de cache ne figure pas dans l'attendu`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
