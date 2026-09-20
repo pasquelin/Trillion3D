@@ -12480,9 +12480,9 @@
     "semantic_hash": ""
   },
   "docs/js/engine-scene/lifecycle.js": {
-    "mtime": 1789896270.5105016,
-    "seen": 1789898105.5425222,
-    "ast_hash": "d770f45491a524907af85f0c3c25a831",
+    "mtime": 1789898169.4475172,
+    "seen": 1789898468.546689,
+    "ast_hash": "412b2744c44d9277d200d1d2a5da82c7",
     "semantic_hash": ""
   },
   "docs/js/gallery/catalog.js": {
@@ -12666,9 +12666,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-scene.test.mjs": {
-    "mtime": 1789895852.4957297,
-    "seen": 1789898105.544832,
-    "ast_hash": "17506d1d23d5cd83443f29b4f7a90da2",
+    "mtime": 1789898419.909075,
+    "seen": 1789898468.548743,
+    "ast_hash": "3d5906549e22b27dc094b564908833b7",
     "semantic_hash": ""
   },
   "scripts/docs/build-styles.mjs": {
@@ -12762,9 +12762,9 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/webgpuRenderer.js": {
-    "mtime": 1789895852.4593284,
-    "seen": 1789898105.542569,
-    "ast_hash": "63cd2d433186b31e8d0813b7559196d1",
+    "mtime": 1789898169.4450073,
+    "seen": 1789898468.546713,
+    "ast_hash": "09d29b6683299b59836616051c9f5151",
     "semantic_hash": ""
   },
   "docs/js/i18n/demoDetails.fr.js": {
@@ -12804,9 +12804,9 @@
     "semantic_hash": ""
   },
   "docs/assets/kinetic-garden/preview.png": {
-    "mtime": 1789895852.4518423,
-    "seen": 1789898105.545117,
-    "ast_hash": "b46f962c32eda06590be2ab38c6a8175",
+    "mtime": 1789898336.0073917,
+    "seen": 1789898468.54906,
+    "ast_hash": "cdd14f65f86a6a7e6d5632338676bd4c",
     "semantic_hash": ""
   },
   "docs/js/gallery/apiScenario.js": {
@@ -12870,9 +12870,9 @@
     "semantic_hash": ""
   },
   "docs/react/engine-scene/EnginePreview.jsx": {
-    "mtime": 1789896270.5112092,
-    "seen": 1789898105.542612,
-    "ast_hash": "edfcef49e0fcc52c4a777f79eb5e90d7",
+    "mtime": 1789898178.2642753,
+    "seen": 1789898468.5467432,
+    "ast_hash": "c755a8c561105be066abd5aadee190ec",
     "semantic_hash": ""
   },
   "docs/react/engine-scene/Guide.jsx": {
@@ -13275,6 +13275,12 @@
     "mtime": 1789897977.7785888,
     "seen": 1789898105.5448241,
     "ast_hash": "2eb7f22cf7c87d2e09719db1c7fa9729",
+    "semantic_hash": ""
+  },
+  "docs/js/scenePalette.js": {
+    "mtime": 1789898169.4189575,
+    "seen": 1789898468.54673,
+    "ast_hash": "e44a2d012e92382ebc33bdad36671906",
     "semantic_hash": ""
   }
 }
