@@ -1,0 +1,62 @@
+{
+  "commit": "da99b71ec7c3c503f20cd91c3ccc65e4ffd9079d",
+  "resolution": [1600, 1040],
+  "dpr": 2,
+  "temporalAntialiasing": false,
+  "camera": {
+    "position": [19, 13, 22],
+    "target": [0, 3, 0]
+  },
+  "geometryPoolBytes": 16777216,
+  "sourceTriangles": 91352,
+  "samples": [
+    {
+      "pixelError": 0,
+      "held": true,
+      "triangles": 91352,
+      "selected": 91352,
+      "difference": 0,
+      "restoredDifference": 0,
+      "stillDifference": 0,
+      "size": [1600, 1040],
+      "backend": "webgpu-page-raster"
+    },
+    {
+      "pixelError": 1,
+      "held": true,
+      "triangles": 16922,
+      "selected": 16922,
+      "difference": 41668,
+      "restoredDifference": 0,
+      "stillDifference": 0,
+      "size": [1600, 1040],
+      "backend": "webgpu-page-raster"
+    },
+    {
+      "pixelError": 8,
+      "held": true,
+      "triangles": 7132,
+      "selected": 7132,
+      "difference": 34561,
+      "restoredDifference": 0,
+      "stillDifference": 0,
+      "size": [1600, 1040],
+      "backend": "webgpu-page-raster"
+    },
+    {
+      "pixelError": 0,
+      "held": true,
+      "triangles": 91352,
+      "selected": 91352,
+      "difference": 48183,
+      "restoredDifference": 0,
+      "stillDifference": 0,
+      "size": [1600, 1040],
+      "backend": "webgpu-page-raster"
+    }
+  ],
+  "errors": [],
+  "cpuFrameMs": null,
+  "gpuFrameMs": null,
+  "fps": null
+}
