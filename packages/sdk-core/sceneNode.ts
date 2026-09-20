@@ -9,7 +9,7 @@ import {
 import { removeTransformNode, reparentTransformNode } from './mathTransformTreeStructure.ts';
 import { updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
 import { copySceneNodeState } from './sceneNodeCopy.ts';
-import { sceneNodeFail } from './sceneNodeError.ts';
+import { sceneNodeFail, sceneNodeVisibility } from './sceneNodeError.ts';
 import type { SceneNodeOptions, SceneState } from './sceneNodeContracts.ts';
 import type { SceneRoot } from './sceneRoot.ts';
 
@@ -17,7 +17,7 @@ export { SCENE_MODEL_VERSION, type SceneNodeOptions } from './sceneNodeContracts
 
 /** A stable handle into one engine-owned transform hierarchy. */
 export class SceneNode {
-  private readonly childNodes: SceneNode[] = [];
+  private childNodes: readonly SceneNode[] = Object.freeze([]);
   protected readonly state: SceneState;
   readonly id: string;
   readonly index: number;
@@ -43,7 +43,7 @@ export class SceneNode {
 
   set visible(value: boolean) {
     this.assertAlive();
-    this.visibleState = value;
+    this.visibleState = sceneNodeVisibility(value);
   }
 
   /** Parent in the scene, or null while detached. */
@@ -78,7 +78,7 @@ export class SceneNode {
     const previous = child.parent;
     reparentTransformNode(this.state.tree, child.index, this.index);
     previous?.detachChild(child);
-    this.childNodes.push(child);
+    this.childNodes = Object.freeze([...this.childNodes, child]);
     return this;
   }
 
@@ -112,6 +112,7 @@ export class SceneNode {
     return clone;
   }
 
+  /** Copies values and descendants; recursive ancestor-to-descendant overlap is refused atomically. */
   copy(source: SceneNode, recursive = true) {
     this.assertCompatible(source);
     if (source === this) return this;
@@ -182,7 +183,7 @@ export class SceneNode {
 
   private detachChild(child: SceneNode) {
     const at = this.childNodes.indexOf(child);
-    if (at >= 0) this.childNodes.splice(at, 1);
+    if (at >= 0) this.childNodes = Object.freeze(this.childNodes.filter((node) => node !== child));
   }
 
   private invalidate() {
@@ -190,7 +191,7 @@ export class SceneNode {
     while (pending.length) {
       const node = pending.pop()!;
       for (const child of node.childNodes) pending.push(child);
-      node.childNodes.length = 0;
+      node.childNodes = Object.freeze([]);
       node.#alive = false;
       this.state.nodes.delete(node.index);
       this.state.ids.delete(node.id);
