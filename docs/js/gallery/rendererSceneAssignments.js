@@ -5,7 +5,7 @@ const assignments = {
   'spot-light-cone': 'sculpture',
   'directional-shadow': 'hard-edges',
   'camera-exposure': 'vessel',
-  'runtime-pixel-error': 'terrain',
+  'runtime-pixel-error': 'signature-architecture',
   'runtime-memory-budget': 'refinement',
   'colored-light-balance': 'painted',
   'moving-point-shadow': 'height-palette',
@@ -25,9 +25,13 @@ export const rendererSceneFor = (lesson) => ({
       ? './assets/kinetic-garden/cache/native/full/manifest.json'
       : assignments[lesson.id] === 'shadow-theatre'
         ? './assets/gallery/shadow-theatre/cache/native/full/manifest.json'
+        : assignments[lesson.id] === 'signature-architecture'
+          ? './assets/gallery/signature-architecture/cache/native/full/manifest.json'
         : asset(assignments[lesson.id]),
   preview: `./assets/gallery/renderer/${lesson.id}.png`,
-  importedLights: false,
+  importedLights: lesson.id === 'runtime-pixel-error',
   sceneLight: ['lod', 'memory'].includes(lesson.kind) || lesson.runtime === 'camera-pose',
-  sceneFill: !['light-lifecycle', 'shadow-switch'].includes(lesson.kind),
+  sceneFill:
+    lesson.id !== 'runtime-pixel-error' &&
+    !['light-lifecycle', 'shadow-switch'].includes(lesson.kind),
 });
