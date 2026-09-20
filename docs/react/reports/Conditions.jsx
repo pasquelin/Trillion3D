@@ -1,3 +1,5 @@
+import { Table } from '../components/Table.jsx';
+import { readingName } from '../../js/reports/presentation.js';
 import { reportCopy } from '../../js/reports/copy.js';
 import { formatValue } from '../../js/reports/metrics.js';
 const FIELDS = [
@@ -25,28 +27,26 @@ export function Conditions({ a, b, locale }) {
     return formatValue(unit === 'MiB' ? raw / 1048576 : raw, locale, unit);
   };
   return (
-    <details>
-      <summary>{c.protocol}</summary>
-      <div className="report-table">
-        <table className="table">
-          <thead>
-            <tr>
-              <th scope="col">{c.protocol}</th>
-              <th scope="col">A</th>
-              <th scope="col">B</th>
+    <section className="grid min-w-0 gap-3">
+      <h3 className="text-lg font-semibold">{c.protocol}</h3>
+      <Table>
+        <thead>
+          <tr>
+            <th scope="col">{c.protocol}</th>
+            <th scope="col">{readingName(a, locale)}</th>
+            {b && <th scope="col">{readingName(b, locale)}</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {FIELDS.map(([key, en, translated, unit]) => (
+            <tr key={key}>
+              <th scope="row">{fr ? translated : en}</th>
+              <td>{value(a, key, unit)}</td>
+              {b && <td>{value(b, key, unit)}</td>}
             </tr>
-          </thead>
-          <tbody>
-            {FIELDS.map(([key, en, translated, unit]) => (
-              <tr key={key}>
-                <th scope="row">{fr ? translated : en}</th>
-                <td>{value(a, key, unit)}</td>
-                <td>{value(b, key, unit)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
+          ))}
+        </tbody>
+      </Table>
+    </section>
   );
 }

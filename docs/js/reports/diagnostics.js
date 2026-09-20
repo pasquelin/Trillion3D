@@ -15,13 +15,8 @@ export const DIAGNOSTICS = [
     fields: [
       ['budgetPages.residentes', 'Resident pages', 'Pages résidentes', ''],
       ['budgetPages.demande', 'Requested pages', 'Pages demandées', ''],
-      [
-        'metrics.textureTilesRequested',
-        'Requested texture tiles',
-        'Tuiles de texture demandées',
-        '',
-      ],
-      ['metrics.textureTilesEvicted', 'Evicted texture tiles', 'Tuiles de texture évincées', ''],
+      ['metrics.texturePending', 'Pending textures', 'Textures en attente', ''],
+      ['metrics.textureEvictions', 'Evicted textures', 'Textures évincées', ''],
       ['metrics.gpuAllocatedBytes', 'Tracked GPU allocations', 'Allocations GPU suivies', 'bytes'],
     ],
   },
@@ -37,7 +32,7 @@ export const DIAGNOSTICS = [
       ],
       ['submittedTriangles', 'Submitted opaque triangles', 'Triangles opaques soumis', ''],
       [
-        'hiZ.rejectedTriangles',
+        'metrics.hizRejectedTriangles',
         'Occlusion-rejected triangles',
         'Triangles rejetés par occlusion',
         '',

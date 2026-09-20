@@ -1,7 +1,6 @@
 @import 'tailwindcss' source(none);
 @import './portal.css';
 @import './syntax.css';
-@import './reports.css';
 @source '../index.html';
 @source '../js/**/*.js';
 @source '../react/**/*.jsx';

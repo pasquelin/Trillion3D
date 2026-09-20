@@ -1,23 +1,19 @@
-import { reportCopy } from '../../js/reports/copy.js';
-export function ReportNavigation({ locale, onClose }) {
-  const c = reportCopy(locale);
+import { REPORT_SECTIONS } from '../../js/reports/presentation.js';
+import { routeHref } from '../../js/portal/routes.js';
+export function ReportNavigation({ route, onClose }) {
+  const [campaign = '', active = 'overview'] = route.id.split('/');
   return (
     <ul className="menu menu-md w-full p-0">
-      {['overview', 'compare', 'evidence', 'detail', 'references'].map((key) => (
-        <li key={key}>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              requestAnimationFrame(() =>
-                document
-                  .getElementById(`report-${key}`)
-                  ?.scrollIntoView({ block: 'start', behavior: 'instant' }),
-              );
-            }}
+      {REPORT_SECTIONS.map(([id, en, fr]) => (
+        <li key={id}>
+          <a
+            className={id === active ? 'menu-active' : ''}
+            aria-current={id === active ? 'page' : undefined}
+            onClick={onClose}
+            href={routeHref({ ...route, id: `${campaign}/${id}` })}
           >
-            {c[key]}
-          </button>
+            {route.locale === 'fr' ? fr : en}
+          </a>
         </li>
       ))}
     </ul>

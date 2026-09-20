@@ -1,3 +1,5 @@
+import { Table } from '../components/Table.jsx';
+import { readingName } from '../../js/reports/presentation.js';
 import { Cut } from './Cut.jsx';
 import { reportCopy } from '../../js/reports/copy.js';
 import { formatValue } from '../../js/reports/metrics.js';
@@ -5,29 +7,27 @@ import { Alert } from '../components/UI.jsx';
 function Timings({ title, rows, locale }) {
   if (!rows?.length) return null;
   return (
-    <details>
-      <summary>{title}</summary>
-      <div className="report-table">
-        <table className="table">
-          <thead>
-            <tr>
-              <th scope="col">{title}</th>
-              <th scope="col">p50</th>
-              <th scope="col">p95</th>
+    <section className="grid min-w-0 gap-3">
+      <h3 className="text-lg font-semibold">{title}</h3>
+      <Table>
+        <thead>
+          <tr>
+            <th scope="col">{title}</th>
+            <th scope="col">p50</th>
+            <th scope="col">p95</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([name, stat], index) => (
+            <tr key={index}>
+              <th scope="row">{name}</th>
+              <td>{formatValue(stat?.p50, locale, 'ms')}</td>
+              <td>{formatValue(stat?.p95, locale, 'ms')}</td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map(([name, stat], index) => (
-              <tr key={index}>
-                <th scope="row">{name}</th>
-                <td>{formatValue(stat?.p50, locale, 'ms')}</td>
-                <td>{formatValue(stat?.p95, locale, 'ms')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
+          ))}
+        </tbody>
+      </Table>
+    </section>
   );
 }
 export function Details({ record, report, locale, label }) {
@@ -45,10 +45,8 @@ export function Details({ record, report, locale, label }) {
     [c.canvas, record.canvas && JSON.stringify(record.canvas)],
   ];
   return (
-    <div className="report-details">
-      <h3>
-        {label} · {record.engine}
-      </h3>
+    <div className="grid min-w-0 gap-4 [&_dd]:break-all">
+      <h3 className="text-lg font-semibold">{readingName(record, locale)}</h3>
       {record.data.imageTenue && <Alert>{c.idle}</Alert>}
       <dl>
         {fields.map(([title, value]) => (

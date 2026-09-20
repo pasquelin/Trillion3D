@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { assertReport } from '../../js/reports/contract.js';
-export function useReports(campaign, campaignB) {
+export function useReports(campaign) {
   const [state, setState] = useState({ loading: true });
   useEffect(() => {
     const controller = new AbortController();
@@ -15,14 +15,22 @@ export function useReports(campaign, campaignB) {
         throw new Error('Invalid campaign index');
       if (!index.length) return { index, loading: false };
       const id = campaign || index[0].id;
-      const otherId = campaignB || id;
-      if (![id, otherId].every((key) => index.some((item) => item.id === key)))
-        throw new Error('Unknown campaign');
+      if (!index.some((item) => item.id === id)) throw new Error('Unknown campaign');
       const report = assertReport(await json(`reports/${id}/report.json`));
-      const other =
-        otherId === id ? report : assertReport(await json(`reports/${otherId}/report.json`));
-      if (report.id !== id || other.id !== otherId) throw new Error('Campaign ID mismatch');
-      return { index, report, other, loading: false };
+      if (report.id !== id) throw new Error('Campaign ID mismatch');
+      const sources = [];
+      // Bound file requests so opening the full report does not flood the browser.
+      const runs = report.runs.filter((run) => run.source);
+      for (let start = 0; start < runs.length; start += 4) {
+        const batch = await Promise.all(
+          runs.slice(start, start + 4).map(async (run) => ({
+            run,
+            data: await json(`reports/${id}/${run.source}`),
+          })),
+        );
+        sources.push(...batch);
+      }
+      return { index, report, sources, loading: false };
     }
     load()
       .then((value) => {
@@ -32,6 +40,6 @@ export function useReports(campaign, campaignB) {
         if (!controller.signal.aborted) setState({ error: true, loading: false });
       });
     return () => controller.abort();
-  }, [campaign, campaignB]);
+  }, [campaign]);
   return state;
 }

@@ -1,71 +1,71 @@
+import { Table } from '../components/Table.jsx';
 import { METRICS, metricValue, formatValue } from '../../js/reports/metrics.js';
 import { metricLabel, reportCopy } from '../../js/reports/copy.js';
+import { missingMetric } from '../../js/reports/availability.js';
+import { readingName } from '../../js/reports/presentation.js';
 import { comparison } from '../../js/reports/compare.js';
-import { Alert } from '../components/UI.jsx';
 export function Comparison({ a, b, variable, locale }) {
-  const c = reportCopy(locale);
-  const check = comparison(a, b, 'cpu', variable);
+  const c = reportCopy(locale),
+    fr = locale === 'fr';
   return (
-    <>
-      <Alert tone="info">
-        {c[check.status]} {check.reasons?.map((key) => c[key] ?? key).join(' · ')}
-      </Alert>
-      <p className="report-note">{c.units}</p>
-      <div className="report-table">
-        <table className="table">
-          <caption className="sr-only">{c.compare}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{c.reading}</th>
-              <th scope="col">A</th>
-              <th scope="col">B</th>
-              <th scope="col">{c.change}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(METRICS).map(([key, metric]) => {
-              const left = metricValue(a, key),
-                right = metricValue(b, key);
-              const delta = comparison(a, b, key, variable);
-              const max = Math.max(left ?? 0, right ?? 0);
-              return (
-                <tr key={key}>
-                  <th scope="row">
-                    {metricLabel(key, locale)}
-                    {metric.stat && <small>p50 · {metric.unit}</small>}
-                  </th>
-                  {[left, right].map((value, index) => (
-                    <td key={index}>
-                      <span title={value === null ? c.unmeasured : undefined}>
-                        {formatValue(value, locale, metric.unit)}
-                      </span>
-                      {value !== null && max > 0 && (
-                        <span
-                          className={`report-bar ${index ? 'candidate' : ''}`}
-                          style={{ width: `${(value / max) * 100}%` }}
-                        />
-                      )}
-                      {metric.stat && (
-                        <small>
-                          p95{' '}
-                          {formatValue(metricValue(index ? b : a, key, 'p95'), locale, metric.unit)}
-                        </small>
-                      )}
-                    </td>
-                  ))}
-                  <td>
-                    {formatValue(delta.delta, locale, metric.unit)}
-                    {delta.percent !== null && (
-                      <small>{formatValue(delta.percent, locale, '%')}</small>
+    <section className="grid min-w-0 gap-3">
+      <h4 className="font-semibold">
+        {readingName(a, locale)} / {readingName(b, locale)}
+      </h4>
+      <p className="text-sm leading-relaxed text-base-content/75">
+        {fr
+          ? 'Écart observé = deuxième valeur moins première valeur. Il décrit ces mesures ; sans protocole complet et répétitions, il ne prouve pas un gain reproductible.'
+          : 'Observed difference = second value minus first value. It describes these readings; without a complete protocol and repeated runs, it does not prove a reproducible gain.'}
+      </p>
+      <Table>
+        <thead>
+          <tr>
+            <th scope="col">{c.reading}</th>
+            <th scope="col">{readingName(a, locale)}</th>
+            <th scope="col">{readingName(b, locale)}</th>
+            <th scope="col">{fr ? 'Écart observé' : 'Observed difference'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(METRICS).map(([key, metric]) => {
+            const left = metricValue(a, key),
+              right = metricValue(b, key);
+            const controlled = comparison(a, b, key, variable);
+            const difference = left !== null && right !== null ? right - left : null;
+            return (
+              <tr key={key}>
+                <th scope="row">
+                  {metricLabel(key, locale)}
+                  {metric.stat && <small>p50 · {metric.unit}</small>}
+                </th>
+                {[a, b].map((r, i) => (
+                  <td key={i}>
+                    {metricValue(r, key) === null
+                      ? missingMetric(r, key, locale)
+                      : formatValue(metricValue(r, key), locale, metric.unit)}
+                    {metric.stat && metricValue(r, key, 'p95') !== null && (
+                      <small>
+                        p95 · {formatValue(metricValue(r, key, 'p95'), locale, metric.unit)}
+                      </small>
                     )}
                   </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <p className="report-note">{c.p95}</p>
-    </>
+                ))}
+                <td>
+                  {difference === null
+                    ? fr
+                      ? 'Non calculable'
+                      : 'Not calculable'
+                    : formatValue(difference, locale, metric.unit)}
+                  {controlled.status === 'descriptive' && controlled.percent !== null && (
+                    <small>{formatValue(controlled.percent, locale, '%')}</small>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+      <p className="text-sm leading-relaxed text-base-content/75">{c.p95}</p>
+    </section>
   );
 }

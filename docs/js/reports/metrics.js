@@ -9,6 +9,7 @@ export const METRICS = {
   uncovered: { unit: '', path: 'uncoveredTriangles' },
   geometry: { unit: 'MiB', path: 'geometrieOctets', divisor: 1048576 },
   textures: { unit: 'MiB', path: 'metrics.textureResidentBytes', divisor: 1048576 },
+  textureBudget: { unit: 'MiB', path: 'metrics.textureBudgetBytes', divisor: 1048576 },
   pool: { unit: 'MiB', path: 'metrics.texturePoolBytes', divisor: 1048576 },
   calls: { unit: '', path: 'metrics.drawCalls' },
   preparation: { unit: 'ms', path: 'preparationMs' },
