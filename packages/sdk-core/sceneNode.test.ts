@@ -126,9 +126,11 @@ test('invalid creation visibility does not consume an id or transform slot', () 
 });
 
 test('visible rejects non-boolean values without changing node state', () => {
-  const afterFailure = createSceneRoot().createNode();
-  assert.throws(() => {
-    afterFailure.visible = 'yes' as unknown as boolean;
-  }, hasCode('INVALID_SCENE_NODE_VISIBILITY'));
-  assert.equal(afterFailure.visible, true);
+  const node = createSceneRoot().createNode({ visible: false });
+  for (const value of ['yes', undefined, null, 0]) {
+    assert.throws(() => {
+      node.visible = value as unknown as boolean;
+    }, hasCode('INVALID_SCENE_NODE_VISIBILITY'));
+    assert.equal(node.visible, false);
+  }
 });

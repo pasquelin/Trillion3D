@@ -63,6 +63,8 @@ have stable, root-unique identifiers and can be attached with `add` or `reparent
 `clear` detach live nodes, while `destroy` permanently invalidates a whole subtree. `clone` gives
 the new node a fresh identifier unless one is supplied; `copy` retains the destination identifier.
 Both reproduce the local pose and optionally the descendants.
+Recursive copying from an ancestor into its descendant is rejected with
+`SCENE_COPY_OVERLAP` before either node changes; non-recursive copying remains allowed.
 
 ```javascript
 import { createSceneRoot } from '@web-geometry/sdk-core';

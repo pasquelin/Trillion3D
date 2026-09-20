@@ -8,8 +8,8 @@ export function sceneNodeFail(
   throw new EngineError(code, message, context);
 }
 
-export function sceneNodeVisibility(value: boolean | undefined) {
-  if (value !== undefined && typeof value !== 'boolean')
+export function sceneNodeVisibility(value: boolean | undefined, allowDefault = true) {
+  if ((!allowDefault || value !== undefined) && typeof value !== 'boolean')
     sceneNodeFail('INVALID_SCENE_NODE_VISIBILITY', 'Scene node visibility must be boolean', {
       visible: value,
     });
