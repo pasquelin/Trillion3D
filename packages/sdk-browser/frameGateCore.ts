@@ -79,17 +79,15 @@ export function createFrameGateCore(holdValues: number) {
      *
      * The hooked node list is rebuilt after every scene change, never per frame: one more
      * instance or a light set after the fact goes through here, and nothing else adds it. A
-     * change the hooks announced themselves changes no node's membership, so it rebuilds nothing.
+     * hooked write that changed which objects are read — a light retargeted, a node reparented —
+     * is a scene change like any other, and the next frame rebuilds it.
      */
     readScene(source: THREE.Object3D, drawn: FrameGateSources) {
-      if (watchRevision !== revisions.scene || sceneWatch.reshaped) {
+      if (watchRevision !== revisions.scene) {
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
         watchRevision = revisions.scene;
       }
-      if (sceneWatch.changed()) {
-        bumpScene(revisions);
-        watchRevision = revisions.scene;
-      }
+      if (sceneWatch.changed()) bumpScene(revisions);
     },
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => hold.stable && hold.same(revisions),

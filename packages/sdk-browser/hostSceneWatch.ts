@@ -45,14 +45,10 @@ function withAncestors(node: THREE.Object3D | undefined, into: Set<THREE.Object3
  * trigger a second one.
  */
 export function createHostSceneWatch() {
-  const mark: WriteRevision = { revision: 1, reshaped: false };
+  const mark: WriteRevision = { revision: 1 };
   let watched: THREE.Object3D[] = [],
     seen = 0;
   return {
-    /** True when a hooked write changed which objects are read: the list is to be rebuilt. */
-    get reshaped() {
-      return mark.reshaped;
-    },
     /**
      * Sets the list of hooked nodes: the source models of what the engine draws, the lights,
      * and the ancestors of both. To be called when the scene changes shape — one more instance,
@@ -74,7 +70,6 @@ export function createHostSceneWatch() {
       for (const node of watched) if (!set.has(node) && unhookHostNode(node, mark)) moved = true;
       for (const node of set) if (hookHostNode(node, mark)) moved = true;
       watched = [...set];
-      mark.reshaped = false;
       if (moved) mark.revision++;
     },
     /** Says whether the host wrote one of the hooked nodes since the previous read. Reads nothing else. */
