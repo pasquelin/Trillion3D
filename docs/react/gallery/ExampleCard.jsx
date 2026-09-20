@@ -13,6 +13,7 @@ const categories = {
   scene: { en: 'Scene', fr: 'Scène' },
   color: { en: 'Color', fr: 'Couleur' },
   streaming: { en: 'Streaming', fr: 'Streaming' },
+  lighting: { en: 'Lighting', fr: 'Éclairage' },
 };
 const local = (value, locale) => value[locale === 'fr' ? 'fr' : 'en'];
 
@@ -47,6 +48,14 @@ function Preview({ example, locale, title }) {
             ? 'Jardin géométrique rendu par WebGPU'
             : 'Geometry garden rendered by WebGPU'
         }
+      />
+    );
+  if (example.renderer)
+    return (
+      <img
+        className="h-full w-full object-cover"
+        src="./assets/kinetic-garden/preview.png"
+        alt={locale === 'fr' ? 'Aperçu de la scène WebGPU' : 'WebGPU scene preview'}
       />
     );
   return (

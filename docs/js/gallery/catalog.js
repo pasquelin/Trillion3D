@@ -1,3 +1,5 @@
+import { rendererLessons } from './rendererLessons.js';
+
 export const examples = [
   {
     id: 'compose-transform',
@@ -165,6 +167,7 @@ export const examples = [
       fr: 'Échangez erreur projetée et charge bornée de la trame.',
     },
   },
+  ...rendererLessons,
 ];
 
 export const byId = (id) => examples.find((example) => example.id === id) ?? examples[0];
