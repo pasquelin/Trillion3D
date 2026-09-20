@@ -2,16 +2,13 @@ import type * as THREE from 'three';
 import {
   accessor,
   bump,
-  bumpOwners,
   hookTriple,
-  owners,
   XYZ,
   type Hook,
   type WriteRevision,
 } from './hostSceneHookCore.ts';
 import { hookLight, type HookedLight } from './hostSceneHooksLight.ts';
-
-export type { WriteRevision } from './hostSceneHookCore.ts';
+import { copyElements, sameElements } from './matrixElements.ts';
 
 const hooks = new WeakMap<object, Hook>();
 
@@ -24,8 +21,6 @@ const hooks = new WeakMap<object, Hook>();
  */
 function hookRotation(node: THREE.Object3D, hook: Hook) {
   const q = node.quaternion;
-  const sub = owners(q, hook);
-  if (!sub) return;
   let x = q.x,
     y = q.y,
     z = q.z,
@@ -36,7 +31,7 @@ function hookRotation(node: THREE.Object3D, hook: Hook) {
     y = q.y;
     z = q.z;
     w = q.w;
-    bumpOwners(sub);
+    bump(hook);
   };
   for (const face of [q, node.rotation]) {
     const previous = face._onChangeCallback;
@@ -44,86 +39,74 @@ function hookRotation(node: THREE.Object3D, hook: Hook) {
       previous.call(face);
       note();
     });
+    hook.undo.push(() => face._onChange(previous));
   }
 }
 
 /**
+ * A matrix set by hand, recomposition cut, has no setter to announce it. What the reference
+ * asks of such a node is to raise its update flag — `updateMatrix()` does so itself — and that
+ * raise is where the sixteen numbers are compared to the ones last seen: a set matrix is
+ * announced once, a flag raised again over the same matrix announces nothing. The reference's
+ * own walk clears the flag, which compares nothing; an automatic node keeps no snapshot, since
+ * its pose is hooked field by field.
+ */
+function hookSetMatrix(node: THREE.Object3D, hook: Hook) {
+  const elements = node.matrix.elements;
+  let held: Float64Array | null = node.matrixAutoUpdate ? null : Float64Array.from(elements);
+  accessor(node, 'matrixAutoUpdate', hook, (auto) => {
+    held = auto ? null : Float64Array.from(elements);
+    bump(hook);
+  });
+  accessor(
+    node,
+    'matrixWorldNeedsUpdate',
+    hook,
+    (raised) => {
+      if (!raised || !held || sameElements(held, elements)) return;
+      copyElements(held, elements);
+      bump(hook);
+    },
+    true,
+  );
+}
+
+/**
  * Hooks every write the contract lets the host make on `node`, once, and registers `revision`
- * among what those writes bump. Returns true when the registration is new.
+ * among what those writes bump.
  *
  * The local pose — position, rotation, scale — visibility, the recomposition flag and the
  * parent are accessors of the instance from then on: a write of another value costs the host
  * one comparison and one increment, and a frame that reads nothing else knows the node did
  * not move. A matrix set by hand is announced by the update flag the reference has such a node
- * write (`hookSetMatrix`). A reparented node changes its ancestor chain: the scene change it
- * announces rebuilds the watched set.
+ * raise (`hookSetMatrix`). A reparented node changes its ancestor chain: the watched set is
+ * reshaped.
  */
 export function hookHostNode(node: THREE.Object3D, revision: WriteRevision) {
   const known = hooks.get(node);
   if (known) {
-    if (known.revisions.includes(revision)) return false;
-    known.revisions.push(revision);
-    return true;
+    if (!known.revisions.includes(revision)) known.revisions.push(revision);
+    return;
   }
-  const hook: Hook = { revisions: [revision] };
+  const hook: Hook = { revisions: [revision], undo: [] };
   hooks.set(node, hook);
   hookTriple(node.position, XYZ, hook);
   hookTriple(node.scale, XYZ, hook);
   hookRotation(node, hook);
-  accessor(node, 'visible', () => bump(hook));
-  accessor(node, 'parent', () => bump(hook));
+  accessor(node, 'visible', hook, () => bump(hook));
+  accessor(node, 'parent', hook, () => bump(hook, true));
   hookSetMatrix(node, hook);
   if ((node as THREE.Light).isLight) hookLight(node as HookedLight, hook);
-  return true;
 }
 
-/**
- * A matrix set by hand, recomposition cut, has no setter to announce it. What the reference
- * asks of such a node is to write its update flag — `updateMatrix()` raises it, a forced
- * `updateMatrixWorld()` clears it — and that write is where the sixteen numbers are compared to
- * the ones last seen: a set matrix is announced once, a flag raised again over the same matrix
- * announces nothing. An automatic node keeps no snapshot: the reference raises its flag on its
- * own walk, every frame, and its pose is hooked field by field.
- */
-function hookSetMatrix(node: THREE.Object3D, hook: Hook) {
-  const elements = node.matrix.elements;
-  let held: Float64Array | null = null;
-  const freeze = () => {
-    held = Float64Array.from(elements);
-  };
-  const compare = () => {
-    if (!held) return;
-    let moved = false;
-    for (let k = 0; k < 16; k++)
-      if (held[k] !== elements[k]) {
-        held[k] = elements[k];
-        moved = true;
-      }
-    if (moved) bump(hook);
-  };
-  if (!node.matrixAutoUpdate) freeze();
-  accessor(node, 'matrixAutoUpdate', (auto) => {
-    if (auto) held = null;
-    else freeze();
-    bump(hook);
-  });
-  let flag = node.matrixWorldNeedsUpdate;
-  Object.defineProperty(node, 'matrixWorldNeedsUpdate', {
-    configurable: true,
-    enumerable: true,
-    get: () => flag,
-    set: (value: boolean) => {
-      flag = value;
-      compare();
-    },
-  });
-}
-
-/** Forgets `revision` on `node`: its writes no longer bump it. True when it was registered. */
+/** Forgets `revision` on `node`: its writes no longer bump it. The last one to leave takes every
+ *  accessor with it, and the node is the host's plain object again. */
 export function unhookHostNode(node: THREE.Object3D, revision: WriteRevision) {
   const hook = hooks.get(node);
   const at = hook ? hook.revisions.indexOf(revision) : -1;
-  if (!hook || at < 0) return false;
+  if (!hook || at < 0) return;
   hook.revisions.splice(at, 1);
-  return true;
+  if (hook.revisions.length) return;
+  for (let i = hook.undo.length - 1; i >= 0; i--) hook.undo[i]();
+  hooks.delete(node);
 }
