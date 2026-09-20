@@ -12456,9 +12456,9 @@
     "semantic_hash": ""
   },
   "docs/react/components/BarChart.jsx": {
-    "mtime": 1789900468.9814532,
-    "seen": 1789900676.597609,
-    "ast_hash": "fcf5067981b0dcdcdc41ef4426eaad75",
+    "mtime": 1789903873.3929675,
+    "seen": 1789903931.52089,
+    "ast_hash": "ddce97bdab0f1b4d7e22707408af60fb",
     "semantic_hash": ""
   },
   "docs/react/components/Collapse.jsx": {
@@ -12522,15 +12522,15 @@
     "semantic_hash": ""
   },
   "docs/react/reports/MetricCharts.jsx": {
-    "mtime": 1789900684.298985,
-    "seen": 1789901024.41343,
-    "ast_hash": "5a548548ec97d52f1c37c11ce1de9b59",
+    "mtime": 1789903874.0285742,
+    "seen": 1789903931.520946,
+    "ast_hash": "2eb6174d417b6feea4fc707430566d00",
     "semantic_hash": ""
   },
   "docs/react/reports/Profiles.jsx": {
-    "mtime": 1789902929.0419412,
-    "seen": 1789903016.4034822,
-    "ast_hash": "40aba74bd2392c5a7f00d79ecb855a9a",
+    "mtime": 1789903937.089974,
+    "seen": 1789903982.549394,
+    "ast_hash": "41a2df9f696641914cfaedec2a54fb01",
     "semantic_hash": ""
   },
   "docs/react/reports/ReadingLegend.jsx": {
