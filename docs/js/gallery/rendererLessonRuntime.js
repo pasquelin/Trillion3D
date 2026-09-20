@@ -5,6 +5,7 @@ import { createLessonExplorer } from './lessonExplorer.js';
 import { addSceneFillLight } from '../sceneFillLight.js';
 import { applyRendererLesson } from './rendererLessonApply.js';
 import { createRendererLessonDeadline } from './rendererLessonDeadline.js';
+import { createShadowPageCounter } from './lessonShadowPages.js';
 export { applyRendererLesson } from './rendererLessonApply.js';
 
 const COLD_FRAME_LIMIT = 2400,
@@ -45,7 +46,8 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     readyReject,
     updateChain = Promise.resolve();
   const added = { value: false },
-    lighting = createLightingLessonSession();
+    lighting = createLightingLessonSession(),
+    shadows = createShadowPageCounter();
   const nextReady = () => {
     ready = new Promise((resolve, reject) => {
       readyResolve = resolve;
@@ -54,13 +56,18 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     ready.catch(() => {});
     return ready;
   };
+  /** The pending `ready` is answered once: resolved, or rejected with `error`. */
+  const answerReady = (error) => {
+    if (error) readyReject?.(error);
+    else readyResolve?.();
+    readyResolve = undefined;
+    readyReject = undefined;
+  };
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     startup.cancel();
-    readyReject?.(new DOMException('Cancelled', 'AbortError'));
-    readyResolve = undefined;
-    readyReject = undefined;
+    answerReady(new DOMException('Cancelled', 'AbortError'));
     cancelAnimationFrame(frame);
     resize?.disconnect();
     controls?.dispose();
@@ -73,7 +80,8 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     try {
       await startup.wait(explorer.awaitPages());
       if (disposed) return;
-      const metrics = explorer.render();
+      const metrics = explorer.render(),
+        shadowPages = shadows.observe(metrics);
       await startup.wait(explorer.flush());
       if (disposed) return;
       const now = performance.now(),
@@ -85,25 +93,18 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         cpu: metrics.cpuFrameMs,
         memory: metrics.geometryPoolAllocatedBytes,
         triangles: metrics.drawnTriangles,
+        shadowPages,
+        shadowPending: metrics.shadowPagesPending,
         idle,
       });
-      if (!coldStart) {
-        readyResolve?.();
-        readyResolve = undefined;
-        readyReject = undefined;
-      }
+      if (!coldStart) answerReady();
       previous = now;
       frame = 0;
-      if (idle) {
-        readyResolve?.();
-        readyResolve = undefined;
-        readyReject = undefined;
-      } else frame = requestAnimationFrame(draw);
+      if (idle) answerReady();
+      else frame = requestAnimationFrame(draw);
     } catch (error) {
       frame = 0;
-      readyReject?.(error);
-      readyResolve = undefined;
-      readyReject = undefined;
+      answerReady(error);
       dispose();
     }
   };
@@ -112,6 +113,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     remaining = coldStart ? COLD_FRAME_LIMIT : INTERACTIVE_FRAME_LIMIT;
     settleNotBefore = performance.now() + (coldStart ? SETTLE_MINIMUM_MS : 0);
     previous = 0;
+    shadows.reset();
     if (!starting && !frame) frame = requestAnimationFrame(draw);
   };
   const update = async (next) => {
