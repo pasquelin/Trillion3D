@@ -44,10 +44,16 @@ What the witness does not render, named rather than guessed: **no shadow casting
 - `--instances N` (1, 4, 9 or 12): SDK places N grid copies of the object (`replicaCount`). Default 1. Runs affecting instancing should measure both counts, and the report shows published geometry memory per line ("geometry (MB)" column: page cache bytes plus vertex buffers, `null` if unrecorded).
 - `--chemin-math auto|js|wasm` (default `auto`): execution path for core batch computations. `auto` lets governor decide by measurement — no hardcoded threshold in code —, `js` and `wasm` force it for the entire run, comparing paths on identical scene, poses and cache. The "Batch Math Path" table in `resume.md` publishes, per side and per operation, the path taken, medians in nanoseconds per item, transitions, and item count; full report in `series[].sides[].cheminCalcul`. Unexecuted operation median is "unmeasured", never zero.
 - `--visible`: opens a real window. Without a window, display caps at 60 Hz on macOS.
-- `--images-profil` (default 120): frame count for profile loop, executed after measured loop without replacing it. Yields to browser between frames because timestamp readbacks arrive asynchronously: an un-yielding loop misses timestamps. Profile window is cleared prior to this loop.
+- `--images-profil` (default 120): number of trailing measured frames included in the per-stage profile. The profile is reset before that moving-window suffix; it does not substitute a still-pose loop for the measured path.
+
+The measured camera path also advances once per `requestAnimationFrame` on both sides. Its
+`rafIntervalMs` distribution is the real moving-frame envelope, including browser backpressure and
+the display cap. `cpuFrameMs` remains the engine's synchronous submission reading; the two durations
+are never added. Use `--profil off` for the beauty verdict; `--profil on` attributes cost inside the
+same moving loop but keeps diagnostic instrumentation active.
 
 Outputs in `--out` (default `.mesure/out/<engine>-<timestamp>/`, gitignored and un-linted):
-`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. `null` = unmeasured, never inferred; all launched tasks exit cleanly.
+`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `rafIntervalMs`, `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. `null` = unmeasured, never inferred; all launched tasks exit cleanly.
 
 ### Triangle and Fallback Counters
 

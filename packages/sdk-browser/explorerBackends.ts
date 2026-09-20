@@ -19,6 +19,7 @@ type Inputs = {
   textureIndices: Map<THREE.Texture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
   gpuDevice?: GPUDevice;
+  webglContext?: WebGL2RenderingContext;
   directGpu: boolean;
   autonomous: boolean;
   backends: RenderBackend[];
@@ -35,6 +36,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     textureIndices,
     pageSources,
     gpuDevice,
+    webglContext,
     directGpu,
     autonomous,
     backends,
@@ -91,6 +93,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     diagnosticDetail: diagnosticChannel.detail,
     viewport,
     gpuDevice,
+    webglContext,
     gpuCanvas: directGpu ? canvas : undefined,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     temporalAntialiasing: options.temporalAntialiasing ?? true,

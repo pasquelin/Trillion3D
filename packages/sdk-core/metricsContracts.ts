@@ -46,6 +46,8 @@ export interface FrameMetrics
   /** Draw calls of this frame. `null` when neither the engine nor the host renderer
    *  counts them: a zero would read as a frame with no draw. */
   drawCalls: number | null;
+  /** Paged cluster draws issued by the engine-owned WebGL2 program in this session. */
+  autonomousClusterDrawsTotal?: number | null;
   /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them, or
    *  as the host renderer drew them when it is the one drawing. `null` when neither
    *  has counted: a zero would read as an empty frame. */

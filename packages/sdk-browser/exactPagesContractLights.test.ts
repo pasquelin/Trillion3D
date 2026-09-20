@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { LIGHT_SETTINGS, createSceneLightStore } from '../sdk-core/index.ts';
 import { attachContractLights } from './exactPagesContractLights.ts';
 import { installSceneLighting } from './sceneLighting.ts';
+import { unsupportedClusterLight } from './webglClusterLights.ts';
 
 /** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
 const coords = (vector: THREE.Vector3) => vector.toArray().map((value) => value + 0);
@@ -38,6 +39,13 @@ test('with no light and no requested view, the source graph lights alone and the
   const lights = bench.visibleLights();
   assert.equal(lights.length, 1);
   assert.equal((lights[0] as THREE.DirectionalLight).intensity, 2);
+});
+
+test('source auto-lighting preserves and rejects a non-physical point-light decay', () => {
+  const point = new THREE.PointLight();
+  point.decay = 1;
+  const bench = harness([point]);
+  assert.match(unsupportedClusterLight(bench.scene)!, /decay 1 is unsupported/);
 });
 
 test('a contract point light lights, and removing it makes the lit view black', () => {

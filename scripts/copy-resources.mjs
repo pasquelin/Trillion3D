@@ -9,7 +9,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
-const RESSOURCES = [['sdk-browser', 'pageCodec.wasm']];
+const RESSOURCES = [
+  ['sdk-browser', 'pageCodec.wasm'],
+  ['sdk', 'package.json'],
+];
 
 let copies = 0;
 for (const [paquet, nom] of RESSOURCES) {

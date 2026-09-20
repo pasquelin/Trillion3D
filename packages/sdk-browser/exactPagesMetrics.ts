@@ -85,6 +85,8 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         displayDetachments: counters.displayDetachments + batched.detachments,
         pageRangeWrites: batched.pageRangeWrites,
         subDraws: batched.subDraws,
+        autonomousClusterDrawsTotal: batched.autonomousClusterDrawsTotal,
+        cpuSubmitMs: batched.cpuSubmitMs,
         frameHeld: state.frameHeld,
       };
     },

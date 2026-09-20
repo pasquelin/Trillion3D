@@ -19,7 +19,7 @@ type PrimitiveDraft = {
   max: [number, number, number];
 };
 
-export function setupClusterBatches(pages: readonly BatchPage[]) {
+export function setupClusterBatches(pages: readonly BatchPage[], installThreeShaderHooks = true) {
   const state = {
     primitives: [] as PrimitiveIndex[],
     groups: [] as Array<BatchGroup | undefined>,
@@ -141,10 +141,12 @@ export function setupClusterBatches(pages: readonly BatchPage[]) {
   const layered = buildLayerGroups(pages, state.groups);
   state.layerGroups = layered.layerGroups;
   state.ownedMaterials = [...splits.values()].flat().concat(layered.materials);
-  for (const page of pages)
-    for (const material of Array.isArray(page.material) ? page.material : [page.material])
+  if (installThreeShaderHooks) {
+    for (const page of pages)
+      for (const material of Array.isArray(page.material) ? page.material : [page.material])
+        neutraliseBatchingShader(material, state.shaderHooks);
+    for (const material of state.ownedMaterials)
       neutraliseBatchingShader(material, state.shaderHooks);
-  for (const material of state.ownedMaterials)
-    neutraliseBatchingShader(material, state.shaderHooks);
+  }
   return { ...state, indirect };
 }

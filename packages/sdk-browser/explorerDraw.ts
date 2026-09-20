@@ -5,7 +5,7 @@ import { PRIORITY_PREFETCH } from './streamingPriority.ts';
 import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
-import { createSceneDrawer } from './explorerDrawScene.ts';
+import type { createSceneDrawer } from './explorerDrawScene.ts';
 import { retainVisiblePages } from './retainVisiblePages.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
@@ -22,6 +22,7 @@ type Inputs = {
   presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
+  drawScene: ReturnType<typeof createSceneDrawer>;
 };
 
 /**
@@ -53,7 +54,8 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
 
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
-  const { camera, geometryUrls, streamer, streaming, presentBackend, baseline, state } = inputs;
+  const { camera, geometryUrls, streamer, streaming, presentBackend, baseline, state, drawScene } =
+    inputs;
   const { directGpu, renderer: ownedRenderer } = inputs;
   // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit, and is only
   // mounted if the host asked for the per-step profile.
@@ -61,7 +63,6 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     session.options.stageProfile === true && !directGpu && ownedRenderer
       ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
       : null;
-  const drawScene = createSceneDrawer(ownedRenderer, camera);
   /** A host render target is sRGB encoded, the page canvas is not: the copy must know which. */
   const srgb = (t: THREE.WebGLRenderTarget | null) =>
     t?.texture.colorSpace === THREE.SRGBColorSpace;
