@@ -15,7 +15,7 @@ use super::*;
 fn fbx_with_external_images() -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let source = root.join("fbx");
-    fs::create_dir_all(&source).expect("dossier fbx");
+    fs::create_dir_all(&source).expect("fbx dir");
     let fbx = fs::read(golden_dir("import-fbx").join("riviere.fbx")).expect("fixture");
     fs::write(source.join("riviere.fbx"), &fbx).expect("fbx");
     for (name, tint) in [("albedo.png", 0u8), ("opacite.png", 128u8)] {
@@ -44,7 +44,7 @@ fn png_bytes(tint: u8) -> Vec<u8> {
 // Behaviour: images of a converted scene resolve under the source folder, never
 // under the cache folder where the driver wrote the intermediate scene.
 #[test]
-fn les_apercus_dune_scene_convertie_lisent_les_images_restees_a_la_source() {
+fn previews_of_converted_scene_read_images_remaining_at_source() {
     let (root, options) = fbx_with_external_images();
     let result = compile(&options, |_| {}).expect("compile fbx");
     let report = &result["texturePreviews"];
@@ -54,11 +54,11 @@ fn les_apercus_dune_scene_convertie_lisent_les_images_restees_a_la_source() {
     );
     assert!(
         report["skipped"]["image-missing"].is_null(),
-        "aucune image ne doit manquer: {report}"
+        "no image must be missing: {report}"
     );
     assert_eq!(
         report["previews"], 1,
         "the colour texture carries its preview: {report}"
     );
-    fs::remove_dir_all(root).expect("nettoyage");
+    fs::remove_dir_all(root).expect("cleanup");
 }

@@ -13,7 +13,7 @@ export const PREVIEW_BASE = 64;
 /** Levels an entry carries at most: 64, 32, 16, 8, 4, 2, 1. */
 export const PREVIEW_MAX_LEVELS = 7;
 
-/** Dimensions du niveau `level` d'une image `width`×`height`. */
+/** Dimensions of level `level` of a `width`×`height` image. */
 export function previewLevelSize(width: number, height: number, level: number): [number, number] {
   const shift = Math.min(level, 31);
   return [Math.max(1, width >>> shift), Math.max(1, height >>> shift)];

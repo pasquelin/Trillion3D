@@ -1,22 +1,9 @@
 use super::*;
-use std::sync::atomic::AtomicU64;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-static NEXT_FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 pub(super) fn fixture() -> (PathBuf, Options) {
     fixture_named("mesh.gltf", "mesh.bin")
 }
 pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Options) {
-    let root = std::env::temp_dir().join(format!(
-        "web-geometry-{}-{}-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos(),
-        NEXT_FIXTURE_ID.fetch_add(1, Ordering::Relaxed),
-        gltf_name
-    ));
+    let root = scratch("fixture", gltf_name);
     let source = root.join("source");
     let cache = root.join("cache");
     fs::create_dir_all(&source).expect("source");
@@ -44,20 +31,6 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
         cancelled: Arc::new(AtomicBool::new(false)),
     };
     (root, options)
-}
-
-/// A throwaway folder, named by the driver that asks for it and the case that uses it.
-pub(super) fn scratch(prefix: &str, tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "wg-{prefix}-{tag}-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("temp dir");
-    dir
 }
 
 pub(super) fn read_json(path: &Path) -> Value {
@@ -96,7 +69,7 @@ pub(super) fn written_gltf(options: &Options, key: &str) -> Value {
 /// named folder: that folder is what resolves the library.
 pub(super) fn obj_source(root: &Path, folder: &str, mtl: &str) -> PathBuf {
     let source = root.join(folder);
-    fs::create_dir_all(&source).expect("dossier obj");
+    fs::create_dir_all(&source).expect("obj dir");
     fs::write(
         source.join("scene.obj"),
         "mtllib scene.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvn 0 0 1\nusemtl Uni\nf 1//1 2//1 3//1\n",

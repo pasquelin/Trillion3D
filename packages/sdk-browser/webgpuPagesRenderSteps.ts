@@ -103,9 +103,9 @@ export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
     selectedPages: run.shown.length,
     drawnPages: run.drawn.length,
   };
-  diag.engineDiagnostic('first-render-path', 'Configuration du premier rendu WebGPU', details);
+  diag.engineDiagnostic('first-render-path', 'WebGPU first render configuration', details);
   if (typeof window !== 'undefined')
-    console.info('[web-geometry] configuration du premier rendu WebGPU', details);
+    console.info('[web-geometry] WebGPU first render configuration', details);
 }
 
 /** The CPU sample of an image, with `null` for the steps an image that did not draw never ran. */

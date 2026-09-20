@@ -77,9 +77,9 @@ pub(crate) fn row() -> Row {
     let (g, bin) = gltf(count);
     let validated: BTreeSet<usize> = (0..count).collect();
     compare(
-        "G9 validation d'accessor faite une seule fois",
+        "G9 accessor validation done once",
         "compiler_plan.rs, compiler_accessor_create.rs, compiler_primitive.rs",
-        format!("{count} accessors, {LECTURES} lectures chacun"),
+        format!("{count} accessors, {LECTURES} reads each"),
         &mut || lis(&g, &bin, count, None),
         &mut || lis(&g, &bin, count, Some(&validated)),
         empreinte,
@@ -94,14 +94,14 @@ mod tests {
     /// seven fields as read with `Some(&validated)` when id present: skipped validation
     /// pure function of same `g`/`bin`/`id`, verdict never changes result.
     #[test]
-    fn accessor_valide_deja_marque_rend_les_memes_champs_sans_revalider() {
+    fn already_marked_valid_accessor_yields_same_fields_without_revalidating() {
         let count = 9; // covers five gltf() forms at least once each, plus remainder.
         let (g, bin) = gltf(count);
         let validated: BTreeSet<usize> = (0..count).collect();
         for id in 0..count {
-            let sans_ensemble = accessor(&g, &bin, id, None).expect("valide sans ensemble");
+            let sans_ensemble = accessor(&g, &bin, id, None).expect("valid without set");
             let avec_ensemble =
-                accessor(&g, &bin, id, Some(&validated)).expect("valide, deja marque");
+                accessor(&g, &bin, id, Some(&validated)).expect("valid, already marked");
             assert_eq!(
                 (
                     sans_ensemble.base,

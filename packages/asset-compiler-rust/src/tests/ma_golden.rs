@@ -36,9 +36,9 @@ fn regenere_la_fixture_ma() {
 #[test]
 fn a_ma_file_truncated_before_its_first_command_is_refused_as_empty() {
     let root = std::env::temp_dir().join(format!("wg-ma-vide-{}", std::process::id()));
-    fs::create_dir_all(&root).expect("dossier");
+    fs::create_dir_all(&root).expect("dir");
     let file = root.join("truncated.ma");
-    fs::write(&file, "//Maya ASCII 2024 scene\n// Orig").expect("fichier");
+    fs::write(&file, "//Maya ASCII 2024 scene\n// Orig").expect("file");
     assert_eq!(refused_golden_source(&file, "ma-truncated"), "IMPORT_EMPTY");
     let _ = fs::remove_dir_all(&root);
 }
@@ -48,9 +48,9 @@ fn a_ma_file_truncated_before_its_first_command_is_refused_as_empty() {
 #[test]
 fn a_file_without_the_maya_header_is_refused_by_name() {
     let root = std::env::temp_dir().join(format!("wg-ma-entete-{}", std::process::id()));
-    fs::create_dir_all(&root).expect("dossier");
+    fs::create_dir_all(&root).expect("dir");
     let file = root.join("autre.ma");
-    fs::write(&file, "createNode transform -n \"X\";\n").expect("fichier");
+    fs::write(&file, "createNode transform -n \"X\";\n").expect("file");
     assert_eq!(
         refused_golden_source(&file, "ma-header"),
         "ma-file-invalid",

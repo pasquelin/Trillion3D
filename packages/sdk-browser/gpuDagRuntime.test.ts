@@ -80,7 +80,7 @@ test('the sorted rank journal sets the same bits as the full sweep', () => {
   const changes = { pages: Int32Array.from(pages), count: pages.length, sorted: true };
   const touched = new Int32Array(residentWords(count));
   const retenus = updateResidencyBits(next, journal, 0, changes, touched);
-  assert.equal(retenus, residentWords(count), 'un mot retenu par mot que le journal touche');
+  assert.equal(retenus, residentWords(count), 'one word kept per word the journal touches');
   balayage(next, balaye);
   assert.deepEqual([...journal], [...balaye]);
 });

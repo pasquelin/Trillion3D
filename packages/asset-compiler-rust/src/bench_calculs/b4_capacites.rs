@@ -107,7 +107,7 @@ fn empreinte_octets(valeur: &(Vec<u8>, u32)) -> Bits {
 pub(crate) fn rows() -> Vec<Row> {
     let (positions, indices) = inputs::mesh(0xCA_9AC1, 200_000);
     let region = &indices[..64 * 1024];
-    // Deux parties : juste sous la limite u16 et juste au-dessus, pour couvrir les deux encodages.
+    // Two parts: just under the u16 limit and just above, to cover both encodings.
     let courts: Vec<u32> = (0..600_000u32).map(|i| i % 65_535).collect();
     let longs: Vec<u32> = (0..600_000u32).map(|i| i % 65_536).collect();
     vec![
@@ -120,18 +120,18 @@ pub(crate) fn rows() -> Vec<Row> {
             empreinte_compacte,
         ),
         compare(
-            "B4 octets d'indices (u16)",
+            "B4 index bytes (u16)",
             "import/mesh.rs",
-            "600 000 indices, 65 535 sommets".into(),
+            "600,000 indices, 65,535 vertices".into(),
             &mut || reference_octets(&courts, 65_535),
             &mut || index_bytes(&courts, 65_535),
             empreinte_octets,
         )
         .ecarte(NEUTRE),
         compare(
-            "B4 octets d'indices (u32)",
+            "B4 index bytes (u32)",
             "import/mesh.rs",
-            "600 000 indices, 65 536 sommets".into(),
+            "600,000 indices, 65,536 vertices".into(),
             &mut || reference_octets(&longs, 65_536),
             &mut || index_bytes(&longs, 65_536),
             empreinte_octets,

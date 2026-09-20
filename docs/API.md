@@ -19,6 +19,20 @@ numbers. Conventions shared by every entry:
   the engine's speed-up over the reference, best of three runs on the same machine (#72, #76,
   19 Sept. 2026); they say where, not how much a frame gains.
 
+## Explorer startup (#111)
+
+- `createExplorer(target: ExplorerTarget, options: ExplorerOptions)` and
+  `createExplorerJob(id, target, options)` accept a canvas element or its literal document ID.
+- `interactive: true` owns CSS/DPR sizing, OrbitControls and bounded demand-driven rendering;
+  absent/false preserves manual sessions. Defaults to direct WebGPU, with explicit failure
+  when unavailable. `invalidate()` requests a frame after programmatic edits.
+- `RenderBackend.pendingFrame?()` waits for submitted work without image readback and returns
+  whether interactive rendering should continue. Custom backends with progressive work should
+  implement it. Disposal owns all interactive listeners and pending callbacks.
+- Details, defaults and teardown: [SDK guide](SDK.md#simple-browser-startup). Proof:
+  `explorerTarget.test.ts`, `explorerFrameScheduler.test.ts` and the browser startup proof.
+
+
 ## Batch A — maths and side enum (#76)
 
 ### Matrices — `packages/sdk-core/mathMatrix4.ts`, `mathMatrix4Inverse.ts`, `mathMatrix4Trs.ts`
@@ -96,7 +110,17 @@ could spare it, and the lot that removes the WebGL composition host is where tha
 
 | Function                                       | Computes                                                                                                                                                                                                       | Replaces                                                                         | Proof                                                                                                |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `prepareWebgpuPresentation(device, gpuCanvas)` | the engine's presenter on the host canvas, or on one it creates when the host gave none                                                                                                                        | `new CanvasTexture` + `new ShaderMaterial` + a blit mesh added to the host scene | `test/appui/presentationCase.mjs`, mounted on the Lab pages and excluded from `test:gpu`             |
-| `RenderBackend.presentedSurface`               | the canvas an engine presented into, published on the contract; such an engine does not use `scene` for display, and an engine drawing on the host surface publishes none                                      | `scene.children.find((o) => o.userData.blit).material.uniforms.image.value`      | `test/appui/presentationCase.mjs`, mounted on the Lab pages and excluded from `test:gpu`             |
+| `prepareWebgpuPresentation(device, gpuCanvas)` | the engine's presenter on the host canvas, or on one it creates when the host gave none                                                                                                                        | `new CanvasTexture` + `new ShaderMaterial` + a blit mesh added to the host scene | `test/browser/presentation-composee.browser.mjs`, `explorerComposeSurface.test.ts`             |
+| `RenderBackend.presentedSurface`               | the canvas an engine presented into, published on the contract; such an engine does not use `scene` for display, and an engine drawing on the host surface publishes none                                      | `scene.children.find((o) => o.userData.blit).material.uniforms.image.value`      | `test/browser/presentation-composee.browser.mjs`, `explorerComposeSurface.test.ts`             |
 | `createCanvasBlit(gl)`                         | a full-screen copy program on the caller's context: uploads a canvas and draws it over the viewport, rows reversed once, and reads the source in the encoding the destination writes so nothing converts twice | `WebGLRenderer.render` of a blit mesh, `copyFramebufferToTexture`                | `test/browser/presentation-composee.browser.mjs`: 12 288 channels to each destination, not one apart |
 | `createBackendPresenter(host)`                 | the one place that puts an engine's image on the host surface: copies a presented surface into the bound framebuffer and answers true, or answers false for an engine that hands over a scene                  | `WebGLRenderer.render(backend.scene, camera)` on the WebGPU path                 | `explorerComposeSurface.test.ts`, `test/browser/presentation-composee.browser.mjs`                   |
+
+## Batch E2 — WebGL2 surface foundation (#108)
+
+This first WebGL2-removal stage owns the host context and its lifecycle. The existing Three scene
+renderer remains a temporary draw adapter over that context; no rendering-performance gain is
+claimed by this stage.
+
+| Function                                      | Computes                                                                                                                        | Replaces                                                                                          | Proof                                                              |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `createWebglSurface(canvas, lifecycle?)`      | WebGL2 context, DPR-aware drawing-buffer size, loss/restoration state, and idempotent context disposal                           | implicit context creation and context loss in `new WebGLRenderer` / `WebGLRenderer.forceContextLoss` | `webglSurface.test.ts`, `test/browser/webgl-surface.browser.mjs`    |

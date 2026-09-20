@@ -1,6 +1,6 @@
 {
-  "case": "Trois surfaces opaques empilées sur un plan ; la troisième n'y arrive que par la translation de son nœud.",
-  "rule": "Aires 36, 16 et 4 : la plus petite passe au-dessus. Trois paires se recouvrent (16 + 4 + 4 = 24).",
+  "case": "Three opaque surfaces stacked on one plane; the third only gets there through its node's translation.",
+  "rule": "Areas 36, 16 and 4: the smallest goes on top. Three pairs overlap (16 + 4 + 4 = 24).",
   "formatVersion": 3,
   "manifestBinaryVersion": 5,
   "coplanar": {

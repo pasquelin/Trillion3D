@@ -6,10 +6,12 @@ import { createExplorerCamera } from './explorerCamera.ts';
 import { createExplorerPageSources } from './explorerPageSources.ts';
 import { loadPreparedScene } from './explorerScene.ts';
 import type { ExplorerSession } from './explorerSession.ts';
+import type { WebglSurface } from './webglSurface.ts';
 
 export type ExplorerResources = {
   source?: THREE.Object3D;
   renderer?: THREE.WebGLRenderer;
+  webglSurface?: WebglSurface;
   gpuDevice?: GPUDevice;
 };
 

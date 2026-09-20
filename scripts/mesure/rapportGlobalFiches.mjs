@@ -12,8 +12,8 @@ export const TEMOINS = [
   { moteur: 'three-lod', serie: 'Three.js LOD' },
 ];
 export const NOTRE = 'Web Geometry';
-// Les séries de chaque fiche : les témoins, notre moteur, Unreal. `valeurs(vue)` rend une valeur
-// par série ; un témoin non mesuré vaut `null` et sa barre l'écrit.
+// Series of each card: witnesses, our engine, Unreal. `values(view)` returns one value
+// per series; an unmeasured witness is `null` and its bar states it.
 const SERIES = [...TEMOINS.map((t) => t.serie), NOTRE, 'Unreal (its console)'];
 const NOUS = TEMOINS.length;
 

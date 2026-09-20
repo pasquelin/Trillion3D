@@ -49,7 +49,7 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
   assert.equal(
     roots[0].table,
     table,
-    'la table plate est construite avec la primitive, jamais par image',
+    'the flat table is built with the primitive, never per frame',
   );
   assert.deepEqual(
     second.shown.map((page) => page.url),
