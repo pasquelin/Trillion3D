@@ -46,3 +46,24 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
         &serde_json::to_vec(&pointer)?,
     )
 }
+
+/// Builds the resident proxy and encodes it. The proxy is a cache object under its own name,
+/// not a sidecar column: a manifest without it stays readable word for word, and its tens of
+/// megabytes do not delay the first frame of a scene that declares no light. Returns the
+/// object's bytes and the descriptor the manifest carries.
+pub(super) fn stage_proxy_object(
+    inputs: &proxy::ProxyInputs<'_>,
+    progress: &(dyn Fn(Value) + Sync),
+) -> Result<(Vec<u8>, Value)> {
+    let scene_proxy = {
+        let _t = perf::Timer::new(perf::Phase::Manifest);
+        proxy::stage_proxy(inputs)?
+    };
+    progress(
+        json!({"phase":"proxy","completed":1,"total":1,"triangles":scene_proxy.triangle_count(),"nodes":scene_proxy.node_count(),"errorMetres":scene_proxy.error_metres}),
+    );
+    let proxy_bytes = scene_proxy.encode();
+    let proxy_sha = hash(&proxy_bytes);
+    let descriptor = scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
+    Ok((proxy_bytes, descriptor))
+}

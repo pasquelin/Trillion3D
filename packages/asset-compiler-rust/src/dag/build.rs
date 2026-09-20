@@ -1,20 +1,7 @@
 use super::*;
 
-/// Builds cluster DAG. `strategy` decides whether coarse levels exist: in
-/// `ExactClusters` build yields level zero alone, without group or reduction, so
-/// published coverage is exactly source triangles.
-///
-/// `uvs` — two floats per vertex, or none — says which position copies reduction is
-/// allowed to weld when stuck: those sharing texture, never the opposite edge
-/// of a seam.
-pub fn build_dag_tallied(
-    positions: &[f32],
-    uvs: Option<&[f32]>,
-    indices: &[u32],
-    strategy: DagStrategy,
-    checkpoint: &(dyn Fn() -> Result<()> + Sync),
-) -> Result<(Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>)> {
-    checkpoint()?;
+/// Level zero: the exact spatial partition of the source triangles, one cluster per entry.
+fn level_zero(positions: &[f32], indices: &[u32]) -> Result<Vec<DagCluster>> {
     // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
     let mut first_use = vec![u32::MAX; positions.len() / 3];
     for (offset, &vertex) in indices.iter().enumerate() {
@@ -23,42 +10,69 @@ pub fn build_dag_tallied(
             first_use[slot] = (offset / 3) as u32;
         }
     }
-    let mut dag: Vec<DagCluster> = Vec::new();
     let level0 = {
         let _t = Timer::new(Phase::ClusterLevel0);
         cluster_triangles(positions, indices, DAG_CLUSTER_TRIANGLES)?
     };
-    for cluster in level0 {
-        let sphere = bounding_sphere(positions, &cluster);
-        let source_rank = cluster
-            .iter()
-            .map(|&v| first_use.get(v as usize).copied().unwrap_or(u32::MAX))
-            .min()
-            .unwrap_or(0);
-        dag.push(DagCluster {
-            indices: cluster,
-            level: 0,
-            lod_error: 0.0,
-            parent_error: f64::INFINITY,
-            sphere,
-            parent_sphere: sphere,
-            replacement: None,
-            source_rank,
-            group: None,
-            source: None,
-        });
-    }
+    Ok(level0
+        .into_iter()
+        .map(|cluster| {
+            let sphere = bounding_sphere(positions, &cluster);
+            let source_rank = cluster
+                .iter()
+                .map(|&v| first_use.get(v as usize).copied().unwrap_or(u32::MAX))
+                .min()
+                .unwrap_or(0);
+            DagCluster {
+                indices: cluster,
+                level: 0,
+                lod_error: 0.0,
+                parent_error: f64::INFINITY,
+                sphere,
+                parent_sphere: sphere,
+                replacement: None,
+                source_rank,
+                group: None,
+                source: None,
+            }
+        })
+        .collect())
+}
+
+/// Builds the cluster DAG over `vertices`, which `QemAttributes` extends with the vertices its
+/// coarse levels create. `strategy` decides whether coarse levels exist: in `ExactClusters` the
+/// build yields level zero alone, without group or reduction, so the published coverage is
+/// exactly the source triangles.
+pub fn build_dag_tallied(
+    mut vertices: DagVertices<'_>,
+    indices: &[u32],
+    strategy: DagStrategy,
+    checkpoint: &(dyn Fn() -> Result<()> + Sync),
+) -> Result<DagBuild> {
+    checkpoint()?;
+    let source_vertices = vertices.count();
+    let mut dag = level_zero(vertices.positions, indices)?;
     let mut tallies: Vec<GroupTally> = Vec::new();
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
+    let build = |dag, groups, tallies, vertices: &DagVertices<'_>| DagBuild {
+        clusters: dag,
+        groups,
+        tallies,
+        added_vertices: vertices.count() - source_vertices,
+    };
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
-        return Ok((dag, reductions_kept, tallies));
+        return Ok(build(dag, reductions_kept, tallies, &vertices));
     }
-    let (weld, weld_seam) = {
+    let (mut weld, weld_seam) = {
         let _t = Timer::new(Phase::Weld);
+        let uvs = vertices
+            .attributes
+            .iter()
+            .find(|a| a.flag == crate::geometry_page::FLAG_UV);
         (
-            weld_positions(positions, indices),
-            uvs.map(|uvs| weld_positions_and_uv(positions, uvs, indices)),
+            Weld::by_position(vertices.positions, indices),
+            uvs.map(|uv| weld_positions_and_uv(vertices.positions, &uv.values, indices)),
         )
     };
     let mut current: Vec<usize> = (0..dag.len()).collect();
@@ -94,7 +108,9 @@ pub fn build_dag_tallied(
             level_locks(&weld, &lists, &groups)
         };
         let input = GroupReductionInput {
-            positions,
+            strategy,
+            positions: vertices.positions,
+            attributes: vertices.attributes,
             locks: &locks,
             weld: &weld,
             weld_seam: weld_seam.as_deref().unwrap_or(&weld),
@@ -136,8 +152,16 @@ pub fn build_dag_tallied(
                 dag[id].group = Some(group_index);
                 children.push(id);
             }
+            // The vertices this group created take their place in the buffer, in group order:
+            // the same mesh always yields the same buffer.
+            let first_new = attributes::append(&mut vertices, &reduction.vertices);
             let mut outputs = Vec::with_capacity(reduction.clusters.len());
-            for cluster in reduction.clusters {
+            for mut cluster in reduction.clusters {
+                for corner in cluster.iter_mut() {
+                    if *corner & NEW_VERTEX != 0 {
+                        *corner = first_new + (*corner & !NEW_VERTEX);
+                    }
+                }
                 outputs.push(dag.len());
                 next.push(dag.len());
                 dag.push(DagCluster {
@@ -161,6 +185,7 @@ pub fn build_dag_tallied(
                 outputs,
             });
         }
+        weld.extend(vertices.positions);
         tallies.push(tally);
         if next.is_empty() {
             break;
@@ -171,5 +196,5 @@ pub fn build_dag_tallied(
             break;
         }
     }
-    Ok((dag, reductions_kept, tallies))
+    Ok(build(dag, reductions_kept, tallies, &vertices))
 }

@@ -14,7 +14,7 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         groups.len() > 1,
         "the test needs at least two groups for a shared seam"
     );
-    let weld = weld_positions(&positions, &indices);
+    let weld = Weld::by_position(&positions, &indices);
     let locks = level_locks(&weld, &lists, &groups);
     assert!(
         locks.iter().any(|&locked| locked),
@@ -58,7 +58,9 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         .flat_map(|c| c.indices.iter().copied())
         .collect();
     let input = GroupReductionInput {
+        strategy: DagStrategy::QemEndpoints,
         positions: &positions,
+        attributes: &[],
         locks: &locks,
         weld: &weld,
         weld_seam: &weld,
@@ -96,7 +98,7 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
         cluster_triangles(&positions, &indices, DAG_CLUSTER_TRIANGLES).expect("clusters");
     let lists: Vec<&[u32]> = clusters.iter().map(|c| c.as_slice()).collect();
     let groups = vec![(0..clusters.len()).collect::<Vec<_>>()];
-    let weld = weld_positions(&positions, &indices);
+    let weld = Weld::by_position(&positions, &indices);
     let locks = level_locks(&weld, &lists, &groups);
     assert!(
         locks.iter().all(|&locked| !locked),
@@ -122,7 +124,9 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();
     let input = GroupReductionInput {
+        strategy: DagStrategy::QemEndpoints,
         positions: &positions,
+        attributes: &[],
         locks: &locks,
         weld: &weld,
         weld_seam: &weld,

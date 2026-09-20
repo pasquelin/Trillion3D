@@ -27,7 +27,7 @@ fn a_vertex_soup_still_climbs_to_a_single_root() {
         tallies.iter().any(|t| t.welded > 0),
         "at least one group had to weld"
     );
-    let weld = weld_positions(&positions, &indices);
+    let weld = Weld::by_position(&positions, &indices);
     for cluster in dag.iter().filter(|c| c.level > 0) {
         for &id in &cluster.indices {
             assert_eq!(

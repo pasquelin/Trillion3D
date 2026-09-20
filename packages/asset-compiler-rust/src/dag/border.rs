@@ -56,7 +56,9 @@ pub(super) fn required_locks(merged: &[u32], locks: &[bool], weld: &[u32]) -> Ve
 }
 
 /// Those in `required` that `simplified` no longer carries. Empty when every vertex shared with another
-/// group survived — otherwise the two groups no longer meet.
+/// group survived — otherwise the two groups no longer meet. A corner naming a vertex the
+/// reduction created (`NEW_VERTEX`) is outside the weld table and counts for no lock: a locked
+/// vertex is never moved, so it survives under its own index or not at all.
 ///
 /// Two sorted lists and a merge replace the previous two `HashSet`s: same question asked,
 /// same answer, without hashing tens of thousands of corners twice.
@@ -64,7 +66,10 @@ pub(super) fn lost_locks(required: &[u32], simplified: &[u32], weld: &[u32]) -> 
     if required.is_empty() {
         return Vec::new();
     }
-    let mut kept: Vec<u32> = simplified.iter().map(|&id| weld[id as usize]).collect();
+    let mut kept: Vec<u32> = simplified
+        .iter()
+        .filter_map(|&id| weld.get(id as usize).copied())
+        .collect();
     kept.sort_unstable();
     kept.dedup();
     let mut at = 0usize;

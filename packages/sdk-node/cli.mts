@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { prepare, createTerminalProgress } from './index.mts';
+import { prepare, createTerminalProgress, isSimplification } from './index.mts';
 const [
   input,
   output,
@@ -13,13 +13,13 @@ const [
 const triangleBudget = Number(budget);
 if (!input || !output || !resourceBaseUrl)
   throw new Error(
-    'Usage: web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints]',
+    'Usage: web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints|qem-attributes]',
   );
 if (scope !== 'slice' && scope !== 'full') throw new Error('scope must be slice or full');
 if (!Number.isSafeInteger(triangleBudget) || triangleBudget < 1)
   throw new Error('triangle-budget must be a positive integer');
-if (simplification !== 'none' && simplification !== 'qem-endpoints')
-  throw new Error('simplification must be none or qem-endpoints');
+if (!isSimplification(simplification))
+  throw new Error('simplification must be none, qem-endpoints or qem-attributes');
 const controller = new AbortController();
 process.once('SIGINT', () => controller.abort());
 // A terminal gets a live bar; a pipe (CI, another program) gets the raw JSON events.

@@ -41,6 +41,8 @@ export type {
   TerminalProgress,
   TerminalProgressOptions,
 } from './contracts.ts';
+export { SIMPLIFICATIONS, isSimplification } from './contracts.ts';
+export type { Simplification } from './contracts.ts';
 export { createTerminalProgress, createBatchProgress } from './progress.mts';
 export { reviewCutouts } from './cutoutReview.mts';
 /** Native is the production path. The host supplies an executable explicitly or through the environment. */

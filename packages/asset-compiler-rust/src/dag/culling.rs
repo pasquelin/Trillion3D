@@ -1,6 +1,25 @@
 use super::*;
 use crate::shared_math::{bisect_centres, merge_aabb};
 
+pub const CULLING_BRANCHING: usize = 8;
+pub const CULLING_LEAF: usize = 8;
+/// One node of the per-primitive culling hierarchy.
+///
+/// `sphere` encloses every `parent_sphere` of the subtree and `max_parent_error` is the largest
+/// `parent_error` in it, so a single projection bounds the whole subtree from above: when that bound
+/// already fits the pixel budget, no cluster below can be selected and the subtree is skipped.
+#[derive(Clone, Debug, Default)]
+pub struct CullingNode {
+    pub min: [f64; 3],
+    pub max: [f64; 3],
+    pub sphere: [f64; 4],
+    pub max_parent_error: f64,
+    pub first_child: usize,
+    pub child_count: usize,
+    pub first_cluster: usize,
+    pub cluster_count: usize,
+}
+
 /// Node bounds: cluster box, sphere enclosing replacement spheres,
 /// and max subtree replacement error. Single interval reading serves
 /// root covering whole order as well as node covering slice.

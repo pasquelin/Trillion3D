@@ -66,7 +66,7 @@ repository's executable esbuild configuration and verifies both worker tasks and
 ## CLI
 
 ```
-web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints]
+web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints|qem-attributes]
 ```
 
 `SOURCE` is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, a `.gltf`/`.glb` file, a `.fbx`/`.obj` file, or a directory of `.fbx`/`.obj` files (merged into one scene). `WEB_GEOMETRY_COMPILER_BIN` (or `PrepareOptions.executable`) selects the native executable.
@@ -83,7 +83,7 @@ not claim that the tarball ships it.
 
 ```
 web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL
-web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints]
+web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints|qem-attributes]
 web-geometry-compiler --jobs FILE|-
 web-geometry-compiler --version
 ```

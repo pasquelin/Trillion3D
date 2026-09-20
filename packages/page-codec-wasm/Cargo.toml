@@ -12,7 +12,7 @@ path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-meshopt = "0.4"
+meshopt = "0.6"
 
 [profile.release]
 lto = true

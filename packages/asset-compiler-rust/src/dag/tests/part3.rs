@@ -134,17 +134,28 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_without_error() {
         dag.iter().any(|c| c.level > 0),
         "a plane must still coarsen"
     );
-    assert!(dag
+    // meshoptimizer 0.25 adds a point quadric of weight 1e-7 to every vertex for numerical
+    // stability, so a lossless collapse reports a residual of that order (measured: 2.4e-3 on
+    // this 64-unit sheet). A plane still coarsens for far less than one unit of error.
+    let worst = dag
         .iter()
-        .all(|c| c.lod_error == 0.0 || !c.lod_error.is_finite()));
+        .map(|c| c.lod_error)
+        .filter(|e| e.is_finite())
+        .fold(0.0, f64::max);
+    assert!(
+        worst < 1e-2,
+        "a plane coarsens without error: worst {worst:e}"
+    );
 }
 
 #[test]
 fn build_honours_cancellation() {
-    let (positions, indices) = grid(32);
+    let (mut positions, indices) = grid(32);
     let error = build_dag_tallied(
-        &positions,
-        None,
+        DagVertices {
+            positions: &mut positions,
+            attributes: &mut [],
+        },
         &indices,
         DagStrategy::QemEndpoints,
         &|| Err(invalid("cancelled")),

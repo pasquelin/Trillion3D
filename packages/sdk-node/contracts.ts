@@ -58,12 +58,21 @@ export interface TerminalProgressOptions {
   interval?: number;
 }
 
+/** What the cluster DAG may hold above the exact clusters: nothing (`none`), coarse levels
+ *  made of source vertices (`qem-endpoints`), or coarse levels whose vertices are solved with
+ *  their attributes (`qem-attributes`). */
+export const SIMPLIFICATIONS = ['none', 'qem-endpoints', 'qem-attributes'] as const;
+export type Simplification = (typeof SIMPLIFICATIONS)[number];
+export function isSimplification(value: string): value is Simplification {
+  return (SIMPLIFICATIONS as readonly string[]).includes(value);
+}
+
 export interface PrepareOptions {
   resourceBaseUrl: string;
   executable?: string;
   threads?: number;
   ramBudgetMb?: number;
-  simplification?: 'none' | 'qem-endpoints';
+  simplification?: Simplification;
   signal?: AbortSignal;
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void;
 }
@@ -115,7 +124,7 @@ export interface BatchJob {
   triangles?: number;
   threads?: number;
   ramBudgetMb?: number;
-  simplification?: 'none' | 'qem-endpoints';
+  simplification?: Simplification;
 }
 
 export interface BatchOptions {

@@ -1,10 +1,37 @@
 use super::*;
 
-pub(super) fn cube_fixture() -> (PathBuf, Options) {
-    let root = scratch("fixture", "cube");
+/// Writes a one-file glTF scene and its sidecar under a throwaway root, with the manifest the
+/// compiler reads, and the options every fixture compiles with: one thread, endpoint
+/// simplification, a budget nothing here reaches.
+pub(super) fn gltf_fixture(
+    name: &str,
+    gltf: &Value,
+    bin: &[u8],
+    triangles: usize,
+) -> (PathBuf, Options) {
+    let root = scratch("fixture", name);
     let source = root.join("source");
     let cache = root.join("cache");
     fs::create_dir_all(&source).expect("source");
+    let gltf_bytes = serde_json::to_vec(gltf).expect("gltf");
+    fs::write(source.join(format!("{name}.gltf")), &gltf_bytes).expect("gltf write");
+    fs::write(source.join(format!("{name}.bin")), bin).expect("bin write");
+    fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":format!("{name}.gltf"),"sha256":hash(&gltf_bytes),"sidecars":[{"file":format!("{name}.bin"),"sha256":hash(bin)}],"trianglesAcrossNodes":triangles,"meshNodes":1}})).expect("manifest")).expect("manifest write");
+    let options = Options {
+        source,
+        cache,
+        resource_base: "/assets/".into(),
+        scope: "full".into(),
+        triangle_budget: 150000,
+        threads: 1,
+        ram_budget_mb: 64,
+        simplification: "qem-endpoints".into(),
+        cancelled: Arc::new(AtomicBool::new(false)),
+    };
+    (root, options)
+}
+
+pub(super) fn cube_fixture() -> (PathBuf, Options) {
     let mut bin = Vec::new();
     for value in [
         0f32, 0., 0., 1., 0., 0., 1., 1., 0., 0., 1., 0., 0., 0., 1., 1., 0., 1., 1., 1., 1., 0.,
@@ -19,24 +46,9 @@ pub(super) fn cube_fixture() -> (PathBuf, Options) {
         bin.extend_from_slice(&value.to_le_bytes());
     }
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"cube.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":96},{"buffer":0,"byteOffset":96,"byteLength":144}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":8},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":36}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("gltf");
-    fs::write(source.join("cube.gltf"), &gltf_bytes).expect("gltf write");
-    fs::write(source.join("cube.bin"), &bin).expect("bin write");
-    fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":"cube.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"cube.bin","sha256":hash(&bin)}],"trianglesAcrossNodes":12,"meshNodes":1}})).expect("manifest")).expect("manifest write");
-    let options = Options {
-        source,
-        cache,
-        resource_base: "/assets/".into(),
-        scope: "full".into(),
-        triangle_budget: 150000,
-        threads: 1,
-        ram_budget_mb: 64,
-        simplification: "qem-endpoints".into(),
-        cancelled: Arc::new(AtomicBool::new(false)),
-    };
-    (root, options)
+    gltf_fixture("cube", &gltf, &bin, 12)
 }
-const HALF_PI: f32 = std::f32::consts::FRAC_PI_2;
+pub(super) const HALF_PI: f32 = std::f32::consts::FRAC_PI_2;
 
 /// A sine built from additions, multiplications and divisions only (Bhaskara's approximation), so
 /// the fixture's vertices are bit-identical on every platform. `f32::sin` is not: each libm rounds
@@ -54,10 +66,6 @@ pub(super) fn portable_sin(t: f32) -> f32 {
 }
 
 pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (PathBuf, Options) {
-    let root = scratch("fixture", "grid");
-    let source = root.join("source");
-    let cache = root.join("cache");
-    fs::create_dir_all(&source).expect("source");
     let mut positions = Vec::new();
     for y in 0..=ny {
         for x in 0..=nx {
@@ -86,22 +94,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
     let pos_bytes = positions.len() * 4;
     let index_bytes = indices.len() * 4;
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"grid.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":pos_bytes},{"buffer":0,"byteOffset":pos_bytes,"byteLength":index_bytes}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":positions.len()/3},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":indices.len()}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("gltf");
-    fs::write(source.join("grid.gltf"), &gltf_bytes).expect("gltf");
-    fs::write(source.join("grid.bin"), &bin).expect("bin");
-    fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":"grid.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"grid.bin","sha256":hash(&bin)}],"trianglesAcrossNodes":indices.len()/3,"meshNodes":1}})).expect("manifest")).expect("manifest write");
-    let options = Options {
-        source,
-        cache,
-        resource_base: "/assets/".into(),
-        scope: "full".into(),
-        triangle_budget: 150000,
-        threads: 1,
-        ram_budget_mb: 64,
-        simplification: "qem-endpoints".into(),
-        cancelled: Arc::new(AtomicBool::new(false)),
-    };
-    (root, options)
+    gltf_fixture("grid", &gltf, &bin, indices.len() / 3)
 }
 pub(super) fn encode_glb(gltf: &Value, bin: &[u8]) -> Vec<u8> {
     let mut json = serde_json::to_vec(gltf).expect("json");
