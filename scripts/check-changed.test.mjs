@@ -33,3 +33,21 @@ test('selects a test when an imported source file was deleted', () => {
     'packages/sdk-core/index.test.ts',
   ]);
 });
+
+test('the public facade conservatively follows common, browser, and Node changes', () => {
+  const files = new Map([
+    ['test/integration/public.test.mjs', "import {api} from 'web-geometry';"],
+    ['packages/sdk/index.ts', "export {api} from './common/api.ts';"],
+    ['packages/sdk/browser.ts', "export {api} from './browser/api.ts';"],
+    ['packages/sdk/node.mts', "export {api} from './node/api.mts';"],
+    ['packages/sdk/common/api.ts', 'export const api = 1;'],
+    ['packages/sdk/browser/api.ts', 'export const api = 1;'],
+    ['packages/sdk/node/api.mts', 'export const api = 1;'],
+  ]);
+  for (const changed of [
+    'packages/sdk/common/api.ts',
+    'packages/sdk/browser/api.ts',
+    'packages/sdk/node/api.mts',
+  ])
+    assert.deepEqual(relatedTests(files, new Set([changed])), ['test/integration/public.test.mjs']);
+});
