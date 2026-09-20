@@ -22,9 +22,9 @@ test('showcase leads with a large observatory and exposes both live pilots', () 
 test('showcase remains above the unchanged searchable catalogue', () => {
   const html = render(Gallery, 'fr'),
     showcase = html.indexOf('data-gallery-showcase'),
-    filters = html.indexOf('Scènes à la une');
+    catalogueTabs = html.indexOf('role="tablist"');
   assert.ok(showcase >= 0);
-  assert.ok(filters > showcase);
+  assert.ok(catalogueTabs > showcase);
   assert.match(html, /91 352 triangles originaux/);
   assert.match(html, /Rechercher 663 sujets/);
 });
