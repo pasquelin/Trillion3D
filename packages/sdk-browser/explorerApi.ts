@@ -91,6 +91,7 @@ export function createExplorerApi(inputs: Inputs) {
       camera,
       canvas,
       renderer,
+      webglSurface: inputs.webglSurface,
       viewport,
       directGpu,
       options,

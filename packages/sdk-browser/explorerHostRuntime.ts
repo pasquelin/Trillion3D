@@ -73,6 +73,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     source,
     renderer,
+    webglSurface: resources.webglSurface,
     camera,
     geometryUrls,
   });
@@ -94,6 +95,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     scope,
     directGpu,
     renderer: renderer!,
+    webglSurface: resources.webglSurface,
     viewport,
     context,
     homeOffset,
