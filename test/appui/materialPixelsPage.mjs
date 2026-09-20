@@ -6,10 +6,20 @@
 // This module is SERVED to the harness page (mount `/test/`) and imported by its URL, since the
 // evaluated function is serialised and cannot reach a module of its own.
 import * as THREE from 'three';
-import { batisseur, cameraFace, engine, image, libere } from './preuveSceneCommune.mjs';
+import {
+  batisseur,
+  cameraFace,
+  engine,
+  image,
+  libere,
+  libereScene,
+} from './preuveSceneCommune.mjs';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 import { creer, appliquer } from '/mesure/pageTemoin.mjs';
-import { CLEAR_COLOR, SIZE, SUN, fixtures } from './materialFixtures.mjs';
+import { SIZE, SUN, fixtures } from './materialFixtures.mjs';
+
+/** Background the page and both engines clear to, so an uncovered pixel is one colour. */
+const CLEAR_COLOR = 0x2a303c;
 
 /** The witness renderer, configured as the explorer configures its own. */
 function witnessRenderer() {
@@ -36,23 +46,23 @@ function square(fixture) {
 
 /** The prepared scene of one fixture: its square, what stands behind it, and the sun when lit. */
 function sceneOf(fixture, sun) {
-  const bati = batisseur();
+  const builder = batisseur();
   const material = fixture.material();
   const mesh = new THREE.Mesh(square(fixture), material);
   if (fixture.back) mesh.rotation.y = Math.PI;
-  bati.source.add(mesh);
-  bati.ajoute(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
+  builder.source.add(mesh);
+  builder.ajoute(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
   if (fixture.behind !== undefined) {
     const back = new THREE.Mesh(
       new THREE.PlaneGeometry(4, 4),
       new THREE.MeshBasicMaterial({ color: fixture.behind }),
     );
     back.position.z = -1;
-    bati.source.add(back);
-    bati.ajoute(back, 'exact-clusters', 2);
+    builder.source.add(back);
+    builder.ajoute(back, 'exact-clusters', 2);
   }
-  if (fixture.lit) bati.source.add(sun);
-  return bati.fini();
+  if (fixture.lit) builder.source.add(sun);
+  return builder.fini();
 }
 
 /** RGB at `(x, y)` of a bottom-left RGBA image of `SIZE` columns. */
@@ -69,14 +79,13 @@ function witnessImage(referenceBackend, scene, renderer, camera) {
   const gl = renderer.getContext();
   gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
   backend.dispose();
-  for (const material of scene.materials) material.dispose();
+  libereScene(scene);
   return pixels;
 }
 
 /** The engine image of a prepared scene, held: rendered until `frameHeld`, eight frames at most. */
 async function engineImage(webgpuPagesBackend, scene, device, sceneLights, camera, events) {
   const { backend, canvas } = engine(webgpuPagesBackend, scene, device, (e) => events.push(e), {
-    viewport: [SIZE, SIZE],
     clearColor: CLEAR_COLOR,
     sceneLights,
   });
@@ -90,56 +99,72 @@ async function engineImage(webgpuPagesBackend, scene, device, sceneLights, camer
   }
 }
 
-/**
- * Runs every fixture on both engines. Returns, per fixture, the RGB read at each point on each
- * side, the engine's diagnostics, and both images as data URLs for the run folder.
- */
+/** One fixture on both engines: the readings at its points, the engine's diagnostics, both images. */
+async function compare(fixture, sides) {
+  const { referenceBackend, webgpuPagesBackend, device, renderer, canvas, camera, stores } = sides;
+  const events = [];
+  const witness = witnessImage(referenceBackend, sceneOf(fixture, sides.sun), renderer, camera);
+  const witnessUrl = canvas.toDataURL();
+  const scene = sceneOf(fixture, sides.sun);
+  const lights = fixture.lit ? stores.sun : stores.none;
+  const engineSide = await engineImage(webgpuPagesBackend, scene, device, lights, camera, events);
+  const { name, difference, reason, holds } = fixture;
+  return {
+    name,
+    difference,
+    reason,
+    holds,
+    held: engineSide.held,
+    events,
+    samples: fixture.points.map((point) => {
+      const a = rgbAt(witness, point),
+        b = rgbAt(engineSide.pixels, point);
+      return {
+        point,
+        witness: a,
+        engine: b,
+        gap: Math.max(...a.map((c, i) => Math.abs(c - b[i]))),
+      };
+    }),
+    images: { witness: witnessUrl, engine: engineSide.dataUrl },
+  };
+}
+
+/** Runs every fixture on both engines and returns their readings, or what stopped the run. */
 export async function run({ sdkUrl, coreUrl }) {
   const { referenceBackend, webgpuPagesBackend } = await import(sdkUrl);
   const { createSceneLightStore } = await import(coreUrl);
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { unavailable: 'no WebGPU adapter' };
-  const { device, erreurs: errors } = appareil;
+  const gpu = await ouvrirAppareil();
+  if (!gpu) return { unavailable: 'no WebGPU adapter' };
+  const { device, erreurs: errors } = gpu;
   const { renderer, canvas } = witnessRenderer();
+  // The sun of the witness and the stores of the engine, built once: a light added to another
+  // scene moves there, and an unlit fixture reads the empty store.
+  const sun = creer(SUN);
+  appliquer(sun, SUN, 0);
+  const stores = { none: createSceneLightStore(), sun: createSceneLightStore() };
+  stores.sun.add(SUN);
   const camera = cameraFace();
+  const sides = {
+    referenceBackend,
+    webgpuPagesBackend,
+    device,
+    renderer,
+    canvas,
+    camera,
+    sun,
+    stores,
+  };
   const results = [];
+  let error = null;
   try {
-    for (const fixture of fixtures) {
-      const sun = creer(SUN);
-      appliquer(sun, SUN, 0);
-      const sceneLights = createSceneLightStore();
-      if (fixture.lit) sceneLights.add(SUN);
-      const events = [];
-      const witness = witnessImage(referenceBackend, sceneOf(fixture, sun), renderer, camera);
-      const witnessUrl = canvas.toDataURL();
-      const engineSide = await engineImage(
-        webgpuPagesBackend,
-        sceneOf(fixture, sun),
-        device,
-        sceneLights,
-        camera,
-        events,
-      );
-      results.push({
-        name: fixture.name,
-        tolerance: fixture.tolerance,
-        reason: fixture.reason,
-        held: engineSide.held,
-        events,
-        samples: fixture.points.map((point) => ({
-          point,
-          witness: rgbAt(witness, point),
-          engine: rgbAt(engineSide.pixels, point),
-        })),
-        images: { witness: witnessUrl, engine: engineSide.dataUrl },
-      });
-    }
-  } catch (error) {
-    return { error: String(error) + (error?.stack ?? ''), results, errors };
+    for (const fixture of fixtures) results.push(await compare(fixture, sides));
+  } catch (failure) {
+    error = String(failure) + (failure?.stack ?? '');
   } finally {
     renderer.dispose();
     canvas.remove();
   }
-  const info = await appareil.fermer();
-  return { results, errors, gpu: info.court, userAgent: navigator.userAgent };
+  const info = await gpu.fermer();
+  return { error, results, errors, gpu: info.court, userAgent: navigator.userAgent };
 }

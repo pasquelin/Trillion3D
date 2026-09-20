@@ -6,12 +6,10 @@
 // This module is SERVED to the harness page and imported by its URL: the materials are built
 // in the page, with the `three` of its import map, the one the SDK under `dist/` also loads.
 import * as THREE from 'three';
+import { VIEWPORT } from './preuveSceneCommune.mjs';
 
-/** Viewport of every fixture, in pixels: a square, so one camera serves them all. */
-export const SIZE = 96;
-
-/** Background the harness page and the engines clear to, so an uncovered pixel is one colour. */
-export const CLEAR_COLOR = 0x2a303c;
+/** Side of the square viewport every fixture is rendered in, in pixels. */
+export const [SIZE] = VIEWPORT;
 
 /** The one declared light of the lit fixtures: a sun above and in front of the square. */
 export const SUN = {
@@ -23,8 +21,8 @@ export const SUN = {
   castsShadow: false,
 };
 
-/** Tolerance of two engines that quantise the same 8-bit value: one step per channel. */
-const QUANTISATION = { tolerance: 1, reason: 'same value, two 8-bit roundings' };
+/** Two engines that quantise the same value: at most one 8-bit step apart, per channel. */
+const QUANTISATION = { difference: [0, 1], reason: 'same value, two 8-bit roundings' };
 
 /** Points inside the square, away from its edges: the centre and the four quadrant centres. */
 const CENTRE = [SIZE >> 1, SIZE >> 1];
@@ -55,28 +53,20 @@ function quadrantImage(texels) {
 }
 
 /** A texture the two engines read the same way: nearest, unrepeated, in the declared space. */
-function texture(image, colorSpace = THREE.NoColorSpace) {
-  const map = new THREE.CanvasTexture(image);
+function texture(texels, colorSpace = THREE.NoColorSpace) {
+  const map = new THREE.CanvasTexture(quadrantImage(texels));
   map.colorSpace = colorSpace;
   map.magFilter = map.minFilter = THREE.NearestFilter;
   map.generateMipmaps = false;
   map.flipY = false;
-  map.needsUpdate = true;
   return map;
 }
 
 /** A base-colour map of four quadrants, in sRGB like every base colour. */
-const quadrantMap = (texels) => texture(quadrantImage(texels), THREE.SRGBColorSpace);
+const colourMap = (texels) => texture(texels, THREE.SRGBColorSpace);
 
 /** A constant tangent-space normal, tilted toward +x, +y: a flat square that shades as a slope. */
-function tiltedNormalImage() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 1;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgb(160,210,230)';
-  ctx.fillRect(0, 0, 1, 1);
-  return canvas;
-}
+const TILTED_NORMAL = Array.from({ length: 4 }, () => [160, 210, 230, 255]);
 
 /** An unlit fixture: a basic material, read within one level unless `extra` says otherwise. */
 const unlit = (name, params, extra = {}) => ({
@@ -104,14 +94,15 @@ const BLEND = () => ({ color: 0xff2020, transparent: true, opacity: 0.5 });
  * Each fixture: `material()` builds it in the page; `lit` declares the sun on both sides;
  * `back` turns the square away from the camera; `behind` puts an opaque square of that colour
  * behind it; `holds: false` excuses the engine from publishing a held frame; `points` are read
- * on both images and must agree within `tolerance` per channel, for the `reason` given.
+ * on both images, and the largest channel gap at each must fall within `difference`, for the
+ * `reason` given.
  */
 export const fixtures = [
   unlit('base colour', () => ({ color: 0x993322 })),
   unlit(
     'base colour map',
     () => ({
-      map: quadrantMap([
+      map: colourMap([
         [255, 0, 0, 255],
         [0, 255, 0, 255],
         [0, 0, 255, 255],
@@ -125,7 +116,7 @@ export const fixtures = [
   unlit(
     'alpha mask at cutoff',
     () => ({
-      map: quadrantMap([
+      map: colourMap([
         [255, 255, 255, 128],
         [255, 255, 255, 127],
         [255, 255, 255, 127],
@@ -135,17 +126,19 @@ export const fixtures = [
     }),
     { points: QUADRANTS },
   ),
-  // A scene made only of blend clusters publishes no held frame: without an opaque row the
-  // partition never runs, and the occluder history it would establish stays missing (#198).
-  // The image is nonetheless still after the first frames, and is read there.
+  // The engine composes a blend surface over the display background in display space, as the
+  // witness does: the two agree to the level. A scene made only of blend clusters publishes no
+  // held frame — without an opaque row the partition never runs, and the occluder history it
+  // would establish stays missing (#198) — but the image is still after the first frames.
   unlit('blend over the background', BLEND, { holds: false }),
-  // Declared in `docs/SDK.md` § Separated surfaces and lighting: the engine blends in linear
-  // radiance and encodes at composition, the witness blends the encoded output. On this pair —
-  // red at half opacity over blue — the two spaces are 45 levels apart (measured, 20 Sept.
-  // 2026); an opaque or fully transparent square lies more than twice as far.
+  // Between two drawn surfaces the engine blends in linear radiance and encodes at composition
+  // (`docs/SDK.md` § Separated surfaces and lighting); the witness blends the encoded output.
+  // On this pair — red at half opacity over blue — the two spaces are 45 levels apart, and that
+  // gap is what is held: a display-space blend, an opaque or a fully transparent square, or
+  // another opacity, all leave the window.
   unlit('blend over an opaque surface', BLEND, {
     behind: 0x2244aa,
-    tolerance: 46,
+    difference: [44, 46],
     reason: 'linear blend before the display encode, display-space blend in the witness',
   }),
   unlit('double-sided back face', () => ({ color: 0x2299cc, side: THREE.DoubleSide }), {
@@ -162,7 +155,7 @@ export const fixtures = [
   lit('emissive', () => ({ color: 0x111111, roughness: 1, emissive: 0x881100 })),
   lit(
     'normal map',
-    () => ({ color: 0x808080, roughness: 0.8, normalMap: texture(tiltedNormalImage()) }),
+    () => ({ color: 0x808080, roughness: 0.8, normalMap: texture(TILTED_NORMAL) }),
     { tangents: true },
   ),
 ];
