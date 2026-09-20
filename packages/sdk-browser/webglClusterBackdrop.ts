@@ -79,13 +79,13 @@ export class WebglClusterBackdrop {
     this.savedScissor = gl.isEnabled(gl.SCISSOR_TEST);
     const width = Math.max(1, this.savedViewport[2]),
       height = Math.max(1, this.savedViewport[3]);
-    this.resize(width, height);
-    // The program's samplers still name the two copies, from the previous frame or from their
-    // creation: drawing into them while they are bound would be a feedback loop, refused by
-    // the context.
-    gl.activeTexture(gl.TEXTURE0 + colorUnit);
-    gl.bindTexture(gl.TEXTURE_2D, null);
+    // Created on the depth unit, so no material unit is disturbed; then both units are
+    // released: the program's samplers still name the two copies, from the previous frame or
+    // from their creation, and drawing into a bound texture is a feedback loop the context refuses.
     gl.activeTexture(gl.TEXTURE0 + depthUnit);
+    this.resize(width, height);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.activeTexture(gl.TEXTURE0 + colorUnit);
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
     gl.disable(gl.SCISSOR_TEST);
