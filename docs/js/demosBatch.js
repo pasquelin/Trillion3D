@@ -55,17 +55,15 @@ export const BATCH_DEMOS = {
       let m = 0;
       for (let i = 0; i < count; i++) {
         if (!kept[i]) continue;
-        centres[m * POSITION_VALUES] = spheres[i * SPHERE_VALUES];
-        centres[m * POSITION_VALUES + 1] = spheres[i * SPHERE_VALUES + 1];
-        centres[m * POSITION_VALUES + 2] = spheres[i * SPHERE_VALUES + 2];
-        m++;
+        const at = i * SPHERE_VALUES;
+        centres.set(spheres.subarray(at, at + POSITION_VALUES), m++ * POSITION_VALUES);
       }
       transformPointsBatch(viewCentres, frame.view, centres, m);
       let disagreements = 0;
       for (let i = 0; i < count; i++) {
         const at = i * BOX_VALUES;
         const excluded = frustumExcludesBox(frame.planes, ...boxes.subarray(at, at + BOX_VALUES));
-        if (kept[i] === (excluded ? 1 : 0)) disagreements++;
+        if (kept[i] !== (excluded ? 0 : 1)) disagreements++;
       }
       return [
         valueView('cull, then transform the survivors: two calls, no allocation between them', [
