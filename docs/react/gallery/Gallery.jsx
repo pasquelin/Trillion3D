@@ -3,8 +3,8 @@ import roadmap from '../../data/gallery-roadmap.json';
 import { Alert, Field } from '../components/UI.jsx';
 import { examples } from '../../js/gallery/catalog.js';
 import { engineExample, ExampleCard } from './ExampleCard.jsx';
-import { PlannedCard } from './PlannedCard.jsx';
 import { themeOf, themes } from './roadmapThemes.js';
+import { Pagination } from '../components/Pagination.jsx';
 import { ThemeTabs } from './ThemeTabs.jsx';
 
 const PAGE_SIZE = 24;
@@ -88,40 +88,20 @@ export function Gallery({ locale = 'en' }) {
         {french ? 'leçons prêtes dans toute la galerie' : 'ready lessons in the full gallery'}
       </p>
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {visible.map((entry) =>
-          entry.status === 'ready' ? (
-            <ExampleCard key={entry.id} example={entry} locale={locale} />
-          ) : (
-            <PlannedCard
-              key={entry.id}
-              entry={entry}
-              locale={locale}
-              expanded={expanded === entry.id}
-              onOpen={(id) => setExpanded((value) => (value === id ? '' : id))}
-            />
-          ),
-        )}
+        {visible.map((entry) => (
+          <ExampleCard
+            key={entry.id}
+            example={entry}
+            locale={locale}
+            expanded={expanded === entry.id}
+            onOpen={(id) => setExpanded((value) => (value === id ? '' : id))}
+          />
+        ))}
       </div>
       {!entries.length && (
         <Alert tone="info">{french ? 'Aucun sujet trouvé.' : 'No topics found.'}</Alert>
       )}
-      {pages > 1 && (
-        <div className="join flex justify-center mt-6">
-          <button className="join-item btn" disabled={page <= 0} onClick={() => setPage(page - 1)}>
-            ←
-          </button>
-          <span className="join-item btn pointer-events-none">
-            {Math.min(page, pages - 1) + 1} / {pages}
-          </span>
-          <button
-            className="join-item btn"
-            disabled={page >= pages - 1}
-            onClick={() => setPage(page + 1)}
-          >
-            →
-          </button>
-        </div>
-      )}
+      <Pagination page={page} pages={pages} onChange={setPage} locale={locale} />
     </section>
   );
 }
