@@ -1,7 +1,7 @@
 import { Button } from './UI.jsx';
 
 export function Canvas({ label, className = '', canvasRef, actions = [], ...props }) {
-  return (
+  const contents = (
     <>
       <canvas
         ref={canvasRef}
@@ -26,5 +26,10 @@ export function Canvas({ label, className = '', canvasRef, actions = [], ...prop
         </div>
       )}
     </>
+  );
+  return actions.length ? (
+    <div className="engine-canvas-frame relative min-w-0">{contents}</div>
+  ) : (
+    contents
   );
 }

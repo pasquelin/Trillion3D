@@ -1,3 +1,4 @@
+import { lessonCode } from './lessonCode.js';
 function change(lesson, state) {
   if (lesson.mode === 'dolly')
     return `pose.position = pose.target.map((value, index) => value + (pose.position[index] - value) * ${state.distance});`;
@@ -11,15 +12,8 @@ pose.position = [pose.target[0] + Math.sin(angle) * radius, pose.position[1], po
 }
 
 export function cameraLessonCode(lesson, state) {
-  return `import { createExplorer, webgpuPagesBackend } from './engine.js';
-
-const explorer = await createExplorer(canvas, {
-  manifestUrl: './assets/kinetic-garden/cache/native/full/manifest.json',
-  scope: 'full', backends: [webgpuPagesBackend],
-});
-const pose = explorer.homePose();
-${change(lesson, state)}
-explorer.setPose(pose);
-explorer.render();
-// Call explorer.dispose() when the view is removed.`;
+  return lessonCode(
+    `const pose = explorer.homePose();\n${change(lesson, state)}\nexplorer.setPose(pose);`,
+    { importedLights: true },
+  );
 }

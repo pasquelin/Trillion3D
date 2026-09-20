@@ -1,3 +1,6 @@
+import { lessonCode } from './lessonCode.js';
+import { lightingLessonCode } from './lightingLessonCode.js';
+import { cameraLessonCode } from './cameraLessonCode.js';
 const line = (lesson, state) => {
   if (lesson.kind === 'point')
     return `explorer.addLight({ id: 'lesson', kind: 'point', position: [0, 4, 2], color: [1, 0.72, 0.42], intensity: ${state.intensity}, range: ${state.range}, emitterRadius: 0.1, castsShadow: true });`;
@@ -14,17 +17,10 @@ explorer.setEnvironment({ exposure: ${state.exposure} });`;
 };
 
 export function rendererCodeFor(lesson, state) {
-  return `import { createExplorer, webgpuPagesBackend } from './engine.js';
-
-const explorer = await createExplorer(canvas, {
-  manifestUrl: './assets/kinetic-garden/cache/native/full/manifest.json',
-  scope: 'full',
-  backends: [webgpuPagesBackend],
-  importedLights: false,
-  geometryPoolBytes: 16 * 1024 * 1024,
-  geometryPoolCeilingBytes: 64 * 1024 * 1024,
-});
-${line(lesson, state)}
-explorer.render();
-// Call explorer.dispose() when the view is removed.`;
+  if (lesson.kind === 'offline') return lessonCode('', { manifest: lesson.manifest });
+  if (lesson.runtime === 'advanced-lighting') return lightingLessonCode(lesson, state);
+  if (lesson.runtime === 'camera-pose') return cameraLessonCode(lesson, state);
+  return lessonCode(line(lesson, state), {
+    importedLights: ['lod', 'memory'].includes(lesson.kind),
+  });
 }

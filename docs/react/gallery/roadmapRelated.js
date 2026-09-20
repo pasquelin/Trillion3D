@@ -1,3 +1,4 @@
+import { offlineExamples } from '../../js/gallery/offline/catalog.js';
 const matches = [
   [/quaternion/, 'quaternion-turn'],
   [/normal/, 'normal-transform'],
@@ -17,6 +18,8 @@ const matches = [
 ];
 
 export function relatedReadyLesson(entry) {
+  const offline = offlineExamples.find((lesson) => lesson.referenceIds.includes(entry.id));
+  if (offline) return offline.id;
   const searchable = `${entry.id} ${entry.subject} ${entry.supplementaryTopic} ${entry.title.en}`;
   return matches.find(([pattern]) => pattern.test(searchable))?.[1];
 }
