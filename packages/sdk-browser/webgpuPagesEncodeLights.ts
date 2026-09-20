@@ -59,6 +59,7 @@ export function encodeDirectLights(
     lights.shadowRegions = 0;
     lights.pagesByFrame[pagesSlot] = 0;
   }
+  lights.shadowPagesTotal += lights.shadowPages;
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height, active);
