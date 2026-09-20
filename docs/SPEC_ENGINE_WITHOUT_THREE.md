@@ -91,6 +91,13 @@ of the same file yield the same bytes. Criterion: null diff between two runs.
 R1. **Zero Three.js dependency** in `sdk-browser`. Own math (matrices, quaternions, frustum, rays)
 shared with the compiler via wasm where parity matters (screen error, picking).
 
+The WebGL2 migration starts with an engine-owned surface: the engine creates the context with its
+declared attributes, owns drawing-buffer size and DPR, observes loss and restoration, and releases
+the context on disposal. During this foundation stage, the Three scene renderer receives that
+already-owned context as a temporary draw adapter. Cluster programs, composition targets, captures,
+and observation meshes move to engine resources in the following stages; this stage does not claim
+their removal or a performance gain.
+
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
 reread from `git log` rather than copied here. The rule in force is the closed list held by
