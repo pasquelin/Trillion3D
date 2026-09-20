@@ -1,5 +1,5 @@
 // The slice buffer carries, per face, which physical pages are drawn: a strip that entered a
-// slid window is stale until its draw, and the read must fall through it to the next cascade.
+// slid extent is stale until its draw, and the read must fall through it to the next cascade.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -61,7 +61,7 @@ test('a strip refused by a full region cap stays undrawn in the mask, and the sl
   writeDrawnMasks(lights, flushed, 0);
   const slice = lights.store.sliceOf(0);
   // Stale the top row of the near cascade without drawing it: the regions are already taken.
-  lights.plan.slices.dirty.setWindow(slice, 0, 0, 0);
+  lights.plan.slices.dirty.setExtent(slice, 0, 0, 0);
   lights.plan.slices.dirty.slide(slice, 0, 8, 0, -1, 16, 1);
   assert.equal(writeDrawnMasks(lights, flushed, 0), 1);
   assert.equal(flushed[0], slice);

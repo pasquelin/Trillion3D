@@ -5,13 +5,13 @@ import { createShadowSlicePack, wrapKey } from './gpuShadowSlicePack.ts';
 
 const STRIDE = 256;
 
-test('a slid region translates the draw matrix by whole pages and leaves the slice the window matrix', () => {
+test('a slid region translates the draw matrix by whole pages and leaves the slice the extent matrix', () => {
   const pack = createShadowSlicePack(4096, STRIDE);
   const matrices = new Float32Array(16);
   for (let i = 0; i < 16; i++) matrices[i] = i + 1;
   const rects = new Int32Array(RECTS_PER_SLICE);
   rects[2] = 1024;
-  // Window page (0, 0) at physical page (3, 5): shift by 3/8 and 5/8 of the face, in clip units.
+  // Extent page (0, 0) at physical page (3, 5): shift by 3/8 and 5/8 of the face, in clip units.
   pack.writeRegion(
     0,
     0,
@@ -27,7 +27,7 @@ test('a slid region translates the draw matrix by whole pages and leaves the sli
   );
   const uniform = pack.facePacked.subarray(0, 16),
     slice = pack.slicePacked.subarray(0, 16);
-  assert.deepEqual(Array.from(slice), Array.from(matrices), 'the read keeps the window matrix');
+  assert.deepEqual(Array.from(slice), Array.from(matrices), 'the read keeps the extent matrix');
   assert.equal(uniform[12], matrices[12] + 0.75);
   assert.equal(uniform[13], matrices[13] - 1.25);
   for (let i = 0; i < 16; i++) if (i !== 12 && i !== 13) assert.equal(uniform[i], matrices[i]);

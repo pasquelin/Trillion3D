@@ -1,19 +1,19 @@
 import type { ShadowDirty } from './sceneLightShadowDirty.ts';
 
 /** Fields of a region: light, slice, face, its physical page rectangle, bounds included, then
- *  the page translation from window to physical, `x` and `y`. */
+ *  the page translation from extent to physical, `x` and `y`. */
 const FIELDS = 9;
 
 /**
  * Regions of the frame: rectangles of contiguous physical pages to redraw, one indirect call
- * each, with the whole-page translation the draw applies to the window matrix so that each
- * window page lands on its physical page.
+ * each, with the whole-page translation the draw applies to the extent matrix so that each
+ * extent page lands on its physical page.
  *
  * Identical page rows group together — a fully stale face therefore yields **one** region and
  * a single call, exactly as before this batch. A partially stale row yields the smallest
  * rectangle that covers it: a clean page redrawn on the way keeps the same depth, since it is
  * the whole scene that is redrawn in the scissor. A rectangle that straddles the seam of a
- * slid cascade — the physical column or row where the window wraps — is cut there, since the
+ * slid cascade — the physical column or row where the extent wraps — is cut there, since the
  * two sides carry two different translations.
  */
 export function createShadowRegions(capacity: number) {
@@ -24,7 +24,7 @@ export function createShadowRegions(capacity: number) {
   /** Last physical page before the seam, on one axis: a span starting at `p0` stops there. */
   const seamEnd = (wrap: number, p0: number, p1: number) =>
     p0 < wrap && wrap <= p1 ? wrap - 1 : p1;
-  /** Translation from window page to physical page of the span that starts at `p0`. */
+  /** Translation from extent page to physical page of the span that starts at `p0`. */
   const shiftOf = (rows: number, wrap: number, p0: number) => (p0 < wrap ? wrap - rows : wrap);
   return {
     capacity,

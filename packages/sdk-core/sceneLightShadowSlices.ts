@@ -4,13 +4,13 @@ import { createShadowDirty } from './sceneLightShadowDirty.ts';
 
 /** Rectangles of a slice: `(x, y, side)` per face, six faces reserved for every slice. */
 export const RECTS_PER_SLICE = POINT_FACES * 3;
-/** Key of a cascade window: page origin, depth anchor and radius. Four numbers, not one more. */
+/** Key of a cascade extent: page origin, depth anchor and radius. Four numbers, not one more. */
 const CASCADE_KEY = 4;
 /** Verdicts of `cascadeSlide`: the map is kept, slides by whole pages, or restarts whole. */
 const CASCADE_SAME = 0;
 export const CASCADE_SLIDE = 1,
   CASCADE_WHOLE = 2;
-/** What a cascade window slid by, in pages, after a `CASCADE_SLIDE` verdict. */
+/** What a cascade extent slid by, in pages, after a `CASCADE_SLIDE` verdict. */
 export const cascadeShift = { x: 0, y: 0 };
 
 /**
@@ -107,11 +107,11 @@ export function createShadowSliceTable() {
       drawn[slice] = 1;
     },
     /**
-     * Compares a cascade's window with the one its map describes, and records the new one.
+     * Compares a cascade's extent with the one its map describes, and records the new one.
      * A cascade follows the camera, but its map is addressed by absolute page: as long as
      * the origin, anchor and radius are the same, every texel is worth what it was; a move by
      * whole pages keeps the pages that stay inside and only the entering strip restarts
-     * (`cascadeShift` says by how much); a move of a window side or more, a new anchor along
+     * (`cascadeShift` says by how much); a move of an extent side or more, a new anchor along
      * the axis or a new radius describe another world and the cascade redraws in full.
      */
     cascadeSlide(
