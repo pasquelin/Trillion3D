@@ -7,7 +7,15 @@ export function resolveSdkImports(code, sdkUrl) {
     enter(node) {
       if (node.name !== 'String') return;
       const parent = node.node.parent?.name;
-      if (!['ImportDeclaration', 'ExportDeclaration', 'DynamicImport'].includes(parent)) return;
+      let previous = node.node.prevSibling;
+      while (previous && ['BlockComment', 'LineComment'].includes(previous.name))
+        previous = previous.prevSibling;
+      const token = previous?.name;
+      const isSource =
+        (parent === 'ImportDeclaration' && ['import', 'from'].includes(token)) ||
+        (parent === 'ExportDeclaration' && token === 'from') ||
+        (parent === 'DynamicImport' && token === '(');
+      if (!isSource) return;
       const literal = code.slice(node.from, node.to);
       if (literal !== "'./js/engine.js'" && literal !== '"./js/engine.js"') return;
       replacements.push({ from: node.from, to: node.to });
