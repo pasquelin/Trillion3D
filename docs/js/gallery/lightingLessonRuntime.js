@@ -26,25 +26,38 @@ export function applyLightingLesson(explorer, lesson, state, session) {
     upsert(explorer, session, point('cool', [3, 3, 2], [0.12, 0.4, 1], state.cool));
   }
   if (lesson.kind === 'moving-point')
-    upsert(explorer, session, point('moving', [state.x, 4, 2], [1, 0.8, 0.55], 3));
+    upsert(
+      explorer,
+      session,
+      point('moving', [state.x, 4, 2], [1, 0.8, 0.55], LESSON_POINT_INTENSITY),
+    );
   if (lesson.kind === 'shadow-switch')
     upsert(
       explorer,
       session,
-      point('switch', [0, 4, 2], [1, 0.8, 0.55], 3, { castsShadow: state.shadow === 1 }),
+      point('switch', [0, 4, 2], [1, 0.8, 0.55], LESSON_POINT_INTENSITY, {
+        castsShadow: state.shadow === 1,
+      }),
     );
   if (lesson.kind === 'emitter-radius')
     upsert(
       explorer,
       session,
-      point('envelope', [0, 4, 2], [1, 0.8, 0.55], 3, { emitterRadius: state.radius }),
+      point('envelope', [0, 4, 2], [1, 0.8, 0.55], LESSON_POINT_INTENSITY, {
+        emitterRadius: state.radius,
+      }),
     );
   if (lesson.kind === 'light-lifecycle') {
     if (state.enabled === 1)
-      upsert(explorer, session, point('lifecycle', [0, 4, 2], [1, 0.8, 0.55], 3));
+      upsert(
+        explorer,
+        session,
+        point('lifecycle', [0, 4, 2], [1, 0.8, 0.55], LESSON_POINT_INTENSITY),
+      );
     else if (session.ids.delete('lifecycle')) explorer.removeLight('lifecycle');
     explorer.setLightingView('lit');
   }
 }
 
 export const createLightingLessonSession = () => ({ ids: new Set() });
+import { LESSON_POINT_INTENSITY } from './lightingLessonDefinitions.js';

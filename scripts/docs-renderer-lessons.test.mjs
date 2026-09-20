@@ -22,7 +22,7 @@ function recorder() {
 }
 
 test('each renderer lesson reaches its documented public engine operation', async () => {
-  for (const lesson of rendererLessons) {
+  for (const lesson of rendererLessons.filter((item) => !item.runtime && item.kind !== 'offline')) {
     const { calls, explorer } = recorder();
     await applyRendererLesson(explorer, lesson, rendererInitialState(lesson), { value: false });
     assert.ok(

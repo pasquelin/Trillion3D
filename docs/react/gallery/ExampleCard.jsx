@@ -1,20 +1,10 @@
-import { Card } from '../components/UI.jsx';
+import { Alert, Card } from '../components/UI.jsx';
 import { CodeBlock } from '../components/CodeBlock.jsx';
 import { routeHref } from '../../js/portal/routes.js';
 import { GeometryPreview } from './WebGPUCanvas.jsx';
 import { planCode } from './roadmapPlan.js';
 import { relatedReadyLesson } from './roadmapRelated.js';
-
-const categories = {
-  transforms: { en: 'Transforms', fr: 'Transformations' },
-  camera: { en: 'Camera', fr: 'Caméra' },
-  vectors: { en: 'Vectors', fr: 'Vecteurs' },
-  bounds: { en: 'Bounds', fr: 'Volumes' },
-  scene: { en: 'Scene', fr: 'Scène' },
-  color: { en: 'Color', fr: 'Couleur' },
-  streaming: { en: 'Streaming', fr: 'Streaming' },
-  lighting: { en: 'Lighting', fr: 'Éclairage' },
-};
+import { themeLabel, themeOf } from './roadmapThemes.js';
 const local = (value, locale) => value[locale === 'fr' ? 'fr' : 'en'];
 
 export const engineExample = {
@@ -54,7 +44,7 @@ function Preview({ example, locale, title }) {
     return (
       <img
         className="h-full w-full object-cover"
-        src="./assets/kinetic-garden/preview.png"
+        src={example.preview ?? './assets/kinetic-garden/preview.png'}
         alt={locale === 'fr' ? 'Aperçu de la scène WebGPU' : 'WebGPU scene preview'}
       />
     );
@@ -80,7 +70,7 @@ function CardSummary({ example, locale, title, description, arrow = false }) {
             ? french
               ? 'Scène moteur'
               : 'Engine scene'
-            : local(categories[example.category], locale)}
+            : themeLabel(themeOf(example), locale)}
       </span>
       <h2 className="card-title text-lg">{title}</h2>
       <p className="text-sm opacity-75 grow">{description}</p>
@@ -98,11 +88,11 @@ function PlannedDetails({ example, locale }) {
     related = relatedReadyLesson(example);
   return (
     <>
-      <div className="alert alert-soft alert-warning">
+      <Alert tone="warning">
         <span>
           <strong>{french ? 'Pourquoi :' : 'Why:'}</strong> {local(example.reason, locale)}
         </span>
-      </div>
+      </Alert>
       <CodeBlock
         locale={locale}
         label={french ? 'Plan non exécutable' : 'Non-runnable plan'}

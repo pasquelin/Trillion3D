@@ -1,3 +1,6 @@
+import { lightingLessonDefinitions, LESSON_POINT_INTENSITY } from './lightingLessonDefinitions.js';
+import { cameraLessonDefinitions } from './cameraLessonDefinitions.js';
+import { offlineLessons } from './offline/lessons.js';
 const title = (en, fr) => ({ en, fr });
 const control = (id, en, fr, min, max, value, step) => ({
   id,
@@ -19,7 +22,7 @@ export const rendererLessons = [
       'Déplacez la limite exacte où une lumière ponctuelle cesse d’éclairer.',
     ),
     controls: [
-      control('intensity', 'Intensity', 'Intensité', 0.2, 8, 3, 0.1),
+      control('intensity', 'Intensity', 'Intensité', 5, 160, LESSON_POINT_INTENSITY, 5),
       control('range', 'Range', 'Portée', 1, 12, 6, 0.1),
     ],
     kind: 'point',
@@ -42,7 +45,7 @@ export const rendererLessons = [
       'Ouvrez le cône réel d’un projecteur dirigé vers la sculpture.',
     ),
     controls: [
-      control('intensity', 'Intensity', 'Intensité', 0.2, 10, 4, 0.1),
+      control('intensity', 'Intensity', 'Intensité', 5, 200, 100, 5),
       control('cone', 'Half-angle', 'Demi-angle', 8, 55, 28, 1),
     ],
     kind: 'spot',
@@ -129,6 +132,9 @@ export const rendererLessons = [
       'Le moteur publie l’allocation acceptée après bornage.',
     ),
   },
+  ...lightingLessonDefinitions,
+  ...cameraLessonDefinitions,
+  ...offlineLessons,
 ].map((lesson) => ({ ...lesson, renderer: true }));
 
 export const rendererLessonById = (id) => rendererLessons.find((lesson) => lesson.id === id);

@@ -7,6 +7,8 @@ const range = (id, en, fr, min, max, value, step) => ({
   value,
   step,
 });
+export const LESSON_POINT_INTENSITY = 80;
+export const LESSON_COLORED_INTENSITY = 60;
 
 export const lightingLessonDefinitions = [
   {
@@ -19,8 +21,8 @@ export const lightingLessonDefinitions = [
       'Mélangez des radiances chaude et froide sur les mêmes surfaces.',
     ),
     controls: [
-      range('warm', 'Warm lamp', 'Lampe chaude', 0.1, 8, 3, 0.1),
-      range('cool', 'Cool lamp', 'Lampe froide', 0.1, 8, 3, 0.1),
+      range('warm', 'Warm lamp', 'Lampe chaude', 5, 160, LESSON_COLORED_INTENSITY, 5),
+      range('cool', 'Cool lamp', 'Lampe froide', 5, 160, LESSON_COLORED_INTENSITY, 5),
     ],
     try: text(
       'Turn one lamp down, then balance both.',
