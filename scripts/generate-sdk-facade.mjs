@@ -96,9 +96,9 @@ await write(
 await write('packages/sdk/index.ts', "export * from './common/index.ts';\n");
 
 const entryLabel = {
-  core: '@web-geometry/sdk, @web-geometry/sdk/core',
-  browser: '@web-geometry/sdk/browser',
-  node: '@web-geometry/sdk/node',
+  core: 'web-geometry (common)',
+  browser: 'web-geometry (browser condition)',
+  node: 'web-geometry (node condition)',
 };
 const inventory = rows.map((row) => ({
   name: row.name,

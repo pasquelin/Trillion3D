@@ -7,6 +7,7 @@ import { setupClusterBatches } from './clusterBatchSetup.ts';
 import { everyGroup } from './clusterBatchLayers.ts';
 import { updateClusterBatches } from './clusterBatchUpdate.ts';
 import { WebglClusterOwner } from './webglClusterOwner.ts';
+import { drawClusterBatches } from './webglClusterBatchDraw.ts';
 export { IndexRangeAllocator, DrawRanges } from './clusterBatchRange.ts';
 export type { BatchPage } from './clusterBatchRange.ts';
 
@@ -37,6 +38,7 @@ export class ClusterBatches {
   private attributeBytes = 0;
   private indexCapacityBytes = 0;
   private renderer: WebglClusterOwner | undefined;
+  private diagnosticMeshes: THREE.Mesh[] = [];
   private stats: ClusterBatchStats = {
     drawCalls: 0,
     subDraws: 0,
@@ -64,7 +66,6 @@ export class ClusterBatches {
     for (const page of pages) if (page.array) this.acceptPage([page], page.array);
     this.stats.allocationBytes = this.indexCapacityBytes + this.attributeBytes;
   }
-
   get metrics(): Readonly<ClusterBatchStats> {
     return this.stats;
   }
@@ -76,7 +77,6 @@ export class ClusterBatches {
     for (let i = 0; i < this.primitives.length; i++) bytes += this.primitives[i].array.byteLength;
     return bytes;
   }
-
   /** Writes the range of a page that became resident. No other part of the buffer is touched.
    *  A request may carry a streaming packet: each record has then already received its own
    *  view at its offset in that packet, and it is that view — not the packet — that is written. */
@@ -94,7 +94,6 @@ export class ClusterBatches {
       this.stats.indexBytesWritten += slice.byteLength;
     }
   }
-
   dropPage(recs: readonly BatchPage[]) {
     for (const rec of recs) {
       const group = this.groups[rec.renderOrder];
@@ -104,7 +103,6 @@ export class ClusterBatches {
       group.primitive.free(urlIndex);
     }
   }
-
   markUrls(pages: readonly BatchPage[], stamp: number, into: string[]) {
     for (let i = 0; i < pages.length; i++) {
       const rec = pages[i];
@@ -121,7 +119,6 @@ export class ClusterBatches {
     }
     return into;
   }
-
   update(display: readonly BatchPage[]) {
     this.stats.cpuSubmitMs = null;
     const state = {
@@ -141,22 +138,26 @@ export class ClusterBatches {
     this.active = state.active;
     this.touched = state.touched;
   }
-
+  setDiagnosticMeshes(meshes: THREE.Mesh[]) {
+    this.diagnosticMeshes = meshes;
+  }
   draw(
     camera: import('./cameraWorld.ts').HostDrawCamera,
     toneMapped: boolean,
     srgbDestination: boolean,
   ) {
     if (!this.renderer) return;
-    this.scene.updateMatrixWorld();
-    const meshes: import('./clusterBatchMesh.ts').ClusterDrawMesh[] = [];
-    for (const group of this.active) if (group.mesh) meshes.push(group.mesh);
-    const start = performance.now();
-    const submitted = this.renderer.draw(meshes, this.scene, camera, toneMapped, srgbDestination);
-    this.stats.cpuSubmitMs = performance.now() - start;
-    this.stats.autonomousClusterDrawsTotal += submitted;
+    drawClusterBatches(
+      this.renderer,
+      this.active,
+      this.diagnosticMeshes,
+      this.scene,
+      camera,
+      toneMapped,
+      srgbDestination,
+      this.stats,
+    );
   }
-
   hideAll() {
     const active = this.active;
     for (let i = 0; i < active.length; i++) {
@@ -171,7 +172,6 @@ export class ClusterBatches {
     this.stats.subDraws = 0;
     this.stats.submittedTriangles = 0;
   }
-
   dispose() {
     this.renderer?.dispose();
     this.renderer = undefined;
