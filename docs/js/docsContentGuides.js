@@ -200,7 +200,7 @@ const explorer = await createExplorer('viewer', {
   maxTextureTransferBytesPerFrame: 16 * 1024 * 1024, // tile bytes per frame (default)
   stageProfile: true,
 });
-const metrics = explorer.render(pose);
+const metrics = explorer.render();
 console.log(metrics.textureTilesRequested, metrics.textureTilesDeferred); // asked, pushed to next frame
 console.log(metrics.textureUploadPeakMs); // worst pass since the start: a stutter is a peak
 const textures = explorer.stageProfile().stages.find((stage) => stage.stage === 'textures');
