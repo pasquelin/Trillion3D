@@ -1,0 +1,108 @@
+import * as THREE from 'three';
+import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
+import { createWebgpuBlendState } from './webgpuBlendState.ts';
+import { VOLUME_WORDS } from './webgpuTransmission.ts';
+import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
+import { orderBlendPasses } from './webgpuBlendOrder.ts';
+import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
+
+/** What the water-pass tests share: a scene of three transparent copies, one of which transmits,
+ *  prepared and planned as `prepareBlendResources` does, and the frame targets of a replay. */
+installGpuGlobals();
+const buffer = () => ({ size: 0 }) as unknown as GPUBuffer;
+export const device = {
+  createBuffer: () => buffer(),
+  createBindGroup: () => ({}),
+  queue: { writeBuffer: () => {} },
+} as unknown as GPUDevice;
+
+/** One triangle per mesh: only the material class distinguishes the three copies. */
+function copy(material: THREE.Material, order: number) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3),
+  );
+  geometry.setIndex([0, 1, 2]);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.matrixAutoUpdate = false;
+  mesh.renderOrder = order;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+function eau(transmission: number) {
+  return Object.assign(
+    new THREE.MeshPhysicalMaterial({ transparent: true, opacity: 0.6, side: THREE.FrontSide }),
+    {
+      transmission,
+      ior: 1.33,
+      thickness: 2.5,
+      attenuationDistance: 6,
+      attenuationColor: new THREE.Color(0.35, 0.72, 0.68),
+    },
+  );
+}
+
+export function prepared() {
+  const blendState = createWebgpuBlendState();
+  const gpu = {
+    positionBuffers: new Map(),
+    blendIndexBuffers: new Map(),
+    blendUvBuffers: new Map(),
+    blendNormalBuffers: new Map(),
+    vertexBytes: 0,
+    volumeBuffer: buffer(),
+  } as unknown as WebgpuGpuState;
+  const copies = [
+    copy(new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.4 }), 0),
+    copy(eau(1), 1),
+    copy(new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.2 }), 2),
+  ];
+  blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new THREE.Scene());
+  // The scene's transparent list IS the draw list: static tables and the encode plan are built with
+  // it, as `prepareBlendResources` does.
+  buildBlendStatics(blendState);
+  refreshBlendPlan(blendState);
+  // The image sort posts the keys, the frustum verdict and the slices the pass encodes.
+  // The three copies are at the same place: their keys are equal, and source order splits them.
+  orderBlendPasses(blendState, [0, 0, 0]);
+  blendState.visibleBlend.push(...blendState.blendGpu);
+  blendState.volumePacked = new Float32Array(blendState.blendGpu.length * VOLUME_WORDS);
+  blendState.argsBuffer = buffer();
+  blendState.viewBuffer = buffer();
+  return { blendState, gpu };
+}
+
+/** Frame targets of the replay: the HDR image, the opaque depth, and the water pass's own. */
+export function targets(gpu: WebgpuGpuState) {
+  const placeholder = () => ({});
+  Object.assign(gpu, {
+    hdrView: {},
+    colorView: {},
+    depthView: {},
+    targetSize: [8, 8],
+    hdrTexture: {},
+    depthTexture: {},
+    feedbackView: {},
+    backdrop: {
+      color: {},
+      depth: {},
+      colorView: {},
+      depthView: {},
+      surfaces: { views: () => [{}, {}, {}, {}] },
+      waterDepth: {},
+      waterDepthView: {},
+      active: true,
+    },
+    deferred: {
+      placeholders: Object.fromEntries(
+        ['slices', 'atlasView', 'sampler', 'bounceGrid', 'probes', 'tiles', 'proxy'].map((k) => [
+          k,
+          placeholder(),
+        ]),
+      ),
+    },
+  });
+}

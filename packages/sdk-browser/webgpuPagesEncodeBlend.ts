@@ -6,7 +6,7 @@ import { selectWebgpuBlend } from './webgpuBlendSelection.ts';
 import { orderBlendPasses, orderVisibleBlend } from './webgpuBlendOrder.ts';
 import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './webgpuBlendFallback.ts';
 import { encodeTransparentInstances } from './webgpuTransparentDraw.ts';
-import { copyBackdrop } from './webgpuTransmission.ts';
+import { encodeWaterPass } from './webgpuWaterPass.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
@@ -25,6 +25,7 @@ export function encodeBlend(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   uniformBase: number,
+  inverseViewProjection?: ArrayLike<number>,
 ) {
   const { gpu, vis, run, timing, blendState, diag } = rt;
   if (
@@ -84,10 +85,12 @@ export function encodeBlend(
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
-  // Transmission comes after blends, on a frozen backdrop: the two copies split the two passes, so
-  // no transmissive surface reads a half-composed image.
-  if (blendState.transmissive && copyBackdrop(rt, encoder))
-    drawBlendPass(rt, device, encoder, true);
+  // Water comes after blends, on a frozen backdrop: the copy splits the two, so no transmissive
+  // surface reads a half-composed image. Without the pass — a diagnostic variant measuring the
+  // blend stage, or a frame with no inverse projection — the slice draws as one more blend.
+  const composed =
+    !!inverseViewProjection && encodeWaterPass(rt, device, encoder, inverseViewProjection);
+  if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
   timing.transparentEncodeMs += finished - cpuStart;
@@ -151,7 +154,7 @@ export function encodeSurfaceLighting(
   );
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
-  encodeBlend(rt, device, encoder, uniformBase);
+  encodeBlend(rt, device, encoder, uniformBase, inverseViewProj);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
   // image as-is when this image does not accumulate.
   const composed = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);

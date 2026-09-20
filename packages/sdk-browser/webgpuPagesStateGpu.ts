@@ -54,7 +54,7 @@ export interface WebgpuGpuState {
   nextPositionId: number;
   uniformBuffer: GPUBuffer | undefined;
   uniformPacked: Float32Array<ArrayBuffer>;
-  /** glTF volume of a transparent item per entry, read at a dynamic offset like the uniform. */
+  /** glTF volume of a transparent item per entry, read by rank in the water composite. */
   volumeBuffer: GPUBuffer | undefined;
   bindGroups: Map<number, GPUBindGroup>;
   clusterRgbCache: Map<string, [number, number, number]>;
@@ -67,12 +67,16 @@ export interface WebgpuGpuState {
   temporal: TemporalAntialiasing | undefined;
 }
 
-/** The two copies the transmission pass reads, and their views. */
+/** The two copies the water pass reads, the surfaces and the depth its surface stage writes, and
+ *  their views (`webgpuTransmission.ts`). */
 export interface TransmissionBackdrop {
   color: GPUTexture;
   colorView: GPUTextureView;
   depth: GPUTexture;
   depthView: GPUTextureView;
+  surfaces: SurfaceBuffer;
+  waterDepth: GPUTexture;
+  waterDepthView: GPUTextureView;
   /** True when the copies are at the target size and the copy is worth it. */
   active: boolean;
 }

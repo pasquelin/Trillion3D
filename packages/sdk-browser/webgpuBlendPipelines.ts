@@ -3,7 +3,8 @@ import { FEEDBACK_FORMAT } from './surfaceBuffer.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
-import { VOLUME_SIZE } from './webgpuTransmission.ts';
+import { WATER_SURFACE_WGSL } from './webgpuWaterSurfaceWgsl.ts';
+import { createWaterPass } from './webgpuWaterPass.ts';
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
@@ -11,7 +12,8 @@ import {
 } from './diagnosticGpuVariant.ts';
 import { DEPTH_COMPARE } from './depthConvention.ts';
 
-/** Builds the forward-material pipelines for transparent draws. */
+/** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
+ *  that transmits. */
 export async function createWebgpuBlendPipelines(
   device: GPUDevice,
   items: BlendGpuItem[],
@@ -63,25 +65,16 @@ export async function createWebgpuBlendPipelines(
       // stay with deferred resolve, which can write. It is the eighth and last storage binding of
       // this fragment stage, the one the spec still guarantees.
       { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      {
-        binding: b.volume,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: VOLUME_SIZE },
-      },
-      {
-        binding: b.backdrop,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float', viewDimension: '2d' },
-      },
-      {
-        binding: b.backdropDepth,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'depth', viewDimension: '2d' },
-      },
     ],
   });
+  // The water surface stage is compiled only for a scene that transmits: the others run exactly
+  // the previous module.
+  const transmissive = items.some((item) => item.transmissive);
   const blendModule = device.createShaderModule({
-    code: variant ? BLEND_SHADER + DIAGNOSTIC_BLEND_WGSL : BLEND_SHADER,
+    code:
+      BLEND_SHADER +
+      (transmissive ? WATER_SURFACE_WGSL : '') +
+      (variant ? DIAGNOSTIC_BLEND_WGSL : ''),
   });
   const makeBlend = (cullMode: GPUCullMode) => {
     const descriptor: GPURenderPipelineDescriptor = {
@@ -119,5 +112,17 @@ export async function createWebgpuBlendPipelines(
   const pipelineBlendTextured = await makeBlend('none'),
     pipelineBlendFront = await makeBlend('front'),
     pipelineBlendBack = await makeBlend('back');
-  return { blendBindGroupLayout, pipelineBlendTextured, pipelineBlendFront, pipelineBlendBack };
+  // The water pass shares the module and the layout: under a diagnostic variant the transmission
+  // slice draws as one more blend, so the variant measures the same fragment stage on all of it.
+  const water =
+    transmissive && !variant
+      ? await createWaterPass(device, blendModule, blendBindGroupLayout, items.length)
+      : undefined;
+  return {
+    blendBindGroupLayout,
+    pipelineBlendTextured,
+    pipelineBlendFront,
+    pipelineBlendBack,
+    water,
+  };
 }

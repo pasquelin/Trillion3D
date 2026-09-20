@@ -6,6 +6,7 @@ import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentOcclusion } from './gpuTransparentOcclusion.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
 import type { BlendExpand } from './webgpuBlendExpand.ts';
+import type { WaterPass } from './webgpuWaterPass.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 
 export type BlendGpuItem = {
@@ -84,8 +85,11 @@ export function createWebgpuBlendState() {
     /** How many transparent items transmit: zero means no background copy is allocated or encoded,
      *  and the transmission pass does not exist of the frame. */
     transmissive: 0,
-    /** Volume of each item of the draw list, at uniform write. */
+    /** Volume of each item of the draw list, at record write. */
     volumePacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
+    /** The water pass — surface pipelines and composite — of a scene that transmits, mounted with
+     *  the blend pipelines; absent, the transmission slice draws as a blend (`webgpuWaterPass.ts`). */
+    water: undefined as WaterPass | undefined,
     /** Per-catalogue-entry cluster identity, and the mode it was written for. */
     clusterIdentity: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     diagnosticMode: undefined as DiagnosticMode | undefined,
