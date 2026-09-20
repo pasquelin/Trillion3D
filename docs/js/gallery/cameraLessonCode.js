@@ -14,6 +14,11 @@ pose.position = [pose.target[0] + Math.sin(angle) * radius, pose.position[1], po
 export function cameraLessonCode(lesson, state) {
   return lessonCode(
     `const pose = explorer.homePose();\n${change(lesson, state)}\nexplorer.setPose(pose);`,
-    { importedLights: true },
+    {
+      manifest: lesson.manifest,
+      importedLights: lesson.importedLights,
+      sceneLight: lesson.sceneLight,
+      sceneFill: lesson.sceneFill,
+    },
   );
 }

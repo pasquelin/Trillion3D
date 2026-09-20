@@ -49,6 +49,8 @@ test('the embedded preview and its code share the published scene contract', asy
   const example = renderToStaticMarkup(createElement(EngineExample, { locale: 'fr' }));
   assert.match(preview, /data-engine-scene/);
   assert.match(preview, /data-scene-canvas/);
+  assert.match(preview, /data-scene-loading/);
+  assert.doesNotMatch(preview, /<img/);
   assert.match(preview, /Préparation de la scène/);
   assert.match(preview, /background-color:#0e1621/);
   assert.equal(SCENE_BACKGROUND.packed, 0x0e1621);
@@ -69,6 +71,10 @@ test('garden snippets execute the ID startup contract and invalidate diagnostic 
       invalidated = false,
       listener;
     const explorer = {
+      addLight(light) {
+        assert.equal(light.id, 'scene-fill');
+        assert.equal(light.castsShadow, false);
+      },
       dispose() {
         disposed = true;
       },
