@@ -6,6 +6,10 @@
 export interface ShadowFrameMetrics {
   /** `SceneLight` contract lights that the frame lit. Null on an engine that ignores them. */
   lightsActive?: number | null;
+  /** True when this frame drew a subset of each pixel's lights — a moving image that temporal
+   *  antialiasing accumulates, at most `samplesPerPixel` shaded per pixel —, false when it
+   *  shaded every light, as a still image does. Null on an engine that ignores the lights. */
+  lightsSampled?: boolean | null;
   /** Shadow slices redrawn by this frame, at most the scheduler's published ceiling.
    *  Zero is the normal value of a still scene: a fixed light keeps its slice. */
   shadowsUpdated?: number | null;
