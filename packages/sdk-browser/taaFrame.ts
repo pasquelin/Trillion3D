@@ -71,8 +71,9 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   // A convergence image remakes the last ordinary image, it does not accumulate it further.
   if (rt.run.textureConverging) quiet = temporal.replay();
   else {
-    // A moving image draws its lights from a rank of its own; a still one shades them all.
-    state.sampledRank = quiet ? 0 : (rt.run.frame % SAMPLED_RANKS) + 1;
+    // A moving image draws its lights from a rank of its own; a still one shades them all, and
+    // so does a moving one with no history yet — nothing would average its draws.
+    state.sampledRank = quiet || !state.hasHistory ? 0 : (rt.run.frame % SAMPLED_RANKS) + 1;
     temporal.checkpoint(quiet);
   }
   if (!quiet) state.stillFrames = 0;
@@ -166,9 +167,8 @@ export function dropTaaHistory(rt: WebgpuPagesRuntime) {
 
 /**
  * Rank of this image among those whose lighting is SAMPLED — a moving image that
- * accumulates, whose noise the history averages out —, or zero: a still image shades every
- * light and converges to the exact sum, and an image that does not accumulate must never be
- * noisy.
+ * accumulates on a history, which averages its draws —, or zero: a still image shades every
+ * light and converges to the exact sum, and an image nothing averages must never be noisy.
  */
 export function taaSampledRank(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;

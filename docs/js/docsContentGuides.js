@@ -83,7 +83,7 @@ export const EXAMPLES = [
     description:
       'Declare a ring of shadowed lamps, read the sampling budget, and tell a converged still image from a moving one.',
     html: `<p>Every declared light is culled per 16×16 screen tile (<code>lightSettings.maxLightsPerTile</code> of them kept). What a pixel does with its tile's list depends on the image: a <strong>moving</strong> image that temporal antialiasing accumulates weighs every light without its shadow — the cheap part — and shades in full only <code>lightSettings.samplesPerPixel</code> (4) of them, the shadow read included: a light worth a sample's share is shaded exactly, the rest are drawn in proportion to their weight and divided by their probability, so the history averages an unbiased estimate. A <strong>still</strong> image shades every light of the tile and converges to the exact sum over its sixteen accumulated frames, then holds: two runs give the same image to the bit.</p>
-<p>What a host observes: <code>explorer.lightSettings</code> publishes the budgets; <code>metrics().lightsSampled</code> is <code>true</code> on a frame that drew a subset and <code>false</code> on one that shaded every light; <code>metrics().frameHeld</code> says the still image has converged; <code>stageProfile()</code> carries the lighting resolve stage. The declared cost is a faint grain on lit surfaces while the camera moves, measured in the pull request that shipped it; the gain, on a moving camera over thirty-two shadowed lamps reaching one pixel, is a GPU envelope of 39.9 → 17.9 ms at 2496×1404. The <a class="link link-primary" href="#/en/playground/many-lights-sampling">ring lesson</a> shows it live.</p>`,
+<p>What a host observes: <code>explorer.lightSettings</code> publishes the budgets; <code>metrics().lightsSampled</code> is <code>true</code> on a frame whose resolve ran in its sampled mode — a pixel with more lights than samples drew a subset — and <code>false</code> on one where every pixel shaded every light; <code>metrics().frameHeld</code> says the still image has converged; <code>stageProfile()</code> carries the lighting resolve stage. The declared cost is a faint grain on lit surfaces while the camera moves, measured in the pull request that shipped it; the gain, on a moving camera over thirty-two shadowed lamps reaching one pixel, is a GPU envelope of 39.9 → 17.9 ms at 2496×1404. The <a class="link link-primary" href="#/en/playground/many-lights-sampling">ring lesson</a> shows it live.</p>`,
     example: `const { maxLightsPerTile, samplesPerPixel } = explorer.lightSettings; // 32 per tile, 4 shaded per moving pixel
 for (let i = 0; i < 12; i++) {
   const angle = (i / 12) * Math.PI * 2;
@@ -94,7 +94,7 @@ for (let i = 0; i < 12; i++) {
   });
 }
 const metrics = explorer.render();
-// While the camera moves: lightsSampled === true, at most samplesPerPixel lamps shaded per pixel.
+// While the camera moves on a history: lightsSampled === true, at most samplesPerPixel lamps shaded per pixel.
 // Once still and converged: lightsSampled === false, frameHeld === true — the exact image, held.
 console.log(metrics.lightsSampled, metrics.frameHeld, metrics.lightsActive);`,
   },
