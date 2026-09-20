@@ -20,6 +20,15 @@ function upsert(explorer, session, light) {
   }
 }
 
+/** The ring lesson's lamps: `count` of them, evenly spaced above the terrain, colours in turn. */
+export function ringLamps(count) {
+  return Array.from({ length: count }, (_, i) => {
+    const angle = (i / count) * Math.PI * 2;
+    const position = [Math.cos(angle) * 2.2, 1.4, Math.sin(angle) * 2.2].map((v) => +v.toFixed(2));
+    return { id: `ring-${i}`, position, color: LESSON_RING_COLORS[i % 2] };
+  });
+}
+
 export function applyLightingLesson(explorer, lesson, state, session) {
   if (lesson.kind === 'color-balance') {
     upsert(explorer, session, point('warm', [-3, 3, 2], [1, 0.35, 0.12], state.warm));
@@ -48,6 +57,15 @@ export function applyLightingLesson(explorer, lesson, state, session) {
         emitterRadius: state.radius,
       }),
     );
+  if (lesson.kind === 'many-lights') {
+    for (const lamp of ringLamps(state.count))
+      upsert(explorer, session, point(lamp.id, lamp.position, lamp.color, LESSON_RING_INTENSITY));
+    for (const id of [...session.ids])
+      if (id.startsWith('ring-') && Number(id.slice(5)) >= state.count) {
+        session.ids.delete(id);
+        explorer.removeLight(id);
+      }
+  }
   if (lesson.kind === 'light-lifecycle') {
     if (state.enabled === 1)
       upsert(
@@ -61,4 +79,8 @@ export function applyLightingLesson(explorer, lesson, state, session) {
 }
 
 export const createLightingLessonSession = () => ({ ids: new Set() });
-import { LESSON_POINT_INTENSITY } from './lightingLessonDefinitions.js';
+import {
+  LESSON_POINT_INTENSITY,
+  LESSON_RING_COLORS,
+  LESSON_RING_INTENSITY,
+} from './lightingLessonDefinitions.js';
