@@ -95,6 +95,9 @@ export type {
 } from './pageDecodeContracts.ts';
 export * from './oracles.ts';
 export * from './mathIndex.ts';
+export { SCENE_MODEL_VERSION, SceneNode, type SceneNodeOptions } from './sceneNode.ts';
+export type { SceneState } from './sceneNodeContracts.ts';
+export { SceneRoot, createSceneRoot } from './sceneRoot.ts';
 export { compareImages } from './compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */

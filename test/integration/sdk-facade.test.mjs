@@ -82,7 +82,7 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory = JSON.parse(
     await readFile(new URL('../../docs/api-inventory.json', import.meta.url)),
   );
-  assert.equal(inventory.exports.length, 469);
+  assert.equal(inventory.exports.length, 475);
   assert.deepEqual(inventory.collisions, []);
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes(process.cwd())));
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes('file://')));
@@ -133,7 +133,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')));
   assert.equal(baseline.outputFiles[0].contents.length, 5_245);
   assert.equal(proposed.outputFiles[0].contents.length, 1_780);
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_289);
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_292);
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   );

@@ -1,8 +1,13 @@
 import {
   HIERARCHY_ROOT,
+  createSceneRoot,
   hierarchyUpdateBatch,
   type CameraPose,
   type JobSnapshot,
+  type SceneNode,
+  type SceneNodeOptions,
+  type SceneRoot,
+  type SceneState,
   type TransportOptions,
   type TransportResult,
 } from 'web-geometry';
@@ -19,8 +24,18 @@ export const transportOptions: TransportOptions = {
   onProgress: (progress) => progress.completed / progress.total,
 };
 export const transportIterations = (result: TransportResult) => result.iterations;
+const sceneOptions: SceneNodeOptions = { id: 'typed-root' };
+const scene: SceneRoot = createSceneRoot(sceneOptions);
+const child: SceneNode = scene.createNode({ id: 'typed-child' });
+export const sceneRootOf = (state: SceneState) => state.root;
 
 // @ts-expect-error Camera vectors have exactly three coordinates.
 const invalidPose: CameraPose = { ...home, position: [0, 1] };
 
-export const commonContract = { HIERARCHY_ROOT, hierarchyUpdateBatch, invalidPose };
+export const commonContract = {
+  HIERARCHY_ROOT,
+  child,
+  hierarchyUpdateBatch,
+  invalidPose,
+  scene,
+};
