@@ -4,7 +4,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { INT_COUNT, INT_LEVEL } from '../../packages/sdk-core/manifestBinaryFormat.ts';
 import { readManifestColumns } from '../../packages/sdk-core/manifestBinaryRead.ts';
-import { sceneDerived } from './scene.mjs';
 
 const shaOf = (id) =>
   String(id)
@@ -92,15 +91,6 @@ export function analyseFile(coupePath, derived) {
   if (!ids.length) return null;
   const { index, names } = loadIndex(derived);
   return analyseCut(ids, index, names);
-}
-
-/** Derived directory of a reading side, or `null`. */
-export function derivedFromReading(mesurePath, side = 'apres') {
-  if (!mesurePath || !existsSync(mesurePath)) return null;
-  const m = JSON.parse(readFileSync(mesurePath, 'utf8'));
-  return (
-    m.sides?.[side]?.cache ?? m.sides?.apres?.cache ?? (m.scene ? sceneDerived(m.scene) : null)
-  );
 }
 
 /** The .coupe.txt next to a reading PNG, relative to the scene folder. */

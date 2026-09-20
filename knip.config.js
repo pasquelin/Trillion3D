@@ -43,11 +43,9 @@ export default {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // `scripts/build-wasm.mjs` queries the Rust toolchain installed by rustup, not an npm package;
-  // `sips` is the macOS image tool called by the global report for its JPEGs.
-  // Loaded by Tailwind's CSS @plugin directive, through the JavaScript build adapter.
+  // Rust is a platform tool; DaisyUI is loaded by Tailwind.
   ignoreDependencies: ['daisyui'],
-  ignoreBinaries: ['rustc', 'sips'],
+  ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
   ignoreUnresolved: ['/mesure/poses.mjs', '/__wg-fixture/drawRun.mjs'],
 };
