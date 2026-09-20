@@ -124,9 +124,9 @@ test('negative scale and shear, with no vertex normal or map: the geometric norm
 
 // perf(socle) 61bff6e4: the three normal-map components (`mapN`) no longer go through a
 // literal array, allocated at every shaded pixel of a surface that carries a map. `shadingNormal`
-// always returns `frameOut`, the same module buffer (documented at the top of the file: “no
-// allocation, [...] returned in one of them”); checking that on many chained calls, each with a
-// normal map and different frames, is the same method as the “allocation” test of
+// always returns `frameOut`, the same view on the module's frame buffer (documented at the top of
+// the file: “no allocation, [...] returned as a view on it”); checking that on many chained calls,
+// each with a normal map and different frames, is the same method as the “allocation” test of
 // `mathTransformTreeUpdate.test.ts`: the identity of the returned buffer, not an allocation
 // count, attests that no buffer is built along the way.
 test('normal-mapped surface: a thousand shaded pixels in a row always return the same buffer', () => {
