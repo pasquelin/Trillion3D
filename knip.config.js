@@ -8,6 +8,8 @@ export default {
     'packages/sdk-browser/pageDecodeWorker.ts',
     'packages/sdk-browser/pageIntegrationWorker.ts',
     'packages/sdk-node/{index,cli}.mts',
+    'packages/sdk/{index,browser,node}.{ts,mts}',
+    'scripts/generate-sdk-facade.mjs',
     'packages/page-codec/geometryPage.mjs',
     'packages/**/*.test.{ts,mjs}',
     'scripts/*.mjs',

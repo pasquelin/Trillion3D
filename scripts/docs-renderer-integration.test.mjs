@@ -34,7 +34,10 @@ test('live renderer lessons use diverse original scenes and matching captures', 
   assert.equal(live.length, 15);
   assert.equal(new Set(live.map(({ manifest }) => manifest)).size, live.length);
   for (const lesson of live) {
-    assert.match(lesson.manifest, /^\.\/assets\/(gallery\/offline|kinetic-garden)\//);
+    assert.match(
+      lesson.manifest,
+      /^\.\/assets\/(gallery\/(offline|shadow-theatre)|kinetic-garden)\//,
+    );
     assert.equal(lesson.preview, `./assets/gallery/renderer/${lesson.id}.png`);
   }
 });
@@ -63,6 +66,44 @@ test('renderer badges link only to documented API entries', () => {
   assert.doesNotMatch(light, /#\/en\/api\/addLight/);
   assert.match(light, />addLight<\/code>/);
   assert.match(render('offline-prism'), /#\/en\/api\/createExplorer/);
+});
+
+test('the shadow switch uses its original theatre and keeps direct light in both states', async () => {
+  const lesson = rendererLessons.find(({ id }) => id === 'shadow-casting-switch'),
+    pointer = JSON.parse(
+      await readFile(new URL(`../docs/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
+    ),
+    manifest = JSON.parse(
+      await readFile(
+        new URL(
+          `../docs/${lesson.manifest.slice(2).replace('manifest.json', pointer.url)}`,
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
+  assert.equal(manifest.sourceTriangles, 26_313);
+  assert.equal(lesson.sceneFill, false);
+  assert.deepEqual(lesson.referenceReview.urls, [
+    'https://threejs.org/examples/webgl_shadowmap.html',
+  ]);
+  const on = rendererCodeFor(lesson, { shadow: 1 }),
+    off = rendererCodeFor(lesson, { shadow: 0 });
+  assert.match(on, /intensity: 1800.*castsShadow: true/);
+  assert.match(off, /intensity: 1800.*castsShadow: false/);
+  const markup = renderToStaticMarkup(createElement(Playground, { id: lesson.id, locale: 'en' }));
+  assert.match(markup, /type="checkbox"[^>]*aria-label="Cast shadow"/);
+  assert.match(markup, /Cast shadow: Enabled/);
+  assert.match(markup, /aria-busy="true"[^>]*class="[^"]*invisible/);
+  const [onCapture, offCapture] = await Promise.all([
+    readFile(
+      new URL('../docs/assets/gallery/proofs/shadow-casting-switch-on.png', import.meta.url),
+    ),
+    readFile(
+      new URL('../docs/assets/gallery/proofs/shadow-casting-switch-off.png', import.meta.url),
+    ),
+  ]);
+  assert.notDeepEqual(onCapture, offCapture);
 });
 
 test('partial reference topics link to qualified original offline lessons', () => {
