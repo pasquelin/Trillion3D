@@ -59,3 +59,46 @@ test('the embedded preview and its code share the published scene contract', asy
   assert.match(example, /scene-stats/);
   assert.match(example, /data-scene-guide/);
 });
+
+test('garden snippets execute the ID startup contract and invalidate diagnostic edits', async () => {
+  for (const [code, diagnostic] of [
+    [engineExampleCode, false],
+    [engineDiagnosticsCode, true],
+  ]) {
+    let disposed = false,
+      invalidated = false,
+      listener;
+    const explorer = {
+      dispose() {
+        disposed = true;
+      },
+      setDiagnostic(mode) {
+        assert.equal(mode, 'clusters');
+      },
+      invalidate() {
+        invalidated = true;
+      },
+    };
+    const createExplorer = async (target, options) => {
+      assert.equal(target, 'garden');
+      assert.equal(options.interactive, true);
+      assert.equal(options.scope, 'full');
+      return explorer;
+    };
+    const body = code.replace(/^import[^\n]+\n/, '');
+    await new (Object.getPrototypeOf(async function () {}).constructor)(
+      'createExplorer',
+      'window',
+      body,
+    )(createExplorer, {
+      addEventListener(event, callback) {
+        assert.equal(event, 'pagehide');
+        listener = callback;
+      },
+    });
+    assert.equal(invalidated, diagnostic);
+    assert.equal(disposed, false);
+    listener();
+    assert.equal(disposed, true);
+  }
+});

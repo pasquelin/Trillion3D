@@ -1,3 +1,4 @@
+import { startupGarden } from '../appui/explorerStartupGarden.mjs';
 import { startupSite } from '../appui/explorerStartupSite.mjs';
 import { startupTargets } from '../appui/explorerStartupTargets.mjs';
 // Standalone public startup proof using an original repository fixture and system Chrome.
@@ -143,6 +144,8 @@ try {
   );
   assert.deepEqual(diagnostics, []);
   await startupSite(page, `http://127.0.0.1:${server.address().port}`, out);
+  await startupGarden(page, `http://127.0.0.1:${server.address().port}`, out);
+  assert.deepEqual(errors, []);
   const result = {
     commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     opened,
