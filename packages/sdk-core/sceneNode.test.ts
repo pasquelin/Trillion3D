@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SCENE_MODEL_VERSION } from './sceneNode.ts';
+import { SCENE_MODEL_VERSION, type SceneNode } from './sceneNode.ts';
 import { createSceneRoot } from './sceneRoot.ts';
 
 const hasCode = (code: string) => (error: unknown) => (error as { code?: string }).code === code;
@@ -38,6 +38,17 @@ test('remove and clear detach live children, reparent rejects cycles and other r
   assert.equal(b.parent, null);
 });
 
+test('children cannot be mutated through the public JavaScript value', () => {
+  const root = createSceneRoot();
+  const parent = root.createNode({ id: 'parent' });
+  const child = root.createNode({ id: 'child' });
+  parent.add(child);
+  const exposed = parent.children as SceneNode[];
+  assert.throws(() => exposed.pop(), TypeError);
+  assert.deepEqual(parent.children, [child]);
+  assert.equal(child.parent, parent);
+});
+
 test('clone and copy preserve values and optionally reproduce independent descendants', () => {
   const root = createSceneRoot();
   const source = root.createNode({ id: 'source', visible: false }).setScale(2, 3, 4);
@@ -53,6 +64,20 @@ test('clone and copy preserve values and optionally reproduce independent descen
   assert.deepEqual([...deep.worldMatrix], [...source.worldMatrix]);
   deep.children[0].setScale(9, 8, 7).updateWorldMatrix();
   assert.notDeepEqual([...deep.children[0].worldMatrix], [...source.children[0].worldMatrix]);
+});
+
+test('recursive copy refuses ancestor into descendant before changing either node', () => {
+  const root = createSceneRoot();
+  const source = root.createNode({ id: 'source', visible: false }).setScale(2, 3, 4);
+  const target = root.createNode({ id: 'target' }).setPosition(5, 6, 7);
+  source.add(target);
+  const before = [...target.localMatrix];
+  assert.throws(() => target.copy(source, true), hasCode('SCENE_COPY_OVERLAP'));
+  assert.equal(target.visible, true);
+  assert.deepEqual([...target.localMatrix], before);
+  assert.equal(target.parent, source);
+  assert.deepEqual(source.children, [target]);
+  assert.equal(target.children.length, 0);
 });
 
 test('duplicate ids and destroyed handles fail with named errors', () => {
@@ -87,4 +112,23 @@ test('generated ids skip explicit identifiers and invalid ids are rejected', () 
     () => root.createNode({ visible: 'yes' as unknown as boolean }),
     hasCode('INVALID_SCENE_NODE_VISIBILITY'),
   );
+});
+
+test('invalid creation visibility does not consume an id or transform slot', () => {
+  const root = createSceneRoot({ id: 'root' });
+  assert.throws(
+    () => root.createNode({ visible: 'yes' as unknown as boolean }),
+    hasCode('INVALID_SCENE_NODE_VISIBILITY'),
+  );
+  const afterFailure = root.createNode();
+  assert.equal(afterFailure.id, 'node-1');
+  assert.equal(afterFailure.index, 1);
+});
+
+test('visible rejects non-boolean values without changing node state', () => {
+  const afterFailure = createSceneRoot().createNode();
+  assert.throws(() => {
+    afterFailure.visible = 'yes' as unknown as boolean;
+  }, hasCode('INVALID_SCENE_NODE_VISIBILITY'));
+  assert.equal(afterFailure.visible, true);
 });
