@@ -1,22 +1,11 @@
 {
   "commit": "da99b71ec7c3c503f20cd91c3ccc65e4ffd9079d",
-  "resolution": [
-    1600,
-    1040
-  ],
+  "resolution": [1600, 1040],
   "dpr": 2,
   "temporalAntialiasing": false,
   "camera": {
-    "position": [
-      19,
-      13,
-      22
-    ],
-    "target": [
-      0,
-      3,
-      0
-    ]
+    "position": [19, 13, 22],
+    "target": [0, 3, 0]
   },
   "geometryPoolBytes": 16777216,
   "sourceTriangles": 91352,
@@ -29,10 +18,7 @@
       "difference": 0,
       "restoredDifference": 0,
       "stillDifference": 0,
-      "size": [
-        1600,
-        1040
-      ],
+      "size": [1600, 1040],
       "backend": "webgpu-page-raster"
     },
     {
@@ -43,10 +29,7 @@
       "difference": 41668,
       "restoredDifference": 0,
       "stillDifference": 0,
-      "size": [
-        1600,
-        1040
-      ],
+      "size": [1600, 1040],
       "backend": "webgpu-page-raster"
     },
     {
@@ -57,10 +40,7 @@
       "difference": 34561,
       "restoredDifference": 0,
       "stillDifference": 0,
-      "size": [
-        1600,
-        1040
-      ],
+      "size": [1600, 1040],
       "backend": "webgpu-page-raster"
     },
     {
@@ -71,10 +51,7 @@
       "difference": 48183,
       "restoredDifference": 0,
       "stillDifference": 0,
-      "size": [
-        1600,
-        1040
-      ],
+      "size": [1600, 1040],
       "backend": "webgpu-page-raster"
     }
   ],
