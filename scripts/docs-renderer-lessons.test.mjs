@@ -51,6 +51,16 @@ test('a light update mutates the existing light instead of adding a duplicate', 
 test('budget values are converted from the displayed MiB unit', async () => {
   const lesson = rendererLessons.find(({ id }) => id === 'runtime-memory-budget');
   const { calls, explorer } = recorder();
-  await applyRendererLesson(explorer, lesson, { geometryMiB: 20 }, { value: false });
-  assert.deepEqual(calls, [['setMemoryBudgets', { geometryPoolBytes: 20 * 1024 * 1024 }]]);
+  await applyRendererLesson(
+    explorer,
+    lesson,
+    { geometryMiB: 20, textureMiB: 64 },
+    { value: false },
+  );
+  assert.deepEqual(calls, [
+    [
+      'setMemoryBudgets',
+      { geometryPoolBytes: 20 * 1024 * 1024, texturePoolBytes: 64 * 1024 * 1024 },
+    ],
+  ]);
 });

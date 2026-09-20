@@ -394,7 +394,10 @@ repository measures itself, with no other project on the machine.
 - Lossy texture compression: accepted for textures alone (decision of 17 September 2026, Textures
   T5) — BC on desktop, ASTC on mobile, to ship with before/after images and the measured delta
   published. The bench's 0 px thresholds do not apply to that lot; they remain intact for geometry
-  and lighting. Lossless streamable mips first.
+  and lighting. Lossless streamable mips first. Delivered on 21 September 2026 (#45): BC7 mode 6
+  and ASTC 4×4 baked at cook time beside the lossless levels, the device choosing, the pool at one
+  byte per texel; the loss and the memory before/after are in the pull request and in
+  `docs/FORMAT.md`, _Textures_.
 - FBX: imperfect free reader; glTF remains the pivot, upstream conversion if needed.
 - WebGL2: never the same pipeline as WebGPU (no compute); parity required on the image, not on the
   method.

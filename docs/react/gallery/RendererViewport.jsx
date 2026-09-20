@@ -107,9 +107,9 @@ export function RendererViewport({ lesson, state, locale, label }) {
         {lesson.kind === 'memory' && (
           <Stat
             title={french ? 'Pool de textures' : 'Texture pool'}
-            description={metrics.textureFormat ?? '—'}
+            description={metrics.texture?.format ?? '—'}
           >
-            {mebibytes(metrics.textureMemory)}
+            {mebibytes(metrics.texture?.bytes)}
           </Stat>
         )}
         <Stat title={french ? 'Triangles dessinés' : 'Drawn triangles'}>

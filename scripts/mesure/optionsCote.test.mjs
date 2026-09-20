@@ -16,5 +16,8 @@ test('a side takes its own compression, then the campaign one, otherwise the eng
   const own = equip('apres', { compression: 'none', 'compression-apres': 'astc' });
   assert.equal(own.compression, 'astc');
   assert.equal(sideReport(own)[1].compression, 'astc');
-  assert.throws(() => equip('apres', { 'compression-apres': 'dxt1' }), /must be auto, bc7, astc, none/);
+  assert.throws(
+    () => equip('apres', { 'compression-apres': 'dxt1' }),
+    /must be auto, bc7, astc, none/,
+  );
 });

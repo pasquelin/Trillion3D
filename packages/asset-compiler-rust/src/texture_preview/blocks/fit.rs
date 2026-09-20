@@ -70,12 +70,16 @@ fn principal_axis(texels: &Texels, mean: [f32; 4]) -> [f32; 4] {
 }
 
 /// Rung nearest to `t` on the ladder, `t` being the texel's position on the
-/// segment with 0 at `e0` and 1 at `e1`.
+/// segment with 0 at `e0` and 1 at `e1`. Both ladders climb within half a rung of
+/// the uniform one, so the rung the uniform ladder names and its two neighbours
+/// always hold the nearest — three distances instead of sixteen.
 fn nearest_rung(ladder: &[f32], t: f32) -> u8 {
-    let mut best = 0;
-    let mut error = f32::INFINITY;
-    for (rank, &value) in ladder.iter().enumerate() {
-        let gap = (value - t).abs();
+    let last = ladder.len() - 1;
+    let guess = (t.clamp(0.0, 1.0) * last as f32).round() as usize;
+    let mut best = guess;
+    let mut error = (ladder[guess] - t).abs();
+    for rank in [guess.saturating_sub(1), (guess + 1).min(last)] {
+        let gap = (ladder[rank] - t).abs();
         if gap < error {
             error = gap;
             best = rank;

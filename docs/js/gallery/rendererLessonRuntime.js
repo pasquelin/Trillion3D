@@ -8,8 +8,8 @@ import { createRendererLessonDeadline } from './rendererLessonDeadline.js';
 export { applyRendererLesson } from './rendererLessonApply.js';
 
 const COLD_FRAME_LIMIT = 2400,
-  INTERACTIVE_FRAME_LIMIT = 24,
-  SETTLE_MINIMUM_MS = 2_000,
+  INTERACTIVE_FRAME_LIMIT = 24;
+const SETTLE_MINIMUM_MS = 2_000,
   SETTLE_TIME_LIMIT_MS = 30_000;
 
 export async function createRendererLessonRuntime({ canvas, lesson, state, report, signal }) {
@@ -47,10 +47,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
   const added = { value: false },
     lighting = createLightingLessonSession();
   const nextReady = () => {
-    ready = new Promise((resolve, reject) => {
-      readyResolve = resolve;
-      readyReject = reject;
-    });
+    ready = new Promise((resolve, reject) => ([readyResolve, readyReject] = [resolve, reject]));
     ready.catch(() => {});
     return ready;
   };
@@ -84,8 +81,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         fps: !idle && previous ? 1000 / (now - previous) : null,
         cpu: metrics.cpuFrameMs,
         memory: metrics.geometryPoolAllocatedBytes,
-        textureMemory: metrics.texturePoolBytes,
-        textureFormat: metrics.texturePoolFormat,
+        texture: { bytes: metrics.texturePoolBytes, format: metrics.texturePoolFormat },
         triangles: metrics.drawnTriangles,
         occluded: metrics.hizRejectedClusters ?? null, // the device's count, never estimated
         tested: metrics.hizTestedClusters ?? null,

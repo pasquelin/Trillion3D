@@ -150,3 +150,33 @@ fn the_white_blocks_the_engine_pins_decode_to_opaque_white() {
         );
     }
 }
+
+// Behaviour: the three-rung search of `nearest_rung` is exact on both ladders —
+// what a full search over every rung would choose, for every position.
+#[test]
+fn the_nearest_rung_shortcut_matches_a_full_search_on_both_ladders() {
+    for ladder in [
+        [
+            0u8, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64,
+        ]
+        .to_vec(),
+        [0u8, 9, 18, 27, 37, 46, 55, 64].to_vec(),
+    ] {
+        let rungs: Vec<f32> = ladder.iter().map(|&w| f32::from(w) / 64.0).collect();
+        for step in -50..=1050 {
+            let t = step as f32 / 1000.0;
+            let texels = [[t * 255.0, 0.0, 0.0, 0.0]; 16];
+            let full = rungs
+                .iter()
+                .enumerate()
+                .min_by(|a, b| (a.1 - t).abs().partial_cmp(&(b.1 - t).abs()).unwrap())
+                .unwrap()
+                .0 as u8;
+            let got = fit::assign(&texels, &rungs, [0.0; 4], [255.0, 0.0, 0.0, 0.0])[0];
+            assert!(
+                (rungs[got as usize] - t).abs() <= (rungs[full as usize] - t).abs() + 1e-6,
+                "t = {t}: shortcut {got}, full {full}"
+            );
+        }
+    }
+}

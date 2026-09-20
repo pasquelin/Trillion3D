@@ -73,8 +73,10 @@ How they achieve it, and where we stand:
 50 bytes — a ~6× factor on geometry. The repository target (≤ 12 B/tri, `docs/SPEC_ENGINE_WITHOUT_THREE.md` C5)
 is the right order of magnitude; the work to achieve it remains open.
 
-Outside geometry, the gap is wider: 7.56 GB of raw RGBA for Emerald textures, where the reference
-maintains a fixed physical pool, compressed at cook time **(3)**.
+Outside geometry, the gap has closed in kind: Emerald's textures, 7.56 GB of raw RGBA, are now
+baked block-compressed at cook time — BC7 or ASTC 4×4, one byte per texel — and served from a fixed
+physical pool, as the reference is understood to do **(3)**; the codecs are single-layout ones
+whose loss is declared, not the reference's encoders.
 
 ## 3. Milliseconds — Profile Shape, Not Verdict
 
@@ -126,7 +128,7 @@ What can be concluded rigorously:
 | --- | --- |
 | DAG and page structure | **Yes**, with the three nuances in §1 |
 | Bytes per triangle | **No**: ~6× higher |
-| Fixed memory budget | **Yes**: 512 MiB pages and 512 MiB tiles, in bytes, adjustable; textures not yet cook-compressed |
+| Fixed memory budget | **Yes**: 512 MiB pages and 512 MiB tiles, in bytes, adjustable; textures cook-compressed (BC7 / ASTC 4×4, #45) |
 | CPU cost per frame | **No**: 0.5–2.8 ms vs ~0 |
 | GPU milliseconds | **Unknown**, pending identical-hardware benchmark campaign |
 
