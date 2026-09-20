@@ -150,8 +150,7 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
   for (let pass = 0; pass < orders.length; pass++) {
     if (!sortPlanFarToNear(orders[pass], items) && !blendState.orderMoved[pass]) continue;
     blendState.orderMoved[pass] = true;
-    // The transmission pass keeps one run per entry: each still offsets its volume.
-    blendState.runCount[pass] = buildBlendRuns(orders[pass], pass === 0, blendState.runs[pass]);
+    blendState.runCount[pass] = buildBlendRuns(orders[pass], blendState.runs[pass]);
   }
   return rejected;
 }

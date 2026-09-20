@@ -54,6 +54,8 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     'WG opaque fallback': ['geometry', 'other'],
     'WG transparents': ['transparents', 'other'],
     'WG transmission': ['transparents', 'other'],
+    'WG water surfaces': ['transparents', 'other'],
+    'WG water composite': ['transparents', 'other'],
     'WG transparent compaction': ['transparents', 'other'],
     [SHADOW_PASS]: ['shadows', 'other'],
     'WG shadow cull': ['shadows', 'other'],
@@ -140,11 +142,9 @@ export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: Sta
   for (const [stage, ms] of gpuStageTotals(sample)) if (ms !== null) add(stage, ms);
 }
 
-/**
- * GPU duration of a sample's "Bounce" stage, or `null`: that is the measurement the
- * millisecond budget servos. A missing stage, a truncated sample or a device without
- * timestamps yield `null`, and the servo does not move rather than follow a zero.
- */
+/** GPU duration of a sample's "Bounce" stage, or `null`: that is the measurement the millisecond
+ *  budget servos. A missing stage, a truncated sample or a device without timestamps yield
+ *  `null`, and the servo does not move rather than follow a zero. */
 export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
   return gpuStageTotals(sample).get('bounce') ?? null;
 }
@@ -159,10 +159,8 @@ export function directLightTimings(sample: GpuPassTimings | null | undefined) {
   };
 }
 
-/**
- * Deposit a frame's CPU bounds onto their stages. `null` marks a bound that is not
- * deposited: a sum, which would count a second time what its parts already deposited.
- */
+/** Deposit a frame's CPU bounds onto their stages. `null` marks a bound that is not deposited:
+ *  a sum, which would count a second time what its parts already deposited. */
 export function addCpuSteps(
   stages: ReadonlyArray<string | null>,
   row: ArrayLike<number>,
