@@ -2,7 +2,7 @@
 //! double — same glTF scene inside archive and outside — golden compares
 //! both compilations to each other before comparing to `expected.json`. Fixes
 //! driver refusals: archive escaping extraction folder, truncated archive, and
-//! archive vide, chacune par son code.
+//! empty archive, each by its code.
 use super::*;
 
 // Behavior 25: scene read through ZIP equals scene read outside archive,
@@ -32,8 +32,8 @@ fn a_zipped_scene_compiles_to_the_same_thing_as_the_scene_outside_the_archive() 
 /// trapped archives, scene itself.
 fn archive_digest(dir: &Path, run: &GoldenRun) -> Value {
     // Cache key holds fingerprint of entire compiler implementation: proves
-    // two compilations equal, not frozen in expectation change would shift
-    // sans rapport ferait rougir.
+    // two compilations equal, not frozen in expectation where an unrelated change
+    // would shift it and fail tests.
     let mut scene = scene_digest(run);
     scene.as_object_mut().expect("scene").remove("key");
     json!({

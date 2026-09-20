@@ -42,7 +42,7 @@ pub(crate) struct AlphaShape {
 
 impl AlphaShape {
     /// Proposal, and nothing more: what HTML page pre-positions and human keeps
-    /// ou corrige.
+    /// or corrects.
     pub fn looks_like_cutout(&self) -> bool {
         self.texels > 0
             && self.absent >= MIN_ABSENT
@@ -60,8 +60,8 @@ impl AlphaShape {
     }
 }
 
-/// Measures alpha of decoded image. Cost is three traversals: contour, two chamfer passes.
-/// distance, puis le comptage.
+/// Measures alpha of decoded image. Cost is three traversals: contour, two chamfer distance passes,
+/// then tallying.
 pub(crate) fn measure(image: &image::RgbaImage) -> AlphaShape {
     let raw = image.as_raw();
     let texels = (raw.len() / 4) as u64;

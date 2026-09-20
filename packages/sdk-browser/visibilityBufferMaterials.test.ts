@@ -166,3 +166,21 @@ test('MeshStandardMaterial visbuffer lighting implements Cook-Torrance GGX micro
   basic.dispose();
   standard.dispose();
 });
+
+test('visMaterial([]) resolves an empty declaration to host defaults: white, opaque, front, unlit', () => {
+  const empty = visMaterial([]);
+  assert.deepEqual(empty.baseColor, [1, 1, 1]);
+  assert.equal(empty.lit, false);
+  assert.equal(empty.metalness, 0);
+  assert.equal(empty.roughness, 1);
+  assert.equal(empty.doubleSided, false);
+  assert.equal(empty.backSide, false);
+  assert.equal(empty.alphaTest, 0);
+  assert.equal(empty.transmission, 0);
+  assert.deepEqual(empty.emissive, [0, 0, 0]);
+  assert.equal(
+    visMaterial([]),
+    empty,
+    'empty declaration reuses a shared default, not allocating per frame',
+  );
+});

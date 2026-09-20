@@ -84,10 +84,8 @@
 - **This repository is self-contained.** It builds, tests, measures and proves itself with only its
   own dependencies (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off
   git). No code, script, test or doc may read another project on disk — no neighbour path, no
-  `LAB_ROOT`. `render-tech-lab` is one ordinary host of `prepare()` and `createExplorer()`: it tests
-  the engine, the engine never leans on it. Never add host code to make the engine work, never
-  write into a host's folders. The only proofs that touch it are mounted on its pages, take its
-  address by `LAB_URL`, and are excluded from `test:gpu` by name.
+  external harness. Every test, visual proof and benchmark runs on the repository's own standalone
+  tools. Never add host code to make the engine work, never write into a host's folders.
 - Keep React/Electron/Vite, DOM and platform filesystem APIs out of runtime-core/shared contracts;
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
@@ -117,6 +115,27 @@
   to `develop` or `main`; the GitHub ruleset `.github/ruleset.json` (applied with
   `gh api -X PUT repos/{owner}/{repo}/rulesets/<id> --input .github/ruleset.json`) refuses a direct
   or forced push and a merge without the `validate` check green.
+- **The branch is checked out in a worktree of its own, never in the shared checkout.**
+  `git worktree add ../webGeometry-<issue>-<short-name> -b <issue>-<short-name> origin/develop`,
+  then `pnpm install` there. Once the maintainer has merged the branch, whoever notices first
+  removes the tree and the branch it left behind: `git worktree remove`, then `git branch -d`.
+  Several agents work on this repository at the same time: two of them in one working tree
+  overwrite each other's files without a word, and a single `git status` then mixes two batches
+  on one branch.
+- **Issue lifecycle labels make ongoing work visible.** As soon as the worktree is created, mark
+  the issue in progress (`gh issue edit <issue> --add-label "in progress"`). When the pull request
+  is opened, replace `in progress` with `in review`. After merge, remove `in review` and close the
+  issue when cleaning up the worktree: merging into `develop` does not close it automatically.
+  If the pull request is closed without merging, remove both labels; add `in progress` again only
+  if implementation continues. The coder role gives the commands for each transition.
+- **The release is a pull request like any other.** `develop` reaches `main` through its own
+  issue and its own pull request, body on the same template and starting with `Closes #<issue>`,
+  merged once `validate` is green; its head is `develop` itself, so no branch is cut for it and
+  it carries no code — what it releases was proved by the pull requests already merged, which its
+  "Local review before push" section names. `scripts/check-pr-body.sh`, run by the CI on a pull
+  request to `main` as on one to `develop`, refuses a body without that first line: a release
+  opened without an issue fails `validate` before anything else is read. Pages serves
+  `main` + `/docs`, so nothing is published until that merge.
 - **Before the push that opens a pull request, the author reviews its own diff twice**: a
   simplification pass, then a correctness pass, fixes applied, gates rerun (`docs/roles/coder.md`
   step 6 names the commands per tool). The pull request says what each pass found under "Local

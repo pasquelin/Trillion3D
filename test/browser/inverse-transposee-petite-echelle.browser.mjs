@@ -30,9 +30,9 @@ const cas = ECHELLES.flatMap((s) =>
 
 const uniforms = cameraSelectionUniforms(vue, 0, VIEWPORT);
 const packed = empaqueteCas(cas);
-const gpu = await selectionGpu([{ nom: 'lot', packed, uniforms }]);
+const gpu = await selectionGpu([{ name: 'lot', packed, uniforms }]);
 const indisponible = gpu.indisponible ?? null;
-const gardees = new Set(gpu.resultats?.find((r) => r.nom === 'lot')?.pages ?? []);
+const gardees = new Set(gpu.resultats?.find((r) => r.name === 'lot')?.pages ?? []);
 const lignes = cas.map((c, i) => ({
   nom: c.nom,
   faceVisible: veriteTerrain(c).avantVisible,

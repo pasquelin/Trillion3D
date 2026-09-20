@@ -81,7 +81,7 @@ triangle object.
 C9. **Single binary**: one executable per OS (macOS arm64/x64, Linux x64/arm64, Windows x64),
 stdout event protocol (progress, errors, short result), result written to disk, never a full
 manifest on stdout. The same code compiled to WebAssembly for the editor (compile one object in
-the browser, off the main thread). Criterion: the Lab prepares its scenes with Node only as a
+the browser, off the main thread). Criterion: a host prepares its scenes with Node only as a
 relay; the editor recompiles an object without a server.
 C10. **Provenance**: compiler digest (sources + locked dependencies) in every cache; two compiles
 of the same file yield the same bytes. Criterion: null diff between two runs.
@@ -90,6 +90,13 @@ of the same file yield the same bytes. Criterion: null diff between two runs.
 
 R1. **Zero Three.js dependency** in `sdk-browser`. Own math (matrices, quaternions, frustum, rays)
 shared with the compiler via wasm where parity matters (screen error, picking).
+
+The WebGL2 migration starts with an engine-owned surface: the engine creates the context with its
+declared attributes, owns drawing-buffer size and DPR, observes loss and restoration, and releases
+the context on disposal. During this foundation stage, the Three scene renderer receives that
+already-owned context as a temporary draw adapter. Cluster programs, composition targets, captures,
+and observation meshes move to engine resources in the following stages; this stage does not claim
+their removal or a performance gain.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
@@ -147,6 +154,18 @@ parity matters (screen error, picking); current-frame visibility selection uncha
 organisation has been measured. The number of call sites does not measure a cost: real frequency,
 volume processed and cross-thread traffic are measured before any move. Transferable buffers avoid
 copies but change owner: a lot, not a call.
+
+R1f. **Image output owned by the engine.** With a single WebGPU engine, the host canvas is
+configured by the engine's own `GPUCanvasContext` and the composition pass writes the display
+image straight into the swap chain: there is no separate presentation pass to remove, and no
+object of the host's rendering library on that path. A host that composes several engines on a
+WebGL2 surface receives the engine's canvas as `presentedSurface` and copies it with the engine's
+own full-screen program (`webglCanvasBlit.ts`, one owner for the frame and the capture alike): the
+rows are reversed once, the source is read in the encoding the destination writes — a host render
+target is sRGB, the page framebuffer is not — so nothing converts twice, and the synchronous
+capture reads the same copy. What still belongs to the host library on the output side is the
+WebGL2 renderer itself — the batch engine written on host meshes
+and the composition host around it — and it is written by its own lot, not by this one.
 
 R2. **Loader**: reads the binary manifest and packets; never a format field on the host side;
 public validation (`assertCachePointer`, `assertCacheReady`).
@@ -334,7 +353,7 @@ threshold.
 
 ## 6. Bench and proof
 
-B1. Three.js remains the **witness engine** in the Lab: same scene, same camera, lossless PNG
+B1. Three.js remains the **witness engine**: same scene, same camera, lossless PNG
 capture, pixel comparison at 0 px (identity expected) and at 1 px (differences localised to
 switches), A/A witness.
 B2. **WebGPU/WebGL2 parity**: automatic test on every scene, max error ≤ 2 per channel, else fail.
@@ -370,16 +389,16 @@ talks 2021–2022, documentation) and from what the engine already has.
 
 What the reference is made of, and our counterpart:
 
-| Reference piece | Role | What we have today | What is missing |
-| --- | --- | --- | --- |
-| Temporal antialiasing | denoises everything stochastic | shipped (Lumière 16), 0 px A/A | — |
-| Screen traces | first shot of every ray: image depth and normal, almost free | nothing | L1 |
-| Distance fields (per mesh, then global) | off-screen rays without hardware ray tracing | certified-error resident proxy, walked triangle by triangle | L4 |
-| Surface cache | radiance of off-screen surfaces, updated under budget | one radiance per triangle and proxy face, swept under budget | L4 |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered | cascaded SH2 world probes; no screen probe | L5 |
-| Reflections | screen traces, then distance fields reading the cache | none | L1, L6 |
-| Virtual shadow maps | 16k shadow pages, only the views, cached | 4096 atlas, cascades, 1 ms budget | L3 |
-| Stochastic direct lighting | few samples per pixel, denoised | tiled culling shipped, sampling not | L2 |
+| Reference piece                                   | Role                                                         | What we have today                                           | What is missing |
+| ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | --------------- |
+| Temporal antialiasing                             | denoises everything stochastic                               | shipped (Lumière 16), 0 px A/A                               | —               |
+| Screen traces                                     | first shot of every ray: image depth and normal, almost free | nothing                                                      | L1              |
+| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle  | L4              |
+| Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget | L4              |
+| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                   | L5              |
+| Reflections                                       | screen traces, then distance fields reading the cache        | none                                                         | L1, L6          |
+| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, cascades, 1 ms budget                            | L3              |
+| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling shipped, sampling not                          | L2              |
 
 What the web imposes, and the answer:
 

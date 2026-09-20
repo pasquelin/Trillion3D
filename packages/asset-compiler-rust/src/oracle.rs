@@ -27,7 +27,7 @@ pub use job::job_of;
 
 /// Oracle contract. A job of another version is refused, never misread.
 pub const ORACLE_VERSION: u32 = 1;
-/// Rangs des types de lampe, ceux du contrat `SceneLight` et du tampon GPU.
+/// Ranks of light types, matching the `SceneLight` contract and the GPU buffer.
 pub const KIND_POINT: u8 = 0;
 pub const KIND_SPOT: u8 = 1;
 pub const KIND_SUN: u8 = 2;

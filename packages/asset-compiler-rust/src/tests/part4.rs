@@ -124,7 +124,7 @@ fn compile_ranks_every_material_class_by_its_own_property() {
                 .expect("pages")
                 .is_empty(),
             paged,
-            "pages de la classe {material}"
+            "pages of class {material}"
         );
         fs::remove_dir_all(root).expect("cleanup");
     }

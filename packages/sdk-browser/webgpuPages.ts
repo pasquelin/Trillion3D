@@ -1,3 +1,4 @@
+import { pendingWebgpuFrame } from './webgpuInteractiveFrame.ts';
 import { readShadowAtlasDigest } from './gpuShadowDigest.ts';
 import { readPartitionAudit } from './webgpuPartitionAudit.ts';
 import { readTransparentOcclusionAudit } from './webgpuTransparentOcclusionAudit.ts';
@@ -46,6 +47,10 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
     scene: setup.scene,
+    get presentedSurface() {
+      // The host canvas needs no composition: the engine already presented into it.
+      return context.gpuCanvas ? undefined : rt.gpu.presenter?.canvas;
+    },
     get overBudget() {
       return run.overBudget;
     },
@@ -87,6 +92,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     syncResident() {
       syncResident(rt);
     },
+    pendingFrame: () => pendingWebgpuFrame(rt),
     flush() {
       return flushWebgpuPages(rt);
     },

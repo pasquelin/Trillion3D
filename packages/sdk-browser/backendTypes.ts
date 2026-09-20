@@ -39,6 +39,11 @@ export interface RenderBackend {
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
   readonly frameHeld?: boolean;
   scene: THREE.Scene;
+  /** Canvas the engine presented its image into, when that canvas is not the host's own surface.
+   *  A host composing on another surface copies it (`createBackendPresenter`) instead of drawing
+   *  `scene`, which such an engine does not use for display; absent from an engine that draws on
+   *  the host surface itself. */
+  readonly presentedSurface?: HTMLCanvasElement;
   metrics(): BackendMetrics & {
     drawCalls?: number;
     batchRebuilds?: number;
@@ -87,6 +92,8 @@ export interface RenderBackend {
   dropPage?(url: string): void;
   syncResident?(): void;
   flush?(): Promise<void>;
+  /** Wait for submitted work without image readback; true asks for another interactive frame. */
+  pendingFrame?(): Promise<boolean>;
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   captureSurfaceView?(
