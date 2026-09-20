@@ -210,8 +210,10 @@ R4. **Coverage**: pinned roots, per-group fallback onto the resident coarse repr
 a hole, never an exception other than a missing root. Criterion: `tri = selected` at every budget
 ≥ roots.
 R5. **Selection**: WebGPU compute (one thread per cluster, early-reject culling hierarchy,
-previous-frame Hi-Z occlusion); WebGL2 on CPU (culling hierarchy, allocation-free) with a Wasm
-SIMD option if > 2 ms. Criterion: Emerald selection < 1 ms GPU, < 2 ms CPU.
+two-phase Hi-Z occlusion — main pass culled by the previous image's pyramid, post pass re-tested
+by this image's, `gpuPartitionProjectWgsl.ts`); WebGL2 on CPU (culling hierarchy,
+allocation-free) with a Wasm SIMD option if > 2 ms. Criterion: Emerald selection < 1 ms GPU,
+< 2 ms CPU.
 R5b. **Hi-Z test invariant.** The occlusion test never decides that a visible cluster will not be
 drawn: it compares a **strict lower bound** of the depth the cluster will write to an **upper
 bound** of the depth already written on its footprint. The upper bound is the max reduction of the
