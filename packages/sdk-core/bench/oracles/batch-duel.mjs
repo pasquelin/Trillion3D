@@ -39,9 +39,6 @@ export function prepareBatchData() {
     );
   }
 
-  const colors = new Float64Array(N);
-  for (let i = 0; i < N; i++) colors[i] = alea();
-
   const threeFrustum = new THREE.Frustum();
   threeFrustum.planes[0].setComponents(1, 0, 0, -10);
   threeFrustum.planes[1].setComponents(-1, 0, 0, 50);
@@ -73,7 +70,6 @@ export function prepareBatchData() {
     oraclePts,
     boxes,
     threeBoxes,
-    colors,
     threeFrustum,
     planes,
     outExThree,

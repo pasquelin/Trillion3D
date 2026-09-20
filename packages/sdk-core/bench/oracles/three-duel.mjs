@@ -19,6 +19,12 @@ export const rnd = (a = -10, b = 10) => a + alea() * (b - a);
  * for every bench that measures it.
  */
 export const SRGB_REFERENCE_GAP = 1e-10;
+/**
+ * Three's reverse curve uses exponent 0.41666 instead of 1 / 2.4. On [0, 1], the mean-value
+ * theorem bounds the gap by 1.055 * abs(1 / 2.4 - 0.41666) / (Math.E * 0.41666) < 6.3e-6.
+ * This is a different direction from SRGB_REFERENCE_GAP; the engine keeps its exact exponent.
+ */
+export const LINEAR_SRGB_REFERENCE_GAP = 6.3e-6;
 
 /** A unit quaternion from four seeded draws. */
 export const quaternion = () => new THREE.Quaternion(rnd(), rnd(), rnd(), rnd()).normalize();
