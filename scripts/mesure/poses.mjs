@@ -15,7 +15,9 @@ const POINTS = [
   [0.72, 28, 0.78],
 ];
 const FRAMES_PER_SEGMENT = 60;
-export { PATH_VERSION };
+/** One pose per frame, `FRAMES_PER_SEGMENT` frames between two consecutive points. */
+export const PATH_POSES = POINTS.length * FRAMES_PER_SEGMENT;
+export { PATH_VERSION, FRAMES_PER_SEGMENT };
 
 /** Bench views this harness knows how to play, by index in the trajectory. */
 export const VIEWS = {
@@ -33,7 +35,7 @@ export const VIEWS = {
 export const plancherDuModele = (bounds) =>
   bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y;
 
-/** The bench pose at index `index`, computed as `urbanPath` computes it. */
+/** The bench pose at trajectory index `index`, of `PATH_POSES`. */
 export function poseAt(bounds, index) {
   const min = bounds.min,
     max = bounds.max;
