@@ -83,3 +83,83 @@ export function visMaterial(material: THREE.Material | THREE.Material[]): VisMat
 export function isTransmissive(material: THREE.Material | THREE.Material[]) {
   return visMaterial(material).transmission > 0;
 }
+
+const textureReason = (texture: THREE.Texture | undefined) => {
+  if (!texture) return;
+  const typed = texture as THREE.Texture & {
+    isCompressedTexture?: boolean;
+    isDataTexture?: boolean;
+    isDataArrayTexture?: boolean;
+  };
+  if (typed.isCompressedTexture || typed.isDataTexture || typed.isDataArrayTexture)
+    return 'non-image texture storage is unsupported';
+  if (!texture.image) return 'texture image is unavailable';
+  if (texture.channel !== 0 && texture.channel !== 1)
+    return `texture channel ${texture.channel} is unsupported`;
+  if (texture.mapping !== THREE.UVMapping) return 'non-UV texture mapping is unsupported';
+};
+
+/** Names material input the autonomous WebGL2 program cannot preserve before it submits a draw. */
+export function clusterMaterialReason(
+  material: THREE.Material | THREE.Material[],
+  attributes: THREE.BufferGeometry['attributes'],
+) {
+  if (Array.isArray(material)) return 'material arrays are unsupported';
+  const standard = material as THREE.MeshStandardMaterial,
+    basic = material as THREE.MeshBasicMaterial;
+  if (!standard.isMeshStandardMaterial && !basic.isMeshBasicMaterial)
+    return `material ${material.type} is unsupported`;
+  if (
+    material.transparent ||
+    material.alphaHash ||
+    material.blending !== THREE.NormalBlending ||
+    material.premultipliedAlpha ||
+    material.alphaToCoverage ||
+    material.clippingPlanes?.length
+  )
+    return `material ${material.type} needs the clustered blend contract from #119`;
+  if (
+    (standard as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial ||
+    standard.envMap ||
+    standard.lightMap ||
+    standard.bumpMap ||
+    standard.displacementMap ||
+    standard.alphaMap ||
+    standard.flatShading ||
+    standard.wireframe ||
+    material.stencilWrite
+  )
+    return `material ${material.type} uses an unsupported extension or raster state`;
+  if (standard.normalMap && standard.normalMapType !== THREE.TangentSpaceNormalMap)
+    return 'object-space normal mapping is unsupported';
+  if (material.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile)
+    return `material ${material.type} carries a shader hook`;
+  if (!(attributes.position instanceof THREE.BufferAttribute))
+    return 'position attribute is unsupported';
+  const descriptor = visMaterial(material),
+    maps = [
+      descriptor.map,
+      descriptor.metalnessMap,
+      descriptor.roughnessMap,
+      descriptor.normalMap,
+      descriptor.aoMap,
+      descriptor.emissiveMap,
+    ];
+  if (maps.some(Boolean) && !(attributes.uv instanceof THREE.BufferAttribute))
+    return 'textured material has no UV attribute';
+  if (
+    maps.some((texture) => texture?.channel === 1) &&
+    !(attributes.uv1 instanceof THREE.BufferAttribute)
+  )
+    return 'texture channel 1 has no UV1 attribute';
+  if (standard.isMeshStandardMaterial && !(attributes.normal instanceof THREE.BufferAttribute))
+    return 'lit material has no normal attribute';
+  if (descriptor.normalMap && !(attributes.tangent instanceof THREE.BufferAttribute))
+    return 'normal-mapped material has no tangent attribute';
+  if (material.vertexColors && !(attributes.color instanceof THREE.BufferAttribute))
+    return 'vertex-colour material has no color attribute';
+  for (const texture of maps) {
+    const reason = textureReason(texture);
+    if (reason) return reason;
+  }
+}

@@ -4,6 +4,7 @@ import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
+import type { createSceneDrawer } from './explorerDrawScene.ts';
 
 type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   canvas: HTMLCanvasElement;
@@ -14,6 +15,7 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
   state: Pick<ExplorerHostState, 'active'>;
   check: () => void;
+  drawScene?: ReturnType<typeof createSceneDrawer>;
 };
 
 export function createExplorerCapture(inputs: Inputs) {
@@ -27,6 +29,7 @@ export function createExplorerCapture(inputs: Inputs) {
     state,
     check,
     diagnose,
+    drawScene,
   } = inputs;
   const capturePool = [new Uint8Array(0), new Uint8Array(0), new Uint8Array(0)];
   let captureSlot = 0;
@@ -72,7 +75,10 @@ export function createExplorerCapture(inputs: Inputs) {
       active.render(camera);
       // Reading the composition means composing it first, by the same rule as a frame. The
       // destination is the page's own framebuffer, which encodes nothing.
-      if (!presentBackend(active)) ownedRenderer.render(active.scene, camera);
+      if (!presentBackend(active)) {
+        if (drawScene) drawScene(active, null, false);
+        else ownedRenderer.render(active.scene, camera);
+      }
       const size = canvas.width * canvas.height * 4;
       captureSlot = (captureSlot + 1) % 3;
       if (capturePool[captureSlot].length !== size) capturePool[captureSlot] = new Uint8Array(size);

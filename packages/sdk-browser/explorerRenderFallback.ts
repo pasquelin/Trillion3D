@@ -3,6 +3,7 @@ import type { AssetScope, DiagnosticMode } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
+import type { createSceneDrawer } from './explorerDrawScene.ts';
 
 type Inputs = ExplorerEmitters & {
   measuring: boolean;
@@ -12,11 +13,22 @@ type Inputs = ExplorerEmitters & {
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'active' | 'fallbackReason'>;
   scope: AssetScope;
+  drawScene: ReturnType<typeof createSceneDrawer>;
 };
 
 export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
-  const { measuring, diagnostic, renderer, camera, baseline, state, scope, emit, diagnose } =
-    inputs;
+  const {
+    measuring,
+    diagnostic,
+    renderer,
+    camera,
+    baseline,
+    state,
+    scope,
+    emit,
+    diagnose,
+    drawScene,
+  } = inputs;
   if (measuring || diagnostic !== 'beauty') throw error;
   if (renderer?.getContext().isContextLost()) {
     const reason = 'Context lost: host must retain a stable preview and recreate the renderer';
@@ -45,7 +57,7 @@ export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
   state.active = baseline;
   try {
     baseline.render(camera);
-    renderer!.render(baseline.scene, camera);
+    drawScene(baseline, null, false);
   } catch (fatal) {
     emit({
       eventVersion: 1,

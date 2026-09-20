@@ -34,6 +34,12 @@ export interface RenderBackend {
   ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
+  /** Draws engine-owned opaque geometry into the framebuffer currently bound by the host.
+   *  The host clears first and draws its remaining Three scene afterwards without clearing. */
+  drawHostGeometry?(
+    camera: import('./cameraWorld.ts').HostDrawCamera,
+    output: { encodeSrgb: boolean; toneMapped: boolean },
+  ): void;
   readonly overBudget: boolean;
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
@@ -143,6 +149,8 @@ export interface BackendContext {
   gpuDevice?: GPUDevice;
   /** A host canvas dedicated to this WebGPU backend. */
   gpuCanvas?: HTMLCanvasElement;
+  /** Engine-owned host context. WebGL backends may allocate resources on it but never replace it. */
+  webglContext?: WebGL2RenderingContext;
   /** Texture-tile bytes admitted per frame. */
   maxTextureTransferBytesPerFrame?: number;
   /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default.

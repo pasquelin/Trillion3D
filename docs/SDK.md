@@ -267,6 +267,48 @@ and releases the context once. The current scene renderer is a temporary adapter
 the surface foundation alone does not replace cluster drawing, composition, held frames, or capture.
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
+`exact-cluster-pages` uses an engine-owned WebGL2 program for paged opaque and alpha-masked
+`MeshStandardMaterial` and `MeshBasicMaterial` batches when their inputs fit its declared glTF
+contract. The program reads base colour, metallic-roughness, normal, occlusion and emissive maps,
+including each map's UV set, transform, sampler and colour space, according to the
+[Khronos glTF 2.0 material specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#materials).
+Direct light adds Lambert diffuse to a Cook-Torrance GGX distribution, correlated Smith visibility
+and Schlick Fresnel, the published model described in Brian Karis's
+[Real Shading course notes](https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
+This is not glTF Appendix B's Fresnel mixture: its diffuse term does not multiply by `(1 - F)`.
+The host then returns the context to the temporary scene adapter for non-cluster objects and composition.
+`autonomousClusterDrawsTotal` is the session counter that proves these draws came from the owned
+program. It is cumulative and therefore is not a per-frame draw-call measurement.
+
+This stage deliberately retains the complete scene-renderer path when a scene uses clustered blend,
+material arrays, transmission, physical extensions, environment/light/bump/displacement/alpha maps,
+flat shading, custom shader hooks, non-image textures, unsupported UV channels or lights, or later
+mutates a material into one of those states. The `cluster-webgl-fallback` diagnostic names the reason
+before activation. A runtime mutation raises a named backend error; an ordinary beauty frame then
+switches to the complete baseline, while measured and diagnostic frames fail explicitly.
+Clustered blend and diagnostics are tracked by #119, transmission composition by #120. No
+bit-identical Cook-Torrance result is claimed: the owned implementation follows the published
+Lambert and GGX/Smith/Schlick model rather than another renderer's shader. Image comparisons publish
+the resulting delta. Geometric roughness filtering uses the less-conservative variance from equation
+5 of Tokuyoshi and Kaplanyan's
+[Improved Geometric Specular Antialiasing](https://yusuketokuyoshi.com/papers/2019/ImprovedGeometricSpecularAA.pdf),
+with the paper's 0.5 pixel radius and 0.18 variance cap. Against the same curved witness, this reduced
+the maximum channel delta from 37/25/13 to 33/19/10 at 64/128/256 px without changing the planar
+analytic fixture. Across five subpixel translations at 128 px, the centre highlight spans six channel
+levels on both implementations (owned 51 to 45; witness 53 to 47), and silhouette coverage matches on
+every frame. This proves the tested spatial and motion stability; it does not claim temporal quality
+for every material or camera path.
+
+On the 1 px Emerald street path at 1280×720 and DPR 1, with one 40-intensity point light, shadows
+off, 20 warm-up frames and 60 moving-camera frames, the final candidate measured median CPU frame
+times of 5.6, 5.6 and 5.6 ms against 5.6, 5.5 and 5.7 ms for the temporary adapter: both medians are
+5.6 ms. The three A/A repeats measured 5.5, 5.7 and 6.2 ms. All six owned captures have the same PNG
+hash. GPU timestamp samples and rAF interval were unavailable, so `gpuImageMs` is not used as a
+duration or as evidence. Avoiding absent texture samples, sharing the packed metallic-roughness read,
+and uploading the bounded lights through a uniform block removed the earlier measured regression
+without changing the captured image. This establishes equal whole-frame performance for this path,
+not a general speed claim.
+
 **Memory budgets are fixed reservoirs, as in the reference, never read from the machine.** Free memory changes every second — another application, another tab —, so a budget measured at start-up would be wrong five minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both defaulting to 512 MiB like `r.Nanite.Streaming.StreamingPoolSize`: `geometryPoolBytes` (cluster page slots: `floor(bytes / pageBytes)` slots, the root cover always resident) and `texturePoolBytes` (virtual-texture tiles, split between the colour and data atlases in 63.5 MiB layers, every texture's tail always resident). What a view asks beyond a pool is shown coarser — the cut raises its screen error until the cover fits (`coverageBudgetLimited`), a tile shows its coarser level — and nothing is refused, nothing stops. A value that cannot be held as given is brought to what can be and the reason is published: `geometryPoolClamp` / `texturePoolClamp` read `root-cover` (raised to the root cover), `scene` (the scene is smaller), `page-cap` (`maxResidentPages`, the page-count cap tests and benches use), `minimum` (one layer per atlas), `device-limit`, `ceiling`, or `null`. `geometryPoolSaturated` counts the pages the image holds — root cover, cut and drawn ancestors — beyond the pool's slots; zero is normal, a lasting count says the pool is too small for that view, and the cut coarsens until it fits. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the device cannot hold even the root cover.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the temporal history and a surface capture follow the resolution, as the reference's do, and `gpuFrameTargetBytes` says what they cost. Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`). The previous 288 MiB frame cap refused 4K on machines that held it; it is gone.
