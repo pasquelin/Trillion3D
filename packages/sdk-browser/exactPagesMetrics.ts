@@ -3,6 +3,7 @@ import { geometryBytes } from './sceneMeshes.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { ExactPagesRenderState } from './exactPagesRender.ts';
+import type { WebglFrameGate } from './webglFrameGate.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 
@@ -18,7 +19,7 @@ type MetricsContext = {
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
   /** The frame gate, released with the scene: the host graph keeps no hook of this engine. */
-  gate: { release(): void };
+  gate: WebglFrameGate;
   readonly diagnostic: DiagnosticMode;
   /** What the current frame decided, read as-is: the sample does not copy field by field what
    *  the render state already carries. */

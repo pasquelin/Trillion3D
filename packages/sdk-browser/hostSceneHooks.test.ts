@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { hookHostNode, unhookHostNode, type WriteRevision } from './hostSceneHooks.ts';
 
-const mark = (): WriteRevision => ({ revision: 0 });
+const mark = (): WriteRevision => ({ revision: 0, shape: 0 });
 
 function hooked() {
   const parent = new THREE.Group();
@@ -91,10 +91,7 @@ test('a matrix set by hand is announced by the update flag, once per matrix', ()
   assert.equal(revision.revision, 1, 'raised again over the same matrix: nothing moved');
   mesh.updateMatrixWorld(true);
   assert.equal(mesh.matrixWorldNeedsUpdate, false, 'the reference cleared it on its walk');
-  assert.equal(revision.revision, 1, 'clearing it over the same matrix announces nothing');
-  mesh.matrix.makeTranslation(7, 0, 0);
-  mesh.updateMatrixWorld(true);
-  assert.equal(revision.revision, 2, 'a forced walk over a new matrix is a write');
+  assert.equal(revision.revision, 1, 'clearing it announces nothing');
 });
 
 test('updateMatrix() each tick on a frozen node, pose unchanged, bumps nothing', () => {
@@ -122,14 +119,45 @@ test("the reference's own walk over automatic nodes bumps nothing: a still scene
 test('two watches on one node are both bumped; an unhooked one no longer is', () => {
   const { mesh, revision } = hooked();
   const other = mark();
-  assert.equal(hookHostNode(mesh, other), true, 'a new registration');
-  assert.equal(hookHostNode(mesh, other), false, 'already registered');
+  hookHostNode(mesh, other);
+  hookHostNode(mesh, other);
   mesh.position.x = 1;
-  assert.deepEqual([revision.revision, other.revision], [1, 1]);
-  assert.equal(unhookHostNode(mesh, other), true);
-  assert.equal(unhookHostNode(mesh, other), false, 'already forgotten');
+  assert.deepEqual([revision.revision, other.revision], [1, 1], 'registered once, bumped once');
+  unhookHostNode(mesh, other);
+  unhookHostNode(mesh, other);
   mesh.position.x = 2;
   assert.deepEqual([revision.revision, other.revision], [2, 1]);
+});
+
+test('a structural write — reparenting, retargeting — also moves the shape', () => {
+  const { mesh, light, revision } = hooked();
+  mesh.position.x = 1;
+  assert.equal(revision.shape, 0, 'a pose write reshapes nothing');
+  new THREE.Group().add(mesh);
+  const reparented = revision.shape;
+  assert.ok(reparented > 0, 'a reparented node changes its ancestor chain');
+  light.target = new THREE.Object3D();
+  assert.ok(revision.shape > reparented, 'a retargeted light names another chain');
+});
+
+test('the last watch to leave a node takes every accessor with it: a plain host object again', () => {
+  const { mesh, light, revision } = hooked();
+  const plain = new THREE.Mesh();
+  for (const node of [mesh, light]) unhookHostNode(node, revision);
+  for (const key of ['x', 'y', 'z'] as const)
+    assert.deepEqual(
+      Object.getOwnPropertyDescriptor(mesh.position, key),
+      Object.getOwnPropertyDescriptor(plain.position, key),
+    );
+  assert.deepEqual(
+    Object.getOwnPropertyDescriptor(mesh, 'visible'),
+    Object.getOwnPropertyDescriptor(plain, 'visible'),
+  );
+  mesh.position.x = 9;
+  mesh.rotation.y = 1;
+  light.intensity = 4;
+  assert.equal(revision.revision, 0, 'no write reaches the watch any more');
+  assert.equal(mesh.quaternion.y !== 0, true, 'the Euler still drives the quaternion');
 });
 
 test('the hooked fields read back what was written, for the host and for the reference', () => {

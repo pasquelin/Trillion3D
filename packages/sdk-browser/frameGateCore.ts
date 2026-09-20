@@ -49,8 +49,13 @@ export function createFrameGateCore(holdValues: number) {
     get pixelError() {
       return pixelError;
     },
-    /** The scene moved: matrices, materials, instances, lights, diagnostic view. */
-    sceneChanged: () => bumpScene(revisions),
+    /** The scene moved: matrices, materials, instances, lights, diagnostic view. What the engine
+     *  wrote into the source graph on the way is announced by this revision: the watch does not
+     *  announce it a second time. */
+    sceneChanged() {
+      bumpScene(revisions);
+      sceneWatch.settle();
+    },
     /**
      * Resources moved: a page's bytes, residency, replaced geometry, and anything that arrives
      * off the frame thread — a program that finishes compiling, a proxy adopted when a promise
@@ -77,17 +82,18 @@ export function createFrameGateCore(holdValues: number) {
      * that the frame would be held on a stale scene. Nothing is walked or reread here: the
      * writes themselves incremented the watch's revision, and one integer is compared.
      *
-     * The hooked node list is rebuilt after every scene change, never per frame: one more
-     * instance or a light set after the fact goes through here, and nothing else adds it. A
-     * hooked write that changed which objects are read — a light retargeted, a node reparented —
-     * is a scene change like any other, and the next frame rebuilds it.
+     * The hooked node list is rebuilt after a scene change that may have reshaped it — one more
+     * instance, a light set after the fact, a node reparented or a light retargeted by the host
+     * — never per frame, and never after a pose write, which changes no node's membership.
      */
     readScene(source: THREE.Object3D, drawn: FrameGateSources) {
       if (watchRevision !== revisions.scene) {
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
         watchRevision = revisions.scene;
       }
-      if (sceneWatch.changed()) bumpScene(revisions);
+      if (!sceneWatch.changed()) return;
+      bumpScene(revisions);
+      if (!sceneWatch.reshaped()) watchRevision = revisions.scene;
     },
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => hold.stable && hold.same(revisions),
@@ -101,11 +107,9 @@ export function createFrameGateCore(holdValues: number) {
       return true;
     },
     /** The hierarchy already carries the current revision's matrices: written by whoever just
-     *  walked them itself, on the only subtree it moved. Its writes into the source graph are
-     *  the engine's own, under this revision: the watch does not announce them a second time. */
+     *  walked them itself, on the only subtree it moved. */
     noteWorldsUpdated() {
       worldsRevision = revisions.scene;
-      sceneWatch.settle();
     },
     /** Lets go of the source graph: its writes no longer reach this gate. */
     release: () => sceneWatch.release(),
