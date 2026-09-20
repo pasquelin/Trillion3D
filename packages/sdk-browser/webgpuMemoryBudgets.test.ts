@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './webgpuMemoryBudgets.ts';
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_UPLOAD_MS,
+  geometryPoolFor,
+  textureUploadMsFor,
+} from './webgpuMemoryBudgets.ts';
 
 const MIB = 1024 * 1024;
 
@@ -78,4 +83,11 @@ test('only the device limit bounds the pool, and it refuses only when even the r
       }),
     /GEOMETRY_POOL_DEVICE_LIMIT/,
   );
+});
+
+test('the tile pass budget is what the host declared, 1 ms by default, never under zero', () => {
+  assert.equal(textureUploadMsFor(undefined), DEFAULT_TEXTURE_UPLOAD_MS);
+  assert.equal(textureUploadMsFor(Number.NaN), DEFAULT_TEXTURE_UPLOAD_MS);
+  assert.equal(textureUploadMsFor(0.25), 0.25);
+  assert.equal(textureUploadMsFor(-3), 0, 'a negative budget still lands one tile per pass');
 });
