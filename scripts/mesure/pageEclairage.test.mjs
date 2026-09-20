@@ -22,13 +22,15 @@ function canvasMock() {
 
 /** Explorer mock: `render()` returns the reading and records the pose it saw. */
 function explorerMock(metrics) {
-  const seen = [];
+  const seen = [],
+    profileResets = [];
   return {
     seen,
+    profileResets,
     backends: [{ id: 'moteur-test', scene: { children: [] } }],
     setDiagnostic: () => {},
     setPose: () => {},
-    resetStageProfile: () => {},
+    resetStageProfile: () => profileResets.push(seen.length),
     stageProfile: () => null,
     render: (pose) => {
       seen.push(pose);
@@ -106,7 +108,7 @@ test('measureView keeps a table of numbers — bytes per label — and filters t
   assert.equal('absent' in metrics, false, '`undefined` stays an absence, not a published value');
 });
 
-test('stage profile after a moving camera keeps the last measured pose, never poseAt(0)', async () => {
+test('stage profile covers the moving suffix and capture keeps its last pose', async () => {
   const a = { position: [1, 0, 0] },
     b = { position: [2, 0, 0] };
   const originalDocument = globalThis.document;
@@ -132,7 +134,7 @@ test('stage profile after a moving camera keeps the last measured pose, never po
       poses: [a, b],
       pose: a,
       stageProfile: true,
-      profileFrames: 2,
+      profileFrames: 1,
       captureFile: 'test.png',
     });
   } finally {
@@ -141,7 +143,8 @@ test('stage profile after a moving camera keeps the last measured pose, never po
     globalThis.requestAnimationFrame = originalRaf;
     delete globalThis.__wgTestExplorer;
   }
-  assert.ok(explorer.seen.length > 2, 'measured frames then profile frames');
+  assert.deepEqual(explorer.profileResets, [1], 'profile starts inside the measured path');
+  assert.ok(explorer.seen.length > 2, 'capture work follows measured frames');
   const afterMeasured = explorer.seen.slice(2);
   for (const pose of afterMeasured) {
     assert.equal(pose, b, 'capture pose is the last measured pose, not poseAt(0)');

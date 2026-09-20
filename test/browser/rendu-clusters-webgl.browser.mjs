@@ -46,3 +46,5 @@ assert.ok(result.curvedOracle.spatial.owned.rms <= result.curvedOracle.spatial.w
 assert.ok(result.curvedOracle.spatial.owned.max <= result.curvedOracle.spatial.witness.max);
 assert.ok(result.curvedOracle.temporal.owned.rms <= result.curvedOracle.temporal.witness.rms);
 assert.ok(result.curvedOracle.temporal.owned.max <= result.curvedOracle.temporal.witness.max);
+assert.deepEqual(result.winding.modelMirror.owned, result.winding.modelMirror.witness);
+assert.deepEqual(result.winding.cameraMirror.owned, result.winding.cameraMirror.witness);
