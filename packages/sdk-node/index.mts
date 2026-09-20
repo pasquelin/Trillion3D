@@ -38,6 +38,7 @@ export type {
   PrepareOptions,
   ProgressPointer,
   ProgressStream,
+  ReusedFolder,
   TerminalProgress,
   TerminalProgressOptions,
 } from './contracts.ts';
