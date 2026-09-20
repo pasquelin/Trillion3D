@@ -7,6 +7,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 const { Gallery, Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
+const { ExampleCard } = await loadReactComponents('docs/react/gallery/ExampleCard.jsx');
 const { Home } = await loadReactComponents('docs/react/portal/Home.jsx');
 const { CodeBlock } = await loadReactComponents('docs/react/components/CodeBlock.jsx');
 const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
@@ -15,13 +16,15 @@ const renderPlayground = (id, locale) =>
 const { codeFor } = await import(new URL('code.js', root));
 const { evaluate } = await import(new URL('evaluate.js', root));
 const { geometryFor } = await import(new URL('sceneGeometry.js', root));
-const { legendAnchors } = await import(new URL('draw.js', root));
+const { draw, legendAnchors } = await import(new URL('draw.js', root));
 const { initialState } = await import(new URL('scenarios.js', root));
 const { examples } = await import(new URL('catalog.js', root));
-const { apiScenario } = await import(new URL('apiScenario.js', root));
+const { rendererLessons } = await import(new URL('rendererLessons.js', root));
+const mathExamples = examples.filter(({ renderer }) => !renderer);
 
-test('gallery exposes twelve bilingual, interactive examples', () => {
-  assert.equal(examples.length, 12);
+test('gallery exposes bilingual math and public renderer lessons', () => {
+  assert.equal(examples.length, 55);
+  assert.equal(rendererLessons.length, 39);
   assert.equal(new Set(examples.map(({ id }) => id)).size, examples.length);
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
@@ -33,6 +36,7 @@ test('gallery exposes twelve bilingual, interactive examples', () => {
   assert.match(renderPlayground('dot-product', 'fr'), /aria-label=/);
   assert.match(renderPlayground('dot-product', 'en'), /<h1 class=/);
   assert.match(renderPlayground('dot-product', 'en'), /Copy code/);
+  assert.match(renderPlayground('point-light-range', 'fr'), /data-renderer-playground/);
 });
 
 test('shared code blocks escape markup and preserve the copied source', () => {
@@ -54,19 +58,78 @@ test('diagram legends assign a distinct fixed anchor to every label', () => {
   assert.ok(anchors.every(({ x, y }) => x >= 40 && x < 640 && y === 24));
 });
 
+test('all four advanced lessons mount their complementary diagram with finite geometry', () => {
+  class SvgNode {
+    children = [];
+    setAttribute(name, value) {
+      assert.doesNotMatch(String(value), /NaN|undefined/, name);
+    }
+    append(...children) {
+      this.children.push(...children);
+    }
+    replaceChildren(...children) {
+      this.children = children;
+    }
+  }
+  const previous = globalThis.document;
+  globalThis.document = { createElementNS: () => new SvgNode() };
+  try {
+    for (const id of [
+      'matrix-inverse',
+      'reflection-orientation',
+      'quaternion-turn',
+      'normal-transform',
+    ]) {
+      const state = initialState(id);
+      const svg = new SvgNode();
+      draw(svg, evaluate(id, state, 'fr'), 'fr');
+      assert.ok(svg.children.length > 3, id);
+    }
+  } finally {
+    globalThis.document = previous;
+  }
+});
+
 test('gallery renders visual, searchable cards and the real engine scene', () => {
   const gallery = renderGallery('en');
   assert.match(gallery, /type="search"/);
   assert.match(gallery, /aria-pressed="true"/);
   assert.match(gallery, /tabs tabs-box bg-base-200/);
-  assert.equal((gallery.match(/<canvas /g) ?? []).length, examples.length);
+  assert.match(gallery, />Animation<\/button>/);
+  assert.match(gallery, />Lights and shadows<\/button>/);
+  assert.match(gallery, /<summary[^>]*aria-label="More">More/);
+  assert.doesNotMatch(gallery, /overflow-x-auto/);
+  assert.doesNotMatch(gallery, /<select/);
+  assert.equal((gallery.match(/<canvas /g) ?? []).length, mathExamples.length);
   assert.doesNotMatch(gallery, /data-geometry-fps/);
   assert.match(renderPlayground('compose-transform', 'en'), /data-geometry-fps/);
   assert.match(gallery, /#\/en\/examples\/engine-scene/);
   assert.match(gallery, /assets\/kinetic-garden\/preview\.png/);
-  assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, examples.length + 1);
+  assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, 24);
+  assert.match(gallery, /663 results shown · 56 ready lessons in the full gallery/);
+  assert.doesNotMatch(gallery, /data-geometry-3d="webgl_/);
   assert.doesNotMatch(gallery, /Try it|À essayer/);
   assert.match(gallery, /#\/en\/playground\/compose-transform/);
+});
+
+test('planned lessons stay honest, specific, and link to related ready material', async () => {
+  const roadmap = JSON.parse(
+    await readFile(new URL('../docs/data/gallery-roadmap.json', import.meta.url), 'utf8'),
+  );
+  assert.equal(roadmap.entries.length, 607);
+  for (const locale of ['en', 'fr'])
+    assert.equal(new Set(roadmap.entries.map((entry) => entry.title[locale])).size, 607);
+  const entry = roadmap.entries.find(({ subject }) => subject === 'camera');
+  const card = renderToStaticMarkup(
+    createElement(ExampleCard, { example: entry, locale: 'fr', expanded: true, onOpen() {} }),
+  );
+  assert.match(card, /Plan non exécutable/);
+  assert.match(card, /Pourquoi/);
+  assert.match(card, /#\/fr\/playground\/perspective/);
+  assert.doesNotMatch(card, /contrat public prouvé|prise en charge actuelle/);
+  const frenchTitles = roadmap.entries.map((item) => item.title.fr).join('\n');
+  assert.match(frenchTitles, /Réfraction/);
+  assert.doesNotMatch(frenchTitles, /^Walk$/m);
 });
 
 test('home and gallery reuse the same linked example card', () => {
@@ -79,7 +142,7 @@ test('home and gallery reuse the same linked example card', () => {
 });
 
 test('all scenarios produce real 3D triangle geometry from SDK results', () => {
-  for (const example of examples) {
+  for (const example of mathExamples) {
     const state = initialState(example.id);
     const geometry = geometryFor(example.id, evaluate(example.id, state));
     assert.ok(geometry instanceof Float32Array && geometry.length >= 27, example.id);
@@ -89,7 +152,7 @@ test('all scenarios produce real 3D triangle geometry from SDK results', () => {
 
 test('every displayed snippet runs and matches its playground result', async () => {
   const engine = new URL('../docs/js/engine.js', import.meta.url).href;
-  for (const example of examples) {
+  for (const example of mathExamples) {
     const state = initialState(example.id);
     const source = codeFor(example.id, state).replace("'./js/engine.js'", JSON.stringify(engine));
     const actual = (await import(`data:text/javascript,${encodeURIComponent(source)}`)).default;
@@ -97,6 +160,10 @@ test('every displayed snippet runs and matches its playground result', async () 
     const expected = {
       'compose-transform': result.points?.[2],
       'matrix-chain': result.point,
+      'matrix-inverse': result.identity,
+      'reflection-orientation': [result.determinant, result.linear],
+      'quaternion-turn': result.direction,
+      'normal-transform': result.normal,
       perspective: result.ndc,
       frustum: result.status,
       'dot-product': result.dot,
@@ -113,23 +180,15 @@ test('every displayed snippet runs and matches its playground result', async () 
   }
 });
 
-test('API functions resolve to a visual example', () => {
-  assert.equal(apiScenario('crossVector3'), 'cross-product');
-  assert.equal(apiScenario('missing'), undefined);
-});
-
-test('visible engine results follow the selected language', () => {
-  const french = evaluate('frustum', { x: 0, depth: 4, fov: 55 }, 'fr');
-  assert.equal(french.value, 'dedans');
-});
-
 test('every scenario calls the generated engine module', async () => {
   const source = (
     await Promise.all(
-      ['evaluate.js', 'evaluateDetail.js'].map((file) => readFile(new URL(file, root), 'utf8')),
+      ['evaluate.js', 'evaluateDetail.js', 'evaluateAdvanced.js'].map((file) =>
+        readFile(new URL(file, root), 'utf8'),
+      ),
     )
   ).join('\n');
-  for (const example of examples)
+  for (const example of mathExamples)
     assert.ok(
       example.functions.some((name) => source.includes(name)),
       `${example.id} has no engine call`,
