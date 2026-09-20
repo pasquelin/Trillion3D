@@ -33,6 +33,7 @@ function table() {
 function lightsSpy() {
   const boxes: number[][] = [];
   const lights = {
+    store: { count: 1 },
     plan: { representationChanged: (min: number[], max: number[]) => boxes.push([...min, ...max]) },
   } as unknown as Parameters<typeof shadowsFollowTextures>[0];
   return { lights, boxes };
@@ -59,4 +60,11 @@ test('an unnamed pool change — resize, eviction — still restarts everything'
   shadowsFollowTextures(lights, table(), -1);
   assert.equal(boxes.length, 1);
   assert.ok(boxes[0][0] < -1e29 && boxes[0][3] > 1e29);
+});
+
+test('with no light declared, a tile stales nothing and leaves no change waiting', () => {
+  const { lights, boxes } = lightsSpy();
+  (lights.store as { count: number }).count = 0;
+  shadowsFollowTextures(lights, table(), -1);
+  assert.equal(boxes.length, 0);
 });

@@ -7,8 +7,8 @@ export const RECTS_PER_SLICE = POINT_FACES * 3;
 /** Key of a cascade window: page origin, depth anchor and radius. Four numbers, not one more. */
 const CASCADE_KEY = 4;
 /** Verdicts of `cascadeSlide`: the map is kept, slides by whole pages, or restarts whole. */
-export const CASCADE_SAME = 0,
-  CASCADE_SLIDE = 1,
+const CASCADE_SAME = 0;
+export const CASCADE_SLIDE = 1,
   CASCADE_WHOLE = 2;
 /** What a cascade window slid by, in pages, after a `CASCADE_SLIDE` verdict. */
 export const cascadeShift = { x: 0, y: 0 };
