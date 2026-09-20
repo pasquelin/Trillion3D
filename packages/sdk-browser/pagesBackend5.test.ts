@@ -31,12 +31,9 @@ test('page bounding sphere uses the page AABB, not the shared source mesh', () =
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
   backend.render(camera);
-  const attached: THREE.Mesh[] = [];
-  backend.scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) attached.push(o as THREE.Mesh);
-  });
-  assert.equal(attached.length, 1);
-  const sphere = attached[0].geometry.boundingSphere;
+  const draws = backend.clusterDraws!();
+  assert.equal(draws.length, 1);
+  const sphere = draws[0].geometry.boundingSphere;
   assert.ok(sphere);
   assert.ok(
     sphere.radius < 5,
@@ -107,13 +104,7 @@ test('exact pages batch clusters of the same primitive in beauty mode and unbatc
     associations,
     maxResidentPages: 10,
   });
-  const countMeshes = () => {
-    let n = 0;
-    backend.scene.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) n++;
-    });
-    return n;
-  };
+  const countMeshes = () => backend.clusterDraws!().length;
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 8;
   camera.lookAt(1, 0, 0);

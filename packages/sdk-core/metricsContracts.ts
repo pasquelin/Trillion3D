@@ -48,6 +48,10 @@ export interface FrameMetrics
   drawCalls: number | null;
   /** Paged cluster draws issued by the engine-owned WebGL2 program in this session. */
   autonomousClusterDrawsTotal?: number | null;
+  /** Scene copies — the transmissive surfaces — the engine-owned WebGL2 program drew this frame. */
+  autonomousCopyDraws?: number | null;
+  /** Bytes of the frozen backdrop the WebGL2 transmission pass reads; zero without transmission. */
+  transmissionBackdropBytes?: number | null;
   /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them, or
    *  as the host renderer drew them when it is the one drawing. `null` when neither
    *  has counted: a zero would read as an empty frame. */

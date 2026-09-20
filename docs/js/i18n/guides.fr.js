@@ -64,6 +64,12 @@ export const guidesFr = {
 <tr><td><code>THREE.LOD</code></td><td>—</td><td>la coupe du DAG choisit le détail par image selon l’erreur écran</td></tr>
 </tbody></table></div>
 <p>Les fonctions livrées et leurs preuves figurent dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>
+<h3 class="text-lg font-bold mt-4">Ce que le chemin WebGL2 dessine lui-même</h3>
+<p>Sur une session WebGL2, le moteur possède le contexte et dessine chaque cluster paginé avec son propre programme — lots opaques, masqués et fondus, pages de diagnostic — et, depuis #120, les surfaces transmissives de la scène : un maillage <code>KHR_materials_transmission</code> reste une copie de scène, composée après les clusters sur un fond figé de l’image en lumière linéaire, le même modèle que la passe WebGPU. Il n’y a pas d’autre rendu pour les clusters : un matériau, une lumière ou une texture que le programme ne peut préserver fait échouer la préparation avec l’<code>EngineError</code> <code>CLUSTER_MATERIAL_UNSUPPORTED</code>, dont <code>details.reason</code> nomme l’entrée, jamais une image partielle. Le rendu hôte compose encore les copies fondues restantes, le compositeur de comparaison, les captures et les images tenues (#85).</p>
+<div class="overflow-x-auto my-4"><table class="table table-zebra table-sm"><thead><tr><th>Three.js</th><th>Moteur</th><th>Différence déclarée</th></tr></thead><tbody>
+<tr><td><code>WebGLRenderer.renderTransmissionPass</code></td><td>passe de transmission de <code>WebglClusterRenderer</code></td><td>le fond est une copie brute : la rugosité ne le floute pas, un verre ne voit pas à travers un autre</td></tr>
+<tr><td>extensions de <code>MeshPhysicalMaterial</code></td><td>facteurs de transmission, d’IOR et de volume seulement</td><td>clearcoat, sheen, iridescence, anisotropie, dispersion, spéculaire et leurs cartes sont refusés par leur nom</td></tr>
+</tbody></table></div>
 <p>Parcours en deux temps : garder Three.js pour charger et construire la scène tout en dessinant avec le moteur, puis passer au cache compilé et retirer <code>three</code> des dépendances.</p>`,
   },
 };

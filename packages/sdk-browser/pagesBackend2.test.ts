@@ -81,11 +81,7 @@ test('a cut over the resident budget raises the flag and still covers the surfac
   // A DAG cut is a partition: truncating it would punch a hole, so the cover stays whole and only
   // the flag is raised. Both clusters are still drawn, in one batch.
   assert.equal(backend.overBudget, true);
-  let meshCount = 0;
-  backend.scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) meshCount++;
-  });
-  assert.equal(meshCount, 1);
+  assert.equal(backend.clusterDraws!().length, 1);
   assert.equal(backend.metrics().residentPages, 2);
   backend.dispose();
   geometry.dispose();

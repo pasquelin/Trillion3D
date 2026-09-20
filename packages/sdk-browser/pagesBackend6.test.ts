@@ -32,13 +32,7 @@ test('exact pages keep replica meshes in separate batches despite shared glTF id
     ]),
     maxResidentPages: 10,
   });
-  const meshes = () => {
-    const found: THREE.Mesh[] = [];
-    backend.scene.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) found.push(o as THREE.Mesh);
-    });
-    return found;
-  };
+  const meshes = () => backend.clusterDraws!();
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 8;
   camera.lookAt(0, 0, 0);
@@ -72,7 +66,7 @@ test('a missing replacement keeps the resident coarse cover rather than leaving 
   // The pinned root cluster is the only one resident: it covers the frame on its own.
   backend.acceptPage?.('2', new Uint32Array([0, 1, 2]));
   backend.render(camera);
-  const triangles = () => drawnTriangles(backend.scene);
+  const triangles = () => drawnTriangles(backend);
   assert.equal(triangles(), 1);
   assert.deepEqual(
     backend.pendingUrls?.().sort(),

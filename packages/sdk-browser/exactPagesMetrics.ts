@@ -11,10 +11,9 @@ type MetricsContext = {
   blendCopies: THREE.Mesh[];
   metricsSeen: Set<ArrayBufferView>;
   attached: PageRec[];
-  counters: { pagesDetached: number; displayDetachments: number };
+  counters: { pagesDetached: number };
   materials: { disposeMaterials: () => void };
   allPages: PageRec[];
-  release: (rec: PageRec) => void;
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
   readonly diagnostic: DiagnosticMode;
@@ -32,7 +31,6 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
     counters,
     materials,
     allPages,
-    release,
     disposeGeometry,
     scene,
     state,
@@ -42,21 +40,12 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
       const batched = batches.metrics;
       // Beauty mode: counters come from the batches, without walking geometries. Diagnostic mode:
       // one geometry per page, we fall back on the detailed count.
-      let bytes = batched.allocationBytes,
-        draws = blendCopies.length + batched.drawCalls,
-        submitted = batched.submittedTriangles;
+      let bytes = batched.allocationBytes;
       if (ctx.diagnostic !== 'beauty') {
         metricsSeen.clear();
         bytes = 0;
-        submitted = batches.autonomousDraw ? batched.submittedTriangles : 0;
-        draws = blendCopies.length + (batches.autonomousDraw ? batched.drawCalls : 0);
         for (const rec of attached)
           if (rec.geometry) bytes += geometryBytes(rec.geometry, metricsSeen);
-        for (let i = 0; i < attached.length; i++)
-          if (!batches.autonomousDraw && attached[i].attached) {
-            draws++;
-            submitted += attached[i].triangles;
-          }
       }
       const transparentSubmittedTriangles = blendCopies.reduce(
         (sum, copy) =>
@@ -74,18 +63,19 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         geometryAllocationBytes: bytes,
         frustumRejected: state.frustumRejected,
         lodLevel: state.lodLevel,
-        submittedTriangles: submitted,
-        totalSubmittedTriangles: submitted + transparentSubmittedTriangles,
+        submittedTriangles: batched.submittedTriangles,
+        totalSubmittedTriangles: batched.submittedTriangles + transparentSubmittedTriangles,
         transparentMeshes: blendCopies.length,
         transparentSubmittedTriangles,
         transparentDrawCalls: blendCopies.length,
-        drawCalls: draws,
+        drawCalls: blendCopies.length + batched.drawCalls,
         batchRebuilds: batched.pageRangeWrites,
         batchIndexBytesUpdated: batched.indexBytesWritten,
-        displayDetachments: counters.displayDetachments + batched.detachments,
         pageRangeWrites: batched.pageRangeWrites,
         subDraws: batched.subDraws,
         autonomousClusterDrawsTotal: batched.autonomousClusterDrawsTotal,
+        autonomousCopyDraws: batched.copyDraws,
+        transmissionBackdropBytes: batched.backdropBytes,
         cpuSubmitMs: batched.cpuSubmitMs,
         frameHeld: state.frameHeld,
       };
@@ -94,7 +84,6 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
       materials.disposeMaterials();
       batches.dispose();
       for (const rec of allPages) {
-        if (rec.attached) release(rec);
         if (rec.geometry) disposeGeometry(rec.geometry);
         rec.geometry = undefined;
         rec.mesh = undefined;

@@ -20,6 +20,8 @@ type ClusterLight = MatrixNode & {
 };
 export type WebglClusterScene = {
   traverse(visitor: (entry: MatrixNode) => void): void;
+  /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
+  background?: { isColor?: boolean; r?: number; g?: number; b?: number } | object | null;
 };
 
 const visibleThroughParents = (object: MatrixNode) => {

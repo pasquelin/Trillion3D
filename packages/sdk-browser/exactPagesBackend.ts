@@ -41,12 +41,12 @@ export const exactPagesBackend: BackendFactory = (context) => {
     attached: PageRec[] = [];
   const requestData = createExactPagesRequestData(allPages, requestCount);
   // One resident index buffer per primitive: the visible cut is now only a list of ranges.
-  const batches = createExactPagesClusterBatches(scene, allPages, blendCopies, context);
-  for (const copy of blendCopies) {
-    copy.userData.sourceGeometry = copy.geometry;
-    copy.userData.sourceMaterial = copy.material;
-    scene.add(copy);
-  }
+  const { batches, refusal } = createExactPagesClusterBatches(
+    scene,
+    allPages,
+    blendCopies,
+    context,
+  );
   const indexByUrl = new Map<string, THREE.BufferAttribute>();
   for (const rec of allPages)
     if (rec.array && !indexByUrl.has(rec.url))
@@ -78,20 +78,19 @@ export const exactPagesBackend: BackendFactory = (context) => {
     },
   });
   const { materialFor, paint, paintBlend } = materials;
-  const { release, attach } = createExactPagesAttachment(scene, indexByUrl, materialFor, paint);
+  const attach = createExactPagesAttachment(indexByUrl, materialFor, paint);
   const metricsSeen = new Set<ArrayBufferView>();
   const disposeGeometry = (geometry: THREE.BufferGeometry) => {
     disposeTriangleGeometry(geometry);
     for (const name of Object.keys(geometry.attributes)) geometry.deleteAttribute(name);
     geometry.dispose();
   };
-  const counters = { pagesDetached: 0, displayDetachments: 0 };
+  const counters = { pagesDetached: 0 };
   const syncResident = createExactPagesResidency(
     shown,
     desired,
     attached,
     batches,
-    release,
     attach,
     () => diagnostic,
     counters,
@@ -107,7 +106,6 @@ export const exactPagesBackend: BackendFactory = (context) => {
     batches,
     indexByUrl,
     disposeGeometry,
-    scene,
     get cam() {
       return renderState.cam;
     },
@@ -127,7 +125,6 @@ export const exactPagesBackend: BackendFactory = (context) => {
     counters,
     materials,
     allPages,
-    release,
     disposeGeometry,
     scene,
     get diagnostic() {
@@ -167,7 +164,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
       unsupported: CONTRACT_LIGHTS_UNSUPPORTED,
     },
     scene,
-    async prepare() {},
+    prepare: async () => {
+      if (refusal) throw refusal;
+    },
     get overBudget() {
       return renderState.overBudget;
     },
@@ -183,9 +182,11 @@ export const exactPagesBackend: BackendFactory = (context) => {
     selectedPageIds() {
       return (shown.length ? shown : desired).map((rec) => rec.clusterId);
     },
-    drawHostGeometry: batches.autonomousDraw
-      ? (camera, output) => batches.draw(camera, output.toneMapped, output.encodeSrgb)
-      : undefined,
+    drawHostGeometry(camera, output) {
+      if (refusal) throw refusal;
+      batches.draw(camera, output.toneMapped, output.encodeSrgb);
+    },
+    clusterDraws: () => batches.drawList,
     ...cpuMethods,
     ...requestMethods,
     syncResident() {

@@ -411,26 +411,44 @@ and releases the context once. The current scene renderer is a temporary adapter
 the surface foundation alone does not replace cluster drawing, composition, held frames, or capture.
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
-`exact-cluster-pages` uses an engine-owned WebGL2 program for paged opaque and alpha-masked
-`MeshStandardMaterial` and `MeshBasicMaterial` batches when their inputs fit its declared glTF
-contract. The program reads base colour, metallic-roughness, normal, occlusion and emissive maps,
+`exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
+`MeshStandardMaterial` and `MeshBasicMaterial` batches — through an engine-owned WebGL2 program,
+and nothing else draws them. The program reads base colour, metallic-roughness, normal, occlusion and emissive maps,
 including each map's UV set, transform, sampler and colour space, according to the
 [Khronos glTF 2.0 material specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#materials).
 Direct light adds Lambert diffuse to a Cook-Torrance GGX distribution, correlated Smith visibility
 and Schlick Fresnel, the published model described in Brian Karis's
 [Real Shading course notes](https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
 This is not glTF Appendix B's Fresnel mixture: its diffuse term does not multiply by `(1 - F)`.
-The host then returns the context to the temporary scene adapter for non-cluster objects and composition.
-`autonomousClusterDrawsTotal` is the session counter that proves these draws came from the owned
-program. It is cumulative and therefore is not a per-frame draw-call measurement.
+The host then returns the context to the temporary scene adapter for the remaining blended
+non-cluster copies and composition. `autonomousClusterDrawsTotal` is the session counter that
+proves the cluster draws came from the owned program. It is cumulative and therefore is not a
+per-frame draw-call measurement.
 
-This stage deliberately retains the complete scene-renderer path when a scene uses clustered blend,
-material arrays, transmission, physical extensions, environment/light/bump/displacement/alpha maps,
-flat shading, custom shader hooks, non-image textures, unsupported UV channels or lights, or later
-mutates a material into one of those states. The `cluster-webgl-fallback` diagnostic names the reason
-before activation. A runtime mutation raises a named backend error; an ordinary beauty frame then
-switches to the complete baseline, while measured and diagnostic frames fail explicitly.
-Clustered blend and diagnostics are tracked by #119, transmission composition by #120. No
+A transmissive source mesh (`KHR_materials_transmission`, with `KHR_materials_ior` and
+`KHR_materials_volume` factors) is not paged: the engine keeps it as a scene copy of its own and
+composes it after the clusters, through the same program. What the glass lets through is the
+engine's own image: the frame is first drawn into a frozen backdrop — linear half-float colour and
+depth, cleared to the scene background — then drawn to the display target, and the copy reads the
+backdrop at the refracted, thickness-advanced position, falls back to the unbent sample when the
+copied depth would put an object in front of the glass, and attenuates by the volume colour. The
+composition is the glTF one and the engine's WebGPU one (`webgpuTransmissionWgsl.ts`): the
+transmitted share replaces alpha blending, `a = alpha + t (1 - alpha)`, the specular of the
+declared lights stays on a null albedo, no light of the pass's own. The copy shares the frame's
+depth buffer, target encoding and tone mapping, and reaches captures, comparison targets and held
+frames through the same owner; `autonomousCopyDraws` counts it per frame and
+`transmissionBackdropBytes` publishes the two copies' cost, zero without a transmissive surface.
+The second cluster pass is the cost of the backdrop, paid only by a frame that carries one, as
+the reference renderer pays its transmission target. The backdrop is a plain copy: roughness does
+not blur what comes through, and one transmissive surface does not see through another.
+
+There is no other renderer for paged clusters. A scene whose material, light or texture the
+program cannot preserve — material arrays, blend states other than normal alpha, physical
+extensions beyond the transmission volume, environment/light/bump/displacement/alpha maps, flat
+shading, custom shader hooks, non-image textures, unsupported UV channels or lights, a context
+without a half-float backdrop — fails its preparation with `EngineError`
+`CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the input; a later mutation into one of
+those states raises the same named error before any draw, never a partial image. No
 bit-identical Cook-Torrance result is claimed: the owned implementation follows the published
 Lambert and GGX/Smith/Schlick model rather than another renderer's shader. Image comparisons publish
 the resulting delta. Geometric roughness filtering uses the less-conservative variance from equation

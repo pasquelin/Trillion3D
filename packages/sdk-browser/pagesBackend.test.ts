@@ -24,44 +24,33 @@ test('transparent page batches preserve source order across exact and coarse cut
     viewport: [960, 540] as [number, number],
   };
   const backend = exactPagesBackend(context);
-  const meshes = () =>
-    backend.scene.children.filter((object) => (object as THREE.Mesh).isMesh) as THREE.Mesh[];
+  const draws = () => backend.clusterDraws!();
   const camera = frontCamera();
   backend.render(camera);
-  assert.equal(meshes().length, 1);
-  // Double-sided transparent: the two passes Three.js would improvise each frame are frozen as
-  // two back/front materials from the source material, and two geometry groups order them.
-  const split = meshes()[0].material as THREE.Material[];
+  assert.equal(draws().length, 1);
+  // Double-sided transparent: the two passes the reference renderer would improvise each frame
+  // are frozen as two back/front materials from the source material, submitted in that order.
+  const split = draws()[0].material as THREE.Material[];
   assert.ok(Array.isArray(split));
   assert.deepEqual([split[0].side, split[1].side], [THREE.BackSide, THREE.FrontSide]);
   assert.deepEqual(
     split.map((one) => (one as THREE.MeshBasicMaterial).color.getHex()),
     [material.color.getHex(), material.color.getHex()],
   );
-  assert.deepEqual(
-    meshes()[0].geometry.groups.map((group) => group.materialIndex),
-    [0, 1],
-  );
-  assert.deepEqual(drawnIndices(meshes()[0]), [0, 1, 2, 0, 2, 3, 0, 3, 4]);
+  assert.deepEqual(drawnIndices(draws()[0]), [0, 1, 2, 0, 2, 3, 0, 3, 4]);
   context.pixelError = 10;
   backend.render(camera);
-  assert.equal(meshes().length, 1);
-  assert.deepEqual(drawnIndices(meshes()[0]), [0, 1, 3, 1, 2, 3, 0, 3, 4]);
+  assert.equal(draws().length, 1);
+  assert.deepEqual(drawnIndices(draws()[0]), [0, 1, 3, 1, 2, 3, 0, 3, 4]);
   backend.dispose();
   geometry.dispose();
   material.dispose();
 });
 
-test('exact pages report measured residency and keep only the visible set in the scene', () => {
+test('exact pages report measured residency and submit only the visible set', () => {
   const { geometry, material, context } = quadRootsContext(true, { maxResidentPages: 2 });
   const backend = exactPagesBackend(context);
-  const meshes = () => {
-    const found: THREE.Mesh[] = [];
-    backend.scene.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) found.push(o as THREE.Mesh);
-    });
-    return found;
-  };
+  const meshes = () => backend.clusterDraws!();
   assert.equal(meshes().length, 0);
   const camera = frontCamera();
   backend.render(camera);
