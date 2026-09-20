@@ -1,12 +1,7 @@
 // Standalone proof of the autonomous transmission pass: what a transmissive scene copy lets
 // through is the engine's own cluster image, opaque and blended, depth-tested both ways.
 import * as THREE from 'three';
-import { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
-import {
-  createHostDrawCamera,
-  readHostDrawCamera,
-} from '../../packages/sdk-browser/cameraWorld.ts';
-import { clear, pixel } from './webglClusterPixels.mjs';
+import { clear, mountClusterRenderer, pixel } from './webglClusterPixels.mjs';
 
 /** A quad facing the camera at depth `z`, with the normal the lit glass needs. */
 const quad = (z, half = 1) => {
@@ -46,16 +41,10 @@ const glassMesh = (options = {}) => {
 };
 
 export function execute() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 32;
-  const gl = canvas.getContext('webgl2');
-  if (!gl) return { unavailable: 'WebGL2 unavailable' };
-  gl.viewport(0, 0, 32, 32);
-  const renderer = new WebglClusterRenderer(gl),
-    scene = new THREE.Scene(),
-    camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
-    drawCamera = readHostDrawCamera(createHostDrawCamera(), camera),
-    red = cluster(quad(-3), new THREE.MeshBasicMaterial({ color: 0xff0000 })),
+  const mounted = mountClusterRenderer();
+  if (!mounted) return { unavailable: 'WebGL2 unavailable' };
+  const { gl, renderer, scene, drawCamera } = mounted;
+  const red = cluster(quad(-3), new THREE.MeshBasicMaterial({ color: 0xff0000 })),
     glass = glassMesh();
   scene.background = new THREE.Color(0x0000ff);
   const draw = (clusters, copies, srgb = false) =>
@@ -124,6 +113,13 @@ export function execute() {
   gl.viewport(0, 0, 32, 32);
   const subViewport = { inside: pixel(gl), outside: readPixel(gl, 2, 2) };
 
+  // A glass outside the view costs nothing: no copy submitted, no backdrop pass.
+  const away = glassMesh();
+  away.matrix.makeTranslation(100, 0, 0);
+  away.geometry.computeBoundingBox();
+  clear(gl);
+  const offscreen = { submissions: draw([red], [away]), pixel: pixel(gl) };
+
   // Another physical extension is refused before anything is drawn.
   const coated = glassMesh({ clearcoat: 0.5 });
   clear(gl);
@@ -149,6 +145,7 @@ export function execute() {
     attenuated,
     lit,
     subViewport,
+    offscreen,
     refused,
     refusedPixel,
     drawError,

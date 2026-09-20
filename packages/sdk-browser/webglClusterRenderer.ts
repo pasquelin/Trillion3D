@@ -21,6 +21,7 @@ import {
   type Material,
 } from './webglClusterMaterialBinding.ts';
 import { ownedSceneCopy } from './webglClusterCompatibility.ts';
+import { WebglClusterCopyCulling } from './webglClusterCopyCulling.ts';
 import type * as THREE from 'three';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './webglClusterSubmit.ts';
 
@@ -39,9 +40,13 @@ export class WebglClusterRenderer {
   private materialUniforms: WebglClusterMaterialUniforms;
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
-  private background = new Float32Array(3);
-  /** Transmissive copies of the frame being drawn, reused frame to frame. */
+  private culling = new WebglClusterCopyCulling();
+  /** Copies of the frame being drawn, in view, split by pass; reused frame to frame. */
+  private plainCopies: THREE.Mesh[] = [];
   private transmissive: THREE.Mesh[] = [];
+  /** Scene copies the last frame submitted: in view, visible, whatever their pass. */
+  copySubmissions = 0;
+  private binding: Parameters<typeof bindClusterMaterial>[0];
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     const program = (this.program = createClusterProgram(gl));
@@ -56,6 +61,12 @@ export class WebglClusterRenderer {
     this.multiDraw = gl.getExtension('WEBGL_multi_draw') as typeof this.multiDraw;
     this.materialMatrices = new Matrix3UniformCache(gl, (name) => this.at(name));
     this.materialUniforms = new WebglClusterMaterialUniforms(gl, (name) => this.at(name));
+    this.binding = {
+      uniforms: this.materialUniforms,
+      matrices: this.materialMatrices,
+      textures: this.textures,
+      state: this.state,
+    };
     gl.useProgram(program);
     setClusterSamplers(gl, (name) => this.at(name));
   }
@@ -77,13 +88,7 @@ export class WebglClusterRenderer {
     polygonMaterial?: THREE.Material,
   ) {
     if (!material.visible) return 0;
-    const binding = {
-      uniforms: this.materialUniforms,
-      matrices: this.materialMatrices,
-      textures: this.textures,
-      state: this.state,
-    };
-    bindClusterMaterial(binding, material as Material, toneMapped, passSide, polygonMaterial);
+    bindClusterMaterial(this.binding, material as Material, toneMapped, passSide, polygonMaterial);
     if (whole) submitDiagnosticMesh(this.gl, mesh as THREE.Mesh);
     else submitClusterMesh(this.gl, this.multiDraw, mesh as ClusterDrawMesh);
     return 1;
@@ -111,22 +116,30 @@ export class WebglClusterRenderer {
   private submitOpaque(
     meshes: readonly ClusterDrawMesh[],
     wholeMeshes: readonly THREE.Mesh[],
-    copies: readonly THREE.Mesh[],
     camera: HostDrawCamera,
     toneMapped: boolean,
   ) {
     let submitted = 0;
     for (const mesh of meshes) submitted += this.mesh(mesh, camera, toneMapped);
     for (const mesh of wholeMeshes) submitted += this.mesh(mesh, camera, toneMapped);
-    for (const mesh of copies)
-      if (!ownedSceneCopy(mesh)) submitted += this.mesh(mesh, camera, toneMapped);
+    for (const mesh of this.plainCopies) submitted += this.mesh(mesh, camera, toneMapped);
     return submitted;
   }
-  private setOutput(toneMapped: boolean, srgbDestination: boolean) {
+  private setOutput(srgbDestination: boolean) {
     this.gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     this.state.invalidate();
     this.textures.invalidateBindings();
-    return toneMapped;
+  }
+  /** The copies in view, by pass: the host renderer would cull them the same way. */
+  private sortCopies(copies: readonly THREE.Mesh[], camera: HostDrawCamera) {
+    this.plainCopies.length = this.transmissive.length = 0;
+    if (!copies.length) return;
+    this.culling.begin(camera);
+    for (const copy of copies) {
+      if (!this.culling.visible(copy)) continue;
+      if (ownedSceneCopy(copy)) this.transmissive.push(copy);
+      else this.plainCopies.push(copy);
+    }
   }
   /**
    * One frame: the batches, then whole host meshes — diagnostic pages, painted copies — then the
@@ -150,31 +163,26 @@ export class WebglClusterRenderer {
     gl.disable(gl.STENCIL_TEST);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
+    this.sortCopies(copies, camera);
     const transmissive = this.transmissive;
-    transmissive.length = 0;
-    for (const copy of copies) if (ownedSceneCopy(copy)) transmissive.push(copy);
     if (transmissive.length) {
-      const background = scene.background as {
-        isColor?: boolean;
-        r: number;
-        g: number;
-        b: number;
-      } | null;
-      this.background[0] = background?.isColor ? background.r : 0;
-      this.background[1] = background?.isColor ? background.g : 0;
-      this.background[2] = background?.isColor ? background.b : 0;
-      this.backdrop.begin(this.background, BACKDROP_UNITS[0], BACKDROP_UNITS[1]);
-      this.submitOpaque(meshes, diagnosticMeshes, copies, camera, this.setOutput(false, false));
+      this.backdrop.begin(scene.background, BACKDROP_UNITS[0], BACKDROP_UNITS[1]);
+      this.setOutput(false);
+      this.submitOpaque(meshes, diagnosticMeshes, camera, false);
       this.backdrop.end();
     }
-    const output = this.setOutput(toneMapped, srgbDestination);
-    let submitted = this.submitOpaque(meshes, diagnosticMeshes, copies, camera, output);
+    this.setOutput(srgbDestination);
+    const submitted = this.submitOpaque(meshes, diagnosticMeshes, camera, toneMapped);
+    let copySubmissions = 0;
+    for (const mesh of this.plainCopies)
+      if (!Array.isArray(mesh.material) && mesh.material.visible) copySubmissions++;
     if (transmissive.length) {
       this.backdrop.bind(BACKDROP_UNITS[0], BACKDROP_UNITS[1]);
-      gl.uniform2f(this.at('backdropOrigin'), ...this.backdrop.origin);
-      for (const mesh of transmissive) submitted += this.mesh(mesh, camera, toneMapped);
+      gl.uniform2f(this.at('backdropOrigin'), this.backdrop.originX, this.backdrop.originY);
+      for (const mesh of transmissive) copySubmissions += this.mesh(mesh, camera, toneMapped);
     }
-    return submitted;
+    this.copySubmissions = copySubmissions;
+    return submitted + copySubmissions;
   }
   dispose() {
     this.backdrop.dispose();
