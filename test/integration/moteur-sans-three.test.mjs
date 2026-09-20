@@ -73,7 +73,6 @@ const AUTORISES = {
   exactPagesBounds: 'boundary: it walks the host source graph to bound its pages',
   explorerScene: 'boundary: it builds the host’s prepared scene',
   frameGateCore: 'boundary: the frame gate listens to the host source node',
-  hostSceneHookCore: 'boundary: the accessor a hooked host field becomes',
   hostSceneHooks: 'boundary: it hooks the fields the host writes on its nodes',
   hostSceneHooksLight: 'boundary: it hooks the fields the host writes on its lights',
   hostSceneWatch: 'boundary: it names the host nodes whose writes are listened to',
