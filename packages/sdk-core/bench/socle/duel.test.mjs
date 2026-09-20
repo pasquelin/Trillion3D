@@ -29,7 +29,7 @@ if (process.env.DUEL_CLOCK) {
   });
 } else {
   // The child reports in plain TAP: it is not a test of the parent's runner.
-  const env = { ...process.env, DUEL_CLOCK: '' };
+  const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
   const run = (clock) =>
     spawnSync(process.execPath, ['--experimental-strip-types', fileURLToPath(import.meta.url)], {
