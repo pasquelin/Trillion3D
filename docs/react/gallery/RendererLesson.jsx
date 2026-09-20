@@ -49,13 +49,29 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }) {
               {lesson.controls.map((item) => (
                 <Field key={item.id} label={local(item.label, locale)} className="grow">
                   {item.type === 'boolean' ? (
-                    <Toggle
-                      aria-label={local(item.label, locale)}
-                      checked={(state[item.id] ?? item.value) === 1}
-                      onChange={(event) =>
-                        setState({ ...state, [item.id]: event.target.checked ? 1 : 0 })
-                      }
-                    />
+                    <div className="grid gap-2">
+                      <Toggle
+                        aria-label={local(item.label, locale)}
+                        checked={(state[item.id] ?? item.value) === 1}
+                        onChange={(event) =>
+                          setState({ ...state, [item.id]: event.target.checked ? 1 : 0 })
+                        }
+                      />
+                      {item.legend && (
+                        <ul className="flex flex-wrap gap-3 text-xs">
+                          {item.legend.map((entry) => (
+                            <li key={entry.color} className="flex items-center gap-1.5">
+                              <span
+                                className="size-2.5 rounded-full"
+                                style={{ backgroundColor: entry.color }}
+                                aria-hidden="true"
+                              />
+                              {local(entry.label, locale)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   ) : (
                     <Range
                       aria-label={local(item.label, locale)}
