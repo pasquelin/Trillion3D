@@ -1,5 +1,6 @@
 import { lessonCode } from './lessonCode.js';
-import { LESSON_POINT_INTENSITY } from './lightingLessonDefinitions.js';
+import { LESSON_POINT_INTENSITY, LESSON_RING_INTENSITY } from './lightingLessonDefinitions.js';
+import { ringLamps } from './lightingLessonRuntime.js';
 const light = (id, position, color, intensity, emitterRadius = 0.1, castsShadow = true) =>
   `explorer.addLight({ id: '${id}', kind: 'point', position: [${position}], color: [${color}], intensity: ${intensity}, range: 10, emitterRadius: ${emitterRadius}, castsShadow: ${castsShadow} });`;
 
@@ -13,6 +14,12 @@ ${light('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
     return `explorer.addLight({ id: 'switch', kind: 'point', position: [-3, 7, 10], color: [1, 0.72, 0.42], intensity: 1800, range: 30, emitterRadius: 0.1, castsShadow: ${state.shadow === 1} });`;
   if (lesson.kind === 'emitter-radius')
     return light('envelope', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY, state.radius);
+  if (lesson.kind === 'many-lights')
+    return ringLamps(state.count)
+      .map((lamp) =>
+        light(lamp.id, lamp.position.join(', '), lamp.color.join(', '), LESSON_RING_INTENSITY),
+      )
+      .join('\n');
   const created = light('lifecycle', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY);
   return state.enabled === 1 ? created : `${created}\nexplorer.removeLight('lifecycle');`;
 }
