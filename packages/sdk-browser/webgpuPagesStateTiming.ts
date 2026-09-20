@@ -37,17 +37,17 @@ export interface WebgpuTimingState {
   stages: StageProfiler | undefined;
   // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
   /** What encoding the partition cost the CPU: the corners the table just changed, one view-projection
-   *  matrix, and three compute dispatches. Never a row. */
+   *  matrix, and two compute dispatches. Never a row. */
   lastPartitionMs: number;
   /** What the image's partition decided: counts, never durations. */
   partitionCounts: {
     lignes: number;
     occulteurs: number;
     testees: number;
-    /** Boxes that do not cut the near plane, therefore shareable by depth. */
-    bornesToutes: number;
+    /** Rows the previous image drew, before its pyramid withdrew some of them. */
     historiqueOcculteurs: number;
-    sansHistorique: number;
+    /** Rows drawn last image that last image's pyramid sent to the tested half. */
+    retiresParLaPyramide: number;
     /** Image these counts describe: they are written by the GPU and reread periodically, therefore
      *  never those of the current image. `-1` until a sample has come back. */
     imageRelevee: number;
@@ -111,9 +111,8 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       lignes: 0,
       occulteurs: 0,
       testees: 0,
-      bornesToutes: 0,
       historiqueOcculteurs: 0,
-      sansHistorique: 0,
+      retiresParLaPyramide: 0,
       imageRelevee: -1,
     },
     encodeCounts: {

@@ -4,8 +4,16 @@ import {
   ROW_DATA_U32,
   STATE_WORDS,
 } from './gpuPartitionContract.ts';
-import { createGpuPartitionBuffers, createGpuPartitionLayout } from './gpuPartitionBuffers.ts';
-import { createPartitionUniformWriter, type PartitionFrame } from './gpuPartitionUniform.ts';
+import {
+  createGpuPartitionBuffers,
+  createGpuPartitionGroup,
+  createGpuPartitionLayout,
+} from './gpuPartitionBuffers.ts';
+import {
+  createPartitionUniformWriter,
+  type ForgottenRows,
+  type PartitionFrame,
+} from './gpuPartitionUniform.ts';
 import { createPartitionCounters } from './gpuPartitionCounters.ts';
 import { PARTITION_SHADER } from './gpuPartitionShader.ts';
 import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
@@ -23,42 +31,40 @@ export async function createGpuPartition(
   slotCap: number,
   sources: PartitionSources,
 ): Promise<GpuPartition | undefined> {
-  if (typeof device.createComputePipeline !== 'function' || slotCap < 1) return undefined;
+  const pyramid = sources.pyramid();
+  if (typeof device.createComputePipeline !== 'function' || slotCap < 1 || !pyramid)
+    return undefined;
   const allocated = createGpuPartitionBuffers(device, slotCap);
   let disposed = false;
   try {
     openValidation(device);
-    const layout = createGpuPartitionLayout(device);
     const module = device.createShaderModule({ code: PARTITION_SHADER });
     if (await shaderFailed(device, module)) {
       for (const buffer of allocated.all) buffer.destroy();
       return undefined;
     }
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-    const pipelineFor = (entryPoint: string) =>
-      device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
-    const project = pipelineFor('projectRows'),
-      choose = pipelineFor('chooseSplit'),
-      classify = pipelineFor('classifyRows');
-    const bindGroup = device.createBindGroup({
-      layout,
-      entries: [
-        allocated.corners,
-        sources.items,
-        sources.flags,
-        allocated.rowData,
-        allocated.tested,
-        sources.restBits,
-        sources.slotUsed,
-        allocated.state,
-        allocated.uniforms,
-      ].map((buffer, binding) => ({ binding, resource: { buffer } })),
-    });
+    const projectLayout = createGpuPartitionLayout(device, 'projectRows'),
+      classifyLayout = createGpuPartitionLayout(device, 'classifyRows');
+    const pipelineFor = (layout: GPUBindGroupLayout, entryPoint: string) =>
+      device.createComputePipeline({
+        layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+        compute: { module, entryPoint },
+      });
+    const project = pipelineFor(projectLayout, 'projectRows'),
+      classify = pipelineFor(classifyLayout, 'classifyRows');
+    // The pyramid changes identity on every target resize: the projection's group follows it,
+    // remade only then. A fresh pyramid is all zeros — the far plane — and hides nothing.
+    const buffers = { ...allocated, ...sources, pyramid };
+    let projectGroup = createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers);
+    const classifyGroup = createGpuPartitionGroup(device, classifyLayout, 'classifyRows', buffers);
     if (await validationError(device)) {
       for (const buffer of allocated.all) buffer.destroy();
       return undefined;
     }
     const writeUniform = createPartitionUniformWriter();
+    // Rows rewritten with another page since the last image: their held rectangle, verdict and
+    // history describe the page that left. Read as never projected, once, then forgotten.
+    const forget: ForgottenRows = { from: 0, to: -1 };
     // What the last frame sent the kernel, kept for the audit: matrices are copied because the
     // camera's are rewritten by the next frame. The copy goes into two arrays allocated once
     // and for all — the audit reads the last frame, never an earlier one.
@@ -87,6 +93,11 @@ export async function createGpuPartition(
       state: allocated.state,
       rowData: allocated.rowData,
       uniforms: allocated.uniforms,
+      forgetRows(from: number, to: number) {
+        if (to < from) return;
+        forget.from = forget.to < forget.from ? from : Math.min(forget.from, from);
+        forget.to = Math.max(forget.to, to);
+      },
       /** World corners of rows `[from, to]`, on the table's dirty interval and it alone. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
         if (disposed || to < from) return;
@@ -99,14 +110,17 @@ export async function createGpuPartition(
         );
       },
       encode(encoder: GPUCommandEncoder, frame: PartitionFrame) {
-        if (disposed) return;
+        const pyramid = sources.pyramid();
+        if (disposed || !pyramid) return;
         const rows = Math.min(frame.rows, allocated.rows);
         // Nothing is held from frame to frame but the history, which lives in `rowData`:
-        // counters, histogram, rest bits and per-slot counts start from zero.
+        // counters, rest bits and per-slot counts start from zero.
         encoder.clearBuffer(allocated.state, 0, STATE_WORDS * 4);
         encoder.clearBuffer(sources.restBits);
         encoder.clearBuffer(sources.slotUsed);
-        writeUniform(device, allocated.uniforms, frame, rows);
+        writeUniform(device, allocated.uniforms, frame, rows, forget);
+        forget.from = 0;
+        forget.to = -1;
         kept.rows = rows;
         kept.width = frame.width;
         kept.height = frame.height;
@@ -114,14 +128,17 @@ export async function createGpuPartition(
         kept.view.set(frame.view);
         kept.viewProj.set(frame.viewProj);
         lastFrame = kept;
+        if (pyramid !== buffers.pyramid) {
+          buffers.pyramid = pyramid;
+          projectGroup = createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers);
+        }
         const groups = Math.max(1, Math.ceil(rows / PARTITION_WORKGROUP));
         const pass = encoder.beginComputePass({ label: 'WG partition' });
-        pass.setBindGroup(0, bindGroup);
         pass.setPipeline(project);
+        pass.setBindGroup(0, projectGroup);
         pass.dispatchWorkgroups(groups);
-        pass.setPipeline(choose);
-        pass.dispatchWorkgroups(1);
         pass.setPipeline(classify);
+        pass.setBindGroup(0, classifyGroup);
         pass.dispatchWorkgroups(groups);
         pass.end();
       },
