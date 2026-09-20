@@ -103,7 +103,7 @@ async function executer({ shader, sommets, bornes, viewProj, largeur, hauteur, s
   return { adaptateur: info.court, fragments, erreurs };
 }
 
-/** Rasterise les cas et rend le nombre de fragments couverts par cas. */
+/** Rasterizes cases and returns the number of fragments covered per case. */
 export async function rasterGpu(charge) {
   return await dansPageWebgpu(
     executer,

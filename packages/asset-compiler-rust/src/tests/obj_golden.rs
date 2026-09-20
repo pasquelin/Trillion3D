@@ -5,8 +5,8 @@
 //! that glTF cannot always carry: ambient colour, specular, IOR, exponent,
 //! opacity and its separate map, emission, distinct normal and bump, and map
 //! options `-s`, `-o`, `-bm`, `-clamp`.
-//! Elle fixe ce que le pilote produit, jusqu'aux octets du sidecar, et ce qu'il compte sans le
-//! rendre.
+//! It fixes what the driver produces, down to sidecar bytes, and what it counts without
+//! rendering.
 use super::*;
 
 const CASE: &str = "An OBJ and its MTL: two groups shaded by two materials, a quad and a pentagon, an ambient colour and its map, a specular colour, an exponent, an IOR, 0.5 opacity with its separate map, textured emission, a normal and a bump that point at two different files, and map options -s, -o, -bm and -clamp.";
@@ -33,7 +33,7 @@ fn regenere_la_fixture_obj() {
     write_expected(&dir, digest(&run), CASE, RULE);
 }
 
-/// Le fichier de la fixture minuscule.
+/// The minuscule fixture file.
 fn fixture(dir: &Path) -> PathBuf {
     dir.join("minuscule").join("scene.obj")
 }

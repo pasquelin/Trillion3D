@@ -1,7 +1,7 @@
 //! What a prim holds from its ancestors: the material `material:binding` binds
 //! higher up, and the `doubleSided` geometry declares without any material bound.
 //!
-//! Les textures ont leur propre fichier, `usd_textures.rs` ; les faces invalides `usd_faces.rs`.
+//! Textures have their own file, `usd_textures.rs`; invalid faces `usd_faces.rs`.
 use super::*;
 use usd_driver::{compile_layer, wrap};
 

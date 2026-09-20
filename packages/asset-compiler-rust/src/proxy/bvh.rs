@@ -118,9 +118,8 @@ pub fn extent(triangles: &[f32]) -> [f64; 6] {
 }
 
 /// Binary tree flattened into subtree skips: six bound numbers and three integers per
-/// node — skip, first triangle, triangle count. Form CPU oracle traces,
-/// where stackless traversal beats wide node; proxy cache itself uses wide nodes.
-/// porte la forme large de `wide::collapse`.
+/// node — skip, first triangle, triangle count. Used for CPU oracle traces,
+/// where stackless traversal beats wide nodes; proxy cache itself carries the wide form from `wide::collapse`.
 pub fn flatten(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
     let mut escape = vec![0u32; nodes.len()];
     for at in (0..nodes.len()).rev() {

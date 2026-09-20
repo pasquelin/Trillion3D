@@ -84,10 +84,8 @@
 - **This repository is self-contained.** It builds, tests, measures and proves itself with only its
   own dependencies (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off
   git). No code, script, test or doc may read another project on disk — no neighbour path, no
-  `LAB_ROOT`. `render-tech-lab` is one ordinary host of `prepare()` and `createExplorer()`: it tests
-  the engine, the engine never leans on it. Never add host code to make the engine work, never
-  write into a host's folders. The only proofs that touch it are mounted on its pages, take its
-  address by `LAB_URL`, and are excluded from `test:gpu` by name.
+  external harness. Every test, visual proof and benchmark runs on the repository's own standalone
+  tools. Never add host code to make the engine work, never write into a host's folders.
 - Keep React/Electron/Vite, DOM and platform filesystem APIs out of runtime-core/shared contracts;
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
@@ -124,6 +122,12 @@
   Several agents work on this repository at the same time: two of them in one working tree
   overwrite each other's files without a word, and a single `git status` then mixes two batches
   on one branch.
+- **Issue lifecycle labels make ongoing work visible.** As soon as the worktree is created, mark
+  the issue in progress (`gh issue edit <issue> --add-label "in progress"`). When the pull request
+  is opened, replace `in progress` with `in review`. After merge, remove `in review` and close the
+  issue when cleaning up the worktree: merging into `develop` does not close it automatically.
+  If the pull request is closed without merging, remove both labels; add `in progress` again only
+  if implementation continues. The coder role gives the commands for each transition.
 - **The release is a pull request like any other.** `develop` reaches `main` through its own
   issue and its own pull request, body on the same template and starting with `Closes #<issue>`,
   merged once `validate` is green; its head is `develop` itself, so no branch is cut for it and

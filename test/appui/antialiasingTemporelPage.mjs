@@ -17,7 +17,7 @@ import {
 } from './preuveSceneCommune.mjs';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 
-/** Images rendues au plus avant d'abandonner l'attente de la tenue. */
+/** Maximum images rendered before giving up waiting for frame hold. */
 const PLAFOND = 64;
 
 /** The background and the red tile, the latter rotated by a third of a radian: its edges are oblique. */
@@ -88,7 +88,7 @@ async function executionComplete(device, evenements, temporel) {
 
 export async function executer() {
   const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const evenements = [];
   try {

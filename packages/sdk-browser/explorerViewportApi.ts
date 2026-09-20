@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { CameraPose } from '../sdk-core/index.ts';
 import { devicePixels } from './backendCommon.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { WebglSurface } from './webglSurface.ts';
+import { resizeExplorerWebglHost } from './explorerWebglHost.ts';
 
 type Inputs = {
   check: () => void;
@@ -15,6 +17,7 @@ type Inputs = {
   camera: THREE.PerspectiveCamera;
   canvas: HTMLCanvasElement;
   renderer: THREE.WebGLRenderer;
+  webglSurface?: WebglSurface;
   viewport: [number, number];
   directGpu: boolean;
   options: ExplorerOptions;
@@ -32,6 +35,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
     camera,
     canvas,
     renderer,
+    webglSurface,
     viewport,
     directGpu,
     options,
@@ -67,7 +71,14 @@ export function createExplorerViewportApi(inputs: Inputs) {
       if (directGpu) {
         canvas.width = devicePixels(width, options.pixelRatio);
         canvas.height = devicePixels(height, options.pixelRatio);
-      } else renderer.setSize(width, height, false);
+      } else {
+        if (webglSurface)
+          resizeExplorerWebglHost(webglSurface, renderer, width, height, options.pixelRatio ?? 1);
+        else {
+          renderer.setPixelRatio(options.pixelRatio ?? 1);
+          renderer.setSize(width, height, false);
+        }
+      }
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       viewport[0] = canvas.width;
