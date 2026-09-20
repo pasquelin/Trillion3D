@@ -23,6 +23,7 @@ assert.equal(
   3,
   'opaque base plus both BLEND passes are submitted',
 );
+assert.deepEqual(result.coplanarBlendWithoutBias, [255, 0, 0, 255]);
 assert.ok(result.coplanarBlendPixel[1] > 0 && result.coplanarBlendPixel[0] < 255);
 assert.equal(result.diagnosticSubmissions, 1);
 assert.ok(result.diagnosticPixel[0] + result.diagnosticPixel[1] > 0);
