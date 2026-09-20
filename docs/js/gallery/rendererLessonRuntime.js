@@ -73,12 +73,9 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     previous = 0,
     resize,
     controls,
+    ready,
     readyResolve,
     readyReject;
-  const ready = new Promise((resolve, reject) => {
-    readyResolve = resolve;
-    readyReject = reject;
-  });
   const added = { value: false },
     lighting = createLightingLessonSession();
   const dispose = () => {
@@ -133,6 +130,11 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
   try {
     await explorer.awaitPages();
     if (disposed) throw new DOMException('Cancelled', 'AbortError');
+    ready = new Promise((resolve, reject) => {
+      readyResolve = resolve;
+      readyReject = reject;
+    });
+    ready.catch(() => {});
     if (lesson.sceneLight)
       explorer.addLight({
         id: 'scene',

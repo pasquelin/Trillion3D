@@ -1068,9 +1068,9 @@
     "semantic_hash": ""
   },
   "docs/js/gallery/rendererLessonRuntime.js": {
-    "mtime": 1789906280.2960548,
-    "seen": 1789906788.8516989,
-    "ast_hash": "59b77b17a4bc5fe76bb2ab4867d67baf",
+    "mtime": 1789906983.423733,
+    "seen": 1789907061.151208,
+    "ast_hash": "38cadd407f65ff51fb27f9f04032c7b5",
     "semantic_hash": ""
   },
   "docs/js/gallery/rendererLessons.js": {
@@ -1500,9 +1500,9 @@
     "semantic_hash": ""
   },
   "docs/react/gallery/RendererLesson.jsx": {
-    "mtime": 1789904704.5033684,
-    "seen": 1789906788.8517818,
-    "ast_hash": "16ebd24dcfeaf5d46b0dcaa8b8ca1144",
+    "mtime": 1789906983.3051963,
+    "seen": 1789907061.1512818,
+    "ast_hash": "808648410d67f3b0195cb7655b98fa64",
     "semantic_hash": ""
   },
   "docs/react/gallery/RendererViewport.jsx": {
@@ -13752,9 +13752,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-canvas.test.mjs": {
-    "mtime": 1789906229.334759,
-    "seen": 1789906788.8533509,
-    "ast_hash": "4ce7040cae13a39141d770d16be9f6fb",
+    "mtime": 1789906996.640219,
+    "seen": 1789907061.1530821,
+    "ast_hash": "facecd4686f4ac41f229ed67fe52e121",
     "semantic_hash": ""
   }
 }
