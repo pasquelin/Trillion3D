@@ -7,6 +7,7 @@ import type { GpuDraw } from './gpuDraw.ts';
 import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
+import { createPresentClasses, type PresentClasses } from './webgpuMaterialPasses.ts';
 
 type GeometryBlock = {
   vertexBase: number;
@@ -35,6 +36,8 @@ export interface WebgpuVisState {
    *  classes at preparation, and any class a material changed into since, made on first draw. */
   shadePipelines: Map<number, GPURenderPipeline>;
   shadePipelineFor: ((key: number) => GPURenderPipeline) | undefined;
+  /** Classes the image being encoded has rows of (`webgpuMaterialPasses.ts`). */
+  presentClasses: PresentClasses;
   gpuHiz: GpuHiz | undefined;
   gpuRaster: GpuRaster | undefined;
   visHizRestBack: GPURenderPipeline | undefined;
@@ -99,6 +102,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     materialDepthPipeline: undefined,
     shadePipelines: new Map(),
     shadePipelineFor: undefined,
+    presentClasses: createPresentClasses(),
     gpuHiz: undefined,
     gpuRaster: undefined,
     visHizRestBack: undefined,

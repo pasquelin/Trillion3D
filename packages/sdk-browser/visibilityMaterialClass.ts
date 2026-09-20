@@ -34,12 +34,10 @@ export const CLASS_FEATURE = {
 export type MaterialClassFeature = keyof typeof CLASS_FEATURE;
 /** Keys addressable: one more bit than the highest feature; key + 1 stays exact as a depth. */
 export const MATERIAL_CLASS_KEYS = 2048;
-/** Depth denominator: a power of two, so every class depth is exact in `f32`. */
-const CLASS_DEPTH_UNITS = 4096;
+/** Depth denominator: a power of two, so every class depth `(key + 1) / units` is exact in `f32`. */
+export const CLASS_DEPTH_UNITS = 4096;
 /** Format of the material-depth target: exact for every class depth, like the opaque depth. */
 export const MATERIAL_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
-/** Row word of the page table that carries the class key (`PageInfo.materialClass`). */
-export const ROW_MATERIAL_CLASS_WORD = 63;
 
 /** Map slots of a row, as `webgpuPageRow.ts` resolves them: zero is the absence of a texture. */
 export type MaterialClassMaps = {
@@ -68,9 +66,6 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps) {
   return key;
 }
 
-/** Depth of a class's pixels in the material-depth target; the background stays at zero. */
-export const materialClassDepth = (key: number) => (key + 1) / CLASS_DEPTH_UNITS;
-
 /**
  * Pipeline overrides of the resolve: the class key, the depth its triangle is drawn at, and one
  * boolean per feature, each an override expression the backend compiler folds. Without a class
@@ -81,13 +76,11 @@ override CLASS_DEPTH:f32=f32(CLASS_KEY+1u)/${CLASS_DEPTH_UNITS}.0;
 ${Object.entries(CLASS_FEATURE)
   .map(([name, bit]) => `override ${name}:bool=(CLASS_KEY&${bit}u)!=0u;`)
   .join('\n')}
-/** Depth of a pixel's class, read off the page table: what each class pass tests against. */
+/** Depth of a pixel's class, read off the page table, zero on the background: what each class
+ *  pass tests against. */
 fn materialClassDepth(id:u32)->f32{
  if(id==0u){return 0.0;}
  let pageIndex=(id>>8u)-1u;
  if(pageIndex>=uni.pageCount){return 0.0;}
  return f32(pages[pageIndex].materialClass+1u)/${CLASS_DEPTH_UNITS}.0;
 }`;
-
-/** Constants a class pipeline is created with: the key alone, the rest derives in the shader. */
-export const materialClassConstants = (key: number) => ({ CLASS_KEY: key });
