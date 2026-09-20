@@ -32,6 +32,7 @@ export type {
   GeometryPageDescriptor,
   Page,
   Primitive,
+  PrimitiveQuantization,
   StreamBundle,
   StreamCatalogue,
   TexturePreview,
@@ -50,6 +51,8 @@ export {
 } from '../../sdk-core/manifestBinaryDecode.ts';
 export { encodeManifestBinary } from '../../sdk-core/manifestBinaryEncode.ts';
 export {
+  GEOMETRY_PAGE_CODEC,
+  GEOMETRY_PAGE_FORMAT_VERSION,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
   PREVIEW_ATLAS_COLOR,

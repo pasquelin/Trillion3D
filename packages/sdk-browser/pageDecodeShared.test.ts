@@ -42,7 +42,7 @@ async function page() {
   }
   const indices = new Uint32Array(sommets - (sommets % 3));
   for (let i = 0; i < indices.length; i++) indices[i] = (i * 7) % sommets;
-  const { data } = await encodeGeometryPage(indices, {
+  const { data } = encodeGeometryPage(indices, {
     POSITION: { itemSize: 3, array: position },
     NORMAL: { itemSize: 3, array: normal },
   });

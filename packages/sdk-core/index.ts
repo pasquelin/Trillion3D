@@ -32,6 +32,8 @@ export {
 } from './manifestBinary.ts';
 export { textureLevelUrl } from './textureLevelUrl.ts';
 export {
+  GEOMETRY_PAGE_CODEC,
+  GEOMETRY_PAGE_FORMAT_VERSION,
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_DATA,
   PREVIEW_ATLAS_NAMES,

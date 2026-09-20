@@ -11,9 +11,8 @@ import type {
  * The page decoder, chosen once and kept. First the module compiled to WebAssembly: it names no
  * dependency, so a dedicated worker loads it even at a host that serves its modules as-is,
  * without an import map or a bundler. If it does not instantiate — no `WebAssembly`, no SIMD,
- * missing resource — the JavaScript decoder takes its place; that one pulls the decompression
- * library by a bare specifier, and can therefore itself be missing. When neither loads, the task
- * says so and the caller does the work again on its side.
+ * missing resource — the JavaScript decoder takes its place, and if that one cannot load either,
+ * the task says so and the caller does the work again on its side.
  *
  * Both yield the same buffers and the same refusals: the H2b bench proves it value by value.
  */
@@ -27,7 +26,7 @@ async function chargeDecodeur(): Promise<Decodeur> {
   const codec = await import('./geometryPageWasm.ts');
   if (await codec.prepareSdkWasm()) return { decode: codec.decodeGeometryPageWasm, wasm: true };
   const js = await import('./geometryPage.ts');
-  return { decode: js.decodeGeometryPage, wasm: false };
+  return { decode: async (data, max) => js.decodeGeometryPage(data, max), wasm: false };
 }
 
 /** No decoder on this side of the thread: the caller will redo the work on its side, rejecting nothing. */

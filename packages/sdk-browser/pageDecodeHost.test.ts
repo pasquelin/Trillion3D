@@ -25,7 +25,7 @@ import {
 } from './bench/oracles/pageDecodeNodeWorker.mjs';
 
 async function page() {
-  const { data } = await encodeGeometryPage([0, 1, 2], {
+  const { data } = encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
   });
   return data as Uint8Array;

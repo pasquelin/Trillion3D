@@ -1,19 +1,27 @@
+use crate::geometry_page_cells::{grids, Cell, Grids};
+use crate::geometry_page_quant::BitWriter;
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
+use web_geometry_page_codec::{Header, Layout};
+pub use web_geometry_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
-pub const STRIDE: usize = 72;
-/// Attribute mask bits of page, one per optional attribute carried.
-pub const FLAG_NORMAL: u32 = 1;
-pub const FLAG_UV: u32 = 2;
-pub const FLAG_TANGENT: u32 = 4;
-pub const FLAG_UV1: u32 = 8;
-pub const FLAG_COLOR: u32 = 16;
+/// One optional attribute of a primitive: its presence bit, its source width (a colour may be
+/// three-wide) and its values, `width` per vertex.
 pub struct Attribute {
-    pub offset: usize,
-    pub width: usize,
-    pub source_width: usize,
     pub flag: u32,
+    pub width: usize,
     pub values: Vec<f32>,
+}
+
+/// A written page: its bytes and what the manifest says of it.
+#[derive(Debug)]
+pub struct Encoded {
+    pub bytes: Vec<u8>,
+    pub flags: u32,
+    pub vertex_count: usize,
+    pub decoded_bytes: usize,
+    /// Largest position displacement the grid caused, in object units.
+    pub quantization_error: f64,
 }
 
 /// Local vertex renumbering of page: table and both lists start at
@@ -62,130 +70,102 @@ mod tests_codec;
 #[path = "geometry_page_codec_refus_tests.rs"]
 mod tests_codec_refus;
 
-/** A complete, independently decodable geometry page. Float32 attributes are lossless. */
+/**
+ * A complete, independently decodable `WGP3` page: positions on the primitive grid of
+ * `position_exponent`, texture coordinates on the format's grid, octahedral normals, byte colours
+ * and bit-packed local indices. Tangents are never stored — a reader rebuilds them from the
+ * triangle's positions and texture coordinates.
+ */
 pub fn encode(
     indices: &[u32],
     positions: &[f32],
     attributes: &[Attribute],
-) -> Result<(Vec<u8>, u32, usize)> {
+    position_exponent: i32,
+) -> Result<Encoded> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
         return Err(CompilerError::new(
             "INVALID_PAGE",
             "Invalid page triangle or position count",
         ));
     }
-    let (original, local) = localise(indices, positions.len() / 3)?;
+    let vertices = positions.len() / 3;
+    let (original, local) = localise(indices, vertices)?;
     let mut flags = 0u32;
     for attribute in attributes {
-        flags |= attribute.flag;
-        if attribute.values.len() != positions.len() / 3 * attribute.source_width
-            || attribute.offset + attribute.width * 4 > STRIDE
-        {
+        let width_ok = match attribute.flag {
+            FLAG_NORMAL => attribute.width == 3,
+            FLAG_UV | FLAG_UV1 => attribute.width == 2,
+            FLAG_COLOR => attribute.width == 3 || attribute.width == 4,
+            _ => false,
+        };
+        if !width_ok || attribute.values.len() != vertices * attribute.width {
             return Err(CompilerError::new(
                 "INVALID_PAGE_ATTRIBUTE",
                 "Page attribute count or layout is invalid",
             ));
         }
+        flags |= attribute.flag;
     }
-    let mut vertices = vec![[0u8; STRIDE]; original.len()];
-    for (i, &source) in original.iter().enumerate() {
-        let source = source as usize;
-        for c in 0..3 {
-            let value = positions[source * 3 + c];
-            if !value.is_finite() {
-                return Err(CompilerError::new(
-                    "INVALID_PAGE_ATTRIBUTE",
-                    "Nonfinite position",
-                ));
-            }
-            vertices[i][c * 4..c * 4 + 4].copy_from_slice(&value.to_le_bytes());
-        }
-        for attribute in attributes {
-            for c in 0..attribute.width {
-                let value = if c < attribute.source_width {
-                    attribute.values[source * attribute.source_width + c]
-                } else {
-                    1.0
-                };
-                if !value.is_finite() {
-                    return Err(CompilerError::new(
-                        "INVALID_PAGE_ATTRIBUTE",
-                        "Nonfinite page attribute",
-                    ));
-                }
-                let offset = attribute.offset + c * 4;
-                vertices[i][offset..offset + 4].copy_from_slice(&value.to_le_bytes());
-            }
-        }
-    }
-    let encoded_indices = meshopt::encode_index_buffer(&local, original.len())
-        .map_err(|e| CompilerError::new("PAGE_COMPRESSION", e.to_string()))?;
-    let encoded_vertices = meshopt::encode_vertex_buffer(&vertices)
-        .map_err(|e| CompilerError::new("PAGE_COMPRESSION", e.to_string()))?;
-    let mut out = Vec::with_capacity(32 + encoded_indices.len() + encoded_vertices.len());
-    for word in [
-        0x3250_4757u32,
-        2,
-        original.len() as u32,
-        indices.len() as u32,
+    let Grids {
+        cells,
+        position,
+        uv: uv_records,
+        color: color_record,
+        quantization_error,
+    } = grids(&original, positions, attributes, position_exponent)?;
+    // Vertices on the same grid cells decode to the same floats: one copy, indices remapped.
+    let mut unique = Vec::<Cell>::with_capacity(cells.len());
+    let mut rank = HashMap::<Cell, u32>::with_capacity(cells.len());
+    let remap: Vec<u32> = cells
+        .iter()
+        .map(|cell| {
+            *rank.entry(*cell).or_insert_with(|| {
+                unique.push(*cell);
+                (unique.len() - 1) as u32
+            })
+        })
+        .collect();
+    let header = Header {
+        vertex_count: unique.len(),
+        index_count: local.len(),
         flags,
-        STRIDE as u32,
-        encoded_indices.len() as u32,
-        encoded_vertices.len() as u32,
-    ] {
-        out.extend_from_slice(&word.to_le_bytes());
+        position,
+        uv: uv_records[0],
+        uv1: uv_records[1],
+        color: color_record,
+        quantization_error: quantization_error as f32,
+    };
+    let layout = Layout::of(&header);
+    let mut out = BitWriter::default();
+    out.stream(local.iter().map(|&i| remap[i as usize]), layout.index_bits);
+    for c in 0..3 {
+        out.stream(unique.iter().map(|cell| cell.position[c]), position.bits[c]);
     }
-    out.extend_from_slice(&encoded_indices);
-    out.extend_from_slice(&encoded_vertices);
-    Ok((out, flags, original.len()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[derive(Clone)]
-    struct Vertex([u8; STRIDE]);
-    impl Default for Vertex {
-        fn default() -> Self {
-            Self([0; STRIDE])
+    if flags & FLAG_NORMAL != 0 {
+        out.stream(unique.iter().map(|cell| cell.normal), 16);
+    }
+    for (set, flag) in [FLAG_UV, FLAG_UV1].into_iter().enumerate() {
+        if flags & flag != 0 {
+            for c in 0..2 {
+                out.stream(unique.iter().map(|cell| cell.uv[set][c]), uv_records[set].bits[c]);
+            }
         }
     }
-    #[test]
-    fn page_roundtrip_keeps_local_indices_and_float_attributes() {
-        let positions = [0., 0., 0., 1., 0., 0., 0., 1., 0.];
-        let colors = Attribute {
-            offset: 56,
-            width: 4,
-            source_width: 3,
-            flag: FLAG_COLOR,
-            values: vec![1., 0., 0., 0., 1., 0., 0., 0., 1.],
-        };
-        let (bytes, flags, vertex_count) =
-            encode(&[0, 1, 2, 0, 2, 1], &positions, &[colors]).expect("encode");
-        assert_eq!(flags, 16);
-        assert_eq!(vertex_count, 3);
-        let index_bytes =
-            u32::from_le_bytes(bytes[24..28].try_into().expect("index length")) as usize;
-        let indices: Vec<u16> =
-            meshopt::decode_index_buffer(&bytes[32..32 + index_bytes], 6).expect("decode indices");
-        let vertices: Vec<Vertex> =
-            meshopt::decode_vertex_buffer(&bytes[32 + index_bytes..], 3).expect("decode vertices");
-        assert_eq!(indices, [0, 1, 2, 0, 2, 1]);
-        assert_eq!(
-            f32::from_le_bytes(vertices[0].0[0..4].try_into().expect("x")),
-            0.
-        );
-        assert_eq!(
-            f32::from_le_bytes(vertices[1].0[0..4].try_into().expect("x")),
-            1.
-        );
-        assert_eq!(
-            f32::from_le_bytes(vertices[2].0[64..68].try_into().expect("blue")),
-            1.
-        );
-        assert_eq!(
-            f32::from_le_bytes(vertices[2].0[68..72].try_into().expect("alpha")),
-            1.
-        );
+    if flags & FLAG_COLOR != 0 {
+        for c in 0..4 {
+            out.stream(unique.iter().map(|cell| cell.color[c]), color_record.bits[c]);
+        }
     }
+    let mut bytes = Vec::with_capacity(layout.bytes());
+    for word in header.words().iter().chain(out.words()) {
+        bytes.extend_from_slice(&word.to_le_bytes());
+    }
+    debug_assert_eq!(bytes.len(), layout.bytes());
+    Ok(Encoded {
+        bytes,
+        flags,
+        vertex_count: unique.len(),
+        decoded_bytes: header.decoded_bytes(),
+        quantization_error,
+    })
 }

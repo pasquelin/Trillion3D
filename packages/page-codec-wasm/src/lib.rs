@@ -1,17 +1,20 @@
-//! Decoder of a `.wgpg` geometry page, exact mirror of `packages/sdk-browser/geometryPage.ts`.
+//! Decoder of a `WGP3` geometry page — quantized cluster geometry —, exact mirror of
+//! `packages/sdk-browser/geometryPage.ts` and of the WGSL routines of
+//! `packages/sdk-browser/clusterDecodeWgsl.ts`.
 //!
-//! The same code serves two hosts: the native compiler, which uses it to prove that what it encodes
-//! rereads identically, and the `wasm32-unknown-unknown` module loaded by the browser. Refusals
-//! carry the same causes, in the same order, as the JavaScript decoder: a byte that passes here
-//! passes there, a byte that falls here falls there.
+//! The same code serves two hosts: the native compiler, which encodes with the format's own
+//! definitions (`bits.rs`) and proves that what it writes rereads identically, and the
+//! `wasm32-unknown-unknown` module loaded by the browser. Refusals carry the same causes, in the
+//! same order, as the JavaScript decoder: a byte that passes here passes there, a byte that falls
+//! here falls there.
 //!
 //! This WebAssembly module is the SDK's, and there is only one: one compilation (`pnpm run
 //! build:wasm`), one shipped resource, one instantiation and one linear memory on the browser side.
 //! Beside the page decoder it therefore carries the math-foundation batch kernels (`math.rs`, ABI
-//! in `wasm_math.rs`) and the buffer they share with JavaScript. A second module would have wanted
-//! a second compilation pipeline, a second load and a second memory, without returning anything more.
+//! in `wasm_math.rs`) and the buffer they share with JavaScript.
 
 mod attributes;
+pub mod bits;
 pub mod math;
 pub mod math_hierarchy;
 #[cfg(target_arch = "wasm32")]
@@ -19,11 +22,22 @@ mod wasm;
 #[cfg(target_arch = "wasm32")]
 mod wasm_math;
 
-pub use attributes::{DecodedPage, OPTIONAL};
+pub use attributes::{DecodedPage, Layout, OPTIONAL};
+use bits::Quant;
 
-pub const MAGIC: u32 = 0x3250_4757;
-pub const VERSION: u32 = 2;
-pub const STRIDE: usize = 72;
+pub const MAGIC: u32 = 0x3350_4757;
+pub const VERSION: u32 = 3;
+/// Twenty-four little-endian words open a page: counts, flags, the quantization records of the
+/// four vector attributes, the error, and three reserved words that must read zero.
+pub const HEADER_WORDS: usize = 24;
+pub const HEADER_BYTES: usize = HEADER_WORDS * 4;
+pub const MAX_VERTICES: usize = 65_535;
+/// Attribute presence bits: normal, first and second texture coordinate, colour.
+pub const FLAG_NORMAL: u32 = 1;
+pub const FLAG_UV: u32 = 2;
+pub const FLAG_UV1: u32 = 4;
+pub const FLAG_COLOR: u32 = 8;
+pub const FLAGS_ALL: u32 = 15;
 
 /// Refusal causes, in the order the JavaScript decoder raises them. The numeric values cross the
 /// WebAssembly ABI: the JS loader retranslates them into `GEOMETRY_PAGE_*` messages.
@@ -34,125 +48,119 @@ pub enum PageError {
     Version = 2,
     Bounds = 3,
     Index = 4,
-    Nonfinite = 5,
-    Meshopt = 6,
 }
 
-/// An interleaved vertex as meshopt yields it: `STRIDE` bytes, without interpretation.
-#[derive(Clone, Copy)]
-pub(crate) struct Vertex(pub [u8; STRIDE]);
-impl Default for Vertex {
-    fn default() -> Self {
-        Self([0; STRIDE])
+/// A page header, once its sixteen words have been read and every bound accepted.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Header {
+    pub vertex_count: usize,
+    pub index_count: usize,
+    pub flags: u32,
+    pub position: Quant<3>,
+    pub uv: Quant<2>,
+    pub uv1: Quant<2>,
+    /// Colour on a fixed grid of 2^-8: a constant channel costs no bits.
+    pub color: Quant<4>,
+    /// Largest distance, in object units, between a source position and its decoded value.
+    pub quantization_error: f32,
+}
+
+impl Header {
+    /// Floats per decoded vertex: position, then each present attribute at its width.
+    pub fn vertex_floats(&self) -> usize {
+        3 + OPTIONAL
+            .iter()
+            .filter(|(bit, _)| self.flags & bit != 0)
+            .map(|(_, size)| size)
+            .sum::<usize>()
+    }
+
+    /// Bytes of the decoded page: float attributes and 32-bit indices.
+    pub fn decoded_bytes(&self) -> usize {
+        self.vertex_count * self.vertex_floats() * 4 + self.index_count * 4
+    }
+
+    /// The header as its words, the exact inverse of `parse`.
+    pub fn words(&self) -> [u32; HEADER_WORDS] {
+        let mut w = [0u32; HEADER_WORDS];
+        w[..5].copy_from_slice(&[
+            MAGIC,
+            VERSION,
+            self.vertex_count as u32,
+            self.index_count as u32,
+            self.flags,
+        ]);
+        w[5] = self.position.packed();
+        w[6..9].copy_from_slice(&self.position.min.map(f32::to_bits));
+        w[9] = self.uv.packed();
+        w[10..12].copy_from_slice(&self.uv.min.map(f32::to_bits));
+        w[12] = self.uv1.packed();
+        w[13..15].copy_from_slice(&self.uv1.min.map(f32::to_bits));
+        w[15] = self.color.packed();
+        w[16..20].copy_from_slice(&self.color.min.map(f32::to_bits));
+        w[20] = self.quantization_error.to_bits();
+        w
+    }
+
+    /// The header words and the JS decoder's bounds, refused in the same order; the byte
+    /// length must be exactly what the streams need and the decoded page under the budget.
+    pub fn parse(data: &[u8], max_decoded_bytes: usize) -> Result<Self, PageError> {
+        if data.len() < HEADER_BYTES {
+            return Err(PageError::Header);
+        }
+        let w: Vec<u32> = data[..HEADER_BYTES]
+            .chunks_exact(4)
+            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .collect();
+        if w[0] != MAGIC || w[1] != VERSION {
+            return Err(PageError::Version);
+        }
+        let f = f32::from_bits;
+        let records = (
+            Quant::unpack(w[5], [f(w[6]), f(w[7]), f(w[8])]),
+            Quant::unpack(w[9], [f(w[10]), f(w[11])]),
+            Quant::unpack(w[12], [f(w[13]), f(w[14])]),
+            Quant::unpack(w[15], [f(w[16]), f(w[17]), f(w[18]), f(w[19])]),
+        );
+        let (Some(position), Some(uv), Some(uv1), Some(color)) = records else {
+            return Err(PageError::Bounds);
+        };
+        let header = Self {
+            vertex_count: w[2] as usize,
+            index_count: w[3] as usize,
+            flags: w[4],
+            position,
+            uv,
+            uv1,
+            color,
+            quantization_error: f(w[20]),
+        };
+        let sane = w[21..].iter().all(|&word| word == 0)
+            && (1..=MAX_VERTICES).contains(&header.vertex_count)
+            && header.index_count >= 3
+            && header.index_count.is_multiple_of(3)
+            && header.flags & !FLAGS_ALL == 0
+            && header.quantization_error.is_finite()
+            && header.quantization_error >= 0.0
+            && header.decoded_bytes() <= max_decoded_bytes
+            && Layout::of(&header).bytes() == data.len();
+        if !sane {
+            return Err(PageError::Bounds);
+        }
+        Ok(header)
     }
 }
 
-/// A page header, once its eight words have been read and every bound accepted.
-struct Header {
-    vertex_count: usize,
-    index_count: usize,
-    flags: u32,
-    index_bytes: usize,
-    decoded_bytes: usize,
-}
-
-fn word(data: &[u8], at: usize) -> u32 {
-    u32::from_le_bytes([data[at], data[at + 1], data[at + 2], data[at + 3]])
-}
-
-/// The eight header words and the JS decoder's bounds, refused in the same order.
-fn header(data: &[u8], max_decoded_bytes: usize) -> Result<Header, PageError> {
-    if data.len() < 32 {
-        return Err(PageError::Header);
-    }
-    if word(data, 0) != MAGIC || word(data, 4) != VERSION {
-        return Err(PageError::Version);
-    }
-    let vertex_count = word(data, 8) as usize;
-    let index_count = word(data, 12) as usize;
-    let flags = word(data, 16);
-    let stride = word(data, 20) as usize;
-    let index_bytes = word(data, 24) as usize;
-    let vertex_bytes = word(data, 28) as usize;
-    let decoded_bytes = vertex_count * stride + index_count * 2;
-    if vertex_count == 0
-        || vertex_count > 65535
-        || index_count == 0
-        || !index_count.is_multiple_of(3)
-        || flags & !31 != 0
-        || stride != STRIDE
-        || decoded_bytes > max_decoded_bytes
-        || 32usize
-            .saturating_add(index_bytes)
-            .saturating_add(vertex_bytes)
-            != data.len()
-    {
-        return Err(PageError::Bounds);
-    }
-    Ok(Header {
-        vertex_count,
-        index_count,
-        flags,
-        index_bytes,
-        decoded_bytes,
-    })
-}
-
-/// A complete page, decompressed then deinterleaved: the same buffers as `decodeGeometryPage`.
+/// A complete page, its streams unpacked and dequantized: the same buffers as `decodeGeometryPage`.
 pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
-    let head = header(data, max_decoded_bytes)?;
-    let compressed_indices = &data[32..32 + head.index_bytes];
-    let local: Vec<u16> = meshopt::decode_index_buffer(compressed_indices, head.index_count)
-        .map_err(|_| PageError::Meshopt)?;
-    let vertices: Vec<Vertex> =
-        meshopt::decode_vertex_buffer(&data[32 + head.index_bytes..], head.vertex_count)
-            .map_err(|_| PageError::Meshopt)?;
-    let mut page = attributes::split(&local, &vertices, head.vertex_count, head.flags)?;
-    page.decoded_bytes = head.decoded_bytes;
-    Ok(page)
+    let header = Header::parse(data, max_decoded_bytes)?;
+    let words: Vec<u32> = data[HEADER_BYTES..]
+        .chunks_exact(4)
+        .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .collect();
+    attributes::split(&words, &header)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn mots(words: [u32; 8]) -> Vec<u8> {
-        let mut out = Vec::new();
-        for word in words {
-            out.extend_from_slice(&word.to_le_bytes());
-        }
-        out
-    }
-
-    /// A header whose every bound passes: only the empty body is missing.
-    fn page() -> Vec<u8> {
-        mots([MAGIC, VERSION, 3, 6, 0, STRIDE as u32, 0, 0])
-    }
-
-    #[test]
-    fn en_tete_trop_court_puis_magie_puis_bornes() {
-        assert_eq!(decode(&[0u8; 8], 1 << 24).unwrap_err(), PageError::Header);
-        let mut faux = page();
-        faux[0] ^= 1;
-        assert_eq!(decode(&faux, 1 << 24).unwrap_err(), PageError::Version);
-        for bornes in [
-            [MAGIC, VERSION, 0, 6, 0, STRIDE as u32, 0, 0],
-            [MAGIC, VERSION, 65536, 6, 0, STRIDE as u32, 0, 0],
-            [MAGIC, VERSION, 3, 0, 0, STRIDE as u32, 0, 0],
-            [MAGIC, VERSION, 3, 4, 0, STRIDE as u32, 0, 0],
-            [MAGIC, VERSION, 3, 6, 32, STRIDE as u32, 0, 0],
-            [MAGIC, VERSION, 3, 6, 0, STRIDE as u32 + 4, 0, 0],
-            [MAGIC, VERSION, 3, 6, 0, STRIDE as u32, 8, 0],
-        ] {
-            assert_eq!(
-                decode(&mots(bornes), 1 << 24).unwrap_err(),
-                PageError::Bounds
-            );
-        }
-    }
-
-    #[test]
-    fn budget_de_decompression_refuse_avant_toute_decompression() {
-        assert_eq!(decode(&page(), 8).unwrap_err(), PageError::Bounds);
-    }
-}
+#[path = "header_tests.rs"]
+mod header_tests;

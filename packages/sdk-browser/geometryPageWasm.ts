@@ -1,4 +1,5 @@
 import type { DecodedGeometryPage } from './geometryPage.ts';
+import { CLUSTER_HEADER_WORDS } from './clusterFormat.ts';
 
 /**
  * Loader of the SDK WebAssembly module (`packages/page-codec-wasm`) and page decoder that uses it.
@@ -12,16 +13,14 @@ import type { DecodedGeometryPage } from './geometryPage.ts';
  * they survive `page_release` and can be transferred to another thread.
  *
  * If `WebAssembly` is missing or instantiation fails, the JavaScript decoder takes over — same
- * buffers, same refusals, only slower. It is loaded then and not before: it pulls the decompression
- * library, named by a bare specifier, which a dedicated worker cannot resolve without a bundler.
- * Leaving it out of the static graph, this loader stays usable where only the WebAssembly module is.
+ * buffers, same refusals, only slower. It is loaded then and not before, so that this loader's
+ * static graph stays the module alone.
  */
 
 /** Optional attributes, in the order and under the names of the JavaScript decoder. */
 const OPTIONNELS: ReadonlyArray<readonly [string, number]> = [
   ['normal', 3],
   ['uv', 2],
-  ['tangent', 4],
   ['uv2', 2],
   ['color', 4],
 ];
@@ -32,10 +31,8 @@ const CAUSES = [
   'GEOMETRY_PAGE_VERSION',
   'GEOMETRY_PAGE_BOUNDS',
   'GEOMETRY_PAGE_INDEX',
-  'GEOMETRY_PAGE_NONFINITE',
-  'GEOMETRY_PAGE_MESHOPT',
 ];
-const MOTS = 12;
+const MOTS = 11;
 
 /** Module exports, page decoder and batch compute together. */
 export type SdkWasm = {
@@ -124,7 +121,7 @@ export async function decodeGeometryPageWasm(
     const { decodeGeometryPage } = await import('./geometryPage.ts');
     return decodeGeometryPage(data, maxDecodedBytes);
   }
-  if (data.byteLength < 32) throw new Error('GEOMETRY_PAGE_HEADER');
+  if (data.byteLength < CLUSTER_HEADER_WORDS * 4) throw new Error('GEOMETRY_PAGE_HEADER');
   const inputPtr = codec.page_alloc(data.byteLength);
   if (!inputPtr) throw new Error('GEOMETRY_PAGE_BOUNDS');
   new Uint8Array(codec.memory.buffer, inputPtr, data.byteLength).set(data);
