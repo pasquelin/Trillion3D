@@ -101,8 +101,8 @@ statistics under `temoin` and the "vs witness" column reads the calculation's me
 it, as "vs baseline" reads it relative to the baseline. The Three.js-versus-engine benches
 (`three-vs-core-*.perf.mjs`) are written on it: one row per calculation family, Three the witness,
 Three's result read untimed as the oracle. A witness is a point of comparison, never a regression
-gate: the column carries no icon, and the `duel` helper's own `node:test` refuses an engine slower
-than its witness.
+gate: the column carries no icon, and the `duel` helper's own `node:test` enforces each family's
+declared performance ceiling.
 
 Three verdict types, never silence:
 
