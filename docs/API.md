@@ -147,14 +147,13 @@ types select the complete scene-renderer fallback explicitly; #119 and #120 trac
 ## Batch math for hosts (#104, #80)
 
 `packages/sdk-core/mathBatch.ts` and the `mathBatch*.ts` beside it: `n` elements per call, flat
-typed arrays or sub-views of a fixed stride (`mathBatchStrides.ts`), output first, no allocation, a
-count as the only return value. Each batch repeats its unit function, which stays the oracle; how to
-lay out and reuse the buffers is in the [SDK guide](SDK.md#batch-math-for-hosts). The proof is
-`pnpm run perf:core` (`three-vs-core-batch-*.perf.mjs`): the reference's `for` loop on the same
-seeded 200 000 elements, compared bit for bit, both sides timed, a failure when a line differs or
-the batch is slower. Ratios are the batch's speed-up over the reference's loop, the range of the
-per-run medians over three runs (PR #105, 20 Sept. 2026, Apple M2 Max, Node 26.8.2); the three
-exceptions are declared on their line.
+typed arrays or sub-views of a fixed stride (`mathBatchStrides.ts`, `BOX_VALUES`,
+`FRUSTUM_PLANE_VALUES`), output first, no allocation, a count as the only return value. Each batch
+repeats its unit function, which stays the oracle; how to lay out and reuse the buffers is in the
+[SDK guide](SDK.md#batch-math-for-hosts). The proof is `pnpm run perf:core`
+(`three-vs-core-batch-*.perf.mjs`; how a line reads: [TESTS.md](TESTS.md)). Ratios are the batch's
+speed-up over the reference's loop, the range of the per-run medians over three runs (PR #105,
+20 Sept. 2026, Apple M2 Max, Node 26.8.2); the three exceptions are declared on their line.
 
 | Function                                                                  | Computes                                                                                                              | Replaces the loop                          | Proof                                                                                                              |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
