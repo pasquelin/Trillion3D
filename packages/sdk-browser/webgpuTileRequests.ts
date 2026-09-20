@@ -11,8 +11,10 @@ export type TileRequest = { atlas: WebgpuTileAtlas; key: TileKey; weight: number
  *
  * A budget defers tiles, it never drops them: the remainder of a pass is kept in weight order and
  * offered again to the next pass, until fresh feedback replaces it. Fresh feedback always wins,
- * since it names what the image looks at now; a deferred tile still looked at is in it, one no
- * longer looked at would be work for nothing.
+ * since it names what the image looks at now; a deferred tile still looked at is named again
+ * within a feedback cycle, one no longer looked at would be work for nothing. A replay places its
+ * tiles at the frame of the feedback that named them (`frame`): the pool then yields exactly what
+ * that pass would have yielded, never a tile a later image has looked at.
  */
 export function createTileRequests(options: {
   feedback: WebgpuTileFeedback;
@@ -21,7 +23,8 @@ export function createTileRequests(options: {
   counters: TileCounters;
 }) {
   const { feedback, color, data, counters } = options;
-  let backlog: TileRequest[] = [];
+  let backlog: TileRequest[] = [],
+    named = 0;
   /** Tiles the last image feedback names, resident ones touched along the way. */
   const fromFeedback = (counts: Uint32Array, frame: number) => {
     const out: TileRequest[] = [];
@@ -48,7 +51,13 @@ export function createTileRequests(options: {
     /** The list a pass serves, in weight order; empty when nothing is named or deferred. */
     take(frame: number): TileRequest[] {
       const counts = feedback.take();
-      return counts ? fromFeedback(counts, frame) : backlog;
+      if (!counts) return backlog;
+      named = frame;
+      return fromFeedback(counts, frame);
+    },
+    /** Frame of the feedback the list came from: where a pass places what it serves. */
+    get frame() {
+      return named;
     },
     /** What the pass did not reach: offered again to the next pass. */
     defer(wanted: TileRequest[], from: number) {

@@ -82,10 +82,11 @@ export function createWebgpuTileStreamer(options: {
     },
     /**
      * One pass: requested tiles, served in weight order until the byte or the millisecond budget is
-     * spent; `unbounded` lifts both. The first tile of a pass is always attempted, so a budget under
-     * one copy still makes progress. Returns what was served and what still waits — for its bytes,
-     * or for the next pass; a pool refusal is neither — nothing will come, the coarse level holds,
-     * and the image can settle on it — and is counted in the atlas metrics.
+     * spent; `unbounded` lifts both. The budgets are read between copies, after at least one: a
+     * budget under one copy still lands a tile, and the copy that crosses it overshoots it — the
+     * peak says by how much. Returns what was served and what still waits — for its bytes, or for
+     * the next pass; a pool refusal is neither — nothing will come, the coarse level holds, and the
+     * image can settle on it — and is counted in the atlas metrics.
      */
     pump(frame: number, unbounded = false) {
       const started = now();
@@ -96,7 +97,8 @@ export function createWebgpuTileStreamer(options: {
         colorServed = false,
         encoder: GPUCommandEncoder | undefined;
       const open = () => (encoder ??= device.createCommandEncoder({ label: 'WG texture tiles' }));
-      const wanted = requests.take(frame);
+      const wanted = requests.take(frame),
+        at = requests.frame;
       counters.worked = wanted.length > 0;
       const spent = () =>
         !unbounded &&
@@ -106,7 +108,7 @@ export function createWebgpuTileStreamer(options: {
         const request = wanted[index];
         let verdict: ReturnType<typeof sources.serve> = 'waiting';
         try {
-          verdict = sources.serve(request.atlas, request.key, frame, open);
+          verdict = sources.serve(request.atlas, request.key, at, open);
         } catch (error) {
           options.onFailure('texture-tile-failed', error);
         }
