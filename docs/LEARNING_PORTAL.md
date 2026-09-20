@@ -127,3 +127,11 @@ API pages may show a related concept beside their original snippet. The panel la
 relationship explicitly and links to the interactive example with its own inputs and matching code.
 This is not a claim that every API function has a direct visual execution witness. Keep direct
 function mappings in the catalogue limited to functions actually called by the evaluator.
+
+## Benchmark reports
+
+The Measurements route (`#/en/reports` or `#/fr/reports`) reads versioned campaign data from
+`docs/reports/`. Shared React components own its presentation; `docs/js/reports/` owns metric
+semantics, comparison eligibility and bilingual labels. See the
+[report pipeline](../scripts/mesure/report/README.md) for export and staging. The legacy
+`report.html` URL forwards to this route. Campaign data is independent of the site build.
