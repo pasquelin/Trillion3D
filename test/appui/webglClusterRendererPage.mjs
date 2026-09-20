@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
-import { createHostDrawCamera, readHostDrawCamera } from '../../packages/sdk-browser/cameraWorld.ts';
+import * as host from '../../packages/sdk-browser/cameraWorld.ts';
 import { curvedComparison, planarWitness } from './webglClusterCurvedPage.mjs';
 import { curvedOracleQuality } from './webglClusterOraclePage.mjs';
 import { heldRestore } from './webglClusterRestorePage.mjs';
@@ -44,7 +44,7 @@ const placeRig = (mesh, camera, light, drawCamera, offset) => {
   light.position.set(offset, offset, offset + 1);
   light.target.position.set(offset, offset, offset);
   light.parent.updateMatrixWorld(true);
-  readHostDrawCamera(drawCamera, camera);
+  host.readHostDrawCamera(drawCamera, camera);
 };
 export async function execute() {
   const canvas = document.createElement('canvas');
@@ -54,7 +54,7 @@ export async function execute() {
   const renderer = new WebglClusterRenderer(gl),
     scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
-    drawCamera = readHostDrawCamera(createHostDrawCamera(), camera),
+    drawCamera = host.readHostDrawCamera(host.createHostDrawCamera(), camera),
     mesh = triangle();
   gl.viewport(0, 0, 32, 32);
   gl.clearColor(0, 0, 1, 1);
