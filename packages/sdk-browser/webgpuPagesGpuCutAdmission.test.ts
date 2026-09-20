@@ -107,6 +107,19 @@ test('under a host threshold of zero the ladder goes below one pixel, down to it
   assert.equal(frame(0, 250), 1, 'and an overflow there climbs back to one pixel');
 });
 
+test('a floor the host threshold has passed is given up, and an overflow doubles what was drawn', () => {
+  const { run, frame } = mount(100);
+  frame(0, 250);
+  frame(1, 120);
+  assert.equal(run.budgetPixelError, 2);
+  // The host now asks for 3 px: the floor of 2 decides nothing and reads 0, even without room.
+  assert.equal(frame(3, 90, 3), 0);
+  // An overflow at 10 px climbs from 10, not from a stale floor: one doubling per sample.
+  assert.equal(frame(10, 250, 10), 20);
+  assert.equal(frame(10, 250, 10), 20, 'the sample at 10 has been answered');
+  assert.equal(frame(20, 250, 10), 40);
+});
+
 test('the relax share is the fraction of the slots under which the floor lowers', () => {
   const { state, frame } = mount(100);
   frame(0, 250);
