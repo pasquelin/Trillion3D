@@ -15,7 +15,7 @@ export const LIFECYCLE = [
     values: [
       {
         name: 'input',
-        desc: 'A directory with a `manifest.json`, a directory holding exactly one glTF/GLB, or a `.gltf`/`.glb`/`.fbx`/`.obj` file.',
+        desc: 'A directory with a `manifest.json`, a directory holding exactly one glTF/GLB, or a `.gltf`/`.glb`/`.fbx`/`.obj` file. Polygon faces of the USD, Blender, Alembic and Maya readers are triangulated at import: a strictly convex face as a fan in one pass over its corners, any other by ear clipping, which keeps the area and outline of a concave face.',
       },
       { name: 'output', desc: 'The cache directory. The source is never overwritten.' },
       { name: 'scope', desc: "`'slice'` or `'full'`." },
