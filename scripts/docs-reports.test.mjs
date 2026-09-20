@@ -138,3 +138,33 @@ test('missing chart readings keep a disabled track and never announce a measured
   assert.match(html, /<progress/);
   assert.match(html, /<strong[^>]*>Not measured/);
 });
+
+test('campaign summary derives missing provenance from current readings', async () => {
+  const { Findings } = await loadReactComponents('docs/react/reports/Findings.jsx');
+  const report = {
+    runs: [{ id: 'r', name: 'other', status: 'complete' }],
+    records: [{ runId: 'r', provenance: { machine: { id: 'm' } }, canvas: { dpr: 2 } }],
+  };
+  const render = () => renderToStaticMarkup(createElement(Findings, { report, locale: 'en' }));
+  assert.doesNotMatch(render(), /Machine identity is missing|DPR is missing/);
+  report.records[0].canvas = {};
+  assert.match(render(), /DPR is missing/);
+  assert.doesNotMatch(render(), /Machine identity is missing/);
+  report.records[0].provenance = null;
+  assert.match(render(), /Machine identity is missing/);
+});
+
+test('scene limitations remain visible with their original campaign wording', async () => {
+  const { SceneNotice } = await loadReactComponents('docs/react/reports/SceneNotice.jsx');
+  for (const locale of ['fr', 'en']) {
+    const html = renderToStaticMarkup(
+      createElement(SceneNotice, {
+        locale,
+        note: '81 materials, 6 textured: the export omitted textures.',
+      }),
+    );
+    assert.match(html, /81 materials, 6 textured/);
+    assert.match(html, /alert-warning/);
+    assert.match(html, locale === 'fr' ? /textures/ : /Source limitation/);
+  }
+});

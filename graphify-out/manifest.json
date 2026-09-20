@@ -276,9 +276,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/serveur.test.mjs": {
-    "mtime": 1789895495.2384617,
-    "seen": 1789896687.220928,
-    "ast_hash": "553774fe330c461ad6fcd3cf8a106e5e",
+    "mtime": 1789901518.1486127,
+    "seen": 1789901679.686854,
+    "ast_hash": "0736c7e178f836f7704b691b0b427d9a",
     "semantic_hash": ""
   },
   "scripts/mesure/oraclePage.mjs": {
@@ -306,9 +306,9 @@
     "semantic_hash": ""
   },
   "scripts/mesure/serveur.mjs": {
-    "mtime": 1789895495.238374,
-    "seen": 1789896687.220927,
-    "ast_hash": "33e174e757fd9d6841c29cb7973c026e",
+    "mtime": 1789901518.1484473,
+    "seen": 1789901679.6868532,
+    "ast_hash": "849fee1890bd98f5a7e34e51839729aa",
     "semantic_hash": ""
   },
   "scripts/mesure/poses.mjs": {
@@ -11442,9 +11442,9 @@
     "semantic_hash": ""
   },
   "docs/js/docsContentGuides.js": {
-    "mtime": 1789897587.6871343,
-    "seen": 1789897640.76247,
-    "ast_hash": "737a50c96441805dd3a6e4a6c9350889",
+    "mtime": 1789901518.116819,
+    "seen": 1789901679.6848462,
+    "ast_hash": "6d5c090c17405d58becb4fe7159c6205",
     "semantic_hash": ""
   },
   "docs/js/docsContentLifecycle.js": {
@@ -11712,15 +11712,15 @@
     "semantic_hash": ""
   },
   "docs/js/engine-scene/code.js": {
-    "mtime": 1789895502.2979329,
-    "seen": 1789896687.218782,
-    "ast_hash": "43d770fe6cf18eda9f766e66265a872d",
+    "mtime": 1789901518.1171684,
+    "seen": 1789901679.684852,
+    "ast_hash": "7a66aea8d8e6685ed0a40838a80a5990",
     "semantic_hash": ""
   },
   "docs/js/engine-scene/content.js": {
-    "mtime": 1789895502.2980525,
-    "seen": 1789896687.218783,
-    "ast_hash": "47a175804df89ddd88983ba6669ebfe4",
+    "mtime": 1789901518.1173844,
+    "seen": 1789901679.684853,
+    "ast_hash": "fbe1f234a9456b49b29defd3d64022e0",
     "semantic_hash": ""
   },
   "docs/js/engine-scene/controlsCopy.js": {
@@ -11730,9 +11730,9 @@
     "semantic_hash": ""
   },
   "docs/js/engine-scene/lifecycle.js": {
-    "mtime": 1789897587.6874921,
-    "seen": 1789897640.762481,
-    "ast_hash": "d770f45491a524907af85f0c3c25a831",
+    "mtime": 1789901518.1175942,
+    "seen": 1789901679.684855,
+    "ast_hash": "a81980aff3fb1e14e2539fad2d2a80f3",
     "semantic_hash": ""
   },
   "docs/js/engine-scene/lightingControls.js": {
@@ -11742,9 +11742,9 @@
     "semantic_hash": ""
   },
   "docs/js/engine-scene/telemetry.js": {
-    "mtime": 1789895502.2984796,
-    "seen": 1789896687.218787,
-    "ast_hash": "863ab44563cf23ea60f2b6e573c881f6",
+    "mtime": 1789901518.1179368,
+    "seen": 1789901679.6848571,
+    "ast_hash": "acb46f818ead1a0921fa07cd72e72565",
     "semantic_hash": ""
   },
   "docs/js/gallery/apiScenario.js": {
@@ -11874,21 +11874,21 @@
     "semantic_hash": ""
   },
   "docs/js/i18n/guides.fr.js": {
-    "mtime": 1789895502.3006225,
-    "seen": 1789896687.2188091,
-    "ast_hash": "d00b9ec2b9f8e38b357afec50fcc1613",
+    "mtime": 1789901518.1183796,
+    "seen": 1789901679.684879,
+    "ast_hash": "5e6e6d7d51983171fd6445672428c6d1",
     "semantic_hash": ""
   },
   "docs/js/i18n/index.js": {
-    "mtime": 1789895902.505903,
-    "seen": 1789896687.2188091,
-    "ast_hash": "151d0e5a351af82dead8640bc241b2b2",
+    "mtime": 1789901518.1186972,
+    "seen": 1789901679.6848798,
+    "ast_hash": "c6a4b448b4851969fe97ff881c86124f",
     "semantic_hash": ""
   },
   "docs/js/i18n/lifecycle.fr.js": {
-    "mtime": 1789895502.3008332,
-    "seen": 1789896687.21881,
-    "ast_hash": "6072adcfb8f9b565c5784940bda11d79",
+    "mtime": 1789901518.1188705,
+    "seen": 1789901679.684881,
+    "ast_hash": "578eb7ff6c3dfcb01a64f97bbc187b39",
     "semantic_hash": ""
   },
   "docs/js/i18n/matrix.fr.js": {
@@ -12036,9 +12036,9 @@
     "semantic_hash": ""
   },
   "docs/react/engine-scene/EnginePreview.jsx": {
-    "mtime": 1789897587.6886165,
-    "seen": 1789897640.762541,
-    "ast_hash": "edfcef49e0fcc52c4a777f79eb5e90d7",
+    "mtime": 1789901518.1190605,
+    "seen": 1789901679.68493,
+    "ast_hash": "095ddb7894db1ea44cdbd246846319d6",
     "semantic_hash": ""
   },
   "docs/react/engine-scene/Guide.jsx": {
@@ -12228,9 +12228,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-i18n.test.mjs": {
-    "mtime": 1789895502.3314314,
-    "seen": 1789896687.22086,
-    "ast_hash": "cac583261b88521adca1ce6e896cd8dd",
+    "mtime": 1789901518.14776,
+    "seen": 1789901679.686788,
+    "ast_hash": "a1f1d0beb3b7357b9acb059fbe05fe54",
     "semantic_hash": ""
   },
   "scripts/docs-portal.test.mjs": {
@@ -12240,9 +12240,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-reports.test.mjs": {
-    "mtime": 1789900320.7546263,
-    "seen": 1789900405.8588748,
-    "ast_hash": "71bd6e39f6e7692d9a4c34f8a3473925",
+    "mtime": 1789901610.3172572,
+    "seen": 1789901679.68679,
+    "ast_hash": "fad6cb3dc94c8f7b4145966fb103eea8",
     "semantic_hash": ""
   },
   "scripts/docs-scene.mjs": {
@@ -12252,9 +12252,9 @@
     "semantic_hash": ""
   },
   "scripts/docs-scene.test.mjs": {
-    "mtime": 1789895502.3317795,
-    "seen": 1789896687.2208629,
-    "ast_hash": "17506d1d23d5cd83443f29b4f7a90da2",
+    "mtime": 1789901518.1481147,
+    "seen": 1789901679.686794,
+    "ast_hash": "71955e8c69bc27530258a08707f94631",
     "semantic_hash": ""
   },
   "scripts/docs-serve.mjs": {
@@ -12414,9 +12414,9 @@
     "semantic_hash": ""
   },
   "test/appui/explorerStartupSite.mjs": {
-    "mtime": 1789897587.7247438,
-    "seen": 1789897640.7645838,
-    "ast_hash": "66b34cb46f2aa55c89f798a2193ede72",
+    "mtime": 1789901518.1489031,
+    "seen": 1789901679.68687,
+    "ast_hash": "b623d23f98161b8c495e98d58ef02e0e",
     "semantic_hash": ""
   },
   "test/appui/explorerStartupTargets.mjs": {
@@ -12426,9 +12426,9 @@
     "semantic_hash": ""
   },
   "test/browser/explorer-startup.browser.mjs": {
-    "mtime": 1789897587.724908,
-    "seen": 1789897640.76461,
-    "ast_hash": "97c611cc8bff7867e93da30d99e17544",
+    "mtime": 1789901518.149217,
+    "seen": 1789901679.6868942,
+    "ast_hash": "09039dfb1ae8e6656028fb85bfdab913",
     "semantic_hash": ""
   },
   "docs/js/reports/assessment.js": {
@@ -12516,9 +12516,9 @@
     "semantic_hash": ""
   },
   "docs/react/reports/Findings.jsx": {
-    "mtime": 1789900206.8029232,
-    "seen": 1789900405.857229,
-    "ast_hash": "5036e3f109835fed3954acfade4dc6ba",
+    "mtime": 1789901609.6510646,
+    "seen": 1789901679.684957,
+    "ast_hash": "a64d8994f5573c380a328b4c26945303",
     "semantic_hash": ""
   },
   "docs/react/reports/MetricCharts.jsx": {
@@ -12546,15 +12546,15 @@
     "semantic_hash": ""
   },
   "docs/react/reports/SceneEvidence.jsx": {
-    "mtime": 1789900951.5430388,
-    "seen": 1789901024.413435,
-    "ast_hash": "1d561f87013b4d1641bce354a2d22357",
+    "mtime": 1789901610.3078623,
+    "seen": 1789901679.6849642,
+    "ast_hash": "51903e99d5a521ca984247f0f5748990",
     "semantic_hash": ""
   },
   "docs/react/reports/SceneReport.jsx": {
-    "mtime": 1789900950.8717363,
-    "seen": 1789901024.413436,
-    "ast_hash": "8f210a6551fc48f00f5015fb2b06e96a",
+    "mtime": 1789901610.2963057,
+    "seen": 1789901679.6849658,
+    "ast_hash": "da245578173c76ebb1c16b9567bc4e19",
     "semantic_hash": ""
   },
   "docs/react/components/ChartGrid.jsx": {
@@ -12573,6 +12573,24 @@
     "mtime": 1789901246.3635075,
     "seen": 1789901309.538018,
     "ast_hash": "2eb8138acd53ede3596bb6760968b956",
+    "semantic_hash": ""
+  },
+  "docs/react/reports/SceneNotice.jsx": {
+    "mtime": 1789901610.2726505,
+    "seen": 1789901679.6849651,
+    "ast_hash": "e6057abe80aca8f73b4b5d1ca3e53895",
+    "semantic_hash": ""
+  },
+  "scripts/docs-scene-telemetry.test.mjs": {
+    "mtime": 1789901518.1479354,
+    "seen": 1789901679.686792,
+    "ast_hash": "48f6c70b6c5ae5c89be928186b44d1a2",
+    "semantic_hash": ""
+  },
+  "test/appui/explorerStartupGarden.mjs": {
+    "mtime": 1789901518.1487336,
+    "seen": 1789901679.686869,
+    "ast_hash": "50dc3f2ab62cc187938ca931d99dc42a",
     "semantic_hash": ""
   }
 }

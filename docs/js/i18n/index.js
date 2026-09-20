@@ -31,7 +31,7 @@ const STRINGS = {
     'home.step1Title': 'Compile once',
     'home.step1Description': 'Turn source geometry into bounded, streamable pages.',
     'home.step2Title': 'Open an explorer',
-    'home.step2Description': 'Connect a canvas and keep control of the frame loop.',
+    'home.step2Description': 'Pass a canvas ID and let the engine handle interactive rendering.',
     'home.step3Title': 'Measure the frame',
     'home.step3Description': 'Inspect quality, residency and timing before tuning.',
     'home.capabilitiesTitle': 'Built for the whole frame',
@@ -44,7 +44,7 @@ const STRINGS = {
       'Visibility, temporal antialiasing and lighting evolve through measured stages.',
     'home.cardIntegrationTitle': 'Host-owned integration',
     'home.cardIntegrationDescription':
-      'Your application owns the canvas, camera and animation loop.',
+      'Your application owns the canvas layout and disposal; interactive mode handles rendering.',
     'actions.openMenu': 'Open menu',
     'actions.closeMenu': 'Close menu',
     'actions.switchLanguage': 'Switch language',
@@ -104,7 +104,8 @@ const STRINGS = {
     'home.step1Title': 'Compiler une fois',
     'home.step1Description': 'Transformez la géométrie source en pages bornées et diffusables.',
     'home.step2Title': 'Ouvrir un explorateur',
-    'home.step2Description': 'Branchez un canevas tout en gardant la boucle de rendu.',
+    'home.step2Description':
+      'Passez un ID de canevas et laissez le moteur gérer le rendu interactif.',
     'home.step3Title': 'Mesurer l’image',
     'home.step3Description': 'Observez qualité, résidence et temps avant tout réglage.',
     'home.capabilitiesTitle': 'Conçu pour l’image entière',
@@ -118,7 +119,7 @@ const STRINGS = {
       'Visibilité, anticrénelage temporel et éclairage avancent par étapes mesurées.',
     'home.cardIntegrationTitle': 'Intégration pilotée par l’hôte',
     'home.cardIntegrationDescription':
-      'Votre application garde le canevas, la caméra et la boucle d’animation.',
+      'Votre application gère la disposition du canevas et sa fermeture ; le mode interactif gère le rendu.',
     'actions.openMenu': 'Ouvrir le menu',
     'actions.closeMenu': 'Fermer le menu',
     'actions.switchLanguage': 'Changer de langue',

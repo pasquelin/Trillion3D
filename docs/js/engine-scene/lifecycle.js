@@ -19,33 +19,13 @@ export function mountScene(host, copy, locale) {
   const placeholderStatus = host.querySelector('[data-scene-placeholder-status]');
   const controller = new AbortController();
   let explorer,
-    controls,
-    observer,
-    frame = 0,
     disposed = false,
-    settling = 0,
     camera,
     lighting;
   const events = { signal: controller.signal };
   const telemetry = createSceneTelemetry(host, copy, locale);
-  const tick = (now) => {
-    frame = 0;
-    if (disposed || !explorer || document.hidden) return;
-    try {
-      const metrics = explorer.render();
-      telemetry.frame(metrics, now);
-      if (--settling > 0) frame = requestAnimationFrame(tick);
-      else telemetry.idle();
-    } catch (error) {
-      status.textContent = `${copy.failed} (${error.message})`;
-    }
-  };
   const invalidate = () => {
-    settling = 32;
-    if (!frame && !disposed) {
-      telemetry.reset();
-      frame = requestAnimationFrame(tick);
-    }
+    if (!disposed) explorer?.invalidate();
   };
   const updateGuide = () => {
     const [what, tryThis, observe] = copy.views[mode.value];
@@ -62,19 +42,15 @@ export function mountScene(host, copy, locale) {
     status.textContent = copy.loading;
     try {
       if (!navigator.gpu) throw new Error('WEBGPU_UNAVAILABLE');
-      const { createExplorer, webgpuPagesBackend } = await import('../../runtime/engine.js');
+      const { createExplorer } = await import('../../runtime/engine.js');
       if (disposed) return;
-      const rect = canvas.getBoundingClientRect();
       const created = await createExplorer(canvas, {
         manifestUrl: new URL(
           'assets/kinetic-garden/cache/native/full/manifest.json',
           document.baseURI,
         ).href,
         scope: 'full',
-        backends: [webgpuPagesBackend],
-        width: Math.max(1, Math.round(rect.width)),
-        height: Math.max(1, Math.round(rect.height)),
-        pixelRatio: window.devicePixelRatio,
+        interactive: true,
         pixelError: 0,
         lodAdaptive: false,
         temporalAntialiasing: true,
@@ -84,7 +60,13 @@ export function mountScene(host, copy, locale) {
         pageFetchWorkers: 2,
         clearColor: 0x101b2b,
         signal: controller.signal,
-        diagnosticDetail: 'summary',
+        diagnosticDetail: 'trace',
+        onDiagnostic: (event) => {
+          if (!disposed && event.phase === 'frame') telemetry.frame(event.context.metrics);
+        },
+        onEvent: (event) => {
+          if (!disposed && event.type === 'fatal') status.textContent = copy.failed;
+        },
       });
       if (disposed) {
         created.dispose();
@@ -95,21 +77,9 @@ export function mountScene(host, copy, locale) {
         option.disabled = explorer.diagnostics[option.value]?.available === false;
       if (mode.value !== 'beauty') explorer.setDiagnostic(mode.value);
       lighting = createLightingControls(explorer, light, lightValue, shadows, copy, invalidate);
-      controls = explorer.controls();
+      const controls = explorer.controls();
       camera = configureSceneCamera(explorer, controls);
-      controls.addEventListener('change', invalidate);
-      await explorer.awaitPages();
-      if (disposed) return;
       camera.reset();
-      observer = new ResizeObserver(() => {
-        const bounds = canvas.getBoundingClientRect();
-        explorer.resize(
-          Math.max(1, Math.round(bounds.width)),
-          Math.max(1, Math.round(bounds.height)),
-        );
-        invalidate();
-      });
-      observer.observe(canvas);
       placeholder.hidden = true;
       start.hidden = true;
       mode.disabled = false;
@@ -123,8 +93,7 @@ export function mountScene(host, copy, locale) {
       invalidate();
     } catch (error) {
       if (disposed) return;
-      observer?.disconnect();
-      controls?.dispose();
+      telemetry.stop();
       explorer?.dispose();
       explorer = null;
       const message = /WEBGPU|adapter|GPU/.test(String(error))
@@ -192,9 +161,7 @@ export function mountScene(host, copy, locale) {
   return () => {
     disposed = true;
     controller.abort();
-    cancelAnimationFrame(frame);
-    observer?.disconnect();
-    controls?.dispose();
+    telemetry.stop();
     explorer?.dispose();
   };
 }

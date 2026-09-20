@@ -1,3 +1,4 @@
+import { SceneNotice } from './SceneNotice.jsx';
 import { useState } from 'react';
 import { ImageCard } from '../components/ImageCard.jsx';
 import { Modal } from '../components/Modal.jsx';
@@ -103,6 +104,10 @@ export function SceneEvidence({ report, scene, locale }) {
   })).filter((group) => group.pairs.length || group.singles.length);
   return (
     <Section title={sceneName(scene)}>
+      <SceneNotice
+        note={report.records.find((r) => r.scene === scene && r.sceneNote)?.sceneNote}
+        locale={locale}
+      />
       <Tabs
         sticky
         label={locale === 'fr' ? 'Type de comparaison visuelle' : 'Visual comparison type'}

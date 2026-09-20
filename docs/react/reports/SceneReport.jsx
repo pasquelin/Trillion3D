@@ -1,3 +1,4 @@
+import { SceneNotice } from './SceneNotice.jsx';
 import { useState } from 'react';
 import { Section } from '../components/Section.jsx';
 import { Collapse } from '../components/Collapse.jsx';
@@ -19,6 +20,10 @@ export function SceneReport({ scene, report, locale }) {
   const views = [...new Set((records.length ? records : fallback).map((r) => r.view))];
   return (
     <Section title={sceneName(scene)}>
+      <SceneNotice
+        note={report.records.find((r) => r.scene === scene && r.sceneNote)?.sceneNote}
+        locale={locale}
+      />
       <Tabs
         sticky
         label={fr ? 'Point de vue' : 'Viewpoint'}
