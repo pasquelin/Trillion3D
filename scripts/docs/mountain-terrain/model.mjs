@@ -1,9 +1,9 @@
 const gaussian = (x, z, cx, cz, sx, sz, height) =>
   height * Math.exp(-((x - cx) ** 2) / sx - (z - cz) ** 2 / sz);
 
-export const valleyCenter = (z) => 0.35 + 0.48 * Math.sin(z * 0.48) - 0.08 * z;
+const valleyCenter = (z) => 0.35 + 0.48 * Math.sin(z * 0.48) - 0.08 * z;
 
-export function terrainHeight(x, z) {
+function terrainHeight(x, z) {
   const west = gaussian(x, z, -2.5, 0.3, 1.9, 11, 4.4),
     north = gaussian(x, z, 0.1, -2.5, 1.05, 2.2, 4.8),
     east = gaussian(x, z, 2.55, 0.1, 1.1, 13, 4.1),
