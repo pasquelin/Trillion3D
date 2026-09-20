@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { gitPaths } from '../../scripts/git-paths.mjs';
 const root = new URL('../../', import.meta.url);
 
 // THE REPOSITORY NEVER NAMES THE MACHINE IT WAS WRITTEN ON.
@@ -15,9 +15,7 @@ const root = new URL('../../', import.meta.url);
 const HOME_PATH = /\/(?:Users|home)\/[A-Za-z0-9._-]+\//;
 
 test('no tracked file points into a home directory', async () => {
-  const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
-    .split('\0')
-    .filter(Boolean);
+  const tracked = await gitPaths(['ls-files', '-z'], root);
   const offenders = [];
   for (const file of tracked) {
     const bytes = await readFile(new URL(file, root));
