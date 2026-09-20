@@ -1,3 +1,4 @@
+import { pendingWebgpuFrame } from './webgpuInteractiveFrame.ts';
 import { readShadowAtlasDigest } from './gpuShadowDigest.ts';
 import { readPartitionAudit } from './webgpuPartitionAudit.ts';
 import { readTransparentOcclusionAudit } from './webgpuTransparentOcclusionAudit.ts';
@@ -91,6 +92,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     syncResident() {
       syncResident(rt);
     },
+    pendingFrame: () => pendingWebgpuFrame(rt),
     flush() {
       return flushWebgpuPages(rt);
     },

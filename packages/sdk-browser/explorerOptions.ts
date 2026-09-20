@@ -12,6 +12,9 @@ import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
 export type PointOfInterest = { id: string; label: string; pose: CameraPose };
 export interface ExplorerOptions {
+  /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default.
+   *  Defaults to direct WebGPU; a missing capability rejects startup. */
+  interactive?: boolean;
   replicaCount?: 1 | 4 | 9 | 12;
   detail?: 'source' | 'maximum';
   onEvent?: (event: import('../sdk-core/index.ts').RuntimeEvent) => void;
