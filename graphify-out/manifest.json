@@ -12192,9 +12192,9 @@
     "semantic_hash": ""
   },
   "docs/react/reports/Report.jsx": {
-    "mtime": 1789900355.244311,
-    "seen": 1789900405.857234,
-    "ast_hash": "59585cdf219f4dd169458ec8fc6f7c8a",
+    "mtime": 1789900950.8716183,
+    "seen": 1789901024.413434,
+    "ast_hash": "67d8464e3e6a7c5bd30f29da0190314d",
     "semantic_hash": ""
   },
   "docs/react/reports/useReports.js": {
@@ -12498,9 +12498,9 @@
     "semantic_hash": ""
   },
   "docs/react/components/Tabs.jsx": {
-    "mtime": 1789899545.578028,
-    "seen": 1789900405.8571908,
-    "ast_hash": "1a72ce1301c1e6965b38a9d04bb6ff18",
+    "mtime": 1789900951.5083675,
+    "seen": 1789901024.413395,
+    "ast_hash": "69806bbe73f8a87f07e87d65a5845ae0",
     "semantic_hash": ""
   },
   "docs/react/reports/AllReadings.jsx": {
@@ -12510,9 +12510,9 @@
     "semantic_hash": ""
   },
   "docs/react/reports/Experiments.jsx": {
-    "mtime": 1789900266.247041,
-    "seen": 1789900405.857228,
-    "ast_hash": "d13d51bb65ea3e11da098e8a8fa6ed34",
+    "mtime": 1789900950.8721185,
+    "seen": 1789901024.413428,
+    "ast_hash": "b6a0f7005081e0796513d235fd080300",
     "semantic_hash": ""
   },
   "docs/react/reports/Findings.jsx": {
@@ -12522,15 +12522,15 @@
     "semantic_hash": ""
   },
   "docs/react/reports/MetricCharts.jsx": {
-    "mtime": 1789900468.9812713,
-    "seen": 1789900676.5976572,
-    "ast_hash": "1e61d88dc070e6546a0aebabde95d474",
+    "mtime": 1789900684.298985,
+    "seen": 1789901024.41343,
+    "ast_hash": "5a548548ec97d52f1c37c11ce1de9b59",
     "semantic_hash": ""
   },
   "docs/react/reports/Profiles.jsx": {
-    "mtime": 1789900567.3504417,
-    "seen": 1789900676.5976589,
-    "ast_hash": "71fec43797b24cbc4f74077a7a37f4c3",
+    "mtime": 1789900951.5535495,
+    "seen": 1789901024.4134321,
+    "ast_hash": "235abc98fd4df1dc9c4730f37ed3f5ff",
     "semantic_hash": ""
   },
   "docs/react/reports/ReadingLegend.jsx": {
@@ -12546,21 +12546,33 @@
     "semantic_hash": ""
   },
   "docs/react/reports/SceneEvidence.jsx": {
-    "mtime": 1789900468.9815748,
-    "seen": 1789900676.597663,
-    "ast_hash": "84ac64e42009879ad831b21c3cff8e0a",
+    "mtime": 1789900951.5430388,
+    "seen": 1789901024.413435,
+    "ast_hash": "1d561f87013b4d1641bce354a2d22357",
     "semantic_hash": ""
   },
   "docs/react/reports/SceneReport.jsx": {
-    "mtime": 1789900355.2441053,
-    "seen": 1789900405.857235,
-    "ast_hash": "ae6aa444b4040996ce3ea02de61fc615",
+    "mtime": 1789900950.8717363,
+    "seen": 1789901024.413436,
+    "ast_hash": "8f210a6551fc48f00f5015fb2b06e96a",
     "semantic_hash": ""
   },
   "docs/react/components/ChartGrid.jsx": {
-    "mtime": 1789900469.5778158,
-    "seen": 1789900676.5976121,
-    "ast_hash": "81a9ee4a0f6844a2ca6eeb273f0b73e6",
+    "mtime": 1789900684.9062426,
+    "seen": 1789901024.4133801,
+    "ast_hash": "48d468538a49f1a2203b903ce9d95ddb",
+    "semantic_hash": ""
+  },
+  "docs/react/components/SelectPanel.jsx": {
+    "mtime": 1789900951.5125837,
+    "seen": 1789901024.4133902,
+    "ast_hash": "4d63f2767cb7d3905a9fecfe57f0b185",
+    "semantic_hash": ""
+  },
+  "docs/react/components/StickyPanel.jsx": {
+    "mtime": 1789901099.3431969,
+    "seen": 1789901182.006294,
+    "ast_hash": "17d323f49a58871b8b2aba204f3ea313",
     "semantic_hash": ""
   }
 }

@@ -76,6 +76,7 @@ export function Report({ route }) {
         description={`${report.records.length} ${fr ? 'mesures' : 'readings'} · ${report.runs.length} ${fr ? 'exécutions' : 'runs'} · ${scenes.map(sceneName).join(' / ')}`}
       />
       <Tabs
+        sticky
         label={fr ? 'Rubriques du rapport' : 'Report categories'}
         value={active}
         onChange={(tab) => {

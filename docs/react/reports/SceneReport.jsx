@@ -20,6 +20,7 @@ export function SceneReport({ scene, report, locale }) {
   return (
     <Section title={sceneName(scene)}>
       <Tabs
+        sticky
         label={fr ? 'Point de vue' : 'Viewpoint'}
         value={selected}
         onChange={setSelected}
