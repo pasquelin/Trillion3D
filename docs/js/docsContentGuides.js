@@ -1,3 +1,4 @@
+import { engineExampleCode } from './engine-scene/code.js';
 /** Guides and examples: prose in `html`, code in `example`, both rendered by the React Entry component. */
 const GUIDE = { section: 'guides', kind: 'Guide' };
 const EXAMPLE = { section: 'examples', kind: 'Example' };
@@ -76,24 +77,10 @@ export const EXAMPLES = [
   {
     ...EXAMPLE,
     id: 'example-explorer',
-    title: 'Explorer options and budgets',
+    title: 'Explorer startup and budgets',
     description:
-      'Manual integration with explicit resolution, quality, budgets and events; the host schedules rendering.',
-    example: `import { createExplorer } from '@web-geometry/sdk/browser';
-
-const explorer = await createExplorer(canvas, {
-  manifestUrl: '/cache/city/manifest.json',
-  scope: 'full',
-  width: 1920,
-  height: 1080,
-  pixelRatio: 1,
-  pixelError: 1, // screen-space threshold in pixels; 0 keeps the exact leaves
-  geometryPoolBytes: 288 * 1024 * 1024, // fixed budgets, never read from the machine
-  texturePoolBytes: 512 * 1024 * 1024,
-  temporalAntialiasing: true,
-  onEvent: (event) => console.log(event.kind, event),
-  onPreparation: ({ phase, completed, total }) => console.log(phase, completed, total),
-});`,
+      'Interactive startup with explicit memory budgets; the engine owns controls, sizing and demand-driven rendering.',
+    example: engineExampleCode,
   },
   {
     ...EXAMPLE,
