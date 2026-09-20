@@ -4,9 +4,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { proveInstalledBrowser } from './installed-package-browser.mjs';
 import { evidenceSummary, installedEvidence } from './installed-package-evidence.mjs';
+import { browserEvidence, proveInstalledBrowserModes } from './installed-package-bundle.mjs';
 import { compileInstalledScene } from './installed-package-scene.mjs';
+import { proveInstalledRuntime } from './installed-package-runtime.mjs';
 import { proveInstalledTypes } from './installed-package-types.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -118,18 +119,6 @@ try {
       'neutral',
       [],
     ),
-    maths: bundle(
-      'maths',
-      `import { multiplyMatrix4Batch } from '${packageName}';\nconsole.log(multiplyMatrix4Batch);\n`,
-    ),
-    hierarchy: bundle(
-      'hierarchy',
-      `import { hierarchyUpdateBatch } from '${packageName}';\nconsole.log(hierarchyUpdateBatch);\n`,
-    ),
-    explorer: bundle(
-      'explorer',
-      `import { createExplorer } from '${packageName}';\nconsole.log(createExplorer);\n`,
-    ),
     types: bundle(
       'types',
       `import type { CameraPose } from '${packageName}';\nconst pose:CameraPose={position:[0,0,1],target:[0,0,0],fov:45,near:.1,far:10};\nconsole.log(pose.position.length);\n`,
@@ -137,7 +126,7 @@ try {
       [],
     ),
   };
-  for (const name of ['default', 'maths', 'hierarchy']) {
+  for (const name of ['default']) {
     const inputs = bundles[name].outputs[`${name}.js`].inputs;
     if (
       Object.entries(inputs).some(
@@ -157,15 +146,22 @@ try {
   const manifest = JSON.parse(
     readFileSync(join(fixture, `node_modules/${source.name}/package.json`)),
   );
-  const browserProof = proveBrowser
-    ? await proveInstalledBrowser({
+  const runtimeProof = proveInstalledRuntime({ fixture, packageName, run, write, bundle });
+  bundles.maths = runtimeProof.bundles.maths;
+  bundles.hierarchy = runtimeProof.bundles.hierarchy;
+  bundles.worker = bundle('common-worker', runtimeProof.workerSource);
+  const browserRun = proveBrowser
+    ? await proveInstalledBrowserModes({
         fixture,
         packageName: source.name,
         browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/index.js',
-        manifestUrl: '/native-cache-primer/native/slice/manifest.json',
-        replayUrl: '/native-cache-replay/native/slice/manifest.json',
+        bundler: join(root, 'node_modules/.bin/esbuild'),
+        run,
       })
     : null;
+  const browserBundle = browserRun?.bundled.bundle ?? null;
+  const browserProof = browserRun?.bundled.proof ?? null;
+  if (browserBundle) bundles.explorer = browserBundle.metafile;
   const evidence = {
     package: `${manifest.name}@${manifest.version}`,
     commit: run('git', ['rev-parse', 'HEAD']).trim(),
@@ -186,7 +182,7 @@ try {
     }),
     bundles,
     native,
-    browser: browserProof,
+    browser: browserEvidence(browserRun),
   };
   const output = process.argv.indexOf('--output');
   if (output >= 0)

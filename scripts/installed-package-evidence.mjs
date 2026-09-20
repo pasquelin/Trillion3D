@@ -30,10 +30,12 @@ export function installedEvidence({
 
 export function evidenceSummary(evidence) {
   const bundleBytes = Object.fromEntries(
-    Object.entries(evidence.bundles).map(([name, meta]) => [
-      name,
-      meta.outputs[`${name}.js`]?.bytes,
-    ]),
+    Object.entries(evidence.bundles).map(([name, meta]) => {
+      const output = Object.entries(meta.outputs).find(
+        ([path]) => path === `${name}.js` || path.endsWith(`/${name}.js`),
+      );
+      return [name, output?.[1].bytes ?? null];
+    }),
   );
   return JSON.stringify({
     package: evidence.package,
