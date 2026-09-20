@@ -199,8 +199,9 @@ console.log(explorer.diagnostics); // which modes this backend can produce, and 
 console.log(explorer.stageProfile()); // per-stage CPU/GPU quantiles over the last frames
 
 // A lost WebGPU device leaves nothing stale: the engine withdraws and blanks the canvas it
-// presented as the loss happens, announces it, and the next frame raises WEBGPU_LOST. The two
-// observers given at creation see it, in that order:
+// presented, then announces the loss; the next frame raises WEBGPU_LOST. Given at creation,
+// the diagnostic observer sees it as it happens, whatever reported it; the event observer sees
+// the frame that failed afterwards, if the explorer is still there to draw one:
 //   onDiagnostic: (event) => event.phase === 'gpu-device-lost' && lost(event.context.code),
 //   onEvent: (event) => event.type === 'fatal' && lost(event.code), // INTERACTIVE_RENDER_FAILED
 // Recovery is a new explorer: dispose this one, then createExplorer again.`,
