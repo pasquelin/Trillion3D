@@ -112,6 +112,12 @@ test('a write the engine made itself is settled with its revision, not announced
   assert.equal(gate.revisions.scene, before + 1, 'one change, one revision');
   gate.readScene(source, dessins);
   assert.equal(gate.revisions.scene, before + 1, 'and none after');
+  // A structural engine write settled the same way leaves no reshape pending either.
+  new THREE.Group().add(mesh);
+  gate.sceneChanged();
+  gate.readScene(source, dessins);
+  gate.readScene(source, dessins);
+  assert.equal(gate.revisions.scene, before + 2, 'the reparent costs its one revision');
 });
 
 test('a lamp retargeted by the host: the new target is hooked, its later pose is seen', () => {
