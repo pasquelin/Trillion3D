@@ -80,17 +80,20 @@ packages/asset-compiler-rust/target/release/web-geometry-compiler scenes/city/ci
 packages/asset-compiler-rust/target/release/web-geometry-compiler --jobs jobs.json   # many models, bounded workers, one process
 ```
 
-`@web-geometry/sdk/node` (`prepare`, `prepareMany`) is a thin relay over it; any other host
+`web-geometry` (`prepare`, `prepareMany` in Node) is a thin relay over it; any other host
 (Electron, a CI script, another language) can drive it the same way. Full reference:
 [docs/COMPILER.md](docs/COMPILER.md).
 
 ## Public SDK
 
-| Entry point                                     | Purpose                                                                               |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `@web-geometry/sdk` or `@web-geometry/sdk/core` | Versioned contracts, jobs, progress, cancellation, diagnostics and safety policy      |
-| `@web-geometry/sdk/node`                        | Native compiler process adapter and compilation jobs                                  |
-| `@web-geometry/sdk/browser`                     | Explorer lifecycle, rendering backends, camera paths, WebGPU page cache and tile pool |
+Every consumer imports `web-geometry`. Conditional exports provide common maths and contracts in
+all environments, rendering APIs to browser bundlers, and native preparation APIs to Node.
+
+| Environment       | Available API                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| Common and worker | Versioned contracts, maths, jobs, diagnostics and safety policy                       |
+| Node              | Common API plus native compiler process adapter and compilation jobs                  |
+| Browser bundler   | Common API plus explorer lifecycle, rendering, camera paths, page cache and tile pool |
 
 Applications own their canvas, animation loop, resource URLs and controller disposal. Node hosts
 own source/cache directories and process configuration. React and Electron integrations use these

@@ -1,4 +1,4 @@
-import { offlineExamples } from '../../js/gallery/offline/catalog.js';
+import { rendererLessons } from '../../js/gallery/rendererLessons.js';
 const matches = [
   [/quaternion/, 'quaternion-turn'],
   [/normal/, 'normal-transform'],
@@ -18,20 +18,20 @@ const matches = [
 ];
 
 export function relatedReadyLesson(entry) {
-  const reference = offlineReference(entry);
+  const reference = lessonReference(entry);
   if (reference) return reference.lesson.id;
   const searchable = `${entry.id} ${entry.subject} ${entry.supplementaryTopic} ${entry.title.en}`;
   return matches.find(([pattern]) => pattern.test(searchable))?.[1];
 }
 
-export function offlineReference(entry) {
-  const lesson = offlineExamples.find((candidate) => candidate.referenceIds.includes(entry.id));
+export function lessonReference(entry) {
+  const lesson = rendererLessons.find((candidate) => candidate.referenceCoverage?.[entry.id]);
   if (!lesson) return undefined;
   return { lesson, coverage: lesson.referenceCoverage[entry.id] };
 }
 
 export function galleryRoadmapEntry(entry) {
-  const reference = offlineReference(entry);
+  const reference = lessonReference(entry);
   if (reference?.coverage !== 'full') return entry;
   return {
     ...entry,

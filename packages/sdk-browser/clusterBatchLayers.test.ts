@@ -62,6 +62,24 @@ test('the twin batch material carries polygonOffset with the layer bias in its u
   assert.notEqual(biased, pages[0].material, 'the biased material is a clone, not the original');
 });
 
+test('a coplanar double-sided blend keeps biased back then front passes', () => {
+  const base = new BatchGroup({} as never),
+    source = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide }),
+    back = source.clone(),
+    front = source.clone();
+  back.side = THREE.BackSide;
+  front.side = THREE.FrontSide;
+  base.split = [back, front];
+  const built = buildLayerGroups([page({ material: source, depthLayer: 2 })], [base]);
+  const biased = built.layerGroups[0]!.get(2)!.biased;
+  assert.ok(Array.isArray(biased));
+  assert.deepEqual(
+    biased.map((material) => material.side),
+    [THREE.BackSide, THREE.FrontSide],
+  );
+  assert.ok(biased.every((material) => material.polygonOffsetUnits === -depthLayerUnits(2)));
+});
+
 // Behaviour 19: groupForPage routes a marked page to its biased batch, a layer-0 page
 // to the original batch.
 test('groupForPage routes a layered page to its twin and a layer-0 page to the original group', () => {

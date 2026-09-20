@@ -1,6 +1,7 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
+import { repositoryFiles } from './repository-files.mjs';
 
 export const ROOT = resolve(import.meta.dirname, '..');
 export const ENTRIES = {
@@ -8,18 +9,6 @@ export const ENTRIES = {
   browser: 'packages/sdk-browser/index.ts',
   node: 'packages/sdk-node/index.mts',
 };
-
-function sourceFiles(directory) {
-  const result = [];
-  for (const name of readdirSync(directory)) {
-    if (name === 'node_modules' || name === 'dist' || name === 'graphify-out' || name === '.git')
-      continue;
-    const path = join(directory, name);
-    if (statSync(path).isDirectory()) result.push(...sourceFiles(path));
-    else if (/\.(?:[cm]?[jt]sx?)$/.test(name)) result.push(path);
-  }
-  return result;
-}
 
 function exportKind(symbol, checker) {
   const target = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
@@ -72,9 +61,10 @@ export function analyzeEntries() {
   );
 }
 
-export function consumerImports() {
+export function consumerImports(root = ROOT) {
   const consumers = new Map();
-  for (const file of sourceFiles(ROOT)) {
+  for (const path of repositoryFiles(root).filter((file) => /\.(?:[cm]?[jt]sx?)$/.test(file))) {
+    const file = join(root, path);
     const source = ts.createSourceFile(
       file,
       readFileSync(file, 'utf8'),
@@ -85,17 +75,17 @@ export function consumerImports() {
       if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
       const clause = node.importClause;
       const specifier = node.moduleSpecifier.text;
-      const publicEntry = specifier.startsWith('@web-geometry/sdk');
+      const publicEntry = specifier === 'web-geometry';
       const internalEntry =
         specifier.includes('/sdk-core/') ||
         specifier.includes('/sdk-browser/') ||
         specifier.includes('/sdk-node/');
       if (!publicEntry && !internalEntry) continue;
-      if (clause?.name) addConsumer(consumers, 'default', file);
+      if (clause?.name) addConsumer(consumers, 'default', path);
       const bindings = clause?.namedBindings;
       if (bindings && ts.isNamedImports(bindings))
         for (const element of bindings.elements)
-          addConsumer(consumers, element.propertyName?.text ?? element.name.text, file);
+          addConsumer(consumers, element.propertyName?.text ?? element.name.text, path);
     }
   }
   return consumers;
@@ -103,6 +93,6 @@ export function consumerImports() {
 
 function addConsumer(consumers, name, file) {
   const paths = consumers.get(name) ?? new Set();
-  paths.add(relative(ROOT, file));
+  paths.add(file);
   consumers.set(name, paths);
 }
