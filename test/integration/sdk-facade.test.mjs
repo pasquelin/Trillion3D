@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
-import { resolve } from 'node:path';
-import ts from 'typescript';
+import { execFileSync } from 'node:child_process';
 import * as common from '../../packages/sdk/index.ts';
 import * as core from '../../packages/sdk-core/index.ts';
 import * as browser from '../../packages/sdk/browser.ts';
@@ -15,26 +14,34 @@ test('the facade keeps canonical binding identity across environments', () => {
   assert.equal(browser.createExplorer, browserLegacy.createExplorer);
 });
 
-test('facade imports reach no module with an initialization statement', () => {
-  const roots = ['index.ts', 'browser.ts', 'node.mts'].map((file) =>
-    resolve(import.meta.dirname, '../../packages/sdk', file),
-  );
-  const program = ts.createProgram(roots, {
-    module: ts.ModuleKind.NodeNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext,
-    target: ts.ScriptTarget.ES2022,
-    types: ['node', '@webgpu/types'],
-    skipLibCheck: true,
-  });
-  const effects = [];
-  for (const source of program.getSourceFiles()) {
-    if (!source.fileName.includes('/packages/') || source.fileName.includes('/node_modules/'))
-      continue;
-    for (const statement of source.statements)
-      if (ts.isExpressionStatement(statement) || ts.isExportAssignment(statement))
-        effects.push(`${source.fileName}:${statement.getStart(source)}`);
+test('importing each facade starts no browser resource or native process', () => {
+  for (const entry of ['index.ts', 'browser.ts', 'node.mts']) {
+    const url = new URL(`../../packages/sdk/${entry}`, import.meta.url).href;
+    const probe = `
+      import childProcess from 'node:child_process';
+      import { syncBuiltinESMExports } from 'node:module';
+      const forbidden = (name) => () => { throw new Error('Import initialized ' + name); };
+      for (const name of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork'])
+        childProcess[name] = forbidden(name);
+      syncBuiltinESMExports();
+      for (const name of ['Worker', 'SharedWorker', 'OffscreenCanvas', 'AudioContext'])
+        globalThis[name] = function () { throw new Error('Import constructed ' + name); };
+      globalThis.window = undefined;
+      for (const name of ['document', 'navigator'])
+        Object.defineProperty(globalThis, name, { configurable: true, get: forbidden(name) });
+      globalThis.requestAnimationFrame = forbidden('requestAnimationFrame');
+      globalThis.fetch = forbidden('fetch');
+      await import(${JSON.stringify(url)});
+    `;
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', '--input-type=module', '-e', probe],
+      {
+        timeout: 30_000,
+        stdio: 'pipe',
+      },
+    );
   }
-  assert.deepEqual(effects, []);
 });
 
 test('the five-import hierarchy example composes parents before children', () => {
@@ -77,6 +84,8 @@ test('generated inventory and explicit facade files are current', async () => {
   );
   assert.equal(inventory.exports.length, 445);
   assert.deepEqual(inventory.collisions, []);
+  assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes(process.cwd())));
+  assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes('file://')));
   assert.ok(
     inventory.exports.some(
       (entry) => entry.name === 'sideOf' && entry.disposition === 'newly exposed',
