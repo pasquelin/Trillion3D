@@ -11,13 +11,12 @@ import {
   carre,
   cameraFace,
   image,
+  jusquaTenue,
   libere,
   engine,
 } from './preuveSceneCommune.mjs';
 import { executerAccumulation } from './preuveAppareil.mjs';
 
-/** Maximum images rendered before giving up waiting for frame hold. */
-const PLAFOND = 64;
 /** Moving images rendered under the shake: enough for the history to settle again. */
 const SECOUSSES = 24;
 /** Contract lights on a ring in front of the square: two colours, so a drawn subset of them
@@ -51,15 +50,6 @@ function lampes(store) {
       castsShadow: false,
     });
   }
-}
-
-/** Renders until the image is held; returns the held image and how many images it took. */
-async function jusquaTenue(backend, camera) {
-  for (let i = 0; i < PLAFOND; i++) {
-    const { pixels, metriques } = await image(backend, camera);
-    if (metriques.frameHeld) return { tenue: Array.from(pixels), rendues: i };
-  }
-  return { tenue: null, rendues: PLAFOND };
 }
 
 /** A full run: at rest, then shaken. `temporel` picks the option. */

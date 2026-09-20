@@ -130,6 +130,22 @@ export async function image(backend, camera) {
   return { pixels: backend.capture(), metriques: backend.metrics() };
 }
 
+/** Maximum images rendered before giving up waiting for frame hold. */
+export const PLAFOND = 64;
+
+/** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
+export async function jusquaTenue(backend, camera) {
+  let rendue,
+    rendues = 0;
+  for (let i = 0; i < PLAFOND; i++) {
+    const { pixels, metriques } = await image(backend, camera);
+    if (metriques.frameHeld) return { rendue, tenue: Array.from(pixels), rendues };
+    rendue = Array.from(pixels);
+    rendues++;
+  }
+  return { rendue, tenue: null, rendues };
+}
+
 /** Public counters of a profile stage, or `null` when the host did not ask for it. */
 export function comptesEtape(backend, etape) {
   const profil = backend.stageProfile?.();
