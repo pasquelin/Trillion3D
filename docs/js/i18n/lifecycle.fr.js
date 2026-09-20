@@ -28,9 +28,12 @@ export const lifecycleFr = {
   },
   createExplorer: {
     description:
-      'Ouvre un cache compilé dans un canevas et renvoie l’explorateur. Il ne possède ni la boucle d’animation ni le canevas : l’hôte appelle `render()` et enfin `dispose()`. La caméra initiale cadre les bornes chargées. Avec `preload: visible`, appelez `awaitPages()` avant la première image officielle.',
+      'Ouvre un cache compilé sur un élément canevas ou son ID littéral (ExplorerTarget). Avec `interactive: true`, le moteur affiche une première image, gère les contrôles, suit la taille CSS et le DPR, puis redessine à la demande. Ce mode utilise WebGPU par défaut et refuse son absence. Sans cette option, l’hôte pilote le rendu. Il reste propriétaire du canevas et appelle `dispose()` à la fermeture. La caméra cadre les bornes chargées ; les détails arrivent progressivement. Pour une capture déterministe, utilisez une session manuelle avec `awaitPages()`.',
     valuesTitle: 'Ce que propose l’explorateur',
     values: [
+      {
+        desc: 'Après une modification de caméra, scène ou lumière : programme une image en mode interactif ; dessine immédiatement en mode manuel.',
+      },
       { desc: 'Dessine une image et renvoie ses `FrameMetrics`.' },
       {
         desc: 'Poses de caméra ; la pose d’accueil vient des bornes, les autres de `pointsOfInterest`.',
@@ -48,7 +51,7 @@ export const lifecycleFr = {
   },
   createExplorerJob: {
     description:
-      'Même création sous forme de tâche annulable : les événements de préparation deviennent sa progression et une interruption avant la fin libère l’explorateur qui aurait été renvoyé. Une fois terminée, l’appelant possède l’explorateur.',
+      'Même création avec un élément canevas ou un ID, sous forme de tâche annulable. Attendez `createExplorerJob`, puis `job.promise`. L’identifiant de tâche est distinct de celui du canevas : les événements de préparation deviennent sa progression et une interruption avant la fin libère l’explorateur qui aurait été renvoyé. Une fois terminée, l’appelant possède l’explorateur.',
   },
   createJob: {
     description:

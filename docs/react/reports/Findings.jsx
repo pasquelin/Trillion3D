@@ -1,3 +1,4 @@
+import { SceneNotice } from './SceneNotice.jsx';
 import { Section } from '../components/Section.jsx';
 import { Collapse } from '../components/Collapse.jsx';
 import { Stat, StatGroup } from '../components/Stats.jsx';
@@ -8,6 +9,8 @@ export function Findings({ report, locale }) {
   const records = report.records.filter(
     (r) => runOf(report, r) === 'mobile' && r.view === 'sol' && r.quality === 1,
   );
+  const missingMachine = report.records.some((r) => !r.provenance?.machine?.id);
+  const missingDpr = report.records.some((r) => !r.canvas?.dpr);
   const failed = report.runs.filter((r) => r.status !== 'complete').length;
   return (
     <div className="grid min-w-0 gap-4">
@@ -23,6 +26,7 @@ export function Findings({ report, locale }) {
           const over = gpu !== null && gpu > 1000 / 60;
           return (
             <Section key={r.id} title={sceneName(r.scene)}>
+              <SceneNotice note={r.sceneNote} locale={locale} />
               <p className="text-lg font-semibold">
                 {over
                   ? fr
@@ -81,14 +85,30 @@ export function Findings({ report, locale }) {
           <strong>
             {failed} {fr ? 'exécutions sur' : 'runs out of'} {report.runs.length}
           </strong>{' '}
-          {fr
-            ? 'sont absentes ou incomplètes. Les comparaisons ne couvrent donc pas tous les cas.'
-            : 'are missing or incomplete, so comparisons do not cover every case.'}
+          {failed
+            ? fr
+              ? 'sont absentes ou incomplètes. Les comparaisons ne couvrent donc pas tous les cas.'
+              : 'are missing or incomplete, so comparisons do not cover every case.'
+            : fr
+              ? 'sont absentes ou incomplètes : toutes les exécutions sont disponibles.'
+              : 'are missing or incomplete: all runs are available.'}
         </p>
+        {missingMachine && (
+          <p>
+            {fr
+              ? 'L’identité de la machine manque pour certaines mesures.'
+              : 'Machine identity is missing for some readings.'}
+          </p>
+        )}
+        {missingDpr && (
+          <p>
+            {fr ? 'Le DPR manque pour certaines mesures.' : 'DPR is missing for some readings.'}
+          </p>
+        )}
         <p>
           {fr
-            ? 'La machine et le DPR n’ont pas été enregistrés. Les différences visibles sont des constats sur cette campagne, pas une garantie de performance reproductible.'
-            : 'Machine identity and DPR were not recorded. Visible differences describe this campaign, not a guarantee of reproducible performance.'}
+            ? 'Les différences visibles décrivent cette campagne, sans garantir une performance reproductible.'
+            : 'Visible differences describe this campaign, without guaranteeing reproducible performance.'}
         </p>
         <Collapse surface="nested" title={fr ? 'Comment lire les durées' : 'How to read timings'}>
           <p>
