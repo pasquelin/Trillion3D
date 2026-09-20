@@ -1,8 +1,8 @@
 export const guidesFr = {
   'example-explorer': {
-    title: 'Options et budgets de l’explorateur',
+    title: 'Démarrage et budgets de l’explorateur',
     description:
-      'Les options définies une fois par l’hôte : résolution, seuil de qualité, budgets mémoire et événements.',
+      'Démarrage interactif avec des budgets mémoire explicites ; le moteur gère les contrôles, la taille et le rendu à la demande.',
   },
   'example-camera': {
     title: 'Image caméra sans allocation',
@@ -26,7 +26,7 @@ export const guidesFr = {
     html: `<p>Le moteur diffuse la géométrie par grappes : un compilateur natif découpe une fois la scène source en pages, puis l’explorateur du navigateur ne lit que celles demandées par la caméra, sous des budgets mémoire fixes. Deux points d’entrée couvrent les deux côtés.</p>
 <ol>
 <li><strong>Compilez</strong> sur la machine qui détient la source avec <code>@web-geometry/sdk/node</code>. Le cache reçoit manifeste, pages et textures annexes ; <code>resourceBaseUrl</code> est l’URL que lira le navigateur.</li>
-<li><strong>Explorez</strong> dans le navigateur avec <code>@web-geometry/sdk/browser</code>. <code>createExplorer</code> ne possède ni la boucle d’animation ni le canevas : l’hôte appelle <code>render()</code> pour une image et <code>dispose()</code> à la fin.</li>
+<li><strong>Explorez</strong> dans le navigateur avec <code>@web-geometry/sdk/browser</code>. <code>createExplorer</code> accepte un ID ou un élément canevas. Avec <code>interactive: true</code>, le moteur gère les contrôles, la taille et le rendu à la demande. Donnez au canevas une largeur et une hauteur CSS ; appelez <code>dispose()</code> à la fermeture. Ce démarrage simple nécessite WebGPU.</li>
 </ol>
 <p>Le contrat complet — options, budgets, éclairage, anticrénelage temporel et diagnostics — se trouve dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a>.</p>`,
   },
