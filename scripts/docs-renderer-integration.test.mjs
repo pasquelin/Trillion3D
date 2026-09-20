@@ -2,24 +2,35 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { rendererLessons, rendererInitialState } from '../docs/js/gallery/rendererLessons.js';
 import { rendererCodeFor } from '../docs/js/gallery/rendererLessonCode.js';
+import { syncRendererState } from '../docs/js/gallery/syncRendererState.js';
 import { galleryRoadmapEntry, relatedReadyLesson } from '../docs/react/gallery/roadmapRelated.js';
 import roadmap from '../docs/data/gallery-roadmap.json' with { type: 'json' };
 import { transformSync } from 'esbuild';
+import { loadReactComponents } from './docs/render-react.mjs';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+const { Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
 
 test('every integrated renderer lesson emits complete parseable host code', () => {
   for (const lesson of rendererLessons) {
     const code = rendererCodeFor(lesson, rendererInitialState(lesson));
     assert.doesNotThrow(() => transformSync(code, { format: 'esm' }), lesson.id);
-    assert.match(code, /document.querySelector\('canvas'\)/);
+    assert.match(code, /createExplorer\('garden'/);
     assert.match(code, /await explorer.awaitPages\(\)/);
-    assert.match(code, /ResizeObserver/);
-    assert.match(code, /controls\?\.dispose/);
-    assert.ok(
-      code.indexOf('await explorer.awaitPages()') < code.indexOf('controls = explorer.controls()'),
-    );
+    assert.match(code, /interactive: true/);
+    assert.match(code, /explorer\.dispose\(\)/);
+    assert.ok(code.indexOf('await explorer.awaitPages()') < code.indexOf('explorer.render()'));
     if (lesson.kind === 'offline') assert.ok(code.includes(lesson.manifest));
     if (['lod', 'memory'].includes(lesson.kind)) assert.match(code, /importedLights: true/);
   }
+});
+
+test('renderer badges link only to documented API entries', () => {
+  const render = (id) => renderToStaticMarkup(createElement(Playground, { id, locale: 'en' }));
+  const light = render('point-light-range');
+  assert.doesNotMatch(light, /#\/en\/api\/addLight/);
+  assert.match(light, />addLight<\/code>/);
+  assert.match(render('offline-prism'), /#\/en\/api\/createExplorer/);
 });
 
 test('partial reference topics link to qualified original offline lessons', () => {
@@ -46,4 +57,14 @@ test('full reference topics become ready links to their actual lesson', () => {
     assert.equal(entry.status, 'ready');
     assert.equal(entry.preview, lesson.preview);
   }
+});
+
+test('a control change during setup reaches the mounted renderer', async () => {
+  const initial = { intensity: 60 },
+    latest = { intensity: 80 },
+    updates = [],
+    runtime = { update: async (state) => updates.push(state) };
+  await syncRendererState(runtime, initial, initial);
+  await syncRendererState(runtime, initial, latest);
+  assert.deepEqual(updates, [latest]);
 });

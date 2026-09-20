@@ -27,9 +27,11 @@ export function Button({ children, variant = 'ghost', size = 'md', className = '
   );
 }
 
+export const CARD_SURFACE = 'card bg-base-200 border border-base-300';
+
 export function Card({ children, title, className = '', ...props }) {
   return (
-    <section className={`card bg-base-200 border border-base-300 ${className}`} {...props}>
+    <section className={`${CARD_SURFACE} ${className}`} {...props}>
       <div className="card-body gap-4 p-4">
         {title && <h2 className="card-title text-lg">{title}</h2>}
         {children}

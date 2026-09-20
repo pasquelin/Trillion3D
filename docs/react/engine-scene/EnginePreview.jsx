@@ -16,12 +16,12 @@ export function EnginePreview({ locale = 'en', diagnostic = 'beauty' }) {
     <section data-engine-scene className="engine-preview min-w-0">
       <SceneControls copy={copy} diagnostic={diagnostic} />
       <div
-        className="engine-canvas-frame relative rounded-2xl overflow-hidden border border-base-300 max-w-5xl mx-auto"
+        className="engine-canvas-frame relative aspect-video max-h-[28rem] rounded-2xl overflow-hidden border border-base-300 max-w-5xl mx-auto"
         style={{ backgroundColor: SCENE_BACKGROUND.css }}
       >
         <Canvas
           data-scene-canvas
-          className="aspect-video max-h-[28rem]"
+          className="absolute inset-0 h-full"
           label={copy.title}
           actions={[
             { label: copy.zoomOut, symbol: '−', 'data-scene-zoom-out': '', disabled: true },

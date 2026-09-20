@@ -1,6 +1,7 @@
 import { LearningCards } from '../components/LearningCards.jsx';
 import { useEffect, useMemo, useState } from 'react';
-import { CodeBlock } from '../components/CodeBlock.jsx';
+import { CodeEditor } from '../components/CodeEditor.jsx';
+import { formatNumericText } from '../../js/code/formatNumber.js';
 import { ExampleLayout } from '../components/ExampleLayout.jsx';
 import { Section } from '../components/Section.jsx';
 import { Button, Field, Form, Range, Select } from '../components/UI.jsx';
@@ -36,7 +37,8 @@ function MathPlayground({ id, locale = 'en', onSelect }) {
   useEffect(() => setState(initialState(example.id)), [example.id]);
   const result = useMemo(() => evaluate(example.id, state, locale), [example.id, state, locale]),
     guidance = guidanceFor(example.id, locale),
-    french = locale === 'fr';
+    french = locale === 'fr',
+    initialCode = useMemo(() => codeFor(example.id, initialState(example.id)), [example.id]);
   const motion = usePlaygroundMotion(scenario, setState);
   const choose = (next) => {
     setState(initialState(next));
@@ -100,8 +102,8 @@ function MathPlayground({ id, locale = 'en', onSelect }) {
   );
   const cards = (
     <LearningCards
-      input={result.input}
-      output={result.value}
+      input={formatNumericText(result.input)}
+      output={formatNumericText(result.value)}
       attempt={guidance.try}
       changes={guidance.changes}
       locale={locale}
@@ -111,7 +113,12 @@ function MathPlayground({ id, locale = 'en', onSelect }) {
     <div className="playground-learn grid gap-4">
       {controls}
       {cards}
-      <CodeBlock code={codeFor(example.id, state)} locale={locale} />
+      <CodeEditor
+        key={example.id}
+        initialCode={initialCode}
+        resetCode={() => codeFor(example.id, state)}
+        locale={locale}
+      />
     </div>
   );
   const right = (
