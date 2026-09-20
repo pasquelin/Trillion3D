@@ -22,6 +22,38 @@ export const SCENARIOS = {
     ],
     animated: true,
   },
+  'matrix-inverse': {
+    controls: [
+      ['angle', -170, 170, 35, 1],
+      ['scale', 0.35, 2.5, 1.4, 0.05],
+    ],
+    presets: [
+      [35, 1.4],
+      [-80, 0.55],
+    ],
+    animated: true,
+  },
+  'reflection-orientation': {
+    controls: [['scale', -2, 2, -1, 0.1]],
+    presets: [[-1], [1]],
+    animated: false,
+  },
+  'quaternion-turn': {
+    controls: [['angle', -180, 180, 60, 1]],
+    presets: [[60], [-120]],
+    animated: true,
+  },
+  'normal-transform': {
+    controls: [
+      ['scale', 0.25, 3, 2.2, 0.05],
+      ['scaleY', 0.25, 3, 0.65, 0.05],
+    ],
+    presets: [
+      [2.2, 0.65],
+      [0.4, 2.6],
+    ],
+    animated: true,
+  },
   perspective: {
     controls: [
       ['fov', 20, 110, 55, 1],
