@@ -13,7 +13,10 @@ for (const [label, body, status, type, code] of [
       async () => new Response(body, { status, headers: { 'Content-Type': type } }),
     );
     await assert.rejects(
-      createExplorer({}, { manifestUrl: 'http://localhost/cache/manifest.json', scope: 'full' }),
+      createExplorer(
+        { nodeName: 'CANVAS', getContext() {} },
+        { manifestUrl: 'http://localhost/cache/manifest.json', scope: 'full' },
+      ),
       (error) => {
         assert.equal(error.code, code);
         assert.match(error.message, /manifest\.json/);
