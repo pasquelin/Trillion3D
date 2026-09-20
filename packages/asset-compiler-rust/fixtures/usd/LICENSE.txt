@@ -1,5 +1,5 @@
 SPDX-License-Identifier: CC0-1.0
-Author: Corpus WebGeometry, génération procédurale assistée par Codex, 2026-09-15 (corpus/) ; fixture écrite pour ce dépôt, 2026-09-15 (minuscule/scene.usda)
+Author: Corpus WebGeometry, procedural generation, 2026-09-15 (corpus/) ; fixture written for this repository, 2026-09-15 (minuscule/scene.usda)
 Origin: test/assets/usd/procedural-usda et procedural-usdc (test/assets/tools/model_formats_blender.py, model_formats_text.py) ; minuscule/scene.usda écrit à la main depuis la spécification AOUSD
 License URL: https://creativecommons.org/publicdomain/zero/1.0/
 Original procedural and synthetic fixtures; dedicated to the public domain under CC0.
