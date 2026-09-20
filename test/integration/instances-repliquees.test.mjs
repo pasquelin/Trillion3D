@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { replicateInstances } from '@web-geometry/sdk/browser';
+import { replicateInstances } from '../../packages/sdk/browser.ts';
 test('1/4/9/12 replicas share assets, preserve associations and extend real bounds', () => {
   for (const count of [1, 4, 9, 12]) {
     const source = new THREE.Group(),

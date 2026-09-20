@@ -146,6 +146,12 @@ view-projection, inverses, frustum planes) and depth conventions. These objects 
 `LOD.update` belongs to the Three witness engine: it follows it outside the SDK, it is not
 rewritten.
 
+The first scene-model foundation is delivered: `sdk-core` exposes versioned `SceneRoot` and
+`SceneNode` handles over that transform hierarchy, with stable ids, visibility, attach/detach,
+copy, clone and explicit destruction. It does not mark the host-contract group complete:
+materials, frame hooks and the `createExplorer` migration remain later #78 lots, and the browser
+runtime still consumes its existing scene contract meanwhile.
+
 R1d. **Proof, on every lot.** Equivalence bench against Three.js on representative and degenerate
 cases (negative scales, non-uniform, singular matrices, NaN, ±0, infinities): bitwise identity
 where the formula is the same, otherwise a bounded difference explained before merge; common-bench

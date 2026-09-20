@@ -16,16 +16,16 @@ export interface ManifestBinaryDescriptor {
   /** Bytes of the pixel column: entries have no fixed stride, so their total is written here. */
   texturePreviewBytes: number;
 }
-interface SlimCulling {
+export interface SlimCulling {
   stride: number;
   count: number;
 }
-interface SlimStructure {
+export interface SlimStructure {
   version: number;
   groups: number;
   roots: number;
 }
-interface SlimStreams {
+export interface SlimStreams {
   version: number;
   pinned: number;
   bundleBytes: number;

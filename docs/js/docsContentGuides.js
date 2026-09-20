@@ -10,23 +10,25 @@ export const GUIDES = [
     title: 'Quick start',
     description:
       'From a glTF file to a streamed scene in a canvas: compile once, explore in the browser.',
-    html: `<p>The engine streams geometry by clusters: a native compiler cuts a source scene into pages once, a browser explorer then reads only the pages the camera needs, within fixed memory budgets. Two entry points, one per side.</p>
+    html: `<p>The engine streams geometry by clusters: a native compiler cuts a source scene into pages once, a browser explorer then reads only the pages the camera needs, within fixed memory budgets. Both environments use the same public package specifier.</p>
 <ol>
-<li><strong>Compile</strong> on the machine that holds the source, with <code>@web-geometry/sdk/node</code>. The cache directory receives the manifest, the pages and the texture sidecars; <code>resourceBaseUrl</code> is the URL the browser will read them from.</li>
-<li><strong>Explore</strong> in the browser, with <code>@web-geometry/sdk/browser</code>. <code>createExplorer</code> accepts a canvas ID or element. Set <code>interactive: true</code> for controls, automatic sizing and rendering only while needed. Give the canvas a CSS width and height; dispose on unmount. WebGPU is required by this simple path.</li>
+<li><strong>Compile</strong> on the machine that holds the source, with <code>web-geometry</code>. The Node condition provides preparation. The cache directory receives the manifest, the pages and the texture sidecars; <code>resourceBaseUrl</code> is the URL the browser will read them from.</li>
+<li><strong>Explore</strong> in the browser, also with <code>web-geometry</code>. The browser condition provides rendering. <code>createExplorer</code> accepts a canvas ID or element. Set <code>interactive: true</code> for controls, automatic sizing and rendering only while needed. Give the canvas a CSS width and height; dispose on unmount. WebGPU is required by this simple path.</li>
 </ol>
 <p>The full contract — options, budgets, lighting, temporal antialiasing, diagnostics — is in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a>.</p>`,
-    example: `// 1. Node — compile the source once (the native compiler must be on PATH or named by \`executable\`).
-import { prepare } from '@web-geometry/sdk/node';
-await prepare('scenes/city', 'cache/city', 'full', 150000, { resourceBaseUrl: '/cache/city/' });
+    example: `// 1. Node — compile once (set \`executable\` or WEB_GEOMETRY_COMPILER_BIN).
+import { prepare, type PrepareOptions } from 'web-geometry';
+const compilation: PrepareOptions = { resourceBaseUrl: '/cache/city/' };
+await prepare('scenes/city', 'cache/city', 'full', 150000, compilation);
 
 // 2. Browser — HTML: <canvas id="viewer" style="width:100%;height:70vh"></canvas>
-import { createExplorer } from '@web-geometry/sdk/browser';
-const explorer = await createExplorer('viewer', {
+import { createExplorer, type Explorer, type ExplorerOptions } from 'web-geometry';
+const options: ExplorerOptions = {
   manifestUrl: '/cache/city/manifest.json',
   scope: 'full',
   interactive: true,
-});
+};
+const explorer: Explorer = await createExplorer('viewer', options);
 // A first image is submitted; detail and temporal antialiasing settle progressively.
 // In your page/component teardown: explorer.dispose();`,
   },
@@ -35,7 +37,7 @@ const explorer = await createExplorer('viewer', {
     id: 'architecture',
     title: 'Architecture & rules',
     description: 'What the engine promises and the conventions every function below follows.',
-    html: `<p>The mission, in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/AGENTS.md">AGENTS.md</a>: virtualized geometry for the web at the performance of the best desktop engines — geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal antialiasing, fixed streaming and memory budgets. The lighting is what the geometry is for; its stages are in <code>docs/SPEC_ENGINE_WITHOUT_THREE.md</code> §8.</p>
+    html: `<p>The mission, in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/architecture/PRODUCT_PRINCIPLES.md">Product principles</a>: virtualized geometry for the web at the performance of the best desktop engines — geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal antialiasing, fixed streaming and memory budgets. The lighting is what the geometry is for; its stages are in <code>docs/SPEC_ENGINE_WITHOUT_THREE.md</code> §8.</p>
 <h3 class="text-lg font-bold mt-4">Conventions of the math API</h3>
 <ul class="list-disc pl-6 space-y-1">
 <li><strong>Column-major 4×4 matrices</strong> in sixteen consecutive numbers, <code>[12..14]</code> the translation — a host-library matrix copies without reordering.</li>
@@ -45,7 +47,7 @@ const explorer = await createExplorer('viewer', {
 <li><strong>Measure before optimising.</strong> A per-step CPU profile (<code>cpu-timing</code> diagnostic) and a GPU stage profile (<code>stageProfile()</code>) say where a frame goes; nothing is optimised on a supposition.</li>
 </ul>
 <h3 class="text-lg font-bold mt-4">Reading this portal</h3>
-<p>The camera bridge and the side helpers live in <code>packages/sdk-browser</code> and are not re-exported from the package entry point yet; every entry names the file that holds it. An entry with an <span class="badge badge-warning badge-sm">in development</span> badge names a function the repository does not deliver yet: its page states the issue that carries it and the signature that issue commits to. Everything else is on <code>develop</code> today, with the file that holds it.</p>`,
+<p>Every application example imports <code>web-geometry</code>. The source-module link on each entry is implementation provenance, not a consumer import path. An entry with an <span class="badge badge-warning badge-sm">in development</span> badge names a function the repository does not deliver yet: its page states the issue that carries it and the signature that issue commits to. Everything else is on <code>develop</code> today.</p>`,
   },
   {
     ...GUIDE,
@@ -88,7 +90,7 @@ export const EXAMPLES = [
     title: 'Camera frame without allocation',
     description:
       'A projection and a camera frame allocated once, rewritten every frame from a world matrix.',
-    example: `import { createCameraFrame, perspectiveProjection, updateCameraFrame } from '@web-geometry/sdk/core';
+    example: `import { createCameraFrame, perspectiveProjection, updateCameraFrame } from 'web-geometry';
 
 const projection = new Float64Array(16);
 const world = new Float64Array(16); // the camera's world matrix, column-major
@@ -111,7 +113,7 @@ function onFrame() {
       'Ten thousand nodes composed and multiplied by their parents in one pass, on flat buffers.',
     example: `import {
   HIERARCHY_ROOT, MATRIX_VALUES, POSITION_VALUES, QUATERNION_VALUES, hierarchyUpdateBatch,
-} from '@web-geometry/sdk/core';
+} from 'web-geometry';
 
 const n = 10000;
 // One buffer per quantity, and fixed-size sub-views over it — built once, never per frame.
