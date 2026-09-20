@@ -63,7 +63,12 @@ export class WebglClusterState {
     }
     return next;
   }
-  apply(material: Material, doubleSided: boolean, backSide: boolean) {
+  apply(
+    material: Material,
+    doubleSided: boolean,
+    backSide: boolean,
+    polygonMaterial: Material = material,
+  ) {
     const gl = this.gl;
     this.blend = this.capability(material.transparent, this.blend, gl.BLEND);
     if (material.transparent) {
@@ -90,14 +95,18 @@ export class WebglClusterState {
         material.colorWrite,
       );
     this.colorWrite = colorWrite;
-    this.polygon = this.capability(material.polygonOffset, this.polygon, gl.POLYGON_OFFSET_FILL);
+    this.polygon = this.capability(
+      polygonMaterial.polygonOffset,
+      this.polygon,
+      gl.POLYGON_OFFSET_FILL,
+    );
     if (
-      material.polygonOffset &&
-      (this.polygonFactor !== material.polygonOffsetFactor ||
-        this.polygonUnits !== material.polygonOffsetUnits)
+      polygonMaterial.polygonOffset &&
+      (this.polygonFactor !== polygonMaterial.polygonOffsetFactor ||
+        this.polygonUnits !== polygonMaterial.polygonOffsetUnits)
     )
-      gl.polygonOffset(material.polygonOffsetFactor, material.polygonOffsetUnits);
-    this.polygonFactor = material.polygonOffsetFactor;
-    this.polygonUnits = material.polygonOffsetUnits;
+      gl.polygonOffset(polygonMaterial.polygonOffsetFactor, polygonMaterial.polygonOffsetUnits);
+    this.polygonFactor = polygonMaterial.polygonOffsetFactor;
+    this.polygonUnits = polygonMaterial.polygonOffsetUnits;
   }
 }

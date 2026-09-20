@@ -5,12 +5,8 @@ import {
   readHostDrawCamera,
 } from '../../packages/sdk-browser/cameraWorld.ts';
 import { triangleGeometry } from '../../packages/sdk-browser/triangleDiagnostic.ts';
-
-const pixel = (gl) => {
-  const value = new Uint8Array(4);
-  gl.readPixels(16, 16, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
-  return [...value];
-};
+import { drawCoplanarBlend } from './webglClusterCoplanarBlend.mjs';
+import { clear, pixel } from './webglClusterPixels.mjs';
 
 const geometry = (reverseFirst = false) => {
   const result = new THREE.BufferGeometry();
@@ -45,11 +41,6 @@ const mesh = (geometry, material, starts = [0], counts = [6]) => ({
   _multiDrawCounts: new Int32Array(counts),
   _multiDrawCount: starts.length,
 });
-
-const clear = (gl) => {
-  gl.clearColor(0, 0, 1, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-};
 
 export function execute() {
   const canvas = document.createElement('canvas');
@@ -131,6 +122,17 @@ export function execute() {
   );
   const coplanarPixel = pixel(gl);
 
+  clear(gl);
+  const coplanarBlendSubmissions = drawCoplanarBlend(
+    renderer,
+    scene,
+    drawCamera,
+    geometry,
+    mesh,
+    lower,
+  );
+  const coplanarBlendPixel = pixel(gl);
+
   const diagnosticGeometry = triangleGeometry(geometry()),
     diagnosticMaterial = new THREE.MeshBasicMaterial({ vertexColors: true }),
     diagnostic = new THREE.Mesh(diagnosticGeometry, diagnosticMaterial);
@@ -177,6 +179,8 @@ export function execute() {
     maskPixel,
     blendPixel,
     coplanarPixel,
+    coplanarBlendPixel,
+    coplanarBlendSubmissions,
     diagnosticPixel,
     diagnosticSubmissions,
     mutationRejected,
