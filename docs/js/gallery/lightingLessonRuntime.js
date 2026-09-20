@@ -35,7 +35,8 @@ export function applyLightingLesson(explorer, lesson, state, session) {
     upsert(
       explorer,
       session,
-      point('switch', [0, 4, 2], [1, 0.8, 0.55], LESSON_POINT_INTENSITY, {
+      point('switch', [-3, 7, 10], [1, 0.72, 0.42], 1800, {
+        range: 30,
         castsShadow: state.shadow === 1,
       }),
     );
