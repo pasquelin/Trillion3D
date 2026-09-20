@@ -23,8 +23,8 @@ const frame: PartitionFrame = {
   height: 0,
   levels: noLevels,
   layerTop: 0,
-  historyValid: false,
   hasRest: false,
+  viewMoved: true,
 };
 
 /**
@@ -33,7 +33,7 @@ const frame: PartitionFrame = {
  * Nothing there walks resident rows on the CPU any more: neither projecting boxes into screen
  * rectangles, nor splitting the two halves, nor preparing the Hi-Z test bounds. The image has already
  * uploaded the corners the table had just changed — and those only, before `uploadDirtyRows` closed
- * that range (`uploadRowCorners`). All that remains here is writing one uniform and three compute
+ * that range (`uploadRowCorners`). All that remains here is writing one uniform and two compute
  * dispatches whose count depends only on the row count. Nothing is reread: what the partition decided
  * comes back through the periodic sample.
  *
@@ -43,8 +43,8 @@ const frame: PartitionFrame = {
  *
  * `twoPass` is a property of the RESOURCES, not of the decision: as soon as the pyramid, the tested-
  * half pipeline, indirect compaction and the partition exist, the image encodes its two passes. The
- * GPU may have put nothing in the tested half — it does that when history or the median sorts
- * everything to one side — and the second pass then draws zero instances. The CPU therefore never has
+ * GPU may have put nothing in the tested half — a first image, or a view where nothing drawn last
+ * image is hidden — and the second pass then draws zero instances. The CPU therefore never has
  * to wait for a GPU verdict to know what to encode.
  */
 export function encodeWebgpuPartition(
@@ -62,9 +62,6 @@ export function encodeWebgpuPartition(
   counts.lignes = rows.packedCount;
   if (!partition) return { twoPass: false };
   const start = performance.now();
-  // History is held PER ROW: it no longer describes anything as soon as the table's age changes,
-  // because a row may then carry another page. That is the only condition added there.
-  const historyValid = !run.noOccluderHistory && run.occluderHistoryEpoch === rows.tableEpoch;
   frame.view = cam.view;
   // The render matrix, temporal-antialiasing jitter included: the pyramid the occlusion test reads
   // was rasterised with it, and its margins are to the ulp.
@@ -80,12 +77,13 @@ export function encodeWebgpuPartition(
   frame.height = gpu.targetSize[1];
   frame.levels = twoPass ? vis.gpuHiz!.levels() : noLevels;
   frame.layerTop = visLayerTop(vis);
-  frame.historyValid = historyValid;
   frame.hasRest = twoPass;
+  // A moved view, a moved world or a dropped history free the rows the test kept: what stood
+  // still no longer does, and each of them may leave the occluders again.
+  frame.viewMoved = run.hizViewMoved || run.noOccluderHistory;
   partition.encode(encoder, frame);
   run.noOccluderHistory = false;
-  run.occluderHistoryEpoch = rows.tableEpoch;
-  // What encoding the partition costs the CPU: one uniform and three dispatches, never a resident
+  // What encoding the partition costs the CPU: one uniform and two dispatches, never a resident
   // row. Projection and the split have no CPU bound left at all.
   timing.lastPartitionMs = performance.now() - start;
   // The image's counts are those the GPU wrote, reread one image in fifteen. They therefore describe
@@ -94,8 +92,7 @@ export function encodeWebgpuPartition(
   counts.occulteurs = sample ? sample.occluders : 0;
   counts.testees = sample ? sample.tested : 0;
   counts.historiqueOcculteurs = sample ? sample.historyOccluders : 0;
-  counts.sansHistorique = sample && sample.fromHistory ? 0 : 1;
-  counts.bornesToutes = sample ? sample.inFront : 0;
+  counts.retiresParLaPyramide = sample ? sample.withdrawn : 0;
   counts.imageRelevee = sample ? sample.frame : -1;
   return { twoPass };
 }

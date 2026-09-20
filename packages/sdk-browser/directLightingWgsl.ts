@@ -1,5 +1,6 @@
 import { residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
+import { DIRECT_LIGHT_SAMPLING_WGSL } from './directLightSamplingWgsl.ts';
 import { DIRECT_SHADOW_WGSL } from './directShadowWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 
@@ -48,9 +49,15 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * No light without a declared source (P6): there is no ambient term here, no constant sky, no
  * lighting written in the scene. A surface that no declared light reaches is exactly zero,
  * and a windowless corridor stays black in full daylight.
+ *
+ * `view.viewport.w` is the rank of a SAMPLED image — a moving one that temporal antialiasing
+ * accumulates — and zero for every other: a still image, which converges to the exact sum,
+ * and an image that does not accumulate, which is never noisy. At zero the loop is the one
+ * over every light of the tile, character for character.
  */
 export const DIRECT_LIGHTING_WGSL = `
 ${lightingBase(SUN_FAR_PROXY_BINDING, true)}
+${DIRECT_LIGHT_SAMPLING_WGSL}
 /** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
@@ -58,7 +65,9 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesX=u32(view.lightParams.y);
  let tilesY=u32(view.lightParams.z);
  if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
- return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,4u);
+ let rank=u32(view.viewport.w);
+ if(rank==0u){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,4u);}
+ return sampledTileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,rank,pixel);
 }`;
 
 /**
