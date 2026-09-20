@@ -3,7 +3,6 @@ import roadmap from '../../data/gallery-roadmap.json';
 import { Alert, Field } from '../components/UI.jsx';
 import { examples } from '../../js/gallery/catalog.js';
 import { engineExample, ExampleCard } from './ExampleCard.jsx';
-import { PlannedCard } from './PlannedCard.jsx';
 import { themeOf, themes } from './roadmapThemes.js';
 import { ThemeTabs } from './ThemeTabs.jsx';
 
@@ -88,19 +87,15 @@ export function Gallery({ locale = 'en' }) {
         {french ? 'leçons prêtes dans toute la galerie' : 'ready lessons in the full gallery'}
       </p>
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {visible.map((entry) =>
-          entry.status === 'ready' ? (
-            <ExampleCard key={entry.id} example={entry} locale={locale} />
-          ) : (
-            <PlannedCard
-              key={entry.id}
-              entry={entry}
-              locale={locale}
-              expanded={expanded === entry.id}
-              onOpen={(id) => setExpanded((value) => (value === id ? '' : id))}
-            />
-          ),
-        )}
+        {visible.map((entry) => (
+          <ExampleCard
+            key={entry.id}
+            example={entry}
+            locale={locale}
+            expanded={expanded === entry.id}
+            onOpen={(id) => setExpanded((value) => (value === id ? '' : id))}
+          />
+        ))}
       </div>
       {!entries.length && (
         <Alert tone="info">{french ? 'Aucun sujet trouvé.' : 'No topics found.'}</Alert>
