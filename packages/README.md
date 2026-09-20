@@ -1,5 +1,7 @@
 # Portable engine boundaries — version 0.1.0
 
+[Simple browser startup](../docs/SDK.md#simple-browser-startup): pass a canvas ID or element and opt into `interactive: true` for controls, CSS/DPR sizing and demand-driven rendering. Manual integration remains available.
+
 This standalone repository builds ESM JavaScript and TypeScript declarations into `dist/`, with explicit public SDK entry points. npm publication and cross-platform binary distribution are not yet configured.
 
 | Boundary | Public API | Current implementation |

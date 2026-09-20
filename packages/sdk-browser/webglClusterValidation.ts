@@ -6,19 +6,16 @@ type Attributes = ClusterDrawMesh['geometry']['attributes'];
 
 export function validateClusterMeshes(
   meshes: readonly ClusterDrawMesh[],
-  seen: Map<Material, Set<Attributes>>,
+  seen: Map<Material, Attributes>,
 ) {
-  for (const attributes of seen.values()) attributes.clear();
+  seen.clear();
   for (const mesh of meshes) {
-    if (Array.isArray(mesh.material)) continue;
-    let attributes = seen.get(mesh.material);
-    if (!attributes) {
-      attributes = new Set();
-      seen.set(mesh.material, attributes);
-    }
-    if (attributes.has(mesh.geometry.attributes)) continue;
+    if (Array.isArray(mesh.material))
+      throw new Error('Unsupported autonomous cluster material: material arrays are unsupported');
+    const attributes = seen.get(mesh.material);
+    if (attributes === mesh.geometry.attributes) continue;
     const reason = clusterMaterialReason(mesh.material, mesh.geometry.attributes);
     if (reason) throw new Error(`Unsupported autonomous cluster material: ${reason}`);
-    attributes.add(mesh.geometry.attributes);
+    if (!attributes) seen.set(mesh.material, mesh.geometry.attributes);
   }
 }

@@ -54,3 +54,15 @@ test('one material is validated against every distinct geometry attribute set', 
     /no UV1 attribute/,
   );
 });
+
+test('a runtime mutation to a material array is rejected instead of disappearing', () => {
+  const material = new THREE.MeshBasicMaterial();
+  assert.throws(
+    () =>
+      validateClusterMeshes(
+        [{ material: [material], geometry: { attributes: { position } } }] as never,
+        new Map(),
+      ),
+    /material arrays are unsupported/,
+  );
+});
