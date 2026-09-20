@@ -93,7 +93,16 @@ node test/test-gpu.mjs test/justesse/reflexion-cone.mjs   # run single target
 A benchmark measures a package computation against named cases and **compares it to an oracle**:
 the pre-optimization implementation, copied verbatim under `bench/oracles/`. Each published line
 includes its median, p95, nanoseconds per element, operations per second, baseline difference,
-and the oracle verdict.
+witness difference and the oracle verdict.
+
+A **witness** (`temoin` in `mesure()`) is a second calculation of the same thing — the host
+library, a rejected candidate — timed on the same input with the same settings; the row keeps its
+statistics under `temoin` and the "vs witness" column reads the calculation's median relative to
+it, as "vs baseline" reads it relative to the baseline. The Three.js-versus-engine benches
+(`three-vs-core-*.perf.mjs`) are written on it: one row per calculation family, Three the witness,
+Three's result read untimed as the oracle. A witness is a point of comparison, never a regression
+gate: the column carries no icon, and the `duel` helper's own `node:test` enforces each family's
+declared performance ceiling.
 
 Three verdict types, never silence:
 
