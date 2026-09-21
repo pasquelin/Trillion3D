@@ -4,8 +4,9 @@ import { LearningCards } from '../components/LearningCards.tsx';
 import { CodeEditor } from '../components/CodeEditor.tsx';
 import { formatNumericText } from '../code/formatNumber.ts';
 import { LessonTemplate } from '../components/LessonTemplate.tsx';
-import { Button, Field, Range, Select } from '../components/UI.tsx';
-import { ControlActions, ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
+import { Button } from '../components/UI.tsx';
+import type { LessonControl } from '../components/LessonControls.tsx';
+import { LessonControls } from '../components/LessonControls.tsx';
 import { examples, byId } from '../../content/catalog.ts';
 import { codeFor } from '../../lessons/code.ts';
 import { evaluate } from '../../lessons/evaluate.ts';
@@ -54,57 +55,52 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
     onSelect?.(next);
   };
   const controls = (
-    <ControlPanel title={french ? 'Commandes de l’expérience' : 'Experiment controls'}>
-      <div className="control-panel-wide">
-        <Select
-          size="sm"
-          value={example.id}
-          onChange={(event) => choose(event.target.value)}
-          aria-label={french ? 'Choisir une expérience' : 'Choose an experiment'}
-        >
-          {examples.map((item) => (
-            <option key={item.id} value={item.id}>
-              {local(item.title, locale)}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <ControlActions>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            motion.stop();
-            setState(initialState(example.id));
-          }}
-        >
-          {french ? 'Réinitialiser' : 'Reset'}
-        </Button>
-        <Button size="sm" variant="outline" onClick={motion.applyPreset}>
-          {french ? 'Préréglage' : 'Preset'}
-        </Button>
-        {scenario.animated && (
-          <Button size="sm" variant="primary" onClick={motion.toggle}>
-            {motion.playing ? (french ? 'Pause' : 'Pause') : french ? 'Animer' : 'Animate'}
+    <LessonControls
+      title={french ? 'Commandes de l’expérience' : 'Experiment controls'}
+      controls={[
+        {
+          kind: 'select',
+          id: 'experiment',
+          value: example.id,
+          options: examples.map((item) => ({ value: item.id, label: local(item.title, locale) })),
+          onChange: choose,
+          props: { 'aria-label': french ? 'Choisir une expérience' : 'Choose an experiment' },
+        },
+        ...scenario.controls.map(([name, min, max, , step]): LessonControl => ({
+          kind: 'range',
+          id: name,
+          label: controlLabel(name, locale),
+          display: state[name],
+          min,
+          max,
+          step,
+          value: state[name],
+          onChange: (value) => setState({ ...state, [name]: value }),
+        })),
+      ]}
+      actions={
+        <>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              motion.stop();
+              setState(initialState(example.id));
+            }}
+          >
+            {french ? 'Réinitialiser' : 'Reset'}
           </Button>
-        )}
-      </ControlActions>
-      {scenario.controls.map(([name, min, max, , step]) => (
-        <Field
-          key={name}
-          label={<ControlLabel label={controlLabel(name, locale)} value={state[name]} />}
-        >
-          <Range
-            aria-label={controlLabel(name, locale)}
-            min={min}
-            max={max}
-            step={step}
-            value={state[name]}
-            onChange={(event) => setState({ ...state, [name]: Number(event.target.value) })}
-          />
-        </Field>
-      ))}
-    </ControlPanel>
+          <Button size="sm" variant="outline" onClick={motion.applyPreset}>
+            {french ? 'Préréglage' : 'Preset'}
+          </Button>
+          {scenario.animated && (
+            <Button size="sm" variant="primary" onClick={motion.toggle}>
+              {motion.playing ? (french ? 'Pause' : 'Pause') : french ? 'Animer' : 'Animate'}
+            </Button>
+          )}
+        </>
+      }
+    />
   );
   const cards = (
     <LearningCards
