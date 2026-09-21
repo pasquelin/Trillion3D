@@ -15,7 +15,7 @@ export type GpuBuffer = {
   updateRanges: readonly { start: number; count: number }[];
   clearUpdateRanges(): void;
 };
-export type IndexBuffer = GpuBuffer & { count: number };
+type IndexBuffer = GpuBuffer & { count: number };
 export type VertexAttribute = GpuBuffer & { itemSize: number; normalized: boolean };
 /** Geometry of a batch record: the engine's resident index over the host's vertex attributes. */
 export type ClusterGeometry = { index: IndexBuffer; attributes: HostAttributes };
