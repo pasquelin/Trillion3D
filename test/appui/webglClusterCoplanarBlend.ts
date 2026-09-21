@@ -1,6 +1,11 @@
 import * as THREE from 'three';
+import type { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
 
-function coplanarBlendMesh(geometry, mesh, biased) {
+type ClusterMeshFactory = typeof import('./webglClusterPixels.ts').clusterRecord;
+type DrawParams = Parameters<WebglClusterRenderer['draw']>;
+type GeometryFactory = (reverseFirst?: boolean) => THREE.BufferGeometry;
+
+function coplanarBlendMesh(geometry: GeometryFactory, mesh: ClusterMeshFactory, biased: boolean) {
   const source = new THREE.MeshBasicMaterial({
       color: 0x00ff00,
       transparent: true,
@@ -18,7 +23,7 @@ function coplanarBlendMesh(geometry, mesh, biased) {
     pass.polygonOffsetFactor = 0;
     pass.polygonOffsetUnits = -8;
   }
-  const pair = [back, front],
+  const pair: [THREE.Material, THREE.Material] = [back, front],
     result = mesh(geometry(true), pair, [0], [3]);
   result._sideSplitMaterials = pair;
   result._sideSplitBack = back;
@@ -28,7 +33,15 @@ function coplanarBlendMesh(geometry, mesh, biased) {
   return result;
 }
 
-export function drawCoplanarBlend(renderer, scene, camera, geometry, mesh, base, biased) {
+export function drawCoplanarBlend(
+  renderer: WebglClusterRenderer,
+  scene: DrawParams[1],
+  camera: DrawParams[2],
+  geometry: GeometryFactory,
+  mesh: ClusterMeshFactory,
+  base: THREE.Material,
+  biased: boolean,
+) {
   return renderer.draw(
     [mesh(geometry(), base, [0], [3]), coplanarBlendMesh(geometry, mesh, biased)],
     scene,

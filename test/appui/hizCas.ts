@@ -17,7 +17,7 @@ export const BOX_NEAREST = 0.3;
 const REJETEE = 1,
   DESSINEE = 2;
 
-const makeCase = (hole) => {
+const makeCase = (hole: boolean) => {
   const depth = Array.from({ length: height }, () => Array(width).fill(OCCLUDER_DEPTH));
   // A BACKGROUND hole: at the far plane, so nothing can be rejected behind it.
   if (hole) depth[18][32] = DEPTH_CLEAR;

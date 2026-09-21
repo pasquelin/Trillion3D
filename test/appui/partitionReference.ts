@@ -14,11 +14,12 @@
 //   3. the GPU depth UNDERESTIMATES that of the reference, coplanar-layer bias included.
 import { HIZ_BOUNDS_VALUES, projectCornersInto } from '../../packages/sdk-browser/hizCorners.ts';
 import { hizNearestBound } from '../../packages/sdk-browser/hizNearestBound.ts';
+import type { PartitionAudit } from '../../packages/sdk-browser/webgpuPartitionAudit.ts';
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
 
 /** Compares the audit of a frame to the reference, row by row, and accumulates into `total`. */
-export function compareAudit(audit, total) {
+export function compareAudit(audit: PartitionAudit, total: ReturnType<typeof emptyTotals>) {
   const { rows, view, viewProj, near, width, height, corners, layers } = audit;
   for (let row = 0; row < rows; row++) {
     // One depth convention (`depthConvention.ts`): the reference reads the same
@@ -60,7 +61,7 @@ export function compareAudit(audit, total) {
     }
     // Rectangle width, compared to the test's sixteen-texel kernel: beyond, the box answers
     // from a coarser mip and rejects less. The two distributions must look alike.
-    const palier = (w) => (w < 16 ? 0 : w < 64 ? 1 : w < 256 ? 2 : 3);
+    const palier = (w: number) => (w < 16 ? 0 : w < 64 ? 1 : w < 256 ? 2 : 3);
     total.largeurParPalier[palier(Math.max(gx1 - gx0, gy1 - gy0))]++;
     total.largeurRefParPalier[palier(Math.max(rx1 - rx0, ry1 - ry0))]++;
     // Rule 3: overestimate. Depth is reversed, so a safe bound OVERESTIMATES what the

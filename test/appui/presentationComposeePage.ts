@@ -6,7 +6,7 @@
 // publishes — the first row read is the last row presented.
 import { createSynchronousCanvasCapture } from '../../packages/sdk-browser/gpuPresentation.ts';
 import { createCanvasBlit } from '../../packages/sdk-browser/webglCanvasBlit.ts';
-import { createChecks } from './presentationChecks.ts';
+import { createChecks, type CheckRecord } from './presentationChecks.ts';
 
 const WIDTH = 64,
   HEIGHT = 48;
@@ -17,6 +17,7 @@ function sourcePresentee() {
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('2d context unavailable');
   const image = context.createImageData(WIDTH, HEIGHT);
   for (let y = 0; y < HEIGHT; y++)
     for (let x = 0; x < WIDTH; x++) {
@@ -35,7 +36,11 @@ function sourcePresentee() {
  * encodes to sRGB on every write. Declared, the copy reads the source as sRGB and the hardware
  * decode cancels that encode; undeclared, the image comes back brightened once.
  */
-function versCibleSrgb(source, attendu, equal) {
+function versCibleSrgb(
+  source: HTMLCanvasElement,
+  attendu: Uint8Array,
+  equal: ReturnType<typeof createChecks>['equal'],
+) {
   const canvas = document.createElement('canvas');
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
@@ -65,7 +70,7 @@ function versCibleSrgb(source, attendu, equal) {
 
 export function executer() {
   const source = sourcePresentee();
-  const checks = [];
+  const checks: CheckRecord[] = [];
   const { equal } = createChecks(checks);
   const attendu = new Uint8Array(source.data.length);
   for (let y = 0; y < HEIGHT; y++)

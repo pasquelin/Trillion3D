@@ -1,8 +1,17 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
+import type { Page } from 'playwright';
+
+// Counters an init script installs on the page's own `window`, read back through `evaluate`.
+declare global {
+  interface Window {
+    startupFrames: number;
+    startupQuiet: { frames: number; since: number } | null;
+  }
+}
 
 /** Exercise the actual portal lifecycle; counters observe engine frames without drawing. */
-export async function startupGarden(page, base, out) {
+export async function startupGarden(page: Page, base: string, out: string) {
   await page.addInitScript(() => {
     const request = window.requestAnimationFrame.bind(window);
     window.startupFrames = 0;
@@ -19,13 +28,13 @@ export async function startupGarden(page, base, out) {
     await page
       .waitForFunction(
         () => {
-          const control = document.querySelector('[data-scene-mode]');
+          const control = document.querySelector('[data-scene-mode]') as HTMLSelectElement | null;
           return control && !control.disabled;
         },
         undefined,
         { timeout: 60000 },
       )
-      .catch(async (error) => {
+      .catch(async (error: unknown) => {
         throw new Error(
           `Garden startup: ${await page.locator('[data-scene-status]').textContent()}`,
           { cause: error },
@@ -55,8 +64,8 @@ export async function startupGarden(page, base, out) {
       );
     };
     await idle();
-    const number = async (name) =>
-      Number((await page.locator(`[data-scene-${name}]`).textContent()).replace(/\D/g, ''));
+    const number = async (name: string) =>
+      Number(((await page.locator(`[data-scene-${name}]`).textContent()) ?? '').replace(/\D/g, ''));
     assert.equal(await number('selected'), 35840);
     assert.equal(await number('drawn'), 35840);
     const code = (await page.locator('[data-code-block] pre code').allTextContents()).join('\n');
@@ -81,7 +90,7 @@ export async function startupGarden(page, base, out) {
     await idle();
     await page.locator('[data-scene-home]').click();
     await idle();
-    await page.locator('[data-scene-light]').evaluate((input) => {
+    await page.locator('[data-scene-light]').evaluate((input: HTMLInputElement) => {
       input.value = '0.5';
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
@@ -92,7 +101,7 @@ export async function startupGarden(page, base, out) {
     await idle();
     const size = await page
       .locator('[data-scene-canvas]')
-      .evaluate((canvas) => [
+      .evaluate((canvas: HTMLCanvasElement) => [
         canvas.width,
         canvas.height,
         canvas.clientWidth * devicePixelRatio,
@@ -106,7 +115,7 @@ export async function startupGarden(page, base, out) {
       fullPage: true,
       animations: 'disabled',
     });
-    await page.evaluate((language) => {
+    await page.evaluate((language: string) => {
       location.hash = `#/${language}/learn/home`;
     }, locale);
     await page.locator('[data-scene-canvas]').waitFor({ state: 'detached' });

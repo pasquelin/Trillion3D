@@ -14,6 +14,7 @@ import { HIZ_BOUNDS_VALUES, projectCornersInto } from '../../packages/sdk-browse
 import { hizNearestBound } from '../../packages/sdk-browser/hizNearestBound.ts';
 import { buildHizPyramid } from '../../packages/sdk-browser/hizDepth.ts';
 import { hizRejectsFlat } from '../../packages/sdk-browser/hizOcclusion.ts';
+import type { TransparentOcclusionAudit } from '../../packages/sdk-browser/webgpuTransparentOcclusionAudit.ts';
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
 /** Doubles of a world box in the `createBoxCorners` layout. */
@@ -27,7 +28,10 @@ export function emptyOcclusionTotals() {
  * Checks a frame's audit and accumulates into `total`. The reference pyramid is built once per
  * pose, from the reread depth, and serves every cluster of that pose.
  */
-export function checkOcclusionAudit(audit, total) {
+export function checkOcclusionAudit(
+  audit: TransparentOcclusionAudit,
+  total: ReturnType<typeof emptyOcclusionTotals>,
+) {
   // One depth convention crosses the engine (`depthConvention.ts`): reference and kernel read
   // the same view-projection, so their bounds compare directly.
   const pyramid = buildHizPyramid(audit.depth, audit.width, audit.height);

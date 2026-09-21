@@ -11,24 +11,26 @@
 // longer moves, each compared byte for byte to a fresh engine placed at once at the same world
 // pose. Matrices from a previous view would make one or the other diverge.
 import * as THREE from 'three';
+import type { BackendDiagnostic, RenderBackend } from '../../packages/sdk-browser/backendTypes.ts';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
-import { cameraFace, comptesEtape, image, libere, engine } from './preuveSceneCommune.ts';
+import { cameraFace, comptesEtape, libere, engine } from './preuveSceneCommune.ts';
+import { image } from './preuveSceneImage.ts';
 import { dallePixels, sceneOccultante, surSceneOccultante } from './sceneOccultante.ts';
 
 /** Rig poses. The camera itself never changes local pose. */
 const POSES = [0, 0.35, 0.7, 1.05, 1.4];
 
-const differences = (a, b) => {
+const differences = (a: Uint8Array, b: Uint8Array) => {
   let n = 0;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++;
   return n;
 };
 
 /** Rows the frame's partition processed: every drawable row, each frame. */
-const lignes = (backend) => comptesEtape(backend, 'partition')?.lignes ?? null;
+const lignes = (backend: RenderBackend) => comptesEtape(backend, 'partition')?.lignes ?? null;
 
 /** A pose rendered by an engine that has never seen anything else, parentless camera: the witness. */
-async function poseNeuve(device, x, onDiag) {
+async function poseNeuve(device: GPUDevice, x: number, onDiag: (e: BackendDiagnostic) => void) {
   const scene = sceneOccultante();
   const { backend, canvas } = engine(webgpuPagesBackend, scene, device, onDiag);
   try {

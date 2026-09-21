@@ -1,9 +1,10 @@
 // A prepared scene of two meshes for the public exact-pages path: one paged opaque quad and,
 // in front of it, one transmissive quad the engine keeps as a scene copy of its own.
 import * as THREE from 'three';
+import type { ClusterManifest, Page, Primitive } from '../../packages/sdk-core/index.ts';
 import { quad } from './webglClusterPixels.ts';
 
-const page = {
+const page: Page = {
   id: 0,
   url: 'quad',
   count: 6,
@@ -23,7 +24,7 @@ const page = {
 };
 
 /** `glass` shapes the transmissive material; the default is plain glass over a red cluster. */
-export function transmissionScene(glass = {}) {
+export function transmissionScene(glass: Partial<THREE.MeshPhysicalMaterialParameters> = {}) {
   const opaque = new THREE.Mesh(quad(-3, 2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
   const copy = new THREE.Mesh(
     quad(-1, 1),
@@ -31,7 +32,7 @@ export function transmissionScene(glass = {}) {
   );
   const source = new THREE.Group();
   source.add(opaque, copy);
-  const primitive = (mesh, primitiveIndex, pages) => ({
+  const primitive = (mesh: THREE.Mesh, primitiveIndex: number, pages: Page[]): Primitive => ({
     mesh: 0,
     primitive: primitiveIndex,
     pass: 'exact-clusters',
@@ -39,17 +40,27 @@ export function transmissionScene(glass = {}) {
     pages,
     structure: { version: 1, roots: pages.map((_, index) => index), groups: [] },
   });
+  const primitives = [primitive(opaque, 0, [page]), primitive(copy, 1, [])];
+  const metadata: ClusterManifest = {
+    errorModel: 'dag-group-qem-v1',
+    clusterStrategy: 'dag-groups',
+    schema: 1,
+    status: 'ready',
+    key: 'transmission-scene',
+    scope: 'slice',
+    sourceTriangles: primitives.length,
+    selectedTriangles: primitives.length,
+    selectedNodes: [],
+    totalNodes: primitives.length,
+    primitives,
+  };
   return {
     source,
     opaque,
     copy,
-    metadata: {
-      errorModel: 'dag-group-qem-v1',
-      clusterStrategy: 'dag-groups',
-      primitives: [primitive(opaque, 0, [page]), primitive(copy, 1, [])],
-    },
+    metadata,
     indices: new Map([['quad', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
-    associations: new Map([
+    associations: new Map<THREE.Object3D, { meshes: number; primitives: number }>([
       [opaque, { meshes: 0, primitives: 0 }],
       [copy, { meshes: 0, primitives: 1 }],
     ]),

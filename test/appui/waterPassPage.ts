@@ -75,9 +75,9 @@ interface CaseResult {
   pagine: boolean;
   centre: number[];
   moved: number[];
-  drawsFirst: number | undefined;
-  drawsLast: number | undefined;
-  heldLast: boolean | undefined;
+  drawsFirst: number | null | undefined;
+  drawsLast: number | null | undefined;
+  heldLast: boolean | null | undefined;
 }
 
 /** One case: four frames of the same pose. The centre of each, the draws, and whether the last
@@ -101,8 +101,8 @@ async function cas(
     const camera = cameraFace();
     const frames: {
       centre: number[];
-      draws: number | undefined;
-      held: boolean | undefined;
+      draws: number | null | undefined;
+      held: boolean | null | undefined;
       moved: number;
       pixels: Uint8Array;
     }[] = [];

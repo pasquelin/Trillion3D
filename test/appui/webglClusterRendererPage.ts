@@ -8,37 +8,8 @@ import { normalMapFrames } from './webglClusterNormalMapPage.ts';
 import { textureFixtures } from './webglClusterTexturePage.ts';
 import { windingComparisons } from './webglClusterWindingPage.ts';
 import { pixel } from './webglClusterPixels.ts';
-const triangle = () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
-  );
-  geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2));
-  geometry.setAttribute(
-    'normal',
-    new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3),
-  );
-  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
-  const material = new THREE.MeshBasicMaterial();
-  material.color.setRGB(0.18, 0, 0, THREE.LinearSRGBColorSpace);
-  return {
-    geometry,
-    material,
-    matrix: new THREE.Matrix4(),
-    _multiDrawCounts: new Int32Array([3]),
-    _multiDrawStarts: new Int32Array([0]),
-    _multiDrawCount: 1,
-  };
-};
-const placeRig = (mesh, camera, light, drawCamera, offset) => {
-  mesh.matrix.makeTranslation(offset, offset, offset);
-  camera.position.set(offset, offset, offset);
-  light.position.set(offset, offset, offset + 1);
-  light.target.position.set(offset, offset, offset);
-  light.parent.updateMatrixWorld(true);
-  host.readHostDrawCamera(drawCamera, camera);
-};
+import { placeRig, triangle } from './webglClusterRendererRig.ts';
+
 export async function execute() {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 32;
@@ -48,7 +19,7 @@ export async function execute() {
     scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
     drawCamera = host.readHostDrawCamera(host.createHostDrawCamera(), camera),
-    mesh = triangle();
+    { mesh, material: basic } = triangle();
   gl.viewport(0, 0, 32, 32);
   gl.clearColor(0, 0, 1, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -80,23 +51,23 @@ export async function execute() {
   const drawError = gl.getError();
   const fboInside = pixel(gl, 12, 16),
     fboOutside = pixel(gl, 24, 16);
-  mesh.material.opacity = 0.5;
+  basic.opacity = 0.5;
   gl.disable(gl.SCISSOR_TEST);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, false);
   const opaqueAlpha = pixel(gl, 16, 16)[3];
-  mesh.material.opacity = 0.75;
-  mesh.material.alphaTest = 0.5;
+  basic.opacity = 0.75;
+  basic.alphaTest = 0.5;
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, false);
   const maskAlpha = pixel(gl, 16, 16)[3];
-  mesh.material.opacity = 1;
-  mesh.material.alphaTest = 0;
+  basic.opacity = 1;
+  basic.alphaTest = 0;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.disable(gl.SCISSOR_TEST);
   const standard = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
   standard.color.setRGB(0.18, 0, 0, THREE.LinearSRGBColorSpace);
-  mesh.material.dispose();
+  basic.dispose();
   mesh.material = standard;
   scene.add(new THREE.AmbientLight(0xffffff, Math.PI));
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -129,6 +100,7 @@ export async function execute() {
   const neutral = document.createElement('canvas');
   neutral.width = neutral.height = 1;
   const context = neutral.getContext('2d');
+  if (!context) throw new Error('2d context unavailable');
   context.fillStyle = 'rgb(128,128,255)';
   context.fillRect(0, 0, 1, 1);
   standard.normalMap = new THREE.CanvasTexture(neutral);
@@ -164,7 +136,7 @@ export async function execute() {
   }
   renderer.dispose();
   mesh.geometry.dispose();
-  mesh.material.dispose();
+  standard.dispose();
   const curvedMotion = [-0.02, -0.01, 0, 0.01, 0.02].map((offset) => curvedComparison(128, offset));
   return {
     canvasCenter,

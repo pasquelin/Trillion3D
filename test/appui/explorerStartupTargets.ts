@@ -1,8 +1,11 @@
 // Runs in the browser through Playwright serialization.
+import type { ExplorerOptions, ExplorerTarget } from '../../packages/sdk-browser/index.ts';
+
 export async function startupTargets() {
   const { createExplorer, createExplorerJob, webgpuPagesBackend } = window.sdk;
   const canvas = document.getElementById('viewer');
-  const options = {
+  if (!(canvas instanceof HTMLCanvasElement)) throw new Error('missing #viewer canvas');
+  const options: ExplorerOptions = {
     manifestUrl: '/cache/city/manifest.json',
     scope: 'full',
     backends: [webgpuPagesBackend],
@@ -13,9 +16,10 @@ export async function startupTargets() {
     geometryPoolBytes: 16 * 1024 * 1024,
     texturePoolBytes: 128 * 1024 * 1024,
   };
-  const images = [],
-    triangles = [];
-  for (const target of ['viewer', canvas, 'viewer']) {
+  const images: number[][] = [],
+    triangles: [number | null | undefined, number | null | undefined][] = [];
+  const targets: ExplorerTarget[] = ['viewer', canvas, 'viewer'];
+  for (const target of targets) {
     const e = await createExplorer(target, options);
     await e.awaitPages();
     e.setDiagnostic('beauty'); // Force an encoded frame so submitted triangles describe this draw.
@@ -28,19 +32,31 @@ export async function startupTargets() {
   const differences = images
     .slice(1)
     .map((image) => image.filter((value, i) => value !== images[0][i]).length);
-  const failure = async (target, extra = {}) => {
+  const failure = async (
+    target: ExplorerTarget | HTMLElement,
+    extra: Partial<ExplorerOptions> = {},
+  ) => {
     try {
-      await createExplorer(target, { ...options, ...extra });
+      await createExplorer(target as ExplorerTarget, { ...options, ...extra });
       return 'unexpected success';
     } catch (error) {
-      return `${error.code ?? error.name}: ${error.message}`;
+      const details = error as { code?: string; name?: string; message?: string };
+      return `${details.code ?? details.name}: ${details.message}`;
     }
   };
   const missing = await failure('missing'),
     wrong = await failure(document.body);
+  // A stub `GPU`, branded like the real one, whose adapter request always fails: the case
+  // this proof exercises is startup with no usable adapter, not a missing `navigator.gpu`.
+  const noAdapterGpu: GPU = {
+    __brand: 'GPU',
+    requestAdapter: async () => null,
+    getPreferredCanvasFormat: () => 'bgra8unorm',
+    wgslLanguageFeatures: new Set(),
+  };
   const unsupported = await failure('viewer', {
     interactive: true,
-    gpu: { requestAdapter: async () => null },
+    gpu: noAdapterGpu,
   });
   const job = await createExplorerJob('scene-job', 'viewer', { ...options, interactive: true });
   const e = await job.promise;

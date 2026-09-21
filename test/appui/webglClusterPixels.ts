@@ -1,18 +1,20 @@
 import * as THREE from 'three';
+import { IDENTITY_MATRIX4 } from '../../packages/sdk-core/index.ts';
 import { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
+import type { ClusterDrawMesh } from '../../packages/sdk-browser/clusterBatchMesh.ts';
 import {
   createHostDrawCamera,
   readHostDrawCamera,
 } from '../../packages/sdk-browser/cameraWorld.ts';
 
-export function pixel(gl, x = 16, y = 16) {
+export function pixel(gl: WebGL2RenderingContext, x = 16, y = 16): number[] {
   const value = new Uint8Array(4);
   gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
   return [...value];
 }
 
 /** A quad facing the camera at depth `z`, with the normal a lit surface needs. */
-export const quad = (z, half = 1) => {
+export const quad = (z: number, half = 1) => {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
     'position',
@@ -31,17 +33,61 @@ export const quad = (z, half = 1) => {
 };
 
 /** A batch record as the owner receives it: index ranges given in indices, held in bytes. */
-export const clusterRecord = (geometry, material, starts = [0], counts = [6]) => ({
+export const clusterRecord = (
+  geometry: THREE.BufferGeometry,
+  material: THREE.Material | THREE.Material[],
+  starts: number[] = [0],
+  counts: number[] = [6],
+): ClusterDrawMesh => ({
   geometry,
   material,
   renderOrder: 0,
-  matrix: new THREE.Matrix4(),
+  matrix: { elements: new Float64Array(IDENTITY_MATRIX4) },
   _multiDrawStarts: new Int32Array(starts.map((start) => start * 4)),
   _multiDrawCounts: new Int32Array(counts),
   _multiDrawCount: starts.length,
+  _sideSplitMaterials: undefined,
+  _sideSplitBack: undefined,
+  _sideSplitFront: undefined,
+  _sideSplitSource: undefined,
+  _sideSplitPolygonMaterials: undefined,
 });
 
-export function clear(gl) {
+/** A `ClusterDrawMesh` matrix field, `elements` a `Float64Array` as the renderer reads it, kept
+ *  in sync with a private `THREE.Matrix4` so a proof can still pose it with the usual helpers. */
+export interface DrawMatrix {
+  elements: Float64Array<ArrayBuffer>;
+  makeTranslation(x: number, y: number, z: number): void;
+  makeScale(x: number, y: number, z: number): void;
+  identity(): void;
+  copy(source: DrawMatrix): void;
+}
+
+export function drawMatrix(): DrawMatrix {
+  const scratch = new THREE.Matrix4(),
+    elements = new Float64Array(16);
+  const sync = () => elements.set(scratch.elements);
+  return {
+    elements,
+    makeTranslation(x, y, z) {
+      scratch.makeTranslation(x, y, z);
+      sync();
+    },
+    makeScale(x, y, z) {
+      scratch.makeScale(x, y, z);
+      sync();
+    },
+    identity() {
+      scratch.identity();
+      sync();
+    },
+    copy(source) {
+      elements.set(source.elements);
+    },
+  };
+}
+
+export function clear(gl: WebGL2RenderingContext) {
   gl.depthMask(true);
   gl.clearColor(0, 0, 1, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

@@ -114,7 +114,7 @@ export async function run({
   const { renderer, canvas } = witnessRenderer();
   // The sun of the witness and the stores of the engine, built once: a light added to another
   // scene moves there, and an unlit fixture reads the empty store.
-  const sun: THREE.Object3D = creer(SUN);
+  const sun = creer(SUN);
   appliquer(sun, SUN, 0);
   const stores = { none: createSceneLightStore(), sun: createSceneLightStore() };
   stores.sun.add(SUN);

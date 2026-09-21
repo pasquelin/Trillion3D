@@ -5,17 +5,17 @@
 // Nothing internal is read: `setTransform` on one side, reread pixels and `frameHeld` on the other.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
+import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
 import {
   VIEWPORT,
   batisseur,
   carre,
   cameraFace,
-  image,
-  jusquaTenue,
   libere,
   engine,
   versApi,
 } from './preuveSceneCommune.ts';
+import { image, jusquaTenue } from './preuveSceneImage.ts';
 import { executerAccumulation } from './preuveAppareil.ts';
 
 /** The background and the red tile, the latter rotated by a third of a radian: its edges are oblique. */
@@ -38,9 +38,9 @@ function scene() {
 const deplace = () => versApi(new THREE.Matrix4().makeRotationZ(0.33).setPosition(0.5, 0, 0));
 
 /** A full run: at rest, then after a move. `temporel` picks the option. */
-async function executionComplete(device, evenements, temporel) {
+async function executionComplete(device: GPUDevice, evenements: unknown[], temporel: boolean) {
   const s = scene(),
-    propres = [];
+    propres: BackendDiagnostic[] = [];
   const { backend, canvas } = engine(
     webgpuPagesBackend,
     s,
@@ -57,11 +57,12 @@ async function executionComplete(device, evenements, temporel) {
     const arret = await jusquaTenue(backend, camera);
     // Pan: the camera slides about two thirds of a pixel per frame, for sixteen frames.
     // Nothing is held; the last rendered image is the one we reread.
-    let panoramique;
+    let panoramique: number[] | undefined;
     for (let i = 1; i <= 16; i++) {
       const glissee = cameraFace(0.02 * i);
       panoramique = Array.from((await image(backend, glissee)).pixels);
     }
+    if (!backend.setTransform) throw new Error('backend missing setTransform');
     backend.setTransform('carre', deplace());
     const deplacement = await jusquaTenue(backend, camera);
     const capacites = propres.find((e) => e.phase === 'render-capabilities')?.context ?? null;

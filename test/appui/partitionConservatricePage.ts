@@ -6,15 +6,31 @@
 // from. The reference is recomputed on those same inputs and the two are compared
 // cluster by cluster (`partitionReference.ts`).
 
+import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type { CameraPose } from '../../packages/sdk-core/index.ts';
+import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
 import { compareAudit, emptyTotals } from './partitionReference.ts';
 import { checkOcclusionAudit, emptyOcclusionTotals } from './transparentOcclusionReference.ts';
 
-export async function auditPoses(options) {
-  const sdk = await import(options.sdkUrl);
+/** What this proof needs to pose an explorer and audit its GPU partition, one frame at a time. */
+export interface AuditPosesOptions {
+  sdkUrl: string;
+  manifestUrl: string;
+  width: number;
+  height: number;
+  instances: 1 | 4 | 9 | 12;
+  pixelError: number;
+  maxPages: number;
+  warmup: number;
+  poses: CameraPose[];
+}
+
+export async function auditPoses(options: AuditPosesOptions) {
+  const sdk = (await import(options.sdkUrl)) as typeof SdkBrowser;
 
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
-  const evenements = [];
+  const evenements: BackendDiagnostic[] = [];
   const explorer = await sdk.createExplorer(canvas, {
     manifestUrl: options.manifestUrl,
     scope: 'full',
@@ -75,7 +91,8 @@ export async function auditPoses(options) {
       });
     }
   } catch (error) {
-    return { erreur: String(error) + (error?.stack ?? ''), evenements, images, total };
+    const trace = error instanceof Error ? (error.stack ?? '') : '';
+    return { erreur: String(error) + trace, evenements, images, total };
   } finally {
     explorer.dispose();
     canvas.remove();

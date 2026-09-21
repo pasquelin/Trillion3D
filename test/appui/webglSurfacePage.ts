@@ -4,8 +4,8 @@ import {
 } from '../../packages/sdk-browser/explorerWebglHost.ts';
 import * as THREE from 'three';
 
-const waitFor = (read, timeout = 2000) =>
-  new Promise((resolve, reject) => {
+const waitFor = <T>(read: () => T | false | undefined, timeout = 2000) =>
+  new Promise<T>((resolve, reject) => {
     const start = performance.now();
     const poll = () => {
       const value = read();
@@ -17,10 +17,11 @@ const waitFor = (read, timeout = 2000) =>
     poll();
   });
 
-function draw(gl, color) {
+function draw(gl: WebGL2RenderingContext, color: number[]) {
   const vertex = gl.createShader(gl.VERTEX_SHADER),
     fragment = gl.createShader(gl.FRAGMENT_SHADER),
     program = gl.createProgram();
+  if (!vertex || !fragment || !program) throw new Error('WebGL2 shader objects unavailable');
   gl.shaderSource(
     vertex,
     '#version 300 es\nvoid main(){gl_Position=vec4(-1.+float(gl_VertexID&1)*4.,-1.+float((gl_VertexID>>1)&1)*4.,0.,1.);}',
@@ -47,7 +48,7 @@ function draw(gl, color) {
 export async function execute() {
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
-  const events = [];
+  const events: ('lost' | 'restored')[] = [];
   const surface = prepareExplorerWebglSurface({
     canvas,
     onLifecycle: (state) => events.push(state),

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import type { Page, Route } from 'playwright';
 
 /** Verify the portal's line-based code blocks in both locales and at both widths. */
-export async function startupSite(page, base, out) {
-  await page.route('https://cdn.jsdelivr.net/npm/three@0.174.0/**', async (route) => {
+export async function startupSite(page: Page, base: string, out: string) {
+  await page.route('https://cdn.jsdelivr.net/npm/three@0.174.0/**', async (route: Route) => {
     const file = route.request().url().split('three@0.174.0/')[1];
     await route.fulfill({
       contentType: 'text/javascript',
@@ -31,7 +32,7 @@ export async function startupSite(page, base, out) {
       assert.match(text, /interactive: true/);
       assert.match(text, /scope: 'full'/);
       assert.doesNotMatch(text, /querySelector|requestAnimationFrame/);
-      assert.match(await page.locator('main').textContent(), /interactive: true/);
+      assert.match((await page.locator('main').textContent()) ?? '', /interactive: true/);
       await page.screenshot({
         path: resolve(out, `docs-${locale}-${width}.png`),
         fullPage: true,
@@ -40,12 +41,12 @@ export async function startupSite(page, base, out) {
     }
     await page.goto(`${base}/site/index.html#/${locale}/api/createExplorerJob`);
     await page.locator('main [data-code-block]').last().waitFor();
-    const text = await page.locator('main').textContent();
+    const text = (await page.locator('main').textContent()) ?? '';
     assert.match(text, /target: ExplorerTarget/);
     assert.match(text, /await createExplorerJob/);
     await page.goto(`${base}/site/index.html#/${locale}/api/createExplorer`);
     await page.locator('main [data-code-block]').last().waitFor();
     const row = page.locator('main tr').filter({ hasText: 'invalidate()' });
-    assert.match(await row.textContent(), /camera|caméra/);
+    assert.match((await row.textContent()) ?? '', /camera|caméra/);
   }
 }
