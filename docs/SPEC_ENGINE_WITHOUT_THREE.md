@@ -288,7 +288,8 @@ longer the trunk but the record itself: `traverse`'s page loop, the per-cluster 
 per-root cost (2,479 world box tests, two matrix products and a plane extraction).
 
 R6. **WebGPU rendering**: visibility buffer, compaction and `drawIndexedIndirect` per cluster,
-software raster bounded to real small triangles, material resolve by binning, deferred lighting
+software raster bounded to real small triangles, material resolve one class per pass under the
+material-depth test (#11; tile binning of classes is not done), deferred lighting
 (GGX, IBL if and when shipped, ACES tone mapping, sRGB), transparents in GPU selection and
 indirect per material, static page table updated per page, zero allocation per frame. Criterion:
 Emerald 1280×720 CPU < 4 ms, GPU < 6 ms, image identical to the reference.
