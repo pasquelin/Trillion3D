@@ -2,7 +2,7 @@
  * Reference encoder for the `WGP3` quantized cluster page (`docs/FORMAT.md`). The compiler that
  * ships pages is the native one in `asset-compiler-rust`; this independent implementation exists
  * so the browser decoders in `sdk-browser/` are tested against something other than themselves.
- * It quantizes on the same grids — a primitive position exponent, a fixed texture grid of 2^-16,
+ * It quantizes on the same grids — a primitive position exponent, a fixed texture grid of 2^-14,
  * octahedral normal bytes, colour bytes — and packs the same streams, without sharing a line.
  */
 import { bitsFor, octEncode, Packer, quantize } from './pageGrids.mjs';
