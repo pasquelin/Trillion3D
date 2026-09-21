@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { createExplorer, createExplorerJob } from './index.ts';
 import { resolveExplorerTarget } from './explorerTarget.ts';
 import { interactiveOptions, interactiveSize } from './explorerInteractiveOptions.ts';
-import { webgpuPagesBackend } from './webgpuPages.ts';
 
 const canvas = () =>
   ({
@@ -58,7 +57,8 @@ test('interactive options derive CSS size and DPR with explicit overrides; manua
   assert.equal(interactiveOptions(element, options), options);
   const automatic = interactiveOptions(element, { ...options, interactive: true, scope: 'full' });
   assert.deepEqual([automatic.width, automatic.height, automatic.pixelRatio], [640, 360, 2]);
-  assert.deepEqual(automatic.backends, [webgpuPagesBackend]);
+  // #274: no backend is forced here; `chooseBackends` reads the machine at preparation.
+  assert.equal(automatic.backends, undefined);
   assert.equal(automatic.scope, 'full');
   assert.equal(automatic.geometryPoolBytes, undefined);
   assert.deepEqual(interactiveSize(element, { ...options, width: 10, pixelRatio: 1 }), {
