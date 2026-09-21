@@ -49,5 +49,8 @@ const labels: Record<Locale, Record<string, string>> = {
   },
 };
 
-export const controlLabel = (name: string, locale: Locale): string | undefined =>
-  labels[locale][name];
+/** Control labels read like the rest of the panel: one capital, whatever the source writes. */
+export const controlLabel = (name: string, locale: Locale): string | undefined => {
+  const label = labels[locale][name];
+  return label && label[0].toUpperCase() + label.slice(1);
+};
