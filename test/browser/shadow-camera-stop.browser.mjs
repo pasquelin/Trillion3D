@@ -145,8 +145,8 @@ try {
   console.log(JSON.stringify(proof));
   // Pages awaiting a redraw keep their depth: the stopped frame shades as the settled one,
   // but for the texture detail that lands at rest and the silhouettes a change of detail moves
-  // (2.0 % of the pixels here). Read as "never drawn", those pages sent the whole street to the
-  // proxy: 16.6 % of the pixels, the road black.
+  // (2.0 to 4.2 % of the pixels over three runs, by which pages the budget admitted). Read as
+  // "never drawn", those pages sent the whole street to the proxy: 16.6 %, the road black.
   const differing = sample.lighter + sample.darker;
   assert.ok(
     differing < sample.pixels / 20,

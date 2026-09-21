@@ -34,9 +34,10 @@ export function createShadowSlicePack(size: number, faceStride: number) {
     slicePacked,
     facePacked,
     /**
-     * Drawn-page mask of a face, two words of eight rows: the complement of the scheduler's
-     * stale mask, in physical pages. Returns true when the words changed, so the slice is
-     * pushed even on a frame that drew nothing in it — a slide alone stales a strip.
+     * Held-page mask of a face, two words of eight rows: the physical pages that hold a depth
+     * of the face's extent (`sceneLightShadowHeld.ts`), not the complement of the stale mask.
+     * Returns true when the words changed, so the slice is pushed even on a frame that drew
+     * nothing in it — a slide alone unholds a strip.
      */
     writeDrawnMask(slice: number, face: number, low: number, high: number) {
       const at = slice * SHADOW_SLICE_FLOATS + face * SHADOW_FACE_FLOATS + SHADOW_FACE_MASK_WORD;
