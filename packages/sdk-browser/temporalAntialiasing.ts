@@ -50,7 +50,9 @@ function createTaaLayout(device: GPUDevice) {
 export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
   const layout = createTaaLayout(device);
   const module = await createCheckedShaderModule(device, TAA_SHADER, 'TAA_RESOLVE');
-  const pipeline = await makeFullscreenPipeline(device, module, layout, 'resolve', ['rgba16float']);
+  const pipeline = await makeFullscreenPipeline(device, module, layout, 'resolve', [
+    { format: 'rgba16float' },
+  ]);
   const motion = createPlacementMotion(device, roots);
   const uniform = device.createBuffer({
     label: 'WG TAA view v1',
