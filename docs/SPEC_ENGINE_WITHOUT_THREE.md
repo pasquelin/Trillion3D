@@ -459,7 +459,7 @@ repository measures itself, with no other project on the machine.
   T5) — BC on desktop, ASTC on mobile, to ship with before/after images and the measured delta
   published. Reframed on 21 September 2026 (#218 refused, #45 reworked) under the rule that no
   optimisation may move the image visibly: a chain is block-compressed only under a per-texture
-  quality gate at cook (48 dB over the chain, no texel more than 8 levels off on a read channel,
+  quality gate at cook (48 dB over the chain, no texel more than 3 levels off on a read channel,
   no mask flip), normal maps go on two channels (BC5 / ASTC luminance-alpha, Z rebuilt in the
   shader) or stay lossless, never on BC7 mode 6, and the still captures must read 0 px above the
   declared threshold or name the pixels; on Emerald the BC family reads at most 3 of 255 on any
