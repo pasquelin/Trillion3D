@@ -10,14 +10,16 @@ import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import { createSynchronousCanvasCapture } from '../../packages/sdk-browser/gpuPresentation.ts';
 import { dagFixture, wideCamera } from '../../packages/sdk-browser/pageSelectionDagFixture.ts';
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.ts';
+import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
 
-const litPixels = (pixels) => pixels.reduce((n, v, i) => (i % 4 !== 3 && v !== 0 ? n + 1 : n), 0);
+const litPixels = (pixels: Uint8Array) =>
+  pixels.reduce((n, v, i) => (i % 4 !== 3 && v !== 0 ? n + 1 : n), 0);
 
 export async function executer() {
   const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
-  const evenements = [];
+  const evenements: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = [];
   const fixture = dagFixture();
   const backend = webgpuPagesBackend({
     source: fixture.source,
@@ -34,9 +36,10 @@ export async function executer() {
       evenements.push({ phase: e.phase, message: e.message, context: e.context }),
   });
   const camera = wideCamera();
-  let lecture;
+  let lecture: ReturnType<typeof createSynchronousCanvasCapture> | undefined;
   try {
     await backend.prepare();
+    if (!backend.flush) throw new Error('backend missing flush');
     for (let i = 0; i < 4; i++) {
       backend.render(camera);
       await backend.flush();
@@ -69,7 +72,8 @@ export async function executer() {
       erreurs,
     };
   } catch (error) {
-    return { erreur: String(error) + (error?.stack ?? ''), evenements, erreurs };
+    const trace = error instanceof Error ? (error.stack ?? '') : '';
+    return { erreur: String(error) + trace, evenements, erreurs };
   } finally {
     lecture?.dispose();
     backend.dispose();

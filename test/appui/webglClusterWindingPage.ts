@@ -4,8 +4,9 @@ import {
   createHostDrawCamera,
   readHostDrawCamera,
 } from '../../packages/sdk-browser/cameraWorld.ts';
+import { drawMatrix } from './webglClusterPixels.ts';
 
-const center = (gl) => {
+const center = (gl: WebGLRenderingContext | WebGL2RenderingContext) => {
   const value = new Uint8Array(4);
   gl.readPixels(16, 16, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
   return [...value];
@@ -14,7 +15,7 @@ const center = (gl) => {
 const inputs = () => {
   const geometry = new THREE.BufferGeometry(),
     material = new THREE.MeshBasicMaterial(),
-    matrix = new THREE.Matrix4();
+    matrix = drawMatrix();
   geometry.setAttribute(
     'position',
     new THREE.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
@@ -23,11 +24,18 @@ const inputs = () => {
   material.color.setRGB(0.18, 0, 0, THREE.LinearSRGBColorSpace);
   return {
     geometry,
-    material,
+    ownMaterial: material,
+    material: material as THREE.Material | THREE.Material[],
+    renderOrder: 0,
     matrix,
     _multiDrawCounts: new Int32Array([3]),
     _multiDrawStarts: new Int32Array([0]),
     _multiDrawCount: 1,
+    _sideSplitMaterials: undefined,
+    _sideSplitBack: undefined,
+    _sideSplitFront: undefined,
+    _sideSplitSource: undefined,
+    _sideSplitPolygonMaterials: undefined,
   };
 };
 
@@ -52,9 +60,9 @@ export function windingComparisons() {
   rig.add(camera);
   gl.viewport(0, 0, 32, 32);
   gl.clearColor(0, 0, 0, 1);
-  const render = (modelMirror, cameraMirror) => {
+  const render = (modelMirror: boolean, cameraMirror: boolean) => {
     mesh.matrix.makeScale(modelMirror ? -1 : 1, 1, 1);
-    witnessMesh.matrix.copy(mesh.matrix);
+    witnessMesh.matrix.fromArray(mesh.matrix.elements);
     rig.scale.set(cameraMirror ? -1 : 1, 1, 1);
     rig.updateMatrixWorld(true);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -67,6 +75,6 @@ export function windingComparisons() {
   raw.dispose();
   witness.dispose();
   mesh.geometry.dispose();
-  mesh.material.dispose();
+  mesh.ownMaterial.dispose();
   return result;
 }

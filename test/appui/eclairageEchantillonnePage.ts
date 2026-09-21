@@ -4,17 +4,10 @@
 // Nothing internal is read: lights go through the host store, images through `capture`.
 import * as THREE from 'three';
 import { createSceneLightStore } from '../../packages/sdk-core/index.ts';
+import type { SceneLightStore } from '../../packages/sdk-core/index.ts';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
-import {
-  VIEWPORT,
-  batisseur,
-  carre,
-  cameraFace,
-  image,
-  jusquaTenue,
-  libere,
-  engine,
-} from './preuveSceneCommune.ts';
+import { VIEWPORT, batisseur, carre, cameraFace, libere, engine } from './preuveSceneCommune.ts';
+import { image, jusquaTenue } from './preuveSceneImage.ts';
 import { executerAccumulation } from './preuveAppareil.ts';
 
 /** Moving images rendered under the shake: enough for the history to settle again. */
@@ -37,7 +30,7 @@ function scene() {
 }
 
 /** The ring of lights, declared to the host store as any host would. */
-function lampes(store) {
+function lampes(store: SceneLightStore) {
   for (let i = 0; i < LAMPES; i++) {
     const angle = (i / LAMPES) * Math.PI * 2;
     store.add({
@@ -53,7 +46,7 @@ function lampes(store) {
 }
 
 /** A full run: at rest, then shaken. `temporel` picks the option. */
-async function executionComplete(device, evenements, temporel) {
+async function executionComplete(device: GPUDevice, evenements: unknown[], temporel: boolean) {
   const s = scene(),
     store = createSceneLightStore();
   lampes(store);

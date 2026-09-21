@@ -57,7 +57,7 @@ export function execute() {
     front = double.clone();
   back.side = THREE.BackSide;
   front.side = THREE.FrontSide;
-  const pair = [back, front],
+  const pair: [THREE.Material, THREE.Material] = [back, front],
     split = clusterRecord(geometry(true), pair);
   split._sideSplitMaterials = pair;
   split._sideSplitBack = back;
