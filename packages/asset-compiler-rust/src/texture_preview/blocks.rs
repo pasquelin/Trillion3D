@@ -142,13 +142,11 @@ pub fn encode_level(
             out[bx * BLOCK_BYTES..(bx + 1) * BLOCK_BYTES].copy_from_slice(&block(&texels));
         }
     };
-    let rows = out.chunks_mut(row_bytes).enumerate();
-    // A small level — the tail, a thumbnail — is not worth the pool; a large one
-    // splits by block row, each row independent of the others.
-    if down < 8 {
-        rows.for_each(|(by, out)| row(by, out));
-    } else {
-        rows.par_bridge().for_each(|(by, out)| row(by, out));
-    }
+    // Block rows are independent; the pool splits them in runs of eight at
+    // least, so a small level — the tail, a thumbnail — stays on one thread.
+    out.par_chunks_mut(row_bytes)
+        .enumerate()
+        .with_min_len(8)
+        .for_each(|(by, out)| row(by, out));
     out
 }

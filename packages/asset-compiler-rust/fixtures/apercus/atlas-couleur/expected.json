@@ -1,7 +1,7 @@
 {
   "binary": {
     "texturePreviewAstcBytes": 0,
-    "texturePreviewBc7Bytes": 544,
+    "texturePreviewBc7Bytes": 0,
     "texturePreviewBytes": 12268,
     "texturePreviews": 3
   },
@@ -123,10 +123,10 @@
       "bakedLevels": 0,
       "blocks": [
         {
-          "bytes": 544,
+          "bytes": 0,
           "format": "bc7",
-          "layout": 1,
-          "sha256": "6f98ce8810905b17675dda2df5be3255b49bca74ad580fc73572cfbf448a0ac3"
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
         {
           "bytes": 0,
@@ -327,19 +327,15 @@
   "report": {
     "bakedLevels": 1,
     "base": 64,
-    "blockBytes": 544,
+    "blockBytes": 0,
     "blockFormats": ["bc7"],
     "colorTextures": 3,
     "dataTextures": 0,
     "encoded": {
       "bc7": {
-        "keptPsnrDb": {
-          "median": 54.76,
-          "min": 54.76,
-          "p10": 54.76
-        },
-        "lossless": 2,
-        "rgba": 1,
+        "keptPsnrDb": null,
+        "lossless": 3,
+        "rgba": 0,
         "twoChannel": 0
       }
     },
@@ -358,6 +354,15 @@
         "format": "bc7",
         "layout": "rgba",
         "maskFlips": 0,
+        "maxDelta": 7,
+        "psnrDb": 54.76,
+        "sha256": "81917ae413a56beb0171601b3b3e621bd4f06601f75e7e1ac5de9abf510b051c"
+      },
+      {
+        "atlas": "srgb",
+        "format": "bc7",
+        "layout": "rgba",
+        "maskFlips": 0,
         "maxDelta": 95,
         "psnrDb": 30.22,
         "sha256": "f56a90018bf0679da243894aca26f2b6fb484aee7e0eeba867cf0af87a2b05e0"
@@ -370,7 +375,7 @@
     "qualityGate": {
       "decoder": "texture2ddecoder",
       "maskFlips": 0,
-      "maxDelta": 8,
+      "maxDelta": 3,
       "psnrDb": 48.0
     },
     "skipped": {},

@@ -77,7 +77,7 @@ Outside geometry, the gap has narrowed in kind: Emerald's textures, 7.56 GB of r
 block-compressed at cook time — BC7 and BC5 on desktop, ASTC 4×4 on mobile, one byte per texel —
 and served from fixed physical pools, one per format lane as the reference's virtual-texture
 physical spaces are understood to be **(3)**; unlike the reference, a chain is kept in blocks only
-under a quality gate (48 dB, 8 levels of 255 on a texel, no mask flip), so on Emerald 41 % of the
+under a quality gate (48 dB, 3 levels of 255 on a texel, no mask flip), so on Emerald 41 % of the
 chains are in blocks and the rest stays lossless — the reference's whole-catalogue compression is
 not reached, by the rule that the image must not move.
 

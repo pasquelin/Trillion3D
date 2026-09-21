@@ -12,11 +12,13 @@ pub(super) fn scene(material: Value) -> Value {
     })
 }
 
-/// A smooth unit-normal map: X and Y ramps, Z as the shader rebuilds it.
+/// A smooth unit-normal map: X and Y ramps, Z as the shader rebuilds it. The
+/// ramps stay gentle — a fifth of the range — so the coarsest levels, one
+/// block wide, keep their eight rungs within the gate's three levels.
 pub(super) fn normal_map(width: u32, height: u32) -> image::RgbaImage {
     rgba_from(width, height, |x, y| {
-        let nx = (x as f32 / width as f32 - 0.5) * 0.8;
-        let ny = (y as f32 / height as f32 - 0.5) * 0.8;
+        let nx = (x as f32 / width as f32 - 0.5) * 0.2;
+        let ny = (y as f32 / height as f32 - 0.5) * 0.2;
         let nz = (1.0 - nx * nx - ny * ny).sqrt();
         let byte = |v: f32| ((v + 1.0) * 127.5).round() as u8;
         [byte(nx), byte(ny), byte(nz), 255]

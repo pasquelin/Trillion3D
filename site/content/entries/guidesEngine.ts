@@ -43,7 +43,7 @@ pools.evictedPages;           // what the smaller pool could not keep`,
 <h3 class="text-lg font-bold mt-4">The gate, at cook time</h3>
 <ul class="list-disc pl-6 space-y-1">
 <li><strong>Read back, never trusted.</strong> Every level is decoded again through an independent decoder and compared with the RGBA8 chain on the channels the materials read: an opaque base colour's alpha is not read, a normal map's three channels are, its Z rebuilt against the Z it stores.</li>
-<li><strong>The bar.</strong> PSNR of 48 dB over the whole chain, no texel more than 8 levels of 255 off on a read channel, and no texel of a masked texture changing side of its alpha cutoff. Under the bar the chain stays lossless in that family: no block file, no block tail, and the sidecar's layout word says so.</li>
+<li><strong>The bar.</strong> PSNR of 48 dB over the whole chain, no texel more than 3 levels of 255 off on a read channel — the bar of a still capture, below what an 8-bit display discriminates, carried to the texel —, and no texel of a masked texture changing side of its alpha cutoff. Under the bar the chain stays lossless in that family: no block file, no block tail, and the sidecar's layout word says so.</li>
 <li><strong>Normal maps on two channels, never on BC7.</strong> A texture only <code>normalTexture</code> reads is fitted channel by channel — X and Y each on their own ladder — and the shader rebuilds Z as the unit remainder. A stored Z that is not that remainder fails the gate, and the map stays lossless.</li>
 </ul>
 <h3 class="text-lg font-bold mt-4">What the engine does with it</h3>
