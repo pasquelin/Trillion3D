@@ -1,12 +1,13 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { bundleDemoMath } from './docs-demo-bundle.mjs';
+import { resolve } from 'node:path';
+import { temporaryDemoBundle } from './docs/bundles.mjs';
 
-// Freshness is `pnpm run check:docs-demo`, a validate step like `check:dts`; here, behaviour:
-// what the portal's demos call must really be the engine, and answer as the engine answers.
-const kernels = await import(
-  `data:text/javascript;base64,${Buffer.from(await bundleDemoMath()).toString('base64')}`
-);
+// The bundle is generated on demand, never committed; here, behaviour: what the portal's demos
+// call must really be the engine, and answer as the engine answers.
+const demo = await temporaryDemoBundle(resolve(import.meta.dirname, '..'));
+after(demo.remove);
+const kernels = await import(demo.url);
 
 test('the bundle carries the public maths the demos call', () => {
   const missing = [
