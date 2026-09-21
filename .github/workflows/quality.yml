@@ -11,6 +11,10 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-24.04
+    env:
+      NATIVE_BINARIES: |
+        packages/asset-compiler-rust/target/release/web-geometry-compiler
+        packages/asset-compiler-rust/target/release/web-geometry-oracle
     steps:
       - uses: actions/checkout@v7
       - name: Pull request body — issue linked, local review filled
@@ -29,23 +33,21 @@ jobs:
         id: rust
         with:
           components: clippy, rustfmt
-      # Cargo AFTER the toolchain: the cache key includes the rustc version. Keeps the dependency
-      # crates between runs; the crates of the repository are compiled again whenever they change.
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: packages/asset-compiler-rust
-      # The native binaries, keyed on the CONTENT of the Rust sources and the compiler: a pull
-      # request that leaves Rust untouched restores the binaries a green run built from these same
-      # sources and skips clippy, build and the Rust tests (`scripts/validate.mjs`). Cargo cannot
-      # decide this on a fresh clone, where every source is newer than any artefact. The save is
-      # a separate step after `validate`, so a red run never publishes its binaries.
+      # The native binaries, keyed on the CONTENT of the Rust sources and the compiler. A hit means
+      # a green run already built these exact sources: `validate` skips the Rust steps
+      # (`scripts/validate-steps.mjs` says why Cargo cannot decide this itself). The save is a
+      # separate step after `validate`, so a red run never publishes its binaries.
       - uses: actions/cache/restore@v4
         id: native
         with:
-          path: |
-            packages/asset-compiler-rust/target/release/web-geometry-compiler
-            packages/asset-compiler-rust/target/release/web-geometry-oracle
+          path: ${{ env.NATIVE_BINARIES }}
           key: native-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**') }}
+      # Dependency crates, only when Cargo will run: the key includes the rustc version, hence
+      # after the toolchain.
+      - uses: Swatinem/rust-cache@v2
+        if: steps.native.outputs.cache-hit != 'true'
+        with:
+          workspaces: packages/asset-compiler-rust
       - run: pnpm install --frozen-lockfile
       - run: pnpm run validate
         env:
@@ -53,7 +55,5 @@ jobs:
       - uses: actions/cache/save@v4
         if: steps.native.outputs.cache-hit != 'true'
         with:
-          path: |
-            packages/asset-compiler-rust/target/release/web-geometry-compiler
-            packages/asset-compiler-rust/target/release/web-geometry-oracle
+          path: ${{ env.NATIVE_BINARIES }}
           key: ${{ steps.native.outputs.cache-primary-key }}

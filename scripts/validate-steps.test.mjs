@@ -5,14 +5,14 @@ import { NATIVE_STEPS, VALIDATE_STEPS, stepsToRun } from './validate-steps.mjs';
 test('validate runs every gate by default, native ones included', () => {
   assert.deepEqual(stepsToRun({}), VALIDATE_STEPS);
   assert.deepEqual(stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '' }), VALIDATE_STEPS);
-  for (const step of NATIVE_STEPS) assert.ok(VALIDATE_STEPS.includes(step), step);
+  assert.deepEqual(NATIVE_STEPS, ['lint:native', 'build:native', 'test:native']);
 });
 
 test('WEB_GEOMETRY_SKIP_NATIVE=1 drops exactly the Rust steps and keeps their order', () => {
   const steps = stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '1' });
   assert.deepEqual(
     steps,
-    VALIDATE_STEPS.filter((step) => !NATIVE_STEPS.has(step)),
+    VALIDATE_STEPS.filter((step) => !step.endsWith(':native')),
   );
   assert.ok(
     steps.includes('format:check'),

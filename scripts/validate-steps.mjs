@@ -22,10 +22,17 @@ export const VALIDATE_STEPS = [
   'test:native',
 ];
 
-export const NATIVE_STEPS = new Set(['lint:native', 'build:native', 'test:native']);
+/** The steps that compile the Rust crates: named `*:native` in `package.json`. */
+export const NATIVE_STEPS = VALIDATE_STEPS.filter((step) => step.endsWith(':native'));
+
+/** Whether `env` asks `validate` to skip the native steps. */
+export function skipsNative(env) {
+  return env.WEB_GEOMETRY_SKIP_NATIVE === '1';
+}
 
 /** The steps `validate` runs under `env`: every step, minus the native ones when they are skipped. */
 export function stepsToRun(env) {
-  const skipNative = env.WEB_GEOMETRY_SKIP_NATIVE === '1';
-  return VALIDATE_STEPS.filter((step) => !(skipNative && NATIVE_STEPS.has(step)));
+  return skipsNative(env)
+    ? VALIDATE_STEPS.filter((step) => !NATIVE_STEPS.includes(step))
+    : VALIDATE_STEPS;
 }
