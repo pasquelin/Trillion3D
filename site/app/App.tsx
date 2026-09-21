@@ -176,13 +176,13 @@ export function App() {
       onQuery={setQuery}
       onTheme={() => setTheme((value) => (value === 'dim' ? 'light' : 'dim'))}
     >
-      <Suspense fallback={<span className="loading loading-spinner loading-md" role="status" />}>
-        <Page
-          key={`${route.locale}/${route.area}/${route.id}`}
-          page={page}
-          route={route}
-          entries={entries}
-        />
+      {/* One boundary per route: the page that leaves is unmounted at once and saves its state,
+          instead of staying mounted, hidden, while the next area's chunk loads. */}
+      <Suspense
+        key={`${route.locale}/${route.area}/${route.id}`}
+        fallback={<span className="loading loading-spinner loading-md" role="status" />}
+      >
+        <Page page={page} route={route} entries={entries} />
       </Suspense>
     </Layout>
   );
