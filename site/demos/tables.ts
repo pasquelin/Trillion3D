@@ -13,8 +13,9 @@ import {
   lodQuality,
 } from './engine.ts';
 import { formatNumber, matrixView, slider, valueView, verdictView } from './kit.ts';
+import type { DemoDef } from './kit.ts';
 
-export const TABLE_DEMOS = {
+export const TABLE_DEMOS: Record<string, DemoDef> = {
   IDENTITY_MATRIX4: {
     run() {
       return [
@@ -31,7 +32,7 @@ export const TABLE_DEMOS = {
       return [
         valueView(
           'DIAGNOSTICS — the engine says which modes it can produce, and why not',
-          Object.entries(DIAGNOSTICS).map(([mode, capability]) => [
+          Object.entries(DIAGNOSTICS).map(([mode, capability]): [string, string] => [
             mode,
             `${capability.available ? 'available' : 'unavailable'} — ${capability.reason}`,
           ]),
@@ -45,7 +46,7 @@ export const TABLE_DEMOS = {
       slider('radius', 'radius of what is on screen (m)', 1, 200, 30, 1),
     ],
     run(state) {
-      const rows = Object.values(LOD_QUALITY).map((quality) => [
+      const rows = Object.values(LOD_QUALITY).map((quality): [string, string] => [
         quality.id,
         `${quality.label} — pixelError ${quality.pixelError}, anisotropy ${quality.anisotropy}${quality.adaptive ? ', adaptive' : ''}`,
       ]);
@@ -101,12 +102,15 @@ export const TABLE_DEMOS = {
   },
   ColumnKind: {
     run() {
-      const kinds = {};
+      const kinds: Record<string, string[]> = {};
       for (const [column, kind] of Object.entries(COLUMN_KIND)) (kinds[kind] ??= []).push(column);
       return [
         valueView(
           'COLUMN_KIND — every column of the binary manifest, by storage',
-          Object.entries(kinds).map(([kind, columns]) => [kind, columns.join(', ')]),
+          Object.entries(kinds).map(([kind, columns]): [string, string] => [
+            kind,
+            columns.join(', '),
+          ]),
         ),
       ];
     },
