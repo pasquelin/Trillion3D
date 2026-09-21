@@ -26,7 +26,8 @@
  *  quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a
  *  version-6 reader would refuse one by one at decode; refusing the file says it once. */
 export const MANIFEST_BINARY_VERSION = 6;
-/** The geometry-page format a version-6 sidecar names, as `pages[].geometry` declares it. */
+/** The geometry-page format a version-6 sidecar names, as the manifest's `geometryPages` declares
+ *  it once and every page header opens with. */
 export const GEOMETRY_PAGE_FORMAT_VERSION = 3;
 export const GEOMETRY_PAGE_CODEC = 'quantized';
 /** 'W','G','M','B' read as a little-endian u32. */

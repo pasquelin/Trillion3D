@@ -5,39 +5,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { encodeGeometryPage } from '../page-codec/geometryPage.mjs';
-
-/** A fan of `triangles` triangles around vertex 0, positions on a small grid, every attribute. */
-function page(triangles: number, exponent = -10) {
-  const count = triangles + 2;
-  const position = new Float32Array(count * 3),
-    normal = new Float32Array(count * 3),
-    uv = new Float32Array(count * 2),
-    color = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2;
-    position.set([Math.cos(angle) * 3.7, Math.sin(angle) * 3.7, i * 0.013], i * 3);
-    normal.set([Math.cos(angle), Math.sin(angle), 0.5], i * 3);
-    uv.set([i / count, 1 - i / count], i * 2);
-    color.set([i / count, 0.25, 1], i * 3);
-  }
-  const indices: number[] = [];
-  for (let t = 0; t < triangles; t++) indices.push(0, t + 1, t + 2);
-  const attributes = {
-    POSITION: { itemSize: 3, array: position },
-    NORMAL: { itemSize: 3, array: normal },
-    TEXCOORD_0: { itemSize: 2, array: uv },
-    COLOR_0: { itemSize: 3, array: color },
-  };
-  return { encoded: encodeGeometryPage(indices, attributes, exponent), indices, attributes };
-}
+import { anneau } from './bench/appui/pagesWasm.mjs';
 
 test('a page decodes to its triangles, every attribute within the declared error', () => {
-  const { encoded, indices, attributes } = page(40);
+  const { encoded, indices, attributes } = anneau(40, -10, 3);
   const decoded = decodeGeometryPage(encoded.data);
   assert.equal(decoded.vertexCount, 42);
-  assert.equal(decoded.flags, 1 | 2 | 8);
+  assert.equal(decoded.flags, 1 | 2 | 4 | 8);
   assert.equal(decoded.decodedBytes, encoded.uncompressedBytes);
-  assert.deepEqual(Object.keys(decoded.attributes), ['position', 'normal', 'uv', 'color']);
+  assert.equal(decoded.quantizationError, encoded.quantizationError);
+  assert.deepEqual(Object.keys(decoded.attributes), ['position', 'normal', 'uv', 'uv2', 'color']);
+  assert.equal(decoded.indices.buffer, decoded.attributes.color.buffer);
   const step = 2 ** -10;
   for (let corner = 0; corner < indices.length; corner++) {
     const local = decoded.indices[corner],
@@ -50,9 +28,9 @@ test('a page decodes to its triangles, every attribute within the declared error
         2;
       dot += decoded.attributes.normal[local * 3 + c] * attributes.NORMAL.array[source * 3 + c];
     }
-    assert.ok(Math.sqrt(distance) <= encoded.quantizationError + 1e-9, `position ${corner}`);
+    assert.ok(Math.sqrt(distance) <= decoded.quantizationError, `position ${corner}`);
     assert.ok(Math.sqrt(distance) <= (step * Math.sqrt(3)) / 2 + 1e-9);
-    assert.ok(Math.acos(dot / Math.hypot(1, 0.5)) < (1 * Math.PI) / 180, `normal ${corner}`);
+    assert.ok(Math.acos(Math.min(1, dot)) < (1 * Math.PI) / 180, `normal ${corner}`);
     for (let c = 0; c < 2; c++)
       assert.ok(
         Math.abs(
@@ -89,7 +67,7 @@ test('the reference encoder refuses a page too wide for its grid instead of re-g
 });
 
 test('a short header, a wrong version, a field beyond the format, a forged index and a truncation are refused in that order', () => {
-  const { encoded } = page(4);
+  const { encoded } = anneau(4, -10);
   assert.throws(() => decodeGeometryPage(encoded.data.subarray(0, 16)), /GEOMETRY_PAGE_HEADER/);
   const version = Uint8Array.from(encoded.data);
   version[4] = 2;
@@ -103,6 +81,6 @@ test('a short header, a wrong version, a field beyond the format, a forged index
   );
   assert.throws(() => decodeGeometryPage(encoded.data, 16), /GEOMETRY_PAGE_BOUNDS/);
   const forged = Uint8Array.from(encoded.data);
-  forged[96] = 0xff; // Every field of the first index word set: 63 > 5 vertices.
+  forged[96] = 0xff; // Every field of the first index word set: 7 > 6 vertices.
   assert.throws(() => decodeGeometryPage(forged), /GEOMETRY_PAGE_INDEX/);
 });

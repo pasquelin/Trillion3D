@@ -8,8 +8,8 @@ use web_geometry_page_codec::bits::{
     bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS, MAX_EXPONENT,
 };
 
-/// Grid of a primitive, the finer of two rules: its widest extent split into 2^16 steps, and
-/// an eighth of the finest group error its DAG published — so a cluster's displacement projects
+/// Grid of a primitive, the finer of two rules: its widest extent split into 2^16 steps, and an
+/// eighth of the finest group error its DAG published — so a cluster's displacement projects
 /// below an eighth of the threshold wherever the cut selects it. The error rule is bounded below
 /// by the extent in 2^(`MAX_BITS` - 2) steps, so no page of the primitive, rounding included,
 /// ever needs more than `MAX_BITS` per coordinate: every page shares the primitive's exponent,
@@ -22,9 +22,7 @@ pub fn grid_exponent(extent: f64, finest_error: Option<f64>) -> i32 {
         0
     };
     let by_extent = widest - 16;
-    let by_error = finest_error
-        .filter(|e| *e > 0.0)
-        .map_or(by_extent, |e| (e / 8.0).log2().floor() as i32);
+    let by_error = finest_error.map_or(by_extent, |e| (e / 8.0).log2().floor() as i32);
     let finest = widest - (MAX_BITS as i32 - 2);
     by_extent
         .min(by_error)
@@ -32,16 +30,12 @@ pub fn grid_exponent(extent: f64, finest_error: Option<f64>) -> i32 {
         .clamp(-MAX_EXPONENT, MAX_EXPONENT)
 }
 
-/// The grid of a primitive from its positions and the errors its DAG published.
+/// The grid of a primitive from its positions and the errors its DAG published; a zero error is
+/// a root's, not a rule.
 pub fn primitive_exponent(pos: &[f32], errors: impl Iterator<Item = f64>) -> i32 {
+    let bounds = crate::proxy::bvh::extent(pos);
     let extent = (0..3)
-        .map(|axis| {
-            let values = pos.iter().skip(axis).step_by(3).map(|&v| f64::from(v));
-            let (lo, hi) = values.fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), v| {
-                (lo.min(v), hi.max(v))
-            });
-            hi - lo
-        })
+        .map(|axis| bounds[axis + 3] - bounds[axis])
         .fold(0.0, f64::max);
     grid_exponent(extent, errors.filter(|e| *e > 0.0).min_by(f64::total_cmp))
 }
@@ -51,7 +45,8 @@ pub const UV_EXPONENT: i32 = -14;
 /// Colours sit on a grid of 2^-8: 0 and 1 exact, a constant channel free.
 pub const COLOR_EXPONENT: i32 = -8;
 
-/// A vector attribute on its grid: `values` holds `N` floats per vertex, `exponent` is the grid
+/// A vector attribute on its grid: `values` holds `N` floats per vertex — at least one, a page
+/// having at least one corner —, `exponent` is the grid
 /// the caller fixed for the whole primitive and is never widened here — a page whose range needs
 /// more than `MAX_BITS` on that grid is refused as `PAGE_ATTRIBUTE_RANGE`, since a page on a
 /// grid of its own would no longer share its border vertices' cells with its neighbours.
@@ -74,21 +69,15 @@ pub fn quantize<const N: usize>(
             })
         })
         .collect();
-    let range = |c: usize| if count == 0 { 0.0 } else { hi[c] - lo[c] };
+    let range = |c: usize| hi[c] - lo[c];
     if (0..N).any(|c| range(c) >= (1u64 << MAX_BITS) as f64) {
         return Err(CompilerError::new(
             "PAGE_ATTRIBUTE_RANGE",
             "Page attribute range exceeds 2^24 steps of its primitive grid",
         ));
     }
-    let bits: [u32; N] = std::array::from_fn(|c| bits_for(range(c) as u64));
-    let min: [f32; N] = std::array::from_fn(|c| {
-        if count == 0 {
-            0.0
-        } else {
-            (lo[c] * step) as f32
-        }
-    });
+    let bits: [u32; N] = std::array::from_fn(|c| bits_for(range(c) as u32));
+    let min: [f32; N] = std::array::from_fn(|c| (lo[c] * step) as f32);
     if min.iter().any(|m| !m.is_finite()) {
         return Err(CompilerError::new(
             "INVALID_PAGE_ATTRIBUTE",
@@ -110,10 +99,11 @@ pub fn quantize<const N: usize>(
 }
 
 /// Largest distance between a source vector and its decoded value, over the page, in the units
-/// of the attribute: measured with the reader's own arithmetic.
-pub fn max_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[u32; N]]) -> f64 {
+/// of the attribute: measured with the reader's own arithmetic, as the `f32` the header carries,
+/// rounded up so that no displacement exceeds it.
+pub fn max_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[u32; N]]) -> f32 {
     let step = record.step();
-    offsets
+    let worst = offsets
         .iter()
         .enumerate()
         .map(|(i, cell)| {
@@ -125,7 +115,13 @@ pub fn max_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[
                 .sum::<f64>()
                 .sqrt()
         })
-        .fold(0.0, f64::max)
+        .fold(0.0, f64::max);
+    let rounded = worst as f32;
+    if f64::from(rounded) < worst {
+        rounded.next_up()
+    } else {
+        rounded
+    }
 }
 
 /// Octahedral encoding of a normal into two bytes, `x` low and `y` high. Of the four roundings

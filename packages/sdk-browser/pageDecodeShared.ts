@@ -24,7 +24,8 @@ const SHARED_DECODING = 1,
 export const SHARED_BY_REGION = 1;
 const SHARED_BY_MESSAGE = 0;
 
-/** A slot's fields, in 32-bit words, and the room reserved for each. */
+/** A slot's fields, in 32-bit words, and the room reserved for each: one name length per
+ *  attribute from `ATTR_BASE`. */
 export const MAX_SHARED_ATTRS = 8,
   ATTR_BASE = 10;
 const SLOT_I32 = 32;
@@ -36,7 +37,7 @@ export const STATE = 0,
   DECODED = 5,
   WASM = 6,
   TASK_US = 7,
-  INDEX_BYTES = 8,
+  ERROR = 8,
   ATTRS = 9;
 /** A slot's region. A page that does not fit leaves by transfer: the bound costs
  *  memory on every slot, so it is not sized for the format's worst case. */
