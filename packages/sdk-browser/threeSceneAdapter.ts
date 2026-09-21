@@ -10,17 +10,18 @@ import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
  * witness of the session, as the host's own adapter did.
  *
  * Every draw starts from a reset state: the engine's programs and copies wrote the context in
- * between, and the renderer's cache no longer describes it. A render target of the engine is
- * bound through `setRenderTargetFramebuffer` — the entry point the library's own XR manager
- * uses to draw into a framebuffer it does not own, absent from its type declarations — on a
- * wrapper the renderer never allocates, resizes or disposes (it would delete the engine's
- * framebuffer) and whose viewport is the target's. Into a target the renderer writes linear
- * values without tone mapping, as it does for its own targets; on the drawing buffer it applies
- * the chain `output` asks for.
+ * between, and the renderer's cache no longer describes it. A render target of the engine is a
+ * display surface the renderer does not own, exactly what its XR layer is to it: it is bound the
+ * way the library's own XR manager binds that layer — `setRenderTargetFramebuffer` on a wrapper
+ * flagged `isXRRenderTarget`, so that the output colour space and the tone mapping apply as on
+ * the drawing buffer — and the wrapper is never allocated, resized or disposed by the renderer,
+ * which would delete the engine's framebuffer. Neither entry point is in the library's type
+ * declarations; both are what its XR manager calls.
  */
-type Shared = { renderer: FramebufferRenderer; wrapper: THREE.WebGLRenderTarget; users: number };
+type Wrapper = THREE.WebGLRenderTarget & { isXRRenderTarget: boolean };
+type Shared = { renderer: FramebufferRenderer; wrapper: Wrapper; users: number };
 type FramebufferRenderer = THREE.WebGLRenderer & {
-  setRenderTargetFramebuffer(target: THREE.WebGLRenderTarget, framebuffer: WebGLFramebuffer): void;
+  setRenderTargetFramebuffer(target: Wrapper, framebuffer: WebGLFramebuffer): void;
 };
 const shared = new WeakMap<WebGL2RenderingContext, Shared>();
 
@@ -33,7 +34,9 @@ function acquire(gl: WebGL2RenderingContext) {
     }) as FramebufferRenderer;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMappingExposure = 1;
-    entry = { renderer, wrapper: new THREE.WebGLRenderTarget(1, 1), users: 0 };
+    const wrapper = Object.assign(new THREE.WebGLRenderTarget(1, 1), { isXRRenderTarget: true });
+    wrapper.texture.colorSpace = THREE.SRGBColorSpace;
+    entry = { renderer, wrapper, users: 0 };
     shared.set(gl, entry);
   }
   entry.users++;
