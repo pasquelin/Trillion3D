@@ -7,7 +7,7 @@ import { RACINE, cheminBaseline, dossierBaselines } from './chemins.ts';
 import type { Mesure } from './mesure.ts';
 
 /** One stored baseline row, keyed by measurement/case pair. */
-export interface BaselineRow {
+interface BaselineRow {
   cle: string;
   size: number | null;
   medianeMs: number | null;
@@ -126,7 +126,7 @@ export interface LigneAvecEcartBaseline {
 }
 
 /** One case counted toward a batch verdict, named and with its discrepancy against the baseline. */
-export interface CasEcart {
+interface CasEcart {
   name: string;
   ecart: number | null;
 }

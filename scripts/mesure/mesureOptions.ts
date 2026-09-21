@@ -58,7 +58,7 @@ export interface MeasureViewOptions {
 }
 
 /** What `measureView` returns for one series, when it managed to open the engine. */
-export interface MeasureViewSuccess {
+interface MeasureViewSuccess {
   erreur?: undefined;
   cpuFrameMs: number[];
   cpuSelectMs: number[];
@@ -88,7 +88,7 @@ export interface MeasureViewSuccess {
 }
 
 /** The engine named by `backend` is missing from this dist: nothing was measured. */
-export interface MeasureViewFailure {
+interface MeasureViewFailure {
   erreur: string;
 }
 

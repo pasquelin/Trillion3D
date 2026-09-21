@@ -50,12 +50,7 @@ const config: KnipConfig = {
   ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
-  ignoreUnresolved: [
-    '/mesure/poses.ts',
-    '/mesure/pageTemoin.ts',
-    '/test/appui/materialPixelsPage.ts',
-    '/__wg-fixture/drawRun.ts',
-  ],
+  ignoreUnresolved: ['/mesure/pageTemoin.ts'],
 };
 
 export default config;
