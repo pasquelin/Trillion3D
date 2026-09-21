@@ -35,7 +35,7 @@ jobs:
           components: clippy, rustfmt
       # The native binaries, keyed on the CONTENT of the Rust sources and the compiler. A hit means
       # a green run already built these exact sources: `validate` skips the Rust steps
-      # (`scripts/validate-steps.mjs` says why Cargo cannot decide this itself). The save is a
+      # (`scripts/validate-steps.ts` says why Cargo cannot decide this itself). The save is a
       # separate step after `validate`, so a red run never publishes its binaries.
       - uses: actions/cache/restore@v4
         id: native

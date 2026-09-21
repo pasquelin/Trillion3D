@@ -19,14 +19,13 @@ const CAS = [
 
 test('the default variant is ours, and the bound does not move by a bit', () => {
   assert.equal(screenErrorVariant(), 'certifiee');
-  const before = CAS.map((c) => screenErrorBound(...c));
+  const bound = ([error, stretch, lateral, depth, radius, focal, near]: (typeof CAS)[number]) =>
+    screenErrorBound(error, stretch, lateral, depth, radius, focal, near);
+  const before = CAS.map(bound);
   setScreenErrorVariant('reference');
   setScreenErrorVariant(null);
   assert.equal(screenErrorVariant(), 'certifiee');
-  assert.deepEqual(
-    CAS.map((c) => screenErrorBound(...c)),
-    before,
-  );
+  assert.deepEqual(CAS.map(bound), before);
   // Both metrics share stretch: the certified bound then stays always above
   // that of the reference, which has neither a lateral term, nor a radius, nor a displacement in the denominator.
   for (const [error, stretch, lateral, depth, radius, focal, near] of CAS)

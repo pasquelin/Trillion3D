@@ -1,7 +1,7 @@
 // Defect 1 (cone reject at small scale): `isConformal` must judge on purely relative length and
 // orthogonality ratios, never on an additive tolerance which, at small scale, hides a real
 // anisotropic deformation. The first test retakes the trigger case of
-// `test/justesse/cone-echelle-non-uniforme.mjs`; the following cover degenerate 3×3s, then
+// `test/justesse/cone-echelle-non-uniforme.ts`; the following cover degenerate 3×3s, then
 // confirm that reject remains possible for any uniform scale and rotation, as before this batch.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -69,7 +69,7 @@ test('a degenerate 3×3 (null scale on one axis, hence a null column) is not con
     [1, 0, 1],
     [1, 1, 0],
   ] as const) {
-    const world = new THREE.Matrix4().makeScale(...echelle);
+    const world = new THREE.Matrix4().makeScale(echelle[0], echelle[1], echelle[2]);
     const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
     assert.equal(ctx.conformal, false, `scale ${echelle}`);
     assert.equal(

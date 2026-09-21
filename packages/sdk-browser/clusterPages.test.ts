@@ -13,7 +13,13 @@ test('a corrupt page aborts sibling fetches before they allocate remaining indic
   const bytes = new Uint8Array([1, 2, 3, 4]);
   const sha = await sha256Hex(bytes.buffer);
   pages[0].sha256 = pages[2].sha256 = sha;
-  const hold = Promise.withResolvers<void>();
+  let resolveHold: (() => void) | undefined;
+  const hold = {
+    promise: new Promise<void>((resolve) => {
+      resolveHold = resolve;
+    }),
+    resolve: () => resolveHold?.(),
+  };
   globalThis.fetch = async (url, init) => {
     const name = String(url).split('/').pop() ?? '';
     started.push(name);

@@ -1,7 +1,7 @@
 // Initial two batch computation kernels (`mathBatchRuntime.ts`), JavaScript path vs
-// WebAssembly path, on small purely hostile batches from `bench/casLotsWasm.mjs` (negative scales,
+// WebAssembly path, on small purely hostile batches from `bench/casLotsWasm.ts` (negative scales,
 // shear, zero `w`, NaN, ±0, infinities, 1e308, 5e-324): exact same bits on both sides down to
-// `Object.is` — same notion of equality that `bench/m5.bench.mjs` uses for full benchmark, here
+// `Object.is` — same notion of equality that `bench/m5.bench.ts` uses for full benchmark, here
 // on a batch small enough to run in `pnpm test`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,10 +10,10 @@ import { join } from 'node:path';
 import { prepareSdkWasm } from './geometryPageWasm.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import { createBoxTransformLot, createMultiplyLot } from './mathBatchRuntime.ts';
-import { remplitBoites, remplitMatrices } from './bench/appui/casLotsWasm.mjs';
+import { remplitBoites, remplitMatrices } from './bench/appui/casLotsWasm.ts';
 
 // Small batch: exactly 9 hostile matrices × 7 hostile boxes, full Cartesian product of
-// `casLotsWasm.mjs` once each — zero ordinary pseudo-random element. A shorter batch
+// `casLotsWasm.ts` once each — zero ordinary pseudo-random element. A shorter batch
 // would cut before NaN and ±0 boxes (fifth and sixth families listed in `BOITES`).
 const N = 63;
 
@@ -46,7 +46,7 @@ test('boxTransformBatch: same bits in JavaScript and WebAssembly on hostile boxe
 });
 
 test('boxTransformBatch: ±0 resolution of Math.min/Math.max matches at bit level', async () => {
-  // None of 9 hostile matrices in `casLotsWasm.mjs` has translation at `-0`: crossed with
+  // None of 9 hostile matrices in `casLotsWasm.ts` has translation at `-0`: crossed with
   // box `[0, -0, 0, -0, 0, -0]`, their 8 corners always sum to `+0` before reduction —
   // IEEE-754 addition of `+0` and `-0` yields `+0` regardless of order. Handcrafted case so
   // sign survives to `js_min`/`js_max`: x translation at `-0`, corners all at `x = ±0`.

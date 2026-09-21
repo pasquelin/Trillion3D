@@ -17,7 +17,10 @@ test('paged transparent commands disappear outside the view and return with both
     fixture.material.transparent = true;
     fixture.material.side = THREE.DoubleSide;
     fixture.metadata.primitives[0].pass = 'clustered-blend';
-    const twin = fixture.source.children[0].clone() as THREE.Mesh;
+    const twin = fixture.source.children[0].clone() as THREE.Mesh<
+      THREE.BufferGeometry,
+      THREE.Material
+    >;
     fixture.source.add(twin);
     fixture.associations.set(twin, { meshes: 0, primitives: 0 });
     const roots = collectClusterPages(
@@ -42,7 +45,7 @@ test('paged transparent commands disappear outside the view and return with both
         view.updateMatrixWorld();
         for (let i = 0; i < 3; i++) {
           backend.render(view);
-          await backend.flush();
+          await backend.flush?.();
         }
         mock.draws.length = 0;
         mock.writes.length = 0;
