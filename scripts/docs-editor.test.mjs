@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Worker } from 'node:worker_threads';
-import { resolveSdkImports } from '../docs/js/code/resolveSdkImports.js';
-import { runModule } from '../docs/js/code/execute.js';
-import { formatNumericText } from '../docs/js/code/formatNumber.js';
+import { resolveSdkImports } from '../site/app/code/resolveSdkImports.ts';
+import { runModule } from '../site/app/code/execute.ts';
+import { formatNumericText } from '../site/app/code/formatNumber.ts';
 
 function createWorker(source) {
   const script = `import { parentPort } from 'node:worker_threads';
@@ -15,7 +15,7 @@ function createWorker(source) {
   worker.on('error', (error) => adapter.onerror?.({ message: error.message }));
   return adapter;
 }
-const sdk = new URL('../docs/js/engine.js', import.meta.url).href;
+const sdk = new URL('../site/demos/engine.ts', import.meta.url).href;
 const execute = (code, options) => runModule(code, sdk, { createWorker, ...options });
 
 test('edited source executes a real public SDK calculation and returns its value', async () => {

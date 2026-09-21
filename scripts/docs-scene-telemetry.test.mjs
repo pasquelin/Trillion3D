@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSceneTelemetry } from '../docs/js/engine-scene/telemetry.js';
+import { createSceneTelemetry } from '../site/lessons/engine-scene/telemetry.ts';
 
 // Observed frame diagnostics cannot stand in for a measured rAF interval.
 test('automatic telemetry reports counters without invented FPS and stops its activity timer', (t) => {

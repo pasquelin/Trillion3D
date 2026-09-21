@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeObservatory } from './docs/observatory/write.mjs';
 
-const directory = new URL('../docs/assets/gallery/signature-architecture/', import.meta.url);
+const directory = new URL('../site/assets/gallery/signature-architecture/', import.meta.url);
 
 test('the original observatory reproduces its source and retains distinct materials and reduced DAG levels', async () => {
   const temporary = await mkdtemp(join(tmpdir(), 'wg-observatory-'));
