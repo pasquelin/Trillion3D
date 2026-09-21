@@ -1,4 +1,4 @@
-export interface SidebarMenuItem {
+interface SidebarMenuItem {
   key: string;
   label: string;
   /** Without a route the item is named but not yet reachable. */
