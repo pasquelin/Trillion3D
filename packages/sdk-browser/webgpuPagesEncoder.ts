@@ -63,6 +63,7 @@ export function submitColorCopy(
   if (!capture.secondaryCamera) rt.vis.textures?.feedback.submitted();
   // Same for the far-shadow counts: their copy is mapped only once submitted.
   rt.sunFar.gpu?.submitted();
+  rt.lights.cull?.counts.submitted();
   run.imageRevision++;
   if (owned) {
     timing.frameEncoder = undefined;
