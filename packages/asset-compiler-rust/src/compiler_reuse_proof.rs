@@ -15,7 +15,7 @@ pub(super) fn prove(
     pool: &rayon::ThreadPool,
 ) -> Check<Reused> {
     let manifest: Value = serde_json::from_slice(head).map_err(|e| format!("manifest: {e}"))?;
-    check_head(&manifest, key, &o.scope)?;
+    let format = check_head(&manifest, key, &o.scope)?;
     // The answer sheet is a product of every compilation, at the cache root: a
     // host reads "nothing to answer" in its absence, so a folder without it is not whole.
     if !o.cache.join(cutout::DECISIONS_FILE).is_file() {
@@ -26,29 +26,39 @@ pub(super) fn prove(
     if manifest["binary"]["sha256"] != json!(hash(&binary)) {
         return Err("sidecar does not match binary.sha256".into());
     }
-    let native = o.cache.join("native");
-    let (files, file_bytes) =
-        check_files(o, directory, &manifest[compiler_publish::FILES_FIELD], pool)?;
     // Objects live in the sidecar columns alone; the `sha256` fields of the head
-    // name the sidecar, the proxy and the recorded files, checked above.
-    let digests: BTreeSet<String> = manifest_binary::digests(&binary)
+    // name the sidecar, the proxy and the recorded files. The sidecar is read once:
+    // the digests and levels proven are what prune keeps.
+    let objects: BTreeSet<String> = manifest_binary::digests(&binary)
         .map_err(|e| e.message)?
         .into_iter()
         .collect();
-    let object_bytes = check_objects(o, &native, &digests, pool)?;
     let levels = manifest_binary::texture_levels(&binary).map_err(|e| e.message)?;
+    let mut items = record_items(directory, &manifest[compiler_publish::FILES_FIELD])?;
+    let files = items.len();
+    items.extend(objects.iter().map(|digest| Item {
+        path: object_path(o, digest),
+        sha256: digest.clone(),
+        bytes: None,
+        what: format!("object {digest}"),
+    }));
+    let sizes = prove_all(o, pool, &items)?;
+    let (file_bytes, object_bytes) = sizes.split_at(files);
+    let native = o.cache.join("native");
     let texture_levels = check_textures(&native, &manifest, &levels)?;
+    let textures = levels.into_iter().map(|level| level.sha256).collect();
     Ok(Reused {
-        report: json!({"files":files,"fileBytes":file_bytes,"objects":digests.len(),"objectBytes":object_bytes,"textureLevels":texture_levels}),
-        keep: Keep::named_by(&manifest, &binary).map_err(|e| e.message)?,
+        report: json!({"files":files,"fileBytes":file_bytes.iter().sum::<u64>(),"objects":objects.len(),"objectBytes":object_bytes.iter().sum::<u64>(),"textureLevels":texture_levels}),
+        keep: Keep { objects, textures },
         manifest,
+        format,
     })
 }
 
 /// The head of the manifest says whose product it is: this key, this scope, this
-/// compiler, a format this compiler writes. Anything else under the key is a
-/// folder written by hand or by another build, never reused.
-fn check_head(manifest: &Value, key: &str, scope: &str) -> Check<()> {
+/// compiler, a format this compiler writes — returned, for the pointer. Anything
+/// else under the key is a folder written by hand or by another build, never reused.
+fn check_head(manifest: &Value, key: &str, scope: &str) -> Check<u32> {
     let expected = [
         ("status", json!("ready")),
         ("key", json!(key)),
@@ -67,67 +77,76 @@ fn check_head(manifest: &Value, key: &str, scope: &str) -> Check<()> {
             "manifest format {format} is not one this compiler writes"
         ));
     }
-    Ok(())
+    Ok(format)
 }
 
-/// Every product the manifest recorded, by fingerprint and size, hashed side by
-/// side on the job's pool. A missing record is a folder written before records
-/// existed, or by hand: not proven.
-fn check_files(
-    o: &Options,
-    directory: &Path,
-    record: &Value,
-    pool: &rayon::ThreadPool,
-) -> Check<(usize, u64)> {
+/// One file to prove: where it is, what it must hash to, its recorded size when
+/// the record has one, and how the reason names it.
+struct Item {
+    path: PathBuf,
+    sha256: String,
+    bytes: Option<u64>,
+    what: String,
+}
+
+/// Every product the manifest recorded, by fingerprint and size. A missing
+/// record is a folder written before records existed, or by hand: not proven.
+/// A name is checked before it forms a path.
+fn record_items(directory: &Path, record: &Value) -> Check<Vec<Item>> {
     let files = record.as_object().ok_or("manifest records no files")?;
-    let one = |(name, expected): (&String, &Value)| -> Check<u64> {
-        check(o).map_err(|e| e.message)?;
-        if !is_safe_source_name(name) {
-            return Err(format!("file record names {name:?}"));
-        }
-        let (sha256, size) =
-            hash_file_sized(&directory.join(name)).map_err(|e| format!("{name}: {e}"))?;
-        if expected["bytes"] != json!(size) {
-            return Err(format!(
-                "{name} is {size} bytes, not what the manifest recorded"
-            ));
-        }
-        if expected["sha256"] != json!(sha256) {
-            return Err(format!("{name} does not match its recorded fingerprint"));
-        }
-        Ok(size)
-    };
-    let entries: Vec<(&String, &Value)> = files.iter().collect();
-    let sizes: Vec<u64> =
-        pool.install(|| entries.par_iter().copied().map(one).collect::<Check<_>>())?;
-    Ok((files.len(), sizes.iter().sum()))
+    files
+        .iter()
+        .map(|(name, expected)| {
+            if !is_safe_source_name(name) {
+                return Err(format!("file record names {name:?}"));
+            }
+            let (Some(sha256), Some(bytes)) =
+                (expected["sha256"].as_str(), expected["bytes"].as_u64())
+            else {
+                return Err(format!("file record of {name} has no fingerprint or size"));
+            };
+            Ok(Item {
+                path: directory.join(name),
+                sha256: sha256.to_string(),
+                bytes: Some(bytes),
+                what: name.clone(),
+            })
+        })
+        .collect()
 }
 
-/// Every object the manifest names, against its content-addressed name: the same
-/// check the compile path applies before it reuses an object
-/// (`compiler_page_object.rs`), on the job's own pool. Returns the bytes proven.
-fn check_objects(
-    o: &Options,
-    native: &Path,
-    digests: &BTreeSet<String>,
-    pool: &rayon::ThreadPool,
-) -> Check<u64> {
-    let objects = native.join("objects");
-    let one = |digest: &String| -> Check<u64> {
-        check(o).map_err(|e| e.message)?;
-        if digest.len() != 64 || !digest.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return Err(format!("manifest names object {digest:?}"));
-        }
-        let path = objects.join(format!("{digest}.bin"));
-        let (sha256, bytes) =
-            hash_file_sized(&path).map_err(|e| format!("object {digest}: {e}"))?;
-        if sha256 != *digest {
-            return Err(format!("object {digest} does not match its name"));
-        }
-        Ok(bytes)
-    };
-    let sizes: Vec<u64> = pool.install(|| digests.par_iter().map(one).collect::<Check<_>>())?;
-    Ok(sizes.iter().sum())
+/// One file against its fingerprint and, when recorded, its size, in a single
+/// read pass. Returns the size read.
+fn proven(o: &Options, item: &Item) -> Check<u64> {
+    check(o).map_err(|e| e.message)?;
+    let Item {
+        path,
+        sha256,
+        bytes,
+        what,
+    } = item;
+    let (found, size) = hash_file_sized(path).map_err(|e| format!("{what}: {e}"))?;
+    if bytes.is_some_and(|expected| expected != size) {
+        return Err(format!(
+            "{what} is {size} bytes, not what the manifest recorded"
+        ));
+    }
+    if found != *sha256 {
+        return Err(format!("{what} does not match its fingerprint"));
+    }
+    Ok(size)
+}
+
+/// Every item side by side on the job's pool, once for files and objects alike:
+/// the same check the compile path applies before it reuses an object
+/// (`compiler_page_object.rs`). Returns the sizes, in item order.
+fn prove_all(o: &Options, pool: &rayon::ThreadPool, items: &[Item]) -> Check<Vec<u64>> {
+    pool.install(|| {
+        items
+            .par_iter()
+            .map(|item| proven(o, item))
+            .collect::<Check<_>>()
+    })
 }
 
 /// Every baked level the sidecar names, by presence: the compile path trusts a
@@ -148,9 +167,6 @@ pub(super) fn check_textures(
     for entry in levels {
         let kind = texture_preview::AtlasKind::from_word(entry.kind)
             .ok_or(format!("sidecar names atlas {}", entry.kind))?;
-        if !is_safe_source_name(&entry.sha256) {
-            return Err(format!("sidecar names texture {:?}", entry.sha256));
-        }
         if entry.baked < entry.first {
             return Err(format!("texture {} was not fully baked", entry.sha256));
         }

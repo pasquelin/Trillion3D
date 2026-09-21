@@ -161,7 +161,7 @@ The cost of a reuse is the identity (routing, loading, hashing the source binary
 | Emerald — 10 M triangles, 83 303 objects (388 MB), 200 MB of products       | 9.8 · 13.1 · 12.1    | 5.4 · 5.9 · 7.8   | 2.3 · 2.3 · 2.4    |
 | Whisperwind — 172 M triangles, 229 013 objects (737 MB), 285 MB of products | 15.8 · 24.1 · 14.9   | 11.1 · 15.7 · 9.4 | 7.0 · 8.9 · 5.9    |
 
-Every reuse is under the recompile it was paired with; the proof is most of a reuse on Whisperwind, whose 229 013 small objects cost their opening more than their hashing. The compile path pays the `files` record — one hash of each product it just wrote — once per compile; on these two scenes that is 200–285 MB hashed, under the run-to-run spread above.
+Every reuse is under the recompile it was paired with; the proof is most of a reuse on Whisperwind, whose 229 013 small objects cost their opening more than their hashing. The compile path pays the `files` record — each product hashed once as it is written, never read back — once per compile; on these two scenes that is 200–285 MB hashed, under the run-to-run spread above.
 
 ## Measurements
 

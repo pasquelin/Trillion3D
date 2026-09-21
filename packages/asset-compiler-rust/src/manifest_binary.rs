@@ -65,9 +65,22 @@ const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
 const COLUMNS: usize = 24;
 /// Numbers per level entry: texture, image, width, height, kind and provenance
-/// view, then the first carried level, their count, and the start and length of
-/// its pixels.
+/// view, then the first carried level, their count, the start and length of its
+/// pixels, the atlas it serves and the count of levels baked as files.
 const PREVIEW_WORDS: usize = 12;
+/// Ranks, in an entry, of the words the level reader and the proof come back for.
+const PREVIEW_FIRST_LEVEL: usize = 6;
+const PREVIEW_KIND: usize = 10;
+const PREVIEW_BAKED: usize = 11;
+
+/// A digest as the columns and the object store spell it: 64 lowercase
+/// hexadecimal characters, and nothing a path could be made of.
+pub fn is_digest(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
 
 /// Bytes a page writes in each page column, whichever the page.
 const PAGE_COLUMN_WIDTHS: [(usize, usize); 10] = [

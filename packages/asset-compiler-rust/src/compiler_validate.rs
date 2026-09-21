@@ -44,7 +44,11 @@ pub(super) fn hash_file_sized(p: &Path) -> Result<(String, u64)> {
     Ok((sha256, bytes))
 }
 fn hash_file_read(p: &Path) -> Result<(String, Option<u8>, u64)> {
-    let mut f = File::open(p)?;
+    hash_open(File::open(p)?)
+}
+/// Fingerprint, last byte and size of an open file: a caller that opened it
+/// itself, to read its absence from the open, hashes it from here.
+pub(super) fn hash_open(mut f: File) -> Result<(String, Option<u8>, u64)> {
     let mut h = Sha256::new();
     let mut block = [0u8; 65536];
     let mut last = None;

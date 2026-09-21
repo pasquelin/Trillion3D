@@ -9,10 +9,11 @@
 //! announced.
 use super::*;
 
-/// What a proven folder gives the job: its manifest, what prune must keep, and
-/// the count of what was checked.
+/// What a proven folder gives the job: its manifest and the format it declares,
+/// what prune must keep, and the count of what was checked.
 pub(super) struct Reused {
     pub manifest: Value,
+    pub format: u32,
     pub keep: Keep,
     pub report: Value,
 }
@@ -27,7 +28,7 @@ pub(super) fn reuse(
     pool: &rayon::ThreadPool,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Option<Reused>> {
-    let directory = o.cache.join("native").join(&o.scope).join(key);
+    let directory = o.key_directory(key);
     let Ok(head) = fs::read(directory.join("clusters.json")) else {
         return Ok(None);
     };
@@ -64,10 +65,10 @@ pub(super) fn finish(
     let import_ms = shared_math::elapsed_ms(started);
     let Reused {
         mut manifest,
+        format,
         keep,
         report,
     } = reused;
-    let format = manifest["formatVersion"].as_u64().unwrap_or(0) as u32;
     compiler_publish::write_pointer(o, key, format)?;
     let prune_start = Instant::now();
     let pruned = prune_cache(o, key, keep, progress)?;

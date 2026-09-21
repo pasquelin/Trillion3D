@@ -23,10 +23,6 @@ pub(super) fn compile_with_events(options: &Options) -> (Value, Vec<Value>) {
     (result, events.into_inner().expect("events"))
 }
 
-pub(super) fn key_directory(options: &Options, key: &str) -> PathBuf {
-    options.cache.join("native").join(&options.scope).join(key)
-}
-
 // Behaviour: the same inputs and options a second time reuse the folder — the
 // DAG is not rebuilt, the manifest on disk is untouched, the pointer names the
 // folder, and the result says what was proven.
@@ -36,7 +32,7 @@ fn identical_fingerprint_reuses_the_folder_without_rebuilding() {
     let (first, first_events) = compile_with_events(&options);
     assert!(first_events.is_empty(), "nothing to reuse on a fresh cache");
     let key = first["key"].as_str().expect("key");
-    let manifest_path = key_directory(&options, key).join("clusters.json");
+    let manifest_path = options.key_directory(key).join("clusters.json");
     let written = fs::read(&manifest_path).expect("manifest");
     let (second, events) = compile_with_events(&options);
     assert_eq!(second["key"], first["key"]);
@@ -114,8 +110,9 @@ fn changed_threshold_recompiles() {
 fn another_compiler_version_under_the_key_recompiles() {
     let (root, options) = textured();
     let (first, _) = compile_with_events(&options);
-    let manifest_path =
-        key_directory(&options, first["key"].as_str().unwrap()).join("clusters.json");
+    let manifest_path = options
+        .key_directory(first["key"].as_str().unwrap())
+        .join("clusters.json");
     let mut manifest = read_json(&manifest_path);
     manifest["compilerVersion"] = json!("0.0.1");
     fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).expect("tamper");
