@@ -3,7 +3,7 @@
 use super::*;
 use crate::texture_preview::blocks::quality::GATE_DB;
 
-fn scene(material: Value) -> Value {
+pub(super) fn scene(material: Value) -> Value {
     json!({
         "materials": [material],
         "meshes": [{"primitives": [{"attributes": {}, "material": 0}]}],
@@ -13,7 +13,7 @@ fn scene(material: Value) -> Value {
 }
 
 /// A smooth unit-normal map: X and Y ramps, Z as the shader rebuilds it.
-fn normal_map(width: u32, height: u32) -> image::RgbaImage {
+pub(super) fn normal_map(width: u32, height: u32) -> image::RgbaImage {
     rgba_from(width, height, |x, y| {
         let nx = (x as f32 / width as f32 - 0.5) * 0.8;
         let ny = (y as f32 / height as f32 - 0.5) * 0.8;
