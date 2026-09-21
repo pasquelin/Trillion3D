@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { theatreWorkshop } from '../shadow-theatre/geometry.ts';
 import { appendSurfacesGltf } from './gltf.ts';
 import { placeObj, writeBoxesObj } from './obj.ts';
-import type { GltfDocument } from './gltf.ts';
+import type { GltfDocument } from './gltf-types.ts';
 
 /**
  * The scenes built around an imported model (`site/assets/examples/models/`, credited in

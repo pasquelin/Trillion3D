@@ -114,7 +114,10 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
     }
   };
   return (
-    <div className="geometry-3d grid gap-4" data-renderer-lesson={lesson.id}>
+    <div
+      className="geometry-3d geometry-3d-viewport flex flex-col gap-4"
+      data-renderer-lesson={lesson.id}
+    >
       <Canvas
         canvasRef={canvas}
         className="geometry-3d-canvas"
