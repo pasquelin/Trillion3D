@@ -66,7 +66,7 @@ const AUTORISES = {
   explorerDrawScene: 'boundary: it draws the scene an engine hands to the host renderer',
   explorerHeldFrame: 'boundary: it recomposes the held image in a host scene',
   explorerHostState: 'boundary: it mounts the host draw adapter and restores a recorded pose',
-  explorerLifecycle: 'boundary: it creates and destroys the host renderer',
+  explorerLifecycle: 'boundary: it disposes the host renderer and the engine surface',
   explorerPrepare: 'boundary: it prepares the host source graph',
   explorerRender: 'boundary: the host frame loop, its targets and its textures',
   exactPagesBounds: 'boundary: it walks the host source graph to bound its pages',

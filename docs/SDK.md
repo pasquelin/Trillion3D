@@ -545,15 +545,12 @@ For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canva
 For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before any
 scene renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from
 logical size and DPR, avoids resetting the buffer on an unchanged size, observes context loss and
-restoration — `lost` reads the context itself, not only the event queued behind the frame that
-hit it — and releases the context once. That surface is the session's only WebGL2 resource: the
-capability check sizes it, the loss fallback, the whole-frame GPU timer and the pixel readback of
-`capture()` read it. The Three scene renderer is a temporary draw adapter the composition host
-mounts on it, for the comparison compositor, the held frame, the render targets and the scenes the
-witness engines hand over; it is created and disposed there and nowhere else. On
-`exact-cluster-pages` that adapter's pass holds at most 0.1 ms of the CPU frame (measured in #85):
-its removal is a matter of dependency, not of speed. Pure direct-WebGPU sessions never bind the
-host canvas to a WebGL context.
+restoration, and releases the context once. That surface is the session's only WebGL2 resource;
+the Three scene renderer is a temporary draw adapter the composition host mounts on it and
+disposes with it, for the comparison compositor, the held frame, the render targets and the
+scenes the witness engines hand over — what it costs and what reads the surface instead is in
+[API.md](API.md#batch-e6--the-engine-surface-as-the-sessions-webgl2-authority-85-first-pull-request).
+Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
 `exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
 `MeshStandardMaterial` and `MeshBasicMaterial` batches — through an engine-owned WebGL2 program,

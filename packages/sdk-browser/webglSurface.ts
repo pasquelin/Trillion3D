@@ -36,8 +36,9 @@ export function createWebglSurface(canvas: HTMLCanvasElement, options: SurfaceOp
   return {
     canvas,
     context,
-    /** True from the loss itself, not from its event: the event is queued behind the frame
-     *  that hit the dead context, and the host asks in that frame. */
+    /** True from the loss itself, not from its event: the event is queued behind the frame that
+     *  hit the dead context, and the host asks in that frame. The flag stays for the other end:
+     *  a restored context answers before its event, and the resources are rebuilt on that event. */
     get lost() {
       return lost || context.isContextLost();
     },
