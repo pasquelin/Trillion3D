@@ -5,11 +5,11 @@ rendering it**. The golden is [`../../src/tests/obj_golden.rs`](../../src/tests/
 requires modifying the source between two compilations — library touched, missing, truncated, texture
 name to escape — is in [`../../src/tests/obj_mtl.rs`](../../src/tests/obj_mtl.rs).
 
-| file                       | what it pins                                                                                                                                                                   |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `minuscule/scene.obj`      | two groups, a quadrilateral and a pentagon, shaded by two `usemtl`                                                                                                             |
-| `minuscule/scene.mtl`      | everything a library declares: `Ka`, `Kd`, `Ks`, `Ns`, `Ni`, `d`, `Ke`, `map_Ka`, `map_Kd`, `map_d`, `norm`, `map_Bump`, `map_Ke`, and the `-s`, `-o`, `-bm`, `-clamp` options |
-| `minuscule/textures/*.png` | six 2×2 images: three enter the output, three prove a report code                                                                                                              |
+| file                       | what it pins                                                                                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `minuscule/scene.obj`      | two groups, a quadrilateral and a pentagon, shaded by two `usemtl`                                                                                                                   |
+| `minuscule/scene.mtl`      | everything a library declares: `Ka`, `Kd`, `Ks`, `Ns`, `Ni`, `d`, `Ke`, `map_Ka`, `map_Kd`, `map_d`, `norm`, `map_Bump`, `map_Ke`, and the `-s`, `-o`, `-bm`, `-clamp` options      |
+| `minuscule/textures/*.png` | six 2×2 images: three enter the output, three prove a report code                                                                                                                    |
 
 What each choice puts under watch:
 

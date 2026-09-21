@@ -5,15 +5,15 @@ file that it must refuse by name. The golden `src/plugins/tests/tga.rs` decodes 
 the RGBA8 pixels **one by one** against a reference written in the clear in the test: a 4 × 2
 pixel image whose eight values are known.
 
-| file                              | image type | depth                  | origin | what it puts under watch                                     |
-| --------------------------------- | ---------- | ---------------------- | ------ | ------------------------------------------------------------ |
-| `vraies-couleurs-24-bas.tga`      | 2 (raw)    | 24 bits                | bottom | BGR → RGB, rows flipped, alpha filled to 255                 |
-| `vraies-couleurs-32-haut.tga`     | 2 (raw)    | 32 bits                | top    | alpha kept as-is, “TRUEVISION-XFILE.” 2.0 footer             |
-| `vraies-couleurs-32-rle-haut.tga` | 10 (RLE)   | 32 bits                | top    | repeated packets **and** raw packets, same pixels as the raw |
-| `vraies-couleurs-32-rle-bas.tga`  | 10 (RLE)   | 32 bits                | bottom | RLE and row flip together                                    |
-| `palette-8-haut.tga`              | 1 (raw)    | 8 bits, 24-bit palette | top    | palette indices resolved to the same colours                 |
-| `niveaux-de-gris-8-bas.tga`       | 3 (raw)    | 8 bits                 | bottom | grey expanded to RGB, alpha 255                              |
-| `tronque.tga`                     | 2 (raw)    | 24 bits                | bottom | 31 bytes out of 196,652: header recognised, decode refused   |
+| file | image type | depth | origin | what it puts under watch |
+| --- | --- | --- | --- | --- |
+| `vraies-couleurs-24-bas.tga` | 2 (raw) | 24 bits | bottom | BGR → RGB, rows flipped, alpha filled to 255 |
+| `vraies-couleurs-32-haut.tga` | 2 (raw) | 32 bits | top | alpha kept as-is, “TRUEVISION-XFILE.” 2.0 footer |
+| `vraies-couleurs-32-rle-haut.tga` | 10 (RLE) | 32 bits | top | repeated packets **and** raw packets, same pixels as the raw |
+| `vraies-couleurs-32-rle-bas.tga` | 10 (RLE) | 32 bits | bottom | RLE and row flip together |
+| `palette-8-haut.tga` | 1 (raw) | 8 bits, 24-bit palette | top | palette indices resolved to the same colours |
+| `niveaux-de-gris-8-bas.tga` | 3 (raw) | 8 bits | bottom | grey expanded to RGB, alpha 255 |
+| `tronque.tga` | 2 (raw) | 24 bits | bottom | 31 bytes out of 196,652: header recognised, decode refused |
 
 The three 32-bit variants and the 24-bit one carry the same image; only the 24-bit alpha is
 filled, because the format has none. The golden checks this explicitly: that is the proof that
