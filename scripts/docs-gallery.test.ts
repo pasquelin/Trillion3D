@@ -52,7 +52,7 @@ test('gallery exposes bilingual math and public renderer lessons', () => {
   assert.match(renderPlayground('dot-product', 'fr'), /aria-label=/);
   assert.match(renderPlayground('dot-product', 'en'), /<h1 class=/);
   assert.match(renderPlayground('dot-product', 'en'), /Copy code/);
-  assert.match(renderPlayground('point-light-range', 'fr'), /data-renderer-playground/);
+  assert.match(renderPlayground('point-light-range', 'fr'), /data-lesson/);
 });
 
 test('shared code blocks escape markup and preserve the copied source', () => {

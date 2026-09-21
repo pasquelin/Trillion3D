@@ -1,84 +1,45 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Mesh } from '../shadow-theatre/geometry.ts';
+import type {
+  Accessor,
+  BufferView,
+  GltfDocument,
+  GltfMaterial,
+  MaterialRow,
+  Primitive,
+} from './gltf-types.ts';
 
-/** One material row, `[name, baseColor, metallic, roughness]`, as the example scenes list them. */
-export type MaterialRow = readonly [
-  name: string,
-  baseColorFactor: readonly [number, number, number, number],
-  metallicFactor: number,
-  roughnessFactor: number,
-];
-
-interface BufferView {
-  buffer: number;
-  byteOffset: number;
-  byteLength: number;
-  target: number;
-}
-
-interface Accessor {
-  bufferView: number;
-  componentType: number;
-  type: string;
-  count: number;
-  min?: readonly number[];
-  max?: readonly number[];
-}
-
-interface Primitive {
-  material: number;
-  attributes: { POSITION: number; NORMAL: number };
-  indices: number;
-}
-
-interface GltfMaterial {
-  name: string;
-  doubleSided: boolean;
-  pbrMetallicRoughness: {
-    baseColorFactor: readonly [number, number, number, number];
-    metallicFactor: number;
-    roughnessFactor: number;
-  };
-}
-
-/** The shape read from and written to `geometry.gltf`, the fields this recipe touches. */
-export interface GltfDocument {
-  scene?: number;
-  scenes: { nodes: number[] }[];
-  nodes: { name: string; mesh: number }[];
-  meshes: { name: string; primitives: Primitive[] }[];
-  materials: GltfMaterial[];
-  buffers: { uri: string; byteLength: number }[];
-  bufferViews: BufferView[];
-  accessors: Accessor[];
-}
-
-/** Bounds of flat xyz `values`, for the accessor a POSITION attribute requires. */
-function bounds(values: readonly number[]) {
-  const min: [number, number, number] = [Infinity, Infinity, Infinity],
-    max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+/** Bounds of flat `values` of `size` components, for the accessor a POSITION attribute requires. */
+function bounds(values: readonly number[], size: number) {
+  const min: number[] = Array(size).fill(Infinity),
+    max: number[] = Array(size).fill(-Infinity);
   values.forEach((value, index) => {
-    min[index % 3] = Math.min(min[index % 3], value);
-    max[index % 3] = Math.max(max[index % 3], value);
+    min[index % size] = Math.min(min[index % size], value);
+    max[index % size] = Math.max(max[index % size], value);
   });
   return { min, max };
 }
 
-/** The buffer views, accessors and primitives of workshop surfaces, in one binary chunk list. */
-function surfacesBuffers(
+/**
+ * The buffer views, accessors and primitives of workshop surfaces, in one binary chunk list;
+ * `uv` adds the texture coordinates the workshop recorded, for a material that reads a map.
+ */
+export function surfacesBuffers(
   surfaces: Iterable<[number, Mesh]>,
   buffer: number,
   firstView: number,
   firstAccessor: number,
   firstMaterial: number,
+  uv = false,
 ) {
   const views: BufferView[] = [],
     accessors: Accessor[] = [],
     chunks: Buffer[] = [];
   let byteLength = 0;
-  const accessor = (values: readonly number[], indices = false): number => {
-    const data = indices ? Uint32Array.from(values) : Float32Array.from(values);
+  const accessor = (values: readonly number[], size: number): number => {
+    const indices = size === 1,
+      data = indices ? Uint32Array.from(values) : Float32Array.from(values);
     views.push({
       buffer,
       byteOffset: byteLength,
@@ -90,24 +51,46 @@ function surfacesBuffers(
     accessors.push({
       bufferView: firstView + views.length - 1,
       componentType: indices ? 5125 : 5126,
-      type: indices ? 'SCALAR' : 'VEC3',
-      count: indices ? values.length : values.length / 3,
-      ...(indices ? {} : bounds(values)),
+      type: indices ? 'SCALAR' : `VEC${size}`,
+      count: values.length / size,
+      ...(indices ? {} : bounds(values, size)),
     });
     return firstAccessor + accessors.length - 1;
   };
   const primitives: Primitive[] = [...surfaces].map(([material, mesh]) => ({
     material: firstMaterial + material,
-    attributes: { POSITION: accessor(mesh.positions), NORMAL: accessor(mesh.normals) },
-    indices: accessor(mesh.indices, true),
+    attributes: {
+      POSITION: accessor(mesh.positions, 3),
+      NORMAL: accessor(mesh.normals, 3),
+      ...(uv ? { TEXCOORD_0: accessor(mesh.uvs, 2) } : {}),
+    },
+    indices: accessor(mesh.indices, 1),
   }));
   return { views, accessors, primitives, chunks, byteLength };
 }
 
-const material = ([name, baseColorFactor, metallicFactor, roughnessFactor]: MaterialRow) => ({
+/** A material row: name, base colour, metalness, roughness, then any glTF field of its own. */
+export const material = ([
+  name,
+  baseColorFactor,
+  metallicFactor,
+  roughnessFactor,
+  extra,
+]: MaterialRow): GltfMaterial => ({
   name,
   doubleSided: true,
   pbrMetallicRoughness: { baseColorFactor, metallicFactor, roughnessFactor },
+  ...extra,
+});
+
+/** The document skeleton every example scene starts from. */
+export const examplesDocument = () => ({
+  asset: {
+    version: '2.0',
+    generator: 'Web Geometry examples recipe v1',
+    copyright: 'Original Web Geometry contributors; repository license',
+  },
+  scene: 0,
 });
 
 /**
@@ -129,7 +112,7 @@ export async function writeSurfacesGltf(
     0,
   );
   const gltf: GltfDocument = {
-    scene: 0,
+    ...examplesDocument(),
     scenes: [{ nodes: [0] }],
     nodes: [{ name, mesh: 0 }],
     meshes: [{ name, primitives }],

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A ring of lamps on one budget</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e1621;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      p {
+        position: absolute;
+        bottom: 0;
+        margin: 0.5rem;
+        color: #cbd5e1;
+        font: 12px system-ui;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p id="shadows"></p>
+    <script type="module">
+      import { createExplorer } from '../runtime/engine.js';
+
+      const explorer = await createExplorer('view', {
+        manifestUrl: '../assets/examples/colonnade/cache/native/full/manifest.json',
+        scope: 'full',
+        interactive: true,
+        // Shadow work per frame, in GPU milliseconds: what the sixteen lamps share.
+        shadowBudgetMs: 1,
+      });
+      // Sixteen shadow-casting lamps around the colonnade — six faces each in the shadow atlas.
+      // The budget bounds what one frame redraws; the pages left over wait, never dropped, and
+      // the counter below reads the queue as the frames settle.
+      for (let index = 0; index < 16; index++) {
+        const angle = (index / 16) * Math.PI * 2;
+        explorer.addLight({
+          id: `lamp-${index}`,
+          kind: 'point',
+          position: [Math.sin(angle) * 3.2, 2.2, Math.cos(angle) * 7.2],
+          color: index % 2 ? [1, 0.75, 0.45] : [0.7, 0.8, 1],
+          intensity: 4,
+          range: 9,
+          emitterRadius: 0.1,
+          castsShadow: true,
+        });
+      }
+      explorer.setPose({ ...explorer.homePose(), position: [4.5, 3.6, 10], target: [0, 1.2, 0] });
+      explorer.invalidate();
+      // The queue drains once; the page reads it until it is empty, then stops — a settled scene
+      // does no work.
+      const shadows = document.getElementById('shadows');
+      const read = () => {
+        const { shadowPagesDrawn, shadowPagesPending, shadowPagesTotal } =
+          explorer.backends[0].metrics();
+        shadows.textContent = `shadow pages: ${shadowPagesDrawn ?? '?'} drawn this frame, ${shadowPagesPending ?? '?'} waiting, ${shadowPagesTotal ?? '?'} in all`;
+        if (shadowPagesPending) setTimeout(read, 250);
+      };
+      read();
+    </script>
+  </body>
+</html>
