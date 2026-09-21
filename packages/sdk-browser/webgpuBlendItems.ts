@@ -1,6 +1,5 @@
 import type { HostTexture } from './hostResources.ts';
 import { visMaterial } from './visibilityBuffer.ts';
-import type * as THREE from 'three';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /**

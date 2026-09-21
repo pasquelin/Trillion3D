@@ -1,7 +1,6 @@
 import {
   asHostLibrary,
   type HostAttributes,
-  type HostMaterial,
   type HostMaterials,
   type HostTexture,
 } from './hostResources.ts';

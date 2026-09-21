@@ -1,5 +1,4 @@
 import type { HostTexture } from './hostResources.ts';
-import type * as THREE from 'three';
 import { previewIsWhole, type TexturePreview } from '../sdk-core/index.ts';
 import { WHITE_TAIL, type PoolEncoding } from './textureBlockFormats.ts';
 import { textureRgba } from './visibilityBuffer.ts';
