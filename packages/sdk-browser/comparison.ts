@@ -1,6 +1,7 @@
 import { boundToContext } from './webglContextBound.ts';
+import { FULLSCREEN_VERTEX, setFullscreenPassState } from './webglFullscreenPass.ts';
 import { createWebglProgram } from './webglProgram.ts';
-import type { WebglRenderTarget } from './webglRenderTarget.ts';
+import { bindWebglTarget, type WebglRenderTarget } from './webglRenderTarget.ts';
 
 export type ComparisonLayout = 'single' | 'side-by-side' | 'wipe' | 'toggle' | 'difference';
 
@@ -12,8 +13,6 @@ const LAYOUT_IDS: Record<ComparisonLayout, number> = {
   difference: 4,
 };
 
-const VERTEX = `#version 300 es
-void main(){gl_Position=vec4(float((gl_VertexID&1)*4-1),float((gl_VertexID>>1)*4-1),0.,1.);}`;
 /** Both sides hold display images: the texels are copied as they are, and a difference is the
  *  difference of what the two single views would show. `size` is the drawing buffer's. */
 const FRAGMENT = `#version 300 es
@@ -37,7 +36,7 @@ export function createComparisonCompositor(gl: WebGL2RenderingContext) {
   const program = boundToContext(
     gl,
     () => {
-      const handle = createWebglProgram(gl, VERTEX, FRAGMENT),
+      const handle = createWebglProgram(gl, FULLSCREEN_VERTEX, FRAGMENT),
         vao = gl.createVertexArray()!;
       const location = (name: string) => gl.getUniformLocation(handle, name);
       gl.useProgram(handle);
@@ -68,15 +67,8 @@ export function createComparisonCompositor(gl: WebGL2RenderingContext) {
     ) {
       const current = program.current();
       if (!current) return;
-      const width = gl.drawingBufferWidth,
-        height = gl.drawingBufferHeight;
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, width, height);
-      gl.disable(gl.DEPTH_TEST);
-      gl.disable(gl.BLEND);
-      gl.disable(gl.CULL_FACE);
-      gl.disable(gl.SCISSOR_TEST);
-      gl.colorMask(true, true, true, true);
+      const { width, height } = bindWebglTarget(gl, null);
+      setFullscreenPassState(gl);
       gl.useProgram(current.handle);
       gl.bindVertexArray(current.vao);
       gl.activeTexture(gl.TEXTURE0);

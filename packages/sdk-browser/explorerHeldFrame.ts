@@ -1,4 +1,5 @@
 import { boundToContext } from './webglContextBound.ts';
+import { createWebglRenderTarget } from './webglRenderTarget.ts';
 
 /**
  * Held frame of an engine that draws on the host surface.
@@ -9,10 +10,10 @@ import { boundToContext } from './webglContextBound.ts';
  * whatever the browser happens to keep.
  *
  * What is kept is therefore an explicit copy: the last complete frame is blitted from the
- * drawing buffer into a texture of the same size, and a held frame blits it back — one copy each
- * way, no program, no scene, no colour conversion on either side, since the texture stores raw
- * bytes like the drawing buffer. The copy costs a whole frame of bandwidth; it only happens after
- * a complete frame, never after a held frame, which only puts back what it just read.
+ * drawing buffer into a colour-only target of the same size, and a held frame blits it back —
+ * one copy each way, no program, no scene, no conversion, since both hold raw display bytes.
+ * The copy costs a whole frame of bandwidth; it only happens after a complete frame, never
+ * after a held frame, which only puts back what it just read.
  */
 export function createHeldFrame(gl: WebGL2RenderingContext) {
   let width = 0,
@@ -20,22 +21,8 @@ export function createHeldFrame(gl: WebGL2RenderingContext) {
     kept = false;
   const copy = boundToContext(
     gl,
-    () => {
-      const texture = gl.createTexture()!,
-        framebuffer = gl.createFramebuffer()!;
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      return { texture, framebuffer };
-    },
-    ({ texture, framebuffer }) => {
-      gl.deleteFramebuffer(framebuffer);
-      gl.deleteTexture(texture);
-    },
+    () => createWebglRenderTarget(gl, width, height, { depth: false }),
+    (target) => target.dispose(),
   );
   /** Whole-buffer copy between the drawing buffer and the kept texture, in either direction. */
   const blit = (read: WebGLFramebuffer | null, draw: WebGLFramebuffer | null) => {

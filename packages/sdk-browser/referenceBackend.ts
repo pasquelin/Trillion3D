@@ -61,7 +61,7 @@ export const referenceBackend: BackendFactory = ({
       }
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
-    // What the adapter submitted: the meshes in view, and the calls they took; `null` before a draw.
+    // What the adapter submitted this frame: the meshes in view, and the calls they took.
     metrics: () => ({
       clusters: null,
       selectedTriangles,
