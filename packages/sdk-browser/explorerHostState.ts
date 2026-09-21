@@ -1,12 +1,15 @@
-import * as THREE from 'three';
 import type { CameraPose, DiagnosticMode } from '../sdk-core/index.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts';
 import { createFrameComposer } from './explorerCompose.ts';
+import type { createExplorerDiagnosticApi } from './explorerDiagnosticApi.ts';
 import type { prepareExplorer } from './explorerPrepare.ts';
 import { boundToContext } from './webglContextBound.ts';
 import { createWebglRenderTarget, type WebglRenderTarget } from './webglRenderTarget.ts';
 import type { WebglSurface } from './webglSurface.ts';
+
+/** The host materials the diagnostic modes swap and create, held by the session. */
+type DiagnosticInputs = Parameters<typeof createExplorerDiagnosticApi>[0];
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 /** A composition target that outlives a context loss: `current()` is the live one. */
@@ -68,10 +71,10 @@ export function createExplorerHostState(
   };
   if (prepared.directGpu && state.comparisonLayout !== 'single')
     throw new Error('SINGLE_BACKEND_COMPARISON');
-  const beautyMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
-  const overlays: THREE.Material[] = [];
+  const beautyMaterials: DiagnosticInputs['beautyMaterials'] = new Map();
+  const overlays: DiagnosticInputs['overlays'] = [];
   const hostedControls: { dispose(): void }[] = [];
-  const lookAtTarget = new THREE.Vector3().copy(center);
+  const lookAtTarget = center.clone();
   // The composition lives on the engine's context: the composer, which puts an engine's image
   // on the surface or a target for the frame and the explicit capture alike, and the comparison
   // compositor. The direct GPU path composes nothing.
