@@ -130,5 +130,7 @@ export const sceneCopy = {
   },
 };
 
-/** All the copy an engine-scene viewport reads: this example's own strings plus its controls'. */
-export type EngineCopy = typeof sceneCopy.en & typeof sceneControlsCopy.en;
+/** The scene's own strings, what the mounted scene reads. */
+export type SceneCopy = typeof sceneCopy.en;
+/** All the copy an engine-scene viewport reads: the scene's strings plus its controls'. */
+export type EngineCopy = SceneCopy & typeof sceneControlsCopy.en;

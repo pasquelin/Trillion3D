@@ -1,12 +1,12 @@
 import type { Explorer } from '../../../packages/sdk-browser/index.ts';
-import type { EngineCopy } from './content.ts';
+import type { SceneCopy } from './content.ts';
 
 export function createLightingControls(
   explorer: Explorer,
   light: HTMLInputElement,
   lightValue: HTMLElement,
   shadows: HTMLInputElement,
-  copy: EngineCopy,
+  copy: SceneCopy,
   invalidate: () => void,
 ) {
   const sources = explorer.importedLights().map(({ id, intensity, castsShadow }) => ({
