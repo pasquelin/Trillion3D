@@ -66,7 +66,7 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // render to read what the pose asks for, never hold.
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending;
   // A representation change held until the camera rests must find a frame to enter the queue:
-  // the plan keeps it only while a frame will plan it, and drops it otherwise.
+  // a frame that plans no shadow releases it to the list, which the next plan reads.
   if (lights.plan.counts.pendingPages > 0 || lights.plan.deferredChanges)
     mask |= BIT.shadowsPending;
   // Every page of the requested cut carries its bytes. A still-pending page can still change the

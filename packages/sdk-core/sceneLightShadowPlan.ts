@@ -58,9 +58,9 @@ export function createShadowPlan(capacity: number) {
     get deferredChanges() {
       return changes.deferred;
     },
-    /** The frame plans no shadow — no atlas, no light, unlit view —: nothing will consume the
-     *  held union, so it is dropped rather than left to keep the frame from holding. */
-    dropDeferred: changes.dropDeferred,
+    /** The frame plans no shadow — no atlas, no light, unlit view —: the held union enters the
+     *  list at once, where the next plan reads it, rather than keeping the frame from holding. */
+    releaseDeferred: changes.releaseDeferred,
     /** Timer of a frame's Shadows pass, reported to the pages it had redrawn. */
     observeCost: budget.observe,
     setBudgetMs: budget.setBudgetMs,

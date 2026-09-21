@@ -74,6 +74,12 @@ export function createShadowChanges() {
     }
     write(best * 3, lo, hi, true);
   };
+  /** The held union enters the list as one box, when one waits. */
+  const release = () => {
+    if (defer[0] === Infinity) return;
+    worldChanged(deferMin, deferMax);
+    boxEmpty(defer, 0);
+  };
   return {
     get count() {
       return count;
@@ -95,10 +101,7 @@ export function createShadowChanges() {
      */
     observeView(view: ShadowViewpoint) {
       const still = keepNumbers(lastView, writeView(view, viewNow));
-      if (still && defer[0] !== Infinity) {
-        worldChanged(deferMin, deferMax);
-        boxEmpty(defer, 0);
-      }
+      if (still) release();
       return still;
     },
     /**
@@ -131,10 +134,11 @@ export function createShadowChanges() {
     settled() {
       count = 0;
     },
-    /** No map will ever read the held union — no atlas, no light —: it is dropped. */
-    dropDeferred() {
-      boxEmpty(defer, 0);
-    },
+    /**
+     * No plan consumes the union this frame — no atlas, no light, unlit view — while the slices
+     * survive: it enters the list now, and the next plan, at rest or not, stales what changed.
+     */
+    releaseDeferred: release,
     /** Nothing waits anymore, and the next view is a first one. */
     reset() {
       count = 0;

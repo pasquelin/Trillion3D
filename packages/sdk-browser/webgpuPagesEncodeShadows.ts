@@ -40,7 +40,7 @@ export const regionViewport = new Int32Array(MAX_SHADOW_REGIONS * 3);
  * View the scheduler reads: position, axis, vertical half-fov, aspect, near and far planes. The
  * sun's cascades derive entirely from it — they follow the camera and nothing else.
  */
-function shadowViewpointOf(cam: EngineCamera) {
+export function shadowViewpointOf(cam: EngineCamera) {
   // Read in the world matrix image entry copied, ancestors included: the axis is that of
   // `Camera.getWorldDirection`, third column normalised then negated — same divide by length, same
   // sign, same bits.
@@ -84,7 +84,7 @@ export function planShadowRegions(
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
   if (!shadows || !store.count) {
-    plan.dropDeferred();
+    plan.releaseDeferred();
     return 0;
   }
   const view = shadowViewpointOf(cam);
