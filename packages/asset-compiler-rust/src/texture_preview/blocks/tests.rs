@@ -187,3 +187,14 @@ fn the_nearest_rung_shortcut_matches_a_full_search_on_both_ladders() {
         }
     }
 }
+
+// Behaviour: a red-to-green ramp, orthogonal to a grey seed, keeps its axis (was flat, 14 dB).
+#[test]
+fn a_ramp_orthogonal_to_the_grey_diagonal_keeps_its_axis() {
+    let ramp = |t: u8| [t * 16, 255 - t * 16, 128, 255];
+    let rgba: Vec<u8> = (0..16u8).flat_map(ramp).collect();
+    for (format, floor) in [(BlockFormat::Bc7, 45.0), (BlockFormat::Astc, 30.0)] {
+        let quality = psnr(&decode(&encoded(&rgba, 4, 4, format), 4, 4, format), &rgba);
+        assert!(quality >= floor, "{format:?}: {quality:.1} dB");
+    }
+}

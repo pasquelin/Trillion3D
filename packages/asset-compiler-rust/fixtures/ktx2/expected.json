@@ -15,12 +15,12 @@
         {
           "bytes": 48,
           "format": "bc7",
-          "sha256": "169a37df278d3ffc0bd3f1a818118c90983b2d05d3dd8ba4b64eeb32d47a4b7f"
+          "sha256": "83cd78d324dd634ea4964d4ba4fa0842717a3cad80a4067a82d662d5b72bc563"
         },
         {
           "bytes": 48,
           "format": "astc",
-          "sha256": "32e4de1f229c155306f4d7dce9cbb2e05ccf735b94d2dcf01dbfe9181f6024cb"
+          "sha256": "89d7e058ab1bd7729063af4c706410c67333f8622dcf4767a28f479aaffefa06"
         }
       ],
       "firstLevel": 0,
@@ -83,12 +83,12 @@
         {
           "bytes": 368,
           "format": "bc7",
-          "sha256": "268ed84d52418769922d06b30d1e4690a6da2510eaad5a25ea6a9b6d6081bdf2"
+          "sha256": "7bed56a0a30e7ad8b68f2473e19e98447eeaed51a8ffe3413dfa4113dd7ba893"
         },
         {
           "bytes": 368,
           "format": "astc",
-          "sha256": "24bd562939c37c6ce27bb49601eebfae498aca0d14f7db5499ee02bc133821f0"
+          "sha256": "000a7c8be43c05f19d73f2734d91fa255af0bd85b462f2c1a6bac1099b09392f"
         }
       ],
       "firstLevel": 0,
@@ -177,12 +177,12 @@
         {
           "bytes": 5488,
           "format": "bc7",
-          "sha256": "02d7363160225d027ff8813f757c93fdc55f47b839bbec9e16167928f2aa1622"
+          "sha256": "5073b1a0e47c0ac2bd468c926755564ed8139a1708785416babec184271c1f3f"
         },
         {
           "bytes": 5488,
           "format": "astc",
-          "sha256": "a4eed6e72a1d2cb4eacb18ab110a4c42bcf969050e17475f2dc35ca7f1cdce72"
+          "sha256": "73da10b5c282cdbc826006cee00b3b623e63b16c7b6418750a24985f871c84ab"
         }
       ],
       "firstLevel": 2,

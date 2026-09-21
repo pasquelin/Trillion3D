@@ -127,7 +127,7 @@
         {
           "bytes": 544,
           "format": "astc",
-          "sha256": "1ca6a37942111b6978f8be5bb684acd17a1573f111962649135e5a94012930ac"
+          "sha256": "99e12265aa41c5160e3307b3e151689e8efe2ec3cdb4cf91b1047cb8c0ea848d"
         }
       ],
       "firstLevel": 0,
@@ -216,7 +216,7 @@
         {
           "bytes": 1360,
           "format": "bc7",
-          "sha256": "fb06932436e654ed992a8ec037fb085dbdeace90ead3dabf53815f12e8829ff0"
+          "sha256": "1a4ac69a35b0fb1e3ee85a82865f00f62537c52a9f9d9051080e1ce703c977c8"
         },
         {
           "bytes": 1360,

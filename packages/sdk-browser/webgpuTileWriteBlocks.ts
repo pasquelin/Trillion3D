@@ -14,17 +14,24 @@ import { cellOrigin, tailOrigin, type TileRegion } from './webgpuTileWrite.ts';
 const blocksAcross = (width: number) => Math.ceil(width / 4);
 const roundUp = (texels: number) => blocksAcross(texels) * 4;
 
+/** Refuses a level whose bytes are not the whole blocks its dimensions imply — checked before a
+ *  tile is placed, so a short or foreign file never occupies a slot with whatever it held. */
+export function checkLevelBlocks(blocks: Uint8Array, [width, height]: readonly [number, number]) {
+  if (blocks.byteLength !== levelBlockBytes(width, height))
+    throw new Error(`TEXTURE_LEVEL_BYTES ${width}x${height}: ${blocks.byteLength}`);
+}
+
 /** Copies the block rows of `region` out of a `width` × `height` level to `origin`. */
 function writeBlocks(
   queue: GPUQueue,
   texture: GPUTexture,
   origin: GPUOrigin3D,
   blocks: Uint8Array,
-  [levelWidth, levelHeight]: readonly [number, number],
+  level: readonly [number, number],
   region: Pick<TileRegion, 'sx' | 'sy' | 'width' | 'height'>,
 ) {
-  if (blocks.byteLength !== levelBlockBytes(levelWidth, levelHeight))
-    throw new Error(`TEXTURE_LEVEL_BYTES ${levelWidth}x${levelHeight}: ${blocks.byteLength}`);
+  checkLevelBlocks(blocks, level);
+  const [levelWidth, levelHeight] = level;
   const rowBlocks = blocksAcross(levelWidth);
   const width = Math.min(roundUp(region.width), roundUp(levelWidth) - region.sx);
   const height = Math.min(roundUp(region.height), roundUp(levelHeight) - region.sy);

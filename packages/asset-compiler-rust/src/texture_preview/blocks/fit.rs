@@ -59,9 +59,15 @@ fn dot(a: [f32; 4], b: [f32; 4]) -> f32 {
 
 /// Principal axis of the texels around `mean`: eight power iterations on their
 /// covariance, enough for a 4 × 4 matrix whose first eigenvalue dominates — and
-/// when none does, the block is nearly constant and any axis serves it.
+/// when none does, the block is nearly constant and any axis serves it. The
+/// iteration starts from the texel farthest from the mean: a direction the block
+/// actually spans, which the covariance cannot send to zero unless every texel
+/// is the mean. A fixed seed — a grey diagonal — is orthogonal to a block that
+/// varies along `(1, −1, 0, 0)`, a red-to-green ramp, and left it flat.
 fn principal_axis(texels: &Texels, mean: [f32; 4]) -> [f32; 4] {
     let mut covariance = [[0.0f32; 4]; 4];
+    let mut axis = [0.0f32; 4];
+    let mut farthest = 0.0f32;
     for texel in texels {
         let d = sub(*texel, mean);
         for (row, line) in covariance.iter_mut().enumerate() {
@@ -69,8 +75,12 @@ fn principal_axis(texels: &Texels, mean: [f32; 4]) -> [f32; 4] {
                 *cell += d[row] * d[column];
             }
         }
+        let spread = dot(d, d);
+        if spread > farthest {
+            farthest = spread;
+            axis = d;
+        }
     }
-    let mut axis = [1.0f32, 1.0, 1.0, 0.5];
     for _ in 0..8 {
         let next: [f32; 4] = std::array::from_fn(|row| dot(covariance[row], axis));
         let length = dot(next, next).sqrt();
