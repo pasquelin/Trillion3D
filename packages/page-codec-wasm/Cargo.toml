@@ -11,9 +11,6 @@ name = "web_geometry_page_codec"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
-meshopt = "0.4"
-
 [profile.release]
 lto = true
 opt-level = "s"

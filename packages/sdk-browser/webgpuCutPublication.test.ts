@@ -43,7 +43,7 @@ function banc() {
     gpu: {},
     lights: {
       store: { count: 1 },
-      plan: { worldChanged: (min: number[]) => shadowChanges.push(min[0]) },
+      plan: { representationChanged: (min: number[]) => shadowChanges.push(min[0]) },
     },
     layout: {
       packedPages,
