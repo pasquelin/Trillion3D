@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 
 interface LessonTemplateProps {
+  /** The lesson this page shows, published as `data-lesson` for tests and browser proofs. */
+  id: string;
   /** Page heading: what the lesson is called and, under it, what it shows. */
   title: ReactNode;
   description?: ReactNode;
@@ -12,9 +14,9 @@ interface LessonTemplateProps {
   cards?: ReactNode;
   /** The lesson's code, which takes the height the column has left and scrolls inside it. */
   code?: ReactNode;
-  /** The render, filling the observing column, with its counters under it. */
+  /** The render and its counters, filling the observing column. */
   viewport: ReactNode;
-  /** One line under the render: a note, a diagram, whatever the lesson adds. */
+  /** What sits under the render: a note, a diagram, whatever the lesson adds. */
   note?: ReactNode;
 }
 
@@ -23,6 +25,7 @@ interface LessonTemplateProps {
  * — the page never scrolls, neither column scrolls, and only the code scrolls inside its own
  * panel. A lesson brings its pieces, never its own layout. */
 export function LessonTemplate({
+  id,
   title,
   description,
   badges,
@@ -33,7 +36,7 @@ export function LessonTemplate({
   note,
 }: LessonTemplateProps) {
   return (
-    <div className="lesson-template">
+    <div className="lesson-template" data-lesson={id}>
       <header className="lesson-header">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold">{title}</h1>
@@ -48,8 +51,8 @@ export function LessonTemplate({
           {code && <div className="lesson-code">{code}</div>}
         </div>
         <div className="lesson-observe">
-          {viewport}
-          {note}
+          <div className="lesson-viewport">{viewport}</div>
+          {note && <div className="lesson-note">{note}</div>}
         </div>
       </div>
     </div>
