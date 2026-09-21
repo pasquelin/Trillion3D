@@ -132,6 +132,7 @@ export {
   LIGHT_KIND,
   SCENE_LIGHT_VERSION,
 } from './sceneLightContracts.ts';
+export { cloneSceneLight } from './sceneLightClone.ts';
 export type {
   SceneEnvironment,
   SceneLight,

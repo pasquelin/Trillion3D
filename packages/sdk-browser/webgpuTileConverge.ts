@@ -48,12 +48,13 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     renderWebgpuPages(rt, run.lastCamera!);
     await gpuDevice.queue.onSubmittedWorkDone();
     await textures.settled();
-    const { served, waiting } = textures.pump(run.frame, true);
+    const { served, pending } = textures.pump(run.frame, true);
     total += served;
     // A served tile is shown only by the next image: we stop only on an image that asked nothing more,
-    // or on a wait that nothing will fill.
-    if (!served && (!waiting || !textures.reading)) break;
-    if (waiting) await textures.settled();
+    // or on a wait that nothing will fill. Nothing is deferred under a lifted budget: what is
+    // pending waits for its bytes.
+    if (!served && (!pending || !textures.reading)) break;
+    if (pending) await textures.settled();
   }
   return total;
 }
