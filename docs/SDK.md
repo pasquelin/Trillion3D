@@ -219,7 +219,7 @@ estimate.
 | scene · camera | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs` | `selectionDispatchMs` | CPU frame p50 | rAF p50 | roots | verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Emerald Square · still | null | null | 0.000 / 0.000 (stage) | 0.000 / 0.000 (stage) | 0.2–0.7 ms | 16.7 ms | 2 479, none rebased | held image: no loop runs |
-| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4 | 0.4–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.7–3.3 ms | 16.7 ms | 2 479 (`racines`); rebased on every moved image by construction — the published `racinesRebasees` is the last, held image's 0 | world step at the clock's edge; its loops under 0.1 ms (below) |
+| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4 | 0.4–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.7–3.3 ms | 16.7 ms | 2 479 (`racines`); rebased on every moved image by construction — the published `racinesRebasees` is the 0 of the last image that ran the step with neither origin nor scene moved | world step at the clock's edge; its loops under 0.1 ms (below) |
 | Emerald Square · moving, `rue` | 0.3 / 0.3–0.4 | 0.0–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.5–2.8 ms | 16.7 ms | 2 479, as above | same |
 | Whisperwind Village · still | null (CPU cut) | null (CPU cut) | 0.000 (sample) | `selectionMs` 181–245 ms (sample) | 386–420 ms | 383–417 ms | 11 263 | the CPU reference cut over 2 022 678 resident pages, `cpuSelectMs` p50 94–103 ms: the cut's cost, not a loop's |
 | Whisperwind Village · moving | null (CPU cut) | null (CPU cut) | 0.000 (sample) | `selectionMs` 117–272 ms (sample) | 843–856 ms | 850–867 ms | 11 263 | same, `cpuSelectMs` p50 111–115 ms |
