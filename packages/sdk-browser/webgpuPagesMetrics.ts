@@ -114,6 +114,7 @@ export function disposeWebgpuPages(
   gpuDevice?.removeEventListener?.('uncapturederror', onGpuError);
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
+  rt.run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
   dropGpuSelection(rt);
