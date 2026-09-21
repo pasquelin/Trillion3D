@@ -16,33 +16,40 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createExplorer, webgpuPagesBackend } from '../runtime/engine.js';
 
-      const explorer = await createExplorer('view', {
+      // Manual rendering: the loop below draws every frame itself, so the canvas size is given.
+      const canvas = document.getElementById('view');
+      const explorer = await createExplorer(canvas, {
         manifestUrl: '../assets/examples/colonnade/cache/native/full/manifest.json',
         scope: 'full',
-        interactive: true,
+        backends: [webgpuPagesBackend],
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+        pixelRatio: devicePixelRatio,
       });
       explorer.addLight({
         id: 'sun',
         kind: 'directional',
-        direction: [-0.35, -0.7, -0.6],
+        direction: [-0.5, -0.5, -0.75],
         color: [1, 0.95, 0.85],
         intensity: 3,
         castsShadow: true,
       });
-      explorer.invalidate();
 
-      // The camera stays put at one end; only the field of view breathes between 20 and 90 degrees.
+      // The camera stays at one end; only the field of view breathes between 20 and 90 degrees,
+      // one pose per frame, then the pages that pose needs, one render, and the frame flushed.
       const home = explorer.homePose();
-      function zoom(time) {
+      async function zoom(time) {
         explorer.setPose({
           ...home,
           position: [0, 1.8, 11],
           target: [0, 1.5, -6],
-          fov: 55 + Math.sin(time / 3000) * 35,
+          fov: 55 - Math.cos(time / 4000) * 35,
         });
-        explorer.invalidate();
+        await explorer.awaitPages();
+        explorer.render();
+        await explorer.flush();
         requestAnimationFrame(zoom);
       }
       requestAnimationFrame(zoom);

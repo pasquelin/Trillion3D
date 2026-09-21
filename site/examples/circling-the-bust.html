@@ -17,12 +17,17 @@
     <canvas id="view"></canvas>
     <p>Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md</p>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createExplorer, webgpuPagesBackend } from '../runtime/engine.js';
 
-      const explorer = await createExplorer('view', {
+      // Manual rendering: the loop below draws every frame itself, so the canvas size is given.
+      const canvas = document.getElementById('view');
+      const explorer = await createExplorer(canvas, {
         manifestUrl: '../assets/examples/bust/cache/native/full/manifest.json',
         scope: 'full',
-        interactive: true,
+        backends: [webgpuPagesBackend],
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+        pixelRatio: devicePixelRatio,
       });
       explorer.addLight({
         id: 'sun',
@@ -32,18 +37,20 @@
         intensity: 3.5,
         castsShadow: true,
       });
-      explorer.invalidate();
 
-      // The camera circles the pedestal: one pose per frame, and invalidate() asks for the next image.
+      // The camera circles the pedestal: one pose per frame, then the pages that pose needs,
+      // one render, and the frame flushed before the next.
       const home = explorer.homePose();
-      function orbit(time) {
+      async function orbit(time) {
         const angle = time / 8000;
         explorer.setPose({
           ...home,
           position: [Math.sin(angle) * 1.2, 0.5, Math.cos(angle) * 1.2],
           target: [0, 0.2, 0],
         });
-        explorer.invalidate();
+        await explorer.awaitPages();
+        explorer.render();
+        await explorer.flush();
         requestAnimationFrame(orbit);
       }
       requestAnimationFrame(orbit);

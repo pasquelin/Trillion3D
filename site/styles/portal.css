@@ -192,7 +192,8 @@ kbd {
 .sidebar .menu li > :is(a, details > summary) {
   min-height: 2.5rem;
 }
-.sidebar .menu li > a > span:first-child {
+.sidebar .menu li > :is(a, span) > span:first-child,
+.sidebar .menu li > span {
   min-width: 0;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -208,6 +209,7 @@ kbd {
 }
 .sidebar-count {
   margin-left: auto;
+  margin-right: 0.5rem;
   font-weight: 500;
 }
 .sidebar li a {
