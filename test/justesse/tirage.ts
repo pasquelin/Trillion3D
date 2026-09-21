@@ -4,7 +4,7 @@
 // only one writing.
 
 /** Mulberry32: well-dispersed 32-bit sequence, advanced one step per draw. */
-export function mulberry32(graine) {
+export function mulberry32(graine: number): () => number {
   let etat = graine;
   return () => {
     etat = (etat + 0x6d2b79f5) | 0;
@@ -15,7 +15,7 @@ export function mulberry32(graine) {
 }
 
 /** Xorshift32: three exclusive shifts, the state never passing through zero. */
-export function xorshift32(graine) {
+export function xorshift32(graine: number): () => number {
   let etat = graine;
   return () => {
     etat ^= etat << 13;
@@ -30,10 +30,14 @@ export function xorshift32(graine) {
  * uniform on a log scale — the one that covers the decades of a distance, a radius or an error
  * equally.
  */
-export function lois(hasard) {
+export function lois(hasard: () => number): {
+  hasard: () => number;
+  entre: (a: number, b: number) => number;
+  log: (a: number, b: number) => number;
+} {
   return {
     hasard,
-    entre: (a, b) => a + (b - a) * hasard(),
-    log: (a, b) => a * (b / a) ** hasard(),
+    entre: (a: number, b: number) => a + (b - a) * hasard(),
+    log: (a: number, b: number) => a * (b / a) ** hasard(),
   };
 }

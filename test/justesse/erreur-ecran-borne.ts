@@ -16,25 +16,51 @@ import assert from 'node:assert/strict';
 import { clusterErrorPixels, maxStretch } from '../../packages/sdk-core/index.ts';
 import { lois, mulberry32 } from './tirage.ts';
 
+type Vec3 = number[];
+type Mat3 = number[][];
+interface Cas {
+  L: Mat3;
+  Linv: Mat3;
+  stretch: number;
+  fx: number;
+  fy: number;
+  near: number;
+  radius: number;
+  error: number;
+  centre: Vec3;
+}
+interface Serie {
+  rapports: number[];
+  violations: number;
+}
+
 const CAS = Number(process.argv[2] ?? 20000);
 const { hasard, entre, log } = lois(mulberry32(0x9e3779b9));
-const unitaire = () => {
+const unitaire = (): Vec3 => {
   const z = entre(-1, 1),
     a = entre(0, 2 * Math.PI),
     r = Math.sqrt(1 - z * z);
   return [r * Math.cos(a), r * Math.sin(a), z];
 };
-const norme = (v) => Math.hypot(v[0], v[1], v[2]);
-const applique = (m, v) => [0, 1, 2].map((i) => m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2]);
+const norme = (v: Vec3): number => Math.hypot(v[0], v[1], v[2]);
+const applique = (m: Mat3, v: Vec3): Vec3 =>
+  [0, 1, 2].map((i) => m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2]);
 
 /** The old formula, as the engine applied it before the fix. */
-function ancienne(error, stretch, c, radius, focal, near) {
+function ancienne(
+  error: number,
+  stretch: number,
+  c: Vec3,
+  radius: number,
+  focal: number,
+  near: number,
+): number {
   const distance = norme(c) - radius * stretch;
   return distance > near ? (error * stretch * focal) / distance : Infinity;
 }
 
 /** A drawn view: linear L = R·S, its inverse, stretch, focals and imposed view centre. */
-function tirerCas(famille) {
+function tirerCas(famille: string): Cas {
   const q = unitaire(),
     angle = entre(0, Math.PI),
     [x, y, z] = q,
