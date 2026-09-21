@@ -1,4 +1,4 @@
-import { texturePoolFor, type GeometryPool, type TexturePool } from './webgpuMemoryBudgets.ts';
+import type { GeometryPool, TexturePool } from './webgpuMemoryBudgets.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** What a host can change mid-session; a missing field keeps its value. */
@@ -34,13 +34,22 @@ export async function setWebgpuMemoryBudgets(
   let evictedPages = 0,
     evictedTiles = 0;
   const residentTiles = () =>
-    vis.textures ? vis.textures.color.pool.resident + vis.textures.data.pool.resident : 0;
+    vis.textures
+      ? [...vis.textures.color.pools, ...vis.textures.data.pools].reduce(
+          (total, pool) => total + pool.resident,
+          0,
+        )
+      : 0;
   const residentPages = () => gpu.cache?.stats().residentPages ?? 0;
   const before = { pages: residentPages(), tiles: residentTiles() };
   // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.
   if (budgets.texturePoolBytes !== undefined) {
-    const pool = texturePoolFor(budgets.texturePoolBytes, setup.gpuDevice);
-    if (pool.layers !== setup.texturePool.layers && vis.textures && !run.lost)
+    const pool = setup.texturePoolFor(budgets.texturePoolBytes);
+    if (
+      JSON.stringify(pool.layers) !== JSON.stringify(setup.texturePool.layers) &&
+      vis.textures &&
+      !run.lost
+    )
       evictedTiles = vis.textures.resize(pool.layers);
     setup.texturePool = pool;
   }

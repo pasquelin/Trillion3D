@@ -158,11 +158,17 @@ test('an unknown atlas, or more baked levels than lie above the tail, is refused
 // whole, never sliced wrongly; a lossless entry that carries blocks, or a layout word no layout
 // owns, is refused too.
 test('block tails round-trip by layout and dimension, and a column of the wrong length is refused', () => {
-  const lossless = { ...preview(1, 16, 16, 3), layouts: { bc7: 'lossless', astc: 'rgba' } as const };
+  const lossless = {
+    ...preview(1, 16, 16, 3),
+    layouts: { bc7: 'lossless', astc: 'rgba' } as const,
+  };
   lossless.blocks = { bc7: [], astc: lossless.blocks.astc };
   const previews = [preview(0, 40, 24, 1), lossless, preview(2, 8, 8, 5)];
   const { slim, buffer } = encode(previews);
-  assert.equal(slim.binary.texturePreviewBc7Bytes, previewBlockBytes(40, 24) + previewBlockBytes(8, 8));
+  assert.equal(
+    slim.binary.texturePreviewBc7Bytes,
+    previewBlockBytes(40, 24) + previewBlockBytes(8, 8),
+  );
   assert.equal(
     slim.binary.texturePreviewAstcBytes,
     previewBlockBytes(40, 24) + previewBlockBytes(16, 16) + previewBlockBytes(8, 8),
@@ -170,12 +176,7 @@ test('block tails round-trip by layout and dimension, and a column of the wrong 
   const decoded = decodeManifestBinary(slim, buffer).texturePreviews!;
   decoded.forEach((entry, index) => {
     assert.deepEqual(entry.layouts, previews[index].layouts);
-    assert.deepEqual(entry.blocks.bc7, previews[index].blocks.bc7);
-    assert.deepEqual(entry.blocks.astc, previews[index].blocks.astc);
-    assert.equal(
-      entry.blocks.astc[0].length,
-      16 * Math.ceil(entry.width / 4) * Math.ceil(entry.height / 4),
-    );
+    assert.deepEqual(entry.blocks, previews[index].blocks);
   });
   for (const delta of [-16, 16]) {
     const lying = { ...slim, binary: { ...slim.binary } };

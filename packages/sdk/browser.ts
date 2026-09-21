@@ -54,7 +54,12 @@ export { runCameraPath } from '../sdk-browser/cameraPath.ts';
 export type { ShadowAtlasDigest } from '../sdk-browser/gpuShadowDigest.ts';
 export type { SurfaceBuffer, SurfaceCapture } from '../sdk-browser/surfaceBuffer.ts';
 export type { TelemetryReport } from '../sdk-browser/telemetryTypes.ts';
-export type { TextureLevelReader } from '../sdk-browser/textureLevelReader.ts';
+export type {
+  TextureLevel,
+  TextureLevelReader,
+  TextureLevelRequest,
+} from '../sdk-browser/textureLevelReader.ts';
+export type { TextureCompression } from '../sdk-browser/textureBlockFormats.ts';
 export { threeLodBackend } from '../sdk-browser/threeLod.ts';
 export type { TransparentOcclusionAudit } from '../sdk-browser/webgpuTransparentOcclusionAudit.ts';
 export { webgpuPagesBackend } from '../sdk-browser/webgpuPages.ts';

@@ -1,6 +1,10 @@
-import { TILE_BYTES } from './textureTiles.ts';
 import type { TextureLevelReader } from './textureLevelReader.ts';
+import type { PoolEncoding } from './textureBlockFormats.ts';
 import { createWebgpuTileAtlas, type TileTexture } from './webgpuTileAtlas.ts';
+import type { LaneLayers } from './webgpuTileLanes.ts';
+
+/** Layers of each lane's pool, for the colour atlas and the data atlas. */
+export type AtlasLayers = { color: LaneLayers; data: LaneLayers };
 import { createWebgpuTileFeedback } from './webgpuTileFeedback.ts';
 import { createTileSources } from './webgpuTileSources.ts';
 import { createWebgpuTileReduce } from './webgpuTileReduce.ts';
@@ -27,7 +31,10 @@ export function createWebgpuTileStreamer(options: {
   device: GPUDevice;
   color: TileTexture[];
   data: TileTexture[];
-  layersPerAtlas: number;
+  /** Layers of each lane's pool, per atlas. */
+  layers: AtlasLayers;
+  /** The encoding the lanes take: their formats, their texel cost, their level file. */
+  encoding: PoolEncoding;
   /** Tile bytes admitted per image outside a barrier. */
   budgetBytes: number;
   /** Milliseconds a pass may spend copying tiles outside a barrier; the rest is deferred. */
@@ -40,22 +47,22 @@ export function createWebgpuTileStreamer(options: {
    *  cutout-foliage shadow must follow —, or `-1` when the pool was resized. */
   onColorChanged: (slots: ReadonlySet<number> | -1) => void;
 }) {
-  const { device } = options,
+  const { device, encoding } = options,
     now = options.now ?? (() => performance.now());
   /** Colour textures a pump served or evicted a tile of: named once each, however many tiles. */
   const colorChanged = new Set<number>();
   const color = createWebgpuTileAtlas(device, {
     kind: 'color',
-    format: 'rgba8unorm-srgb',
-    layers: options.layersPerAtlas,
+    encoding,
+    layers: options.layers.color,
     feedbackOffset: 0,
     textures: options.color,
     onEvicted: (slot) => colorChanged.add(slot),
   });
   const data = createWebgpuTileAtlas(device, {
     kind: 'data',
-    format: 'rgba8unorm',
-    layers: options.layersPerAtlas,
+    encoding,
+    layers: options.layers.data,
     feedbackOffset: color.pages.entries,
     textures: options.data,
   });
@@ -65,6 +72,7 @@ export function createWebgpuTileStreamer(options: {
   const sources = createTileSources({
     device,
     readLevel: options.readLevel,
+    encoding,
     counters,
     onFailure: options.onFailure,
   });
@@ -116,7 +124,7 @@ export function createWebgpuTileStreamer(options: {
         if (verdict === 'waiting') waiting++;
         else if (verdict === 'served') {
           served++;
-          bytes += TILE_BYTES;
+          bytes += request.atlas.poolOf(request.key.slot).tileBytes;
           if (request.atlas === color) colorChanged.add(request.key.slot);
           stop =
             !unbounded && (bytes >= options.budgetBytes || now() - started >= options.budgetMs);
@@ -150,14 +158,14 @@ export function createWebgpuTileStreamer(options: {
     get requestReduce() {
       return reduce !== undefined;
     },
-    /** Both pools change layers while keeping their tiles; returns the evicted tiles. */
-    resize(layers: number) {
-      const evicted = color.resize(device, layers) + data.resize(device, layers);
+    /** Every lane pool changes layers while keeping its tiles; returns the evicted tiles. */
+    resize(layers: AtlasLayers) {
+      const evicted = color.resize(device, layers.color) + data.resize(device, layers.data);
       flushAll();
       options.onColorChanged(-1);
       return evicted;
     },
-    metrics: () => counters.metrics([color, data], sources.levels),
+    metrics: () => counters.metrics([color, data], sources.levels, encoding.block ?? 'rgba8'),
     /** True while a cooked level is being read: a missing tile can still arrive. */
     get reading() {
       return (sources.levels?.inFlight ?? 0) > 0;

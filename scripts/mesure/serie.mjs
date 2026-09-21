@@ -9,8 +9,7 @@ import { budgetPages, poolGeometrie, reservoirs } from './serieReservoirs.mjs';
 /** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
 export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
   const { MANIFEST, OUT, settings, lights, poses } = ctx;
-  // The side's engine: `--moteur-<side>` distinguishes it from the campaign's, and that is how
-  // the engine and the Three witness are measured in the same run.
+  // The side's engine (`--moteur-<side>`): how the engine and the Three witness share one run.
   const ENGINE = side.engine;
   const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`;
   const debut = machineLoad();
@@ -39,9 +38,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     width: settings.width,
     height: settings.height,
     stageProfile: settings.stageProfile,
-    // This side's diagnostic variant: it is what makes two sides two variants.
+    // This side's diagnostic variant — what makes two sides two variants — and its
+    // screen-error metric (EXPERIMENT): `null` leaves ours.
     variant: side.variant ?? null,
-    // This side's screen-error metric (EXPERIMENT): `null` leaves ours.
     errorMetric: side.errorMetric ?? null,
     trace: settings.trace === true,
     bounce: settings.bounce,
@@ -52,9 +51,11 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowBudgetMs: settings.shadowBudgetMs,
     shadowPages: settings.shadowPages,
     shadowDigest: settings.shadowDigest,
-    // Textures read from the cache: only for an engine that reads the atlas, never the witness.
+    // Textures read from the cache — only for an engine that reads the atlas, never the
+    // witness — and this side's block format for its pools.
     textureSource: settings.textureSource,
     textureUploadMs: settings.textureUploadMs,
+    textureCompression: side.compression ?? undefined,
     temporalAntialiasing: settings.temporalAntialiasing,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,

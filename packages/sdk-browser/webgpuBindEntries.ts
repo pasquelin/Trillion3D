@@ -4,6 +4,7 @@ import {
   SHADE_BINDINGS,
   SMALL_BINDINGS,
   VIS_BINDINGS,
+  type AtlasBindings,
 } from './webgpuBindLayout.ts';
 
 /** What every pass that samples an atlas needs to bind: the streamer, which holds each atlas's
@@ -89,12 +90,14 @@ export type SmallBindResources = AtlasResources & {
   selectionMask: GPUBuffer;
 };
 
-/** The two entries of an atlas: its pool and its page table. */
+/** The four entries of an atlas: its three lane pools and its page table. */
 const atlasEntries = (
-  bindings: { pool: number; pages: number },
+  bindings: AtlasBindings,
   atlas: WebgpuTileStreamer['color'],
 ): GPUBindGroupEntry[] => [
-  { binding: bindings.pool, resource: atlas.pool.view },
+  { binding: bindings.raw, resource: atlas.views[0] },
+  { binding: bindings.pool, resource: atlas.views[1] },
+  { binding: bindings.two, resource: atlas.views[2] },
   { binding: bindings.pages, resource: { buffer: atlas.pages.buffer } },
 ];
 

@@ -30,11 +30,7 @@ export {
   previewLevelSize,
   previewPixelBytes,
 } from './manifestBinary.ts';
-export {
-  textureLevelFormat,
-  textureLevelUrl,
-  type TextureLevelFormat,
-} from './textureLevelUrl.ts';
+export { textureLevelFormat, textureLevelUrl, type TextureLevelFormat } from './textureLevelUrl.ts';
 export {
   GEOMETRY_PAGE_CODEC,
   GEOMETRY_PAGE_FORMAT_VERSION,

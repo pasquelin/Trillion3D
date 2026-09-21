@@ -29,12 +29,14 @@ mod bake_write;
 pub(crate) mod blocks;
 pub(crate) mod collect;
 mod curves;
+mod entry;
 mod gate;
 mod levels;
 mod reduce;
 pub(crate) mod source;
 #[cfg(test)]
 mod tests;
+pub use entry::{PreviewSource, TexturePreview};
 pub use levels::*;
 
 /// Section contract: moving level scale, order, reduction rule, color space,
@@ -61,54 +63,6 @@ pub const PREVIEW_BASE: u32 = 64;
 pub const PREVIEW_MAX_LEVELS: u32 = 7;
 /// Decode memory allocation ceiling. Larger image is report entry, not failure.
 const PREVIEW_MAX_ALLOC: u64 = 512 * 1024 * 1024;
-
-/// Origin of preview source bytes. `uri` itself not copied: read
-/// in `source.gltf` at `images[image]`, which entry names.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum PreviewSource {
-    Uri,
-    BufferView(u32),
-}
-impl PreviewSource {
-    pub fn kind(self) -> u32 {
-        match self {
-            Self::Uri => 0,
-            Self::BufferView(_) => 1,
-        }
-    }
-    pub fn buffer_view(self) -> u32 {
-        match self {
-            Self::Uri => u32::MAX,
-            Self::BufferView(view) => view,
-        }
-    }
-}
-
-/// Section entry: texture covered, origin, level bytes.
-/// `first_level` and level count re-deduced from `width` and `height`; carrying in
-/// entry lets reader refuse entry contradicting own dimensions.
-pub struct TexturePreview {
-    pub texture: u32,
-    pub image: u32,
-    pub width: u32,
-    pub height: u32,
-    pub source: PreviewSource,
-    pub sha256: String,
-    /// Atlas entry serves: same texture can have one per atlas.
-    pub kind: AtlasKind,
-    pub first_level: u32,
-    /// Levels written in cache as PNG files, 0 to `baked_levels - 1`: `first_level`
-    /// when chain complete, 0 when nothing could be written.
-    pub baked_levels: u32,
-    pub pixels: Vec<u8>,
-    /// What each family holds of the chain, `BlockFormat::ALL` order: a layout
-    /// when the gate kept it, `None` when the chain stays lossless in that
-    /// family — not cooked, or under the bar.
-    pub layouts: [Option<Layout>; 2],
-    /// The same tail in each family's blocks, `BlockFormat::ALL` order; empty
-    /// where the layout is `None`.
-    pub blocks: [Vec<u8>; 2],
-}
 
 /// Everything step reads. `view_map` translates input glTF views to those written in
 /// `source.gltf`, so origin names index engine sees.

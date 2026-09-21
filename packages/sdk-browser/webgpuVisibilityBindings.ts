@@ -18,7 +18,7 @@ function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
   next[5] = vis.visUniform;
   next[6] = vis.zeroFlags;
   next[7] = vis.gpuHiz?.flags;
-  next[8] = vis.textures?.color.pool.view;
+  next[8] = vis.textures?.color.views;
   next[9] = vis.mapsSampler;
   next[10] = vis.gpuDraw;
   next[11] = run.gpuSelection;
