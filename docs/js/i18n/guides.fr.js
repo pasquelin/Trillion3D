@@ -71,6 +71,7 @@ export const guidesFr = {
 <li><strong><code>Float64Array</code> pour les calculs</strong>, <code>ArrayLike&lt;number&gt;</code> pour la lecture. La simple précision intervient lors de l’envoi vers le GPU.</li>
 <li><strong>Mêmes bits que la référence</strong>, vérifiés par <code>pnpm run perf:core</code>, sauf les deux écarts déclarés : courbe sRGB et termes de profondeur de la projection inversée infinie.</li>
 <li><strong>Mesurer avant d’optimiser.</strong> Les profils CPU et GPU localisent le coût d’une image ; aucune optimisation ne part d’une supposition.</li>
+<li><strong>Matériaux prouvés à l’écran.</strong> <code>pnpm run test:gpu</code> rend douze matériaux témoins — couleur de base et sa carte, masque alpha à son seuil, mélange, faces arrière, métal-rugosité, émissif, carte de normales — avec le moteur et avec le témoin Three, tous deux depuis <code>dist/</code>, et tient chaque pixel lu à un niveau près du témoin ; le seul écart déclaré, un mélange sur une surface opaque, est mesuré à 45 niveaux et tenu là (<code>docs/SDK.md</code> § Separated surfaces and lighting).</li>
 </ul>
 <h3 class="text-lg font-bold mt-4">Lire ce portail</h3>
 <p>Chaque entrée nomme le fichier qui la contient. Le badge <span class="badge badge-warning badge-sm">en développement</span> désigne une fonction absente de <code>develop</code> et renvoie vers l’issue qui porte son contrat. Toutes les autres entrées sont livrées aujourd’hui.</p>`,
