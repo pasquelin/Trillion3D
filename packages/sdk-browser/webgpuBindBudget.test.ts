@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
-import { createWebgpuShadePipeline } from './webgpuVisibilityPipelines.ts';
+import { createWebgpuShadePipelines } from './webgpuVisibilityPipelines.ts';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { createGpuRaster } from './gpuRaster.ts';
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts';
@@ -32,7 +32,11 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
   installGpuGlobals();
   const device = recordingDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
-  const { shadeBindGroupLayout } = await createWebgpuShadePipeline(device, {} as GPUShaderModule);
+  const { shadeBindGroupLayout } = await createWebgpuShadePipelines(
+    device,
+    {} as GPUShaderModule,
+    [],
+  );
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
   const layouts: Array<[string, unknown]> = [
     ['visibility', visBindGroupLayout],

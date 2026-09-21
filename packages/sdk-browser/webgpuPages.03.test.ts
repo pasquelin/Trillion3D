@@ -40,10 +40,15 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   assert.equal(backend.metrics().selectedTriangles, 2);
   assert.equal(backend.metrics().residentPages, 2);
   assert.ok(writes.length >= 2);
+  // The resolve: the material-depth export, then one full-screen triangle per class present —
+  // the scene has one material, hence one class.
   const shade = draws.filter((d) => d.entryPoint === 'shade_vs');
-  assert.equal(
-    shade.reduce((n, d) => n + d.vertexCount, 0),
-    3,
+  assert.deepEqual(
+    shade.map((d) => [d.fragment, d.vertexCount]),
+    [
+      ['material_depth_fs', 3],
+      ['shade_fs', 3],
+    ],
   );
   // The hardware raster is the producer of the opaque image: the cut reaches it through the image
   // mask, which its indirect commands consume as instances. The compute raster is not created in
