@@ -2569,6 +2569,17 @@
       "bindingIdentity": "\"packages/sdk-browser/cameraWorld\".HostDrawCamera"
     },
     {
+      "name": "HostDrawOutput",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/webglRenderTarget.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/webglRenderTarget\".HostDrawOutput"
+    },
+    {
       "name": "HostRetentionDelta",
       "kind": "type",
       "definingModule": "packages/sdk-browser/streamingTypes.ts",
@@ -2863,6 +2874,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/socleEcarts.mjs",
+        "packages/sdk-browser/explorerCompose.ts",
         "packages/sdk-browser/visibilityMath.ts"
       ],
       "disposition": "retained",
@@ -5838,6 +5850,7 @@
         "test/appui/rasterCalculPage.mjs",
         "test/appui/sceneOccultante.mjs",
         "test/appui/setTransformParentPerimePage.mjs",
+        "test/appui/surfaceAppareilPerduPage.mjs",
         "test/appui/transparentTransformPage.mjs",
         "test/appui/waterPassPage.mjs",
         "test/justesse/cameraSitesMoteurs.mjs"
