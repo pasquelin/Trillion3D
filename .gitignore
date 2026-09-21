@@ -4,6 +4,11 @@ dist/
 benchmark-runs/
 .idea/
 .mesure/
+# Generated docs bundles: built on demand by `pnpm run build:docs`, never committed; the Pages
+# workflow builds them from main (docs/LEARNING_PORTAL.md).
+/docs/css/site.css
+/docs/js/engine.js
+/docs/runtime/
 # Personal files stay local. Shared checks read these patterns.
 # Local files begin
 .claude/
