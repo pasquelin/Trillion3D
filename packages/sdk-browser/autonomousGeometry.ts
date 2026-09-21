@@ -187,6 +187,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   return {
     state,
+    /** The one twin cache of the backend: whoever paints a surface reads it through here. */
+    colorMaterials,
     detach,
     sync,
     geometryBytes,
