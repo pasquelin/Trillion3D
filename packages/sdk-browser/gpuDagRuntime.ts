@@ -6,7 +6,7 @@ import {
   type SelectionUniforms,
 } from './gpuSelection.ts';
 import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from './webgpuResidencyRanges.ts';
-import { refreshWorldStretch } from './gpuDagWorlds.ts';
+import { refreshWorldStretch, worldsChanged } from './gpuDagWorlds.ts';
 import { residentBase, residentWords } from './gpuDagLayout.ts';
 import { createDagDispatch } from './gpuDagDispatch.ts';
 import type { createDagResources } from './gpuDagResources.ts';
@@ -100,13 +100,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (state.disposed || state.dead) return false;
       if (next.byteLength !== packed.worlds.byteLength)
         throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED');
-      let changed = false;
-      for (let j = 0; j < next.length; j++)
-        if (previousWorlds[j] !== next[j]) {
-          changed = true;
-          break;
-        }
-      if (!changed) return false;
+      if (!worldsChanged(previousWorlds, next)) return false;
       // The object-to-view stretch is the primitive's own; recompute it whenever its placement moves.
       // A moving frame origin only moves translations: no stretch then moves, and the frame
       // buffer is not rewritten. Read before the mirror copy.

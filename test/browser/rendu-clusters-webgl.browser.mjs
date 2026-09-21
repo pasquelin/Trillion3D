@@ -35,6 +35,13 @@ assert.deepEqual(result.textures, {
   linearEmissive: [118, 118, 118, 255],
   uv1Transform: [255, 255, 0, 255],
 });
+// The tangent is rebuilt from the triangle (no attribute): a tilted normal map shades as the
+// same tilt baked into the vertex normals, within one 8-bit level, and a mirrored v flips the
+// tilt's y (the frame's handedness), so the two mapped pixels differ.
+const withinOneLevel = (a, b) => a.every((value, i) => Math.abs(value - b[i]) <= 1);
+assert.ok(withinOneLevel(result.normalFrames.tilted, result.normalFrames.tiltedWitness));
+assert.ok(withinOneLevel(result.normalFrames.mirrored, result.normalFrames.mirroredWitness));
+assert.notDeepEqual(result.normalFrames.tilted, result.normalFrames.mirrored);
 assert.equal(result.decayRejected, true);
 assert.deepEqual(result.heldRestore, { draws: 2, restoredPixel: [0, 255, 0, 255] });
 assert.ok(result.curved.every((entry) => entry.rawNonBlack > 500));

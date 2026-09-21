@@ -24,25 +24,22 @@ async function page(sommets) {
     normal = new Float32Array(sommets * 3),
     uv = new Float32Array(sommets * 2),
     uv2 = new Float32Array(sommets * 2),
-    tangent = new Float32Array(sommets * 4),
     color = new Float32Array(sommets * 4);
   for (let i = 0; i < sommets; i++) {
     position.set([alea() * 4 - 2, alea() * 4 - 2, alea() * 4 - 2], i * 3);
     normal.set([0, 1, 0], i * 3);
     uv.set([alea(), alea()], i * 2);
     uv2.set([alea(), alea()], i * 2);
-    tangent.set([1, 0, 0, 1], i * 4);
     color.set([alea(), alea(), alea(), 1], i * 4);
   }
   const triangles = Math.floor(sommets / 3) * 3,
     indices = new Uint32Array(triangles);
   for (let i = 0; i < triangles; i++) indices[i] = (i * 7919) % sommets;
-  const encodee = await encodeGeometryPage(indices, {
+  const encodee = encodeGeometryPage(indices, {
     POSITION: { itemSize: 3, array: position },
     NORMAL: { itemSize: 3, array: normal },
     TEXCOORD_0: { itemSize: 2, array: uv },
     TEXCOORD_1: { itemSize: 2, array: uv2 },
-    TANGENT: { itemSize: 4, array: tangent },
     COLOR_0: { itemSize: 4, array: color },
   });
   return encodee.data;
@@ -83,7 +80,7 @@ const horsFil = (op, source) =>
   });
 
 test('H2: the worker yields the exact same page and bytes as the main thread', async () => {
-  const surPlace = await decodeGeometryPage(grande, MAX_DECODED_BYTES);
+  const surPlace = decodeGeometryPage(grande, MAX_DECODED_BYTES);
   const decodee = await horsFil('decode', grande.slice().buffer);
   assert.equal(decodee.ok, true, decodee.message);
   assert.equal(ecart(surPlace, restorePageDecode(decodee.decoded), 'page'), null);

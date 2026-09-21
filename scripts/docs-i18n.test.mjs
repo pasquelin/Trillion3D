@@ -5,17 +5,25 @@ import { CAMERA, HOST_CAMERA } from '../docs/js/docsContentCamera.js';
 import { ENUMS_IMAGE } from '../docs/js/docsContentEnums.js';
 import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
 import { EXAMPLES } from '../docs/js/docsContentExamples.js';
+import { FORMAT_GUIDES } from '../docs/js/docsContentFormat.js';
 import { GUIDES } from '../docs/js/docsContentGuides.js';
+import { RENDERING_GUIDES } from '../docs/js/docsContentGuidesRendering.js';
+import { ENGINE_GUIDES } from '../docs/js/docsContentGuidesEngine.js';
 import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
 import { MATRICES } from '../docs/js/docsContentMatrix.js';
-import { BATCHES, TREE } from '../docs/js/docsContentTree.js';
+import { TREE } from '../docs/js/docsContentTree.js';
+import { BATCHES } from '../docs/js/docsContentBatches.js';
 import { COLORS, VECTORS } from '../docs/js/docsContentVector.js';
 import { localizeEntries, supportedLocales, t } from '../docs/js/i18n/index.js';
+import { rawEntries } from '../docs/js/portal/data.js';
 import { localizeDemoText } from '../docs/js/i18n/demo.fr.js';
 import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
 
 const entries = [
   ...GUIDES,
+  ...FORMAT_GUIDES,
+  ...RENDERING_GUIDES,
+  ...ENGINE_GUIDES,
   ...EXAMPLES,
   ...ENUMS_IMAGE,
   ...ENUMS_RUNTIME,
@@ -32,7 +40,7 @@ const entries = [
 
 test('French content covers every documentation entry and preserves its technical contract', () => {
   const localized = localizeEntries(entries, 'fr');
-  assert.equal(entries.length, 77);
+  assert.equal(entries.length, 84);
   assert.equal(localized.length, entries.length);
   for (let index = 0; index < entries.length; index += 1) {
     const source = entries[index];
@@ -56,9 +64,9 @@ test('French content covers every documentation entry and preserves its technica
 
 test('English and unsupported locales preserve source content without sharing entry objects', () => {
   for (const locale of ['en', 'de']) {
-    const localized = localizeEntries(entries, locale);
-    assert.deepEqual(localized, entries);
-    assert.notEqual(localized[0], entries[0]);
+    const localized = localizeEntries(rawEntries, locale);
+    assert.deepEqual(localized, rawEntries);
+    assert.notEqual(localized[0], rawEntries[0]);
   }
 });
 
@@ -102,7 +110,7 @@ test('legacy documentation hashes retain the active locale', () => {
 
 test('both locales describe interactive startup and align every method description', () => {
   for (const locale of supportedLocales) {
-    const localized = localizeEntries(entries, locale);
+    const localized = localizeEntries(rawEntries, locale);
     const explorer = localized.find(({ id }) => id === 'createExplorer');
     assert.match(explorer.description, /interactive: true/);
     assert.match(explorer.description, /ExplorerTarget/);

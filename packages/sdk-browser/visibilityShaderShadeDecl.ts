@@ -1,3 +1,4 @@
+import { COTANGENT_FRAME_WGSL } from './clusterDecodeWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
 import {
@@ -51,6 +52,7 @@ ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
 ${SHADE_REQUEST_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
+${COTANGENT_FRAME_WGSL}
 // The fifth output is the tile rank this pixel asks of virtual textures, placed in the
 // feedback target that transparents complete and that a compute pass reduces into counters.
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) request:u32,}

@@ -11,6 +11,10 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-24.04
+    env:
+      NATIVE_BINARIES: |
+        packages/asset-compiler-rust/target/release/web-geometry-compiler
+        packages/asset-compiler-rust/target/release/web-geometry-oracle
     steps:
       - uses: actions/checkout@v7
       - name: Pull request body — issue linked, local review filled
@@ -26,7 +30,33 @@ jobs:
           node-version: '22.18.0'
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
+        id: rust
         with:
           components: clippy, rustfmt
+      # The native binaries, keyed on the CONTENT of the Rust sources and the compiler. A hit means
+      # a green run already built these exact sources: `validate` skips the Rust steps
+      # (`scripts/validate-steps.mjs` says why Cargo cannot decide this itself). The save is a
+      # separate step after `validate`, so a red run never publishes its binaries.
+      - uses: actions/cache/restore@v4
+        id: native
+        with:
+          path: ${{ env.NATIVE_BINARIES }}
+          key: native-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**') }}
+      # Dependency crates of both crates (`lint:native` runs Clippy on each, from its own
+      # `Cargo.lock` into its own `target/`), only when Cargo will run: the key includes the rustc
+      # version, hence after the toolchain.
+      - uses: Swatinem/rust-cache@v2
+        if: steps.native.outputs.cache-hit != 'true'
+        with:
+          workspaces: |
+            packages/asset-compiler-rust
+            packages/page-codec-wasm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run validate
+        env:
+          WEB_GEOMETRY_SKIP_NATIVE: ${{ steps.native.outputs.cache-hit == 'true' && '1' || '' }}
+      - uses: actions/cache/save@v4
+        if: steps.native.outputs.cache-hit != 'true'
+        with:
+          path: ${{ env.NATIVE_BINARIES }}
+          key: ${{ steps.native.outputs.cache-primary-key }}

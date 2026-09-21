@@ -137,6 +137,10 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     resetStageProfile() {
       rt.timing.stages?.reset();
+      rt.timing.cpuWindow.reset();
+    },
+    cpuSteps() {
+      return rt.timing.cpuWindow.summary();
     },
     cpuStep(step, ms) {
       hostCpuStep(rt, step, ms);

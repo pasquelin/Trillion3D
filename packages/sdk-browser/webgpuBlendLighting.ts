@@ -21,18 +21,3 @@ export function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
     proxy: contract.proxy ?? placeholders.proxy,
   };
 }
-
-/** True when two successive resolves yielded exactly the same resources. */
-export function sameLighting(previous: BlendLighting | undefined, current: BlendLighting) {
-  return (
-    !!previous &&
-    previous.directLights === current.directLights &&
-    previous.shadowSlices === current.shadowSlices &&
-    previous.shadowAtlas === current.shadowAtlas &&
-    previous.shadowSampler === current.shadowSampler &&
-    previous.bounceGrid === current.bounceGrid &&
-    previous.probes === current.probes &&
-    previous.tileLights === current.tileLights &&
-    previous.proxy === current.proxy
-  );
-}
