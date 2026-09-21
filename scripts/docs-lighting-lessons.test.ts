@@ -21,15 +21,12 @@ function recorder() {
     calls,
     // Every lesson call goes through this one trap, recorded generically; the target only needs
     // to satisfy `Explorer`'s shape for the `Proxy<T>` constructor to return type `T`.
-    explorer: new Proxy(
-      {} as Explorer,
-      {
-        get:
-          (_target, name) =>
-          (...args: unknown[]) =>
-            calls.push([name, ...args]),
-      },
-    ),
+    explorer: new Proxy({} as Explorer, {
+      get:
+        (_target, name) =>
+        (...args: unknown[]) =>
+          calls.push([name, ...args]),
+    }),
   };
 }
 

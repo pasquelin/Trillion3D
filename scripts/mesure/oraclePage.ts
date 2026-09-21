@@ -26,8 +26,7 @@ export interface IrradianceOptions {
 }
 
 export type IrradianceResult =
-  | { erreur: string }
-  | { gaps: number[]; rebond: Record<string, unknown> | null };
+  { erreur: string } | { gaps: number[]; rebond: Record<string, unknown> | null };
 
 /**
  * Converged indirect irradiance of a pose, then convergence delay after a light moves.

@@ -1,7 +1,10 @@
 // Lighting options for harness: lights, sun, bounce, and intensity for `options.ts`.
 
 /** Lighting options: lights, sun, bounce, intensity, and shadows. */
-export function lightingSettings(flags: Map<string, string>, number: (name: string, fallback: number) => number) {
+export function lightingSettings(
+  flags: Map<string, string>,
+  number: (name: string, fallback: number) => number,
+) {
   return {
     // Bounced light is disabled by default in the engine: benchmark enables it on demand.
     bounce: (flags.get('rebond') ?? 'off') === 'on',

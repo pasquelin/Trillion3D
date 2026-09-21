@@ -32,7 +32,9 @@ const uniforms = cameraSelectionUniforms(vue, 0, VIEWPORT);
 const packed = empaqueteCas(cas);
 const gpu = await selectionGpu([{ name: 'lot', packed, uniforms }]);
 const indisponible = gpu.indisponible ?? null;
-const gardees = new Set(gpu.resultats?.find((r: { name: string }) => r.name === 'lot')?.pages ?? []);
+const gardees = new Set(
+  gpu.resultats?.find((r: { name: string }) => r.name === 'lot')?.pages ?? [],
+);
 const lignes = cas.map((c, i) => ({
   nom: c.nom,
   faceVisible: veriteTerrain(c).avantVisible,

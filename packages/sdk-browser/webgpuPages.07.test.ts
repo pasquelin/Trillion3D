@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { compareImages, CLUSTERED_BLEND_FORMAT_VERSION, type ClusterManifest } from '../sdk-core/index.ts';
+import {
+  compareImages,
+  CLUSTERED_BLEND_FORMAT_VERSION,
+  type ClusterManifest,
+} from '../sdk-core/index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
@@ -51,7 +55,11 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     meshB = new THREE.Mesh(geoB, material),
     source = new THREE.Group();
   source.add(meshA, meshB);
-  const { metadata: metadataPartial, indices, associations } = twoPrimitives(
+  const {
+    metadata: metadataPartial,
+    indices,
+    associations,
+  } = twoPrimitives(
     meshA,
     meshB,
     rootPage('orphan', [-1, -1, 0], [1, 1, 0]),

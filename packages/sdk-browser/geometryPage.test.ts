@@ -9,7 +9,9 @@ import { anneau } from './bench/appui/pagesWasm.ts';
 
 test('a page decodes to its triangles, every attribute within the declared error', () => {
   const { encoded, indices, attributes } = anneau(40, -10, 3);
-  assert.ok(attributes.POSITION && attributes.NORMAL && attributes.TEXCOORD_0 && attributes.COLOR_0);
+  assert.ok(
+    attributes.POSITION && attributes.NORMAL && attributes.TEXCOORD_0 && attributes.COLOR_0,
+  );
   const decoded = decodeGeometryPage(encoded.data);
   assert.equal(decoded.vertexCount, 42);
   assert.equal(decoded.flags, 1 | 2 | 4 | 8);
