@@ -74,8 +74,9 @@ export function RendererViewport({ lesson, state, locale, label }) {
   // The runtime reports the mode it draws (a lesson may set it from its own state); the select
   // shows that report, updated at once on a pick so the control never lags its own change.
   const onSelectMode = (mode) => {
+    if (!runtime.current) return;
     try {
-      runtime.current?.setDiagnostic(mode);
+      runtime.current.setDiagnostic(mode);
       setMetrics((current) => ({ ...current, diagnostic: mode }));
     } catch (err) {
       setError(errorMessage(err, locale, 'update'));
