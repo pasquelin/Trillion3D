@@ -99,7 +99,7 @@ test('a canvas frames its overlay in the hover-revealed chrome next to the actio
       actions: [{ label: 'Reset', symbol: '↺' }],
     }),
   );
-  assert.match(html, /<div class="engine-canvas-frame/);
+  assert.match(html, /<div class="render-frame/);
   assert.match(html, /<div class="canvas-overlay[^"]*"><span>Diagnostic<\/span><\/div>/);
   assert.equal(html.match(/class="canvas-overlay/g)?.length, 2);
 });

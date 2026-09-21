@@ -1,10 +1,12 @@
-/** Small parametric mesh workshop for the original shadow-theatre model. */
+/** Small parametric mesh workshop for the original shadow-theatre model. A patch also records
+ *  its (u, v) per vertex, for a writer whose materials read a map. */
 
 export type Vec3 = readonly [number, number, number];
 
 export interface Mesh {
   positions: number[];
   normals: number[];
+  uvs: number[];
   indices: number[];
 }
 
@@ -13,7 +15,7 @@ export function theatreWorkshop() {
   const surface = (material: number): Mesh => {
     let mesh = surfaces.get(material);
     if (!mesh) {
-      mesh = { positions: [], normals: [], indices: [] };
+      mesh = { positions: [], normals: [], uvs: [], indices: [] };
       surfaces.set(material, mesh);
     }
     return mesh;
@@ -41,6 +43,7 @@ export function theatreWorkshop() {
           length = Math.hypot(...normal) || 1;
         mesh.positions.push(...point);
         mesh.normals.push(...normal.map((value) => value / length));
+        mesh.uvs.push(u, v);
       }
     for (let y = 0; y < rows; y++)
       for (let x = 0; x < columns; x++) {
@@ -121,6 +124,7 @@ export function theatreWorkshop() {
       first = mesh.positions.length / 3;
     mesh.positions.push(...a, ...b, ...c);
     mesh.normals.push(0, 0, 1, 0, 0, 1, 0, 0, 1);
+    mesh.uvs.push(0, 0, 1, 0, 0, 1);
     mesh.indices.push(first, first + 1, first + 2);
   }
   return { surfaces, patch, box, lathe, ribbon, disc, oval, triangle };

@@ -1,7 +1,7 @@
 import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
-import { Section } from '../components/Section.tsx';
-import { Button, Field, Form, Range, Select, Toggle } from '../components/UI.tsx';
+import { LessonControls } from '../components/LessonControls.tsx';
+import { Button } from '../components/UI.tsx';
 import { DIAGNOSTIC_MODES } from '../../lessons/engine-scene/diagnosticModes.ts';
 
 interface SceneControlsProps {
@@ -9,77 +9,55 @@ interface SceneControlsProps {
   diagnostic: DiagnosticMode;
 }
 
+/** The engine scene's controls, described like every other lesson's; the scene script drives them
+ * through their data attributes once the explorer is up. */
 export function SceneControls({ copy, diagnostic }: SceneControlsProps) {
   return (
-    <Section aria-label={copy.controls} className="scene-controls mb-4">
-      <Form className="scene-controls-grid">
+    <LessonControls
+      picker={{
+        kind: 'select',
+        id: 'mode',
+        label: copy.mode,
+        defaultValue: diagnostic,
+        options: DIAGNOSTIC_MODES.map((mode) => ({ value: mode, label: copy[mode] })),
+        props: { 'data-scene-mode': '', disabled: true },
+      }}
+      controls={[
+        {
+          kind: 'range',
+          id: 'quality',
+          label: copy.quality,
+          display: <output data-scene-quality-value>0 px</output>,
+          min: 0,
+          max: 8,
+          step: 1,
+          defaultValue: 0,
+          props: { 'data-scene-quality': '', disabled: true },
+        },
+        {
+          kind: 'range',
+          id: 'light',
+          label: copy.light,
+          display: <output data-scene-light-value>{copy.lightValue}1</output>,
+          min: 0.25,
+          max: 2,
+          step: 0.05,
+          defaultValue: 1,
+          props: { 'data-scene-light': '', disabled: true },
+        },
+        {
+          kind: 'toggle',
+          id: 'shadows',
+          label: copy.shadows,
+          defaultChecked: true,
+          props: { 'data-scene-shadows': '', disabled: true },
+        },
+      ]}
+      actions={
         <Button variant="primary" data-scene-start hidden>
           {copy.retry}
         </Button>
-        <Field label={copy.mode}>
-          <div className="scene-control-slot">
-            <Select data-scene-mode defaultValue={diagnostic} disabled>
-              {DIAGNOSTIC_MODES.map((mode) => (
-                <option value={mode} key={mode}>
-                  {copy[mode]}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </Field>
-        <Field
-          label={
-            <span className="flex items-center justify-between gap-2 w-full">
-              <span>{copy.quality}</span>
-              <output
-                className="font-mono font-normal text-sm tabular-nums"
-                data-scene-quality-value
-              >
-                0 px
-              </output>
-            </span>
-          }
-        >
-          <div className="scene-control-slot">
-            <Range
-              min="0"
-              max="8"
-              step="1"
-              defaultValue="0"
-              data-scene-quality
-              disabled
-              aria-label={copy.quality}
-            />
-          </div>
-        </Field>
-        <Field
-          label={
-            <span className="flex items-center justify-between gap-2 w-full">
-              <span>{copy.light}</span>
-              <output className="font-mono font-normal text-sm tabular-nums" data-scene-light-value>
-                {copy.lightValue}1
-              </output>
-            </span>
-          }
-        >
-          <div className="scene-control-slot">
-            <Range
-              min="0.25"
-              max="2"
-              step="0.05"
-              defaultValue="1"
-              data-scene-light
-              disabled
-              aria-label={copy.light}
-            />
-          </div>
-        </Field>
-        <Field label={copy.shadows}>
-          <div className="scene-control-slot">
-            <Toggle data-scene-shadows defaultChecked disabled aria-label={copy.shadows} />
-          </div>
-        </Field>
-      </Form>
-    </Section>
+      }
+    />
   );
 }
