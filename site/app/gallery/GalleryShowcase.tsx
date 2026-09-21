@@ -76,7 +76,7 @@ export function GalleryShowcase({ locale }: { locale: Locale }) {
         </div>
         <a
           className="grid gap-4 rounded-box focus-visible:outline-2 focus-visible:outline-primary"
-          href={routeHref({ locale, area: 'examples', id: selected.id })}
+          href={routeHref({ locale, area: 'lessons', id: selected.id })}
         >
           <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
