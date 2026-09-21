@@ -1,9 +1,9 @@
-import { mesh, triangle } from './mesh.ts';
+import { mesh, triangle, type Mesh } from './mesh.ts';
 /** Sample an implicit solid and emit only exposed voxel faces. */
 export function implicitShell(resolution = 18) {
   const out = mesh(),
     step = 3 / resolution;
-  const inside = (x, y, z) => {
+  const inside = (x: number, y: number, z: number) => {
     const p = [x, y, z].map((n) => (n + 0.5) * step - 1.5);
     return Math.hypot(p[0] + 0.45, p[1], p[2]) < 0.85 || Math.hypot(p[0] - 0.45, p[1], p[2]) < 0.85;
   };
@@ -11,10 +11,10 @@ export function implicitShell(resolution = 18) {
     for (let y = 0; y < resolution; y++)
       for (let z = 0; z < resolution; z++) {
         if (!inside(x, y, z)) continue;
-        const cell = [x, y, z];
+        const cell: [number, number, number] = [x, y, z];
         for (let axis = 0; axis < 3; axis++)
           for (const sign of [-1, 1]) {
-            const next = [...cell];
+            const next: [number, number, number] = [...cell];
             next[axis] += sign;
             if (inside(...next)) continue;
             const b = (axis + 1) % 3,
@@ -32,14 +32,14 @@ export function implicitShell(resolution = 18) {
               return p;
             });
             if (sign < 0) points.reverse();
-            triangle(out, ...points.slice(0, 3));
+            triangle(out, points[0], points[1], points[2]);
             triangle(out, points[0], points[2], points[3]);
           }
       }
   return out;
 }
 /** Intersect a vertical ray with authored triangles; return the highest hit. */
-export function verticalHit(geometry, x, z) {
+export function verticalHit(geometry: Mesh, x: number, z: number) {
   let height = -Infinity;
   for (let i = 0; i < geometry.indices.length; i += 3) {
     const [a, b, c] = geometry.indices

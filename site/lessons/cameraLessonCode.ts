@@ -1,5 +1,6 @@
 import { lessonCode } from './lessonCode.ts';
-function change(lesson, state) {
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
+function change(lesson: RendererLessonItem, state: Record<string, number>) {
   if (lesson.mode === 'dolly')
     return `pose.position = pose.target.map((value, index) => value + (pose.position[index] - value) * ${state.distance});`;
   if (lesson.mode === 'fov') return `pose.fov = ${state.fov};`;
@@ -11,7 +12,7 @@ const radius = Math.hypot(dx, dz);
 pose.position = [pose.target[0] + Math.sin(angle) * radius, ${state.height ?? 'pose.position[1]'}, pose.target[2] + Math.cos(angle) * radius];`;
 }
 
-export function cameraLessonCode(lesson, state) {
+export function cameraLessonCode(lesson: RendererLessonItem, state: Record<string, number>) {
   return lessonCode(
     `const pose = explorer.homePose();\n${change(lesson, state)}\nexplorer.setPose(pose);`,
     {

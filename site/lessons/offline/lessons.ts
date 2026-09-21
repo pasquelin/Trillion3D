@@ -1,6 +1,8 @@
 import { offlineExamples } from './catalog.ts';
-const text = (en, fr) => ({ en, fr });
-export const offlineLessons = offlineExamples.map((example) => ({
+import type { Localized } from '../../content/locale.ts';
+import type { RendererLessonItem } from '../rendererLessonTypes.ts';
+const text = (en: string, fr: string): Localized => ({ en, fr });
+export const offlineLessons: RendererLessonItem[] = offlineExamples.map((example) => ({
   ...example,
   renderer: true,
   warning: ['offline-painted', 'offline-height-palette', 'offline-uv-tiles'].includes(example.id)

@@ -1,8 +1,17 @@
-/**
- * Each control is `[name, min, max, initial, step]`; presets list one value per control.
- * @type {Record<string, { controls: [string, number, number, number, number][]; presets: number[][]; animated: boolean }>}
- */
-export const SCENARIOS = {
+/** A single control: `[name, min, max, initial, step]`. */
+export type ScenarioControl = [string, number, number, number, number];
+
+/** One interactive demo: its controls, two preset value sets, whether it animates. */
+export interface Scenario {
+  controls: ScenarioControl[];
+  presets: number[][];
+  animated: boolean;
+}
+
+/** The live value of every control of a scenario, keyed by control name. */
+export type ScenarioState = Record<string, number>;
+
+export const SCENARIOS: Record<string, Scenario> = {
   'compose-transform': {
     controls: [
       ['tx', -3, 3, 1, 0.1],
@@ -162,5 +171,7 @@ export const SCENARIOS = {
   },
 };
 
-export const initialState = (id) =>
-  Object.fromEntries(SCENARIOS[id].controls.map(([name, , , value]) => [name, value]));
+export const initialState = (id: string): ScenarioState =>
+  Object.fromEntries(
+    SCENARIOS[id].controls.map(([name, , , value]): [string, number] => [name, value]),
+  );

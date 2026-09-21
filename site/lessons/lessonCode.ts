@@ -1,8 +1,21 @@
 import { sceneFillLightCode } from './sceneFillLight.ts';
+import type { RendererLessonPose } from './rendererLessonTypes.ts';
 
 export function lessonCode(
-  operation,
-  { manifest, importedLights = true, sceneLight = false, sceneFill = false, initialPose } = {},
+  operation: string,
+  {
+    manifest,
+    importedLights = true,
+    sceneLight = false,
+    sceneFill = false,
+    initialPose,
+  }: {
+    manifest?: string;
+    importedLights?: boolean;
+    sceneLight?: boolean;
+    sceneFill?: boolean;
+    initialPose?: RendererLessonPose;
+  } = {},
 ) {
   const lighting = sceneLight
     ? `\nexplorer.addLight({ id: 'scene', kind: 'directional', direction: [-0.4, -0.8, -0.3], color: [1, 0.92, 0.78], intensity: 2.5, castsShadow: true });`

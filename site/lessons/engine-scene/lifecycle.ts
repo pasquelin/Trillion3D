@@ -3,35 +3,47 @@ import { createSceneTelemetry } from './telemetry.ts';
 import { configureSceneCamera } from './cameraControls.ts';
 import { createLightingControls } from './lightingControls.ts';
 import { addSceneFillLight } from '../sceneFillLight.ts';
-export function mountScene(host, copy, locale) {
-  const canvas = host.querySelector('[data-scene-canvas]');
-  const start = host.querySelector('[data-scene-start]');
-  const mode = host.querySelector('[data-scene-mode]');
-  const home = host.querySelector('[data-scene-home]');
-  const zoomIn = host.querySelector('[data-scene-zoom-in]');
-  const zoomOut = host.querySelector('[data-scene-zoom-out]');
-  const light = host.querySelector('[data-scene-light]');
-  const lightValue = host.querySelector('[data-scene-light-value]');
-  const quality = host.querySelector('[data-scene-quality]');
-  const qualityValue = host.querySelector('[data-scene-quality-value]');
-  const shadows = host.querySelector('[data-scene-shadows]');
-  const status = host.querySelector('[data-scene-status]');
-  const loading = host.querySelector('[data-scene-loading]');
+import type { Explorer } from '../../../packages/sdk-browser/index.ts';
+import type { FrameMetrics } from '../../../packages/sdk/index.ts';
+import type { DiagnosticMode } from './diagnosticModes.ts';
+import type { EngineCopy } from './content.ts';
+import type { Locale } from '../../content/locale.ts';
+
+// The mount template (docs/index.html) always renders these nodes alongside the scene host.
+const required = <T extends Element>(host: ParentNode, selector: string): T =>
+  host.querySelector<T>(selector)!; // the mount template always renders this node
+
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+export function mountScene(host: ParentNode, copy: EngineCopy, locale: Locale) {
+  const canvas = required<HTMLCanvasElement>(host, '[data-scene-canvas]');
+  const start = required<HTMLButtonElement>(host, '[data-scene-start]');
+  const mode = required<HTMLSelectElement>(host, '[data-scene-mode]');
+  const home = required<HTMLButtonElement>(host, '[data-scene-home]');
+  const zoomIn = required<HTMLButtonElement>(host, '[data-scene-zoom-in]');
+  const zoomOut = required<HTMLButtonElement>(host, '[data-scene-zoom-out]');
+  const light = required<HTMLInputElement>(host, '[data-scene-light]');
+  const lightValue = required<HTMLElement>(host, '[data-scene-light-value]');
+  const quality = required<HTMLInputElement>(host, '[data-scene-quality]');
+  const qualityValue = required<HTMLElement>(host, '[data-scene-quality-value]');
+  const shadows = required<HTMLInputElement>(host, '[data-scene-shadows]');
+  const status = required<HTMLElement>(host, '[data-scene-status]');
+  const loading = required<HTMLElement>(host, '[data-scene-loading]');
   const controller = new AbortController();
-  let explorer,
+  let explorer: Explorer | null | undefined,
     disposed = false,
-    camera,
-    lighting;
+    camera: ReturnType<typeof configureSceneCamera> | undefined,
+    lighting: ReturnType<typeof createLightingControls> | undefined;
   const events = { signal: controller.signal };
   const telemetry = createSceneTelemetry(host, copy, locale);
   const invalidate = () => {
     if (!disposed) explorer?.invalidate();
   };
   const updateGuide = () => {
-    const [what, tryThis, observe] = copy.views[mode.value];
-    host.querySelector('[data-scene-what]').textContent = what;
-    host.querySelector('[data-scene-try]').textContent = tryThis;
-    host.querySelector('[data-scene-observe]').textContent = observe;
+    const [what, tryThis, observe] = copy.views[mode.value as DiagnosticMode];
+    required<HTMLElement>(host, '[data-scene-what]').textContent = what;
+    required<HTMLElement>(host, '[data-scene-try]').textContent = tryThis;
+    required<HTMLElement>(host, '[data-scene-observe]').textContent = observe;
   };
   const load = async () => {
     start.disabled = true;
@@ -60,7 +72,9 @@ export function mountScene(host, copy, locale) {
         signal: controller.signal,
         diagnosticDetail: 'trace',
         onDiagnostic: (event) => {
-          if (!disposed && event.phase === 'frame') telemetry.frame(event.context.metrics);
+          // the frame diagnostic's context always carries FrameMetrics under this key
+          if (!disposed && event.phase === 'frame')
+            telemetry.frame(event.context.metrics as FrameMetrics);
         },
         onEvent: (event) => {
           if (!disposed && event.type === 'fatal') status.textContent = copy.failed;
@@ -73,8 +87,8 @@ export function mountScene(host, copy, locale) {
       explorer = created;
       addSceneFillLight(explorer);
       for (const option of mode.options)
-        option.disabled = explorer.diagnostics[option.value]?.available === false;
-      if (mode.value !== 'beauty') explorer.setDiagnostic(mode.value);
+        option.disabled = explorer.diagnostics[option.value as DiagnosticMode]?.available === false;
+      if (mode.value !== 'beauty') explorer.setDiagnostic(mode.value as DiagnosticMode);
       lighting = createLightingControls(explorer, light, lightValue, shadows, copy, invalidate);
       const controls = explorer.controls();
       camera = configureSceneCamera(explorer, controls);
@@ -97,7 +111,7 @@ export function mountScene(host, copy, locale) {
       explorer = null;
       const message = /WEBGPU|adapter|GPU/.test(String(error))
         ? copy.unavailable
-        : `${copy.failed} (${error.message})`;
+        : `${copy.failed} (${errorMessage(error)})`;
       status.textContent = message;
       loading.hidden = true;
       start.disabled = false;
@@ -111,10 +125,10 @@ export function mountScene(host, copy, locale) {
     () => {
       updateGuide();
       try {
-        explorer?.setDiagnostic(mode.value);
+        explorer?.setDiagnostic(mode.value as DiagnosticMode);
         invalidate();
       } catch (error) {
-        status.textContent = `${copy.failed} (${error.message})`;
+        status.textContent = `${copy.failed} (${errorMessage(error)})`;
       }
     },
     events,
