@@ -119,7 +119,8 @@ fn round_trip(vertices: usize, seed: u32) {
     let mut state = seed;
     let (indices, positions) = mesh(vertices, &mut state);
     let attrs = attributes(vertices, &mut state);
-    let encoded = encode(&indices, &positions, &attrs, -9).expect("encode");
+    let carried: Vec<&Attribute> = attrs.iter().collect();
+    let encoded = encode(&indices, &positions, &carried, -9).expect("encode");
     let page = codec::decode(&encoded.bytes, 64 << 20).expect("decode");
     assert_eq!(page.flags, encoded.flags);
     assert_eq!(page.vertex_count, encoded.vertex_count);
