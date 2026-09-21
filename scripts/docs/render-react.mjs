@@ -1,7 +1,6 @@
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { demoEngine } from './build-demo.mjs';
 import { externalEngine } from './external-engine.mjs';
 
 /** Compile maintained JSX for server-rendered component contract tests. */
@@ -16,7 +15,7 @@ export async function loadReactComponents(relativePath) {
     format: 'cjs',
     platform: 'node',
     packages: 'external',
-    plugins: [demoEngine(root), externalEngine],
+    plugins: [externalEngine],
     logLevel: 'silent',
   });
   const module = { exports: {} };
