@@ -1,4 +1,4 @@
-import { theatreWorkshop } from '../shadow-theatre/geometry.mjs';
+import { theatreWorkshop } from '../shadow-theatre/geometry.ts';
 
 const TAU = Math.PI * 2;
 const unit = (v) => v.map((value) => value / Math.hypot(...v));

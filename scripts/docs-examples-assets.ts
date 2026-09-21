@@ -1,9 +1,9 @@
 import { resolve } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { scenes } from './docs/examples/scenes.mjs';
-import { writeSurfacesGltf } from './docs/examples/gltf.mjs';
-import { modelScenes, writeModelScenes } from './docs/examples/models.mjs';
+import { scenes } from './docs/examples/scenes.ts';
+import { writeSurfacesGltf } from './docs/examples/gltf.ts';
+import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
 
 /**
  * Writes the sources of the example scenes under `site/assets/examples/<scene>/source` — the
