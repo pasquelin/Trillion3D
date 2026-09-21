@@ -63,10 +63,13 @@ city, identical image at 0 px, differences at 1 px localised and under the thres
 C4. **Certified error**: `error(cluster) = max(group geometric error, child errors) + quantisation
 error + colour error` (UV deviation and texture-weighted normal), monotonic, in object units, with
 a projection sphere. Criterion: monotonicity test on every scene, zero violations.
-C5. **Self-contained packets**: each packet (~64 to 128 KiB) holds indices, quantised positions
-(16 bits per axis on the cluster box), 16-bit octahedral normals, 16-bit UVs, 8-bit colours,
-material ranges; meshopt-encoded; `source.bin` is no longer read by the runtime. Criterion: bytes
-per triangle ≤ 12; Emerald general-view fill < 300 ms warm.
+C5. **Self-contained packets**: each cluster is a page of its own (`WGP3`, `docs/FORMAT.md`)
+holding bit-packed local indices, positions on a per-primitive power-of-two grid with per-cluster
+minima and widths, 16-bit octahedral normals, UVs on a `2^-14` grid, colours on a `2^-8` grid, no
+tangent; streams the GPU reads in place, no compression library; `source.bin` is no longer read by
+the runtime. Criterion: bytes per triangle ≤ 12 — measured 18.3 on Emerald Square and 9.9 on
+Whisperwind Village (#9), the gap being one vertex per triangle of topology and index bits;
+Emerald general-view fill < 300 ms warm.
 C6. **Textures**: PNG/JPEG decode in the compiler, mip generation, split into tiles or streamable
 levels, atlas table; raw GPU format, lossless, or lossy block-compressed (BC/ASTC, see §7 and
 Textures T5; the bench's 0 px thresholds do not apply to that lot). Criterion: Emerald's first

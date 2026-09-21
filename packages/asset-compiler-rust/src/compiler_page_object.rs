@@ -37,8 +37,12 @@ pub(super) fn store_page(
 }
 
 /// What the primitive's grid cost, for the manifest: the grid step and the largest position
-/// displacement over every page, in object units; `null` on a primitive without pages.
+/// displacement over every page, in object units; `null` on a primitive without pages, which
+/// was quantized on no grid.
 pub(super) fn quantization_report(pages: &[Value], position_exponent: i32) -> Value {
+    if pages.is_empty() {
+        return Value::Null;
+    }
     let worst = pages
         .iter()
         .filter_map(|page| page["geometry"]["quantizationError"].as_f64())

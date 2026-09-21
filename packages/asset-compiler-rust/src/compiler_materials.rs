@@ -14,14 +14,23 @@ pub(super) fn unsplit_material(material: Option<&Value>) -> bool {
 }
 /// Whether a material reads texture coordinate set `set`: every `textureInfo` it holds — base
 /// colour, metal-roughness, normal, occlusion, emissive, or one an extension adds — names its set
-/// in `texCoord`, 0 when absent. A page carries only the sets a material reads, as residency is
-/// driven by what the frame reads; a material without a texture reads none.
+/// in `texCoord`, 0 when absent, unless its `KHR_texture_transform` overrides it. A page carries
+/// only the sets a material reads, as residency is driven by what the frame reads; a material
+/// without a texture reads none.
 pub(super) fn material_reads_texcoord(material: Option<&Value>, set: u64) -> bool {
     fn scan(value: &Value, set: u64) -> bool {
         match value {
             Value::Object(map) => {
+                let named = |t: Option<&Value>| t.and_then(Value::as_u64);
+                let transform = map
+                    .get("extensions")
+                    .and_then(|e| e.get("KHR_texture_transform"))
+                    .and_then(|t| named(t.get("texCoord")));
                 let texture = map.get("index").is_some_and(Value::is_number)
-                    && map.get("texCoord").map_or(0, |t| t.as_u64().unwrap_or(0)) == set;
+                    && transform
+                        .or_else(|| named(map.get("texCoord")))
+                        .unwrap_or(0)
+                        == set;
                 texture || map.values().any(|v| scan(v, set))
             }
             Value::Array(items) => items.iter().any(|v| scan(v, set)),
@@ -140,5 +149,8 @@ mod texcoord_tests {
         assert!(!material_reads_texcoord(None, 0));
         let extended = json!({"extensions":{"KHR_materials_clearcoat":{"clearcoatTexture":{"index":2,"texCoord":1}}}});
         assert!(material_reads_texcoord(Some(&extended), 1));
+        let moved = json!({"normalTexture":{"index":0,"texCoord":0,"extensions":{"KHR_texture_transform":{"texCoord":1}}}});
+        assert!(material_reads_texcoord(Some(&moved), 1));
+        assert!(!material_reads_texcoord(Some(&moved), 0));
     }
 }
