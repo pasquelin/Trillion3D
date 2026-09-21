@@ -54,7 +54,7 @@ test('a face whose pages are all drawn carries a full mask, and an untouched fra
   assert.equal(writeDrawnMasks(lights, flushed, 0), 0, 'nothing changed: nothing to push');
 });
 
-test('a strip refused by a full region cap stays undrawn in the mask, and the slice is pushed', () => {
+test('a slid strip is unheld in the mask and the slice is pushed; a staled page stays held', () => {
   const { lights, wordsOf } = scene();
   const flushed = new Int32Array(8);
   lights.plan.plan(lights.store, VIEW, 0, 0);
@@ -65,5 +65,13 @@ test('a strip refused by a full region cap stays undrawn in the mask, and the sl
   lights.plan.slices.dirty.slide(slice, 0, 8, 0, -1, 16, 1);
   assert.equal(writeDrawnMasks(lights, flushed, 0), 1);
   assert.equal(flushed[0], slice);
-  assert.deepEqual(wordsOf(slice, 0), [0xffffff00, 0xffffffff], 'row 0 undrawn, the rest drawn');
+  assert.deepEqual(wordsOf(slice, 0), [0xffffff00, 0xffffffff], 'row 0 unheld, the rest held');
+  // A world change stales row 3 without unholding it: the read keeps its last depth.
+  lights.plan.slices.dirty.drew(slice, 0, 0, 7, 0, 0);
+  writeDrawnMasks(lights, flushed, 0);
+  const identity = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  lights.plan.slices.dirty.box(slice, 0, 8, identity, 0, [-1, -1, 0], [1, 1, 0.5], 32, 2);
+  assert.ok(lights.plan.slices.dirty.pages(slice, 0) > 0);
+  assert.equal(writeDrawnMasks(lights, flushed, 0), 0, 'nothing to push: every page still held');
+  assert.deepEqual(wordsOf(slice, 0), [0xffffffff, 0xffffffff]);
 });
