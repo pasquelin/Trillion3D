@@ -5,10 +5,12 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
+import type { BackendDiagnostic } from './backendTypes.ts';
+import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
   installGpuGlobals();
-  const events: Array<{ phase: string; message: string; context: Record<string, unknown> }> = [];
+  const events: BackendDiagnostic[] = [];
   const fixture = quadScene(),
     { device } = mockGpu();
   const backend = webgpuPagesBackend({
@@ -20,7 +22,7 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-    onDiagnostic: (event) => events.push(event),
+    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
   } as never);
   try {
     await assert.rejects(backend.prepare(), /PAGE_STREAM_FAILED/);
@@ -50,14 +52,14 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     roughnessMap: rough,
     emissiveMap: emissive,
   });
-  fixture.source.children[0].material = material;
+  (fixture.source.children[0] as THREE.Mesh).material = material;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
     maxTextureTransferBytesPerFrame: 16,
-  });
+  }) as WebgpuPagesBackend;
   try {
     // Three queues per atlas — the fill texel and two textures — placed before any image: what
     // the screen shows while no tile is requested.

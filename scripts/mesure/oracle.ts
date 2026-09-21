@@ -1,0 +1,194 @@
+#!/usr/bin/env node
+// =====================================================================================
+// Rebound oracle campaign: converged indirect irradiance of the engine compared against
+// the compiler path tracer. Single command, no manual server launch required:
+//
+//   node scripts/mesure/oracle.ts --cache .mesure/cache-piece --source piece/piece.gltf \
+//        --ressources piece --largeur 160 --hauteur 120 --lampes 1 --samples 256 --visible
+//
+// Engine and oracle receive identical pose, lights, and size. Engine renders `bounce` view —
+// raw indirect irradiance multiplied by exposure. Oracle computes same value on source triangles.
+// NO TIMING PROMISED HERE: this is a fidelity measurement, not a speed test.
+// =====================================================================================
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { launchChrome } from './chrome.ts';
+import * as options from './options.ts';
+import { startServer } from './serveur.ts';
+import { encodePng } from '../../packages/sdk-node/png.mts';
+import { readBounds } from './page.ts';
+import { measureIrradiance } from './oraclePage.ts';
+import { benchLights } from './lampes.ts';
+import {
+  compareIrradiance,
+  convergenceDelay,
+  oracleBuilt,
+  oracleJob,
+  runOracle,
+} from './oracleCompare.ts';
+import { machineLoad } from './rapport.ts';
+
+const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
+const args = process.argv.slice(2);
+// Same flag reader as benchmark: `--name value`, `--name=value`, `--name` alone.
+const flags = options.parseArgs(args);
+const flag = (name, fallback) => flags.get(name) ?? fallback;
+const number = (name, fallback) => Number(flag(name, fallback));
+
+/** Three comma-separated numbers, or null. Used for manual poses. */
+const triple = (name) => {
+  const value = flag(name);
+  if (!value || value === 'true') return null;
+  const parts = value.split(',').map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part)))
+    throw new Error(`--${name} expects three comma-separated numbers`);
+  return parts;
+};
+
+/** Light movement used to measure delay: a clear step, not a slight flicker. */
+const MOVED = (position, step) => [position[0] + step, position[1], position[2] + step];
+
+async function main() {
+  const cache = options.resolveCache(flag('cache'));
+  if (!cache) throw new Error('--cache is required: the compiled cache derived directory');
+  const source = resolve(flag('source', ''));
+  if (!existsSync(source)) throw new Error(`--source not found: ${source}`);
+  if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
+  const out = resolve(flag('out', join(ROOT, `.mesure/out/oracle-${Date.now()}`)));
+  await mkdir(out, { recursive: true });
+  const settings = {
+    width: number('largeur', 160),
+    height: number('hauteur', 120),
+    samples: number('samples', 256),
+    bounces: number('bounces', 2),
+    exposure: number('exposition', 0.2),
+    converge: number('converge', 24),
+    delayFrames: number('images-retard', 40),
+    delayMargin: number('marge-retard', 1.2),
+    floor: number('plancher', 0.01),
+    cadenceHz: number('cadence', 60),
+    lamps: number('lampes', 1),
+    // Same generic rule as benchmark: point light intensity is a measurement option.
+    intensity: number('intensite', 40),
+    rangeFactor: number('portee', 0.75),
+    shadows: flag('ombres', 'on') === 'on',
+    pixelError: number('pixelError', 0),
+    maxPages: number('max-pages', 100000),
+    source,
+  };
+  const sides = options.resolveSides({ after: flag('apres'), root: ROOT });
+  const side = sides[0];
+  side.cache = cache;
+  side.manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
+  const resources = flag('ressources');
+  const mounts = options.resolveMounts(ROOT, sides, resources && resolve(resources));
+  const captures = new Map();
+  const server = await startServer({ port: 0, mounts, captures });
+  const port = server.address().port;
+  const browser = await launchChrome({
+    headless: flag('visible', 'false') !== 'true',
+    args: options.ENGINES.webgpu.flags,
+  });
+  const report = {
+    startedAt: new Date().toISOString(),
+    commande: `node scripts/mesure/oracle.ts ${args.join(' ')}`,
+    head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    settings,
+    charge: { avant: machineLoad() },
+    vues: [],
+  };
+  try {
+    const page = await browser.newPage({
+      viewport: { width: settings.width, height: settings.height },
+    });
+    page.on('pageerror', (error) => report.vues.push({ erreur: String(error) }));
+    // A rejected shader does not come through `pageerror`: it logs as console warning/error.
+    page.on('console', (m) => {
+      if (m.type() === 'error' || m.type() === 'warning')
+        console.error('[page]', m.type(), m.text().slice(0, 600));
+    });
+    await page.goto(`http://127.0.0.1:${port}/`);
+    const bounds = await page.evaluate(readBounds, {
+      sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
+      manifestUrl: side.manifestUrl,
+    });
+    const lights = benchLights(bounds, {
+      lights: settings.lamps,
+      lightShadows: settings.shadows,
+      lightIntensity: settings.intensity,
+      lightRangeFactor: settings.rangeFactor,
+      sun: false,
+      movingLight: false,
+    });
+    const moving = lights && lights.lights.find((light) => light.kind === 'point');
+    if (!lights || !moving) throw new Error('--lampes must declare at least one point light');
+    // Light step: clear enough that rebound must reconverge.
+    const step = number('pas', Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
+    const camera = triple('pose'),
+      target = triple('cible');
+    for (const view of flag('vues', 'generale').split(',')) {
+      // Manual pose overrides benchmark trajectory.
+      const known = options.VIEWS[view];
+      if (!known && !camera) throw new Error(`vue inconnue : ${view}`);
+      const pose = camera
+        ? { ...options.poseAt(bounds, 0), position: camera, target: target ?? [0, 0, 0] }
+        : options.poseAt(bounds, known.index);
+      report.vues.push(
+        await runView(page, { side, settings, pose, view, lights, moving, step, out, captures }),
+      );
+    }
+  } finally {
+    await browser.close();
+    server.close();
+  }
+  report.charge.apres = machineLoad();
+  await writeFile(join(out, 'oracle.json'), JSON.stringify(report, null, 1));
+  console.log(JSON.stringify(report, null, 1));
+  if (report.vues.some((view) => view.erreur)) process.exitCode = 1;
+}
+
+/** One view: engine converged image, oracle image, gap, and measured delay. */
+async function runView(page, ctx) {
+  const { side, settings, pose, view, lights, moving, step, out, captures } = ctx;
+  const captureFile = `${view}-irradiance.png`;
+  const result = await page.evaluate(measureIrradiance, {
+    sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
+    manifestUrl: side.manifestUrl,
+    backend: options.ENGINES.webgpu.backend,
+    pose,
+    captureFile,
+    width: settings.width,
+    height: settings.height,
+    pixelError: settings.pixelError,
+    maxPages: settings.maxPages,
+    exposure: settings.exposure,
+    converge: settings.converge,
+    delayFrames: settings.delayFrames,
+    lights: lights.lights,
+    movingLight: moving.id,
+    originalPosition: moving.position,
+    movedPosition: MOVED(moving.position, step),
+  });
+  if (result.erreur) return { vue: view, erreur: result.erreur };
+  const capture = captures.get(captureFile);
+  if (capture)
+    await writeFile(join(out, captureFile), encodePng(capture.w, capture.h, capture.body, true));
+  const reference = join(out, `${view}.f32`);
+  const job = oracleJob(settings, pose, lights.lights, reference);
+  const oracle = runOracle(ROOT, job, out, view);
+  return {
+    vue: view,
+    pose,
+    lampes: lights.lights.length,
+    rebond: result.rebond,
+    oracle,
+    ecart: capture
+      ? compareIrradiance(capture, reference, settings.exposure, settings.floor)
+      : { erreur: 'capture absente' },
+    retard: convergenceDelay(result.gaps, settings),
+  };
+}
+
+await main();

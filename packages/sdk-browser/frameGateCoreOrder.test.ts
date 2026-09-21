@@ -10,7 +10,7 @@ import { createFrameGateCore } from './frameGateCore.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
 import type { CameraMotion } from './cameraWorld.ts';
 import { cameraMoteur } from './cameraFixture.ts';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.mjs';
+import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
 type Rig = { parent: THREE.Object3D; camera: THREE.PerspectiveCamera };

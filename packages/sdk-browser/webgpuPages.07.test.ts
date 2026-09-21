@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { compareImages } from '../sdk-core/index.ts';
+import { compareImages, CLUSTERED_BLEND_FORMAT_VERSION, type ClusterManifest } from '../sdk-core/index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
@@ -10,6 +10,27 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, rootPage, twoPrimitives } from './webgpuPagesTestScenes.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+
+/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
+const MANIFEST_IDENTITY = {
+  schema: CLUSTERED_BLEND_FORMAT_VERSION,
+  status: 'ready' as const,
+  key: 'k',
+  scope: 'full' as const,
+  sourceTriangles: 0,
+  selectedTriangles: 0,
+  selectedNodes: [] as number[],
+  totalNodes: 0,
+};
+
+/** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
+ *  general `RenderBackend` contract leaves optional or omits. */
+type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
+  flush(): Promise<void>;
+  selectedPageIds(): string[];
+  visibilityIds(): Uint32Array;
+  rasterRgba(): Uint8Array;
+};
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals();
@@ -30,12 +51,13 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     meshB = new THREE.Mesh(geoB, material),
     source = new THREE.Group();
   source.add(meshA, meshB);
-  const { metadata, indices, associations } = twoPrimitives(
+  const { metadata: metadataPartial, indices, associations } = twoPrimitives(
     meshA,
     meshB,
     rootPage('orphan', [-1, -1, 0], [1, 1, 0]),
     rootPage('exact', [8, -1, 0], [10, 1, 0]),
   );
+  const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY };
   const collected = collectClusterPages(source, metadata, indices, associations);
   const packed = packDagSelection(collected.roots);
   const { device } = mockGpu(undefined, packed);
@@ -48,7 +70,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     gpuDevice: device,
     maxResidentPages: 4,
     viewport,
-  });
+  }) as PagesBackend;
   const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   cam.position.set(9, 0, 5);
   cam.lookAt(9, 0, 0);
@@ -78,7 +100,7 @@ test('a failed GPU selection readback falls back to the CPU cut and clears gpuDr
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  }) as PagesBackend;
   await backend.prepare();
   assert.equal(backend.capabilities.gpuDriven, true);
   backend.render(camera());
@@ -103,7 +125,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  }) as PagesBackend;
   const cam = camera();
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), false);

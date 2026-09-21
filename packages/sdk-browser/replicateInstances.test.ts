@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { replicateInstances } from './replicateInstances.ts';
 import { ENGINE_OWNED } from './hostSceneWatch.ts';
 import { hostWorldBounds } from './hostWorldBounds.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
 
 /** Two meshes under negative scale root and non-uniform scale child. */
 function hostileSource() {
