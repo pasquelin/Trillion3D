@@ -68,6 +68,9 @@ pub fn build_dag_tallied(
         let _t = Timer::new(Phase::Weld);
         Welds::of(&vertices, indices)
     };
+    // Texture seams of the source; a created vertex inherits the flag of the vertex it was
+    // solved from (`reduce_attributes.rs`), so the table follows the buffer.
+    let mut protect = welds.texture_seams();
     let mut current: Vec<usize> = (0..dag.len()).collect();
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;
@@ -96,15 +99,9 @@ pub fn build_dag_tallied(
         if groups.len() >= current.len() {
             break;
         }
-        // Texture seams, reread on the welds the previous level extended: a seam vertex is
-        // never moved, but its attributes are solved, so the copy that carries them is a
-        // created vertex that must stay protected.
-        let (locks, protect) = {
+        let locks = {
             let _t = Timer::new(Phase::Locks);
-            (
-                level_locks(&welds.position, &lists, &groups),
-                welds.texture_seams(),
-            )
+            level_locks(&welds.position, &lists, &groups)
         };
         let input = GroupReductionInput {
             strategy,
@@ -155,6 +152,7 @@ pub fn build_dag_tallied(
             // The vertices this group created take their place in the buffer, in group order:
             // the same mesh always yields the same buffer.
             let first_new = attributes::append(&mut vertices, &reduction.vertices);
+            protect.extend_from_slice(&reduction.vertices.protected);
             let mut outputs = Vec::with_capacity(reduction.clusters.len());
             for mut cluster in reduction.clusters {
                 for corner in cluster.iter_mut() {

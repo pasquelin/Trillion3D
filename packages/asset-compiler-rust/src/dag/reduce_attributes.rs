@@ -35,8 +35,9 @@ pub(super) fn updated(
             cluster_triangles(&region.positions, &region.indices, DAG_CLUSTER_TRIANGLES)?
         };
         Ok(Attempt {
-            // A solved vertex is not the source's: what the solve moved enters the error, so a
-            // surface no longer bit for bit the source is never drawn at threshold zero.
+            // A solved vertex is not the source's: how far the solve moved one enters the
+            // error, and a level that created any vertex carries a positive error at least,
+            // so a surface no longer bit for bit the source is never drawn at threshold zero.
             error_object: region.error_object.max(deviation),
             clusters: clusters
                 .into_iter()
@@ -52,7 +53,8 @@ pub(super) fn updated(
 /// what the buffer holds keeps its buffer index — a locked vertex always does, which is what
 /// keeps two groups meeting on the same vertices —, the others become new vertices ranked in the
 /// order the surviving triangles first use them. Returns, with them, the largest object-space
-/// deviation of a new vertex from the source vertex it started from.
+/// displacement of a new vertex from the source position it started from — the smallest
+/// positive number when vertices were created without moving.
 fn sort_survivors(
     input: &GroupReductionInput,
     region: &UpdatedRegion,
@@ -76,18 +78,20 @@ fn sort_survivors(
         }
         let solved = &region.attributes[l * stride..(l + 1) * stride];
         let position = &input.positions[source * 3..source * 3 + 3];
-        named[l] = if region.positions[l * 3..l * 3 + 3] == *position
-            && *solved == *source_attributes
-        {
-            source as u32
-        } else {
-            deviation = deviation.max(region.deviation(l, position, &source_attributes, weights));
-            let rank = new.count() as u32;
-            new.positions
-                .extend_from_slice(&region.positions[l * 3..l * 3 + 3]);
-            new.attributes.extend_from_slice(solved);
-            NEW_VERTEX | rank
-        };
+        named[l] =
+            if region.positions[l * 3..l * 3 + 3] == *position && *solved == *source_attributes {
+                source as u32
+            } else {
+                deviation = deviation
+                    .max(region.displacement(l, position))
+                    .max(f64::MIN_POSITIVE);
+                let rank = new.count() as u32;
+                new.positions
+                    .extend_from_slice(&region.positions[l * 3..l * 3 + 3]);
+                new.attributes.extend_from_slice(solved);
+                new.protected.push(input.protect[source]);
+                NEW_VERTEX | rank
+            };
     }
     (named, new, deviation)
 }

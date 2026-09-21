@@ -52,11 +52,14 @@ pub(super) fn gather(attributes: &[Attribute], remap: &[u32]) -> Vec<f32> {
     out
 }
 
-/// Vertices a reduction created: positions and interleaved attributes, as `gather` lays them out.
+/// Vertices a reduction created: positions and interleaved attributes, as `gather` lays them
+/// out, and whether each one sits on a texture seam — inherited from the source vertex it was
+/// solved from, since a seam vertex never moves and its solved copies stay a seam.
 #[derive(Default)]
 pub(super) struct NewVertices {
     pub positions: Vec<f32>,
     pub attributes: Vec<f32>,
+    pub protected: Vec<bool>,
 }
 impl NewVertices {
     pub fn count(&self) -> usize {

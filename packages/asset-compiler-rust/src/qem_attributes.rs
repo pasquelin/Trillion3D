@@ -28,34 +28,20 @@ pub struct UpdatedRegion {
     pub remap: Vec<u32>,
     /// Object-space error of the collapses: distance to the surface and weighed attribute
     /// deviation, in the units of `positions`. The solve that follows the collapses is not in
-    /// it: `deviation` measures what it moved.
+    /// it: `displacement` measures how far it moved a vertex.
     pub error_object: f64,
-    /// Object units per unit of the region's extent: what a weighed attribute deviation, which
-    /// the simplifier counts against that extent, is multiplied by to join `error_object`.
-    pub scale: f64,
 }
 impl UpdatedRegion {
-    /// Object-space distance between a local vertex as solved and the source vertex it started
-    /// from: its displacement and its weighed attribute deviation, brought to object units.
-    pub fn deviation(
-        &self,
-        local: usize,
-        source: &[f32],
-        attributes: &[f32],
-        weights: &[f32],
-    ) -> f64 {
-        let stride = weights.len();
-        let squared: f64 = self.positions[local * 3..local * 3 + 3]
+    /// Object-space distance between a local vertex as solved and the source position it
+    /// started from. What the solve did to the attributes is not a distance: the collapse
+    /// error carries the attribute terms, as the simplifier weighs them.
+    pub fn displacement(&self, local: usize, source: &[f32]) -> f64 {
+        self.positions[local * 3..local * 3 + 3]
             .iter()
             .zip(source)
             .map(|(solved, from)| (*solved as f64 - *from as f64).powi(2))
-            .sum();
-        let mut attribute = 0.0f64;
-        for (k, weight) in weights.iter().enumerate() {
-            let delta = self.attributes[local * stride + k] as f64 - attributes[k] as f64;
-            attribute += (*weight as f64 * delta).powi(2);
-        }
-        (squared + attribute * self.scale * self.scale).sqrt()
+            .sum::<f64>()
+            .sqrt()
     }
 }
 
@@ -132,7 +118,6 @@ pub fn simplify_region_with_attributes(
         attributes,
         remap,
         error_object: (result_error as f64) * scale,
-        scale,
     }))
 }
 

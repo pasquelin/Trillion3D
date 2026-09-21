@@ -67,23 +67,20 @@ fn a_region_halves_and_its_moved_survivors_carry_solved_attributes() {
     assert!(moved > 0, "the solve moved no survivor");
 }
 
-// Behaviour: the deviation of a solved vertex is its displacement joined with its weighed
-// attribute deviation brought to object units: a vertex that only moved measures its move, a
-// vertex that only changed attributes measures them against the region's extent.
+// Behaviour: the displacement of a solved vertex is its object-space distance from the source
+// position, and nothing else: a vertex that only changed attributes has none.
 #[test]
-fn a_deviation_joins_displacement_and_weighed_attributes() {
+fn a_displacement_is_the_distance_from_the_source_position() {
     let region = UpdatedRegion {
         indices: vec![0],
         positions: vec![3.0, 4.0, 0.0],
         attributes: vec![1.0, 0.0],
         remap: vec![0],
         error_object: 0.0,
-        scale: 10.0,
     };
-    let moved = region.deviation(0, &[0.0, 0.0, 0.0], &[1.0, 0.0], &[0.5, 0.5]);
+    let moved = region.displacement(0, &[0.0, 0.0, 0.0]);
     assert!((moved - 5.0).abs() < 1e-9, "{moved}");
-    let changed = region.deviation(0, &[3.0, 4.0, 0.0], &[0.0, 0.0], &[0.5, 0.5]);
-    assert!((changed - 5.0).abs() < 1e-9, "{changed}");
+    assert_eq!(region.displacement(0, &[3.0, 4.0, 0.0]), 0.0);
 }
 
 // Behaviour: a locked vertex is neither moved nor rewritten, so two groups sharing it still meet.

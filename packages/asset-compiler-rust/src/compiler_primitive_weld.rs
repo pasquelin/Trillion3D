@@ -145,12 +145,12 @@ mod tests {
             0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
             0.0, 0.0, -1.0, 0.0,
         ];
-        let mut indices = vec![0, 1, 2, 0, 1, 3, 4, 5, 6];
+        let mut indices = vec![0, 1, 2, 1, 0, 3, 4, 5, 6];
         let (report, topology) =
             weld_unless_non_manifold(&positions, &[], &mut indices).expect("weld");
         assert_eq!(
             indices,
-            vec![0, 1, 2, 0, 1, 3, 4, 5, 6],
+            vec![0, 1, 2, 1, 0, 3, 4, 5, 6],
             "source indexing kept"
         );
         assert_eq!((report.welded, report.refused), (0, Some(1)));
