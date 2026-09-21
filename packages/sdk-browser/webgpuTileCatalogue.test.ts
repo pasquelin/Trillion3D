@@ -31,7 +31,7 @@ const reader = async () => {
 // Behaviour: a tail carries every encoding the sidecar holds, the fill slot the white texel in
 // each, and every texture takes the lane of its chain's layout in the session's family — the
 // lossless one where the gate refused it, without a family, or hosted for want of a whole
-// chain; the fill sits in a block lane when there is one.
+// chain; the fill sits in a block lane when there is one, or one the textures already open.
 test('a catalogue routes each texture to the lane of its layout and hosts what has no chain', () => {
   const chain = preview(256, 128, 2);
   const bc7 = poolEncoding('bc7');
@@ -55,6 +55,12 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
   const refused = { ...chain, layouts: { bc7: 'lossless', astc: 'rgba' } as const };
   const [, lossless] = tileCatalogue([map()], () => refused, reader, bc7);
   assert.equal(lossless.lane, 'lossless');
+  const [hostFill, host] = tileCatalogue([map()], () => undefined, reader, bc7);
+  assert.deepEqual(
+    [hostFill.lane, host.lane],
+    ['lossless', 'lossless'],
+    'a host-only scene opens no block layer for the fill alone',
+  );
   const raw = poolEncoding(undefined);
   const [rawFill, small] = tileCatalogue([map()], () => preview(32, 32, 0), reader, raw);
   assert.deepEqual(
