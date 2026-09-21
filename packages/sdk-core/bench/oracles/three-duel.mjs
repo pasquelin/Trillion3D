@@ -129,7 +129,6 @@ export async function duel({
   const c = engine.resultats[0],
     t = c.temoin;
   if (tolerance !== undefined) c.motif = `largest gap ${maxAbs.toExponential(1)} ; ${c.motif}`;
-  const ratio = slower ? 1 + c.ecartTemoin : null;
   if (slower)
     c.motif = [`declared up to ${slower.atMost}× Three.js: ${slower.reason}`, c.motif]
       .filter(Boolean)
@@ -138,12 +137,15 @@ export async function duel({
     if (tolerance !== undefined)
       assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`);
     else assert.equal(c.correct, true, `${name}: ${c.difference}`);
-    if (slower)
+    if (slower) {
+      // The median ratio the `vs witness` column prints, read as a quotient so that a witness
+      // without a median (`ecartTemoin` null) fails the gate instead of reading as 1.
+      const ratio = c.medianeMs / t.medianeMs;
       assert.ok(
         ratio <= slower.atMost,
         `${name}: sdk-core median ${ratio.toFixed(2)}× Three.js, above the declared ${slower.atMost}× (${slower.reason})`,
       );
-    else
+    } else
       assert.ok(
         c.minMs <= t.minMs,
         `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,

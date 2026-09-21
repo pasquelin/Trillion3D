@@ -11,9 +11,17 @@
 //! normal is left aside, and the other two carry the cut. A polygon with no plane — vertices
 //! all colinear, zero area, non-finite coordinates — has no ear to cut: it comes out as a fan,
 //! and the cut says so to the caller, which counts it under its own name.
+//!
+//! A strictly convex ring is recognised in one pass and written as the fan at once, which is
+//! what the ears would have cut (`convex` says why); everything else goes through the ears.
+mod convex;
+mod plane;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_convex;
 use super::cancel;
+use plane::{newell, side};
 use std::sync::atomic::AtomicBool;
 
 /// A reusable cutter: the ring, its projection, the ranks still alive and the triangles serve
@@ -58,6 +66,16 @@ impl Ngon {
             self.fan();
             return Some(false);
         };
+        if convex::fan_is_exact(&self.flat, turn) {
+            self.fan();
+            return Some(true);
+        }
+        Some(self.ears(turn))
+    }
+
+    /// Ear cut of the projected ring, walked in the sense `turn`: true when every triangle
+    /// was an ear, false when one had to be forced.
+    fn ears(&mut self, turn: f64) -> bool {
         self.alive.clear();
         self.alive.extend(0..self.ring.len());
         let mut exact = true;
@@ -76,7 +94,7 @@ impl Ngon {
         }
         self.triangles
             .push([self.alive[0], self.alive[1], self.alive[2]]);
-        Some(exact)
+        exact
     }
 
     /// Triangles of the last cut, as corner ranks of the ring.
@@ -84,7 +102,8 @@ impl Ngon {
         &self.triangles
     }
 
-    /// Fan from the first corner: what a ring with no plane yields, for lack of better.
+    /// Fan from the first corner: the cut of a strictly convex ring, and what a ring with no
+    /// plane yields for lack of better.
     fn fan(&mut self) {
         for step in 1..self.ring.len() - 1 {
             self.triangles.push([0, step, step + 1]);
@@ -169,31 +188,4 @@ impl Ngon {
             .max_by(|x, y| saliency(x).total_cmp(&saliency(y)))
             .unwrap_or_default()
     }
-}
-
-/// Newell sum of a ring: a vector normal to the polygon, of length twice its area. The formula
-/// holds for any face, planar or not, and assumes no convexity.
-pub(super) fn newell(ring: &[[f64; 3]]) -> [f64; 3] {
-    let mut sum = [0.0f64; 3];
-    for (rank, here) in ring.iter().enumerate() {
-        let next = ring[(rank + 1) % ring.len()];
-        for (axis, part) in sum.iter_mut().enumerate() {
-            let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
-            *part += (here[u] - next[u]) * (here[v] + next[v]);
-        }
-    }
-    sum
-}
-
-/// Cross product of two points of the plane: twice the signed area of the triangle they close
-/// with the origin.
-fn cross([x0, y0]: [f64; 2], [x1, y1]: [f64; 2]) -> f64 {
-    x0 * y1 - y0 * x1
-}
-
-/// On which side of the segment `from`–`to` a point falls: twice the signed area of their
-/// triangle.
-fn side(from: [f64; 2], to: [f64; 2], point: [f64; 2]) -> f64 {
-    let edge = [to[0] - from[0], to[1] - from[1]];
-    cross(edge, [point[0] - from[0], point[1] - from[1]])
 }

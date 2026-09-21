@@ -49,5 +49,10 @@ export default {
   ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
-  ignoreUnresolved: ['/mesure/poses.mjs', '/__wg-fixture/drawRun.mjs'],
+  ignoreUnresolved: [
+    '/mesure/poses.mjs',
+    '/mesure/pageTemoin.mjs',
+    '/test/appui/materialPixelsPage.mjs',
+    '/__wg-fixture/drawRun.mjs',
+  ],
 };
