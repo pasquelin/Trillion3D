@@ -1,13 +1,9 @@
 import type { StageAdd } from './stageProfiler.ts';
 
 /**
- * The CPU side of the per-stage profile: the ordered declaration of an engine's CPU bounds, and
- * their deposit onto the stages (`stageMapping.ts` holds the GPU side, by pass label).
- */
-
-/**
- * Deposit a frame's CPU bounds onto their stages. `null` marks a bound that is not
- * deposited: a sum, which would count a second time what its parts already deposited.
+ * The CPU side of the per-stage profile (`stageMapping.ts` holds the GPU side, by pass label):
+ * deposit a frame's CPU bounds onto their stages. `null` marks a bound that is not deposited: a
+ * sum, which would count a second time what its parts already deposited.
  */
 export function addCpuSteps(
   stages: ReadonlyArray<string | null>,
