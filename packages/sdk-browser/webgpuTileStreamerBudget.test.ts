@@ -8,8 +8,10 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
 installGpuGlobals();
 
-/** Milliseconds each fake copy costs on the test's own clock: the budget is read on it. */
-const COPY_MS = 2;
+/** Milliseconds each fake copy costs on the test's own clock — the budget is read on it — and
+ *  what the shadows that follow the landed colour tiles cost after the last copy. */
+const COPY_MS = 2,
+  FOLLOW_MS = 1;
 
 /** A dummy device: copies advance the clock by `COPY_MS`, readback buffers give back what the
  *  test wrote. */
@@ -49,12 +51,18 @@ function tileDevice() {
       },
     },
   };
-  return { device: device as never, staging, copies: () => copies, now: () => clock };
+  return {
+    device: device as never,
+    staging,
+    copies: () => copies,
+    now: () => clock,
+    follow: () => void (clock += FOLLOW_MS),
+  };
 }
 
 /** One baked 256² colour texture: four level-0 tiles and one level-1 tile to stream. */
 function streamer(budgetMs: number) {
-  const { device, staging, copies, now } = tileDevice();
+  const { device, staging, copies, now, follow } = tileDevice();
   const layout = tileLayout(256, 256);
   const tail: Uint8Array[] = [];
   for (let level = layout.tail; level <= layout.last; level++) {
@@ -79,7 +87,7 @@ function streamer(budgetMs: number) {
       return { width, height, close() {} } as ImageBitmap;
     },
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
-    onColorChanged() {},
+    onColorChanged: follow,
   });
   textures.prepare();
   /** Image feedback that names every streamed tile, heaviest first: the next pass takes it. */
@@ -109,8 +117,12 @@ test('a pass copies until its millisecond budget is spent, then defers the rest 
   const metrics = textures.metrics();
   assert.equal(metrics.textureTilesDeferred, 3);
   assert.equal(metrics.textureTilesPending, 3);
-  assert.equal(metrics.textureUploadPeakMs, 2 * COPY_MS, 'the peak is the pass that was measured');
-  assert.equal(metrics.textureUploadMs, 2 * COPY_MS);
+  assert.equal(
+    metrics.textureUploadPeakMs,
+    2 * COPY_MS + FOLLOW_MS,
+    'the peak is the pass that was measured, the shadow follow included',
+  );
+  assert.equal(metrics.textureUploadMs, 2 * COPY_MS + FOLLOW_MS);
   // No fresh feedback: the deferred tiles are served from the backlog, budget after budget.
   assert.deepEqual(textures.pump(3), { served: 2, pending: 1 });
   assert.deepEqual(textures.pump(4), { served: 1, pending: 0 });
