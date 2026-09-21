@@ -1,15 +1,25 @@
-export function createSceneTelemetry(host, copy, locale) {
-  let idleTimer;
-  const format = (value) => (Number.isFinite(value) ? value.toLocaleString(locale) : '—');
-  const milliseconds = (value) =>
-    Number.isFinite(value) ? `${value.toFixed(2)} ms` : copy.unavailableMetric;
-  const bytes = (value) =>
-    Number.isFinite(value) ? `${(value / (1024 * 1024)).toFixed(1)} MiB` : copy.unavailableMetric;
-  const text = (selector, value) => {
-    host.querySelector(selector).textContent = value;
+import type { FrameMetrics } from '../../../packages/sdk/index.ts';
+import type { EngineCopy } from './content.ts';
+import type { Locale } from '../../content/locale.ts';
+
+export function createSceneTelemetry(host: ParentNode, copy: EngineCopy, locale: Locale) {
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const format = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString(locale) : '—';
+  const milliseconds = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value)
+      ? `${value.toFixed(2)} ms`
+      : copy.unavailableMetric;
+  const bytes = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value)
+      ? `${(value / (1024 * 1024)).toFixed(1)} MiB`
+      : copy.unavailableMetric;
+  const text = (selector: string, value: string) => {
+    const node = host.querySelector<HTMLElement>(selector)!; // the scene template always renders this node
+    node.textContent = value;
   };
   return {
-    frame(metrics) {
+    frame(metrics: FrameMetrics) {
       clearTimeout(idleTimer);
       text('[data-scene-selected]', format(metrics.selectedTriangles));
       text('[data-scene-drawn]', format(metrics.drawnTriangles));

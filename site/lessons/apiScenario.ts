@@ -1,6 +1,6 @@
 import { examples } from '../content/catalog.ts';
 
-const related = {
+const related: Record<string, string> = {
   'example-camera': 'perspective',
   'example-batch': 'hierarchy',
   createCameraFrame: 'frustum',
@@ -18,7 +18,7 @@ const related = {
   scaleVector3: 'normalize',
   transformDirectionVector3: 'cross-product',
 };
-const relatedSection = {
+const relatedSection: Record<string, string> = {
   camera: 'perspective',
   host: 'perspective',
   matrices: 'compose-transform',
@@ -28,9 +28,9 @@ const relatedSection = {
   tree: 'hierarchy',
 };
 
-export function apiScenario(id, section) {
+export function apiScenario(id: string, section: string): string {
   return (
-    examples.find((example) => example.functions.includes(id))?.id ??
+    examples.find((example) => example.functions?.includes(id))?.id ??
     related[id] ??
     relatedSection[section]
   );

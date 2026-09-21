@@ -1,60 +1,86 @@
 import {
-  composeMatrix4,
   crossVector3,
   dotVector3,
   frustumClipBox,
   frustumPlanesFromMatrix,
   lengthSqVector3,
-  multiplyMatrix4,
   normalizeVector3,
   perspectiveProjection,
-  transformAffinePoint,
   transformHomogeneousPoint,
 } from '../demos/engine.ts';
-import { evaluateDetail } from './evaluateDetail.ts';
-import { evaluateAdvanced } from './evaluateAdvanced.ts';
+import { evaluateDetail, type DetailResult } from './evaluateDetail.ts';
+import {
+  evaluateAdvanced,
+  transforms,
+  type AdvancedResult,
+  type TransformResult,
+  type ChainResult,
+} from './evaluateAdvanced.ts';
 import { localizeResult } from './localizeResult.ts';
+import type { Locale } from '../content/locale.ts';
+import type { ScenarioState } from './scenarios.ts';
 
-const rad = (degrees) => (degrees * Math.PI) / 180;
+export type { TransformResult, ChainResult } from './evaluateAdvanced.ts';
+
+export interface PerspectiveResult {
+  kind: 'perspective';
+  input: string;
+  depth: number;
+  fov: number;
+  ndc: number[];
+  value: string;
+}
+export interface FrustumResult {
+  kind: 'frustum';
+  input: string;
+  x: number;
+  depth: number;
+  fov: number;
+  status: number;
+  value: string;
+}
+export interface NormalizeResult {
+  kind: 'normalize';
+  input: string;
+  before: Float64Array;
+  after: Float64Array;
+  value: string;
+}
+export interface DotResult {
+  kind: 'vectors';
+  input: string;
+  a: number[];
+  b: number[];
+  dot: number;
+  value: string;
+}
+export interface CrossResult {
+  kind: 'vectors';
+  input: string;
+  a: number[];
+  b: number[];
+  cross: number;
+  value: string;
+}
+export type VectorsResult = DotResult | CrossResult;
+
+export type EvaluationResult =
+  | TransformResult
+  | ChainResult
+  | PerspectiveResult
+  | FrustumResult
+  | VectorsResult
+  | NormalizeResult
+  | AdvancedResult
+  | DetailResult;
+
+const rad = (degrees: number) => (degrees * Math.PI) / 180;
 const matrix = () => new Float64Array(16);
 const vec = (x = 0, y = 0, z = 0) => new Float64Array([x, y, z]);
-const qz = (degrees) => [0, 0, Math.sin(rad(degrees) / 2), Math.cos(rad(degrees) / 2)];
-const round = (value) => Number(value.toFixed(3));
-const vector = (angle) => [Math.cos(rad(angle)), Math.sin(rad(angle)), 0];
+const round = (value: number) => Number(value.toFixed(3));
+const vector = (angle: number): number[] => [Math.cos(rad(angle)), Math.sin(rad(angle)), 0];
 
-function transforms(id, state) {
-  if (id === 'compose-transform') {
-    const transform = matrix();
-    composeMatrix4(transform, [state.tx, 0, 0], qz(state.angle), [state.scale, state.scale, 1]);
-    const corners = [
-      [-1, -0.7],
-      [1, -0.7],
-      [1, 0.7],
-      [-1, 0.7],
-    ].map(([x, y]) => Array.from(transformAffinePoint(vec(), transform, x, y, 0)));
-    return {
-      kind: 'transform',
-      input: `T(${state.tx}, 0) · R(${state.angle}°) · S(${state.scale})`,
-      points: corners,
-      value: `corner → (${round(corners[2][0])}, ${round(corners[2][1])})`,
-    };
-  }
-  const parent = matrix(),
-    child = matrix(),
-    combined = matrix();
-  composeMatrix4(parent, [0, 0, 0], qz(state.parent), [1, 1, 1]);
-  composeMatrix4(child, [state.child, 0, 0], qz(0), [1, 1, 1]);
-  multiplyMatrix4(combined, parent, child);
-  const point = Array.from(transformAffinePoint(vec(), combined, 0, 0, 0));
-  return {
-    kind: 'chain',
-    input: `parent ${state.parent}° → child (${state.child}, 0)`,
-    point,
-    value: `world position = (${round(point[0])}, ${round(point[1])})`,
-  };
-}
-
-function camera(id, state) {
+function camera(id: string, state: ScenarioState): PerspectiveResult | FrustumResult {
   const projection = matrix();
   perspectiveProjection(projection, state.fov, 1.6, 0.1, 1);
   if (id === 'perspective') {
@@ -86,7 +112,7 @@ function camera(id, state) {
   };
 }
 
-function vectors(id, state) {
+function vectors(id: string, state: ScenarioState): VectorsResult | NormalizeResult {
   if (id === 'normalize') {
     const before = vec(state.x, state.y, 0),
       after = new Float64Array(before);
@@ -124,8 +150,12 @@ function vectors(id, state) {
   };
 }
 
-export function evaluate(id, state, locale = 'en') {
-  let result;
+export function evaluate(
+  id: string,
+  state: ScenarioState,
+  locale: Locale = 'en',
+): EvaluationResult {
+  let result: EvaluationResult;
   if (
     ['matrix-inverse', 'reflection-orientation', 'quaternion-turn', 'normal-transform'].includes(id)
   )

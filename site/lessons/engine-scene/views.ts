@@ -1,8 +1,8 @@
-/**
- * What each diagnostic view of the garden shows, what to try and what to observe.
- * @type {Record<'en' | 'fr', Record<(typeof import('./diagnosticModes.js').DIAGNOSTIC_MODES)[number], [string, string, string]>>}
- */
-export const sceneViews = {
+import type { Locale } from '../../content/locale.ts';
+import type { DiagnosticMode } from './diagnosticModes.ts';
+
+/** What each diagnostic view of the garden shows, what to try and what to observe. */
+export const sceneViews: Record<Locale, Record<DiagnosticMode, [string, string, string]>> = {
   en: {
     beauty: [
       'The finished lit image.',

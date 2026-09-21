@@ -1,5 +1,16 @@
-const text = (en, fr) => ({ en, fr });
-const range = (id, en, fr, min, max, value, step) => ({
+import type { Localized } from '../content/locale.ts';
+import type { RendererLessonControl, RendererLessonItem } from './rendererLessonTypes.ts';
+
+const text = (en: string, fr: string): Localized => ({ en, fr });
+const range = (
+  id: string,
+  en: string,
+  fr: string,
+  min: number,
+  max: number,
+  value: number,
+  step: number,
+): RendererLessonControl => ({
   id,
   label: text(en, fr),
   type: min === 0 && max === 1 && step === 1 ? 'boolean' : 'range',
@@ -17,12 +28,12 @@ export const LESSON_RING_INTENSITY = 45;
 export const LESSON_RING_RANGE = 11;
 export const LESSON_RING_RADIUS = 6;
 export const LESSON_RING_HEIGHT = 4.5;
-export const LESSON_RING_COLORS = [
+export const LESSON_RING_COLORS: [number, number, number][] = [
   [1, 0.3, 0.08],
   [0.08, 0.35, 1],
 ];
 
-export const lightingLessonDefinitions = [
+const lightingLessonBase: RendererLessonItem[] = [
   {
     id: 'colored-light-balance',
     category: 'lighting',
@@ -162,4 +173,10 @@ export const lightingLessonDefinitions = [
     ),
     kind: 'many-lights',
   },
-].map((lesson) => ({ ...lesson, renderer: true, runtime: 'advanced-lighting' }));
+];
+
+export const lightingLessonDefinitions: RendererLessonItem[] = lightingLessonBase.map((lesson) => ({
+  ...lesson,
+  renderer: true,
+  runtime: 'advanced-lighting',
+}));

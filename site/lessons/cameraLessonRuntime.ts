@@ -1,7 +1,19 @@
-const scaledPosition = (pose, scale) =>
-  pose.target.map((target, index) => target + (pose.position[index] - target) * scale);
+import type { CameraPose } from '../../packages/sdk/index.ts';
+import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
 
-export function cameraPoseFor(explorer, lesson, state) {
+const scaledPosition = (pose: CameraPose, scale: number): [number, number, number] => {
+  const scaled = pose.target.map(
+    (target, index) => target + (pose.position[index] - target) * scale,
+  );
+  return [scaled[0], scaled[1], scaled[2]];
+};
+
+export function cameraPoseFor(
+  explorer: Explorer,
+  lesson: RendererLessonItem,
+  state: Record<string, number>,
+): CameraPose {
   const home = explorer.homePose();
   if (lesson.mode === 'dolly') return { ...home, position: scaledPosition(home, state.distance) };
   if (lesson.mode === 'fov') return { ...home, fov: state.fov };
@@ -21,6 +33,10 @@ export function cameraPoseFor(explorer, lesson, state) {
   };
 }
 
-export function applyCameraLesson(explorer, lesson, state) {
+export function applyCameraLesson(
+  explorer: Explorer,
+  lesson: RendererLessonItem,
+  state: Record<string, number>,
+) {
   explorer.setPose(cameraPoseFor(explorer, lesson, state));
 }

@@ -1,5 +1,16 @@
-const text = (en, fr) => ({ en, fr });
-const range = (id, en, fr, min, max, value, step) => ({
+import type { Localized } from '../content/locale.ts';
+import type { RendererLessonControl, RendererLessonItem } from './rendererLessonTypes.ts';
+
+const text = (en: string, fr: string): Localized => ({ en, fr });
+const range = (
+  id: string,
+  en: string,
+  fr: string,
+  min: number,
+  max: number,
+  value: number,
+  step: number,
+): RendererLessonControl => ({
   id,
   label: text(en, fr),
   min,
@@ -8,7 +19,7 @@ const range = (id, en, fr, min, max, value, step) => ({
   step,
 });
 
-export const cameraLessonDefinitions = [
+export const cameraLessonDefinitions: RendererLessonItem[] = [
   {
     id: 'camera-dolly',
     title: text('Dolly through a streamed scene', 'Travelling dans une scène streamée'),

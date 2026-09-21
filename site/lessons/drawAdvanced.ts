@@ -1,6 +1,16 @@
 import { add, legend, point, text } from './drawPrimitives.ts';
+import type { EvaluationResult } from './evaluate.ts';
+import type {
+  AdvancedResult,
+  InverseResult,
+  ReflectionResult,
+  QuaternionResult,
+  NormalResult,
+} from './evaluateAdvanced.ts';
 
-const line = (svg, from, to, color, width = 4) =>
+type Vec = readonly number[] | Float64Array;
+
+const line = (svg: SVGSVGElement, from: Vec, to: Vec, color: string, width = 4) =>
   add(svg, 'line', {
     x1: from[0],
     y1: from[1],
@@ -11,9 +21,10 @@ const line = (svg, from, to, color, width = 4) =>
     'marker-end': 'url(#arrow)',
   });
 
-const arrow = (svg, vector, color) => line(svg, [320, 160], point(vector), color, 5);
+const arrow = (svg: SVGSVGElement, vector: Vec, color: string) =>
+  line(svg, [320, 160], point(vector), color, 5);
 
-function drawInverse(svg, result, french) {
+function drawInverse(svg: SVGSVGElement, result: InverseResult, french: boolean) {
   const local = point(result.local),
     world = point(result.world),
     recovered = point(result.recovered);
@@ -34,7 +45,7 @@ function drawInverse(svg, result, french) {
   ]);
 }
 
-function drawReflection(svg, result, french) {
+function drawReflection(svg: SVGSVGElement, result: ReflectionResult, french: boolean) {
   const width = Math.max(4, Math.abs(result.scale) * 90),
     x = result.scale < 0 ? 320 - width : 320;
   add(svg, 'rect', {
@@ -55,7 +66,11 @@ function drawReflection(svg, result, french) {
   );
 }
 
-function drawDirections(svg, result, french) {
+function drawDirections(
+  svg: SVGSVGElement,
+  result: QuaternionResult | NormalResult,
+  french: boolean,
+) {
   if (result.kind === 'quaternion') {
     arrow(svg, [1, 0], '#94a3b8');
     arrow(svg, result.direction, '#7c3aed');
@@ -73,7 +88,11 @@ function drawDirections(svg, result, french) {
   ]);
 }
 
-export function drawAdvanced(svg, result, french) {
+export function drawAdvanced(
+  svg: SVGSVGElement,
+  result: EvaluationResult,
+  french: boolean,
+): result is AdvancedResult {
   if (result.kind === 'inverse') drawInverse(svg, result, french);
   else if (result.kind === 'reflection') drawReflection(svg, result, french);
   else if (result.kind === 'quaternion' || result.kind === 'normal')

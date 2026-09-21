@@ -1,9 +1,11 @@
-const source = (names) => `import { ${names.join(', ')} } from './js/engine.js';`;
+import type { ScenarioState } from './scenarios.ts';
+
+const source = (names: string[]) => `import { ${names.join(', ')} } from './js/engine.js';`;
 const n = Number;
-const q = (angle) => `const half = (${n(angle)} * Math.PI) / 360;
+const q = (angle: number) => `const half = (${n(angle)} * Math.PI) / 360;
 const quaternion = [0, 0, Math.sin(half), Math.cos(half)];`;
 
-export function codeForAdvanced(id, state) {
+export function codeForAdvanced(id: string, state: ScenarioState) {
   if (id === 'matrix-inverse')
     return `${source(['composeMatrix4', 'invertMatrix4', 'multiplyMatrix4'])}
 const matrix = new Float64Array(16), inverse = new Float64Array(16), result = new Float64Array(16);

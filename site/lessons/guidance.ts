@@ -1,4 +1,6 @@
-const guidance = {
+import type { Locale } from '../content/locale.ts';
+
+const guidance: Record<string, [string, string, string, string]> = {
   'compose-transform': [
     'Rotate past 90°, then double the scale.',
     'Every corner follows one matrix; translation does not rotate.',
@@ -97,7 +99,7 @@ const guidance = {
   ],
 };
 
-export function guidanceFor(id, locale) {
+export function guidanceFor(id: string, locale: Locale): { try: string; changes: string } {
   const item = guidance[id],
     french = String(locale).toLowerCase().startsWith('fr');
   return { try: item[french ? 2 : 0], changes: item[french ? 3 : 1] };
