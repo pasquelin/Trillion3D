@@ -37,12 +37,12 @@ nature. A benchmark belongs in the package whose code it measures, referenced by
 
 ## 2. The Four Commands
 
-| Command | What it runs |
-|---|---|
-| `pnpm test` | 306 unit tests, 10 integration tests and script tests |
+| Command             | What it runs                                                                  |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `pnpm test`         | 306 unit tests, 10 integration tests and script tests                         |
 | `pnpm run test:gpu` | 18 GPU correctness probes followed by runnable rendering proofs, sequentially |
-| `pnpm run perf:all` | 44 benchmarks, then the aggregated report |
-| `pnpm run validate` | full pre-merge validation gate |
+| `pnpm run perf:all` | 44 benchmarks, then the aggregated report                                     |
+| `pnpm run validate` | full pre-merge validation gate                                                |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
@@ -110,7 +110,7 @@ Three verdict types, never silence:
 
 - **✓ / ✗** — bitwise equality (`ecart.mjs`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or declared
   tolerance (`differences` + `tolere`, counted in ULPs by `ulp.mjs`).
-- **published diff** (`ecartPublie`) — the benchmark measures a *rejected* candidate and quantifies
+- **published diff** (`ecartPublie`) — the benchmark measures a _rejected_ candidate and quantifies
   the displacement instead of expecting equality that does not apply. This is the case for C1
   (`raster-tampon`) and C3 (`pages-anneau`).
 - **reason** — no oracle exists, and the line explains why and where correctness is held. A stale
@@ -154,11 +154,12 @@ identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command | Role |
-|---|---|
-| `pnpm run check:lines` | Maximum 200 physical lines per maintained JS/TS/Rust file |
-| `pnpm run check:duplicates` | No duplicated blocks ≥ 12 lines and ≥ 100 tokens |
-| `pnpm run check:structure` | Package boundary isolation, sdk-core typed without DOM |
-| `pnpm run check:unused` | Dead exports and files (`knip`) |
-| `pnpm run check:docs-demo` | The demo bundle committed under `docs/js/` is the current packages |
-| `pnpm run validate` | Complete gate: formatting, linting, tests, builds, structure, links |
+| Command                     | Role                                                                    |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `pnpm run check:lines`      | Maximum 200 physical lines per maintained JS/TS/Rust file               |
+| `pnpm run check:duplicates` | No duplicated blocks ≥ 12 lines and ≥ 100 tokens                        |
+| `pnpm run check:structure`  | Package boundary isolation, sdk-core typed without DOM                  |
+| `pnpm run check:unused`     | Dead exports and files (`knip`)                                         |
+| `pnpm run check:docs-demo`  | The demo bundle committed under `docs/js/` is the current packages      |
+| `pnpm run check:docs-types` | The React portal under `docs/react/` type-checks (`tsconfig.docs.json`) |
+| `pnpm run validate`         | Complete gate: formatting, linting, tests, builds, structure, links     |

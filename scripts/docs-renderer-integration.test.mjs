@@ -4,13 +4,13 @@ import { readFile } from 'node:fs/promises';
 import { rendererLessons, rendererInitialState } from '../docs/js/gallery/rendererLessons.js';
 import { rendererCodeFor } from '../docs/js/gallery/rendererLessonCode.js';
 import { syncRendererState } from '../docs/js/gallery/syncRendererState.js';
-import { galleryRoadmapEntry, relatedReadyLesson } from '../docs/react/gallery/roadmapRelated.js';
+import { galleryRoadmapEntry, relatedReadyLesson } from '../docs/react/gallery/roadmapRelated.ts';
 import roadmap from '../docs/data/gallery-roadmap.json' with { type: 'json' };
 import { transformSync } from 'esbuild';
 import { loadReactComponents } from './docs/render-react.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-const { Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
+const { Playground } = await loadReactComponents('docs/react/gallery/index.tsx');
 
 test('every integrated renderer lesson emits complete parseable host code', () => {
   for (const lesson of rendererLessons) {

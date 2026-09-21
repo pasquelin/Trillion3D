@@ -1,5 +1,6 @@
 /** Shared browser/export validation. Unknown versions fail rather than silently changing meaning. */
 export const REPORT_VERSION = 1;
+export const RUN_STATUSES = /** @type {const} */ (['complete', 'failed', 'missing']);
 export function assetPath(value) {
   return (
     typeof value === 'string' &&
@@ -18,7 +19,7 @@ export function assertReport(report) {
     throw new Error('Invalid report structure');
   const ids = new Set();
   for (const run of report.runs) {
-    if (!run.id || ids.has(run.id) || !['complete', 'failed', 'missing'].includes(run.status))
+    if (!run.id || ids.has(run.id) || !RUN_STATUSES.includes(run.status))
       throw new Error('Invalid report run');
     ids.add(run.id);
     if (run.status !== 'missing' && run.source === null)
