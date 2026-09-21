@@ -59,8 +59,9 @@ fn faceWrap(entry:ShadowFace,rows:f32)->vec2f{
  let key=max(entry.rect.w-1.0,0.0);
  return vec2f(key%WRAP_BASE,floor(key/WRAP_BASE))/rows;
 }
-/** Is the page under this extent coordinate drawn? A page that entered a slid extent but
- *  is not drawn yet still holds what the far side left there: it is read by no one. */
+/** Does the page under this extent coordinate hold a depth of the extent? A page that entered
+ *  a slid extent but is not drawn yet holds what the far side left there: it is read by no one.
+ *  A page merely awaiting a redraw still holds one, and is read until its redraw lands. */
 fn pageDrawn(entry:ShadowFace,local:vec2f,rows:f32)->bool{
  let page=vec2u(clamp(fract(local+faceWrap(entry,rows))*rows,vec2f(0.0),vec2f(rows-1.0)));
  // Rows of eight bits, whatever the face's own row count: the host packs the mask that way.

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { sunCascadeOf } from './sceneLightSunCascades.ts';
 import { faceFrame } from './sceneLightShadowMath.ts';
 import { pageRowsOf } from './sceneLightShadowPages.ts';
+import { SHADOW_FACE_SIDES } from './sceneLightShadowAtlas.ts';
 import { dotVector3 } from './mathVector.ts';
 import { referenceSunCascadeOf } from './bench/oracles/soleil-cascades.mjs';
 import type { ShadowViewpoint } from './sceneLightContracts.ts';
@@ -48,7 +49,8 @@ function memeCascade(v: ShadowViewpoint, index: number, side: number, label: str
   );
   if (!Number.isFinite(radius) || radius <= 0) return;
   const rows = pageRowsOf(side);
-  assert.ok(Object.is(pageMetres, (2 * radius) / rows), `${label}: page side`);
+  const expectedPage = rows > 1 ? (2 * radius) / (rows - 1) : 2 * radius;
+  assert.ok(Object.is(pageMetres, expectedPage), `${label}: page side`);
   faceFrame(AXIS, right, up);
   const u = dotVector3(center, right),
     w = dotVector3(center, AXIS);
@@ -101,4 +103,29 @@ test('a view with NaN or a degenerate axis breaks nothing and stays identical to
   memeCascade(view({ far: NaN }), 0, 800, 'far NaN');
   memeCascade(view({ halfFovY: 0 }), 1, 800, 'zero halfFovY');
   memeCascade(view({ aspect: 0 }), 1, 800, 'zero aspect');
+});
+
+test('the frustum sphere is contained in the snapped extent, at every published side', () => {
+  faceFrame(AXIS, right, up);
+  for (const side of SHADOW_FACE_SIDES)
+    for (const [x, z] of [
+      [0, 0],
+      [0.37, -2.9],
+      [123.456, 78.9],
+      [-51.2, 0.01],
+    ])
+      for (let index = 0; index < 4; index++) {
+        const v = view({ position: [x, 5, z] });
+        const { center, radius, halfSide, pageMetres } = sunCascadeOf(v, AXIS, index, side);
+        // The oracle's centre is the raw one snapped to a texel: within a texel of the sphere.
+        const raw = referenceSunCascadeOf(v, AXIS, index, side).center;
+        const texel = (2 * radius) / side;
+        const du = Math.abs(dotVector3(raw, right) - dotVector3(center, right)),
+          dv = Math.abs(dotVector3(raw, up) - dotVector3(center, up));
+        const label = `side ${side}, cascade ${index}, at ${x},${z}`;
+        assert.ok(du + radius <= halfSide + texel, `${label}: sphere out of the extent along u`);
+        assert.ok(dv + radius <= halfSide + texel, `${label}: sphere out of the extent along v`);
+        const rows = pageRowsOf(side);
+        assert.ok(Math.abs(halfSide - (rows > 1 ? (rows * pageMetres) / 2 : 2 * radius)) < 1e-9);
+      }
 });

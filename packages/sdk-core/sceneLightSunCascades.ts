@@ -12,8 +12,10 @@ interface SunCascade {
   /** World centre of the extent: page-snapped in the light plane, `anchor` along the axis. */
   center: [number, number, number];
   radius: number;
-  /** Side of a page in metres, `2r / rows`. */
+  /** Side of a page in metres, `2r / (rows − 1)`: the extent is one page wider than the sphere. */
   pageMetres: number;
+  /** Half-side of the extent, `rows · page / 2`: the sphere fits in it wherever it snaps. */
+  halfSide: number;
   originX: number;
   originY: number;
   anchor: number;
@@ -109,6 +111,7 @@ const cascade: SunCascade = {
   center: [0, 0, 0],
   radius: 1,
   pageMetres: 1,
+  halfSide: 1,
   originX: 0,
   originY: 0,
   anchor: 0,
@@ -144,8 +147,13 @@ function frustumSphere(view: ShadowViewpoint, near: number, far: number) {
  * extent is aligned on the page grid of the light plane — the `faceFrame` axes the view is
  * composed with —, so a camera step moves it by whole pages and the pages it keeps still
  * describe the same world: only the entering strip is redrawn (virtual shadow map clipmaps).
- * Along the light axis the extent is anchored on a grid of one extent side, `2r`: depth is
+ * Along the light axis the extent is anchored on a grid of one sphere diameter, `2r`: depth is
  * then the same for every page of the extent, and a move of that size restarts it whole.
+ *
+ * Snapping moves the centre by up to half a page: the extent is therefore one page wider than
+ * the sphere — `rows` pages of `2r / (rows − 1)` — so the sphere is contained wherever it snaps,
+ * and no point of the cascade's slab falls outside its map. A one-page face, which cannot slide,
+ * takes a grid of `2r` and an extent of `4r` for the same reason.
  *
  * The returned object is reused from one call to the next: the scheduler allocates nothing per frame.
  */
@@ -158,7 +166,8 @@ export function sunCascadeOf(
   const bornes = splitsDe(view);
   const { distance, radius } = frustumSphere(view, bornes[index], bornes[index + 1]);
   const rows = pageRowsOf(side),
-    page = (2 * radius) / rows;
+    page = rows > 1 ? (2 * radius) / (rows - 1) : 2 * radius,
+    halfSide = rows > 1 ? (rows * page) / 2 : 2 * radius;
   faceFrame(axis, right, up);
   for (let a = 0; a < 3; a++) eye[a] = view.position[a] + view.forward[a] * distance;
   let u = 0,
@@ -175,6 +184,7 @@ export function sunCascadeOf(
     anchorRank = Math.round(w / (2 * radius));
   cascade.radius = radius;
   cascade.pageMetres = page;
+  cascade.halfSide = halfSide;
   cascade.originX = pageX - (rows >> 1);
   cascade.originY = pageY - (rows >> 1);
   cascade.anchor = anchorRank * 2 * radius;

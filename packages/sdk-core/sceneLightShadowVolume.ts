@@ -77,12 +77,12 @@ export function writeBoxVolume(
   cull: Float32Array,
   base: number,
   boxCenter: readonly number[],
-  radius: number,
+  halfSide: number,
   halfDepth: number,
   rect: Float64Array,
 ) {
-  const u = ((rect[0] + rect[1]) / 2) * radius,
-    v = ((rect[2] + rect[3]) / 2) * radius;
+  const u = ((rect[0] + rect[1]) / 2) * halfSide,
+    v = ((rect[2] + rect[3]) / 2) * halfSide;
   for (let a = 0; a < 3; a++) {
     cull[base + a] = boxCenter[a] + faceBasis[a] * u + faceBasis[3 + a] * v;
     cull[base + 4 + a] = faceBasis[6 + a];
@@ -91,8 +91,8 @@ export function writeBoxVolume(
   }
   cull[base + 3] = halfDepth;
   cull[base + 7] = -1;
-  cull[base + 11] = ((rect[1] - rect[0]) / 2) * radius;
-  cull[base + 15] = ((rect[3] - rect[2]) / 2) * radius;
+  cull[base + 11] = ((rect[1] - rect[0]) / 2) * halfSide;
+  cull[base + 15] = ((rect[3] - rect[2]) / 2) * halfSide;
 }
 
 /** Normalised rectangle of a page region in its face: `y` goes down in the draw frame. */
