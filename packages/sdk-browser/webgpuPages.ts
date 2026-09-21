@@ -28,6 +28,7 @@ import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { disposeWebgpuPages, metricsOf } from './webgpuPagesMetrics.ts';
 import { setWebgpuMemoryBudgets } from './webgpuPagesMemory.ts';
 import { installGpuDeviceLedger } from './gpuDeviceLedger.ts';
+import { markWebgpuLost } from './webgpuPagesLost.ts';
 export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
@@ -39,16 +40,17 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // Integer record of a request, set once per address: that is all off-thread integration
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
-  const onGpuError = (event: GPUUncapturedErrorEvent) => {
-    diag.diagnosticFailure('gpu-uncaptured-error', event.error);
-    run.lost = true;
-  };
+  // An uncaptured error abandons the device: what follows would draw on a state no one knows.
+  // It is reported once, as the loss it is, with the error's text.
+  const onGpuError = (event: GPUUncapturedErrorEvent) =>
+    markWebgpuLost(rt, { reason: 'uncaptured-error', message: String(event.error.message) });
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
     scene: setup.scene,
     get presentedSurface() {
-      // The host canvas needs no composition: the engine already presented into it.
+      // The host canvas needs no composition: the engine already presented into it. A lost or
+      // disposed device has no presenter left: nothing stale is published (`markWebgpuLost`).
       return context.gpuCanvas ? undefined : rt.gpu.presenter?.canvas;
     },
     get overBudget() {
@@ -134,6 +136,10 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     resetStageProfile() {
       rt.timing.stages?.reset();
+      rt.timing.cpuWindow.reset();
+    },
+    cpuSteps() {
+      return rt.timing.cpuWindow.summary();
     },
     cpuStep(step, ms) {
       hostCpuStep(rt, step, ms);

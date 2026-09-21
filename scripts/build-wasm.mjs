@@ -27,10 +27,9 @@ function rustc(...args) {
  * It is not enabled by default for the target, but we explicitly reject it rather than depend on it,
  * and `verifieJeuInstructions` re-reads the output module to confirm.
  *
- * `simd128`: the embedded meshopt decoder has vector paths under `__wasm_simd128__`, and the reference
- * JavaScript decoder already runs on the SIMD module of `meshoptimizer`. Without these flags, the module
- * outputs the same bytes but loses half its speedup. A browser without SIMD will fail instantiation,
- * causing the loader to silently fall back to JavaScript decoder.
+ * `simd128`: required, and `verifieJeuInstructions` refuses a module without it; what the flag
+ * gains on the page decoder and the batch kernels is not measured. A browser without SIMD fails
+ * instantiation, and the loader falls back to the JavaScript decoder.
  */
 
 /**
@@ -51,8 +50,8 @@ export function verifieJeuInstructions(chemin) {
 }
 
 /**
- * Apple's `ar` cannot archive WebAssembly objects: it produces an empty archive causing link failure
- * on missing meshopt symbols. `llvm-ar` from `llvm-tools` archives them properly.
+ * Apple's `ar` cannot archive WebAssembly objects: it produces an empty archive and the link then
+ * fails on missing symbols. `llvm-ar` from `llvm-tools` archives them properly.
  */
 function archiveur() {
   const hote = rustc('-vV')

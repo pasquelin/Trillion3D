@@ -35,7 +35,8 @@ let withFeedback: GPURenderPassColorAttachment[] | undefined;
 /**
  * Attachment of the virtual-texture feedback target, and the only rule of its load: the first pass
  * of the image that writes it clears it, later ones keep it, and `feedbackWritten` tells the submit
- * there is something to reduce. Opaque resolve and blend both call it; neither knows which goes first.
+ * there is something to reduce. Opaque resolve, blend and water surfaces all call it; none knows
+ * which goes first.
  */
 export function feedbackAttachment(rt: WebgpuPagesRuntime) {
   feedback.view = rt.gpu.feedbackView as GPUTextureView;
@@ -44,7 +45,8 @@ export function feedbackAttachment(rt: WebgpuPagesRuntime) {
   return feedback;
 }
 
-/** Surfaces then the feedback target: the five attachments of the hardware resolve. */
+/** Surfaces then the feedback target: the five attachments of the hardware resolve, and of the
+ *  water surface stage, which writes the same buffer once the resolve has consumed it. */
 export function shadeColorAttachments(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
   const base = surfaceColorAttachments(surfaces);
   withFeedback ??= [...base, feedback];

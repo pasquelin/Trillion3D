@@ -1,10 +1,12 @@
 import { build } from 'esbuild';
 import { resolve } from 'node:path';
+import { demoEngine } from './build-demo.mjs';
+import { externalEngine } from './external-engine.mjs';
 
-export async function buildPortal(root, outdir = resolve(root, 'docs/runtime')) {
+export async function buildPortal(root, outdir) {
   await build({
     absWorkingDir: root,
-    entryPoints: ['docs/react/main.jsx'],
+    entryPoints: ['docs/react/main.tsx'],
     outfile: resolve(outdir, 'portal.js'),
     bundle: true,
     minify: true,
@@ -12,17 +14,7 @@ export async function buildPortal(root, outdir = resolve(root, 'docs/runtime')) 
     format: 'esm',
     target: 'es2022',
     define: { 'process.env.NODE_ENV': '"production"' },
-    plugins: [
-      {
-        name: 'external-engine-runtime',
-        setup(bundler) {
-          bundler.onResolve({ filter: /runtime\/engine\.js$/ }, () => ({
-            path: './engine.js',
-            external: true,
-          }));
-        },
-      },
-    ],
+    plugins: [demoEngine(root), externalEngine],
     supported: { 'template-literal': false },
     logLevel: 'warning',
   });

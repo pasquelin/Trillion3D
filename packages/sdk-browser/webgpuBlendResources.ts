@@ -72,7 +72,8 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   blendState.expand?.uploadDraws(blendState.drawsPacked);
 }
 
-/** Releases the transparent pass's scene buffers, and the groups that cited them. */
+/** Releases the transparent pass's scene buffers; the groups that cited them are voided by their
+ *  identity at the next pass. */
 export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState']) {
   blendState.expand?.dispose();
   blendState.expand = undefined;
@@ -80,8 +81,6 @@ export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState
     blendState[tampon]?.destroy();
     blendState[tampon] = undefined;
   }
-  blendState.pagedGroup = undefined;
-  for (const item of blendState.blendGpu) item.group = undefined;
 }
 
 /**

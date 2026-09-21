@@ -5,7 +5,7 @@
   },
   "case": "Four quads, four materials that share three colour textures: an OPAQUE with a 40×24 PNG baseColorTexture linked by uri, a MASK at alphaCutoff 0.25 on a 24×16 PNG with binary alpha embedded in a bufferView, and a BLEND whose 80×48 JPEG baseColorTexture also serves as emissiveTexture to a fourth material.",
   "formatVersion": 4,
-  "manifestBinaryVersion": 5,
+  "manifestBinaryVersion": 6,
   "previews": [
     {
       "atlas": 0,

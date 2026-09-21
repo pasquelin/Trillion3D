@@ -22,8 +22,17 @@ export const POINT_FACE_AXES: ReadonlyArray<readonly [number, number, number]> =
   [0, 0, 1],
   [0, 0, -1],
 ];
-/** Floats of a face in the slice buffer: the matrix then the atlas rectangle. */
-export const SHADOW_FACE_FLOATS = 20;
+/**
+ * Floats of a face in the slice buffer: the matrix, the atlas rectangle — its fourth float 1
+ * once drawn, 0 never —, then four words: the held-page mask, one bit per physical page that
+ * holds a depth of the current extent, rows of eight in two words, and the physical page of
+ * the extent origin, `x` then `y`, the read wraps extent coordinates with. An extent page
+ * that entered but is not yet drawn still holds what the far side left there: the read must
+ * know it and fall back to the next cascade, never sample it. A page merely awaiting a redraw
+ * is still held, and read.
+ */
+export const SHADOW_FACE_FLOATS = 24;
+export const SHADOW_FACE_MASK_WORD = 20;
 /** Floats of a slice: six faces plus a header `vec4f` (faces, kind, side, pad). */
 export const SHADOW_SLICE_FLOATS = POINT_FACES * SHADOW_FACE_FLOATS + 4;
 
@@ -40,8 +49,11 @@ export function faceCountOf(rank: number) {
 /** Half-angle of the cone widened by half a degree, so the cone edge stays covered by the map. */
 const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 0.0175);
 
-/** Floats of a face volume: centre and far plane, face axis and half-angle. */
-export const SHADOW_CULL_FLOATS = 8;
+/**
+ * Floats of a region volume: centre and far plane, face axis and half-angle, then — for a
+ * box, flagged by a negative half-angle — the two other axes with their half-extents.
+ */
+export const SHADOW_CULL_FLOATS = 16;
 
 /**
  * Writes the view-projection matrix of a face at its slot in `matrices`, and, if reject is

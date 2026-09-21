@@ -32,9 +32,12 @@ export function preuveSaine(resultat) {
   assert.equal(resultat.indisponible ?? null, null, String(resultat.indisponible));
   assert.equal(resultat.erreur ?? null, null, String(resultat.erreur));
   assert.deepEqual(resultat.erreurs, []);
+  // An uncaptured GPU error is announced as a loss with that reason: a proof that provokes a
+  // loss of its own still fails on one the engine's work caused.
   assert.ok(
-    !(resultat.evenements ?? []).some((evenement) =>
-      /failed|uncaptured-error/.test(evenement.phase),
+    !(resultat.evenements ?? []).some(
+      (evenement) =>
+        /failed/.test(evenement.phase) || evenement.context?.reason === 'uncaptured-error',
     ),
     JSON.stringify(resultat.evenements),
   );
