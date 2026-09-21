@@ -24,7 +24,7 @@ export const guidesFr = {
   'example-diagnostics': {
     title: 'Diagnostics et qualité',
     description:
-      'Changez ce que dessine l’image et la finesse de la coupe sur un explorateur actif.',
+      'Changez ce que dessine l’image et la finesse de la coupe sur un explorateur actif ; et ce qu’un appareil GPU perdu laisse à l’écran — rien de périmé.',
   },
   'quick-start': {
     title: 'Démarrage rapide',

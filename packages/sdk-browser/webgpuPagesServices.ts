@@ -12,6 +12,7 @@ import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutPublication } from './webgpuCutPublication.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import { markWebgpuLost } from './webgpuPagesLost.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -108,9 +109,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     getFrame: () => run.frame,
     updatePins,
     ensureResident,
-    markLost: () => {
-      run.lost = true;
-    },
+    markLost: (error) => markWebgpuLost(rt, { reason: 'residency', message: String(error) }),
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,

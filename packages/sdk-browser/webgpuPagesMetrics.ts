@@ -5,6 +5,7 @@ import { disposeBlendResources } from './webgpuBlendResources.ts';
 import { directLightTimings } from './stageMapping.ts';
 import { taaSampledRank } from './taaFrame.ts';
 import { gpuDeviceLedgerOf } from './gpuDeviceLedger.ts';
+import { markWebgpuLost } from './webgpuPagesLost.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -108,10 +109,11 @@ export function disposeWebgpuPages(
   rt: WebgpuPagesRuntime,
   onGpuError: (event: GPUUncapturedErrorEvent) => void,
 ) {
-  const { run, gpu, vis, capture, timing, blendState, services } = rt,
+  const { gpu, vis, capture, timing, blendState, services } = rt,
     { gpuDevice, scene, pagedBlendCopies } = rt.setup;
   gpuDevice?.removeEventListener?.('uncapturederror', onGpuError);
-  run.lost = true;
+  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
+  markWebgpuLost(rt);
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
   dropGpuSelection(rt);
@@ -162,9 +164,6 @@ export function disposeWebgpuPages(
   rt.lights.shadowGroupsKey.length = 0;
   rt.lights.buffer?.destroy();
   rt.lights.plan.reset();
-  gpu.presenter?.dispose();
-  // Disposed, it presents nothing any more: the host must no longer be told to compose from it.
-  gpu.presenter = undefined;
   gpu.synchronousCapture?.dispose();
   const closing = gpu.cache?.dispose();
   gpu.cache = undefined;
