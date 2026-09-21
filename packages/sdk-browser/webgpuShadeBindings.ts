@@ -28,8 +28,8 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
   next[4] = concatUv;
   next[5] = concatNrm;
   next[6] = pageTable;
-  next[7] = textures?.color.pool.view;
-  next[8] = textures?.data.pool.view;
+  next[7] = textures?.color.views;
+  next[8] = textures?.data.views;
   next[9] = mapsSampler;
   next[10] = shadeUniform;
   if (vis.shadeIdentity.moved()) vis.shadeBindGroup = undefined;

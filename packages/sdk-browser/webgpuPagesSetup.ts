@@ -17,9 +17,9 @@ import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
   geometryPoolFor,
-  texturePoolFor,
   textureTransferBytesFor,
   textureUploadMsFor,
+  type TexturePools,
 } from './webgpuMemoryBudgets.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
@@ -120,10 +120,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const cap = poolFor(
     Math.max(geometryPool.budgetBytes, context.geometryPoolCeilingBytes ?? 0),
   ).slots;
-  const texturePool = texturePoolFor(
-    context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
-    gpuDevice,
-  );
+  // The texture pools are prepare's to draw, once the catalogue says which family the session
+  // samples and which lane each texture takes; until then only the budget is held.
+  const texturePoolBudget = context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   // The tile pass's two budgets: bytes, and the reference's fixed upload cadence in the frame's
   // own unit.
@@ -166,7 +165,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     geometryPool,
     // The same pool for another budget, under the session ceiling.
     geometryPoolFor: (budgetBytes: number) => poolFor(budgetBytes, cap),
-    texturePool,
+    texturePoolBudget,
+    /** The family, the encoding and the lane pools, set by prepare; `setMemoryBudgets` redraws. */
+    texturePools: undefined as TexturePools | undefined,
     get slots() {
       return this.geometryPool.slots;
     },
