@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuLightState, noteShadowFrame } from './webgpuPagesStateLights.ts';
-import { sumKeptClusters } from './gpuShadowCullCounts.ts';
+import { createGpuShadowCullCounts, sumKeptClusters } from './gpuShadowCullCounts.ts';
 import { unsettledMask } from './webgpuFrameHold.ts';
 import { settledRt } from './webgpuFrameHoldFixture.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
@@ -53,4 +53,42 @@ test('a deferred representation change keeps the frame from holding only with an
   assert.equal(unsettledMask(rt), 0, 'no light: same');
   lights.store.count = 1;
   assert.notEqual(unsettledMask(rt), 0, 'an atlas and a light: the next frame plans the change');
+});
+
+/**
+ * A device reduced to the sample: a readback buffer whose mapping resolves only when the test
+ * says so, and whose mapped range carries the given words.
+ */
+function samplingDevice(words: Uint32Array) {
+  let mapped!: () => void;
+  const mapping = new Promise<void>((resolve) => {
+    mapped = resolve;
+  });
+  const device = {
+    createBuffer: () => ({
+      destroy() {},
+      mapAsync: () => mapping,
+      getMappedRange: () => words.buffer,
+      unmap() {},
+    }),
+  } as unknown as GPUDevice;
+  const encoder = { copyBufferToBuffer() {} } as unknown as GPUCommandEncoder;
+  return { device, encoder, mapped };
+}
+
+test('a sampled cull count is named by the frame it describes, only once it has returned', async () => {
+  const { device, encoder, mapped } = samplingDevice(new Uint32Array([32768, 22, 0, 0]));
+  const counts = createGpuShadowCullCounts(device);
+  const indirect = {} as GPUBuffer;
+  assert.equal(counts.counts(), undefined, 'nothing until a sample has returned');
+  counts.sample(encoder, indirect, 1, 40);
+  counts.submitted();
+  assert.equal(counts.counts(), undefined, 'the copy of frame 40 is in flight: still nothing');
+  mapped();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22 });
+  // Frame 55 is due: its copy is encoded, but until it returns the count stays frame 40's.
+  counts.sample(encoder, indirect, 3, 55);
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22 });
+  counts.dispose();
 });
