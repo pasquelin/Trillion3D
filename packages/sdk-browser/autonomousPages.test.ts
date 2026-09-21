@@ -76,10 +76,16 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     await backend.prepare();
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1);
-    backend.addInstance?.('copy', new THREE.Matrix4().makeTranslation(1, 0, 0).toArray(new Float64Array(16)));
+    backend.addInstance?.(
+      'copy',
+      new THREE.Matrix4().makeTranslation(1, 0, 0).toArray(new Float64Array(16)),
+    );
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 2);
-    backend.updateInstance?.('copy', new THREE.Matrix4().makeTranslation(2, 0, 0).toArray(new Float64Array(16)));
+    backend.updateInstance?.(
+      'copy',
+      new THREE.Matrix4().makeTranslation(2, 0, 0).toArray(new Float64Array(16)),
+    );
     backend.render(camera);
     const copies = backend.scene.children.filter((o) => (o as THREE.Mesh).isMesh) as THREE.Mesh[];
     assert.ok(copies.some((copy) => copy.matrix.elements[12] === 2));

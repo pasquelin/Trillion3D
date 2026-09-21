@@ -5,13 +5,12 @@ import { visMaterial } from './visibilityBuffer.ts';
 
 /** Store a texture in an atlas if it is not already there, and return the slot it occupies.
  *  Slot 0 is the fill texel, so the first stored texture takes slot 1. */
-const adder =
-  (known: Map<HostTexture, number>, list: HostTexture[]) => (texture?: HostTexture) => {
-    if (!texture) return;
-    if (known.has(texture)) return;
-    known.set(texture, list.length + 1);
-    list.push(texture);
-  };
+const adder = (known: Map<HostTexture, number>, list: HostTexture[]) => (texture?: HostTexture) => {
+  if (!texture) return;
+  if (known.has(texture)) return;
+  known.set(texture, list.length + 1);
+  list.push(texture);
+};
 
 /** Census every colour and data texture once, in a stable slot order. */
 export function collectWebgpuMaterialTextures(
