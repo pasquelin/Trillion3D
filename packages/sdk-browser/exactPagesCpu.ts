@@ -36,6 +36,8 @@ export function createExactPagesCpu(
 ) {
   // Per-step CPU profile, published in `summary` mode: turning on the per-frame trace would change the measurement.
   const cpuProfile = createCpuStepProfile(CPU.names);
+  // The window a host opens with `resetStageProfile()` and reads once with `cpuSteps()`.
+  const cpuWindow = createCpuStepProfile(CPU.names, { row: cpuProfile.row });
   const stages = enabled
     ? createStageProfiler({
         backend: 'exact-cluster-pages',
@@ -59,6 +61,10 @@ export function createExactPagesCpu(
     },
     resetStageProfile() {
       stages?.reset();
+      cpuWindow.reset();
+    },
+    cpuSteps() {
+      return cpuWindow.summary();
     },
     /** Public profile: "unmeasured" everywhere nothing was sampled, never a zero. */
     stageProfile() {
@@ -79,6 +85,7 @@ export function createExactPagesCpu(
       for (let i = 0; i < CPU.names.length - 1; i++) total += row[i];
       row[CPU.names.length - 1] = total;
       cpuProfile.record(frame, total);
+      cpuWindow.record(frame, total);
       stages?.frameCpu((add) => {
         addCpuSteps(CPU.stages, row, add);
         // The hierarchical cut is bounded inside `selectMs` by the engine itself.

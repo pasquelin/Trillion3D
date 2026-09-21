@@ -138,6 +138,14 @@ allocation per frame, batched operations (n boxes, n spheres) rather than per ob
 each Three method while keeping `THREE.Vector3`, `THREE.Matrix4` or `Object3D` in the signatures
 does not count: the dependency is gone when no Three type crosses the engine.
 
+The batched form is part of the runtime's public maths (#80): `packages/sdk-core/mathBatch*.ts`,
+listed in `docs/API.md` § "Batch math for hosts" and taught in `docs/SDK.md` under the same title
+— `n` elements per call on flat arrays or sub-views of a fixed stride, no allocation, each
+repeating the unit function that stays its oracle, exported by `sdk-core`, `sdk-browser` and
+`web-geometry` alike. A WebAssembly kernel exists only where the governor (`mathPathGovernor.ts`)
+has a measured loop to arbitrate; a loop the engine's own frame measures under its clock keeps its
+JavaScript form.
+
 R1c. **Transforms and camera owned by the engine.** The hard part is not the formula but the
 hierarchy: parent/child, update order, dirty marking, negative and non-uniform scales (the sign of
 the determinant decides face winding), singular matrices, camera (view, projection,

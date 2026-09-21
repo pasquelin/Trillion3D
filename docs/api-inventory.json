@@ -1051,6 +1051,17 @@
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryLayout\".Counts"
     },
     {
+      "name": "CpuStepSummary",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cpuProfile.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cpuProfile\".CpuStepSummary"
+    },
+    {
       "name": "createBatchProgress",
       "kind": "value",
       "definingModule": "packages/sdk-node/progress.mts",

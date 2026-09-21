@@ -104,6 +104,8 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
   steps.fill(0);
+  // No tile was pumped: the textures stage stays unmeasured, as on an image with nothing to serve.
+  steps[CPU_STEP.tilesPumpMs] = NaN;
   steps[CPU_STEP.queueSubmitMs] = submitMs;
   steps[CPU_STEP.encodeSubmitMs] = submitMs;
   steps[CPU_STEP.submitMs] = submitMs;

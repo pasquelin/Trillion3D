@@ -115,6 +115,10 @@ export async function measureView(options) {
   // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
   const capturePose = current;
   const stageProfile = options.stageProfile ? explorer.stageProfile() : null;
+  // The engine's CPU bounds over the same window as the stage profile, read once, before the
+  // drain and the calm below file images of their own. A dist older than #80 has no such function.
+  const bornesCpu =
+    options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null;
   // The shadow-page queue is drained before any atlas read: a pending page still holds the
   // previous depth, and the fingerprint would prove nothing. The loop is bounded, and the
   // remaining count is published as-is, never assumed zero.
@@ -181,6 +185,7 @@ export async function measureView(options) {
     lost,
     // Compiler warnings the engine reported at open; `null` with none.
     avertissementsDag: diagnostics.avertissements,
+    bornesCpu,
     captureStatus: response.status,
   };
 }

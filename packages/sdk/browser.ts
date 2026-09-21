@@ -10,6 +10,7 @@ export type {
   RenderBackend,
 } from '../sdk-browser/backendTypes.ts';
 export type { ComparisonLayout } from '../sdk-browser/comparison.ts';
+export type { CpuStepSummary } from '../sdk-browser/cpuProfile.ts';
 export { createDiagnosticChannel } from '../sdk-browser/diagnosticChannel.ts';
 export type {
   DiagnosticChannel,
