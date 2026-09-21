@@ -1916,7 +1916,19 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["test/fixtures/publicBrowser.ts", "test/fixtures/publicTypesOnly.ts"],
+      "affectedConsumers": [
+        "site/lessons/cameraLessonRuntime.ts",
+        "site/lessons/engine-scene/cameraControls.ts",
+        "site/lessons/engine-scene/lifecycle.ts",
+        "site/lessons/engine-scene/lightingControls.ts",
+        "site/lessons/lightingLessonRuntime.ts",
+        "site/lessons/rendererLessonApply.ts",
+        "site/lessons/rendererLessonRuntime.ts",
+        "site/lessons/rendererLessonSessionTypes.ts",
+        "site/lessons/sceneFillLight.ts",
+        "test/fixtures/publicBrowser.ts",
+        "test/fixtures/publicTypesOnly.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/explorer\".Explorer"
     },
@@ -2019,7 +2031,8 @@
         "packages/sdk-browser/frameCostAudit.test.ts",
         "packages/sdk-browser/frameCostAudit.ts",
         "packages/sdk-browser/telemetry.test.ts",
-        "packages/sdk-browser/telemetry.ts"
+        "packages/sdk-browser/telemetry.ts",
+        "site/lessons/lessonShadowPages.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/metricsContracts\".FrameMetrics"
@@ -2734,6 +2747,20 @@
       "bindingIdentity": "\"packages/sdk-core/mathVector\".lengthSqVector3"
     },
     {
+      "name": "levelBlockBytes",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/texturePreviewLevels.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/webgpuTileWriteBlocks.ts",
+        "test/fixtures/manifestBinary.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".levelBlockBytes"
+    },
+    {
       "name": "LIGHT_FIELD",
       "kind": "value",
       "definingModule": "packages/sdk-core/sceneLightStore.ts",
@@ -3056,7 +3083,6 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/explorerScene.ts",
-        "packages/sdk-browser/hostSceneLightState.ts",
         "packages/sdk-browser/hostWorldChain.ts",
         "packages/sdk-browser/hostWorldTree.test.ts",
         "packages/sdk-browser/hostWorldTree.ts",
@@ -3955,35 +3981,35 @@
     {
       "name": "PREVIEW_ATLAS_COLOR",
       "kind": "value",
-      "definingModule": "packages/sdk-core/manifestBinaryFormat.ts",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesPrepareTextures.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_COLOR"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_ATLAS_COLOR"
     },
     {
       "name": "PREVIEW_ATLAS_DATA",
       "kind": "value",
-      "definingModule": "packages/sdk-core/manifestBinaryFormat.ts",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesPrepareTextures.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_DATA"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_ATLAS_DATA"
     },
     {
       "name": "PREVIEW_ATLAS_NAMES",
       "kind": "value",
-      "definingModule": "packages/sdk-core/manifestBinaryFormat.ts",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".PREVIEW_ATLAS_NAMES"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_ATLAS_NAMES"
     },
     {
       "name": "PREVIEW_BASE",
@@ -3997,6 +4023,50 @@
       "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".PREVIEW_BASE"
     },
     {
+      "name": "PREVIEW_BLOCK_BYTES",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/webgpuTileWriteBlocks.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_BLOCK_BYTES"
+    },
+    {
+      "name": "PREVIEW_BLOCK_FORMATS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/textureBlockFormats.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_BLOCK_FORMATS"
+    },
+    {
+      "name": "PREVIEW_LAYOUT_NAMES",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/textureBlockFormats.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_LAYOUT_NAMES"
+    },
+    {
+      "name": "PREVIEW_LOSSLESS_FORMAT",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_LOSSLESS_FORMAT"
+    },
+    {
       "name": "PREVIEW_MAX_LEVELS",
       "kind": "value",
       "definingModule": "packages/sdk-core/texturePreviewLevels.ts",
@@ -4006,6 +4076,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".PREVIEW_MAX_LEVELS"
+    },
+    {
+      "name": "previewBlockBytes",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/texturePreviewLevels.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewBlockBytes"
     },
     {
       "name": "previewFirstLevel",
@@ -4053,7 +4134,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["test/fixtures/manifestBinary.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewLevelCount"
     },
@@ -4066,8 +4147,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/textureTiles.ts",
-        "packages/sdk-node/cutoutThumb.mts",
-        "test/fixtures/manifestBinary.ts"
+        "packages/sdk-node/cutoutThumb.mts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewLevelSize"
@@ -5393,13 +5473,35 @@
     {
       "name": "TEXTURE_PREVIEW_VERSION",
       "kind": "value",
-      "definingModule": "packages/sdk-core/manifestBinaryFormat.ts",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/webgpuPagesPrepareTextures.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".TEXTURE_PREVIEW_VERSION"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".TEXTURE_PREVIEW_VERSION"
+    },
+    {
+      "name": "TextureBlockFormat",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/textureBlockFormats.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".TextureBlockFormat"
+    },
+    {
+      "name": "TextureCompression",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/textureBlockFormats.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/textureBlockFormats\".TextureCompression"
     },
     {
       "name": "TextureFrameMetrics",
@@ -5413,6 +5515,50 @@
       "bindingIdentity": "\"packages/sdk-core/textureMetricsContracts\".TextureFrameMetrics"
     },
     {
+      "name": "TextureLayout",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/textureBlockFormats.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".TextureLayout"
+    },
+    {
+      "name": "TextureLevel",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/textureLevelReader.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/textureLevelReader\".TextureLevel"
+    },
+    {
+      "name": "textureLevelFormat",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/textureLevelUrl.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/textureBlockFormats.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/textureLevelUrl\".textureLevelFormat"
+    },
+    {
+      "name": "TextureLevelFormat",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/textureLevelUrl.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/textureLevelReader.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/textureLevelUrl\".TextureLevelFormat"
+    },
+    {
       "name": "TextureLevelReader",
       "kind": "type",
       "definingModule": "packages/sdk-browser/textureLevelReader.ts",
@@ -5422,6 +5568,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/textureLevelReader\".TextureLevelReader"
+    },
+    {
+      "name": "TextureLevelRequest",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/textureLevelReader.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/textureLevelReader\".TextureLevelRequest"
     },
     {
       "name": "textureLevelUrl",
@@ -5448,17 +5605,19 @@
     {
       "name": "TexturePreview",
       "kind": "type",
-      "definingModule": "packages/sdk-core/geometryContracts.ts",
+      "definingModule": "packages/sdk-core/texturePreviewContracts.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/sceneTextureSkip.test.ts",
+        "packages/sdk-browser/textureBlockFormats.ts",
         "packages/sdk-browser/webgpuPagesPrepareTextures.ts",
+        "packages/sdk-browser/webgpuTileCatalogue.test.ts",
         "packages/sdk-browser/webgpuTileCatalogue.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".TexturePreview"
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewContracts\".TexturePreview"
     },
     {
       "name": "threeLodBackend",
@@ -5838,6 +5997,7 @@
         "test/appui/rasterCalculPage.mjs",
         "test/appui/sceneOccultante.mjs",
         "test/appui/setTransformParentPerimePage.mjs",
+        "test/appui/surfaceAppareilPerduPage.mjs",
         "test/appui/transparentTransformPage.mjs",
         "test/appui/waterPassPage.mjs",
         "test/justesse/cameraSitesMoteurs.mjs"
@@ -5967,8 +6127,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "site/content/entries/matrix.ts",
         "packages/sdk-browser/bench/appui/socleLigne.mjs",
+        "site/content/entries/matrix.ts",
         "test/justesse/inverseTransposeF32.mjs"
       ],
       "disposition": "newly exposed",
@@ -6059,8 +6219,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "site/content/entries/matrix.ts",
-        "packages/sdk-browser/bench/appui/socleLigne.mjs"
+        "packages/sdk-browser/bench/appui/socleLigne.mjs",
+        "site/content/entries/matrix.ts"
       ],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathSingular.ts:normalizedLinearDeterminant"
