@@ -108,6 +108,7 @@ export function encodeShadowAtlas(
     layout.rows.packedCount,
     Math.max(1, setup.pageBytes / 4),
   );
+  cull.counts.sample(encoder, cull.indirect, regions, run.frame);
   lights.shadowDraws = regions;
   const drawsBefore = run.gpuDrawCalls;
   const pass = encoder.beginRenderPass({

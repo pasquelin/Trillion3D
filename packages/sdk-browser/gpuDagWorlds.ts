@@ -41,3 +41,13 @@ export function refreshWorldStretch(
   }
   return count;
 }
+
+/**
+ * True where `next` differs from `previous` at any index: the scan `updateWorlds` runs before it
+ * touches a buffer, so an image whose roots stand still uploads nothing. On a moving camera every
+ * translation differs and the scan stops at the first root.
+ */
+export function worldsChanged(previous: Float32Array, next: Float32Array) {
+  for (let j = 0; j < next.length; j++) if (previous[j] !== next[j]) return true;
+  return false;
+}

@@ -3,8 +3,9 @@ import { setGeometryBounds } from './threeBounds.ts';
 import type { PageRec } from './pageSelection.ts';
 import { hashId } from './backendCommon.ts';
 
+/** The whole-page mesh record of a diagnostic mode: built once per resident page, painted on
+ *  every sync, handed to the draw owner — never to the host scene. */
 export function createExactPagesAttachment(
-  scene: THREE.Scene,
   indexByUrl: Map<string, THREE.BufferAttribute>,
   materialFor: (rec: PageRec) => THREE.Material | THREE.Material[],
   paint: (
@@ -14,13 +15,7 @@ export function createExactPagesAttachment(
     salt?: number,
   ) => void,
 ) {
-  const release = (rec: PageRec) => {
-    if (rec.attached && rec.mesh) {
-      scene.remove(rec.mesh);
-      rec.attached = false;
-    }
-  };
-  const attach = (rec: PageRec, addToScene = true) => {
+  const attach = (rec: PageRec) => {
     if (!rec.array) return;
     if (!indexByUrl.has(rec.url)) indexByUrl.set(rec.url, new THREE.BufferAttribute(rec.array, 1));
     if (!rec.mesh) {
@@ -41,10 +36,6 @@ export function createExactPagesAttachment(
     rec.mesh!.matrix.copy(rec.matrix);
     if (rec.mesh && rec.geometry)
       paint(rec.mesh, rec.geometry, rec.mesh.material, hashId(rec.clusterId));
-    if (addToScene && !rec.attached) {
-      scene.add(rec.mesh!);
-      rec.attached = true;
-    }
   };
-  return { release, attach };
+  return attach;
 }
