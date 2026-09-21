@@ -1,7 +1,7 @@
 import { build } from 'esbuild';
 import { resolve } from 'node:path';
 
-export async function buildPortal(root, outdir = resolve(root, 'docs/runtime')) {
+export async function buildPortal(root, outdir) {
   await build({
     absWorkingDir: root,
     entryPoints: ['docs/react/main.jsx'],

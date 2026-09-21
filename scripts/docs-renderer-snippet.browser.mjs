@@ -7,7 +7,7 @@ import { createDocsServer } from './docs-serve.mjs';
 
 test('the published observatory snippet runs in Chrome until its streamed frame settles', async () => {
   const lesson = rendererLessons.find(({ id }) => id === 'runtime-pixel-error'),
-    server = createDocsServer();
+    server = await createDocsServer();
   await new Promise((ready, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', ready);

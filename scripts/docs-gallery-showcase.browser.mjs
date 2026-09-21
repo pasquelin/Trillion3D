@@ -4,7 +4,7 @@ import { launchChrome } from './mesure/chrome.mjs';
 import { createDocsServer } from './docs-serve.mjs';
 
 test('gallery showcase keeps both pilots visible and makes the selected scene the main link', async () => {
-  const server = createDocsServer();
+  const server = await createDocsServer();
   await new Promise((ready, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', ready);
