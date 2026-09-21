@@ -4,9 +4,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFile } from 'node:fs/promises';
 import { loadReactComponents } from './docs/render-react.mjs';
-const { Canvas } = await loadReactComponents('docs/react/components/Canvas.tsx');
-const { DIAGNOSTIC_MODES } = await import('../docs/js/engine-scene/diagnosticModes.js');
-const { sceneCopy } = await import('../docs/js/engine-scene/content.js');
+const { Canvas } = await loadReactComponents('site/app/components/Canvas.tsx');
+const { DIAGNOSTIC_MODES } = await import('../site/lessons/engine-scene/diagnosticModes.ts');
+const { sceneCopy } = await import('../site/lessons/engine-scene/content.ts');
 
 test('a pending canvas stays mounted behind one loading state and disables its actions', () => {
   const html = renderToStaticMarkup(
@@ -25,7 +25,7 @@ test('a pending canvas stays mounted behind one loading state and disables its a
 
 test('switching renderer lessons remounts the pending viewport', async () => {
   const source = await readFile(
-    new URL('../docs/react/gallery/RendererLesson.tsx', import.meta.url),
+    new URL('../site/app/gallery/RendererLesson.tsx', import.meta.url),
     'utf8',
   );
   assert.match(source, /<RendererViewport\s+key=\{lesson\.id\}/);
@@ -45,7 +45,7 @@ test('a canvas frames its overlay in the hover-revealed chrome next to the actio
 });
 
 test('configureSceneCamera clamps the distance and leaves wheel zoom enabled', async () => {
-  const { configureSceneCamera } = await import('../docs/js/engine-scene/cameraControls.js');
+  const { configureSceneCamera } = await import('../site/lessons/engine-scene/cameraControls.ts');
   let homeReset = false;
   const explorer = {
     center: { x: 0, y: 0, z: 0 },
@@ -68,7 +68,7 @@ test('configureSceneCamera clamps the distance and leaves wheel zoom enabled', a
 });
 
 test('zoom buttons scale the offset from the controls target, the pivot the wheel uses', async () => {
-  const { configureSceneCamera } = await import('../docs/js/engine-scene/cameraControls.js');
+  const { configureSceneCamera } = await import('../site/lessons/engine-scene/cameraControls.ts');
   // A mutating vector with the operations the helper uses, as Three's Vector3 behaves.
   const vector = (x, y, z) => ({
     x,
@@ -115,7 +115,7 @@ test('zoom buttons scale the offset from the controls target, the pivot the whee
 });
 
 test('RendererViewport offers every shared diagnostic mode with the scene copy of each locale', async () => {
-  const { RendererViewport } = await loadReactComponents('docs/react/gallery/RendererViewport.tsx');
+  const { RendererViewport } = await loadReactComponents('site/app/gallery/RendererViewport.tsx');
   for (const locale of ['en', 'fr']) {
     const copy = sceneCopy[locale];
     const html = renderToStaticMarkup(

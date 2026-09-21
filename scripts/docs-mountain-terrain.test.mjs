@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { mountainTerrain, terrainHeight } from './docs/mountain-terrain/model.mjs';
 import { writeMountainTerrain } from './docs/mountain-terrain/write.mjs';
 const root = resolve(import.meta.dirname, '..'),
-  published = resolve(root, 'docs/assets/gallery/offline/terrain');
+  published = resolve(root, 'site/assets/gallery/offline/terrain');
 
 test('mountain terrain is deterministic with deep relief, strata, and a river', () => {
   const first = mountainTerrain(),

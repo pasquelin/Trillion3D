@@ -1,9 +1,9 @@
-// Texture lines of the summary: all sixteen pool counters named, readable bytes, nothing invented.
+// Texture lines of the summary: all nineteen pool counters named, readable bytes, nothing invented.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { textures } from './rapportTextures.mjs';
 
-test('the sixteen virtual texture counters are read in three lines', () => {
+test('the nineteen virtual texture counters are read in three lines', () => {
   const [pool, retour, diffuseur, , vide] = textures({
     texturePoolBytes: 532_684_800,
     texturePoolLayers: 4,
@@ -13,10 +13,13 @@ test('the sixteen virtual texture counters are read in three lines', () => {
     textureTilesAtLevel: 612,
     textureMissingLevels: 0.125,
     textureTilesPending: 28,
+    textureTilesDeferred: 19,
     textureTilesServed: 3_410,
     textureTilesEvicted: 12,
     textureTilesRefused: 0,
     textureBytesLastFrame: 16_722_688,
+    textureUploadMs: 0.9,
+    textureUploadPeakMs: 1.25,
     textureLevelReads: 2,
     textureLevelsDecoded: 118,
     textureLevelCacheBytes: 150_994_944,
@@ -29,12 +32,12 @@ test('the sixteen virtual texture counters are read in three lines', () => {
   assert.equal(
     retour,
     '- Image feedback: 640 tiles requested, 612 served at the requested level, 0.13 missing ' +
-      'level(s) on average, 28 pending',
+      'level(s) on average, 28 pending, 19 deferred by the budget',
   );
   assert.equal(
     diffuseur,
-    '- Streamer: 3410 tiles served, 12 evicted, 0 refused; last pass 16.7 MB; baked ' +
-      'levels 2 in read, 118 decoded, 151.0 MB held; 0 scratch textures',
+    '- Streamer: 3410 tiles served, 12 evicted, 0 refused; last pass 16.7 MB in 0.90 ms, ' +
+      'worst pass 1.25 ms; baked levels 2 in read, 118 decoded, 151.0 MB held; 0 scratch textures',
   );
   assert.equal(vide, '');
 });

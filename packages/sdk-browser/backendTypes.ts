@@ -8,6 +8,7 @@ import type {
   StageProfile,
 } from '../sdk-core/index.ts';
 import type { BackendMetrics } from './backendMetricKeys.ts';
+import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 import type { CpuStepSummary } from './cpuProfile.ts';
 export type { BackendCapabilities };
 
@@ -29,9 +30,7 @@ export interface RenderBackend {
   /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
   setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
-  setMemoryBudgets?(
-    budgets: import('./webgpuPagesMemory.ts').MemoryBudgets,
-  ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
+  setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
   /** Draws engine-owned geometry (clusters, diagnostic pages, transmissive copies) into the
@@ -155,9 +154,10 @@ export interface BackendContext {
   webglContext?: WebGL2RenderingContext;
   /** Texture-tile bytes admitted per frame. */
   maxTextureTransferBytesPerFrame?: number;
-  /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default.
-   *  The root cover always fits; the rest draws coarser when it does not fit. Image
-   *  targets are not budgeted: they follow resolution. */
+  /** CPU milliseconds a frame's tile pass may spend copying; the rest waits. */
+  maxTextureUploadMsPerFrame?: number;
+  /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root cover
+   *  always fits; the rest draws coarser when it does not fit. Image targets follow resolution. */
   geometryPoolBytes?: number;
   /** The largest geometry pool a `setMemoryBudgets` may ask for during the session;
    *  the starting budget without it. Per-drawable-page tables are sized once, to it. */

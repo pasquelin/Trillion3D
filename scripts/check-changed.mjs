@@ -3,7 +3,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
-import { buildDemoModule } from './docs/bundles.mjs';
 import { gitPaths } from './git-paths.mjs';
 import { repositoryFiles } from './repository-files.mjs';
 
@@ -128,7 +127,6 @@ async function main() {
     }
   }
   if (testFiles.length) {
-    await buildDemoModule(process.cwd());
     run('node', ['--experimental-strip-types', '--test', ...testFiles]);
   } else
     console.log('No directly related unit test; the final validation still runs the full suite.');
