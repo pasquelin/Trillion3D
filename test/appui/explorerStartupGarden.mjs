@@ -69,6 +69,7 @@ export async function startupGarden(page, base, out) {
       'wireframe',
       'lod',
       'screen-error',
+      'materials',
       'visibility',
       'beauty',
     ]) {
