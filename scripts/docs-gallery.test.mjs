@@ -13,7 +13,8 @@ import { examples } from '../site/content/catalog.ts';
 import { rendererLessons } from '../site/lessons/rendererLessons.ts';
 
 const root = new URL('../site/lessons/', import.meta.url);
-const { Gallery, Playground } = await loadReactComponents('site/app/gallery/index.tsx');
+const { Gallery } = await loadReactComponents('site/app/gallery/Gallery.tsx');
+const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
 const { ExampleCard } = await loadReactComponents('site/app/gallery/ExampleCard.tsx');
 const { Home } = await loadReactComponents('site/app/portal/Home.tsx');
 const { CodeBlock } = await loadReactComponents('site/app/components/CodeBlock.tsx');

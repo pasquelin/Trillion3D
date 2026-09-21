@@ -10,7 +10,7 @@ import { transformSync } from 'esbuild';
 import { loadReactComponents } from './docs/render-react.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-const { Playground } = await loadReactComponents('site/app/gallery/index.tsx');
+const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
 
 test('every integrated renderer lesson emits complete parseable host code', () => {
   for (const lesson of rendererLessons) {
