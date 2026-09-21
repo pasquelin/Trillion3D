@@ -117,10 +117,11 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           state.allocationBytes -= attr.array.byteLength;
         rec.geometry.dispose();
       }
-      const positions = data.attributes.position;
+      const positions = data.attributes.position,
+        slack = 1e-5 + (descriptor.positionError ?? 0);
       for (let i = 0; i < positions.length; i++) {
         const axis = i % 3;
-        if (positions[i] < rec.min[axis] - 1e-5 || positions[i] > rec.max[axis] + 1e-5)
+        if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)
           throw new Error('AUTONOMOUS_PAGE_BOUNDS');
       }
       const geometry = new THREE.BufferGeometry();

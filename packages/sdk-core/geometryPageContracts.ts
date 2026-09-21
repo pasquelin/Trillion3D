@@ -10,6 +10,10 @@ export interface GeometryPageDescriptor {
   indexCount: number;
   flags: number;
   uncompressedBytes: number;
+  /** Largest distance a decoded position may lie from its source, in object units, when the
+   *  reader knows it (the primitive's `quantization.maxPositionError`): a decoded page may leave
+   *  its source box by that much. */
+  positionError?: number;
 }
 /** The grid a primitive's pages were quantized on, and the largest displacement it caused. */
 export interface PrimitiveQuantization {
