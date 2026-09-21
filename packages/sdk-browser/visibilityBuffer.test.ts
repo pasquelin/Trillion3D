@@ -26,11 +26,13 @@ test('SHADE_SHADER implements mat3 inverse-transpose without the missing WGSL in
   assert.doesNotMatch(SHADE_SHADER, /\binverse\s*\(/);
 });
 
-test('SHADE_SHADER early returns on background or invalid pixels before texture sampling', () => {
+test('SHADE_SHADER early returns on an invalid triangle before texture sampling', () => {
+  // The background and the pages a class does not own never reach this stage: the material-depth
+  // test keeps them out (`visibilityMaterialClass.ts`). What remains is a triangle beyond the
+  // page's index count, and it exits before any atlas read — `colorSample` and `dataSample` are
+  // declared before `shade_fs`, none is reached first.
   const fs = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shade_fs'));
   const firstReturn = fs.indexOf('return');
-  // Atlas reads go through `colorSample` and `dataSample`, declared before `shade_fs`:
-  // what matters remains that none is reached before the exit on a background or invalid pixel.
   const sampleAt = fs.indexOf('colorSample(');
   assert.ok(firstReturn >= 0 && sampleAt >= 0);
   assert.ok(firstReturn < sampleAt);

@@ -1,6 +1,6 @@
 // Rendering of a measurement row, written once. Benchmark console and aggregated table
 // compose the exact same cells in the same order: they can no longer display two formats of
-// the same figure. Only regression icons distinguish the two outputs.
+// the same figure. Only regression icons distinguish the two outputs; the witness column has none.
 import { niveauEcart } from './baseline.mjs';
 
 const ms = (v) => (v === null ? 'null' : v.toFixed(3));
@@ -12,6 +12,7 @@ const COLONNES = [
   'ns/element',
   'Ops/s',
   'vs baseline',
+  'vs witness',
   'Oracle',
   'Note',
 ];
@@ -40,6 +41,7 @@ export function ligneMd(r, { before = [], pastilles = false } = {}) {
     ns(r.nsParElement),
     r.opsParSec ?? 'null',
     ecartTexte(r.ecartBaseline, pastilles),
+    ecartTexte(r.ecartTemoin, false),
     r.correct === null ? '—' : r.correct ? '✓' : '✗',
     r.motif ?? '',
   ];

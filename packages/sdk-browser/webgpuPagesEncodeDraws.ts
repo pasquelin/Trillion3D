@@ -89,7 +89,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       rows.markRowDirty(row);
     }
   }
-  if (vis.visEnabled && vis.visPipelineBack && vis.shadePipeline && vis.visView) {
+  if (vis.visEnabled && vis.visPipelineBack && vis.materialDepthPipeline && vis.visView) {
     try {
       return encodeVis(rt, device, cam);
     } catch (error) {
