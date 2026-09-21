@@ -138,6 +138,8 @@ mod compiler_prune;
 mod compiler_prune_textures;
 mod compiler_publish;
 mod compiler_ratio;
+mod compiler_reuse;
+mod compiler_reuse_proof;
 mod compiler_runtime;
 mod compiler_scene;
 mod compiler_source;

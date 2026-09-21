@@ -107,11 +107,18 @@ material equations and handles the glTF texture channels, transforms, UV sets an
 its explicit compatibility gate. Published geometric normal variance filters specular roughness, and
 identical mobile-scene campaigns must equal or beat the temporary adapter's whole-frame envelope.
 One frame owner routes display, render targets, held-frame recovery
-and capture through that program, then restores state for the temporary scene adapter. Unsupported
-clustered blend and diagnostic ordering remain #119; transmission composition and removal of the
-temporary complete-scene fallback remain #120. The image delta, curved-surface stability and
-whole-frame cost against the witness are measured and published; this stage does not claim bit
-identity or an unmeasured speed gain.
+and capture through that program, then restores state for the temporary scene adapter. The image
+delta, curved-surface stability and whole-frame cost against the witness are measured and
+published; this stage does not claim bit identity or an unmeasured speed gain.
+
+The following stages own clustered blend, side-split ordering and diagnostic pages on the same
+program (#119), then transmission (#120): a transmissive source mesh stays a scene copy of the
+engine's, composed after the clusters over a frozen backdrop of the frame in linear light, the
+same model as the WebGPU transmission pass. With that, no paged cluster has another renderer:
+the temporary complete-scene path is gone, and a scene the program cannot draw in full fails its
+preparation with a named error instead of a partial image. What remains of the adapter is the
+composition host of the non-transmissive blended copies, the comparison compositor, captures and
+held frames (#85).
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
@@ -465,7 +472,7 @@ What the reference is made of, and our counterpart:
 | Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget | L4              |
 | Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                   | L5              |
 | Reflections                                       | screen traces, then distance fields reading the cache        | none                                                         | L1, L6          |
-| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, cascades, 1 ms budget                            | L3              |
+| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, page-cached sliding cascades, 1 ms budget        | L3              |
 | Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest    | L2 (denoise)    |
 
 What the web imposes, and the answer:

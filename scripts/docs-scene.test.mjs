@@ -43,8 +43,8 @@ test('the embedded preview and its code share the published scene contract', asy
   assert.match(engineExampleCode, /geometryPoolBytes: 16 \* 1024 \* 1024/);
   assert.match(engineExampleCode, /texturePoolBytes: 128 \* 1024 \* 1024/);
   assert.match(engineDiagnosticsCode, /setDiagnostic\('clusters'\)/);
-  const { EngineExample } = await loadReactComponents('docs/react/engine-scene/index.jsx');
-  const { EnginePreview } = await loadReactComponents('docs/react/engine-scene/EnginePreview.jsx');
+  const { EngineExample } = await loadReactComponents('docs/react/engine-scene/index.tsx');
+  const { EnginePreview } = await loadReactComponents('docs/react/engine-scene/EnginePreview.tsx');
   const preview = renderToStaticMarkup(createElement(EnginePreview, { locale: 'fr' }));
   const example = renderToStaticMarkup(createElement(EngineExample, { locale: 'fr' }));
   assert.match(preview, /data-engine-scene/);

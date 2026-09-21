@@ -7,11 +7,7 @@ import { heldRestore } from './webglClusterRestorePage.mjs';
 import { normalMapFrames } from './webglClusterNormalMapPage.mjs';
 import { textureFixtures } from './webglClusterTexturePage.mjs';
 import { windingComparisons } from './webglClusterWindingPage.mjs';
-const pixel = (gl, x, y) => {
-  const value = new Uint8Array(4);
-  gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
-  return [...value];
-};
+import { pixel } from './webglClusterPixels.mjs';
 const triangle = () => {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
