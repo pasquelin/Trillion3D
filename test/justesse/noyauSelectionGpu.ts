@@ -3,13 +3,8 @@
 // in engine order (non-resident cut), then a readback of the GPU output.
 import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
-import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
-import {
-  SELECTION_UNIFORM_BYTES,
-  SELECTION_WORKGROUP,
-} from '../../packages/sdk-browser/gpuSelection.ts';
-import { FRAME_VEC4 } from '../../packages/sdk-browser/gpuDagTypes.ts';
-import { dagWorkLayout } from '../../packages/sdk-browser/gpuDagFloorWgsl.ts';
+import { SELECTION_WORKGROUP } from '../../packages/sdk-browser/gpuSelection.ts';
+import type { SelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 import { REQUEST_PAGE_MAX } from '../../packages/sdk-browser/gpuDagRequest.ts';
 import {
   OUT_DRAWN_TRIANGLES,
@@ -18,39 +13,19 @@ import {
   OUT_UNCOVERED_TRIANGLES,
   SELECTION_HEADER_WORDS,
 } from '../../packages/sdk-browser/gpuDagLayout.ts';
-
-const octets = (vue) => Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
-
-/** A packed case, ready to cross into the page: raw bytes, including cluster integers. */
-function versPage(name, packed, uniforms) {
-  const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
-  writeDagUniforms(uni, packed, uniforms, false);
-  const frames = new Float32Array(Math.max(1, packed.worldCount) * FRAME_VEC4 * 4);
-  const frameInts = new Uint32Array(frames.buffer);
-  for (let w = 0; w < packed.worldCount; w++) {
-    frames[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
-    // The primitive's root travels with its stretch: level descent starts from it.
-    frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
-  }
-  const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP);
-  return {
-    name,
-    travail: dagWorkLayout(blockCount, Math.max(1, packed.worldCount)),
-    pageCount: packed.pageCount,
-    nodeCount: packed.nodeCount,
-    worldCount: Math.max(1, packed.worldCount),
-    levelCount: packed.levelSizes.length,
-    clusters: octets(packed.clusters),
-    nodes: octets(packed.nodes),
-    worlds: octets(packed.worlds),
-    pageCones: octets(packed.pageCones),
-    frames: octets(frames),
-    uniforms: octets(uni),
-  };
-}
+import type { PackedDag } from '../../packages/sdk-browser/gpuDagTypes.ts';
+import { versPage } from './noyauSelectionGpuPack.ts';
+import type { ExecuterEntree, ExecutionResultat, Resultat } from './noyauSelectionGpuPack.ts';
 
 /** Run in the page: one pipeline, every case, the `Output` read back for each. */
-async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
+async function executer({
+  shader,
+  cas,
+  workgroup,
+  entete,
+  totaux,
+  bitsPage,
+}: ExecuterEntree): Promise<ExecutionResultat> {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
@@ -58,14 +33,16 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
   if (compilation.length) return { compilation, erreurs };
   const lu = 'read-only-storage',
     ecrit = 'storage';
-  const acces = [lu, lu, 'uniform', ecrit, ecrit, ecrit, lu, ecrit, lu].map((type, binding) => ({
+  const acces: GPUBindGroupLayoutEntry[] = (
+    [lu, lu, 'uniform', ecrit, ecrit, ecrit, lu, ecrit, lu] as const
+  ).map((type, binding) => ({
     binding,
     visibility: GPUShaderStage.COMPUTE,
     buffer: { type },
   }));
   const layout = device.createBindGroupLayout({ entries: acces });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-  const etape = (entryPoint) =>
+  const etape = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
   const preparePipeline = etape('dagPrepare');
   // Level descent: pass 0 starts from the roots, each following pass runs on the
@@ -74,7 +51,7 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
   const wantedPipeline = etape('dagWanted');
   const maskPipeline = etape('dagMask');
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
-  const tampon = (taille, octetsSource, usage = STORAGE) => {
+  const tampon = (taille: number, octetsSource?: number[], usage: number = STORAGE): GPUBuffer => {
     const buffer = device.createBuffer({
       size: Math.max(taille, octetsSource?.length ?? 0),
       usage,
@@ -82,8 +59,8 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
     if (octetsSource) device.queue.writeBuffer(buffer, 0, new Uint8Array(octetsSource));
     return buffer;
   };
-  const groupes = (n) => Math.max(1, Math.ceil(n / workgroup));
-  const resultats = [];
+  const groupes = (n: number): number => Math.max(1, Math.ceil(n / workgroup));
+  const resultats: Resultat[] = [];
   for (const c of cas) {
     const sortieOctets = entete * 4 + c.pageCount * 4;
     const blockCount = groupes(c.pageCount);
@@ -179,7 +156,10 @@ async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
  * selected, with the sizes of the two lists the frame rereads: descent candidates and
  * `dagWanted` live ones. `shader` replaces the kernel text to compare two versions.
  */
-export async function selectionGpu(cas, shader = DAG_SELECTION_SHADER) {
+export async function selectionGpu(
+  cas: Array<{ name: string; packed: PackedDag; uniforms: SelectionUniforms }>,
+  shader = DAG_SELECTION_SHADER,
+): Promise<ExecutionResultat> {
   // The function is SERIALIZED into the page: it only sees its argument. The readback
   // header layout therefore travels with it, instead of being reread from a module the page lacks.
   return await dansPageWebgpu(executer, {

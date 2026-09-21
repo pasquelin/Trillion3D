@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyseCut } from './coupeAnalyse.ts';
 
-const sha = (c) => c.repeat(64);
+const sha = (c: string) => c.repeat(64);
 
 test('analyseCut counts instances and sorts by triangles', () => {
   const index = new Map([

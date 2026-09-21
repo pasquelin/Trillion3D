@@ -17,8 +17,33 @@ struct VsOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) s
  atomicAdd(&counts[in.slot],1u);return vec4f(1.0,0.0,0.0,1.0);
 }`;
 
+interface ChargeRaster {
+  shader: string;
+  sommets: number[];
+  bornes: Array<['ccw' | 'cw', number, number]>;
+  viewProj: number[];
+  largeur: number;
+  hauteur: number;
+  slots: number;
+}
+interface RasterResultat {
+  indisponible?: string;
+  compilation?: string[];
+  adaptateur?: string;
+  fragments?: number[];
+  erreurs?: string[];
+}
+
 /** Run in the page: two pipelines (forward winding, reversed winding), one counter per case. */
-async function executer({ shader, sommets, bornes, viewProj, largeur, hauteur, slots }) {
+async function executer({
+  shader,
+  sommets,
+  bornes,
+  viewProj,
+  largeur,
+  hauteur,
+  slots,
+}: ChargeRaster): Promise<RasterResultat> {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
@@ -31,7 +56,7 @@ async function executer({ shader, sommets, bornes, viewProj, largeur, hauteur, s
     ],
   });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-  const buffers = [
+  const buffers: GPUVertexBufferLayout[] = [
     {
       arrayStride: 16,
       attributes: [
@@ -40,7 +65,7 @@ async function executer({ shader, sommets, bornes, viewProj, largeur, hauteur, s
       ],
     },
   ];
-  const pipeline = (frontFace) =>
+  const pipeline = (frontFace: GPUFrontFace) =>
     device.createRenderPipeline({
       layout: pipelineLayout,
       vertex: { module, entryPoint: 'vs', buffers },
@@ -104,7 +129,7 @@ async function executer({ shader, sommets, bornes, viewProj, largeur, hauteur, s
 }
 
 /** Rasterizes cases and returns the number of fragments covered per case. */
-export async function rasterGpu(charge) {
+export async function rasterGpu(charge: Omit<ChargeRaster, 'shader'>): Promise<RasterResultat> {
   return await dansPageWebgpu(
     executer,
     { ...charge, shader: RASTER },

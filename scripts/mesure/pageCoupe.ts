@@ -10,15 +10,24 @@
  * enough to exhaust the driver — while `pages` has only two and renders the same meshes. The two
  * sources are not compared; the report says which one served.
  */
-export function lireCoupe(explorer, engineId) {
-  const backend = explorer.backends.find((candidate) => candidate.id === engineId);
+import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type { Coupe } from './report/types.ts';
+
+type Backend = SdkBrowser.RenderBackend & { selectedPageIds?: () => Iterable<string> };
+
+export function lireCoupe(
+  explorer: Awaited<ReturnType<typeof SdkBrowser.createExplorer>>,
+  engineId: string,
+): Coupe {
+  const backend = explorer.backends.find((candidate) => candidate.id === engineId) as
+    Backend | undefined;
   if (backend && typeof backend.selectedPageIds === 'function')
     return { source: 'selectedPageIds', ids: [...backend.selectedPageIds()].sort() };
   if (!backend || !backend.scene) return { source: null, ids: [] };
   explorer.setDiagnostic('pages');
   const ids = backend.scene.children
     .map((child) => child.userData && child.userData.clusterId)
-    .filter((id) => typeof id === 'string')
+    .filter((id): id is string => typeof id === 'string')
     .sort();
   explorer.setDiagnostic('beauty');
   return { source: 'clusterId', ids };

@@ -26,13 +26,15 @@ import { descenteComptee } from '../../packages/sdk-browser/gpuDagCutFrontierFix
 import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
+import type { PackedDag } from '../../packages/sdk-browser/gpuDagTypes.ts';
+import type { SelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
 
-const VIEWPORT = [1280, 720];
+const VIEWPORT: [number, number] = [1280, 720];
 /** Fourth field is the threshold; fifth, the depths at which the pyramid is PLACED. A
  *  single depth keeps only one LOD, hence one error band and one priority: priority
  *  equality would then be checked on a constant sequence. Far apart, the copies resolve
  *  to different LODs, as in a real scene. */
-const POSES = [
+const POSES: Array<[string, number, number, number, number[]]> = [
   ['head-on, 1 px', 0, 16, 1, [0]],
   ['head-on, 4 px', 0, 16, 4, [0]],
   ['oblique, 1 px', 9, 14, 1, [0]],
@@ -42,7 +44,15 @@ const POSES = [
 const pages = scenePages(4096, 8);
 const camera = new THREE.PerspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200);
 
-const cas = [];
+const cas: Array<{
+  nom: string;
+  packed: PackedDag;
+  uniforms: SelectionUniforms;
+  seuil: number;
+  cpu: number;
+  elagages: number;
+  oracle: ReturnType<typeof evaluateDagSelectionKernel>;
+}> = [];
 for (const [nom, x, z, seuil, profondeurs] of POSES) {
   const mondes = profondeurs.map((p) => new THREE.Matrix4().makeTranslation(0, 0, -p));
   const roots = sceneRoots(pages, mondes);
@@ -53,14 +63,17 @@ for (const [nom, x, z, seuil, profondeurs] of POSES) {
   // The kernel works in the render frame: packed world matrices are brought there, as the
   // engine carries them, otherwise relative view and absolute world would mix.
   const packed = packedWorldsToRenderOrigin(packDagSelection(roots), roots, uniforms.cameraWorld);
-  // The CPU cut takes the same nodes with its own bounds, in f64: that is the reference.
-  const bornes = cullingBounds(roots[0].culling, pages);
+  // The CPU cut takes the same nodes with its own bounds, in f64: that is the reference. Every
+  // root `sceneRoots` builds carries `culling`: the fixture never omits it.
+  const rootCulling = roots[0].culling;
+  assert.ok(rootCulling, 'the scene root carries no culling nodes');
+  const bornes = cullingBounds(rootCulling, pages);
   const cpu = selectVisiblePages(
     mondes.map((monde) => ({
       world: monde,
       pages,
       cones: false,
-      culling: { ...roots[0].culling, bounds: bornes },
+      culling: { ...rootCulling, bounds: bornes },
     })),
     cameraMoteur(camera),
     { pixelError: seuil, viewport: VIEWPORT },
@@ -81,8 +94,10 @@ const gpu = await selectionGpu(
 );
 assert.equal(gpu.indisponible ?? null, null);
 assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
+assert.ok(gpu.resultats, 'no result');
+const resultats = gpu.resultats;
 const lignes = cas.map((c) => {
-  const lu = gpu.resultats.find((r) => r.name === c.nom);
+  const lu = resultats.find((r) => r.name === c.nom);
   return {
     pose: c.nom,
     seuil: c.seuil,
@@ -109,7 +124,7 @@ const lignes = cas.map((c) => {
   };
 });
 // Priority sequences run to thousands of entries: published as a summary, compared in full.
-const resume = (suite) =>
+const resume = (suite: number[] | null) =>
   suite && { pas: new Set(suite).size, haute: suite[0], basse: suite[suite.length - 1] };
 console.log(
   JSON.stringify(
@@ -136,6 +151,10 @@ for (const ligne of lignes) {
   assert.ok(ligne.sousArbresElagues > 0, `${ligne.pose}: no subtree pruned`);
   assert.equal(ligne.ecartOracleGpu, 0, `${ligne.pose}: GPU and oracle diverge`);
   assert.equal(ligne.retenuesGpu, ligne.retenuesCpu, `${ligne.pose}: GPU loses from the cut`);
+  assert.ok(
+    ligne.trianglesGpu !== null && ligne.dessinesGpu !== null && ligne.trouGpu !== null,
+    `${ligne.pose}: no GPU result`,
+  );
   assert.ok(ligne.trianglesGpu > 0, `${ligne.pose}: no triangle counted`);
   assert.equal(
     ligne.trianglesGpu,

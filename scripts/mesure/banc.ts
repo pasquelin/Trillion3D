@@ -21,15 +21,18 @@
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import type { Page } from 'playwright';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer } from './serveur.ts';
+import type { Capture } from './serveur.ts';
 import { readBounds } from './page.ts';
 import { imageDiff, resume } from './rapport.ts';
 import { benchLights } from './lampes.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs, recordCuts } from './report/evidence.ts';
 import { runSerie } from './serie.ts';
+import type { ErreurPage, Report, RunContext, Serie } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const {
@@ -39,11 +42,11 @@ const {
   flags,
   resources,
 } = options.readOptions(process.argv.slice(2), ROOT);
-const CTX = { MANIFEST: null, OUT, settings, lights: null, poses: null };
+const CTX: RunContext = { MANIFEST: null, OUT, settings, lights: null, poses: null };
 
 async function main() {
   await mkdir(OUT, { recursive: true });
-  const sides = options.resolveSides({
+  const rawSides = options.resolveSides({
     after: flags.get('apres'),
     before: flags.get('avant'),
     root: ROOT,
@@ -52,7 +55,7 @@ async function main() {
   // (`--moteur-<side>`, Chromium flags being union) and variant (`--variante-<side>`).
   // `--scene name` sets asset cache before equipping sides: campaign thus runs each reference scene without repeating `--cache-*` paths.
   options.applySceneFlag(flags);
-  for (const side of sides) options.equipSide(side, flags, settings);
+  const sides = rawSides.map((side) => options.equipSide(side, flags, settings));
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
   // Measured scene is from named caches; without any, benchmark reference scene.
   const scene = options.sceneOf(sides.find((side) => side.cache)?.cache);
@@ -65,10 +68,10 @@ async function main() {
     side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST;
     side.sourceUrl = side.engine.source === 'gltf' ? options.sceneGltf(scene) : null;
   }
-  const captures = new Map();
+  const captures = new Map<string, Capture>();
   const mounts = options.resolveMounts(ROOT, sides, resources);
 
-  const report = {
+  const report: Report = {
     startedAt: new Date().toISOString(),
     provenance: measurementProvenance(),
     campaignIdentity: process.env.WG_CAMPAIGN_IDENTITY ?? null,
@@ -92,12 +95,14 @@ async function main() {
     captures,
     isolation: settings.isolation,
   });
-  const port = server.address().port;
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('server did not bind a TCP port');
+  const port = address.port;
   report.settings = { ...settings, port };
   // Fresh browser per series, closed immediately after. Emerald scene leaves several hundred MB
   // in Chromium GPU process; closing page does not release them, causing 3rd series to fail
   // ("WebGL2 unavailable"). Relaunching browser frees GPU process between series.
-  const onFreshPage = async (run) => {
+  const onFreshPage = async <T>(run: (page: Page) => Promise<T>): Promise<T> => {
     const browser = await launchChrome({ headless: !settings.visible, args: FLAGS });
     report.provenance.browser = browser.version();
     const page = await browser.newPage({
@@ -125,23 +130,22 @@ async function main() {
     report.bounds = await onFreshPage((page) =>
       page.evaluate(readBounds, {
         sdkUrl: `/sdk/${sides[0].name}/sdk-browser/index.js`,
-        manifestUrl: sides[0].manifestUrl,
+        manifestUrl: sides[0].manifestUrl ?? MANIFEST,
       }),
     );
+    const bounds = report.bounds;
     // Lights once bounds are known: geometric rule, no named scene.
-    CTX.lights = benchLights(report.bounds, settings);
+    CTX.lights = benchLights(bounds, settings);
     report.lampes = CTX.lights ? CTX.lights.resume : null;
     for (const pixelError of settings.pixelErrors)
       for (const view of views) {
         const index = options.VIEWS[view].index;
-        const pose = options.poseAt(report.bounds, index);
+        const pose = options.poseAt(bounds, index);
         // Moving camera: one pose per measured frame along benchmark trajectory.
         CTX.poses = settings.movingCamera
-          ? Array.from({ length: settings.frames }, (_, i) =>
-              options.poseAt(report.bounds, index + i),
-            )
+          ? Array.from({ length: settings.frames }, (_, i) => options.poseAt(bounds, index + i))
           : null;
-        const serie = {
+        const serie: Serie = {
           view,
           pixelError,
           segment: options.VIEWS[view].segment,
@@ -150,7 +154,7 @@ async function main() {
           sides: {},
         };
         report.series.push(serie);
-        const files = {};
+        const files: Record<string, string> = {};
         for (const side of sides) {
           const { row, captureFile } = await onFreshPage((page) =>
             runSerie(CTX, page, side, view, pixelError, pose, captures),

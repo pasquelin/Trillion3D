@@ -11,9 +11,21 @@ import {
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { sceneNote } from '../scene.ts';
 import { assertReport, REPORT_VERSION } from '../../../site/reports/contract.ts';
+import type { Report as CampaignReport } from '../../../site/reports/types.ts';
+import type { Report as MesureReport } from './types.ts';
+
+type ReportRun = CampaignReport['runs'][number];
+type ReportRecord = CampaignReport['records'][number];
+
+/** Normalises an image delta for the public record: the pixel-count reading, or `null`. */
+function toWitness(diff: unknown): { pixels: number; total: number } | null {
+  if (!diff || typeof diff !== 'object' || 'erreur' in diff) return null;
+  const d = diff as { pixels: number; total: number };
+  return { pixels: d.pixels, total: d.total };
+}
 
 /** Strip workstation paths from public evidence while retaining measurement fields. */
-function publicData(value) {
+function publicData(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(publicData);
   if (value && typeof value === 'object')
     return Object.fromEntries(
@@ -24,7 +36,7 @@ function publicData(value) {
   if (typeof value === 'string' && value.startsWith('/')) return basename(value);
   return value;
 }
-function files(root, depth = 0) {
+function files(root: string, depth = 0): string[] {
   if (depth > 2) return [];
   if (
     existsSync(join(root, 'mesure.json')) ||
@@ -35,7 +47,12 @@ function files(root, depth = 0) {
     .filter((entry) => entry.isDirectory() && !['vignettes', 'report-data'].includes(entry.name))
     .flatMap((entry) => files(join(root, entry.name), depth + 1));
 }
-function image(source, png, output, id) {
+function image(
+  source: string,
+  png: string | null | undefined,
+  output: string,
+  id: string,
+): string | null {
   if (!png) return null;
   const file = resolve(source, png);
   if (!file.startsWith(resolve(source) + sep) || !existsSync(file)) return null;
@@ -47,8 +64,13 @@ function image(source, png, output, id) {
   copyFileSync(file, join(output, target));
   return target;
 }
-export function exportReport(source, output, id) {
-  const report = { formatVersion: REPORT_VERSION, id, runs: [], records: [] };
+export function exportReport(source: string, output: string, id: string): CampaignReport {
+  const report: {
+    formatVersion: typeof REPORT_VERSION;
+    id: string;
+    runs: ReportRun[];
+    records: ReportRecord[];
+  } = { formatVersion: REPORT_VERSION, id, runs: [], records: [] };
   if (!/^[a-z0-9-]+$/.test(id)) throw new Error('Invalid campaign ID');
   if (existsSync(output)) throw new Error('Export directory already exists');
   mkdirSync(join(output, 'sources'), { recursive: true });
@@ -67,15 +89,15 @@ export function exportReport(source, output, id) {
       });
       continue;
     }
-    const raw = JSON.parse(readFileSync(file, 'utf8'));
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<MesureReport>;
     if (!Array.isArray(raw.series)) throw new Error(`Invalid measurement: ${file}`);
     const sourcePath = `sources/${runId}.json`;
     writeFileSync(join(output, sourcePath), JSON.stringify(publicData(raw)) + '\n');
-    const errors = raw.errors?.length > 0 || !raw.finishedAt;
+    const errors = (raw.errors?.length ?? 0) > 0 || !raw.finishedAt;
     report.runs.push({
       id: runId,
       name: basename(dirname(file)),
-      scene: raw.scene,
+      scene: raw.scene ?? null,
       source: sourcePath,
       status: errors || !raw.finishedAt ? 'failed' : 'complete',
       startedAt: raw.startedAt ?? null,
@@ -87,32 +109,32 @@ export function exportReport(source, output, id) {
         if (!/^[a-z0-9-]+$/.test(side)) throw new Error('Invalid measurement side');
         if (side.endsWith('-aa')) continue;
         const recordId = `${id}-${runId}-${index}-${side}`;
-        const identity = raw.sides?.[side] ?? {};
+        const identity = raw.sides?.[side];
         report.records.push({
           id: recordId,
           runId,
-          scene: raw.scene,
-          sceneNote: sceneNote(raw.scene),
+          scene: raw.scene ?? '',
+          sceneNote: sceneNote(raw.scene ?? ''),
           view: series.view,
           quality: series.pixelError,
-          engine: data.moteur ?? identity.moteur ?? raw.engine,
+          engine: data.moteur ?? identity?.moteur ?? raw.engine ?? '',
           commit: raw.head ?? null,
           pathVersion: raw.pathVersion ?? null,
-          assetKey: identity.assetKey ?? null,
-          buildHash: identity.buildHash ?? null,
-          variant: data.variante ?? identity.variante ?? null,
-          provenance: raw.provenance ?? null,
+          assetKey: identity?.assetKey ?? null,
+          buildHash: identity?.buildHash ?? null,
+          variant: data.variante ?? identity?.variante ?? null,
+          provenance: (raw.provenance as ReportRecord['provenance']) ?? null,
           pose: series.pose ?? null,
           canvas: data.canvas ?? null,
-          settings: publicData(raw.settings ?? {}),
+          settings: publicData(raw.settings ?? {}) as Record<string, unknown>,
           errors: errors || Boolean(data.incidentsGpu?.length),
           gpuMethod: data.profilParEtape?.gpuMethod ?? null,
-          witness: series.sides?.[`${side}-aa`] ? (series.temoinAA ?? null) : null,
-          difference: series.ecartAvantApres ?? null,
+          witness: series.sides?.[`${side}-aa`] ? toWitness(series.temoinAA) : null,
+          difference: toWitness(series.ecartAvantApres),
           differencePair:
             series.sides?.avant && series.sides?.apres ? `${id}-${runId}-${index}` : null,
           identicalCut: series.coupeIdentique ?? null,
-          data: publicData(data),
+          data: publicData(data) as ReportRecord['data'],
           image: image(dirname(file), data.png, output, recordId),
         });
       }

@@ -14,41 +14,38 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import type { CameraPose } from '../../packages/sdk-core/index.ts';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer } from './serveur.ts';
-import { encodePng } from '../../packages/sdk-node/png.mts';
+import type { Capture } from './serveur.ts';
 import { readBounds } from './page.ts';
-import { measureIrradiance } from './oraclePage.ts';
 import { benchLights } from './lampes.ts';
-import {
-  compareIrradiance,
-  convergenceDelay,
-  oracleBuilt,
-  oracleJob,
-  runOracle,
-} from './oracleCompare.ts';
+import { oracleBuilt } from './oracleCompare.ts';
 import { machineLoad } from './rapport.ts';
+import { runView } from './oracleView.ts';
+import type { OracleSettings, VueOracle } from './oracleView.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const args = process.argv.slice(2);
 // Same flag reader as benchmark: `--name value`, `--name=value`, `--name` alone.
 const flags = options.parseArgs(args);
-const flag = (name, fallback) => flags.get(name) ?? fallback;
-const number = (name, fallback) => Number(flag(name, fallback));
+function flag(name: string): string | undefined;
+function flag(name: string, fallback: string): string;
+function flag(name: string, fallback?: string): string | undefined {
+  return flags.get(name) ?? fallback;
+}
+const number = (name: string, fallback: number) => Number(flag(name, String(fallback)));
 
 /** Three comma-separated numbers, or null. Used for manual poses. */
-const triple = (name) => {
+const triple = (name: string): [number, number, number] | null => {
   const value = flag(name);
   if (!value || value === 'true') return null;
   const parts = value.split(',').map(Number);
   if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part)))
     throw new Error(`--${name} expects three comma-separated numbers`);
-  return parts;
+  return parts as [number, number, number];
 };
-
-/** Light movement used to measure delay: a clear step, not a slight flicker. */
-const MOVED = (position, step) => [position[0] + step, position[1], position[2] + step];
 
 async function main() {
   const cache = options.resolveCache(flag('cache'));
@@ -58,7 +55,7 @@ async function main() {
   if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
   const out = resolve(flag('out', join(ROOT, `.mesure/out/oracle-${Date.now()}`)));
   await mkdir(out, { recursive: true });
-  const settings = {
+  const settings: OracleSettings = {
     width: number('largeur', 160),
     height: number('hauteur', 120),
     samples: number('samples', 256),
@@ -81,17 +78,27 @@ async function main() {
   const sides = options.resolveSides({ after: flag('apres'), root: ROOT });
   const side = sides[0];
   side.cache = cache;
-  side.manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
+  const manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
+  side.manifestUrl = manifestUrl;
   const resources = flag('ressources');
-  const mounts = options.resolveMounts(ROOT, sides, resources && resolve(resources));
-  const captures = new Map();
+  const mounts = options.resolveMounts(ROOT, sides, resources ? resolve(resources) : null);
+  const captures = new Map<string, Capture>();
   const server = await startServer({ port: 0, mounts, captures });
-  const port = server.address().port;
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('server did not bind a TCP port');
+  const port = address.port;
   const browser = await launchChrome({
     headless: flag('visible', 'false') !== 'true',
     args: options.ENGINES.webgpu.flags,
   });
-  const report = {
+  const report: {
+    startedAt: string;
+    commande: string;
+    head: string;
+    settings: typeof settings;
+    charge: { avant: number[]; apres?: number[] };
+    vues: VueOracle[];
+  } = {
     startedAt: new Date().toISOString(),
     commande: `node scripts/mesure/oracle.ts ${args.join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
@@ -112,7 +119,7 @@ async function main() {
     await page.goto(`http://127.0.0.1:${port}/`);
     const bounds = await page.evaluate(readBounds, {
       sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
-      manifestUrl: side.manifestUrl,
+      manifestUrl,
     });
     const lights = benchLights(bounds, {
       lights: settings.lamps,
@@ -122,21 +129,35 @@ async function main() {
       sun: false,
       movingLight: false,
     });
-    const moving = lights && lights.lights.find((light) => light.kind === 'point');
-    if (!lights || !moving) throw new Error('--lampes must declare at least one point light');
+    const movingCandidate = lights && lights.lights.find((light) => light.kind === 'point');
+    if (!lights || !movingCandidate || !movingCandidate.position)
+      throw new Error('--lampes must declare at least one point light');
+    const moving = { id: movingCandidate.id, position: movingCandidate.position };
     // Light step: clear enough that rebound must reconverge.
     const step = number('pas', Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
     const camera = triple('pose'),
       target = triple('cible');
     for (const view of flag('vues', 'generale').split(',')) {
       // Manual pose overrides benchmark trajectory.
-      const known = options.VIEWS[view];
+      const known = options.VIEWS[view as keyof typeof options.VIEWS];
       if (!known && !camera) throw new Error(`vue inconnue : ${view}`);
-      const pose = camera
+      const pose: CameraPose = camera
         ? { ...options.poseAt(bounds, 0), position: camera, target: target ?? [0, 0, 0] }
         : options.poseAt(bounds, known.index);
       report.vues.push(
-        await runView(page, { side, settings, pose, view, lights, moving, step, out, captures }),
+        await runView(page, {
+          side,
+          manifestUrl,
+          settings,
+          pose,
+          view,
+          lights,
+          moving,
+          step,
+          out,
+          captures,
+          root: ROOT,
+        }),
       );
     }
   } finally {
@@ -147,48 +168,6 @@ async function main() {
   await writeFile(join(out, 'oracle.json'), JSON.stringify(report, null, 1));
   console.log(JSON.stringify(report, null, 1));
   if (report.vues.some((view) => view.erreur)) process.exitCode = 1;
-}
-
-/** One view: engine converged image, oracle image, gap, and measured delay. */
-async function runView(page, ctx) {
-  const { side, settings, pose, view, lights, moving, step, out, captures } = ctx;
-  const captureFile = `${view}-irradiance.png`;
-  const result = await page.evaluate(measureIrradiance, {
-    sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
-    manifestUrl: side.manifestUrl,
-    backend: options.ENGINES.webgpu.backend,
-    pose,
-    captureFile,
-    width: settings.width,
-    height: settings.height,
-    pixelError: settings.pixelError,
-    maxPages: settings.maxPages,
-    exposure: settings.exposure,
-    converge: settings.converge,
-    delayFrames: settings.delayFrames,
-    lights: lights.lights,
-    movingLight: moving.id,
-    originalPosition: moving.position,
-    movedPosition: MOVED(moving.position, step),
-  });
-  if (result.erreur) return { vue: view, erreur: result.erreur };
-  const capture = captures.get(captureFile);
-  if (capture)
-    await writeFile(join(out, captureFile), encodePng(capture.w, capture.h, capture.body, true));
-  const reference = join(out, `${view}.f32`);
-  const job = oracleJob(settings, pose, lights.lights, reference);
-  const oracle = runOracle(ROOT, job, out, view);
-  return {
-    vue: view,
-    pose,
-    lampes: lights.lights.length,
-    rebond: result.rebond,
-    oracle,
-    ecart: capture
-      ? compareIrradiance(capture, reference, settings.exposure, settings.floor)
-      : { erreur: 'capture absente' },
-    retard: convergenceDelay(result.gaps, settings),
-  };
 }
 
 await main();

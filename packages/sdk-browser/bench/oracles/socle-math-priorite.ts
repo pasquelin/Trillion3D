@@ -1,12 +1,32 @@
 // Streaming-queue oracle of batch M1 "math foundation": `orderPendingUrls` from before the
 // attachment, copied as-is from `develop` at commit d016f88 (`streamingPriority.ts:46-129`),
 // with the product in a loop from zero and the view centre written inline.
+import type { NumberSink } from '../../../sdk-core/index.ts';
 import { clusterErrorPixels, maxStretch } from '../../../sdk-core/index.ts';
 import { referenceComposeView, referenceProject } from './socle-math.ts';
 
+/** One hostile cluster record as `scenesSocleConsommateurs.ts` builds it: a subset of `PageRec`,
+ *  limited to what the streaming order reads. */
+export interface PriorityRecordFixture {
+  url: string;
+  streamUrl?: string;
+  matrix: { elements: NumberSink };
+  min: NumberSink;
+  max: NumberSink;
+  lodError: number;
+  sphere?: number[];
+  parentError?: number | null;
+  parentSphere?: number[] | null;
+  array?: Uint32Array;
+}
+interface PriorityCameraFixture {
+  matrixWorldInverse: { elements: NumberSink };
+  near: number;
+}
+
 const centre = new Float64Array(4),
   bounds = new Float64Array(4);
-function boundsSphere(record, out) {
+function boundsSphere(record: PriorityRecordFixture, out: Float64Array) {
   out[0] = (record.min[0] + record.max[0]) / 2;
   out[1] = (record.min[1] + record.max[1]) / 2;
   out[2] = (record.min[2] + record.max[2]) / 2;
@@ -15,7 +35,11 @@ function boundsSphere(record, out) {
 }
 
 /** Error and distance of each record, as the queue compared them. */
-function referencePriorities(records, camera, pixelScale) {
+function referencePriorities(
+  records: PriorityRecordFixture[],
+  camera: PriorityCameraFixture,
+  pixelScale: number[],
+) {
   const focal = Math.max(pixelScale[0], pixelScale[1]),
     near = camera.near;
   const views = new Map(),
@@ -63,7 +87,11 @@ function referencePriorities(records, camera, pixelScale) {
 }
 
 /** The rendered order: decreasing error, then increasing distance, the worst cluster per bundle. */
-export function referenceOrder(records, camera, pixelScale) {
+export function referenceOrder(
+  records: PriorityRecordFixture[],
+  camera: PriorityCameraFixture,
+  pixelScale: number[],
+) {
   const valeurs = referencePriorities(records, camera, pixelScale),
     slots = new Map();
   for (let index = 0; index < records.length; index++) {

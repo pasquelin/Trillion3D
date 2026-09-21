@@ -5,7 +5,7 @@ import { LIGHT_SETTINGS } from '../../../sdk-core/sceneLightContracts.ts';
 /** `sceneLightShadowMath.ts:14-46` from before, written into a given buffer rather than in the
  *  module. Only the depth row follows the engine convention — reversed, near plane at 1: it is
  *  the INPUT of the product that the oracle witnesses, not the projection formula. */
-export function referenceShadowProjection(proj, fov, range) {
+export function referenceShadowProjection(proj: Float32Array, fov: number, range: number) {
   const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
     far = Math.max(near * 1.001, range);
   const f = 1 / Math.tan(fov / 2),
@@ -17,7 +17,7 @@ export function referenceShadowProjection(proj, fov, range) {
   proj[11] = -1;
   proj[14] = far * depth;
 }
-export function referenceShadowOrthographic(proj, halfExtent, far) {
+export function referenceShadowOrthographic(proj: Float32Array, halfExtent: number, far: number) {
   proj.fill(0);
   proj[0] = 1 / halfExtent;
   proj[5] = 1 / halfExtent;
@@ -28,7 +28,7 @@ export function referenceShadowOrthographic(proj, halfExtent, far) {
 
 /** `sceneLightShadowMath.ts:48-138` from before: basis, view and product in a loop from zero. */
 export const referenceFaceBasis = new Float64Array(9);
-function shadowView(out, base, eye, forward) {
+function shadowView(out: Float32Array, base: number, eye: number[], forward: number[]) {
   const fx = forward[0],
     fy = forward[1],
     fz = forward[2];
@@ -70,7 +70,15 @@ function shadowView(out, base, eye, forward) {
   out[base + 14] = fx * eye[0] + fy * eye[1] + fz * eye[2];
   out[base + 15] = 1;
 }
-function multiply4(out, outBase, a, aBase, b, bBase, scratch) {
+function multiply4(
+  out: Float32Array,
+  outBase: number,
+  a: Float32Array,
+  aBase: number,
+  b: Float32Array,
+  bBase: number,
+  scratch: Float32Array,
+) {
   for (let column = 0; column < 4; column++)
     for (let row = 0; row < 4; row++) {
       let sum = 0;
@@ -81,7 +89,13 @@ function multiply4(out, outBase, a, aBase, b, bBase, scratch) {
 }
 const viewScratch = new Float32Array(16),
   mulScratch = new Float32Array(16);
-export function referenceComposeFace(out, base, eye, forward, proj) {
+export function referenceComposeFace(
+  out: Float32Array,
+  base: number,
+  eye: number[],
+  forward: number[],
+  proj: Float32Array,
+) {
   shadowView(viewScratch, 0, eye, forward);
   multiply4(out, base, proj, 0, viewScratch, 0, mulScratch);
 }
@@ -89,7 +103,7 @@ export function referenceComposeFace(out, base, eye, forward, proj) {
 /** `sceneLightShadowVolume.ts:13-66` from before, on the basis of the face composed by the oracle. */
 const axis = new Float64Array(3),
   corner = new Float64Array(3);
-function direction(out, u, v, t) {
+function direction(out: Float64Array, u: number, v: number, t: number) {
   const faceBasis = referenceFaceBasis;
   let length = 0;
   for (let a = 0; a < 3; a++) {
@@ -99,7 +113,7 @@ function direction(out, u, v, t) {
   length = Math.sqrt(length) || 1;
   for (let a = 0; a < 3; a++) out[a] /= length;
 }
-export function referenceConeAxisCosine(rect, halfFov) {
+export function referenceConeAxisCosine(rect: Float64Array, halfFov: number) {
   const t = Math.tan(halfFov);
   direction(axis, (rect[0] + rect[1]) / 2, (rect[2] + rect[3]) / 2, t);
   let cosine = 1;

@@ -8,9 +8,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readOptions } from './options.ts';
 import { runSerie } from './serie.ts';
+import type { Page } from 'playwright';
+import type { RunContext } from './report/types.ts';
+import type { Side } from './optionsCote.ts';
+import type { CameraPose } from '../../packages/sdk-core/index.ts';
 
 /** What the page returns when it has nothing more to say than requested metrics. */
-const releveDePage = (mathBatch) => ({
+const releveDePage = (mathBatch: unknown) => ({
   cpuFrameMs: [],
   cpuSelectMs: [],
   gpuFrameMs: [],
@@ -23,33 +27,48 @@ const releveDePage = (mathBatch) => ({
   ...(mathBatch === undefined ? {} : { mathBatch }),
 });
 
+const pose: CameraPose = { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 };
+
 /** A series run on a mock page: returns produced row and path it received. */
-async function serie(mathPath, mathBatch) {
+async function serie(mathPath: string, mathBatch: unknown) {
   const OUT = await mkdtemp(join(tmpdir(), 'wg-serie-calcul-'));
-  const recus = [];
+  const recus: unknown[] = [];
   const page = {
-    evaluate: async (_fn, payload) => {
+    evaluate: async (_fn: unknown, payload: { mathPath: unknown }) => {
       recus.push(payload.mathPath);
       return releveDePage(mathBatch);
     },
-  };
-  const ctx = {
+  } as unknown as Page;
+  const ctx: RunContext = {
     MANIFEST: 'manifest.json',
     OUT,
-    settings: { frames: 4, warmup: 1, maxPages: 32, width: 8, height: 8, mathPath },
+    settings: {
+      frames: 4,
+      warmup: 1,
+      maxPages: 32,
+      width: 8,
+      height: 8,
+      mathPath,
+    } as RunContext['settings'],
     lights: null,
     poses: null,
   };
+  const side = {
+    name: 'a',
+    dist: 'dist-test',
+    from: 'test',
+    engine: {
+      backend: 'creerMoteur',
+      id: 'moteur-test',
+      flags: [],
+      page: 'pageEclairage.ts',
+      source: 'cache',
+    },
+    variant: null,
+    errorMetric: null,
+  } as unknown as Side;
   try {
-    const { row } = await runSerie(
-      ctx,
-      page,
-      { name: 'a', engine: { backend: 'creerMoteur', id: 'moteur-test' } },
-      'salon',
-      1,
-      { position: [0, 0, 0] },
-      new Map(),
-    );
+    const { row } = await runSerie(ctx, page, side, 'salon', 1, pose, new Map());
     return { row, recus };
   } finally {
     await rm(OUT, { recursive: true, force: true });

@@ -15,6 +15,12 @@ import {
   SELECTION_HEADER_WORDS,
   SELECTION_LIST_CAP,
 } from '../../packages/sdk-browser/gpuDagLayout.ts';
+import type { executer, Ligne } from './releveCoupePage.ts';
+
+declare global {
+  // eslint-disable-next-line no-var
+  var releveCoupe: { executer: typeof executer };
+}
 
 const ici = dirname(fileURLToPath(import.meta.url));
 
@@ -30,9 +36,9 @@ const ERREURS = [1, 4, 16, 64];
 
 test('delivered readout stays under its cap regardless of catalog size', async () => {
   const script = await empaquetePage(resolve(ici, 'releveCoupePage.ts'), 'releveCoupe');
-  const erreursPage = [];
+  const erreursPage: string[] = [];
   const releve = await dansPageWebgpu(
-    (argument) => globalThis.releveCoupe.executer(argument),
+    (argument: Parameters<typeof executer>[0]) => globalThis.releveCoupe.executer(argument),
     {
       tailles: TAILLES,
       niveaux: NIVEAUX,
@@ -45,10 +51,13 @@ test('delivered readout stays under its cap regardless of catalog size', async (
   );
   assert.equal(releve.indisponible, undefined, 'WebGPU must be available');
   assert.deepEqual([...(releve.erreurs ?? []), ...erreursPage], []);
-  const mesurees = releve.lignes.filter((ligne) => !ligne.refus);
+  assert.ok(releve.lignes, 'no line was measured');
+  const mesurees = releve.lignes.filter(
+    (ligne): ligne is Exclude<Ligne, { refus: string }> => !('refus' in ligne),
+  );
   assert.ok(mesurees.length >= 2, 'at least two sizes must fit on the card');
-  const arrondi = (x) => Number(x.toFixed(4));
-  const mo = (octets) => Number((octets / 1048576).toFixed(2));
+  const arrondi = (x: number): number => Number(x.toFixed(4));
+  const mo = (octets: number): number => Number((octets / 1048576).toFixed(2));
   const table = mesurees.map((ligne) => {
     const [seul, livre, pireCas] = ligne.variantes.map((v) => v.ms);
     return {
@@ -67,7 +76,7 @@ test('delivered readout stays under its cap regardless of catalog size', async (
       {
         adaptateur: releve.adaptateur,
         plafond: releve.plafond,
-        refus: releve.lignes.filter((ligne) => ligne.refus),
+        refus: releve.lignes.filter((ligne) => 'refus' in ligne),
         table,
       },
       null,

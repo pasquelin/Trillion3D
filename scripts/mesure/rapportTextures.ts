@@ -1,7 +1,12 @@
-export const go = (b) => (typeof b === 'number' ? `${(b / 1e9).toFixed(3)} GB` : 'unmeasured');
-export const mo = (b) => (typeof b === 'number' ? `${(b / 1e6).toFixed(1)} MB` : 'unmeasured');
-const n = (v) => (typeof v === 'number' ? String(v) : 'unmeasured');
-const n2 = (v) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
+import type { FrameMetrics } from '../../packages/sdk-core/index.ts';
+import type { Row } from './report/types.ts';
+
+export const go = (b: number | null | undefined) =>
+  typeof b === 'number' ? `${(b / 1e9).toFixed(3)} GB` : 'unmeasured';
+export const mo = (b: number | null | undefined) =>
+  typeof b === 'number' ? `${(b / 1e6).toFixed(1)} MB` : 'unmeasured';
+const n = (v: number | null | undefined) => (typeof v === 'number' ? String(v) : 'unmeasured');
+const n2 = (v: number | null | undefined) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
 
 /**
  * Virtual textures of one side, read from the nineteen counters the engine publishes. The pool is
@@ -9,8 +14,11 @@ const n2 = (v) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
  * fixed: "resident on pool" says what the view occupies, never what the scene weighs. Image
  * feedback says what the pixels asked for and what they are missing; "unmeasured" is not zero.
  */
-export function textures(metrics, resultat = {}) {
-  const m = metrics ?? {};
+export function textures(
+  metrics: Partial<FrameMetrics> | null | undefined,
+  resultat: Partial<Row> = {},
+) {
+  const m = metrics ?? ({} as Partial<FrameMetrics>);
   const reseau = resultat.reseau
     ? Object.entries(resultat.reseau)
         .sort((a, b) => b[1] - a[1])

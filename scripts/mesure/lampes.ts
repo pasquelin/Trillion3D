@@ -7,6 +7,7 @@
 import { plancherDuModele } from './poses.ts';
 import type { Bounds } from './poses.ts';
 import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
+import type { LightsSummary } from './report/types.ts';
 
 /** A grid light always has a fixed position, unlike the shared `SceneLight` union. */
 type PointLight = SceneLight & { position: [number, number, number] };
@@ -97,12 +98,28 @@ function movingLightPlan(lights: PointLight[], cell: number) {
   return { id: lights[0].id, origin: lights[0].position.slice(), radius: cell * 0.2, period: 60 };
 }
 
+/** Light movement plan: a small circle around `origin`, walked in `period` frames. */
+export interface MovingLightPlan {
+  id: string;
+  origin: number[];
+  radius: number;
+  period: number;
+}
+
+/** Lights placed for a run: the list passed to `addLight`, its motion plan, and the summary
+ *  published in the report. */
+export interface LightsPlan {
+  lights: SceneLight[];
+  moving: MovingLightPlan | null;
+  resume: LightsSummary;
+}
+
 /**
  * Lights for a run, or `null` when the benchmark requests none: point grid, sun if requested, and
  * the motion plan of the first point light. Without any lights, the engine renders its unlit view:
  * this is default engine behavior, not a benchmark option.
  */
-export function benchLights(bounds: Bounds, settings: LightingSettings) {
+export function benchLights(bounds: Bounds, settings: LightingSettings): LightsPlan | null {
   if (!settings.lights && !settings.sun) return null;
   const intensity = settings.lightIntensity ?? DEFAULT_INTENSITY;
   const rangeFactor = settings.lightRangeFactor ?? DEFAULT_RANGE_FACTOR;

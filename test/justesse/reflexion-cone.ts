@@ -39,11 +39,11 @@ const verites = tousLesCas.map(veriteTerrain);
 const cpus = tousLesCas.map(decisionCpu);
 
 const index = tousLesCas.map((_, i) => i);
-const compte = (predicat) => index.filter(predicat).length;
-const dessineGpu = (i) => gpu.dessine[i];
-const dessineCpu = (i) => pixelsCpu[i] > 0;
-const miroir = (i) => tousLesCas[i].miroir;
-const rejette = (i) => cpus[i].coneRejette;
+const compte = (predicat: (i: number) => boolean): number => index.filter(predicat).length;
+const dessineGpu = (i: number): boolean => gpu.dessine[i];
+const dessineCpu = (i: number): boolean => pixelsCpu[i] > 0;
+const miroir = (i: number): boolean => tousLesCas[i].miroir;
+const rejette = (i: number): boolean => cpus[i].coneRejette;
 
 const mesure = {
   adaptateurGpu: gpu.adaptateur,

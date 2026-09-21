@@ -5,7 +5,8 @@ import { cpus, totalmem, platform, arch, release, hostname } from 'node:os';
 import { join } from 'node:path';
 import { fingerprintBuild } from '../../write-build-provenance.ts';
 import { sceneDerived } from '../scene.ts';
-const digest = (data) => createHash('sha256').update(data).digest('hex');
+import type { Report } from './types.ts';
+const digest = (data: string) => createHash('sha256').update(data).digest('hex');
 export function measurementProvenance() {
   return {
     machine: {
@@ -21,12 +22,17 @@ export function measurementProvenance() {
     displayCapHz: null,
   };
 }
-export function assetIdentity(cache) {
+export function assetIdentity(cache: string) {
   const manifest = JSON.parse(readFileSync(join(cache, 'native/full/manifest.json'), 'utf8'));
   return manifest.key ?? digest(JSON.stringify(manifest));
 }
-export async function campaignIdentity(root, scene, args, browserVersion) {
-  const git = (argv) => execFileSync('git', ['-C', root, ...argv], { encoding: 'utf8' });
+export async function campaignIdentity(
+  root: string,
+  scene: string,
+  args: string[],
+  browserVersion: string,
+) {
+  const git = (argv: string[]) => execFileSync('git', ['-C', root, ...argv], { encoding: 'utf8' });
   return digest(
     JSON.stringify({
       version: 1,
@@ -41,7 +47,7 @@ export async function campaignIdentity(root, scene, args, browserVersion) {
     }),
   );
 }
-export function canResume(measurement, identity) {
+export function canResume(measurement: Partial<Report>, identity: string) {
   return (
     measurement.campaignIdentity === identity &&
     Boolean(measurement.finishedAt) &&
