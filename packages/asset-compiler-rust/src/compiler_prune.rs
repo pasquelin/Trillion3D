@@ -33,14 +33,16 @@ pub(super) fn referenced_objects(
         // A sidecar of another version lays out its columns differently: reading it
         // as "no object referenced" would delete pages still in use, so an unknown
         // format is refused.
-        into.extend(manifest_binary::digests(bytes).map_err(|e| {
-            CompilerError::new(
-                "UNSUPPORTED_FORMAT",
-                format!("Cached manifest binary is not readable by this compiler: {e}"),
-            )
-        })?);
+        into.extend(manifest_binary::digests(bytes).map_err(unreadable)?);
     }
     Ok(())
+}
+/// A sidecar this compiler cannot read: prune stops on it, cache intact.
+fn unreadable(e: impl Display) -> CompilerError {
+    CompilerError::new(
+        "UNSUPPORTED_FORMAT",
+        format!("Cached manifest binary is not readable by this compiler: {e}"),
+    )
 }
 /// What the key just published or proved still needs: its objects and the source
 /// images whose baked levels it reads. Everything else of the cache may go.
@@ -56,18 +58,14 @@ impl Keep {
         let textures = previews.iter().map(|p| p.sha256.clone()).collect();
         Ok(Self { objects, textures })
     }
-    /// What a published manifest and its sidecar name: pages and texture levels
-    /// live only in the sidecar columns, read once for both.
+    /// What a published manifest and its sidecar name, for a scope this job does
+    /// not touch: pages and texture levels live only in the sidecar columns, read
+    /// once for both.
     pub fn named_by(manifest: &Value, binary: &[u8]) -> Result<Self> {
         let mut objects = BTreeSet::new();
         referenced_objects(manifest, Some(binary), &mut objects)?;
         let textures = manifest_binary::texture_digests(binary)
-            .map_err(|e| {
-                CompilerError::new(
-                    "UNSUPPORTED_FORMAT",
-                    format!("Cached manifest binary is not readable by this compiler: {e}"),
-                )
-            })?
+            .map_err(unreadable)?
             .into_iter()
             .collect();
         Ok(Self { objects, textures })
@@ -80,15 +78,8 @@ fn other_scope(dir: &Path, keep: &mut Keep) -> Result<()> {
     let Ok(text) = fs::read(dir.join("clusters.json")) else {
         return Ok(());
     };
-    let binary = fs::read(dir.join(MANIFEST_BINARY_FILE)).map_err(|e| {
-        CompilerError::new(
-            "UNSUPPORTED_FORMAT",
-            format!(
-                "Cached manifest of {} has no readable sidecar: {e}",
-                dir.display()
-            ),
-        )
-    })?;
+    let binary = fs::read(dir.join(MANIFEST_BINARY_FILE))
+        .map_err(|e| unreadable(format!("{}: {e}", dir.display())))?;
     let named = Keep::named_by(&serde_json::from_slice(&text)?, &binary)?;
     keep.objects.extend(named.objects);
     keep.textures.extend(named.textures);

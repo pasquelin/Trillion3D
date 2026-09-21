@@ -52,7 +52,7 @@ pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
     })
     .unwrap_or_else(|e| panic!("{name}: compile: {e}"));
     let key = result["key"].as_str().expect("key").to_string();
-    let directory = options.cache.join("native").join(&options.scope).join(key);
+    let directory = options.key_directory(&key);
     let slim =
         serde_json::from_slice(&fs::read(directory.join("clusters.json")).expect("clusters.json"))
             .expect("clusters.json is valid JSON");
