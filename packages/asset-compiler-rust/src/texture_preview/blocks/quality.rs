@@ -14,8 +14,12 @@ use super::{BlockFormat, Layout};
 /// texture is not block-compressed: at 48 dB the root-mean-square error is one
 /// level of 255.
 pub const GATE_DB: f64 = 48.0;
-/// Largest gap a read channel may show on one texel, in levels of 255.
-pub const GATE_MAX_DELTA: u8 = 8;
+/// Largest gap a read channel may show on one texel, in levels of 255: three,
+/// the bar the maintainer set for a still capture — below what an 8-bit
+/// display discriminates — carried to the texel, since filtering only averages
+/// texels and a delta the texel does not have, the pixel cannot show. Measured
+/// on the captures of the batch, not derived: the light multiplies an albedo.
+pub const GATE_MAX_DELTA: u8 = 3;
 
 /// Which channels of a texture its readers sample — the gate measures those.
 pub type Channels = [bool; 4];

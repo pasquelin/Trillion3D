@@ -113,7 +113,7 @@
     "qualityGate": {
       "decoder": "texture2ddecoder",
       "maskFlips": 0,
-      "maxDelta": 8,
+      "maxDelta": 3,
       "psnrDb": 48.0
     },
     "skipped": {},
