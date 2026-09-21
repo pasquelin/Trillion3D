@@ -1,4 +1,4 @@
-import { addCpuSteps, cpuStepTable } from './stageMapping.ts';
+import { addCpuSteps, cpuStepTable } from './stageCpuSteps.ts';
 import { sunFarCounts } from './webgpuPagesPrepareSunFar.ts';
 import {
   frameCostAuditEnabled,
@@ -10,11 +10,14 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
  * CPU bounds of an image, in order: for each, its public name and the profile stage it deposits
- * into. Name, stage and write index all come from this one table. The first two cover what the image
- * does before opening its own timer; the four after encode are sampled by the host, which deposits
- * them by name.
+ * into. Name, stage and write index all come from this one table. The first four cover what the
+ * image does before opening its own timer; the four after encode are sampled by the host, which
+ * deposits them by name. `tilesPumpMs` is the streamer's pass: an image whose feedback named no
+ * tile writes `NaN` there, which the profiler drops, so the stage stays unmeasured rather than zero.
  */
 const CPU = cpuStepTable([
+  ['gateMs', 'animations'],
+  ['tilesPumpMs', 'textures'],
   ['worldMs', 'animations'],
   ['blendWorldMs', 'transparents'],
   ['lightsMs', 'lights'],
@@ -48,14 +51,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights, bounce } = rt,
     stages = timing.stages;
   if (!stages) return;
-  stages.frameCpu((add) => {
-    addCpuSteps(CPU.stages, timing.cpuProfile.row, add);
-    // Tile streamer pass, outside the CPU-bound row: it deposits here, and only when image feedback
-    // gave it work. With no feedback it did not cost zero, it did nothing at all — the stage stays
-    // "unmeasured".
-    const tiles = rt.vis.textures?.counters;
-    if (tiles?.worked) add('textures', tiles.lastMs);
-  });
+  stages.frameCpu((add) => addCpuSteps(CPU.stages, timing.cpuProfile.row, add));
   const tiles = rt.vis.textures?.counters;
   if (tiles)
     stages.setCounts('textures', {
@@ -64,6 +60,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
       niveauxManquants: Math.round(tiles.missingAverage * 100),
       tuilesServies: tiles.served,
       tuilesEnAttente: tiles.pending,
+      tuilesReportees: tiles.deferred,
     });
   if (!tiles?.worked)
     stages.setReason('textures', {
@@ -75,6 +72,9 @@ function recordStages(rt: WebgpuPagesRuntime) {
   // this image, `pagesRedessinees` what the kept regions cover, `pagesEnAttente` what the budget
   // left for later, and `retardMaxMs` the wait of the oldest page in that queue.
   const { counts } = lights.plan;
+  // What the region culls kept, sampled on the device one frame in fifteen: the frame it
+  // describes is named, and until a sample has returned there is no count at all.
+  const culled = lights.cull?.counts.counts();
   stages.setCounts('shadows', {
     lampesRedessinees: lights.shadowsUpdated,
     cartesReutilisees: counts.reused,
@@ -88,6 +88,13 @@ function recordStages(rt: WebgpuPagesRuntime) {
     pagesEnAttente: counts.pendingPages,
     retardMaxMs: counts.waitedMs,
     retardMaxImages: counts.waitedFrames,
+    ...(culled
+      ? {
+          occludeursGardes: culled.kept,
+          regionsRelevees: culled.regions,
+          imageRelevee: culled.frame,
+        }
+      : {}),
   });
   stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
   // The sun's far shadow: counts sampled one image in fifteen, never a duration. Its ray is traced
@@ -128,6 +135,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
     pagesVoulues: rt.run.visible,
     grappesDuDag: rt.run.gpuSelection?.pageCount ?? 0,
   });
+  stages.setCounts('animations', timing.worldCounts);
   stages.setCounts('partition', timing.partitionCounts);
   timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
   timing.encodeCounts.appelsDeMelange = rt.run.blendDrawCalls;
@@ -175,7 +183,9 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt;
   if (!timing.rowFilled) return;
   timing.rowFilled = false;
-  timing.cpuProfile.record(run.frame, timing.cpuProfile.row[CPU.at.totalMs]);
+  const total = timing.cpuProfile.row[CPU.at.totalMs];
+  timing.cpuProfile.record(run.frame, total);
+  timing.cpuWindow.record(run.frame, total);
   recordStages(rt);
   publishCpuProfile(rt);
 }

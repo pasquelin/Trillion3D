@@ -16,7 +16,7 @@ type QueueOptions = {
   getFrame: () => number;
   updatePins: () => void;
   ensureResident: (wanted: readonly PageRec[], frame: number, jobId: number) => Promise<void>;
-  markLost: () => void;
+  markLost: (error: unknown) => void;
   traceEnabled: boolean;
   traceDiagnostic: Diagnostics['traceDiagnostic'];
   diagnosticFailure: Diagnostics['diagnosticFailure'];
@@ -78,8 +78,9 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
           await ensureResident(items, jobFrame, jobId);
         }
       } catch (error) {
+        // The withdrawal precedes the report: a host drawing on it finds nothing stale.
+        if (/LOST|DISPOSED/i.test(String(error))) markLost(error);
         diagnosticFailure('coverage-upload-failed', error);
-        if (/LOST|DISPOSED/i.test(String(error))) markLost();
         throw error;
       } finally {
         running = false;

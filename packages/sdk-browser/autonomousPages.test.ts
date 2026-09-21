@@ -8,7 +8,7 @@ import type { ClusterManifest } from '../sdk-core/index.ts';
 
 test('autonomous pages add, move and remove an instance while keeping page coverage', async () => {
   const position = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]);
-  const encoded = await encodeGeometryPage([0, 1, 2], {
+  const encoded = encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: position },
   });
   const geometry = new THREE.BufferGeometry();
@@ -22,8 +22,6 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     url: 'triangle-geometry.bin',
     sha256: 'x',
     bytes: encoded.data.length,
-    formatVersion: 2 as const,
-    codec: 'meshopt' as const,
     vertexCount: encoded.vertexCount,
     indexCount: encoded.indexCount,
     flags: encoded.flags,
@@ -51,6 +49,7 @@ test('autonomous pages add, move and remove an instance while keeping page cover
   const metadata = {
     errorModel: 'dag-group-qem-v1',
     clusterStrategy: 'dag-groups',
+    geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
     primitives: [
       {
         mesh: 0,
@@ -87,10 +86,10 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     const replacement = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
     backend.updateMaterial?.('0/0', replacement);
     assert.ok(copies.every((copy) => copy.material === replacement));
-    const replacementPage = await decodeGeometryPage(encoded.data);
+    const replacementPage = decodeGeometryPage(encoded.data);
     replacementPage.attributes.position[0] = -0.25;
     backend.replaceGeometryPage?.('triangle-geometry.bin', replacementPage);
-    backend.acceptGeometryPage?.('triangle-geometry.bin', await decodeGeometryPage(encoded.data));
+    backend.acceptGeometryPage?.('triangle-geometry.bin', decodeGeometryPage(encoded.data));
     backend.dropPage?.('triangle-geometry.bin');
     backend.render(camera);
     const updated = backend.scene.children.find((o) => (o as THREE.Mesh).isMesh) as THREE.Mesh;

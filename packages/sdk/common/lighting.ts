@@ -10,6 +10,7 @@ export { createBounceCascades } from '../../sdk-core/bounceCascades.ts';
 export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/bounceCascades.ts';
 export { createBounceOccupancy } from '../../sdk-core/bounceOccupancy.ts';
 export type { BounceOccupancy } from '../../sdk-core/bounceOccupancy.ts';
+export { cloneSceneLight } from '../../sdk-core/sceneLightClone.ts';
 export { createDefaultLightingSceneLights } from '../../sdk-core/lightingSceneControls.ts';
 export { createLightingScene } from '../../sdk-core/lightingExperimentScene.ts';
 export { createSceneLightStore, LIGHT_FIELD } from '../../sdk-core/sceneLightStore.ts';
@@ -24,9 +25,11 @@ export {
   POINT_FACE_AXES,
   SHADOW_CULL_FLOATS,
   SHADOW_FACE_FLOATS,
+  SHADOW_FACE_MASK_WORD,
   SHADOW_SLICE_FLOATS,
   writeFace,
 } from '../../sdk-core/sceneLightShadowFaces.ts';
+export { forEachShadowFace } from '../../sdk-core/sceneLightShadowCasters.ts';
 export {
   LIGHT_KIND,
   LIGHT_SETTINGS,

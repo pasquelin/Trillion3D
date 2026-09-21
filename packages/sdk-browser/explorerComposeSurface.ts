@@ -20,6 +20,8 @@ type HostSurface = {
  * caller re-asserts its render target before its next draw.
  *
  * The program lives as long as the context does and leaves with it, like the held frame beside it.
+ * An engine that has withdrawn its surface — its device lost — is treated like one that never
+ * had it: the call returns false and the host draws, never the canvas of a dead device.
  */
 export function createBackendPresenter(host: HostSurface) {
   let blit: ReturnType<typeof createCanvasBlit> | undefined;

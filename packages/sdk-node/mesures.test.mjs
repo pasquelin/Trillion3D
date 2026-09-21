@@ -47,6 +47,32 @@ test('V02 prepare() returns the pointer’s final measurements with the manifest
   }
 });
 
+// #47: the same source prepared twice into one cache finds its folder proven and kept; the
+// result says so, and the hierarchy duration of a run that built none stays `null`.
+test('prepare() reports the folder reused by a second identical run', async (t) => {
+  const executable = compilerBinary();
+  if (!executable) return t.skip('native compiler missing: run `pnpm run build:native`');
+  const root = await mkdtemp(join(tmpdir(), 'web-geometry-reuse-'));
+  try {
+    const source = await quad(root);
+    const options = { executable, resourceBaseUrl: '/assets/' };
+    const first = await prepare(source, join(root, 'cache'), 'full', 150000, options);
+    assert.equal(first.reused, null);
+    const second = await prepare(source, join(root, 'cache'), 'full', 150000, options);
+    assert.equal(second.key, first.key);
+    assert.ok(second.reused.objects > 0, JSON.stringify(second.reused));
+    assert.equal(typeof second.reused.validateMs, 'number');
+    assert.equal(typeof second.metrics.wallMs, 'number');
+    // The manifest on disk still says how long the first run clustered; this run did not, and
+    // none of that compile's durations is passed off as this run's.
+    assert.equal(second.metrics.clusterHierarchyPagesMs, null);
+    assert.equal(second.metrics.compileMs, undefined);
+    assert.equal(second.metrics.phaseElapsedMs, undefined);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 /**
  * A stub compiler: it drops the requested manifest then announces the pointer. It pins both
  * readings, which the real binary cannot, and makes the merge rule observable.

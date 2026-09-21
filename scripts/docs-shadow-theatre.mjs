@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { writeShadowTheatre } from './docs/shadow-theatre/write.mjs';
 
 const root = resolve(import.meta.dirname, '..'),
-  destination = resolve(root, 'docs/assets/gallery/shadow-theatre');
+  destination = resolve(root, 'site/assets/gallery/shadow-theatre');
 await writeShadowTheatre(resolve(destination, 'source'));
 if (!process.argv.includes('--source-only')) {
   const compiler =

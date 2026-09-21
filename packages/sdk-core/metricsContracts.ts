@@ -48,6 +48,10 @@ export interface FrameMetrics
   drawCalls: number | null;
   /** Paged cluster draws issued by the engine-owned WebGL2 program in this session. */
   autonomousClusterDrawsTotal?: number | null;
+  /** Scene copies — the transmissive surfaces — the engine-owned WebGL2 program drew this frame. */
+  autonomousCopyDraws?: number | null;
+  /** Bytes the WebGL2 transmission backdrop holds since the first transmissive copy in view. */
+  transmissionBackdropBytes?: number | null;
   /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them, or
    *  as the host renderer drew them when it is the one drawing. `null` when neither
    *  has counted: a zero would read as an empty frame. */
@@ -99,6 +103,10 @@ export interface FrameMetrics
   coverageReady?: boolean | null;
   /** Requested detail cannot coexist with the pinned fallback within the GPU page budget. */
   coverageBudgetLimited?: boolean | null;
+  /** Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested
+   *  detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a
+   *  page budget. */
+  budgetPixelError?: number | null;
   /**
    * True when the frame was held: neither the scene, nor the view, nor the resources moved, no
    * asynchronous work was pending, and no CPU stage ran. The displayed

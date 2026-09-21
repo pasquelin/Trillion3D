@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 
-const { NotFound } = await loadReactComponents('docs/react/portal/NotFound.jsx');
+const { NotFound } = await loadReactComponents('site/app/portal/NotFound.tsx');
 
 test('missing pages retain localized recovery links and an accessible 3D illustration', () => {
   for (const locale of ['en', 'fr']) {

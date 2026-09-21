@@ -48,8 +48,12 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // path that does not go through it — CPU cut, surface capture, pending image — remakes everything.
   run.cutHeld = false;
   setWindingEpoch(rows.tableEpoch);
-  // What the previous image's feedback requested becomes resident, under the budget.
+  // What the previous image's feedback requested becomes resident, under the budgets. The pass
+  // times itself on its budget clock — the one bound the textures stage reads —; the marks only
+  // keep `worldMs` below to the world step alone.
+  marks.gateEnd = performance.now();
   pumpResidentTiles(vis.textures, run.frame, run.textureConverging);
+  marks.tilesEnd = performance.now();
   // A world matrix is a function of the scene alone: an image that nothing touched would find
   // them all identical. The engine index is therefore only recomputed at a scene-revision change,
   // and a node that `setWebgpuTransform` just moved has already recomputed it.
@@ -61,7 +65,9 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // in one case, in the other the same point is rewritten in a closer frame, and nothing the
   // records or the occluders describe has changed.
   const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye);
-  if (worldsMoved || originMoved) {
+  const rebased = worldsMoved || originMoved;
+  rt.timing.worldCounts.racinesRebasees = rebased ? selectionRoots.length : 0;
+  if (rebased) {
     run.worldUploadRevision = run.gate.revisions.scene;
     run.worldUploadOrigin.set(cam.eye);
     // The subtraction is done in double, the single-precision rounding comes after it.
@@ -73,11 +79,13 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
       invalidateOccluderHistory(run);
     }
   }
-  if (!sameHizView(run.previousHizView, cam)) {
-    // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
-    // names pages, it only chooses the pass where a cluster is drawn, and this image's pyramid
-    // remains the sole judge of what is withdrawn. Keeping it avoids projecting every box and
-    // reclassifying them at every moving image.
+  // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
+  // only chooses the pass where a cluster is drawn, and this image's pyramid remains the sole
+  // judge of what is withdrawn. The GPU partition still learns of the move: while the view
+  // stands still, a row the test has kept is not sent back to the tested half — that is what
+  // lets the halves converge under the antialiasing jitter, and an image be held.
+  run.hizViewMoved = !sameHizView(run.previousHizView, cam);
+  if (run.hizViewMoved) {
     invalidateTemporalPyramid(run);
     // The world pose is copied into the already-held camera: the same comparison, without a clone per image.
     run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam);

@@ -6,6 +6,11 @@
 export interface ShadowFrameMetrics {
   /** `SceneLight` contract lights that the frame lit. Null on an engine that ignores them. */
   lightsActive?: number | null;
+  /** True when this frame's lighting ran in its sampled mode — a moving image accumulated on
+   *  a history, where a pixel with more lights than `samplesPerPixel` shades a drawn subset —,
+   *  false when every pixel shaded every light, as a still image does. Null on an engine that
+   *  ignores the lights. */
+  lightsSampled?: boolean | null;
   /** Shadow slices redrawn by this frame, at most the scheduler's published ceiling.
    *  Zero is the normal value of a still scene: a fixed light keeps its slice. */
   shadowsUpdated?: number | null;
@@ -24,6 +29,9 @@ export interface ShadowFrameMetrics {
    *  the queue for lack of budget, and the lag in milliseconds of the oldest of them. Zero
    *  everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas. */
   shadowPagesDrawn?: number | null;
+  /** Pages drawn since the explorer opened, drains of `flush()` included: what a change cost
+   *  is the difference between two readings. */
+  shadowPagesTotal?: number | null;
   shadowPagesPending?: number | null;
   shadowWaitMs?: number | null;
   gpuLightListsMs?: number | null;

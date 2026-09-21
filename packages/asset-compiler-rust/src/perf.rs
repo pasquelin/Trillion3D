@@ -79,6 +79,15 @@ impl JobPhases {
     pub fn adopt(&self) {
         CURRENT.with(|current| *current.borrow_mut() = Some(self.0.clone()));
     }
+    /// The pool of one job: born and dying with it, each worker adopting these
+    /// counters, never a neighbour's.
+    pub fn pool(&self, threads: usize) -> Result<rayon::ThreadPool, rayon::ThreadPoolBuildError> {
+        let phases = self.clone();
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .start_handler(move |_| phases.adopt())
+            .build()
+    }
     pub fn report(&self) -> Value {
         self.0.report()
     }

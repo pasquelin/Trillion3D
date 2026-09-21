@@ -10,10 +10,11 @@ import { createHizCounts, type HizCounts, type TemporalHizState } from './hiz.ts
 import { unmirroredDrawn } from './webgpuPagesHelpers.ts';
 import { createFrameGateCore, type FrameGateCore } from './frameGateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './webgpuFrameSignature.ts';
+import { createWebgpuBudgetState, type WebgpuBudgetState } from './webgpuBudgetState.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
-export interface WebgpuRunState {
+export interface WebgpuRunState extends WebgpuBudgetState {
   lost: boolean;
   overBudget: boolean;
   visible: number;
@@ -33,10 +34,6 @@ export interface WebgpuRunState {
    *  never strips a pyramid of another image. */
   hizPyramidFresh: boolean;
   gpuMetricsReady: boolean;
-  coverageBudgetLimited: boolean;
-  /** Screen-error floor the GPU page budget imposes on the cut; 0 when the requested detail fits. */
-  budgetPixelError: number;
-  coverageBudgetEvent: Record<string, unknown> | undefined;
   deferredDrops: Set<string>;
   /** Triangles of the transparent clusters the cut holds, counted once whatever the pass count. */
   blendPagedTriangles: number;
@@ -55,9 +52,9 @@ export interface WebgpuRunState {
   renderPathLogged: boolean;
   outputDiagnosticLogged: boolean;
   noOccluderHistory: boolean;
-  /** Age of the table whose per-row occluder history came from: a new table redistributes rows, so
-   *  that history no longer describes anything. */
-  occluderHistoryEpoch: number;
+  /** True on an image whose view differs from the previous one's: the GPU partition then lets
+   *  every row be withdrawn from the occluders again. */
+  hizViewMoved: boolean;
   previousHizView: EngineCamera | undefined;
   temporalHizState: TemporalHizState;
   /** Counters of the CPU occlusion oracle, which runs only where the GPU test does not. */
@@ -141,9 +138,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     gpuFrameActive: false,
     hizPyramidFresh: false,
     gpuMetricsReady: false,
-    coverageBudgetLimited: false,
-    budgetPixelError: 0,
-    coverageBudgetEvent: undefined,
+    ...createWebgpuBudgetState(),
     deferredDrops: new Set(),
     blendPagedTriangles: 0,
     blendUnpagedTriangles: 0,
@@ -157,7 +152,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     renderPathLogged: false,
     outputDiagnosticLogged: false,
     noOccluderHistory: true,
-    occluderHistoryEpoch: -1,
+    hizViewMoved: true,
     previousHizView: undefined,
     temporalHizState: {},
     cpuHizCounts: createHizCounts(),

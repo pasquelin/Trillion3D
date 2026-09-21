@@ -1,4 +1,4 @@
-import { transformAffinePoint } from '../sdk-core/index.ts';
+import { boxEmpty, boxUnion, transformAffinePoint } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -88,25 +88,32 @@ export function uploadClusterSpheres(
   );
 }
 
-const sphereScratch = new Float32Array(CLUSTER_SPHERE_FLOATS),
-  boxMin = [0, 0, 0],
-  boxMax = [0, 0, 0];
+const sphereScratch = new Float32Array(CLUSTER_SPHERE_FLOATS);
+
+/** Grows the flat box to the cluster's world sphere: an overestimate, never an underestimate. */
+export function growClusterBox(rec: PageRec, box: Float64Array) {
+  writeClusterSphere(rec, sphereScratch, 0);
+  const [x, y, z, r] = sphereScratch;
+  boxUnion(box, 0, x - r, y - r, z - r, x + r, y + r, z + r);
+}
+
+/** One flat world box and its two halves, allocated once: what a change is declared with. */
+export const changeBox = new Float64Array(6),
+  changeMin = changeBox.subarray(0, 3),
+  changeMax = changeBox.subarray(3, 6);
 
 /**
- * A page enters residency or leaves it: world geometry has changed where it is, so the shadow maps
- * of lights whose range touches this box no longer describe the scene and become candidates again.
- * Without that, a cached map would keep showing the shadow of a cluster that left, or ignore that of
- * a cluster that arrived. The declared box is that of the cluster's world sphere: an overestimate,
- * never an underestimate.
+ * A page enters residency or leaves it, or enters or leaves the drawn cut: the scene is drawn
+ * at another precision where it is, so the shadow maps of lights whose range touches this box
+ * no longer describe it exactly and become candidates again — once the camera rests, since
+ * the change is one of representation, not of the world. Without that, a settled map would
+ * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). The
+ * declared box is that of the cluster's world sphere.
  */
 export function noteResidenceChange(lights: WebgpuLightState, rec: PageRec) {
   const { store, plan } = lights;
   if (!store.count) return;
-  writeClusterSphere(rec, sphereScratch, 0);
-  const radius = sphereScratch[3];
-  for (let axis = 0; axis < 3; axis++) {
-    boxMin[axis] = sphereScratch[axis] - radius;
-    boxMax[axis] = sphereScratch[axis] + radius;
-  }
-  plan.worldChanged(boxMin, boxMax);
+  boxEmpty(changeBox, 0);
+  growClusterBox(rec, changeBox);
+  plan.representationChanged(changeMin, changeMax);
 }

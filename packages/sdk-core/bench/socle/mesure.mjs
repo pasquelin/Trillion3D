@@ -1,6 +1,7 @@
 // Absolute measurement of an engine calculation, on named cases, against an oracle.
 // This file only measures and compares: table, fragments, baselines and path
 // checking of cited files are managed by `rapport.mjs`.
+import { ecartRelatif } from './baseline.mjs';
 import { ecart } from './ecart.mjs';
 
 /** Pseudo-random generator with fixed seed (xorshift32): two executions see the same inputs. */
@@ -31,6 +32,8 @@ const SANS_MESURE = {
   nsParElement: null,
   tours: 0,
   opsParSec: null,
+  temoin: null,
+  ecartTemoin: null,
 };
 
 const ligne = ({ name, size = null, motif = null, correct = null, difference = null }) => ({
@@ -71,9 +74,11 @@ async function verifie(item, { calcul, attendu, differences, motif }) {
 /**
  * Absolute measurement of a calculation on a set of named cases, each verified against `attendu`.
  * `fichier` is the measured path, or list of paths; `mesure: false` on a case verifies it without timing.
+ * `temoin` is another calculation of the same thing, timed under the same settings: its statistics
+ * go under `temoin` and `ecartTemoin` reads the calculation's median against its (`null` without).
  */
 export async function mesure({ name, fichier, cas, options = {}, ...conf }) {
-  const { chauffe = 20, tours = 200, budgetMs = 1000 } = options;
+  const reglages = { chauffe: 20, tours: 200, budgetMs: 1000, ...options };
   const resultats = [];
 
   for (const item of cas) {
@@ -84,32 +89,39 @@ export async function mesure({ name, fichier, cas, options = {}, ...conf }) {
       continue;
     }
 
-    for (let i = 0; i < chauffe; i++) await conf.calcul(item.input);
-
-    // Two clock readings per turn, not three: the end of a turn is also where the
-    // budget is evaluated. The timer wraps exactly the call, as before.
-    const durees = [];
-    const debut = process.hrtime.bigint();
-    let fin;
-    while (durees.length < tours) {
-      const t0 = process.hrtime.bigint();
-      await conf.calcul(item.input);
-      fin = process.hrtime.bigint();
-      durees.push(Number(fin - t0) / 1e6);
-      if (durees.length >= 5 && Number(fin - debut) / 1e6 > budgetMs) break;
-    }
-
-    const s = stats(durees);
+    const t = conf.temoin ? await chronometre(conf.temoin, item.input, reglages) : null;
+    const s = await chronometre(conf.calcul, item.input, reglages);
     resultats.push({
       name: item.name,
       size: item.size ?? null,
       ...s,
       nsParElement: item.size > 0 ? (s.medianeMs * 1e6) / item.size : null,
       opsParSec: s.medianeMs > 0 ? Math.round(1000 / s.medianeMs) : null,
+      temoin: t,
+      ecartTemoin: ecartRelatif(s.medianeMs, t?.medianeMs),
       ...verdict,
     });
   }
   return { name, fichier, resultats };
+}
+
+/** Warm-up, then timed turns until `tours` or the budget: the statistics of one calculation on one input. */
+async function chronometre(calcul, input, { chauffe, tours, budgetMs }) {
+  for (let i = 0; i < chauffe; i++) await calcul(input);
+
+  // Two clock readings per turn, not three: the end of a turn is also where the
+  // budget is evaluated. The timer wraps exactly the call, as before.
+  const durees = [];
+  const debut = process.hrtime.bigint();
+  let fin;
+  while (durees.length < tours) {
+    const t0 = process.hrtime.bigint();
+    await calcul(input);
+    fin = process.hrtime.bigint();
+    durees.push(Number(fin - t0) / 1e6);
+    if (durees.length >= 5 && Number(fin - debut) / 1e6 > budgetMs) break;
+  }
+  return stats(durees);
 }
 
 /** Checks that a calculation absorbs its extremes without throwing: no exception is the contract. */

@@ -1,11 +1,10 @@
-// A measurement series: one side, one view, one threshold. Writes the capture and the cut, returns the row.
 import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { encodePng } from '../../packages/sdk-node/png.mts';
 import { distribution, machineLoad } from './rapport.mjs';
 import { passesGpu } from './seriePasses.mjs';
-import { poolGeometrie, reservoirs } from './serieReservoirs.mjs';
+import { budgetPages, poolGeometrie, reservoirs } from './serieReservoirs.mjs';
 
 /** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
 export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
@@ -55,6 +54,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowDigest: settings.shadowDigest,
     // Textures read from the cache: only for an engine that reads the atlas, never the witness.
     textureSource: settings.textureSource,
+    textureUploadMs: settings.textureUploadMs,
     temporalAntialiasing: settings.temporalAntialiasing,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
@@ -103,21 +103,19 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     drawnTriangles: metrics.drawnTriangles ?? null,
     // Triangles actually submitted to draw, recorded on the last measured frame — `imageDuReleve`
     // names it. `submittedTriangles` is the opaque pass, `totalSubmittedTriangles` adds the
-    // transparent passes. `null` when the GPU count had not yet returned at that
-    // moment: the GPU-chosen cut publishes its totals after the fact.
+    // transparent passes. `null` when the GPU count had not yet returned: the GPU-chosen cut
+    // publishes its totals after the fact.
     submittedTriangles: metrics.submittedTriangles ?? null,
     totalSubmittedTriangles: metrics.totalSubmittedTriangles ?? null,
     imageDuReleve: settings.frames > 0 ? settings.frames - 1 : null,
-    // Was the recorded frame held? A held frame re-encodes only a present: its
-    // submitted triangles are zero because it drew nothing, not because nothing counted.
-    // Without this witness, that zero is indistinguishable from an empty frame. `null` outside this engine.
+    // Was the recorded frame held? A held frame re-encodes only a present: its submitted
+    // triangles are zero because it drew nothing, not because nothing counted. `null` outside this engine.
     imageTenue: metrics.frameHeld ?? null,
     // Selection fallback: true when this engine had a GPU-chosen cut and
     // abandoned it for the CPU backup cut. `null` on an engine with no GPU cut.
     repliSelectionGpu: metrics.gpuSelectionFallback ?? null,
-    // Contract occlusion counters, under their contract names: the reading looked for them under
-    // names that never existed and therefore published `null` where the engine counted. `image`
-    // names the one they describe — earlier on the GPU path. `null` = not counted.
+    // Contract occlusion counters, under their contract names. `image` names the frame they
+    // describe — earlier on the GPU path. `null` = not counted.
     hiZ: {
       tested: metrics.hizTestedClusters ?? null,
       rejected: metrics.hizRejectedClusters ?? null,
@@ -137,11 +135,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     // Geometry memory published by the engine: bytes held by the page cache and the
     // vertex buffers. `null` when the engine does not publish it, never inferred.
     geometrieOctets: metrics.geometryAllocationBytes ?? null,
-    budgetPages: {
-      demande: settings.maxPages ?? null,
-      residentes: metrics.residentPages ?? null,
-      couvertureLimiteeParBudget: metrics.coverageBudgetLimited ?? null,
-    },
+    budgetPages: budgetPages(metrics, settings.maxPages),
     // The geometry pool as the engine held it: requested bytes, slots, what bounded it,
     // and pages the last frame wanted that it could not take. `null` = unpublished.
     poolGeometrie: poolGeometrie(metrics),
@@ -154,9 +148,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     lampesFichier: result.importedLights ?? null,
     // What the Three witness received from the store; `null` when this side does not draw through Three.
     lampesTemoin: result.lampesTemoin ?? null,
-    // Shadow-atlas fingerprint, read once the queue is empty. Two runs that
-    // differ only by `--ombres-pages` must yield the same: that is the proof that drawing
-    // by pages is bit-identical to a full redraw.
+    // Shadow-atlas fingerprint, read once the queue is empty. Two runs that differ only by
+    // `--ombres-pages` must yield the same: the proof that page drawing equals a full redraw.
     atlasOmbres: result.shadowAtlas ?? null,
     objetMobile: result.movingNode ?? null,
     charge: { debut, fin },
@@ -165,6 +158,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     incidentsGpu: result.lost.length ? result.lost : null,
     // A DAG the compiler did not mount, spoken by the engine at open: `null` with none.
     avertissementsDag: result.avertissementsDag ?? null,
+    // The engine's CPU bounds per named step over the profiled images; `null` where the path
+    // keeps no row.
+    bornesCpu: result.bornesCpu ?? null,
     canvas: result.size,
     metrics,
   };

@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { geometryRecipes } from '../../../docs/js/gallery/offline/recipes.js';
+import { geometryRecipes } from '../../../site/lessons/offline/recipes.ts';
 import { writeGeometry } from './write-gltf.mjs';
 const root = resolve(import.meta.dirname, '../../..');
 const compiler =
@@ -9,7 +9,7 @@ const compiler =
   resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
 for (const recipe of geometryRecipes) {
   if (process.argv[2] && recipe.id !== process.argv[2]) continue;
-  const directory = resolve(root, 'docs/assets/gallery/offline', recipe.id);
+  const directory = resolve(root, 'site/assets/gallery/offline', recipe.id);
   await writeGeometry(resolve(directory, 'source'), recipe.create());
   const result = spawnSync(
     compiler,

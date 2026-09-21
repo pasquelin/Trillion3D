@@ -15,11 +15,23 @@ fn aces(color:vec3f)->vec3f{
  c=mat3x3f(vec3f(1.60475,-0.10208,-0.00327),vec3f(-0.53108,1.10813,-0.07276),vec3f(-0.07367,-0.00605,1.07602))*c;
  return clamp(c,vec3f(0.0),vec3f(1.0));
 }`;
-/** View uniform, shared by both programs: `lightParams` carries the contract light count,
- *  tiles in X and Y, and exposure, applied before ACES (P4). Nothing else — there is no
- *  longer a sky or an ambient to pass to opaque resolve (P6). */
-const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,}`;
-const SURFACE_BINDINGS_WGSL = `
+/** View uniform, shared by both programs and by the water composite: `viewport` carries the
+ *  size, the raw-output flag of diagnostic views and the rank of a sampled image
+ *  (`directLightSamplingWgsl.ts`); `lightParams` the contract light count, tiles in X and Y, and
+ *  exposure, applied before ACES (P4). Nothing else — there is no longer a sky or an ambient to
+ *  pass to opaque resolve (P6). */
+export const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,}`;
+/** World position of a pixel at a depth, reconstructed through that view: the one reading of
+ *  the depth buffer every fullscreen pass shares. */
+export const WORLD_AT_WGSL = `
+fn worldAt(pixel:vec2f,z:f32)->vec3f{
+ let ndc=vec4f(pixel.x/view.viewport.x*2.0-1.0,1.0-pixel.y/view.viewport.y*2.0,z,1.0);
+ let world=view.inverseViewProjection*ndc;
+ return world.xyz/world.w;
+}`;
+/** The surfaces, their depth and the view: bindings 0 to 5 of every pass that lights a surface
+ *  buffer — the deferred resolve, and the water composite on the same numbers. */
+export const SURFACE_BINDINGS_WGSL = `
 @group(0) @binding(0) var baseMetal:texture_2d<f32>;
 @group(0) @binding(1) var normalRough:texture_2d<f32>;
 @group(0) @binding(2) var emissiveAo:texture_2d<f32>;
@@ -42,7 +54,7 @@ ${FULLSCREEN_VERTEX}
  return vec4f(textureLoad(baseMetal,coord,0).rgb,1.0);
 }`;
 /** Contract bindings: declared lights, their per-tile lists and their shadow atlas. */
-const CONTRACT_BINDINGS_WGSL = `
+export const CONTRACT_BINDINGS_WGSL = `
 @group(0) @binding(6) var<storage,read> directLights:DirectLights;
 @group(0) @binding(7) var<storage,read> tileLights:array<u32>;
 @group(0) @binding(8) var<storage,read> shadows:ShadowSlices;
@@ -51,15 +63,14 @@ const CONTRACT_BINDINGS_WGSL = `
 /** Shared body of the two contract programs: only the bounce lines separate them. */
 const contractSurface = (bounce: string, diagnostic = '') => `
 ${FULLSCREEN_VERTEX}
+${WORLD_AT_WGSL}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
  if(flag==0u){return vec4f(0.0);}
  let base=textureLoad(baseMetal,coord,0);
  if(flag==1u||flag==3u){return vec4f(base.rgb,1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
- let z=textureLoad(depth,coord,0);
- let ndc=vec4f(pixel.x/view.viewport.x*2.0-1.0,1.0-pixel.y/view.viewport.y*2.0,z,1.0);
- let world=view.inverseViewProjection*ndc;let P=world.xyz/world.w;
+ let P=worldAt(pixel.xy,textureLoad(depth,coord,0));
  let V=normalize(view.camera.xyz-P);let N=normalize(normal.xyz);
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);

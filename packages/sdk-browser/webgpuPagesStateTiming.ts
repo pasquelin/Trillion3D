@@ -10,6 +10,8 @@ import { WEBGPU_STAGES } from './stageMapping.ts';
 /** The timestamps of one GPU-cut image, written in place as each step ends. */
 type GpuCutMarks = Record<
   | 'preStart'
+  | 'gateEnd'
+  | 'tilesEnd'
   | 'blendStart'
   | 'cpuStart'
   | 'lightsEnd'
@@ -37,21 +39,26 @@ export interface WebgpuTimingState {
   stages: StageProfiler | undefined;
   // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
   /** What encoding the partition cost the CPU: the corners the table just changed, one view-projection
-   *  matrix, and three compute dispatches. Never a row. */
+   *  matrix, and two compute dispatches. Never a row. */
   lastPartitionMs: number;
   /** What the image's partition decided: counts, never durations. */
   partitionCounts: {
     lignes: number;
     occulteurs: number;
     testees: number;
-    /** Boxes that do not cut the near plane, therefore shareable by depth. */
-    bornesToutes: number;
+    /** Rows the previous image drew, before its pyramid withdrew some of them. */
     historiqueOcculteurs: number;
-    sansHistorique: number;
+    /** Rows drawn last image that last image's pyramid sent to the tested half. */
+    retiresParLaPyramide: number;
     /** Image these counts describe: they are written by the GPU and reread periodically, therefore
      *  never those of the current image. `-1` until a sample has come back. */
     imageRelevee: number;
   };
+  /** What the world step walks: counts, never durations. `racines` is how many root matrices one
+   *  rebase brings back to the eye, fixed with the layout; `racinesRebasees` is how many this image
+   *  did — all of them when the camera or the scene moved, none otherwise, so a held or still image
+   *  reports zero. */
+  worldCounts: { racines: number; racinesRebasees: number };
   /** What encode uploaded and submitted: counts, never durations. */
   encodeCounts: {
     lignesTeleversees: number;
@@ -61,7 +68,11 @@ export interface WebgpuTimingState {
     /** Compute-raster dispatches, counted separately: they are not draw calls. */
     lancementsDeCalcul: number;
   };
+  /** CPU bounds of the last images, on the publish cadence of the `cpu-timing` diagnostic. */
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
+  /** The same bounds over the window a host opens with `resetStageProfile()` and reads once with
+   *  `cpuSteps()`: the same row, filed twice, so neither window forgets for the other. */
+  cpuWindow: ReturnType<typeof createCpuStepProfile>;
   /** True when the image has filled its bound row and waits to be filed by the host. */
   rowFilled: boolean;
   marks: GpuCutMarks;
@@ -97,7 +108,8 @@ export function createWebgpuStageProfiler(): StageProfiler {
   return stages;
 }
 
-export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingState {
+export function createWebgpuTimingState(stages?: StageProfiler, roots = 0): WebgpuTimingState {
+  const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES);
   return {
     gpuTiming: undefined,
     lastGpuPassMs: null,
@@ -111,11 +123,11 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       lignes: 0,
       occulteurs: 0,
       testees: 0,
-      bornesToutes: 0,
       historiqueOcculteurs: 0,
-      sansHistorique: 0,
+      retiresParLaPyramide: 0,
       imageRelevee: -1,
     },
+    worldCounts: { racines: roots, racinesRebasees: 0 },
     encodeCounts: {
       lignesTeleversees: 0,
       fichesTeleversees: 0,
@@ -123,10 +135,13 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       appelsDeMelange: 0,
       lancementsDeCalcul: 0,
     },
-    cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
+    cpuProfile,
+    cpuWindow: createCpuStepProfile(CPU_STEP_NAMES, { row: cpuProfile.row }),
     rowFilled: false,
     marks: {
       preStart: 0,
+      gateEnd: 0,
+      tilesEnd: 0,
       blendStart: 0,
       cpuStart: 0,
       lightsEnd: 0,

@@ -1,20 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BOUNDS } from '../docs/js/docsContentBounds.js';
-import { CAMERA, HOST_CAMERA } from '../docs/js/docsContentCamera.js';
-import { ENUMS_IMAGE } from '../docs/js/docsContentEnums.js';
-import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
-import { EXAMPLES, GUIDES } from '../docs/js/docsContentGuides.js';
-import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
-import { MATRICES } from '../docs/js/docsContentMatrix.js';
-import { BATCHES, TREE } from '../docs/js/docsContentTree.js';
-import { COLORS, VECTORS } from '../docs/js/docsContentVector.js';
-import { localizeEntries, supportedLocales, t } from '../docs/js/i18n/index.js';
-import { localizeDemoText } from '../docs/js/i18n/demo.fr.js';
-import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
+import { BOUNDS } from '../site/content/entries/bounds.ts';
+import { CAMERA, HOST_CAMERA } from '../site/content/entries/camera.ts';
+import { ENUMS_IMAGE } from '../site/content/entries/enums.ts';
+import { ENUMS_RUNTIME } from '../site/content/entries/enumsRuntime.ts';
+import { EXAMPLES } from '../site/content/entries/examples.ts';
+import { FORMAT_GUIDES } from '../site/content/entries/format.ts';
+import { GUIDES } from '../site/content/entries/guides.ts';
+import { RENDERING_GUIDES } from '../site/content/entries/guidesRendering.ts';
+import { ENGINE_GUIDES } from '../site/content/entries/guidesEngine.ts';
+import { LIFECYCLE } from '../site/content/entries/lifecycle.ts';
+import { MATRICES } from '../site/content/entries/matrix.ts';
+import { TREE } from '../site/content/entries/tree.ts';
+import { BATCHES } from '../site/content/entries/batches.ts';
+import { COLORS, VECTORS } from '../site/content/entries/vector.ts';
+import { localizeEntries, supportedLocales, t } from '../site/content/i18n/index.ts';
+import { rawEntries } from '../site/app/portal/data.ts';
+import { localizeDemoText } from '../site/content/i18n/demo.fr.ts';
+import { localizedHref, parseRoute } from '../site/app/portal/routes.ts';
 
 const entries = [
   ...GUIDES,
+  ...FORMAT_GUIDES,
+  ...RENDERING_GUIDES,
+  ...ENGINE_GUIDES,
   ...EXAMPLES,
   ...ENUMS_IMAGE,
   ...ENUMS_RUNTIME,
@@ -31,7 +40,7 @@ const entries = [
 
 test('French content covers every documentation entry and preserves its technical contract', () => {
   const localized = localizeEntries(entries, 'fr');
-  assert.equal(entries.length, 75);
+  assert.equal(entries.length, 85);
   assert.equal(localized.length, entries.length);
   for (let index = 0; index < entries.length; index += 1) {
     const source = entries[index];
@@ -55,9 +64,9 @@ test('French content covers every documentation entry and preserves its technica
 
 test('English and unsupported locales preserve source content without sharing entry objects', () => {
   for (const locale of ['en', 'de']) {
-    const localized = localizeEntries(entries, locale);
-    assert.deepEqual(localized, entries);
-    assert.notEqual(localized[0], entries[0]);
+    const localized = localizeEntries(rawEntries, locale);
+    assert.deepEqual(localized, rawEntries);
+    assert.notEqual(localized[0], rawEntries[0]);
   }
 });
 
@@ -101,7 +110,7 @@ test('legacy documentation hashes retain the active locale', () => {
 
 test('both locales describe interactive startup and align every method description', () => {
   for (const locale of supportedLocales) {
-    const localized = localizeEntries(entries, locale);
+    const localized = localizeEntries(rawEntries, locale);
     const explorer = localized.find(({ id }) => id === 'createExplorer');
     assert.match(explorer.description, /interactive: true/);
     assert.match(explorer.description, /ExplorerTarget/);
