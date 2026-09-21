@@ -100,7 +100,6 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
     }
     backends.forEach((b) => b.dispose());
     if (resources.source) disposeSource(resources.source);
-    resources.renderer?.dispose();
     resources.webglSurface?.dispose();
     try {
       resources.gpuDevice?.destroy();

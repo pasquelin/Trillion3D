@@ -542,12 +542,18 @@ The transparent path still uses the authored Three.js light graph and its fixed 
 
 For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 
-For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before the scene
-renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from logical
-size and DPR, avoids resetting the buffer on an unchanged size, observes context loss/restoration,
-and releases the context once. The current scene renderer is a temporary adapter over that context;
-the surface foundation alone does not replace cluster drawing, composition, held frames, or capture.
-Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
+For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before any
+scene renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from
+logical size and DPR, avoids resetting the buffer on an unchanged size, observes context loss and
+restoration — `lost` reads the context itself, not only the event queued behind the frame that
+hit it — and releases the context once. That surface is the session's only WebGL2 resource: the
+capability check sizes it, the loss fallback, the whole-frame GPU timer and the pixel readback of
+`capture()` read it. The Three scene renderer is a temporary draw adapter the composition host
+mounts on it, for the comparison compositor, the held frame, the render targets and the scenes the
+witness engines hand over; it is created and disposed there and nowhere else. On
+`exact-cluster-pages` that adapter's pass holds at most 0.1 ms of the CPU frame (measured in #85):
+its removal is a matter of dependency, not of speed. Pure direct-WebGPU sessions never bind the
+host canvas to a WebGL context.
 
 `exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
 `MeshStandardMaterial` and `MeshBasicMaterial` batches — through an engine-owned WebGL2 program,

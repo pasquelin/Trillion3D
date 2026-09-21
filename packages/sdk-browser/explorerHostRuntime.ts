@@ -30,11 +30,11 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     homeOffset,
   } = prepared;
   const { geometryUrls, streamer } = pageSources;
-  const renderer = resources.renderer;
-  const gpuDevice = resources.gpuDevice;
-  const host = createExplorerHostState(prepared, options, backends, canvas, renderer, signal);
+  const { webglSurface, gpuDevice } = resources;
+  const host = createExplorerHostState(prepared, options, backends, canvas, webglSurface, signal);
   const {
     state,
+    renderer,
     beautyMaterials,
     overlays,
     hostedControls,
@@ -64,6 +64,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     canvas,
     camera,
     renderer: renderer!,
+    context: webglSurface?.context,
     options,
     directGpu,
     presentBackend,
@@ -85,7 +86,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     source,
     renderer,
-    webglSurface: resources.webglSurface,
+    webglSurface,
     camera,
     geometryUrls,
   });
@@ -114,7 +115,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     scope,
     directGpu,
     renderer: renderer!,
-    webglSurface: resources.webglSurface,
+    webglSurface,
     viewport,
     context,
     homeOffset,
