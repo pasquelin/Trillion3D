@@ -1,16 +1,49 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { BOUNDS } from '../docs/js/docsContentBounds.js';
+import { CAMERA, HOST_CAMERA } from '../docs/js/docsContentCamera.js';
+import { ENUMS_IMAGE } from '../docs/js/docsContentEnums.js';
+import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
+import { EXAMPLES } from '../docs/js/docsContentExamples.js';
+import { FORMAT_GUIDES } from '../docs/js/docsContentFormat.js';
+import { GUIDES } from '../docs/js/docsContentGuides.js';
+import { RENDERING_GUIDES } from '../docs/js/docsContentGuidesRendering.js';
+import { ENGINE_GUIDES } from '../docs/js/docsContentGuidesEngine.js';
+import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
+import { MATRICES } from '../docs/js/docsContentMatrix.js';
+import { TREE } from '../docs/js/docsContentTree.js';
+import { BATCHES } from '../docs/js/docsContentBatches.js';
+import { COLORS, VECTORS } from '../docs/js/docsContentVector.js';
 import { localizeEntries, supportedLocales, t } from '../docs/js/i18n/index.js';
 import { rawEntries } from '../docs/js/portal/data.js';
 import { localizeDemoText } from '../docs/js/i18n/demo.fr.js';
 import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
 
+const entries = [
+  ...GUIDES,
+  ...FORMAT_GUIDES,
+  ...RENDERING_GUIDES,
+  ...ENGINE_GUIDES,
+  ...EXAMPLES,
+  ...ENUMS_IMAGE,
+  ...ENUMS_RUNTIME,
+  ...LIFECYCLE,
+  ...CAMERA,
+  ...HOST_CAMERA,
+  ...MATRICES,
+  ...VECTORS,
+  ...COLORS,
+  ...BOUNDS,
+  ...TREE,
+  ...BATCHES,
+];
+
 test('French content covers every documentation entry and preserves its technical contract', () => {
-  const localized = localizeEntries(rawEntries, 'fr');
-  assert.equal(rawEntries.length, 84);
-  assert.equal(localized.length, rawEntries.length);
-  for (let index = 0; index < rawEntries.length; index += 1) {
-    const source = rawEntries[index];
+  const localized = localizeEntries(entries, 'fr');
+  assert.equal(entries.length, 84);
+  assert.equal(localized.length, entries.length);
+  for (let index = 0; index < entries.length; index += 1) {
+    const source = entries[index];
     const french = localized[index];
     assert.equal(french.id, source.id);
     assert.equal(french.signature, source.signature);
