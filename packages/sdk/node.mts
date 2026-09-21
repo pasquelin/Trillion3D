@@ -17,6 +17,7 @@ export type {
   PrepareOptions,
   ProgressPointer,
   ProgressStream,
+  ReusedFolder,
   TerminalProgress,
   TerminalProgressOptions,
 } from '../sdk-node/contracts.ts';
