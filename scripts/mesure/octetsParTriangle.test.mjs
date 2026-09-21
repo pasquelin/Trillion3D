@@ -30,6 +30,7 @@ const manifest = {
       ],
     },
     { pages: [{ count: 30, bytes: 120, level: 0 }] },
+    { quantization: null, pages: [] },
   ],
 };
 

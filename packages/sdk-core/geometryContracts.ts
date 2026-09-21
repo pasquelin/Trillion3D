@@ -123,7 +123,8 @@ export interface Primitive {
   culling?: CullingHierarchy | null;
   structure?: ClusterStructure | null;
   streams?: StreamCatalogue | null;
-  quantization?: PrimitiveQuantization;
+  /** Null on a primitive without pages, which was quantized on no grid. */
+  quantization?: PrimitiveQuantization | null;
   topology?: {
     triangles: number;
     edges: { boundary: number; manifold: number; nonManifold: number };

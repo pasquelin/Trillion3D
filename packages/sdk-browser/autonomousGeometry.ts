@@ -130,11 +130,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           name,
           new THREE.BufferAttribute(
             array,
-            name === 'position' || name === 'normal'
-              ? 3
-              : name === 'tangent' || name === 'color'
-                ? 4
-                : 2,
+            name === 'position' || name === 'normal' ? 3 : name === 'color' ? 4 : 2,
           ),
         );
       setGeometryBounds(geometry, rec.min, rec.max);

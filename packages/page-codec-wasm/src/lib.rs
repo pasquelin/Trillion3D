@@ -50,7 +50,7 @@ pub enum PageError {
     Index = 4,
 }
 
-/// A page header, once its sixteen words have been read and every bound accepted.
+/// A page header, once its twenty-four words have been read and every bound accepted.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Header {
     pub vertex_count: usize,

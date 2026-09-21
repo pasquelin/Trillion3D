@@ -27,7 +27,7 @@ export function bytesPerTriangle(manifest) {
     step = null;
   for (const primitive of manifest.primitives) {
     const q = primitive.quantization;
-    if (q) {
+    if (q && primitive.pages.length) {
       if (q.maxPositionError != null) maxError = Math.max(maxError ?? 0, q.maxPositionError);
       step = step == null ? q.positionStep : Math.max(step, q.positionStep);
     }
