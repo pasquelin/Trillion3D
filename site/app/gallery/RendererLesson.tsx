@@ -151,7 +151,7 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }: RendererLess
     />
   );
   return (
-    <section className="grid gap-5" data-renderer-playground={lesson.id}>
+    <section className="lesson-layout grid gap-5" data-renderer-playground={lesson.id}>
       <SectionHeader title={title} description={local(lesson.description, locale)} level={1} />
       <ExampleLayout
         left={left}
