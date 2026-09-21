@@ -1,13 +1,15 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 
 import type { BatchPage } from './clusterBatchRange.ts';
 import { PrimitiveIndex, BatchGroup } from './clusterBatchPrimitive.ts';
-import { identityMatrixTexture, type ShaderHook } from './clusterBatchMesh.ts';
+import { wholeMeshTriangles, type ClusterDrawMesh } from './clusterBatchMesh.ts';
 import { setupClusterBatches } from './clusterBatchSetup.ts';
 import { everyGroup } from './clusterBatchLayers.ts';
 import { updateClusterBatches } from './clusterBatchUpdate.ts';
-import { WebglClusterOwner } from './webglClusterOwner.ts';
+import type { WebglClusterOwner } from './webglClusterOwner.ts';
+import type { HostDrawCamera } from './cameraWorld.ts';
 import { drawClusterBatches } from './webglClusterBatchDraw.ts';
+import { EngineError } from '../sdk-core/index.ts';
 export { IndexRangeAllocator, DrawRanges } from './clusterBatchRange.ts';
 export type { BatchPage } from './clusterBatchRange.ts';
 
@@ -18,11 +20,23 @@ export type ClusterBatchStats = {
   allocationBytes: number;
   pageRangeWrites: number;
   indexBytesWritten: number;
-  detachments: number;
   autonomousClusterDrawsTotal: number;
+  /** Submissions of the scene copies in view this frame, the backdrop pass included. */
+  copyDraws: number;
+  /** Bytes the frozen transmission backdrop holds, kept until a resize or the dispose; zero
+   *  before the first transmissive copy in view. */
+  backdropBytes: number;
   cpuSubmitMs: number | null;
 };
 
+const NO_MESHES: THREE.Mesh[] = [];
+/** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
+export type ClusterDraw = ClusterDrawMesh | THREE.Mesh;
+/** What draws: the engine-owned WebGL2 program's public surface, or nothing at all. */
+export type ClusterDrawOwner = Pick<WebglClusterOwner, keyof WebglClusterOwner>;
+
+/** Resident index ranges of the paged clusters, batched per primitive instance, and the draw
+ *  records the owner submits each frame. The host scene is read for its lights and background. */
 export class ClusterBatches {
   private scene: THREE.Scene;
   private primitives: PrimitiveIndex[] = [];
@@ -30,15 +44,13 @@ export class ClusterBatches {
   private layerGroups: Array<Map<number, BatchGroup> | undefined> = [];
   private active: BatchGroup[] = [];
   private touched: BatchGroup[] = [];
-  private matrices = identityMatrixTexture();
-  private indirect: THREE.DataTexture;
-  private shaderHooks = new Map<THREE.Material, ShaderHook>();
   /** Clones created here — back/front of transparents, biased materials: to free, not those of the scene. */
   private ownedMaterials: THREE.Material[] = [];
   private attributeBytes = 0;
   private indexCapacityBytes = 0;
-  private renderer: WebglClusterOwner | undefined;
-  private diagnosticMeshes: THREE.Mesh[] = [];
+  private owner: ClusterDrawOwner | undefined;
+  private diagnosticMeshes: readonly THREE.Mesh[] = NO_MESHES;
+  private copies: readonly THREE.Mesh[];
   private stats: ClusterBatchStats = {
     drawCalls: 0,
     subDraws: 0,
@@ -46,20 +58,26 @@ export class ClusterBatches {
     allocationBytes: 0,
     pageRangeWrites: 0,
     indexBytesWritten: 0,
-    detachments: 0,
     autonomousClusterDrawsTotal: 0,
+    copyDraws: 0,
+    backdropBytes: 0,
     cpuSubmitMs: null,
   };
 
-  constructor(scene: THREE.Scene, pages: readonly BatchPage[], context?: WebGL2RenderingContext) {
+  /** No `owner` where no WebGL2 context exists: the cut still runs, a draw is refused by name. */
+  constructor(
+    scene: THREE.Scene,
+    pages: readonly BatchPage[],
+    owner?: ClusterDrawOwner,
+    copies: readonly THREE.Mesh[] = [],
+  ) {
     this.scene = scene;
-    this.renderer = context ? new WebglClusterOwner(context) : undefined;
-    const setup = setupClusterBatches(pages, !context);
+    this.owner = owner;
+    this.copies = copies;
+    const setup = setupClusterBatches(pages);
     this.primitives = setup.primitives;
     this.groups = setup.groups;
     this.layerGroups = setup.layerGroups;
-    this.indirect = setup.indirect;
-    this.shaderHooks = setup.shaderHooks;
     this.ownedMaterials = setup.ownedMaterials;
     this.attributeBytes = setup.attributeBytes;
     this.indexCapacityBytes = setup.indexCapacityBytes;
@@ -69,8 +87,12 @@ export class ClusterBatches {
   get metrics(): Readonly<ClusterBatchStats> {
     return this.stats;
   }
-  get autonomousDraw() {
-    return !!this.renderer;
+  /** What the owner submits for the paged clusters, in submission order: the batch records of
+   *  the cut, or the whole page meshes of a diagnostic mode. */
+  get drawList(): readonly ClusterDraw[] {
+    const draws: ClusterDraw[] = [];
+    for (const group of this.active) if (group.mesh) draws.push(group.mesh);
+    return draws.concat(this.diagnosticMeshes);
   }
   get indexBytes() {
     let bytes = 0;
@@ -121,36 +143,36 @@ export class ClusterBatches {
   }
   update(display: readonly BatchPage[]) {
     this.stats.cpuSubmitMs = null;
+    this.diagnosticMeshes = NO_MESHES;
     const state = {
-      scene: this.scene,
       groups: this.groups,
       active: this.active,
       touched: this.touched,
       layerGroups: this.layerGroups,
-      matrices: this.matrices,
-      indirect: this.indirect,
       stats: this.stats,
       indexCapacityBytes: this.indexCapacityBytes,
       attributeBytes: this.attributeBytes,
-      attachMeshes: !this.renderer,
     };
     updateClusterBatches(state, display);
     this.active = state.active;
     this.touched = state.touched;
   }
-  setDiagnosticMeshes(meshes: THREE.Mesh[]) {
+  /** A diagnostic mode draws whole page meshes instead of the batches, until the next `update`. */
+  showPages(meshes: THREE.Mesh[]) {
     this.diagnosticMeshes = meshes;
+    this.active.length = 0;
+    this.stats.drawCalls = this.stats.subDraws = meshes.length;
+    this.stats.submittedTriangles = 0;
+    for (const mesh of meshes) this.stats.submittedTriangles += wholeMeshTriangles(mesh);
   }
-  draw(
-    camera: import('./cameraWorld.ts').HostDrawCamera,
-    toneMapped: boolean,
-    srgbDestination: boolean,
-  ) {
-    if (!this.renderer) return;
+  draw(camera: HostDrawCamera, toneMapped: boolean, srgbDestination: boolean) {
+    if (!this.owner)
+      throw new EngineError('WEBGL2_UNAVAILABLE', 'engine WebGL2 context unavailable');
     drawClusterBatches(
-      this.renderer,
+      this.owner,
       this.active,
       this.diagnosticMeshes,
+      this.copies,
       this.scene,
       camera,
       toneMapped,
@@ -158,30 +180,10 @@ export class ClusterBatches {
       this.stats,
     );
   }
-  hideAll() {
-    const active = this.active;
-    for (let i = 0; i < active.length; i++) {
-      const group = active[i];
-      if (!group.attached || !group.mesh) continue;
-      this.scene.remove(group.mesh);
-      group.attached = false;
-      this.stats.detachments++;
-    }
-    active.length = 0;
-    this.stats.drawCalls = 0;
-    this.stats.subDraws = 0;
-    this.stats.submittedTriangles = 0;
-  }
   dispose() {
-    this.renderer?.dispose();
-    this.renderer = undefined;
-    this.hideAll();
-    for (const [material, previous] of this.shaderHooks) {
-      material.onBeforeCompile = previous as THREE.Material['onBeforeCompile'];
-      delete (material as { customProgramCacheKey?: unknown }).customProgramCacheKey;
-      material.needsUpdate = true;
-    }
-    this.shaderHooks.clear();
+    this.owner?.dispose();
+    this.owner = undefined;
+    this.showPages([]);
     for (const material of this.ownedMaterials) material.dispose();
     this.ownedMaterials.length = 0;
     for (const group of everyGroup(this.groups, this.layerGroups)) {
@@ -193,7 +195,5 @@ export class ClusterBatches {
     this.primitives.length = 0;
     this.groups.length = 0;
     this.layerGroups.length = 0;
-    this.matrices.dispose();
-    this.indirect.dispose();
   }
 }

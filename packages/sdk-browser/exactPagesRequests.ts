@@ -55,7 +55,6 @@ export type ExactPagesRequestContext = {
   byUrl: Map<string, PageRec[]>;
   indexByUrl: Map<string, THREE.BufferAttribute>;
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
-  scene: THREE.Scene;
   /** Engine camera of the last frame, absent as long as no frame has been rendered. */
   readonly cam: EngineCamera | undefined;
   readonly lastPixelError: number;
@@ -84,7 +83,6 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     byUrl,
     indexByUrl,
     disposeGeometry,
-    scene,
     resourcesChanged,
   } = ctx;
   // The WebGL cut's page rank lives in batches, not in a page table: the record therefore
@@ -174,10 +172,6 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
         if (rec.geometry) {
           disposeGeometry(rec.geometry);
           rec.geometry = undefined;
-        }
-        if (rec.attached && rec.mesh) {
-          scene.remove(rec.mesh);
-          rec.attached = false;
         }
         rec.mesh = undefined;
       }

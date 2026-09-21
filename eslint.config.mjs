@@ -22,7 +22,7 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
-    files: ['docs/react/**/*.jsx'],
+    files: ['docs/react/**/*.tsx'],
     languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
     plugins: { react, 'react-hooks': reactHooks },
     rules: {
