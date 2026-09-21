@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { loadReactComponents } from './docs/render-react.mjs';
+
+const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
+const { EngineScene } = await loadReactComponents('site/app/engine-scene/index.tsx');
+const { examples } = await loadReactComponents('site/content/catalog.ts');
+
+const pages = [
+  ...examples.map(({ id }) => ({
+    id,
+    render: () => createElement(Playground, { id, locale: 'en' }),
+  })),
+  { id: 'engine-scene', render: () => createElement(EngineScene, { locale: 'en' }) },
+];
+
+/** How many elements carry `className`, wherever it sits in their class attribute. */
+const rows = (markup, className) =>
+  (markup.match(new RegExp(`class="[^"]*\\b${className}\\b`, 'g')) ?? []).length;
+
+test('every lesson renders on the one template, none brings its own layout', () => {
+  for (const page of pages) {
+    const markup = renderToStaticMarkup(page.render());
+    assert.equal(rows(markup, 'lesson-template'), 1, `${page.id}: one template`);
+    assert.equal(rows(markup, 'lesson-header'), 1, `${page.id}: one header`);
+    assert.equal(rows(markup, 'lesson-columns'), 1, `${page.id}: one pair of columns`);
+    assert.equal(rows(markup, 'lesson-read'), 1, `${page.id}: one reading column`);
+    assert.equal(rows(markup, 'lesson-observe'), 1, `${page.id}: one observing column`);
+  }
+});
+
+test('every lesson panel follows the one pattern: picker and buttons, then parameters', () => {
+  for (const page of pages) {
+    const markup = renderToStaticMarkup(page.render());
+    assert.equal(rows(markup, 'control-panel-grid'), 1, `${page.id}: one control panel`);
+    assert.equal(rows(markup, 'control-panel-pick'), 1, `${page.id}: one picker row`);
+    assert.ok(
+      rows(markup, 'control-panel-parameters') <= 1,
+      `${page.id}: at most one parameter row`,
+    );
+    const pick = markup.split('control-panel-pick')[1].split('control-panel-parameters')[0];
+    assert.match(pick, /<select/, `${page.id}: the picker row carries the select`);
+    assert.doesNotMatch(pick, /type="range"/, `${page.id}: no parameter in the picker row`);
+    // The panel is one section; anything after it (the viewport's own mode picker) is not its row.
+    const parameters = (markup.split('control-panel-parameters')[1] ?? '').split('</section>')[0];
+    assert.doesNotMatch(parameters, /<select/, `${page.id}: no picker among the parameters`);
+  }
+});

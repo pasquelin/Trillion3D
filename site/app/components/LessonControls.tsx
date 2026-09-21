@@ -96,8 +96,9 @@ function Control({ control }: { control: LessonControl }) {
   );
 }
 
-/** Every lesson's controls, rendered from one description: same field, same label, same value
- * beside it, same order — a page says what it controls, never how it looks. */
+/** Every lesson's controls, on one fixed pattern: the first row carries the experiment picker and
+ * the panel's buttons, the second the lesson's own parameters, evenly spread. A page says what it
+ * controls, never where it goes. */
 export function LessonControls({
   title,
   controls,
@@ -107,30 +108,45 @@ export function LessonControls({
   controls: LessonControl[];
   actions?: ReactNode;
 }) {
+  const picker = controls.find((control) => control.kind === 'select');
+  const parameters = controls.filter((control) => control !== picker);
   return (
     <ControlPanel title={title}>
-      {controls.map((control) =>
-        control.label === undefined ? (
-          <div key={control.id} className="control-panel-wide" data-control={control.id}>
-            <Control control={control} />
-          </div>
-        ) : (
-          <Field
-            key={control.id}
-            className={control.kind === 'toggle' ? 'control-panel-toggle' : ''}
-            data-control={control.id}
-            label={
-              <ControlLabel
-                label={control.label}
-                value={control.kind === 'range' ? control.display : undefined}
-              />
-            }
-          >
-            <Control control={control} />
-          </Field>
-        ),
+      <div className="control-panel-row control-panel-pick">
+        {picker && <ControlField control={picker} className="control-panel-wide" />}
+        {actions && <ControlActions>{actions}</ControlActions>}
+      </div>
+      {parameters.length > 0 && (
+        <div className="control-panel-row control-panel-parameters">
+          {parameters.map((control) => (
+            <ControlField key={control.id} control={control} />
+          ))}
+        </div>
       )}
-      {actions && <ControlActions>{actions}</ControlActions>}
     </ControlPanel>
+  );
+}
+
+/** One control with its label and, for a slider, its value beside it. */
+function ControlField({ control, className = '' }: { control: LessonControl; className?: string }) {
+  if (control.label === undefined)
+    return (
+      <div className={`control-panel-field ${className}`} data-control={control.id}>
+        <Control control={control} />
+      </div>
+    );
+  return (
+    <Field
+      className={`control-panel-field ${className}`}
+      data-control={control.id}
+      label={
+        <ControlLabel
+          label={control.label}
+          value={control.kind === 'range' ? control.display : undefined}
+        />
+      }
+    >
+      <Control control={control} />
+    </Field>
   );
 }

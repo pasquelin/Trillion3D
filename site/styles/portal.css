@@ -1023,29 +1023,38 @@ kbd {
 }
 .control-panel-grid {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.6rem 1.25rem;
+  flex-direction: column;
+  gap: 0.9rem;
   min-width: 0;
 }
-.control-panel-grid > .fieldset {
-  flex: 1 1 10rem;
-  max-width: 100%;
+/* Row one: the experiment picker takes the width it needs, the buttons close the row. */
+.control-panel-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem 1.25rem;
 }
-.control-panel-grid > .fieldset {
+.control-panel-pick > .control-panel-wide {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+/* Row two: the lesson's parameters, one share of the row each. */
+.control-panel-parameters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: 0.6rem 1.25rem;
+  align-items: start;
+}
+.control-panel-field.fieldset {
   gap: 0.5rem;
   padding: 0;
+  min-width: 0;
 }
 .control-panel-grid .fieldset-legend {
   width: 100%;
   padding: 0 0 0.4rem;
   line-height: 1.35;
   overflow: visible;
-}
-.control-panel-grid > .control-panel-wide {
-  flex: 1 1 20rem;
-  min-width: 0;
-  align-self: center;
 }
 .control-panel-grid .select,
 .control-panel-grid .range {
@@ -1091,9 +1100,6 @@ kbd {
   align-items: center;
   gap: 0.75rem;
   min-height: 2rem;
-}
-.control-panel-grid > .control-panel-toggle {
-  flex: 1 1 14rem;
 }
 .control-legend li {
   display: flex;
