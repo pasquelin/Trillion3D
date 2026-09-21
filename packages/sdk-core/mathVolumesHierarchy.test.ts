@@ -11,7 +11,7 @@ import {
   frustumPlanesFromMatrix,
   sphereFromBounds,
 } from './index.ts';
-import { assertBits } from './bench/oracles/volumes.mjs';
+import { assertBits } from './bench/oracles/volumes.ts';
 
 /** Chain root → rotated parent with non-uniform scale → child with negative scale → grandchild. */
 function chaineProfondeurQuatre() {

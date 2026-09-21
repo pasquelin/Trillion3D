@@ -3,7 +3,7 @@
 // accessors, and reads the material once instead of twice. `indexSourceBytes` and
 // `compteMateriauxEtTangentes` (webgpuPagesCatalogue.ts) replace a `flatMap` of a pair per page and
 // a `map`/two table copies with one walk each. The oracles are the implementations from before lot
-// F, copied as-is into `oracles/cones-normaux.mjs`.
+// F, copied as-is into `oracles/cones-normaux.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -14,7 +14,7 @@ import {
   referencePrepareCones,
   referenceIndexSourceBytes,
   referenceCompteMateriauxEtTangentes,
-} from './bench/oracles/cones-normaux.mjs';
+} from './bench/oracles/cones-normaux.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 

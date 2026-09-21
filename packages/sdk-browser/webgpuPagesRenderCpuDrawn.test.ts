@@ -17,7 +17,7 @@ test('coupe processeur (visibility buffer indisponible) : drawnTriangles = selec
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true);
   backend.render(camera());
-  await backend.flush();
+  await backend.flush?.();
   backend.render(camera());
   const metrics = backend.metrics();
   assert.ok((metrics.selectedTriangles ?? 0) > 0, 'witness: the cut did select triangles');

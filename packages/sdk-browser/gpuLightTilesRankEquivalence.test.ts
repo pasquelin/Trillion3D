@@ -11,7 +11,7 @@ import { compactRank, compactSerial } from './bench/oracles/gpuLightTilesRankOra
 const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
 const MAX_TILE = LIGHT_SETTINGS.maxLightsPerTile;
 
-function assertSame(hits: Uint32Array, count: number, maxTileLights = MAX_TILE) {
+function assertSame(hits: Uint32Array, count: number, maxTileLights: number = MAX_TILE) {
   const serial = compactSerial(hits, count, maxTileLights);
   const rank = compactRank(hits, count, maxTileLights);
   assert.deepEqual(rank.kept, serial.kept, `kept differs for hits=${[...hits]} count=${count}`);

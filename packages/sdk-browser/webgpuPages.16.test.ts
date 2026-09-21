@@ -8,6 +8,8 @@ import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { dagLevel } from './webgpuPagesTestDag.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
+import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 
 test('a host eviction deferred for coverage is applied once the page is no longer pinned', async () => {
   installGpuGlobals();
@@ -18,7 +20,7 @@ test('a host eviction deferred for coverage is applied once the page is no longe
     gpuDevice: device,
     maxResidentPages: 3,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     backend.render(camera());
@@ -47,9 +49,8 @@ test('a leaf carrying its own coarse representation keeps that GPU fallback duri
   // One cluster replaced by one coarser cluster: a group of a single child.
   const leaf = { ...fixture.metadata.primitives[0].pages[0], count: 6, bytes: 24 };
   const level = dagLevel([leaf], { ...fixture.metadata.primitives[0].pages[2], id: 1 }, 1);
-  const metadata = {
-    errorModel: 'dag-group-qem-v1',
-    clusterStrategy: 'dag-groups',
+  const metadata: ClusterManifest = {
+    ...fixture.metadata,
     primitives: [{ ...fixture.metadata.primitives[0], ...level }],
   };
   const backend = webgpuPagesBackend({
@@ -60,7 +61,7 @@ test('a leaf carrying its own coarse representation keeps that GPU fallback duri
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     backend.render(camera());
@@ -136,7 +137,7 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
     maxResidentPages: 2,
     viewport: [32, 32],
     onDiagnostic: (event) => events.push(event),
-  });
+  }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     const cam = camera();

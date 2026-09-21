@@ -1,0 +1,119 @@
+// Absolute selection measurement: frustum clip and autonomous residency. No oracle here: these
+// two computations have no prior implementation to confront; their correctness is held by
+// `mathFrustumBox.test.ts` and `autonomousResidency.test.ts`. Each line says so rather than staying silent.
+import * as THREE from 'three';
+import { clipPlanesFromMatrix, frustumClipBox } from '../../sdk-core/index.ts';
+import { collectPendingUrls } from '../pageSelectionRequests.ts';
+import { createAutonomousResidency } from '../autonomousResidency.ts';
+import { graine, mesure, rapport, stress } from '../../sdk-core/bench/socle.ts';
+import { boites, camera } from './appui/scenes.ts';
+
+const cam = camera(6, 0.1, 16 / 9);
+const clip = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+const planes = new Float64Array(24);
+clipPlanesFromMatrix(planes, clip.elements);
+
+const boxes = (liste) => {
+  const plat = new Float64Array(liste.length * 6);
+  for (let i = 0; i < liste.length; i++) {
+    plat.set(liste[i].min, i * 6);
+    plat.set(liste[i].max, i * 6 + 3);
+  }
+  return plat;
+};
+const grande = boxes(boites({ count: 20000 })),
+  vide = new Float64Array(0);
+
+const clipper = (plat) => {
+  const verdicts = new Uint8Array(plat.length / 6);
+  for (let i = 0; i < verdicts.length; i++) {
+    const b = i * 6;
+    verdicts[i] = frustumClipBox(
+      planes,
+      plat[b],
+      plat[b + 1],
+      plat[b + 2],
+      plat[b + 3],
+      plat[b + 4],
+      plat[b + 5],
+    );
+  }
+  return verdicts;
+};
+
+// ── Mesure frustumClipBox ────────────────────────────────────────────
+const clipResult = await mesure({
+  name: 'frustumClipBox',
+  fichier: 'packages/sdk-core/mathFrustumBox.ts',
+  cas: [
+    { name: '20k boxes including degenerates', input: grande, size: 20000 },
+    { name: 'no boxes', input: vide, size: 0 },
+  ],
+  calcul: clipper,
+  motif: 'time only — correctness in mathFrustumBox.test.ts',
+  options: { tours: 200, budgetMs: 1000 },
+});
+
+// ── Residency measurement ────────────────────────────────────────────
+const alea = graine(41);
+function hote(nombre) {
+  const pages = [];
+  for (let i = 0; i < nombre; i++)
+    pages.push({
+      url: `page-${i % Math.max(1, Math.floor(nombre * 0.6))}.bin`,
+      streamUrl: i % 5 ? undefined : `bundle-${i % 400}.bin`,
+      array: i % 3 ? undefined : new Uint32Array(3),
+      seen: alea(),
+    });
+  const obtenu = createAutonomousResidency({
+    bootstrapUrls: new Set(pages.slice(0, Math.min(200, nombre)).map((r) => r.url)),
+    modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
+    shown: pages.slice(0, Math.floor(nombre * 0.4)),
+    desired: pages,
+    pending: [],
+    retained: [],
+    byUrl: new Map(),
+    geometryStore: { detach: () => {}, state: { allocationBytes: 0 } },
+  });
+  return { pages, obtenu, vers: [] };
+}
+const grandHote = hote(15000),
+  hoteVide = hote(0);
+
+const residenceResult = await mesure({
+  name: 'collectPendingUrls',
+  fichier: 'packages/sdk-browser/pageSelectionRequests.ts',
+  cas: [
+    { name: '15k pages', input: grandHote, size: 15000 },
+    { name: 'no pages', input: hoteVide, size: 0 },
+  ],
+  calcul: (h) => ({
+    pending: [...h.obtenu.pendingUrls()],
+    retained: [...h.obtenu.pageUrls()],
+    attente: collectPendingUrls(h.pages, h.vers).slice(),
+  }),
+  motif: 'time only — correctness in autonomousResidency.test.ts',
+  options: { tours: 60, budgetMs: 1000 },
+});
+
+// ── Stress testing ───────────────────────────────────────────────────
+await stress({
+  name: 'frustumClipBox extremes',
+  calcul: (e) => frustumClipBox(planes, e[0], e[1], e[2], e[3], e[4], e[5]),
+  extremes: [
+    { name: 'NaN box', input: [NaN, NaN, NaN, NaN, NaN, NaN] },
+    {
+      name: 'Infinity box',
+      input: [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity],
+    },
+    { name: 'inverted box', input: [1, 1, 1, -1, -1, -1] },
+    { name: 'zero box', input: [0, 0, 0, 0, 0, 0] },
+    { name: '-0 box', input: [-0, -0, -0, -0, -0, -0] },
+  ],
+});
+
+rapport(
+  'tronc-residence',
+  [clipResult, residenceResult],
+  'Selection: frustum clip and residency — absolute measurement',
+);

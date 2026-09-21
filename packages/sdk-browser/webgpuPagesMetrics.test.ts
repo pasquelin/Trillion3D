@@ -5,7 +5,7 @@ import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
 import { createWebgpuVisState } from './webgpuPagesStateVis.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
-import { referenceVertexBytes } from './bench/oracles/metriques-octets.mjs';
+import { referenceVertexBytes } from './bench/oracles/metriques-octets.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 // Synchronous-triangles lot: `drawnTriangles` is copied as-is from `run.drawnTriangles`, without
@@ -57,7 +57,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
 // G4: `vertexBytesOf` reads a total held at allocation (`gpu.vertexBytes`, incremented by
 // `ensureWebgpuPositionBuffer` and `prepareWebgpuBlend`) instead of resuming, every sample, every
 // resident position buffer and every transparent mesh. Oracle: the full resummation from before lot
-// G, copied as-is into `bench/oracles/metriques-octets.mjs`.
+// G, copied as-is into `bench/oracles/metriques-octets.ts`.
 {
   function buffer(size: number) {
     return { size } as unknown as GPUBuffer;

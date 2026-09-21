@@ -4,7 +4,7 @@ import { frameTargetAllocation } from './webgpuPagesTargets.ts';
 import { ensureTaaTargets } from './taaPrepare.ts';
 import { frameTargetBytes } from './surfaceBuffer.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL } from './temporalAntialiasing.ts';
-import { MEASURE_HEIGHT, MEASURE_WIDTH } from '../../test/appui/emeraldProvenance.mjs';
+import { MEASURE_HEIGHT, MEASURE_WIDTH } from '../../test/appui/emeraldProvenance.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */

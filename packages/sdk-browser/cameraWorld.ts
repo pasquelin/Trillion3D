@@ -12,10 +12,10 @@ export {
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
- * `test/integration/structure-moteur.test.mjs` forbids any other module from resolving it or
+ * `test/integration/structure-moteur.test.ts` forbids any other module from resolving it or
  * reading a camera's local pose, and names the consumers allowed to read the resolved pose.
  * It is also the only file on the per-frame path that names a host-library type:
- * `test/integration/moteur-sans-three.test.mjs` forbids `three` everywhere else on that path.
+ * `test/integration/moteur-sans-three.test.ts` forbids `three` everywhere else on that path.
  *
  * THE FACT. The engine does not own the camera: the host hands it over every frame, and it
  * may be the child of a rig that belongs to no prepared scene. `updateWorlds` only walks

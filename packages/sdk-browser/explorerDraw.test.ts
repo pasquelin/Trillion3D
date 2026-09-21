@@ -1,11 +1,11 @@
 // Batch F, F13: `anneauFroid` (explorerDraw.ts) stops as soon as the batch is full instead of
 // filtering the whole ring before keeping its head (`.filter(...).slice(0, limite)`). The oracle
-// is the whole filter from before batch F, copied as-is into `oracles/cadre-vue.mjs`.
+// is the whole filter from before batch F, copied as-is into `oracles/cadre-vue.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { anneauFroid, empileEnAttente } from './explorerDraw.ts';
-import { referenceAnneauFroid } from './bench/oracles/cadre-vue.mjs';
-import { referenceEmpileEnAttente } from './bench/oracles/recherches-streaming.mjs';
+import { referenceAnneauFroid } from './bench/oracles/cadre-vue.ts';
+import { referenceEmpileEnAttente } from './bench/oracles/recherches-streaming.ts';
 
 function streamer(has: Set<string>, loading: Set<string>, failed: Set<string>) {
   return {
@@ -67,7 +67,7 @@ test('a large ring, a large number of batches of varied sizes, stays identical t
 
 // G6: missing addresses that an in-flight request will send again later accumulate in a
 // `Set` (`empileEnAttente`) instead of an array tested by `includes` on every added address.
-// Oracle: the hand-deduped array from before batch G, copied into `bench/oracles/recherches-streaming.mjs`.
+// Oracle: the hand-deduped array from before batch G, copied into `bench/oracles/recherches-streaming.ts`.
 test('an empty set receives the same addresses, in the same order, as a hand-deduped array', () => {
   const ensemble = new Set<string>();
   const tableau: string[] = [];
