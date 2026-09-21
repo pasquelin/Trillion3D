@@ -27,10 +27,9 @@ function rustc(...args) {
  * It is not enabled by default for the target, but we explicitly reject it rather than depend on it,
  * and `verifieJeuInstructions` re-reads the output module to confirm.
  *
- * `simd128`: the page decoder unpacks bit streams and the batch kernels run over vectors; the
- * compiler vectorises both under `__wasm_simd128__`. Without the flag the module outputs the same
- * bytes, slower. A browser without SIMD fails instantiation, and the loader falls back to the
- * JavaScript decoder.
+ * `simd128`: required, and `verifieJeuInstructions` refuses a module without it; what the flag
+ * gains on the page decoder and the batch kernels is not measured. A browser without SIMD fails
+ * instantiation, and the loader falls back to the JavaScript decoder.
  */
 
 /**
