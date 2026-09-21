@@ -1,3 +1,14 @@
+import type { Locale } from '../content/locale.ts';
+import { isObject, readPath } from './contract.ts';
+import type { ReportRecord, TimingStat } from './types.ts';
+
+export interface MetricDefinition {
+  unit: string;
+  path: string;
+  stat?: boolean;
+  divisor?: number;
+}
+
 /** Stable metric IDs, units and source paths; no presentation text in campaign data. */
 export const METRICS = {
   gpu: { unit: 'ms', path: 'gpuFrameMs', stat: true },
@@ -13,17 +24,23 @@ export const METRICS = {
   pool: { unit: 'MiB', path: 'metrics.texturePoolBytes', divisor: 1048576 },
   calls: { unit: '', path: 'metrics.drawCalls' },
   preparation: { unit: 'ms', path: 'preparationMs' },
-};
-export function metricValue(record, key, percentile = 'p50') {
-  const metric = METRICS[key];
-  const source =
+} satisfies Record<string, MetricDefinition>;
+export type MetricKey = keyof typeof METRICS;
+
+export function metricValue(
+  record: ReportRecord | null | undefined,
+  key: MetricKey,
+  percentile: keyof TimingStat = 'p50',
+): number | null {
+  const metric: MetricDefinition = METRICS[key];
+  const source: unknown =
     key === 'gpu'
       ? (record?.data?.profilParEtape?.gpuImageMs ?? record?.data?.gpuFrameMs)
-      : metric.path.split('.').reduce((value, part) => value?.[part], record?.data);
-  const value = metric.stat ? source?.[percentile] : source;
+      : readPath(record?.data, metric.path);
+  const value: unknown = metric.stat && isObject(source) ? source[percentile] : source;
   return typeof value === 'number' && Number.isFinite(value) ? value / (metric.divisor ?? 1) : null;
 }
-export function formatValue(value, locale, unit = '') {
+export function formatValue(value: number | null | undefined, locale: Locale, unit = ''): string {
   if (value === null || value === undefined) return '—';
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: unit ? 2 : 0 }).format(value)}${unit ? ` ${unit}` : ''}`;
 }

@@ -1,4 +1,12 @@
-export function missingMetric(record, metric, locale) {
+import type { Locale } from '../content/locale.ts';
+import type { MetricKey } from './metrics.ts';
+import type { ReportRecord } from './types.ts';
+
+export function missingMetric(
+  record: ReportRecord | null | undefined,
+  metric: MetricKey,
+  locale: Locale,
+) {
   const fr = locale === 'fr';
   if (!record) return fr ? 'Mesure absente' : 'Missing reading';
   const three = record.engine?.startsWith('three-');
@@ -18,9 +26,13 @@ export function missingMetric(record, metric, locale) {
     return fr ? 'Intervalle d’affichage non enregistré' : 'Display interval not recorded';
   return fr ? 'Non enregistré dans cette mesure' : 'Not recorded in this reading';
 }
+function isTraversable(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
 /** Preserve every leaf, including null and zero, for the complete comparison tables. */
-export function flattenFields(value, path = '', result = new Map()) {
-  if (value !== null && typeof value === 'object') {
+export function flattenFields(value: unknown, path = '', result: Map<string, unknown> = new Map()) {
+  if (isTraversable(value)) {
     const entries = Object.entries(value);
     if (!entries.length) result.set(path, Array.isArray(value) ? '[]' : '{}');
     for (const [key, item] of entries) flattenFields(item, path ? `${path}.${key}` : key, result);
