@@ -13,6 +13,8 @@
 // Attributes are in single precision, like imported geometry: both sides therefore
 // read the same rounded values, and any delta can only come from the algebra.
 import * as THREE from 'three';
+import { triangleAt } from '../../visibilityMath.ts';
+import type { VisPage } from '../../visibilityTypes.ts';
 
 /** Hostile poses, column-major: shear, singular and cancelling row included. */
 const POSES = [
@@ -85,7 +87,7 @@ const attribut = (valeurs: number[], size: number) =>
   new THREE.BufferAttribute(Float32Array.from(valeurs), size);
 
 /** The four attribute sets of a fitting: with tangents, without, without normals, without UV. */
-function attributs([n, t, u]: [number, number, number]) {
+function attributs([n, t, u]: [number, number, number]): THREE.BufferGeometry['attributes'][] {
   const normal = () => attribut(NORMALES[n], 3),
     tangent = () => attribut(TANGENTES[t], 4),
     uv = () => attribut(UVS[u], 2);
@@ -97,8 +99,13 @@ function attributs([n, t, u]: [number, number, number]) {
   ];
 }
 
-/** A projected vertex as the rasterizer yields it: only the world position is read here. */
+/** A projected vertex as the rasterizer yields it: only the world position is read here, so
+ *  the screen fields `x`/`y`/`z`/`invW` `Projected` also carries are filled but never checked. */
 const sommet = (v: number[], at: number) => ({
+  x: 0,
+  y: 0,
+  z: 0,
+  invW: 1,
   worldX: v[at],
   worldY: v[at + 1],
   worldZ: v[at + 2],
@@ -108,25 +115,34 @@ const sommet = (v: number[], at: number) => ({
  * The full product: each pose, each fitting, each triangle, each weight set. Vertex
  * indices rotate so the three corners do not always read the same row.
  */
-export function reperes() {
-  const lot = [];
+export interface Repere {
+  page: VisPage;
+  tri: NonNullable<ReturnType<typeof triangleAt>>;
+  bary: { w0: number; w1: number; w2: number };
+}
+
+export function reperes(): Repere[] {
+  const lot: Repere[] = [];
   for (const pose of POSES) {
     const matrix = new THREE.Matrix4().fromArray(pose);
     for (const garniture of GARNITURES)
       for (const attributes of attributs(garniture))
         for (let v = 0; v < TRIANGLES.length; v++) {
           const coins = TRIANGLES[v];
+          const page = { array: new Uint32Array([0, 1, 2]), attributes, matrix, material: [] };
           const tri = {
             a: sommet(coins, 0),
             b: sommet(coins, 3),
             c: sommet(coins, 6),
+            page,
+            triangleIndex: 0,
             i0: 0,
             i1: (v + 1) % 3,
             i2: (v + 2) % 3,
           };
           for (const w of POIDS)
             lot.push({
-              page: { array: new Uint32Array([0, 1, 2]), attributes, matrix },
+              page,
               tri,
               bary: { w0: w[0], w1: w[1], w2: w[2] },
             });

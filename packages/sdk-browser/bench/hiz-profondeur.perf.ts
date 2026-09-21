@@ -5,12 +5,13 @@ import { hizTestRect } from '../hizOcclusion.ts';
 import { visibilityDepth } from '../hizDepth.ts';
 import { rasterVisibility } from '../visibilityRaster.ts';
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
-import { camera, coupe, rectangles } from './appui/scenes.ts';
+import { camera, coupe, rectangles, type SceneRect } from './appui/scenes.ts';
 import { cameraMoteur } from '../cameraFixture.ts';
+import type { VisPage } from '../visibilityTypes.ts';
 
-const image = (largeur, hauteur, pages) => {
+const image = (largeur: number, hauteur: number, pages: VisPage[]) => {
   const cam = camera(6, 0.1, largeur / hauteur),
-    viewport = [largeur, hauteur];
+    viewport: [number, number] = [largeur, hauteur];
   return { ids: rasterVisibility(pages, cameraMoteur(cam), viewport).ids, pages, cam, viewport };
 };
 const pages = coupe({ pages: 900, triangles: 48 });
@@ -33,7 +34,7 @@ const depthResult = await mesure({
 // ── Mesure hizTestRect ───────────────────────────────────────────────
 const rects = rectangles({ count: 20000 });
 const scratch = new Int32Array(5);
-const parcours = (rectangles_) => {
+const parcours = (rectangles_: SceneRect[]) => {
   const output = new Int32Array(rectangles_.length * 6);
   for (let i = 0; i < rectangles_.length; i++) {
     const [x0, y0, x1, y1, clipsNear] = rectangles_[i];

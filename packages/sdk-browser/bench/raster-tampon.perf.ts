@@ -12,9 +12,22 @@ import { quadrillage } from './appui/scenesCoupe.ts';
 import { compteur, ecart, mesure, note, rapport, stress } from '../../sdk-core/bench/socle.ts';
 import { camera, coupe } from './appui/scenes.ts';
 import { cameraMoteur } from '../cameraFixture.ts';
+import type { EngineCamera } from '../cameraWorld.ts';
+import type { VisPage } from '../visibilityTypes.ts';
+
+interface FrameInput {
+  pages: VisPage[];
+  cam: EngineCamera;
+  image: [number, number];
+}
+
+interface FrameOutput {
+  ids: Uint32Array;
+  depth: Float32Array;
+}
 
 /** Delta of a frame: how many pixels change identifier, how many change depth. */
-function differencesImage(attendu, obtenu, name) {
+function differencesImage(attendu: FrameOutput, obtenu: FrameOutput, name: string) {
   const c = compteur();
   for (let i = 0; i < attendu.ids.length; i++) {
     if (attendu.ids[i] !== obtenu.ids[i]) {
@@ -31,25 +44,32 @@ function differencesImage(attendu, obtenu, name) {
 const hote = camera(6, 0.1, 16 / 9),
   hoteCarre = camera(3, 0.1, 1);
 const cam = cameraMoteur(hote);
-const image = [1280, 720];
+const image: [number, number] = [1280, 720];
 const carre = cameraMoteur(hoteCarre);
-const grande = { pages: coupe({ pages: 400, triangles: 24, hostile: true, seed: 7 }), cam, image };
-const rase = {
+const grande: FrameInput = {
+  pages: coupe({ pages: 400, triangles: 24, hostile: true, seed: 7 }),
+  cam,
+  image,
+};
+const rase: FrameInput = {
   pages: coupe({ pages: 24, triangles: 24, hostile: true, seed: 23, size: 2.2 }),
   cam,
   image,
 };
-const vide = { pages: [], cam, image };
-const diagonale = { pages: quadrillage(1, 1), cam: carre, image: [64, 64] };
-const damier = { pages: quadrillage(8, 0.25), cam: carre, image };
+const vide: FrameInput = { pages: [], cam, image };
+const diagonale: FrameInput = { pages: quadrillage(1, 1), cam: carre, image: [64, 64] };
+const damier: FrameInput = { pages: quadrillage(8, 0.25), cam: carre, image };
 const GRAINES = [11, 37, 97];
-const autresGraines = GRAINES.map((seed) => ({
+const autresGraines: FrameInput[] = GRAINES.map((seed) => ({
   pages: coupe({ pages: 120, triangles: 24, hostile: true, seed, size: 0.5 }),
   cam,
   image,
 }));
 
-const tour = (fn) => (input) => fn(input.pages, input.cam, input.image);
+const tour =
+  <Sortie>(fn: (pages: VisPage[], cam: EngineCamera, viewport: [number, number]) => Sortie) =>
+  (input: FrameInput) =>
+    fn(input.pages, input.cam, input.image);
 
 const resC1 = await mesure({
   name: 'affine visbuffer candidate against perspective',

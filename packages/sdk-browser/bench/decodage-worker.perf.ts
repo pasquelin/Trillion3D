@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { PAGE_DECODE_PROTOCOL } from '../../sdk-core/index.ts';
+import type { PageDecodeAnswer, PageDecodeOp } from '../../sdk-core/index.ts';
 import { prepareSdkWasm } from '../geometryPageWasm.ts';
 import { RACINE, ecart, graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { encodeGeometryPage } from '../../page-codec/geometryPage.ts';
@@ -19,7 +20,7 @@ const alea = graine(211);
 const MODULE = readFileSync(join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'));
 if (!(await prepareSdkWasm(MODULE))) throw new Error('H2_WASM_ABSENT: run `pnpm run build:wasm`');
 
-async function page(sommets) {
+async function page(sommets: number) {
   const position = new Float32Array(sommets * 3),
     normal = new Float32Array(sommets * 3),
     uv = new Float32Array(sommets * 2),
@@ -69,8 +70,8 @@ writeFileSync(
     `});\n`,
 );
 const worker = new Worker(tache);
-const horsFil = (op, source) =>
-  new Promise((resolve, reject) => {
+const horsFil = (op: PageDecodeOp, source: ArrayBuffer) =>
+  new Promise<PageDecodeAnswer>((resolve, reject) => {
     worker.once('message', resolve);
     worker.once('error', reject);
     worker.postMessage(
@@ -82,13 +83,15 @@ const horsFil = (op, source) =>
 test('H2: the worker yields the exact same page and bytes as the main thread', async () => {
   const surPlace = decodeGeometryPage(grande, MAX_DECODED_BYTES);
   const decodee = await horsFil('decode', grande.slice().buffer);
-  assert.equal(decodee.ok, true, decodee.message);
+  assert.ok(decodee.ok, 'message' in decodee ? decodee.message : undefined);
+  assert.ok(decodee.decoded, 'decode task answered without a payload');
   assert.equal(ecart(surPlace, restorePageDecode(decodee.decoded), 'page'), null);
 
   const attendu = await sha256Hex(grande.slice().buffer);
   const verifiee = await horsFil('verify', grande.slice().buffer);
-  assert.equal(verifiee.ok, true, verifiee.message);
+  assert.ok(verifiee.ok, 'message' in verifiee ? verifiee.message : undefined);
   assert.equal(verifiee.sha256, attendu);
+  assert.ok(verifiee.source, 'verify task answered without its source buffer');
   assert.equal(ecart(grande, new Uint8Array(verifiee.source), 'returned bytes'), null);
   await worker.terminate();
 });

@@ -78,8 +78,10 @@ racine.updateMatrixWorld(true);
 export const mondesHierarchiques = noeuds.map((n) => n.matrixWorld.toArray());
 
 /** Each node against a few boxes: what the box transform and the sphere receive. */
-export const boitesHierarchiques = mondesHierarchiques.flatMap((m, i) =>
-  boites.filter((_: number[], j: number) => j % 9 === i % 9).map((b: number[]) => [b, m]),
+export const boitesHierarchiques: [number[], number[]][] = mondesHierarchiques.flatMap((m, i) =>
+  boites
+    .filter((_: number[], j: number) => j % 9 === i % 9)
+    .map((b: number[]): [number[], number[]] => [b, m]),
 );
 
 /** View-projections of the hierarchy cameras, and world boxes of the nodes, one around the eye. */

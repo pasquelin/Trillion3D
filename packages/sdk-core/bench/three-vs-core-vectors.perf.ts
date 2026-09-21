@@ -115,7 +115,7 @@ const COLOR = 'packages/sdk-core/mathColor.ts';
 const channel = Float64Array.from({ length: N * 3 }, () => alea());
 const color = new THREE.Color();
 const colorsThree = new Float64Array(N * 3);
-const storeColor = (i) => {
+const storeColor = (i: number) => {
   colorsThree[i * 3] = color.r;
   colorsThree[i * 3 + 1] = color.g;
   colorsThree[i * 3 + 2] = color.b;

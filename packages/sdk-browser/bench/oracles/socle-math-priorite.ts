@@ -13,7 +13,7 @@ export interface PriorityRecordFixture {
   matrix: { elements: NumberSink };
   min: NumberSink;
   max: NumberSink;
-  lodError: number;
+  lodError?: number;
   sphere?: number[];
   parentError?: number | null;
   parentSphere?: number[] | null;
