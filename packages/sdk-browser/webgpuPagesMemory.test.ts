@@ -31,8 +31,8 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
     // Under root coverage: raised to it, by name; roots never leave.
     const shrunk = await backend.setMemoryBudgets!({ geometryPoolBytes: 1, texturePoolBytes: 1 });
     assert.equal(shrunk.geometryPool.clamp, 'root-cover');
-    assert.equal(shrunk.texturePool.clamp, 'minimum');
-    assert.equal(shrunk.texturePool.layers.color.lossless, 1);
+    assert.equal(shrunk.texturePool?.clamp, 'minimum');
+    assert.equal(shrunk.texturePool?.layers.color.lossless, 1);
     assert.ok(shrunk.durationMs >= 0);
     backend.render(camera());
     const after = backend.metrics();

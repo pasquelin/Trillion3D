@@ -3,7 +3,9 @@ import {
   laneCounts,
   POOL_LANES,
   type AtlasLanes,
+  type BlockChoice,
   type LaneCounts,
+  type PoolEncoding,
   type PoolLane,
 } from './textureBlockFormats.ts';
 import { pageBufferCap } from './gpuPageResize.ts';
@@ -50,6 +52,9 @@ export type GeometryPool = {
 const checkBudget = (bytes: number, name: string) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error(name);
 };
+/** A texture budget refused by name before any pool is drawn from it. */
+export const checkTexturePoolBudget = (bytes: number) =>
+  checkBudget(bytes, 'INVALID_TEXTURE_POOL_BUDGET');
 
 /**
  * Geometry page-pool slots for a budget in bytes — `r.Nanite.Streaming.
@@ -112,6 +117,18 @@ export type TexturePool = {
 };
 
 /**
+ * What prepare settles once, with the sidecar's chains and the catalogue in hand: the family the
+ * session samples, its encoding, and the lane pools on the lanes' demand; `poolFor` draws the
+ * same pools for another budget (`setMemoryBudgets`). Setup holds only the budget until then.
+ */
+export type TexturePools = {
+  choice: BlockChoice;
+  encoding: PoolEncoding;
+  pool: TexturePool;
+  poolFor(budgetBytes: number): TexturePool;
+};
+
+/**
  * Layers of each lane pool that the texture-pool budget yields: half the budget per atlas; in an
  * atlas every lane that has textures gets one layer — the minimum for each to show its queue —,
  * then the rest in proportion to the bytes its textures would take resident, a block texel
@@ -127,7 +144,7 @@ export function texturePoolFor(
   demand: AtlasLanes,
   texelBytes: (lane: PoolLane) => number,
 ): TexturePool {
-  checkBudget(budgetBytes, 'INVALID_TEXTURE_POOL_BUDGET');
+  checkTexturePoolBudget(budgetBytes);
   const limit = device?.limits?.maxTextureArrayLayers;
   const clamps = new Set<PoolClamp>();
   const layerBytes = (lane: PoolLane) => poolLayerBytes(texelBytes(lane));

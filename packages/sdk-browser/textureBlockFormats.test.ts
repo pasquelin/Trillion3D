@@ -4,26 +4,40 @@ import { chooseBlockFormat, poolEncoding, WHITE_TAIL } from './textureBlockForma
 
 const device = (...names: string[]) => ({ has: (name: string) => names.includes(name) });
 
-// Behaviour: the format follows the device's features under the host's choice — BC7 first on a
-// device with both, ASTC alone on a mobile one, RGBA8 with a named reason on neither or on
-// `'none'`; an explicit format the device lacks is refused by name, never swapped in silence.
-test('the block format is the one the device samples, under the host choice, with its reason', () => {
+const chains = (...kept: ('bc7' | 'astc')[]) => [
+  { layouts: { bc7: kept.includes('bc7') ? 'rgba' : 'lossless', astc: 'lossless' } as const },
+  {
+    layouts: { bc7: 'lossless', astc: kept.includes('astc') ? 'two-channel' : 'lossless' } as const,
+  },
+];
+
+// Behaviour: the family is the first the device samples AND the cache holds kept chains in,
+// under the host's choice — BC7 first on a device with both, ASTC on that same device when the
+// cook wrote ASTC alone, RGBA8 with a named reason when the device has neither feature, when no
+// chain was kept in a family it has, or on `'none'`; an explicit family the device lacks is
+// refused by name, never swapped in silence.
+test('the block format is the one the device samples and the cache holds, with its reason', () => {
   const both = device('texture-compression-bc', 'texture-compression-astc');
-  assert.deepEqual(chooseBlockFormat(both), {
+  assert.deepEqual(chooseBlockFormat(both, chains('bc7', 'astc')), {
     block: 'bc7',
-    reason: 'device has texture-compression-bc',
+    reason: 'device has texture-compression-bc, 1 chains kept in it',
   });
-  assert.equal(chooseBlockFormat(device('texture-compression-astc')).block, 'astc');
-  assert.equal(chooseBlockFormat(both, 'astc').block, 'astc');
-  assert.deepEqual(chooseBlockFormat(device(), 'auto'), {
+  assert.equal(chooseBlockFormat(both, chains('astc')).block, 'astc');
+  assert.equal(chooseBlockFormat(device('texture-compression-astc'), chains('astc')).block, 'astc');
+  assert.equal(chooseBlockFormat(both, chains('bc7', 'astc'), 'astc').block, 'astc');
+  assert.deepEqual(chooseBlockFormat(both, chains()), {
+    block: undefined,
+    reason: 'the cache holds no chain kept in bc7 or astc',
+  });
+  assert.deepEqual(chooseBlockFormat(device(), chains('bc7'), 'auto'), {
     block: undefined,
     reason: 'device lacks texture-compression-bc and texture-compression-astc',
   });
-  assert.deepEqual(chooseBlockFormat(device('texture-compression-astc'), 'bc7'), {
+  assert.deepEqual(chooseBlockFormat(device('texture-compression-astc'), chains('bc7'), 'bc7'), {
     block: undefined,
     reason: 'device lacks texture-compression-bc',
   });
-  assert.deepEqual(chooseBlockFormat(both, 'none'), {
+  assert.deepEqual(chooseBlockFormat(both, chains('bc7'), 'none'), {
     block: undefined,
     reason: 'host asked for rgba8',
   });

@@ -80,7 +80,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     geometryPoolAllocatedBytes: geometryPool.allocatedBytes,
     geometryPoolClamp: geometryPool.clamp,
     geometryPoolSaturated: Math.max(0, services.residencySets.keepCount - geometryPool.slots),
-    texturePoolClamp: rt.setup.texturePool.clamp,
+    texturePoolClamp: rt.setup.texturePools?.pool.clamp ?? null,
     drawCalls: run.gpuDrawCalls,
     hizTestedClusters: hiz?.tested ?? null,
     hizRejectedClusters: hiz?.rejected ?? null,
