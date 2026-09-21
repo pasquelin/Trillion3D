@@ -1,15 +1,31 @@
 {
   "binary": {
+    "texturePreviewAstcBytes": 0,
+    "texturePreviewBc7Bytes": 544,
     "texturePreviewBytes": 12268,
     "texturePreviews": 3
   },
   "case": "Four quads, four materials that share three colour textures: an OPAQUE with a 40×24 PNG baseColorTexture linked by uri, a MASK at alphaCutoff 0.25 on a 24×16 PNG with binary alpha embedded in a bufferView, and a BLEND whose 80×48 JPEG baseColorTexture also serves as emissiveTexture to a fourth material.",
   "formatVersion": 4,
-  "manifestBinaryVersion": 6,
+  "manifestBinaryVersion": 7,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
+      "blocks": [
+        {
+          "bytes": 0,
+          "format": "bc7",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "bytes": 0,
+          "format": "astc",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
       "firstLevel": 0,
       "height": 24,
       "image": 0,
@@ -105,6 +121,20 @@
     {
       "atlas": 0,
       "bakedLevels": 0,
+      "blocks": [
+        {
+          "bytes": 544,
+          "format": "bc7",
+          "layout": 1,
+          "sha256": "6f98ce8810905b17675dda2df5be3255b49bca74ad580fc73572cfbf448a0ac3"
+        },
+        {
+          "bytes": 0,
+          "format": "astc",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
       "firstLevel": 0,
       "height": 16,
       "image": 1,
@@ -187,6 +217,20 @@
     {
       "atlas": 0,
       "bakedLevels": 1,
+      "blocks": [
+        {
+          "bytes": 0,
+          "format": "bc7",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "bytes": 0,
+          "format": "astc",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
       "firstLevel": 1,
       "height": 48,
       "image": 2,
@@ -283,17 +327,57 @@
   "report": {
     "bakedLevels": 1,
     "base": 64,
+    "blockBytes": 544,
+    "blockFormats": ["bc7"],
     "colorTextures": 3,
     "dataTextures": 0,
+    "encoded": {
+      "bc7": {
+        "keptPsnrDb": {
+          "median": 54.76,
+          "min": 54.76,
+          "p10": 54.76
+        },
+        "lossless": 2,
+        "rgba": 1,
+        "twoChannel": 0
+      }
+    },
+    "lossless": [
+      {
+        "atlas": "srgb",
+        "format": "bc7",
+        "layout": "rgba",
+        "maskFlips": 0,
+        "maxDelta": 77,
+        "psnrDb": 37.89,
+        "sha256": "767afd28cc0dd6c70555e3b21b6a0d043c58d4ed73737b380bbf5140ef93ae02"
+      },
+      {
+        "atlas": "srgb",
+        "format": "bc7",
+        "layout": "rgba",
+        "maskFlips": 0,
+        "maxDelta": 95,
+        "psnrDb": 30.22,
+        "sha256": "f56a90018bf0679da243894aca26f2b6fb484aee7e0eeba867cf0af87a2b05e0"
+      }
+    ],
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 12268,
     "previews": 3,
+    "qualityGate": {
+      "decoder": "texture2ddecoder",
+      "maskFlips": 0,
+      "maxDelta": 8,
+      "psnrDb": 48.0
+    },
     "skipped": {},
-    "version": 3
+    "version": 4
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Only the texture whose every binding is a MASK base colour has its alpha rescaled to preserve source coverage at the material threshold; the other two keep their alpha intact.",
   "textures": {
-    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+    "url": "../../textures/v4/{sha}/{kind}-{level}.{format}"
   }
 }

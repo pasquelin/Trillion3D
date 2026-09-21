@@ -15,6 +15,8 @@ fn apercu(texture: u32, image: u32, sha256: &str) -> TexturePreview {
         first_level: 0,
         baked_levels: 0,
         pixels: vec![10, 20, 30, 40],
+        layouts: [None; 2],
+        blocks: [Vec::new(), Vec::new()],
     }
 }
 

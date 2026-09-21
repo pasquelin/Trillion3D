@@ -1,5 +1,5 @@
 use super::*;
-use crate::texture_preview::{AtlasKind, PreviewSource};
+use crate::texture_preview::{AtlasKind, Layout, PreviewSource};
 
 fn templates() -> Templates<'static> {
     Templates {
@@ -21,14 +21,30 @@ fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
         first_level: preview_first_level(width, height),
         baked_levels: preview_first_level(width, height),
         pixels: vec![fill; preview_pixel_bytes(width, height)],
+        layouts: [Some(Layout::Rgba), Some(Layout::TwoChannel)],
+        blocks: [
+            vec![fill; preview_block_bytes(width, height)],
+            vec![fill.wrapping_add(1); preview_block_bytes(width, height)],
+        ],
     }
+}
+/// An entry the gate left lossless in the second family: no bytes there.
+fn lossless_astc(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
+    let mut entry = preview(texture, width, height, fill);
+    entry.layouts[1] = None;
+    entry.blocks[1] = Vec::new();
+    entry
 }
 
 // Behavior 9 (a): sidecar does round-trip write/read of preview section —
 // each field written by `split` reads back identical bit-for-bit, without decoder.
 #[test]
 fn texture_previews_round_trip_through_the_binary_columns() {
-    let previews = vec![preview(0, 32, 16, 11), preview(3, 8, 8, 222)];
+    let previews = vec![
+        preview(0, 32, 16, 11),
+        lossless_astc(2, 64, 64, 7),
+        preview(3, 8, 8, 222),
+    ];
     let (_, bytes) = split(&json!({"primitives": []}), &templates(), &previews).expect("split");
     let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
     let column = |index: usize| {
@@ -55,6 +71,12 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         );
         assert_eq!(word(base + PREVIEW_KIND * 4), source.kind.word());
         assert_eq!(word(base + PREVIEW_BAKED * 4), source.baked_levels);
+        for (family, layout) in source.layouts.iter().enumerate() {
+            assert_eq!(
+                word(base + (PREVIEW_LAYOUTS + family) * 4),
+                Layout::word(*layout)
+            );
+        }
         let sha = std::str::from_utf8(&bytes[sha_off + entry * 64..sha_off + entry * 64 + 64])
             .expect("ascii");
         assert_eq!(sha, source.sha256);
@@ -68,6 +90,43 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         );
         offset += length;
     }
+    // The block columns follow the same order, one contiguous range per entry that has a
+    // layout in the family, nothing for a lossless one, both families.
+    for (format, index) in TEXTURE_PREVIEW_BLOCKS.iter().enumerate() {
+        let (blocks_off, blocks_len) = column(*index);
+        let mut at = 0usize;
+        for source in &previews {
+            let length = match source.layouts[format] {
+                Some(_) => preview_block_bytes(source.width, source.height),
+                None => 0,
+            };
+            assert_eq!(source.blocks[format].len(), length);
+            assert_eq!(
+                &bytes[blocks_off + at..blocks_off + at + length],
+                source.blocks[format].as_slice()
+            );
+            at += length;
+        }
+        assert_eq!(at, blocks_len);
+    }
+}
+
+// Behavior 9 (h): a block tail of the wrong length — a codec change that would
+// stride the reader wrongly, or bytes under a layout word that says lossless —
+// is refused.
+#[test]
+fn encode_previews_rejects_the_wrong_block_byte_length() {
+    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    let mut malformed = preview(0, 4, 4, 1);
+    malformed.blocks[1].pop();
+    assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
+    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    let mut lossless_with_bytes = preview(0, 4, 4, 1);
+    lossless_with_bytes.layouts[0] = None;
+    assert!(
+        crate::manifest_binary::preview::encode_previews(&[lossless_with_bytes], &mut columns)
+            .is_err()
+    );
 }
 
 // Behavior 9 (b): file from earlier version (here 3, fixed-length previews)

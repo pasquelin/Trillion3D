@@ -2,7 +2,7 @@
   "case": "Two exactly coplanar opaque surfaces, same outline, two materials, two triangulations.",
   "rule": "Equal areas (16 and 16): source order breaks the tie, the later mesh goes on top.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 6,
+  "manifestBinaryVersion": 7,
   "coplanar": {
     "stage": "coplanar-depth-layers-v1",
     "surfaces": 2,

@@ -28,6 +28,7 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
         threads: 1,
         ram_budget_mb: 64,
         simplification: "none".into(),
+        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
         cancelled: Arc::new(AtomicBool::new(false)),
     };
     (root, options)
