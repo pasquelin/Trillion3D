@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileStreamer } from './webgpuTileStreamer.ts';
+import { poolEncoding } from './textureBlockFormats.ts';
 import { levelSize, tileLayout } from './textureTiles.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
@@ -69,20 +70,31 @@ function streamer(budgetMs: number) {
     const [w, h] = levelSize(256, 256, level);
     tail.push(new Uint8Array(w * h * 4));
   }
+  const blocks = { bc7: [], astc: [] };
   const fill = {
     layout: tileLayout(1, 1),
-    source: { kind: 'bytes' as const, tail: [new Uint8Array(4)] },
+    lane: 'lossless' as const,
+    source: { kind: 'bytes' as const, tail: { levels: [new Uint8Array(4)], blocks } },
   };
   const sha256 = 'a'.repeat(64);
+  const lossless = { lossless: 1, rgba: 0, 'two-channel': 0 };
   const textures = createWebgpuTileStreamer({
     device,
-    color: [fill, { layout, source: { kind: 'baked', sha256, atlas: 0, tail } }],
+    color: [
+      fill,
+      {
+        layout,
+        lane: 'lossless',
+        source: { kind: 'baked', sha256, atlas: 0, tail: { levels: tail, blocks } },
+      },
+    ],
     data: [fill],
-    layersPerAtlas: 1,
+    layers: { color: lossless, data: lossless },
+    encoding: poolEncoding(undefined),
     budgetBytes: Number.MAX_SAFE_INTEGER,
     budgetMs,
     now,
-    readLevel: async (_sha, _atlas, level) => {
+    readLevel: async ({ level }) => {
       const [width, height] = levelSize(256, 256, level);
       return { width, height, close() {} } as ImageBitmap;
     },
