@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import { reviewCutouts } from './cutoutReview.mts';
 import { SHEET_FILE, type Sheet } from './cutoutSheet.mts';
 import { leaf } from './cutoutFixture.ts';
-import type { CutoutModel, CutoutReviewSummary } from './contracts.ts';
+import type { CutoutModel, CutoutReviewSummary } from './cutoutContracts.ts';
 
 /** A compiled model with a sheet and nothing else: the pass must work without a cache to read. */
 async function model(id: string, textures: Sheet['textures']): Promise<CutoutModel> {

@@ -1,7 +1,7 @@
 import { writeFile, mkdir, access, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, basename } from 'node:path';
-import type { CutoutModel, CutoutReviewOptions } from './contracts.ts';
+import type { CutoutModel, CutoutReviewOptions } from './cutoutContracts.ts';
 import type { PendingCutout } from './cutoutSheet.mts';
 import { alphaOf, embeddedImages, type EmbeddedImages, type Thumbnail } from './cutoutThumb.mts';
 import { drawFile, drawThumbnail, link, type ImageKind } from './cutoutDraw.mts';

@@ -1,5 +1,5 @@
 import { basename } from 'node:path';
-import type { CutoutModel, CutoutReviewOptions, CutoutReviewSummary } from './contracts.ts';
+import type { CutoutModel, CutoutReviewOptions, CutoutReviewSummary } from './cutoutContracts.ts';
 import {
   answerSheet,
   pendingOf,
