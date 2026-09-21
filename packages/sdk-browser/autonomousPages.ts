@@ -193,6 +193,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       }
       for (const material of colorMaterials.values()) material.dispose();
       scene.clear();
+      gate.release();
     },
   };
 };

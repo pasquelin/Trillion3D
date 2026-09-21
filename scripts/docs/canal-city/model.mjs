@@ -1,4 +1,4 @@
-import { box, combine, mesh, triangle } from '../../../docs/js/gallery/offline/mesh.js';
+import { box, combine, mesh, triangle } from '../../../site/lessons/offline/mesh.ts';
 const groups = () => ({
   brick: [],
   ochre: [],
