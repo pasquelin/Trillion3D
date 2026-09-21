@@ -39,3 +39,14 @@ pub fn parse_compiler_args(
         cancelled,
     })
 }
+
+impl Options {
+    /// Folder of this job's scope in the cache: its pointer, and one folder per key.
+    pub fn scope_directory(&self) -> PathBuf {
+        self.cache.join("native").join(&self.scope)
+    }
+    /// Folder of the product named `key` under this job's scope.
+    pub fn key_directory(&self, key: &str) -> PathBuf {
+        self.scope_directory().join(key)
+    }
+}

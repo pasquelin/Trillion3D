@@ -38,6 +38,7 @@ export type {
   PrepareOptions,
   ProgressPointer,
   ProgressStream,
+  ReusedFolder,
   TerminalProgress,
   TerminalProgressOptions,
 } from './contracts.ts';
@@ -78,6 +79,7 @@ export async function prepare(
     url: pointer.url,
     pointer: pointer.pointer,
     cache: pointer.cache,
+    reused: pointer.reused ?? null,
   };
 }
 /**
@@ -85,9 +87,11 @@ export async function prepare(
  * the purge and the job's own duration. Those live on the pointer alone, and a caller that only
  * reads the returned result would otherwise never see them. The manifest stays authoritative for
  * every measurement it does carry: it is spread last, so it wins over the pointer, which
- * only fills in the keys it leaves out.
+ * only fills in the keys it leaves out. A reused folder is another run: its manifest describes
+ * the compile that wrote it, so only the pointer's numbers — this run's — are returned.
  */
 function withFinalMetrics(manifest: CompilationResult, pointer: CompilationPointer) {
+  if (pointer.reused) return { ...pointer.metrics };
   return { ...pointer.metrics, ...(manifest.metrics as Record<string, unknown> | undefined) };
 }
 /**
