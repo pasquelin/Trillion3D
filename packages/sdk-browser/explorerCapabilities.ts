@@ -9,7 +9,6 @@ import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import {
   DEFAULT_HEIGHT,
   DEFAULT_PAGE_WORKERS,
-  DEFAULT_PIXEL_RATIO,
   DEFAULT_WIDTH,
   WEBGPU_REQUIRED_LIMITS,
   devicePixels,
@@ -129,20 +128,15 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   if (!directGpu) {
     // The engine's surface is the session's WebGL2 resource: the composition host mounts its
     // draw adapter on it later, and nothing here knows of one.
-    const surface = prepareExplorerWebglSurface({
+    resources.webglSurface = prepareExplorerWebglSurface({
       canvas,
+      size: options,
       onLifecycle: (state) =>
         diagnose(`webgl-context-${state}`, `Engine WebGL2 surface context ${state}`, {
           kind: 'lifecycle',
           scope,
         }),
     });
-    resources.webglSurface = surface;
-    surface.resize(
-      options.width ?? DEFAULT_WIDTH,
-      options.height ?? DEFAULT_HEIGHT,
-      options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
-    );
   } else {
     canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio);
     canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio);
