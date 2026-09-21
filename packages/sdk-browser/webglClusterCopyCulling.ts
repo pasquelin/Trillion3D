@@ -9,6 +9,7 @@ import { multiplyMatrix4 } from './webglClusterMatrices.ts';
 import { readThreeBox } from './threeBounds.ts';
 import { isTransmissive } from './visibilityMaterial.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
+import type { WholeMesh } from './clusterBatchMesh.ts';
 
 /** What the cull reads of a scene copy: its declared culling, its local bounds, its placement. */
 type CulledCopy = {
@@ -16,6 +17,8 @@ type CulledCopy = {
   matrix: { elements: ArrayLike<number> };
   geometry: { boundingBox: Parameters<typeof readThreeBox>[1] | null; computeBoundingBox(): void };
 };
+/** A scene copy the owner draws: a host mesh drawn whole, culled as the host would. */
+export type SceneCopy = WholeMesh & CulledCopy;
 
 /**
  * Frustum test of the scene copies the owner draws, the one the host renderer would apply: a
@@ -41,24 +44,29 @@ class WebglClusterCopyCulling {
   }
 }
 
-type SceneCopy = CulledCopy & { material: Parameters<typeof isTransmissive>[0] };
+const isBlended = (material: WholeMesh['material']) =>
+  !!(Array.isArray(material) ? material[0] : material)?.transparent;
 
 /**
- * The scene copies of one frame, in view, by pass: a copy transmits, or draws as a whole mesh —
- * one a diagnostic mode painted, or that stopped transmitting — never through the transmission
- * pass without transmission. The two lists are reused frame to frame.
+ * The scene copies of one frame, in view, by pass, the classification the reference applies to
+ * a mesh at its draw: a copy transmits; or it blends, drawn after the transmissive ones and
+ * outside the backdrop; or it is plain — one a diagnostic mode painted, or that stopped
+ * transmitting — drawn as a whole mesh with the clusters, never through the transmission pass
+ * without transmission. The three lists are reused frame to frame.
  */
 export class WebglClusterCopies<Copy extends SceneCopy> {
   private culling = new WebglClusterCopyCulling();
   readonly transmissive: Copy[] = [];
+  readonly blended: Copy[] = [];
   readonly plain: Copy[] = [];
   cull(copies: readonly Copy[], camera: HostDrawCamera) {
-    this.transmissive.length = this.plain.length = 0;
+    this.transmissive.length = this.blended.length = this.plain.length = 0;
     if (!copies.length) return;
     this.culling.begin(camera);
     for (const copy of copies) {
       if (!this.culling.visible(copy)) continue;
       if (isTransmissive(copy.material)) this.transmissive.push(copy);
+      else if (isBlended(copy.material)) this.blended.push(copy);
       else this.plain.push(copy);
     }
   }

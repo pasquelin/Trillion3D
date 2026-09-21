@@ -27,7 +27,7 @@ assert.deepEqual(result.coplanarBlendWithoutBias, [255, 0, 0, 255]);
 assert.ok(result.coplanarBlendPixel[1] > 0 && result.coplanarBlendPixel[0] < 255);
 assert.equal(result.diagnosticSubmissions, 1);
 assert.ok(result.diagnosticPixel[0] + result.diagnosticPixel[1] > 0);
-assert.equal(result.mutationRejected, true);
+assert.equal(result.mutationRejected, true, 'a material array is refused by name');
 assert.deepEqual(result.rejectionPixel, [0, 0, 255, 255], 'preflight rejected before drawing');
 assert.equal(result.hiddenSubmissions, 0, 'source visibility suppresses both generated passes');
 assert.deepEqual(result.hiddenPixel, [0, 0, 255, 255]);

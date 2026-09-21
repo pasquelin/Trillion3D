@@ -1,23 +1,25 @@
-// Public exact-pages proof: a transmissive scene copy composes over the autonomous clusters on
-// the host canvas and on a comparison target alike, through the same draw owner, and never
-// enters the host renderer's pass. A scene the owner cannot draw in full is refused by name.
+// Public exact-pages proof: the scene copies — one transmissive, one blended — compose over the
+// autonomous clusters on the host canvas and on a comparison target alike, through the same
+// draw owner, and no mesh ever enters the host scene. A scene the owner cannot draw in full is
+// refused by name.
 import { pixel } from './webglClusterPixels.mjs';
 import { mountExplorerProof } from './webglClusterExplorerMount.mjs';
 import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.mjs';
 
-const physical = (object) => !!object.material?.isMeshPhysicalMaterial;
+const anyMesh = (object) => !!object.isMesh;
 const errorOf = (error) => ({ code: error.code ?? null, reason: error.details?.reason ?? null });
 
 export async function execute() {
   const scene = transmissionScene(),
     camera = transmissionCamera(),
-    mounted = mountExplorerProof(scene, camera, physical, { clearColor: 0x0000ff });
+    mounted = mountExplorerProof(scene, camera, anyMesh, { clearColor: 0x0000ff });
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { gl, backend, draw, target } = mounted;
   await backend.prepare();
   backend.render(camera);
   draw(backend, null);
-  const canvasPixel = pixel(gl, 32, 32);
+  const canvasPixel = pixel(gl, 32, 32),
+    blendedPixel = pixel(gl, 55, 32);
   const metrics = backend.metrics();
   backend.render(camera);
   draw(backend, null);
@@ -44,14 +46,14 @@ export async function execute() {
   } catch (error) {
     mutationRefusal = errorOf(error);
   }
-  const physicalInHostPass = mounted.countedInHostPass,
+  const meshesInHostPass = mounted.countedInHostPass,
     hostCalls = mounted.calls.length;
   mounted.dispose();
   scene.dispose();
 
   // A physical extension beyond the transmission volume fails the preparation and every draw.
   const refusedScene = transmissionScene({ sheen: 1 }),
-    refused = mountExplorerProof(refusedScene, camera, physical, { clearColor: 0x0000ff });
+    refused = mountExplorerProof(refusedScene, camera, anyMesh, { clearColor: 0x0000ff });
   let refusal = null,
     drawRefusal = null;
   try {
@@ -69,6 +71,7 @@ export async function execute() {
   refusedScene.dispose();
   return {
     canvasPixel,
+    blendedPixel,
     repeatPixel,
     targetPixel,
     copyDraws: metrics.autonomousCopyDraws,
@@ -77,7 +80,7 @@ export async function execute() {
     backdropBytes: metrics.transmissionBackdropBytes,
     drawCalls: metrics.drawCalls,
     transparentMeshes: metrics.transparentMeshes,
-    physicalInHostPass,
+    meshesInHostPass,
     hostCalls,
     wireframe,
     mutationRefusal,
