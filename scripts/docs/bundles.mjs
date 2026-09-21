@@ -1,8 +1,5 @@
 /** The generated bundles: everything `build:docs` writes under docs/, never tracked by git. */
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
 import { gitPathsSync } from '../git-paths.mjs';
 import { buildDemo } from './build-demo.mjs';
 import { buildPortal } from './build-portal.mjs';
@@ -20,7 +17,7 @@ export const BUNDLES = [
   'runtime/portal.js',
 ];
 
-/** Builds the styles, the demo maths, the browser engine, its workers and the portal into a docs/-shaped tree. */
+/** Builds the styles, demo module, browser engine, workers and portal into a docs/-shaped tree. */
 export async function buildDocs(root, docs = resolve(root, 'docs')) {
   await buildStyles(root, resolve(docs, 'css/site.css'));
   await buildDemo(root, resolve(docs, 'js/engine.js'));
@@ -28,16 +25,8 @@ export async function buildDocs(root, docs = resolve(root, 'docs')) {
   await buildPortal(root, resolve(docs, 'runtime'));
 }
 
-/** Builds the demo bundle alone into a temporary tree for a test that imports it; `remove` deletes it. */
-export async function temporaryDemoBundle(root) {
-  const directory = await mkdtemp(join(tmpdir(), 'wg-docs-demo-'));
-  const file = join(directory, 'engine.js');
-  await buildDemo(root, file);
-  return {
-    url: pathToFileURL(file).href,
-    remove: () => rm(directory, { recursive: true, force: true }),
-  };
-}
+/** The handwritten docs modules import `docs/js/engine.js`: a test runner builds it before they load. */
+export const buildDemoModule = (root) => buildDemo(root, resolve(root, 'docs/js/engine.js'));
 
 /** The bundles git tracks: always none, since Pages builds them from the sources at deploy. */
 export function trackedBundles(root) {
