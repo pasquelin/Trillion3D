@@ -21,7 +21,7 @@ export type ClusterBatchStats = {
   pageRangeWrites: number;
   indexBytesWritten: number;
   autonomousClusterDrawsTotal: number;
-  /** Scene copies the owner submitted this frame: the transmissive surfaces in view. */
+  /** Submissions of the scene copies in view this frame, the backdrop pass included. */
   copyDraws: number;
   /** Bytes the frozen transmission backdrop holds, kept until a resize or the dispose; zero
    *  before the first transmissive copy in view. */
@@ -32,9 +32,8 @@ export type ClusterBatchStats = {
 const NO_MESHES: THREE.Mesh[] = [];
 /** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
 export type ClusterDraw = ClusterDrawMesh | THREE.Mesh;
-/** What draws: the engine-owned WebGL2 program, or nothing at all. */
-type Owned = 'draw' | 'dispose' | 'backdropBytes' | 'backdropPasses' | 'copySubmissions';
-export type ClusterDrawOwner = Pick<WebglClusterOwner, Owned>;
+/** What draws: the engine-owned WebGL2 program's public surface, or nothing at all. */
+export type ClusterDrawOwner = Pick<WebglClusterOwner, keyof WebglClusterOwner>;
 
 /** Resident index ranges of the paged clusters, batched per primitive instance, and the draw
  *  records the owner submits each frame. The host scene is read for its lights and background. */

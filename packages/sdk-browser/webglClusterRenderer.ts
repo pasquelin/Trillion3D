@@ -41,8 +41,10 @@ export class WebglClusterRenderer {
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
   private copies = new WebglClusterCopies<THREE.Mesh>();
-  /** Scene copies the last frame submitted: in view and visible. */
+  /** Submissions of the scene copies in view, over both passes of the last frame. */
   copySubmissions = 0;
+  /** Cluster submissions of the last frame's backdrop pass; zero without a transmissive copy. */
+  backdropSubmissions = 0;
   /** Whether the last frame drew the backdrop pass: its submissions are the display pass's again. */
   backdropPasses = 0;
   private binding: Parameters<typeof bindClusterMaterial>[0];
@@ -164,25 +166,27 @@ export class WebglClusterRenderer {
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
     // The host's texture units are unknown at frame start; the backdrop pass touches only its own.
     this.textures.invalidateBindings();
-    let backdropSubmissions = 0;
+    let backdropSubmissions = 0,
+      copySubmissions = 0;
     if (transmissive.length) {
       this.backdrop.begin(scene.background);
       this.setOutput(false);
       backdropSubmissions = this.submitClusters(meshes, diagnosticMeshes, camera, false);
-      this.submitPlainCopies(camera, false);
+      copySubmissions = this.submitPlainCopies(camera, false);
       this.backdrop.end();
     }
     this.backdropPasses = transmissive.length ? 1 : 0;
+    this.backdropSubmissions = backdropSubmissions;
     this.setOutput(srgbDestination);
     const submitted = this.submitClusters(meshes, diagnosticMeshes, camera, toneMapped);
-    let copySubmissions = this.submitPlainCopies(camera, toneMapped);
+    copySubmissions += this.submitPlainCopies(camera, toneMapped);
     if (transmissive.length) {
       this.backdrop.bind();
       gl.uniform2f(this.at('backdropOrigin'), this.backdrop.originX, this.backdrop.originY);
       for (const mesh of transmissive) copySubmissions += this.mesh(mesh, camera, toneMapped);
     }
     this.copySubmissions = copySubmissions;
-    return backdropSubmissions + submitted + copySubmissions;
+    return submitted;
   }
   dispose() {
     this.backdrop.dispose();

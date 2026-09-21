@@ -21,12 +21,16 @@ export function execute() {
   scene.background = new THREE.Color(0x0000ff);
   const draw = (clusters, copies, srgb = false) =>
     renderer.draw(clusters, scene, drawCamera, false, srgb, [], copies);
+  const passes = () => ({
+    backdrop: renderer.backdropSubmissions,
+    copies: renderer.copySubmissions,
+  });
 
   clear(gl);
   const withoutGlass = draw([red], []);
   const opaquePixel = pixel(gl);
   clear(gl);
-  const submissions = draw([red], [glass]);
+  const submissions = { clusters: draw([red], [glass]), ...passes() };
   const throughGlass = pixel(gl);
   const restored = {
     framebuffer: gl.getParameter(gl.FRAMEBUFFER_BINDING),
@@ -90,7 +94,7 @@ export function execute() {
   away.matrix.makeTranslation(100, 0, 0);
   away.geometry.computeBoundingBox();
   clear(gl);
-  const offscreen = { submissions: draw([red], [away]), pixel: pixel(gl) };
+  const offscreen = { clusters: draw([red], [away]), ...passes(), pixel: pixel(gl) };
 
   // Another physical extension is refused before anything is drawn.
   const coated = glassMesh({ clearcoat: 0.5 });

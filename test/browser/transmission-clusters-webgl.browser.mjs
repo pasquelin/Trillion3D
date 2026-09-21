@@ -17,10 +17,10 @@ preuveSaine(result);
 const near = (actual, expected, tolerance = 3) =>
   actual.every((channel, i) => Math.abs(channel - expected[i]) <= tolerance);
 assert.equal(result.withoutGlass, 1);
-assert.equal(
+assert.deepEqual(
   result.submissions,
-  3,
-  'the batch into the backdrop, then to the display, then the glass',
+  { clusters: 1, backdrop: 1, copies: 1 },
+  'the batch to the display, the batch into the backdrop, the glass',
 );
 assert.deepEqual(result.opaquePixel, [255, 0, 0, 255]);
 // Normal incidence on IOR 1.5: Fresnel 0.04, so 96 % of the red cluster comes through.
@@ -46,7 +46,12 @@ assert.ok(
 );
 assert.ok(near(result.subViewport.inside, [245, 0, 0, 255]), JSON.stringify(result.subViewport));
 assert.deepEqual(result.subViewport.outside, [0, 0, 255, 255]);
-assert.deepEqual(result.offscreen, { submissions: 1, pixel: [255, 0, 0, 255] });
+assert.deepEqual(result.offscreen, {
+  clusters: 1,
+  backdrop: 0,
+  copies: 0,
+  pixel: [255, 0, 0, 255],
+});
 assert.deepEqual(result.refused, {
   code: 'CLUSTER_MATERIAL_UNSUPPORTED',
   reason: 'physical clearcoat is unsupported',

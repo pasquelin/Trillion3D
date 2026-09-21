@@ -7,6 +7,7 @@
 type PhysicalLike = {
   isMeshPhysicalMaterial?: boolean;
   transmission?: number;
+  ior?: number;
   transmissionMap?: unknown;
   thicknessMap?: unknown;
   clearcoat?: number;
@@ -50,9 +51,13 @@ const EXTENSION_MAPS = [
   'specularColorMap',
 ] as const;
 
-/** Names the physical extension a material uses beyond the transmission volume, if any. */
+/** Names the physical extension a material uses beyond the transmission volume, if any. The
+ *  IOR shapes the Fresnel of the transmission pass alone: without transmission, the cluster
+ *  BRDF would keep its dielectric F0 and the declared IOR would be lost in silence. */
 export function physicalExtensionReason(material: PhysicalLike) {
   if (!material.isMeshPhysicalMaterial) return;
+  if ((material.ior ?? 1.5) !== 1.5 && !((material.transmission ?? 0) > 0))
+    return 'physical ior without transmission is unsupported';
   for (const factor of EXTENSION_FACTORS)
     if ((material[factor] ?? 0) !== 0) return `physical ${factor} is unsupported`;
   for (const map of EXTENSION_MAPS) if (material[map]) return `physical ${map} is unsupported`;
