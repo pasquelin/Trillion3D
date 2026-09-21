@@ -72,7 +72,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     baseBootstrap,
     byUrl,
     baseMaterials,
-    colorMaterials,
     geometryStore,
     cap,
     sceneChanged: gate.sceneChanged,
