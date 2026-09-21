@@ -3,7 +3,7 @@
 @import './syntax.css';
 @source '../index.html';
 @source '../js/**/*.js';
-@source '../react/**/*.jsx';
+@source '../react/**/*.{ts,tsx}';
 @plugin 'daisyui' {
   themes:
     light --default,

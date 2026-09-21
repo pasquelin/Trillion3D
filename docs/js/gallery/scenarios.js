@@ -1,3 +1,7 @@
+/**
+ * Each control is `[name, min, max, initial, step]`; presets list one value per control.
+ * @type {Record<string, { controls: [string, number, number, number, number][]; presets: number[][]; animated: boolean }>}
+ */
 export const SCENARIOS = {
   'compose-transform': {
     controls: [
