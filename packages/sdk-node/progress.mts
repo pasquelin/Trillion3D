@@ -36,6 +36,11 @@ const PHASES: Record<string, (event: CompilerEvent, state: PhaseState) => string
   // model, and it is what says whether a review is due.
   cutouts: (e) =>
     Number(e.pending ?? 0) > 0 ? `${e.pending} cutout(s) to review` : 'cutouts up to date',
+  // A folder already holding the product is proven, then kept: no clustering line follows.
+  reuse: (e) =>
+    Number(e.completed ?? 0) > 0
+      ? `reused ${e.objects} objects (${mb(e.objectBytes)} proven)`
+      : `rebuilding: ${e.reason}`,
   prune: (e) => `pruning cache (${e.removedKeys} keys, ${mb(e.removedBytes)})`,
   complete: () => 'writing pointer',
 };
