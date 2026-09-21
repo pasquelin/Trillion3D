@@ -9,7 +9,7 @@ function decodeId(value: string) {
   }
 }
 /** The portal areas, in navigation order. */
-export const AREAS = ['learn', 'examples', 'playground', 'api', 'reports'] as const;
+export const AREAS = ['learn', 'examples', 'lessons', 'playground', 'api', 'reports'] as const;
 export type RouteArea = (typeof AREAS)[number];
 
 export interface PortalRoute {
@@ -23,6 +23,8 @@ export type ResolvedPage =
   | { kind: 'report' }
   | { kind: 'home' }
   | { kind: 'entry'; entry: PortalEntry }
+  | { kind: 'examples' }
+  | { kind: 'example'; id: string }
   | { kind: 'gallery' }
   | { kind: 'engine-scene' }
   | { kind: 'playground'; id: string }
@@ -63,9 +65,12 @@ export function parseRoute(hash: string, fallbackLocale: Locale = 'en'): PortalR
       id: decodeId(parts.slice(2).join('/')) || (area === 'learn' ? 'home' : ''),
     };
   }
+  // The pre-portal docs listed the SDK examples under `#examples/<id>`; they live in Learn now.
   if (parts[0] === 'examples')
-    return { locale: fallbackLocale, area: 'examples', id: parts[1] || '' };
-  if (parts[0] === 'demo') return { locale: fallbackLocale, area: 'examples', id: 'engine-scene' };
+    return parts[1]
+      ? { locale: fallbackLocale, area: 'learn', id: parts[1] }
+      : { locale: fallbackLocale, area: 'lessons', id: '' };
+  if (parts[0] === 'demo') return { locale: fallbackLocale, area: 'lessons', id: 'engine-scene' };
   if (LEGACY_SECTIONS.has(parts[0])) {
     const area = parts[0] === 'guides' ? 'learn' : parts[0] === 'demo' ? 'playground' : 'api';
     return { locale: fallbackLocale, area, id: parts.at(-1) || '' };
@@ -83,8 +88,8 @@ export function localizedHref(hash: string, locale: Locale) {
 }
 
 export function entryRoute(entry: PortalEntry, locale: Locale) {
-  if (entry.section === 'guides') return routeHref({ locale, area: 'learn', id: entry.id });
-  if (entry.section === 'examples') return routeHref({ locale, area: 'examples', id: entry.id });
+  if (['guides', 'examples'].includes(entry.section))
+    return routeHref({ locale, area: 'learn', id: entry.id });
   if (entry.section === 'demo') return routeHref({ locale, area: 'playground', id: entry.id });
   return routeHref({ locale, area: 'api', id: entry.id });
 }
@@ -92,18 +97,22 @@ export function entryRoute(entry: PortalEntry, locale: Locale) {
 export function resolvePage(
   route: PortalRoute,
   entries: PortalEntry[],
+  lessonIds: string[] = [],
   exampleIds: string[] = [],
 ): ResolvedPage {
   if (route.area === 'reports') return { kind: 'report' };
   const entry = entries.find((candidate) => candidate.id === route.id);
-  const isExample = exampleIds.includes(route.id);
+  const isLesson = lessonIds.includes(route.id);
   if (route.area === 'learn' && route.id === 'home') return { kind: 'home' };
-  if (route.area === 'learn' && entry?.section === 'guides') return { kind: 'entry', entry };
-  if (route.area === 'examples' && !route.id) return { kind: 'gallery' };
-  if (route.area === 'examples' && route.id === 'engine-scene') return { kind: 'engine-scene' };
-  if (route.area === 'examples' && isExample) return { kind: 'playground', id: route.id };
-  if (route.area === 'examples' && entry?.section === 'examples') return { kind: 'entry', entry };
-  if (route.area === 'playground' && isExample) return { kind: 'playground', id: route.id };
+  if (route.area === 'learn' && entry && ['guides', 'examples'].includes(entry.section))
+    return { kind: 'entry', entry };
+  if (route.area === 'examples' && !route.id) return { kind: 'examples' };
+  if (route.area === 'examples' && exampleIds.includes(route.id))
+    return { kind: 'example', id: route.id };
+  if (route.area === 'lessons' && !route.id) return { kind: 'gallery' };
+  if (route.area === 'lessons' && route.id === 'engine-scene') return { kind: 'engine-scene' };
+  if (route.area === 'lessons' && isLesson) return { kind: 'playground', id: route.id };
+  if (route.area === 'playground' && isLesson) return { kind: 'playground', id: route.id };
   if (route.area === 'api' && !route.id) return { kind: 'api-index' };
   if (route.area === 'api' && entry && !['guides', 'examples'].includes(entry.section)) {
     return { kind: 'entry', entry };

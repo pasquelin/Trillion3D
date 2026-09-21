@@ -24,8 +24,8 @@ dispose them before the next route. `docs/` holds the repository documentation o
   `model.ts` declares the entry shape and the sections, `i18n/` contains French overlays and
   interface strings (`localizeEntries()` applies an overlay by entry id while preserving technical
   fields; missing fields and unsupported locales fall back to English through `t()`),
-  `catalog.ts` is the visual example catalogue with its bilingual copy, `gallery-roadmap.json` the
-  planned examples, `locale.ts` the two languages.
+  `catalog.ts` is the lesson catalogue with its bilingual copy, `gallery-roadmap.json` the list of
+  examples (see below), `locale.ts` the two languages.
 - `site/lessons/` owns what drives the engine: the playground scenarios, evaluation, canvas
   drawings and 3D geometry (`scenarios.ts`, `evaluate*.ts`, `draw*.ts`, `sceneGeometry*.ts`),
   `webgpuRenderer.ts` which mounts the shared, disposable 3D illustrations (geometry is derived
@@ -37,6 +37,20 @@ dispose them before the next route. `docs/` holds the repository documentation o
   import the browser SDK by its source entry, `packages/sdk-browser/index.ts`, so the type checker
   sees the engine's own types; the build keeps that import external and resolves it to the
   `runtime/engine.js` bundle beside `portal.js`.
+- `site/examples/` owns the examples: one standalone HTML file per example, `<id>.html`, which
+  imports the built engine as `../runtime/engine.js`, loads a compiled scene from `../assets/` and
+  runs as-is from the built site — or copied into a user's project, paths adjusted. The list is
+  `site/content/gallery-roadmap.json`: the themes, then one entry per example with `id`, a
+  bilingual `title`, its `theme` and its `file`, empty until the example exists. The sidebar of the
+  area is that list by theme, through the same `portal/SidebarMenu.tsx` as the Learn tree; the
+  landing page is the lessons' card grid, one card per example with its settled render as
+  thumbnail (`site/assets/examples/thumbnails/<id>.png`, captured by
+  `scripts/docs-examples-thumbnails.mjs`); `site/app/examples/Example.tsx` shows one example, the
+  file's source on the left (highlighted, copy button) and the same file in an iframe on the
+  right; nothing else. The compiled scenes live under
+  `site/assets/examples/`, each `<scene>/source` beside its `cache`, built by
+  `scripts/docs-examples-assets.mjs` with this checkout's native compiler; the models that some
+  scenes import, and their licences, are listed in `site/assets/examples/CREDITS.md`.
 - `site/demos/` contains the pure per-entry demonstration models; `kit.ts` declares their controls
   and result views, `registry.ts` maps entry ids to demos, and `engine.ts` is the one list of what
   the demos import from the engine — bundled as `js/engine.js`, the module the code editor's
@@ -66,9 +80,10 @@ pnpm docs:serve
 `dist/site/`: it compiles `site/styles/tailwind.css` with Tailwind and DaisyUI into `css/site.css`
 after scanning the handwritten HTML and TypeScript for class names, bundles the browser SDK and its
 workers into `runtime/`, the demo maths into `js/engine.js` and the React portal into
-`runtime/portal.js` with the areas `App.tsx` imports on demand — the gallery and its roadmap, the
-playground and its code editor, the reports — as `runtime/portal-<hash>.js` chunks beside it,
-then copies the statics (pages, assets, data, reports) — files only when missing or older. Nothing under `site/` is a build product and nothing built is committed: the
+`runtime/portal.js` with the areas `App.tsx` imports on demand — the examples, the lessons
+gallery, the playground and its code editor, the reports — as `runtime/portal-<hash>.js` chunks
+beside it, then copies the statics (pages, examples, assets, data, reports) — files only when
+missing or older. Nothing under `site/` is a build product and nothing built is committed: the
 docs server, the browser proofs and the Pages workflow (`.github/workflows/pages.yml`, on every
 push to `main`) build the same tree from the same function, `buildSite()` in
 `scripts/docs/site.ts`.
@@ -93,7 +108,21 @@ repository's current Three.js peer dependency from one pinned CDN URL at runtime
 copy or vendor that dependency into the built tree; update the pinned URL together with the peer
 dependency and exercise the live scene after the change.
 
-## Adding a visual example
+## Adding an example
+
+1. Write `site/examples/<id>.html`: one file, a `<canvas id="view">`, the import map of the
+   Three.js peer dependency and a module script that imports `createExplorer` from
+   `../runtime/engine.js`. Keep it as short as the feature allows; no controls, no copy.
+2. If it needs a scene, add it to `scripts/docs/examples/scenes.mjs` (procedural) or
+   `scripts/docs/examples/models.mjs` (around an imported model, credited in
+   `site/assets/examples/CREDITS.md`), then run `pnpm build:native` and
+   `node scripts/docs-examples-assets.mjs <scene>`.
+3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, and
+   capture its thumbnail: `node scripts/docs-examples-thumbnails.mjs <id>`.
+4. Run `node --test scripts/docs-examples.test.mjs`, then the browser proof
+   `node --test scripts/docs-examples.browser.mjs`.
+
+## Adding a lesson
 
 1. Add its id, bilingual title and description, category and demonstrated function ids to
    `site/content/catalog.ts`.

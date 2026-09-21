@@ -23,7 +23,7 @@ test('showcase leads with a large observatory and exposes both live pilots', () 
   assert.match(html, /aspect-video max-h-\[32rem\] w-full object-cover/);
   assert.match(html, /assets\/gallery\/renderer\/runtime-pixel-error\.png/);
   assert.match(html, /assets\/gallery\/renderer\/shadow-casting-switch\.png/);
-  assert.match(html, /#\/en\/examples\/runtime-pixel-error/);
+  assert.match(html, /#\/en\/lessons\/runtime-pixel-error/);
   assert.match(html, /Explore live LOD/);
   assert.equal((html.match(/role="listitem"/g) ?? []).length, 2);
 });
@@ -35,5 +35,5 @@ test('showcase remains above the unchanged searchable catalogue', () => {
   assert.ok(showcase >= 0);
   assert.ok(catalogueTabs > showcase);
   assert.match(html, /91 352 triangles originaux/);
-  assert.match(html, /Rechercher 665 sujets/);
+  assert.match(html, /Rechercher 58 leçons/);
 });
