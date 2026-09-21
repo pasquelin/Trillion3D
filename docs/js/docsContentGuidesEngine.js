@@ -1,5 +1,5 @@
 /** Engine guides — memory, admission — kept apart so the guide list stays within its line budget. */
-const GUIDE = { section: 'guides', kind: 'Guide' };
+import { GUIDE } from './docsContentGuides.js';
 
 export const ENGINE_GUIDES = [
   {
