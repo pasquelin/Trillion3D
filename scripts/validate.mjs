@@ -13,6 +13,7 @@ const steps = [
   'check:structure',
   'check:dts',
   'check:docs-demo',
+  'check:docs-bundles',
   'check:links',
   'test',
   'test:native',
