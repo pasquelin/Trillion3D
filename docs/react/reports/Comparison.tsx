@@ -15,8 +15,7 @@ export interface ComparisonProps {
   locale: Locale;
 }
 
-export function Comparison({ a, b, variable, locale }: ComparisonProps): ReactElement | null {
-  if (!b) return null;
+export function Comparison({ a, b, variable, locale }: ComparisonProps): ReactElement {
   const c = reportCopy(locale),
     fr = locale === 'fr';
   return (
