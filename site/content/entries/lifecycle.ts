@@ -95,7 +95,11 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
       },
       {
         name: 'addLight / setLight / removeLight / setEnvironment',
-        desc: 'Scene lighting, declared before the first backend prepares.',
+        desc: 'Scene lighting, declared before the first backend prepares. The engine validates its own copy of what it receives: a light mutated after submission changes nothing until it is submitted again.',
+      },
+      {
+        name: 'lights() / importedLights() / environment',
+        desc: 'Read the held lights and exposure as detached copies, arrays included: writing into them changes nothing in the engine, and each call rereads the store. The copy is paid by the call, never by the frame.',
       },
       { name: 'dispose()', desc: 'Releases backends, GPU device and sources. Mandatory.' },
     ],
