@@ -19,3 +19,12 @@ export const poolGeometrie = (m) => ({
   borne: m.geometryPoolClamp ?? null,
   saturees: m.geometryPoolSaturated ?? null,
 });
+
+/** The page budget as the last frame saw it: the cap asked, the pages held, whether the requested
+ *  cut fits, and the rung of the screen-error ladder the image is drawn at (0 when it fits). */
+export const budgetPages = (m, maxPages) => ({
+  demande: maxPages ?? null,
+  residentes: m.residentPages ?? null,
+  couvertureLimiteeParBudget: m.coverageBudgetLimited ?? null,
+  seuilBudget: m.budgetPixelError ?? null,
+});

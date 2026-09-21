@@ -7,9 +7,12 @@ import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
 import { EXAMPLES } from '../docs/js/docsContentExamples.js';
 import { FORMAT_GUIDES } from '../docs/js/docsContentFormat.js';
 import { GUIDES } from '../docs/js/docsContentGuides.js';
+import { RENDERING_GUIDES } from '../docs/js/docsContentGuidesRendering.js';
+import { ENGINE_GUIDES } from '../docs/js/docsContentGuidesEngine.js';
 import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
 import { MATRICES } from '../docs/js/docsContentMatrix.js';
-import { BATCHES, TREE } from '../docs/js/docsContentTree.js';
+import { TREE } from '../docs/js/docsContentTree.js';
+import { BATCHES } from '../docs/js/docsContentBatches.js';
 import { COLORS, VECTORS } from '../docs/js/docsContentVector.js';
 import { localizeEntries, supportedLocales, t } from '../docs/js/i18n/index.js';
 import { localizeDemoText } from '../docs/js/i18n/demo.fr.js';
@@ -34,7 +37,7 @@ const entries = [
 
 test('French content covers every documentation entry and preserves its technical contract', () => {
   const localized = localizeEntries(entries, 'fr');
-  assert.equal(entries.length, 78);
+  assert.equal(entries.length, 82);
   assert.equal(localized.length, entries.length);
   for (let index = 0; index < entries.length; index += 1) {
     const source = entries[index];

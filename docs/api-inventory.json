@@ -711,6 +711,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/autonomousManifest.test.ts",
         "packages/sdk-browser/autonomousManifest.ts",
         "packages/sdk-browser/autonomousPages.test.ts",
         "packages/sdk-browser/backendTypes.ts",
@@ -1049,6 +1050,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryLayout\".Counts"
+    },
+    {
+      "name": "CpuStepSummary",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cpuProfile.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cpuProfile\".CpuStepSummary"
     },
     {
       "name": "createBatchProgress",
@@ -1711,7 +1723,8 @@
         "packages/sdk-browser/webgpuBlendDiagnostic.ts",
         "packages/sdk-browser/webgpuBlendState.ts",
         "packages/sdk-browser/webgpuBlendUniforms.ts",
-        "packages/sdk-browser/webgpuPagesStateRun.ts"
+        "packages/sdk-browser/webgpuPagesStateRun.ts",
+        "packages/sdk-browser/webgpuVisibilityUniforms.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/diagnostics\".DiagnosticMode"
@@ -1736,7 +1749,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/explorerApi.ts",
-        "packages/sdk-browser/explorerDiagnosticApi.ts"
+        "packages/sdk-browser/explorerDiagnosticApi.ts",
+        "packages/sdk-browser/visibilityMaterialClass.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/diagnostics\".DIAGNOSTICS"
@@ -3085,6 +3099,7 @@
         "packages/sdk-browser/pageSelectionCut.ts",
         "packages/sdk-browser/pageSelectionCutLogic.ts",
         "packages/sdk-browser/pageSelectionDiagnostic.ts",
+        "packages/sdk-browser/screenErrorViewport.test.ts",
         "packages/sdk-browser/streamingPriority.ts",
         "test/justesse/erreur-ecran-borne.mjs",
         "test/justesse/erreur-ecran-cpu-gpu.mjs"
@@ -5729,6 +5744,7 @@
         "test/appui/sceneOccultante.mjs",
         "test/appui/setTransformParentPerimePage.mjs",
         "test/appui/transparentTransformPage.mjs",
+        "test/appui/waterPassPage.mjs",
         "test/justesse/cameraSitesMoteurs.mjs"
       ],
       "disposition": "retained",
