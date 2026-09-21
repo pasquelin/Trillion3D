@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { scenes } from './docs/examples/scenes.mjs';
 import { geometryScenes } from './docs/examples/scenes-geometry.mjs';
+import { materialScenes } from './docs/examples/scenes-materials.mjs';
 import { writeSurfacesGltf } from './docs/examples/gltf.mjs';
 import { writePartsGltf } from './docs/examples/gltf-parts.mjs';
 import { modelScenes, writeModelScenes } from './docs/examples/models.mjs';
@@ -21,7 +22,7 @@ const root = resolve(import.meta.dirname, '..'),
     process.env.WG_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
 
-const procedural = { ...scenes, ...geometryScenes };
+const procedural = { ...scenes, ...geometryScenes, ...materialScenes };
 const names = [...Object.keys(procedural), ...Object.keys(modelScenes)].filter(
   (name) => !only || name === only,
 );
