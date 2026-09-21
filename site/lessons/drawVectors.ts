@@ -1,8 +1,9 @@
 import { add, legend, line, text } from './drawPrimitives.ts';
+import type { SvgHost } from './drawPrimitives.ts';
 import type { VectorsResult, NormalizeResult } from './evaluate.ts';
 
 export function drawVectors(
-  svg: SVGSVGElement,
+  svg: SvgHost,
   result: VectorsResult | NormalizeResult,
   french: boolean,
 ) {

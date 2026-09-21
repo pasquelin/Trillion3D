@@ -4,7 +4,7 @@
 
 [Simple browser startup](SDK.md#simple-browser-startup): pass a canvas ID or element and opt into `interactive: true` for controls, CSS/DPR sizing and demand-driven rendering. Manual integration remains available.
 
-This folder is the repository documentation only. The learning portal lives under `site/`, one TypeScript folder organised by role, and is published from the tree `pnpm build:docs` writes into `dist/site/` (see [LEARNING_PORTAL.md](LEARNING_PORTAL.md)): `index.html` is the portal (guides, constants and enums, every public function, the live WebGPU demo, the measurement reports staged by `node scripts/mesure/publierRapport.mjs`); the demos run the engine's own kernels, bundled into `js/engine.js` at build time.
+This folder is the repository documentation only. The learning portal lives under `site/`, one TypeScript folder organised by role, and is published from the tree `pnpm build:docs` writes into `dist/site/` (see [LEARNING_PORTAL.md](LEARNING_PORTAL.md)): `index.html` is the portal (guides, constants and enums, every public function, the live WebGPU demo, the measurement reports staged by `node scripts/mesure/publierRapport.ts`); the demos run the engine's own kernels, bundled into `js/engine.js` at build time.
 
 The delivered SDK is described by the [SDK guide](SDK.md), [package architecture](../packages/README.md), [native compiler](COMPILER.md), and [cache format](FORMAT.md). Anything not listed here is not part of the release.
 

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
 import { assertFiniteTransform, hostLocalInto, resolveHostSubtree } from './hostWorldMatrices.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
 
 /** Parent → child → grandchild → great-grandchild chain, hostile transforms included. */
 function hostileHierarchy() {
@@ -58,11 +58,8 @@ test('resolveHostSubtree always forces recompute (force: true): a local matrix r
   const attendu = new THREE.Matrix4();
   attendu.elements[12] = 7;
   assertBits(parent.matrixWorld.elements, attendu.elements);
-  assertBits(
-    enfant.matrixWorld.elements,
-    attendu.elements,
-    'the child inherits the recomputed parent',
-  );
+  // The child inherits the recomputed parent.
+  assertBits(enfant.matrixWorld.elements, attendu.elements);
 });
 
 test('resolveHostSubtree does not walk parents: a stale ancestor is not recomputed, and the child inherits it as-is, like updateMatrixWorld(true) called directly on the child', () => {
@@ -77,7 +74,8 @@ test('resolveHostSubtree does not walk parents: a stale ancestor is not recomput
   ref.racine.updateMatrixWorld(true);
   ref.racine.position.set(100, 100, 100);
   ref.enfant.updateMatrixWorld(true);
-  assertBits(racine.matrixWorld.elements, perimee, 'the root must not be recomputed');
+  // The root must not be recomputed.
+  assertBits(racine.matrixWorld.elements, perimee);
   assertBits(racine.matrixWorld.elements, ref.racine.matrixWorld.elements);
   assertBits(enfant.matrixWorld.elements, ref.enfant.matrixWorld.elements);
 });

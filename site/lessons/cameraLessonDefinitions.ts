@@ -1,23 +1,5 @@
-import type { Localized } from '../content/locale.ts';
-import type { RendererLessonControl, RendererLessonItem } from './rendererLessonTypes.ts';
-
-const text = (en: string, fr: string): Localized => ({ en, fr });
-const range = (
-  id: string,
-  en: string,
-  fr: string,
-  min: number,
-  max: number,
-  value: number,
-  step: number,
-): RendererLessonControl => ({
-  id,
-  label: text(en, fr),
-  min,
-  max,
-  value,
-  step,
-});
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
+import { range, text } from './lessonDefinitionHelpers.ts';
 
 export const cameraLessonDefinitions: RendererLessonItem[] = [
   {

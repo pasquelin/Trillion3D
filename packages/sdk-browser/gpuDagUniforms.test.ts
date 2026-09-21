@@ -1,5 +1,5 @@
 // A11: parseDagOutput sizes its arrays ahead of time instead of a typed-array spread and a
-// `push` with no capacity. Oracle: the version from before batch A, in `bench/oracles/residence.mjs`.
+// `push` with no capacity. Oracle: the version from before batch A, in `bench/oracles/residence.ts`.
 //
 // THE HEADER HAS CHANGED WIDTH since then: four words at first — a count, frustum reject, the
 // level, the flags — eight now, the next four carrying the triangle totals the GPU holds
@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { parseDagOutput } from './gpuDagUniforms.ts';
 import { SELECTION_HEADER_WORDS } from './gpuDagLayout.ts';
 import { REQUEST_PRIORITY_MAX, packRequest } from './gpuDagRequest.ts';
-import { referenceParseDagOutput } from './bench/oracles/residence.mjs';
+import { referenceParseDagOutput } from './bench/oracles/residence.ts';
 import type { SelectionResult } from './gpuSelection.ts';
 
 /** The oracle's header: four words, those from before the totals. */
@@ -154,7 +154,9 @@ test('a normal readback without a mask matches the reference field for field', (
 test('the incomplete flag (bit 1 of word 3) is reported the same way by both sides', () => {
   const { neuf, oracle } = paire([1, 0, 0, 2], [7]);
   assert.equal(lire(neuf)!.complete, false);
-  assert.equal(lireOracle(oracle).complete, false);
+  const attendu = lireOracle(oracle);
+  assert.ok(attendu);
+  assert.equal(attendu.complete, false);
 });
 
 test('a page count larger than the buffer holds is clamped identically, with and without a mask', () => {
