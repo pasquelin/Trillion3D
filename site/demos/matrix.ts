@@ -13,11 +13,12 @@ import {
   uniformScaleMatrix4,
 } from './engine.ts';
 import { formatNumber, matrixView, slider, valueView, verdictView } from './kit.ts';
+import type { DemoDef, DemoState } from './kit.ts';
 
 const scratch = () => new Float64Array(16);
 
 /** `out = T · R · S` from a pose the reader moves, and the decomposition that comes back. */
-function poseMatrix(state) {
+function poseMatrix(state: DemoState) {
   const half = state.turn * 0.5;
   const quaternion = [0, Math.sin(half), 0, Math.cos(half)];
   const model = scratch();
@@ -25,7 +26,7 @@ function poseMatrix(state) {
   return { model, quaternion };
 }
 
-export const MATRIX_DEMOS = {
+export const MATRIX_DEMOS: Record<string, DemoDef> = {
   composeMatrix4: {
     controls: [
       slider('x', 'translation x', -5, 5, 1.5, 0.1),

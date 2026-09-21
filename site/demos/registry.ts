@@ -14,8 +14,9 @@ import { TREE_DEMOS } from './tree.ts';
 import { BATCH_DEMOS } from './batch.ts';
 import { CAMERA_DEMOS } from './camera.ts';
 import { TABLE_DEMOS } from './tables.ts';
+import type { DemoDef } from './kit.ts';
 
-export const DEMOS = {
+export const DEMOS: Record<string, DemoDef> = {
   ...MATRIX_DEMOS,
   ...MATRIX_MORE_DEMOS,
   ...VECTOR_DEMOS,
@@ -29,6 +30,6 @@ export const DEMOS = {
   ...TABLE_DEMOS,
 };
 
-export function demoFor(entryId) {
+export function demoFor(entryId: string) {
   return DEMOS[entryId] ?? null;
 }

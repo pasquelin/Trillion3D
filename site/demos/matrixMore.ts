@@ -1,10 +1,11 @@
 /** Matrix demos, continued: the buffer conventions and the two builders of batch A. */
 import { IDENTITY_MATRIX4, basisMatrix4, copyMatrix4, uniformScaleMatrix4 } from './engine.ts';
 import { matrixView, slider, valueView } from './kit.ts';
+import type { DemoDef } from './kit.ts';
 
 const scratch = () => new Float64Array(16);
 
-export const MATRIX_MORE_DEMOS = {
+export const MATRIX_MORE_DEMOS: Record<string, DemoDef> = {
   copyMatrix4: {
     controls: [slider('at', 'destination offset (matrices)', 0, 3, 1, 1)],
     run(state) {
