@@ -1,26 +1,26 @@
-// An engine-owned render target: the colour texture and depth renderbuffer the reference's
-// `WebGLRenderTarget` allocated, on a framebuffer of the host context, in drawing-buffer pixels.
+// An engine-owned render target: a colour texture holding a display image and a depth
+// renderbuffer, on a framebuffer of the host context, in drawing-buffer pixels.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bindWebglTarget, createWebglRenderTarget } from './webglRenderTarget.ts';
 import { createTestContext } from './webglTestContext.ts';
 
-test('an sRGB target stores encoded colour and 24-bit depth at the size asked for', () => {
+test('a target stores bytes as written, unfiltered, and 24-bit depth at the size asked for', () => {
   const { gl, of } = createTestContext();
-  const target = createWebglRenderTarget(gl, 8, 4, { srgb: true });
-  assert.deepEqual(of('texImage2D')[0].slice(2, 5), ['SRGB8_ALPHA8', 8, 4]);
+  const target = createWebglRenderTarget(gl, 8, 4);
+  assert.deepEqual(of('texImage2D')[0].slice(2, 5), ['RGBA8', 8, 4]);
   assert.deepEqual(of('renderbufferStorage')[0].slice(1), ['DEPTH_COMPONENT24', 8, 4]);
   assert.equal(of('framebufferTexture2D').length, 1);
   assert.equal(of('framebufferRenderbuffer')[0][1], 'DEPTH_ATTACHMENT');
-  assert.deepEqual([target.width, target.height, target.srgb], [8, 4, true]);
+  assert.deepEqual(
+    of('texParameteri')
+      .filter((args) => String(args[1]).endsWith('_FILTER'))
+      .map((args) => args[2]),
+    ['NEAREST', 'NEAREST'],
+    'a texel is read as it was written',
+  );
+  assert.deepEqual([target.width, target.height], [8, 4]);
   assert.equal(of('bindFramebuffer').at(-1)?.[1], null, 'the creation leaves nothing bound');
-});
-
-test('a raw target stores bytes as written', () => {
-  const { gl, of } = createTestContext();
-  const target = createWebglRenderTarget(gl, 2, 2);
-  assert.equal(of('texImage2D')[0][2], 'RGBA8');
-  assert.equal(target.srgb, false);
 });
 
 test('an incomplete framebuffer is refused by name', () => {

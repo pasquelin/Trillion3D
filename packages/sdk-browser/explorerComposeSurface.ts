@@ -9,8 +9,8 @@ import { boundToContext } from './webglContextBound.ts';
  * composition host asks it to draw.
  *
  * The copy is written into whatever framebuffer the host has bound, at the viewport it has set,
- * and the bytes go through unchanged — `srgbDestination` says how that framebuffer encodes what
- * is written to it, and the image is already display encoded.
+ * and the bytes go through unchanged: the image is already display encoded, and so is what the
+ * host's drawing buffer and its targets store.
  *
  * The program lives as long as the context does and leaves with it, like the held frame beside it.
  */
@@ -20,14 +20,11 @@ export function createBackendPresenter(gl: WebGL2RenderingContext) {
     () => createCanvasBlit(gl),
     (program) => program.dispose(),
   );
-  const present = (
-    backend: { readonly presentedSurface?: HTMLCanvasElement },
-    srgbDestination = false,
-  ) => {
+  const present = (backend: { readonly presentedSurface?: HTMLCanvasElement }) => {
     const surface = backend.presentedSurface;
     if (!surface) return false;
     // A lost context draws nothing until it comes back; the program is rebuilt on the next copy.
-    blit.current()?.draw(surface, srgbDestination);
+    blit.current()?.draw(surface);
     return true;
   };
   present.dispose = blit.dispose;

@@ -78,9 +78,9 @@ export function createExplorerHostState(
     : Object.assign(() => false, { dispose() {} });
   /**
    * A render target of the composition — one side of a comparison, the measurement surface —
-   * at the drawing-buffer size, sRGB encoded like the targets the reference allocates. Targets
-   * built on a context since lost are forgotten together: their names died with that context,
-   * and each is rebuilt when next asked for.
+   * at the drawing-buffer size, holding the display image the page would show. Targets built on
+   * a context since lost are forgotten together: their names died with that context, and each
+   * is rebuilt when next asked for.
    */
   let targetsContext = webglSurface?.restorations;
   const ensureTarget = (current?: WebglRenderTarget) => {
@@ -90,7 +90,7 @@ export function createExplorerHostState(
       state.pairTargetA = state.pairTargetB = state.measurementTarget = undefined;
       current = undefined;
     }
-    return current ?? createWebglRenderTarget(gl, canvas.width, canvas.height, { srgb: true });
+    return current ?? createWebglRenderTarget(gl, canvas.width, canvas.height);
   };
   const check = () => {
     if (state.disposed) throw new Error('Explorer disposed');

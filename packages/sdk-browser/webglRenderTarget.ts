@@ -1,15 +1,15 @@
 /**
  * An engine-owned render target: one colour texture and one depth renderbuffer on a framebuffer
- * of the host context, sized in drawing-buffer pixels. The colour is stored sRGB-encoded when
- * `srgb` is set — the hardware encodes every fragment written there and decodes every texel
- * read back through a sampler, so an engine draws linear into it and reads linear out of it —
- * and raw otherwise. The depth is 24-bit, as the page's own drawing buffer.
+ * of the host context, sized in drawing-buffer pixels. It holds a display image — the bytes the
+ * page would show, sRGB-encoded and tone-mapped by the engine that drew it, stored as written —
+ * so that a side of a comparison is the single view of that engine, byte for byte, and no value
+ * is clamped or requantised on the way. The depth is 24-bit, as the page's own drawing buffer.
  */
 export type WebglRenderTarget = ReturnType<typeof createWebglRenderTarget>;
 
 /** Where a host draw lands and how it is encoded: the page's drawing buffer (`framebuffer` null)
- *  takes the display chain — sRGB encoding, tone mapping when the scene is lit —, a render
- *  target stores linear values the hardware encodes. `width` and `height` are the viewport's. */
+ *  or a render target, both taking the display chain — sRGB encoding, tone mapping when the
+ *  scene is lit. `width` and `height` are the viewport's. */
 export type HostDrawOutput = {
   encodeSrgb: boolean;
   toneMapped: boolean;
@@ -18,13 +18,7 @@ export type HostDrawOutput = {
   height: number;
 };
 
-export function createWebglRenderTarget(
-  gl: WebGL2RenderingContext,
-  width: number,
-  height: number,
-  options: { srgb?: boolean } = {},
-) {
-  const srgb = options.srgb === true;
+export function createWebglRenderTarget(gl: WebGL2RenderingContext, width: number, height: number) {
   const texture = gl.createTexture()!,
     depth = gl.createRenderbuffer()!,
     framebuffer = gl.createFramebuffer()!;
@@ -37,7 +31,7 @@ export function createWebglRenderTarget(
     gl.texImage2D(
       gl.TEXTURE_2D,
       0,
-      srgb ? gl.SRGB8_ALPHA8 : gl.RGBA8,
+      gl.RGBA8,
       nextWidth,
       nextHeight,
       0,
@@ -49,8 +43,8 @@ export function createWebglRenderTarget(
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, nextWidth, nextHeight);
   };
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   allocate(width, height);
@@ -63,7 +57,6 @@ export function createWebglRenderTarget(
   return {
     framebuffer,
     texture,
-    srgb,
     get width() {
       return currentWidth;
     },

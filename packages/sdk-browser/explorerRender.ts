@@ -35,7 +35,6 @@ type Inputs = {
       layout: ComparisonLayout,
       wipe: number,
       toggle: 0 | 1,
-      toneMapped: readonly [boolean, boolean],
     ) => void;
   };
   fillMetrics: (backend: RenderBackend) => void;
@@ -92,11 +91,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
           pairTargetB = (state.pairTargetB = ensureTarget(state.pairTargetB));
         drawBackend(left, pairTargetA);
         drawBackend(right, pairTargetB);
-        // Each side takes the display chain its engine would apply on the canvas.
-        compositor!.render(pairTargetA, pairTargetB, comparisonLayout, wipe, toggle, [
-          left.sceneLit?.() !== false,
-          right.sceneLit?.() !== false,
-        ]);
+        compositor!.render(pairTargetA, pairTargetB, comparisonLayout, wipe, toggle);
       }
     } catch (error) {
       handleExplorerRenderError(error, {

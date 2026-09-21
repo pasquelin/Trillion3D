@@ -1,4 +1,3 @@
-import { DISPLAY_CHAIN_GLSL } from './webglDisplayChainGlsl.ts';
 import { TRANSMISSION_GLSL } from './webglClusterTransmissionGlsl.ts';
 
 export const CLUSTER_VERTEX = `#version 300 es
@@ -36,7 +35,10 @@ float d0=nh*nh*(a2-1.0)+1.0,D=a2/(PI*d0*d0);float gv=nl*sqrt(nv*nv*(1.0-a2)+a2),
 float Vis=0.5/(gv+gl+1e-7);vec3 F=fresnel(vh,mix(vec3(0.04),base,metal));return(base*(1.0-metal)/PI+D*Vis*F)*nl;}
 float attenuation(float distance,float range){float a=1.0/max(distance*distance,0.01);if(range>0.0){float r=distance/range;a*=pow(clamp(1.0-r*r*r*r,0.0,1.0),2.0);}return a;}
 float spotFactor(float cosine,float inner,float outer){return inner<=outer?(cosine>=outer?1.0:0.0):smoothstep(outer,inner,cosine);}
-${DISPLAY_CHAIN_GLSL}
+vec3 aces(vec3 c){c/=0.6;c=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.13383,0.04823,0.01566,0.83777)*c;
+vec3 a=c*(c+0.0245786)-0.000090537,b=c*(0.983729*c+0.4329510)+0.238081;c=a/b;
+return clamp(mat3(1.60475,-0.10208,-0.00327,-0.53108,1.10813,-0.07276,-0.07367,-0.00605,1.07602)*c,0.0,1.0);}
+vec3 linearToSrgb(vec3 x){bvec3 low=lessThanEqual(x,vec3(0.0031308));return mix(1.055*pow(max(x,vec3(0.0)),vec3(1.0/2.4))-0.055,12.92*x,low);}
 // The declared lights on one surface: the engine's only lighting formula, ambient included.
 vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 rgb=vec3(0.0);for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
 vec4 positionRange=lightData[i*4],directionKind=lightData[i*4+1],colorIntensity=lightData[i*4+2],cone=lightData[i*4+3];

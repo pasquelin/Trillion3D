@@ -23,7 +23,6 @@ export function mountExplorerProof(scene, camera, inHostPass, context = {}) {
       ...context,
     }),
     draw = createFrameComposer(gl, camera),
-    // A raw target: what the engine writes into it is read back as it was written.
     target = createWebglRenderTarget(gl, 64, 64),
     calls = [];
   const drawHostGeometry = backend.drawHostGeometry;

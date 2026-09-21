@@ -15,7 +15,7 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   context?: WebGL2RenderingContext;
   options: ExplorerOptions;
   directGpu: boolean;
-  presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
+  presentBackend: (backend: RenderBackend) => boolean;
   state: Pick<ExplorerHostState, 'active' | 'measuring'>;
   check: () => void;
   compose: ReturnType<typeof createFrameComposer>;

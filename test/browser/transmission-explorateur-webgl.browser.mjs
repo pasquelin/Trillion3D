@@ -15,9 +15,9 @@ console.log(JSON.stringify(result, null, 2));
 preuveSaine(result);
 // The red cluster behind the glass, 96 % through at normal incidence, sRGB-encoded on the canvas.
 assert.deepEqual(result.repeatPixel, result.canvasPixel, 'A/A: the second frame is the first');
-// The comparison target is linear, the canvas is sRGB-encoded: same 0.96 red, two encodings.
+// The comparison target holds the display image: the same 0.96 red, the same bytes.
 assert.deepEqual(result.canvasPixel, [250, 0, 0, 255]);
-assert.deepEqual(result.targetPixel, [245, 0, 0, 255], 'the comparison target sees the same');
+assert.deepEqual(result.targetPixel, result.canvasPixel, 'the comparison target sees the same');
 assert.equal(result.copyDraws, 1, 'the glass is one owned submission');
 assert.ok(result.clusterDraws > 0);
 assert.equal(result.targetCopyDraws, 1);

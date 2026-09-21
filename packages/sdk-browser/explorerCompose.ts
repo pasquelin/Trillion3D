@@ -24,17 +24,15 @@ export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCame
     height: 0,
   };
   /**
-   * The engine's background, as its scene declares it: sRGB-encoded on the drawing buffer, which
-   * stores what it is given, linear on a render target, which the hardware encodes. Depth and
-   * stencil are cleared with it, the whole viewport.
+   * The engine's background, as its scene declares it, sRGB-encoded: the drawing buffer and the
+   * targets store display bytes. Depth and stencil are cleared with it, the whole viewport.
    */
-  const clear = (background: Background, encodeSrgb: boolean) => {
-    const encode = encodeSrgb ? linearToSrgb : (c: number) => c;
+  const clear = (background: Background) => {
     const { r, g, b } = background?.isColor ? background : { r: 0, g: 0, b: 0 };
     gl.disable(gl.SCISSOR_TEST);
     gl.colorMask(true, true, true, true);
     gl.depthMask(true);
-    gl.clearColor(encode(r), encode(g), encode(b), 1);
+    gl.clearColor(linearToSrgb(r), linearToSrgb(g), linearToSrgb(b), 1);
     gl.clearDepth(1);
     gl.clearStencil(0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
@@ -57,16 +55,15 @@ export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCame
       return;
     }
     if (!backend.drawHostGeometry) throw new Error(`HOST_DRAW_UNSUPPORTED:${backend.id}`);
-    // The display chain of the engine's view, the same rule for every engine: an unlit scene
-    // composes by identity, from linear to sRGB and nothing else (P6); as soon as a light
-    // exists, exposure and the filmic curve come back, last links of the chain (P4). A render
-    // target stores linear values and takes neither.
-    output.encodeSrgb = target === null;
-    output.toneMapped = target === null && backend.sceneLit?.() !== false;
+    // The display chain of the engine's view, the same rule for every engine and every
+    // destination: an unlit scene composes by identity, from linear to sRGB and nothing else
+    // (P6); as soon as a light exists, exposure and the filmic curve come back, last links of
+    // the chain (P4). A target thus holds what the page would show.
+    output.toneMapped = backend.sceneLit?.() !== false;
     output.framebuffer = target?.framebuffer ?? null;
     output.width = width;
     output.height = height;
-    clear(backend.scene.background as Background, output.encodeSrgb);
+    clear(backend.scene.background as Background);
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
     if (!target) heldFrame.keep(width, height);
   };
