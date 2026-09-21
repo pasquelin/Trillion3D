@@ -140,8 +140,11 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    if the merge into `develop` did not close it. If a pull request is closed without merging,
    remove both lifecycle labels; add `in progress` only if work resumes.
 
-A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
-no separate release branch is needed. Use the same template and `Closes #<issue>` first line,
-name the already reviewed implementation pull requests in the local-review section, and wait
-for validation and maintainer approval. Pages serves `main` and `/docs`, so a change is published
-only after that release merges.
+A release from `develop` to `main` has its own issue and pull request. Its branch,
+`<issue>-release`, is cut from `origin/main` with `origin/develop` merged into it; it carries no
+code of its own. Use the same template and `Closes #<issue>` first line, name the already reviewed
+implementation pull requests in the local-review section, and wait for validation and maintainer
+approval. The published docs bundles (`docs/css/site.css`, `docs/runtime/`) are never committed in
+a batch: on a pull request to `main`, the CI builds them from the merged sources, commits them on
+the release branch and validates that head again (`docs/LEARNING_PORTAL.md`, "Published bundles").
+Pages serves `main` and `/docs`, so a change is published only after that release merges.
