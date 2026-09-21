@@ -35,7 +35,7 @@ export default {
     'test/browser/*.browser.mjs',
   ],
   project: [
-    'docs/react/**/*.{jsx,tsx,ts,js}',
+    'docs/react/**/*.{ts,tsx}',
     'packages/**/*.{ts,mts,mjs,js}',
     'scripts/**/*.{ts,mts,mjs,js}',
     'test/**/*.{ts,mts,mjs,js}',
