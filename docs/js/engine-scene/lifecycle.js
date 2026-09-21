@@ -18,9 +18,11 @@ export function mountScene(host, copy, locale) {
   const status = host.querySelector('[data-scene-status]');
   const loading = host.querySelector('[data-scene-loading]');
   const controller = new AbortController();
+  // Each load runs under its own generation: a failure or a loss ends the current one, so a
+  // create still pending when it happens is released once it settles, never adopted.
   let explorer,
     disposed = false,
-    lost = false,
+    generation = 0,
     camera,
     lighting;
   const events = { signal: controller.signal };
@@ -30,9 +32,11 @@ export function mountScene(host, copy, locale) {
   };
   /** The scene is gone: what it held is released, and the start button offers to reopen it. */
   const fail = (message) => {
+    generation++;
     telemetry.stop();
     explorer?.dispose();
     explorer = null;
+    camera = lighting = undefined;
     status.textContent = message;
     loading.hidden = true;
     start.disabled = false;
@@ -46,7 +50,8 @@ export function mountScene(host, copy, locale) {
     host.querySelector('[data-scene-observe]').textContent = observe;
   };
   const load = async () => {
-    lost = false;
+    const attempt = generation;
+    const superseded = () => disposed || attempt !== generation;
     start.disabled = true;
     start.hidden = true;
     loading.hidden = false;
@@ -55,8 +60,7 @@ export function mountScene(host, copy, locale) {
       if (!navigator.gpu) throw new Error('WEBGPU_UNAVAILABLE');
       const { createExplorer } = await import('../../runtime/engine.js');
       if (disposed) return;
-      // The engine has already withdrawn its image on a loss: only a new explorer draws again,
-      // and one still preparing when it happens is released as soon as it exists.
+      // The engine has already withdrawn its image on a loss: only a new explorer draws again.
       const created = await createExplorer(canvas, {
         manifestUrl: new URL(
           'assets/kinetic-garden/cache/native/full/manifest.json',
@@ -75,18 +79,15 @@ export function mountScene(host, copy, locale) {
         signal: controller.signal,
         diagnosticDetail: 'trace',
         onDiagnostic: (event) => {
-          if (disposed) return;
+          if (superseded()) return;
           if (event.phase === 'frame') telemetry.frame(event.context.metrics);
-          else if (event.phase === 'gpu-device-lost') {
-            lost = true;
-            fail(copy.lost);
-          }
+          else if (event.phase === 'gpu-device-lost') fail(copy.lost);
         },
         onEvent: (event) => {
-          if (!disposed && event.type === 'fatal') status.textContent = copy.failed;
+          if (!superseded() && event.type === 'fatal') status.textContent = copy.failed;
         },
       });
-      if (disposed || lost) {
+      if (superseded()) {
         created.dispose();
         return;
       }
@@ -111,7 +112,7 @@ export function mountScene(host, copy, locale) {
       status.textContent = '';
       invalidate();
     } catch (error) {
-      if (disposed || lost) return;
+      if (superseded()) return;
       fail(
         /WEBGPU|adapter|GPU/.test(String(error))
           ? copy.unavailable
