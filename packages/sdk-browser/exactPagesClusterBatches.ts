@@ -1,5 +1,7 @@
-import type { BackendContext } from './backendTypes.ts';
+import type { BackendContext, HostDrawOutput } from './backendTypes.ts';
+import type { HostDrawCamera } from './cameraWorld.ts';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
+import { createThreeSceneDraw } from './threeSceneAdapter.ts';
 import { clusterWebglCompatibility, ownedSceneCopy } from './webglClusterCompatibility.ts';
 import { clusterRefusal } from './webglClusterRefusal.ts';
 import { WebglClusterOwner } from './webglClusterOwner.ts';
@@ -14,8 +16,9 @@ type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[nu
  * owner: the cut still runs, the draw is refused.
  *
  * A transmissive copy is the owner's and never enters the host scene; the other blended copies
- * still compose on the host pass, and both keep their source geometry and material for the
- * diagnostic modes to restore.
+ * still compose on the host pass — the scene the witness adapter draws after the owner, until
+ * the owner submits them (#85) —, and both keep their source geometry and material for the
+ * diagnostic modes to restore. `hostDraw` is the engine's whole draw: the owner, then that scene.
  */
 export function createExactPagesClusterBatches(
   scene: HostScene,
@@ -35,5 +38,15 @@ export function createExactPagesClusterBatches(
     else scene.add(copy);
   }
   const batches = new ClusterBatches(scene, pages, owner, transmissive);
-  return { batches, refusal, ownedCopies: transmissive.length };
+  const sceneDraw = createThreeSceneDraw(gl, scene);
+  const hostDraw = {
+    render: sceneDraw.render,
+    drawHostGeometry(camera: HostDrawCamera, output: HostDrawOutput) {
+      if (refusal) throw refusal;
+      batches.draw(camera, output.toneMapped, true);
+      sceneDraw.drawHostGeometry(camera, output);
+    },
+    dispose: sceneDraw.dispose,
+  };
+  return { batches, refusal, ownedCopies: transmissive.length, hostDraw };
 }
