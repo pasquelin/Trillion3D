@@ -9,7 +9,8 @@
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { launchChrome } from './mesure/chrome.mjs';
-import { createDocsServer, listen, SITE_OUTPUT } from './docs-serve.mjs';
+import { createDocsServer, listen } from './docs-serve.mjs';
+import { SITE_OUTPUT } from './docs/site.mjs';
 
 const DEFAULT_ROUTES = ['#/en/learn/home', '#/en/examples/shadow-casting-switch'];
 const THREE = 'https://cdn.jsdelivr.net/npm/three@0.174.0/';

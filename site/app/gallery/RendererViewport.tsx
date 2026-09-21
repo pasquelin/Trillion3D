@@ -11,7 +11,7 @@ import { Alert, Select } from '../components/UI.tsx';
 import { Stat, StatGroup } from '../components/Stats.tsx';
 import { createRendererLessonRuntime } from '../../lessons/rendererLessonRuntime.ts';
 import { syncRendererState } from '../../lessons/syncRendererState.ts';
-import { DIAGNOSTIC_MODES } from '../../lessons/engine-scene/diagnosticModes.ts';
+import { DIAGNOSTIC_MODES, isDiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import { sceneCopy } from '../../lessons/engine-scene/content.ts';
 
 const value = (num: number | null | undefined, suffix: string, digits = 0): string =>
@@ -99,18 +99,16 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
   const copy = sceneCopy[locale] ?? sceneCopy.en;
   // `RendererMetrics.diagnostic` is the engine's full mode union; the select only offers this
   // viewport's narrower `DIAGNOSTIC_MODES`, so a mode outside it (never emitted by these
-  // lessons in practice) falls back to Image, matching the pre-typed select's Image default.
-  const isKnownMode = (mode: string): mode is DiagnosticMode =>
-    DIAGNOSTIC_MODES.some((known) => known === mode);
+  // lessons in practice) falls back to Image, the select's default.
   const diagnosticValue: DiagnosticMode =
-    metrics.diagnostic && isKnownMode(metrics.diagnostic) ? metrics.diagnostic : 'beauty';
+    metrics.diagnostic && isDiagnosticMode(metrics.diagnostic) ? metrics.diagnostic : 'beauty';
   // The runtime reports the mode it draws (a lesson may set it from its own state); the select
   // shows that report, updated at once on a pick so the control never lags its own change.
-  const onSelectMode = (mode: DiagnosticMode): void => {
-    if (!runtime.current) return;
+  const onSelectMode = (picked: string) => {
+    if (!runtime.current || !isDiagnosticMode(picked)) return;
     try {
-      runtime.current.setDiagnostic(mode);
-      setMetrics((current) => ({ ...current, diagnostic: mode }));
+      runtime.current.setDiagnostic(picked);
+      setMetrics((current) => ({ ...current, diagnostic: picked }));
     } catch (err) {
       setError(errorMessage(err, locale, 'update'));
     }
@@ -131,9 +129,7 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
             data-renderer-diagnostic
             value={diagnosticValue}
             disabled={pending}
-            // DOM boundary: the select's options are exactly `DIAGNOSTIC_MODES`, so its value
-            // is always a `DiagnosticMode`.
-            onChange={(event) => onSelectMode(event.target.value as DiagnosticMode)}
+            onChange={(event) => onSelectMode(event.target.value)}
           >
             {DIAGNOSTIC_MODES.map((mode) => (
               <option key={mode} value={mode}>
