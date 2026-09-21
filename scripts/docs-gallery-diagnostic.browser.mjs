@@ -12,9 +12,13 @@ const paused = (page) =>
     timeout: 40_000,
   });
 const drawing = (page) =>
-  page.waitForFunction((s) => !document.querySelector(s)?.textContent.includes('Paused'), LESSON, {
-    timeout: 10_000,
-  });
+  page.waitForFunction(
+    (s) => document.querySelector(s)?.textContent.includes('Paused') === false,
+    LESSON,
+    {
+      timeout: 10_000,
+    },
+  );
 
 test('the viewport select drives the runtime mode and follows the mode the lesson sets', async () => {
   const server = createDocsServer();
