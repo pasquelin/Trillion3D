@@ -23,7 +23,7 @@ export async function startupGarden(page: Page, base: string, out: string) {
   await page.goto('about:blank');
   for (const locale of ['en', 'fr']) {
     await page.setViewportSize({ width: locale === 'en' ? 1280 : 390, height: 800 });
-    await page.goto(`${base}/site/index.html#/${locale}/examples/engine-scene`);
+    await page.goto(`${base}/site/index.html#/${locale}/lessons/engine-scene`);
     const mode = page.locator('[data-scene-mode]');
     await page
       .waitForFunction(

@@ -8,7 +8,7 @@ test('gallery showcase keeps both pilots visible and makes the selected scene th
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-    await page.goto(`http://127.0.0.1:${port}/#/en/examples`);
+    await page.goto(`http://127.0.0.1:${port}/#/en/lessons`);
     const showcase = page.locator('[data-gallery-showcase]');
     await showcase.waitFor();
     const box = await showcase.boundingBox();
@@ -22,7 +22,7 @@ test('gallery showcase keeps both pilots visible and makes the selected scene th
     assert.ok(headingBox.y < 420);
     await showcase.getByRole('button', { name: /Direct the shadow theatre/ }).click();
     const main = showcase.getByRole('link');
-    assert.equal(await main.getAttribute('href'), '#/en/examples/shadow-casting-switch');
+    assert.equal(await main.getAttribute('href'), '#/en/lessons/shadow-casting-switch');
     assert.match(await main.innerText(), /Try the shadow switch/);
     const imgSrc = await main.locator('img').getAttribute('src');
     assert(imgSrc);

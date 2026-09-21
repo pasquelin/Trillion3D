@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
 import { drawnIndices, dagRoots, dagLevel, DAG, MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import { quadCluster, fanScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
-import { submittedDraws } from './clusterBatchMesh.ts';
+import { drawPasses, submittedDraws } from './clusterBatchMesh.ts';
 
 /** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
 
@@ -32,15 +32,10 @@ test('transparent page batches preserve source order across exact and coarse cut
   const camera = frontCamera();
   backend.render(camera);
   assert.equal(draws().length, 1);
-  // Double-sided transparent: the two passes the reference renderer would improvise each frame
-  // are frozen as two back/front materials from the source material, submitted in that order.
-  const split = draws()[0].material as THREE.Material[];
-  assert.ok(Array.isArray(split));
-  assert.deepEqual([split[0].side, split[1].side], [THREE.BackSide, THREE.FrontSide]);
-  assert.deepEqual(
-    split.map((one) => (one as THREE.MeshBasicMaterial).color.getHex()),
-    [material.color.getHex(), material.color.getHex()],
-  );
+  // Double-sided transparent: the record carries the source material itself, and draws the two
+  // passes the reference renderer orders — back faces then front faces — read at the draw.
+  assert.equal(draws()[0].material, material);
+  assert.deepEqual(drawPasses(draws()[0].material), ['back', 'front']);
   assert.deepEqual(drawnIndices(draws()[0]), [0, 1, 2, 0, 2, 3, 0, 3, 4]);
   context.pixelError = 10;
   backend.render(camera);
