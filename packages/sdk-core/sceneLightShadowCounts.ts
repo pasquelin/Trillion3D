@@ -5,7 +5,7 @@ import {
   SCENE_LIGHT_HEADER_FLOATS,
   type ShadowViewpoint,
 } from './sceneLightContracts.ts';
-import { faceCountOf } from './sceneLightShadowFaces.ts';
+import { forEachShadowFace } from './sceneLightShadowCasters.ts';
 import type { createShadowSliceTable } from './sceneLightShadowSlices.ts';
 import { LIGHT_FIELD, type SceneLightStore } from './sceneLightStore.ts';
 
@@ -104,19 +104,12 @@ export function createShadowCounts() {
       pendingPages = 0;
       waitedMs = 0;
       waitedFrames = 0;
-      for (let slot = 0; slot < store.count; slot++) {
-        const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-        if (store.packed[base + LIGHT_FIELD.castsShadow] === 0) continue;
-        const slice = store.sliceOf(slot);
-        if (slice < 0) continue;
-        const count = faceCountOf(store.packed[base + LIGHT_FIELD.kind]);
-        for (let face = 0; face < count; face++) {
-          if (!slices.dirty.isDirty(slice, face)) continue;
-          pendingPages += slices.dirty.pages(slice, face);
-          waitedMs = Math.max(waitedMs, slices.dirty.waitedMs(slice, face, nowMs));
-          waitedFrames = Math.max(waitedFrames, slices.dirty.waitedFrames(slice, face, frame));
-        }
-      }
+      forEachShadowFace(store, (_slot, slice, face) => {
+        if (!slices.dirty.isDirty(slice, face)) return;
+        pendingPages += slices.dirty.pages(slice, face);
+        waitedMs = Math.max(waitedMs, slices.dirty.waitedMs(slice, face, nowMs));
+        waitedFrames = Math.max(waitedFrames, slices.dirty.waitedFrames(slice, face, frame));
+      });
     },
     reset() {
       beginFrame();

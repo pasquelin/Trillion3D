@@ -65,6 +65,8 @@ export function createWebgpuTileAtlas(
     layers: number;
     feedbackOffset: number;
     textures: TileTexture[];
+    /** A tile gave its place up: the texture it belonged to, for whoever reads it to follow. */
+    onEvicted?: (slot: number) => void;
   },
 ): WebgpuTileAtlas {
   const { kind, textures } = options;
@@ -96,11 +98,13 @@ export function createWebgpuTileAtlas(
   const evict = (frame: number) => {
     const index = candidatesAt(frame).shift();
     if (index === undefined) return undefined;
-    const id = pool.keyOf(index);
-    pages.clearTile(tileKeyOf(id));
+    const id = pool.keyOf(index),
+      key = tileKeyOf(id);
+    pages.clearTile(key);
     resident.delete(id);
     pool.release(index);
     evictions++;
+    options.onEvicted?.(key.slot);
     return index;
   };
   return {

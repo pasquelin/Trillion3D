@@ -1,5 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
-import { PAGES_RING, uploadSceneLights } from './webgpuPagesStateLights.ts';
+import { PAGES_RING, noteShadowFrame, uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
 import { ensureBounce } from './webgpuPagesPrepareBounce.ts';
@@ -35,7 +35,12 @@ export function encodeDirectLights(
   // the declared lights do not already light.
   directParams[3] = environment ? environment.exposure : 1;
   // The unlit view reads neither light lists nor an atlas: it therefore encodes none of them.
-  if (!active || store.unlit) return directParams;
+  // The slices survive it, so a representation change held for the camera to rest is released
+  // to the list now: the plan of the first lit frame stales its pages, whatever the camera does.
+  if (!active || store.unlit) {
+    lights.plan.releaseDeferred();
+    return directParams;
+  }
   const frame = rt.run.frame,
     nowMs = performance.now(),
     pagesSlot = frame % PAGES_RING;
@@ -53,12 +58,11 @@ export function encodeDirectLights(
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
   // The pass may refuse to encode (reject or missing selection): pages the scheduler just took out
   // of the queue then go back in, or their map would keep a stale depth with nothing saying so.
-  if (regions && !encodeShadowAtlas(rt, device, encoder, regions)) {
-    lights.plan.reissue(frame, nowMs);
-    lights.shadowPages = 0;
-    lights.shadowRegions = 0;
-    lights.pagesByFrame[pagesSlot] = 0;
-  }
+  // Their held-page mask, pushed with the plan, says "held" for this one frame; `reissue`
+  // gives them back what they held before, and the next plan pushes that mask.
+  const encoded = !regions || encodeShadowAtlas(rt, device, encoder, regions);
+  if (!encoded) lights.plan.reissue(frame, nowMs);
+  noteShadowFrame(lights, pagesSlot, encoded);
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height, active);
