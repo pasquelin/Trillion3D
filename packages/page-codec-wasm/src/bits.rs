@@ -17,9 +17,10 @@ pub fn bits_for(range: u64) -> u32 {
     u64::BITS - range.leading_zeros()
 }
 
-/// Words a stream of `count` fields of `bits` bits occupies.
+/// Words a stream of `count` fields of `bits` bits occupies; saturating, so a forged count
+/// on a 32-bit `usize` cannot wrap into a layout that matches the bytes.
 pub fn stream_words(count: usize, bits: u32) -> usize {
-    (count * bits as usize).div_ceil(32)
+    count.saturating_mul(bits as usize).div_ceil(32)
 }
 
 /// The `bits`-bit field at bit `at` of `words`. A field never spans more than two words, and a
