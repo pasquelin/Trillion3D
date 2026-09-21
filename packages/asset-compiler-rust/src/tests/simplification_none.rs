@@ -44,11 +44,16 @@ fn simplification_none_ne_construit_aucun_niveau_grossier() {
     );
 }
 
-// Behaviour: `qem-endpoints` keeps the DAG it used to build — same depth, same root.
+// Behaviour: `qem-endpoints` keeps the DAG it used to build — same depth, and no more roots
+// than meshoptimizer 0.22 left (127). Under 0.25 the count depends on the platform's last
+// floating-point bit (measured: 125 on macOS arm64, 127 on Linux x64), so the test bounds it.
 #[test]
 fn simplification_qem_endpoints_garde_son_dag() {
     let (depth, racines, niveau_zero) = dag_of("qem-endpoints");
     assert_eq!(depth, 6, "depth unchanged");
     assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
-    assert_eq!(racines, 127, "root unchanged");
+    assert!(
+        (125..=127).contains(&racines),
+        "root within the measured platform spread: {racines}"
+    );
 }

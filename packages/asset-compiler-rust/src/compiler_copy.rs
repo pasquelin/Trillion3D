@@ -1,18 +1,28 @@
 use super::*;
+use compiler_source_extend::{append_to_source_bin, CoarseVertices, ExtensionViews};
 
-/// Copies the buffer views the selection reads into `source.bin`, packed and
-/// aligned, and returns the key folder, the rewritten views and the product
+/// The cache folder of this compilation, and the object store beside it, created.
+/// The folder is opened before the DAG runs: a primitive that creates vertices writes
+/// them there while it compiles (`compiler_source_extend.rs`).
+pub(super) fn cache_directory(o: &Options, key: &str) -> Result<PathBuf> {
+    let directory = o.key_directory(key);
+    fs::create_dir_all(directory.join("pages"))?;
+    fs::create_dir_all(o.cache.join("native").join("objects"))?;
+    Ok(directory)
+}
+
+/// Copies the buffer views the compiled scene keeps into `source.bin`, packed and
+/// aligned, then appends the vertex buffer of every primitive the DAG rewrote.
+/// Returns the rewritten views, the extension those vertices need and the product
 /// record — fingerprinted as the bytes go by, never read back.
 pub(super) fn copy_source_bin(
     o: &Options,
     bin: &[u8],
     view_values: &[Value],
     views: &BTreeSet<usize>,
-    key: &str,
-) -> Result<(PathBuf, Vec<Value>, Product)> {
-    let directory = o.key_directory(key);
-    fs::create_dir_all(directory.join("pages"))?;
-    fs::create_dir_all(o.cache.join("native").join("objects"))?;
+    directory: &Path,
+    coarse: &[CoarseVertices],
+) -> Result<(Vec<Value>, Vec<ExtensionViews>, Product)> {
     let temp = directory.join("source.bin.tmp");
     let mut writer = Hashing::new(BufWriter::new(File::create(&temp)?));
     let mut offset = 0;
@@ -41,8 +51,9 @@ pub(super) fn copy_source_bin(
         offset += len;
         output_views.push(v);
     }
+    let extension = append_to_source_bin(&mut writer, &mut offset, &mut output_views, coarse)?;
     writer.flush()?;
     let product = writer.product("source.bin");
     fs::rename(temp, directory.join("source.bin"))?;
-    Ok((directory, output_views, product))
+    Ok((output_views, extension, product))
 }

@@ -117,7 +117,7 @@ pub(super) fn validate_compile_options(o: &Options) -> Result<()> {
         || o.threads > 64
         || o.ram_budget_mb < 64
         || o.resource_base.is_empty()
-        || !["none", "qem-endpoints"].contains(&o.simplification.as_str())
+        || !crate::dag::DagStrategy::NAMES.contains(&o.simplification.as_str())
     {
         return Err(CompilerError::new(
             "INVALID_OPTIONS",

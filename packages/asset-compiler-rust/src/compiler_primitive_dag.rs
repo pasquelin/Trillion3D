@@ -19,6 +19,8 @@ pub(super) struct DagResult {
     pub stream_report: Value,
     /// Grid the primitive's pages were quantized on.
     pub position_exponent: i32,
+    /// Vertices the coarse levels appended to the primitive's buffer.
+    pub added_vertices: usize,
 }
 
 /// Minimum, median and maximum of a DAG level's errors. Three order statistics
@@ -44,24 +46,35 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
     (min, median, max)
 }
 
+/// Builds the DAG of one primitive and everything the cache says about it. `pos` and
+/// `attributes` come back extended with the vertices the coarse levels created, which the
+/// pages, the bounds and the proxy cut read like the source ones.
 pub(super) fn build_dag_primitive(
     o: &Options,
-    pos: &[f32],
-    attributes: &[geometry_page::Attribute],
+    material: Option<&Value>,
+    pos: &mut Vec<f32>,
+    attributes: &mut [geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
-    store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
-    let strategy = crate::dag::DagStrategy::named(&o.simplification);
-    // UVs, when the primitive carries them: fallback DAG weld does not cross a texture seam.
-    let uvs = attributes.iter().find(|a| a.flag == geometry_page::FLAG_UV);
-    let (dag, groups, tallies) = crate::dag::build_dag_tallied(
-        pos,
-        uvs.map(|a| &a.values[..]),
+    let strategy = crate::dag::DagStrategy::named(&o.simplification)
+        .ok_or_else(|| invalid("Unknown simplification strategy"))?;
+    let crate::dag::DagBuild {
+        clusters: dag,
+        groups,
+        tallies,
+        added_vertices,
+    } = crate::dag::build_dag_tallied(
+        crate::dag::DagVertices {
+            positions: pos,
+            attributes,
+        },
         index_values,
         strategy,
         &|| check(o),
     )?;
+    // The buffer is final: every level is built, the created vertices are in it.
+    let (pos, attributes) = (&pos[..], &attributes[..]);
     if dag
         .iter()
         .filter(|c| c.level == 0)
@@ -122,9 +135,10 @@ pub(super) fn build_dag_primitive(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
     );
+    let carried = carried_attributes(attributes, material);
     let (pages, reused, stream_report) =
         bundle_dag_pages(o, &dag, &order, base_id, pos, &|slice: &[u32]| {
-            store_packed(slice, position_exponent)
+            compiler_page_object::store_page(o, slice, pos, &carried, position_exponent)
         })?;
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.
@@ -157,29 +171,7 @@ pub(super) fn build_dag_primitive(
         .collect();
     let structure_report =
         json!({"version":STRUCTURE_VERSION,"roots":roots,"groups":structure_groups});
-    // Flat node array, CULLING_STRIDE numbers per node; -1 marks a subtree holding a root.
-    let mut flat = Vec::with_capacity(culling.len() * CULLING_STRIDE);
-    for node in &culling {
-        for a in 0..3 {
-            flat.push(json!(node.min[a]));
-        }
-        for a in 0..3 {
-            flat.push(json!(node.max[a]));
-        }
-        for a in 0..4 {
-            flat.push(json!(node.sphere[a]));
-        }
-        flat.push(if node.max_parent_error.is_finite() {
-            json!(node.max_parent_error)
-        } else {
-            json!(-1.0)
-        });
-        flat.push(json!(node.first_child));
-        flat.push(json!(node.child_count));
-        flat.push(json!(node.first_cluster));
-        flat.push(json!(node.cluster_count));
-    }
-    let culling_report = json!({"stride":CULLING_STRIDE,"count":culling.len(),"nodes":flat});
+    let culling_report = culling_report(&culling);
     Ok(DagResult {
         pages,
         cluster_planes,
@@ -192,5 +184,6 @@ pub(super) fn build_dag_primitive(
         structure_report,
         stream_report,
         position_exponent,
+        added_vertices,
     })
 }

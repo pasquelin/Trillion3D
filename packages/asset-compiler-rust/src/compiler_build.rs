@@ -59,17 +59,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         return compiler_reuse::finish(o, &key, reused, started, &progress);
     }
     let mesh_values = values(g, "meshes")?;
-    let view_values = values(g, "bufferViews")?;
     let BufferPlan {
         accessors,
         jobs,
-        access_map,
-        views,
-        view_map,
         estimated_working_bytes,
     } = plan_buffers(o, g, bin, g_bytes, &meshes)?;
-    let (directory, output_views, source_bin) = copy_source_bin(o, bin, view_values, &views, &key)?;
-    let offset = source_bin.bytes as usize;
+    let directory = cache_directory(o, &key)?;
     let import_ms = shared_math::elapsed_ms(started);
     progress(
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
@@ -89,6 +84,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         mesh_scales: &mesh_scales,
         scene_triangles: selected_triangles,
         validated: &accessors,
+        directory: &directory,
         progress: &progress,
     };
     let compiled: Vec<CompiledPrimitive> = pool.install(|| {
@@ -96,8 +92,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             .map(|(old, primitive)| compile_primitive(&primitive_inputs, old, primitive))
             .collect::<Result<Vec<_>>>()
     })?;
-    let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds) =
+    let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds, coarse_vertices) =
         compiler_coplanar::split_compiled(compiled);
+    // `source.bin` is written once the DAG has spoken: a primitive that created vertices
+    // replaces its source attributes with them, so the buffer's layout is only known here.
+    let written = write_source_bin(o, g, bin, &meshes, &directory, &coarse_vertices)?;
+    let offset = written.product.bytes as usize;
     let bootstrap_bundles = {
         let _t = perf::Timer::new(perf::Phase::PageWrite);
         share_bootstrap_bundles(o, &mut primitives)?
@@ -119,12 +119,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         meshes: &meshes,
         chosen: &chosen,
         mesh_map: &mesh_map,
-        accessors: &accessors,
-        access_map: &access_map,
-        view_map: &view_map,
+        accessors: &written.layout.accessors,
+        access_map: &written.layout.access_map,
+        view_map: &written.layout.view_map,
         directory: &directory,
-        output_views: &output_views,
+        output_views: &written.output_views,
         offset,
+        extension: &written.extension,
     })?;
     // Mip chain of each atlas texture and the cutout sheet, on the pool.
     let (texture_previews, texture_preview_report, cutout_report) = stage_textures(
@@ -135,7 +136,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             bin,
             image_root: &image_root,
             meshes: &meshes,
-            view_map: &view_map,
+            view_map: &written.layout.view_map,
             decisions: &decisions,
             applied: &cutouts,
             primitives: &primitives,
@@ -143,9 +144,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         &progress,
     )?;
     // Resident proxy: coarse cuts and previews in hand, node hierarchy still there.
-    let scene_proxy = {
-        let _t = perf::Timer::new(perf::Phase::Manifest);
-        proxy::stage_proxy(&proxy::ProxyInputs {
+    let (proxy_bytes, proxy_sha, proxy_descriptor) = stage_proxy_object(
+        &proxy::ProxyInputs {
             g,
             chosen: &chosen,
             mesh_map: &mesh_map,
@@ -153,23 +153,14 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             cuts: &proxy_cuts,
             thresholds: &proxy_thresholds,
             previews: &texture_previews,
-        })?
-    };
-    progress(
-        json!({"phase":"proxy","completed":1,"total":1,"triangles":scene_proxy.triangle_count(),"nodes":scene_proxy.node_count(),"errorMetres":scene_proxy.error_metres}),
-    );
-    // The proxy is a cache object under its own name, not a sidecar column: a
-    // manifest without it stays readable word for word, and its tens of megabytes
-    // do not delay the first frame of a scene that declares no light.
-    let proxy_bytes = scene_proxy.encode();
-    let proxy_sha = hash(&proxy_bytes);
-    let proxy_descriptor =
-        scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
+        },
+        &progress,
+    )?;
     // Lights declared by the source file, in world space, in the engine contract.
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, scene) =
-        write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
-    let mut products = vec![source_bin, source_gltf, lights];
+        write_autonomous_scene(&directory, &source, &primitives, &written.output_views)?;
+    let mut products = vec![written.product, source_gltf, lights];
     products.extend(scene);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);

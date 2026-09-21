@@ -1,5 +1,8 @@
 use super::*;
 use crate::compiler_primitive_warn::primitive_event;
+use compiler_primitive_attributes::decode_page_attributes;
+use compiler_primitive_weld::prepare_indices;
+use compiler_source_extend::write_coarse_vertices;
 
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
@@ -16,6 +19,8 @@ pub(super) struct PrimitiveInputs<'a> {
     pub scene_triangles: usize,
     /// Accessors that `plan_buffers` has already validated once, on the same bytes.
     pub validated: &'a BTreeSet<usize>,
+    /// Cache folder of this compilation, where a rewritten primitive drops its vertex file.
+    pub directory: &'a Path,
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
 
@@ -28,6 +33,8 @@ pub(super) struct CompiledPrimitive {
     pub proxy_cut: Vec<f32>,
     /// The threshold, in metres, that this cut requested.
     pub proxy_threshold: f64,
+    /// The vertex buffer this primitive rewrote, when its DAG created vertices.
+    pub coarse_vertices: Option<compiler_source_extend::CoarseVertices>,
 }
 
 pub(super) fn compile_primitive(
@@ -45,6 +52,7 @@ pub(super) fn compile_primitive(
         mesh_scales,
         scene_triangles,
         validated,
+        directory,
         progress,
     } = inputs;
     check(o)?;
@@ -73,7 +81,7 @@ pub(super) fn compile_primitive(
     if positions.width != 3 || positions.component != 5126 {
         return Err(invalid("POSITION must be float VEC3"));
     }
-    let (index_values, triangle_count) = if p.get("indices").is_some() {
+    let (mut index_values, triangle_count) = if p.get("indices").is_some() {
         let ids = accessor(
             g,
             bin,
@@ -98,13 +106,9 @@ pub(super) fn compile_primitive(
         }
         ((0..positions.count as u32).collect(), positions.count / 3)
     };
-    let pos = {
+    let mut pos = {
         let _t = perf::Timer::new(perf::Phase::Decode);
         positions.collect_f32()?
-    };
-    let topology = {
-        let _t = perf::Timer::new(perf::Phase::Topology);
-        crate::topology::classify_topology(&index_values, positions.count)?
     };
     let is_skinned_or_morph = p.get("targets").is_some()
         || skinned_meshes.contains(old)
@@ -127,43 +131,20 @@ pub(super) fn compile_primitive(
     let mesh = *mesh_map
         .get(old)
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    let mut attributes = Vec::<geometry_page::Attribute>::new();
-    if !unsplit {
-        for (name, width, flag) in [
-            ("NORMAL", 3, geometry_page::FLAG_NORMAL),
-            ("TEXCOORD_0", 2, geometry_page::FLAG_UV),
-            ("TEXCOORD_1", 2, geometry_page::FLAG_UV1),
-            ("COLOR_0", 4, geometry_page::FLAG_COLOR),
-        ] {
-            if let Some(id) = p
-                .get("attributes")
-                .and_then(Value::as_object)
-                .and_then(|attributes| attributes.get(name))
-            {
-                let a = accessor(g, bin, required_index(Some(id), name)?, Some(validated))?;
-                if a.count != positions.count
-                    || (a.width != width && !(name == "COLOR_0" && a.width == 3))
-                {
-                    return Err(CompilerError::new(
-                        "INVALID_PAGE_ATTRIBUTE",
-                        format!("{name} count or width differs from POSITION"),
-                    ));
-                }
-                attributes.push(geometry_page::Attribute {
-                    flag,
-                    width: a.width,
-                    values: a.collect_f32()?,
-                });
-            }
-        }
-    }
-    let carried = carried_attributes(&attributes, material);
-    let store_packed = |slice: &[u32], position_exponent: i32| -> Result<(Value, bool)> {
-        compiler_page_object::store_page(o, slice, &pos, &carried, position_exponent)
-    };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.
     let dag_primitive = !unsplit;
+    let mut attributes = if dag_primitive {
+        decode_page_attributes(g, bin, p, positions.count, validated)?
+    } else {
+        Vec::new()
+    };
+    // One vertex per (position, attributes) tuple, whatever the source format wrote
+    // (`compiler_primitive_weld.rs`); the surface is the same, the DAG sees one mesh.
+    let (weld, topology) = {
+        let _t = perf::Timer::new(perf::Phase::Topology);
+        prepare_indices(dag_primitive, &pos, &attributes, &mut index_values)?
+    };
     let scale = mesh_scales.get(old).copied();
     let demand = crate::proxy::cut::cut_demand(
         scale,
@@ -183,11 +164,24 @@ pub(super) fn compile_primitive(
         structure_report,
         stream_report,
         position_exponent,
+        added_vertices,
     } = if dag_primitive {
-        build_dag_primitive(o, &pos, &attributes, &index_values, demand, &store_packed)?
+        build_dag_primitive(
+            o,
+            material,
+            &mut pos,
+            &mut attributes,
+            &index_values,
+            demand,
+        )?
     } else {
         DagResult::default()
     };
+    // A DAG that created vertices carries them in the compiled scene: the primitive's vertex
+    // buffer is rewritten with the source vertices first (`compiler_source_extend.rs`).
+    let coarse_vertices = (added_vertices > 0)
+        .then(|| write_coarse_vertices(directory, (*old, *primitive), &pos, &attributes))
+        .transpose()?;
     progress(primitive_event(mesh, *primitive, pages.len(), &warnings));
     let quantization = compiler_page_object::quantization_report(&pages, position_exponent);
     Ok(CompiledPrimitive {
@@ -195,6 +189,7 @@ pub(super) fn compile_primitive(
         proxy_cut,
         // The threshold is back in object space: it goes out in metres for the report.
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
-        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
+        coarse_vertices,
+        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"vertices":weld.map_or(Value::Null,|weld|json!({"source":positions.count,"used":weld.vertices,"welded":weld.welded,"weldRefused":weld.refused,"coarse":added_vertices})),"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }

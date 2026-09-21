@@ -12,6 +12,8 @@ pub(super) struct SourceSceneInputs<'a> {
     pub directory: &'a Path,
     pub output_views: &'a [Value],
     pub offset: usize,
+    /// Primitives whose vertices the DAG rewrote, and the accessors that now read them.
+    pub extension: &'a [compiler_source_extend::ExtensionViews],
 }
 
 pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value, Product)> {
@@ -27,15 +29,20 @@ pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value
         directory,
         output_views,
         offset,
+        extension,
     } = inputs;
     let mut source = g.clone();
     let mut output_meshes = Vec::new();
+    // Accessors of the rewritten primitives, ranked after those the scene keeps.
+    let mut extra_accessors: Vec<Value> = Vec::new();
     for id in meshes {
         let mut mesh = item(values(&source, "meshes")?, *id, "mesh")?.clone();
-        for p in mesh
+        for (rank, p) in mesh
             .get_mut("primitives")
             .and_then(Value::as_array_mut)
             .ok_or_else(|| invalid("mesh.primitives is required"))?
+            .iter_mut()
+            .enumerate()
         {
             if p.get("indices").is_some() {
                 let old = required_index(p.get("indices"), "primitive.indices")?;
@@ -43,16 +50,26 @@ pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value
                     .get(&old)
                     .ok_or_else(|| invalid("Missing accessor mapping"))?);
             }
-            for v in p
-                .get_mut("attributes")
-                .and_then(Value::as_object_mut)
-                .ok_or_else(|| invalid("primitive.attributes is required"))?
-                .values_mut()
-            {
-                let old = required_index(Some(v), "primitive attribute")?;
-                *v = json!(*access_map
-                    .get(&old)
-                    .ok_or_else(|| invalid("Missing accessor mapping"))?);
+            if let Some(rewritten) = extension.iter().find(|e| e.primitive == (*id, rank)) {
+                let mut attributes = serde_json::Map::new();
+                for (name, accessor) in &rewritten.attributes {
+                    let rank = accessors.len() + extra_accessors.len();
+                    attributes.insert(name.to_string(), json!(rank));
+                    extra_accessors.push(accessor.clone());
+                }
+                p["attributes"] = Value::Object(attributes);
+            } else {
+                for v in p
+                    .get_mut("attributes")
+                    .and_then(Value::as_object_mut)
+                    .ok_or_else(|| invalid("primitive.attributes is required"))?
+                    .values_mut()
+                {
+                    let old = required_index(Some(v), "primitive attribute")?;
+                    *v = json!(*access_map
+                        .get(&old)
+                        .ok_or_else(|| invalid("Missing accessor mapping"))?);
+                }
             }
             if let Some(targets) = p.get_mut("targets").and_then(Value::as_array_mut) {
                 for target in targets {
@@ -115,6 +132,7 @@ pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value
         }
         output_accessors.push(a);
     }
+    output_accessors.extend(extra_accessors);
     source["accessors"] = Value::Array(output_accessors);
     if let Some(skins) = source.get_mut("skins").and_then(Value::as_array_mut) {
         for skin in skins {
