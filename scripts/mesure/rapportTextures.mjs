@@ -4,7 +4,7 @@ const n = (v) => (typeof v === 'number' ? String(v) : 'unmeasured');
 const n2 = (v) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
 
 /**
- * Virtual textures of one side, read from the sixteen counters the engine publishes. The pool is
+ * Virtual textures of one side, read from the nineteen counters the engine publishes. The pool is
  * COMPUTED from its dimensions and format — WebGPU does not publish occupied memory — and it is
  * fixed: "resident on pool" says what the view occupies, never what the scene weighs. Image
  * feedback says what the pixels asked for and what they are missing; "unmeasured" is not zero.
@@ -26,9 +26,10 @@ export function textures(metrics, resultat = {}) {
       `atlas; resident ${go(m.textureResidentBytes)} in ${n(m.textureTilesResident)} tiles`,
     `- Image feedback: ${n(m.textureTilesRequested)} tiles requested, ${n(m.textureTilesAtLevel)} ` +
       `served at the requested level, ${n2(m.textureMissingLevels)} missing level(s) on average, ` +
-      `${n(m.textureTilesPending)} pending`,
+      `${n(m.textureTilesPending)} pending, ${n(m.textureTilesDeferred)} deferred by the budget`,
     `- Streamer: ${n(m.textureTilesServed)} tiles served, ${n(m.textureTilesEvicted)} evicted, ` +
-      `${n(m.textureTilesRefused)} refused; last pass ${mo(m.textureBytesLastFrame)}; ` +
+      `${n(m.textureTilesRefused)} refused; last pass ${mo(m.textureBytesLastFrame)} in ` +
+      `${n2(m.textureUploadMs)} ms, worst pass ${n2(m.textureUploadPeakMs)} ms; ` +
       `baked levels ${n(m.textureLevelReads)} in read, ${n(m.textureLevelsDecoded)} decoded, ` +
       `${mo(m.textureLevelCacheBytes)} held; ${n(m.textureScratchBuilds)} scratch textures`,
     `- Prepare ${preparation}; network since prepare: ${reseau}`,

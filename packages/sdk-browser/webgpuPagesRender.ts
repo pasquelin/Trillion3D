@@ -48,8 +48,9 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // path that does not go through it — CPU cut, surface capture, pending image — remakes everything.
   run.cutHeld = false;
   setWindingEpoch(rows.tableEpoch);
-  // What the previous image's feedback requested becomes resident, under the budget. It is bounded
-  // on its own, the one bound the textures stage reads; `worldMs` below measures the world step alone.
+  // What the previous image's feedback requested becomes resident, under the budgets. The pass
+  // times itself on its budget clock — the one bound the textures stage reads —; the marks only
+  // keep `worldMs` below to the world step alone.
   marks.gateEnd = performance.now();
   pumpResidentTiles(vis.textures, run.frame, run.textureConverging);
   marks.tilesEnd = performance.now();
