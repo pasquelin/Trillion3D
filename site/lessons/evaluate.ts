@@ -8,7 +8,7 @@ import {
   perspectiveProjection,
   transformHomogeneousPoint,
 } from '../demos/engine.ts';
-import { evaluateDetail, type DetailResult } from './evaluateDetail.ts';
+import { evaluateDetail, round, type DetailResult } from './evaluateDetail.ts';
 import {
   evaluateAdvanced,
   transforms,
@@ -77,7 +77,6 @@ export type EvaluationResult =
 const rad = (degrees: number) => (degrees * Math.PI) / 180;
 const matrix = () => new Float64Array(16);
 const vec = (x = 0, y = 0, z = 0) => new Float64Array([x, y, z]);
-const round = (value: number) => Number(value.toFixed(3));
 const vector = (angle: number): number[] => [Math.cos(rad(angle)), Math.sin(rad(angle)), 0];
 
 function camera(id: string, state: ScenarioState): PerspectiveResult | FrustumResult {

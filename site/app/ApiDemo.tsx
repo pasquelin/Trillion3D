@@ -141,7 +141,7 @@ export function ApiDemo({ demo, locale = 'en' }: { demo: DemoDef; locale?: Local
   const controls = demo.controls ?? [];
   const initial = (): DemoState =>
     Object.fromEntries(controls.map((control) => [control.name, control.value]));
-  const [state, setState] = useState<DemoState>(initial);
+  const [state, setState] = useState(initial);
   const views = useMemo(() => demo.run(state) ?? [], [demo, state]);
   return (
     <section className="api-demo">
