@@ -2,6 +2,7 @@
 // changes, instead of a 3×3 determinant recomputed on every read. Oracle: the uncached version from
 // before lot A, in `bench/oracles/pages-webgpu.ts`.
 import test from 'node:test';
+import { asHostLibrary } from './hostResources.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { setWindingEpoch, windingCw } from './webgpuPagesWinding.ts';
@@ -9,7 +10,7 @@ import { referenceWindingCw } from './bench/oracles/pages-webgpu.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 function rec(matrix: THREE.Matrix4): PageRec {
-  return { matrix } as PageRec;
+  return { matrix } as unknown as PageRec;
 }
 
 test('the identity matrix and a mirrored (negative-scale) matrix agree with the reference', () => {
@@ -28,7 +29,7 @@ test('a cached value from an old epoch is recomputed, and a same-epoch read reus
   assert.equal(page.windingEpoch, 5);
   // Same epoch, matrix mutated without going through the cache: the cached (stale) value still
   // comes back, exactly the point of memoising it on the record.
-  page.matrix.makeScale(1, 1, -1);
+  asHostLibrary<THREE.Matrix4>(page.matrix).makeScale(1, 1, -1);
   assert.equal(windingCw(page), first, 'same epoch: the memoised value is reused, not recomputed');
   setWindingEpoch(6);
   assert.equal(
