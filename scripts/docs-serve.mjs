@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { buildDocs } from './docs/bundles.mjs';
 const root = resolve(import.meta.dirname, '../docs');
 const types = {
   '.html': 'text/html',
@@ -14,7 +15,9 @@ const types = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
 };
-export function createDocsServer() {
+/** The bundles are not committed on develop: every server builds them from the sources first. */
+export async function createDocsServer() {
+  await buildDocs(resolve(root, '..'));
   return createServer(async (request, response) => {
     try {
       const name = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
@@ -34,6 +37,6 @@ export function createDocsServer() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
-  createDocsServer().listen(Number(process.env.PORT ?? 4177), '127.0.0.1', () =>
+  (await createDocsServer()).listen(Number(process.env.PORT ?? 4177), '127.0.0.1', () =>
     console.log(`Learning portal: http://127.0.0.1:${process.env.PORT ?? 4177}`),
   );
