@@ -67,6 +67,53 @@ test('configureSceneCamera clamps the distance and leaves wheel zoom enabled', a
   assert.equal(controls.maxDistance, 25);
 });
 
+test('zoom buttons scale the offset from the controls target, the pivot the wheel uses', async () => {
+  const { configureSceneCamera } = await import('../docs/js/engine-scene/cameraControls.js');
+  // A mutating vector with the operations the helper uses, as Three's Vector3 behaves.
+  const vector = (x, y, z) => ({
+    x,
+    y,
+    z,
+    clone() {
+      return vector(this.x, this.y, this.z);
+    },
+    copy(v) {
+      return Object.assign(this, { x: v.x, y: v.y, z: v.z });
+    },
+    sub(v) {
+      return Object.assign(this, { x: this.x - v.x, y: this.y - v.y, z: this.z - v.z });
+    },
+    add(v) {
+      return Object.assign(this, { x: this.x + v.x, y: this.y + v.y, z: this.z + v.z });
+    },
+    length() {
+      return Math.hypot(this.x, this.y, this.z);
+    },
+    setLength(l) {
+      const k = l / this.length();
+      return Object.assign(this, { x: this.x * k, y: this.y * k, z: this.z * k });
+    },
+  });
+  const controls = {
+    target: vector(0, 3, 0),
+    object: { position: vector(0, 3, 10) },
+    minDistance: 1,
+    maxDistance: 25,
+    update() {},
+  };
+  const explorer = { center: vector(0, 0, 0), resetHome() {} };
+  const camera = configureSceneCamera(explorer, controls);
+  const offset = () => controls.object.position.clone().sub(controls.target);
+  camera.zoomIn();
+  assert.deepEqual([offset().x, offset().y, offset().z], [0, 0, 8]);
+  camera.zoomOut();
+  camera.zoomOut();
+  camera.zoomOut();
+  assert.equal(offset().length(), 15.625);
+  for (let i = 0; i < 8; i++) camera.zoomOut();
+  assert.equal(offset().length(), controls.maxDistance);
+});
+
 test('RendererViewport offers every shared diagnostic mode with the scene copy of each locale', async () => {
   const { RendererViewport } = await loadReactComponents('docs/react/gallery/RendererViewport.jsx');
   for (const locale of ['en', 'fr']) {
