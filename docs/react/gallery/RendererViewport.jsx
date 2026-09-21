@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Canvas } from '../components/Canvas.jsx';
-import { Alert } from '../components/UI.jsx';
+import { Alert, Select } from '../components/UI.jsx';
 import { Stat, StatGroup } from '../components/Stats.jsx';
 import { createRendererLessonRuntime } from '../../js/gallery/rendererLessonRuntime.js';
 import { syncRendererState } from '../../js/gallery/syncRendererState.js';
+import { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
+import { sceneCopy } from '../../js/engine-scene/content.js';
 
 const value = (number, suffix, digits = 0) =>
   Number.isFinite(number) ? `${number.toFixed(digits)}${suffix}` : '—';
@@ -19,21 +21,10 @@ const errorMessage = (error, locale, action) => {
   return error instanceof Error && error.message ? `${fallback} ${error.message}` : fallback;
 };
 
-const DIAGNOSTIC_MODES = [
-  { id: 'beauty', en: 'Image', fr: 'Image' },
-  { id: 'wireframe', en: 'Triangles', fr: 'Triangles' },
-  { id: 'clusters', en: 'Clusters', fr: 'Groupes' },
-  { id: 'pages', en: 'Pages', fr: 'Pages' },
-  { id: 'lod', en: 'Level of detail', fr: 'Niveau de détail' },
-  { id: 'screen-error', en: 'Screen error', fr: 'Erreur écran' },
-  { id: 'visibility', en: 'Visibility', fr: 'Visibilité' },
-];
-
 export function RendererViewport({ lesson, state, locale, label }) {
   const canvas = useRef(null),
     runtime = useRef(null),
     latest = useRef(state),
-    [diagnostic, setDiagnostic] = useState('beauty'),
     [metrics, setMetrics] = useState({}),
     [error, setError] = useState(''),
     [pending, setPending] = useState(true);
@@ -45,7 +36,6 @@ export function RendererViewport({ lesson, state, locale, label }) {
     setError('');
     setMetrics({});
     setPending(true);
-    setDiagnostic('beauty');
     createRendererLessonRuntime({
       canvas: canvas.current,
       lesson,
@@ -79,11 +69,14 @@ export function RendererViewport({ lesson, state, locale, label }) {
       ?.update(state)
       .catch((error) => setError(errorMessage(error, locale, 'update')));
   }, [state, locale]);
-  const french = locale === 'fr';
-  const onSelectMode = (nextMode) => {
-    setDiagnostic(nextMode);
+  const french = locale === 'fr',
+    copy = sceneCopy[locale] ?? sceneCopy.en;
+  // The runtime reports the mode it draws (a lesson may set it from its own state); the select
+  // shows that report, updated at once on a pick so the control never lags its own change.
+  const onSelectMode = (mode) => {
     try {
-      runtime.current?.setDiagnostic(nextMode);
+      runtime.current?.setDiagnostic(mode);
+      setMetrics((current) => ({ ...current, diagnostic: mode }));
     } catch (err) {
       setError(errorMessage(err, locale, 'update'));
     }
@@ -97,22 +90,21 @@ export function RendererViewport({ lesson, state, locale, label }) {
         pending={pending}
         loadingLabel={locale === 'fr' ? 'Préparation de la scène…' : 'Preparing the scene…'}
         overlay={
-          <div className="canvas-modes absolute top-3 left-3 z-20">
-            <select
-              className="select select-sm bg-base-100/90 shadow-sm text-xs font-medium rounded-box"
-              aria-label={french ? 'Mode de rendu' : 'Render mode'}
-              data-renderer-diagnostic
-              value={diagnostic}
-              disabled={pending}
-              onChange={(e) => onSelectMode(e.target.value)}
-            >
-              {DIAGNOSTIC_MODES.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item[french ? 'fr' : 'en']}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            size="sm"
+            className="bg-base-100/90 shadow-sm text-xs font-medium rounded-box"
+            aria-label={copy.mode}
+            data-renderer-diagnostic
+            value={metrics.diagnostic ?? 'beauty'}
+            disabled={pending}
+            onChange={(event) => onSelectMode(event.target.value)}
+          >
+            {DIAGNOSTIC_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {copy[mode]}
+              </option>
+            ))}
+          </Select>
         }
         actions={[
           {
