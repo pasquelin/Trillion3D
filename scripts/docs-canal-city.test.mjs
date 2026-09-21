@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { canalCity } from './docs/canal-city/model.mjs';
 import { writeCanalCity } from './docs/canal-city/write.mjs';
 const root = resolve(import.meta.dirname, '..'),
-  published = resolve(root, 'docs/assets/gallery/offline/city');
+  published = resolve(root, 'site/assets/gallery/offline/city');
 
 test('canal city is deterministic, detailed, and keeps every authored material group', () => {
   const first = canalCity(),
