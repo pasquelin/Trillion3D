@@ -18,8 +18,9 @@ import {
  *
  * One buffer per atlas, in words: `[feedback offset, textures, start of entries, start of
  * levels]`, then four words per texture (`width | height << 16`, first tail level, last level,
- * tail place), then sixteen words per texture (the first word of each streamed level, absolute),
- * then the entries. Writes go out per texture, over the span it has touched since the last flush.
+ * tail place with the texture's pool tap in its top byte), then sixteen words per texture (the
+ * first word of each streamed level, absolute), then the entries. Writes go out per texture, over
+ * the span it has touched since the last flush.
  */
 export const PAGE_HEADER_WORDS = 4;
 export const PAGE_SLOT_WORDS = 4;
@@ -35,7 +36,8 @@ export type WebgpuTilePageTable = {
   /** Feedback rank of a tile, and the inverse — both ends of the same list. */
   feedbackIndexOf(key: TileKey): number;
   tileOf(feedbackIndex: number): TileKey;
-  setTail(slot: number, place: TilePlace): void;
+  /** The tail's place, and the tap every tile of the texture — this one included — is read by. */
+  setTail(slot: number, place: TilePlace, tap: number): void;
   setTile(key: TileKey, place: TilePlace): void;
   clearTile(key: TileKey): void;
   /** Sends the GPU what has changed; nothing when nothing moved. */
@@ -137,9 +139,9 @@ export function createWebgpuTilePageTable(
         rank = local - layout.offsets[level];
       return { slot: lo, level, tx: rank % tw, ty: Math.floor(rank / tw) };
     },
-    setTail(slot, place) {
+    setTail(slot, place, tap) {
       const header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS;
-      write(slot, header + 3, place.x | (place.y << 8) | (place.layer << 16));
+      write(slot, header + 3, place.x | (place.y << 8) | (place.layer << 16) | (tap << 24));
     },
     setTile(key, place) {
       const word = packEntry(place, key.level);

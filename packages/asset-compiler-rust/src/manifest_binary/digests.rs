@@ -3,7 +3,7 @@
 use super::{
     bad, is_digest, Result, BUNDLE_SHA, GEOMETRY_SHA, HEADER_WORDS, MANIFEST_BINARY_MAGIC,
     MANIFEST_BINARY_VERSION, PAGE_SHA, PREVIEW_BAKED, PREVIEW_FIRST_LEVEL, PREVIEW_KIND,
-    PREVIEW_WORDS, TEXTURE_PREVIEW_SHA, TEXTURE_PREVIEW_U32,
+    PREVIEW_LAYOUTS, PREVIEW_WORDS, TEXTURE_PREVIEW_SHA, TEXTURE_PREVIEW_U32,
 };
 
 /// Every object digest a binary sidecar names: the PAGE, GEOMETRY and BUNDLE sha columns, 64 ASCII
@@ -30,6 +30,8 @@ pub struct BakedLevels {
     pub first: u32,
     /// Levels written as files, `0..baked`.
     pub baked: u32,
+    /// Layout word of each family (`Layout::word`): 0 where the chain is lossless.
+    pub layouts: [u32; 2],
 }
 
 /// Baked level files a binary sidecar names, one entry per (texture, atlas) pair.
@@ -51,6 +53,10 @@ pub fn texture_levels(bytes: &[u8]) -> Result<Vec<BakedLevels>> {
                 kind: word(entry, PREVIEW_KIND),
                 first: word(entry, PREVIEW_FIRST_LEVEL),
                 baked: word(entry, PREVIEW_BAKED),
+                layouts: [
+                    word(entry, PREVIEW_LAYOUTS),
+                    word(entry, PREVIEW_LAYOUTS + 1),
+                ],
             })
         })
         .collect()

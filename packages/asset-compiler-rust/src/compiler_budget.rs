@@ -63,6 +63,7 @@ mod tests {
             threads: 1,
             ram_budget_mb,
             simplification: "none".into(),
+            texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
             cancelled: Arc::new(AtomicBool::new(false)),
         };
         (id.to_string(), options)

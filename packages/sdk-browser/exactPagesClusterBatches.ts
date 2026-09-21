@@ -1,11 +1,14 @@
-import type { BackendContext } from './backendTypes.ts';
+import type { BackendContext, HostDrawOutput } from './backendTypes.ts';
+import type { HostDrawCamera } from './cameraWorld.ts';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
-import { clusterWebglCompatibility, ownedSceneCopy } from './webglClusterCompatibility.ts';
+import { clusterWebglCompatibility } from './webglClusterCompatibility.ts';
 import { clusterRefusal } from './webglClusterRefusal.ts';
 import { WebglClusterOwner } from './webglClusterOwner.ts';
 
 type HostScene = ConstructorParameters<typeof ClusterBatches>[0];
-type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[number];
+type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[number] & {
+  userData: { sourceGeometry?: unknown; sourceMaterial?: unknown };
+};
 
 /**
  * The batches of a prepared scene and their one draw owner. A scene the owner cannot draw in
@@ -13,9 +16,10 @@ type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[nu
  * draws paged clusters and a partial image is not an option. Without a context there is no
  * owner: the cut still runs, the draw is refused.
  *
- * A transmissive copy is the owner's and never enters the host scene; the other blended copies
- * still compose on the host pass, and both keep their source geometry and material for the
- * diagnostic modes to restore.
+ * Every scene copy is the owner's and none enters the host scene: the transmissive ones compose
+ * over the frozen backdrop, the blended ones draw after them, and both keep their source
+ * geometry and material for the diagnostic modes to restore. `drawHostGeometry` is the
+ * engine's whole draw.
  */
 export function createExactPagesClusterBatches(
   scene: HostScene,
@@ -27,13 +31,14 @@ export function createExactPagesClusterBatches(
   const reason = gl && clusterWebglCompatibility(gl, pages, blendCopies, scene);
   const refusal = reason ? clusterRefusal(reason) : undefined;
   const owner = gl && !refusal ? new WebglClusterOwner(gl) : undefined;
-  const transmissive: SceneCopy[] = [];
   for (const copy of blendCopies) {
     copy.userData.sourceGeometry = copy.geometry;
     copy.userData.sourceMaterial = copy.material;
-    if (ownedSceneCopy(copy)) transmissive.push(copy);
-    else scene.add(copy);
   }
-  const batches = new ClusterBatches(scene, pages, owner, transmissive);
-  return { batches, refusal, ownedCopies: transmissive.length };
+  const batches = new ClusterBatches(scene, pages, owner, blendCopies);
+  const drawHostGeometry = (camera: HostDrawCamera, output: HostDrawOutput) => {
+    if (refusal) throw refusal;
+    batches.draw(camera, output.toneMapped, true);
+  };
+  return { batches, refusal, drawHostGeometry };
 }

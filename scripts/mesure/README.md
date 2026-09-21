@@ -2,28 +2,29 @@
 
 A single harness for all test batches. One command, no server to start manually, only this repository on the machine: Playwright and esbuild are its dev dependencies, Chrome is the system browser, assets live under `.mesure/assets/`.
 
-    node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
+    node scripts/mesure/banc.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
          --vues generale,sol,rue --images 60 --pixelError 0,1
 
-    node scripts/mesure/campagne.mjs
-    node scripts/mesure/rapportGlobal.mjs --id my-campaign
+    node scripts/mesure/campagne.ts
+    node scripts/mesure/rapportGlobal.ts --id my-campaign
 
 The report is rendered by the bilingual React portal. See the [report publication pipeline](report/README.md)
 for export, immutable campaign staging, provenance and comparison rules. Rebuilding the site does not
 rerun benchmarks.
 
 - `--moteur`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
-  (autonomous-pages-webgl, the autonomous engine decoding geometry pages itself, hence the only one incrementing `pagesDecodedWasm`); it also sets Chromium flags (`optionsCote.mjs`). `webgl2` requires a cache where all primitives are exact clusters: otherwise the compiler leaves `autonomousScene` null and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
+  (autonomous-pages-webgl, the autonomous engine decoding geometry pages itself, hence the only one incrementing `pagesDecodedWasm`); it also sets Chromium flags (`optionsCote.ts`). `webgl2` requires a cache where all primitives are exact clusters: otherwise the compiler leaves `autonomousScene` null and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
   Witnesses to pit on one side via `--moteur-avant`: `three-nu` (Three.js alone, everything drawn every frame) and `three-lod` (Three.js with a three-level `THREE.LOD` per mesh, simplified by meshoptimizer at load: the classic method).
 - `--avant` / `--apres`: a built `dist/` directory, or a git ref. Without `--avant`, a single side is measured; `--apres` defaults to `dist/`.
 - `--moteur-avant` / `--moteur-apres`: per-side engine overrides. This is how the engine is pitted against the Three witness in a single execution — same poses, same lights, same caches, same server —, making `ecartAvantApres` a fidelity metric rather than a cross-campaign comparison. Chromium flags are the union of both sides' requirements.
 - `--scene <name>`: asset scene (`emerald-square` or `whisperwind-village`). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `emerald-square`.
 - `--cache-avant` / `--cache-apres`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
 - `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
-- `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.mjs`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
+- `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
 - `--rebond on|off` (default `off`): enables bounce lighting.
 - `--textures cache|host` (default `host`): `cache` makes WebGPU engine read baked texture mips from cache without opening source images.
 - `--budget-textures <ms>`: CPU milliseconds a frame may spend copying texture tiles into the pools (`maxTextureUploadMsPerFrame`). Without the option, the engine keeps its default (1.0 ms). Tiles beyond the budget wait for the next frame and show their coarser resident level meanwhile; the profile's "Textures" stage gives the pass's p50/p95 and the metrics its worst pass (`textureUploadPeakMs`) and what it deferred (`textureTilesDeferred`). A cold traversal (`--chauffe 0 --camera-mobile --textures cache`) is where it is read: on a still pose the barrier lifts it.
+- `--compression auto|bc7|astc|none` (default `auto`), or per side `--compression-avant` / `--compression-apres`: block family of the WebGPU texture pools, under `--textures cache`. `auto` takes the first family the device samples — the BC family before ASTC 4×4 — that the cache holds kept chains in, `none` keeps every pool RGBA8 (the lossless "before" of a texture comparison), `bc7` or `astc` insist on one and fall back to RGBA8, by name, when the device lacks it. A chain the cook's quality gate left lossless stays in the RGBA8 lane whatever the choice. Two sides on one `dist/` and one cache with `--compression-avant none --compression-apres bc7` measure the family alone; the summary's texture line names the family actually held (`texturePoolFormat`).
 - `--antialiasing on|off` (default `on`): toggles TAA jitter and accumulation.
 - `--profil on|off` (default `on`): requests per-step timing breakdown.
 - `--lampes N`: enables N point lights in the scene. `--ombres on|off` toggles shadow casting; `--lampe-mobile` animates the first light in a circle. `--intensite N` sets light intensity. `--portee F` sets each light's range to `F` grid cells (0.75 by default): above one, several lights reach the same pixel.
@@ -33,7 +34,7 @@ rerun benchmarks.
 
 ## The Three Witness and Contract Lights
 
-Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the public `sceneLighting` option of `createExplorer` (`pageTemoin.mjs`, served to page under `/mesure/` and imported by URL). Nothing is hardcoded: everything comes from `explorer.lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
+Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the public `sceneLighting` option of `createExplorer` (`pageTemoin.ts`, served to page under `/mesure/` and imported by URL). Nothing is hardcoded: everything comes from `explorer.lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
 
 The mapping is exact in Three units: linear color, unscaled radiometric intensity, `distance` = range, `decay` = 2, yielding windowed inverse square of `directIncidence`; spotlight cone edge is matched by penumbra. Each side publishes in its `lampesTemoin` record what it received, or `null` if not rendered with Three.
 
@@ -77,7 +78,7 @@ Finer than the stages, `series[].sides[].bornesCpu` holds the engine's CPU bound
 
 "GPU Memory" section reports allocated and un-freed VRAM per side and view — textures and buffers tracked via device wrapper register, WebGPU having no native VRAM query —, split into three named categories (computed texture atlas, allocated geometry pool, resolution-dependent render targets), remaining by difference, with top labeled allocations; full breakdown in `series[].sides[].metrics.gpuAllocatedByLabel`. The nineteen virtual texture counters appear under each stage ("Textures", "Image Feedback", "Broadcaster"): pool is fixed, "resident" is active view usage.
 
-Capture is taken on a **still pose**: after warmup, pose renders until held — temporal accumulation converged, no pending work —, max 64 frames (`poseCalme`, `pageMesure.mjs`). Mid-accumulation captures reflect trajectory history with non-deterministic tile streaming across runs. `series[].sides[].imagesCalme` records required frame count, `null` if engine does not hold frames (Three witness).
+Capture is taken on a **still pose**: after warmup, pose renders until held — temporal accumulation converged, no pending work —, max 64 frames (`poseCalme`, `pageMesure.ts`). Mid-accumulation captures reflect trajectory history with non-deterministic tile streaming across runs. `series[].sides[].imagesCalme` records required frame count, `null` if engine does not hold frames (Three witness).
 
 Each series runs in a fresh page, closed immediately after. Emerald scene leaves hundreds of MBs active; reusing pages causes `new THREE.WebGLRenderer` to fail context creation ("Error creating WebGL context", observed Sept 14, 2026). Closing page restores WebGL context and heap to browser.
 
@@ -87,7 +88,7 @@ Harness serves `.mesure/assets/` (gitignored; `WG_ASSETS` points to alternative 
 
     pnpm run build && pnpm run build:native
     WEB_GEOMETRY_COMPILER_BIN=packages/asset-compiler-rust/target/release/web-geometry-compiler \
-    node dist/sdk-node/cli.mjs .mesure/assets/emerald-square/emerald-day.gltf \
+    node dist/sdk-node/cli.ts .mesure/assets/emerald-square/emerald-day.gltf \
          .mesure/assets/emerald-square-derived full 150000 /benchmark-assets/emerald-square/
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.

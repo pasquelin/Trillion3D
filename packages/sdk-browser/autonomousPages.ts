@@ -8,6 +8,7 @@ import { createAutonomousInstances } from './autonomousInstances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './autonomousManifest.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
+import { createThreeSceneDraw } from './threeSceneAdapter.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 
@@ -45,7 +46,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     colorMaterials = new Map<THREE.Material, THREE.Material>();
   const modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
-    gate = createWebglFrameGate();
+    gate = createWebglFrameGate(),
+    hostDraw = createThreeSceneDraw(context.webglContext, scene);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
     scene,
@@ -137,8 +139,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       sync();
     },
     render(camera) {
+      hostDraw.render(camera);
       if (ready) renderFrame(camera);
     },
+    drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
     ...sceneLightingApi(lighting, gate.sceneChanged),
     ...residency,
@@ -170,6 +174,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         frustumRejected: state.frustumRejected,
         lodLevel: state.lodLevel,
         submittedTriangles: geometryStore.state.submittedTriangles,
+        totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
         drawCalls: shown.length,
         coverageReady: ready,
         coverageBudgetLimited: state.overBudget,
@@ -178,6 +183,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     dispose() {
       ready = false;
+      hostDraw.dispose();
       for (const rec of allPages) {
         detach(rec);
         rec.geometry?.dispose();
@@ -187,6 +193,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       }
       for (const material of colorMaterials.values()) material.dispose();
       scene.clear();
+      gate.release();
     },
   };
 };

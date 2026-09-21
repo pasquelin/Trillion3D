@@ -6,6 +6,7 @@ import {
   rasterVisibilityIds,
   shadeVisibility,
   VIS_SHADER,
+  type VisPage,
 } from './visibilityBuffer.ts';
 import { camera, quadPages, centerId } from './visibilityBufferFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';

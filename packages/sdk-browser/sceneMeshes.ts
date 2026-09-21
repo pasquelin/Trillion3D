@@ -9,6 +9,11 @@ export function meshes(source: THREE.Object3D) {
   });
   return found;
 }
+/** The textures a host material carries, whatever their slot: what its renderer would sample. */
+export function* materialTextures(material: THREE.Material): Generator<THREE.Texture> {
+  for (const value of Object.values(material))
+    if ((value as THREE.Texture | null)?.isTexture) yield value as THREE.Texture;
+}
 export function geometryBytes(geometry: THREE.BufferGeometry, seen: Set<ArrayBufferView>) {
   let bytes = 0;
   const index = geometry.getIndex();

@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
-import type { HostCamera } from './cameraWorld.ts';
+import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
+import type { HostDrawOutput } from './webglRenderTarget.ts';
 import type {
   BackendCapabilities,
   ClusterManifest,
@@ -10,7 +11,7 @@ import type {
 import type { BackendMetrics } from './backendMetricKeys.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 import type { CpuStepSummary } from './cpuProfile.ts';
-export type { BackendCapabilities };
+export type { BackendCapabilities, HostDrawOutput };
 
 export interface RenderBackend {
   id: string;
@@ -33,12 +34,10 @@ export interface RenderBackend {
   setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
-  /** Draws engine-owned geometry (clusters, diagnostic pages, transmissive copies) into the
-   *  host's bound framebuffer; the host clears first and draws its remaining scene after. */
-  drawHostGeometry?(
-    camera: import('./cameraWorld.ts').HostDrawCamera,
-    output: { encodeSrgb: boolean; toneMapped: boolean },
-  ): void;
+  /** Draws the engine's whole image — paged clusters, diagnostic pages, scene copies, or the
+   *  scene a witness holds — into the framebuffer the host has bound and cleared, `output`
+   *  naming it and its display chain. Absent from an engine that presents its own surface. */
+  drawHostGeometry?(camera: HostDrawCamera, output: HostDrawOutput): void;
   readonly overBudget: boolean;
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
@@ -152,38 +151,38 @@ export interface BackendContext {
   gpuCanvas?: HTMLCanvasElement; // a host canvas dedicated to this WebGPU backend
   /** Engine-owned host context. WebGL backends may allocate resources on it but never replace it. */
   webglContext?: WebGL2RenderingContext;
-  /** Texture-tile bytes admitted per frame. */
+  /** Texture-tile bytes admitted per frame, and CPU milliseconds a frame's tile pass may spend
+   *  copying; the rest waits. */
   maxTextureTransferBytesPerFrame?: number;
-  /** CPU milliseconds a frame's tile pass may spend copying; the rest waits. */
   maxTextureUploadMsPerFrame?: number;
   /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root cover
-   *  always fits; the rest draws coarser when it does not fit. Image targets follow resolution. */
+   *  always fits; the rest draws coarser when it does not fit. Image targets follow resolution.
+   *  The ceiling: the largest pool `setMemoryBudgets` may ask for, the starting budget without
+   *  it; per-drawable-page tables are sized once, to it. */
   geometryPoolBytes?: number;
-  /** The largest geometry pool a `setMemoryBudgets` may ask for during the session;
-   *  the starting budget without it. Per-drawable-page tables are sized once, to it. */
   geometryPoolCeilingBytes?: number;
-  /** Virtual-texture pool bytes, shared between the colour atlas and the data atlas;
-   *  512 MiB by default. What a view asks beyond that waits for a less-looked-at tile
-   *  to free, and a missing tile shows its coarse level. */
+  /** Virtual-texture pool bytes, shared by the colour and data atlases; 512 MiB by default. A
+   *  view beyond it waits for a less-looked-at tile, a missing tile shows its coarse level.
+   *  `textureCompression`: the pools' block family, `'auto'` what the device samples. */
   texturePoolBytes?: number;
+  textureCompression?: import('./textureBlockFormats.ts').TextureCompression;
   /** Temporal antialiasing, on by default as in the reference: `false` renders the
    *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
   temporalAntialiasing?: boolean;
   sceneLighting?: THREE.Object3D;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
-  /** Identifiers of the lights the source file carried, in cache order. The host rereads
-   *  them via `explorer.importedLights()` to set or remove them one by one. */
+  /** Identifiers of the lights the source file carried, in cache order; the host rereads them
+   *  via `explorer.importedLights()` to set or remove them one by one. */
   importedLightIds?: string[];
-  /** Bounced light, off by default: its step stays above the measured one-millisecond bar. */
+  /** Bounced light, off by default: its step stays above the measured one-millisecond bar. Its
+   *  budget: the step's target GPU milliseconds per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms)
+   *  by default — a target, not a promise. */
   bounce?: boolean;
-  /** Target duration of the "Bounce" step on the GPU, per frame, in milliseconds.
-   *  Default `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target, not a promise. */
   bounceBudgetMs?: number;
   /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
   stageProfile?: boolean;
-  /** DIAGNOSTIC variant kept by the host, already checked (`diagnosticGpuVariant.ts`).
-   *  Absent in production: an engine without it encodes exactly what it used to encode. */
+  /** DIAGNOSTIC variant kept by the host, checked (`diagnosticGpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: DiagnosticGpuVariant;
   /** Shadows-step budget, in GPU milliseconds per frame (`LIGHT_SETTINGS`); page-by-page
    *  shadow-map invalidation, on by default. */

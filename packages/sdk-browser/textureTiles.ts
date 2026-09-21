@@ -9,7 +9,8 @@ import { previewFirstLevel, previewLastLevel, previewLevelSize } from '../sdk-co
  * A tile carries 128×128 useful texels and a 4-texel gutter on each side, copied from
  * neighbours of the same level: linear filtering at a tile edge thus reads neighbouring
  * texels, not those of the next tile in the pool. A pool layer stores 30×30 tiles; what
- * remains of 4096 is unused.
+ * remains of 4096 is unused. Every measure is a multiple of four: a block-compressed pool
+ * (`textureBlockFormats.ts`) copies whole 4×4 blocks, and its tiles land on block boundaries.
  *
  * A texture's levels split in two: STREAMED levels, from 0 through the last that exceeds
  * 64 texels, cut into resident tiles on demand; and the TAIL, from the first level whose
@@ -23,8 +24,11 @@ export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER;
 const TILES_PER_ROW = 30;
 export const POOL_LAYER_SIDE = TILES_PER_ROW * TILE_PITCH;
 export const TILES_PER_LAYER = TILES_PER_ROW * TILES_PER_ROW;
-export const TILE_BYTES = TILE_PITCH * TILE_PITCH * 4;
-export const POOL_LAYER_BYTES = POOL_LAYER_SIDE * POOL_LAYER_SIDE * 4;
+/** Bytes of a tile and of a layer, for a pool whose texel costs `texelBytes` — four in RGBA8,
+ *  one in a block format: memory follows the format, the tile geometry does not. */
+export const tileBytes = (texelBytes: number) => TILE_PITCH * TILE_PITCH * texelBytes;
+export const poolLayerBytes = (texelBytes: number) =>
+  POOL_LAYER_SIDE * POOL_LAYER_SIDE * texelBytes;
 /** Most levels a texture may have: 2^15 texels a side, the device limit. */
 export const MAX_LEVELS = 16;
 
@@ -38,10 +42,12 @@ export function tilesAt(width: number, height: number, level: number): [number, 
 }
 
 /**
- * Where a tail level starts in its tile, by rank from the first: 0, then 64, 96,
- * 112, 120, 124, 126. Each level sits to the right of the previous, and the whole fits under 128.
+ * Where a tail level starts in its tile, by rank from the first: 0, then 64, 96, 112, 120, 124,
+ * 128. Each level sits to the right of the previous, on a multiple of four so a block-compressed
+ * level lands on a block boundary; the 1×1 level therefore starts at 128, and its padded block
+ * ends at 132, inside the gutter. The shader (`webgpuTileWgsl.ts`) applies the same rule.
  */
-export const tailOffset = (rank: number) => (rank === 0 ? 0 : TILE_SIZE - (TILE_SIZE >> rank));
+export const tailOffset = (rank: number) => (TILE_SIZE - (TILE_SIZE >> rank) + 3) & ~3;
 
 /** Layout of a texture: its streamed levels, their table entries, and its tail. */
 export type TileLayout = {

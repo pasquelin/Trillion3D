@@ -7,7 +7,7 @@ import {
   manifestBinaryRanges,
   writeSha,
 } from './manifestBinaryLayout.ts';
-import { encodePreviewColumns } from './manifestBinaryPreview.ts';
+import { encodePreviewColumns } from './manifestBinaryPreviewEncode.ts';
 import { slimBinaryOf } from './manifestBinaryTypes.ts';
 import type {
   ManifestBinaryDescriptor,
@@ -19,10 +19,7 @@ import type {
  *  descriptor carries an empty `sha256`: only the caller, holding the finished bytes, can hash them. */
 export function encodeManifestBinary(
   manifest: ClusterManifest,
-  descriptor: Omit<
-    ManifestBinaryDescriptor,
-    'version' | 'sha256' | 'bytes' | 'texturePreviews' | 'texturePreviewBytes'
-  >,
+  descriptor: Pick<ManifestBinaryDescriptor, 'url' | 'pageUrl' | 'geometryUrl' | 'bundleUrl'>,
 ): { manifest: SlimClusterManifest; binary: Uint8Array } {
   const counts = countManifest(manifest);
   const { ranges, bytes } = manifestBinaryRanges(counts);
@@ -192,6 +189,8 @@ export function encodeManifestBinary(
         bytes,
         texturePreviews: counts.previews,
         texturePreviewBytes: counts.previewBytes,
+        texturePreviewBc7Bytes: counts.previewBlockBytes.bc7,
+        texturePreviewAstcBytes: counts.previewBlockBytes.astc,
       },
       primitives,
     } as SlimClusterManifest,

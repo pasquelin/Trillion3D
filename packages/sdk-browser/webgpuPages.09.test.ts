@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type { ClusterManifest } from '../sdk-core/index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
@@ -11,7 +12,25 @@ import { cameraMoteur } from './cameraFixture.ts';
 
 test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the disoccluded vis pass', async () => {
   installGpuGlobals();
-  const { source, metadata, indices, associations, geometry, material } = occluderScene();
+  const {
+    source,
+    metadata: occluderMetadata,
+    indices,
+    associations,
+    geometry,
+    material,
+  } = occluderScene();
+  const metadata: ClusterManifest = {
+    ...occluderMetadata,
+    schema: 1,
+    status: 'ready',
+    key: 'occluder',
+    scope: 'full',
+    sourceTriangles: 4,
+    selectedTriangles: 4,
+    selectedNodes: [],
+    totalNodes: 0,
+  };
   const viewport: [number, number] = [32, 32];
   const collected = collectClusterPages(source, metadata, indices, associations);
   const { device, passes, computes, textures, draws } = mockGpu(
@@ -30,18 +49,21 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
     gpuDevice: device,
     maxResidentPages: 4,
     viewport,
-  });
+  }) as ReturnType<typeof webgpuPagesBackend> & {
+    selectedPageIds(): string[];
+    rasterRgba(): Uint8Array;
+    visibilityIds(): Uint32Array;
+  };
   const cam = camera();
   const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport,
-    frame: 1,
   });
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
   assert.ok(textures.some((texture) => texture.format === 'r32float'));
   backend.render(cam);
-  await backend.flush();
+  await backend.flush?.();
   draws.length = 0;
   computes.length = 0;
   backend.render(cam);

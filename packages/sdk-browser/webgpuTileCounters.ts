@@ -1,6 +1,7 @@
 import type { TextureFrameMetrics } from '../sdk-core/index.ts';
 import type { WebgpuTileAtlas } from './webgpuTileAtlas.ts';
 import type { WebgpuTileLevels } from './webgpuTileLevels.ts';
+import type { WebgpuTilePool } from './webgpuTilePool.ts';
 
 /**
  * Streamer counters, held flat by the pass and returned under the metrics contract: what image
@@ -29,14 +30,21 @@ export function createTileCounters() {
       this.lastMs = unbounded ? null : ms;
       if (!unbounded && ms > (this.peakMs ?? -1)) this.peakMs = ms;
     },
-    metrics(atlases: readonly WebgpuTileAtlas[], levels: WebgpuTileLevels | undefined) {
+    metrics(
+      atlases: readonly WebgpuTileAtlas[],
+      levels: WebgpuTileLevels | undefined,
+      family: string,
+    ) {
       const sum = (of: (atlas: WebgpuTileAtlas) => number) =>
         atlases.reduce((total, atlas) => total + of(atlas), 0);
+      const pools = (of: (pool: WebgpuTilePool) => number) =>
+        sum((atlas) => atlas.pools.reduce((total, pool) => total + of(pool), 0));
       const metrics: TextureFrameMetrics = {
-        texturePoolBytes: sum((atlas) => atlas.pool.bytes),
-        texturePoolLayers: atlases[0]?.pool.layers ?? null,
-        textureTilesResident: sum((atlas) => atlas.pool.resident),
-        textureResidentBytes: sum((atlas) => atlas.pool.residentBytes),
+        texturePoolBytes: pools((pool) => pool.bytes),
+        texturePoolFormat: family,
+        texturePoolLayers: pools((pool) => pool.layers),
+        textureTilesResident: pools((pool) => pool.resident),
+        textureResidentBytes: pools((pool) => pool.residentBytes),
         textureTilesRequested: this.requested,
         textureTilesAtLevel: this.atLevel,
         textureMissingLevels: this.missingAverage,

@@ -1,34 +1,36 @@
-import * as THREE from 'three';
 import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type { LightingExperimentRenderState } from './lightingObservationContracts.ts';
 import type { ObservationResources } from './lightingObservationResources.ts';
 import { createObservationTransforms } from './lightingObservationTransforms.ts';
-import { copyElements } from './matrixElements.ts';
-import { vertexShader, fragmentShader } from './lightingObservationShaders.ts';
+import { hostWorldTree } from './hostWorldTree.ts';
+import { geometryBytes, meshes } from './sceneMeshes.ts';
+import type { WholeMesh } from './clusterBatchMesh.ts';
+
+/** What the engine draws for one observed surface: the host geometry, read where the host
+ *  holds it, and an owned placement — no host mesh, no clone. */
+type ObservationMesh = {
+  geometry: WholeMesh['geometry'];
+  matrix: { elements: Float64Array };
+  /** Rank of the observed rectangle; -1 for the glossy sphere. */
+  surface: number;
+  /** Rest pose relative to the base, `base⁻¹ · world`, which each frame recomposes with the base. */
+  restTransform: Float64Array;
+};
 
 export function createObservationMeshes(
   state: LightingExperimentRenderState,
   resources: ObservationResources,
-  source: THREE.Object3D,
+  source: Parameters<typeof meshes>[0],
 ) {
-  const { surfaceCount, expectedIds, uniforms, scene } = resources;
-  const shader = fragmentShader(surfaceCount);
-  const materials: THREE.ShaderMaterial[] = [];
-  // The rest pose is an OWNED buffer, like the three work buffers below: the core's product and
-  // inverse only read and write `Float64Array`s (`mathMatrix4.ts`), and the host library's
-  // matrices are ordinary arrays, copied at the boundaries.
-  const copies: { mesh: THREE.Mesh; surface: number; restTransform: Float64Array }[] = [];
-  const hostWorld = new Float64Array(16),
-    composed = new Float64Array(16);
-  const geometrySet = new Set<THREE.BufferGeometry>();
+  const { surfaceCount, expectedIds } = resources;
+  // Every matrix here is an OWNED buffer: the core's product and inverse only read and write
+  // `Float64Array`s (`mathMatrix4.ts`), and the world poses come from the engine's own tree.
+  const copies: ObservationMesh[] = [];
   const { basis, surfaceBasis, sphereBasis } = createObservationTransforms(state);
   let triangles = 0,
     geometryAllocationBytes = 0;
-  source.updateMatrixWorld(true);
-  const sourceMeshes: THREE.Mesh[] = [];
-  source.traverse((object) => {
-    if ((object as THREE.Mesh).isMesh) sourceMeshes.push(object as THREE.Mesh);
-  });
+  const sourceMeshes = meshes(source),
+    worlds = hostWorldTree(source);
   const indices = sourceMeshes.map((mesh) => {
     const i = expectedIds.indexOf(mesh.name);
     if (i < 0 && mesh.name !== 'glossy_sphere')
@@ -40,82 +42,31 @@ export function createObservationMeshes(
       throw new Error(
         `Lighting experiment requires one source mesh for ${i < 0 ? 'glossy_sphere' : expectedIds[i]}`,
       );
-  try {
-    for (let meshIndex = 0; meshIndex < sourceMeshes.length; meshIndex++) {
-      const original = sourceMeshes[meshIndex],
-        surface = indices[meshIndex];
-      const geometry = original.geometry.clone();
-      geometrySet.add(geometry);
-      const material = new THREE.ShaderMaterial({
-        name: 'lighting-experiment-cache',
-        vertexShader,
-        fragmentShader: shader,
-        uniforms: { ...uniforms, primarySurface: { value: surface } },
-        side: THREE.DoubleSide,
-        transparent: false,
-        depthTest: true,
-        depthWrite: true,
-        toneMapped: true,
-      });
-      materials.push(material);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.name = original.name;
-      mesh.matrixAutoUpdate = false;
-      mesh.frustumCulled = false;
-      mesh.matrix.copy(original.matrixWorld);
-      mesh.renderOrder = meshIndex;
-      scene.add(mesh);
-      // Rest pose relative to the base, `base⁻¹ · world`, which each frame recomposes with the base.
-      const restTransform = new Float64Array(16);
-      invertMatrix4(
-        restTransform,
-        surface >= 0 ? surfaceBasis(surface, basis) : sphereBasis(basis),
-      );
-      copyElements(hostWorld, original.matrixWorld.elements);
-      multiplyMatrix4(restTransform, restTransform, hostWorld);
-      copies.push({ mesh, surface, restTransform });
-      const index = geometry.getIndex(),
-        position = geometry.getAttribute('position');
-      triangles += (index ? index.count : position.count) / 3;
-      if (index) geometryAllocationBytes += index.array.byteLength;
-      const counted = new Set<ArrayBufferView>();
-      for (const attribute of Object.values(geometry.attributes)) {
-        const array =
-          attribute instanceof THREE.InterleavedBufferAttribute
-            ? attribute.data.array
-            : attribute.array;
-        if (!counted.has(array)) {
-          counted.add(array);
-          geometryAllocationBytes += array.byteLength;
-        }
-      }
-    }
-  } catch (error) {
-    materials.forEach((material) => material.dispose());
-    geometrySet.forEach((geometry) => geometry.dispose());
-    resources.dispose();
-    throw error;
+  const counted = new Set<ArrayBufferView>();
+  for (let meshIndex = 0; meshIndex < sourceMeshes.length; meshIndex++) {
+    const original = sourceMeshes[meshIndex],
+      surface = indices[meshIndex],
+      geometry = original.geometry;
+    const restTransform = new Float64Array(16);
+    invertMatrix4(restTransform, surface >= 0 ? surfaceBasis(surface, basis) : sphereBasis(basis));
+    multiplyMatrix4(restTransform, restTransform, worlds.world(original));
+    copies.push({
+      geometry,
+      matrix: { elements: new Float64Array(16) },
+      surface,
+      restTransform,
+    });
+    triangles += (geometry.index ? geometry.index.count : geometry.attributes.position.count) / 3;
+    geometryAllocationBytes += geometryBytes(geometry, counted);
   }
-
-  return {
-    copies,
-    triangles,
-    geometryAllocationBytes,
-    updateTransforms() {
-      for (const copy of copies) {
-        if (copy.surface >= 0) surfaceBasis(copy.surface, basis);
-        else sphereBasis(basis);
-        copyElements(
-          copy.mesh.matrix.elements,
-          multiplyMatrix4(composed, basis, copy.restTransform),
-        );
-        copy.mesh.matrixWorldNeedsUpdate = true;
-      }
-    },
-    dispose() {
-      materials.forEach((material) => material.dispose());
-      geometrySet.forEach((geometry) => geometry.dispose());
-    },
+  const updateTransforms = () => {
+    for (const copy of copies) {
+      if (copy.surface >= 0) surfaceBasis(copy.surface, basis);
+      else sphereBasis(basis);
+      multiplyMatrix4(copy.matrix.elements, basis, copy.restTransform);
+    }
   };
+  updateTransforms();
+  return { copies, triangles, geometryAllocationBytes, updateTransforms };
 }
 export type ObservationMeshes = ReturnType<typeof createObservationMeshes>;
