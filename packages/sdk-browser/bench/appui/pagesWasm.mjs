@@ -6,8 +6,8 @@ import { graine } from '../../../sdk-core/bench/socle.mjs';
 
 const alea = graine(20260915);
 
-/** Finite but hostile floats: signed zero, denormals, and noise in between. */
-function hostiles(n) {
+/** Finite but hostile floats: signed zero, denormals, and noise within `±amplitude / 2`. */
+function hostiles(n, amplitude) {
   const output = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const tirage = Math.floor(alea() * 8);
@@ -15,24 +15,26 @@ function hostiles(n) {
     else if (tirage === 1) output[i] = -0;
     else if (tirage === 2) output[i] = 1.175494e-38;
     else if (tirage === 3) output[i] = -7e-45;
-    else output[i] = (alea() - 0.5) * 2048;
+    else output[i] = (alea() - 0.5) * amplitude;
   }
   return output;
 }
 
+/** Width and amplitude of each optional attribute: texture coordinates stay within the 2^24
+ *  cells the format grants a page on its 2^-14 grid, as positions do on the 2^-6 grid below. */
 const LARGEURS = [
-  ['NORMAL', 3],
-  ['TEXCOORD_0', 2],
-  ['TEXCOORD_1', 2],
-  ['COLOR_0', 3],
+  ['NORMAL', 3, 2],
+  ['TEXCOORD_0', 2, 512],
+  ['TEXCOORD_1', 2, 512],
+  ['COLOR_0', 3, 2],
 ];
 
 /** A page of `sommets` vertices, with or without its four optional attributes. */
 export function page(sommets, tousLesAttributs) {
-  const attributes = { POSITION: { itemSize: 3, array: hostiles(sommets * 3) } };
+  const attributes = { POSITION: { itemSize: 3, array: hostiles(sommets * 3, 2048) } };
   if (tousLesAttributs)
-    for (const [name, largeur] of LARGEURS)
-      attributes[name] = { itemSize: largeur, array: hostiles(sommets * largeur) };
+    for (const [name, largeur, amplitude] of LARGEURS)
+      attributes[name] = { itemSize: largeur, array: hostiles(sommets * largeur, amplitude) };
   const indices = new Uint32Array(sommets * 3);
   for (let i = 0; i < sommets; i++) {
     indices[i * 3] = i;
