@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { HostNode } from './hostResources.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
 import { DEFAULT_BACKENDS } from './defaultBackends.ts';
@@ -14,7 +15,7 @@ import type { ExplorerSession } from './explorerSession.ts';
 
 type Inputs = {
   source: THREE.Object3D;
-  sceneLightingSource?: THREE.Object3D;
+  sceneLightingSource?: HostNode;
   associations: BackendContext['associations'];
   textureIndices: Map<THREE.Texture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;

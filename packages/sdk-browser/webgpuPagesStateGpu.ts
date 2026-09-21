@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostAttribute, HostAttributes } from './hostResources.ts';
 import type { createGpuPageCache } from './gpuPages.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from './webgpuBindIdentity.ts';
 import type { createGpuPresenter, createSynchronousCanvasCapture } from './gpuPresentation.ts';
@@ -41,13 +41,13 @@ export interface WebgpuGpuState {
   targetSize: [number, number];
   /** Bytes of the image targets of this size, those the image budget admitted. */
   targetBytes: number;
-  positionBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>;
+  positionBuffers: Map<HostAttributes, GPUBuffer>;
   /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
    *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says
    *  "this geometry does not have this attribute", and is distinct from a missing entry. */
-  blendIndexBuffers: Map<THREE.BufferAttribute | THREE.InterleavedBufferAttribute, GPUBuffer>;
-  blendUvBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer | undefined>;
-  blendNormalBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer | undefined>;
+  blendIndexBuffers: Map<HostAttribute, GPUBuffer>;
+  blendUvBuffers: Map<HostAttributes, GPUBuffer | undefined>;
+  blendNormalBuffers: Map<HostAttributes, GPUBuffer | undefined>;
   /** Vertex bytes held through allocations: position buffers, then indices, UVs and normals of
    *  transparent meshes. The sample reads them instead of resuming them per image. */
   vertexBytes: number;

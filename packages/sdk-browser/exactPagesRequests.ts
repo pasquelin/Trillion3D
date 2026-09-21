@@ -1,4 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
+import { asHostLibrary } from './hostResources.ts';
 import * as THREE from 'three';
 import {
   acceptPageArray,
@@ -170,7 +171,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
         rec.array = undefined;
         rec.indexBytes = rec.triangles * 12;
         if (rec.geometry) {
-          disposeGeometry(rec.geometry);
+          disposeGeometry(asHostLibrary<THREE.BufferGeometry>(rec.geometry));
           rec.geometry = undefined;
         }
         rec.mesh = undefined;

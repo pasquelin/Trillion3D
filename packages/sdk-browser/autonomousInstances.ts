@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import type { Material } from '../sdk-core/index.ts';
+import { asHostLibrary, type HostMaterials } from './hostResources.ts';
+import type { MatrixElements } from './matrixElements.ts';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
 import type { createAutonomousGeometry } from './autonomousGeometry.ts';
 
@@ -10,8 +13,7 @@ type InstanceEnvironment = {
   bootstrap: PageRec[];
   baseBootstrap: PageRec[];
   byUrl: Map<string, PageRec[]>;
-  baseMaterials: Map<PageRec, THREE.Material | THREE.Material[]>;
-  colorMaterials: Map<THREE.Material, THREE.Material>;
+  baseMaterials: Map<PageRec, HostMaterials>;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   cap: number;
   /** Notified by every entry point that writes the scene: that is where the origin is. */
@@ -26,16 +28,40 @@ type InstanceEnvironment = {
 export function deplaceInstance(
   instance: { pages: PageRec[]; bases: PageRec[]; roots: ClusterRoot<PageRec>[] },
   baseRoots: readonly ClusterRoot<PageRec>[],
-  transform: THREE.Matrix4,
+  transform: Float64Array,
 ) {
   const { pages, bases, roots } = instance;
-  for (let i = 0; i < roots.length; i++)
-    roots[i].world.copy(transform).multiply(baseRoots[i].world);
+  const place = (pose: MatrixElements, base: MatrixElements) =>
+    asHostLibrary<THREE.Matrix4>(pose)
+      .fromArray(transform)
+      .multiply(asHostLibrary<THREE.Matrix4>(base));
+  for (let i = 0; i < roots.length; i++) place(roots[i].world, baseRoots[i].world);
   for (let i = 0; i < pages.length; i++) {
     const rec = pages[i];
-    rec.matrix.copy(transform).multiply(bases[i].matrix);
-    if (rec.mesh) rec.mesh.matrix.copy(rec.matrix);
+    place(rec.matrix, bases[i].matrix);
+    if (rec.mesh) asHostLibrary<THREE.Mesh>(rec.mesh).matrix.fromArray(rec.matrix.elements);
   }
+}
+
+/** The engine's material parameters, given back to the witness's own rendering library. */
+function hostMaterialOf(material: Material, vertexColors: boolean) {
+  const side =
+    material.side === 'double'
+      ? THREE.DoubleSide
+      : material.side === 'back'
+        ? THREE.BackSide
+        : THREE.FrontSide;
+  return new THREE.MeshStandardMaterial({
+    color: new THREE.Color(...material.baseColor),
+    emissive: new THREE.Color(...material.emissive),
+    metalness: material.metalness,
+    roughness: material.roughness,
+    opacity: material.opacity,
+    transparent: material.alphaMode === 'blend',
+    alphaTest: material.alphaMode === 'mask' ? material.alphaCutoff : 0,
+    side,
+    vertexColors,
+  });
 }
 
 export function createAutonomousInstances(env: InstanceEnvironment) {
@@ -48,7 +74,6 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     baseBootstrap,
     byUrl,
     baseMaterials,
-    colorMaterials,
     geometryStore,
     cap,
     sceneChanged,
@@ -60,18 +85,26 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bases: PageRec[]; bootstrap: PageRec[] }
   >();
   const { geometryBytes, removeRecords, sync } = geometryStore;
+  /** Materials this engine built from the contract, and therefore frees itself. */
+  const owned: THREE.Material[] = [];
   return {
-    addInstance(id: string, transform: THREE.Matrix4) {
+    disposeOwnedMaterials() {
+      for (const material of owned) material.dispose();
+      owned.length = 0;
+    },
+    addInstance(id: string, transform: Float64Array) {
       sceneChanged();
       if (instances.has(id) || !id) throw new Error('AUTONOMOUS_INSTANCE_ID');
       if (bootstrap.length + baseBootstrap.length > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const mapped = new Map<PageRec, PageRec>();
       for (const base of basePages) {
-        const geometry = base.geometry?.clone();
+        const geometry = asHostLibrary<THREE.BufferGeometry | undefined>(base.geometry)?.clone();
         const rec: PageRec = {
           ...base,
           clusterId: `${id}/${base.clusterId}`,
-          matrix: transform.clone().multiply(base.matrix),
+          matrix: new THREE.Matrix4()
+            .fromArray(transform)
+            .multiply(asHostLibrary<THREE.Matrix4>(base.matrix)),
           geometry,
           attributes: geometry?.attributes ?? base.attributes,
           mesh: undefined,
@@ -87,7 +120,9 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       }
       const addedRoots = baseRoots.map((root) => ({
         ...root,
-        world: transform.clone().multiply(root.world),
+        world: new THREE.Matrix4()
+          .fromArray(transform)
+          .multiply(asHostLibrary<THREE.Matrix4>(root.world)),
         pages: root.pages.map((page) => mapped.get(page)!),
       }));
       const addedBootstrap = baseBootstrap.map((page) => mapped.get(page)!);
@@ -100,7 +135,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         bootstrap: addedBootstrap,
       });
     },
-    updateInstance(id: string, transform: THREE.Matrix4) {
+    updateInstance(id: string, transform: Float64Array) {
       sceneChanged();
       const instance = instances.get(id);
       if (!instance) throw new Error('AUTONOMOUS_INSTANCE_MISSING');
@@ -116,27 +151,22 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       instances.delete(id);
       sync();
     },
-    updateMaterial(primitive: string, material: THREE.Material) {
+    updateMaterial(primitive: string, material: Material) {
       sceneChanged();
       const records = allPages.filter(
         (rec) =>
           rec.clusterId.startsWith(`${primitive}/`) || rec.clusterId.includes(`/${primitive}/`),
       );
       if (!records.length) throw new Error('AUTONOMOUS_PRIMITIVE_MISSING');
+      const painted = hostMaterialOf(material, false);
+      owned.push(painted);
+      let coloured: THREE.Material | undefined;
       for (const rec of records) {
-        baseMaterials.set(rec, material);
-        rec.material = rec.attributes.color
-          ? (() => {
-              let clone = colorMaterials.get(material);
-              if (!clone) {
-                clone = material.clone();
-                (clone as THREE.MeshStandardMaterial).vertexColors = true;
-                colorMaterials.set(material, clone);
-              }
-              return clone;
-            })()
-          : material;
-        if (rec.mesh) rec.mesh.material = rec.material;
+        baseMaterials.set(rec, painted);
+        if (rec.attributes.color && !coloured) owned.push((coloured = hostMaterialOf(material, true)));
+        rec.material = rec.attributes.color ? coloured! : painted;
+        if (rec.mesh)
+          asHostLibrary<THREE.Mesh>(rec.mesh).material = asHostLibrary<THREE.Material>(rec.material);
       }
     },
   };
