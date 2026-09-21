@@ -3,12 +3,12 @@
 //
 //   node --experimental-strip-types test/browser/observation-eclairage-webgl.browser.mjs
 import assert from 'node:assert/strict';
-import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
+import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.ts';
 
 /** One byte in a hundred may sit on a rounding boundary of the two sRGB exponents. */
 const BOUNDARY_BUDGET = (96 * 96 * 4) / 100;
 const result = await preuveDansLaPage(
-  'lightingObservationPage.mjs',
+  'lightingObservationPage.ts',
   'lightingObservationProof',
   'Lighting observation on the engine program',
   'execute',

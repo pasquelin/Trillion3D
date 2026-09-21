@@ -2,9 +2,9 @@
 // autonomous clusters on the host canvas and on a comparison target alike, through the same
 // draw owner, and no mesh ever enters the host scene. A scene the owner cannot draw in full is
 // refused by name.
-import { pixel } from './webglClusterPixels.mjs';
-import { mountExplorerProof } from './webglClusterExplorerMount.mjs';
-import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.mjs';
+import { pixel } from './webglClusterPixels.ts';
+import { mountExplorerProof } from './webglClusterExplorerMount.ts';
+import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.ts';
 
 const anyMesh = (object) => !!object.isMesh;
 const errorOf = (error) => ({ code: error.code ?? null, reason: error.details?.reason ?? null });

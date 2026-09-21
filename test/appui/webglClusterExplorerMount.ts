@@ -8,7 +8,7 @@ import {
   bindWebglTarget,
   createWebglRenderTarget,
 } from '../../packages/sdk-browser/webglRenderTarget.ts';
-import { pixel } from './webglClusterPixels.mjs';
+import { pixel } from './webglClusterPixels.ts';
 
 /** Null without WebGL2. `inHostPass(object)` names the objects counted on each scene pass. */
 export function mountExplorerProof(scene, camera, inHostPass, context = {}) {

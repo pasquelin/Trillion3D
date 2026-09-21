@@ -5,10 +5,10 @@
 //
 //   node --experimental-strip-types test/browser/comparaison-compositeur.browser.mjs
 import assert from 'node:assert/strict';
-import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
+import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.ts';
 
 const result = await preuveDansLaPage(
-  'comparisonCompositorPage.mjs',
+  'comparisonCompositorPage.ts',
   'comparisonCompositorProof',
   'Engine comparison compositor',
   'execute',
