@@ -12,20 +12,15 @@ pub struct Attribute {
     pub values: Vec<f32>,
 }
 
-/// A written page: its bytes and what the manifest says of it.
+/// A written page: its bytes and the header they open with, which is what the manifest says of it.
 #[derive(Debug)]
 pub struct Encoded {
     pub bytes: Vec<u8>,
-    pub flags: u32,
-    pub vertex_count: usize,
-    pub decoded_bytes: usize,
-    /// Largest position displacement the grid caused, in object units.
-    pub quantization_error: f64,
+    pub header: Header,
 }
 
-/// Local vertex renumbering of page: table and both lists start at
-/// known final size, page carrying at most 65,535 vertices and no more corners than
-/// d'indices.
+/// Local vertex renumbering of a page: the table and both lists start at their known final
+/// size, a page carrying at most 65,535 vertices and no more corners than indices.
 pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
     let bound = indices.len().min(65_535);
     let mut original = Vec::<u32>::with_capacity(bound);
@@ -136,7 +131,7 @@ pub fn encode(
         uv: uv_records[0],
         uv1: uv_records[1],
         color: color_record,
-        quantization_error: quantization_error as f32,
+        quantization_error,
     };
     let layout = Layout::of(&header);
     let mut out = BitWriter::default();
@@ -170,11 +165,5 @@ pub fn encode(
         bytes.extend_from_slice(&word.to_le_bytes());
     }
     debug_assert_eq!(bytes.len(), layout.bytes());
-    Ok(Encoded {
-        bytes,
-        flags,
-        vertex_count: unique.len(),
-        decoded_bytes: header.decoded_bytes(),
-        quantization_error,
-    })
+    Ok(Encoded { bytes, header })
 }

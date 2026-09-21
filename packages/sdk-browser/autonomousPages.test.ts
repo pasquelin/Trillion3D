@@ -22,8 +22,6 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     url: 'triangle-geometry.bin',
     sha256: 'x',
     bytes: encoded.data.length,
-    formatVersion: 3 as const,
-    codec: 'quantized' as const,
     vertexCount: encoded.vertexCount,
     indexCount: encoded.indexCount,
     flags: encoded.flags,
@@ -51,6 +49,7 @@ test('autonomous pages add, move and remove an instance while keeping page cover
   const metadata = {
     errorModel: 'dag-group-qem-v1',
     clusterStrategy: 'dag-groups',
+    geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
     primitives: [
       {
         mesh: 0,

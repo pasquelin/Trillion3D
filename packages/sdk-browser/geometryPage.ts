@@ -1,7 +1,7 @@
+import { GEOMETRY_PAGE_FORMAT_VERSION } from '../sdk-core/index.ts';
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,
-  CLUSTER_PAGE_VERSION,
   FLAGS_ALL,
   FLAG_COLOR,
   FLAG_NORMAL,
@@ -10,37 +10,36 @@ import {
   MAX_BITS,
   MAX_EXPONENT,
   OCT_SCALE,
+  OPTIONAL,
 } from './clusterFormat.ts';
+import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
 
 /**
  * JavaScript decoder of a `WGP3` quantized cluster page (`docs/FORMAT.md`), the mirror of the
- * shared Rust codec (`packages/page-codec-wasm`): same buffers, same refusals in the same order.
+ * shared Rust codec (`packages/page-codec-wasm`): same bytes, same refusals in the same order.
  * Every float is produced by the arithmetic the format prescribes — one multiply, one add, both
  * on 32-bit values — through `Math.fround`, so a position decoded here is the 32-bit float the
  * WebAssembly module and the WGSL routines decode.
  */
-/** Presence bit, decoded width and name of each optional attribute, in stream order. */
-const OPTIONAL = [
-  ['normal', 3, FLAG_NORMAL],
-  ['uv', 2, FLAG_UV],
-  ['uv2', 2, FLAG_UV1],
-  ['color', 4, FLAG_COLOR],
-] as const;
-
+/** A decoded page: `indices` and every attribute are views on one buffer of `decodedBytes`
+ *  (`geometryPageBlock.ts`). */
 export type DecodedGeometryPage = {
-  indices: Uint32Array;
-  attributes: Record<string, Float32Array>;
+  indices: Uint32Array<ArrayBuffer>;
+  attributes: Record<string, Float32Array<ArrayBuffer>>;
   vertexCount: number;
   flags: number;
   decodedBytes: number;
+  /** The header's largest position displacement, in object units: a decoded position may lie
+   *  that far from its source, and so from the page's declared box. */
+  quantizationError: number;
 };
 
 /** A vector attribute's grid: its minima, its power-of-two step and its per-component widths. */
 type Quant = { min: number[]; exponent: number; bits: number[] };
 
 const fround = Math.fround;
-const bitsFor = (range: number) => (range <= 0 ? 0 : Math.floor(Math.log2(range)) + 1);
-const streamWords = (count: number, bits: number) => Math.ceil((count * bits) / 32);
+/** Bits that hold every value of `0..=range`; none for a constant field. */
+export const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
 
 /** The `bits`-bit field at bit `at` of `words`; a field spans two words at most. */
 function field(words: Uint32Array, at: number, bits: number) {
@@ -49,7 +48,7 @@ function field(words: Uint32Array, at: number, bits: number) {
     index = at >>> 5;
   let value = words[index] >>> shift;
   if (shift + bits > 32) value |= words[index + 1] << (32 - shift);
-  return bits === 32 ? value >>> 0 : value & ((1 << bits) - 1);
+  return value & ((1 << bits) - 1);
 }
 
 /** A quantization record from its packed word (six bits per width, the exponent in the top byte). */
@@ -84,11 +83,12 @@ function octDecode(q: number, out: Float32Array, at: number) {
   out[at + 2] = fround(z / length);
 }
 
-/** One dequantized vector attribute: component `c` of vertex `i` at bit `i * bits[c]` of stream `c`. */
-function vector(words: Uint32Array, starts: number[], quant: Quant, count: number) {
+/** One dequantized vector attribute into `out`: component `c` of vertex `i` at bit `i * bits[c]`
+ *  of stream `c`. */
+function vector(out: Float32Array, words: Uint32Array, starts: number[], quant: Quant) {
   const n = quant.min.length,
     step = 2 ** quant.exponent,
-    out = new Float32Array(count * n);
+    count = out.length / n;
   for (let c = 0; c < n; c++) {
     const bits = quant.bits[c],
       base = starts[c] * 32,
@@ -96,7 +96,6 @@ function vector(words: Uint32Array, starts: number[], quant: Quant, count: numbe
     for (let i = 0; i < count; i++)
       out[i * n + c] = fround(min + fround(field(words, base + i * bits, bits) * step));
   }
-  return out;
 }
 
 /** Decode one complete page without referring to any source glTF buffer. */
@@ -108,7 +107,7 @@ export function decodeGeometryPage(
   const head = new DataView(data.buffer, data.byteOffset, data.byteLength);
   const w = (i: number) => head.getUint32(i * 4, true),
     f = (i: number) => head.getFloat32(i * 4, true);
-  if (w(0) !== CLUSTER_PAGE_MAGIC || w(1) !== CLUSTER_PAGE_VERSION)
+  if (w(0) !== CLUSTER_PAGE_MAGIC || w(1) !== GEOMETRY_PAGE_FORMAT_VERSION)
     throw new Error('GEOMETRY_PAGE_VERSION');
   const vertexCount = w(2),
     indexCount = w(3),
@@ -125,7 +124,7 @@ export function decodeGeometryPage(
   let at = 0;
   const stream = (present: boolean, count: number, bits: number) => {
     const start = at;
-    if (present) at += streamWords(count, bits);
+    if (present) at += Math.ceil((count * bits) / 32);
     return start;
   };
   const indices = stream(true, indexCount, indexBits),
@@ -149,23 +148,27 @@ export function decodeGeometryPage(
     (CLUSTER_HEADER_WORDS + at) * 4 !== data.byteLength
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
-  const words = new Uint32Array(at);
-  for (let i = 0; i < at; i++) words[i] = w(CLUSTER_HEADER_WORDS + i);
-  const decodedIndices = new Uint32Array(indexCount);
+  // The streams are read in place when the page sits on a word boundary, from a copy otherwise.
+  const body = data.subarray(CLUSTER_HEADER_WORDS * 4);
+  const words =
+    body.byteOffset % 4
+      ? new Uint32Array(body.slice().buffer)
+      : new Uint32Array(body.buffer, body.byteOffset, at);
+  const { indices: decodedIndices, attributes } = pageViews(
+    new ArrayBuffer(decodedBytes),
+    pageAttributeNames(flags),
+    vertexCount,
+  );
   for (let i = 0; i < indexCount; i++) {
     decodedIndices[i] = field(words, indices * 32 + i * indexBits, indexBits);
     if (decodedIndices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
   }
-  const attributes: Record<string, Float32Array> = {
-    position: vector(words, positions, position, vertexCount),
-  };
-  if (flags & FLAG_NORMAL) {
-    attributes.normal = new Float32Array(vertexCount * 3);
+  vector(attributes.position, words, positions, position);
+  if (flags & FLAG_NORMAL)
     for (let i = 0; i < vertexCount; i++)
       octDecode(field(words, normal * 32 + i * 16, 16), attributes.normal, i * 3);
-  }
-  if (flags & FLAG_UV) attributes.uv = vector(words, uvs, uv, vertexCount);
-  if (flags & FLAG_UV1) attributes.uv2 = vector(words, uv2s, uv2, vertexCount);
-  if (flags & FLAG_COLOR) attributes.color = vector(words, colors, color, vertexCount);
-  return { indices: decodedIndices, attributes, vertexCount, flags, decodedBytes };
+  if (flags & FLAG_UV) vector(attributes.uv, words, uvs, uv);
+  if (flags & FLAG_UV1) vector(attributes.uv2, words, uv2s, uv2);
+  if (flags & FLAG_COLOR) vector(attributes.color, words, colors, color);
+  return { indices: decodedIndices, attributes, vertexCount, flags, decodedBytes, quantizationError };
 }

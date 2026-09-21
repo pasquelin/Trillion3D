@@ -4,32 +4,18 @@
 // chose with the largest displacement it caused. Read on `explorer.metadata` too, since it is
 // the same manifest (guide "Quantized cluster pages").
 //   node --experimental-strip-types scripts/mesure/octetsParTriangle.mjs <cache>/native/full
-import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { decodeManifestBinary } from '../../packages/sdk-core/manifestBinary.ts';
-
-/** The manifest of a compiled cache — pointer, small JSON, sidecar columns — decoded whole. */
-async function readCacheManifest(cache) {
-  const pointer = JSON.parse(await readFile(join(cache, 'manifest.json'), 'utf8'));
-  const clustersPath = join(cache, pointer.url);
-  const slim = JSON.parse(await readFile(clustersPath, 'utf8'));
-  const bin = await readFile(join(dirname(clustersPath), slim.binary.url));
-  return decodeManifestBinary(
-    slim,
-    bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength),
-  );
-}
+import { readCacheManifest } from './cacheManifest.mjs';
 
 /** The cache's figures over the pages that carry geometry; `null` without any. */
 export function bytesPerTriangle(manifest) {
   const sum = { pages: 0, triangles: 0, exact: 0, packed: 0, floats: 0, vertices: 0, index: 0 };
   let maxError = null,
-    step = null;
+    exponent = null;
   for (const primitive of manifest.primitives) {
     const q = primitive.quantization;
     if (q) {
       if (q.maxPositionError != null) maxError = Math.max(maxError ?? 0, q.maxPositionError);
-      step = step == null ? q.positionStep : Math.max(step, q.positionStep);
+      exponent = Math.max(exponent ?? -Infinity, q.positionExponent);
     }
     for (const page of primitive.pages) {
       if (!page.geometry) continue;
@@ -55,12 +41,12 @@ export function bytesPerTriangle(manifest) {
     indexPageBytesPerTriangle: sum.index / sum.triangles,
     verticesPerTriangle: sum.vertices / sum.triangles,
     maxPositionError: maxError,
-    positionStep: step,
+    positionStep: exponent == null ? null : 2 ** exponent,
   };
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
   const cache = process.argv[2];
   if (!cache) throw new Error('usage: octetsParTriangle.mjs <cache>/native/full');
-  console.log(JSON.stringify(bytesPerTriangle(await readCacheManifest(cache)), null, 2));
+  console.log(JSON.stringify(bytesPerTriangle(readCacheManifest(cache).manifest), null, 2));
 }
