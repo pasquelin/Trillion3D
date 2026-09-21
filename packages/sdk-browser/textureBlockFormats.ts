@@ -31,23 +31,36 @@ export const BLOCK_FEATURES: Record<TextureBlockFormat, GPUFeatureName> = {
 export type BlockChoice = { block: TextureBlockFormat | undefined; reason: string };
 
 /**
- * The family the device can sample among those the host allows. `'auto'` takes BC before ASTC:
- * a device with both is a desktop one, and BC is the family its drivers optimise. `'none'` keeps
- * RGBA8 — the "before" of a measurement.
+ * The family the session samples: among those the host allows, the first the device has AND
+ * some chain of the cache was kept in. `'auto'` tries BC before ASTC — a device with both is a
+ * desktop one, and BC is the family its drivers optimise —, but a cache cooked in ASTC alone
+ * takes ASTC on such a device: a family without a kept chain would open no block lane and save
+ * nothing. `'none'` keeps RGBA8 — the "before" of a measurement. The reason names what settled it.
  */
 export function chooseBlockFormat(
   features: { has(name: GPUFeatureName): boolean },
+  previews: Iterable<Pick<TexturePreview, 'layouts'>>,
   wanted: TextureCompression = 'auto',
 ): BlockChoice {
   if (wanted === 'none') return { block: undefined, reason: 'host asked for rgba8' };
   const candidates = wanted === 'auto' ? PREVIEW_BLOCK_FORMATS : [wanted];
-  for (const block of candidates)
-    if (features.has(BLOCK_FEATURES[block]))
-      return { block, reason: `device has ${BLOCK_FEATURES[block]}` };
-  return {
-    block: undefined,
-    reason: `device lacks ${candidates.map((block) => BLOCK_FEATURES[block]).join(' and ')}`,
+  const sampled = candidates.filter((block) => features.has(BLOCK_FEATURES[block]));
+  if (!sampled.length)
+    return {
+      block: undefined,
+      reason: `device lacks ${candidates.map((block) => BLOCK_FEATURES[block]).join(' and ')}`,
+    };
+  const kept = (block: TextureBlockFormat) => {
+    let count = 0;
+    for (const preview of previews) if (preview.layouts[block] !== 'lossless') count++;
+    return count;
   };
+  for (const block of sampled) {
+    const chains = kept(block);
+    if (chains > 0)
+      return { block, reason: `device has ${BLOCK_FEATURES[block]}, ${chains} chains kept in it` };
+  }
+  return { block: undefined, reason: `the cache holds no chain kept in ${sampled.join(' or ')}` };
 }
 
 /** The lanes of an atlas, in the order the bindings and the shader's taps number them. */
