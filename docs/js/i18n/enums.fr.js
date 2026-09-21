@@ -18,6 +18,9 @@ export const enumsFr = {
       },
       { desc: 'Erreur de chaque grappe projetée par sa sphère, telle que la coupe l’emploie.' },
       {
+        desc: 'Une couleur par classe de matériau : la passe de classe qui a résolu le pixel. Chemin de visibilité WebGPU seulement.',
+      },
+      {
         desc: 'Pages visibles sélectionnées ; les nœuds hiérarchiques rejetés sont comptés, pas dessinés.',
       },
       {

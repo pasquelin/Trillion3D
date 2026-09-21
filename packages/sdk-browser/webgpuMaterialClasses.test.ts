@@ -5,6 +5,10 @@ import type { ClusterManifest } from '../sdk-core/index.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE, isTransmissive } from './visibilityBuffer.ts';
+import { CLASS_FEATURE } from './visibilityMaterialClass.ts';
+import { ROW_MATERIAL_CLASS_WORD } from './webgpuPageRow.ts';
+import { sceneMaterialClasses } from './webgpuPageRowMaterial.ts';
+import { createPresentClasses, markPresentClasses } from './webgpuMaterialPasses.ts';
 
 const page = (id: number, url: string, start: number) => ({
   id,
@@ -109,4 +113,38 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
   writeRow(blend, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
   assert.equal((ints[23] & FLAG_MASK) !== 0, false);
   assert.equal(floats[19], 1);
+});
+
+test('a row carries its resolve class, the census of the scene knows it before any image', () => {
+  const { source, metadata, indices, associations } = scene();
+  const collected = collectClusterPages(source, metadata, indices, associations);
+  const geometryBlocks = new Map(
+    collected.roots.map((root) => [
+      root.pages[0].attributes,
+      { vertexBase: 0, count: 3, hasUv: false, hasNormal: true, hasTangent: false },
+    ]),
+  );
+  const layers = { mapLayer: new Map(), dataLayer: new Map() };
+  const writeRow = createPageRowWriter({ geometryBlocks, ...layers, markRowDirty: () => {} });
+  const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
+    ints = new Uint32Array(floats.buffer),
+    stride = PAGE_INFO_STRIDE / 4;
+  const [mask, blend] = collected.roots.map((root, index) =>
+    Object.assign(root.pages[0], { placementIndex: index }),
+  );
+  writeRow(mask, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
+  writeRow(blend, 1, 1, 0, new Uint32Array([0, 1, 2]), floats, ints);
+  const { HAS_MASK, HAS_VERTEX_NORMAL, DOUBLE_SIDED, HAS_UV } = CLASS_FEATURE;
+  const cutout = HAS_MASK | HAS_VERTEX_NORMAL | DOUBLE_SIDED;
+  assert.equal(ints[ROW_MATERIAL_CLASS_WORD], cutout, 'double-sided cut-out with vertex normals');
+  assert.equal(ints[stride + ROW_MATERIAL_CLASS_WORD], HAS_VERTEX_NORMAL, 'the plain blend');
+  assert.equal(cutout & HAS_UV, 0, 'no uv block, no uv class bit');
+  // The census reads the same fields the rows will carry, for the pages that take a row: the
+  // blend is a transparent page and the transmission left the DAG, so the cut-out's class alone
+  // is compiled at preparation.
+  assert.deepEqual(sceneMaterialClasses(collected.allPages, geometryBlocks, layers), [cutout]);
+  // An image draws the classes of its packed rows only: the second row alone leaves the cut-out out.
+  const present = createPresentClasses();
+  assert.deepEqual(markPresentClasses(ints, 2, present), [cutout, HAS_VERTEX_NORMAL]);
+  assert.deepEqual(markPresentClasses(ints.subarray(stride), 1, present), [HAS_VERTEX_NORMAL]);
 });

@@ -3,7 +3,7 @@ import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import {
   createWebgpuCoplanarLayerPipelines,
-  createWebgpuShadePipeline,
+  createWebgpuShadePipelines,
   createWebgpuVisibilityRasterPipelines,
 } from './webgpuVisibilityPipelines.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
@@ -14,6 +14,7 @@ import { createGpuPartition } from './gpuPartitionFactory.ts';
 import { createGpuRestCompact } from './gpuRestCompact.ts';
 import { prepareTransparentOcclusion } from './webgpuTransparentOcclusionHost.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
+import { sceneMaterialClasses } from './webgpuPageRowMaterial.ts';
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { dropGpuHiz, dropVis, grantCapability } from './webgpuPagesDrops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -107,8 +108,19 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       vis.visLayerPipelines = [];
       vis.drawLayerSlots = 1;
     }
-  ({ shadeBindGroupLayout: vis.shadeBindGroupLayout, shadePipeline: vis.shadePipeline } =
-    await createWebgpuShadePipeline(gpuDevice, shadeModule, variant));
+  // The resolve classes of the scene are known here, from the same fields its rows will carry:
+  // one pipeline each, and the material-depth export they all test against.
+  const classes = sceneMaterialClasses(rt.setup.allPages, vis.geometryBlocks, vis);
+  ({
+    shadeBindGroupLayout: vis.shadeBindGroupLayout,
+    materialDepthPipeline: vis.materialDepthPipeline,
+    shadePipelineFor: vis.shadePipelineFor,
+    shadePipelines: vis.shadePipelines,
+  } = await createWebgpuShadePipelines(gpuDevice, shadeModule, classes, variant));
+  diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
+    classes: classes.length,
+    keys: classes,
+  });
   if (!vis.pageTable)
     vis.pageTable = gpuDevice.createBuffer({
       size: PAGE_INFO_STRIDE,
@@ -116,7 +128,10 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     });
   ensureWebgpuShadeBindings(rt, gpuDevice);
   vis.visEnabled =
-    !!vis.visTexture && !!vis.shadeBindGroup && !!vis.shadePipeline && !!vis.visPipelineBack;
+    !!vis.visTexture &&
+    !!vis.shadeBindGroup &&
+    !!vis.materialDepthPipeline &&
+    !!vis.visPipelineBack;
   if (!vis.visEnabled) return dropVis(rt);
   diag.engineDiagnostic('material-surfaces-ready', 'Surfaces and lighting split', {
     surfaceVersion: 1,

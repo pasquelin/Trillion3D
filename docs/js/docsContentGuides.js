@@ -38,6 +38,8 @@ const explorer: Explorer = await createExplorer('viewer', options);
     title: 'Architecture & rules',
     description: 'What the engine promises and the conventions every function below follows.',
     html: `<p>The mission, in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/architecture/PRODUCT_PRINCIPLES.md">Product principles</a>: virtualized geometry for the web at the performance of the best desktop engines — geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal antialiasing, fixed streaming and memory budgets. The lighting is what the geometry is for; its stages are in <code>docs/SPEC_ENGINE_WITHOUT_THREE.md</code> §8.</p>
+<h3 class="text-lg font-bold mt-4">One frame, on the WebGPU path</h3>
+<p>The GPU cuts the DAG and compacts the clusters to draw; the hardware raster writes a <strong>visibility buffer</strong> (one identifier per pixel) behind a Hi-Z occlusion test; the <strong>material resolve</strong> then rebuilds each pixel's surface — base colour, normal, roughness, emission — <em>one material class per pass</em>: a pass writes every pixel's class as an exact depth, and each class draws one full-screen triangle at its own depth under the hardware <code>equal</code> test, with a pipeline compiled for that class's features alone (maps, cut-out, vertex normals, tangents). Deferred lighting, transparents, temporal antialiasing and presentation follow. Observe it live with <code>setDiagnostic('materials')</code> (one colour per class), the <code>material-classes-ready</code> diagnostic (the scene's classes) and <code>stageProfile()</code> (the <code>materials</code> block: <code>WG material depth</code> and <code>WG material surfaces v1</code>).</p>
 <h3 class="text-lg font-bold mt-4">Conventions of the math API</h3>
 <ul class="list-disc pl-6 space-y-1">
 <li><strong>Column-major 4×4 matrices</strong> in sixteen consecutive numbers, <code>[12..14]</code> the translation — a host-library matrix copies without reordering.</li>
@@ -189,6 +191,7 @@ hierarchyUpdateBatch(
     description: 'Switching what the frame draws and how fine the cut is, on a live explorer.',
     example: `explorer.setDiagnostic('clusters'); // one stable colour per cluster, on the real cut
 explorer.setDiagnostic('screen-error'); // the projected error the cut compares to the threshold
+explorer.setDiagnostic('materials'); // one colour per material class: the pass that resolved the pixel
 explorer.setDiagnostic('beauty'); // back to the lit image
 explorer.setPixelError(2); // coarser cut: up to two pixels of projected error
 console.log(explorer.diagnostics); // which modes this backend can produce, and why not
