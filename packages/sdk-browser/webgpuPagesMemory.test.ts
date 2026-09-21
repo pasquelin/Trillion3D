@@ -31,8 +31,8 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
     // Under root coverage: raised to it, by name; roots never leave.
     const shrunk = await backend.setMemoryBudgets!({ geometryPoolBytes: 1, texturePoolBytes: 1 });
     assert.equal(shrunk.geometryPool.clamp, 'root-cover');
-    assert.equal(shrunk.texturePool.clamp, 'minimum');
-    assert.equal(shrunk.texturePool.layers, 1);
+    assert.equal(shrunk.texturePool?.clamp, 'minimum');
+    assert.equal(shrunk.texturePool?.layers.color.lossless, 1);
     assert.ok(shrunk.durationMs >= 0);
     backend.render(camera());
     const after = backend.metrics();
@@ -95,4 +95,30 @@ test('a setting above the session ceiling is brought back to the ceiling, and th
   // The same value again: nothing to resize.
   await setWebgpuMemoryBudgets(rt as never, { geometryPoolBytes: 800 });
   assert.deepEqual(resized, [4]);
+});
+
+// Behaviour: a texture budget set before prepare is kept, not drawn — the lane pools need the
+// catalogue —, the report says so with `null`, and prepare draws the pools at that budget.
+test('a texture budget set before prepare is kept and drawn by prepare, the report saying null', async () => {
+  installGpuGlobals();
+  const { device } = mockGpu();
+  const { fixture, backend } = quadBackend(device, { maxResidentPages: undefined });
+  try {
+    const early = await backend.setMemoryBudgets!({ texturePoolBytes: 1 });
+    assert.equal(early.texturePool, null);
+    assert.equal(backend.metrics().texturePoolClamp, null);
+    await backend.prepare();
+    backend.render(camera());
+    assert.equal(backend.metrics().texturePoolClamp, 'minimum', 'drawn at the one-byte budget');
+    const after = await backend.setMemoryBudgets!({});
+    assert.equal(after.texturePool?.budgetBytes, 1);
+    await assert.rejects(
+      backend.setMemoryBudgets!({ texturePoolBytes: 0 }),
+      /INVALID_TEXTURE_POOL_BUDGET/,
+    );
+  } finally {
+    backend.dispose();
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
 });

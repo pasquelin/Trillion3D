@@ -38,3 +38,13 @@ fn float_digest(run: &GoldenRun) -> Value {
       },
     })
 }
+
+#[test]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
+fn regenerate_the_float_fixtures() {
+    for format in ["exr", "hdr"] {
+        let dir = golden_dir(format);
+        let run = compile_golden(&dir, "scene");
+        write_expected(&dir, float_digest(&run), "", "");
+    }
+}

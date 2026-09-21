@@ -68,7 +68,10 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     assert.equal(prepared.textureTilesResident, 6);
     assert.equal(prepared.textureTilesServed, 0);
     assert.equal(prepared.textureTilesPending, 0);
-    assert.equal(prepared.texturePoolLayers, 4, '512 MiB, two atlases, 63.5 MiB layers');
+    // 512 MiB would give each atlas four 63.5 MiB layers; three queues need one, and the pool
+    // stops at what the scene can fill, by name.
+    assert.equal(prepared.texturePoolLayers, 2, 'one lossless layer per atlas');
+    assert.equal(prepared.texturePoolClamp, 'scene');
     // A 2×2 texture fits in its queue: no streamed tile to request, the barrier converges
     // without copying anything, and the pool does not move.
     backend.render(camera());
@@ -129,7 +132,7 @@ test('vis draws instance each packed page from the page table', async () => {
   fixture.material.dispose();
 });
 
-test('texture pools are copy destinations, allocated once at the budget size', async () => {
+test('texture pools are copy destinations, allocated once at the size the scene fills', async () => {
   installGpuGlobals();
   const { device, textures } = mockGpu();
   const { fixture, backend } = quadBackend(device);
@@ -140,7 +143,7 @@ test('texture pools are copy destinations, allocated once at the budget size', a
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
   for (const pool of pools) {
     assert.equal((pool.usage ?? 0) & need, need);
-    assert.equal(pool.depthOrArrayLayers, 4);
+    assert.equal(pool.depthOrArrayLayers, 1);
   }
   assert.deepEqual(pools.map((pool) => pool.format).sort(), ['rgba8unorm', 'rgba8unorm-srgb']);
   backend.dispose();

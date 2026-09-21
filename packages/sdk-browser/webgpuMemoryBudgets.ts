@@ -1,4 +1,13 @@
-import { POOL_LAYER_BYTES } from './textureTiles.ts';
+import { poolLayerBytes, tileBytes, TILES_PER_LAYER } from './textureTiles.ts';
+import {
+  laneCounts,
+  POOL_LANES,
+  type AtlasLanes,
+  type BlockChoice,
+  type LaneCounts,
+  type PoolEncoding,
+  type PoolLane,
+} from './textureBlockFormats.ts';
 import { pageBufferCap } from './gpuPageResize.ts';
 
 /**
@@ -43,6 +52,9 @@ export type GeometryPool = {
 const checkBudget = (bytes: number, name: string) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error(name);
 };
+/** A texture budget refused by name before any pool is drawn from it. */
+export const checkTexturePoolBudget = (bytes: number) =>
+  checkBudget(bytes, 'INVALID_TEXTURE_POOL_BUDGET');
 
 /**
  * Geometry page-pool slots for a budget in bytes — `r.Nanite.Streaming.
@@ -98,32 +110,87 @@ export function geometryPoolFor(options: {
 
 export type TexturePool = {
   budgetBytes: number;
-  /** Layers per atlas, and bytes of both atlases. */
-  layers: number;
+  /** Layers of each lane pool, per atlas, and the bytes of every pool added up. */
+  layers: AtlasLanes;
   allocatedBytes: number;
   clamp: PoolClamp;
 };
 
 /**
- * Layers per atlas that the texture-pool budget yields. Below one layer per atlas — the minimum for
- * every texture to show its queue — the pool is raised to one layer, by name; above the layer count
- * the device accepts, it is brought back to that limit, by name.
+ * What prepare settles once, with the sidecar's chains and the catalogue in hand: the family the
+ * session samples, its encoding, and the lane pools on the lanes' demand; `poolFor` draws the
+ * same pools for another budget (`setMemoryBudgets`). Setup holds only the budget until then.
+ */
+export type TexturePools = {
+  choice: BlockChoice;
+  encoding: PoolEncoding;
+  pool: TexturePool;
+  poolFor(budgetBytes: number): TexturePool;
+};
+
+/**
+ * Layers of each lane pool that the texture-pool budget yields: half the budget per atlas; in an
+ * atlas every lane that has textures gets one layer — the minimum for each to show its queue —,
+ * then the rest in proportion to the bytes its textures would take resident, a block texel
+ * costing a quarter of an RGBA8 one, and never more layers than its tiles need, what a capped
+ * lane leaves going to the others (`scene` when every lane is served under the budget). A lane no
+ * texture takes has no layer. A budget under one layer per lane is raised to it, by name; above
+ * the layer count the device accepts, a lane is brought back to that limit, by name.
  */
 export function texturePoolFor(
   budgetBytes: number,
   device: { limits?: { maxTextureArrayLayers?: number } } | undefined,
+  /** Tiles each lane's textures would hold at full residency — tails and streamed entries. */
+  demand: AtlasLanes,
+  texelBytes: (lane: PoolLane) => number,
 ): TexturePool {
-  checkBudget(budgetBytes, 'INVALID_TEXTURE_POOL_BUDGET');
-  let layers = Math.floor(budgetBytes / 2 / POOL_LAYER_BYTES),
-    clamp: PoolClamp = null;
-  if (layers < 1) {
-    layers = 1;
-    clamp = 'minimum';
-  }
+  checkTexturePoolBudget(budgetBytes);
   const limit = device?.limits?.maxTextureArrayLayers;
-  if (typeof limit === 'number' && layers > limit) {
-    layers = Math.max(1, limit);
-    clamp = 'device-limit';
-  }
-  return { budgetBytes, layers, allocatedBytes: 2 * layers * POOL_LAYER_BYTES, clamp };
+  const clamps = new Set<PoolClamp>();
+  const layerBytes = (lane: PoolLane) => poolLayerBytes(texelBytes(lane));
+  const atlas = (lanes: LaneCounts) => {
+    const layers = laneCounts();
+    const open = new Set(POOL_LANES.filter((lane) => lanes[lane] > 0));
+    for (const lane of open) layers[lane] = 1;
+    let budget = budgetBytes / 2 - [...open].reduce((sum, lane) => sum + layerBytes(lane), 0);
+    if (budget < 0) {
+      clamps.add('minimum');
+      budget = 0;
+    }
+    // The remainder by weight; a lane served under its share gives the rest back to the others.
+    for (let round = 0; open.size && round < POOL_LANES.length; round++) {
+      const weight = (lane: PoolLane) => lanes[lane] * tileBytes(texelBytes(lane));
+      const total = [...open].reduce((sum, lane) => sum + weight(lane), 0);
+      const share = (lane: PoolLane) =>
+        Math.floor((budget * weight(lane)) / total / layerBytes(lane));
+      const capped = [...open].filter(
+        (lane) => share(lane) >= Math.ceil(lanes[lane] / TILES_PER_LAYER) - 1,
+      );
+      if (!capped.length) {
+        for (const lane of open) layers[lane] += share(lane);
+        break;
+      }
+      for (const lane of capped) {
+        layers[lane] = Math.ceil(lanes[lane] / TILES_PER_LAYER);
+        budget -= (layers[lane] - 1) * layerBytes(lane);
+        open.delete(lane);
+      }
+      if (!open.size) clamps.add('scene');
+    }
+    for (const lane of POOL_LANES)
+      if (typeof limit === 'number' && layers[lane] > limit) {
+        layers[lane] = Math.max(1, limit);
+        clamps.add('device-limit');
+      }
+    return layers;
+  };
+  const layers = { color: atlas(demand.color), data: atlas(demand.data) };
+  const allocatedBytes = [layers.color, layers.data].reduce(
+    (bytes, lanes) =>
+      bytes + POOL_LANES.reduce((sum, lane) => sum + lanes[lane] * layerBytes(lane), 0),
+    0,
+  );
+  const clamp =
+    (['device-limit', 'minimum', 'scene'] as const).find((name) => clamps.has(name)) ?? null;
+  return { budgetBytes, layers, allocatedBytes, clamp };
 }

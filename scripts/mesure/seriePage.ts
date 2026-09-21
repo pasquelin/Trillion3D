@@ -64,6 +64,8 @@ export function measurePayload(
     // Textures read from the cache: only for an engine that reads the atlas, never the witness.
     textureSource: settings.textureSource,
     textureUploadMs: settings.textureUploadMs,
+    // This side's block format for its texture pools; `undefined` leaves the engine's choice.
+    textureCompression: side.compression ?? undefined,
     temporalAntialiasing: settings.temporalAntialiasing,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,

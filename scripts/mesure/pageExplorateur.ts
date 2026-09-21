@@ -78,6 +78,8 @@ export function explorerOptions(
     ...(typeof options.textureUploadMs === 'number'
       ? { maxTextureUploadMsPerFrame: options.textureUploadMs }
       : {}),
+    // Block format of the texture pools; the engine takes `auto` without it.
+    ...(options.textureCompression ? { textureCompression: options.textureCompression } : {}),
     // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
     ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
   };

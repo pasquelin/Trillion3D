@@ -1,10 +1,5 @@
 {
   "case": "A CC0 Unity project delivered as a .unitypackage: a tar.gz archive, one directory per GUID, the Assets/ tree rebuilt under the cache from the pathname files, then routed to the unity driver.",
-  "rule": "A container changes nothing about the project it wraps. The test first compares the compilation from the package with that of the same project laid out flat - name, size and fingerprint of every data file read included - then pins the three booby-trapped packages, refused by their code without a byte being written.",
-  "scenePlugin": {
-    "name": "unitypackage",
-    "version": "unitypackage-ustar-gzip-tar-0.4.46-flate2-1.1.10-extract-1"
-  },
   "chain": [
     {
       "name": "unitypackage",
@@ -20,24 +15,8 @@
     "tronque": "ARCHIVE_UNREADABLE",
     "vide": "ARCHIVE_EMPTY"
   },
+  "rule": "A container changes nothing about the project it wraps. The test first compares the compilation from the package with that of the same project laid out flat - name, size and fingerprint of every data file read included - then pins the three booby-trapped packages, refused by their code without a byte being written.",
   "scene": {
-    "formatVersion": 3,
-    "plugin": {
-      "name": "unity",
-      "version": "unity-yaml-rust2-0.13-gltf-6"
-    },
-    "files": [
-      {
-        "file": "Map.unity",
-        "bytes": 10495,
-        "sha256": "02ffa23c2a97cd62f1fa74c11d4bab2d2580ba00e0f10396ca157fedb98e006c"
-      },
-      {
-        "file": "Standard.mat",
-        "bytes": 1006,
-        "sha256": "8f2e840e969ddfdcb7c7db51d9580c60dae13f1ebaf2853d8faffd1657785696"
-      }
-    ],
     "counts": {
       "gameObjects": 12,
       "instances": 3,
@@ -46,14 +25,35 @@
       "metaFiles": 11,
       "textures": 1
     },
-    "unsupported": {},
+    "files": [
+      {
+        "bytes": 10495,
+        "file": "Map.unity",
+        "sha256": "02ffa23c2a97cd62f1fa74c11d4bab2d2580ba00e0f10396ca157fedb98e006c"
+      },
+      {
+        "bytes": 1006,
+        "file": "Standard.mat",
+        "sha256": "8f2e840e969ddfdcb7c7db51d9580c60dae13f1ebaf2853d8faffd1657785696"
+      }
+    ],
+    "formatVersion": 3,
+    "manifestBinaryVersion": 7,
     "notes": [],
-    "manifestBinaryVersion": 6,
-    "sidecarSha256": "31ef647e5865ee509759499329d439698b15c7aae8c24b858350623735c79b07",
+    "plugin": {
+      "name": "unity",
+      "version": "unity-yaml-rust2-0.13-gltf-6"
+    },
     "primitives": 1,
     "selectedNodes": [0, 4, 8],
-    "totalNodes": 3,
     "selectedTriangles": 36,
-    "sourceTriangles": 36
+    "sidecarSha256": "86c79fa05abacb2e34f06bb9b16d9945059fe50c716361572ddc9a80e0daf249",
+    "sourceTriangles": 36,
+    "totalNodes": 3,
+    "unsupported": {}
+  },
+  "scenePlugin": {
+    "name": "unitypackage",
+    "version": "unitypackage-ustar-gzip-tar-0.4.46-flate2-1.1.10-extract-1"
   }
 }
