@@ -12,7 +12,7 @@ const TONES: Record<ChartTone, string> = {
   neutral: 'badge-neutral',
 };
 
-export interface StatusBadgeProps {
+interface StatusBadgeProps {
   tone?: ChartTone;
   children: ReactNode;
 }

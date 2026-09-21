@@ -1,11 +1,5 @@
-import type { ReactElement } from 'react';
-import type {
-  CardSummaryProps,
-  ExampleCardProps,
-  GalleryExample,
-  PlannedDetailsProps,
-  PreviewProps,
-} from '../types/gallery.ts';
+import type { Locale } from '../types/portal.ts';
+import type { CatalogExample, GalleryExample, RoadmapExample } from '../types/gallery.ts';
 import { Alert, Card } from '../components/UI.tsx';
 import { CodeBlock } from '../components/CodeBlock.tsx';
 import { routeHref } from '../../js/portal/routes.js';
@@ -15,7 +9,7 @@ import { relatedReadyLesson } from './roadmapRelated.ts';
 import { themeLabel, themeOf } from './roadmapThemes.ts';
 import { local } from './localized.ts';
 
-export const engineExample: GalleryExample = {
+export const engineExample: CatalogExample = {
   id: 'engine-scene',
   category: 'streaming',
   engine: true,
@@ -27,7 +21,13 @@ export const engineExample: GalleryExample = {
   },
 };
 
-function Preview({ example, locale, title }: PreviewProps): ReactElement {
+interface PreviewProps {
+  example: GalleryExample;
+  locale: Locale;
+  title: string;
+}
+
+function Preview({ example, locale, title }: PreviewProps) {
   if (example.status === 'planned')
     return (
       <div className="h-full grid place-items-center p-6">
@@ -61,13 +61,12 @@ function Preview({ example, locale, title }: PreviewProps): ReactElement {
   );
 }
 
-function CardSummary({
-  example,
-  locale,
-  title,
-  description,
-  arrow = false,
-}: CardSummaryProps): ReactElement {
+interface CardSummaryProps extends PreviewProps {
+  description: string;
+  arrow?: boolean;
+}
+
+function CardSummary({ example, locale, title, description, arrow = false }: CardSummaryProps) {
   const french = locale === 'fr',
     planned = example.status === 'planned';
   return (
@@ -97,7 +96,7 @@ function CardSummary({
   );
 }
 
-function PlannedDetails({ example, locale }: PlannedDetailsProps): ReactElement {
+function PlannedDetails({ example, locale }: { example: RoadmapExample; locale: Locale }) {
   const french = locale === 'fr',
     related = relatedReadyLesson(example);
   return (
@@ -121,12 +120,19 @@ function PlannedDetails({ example, locale }: PlannedDetailsProps): ReactElement 
   );
 }
 
+interface ExampleCardProps {
+  example: GalleryExample;
+  locale?: Locale;
+  expanded?: boolean;
+  onOpen?: (id: string) => void;
+}
+
 export function ExampleCard({
   example,
   locale = 'en',
   expanded = false,
   onOpen,
-}: ExampleCardProps): ReactElement {
+}: ExampleCardProps) {
   const title = local(example.title, locale),
     description = example.description
       ? local(example.description, locale)

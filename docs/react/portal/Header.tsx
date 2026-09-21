@@ -1,13 +1,6 @@
-import type { JSX } from 'react';
 import { AREAS, routeHref } from '../../js/portal/routes.js';
 import { Button } from '../components/UI.tsx';
-import type {
-  HeaderProps,
-  Locale,
-  PortalRoute,
-  PrimaryNavigationProps,
-  RouteArea,
-} from '../types/portal.ts';
+import type { Locale, PortalRoute, RouteArea, TranslateFn } from '../types/portal.ts';
 
 function navRoute(locale: Locale, area: RouteArea): PortalRoute {
   return {
@@ -17,13 +10,21 @@ function navRoute(locale: Locale, area: RouteArea): PortalRoute {
   };
 }
 
+interface PrimaryNavigationProps {
+  locale: Locale;
+  activeArea?: RouteArea;
+  t: TranslateFn;
+  mobile?: boolean;
+  onNavigate?: () => void;
+}
+
 export function PrimaryNavigation({
   locale,
   activeArea,
   t,
   mobile = false,
   onNavigate,
-}: PrimaryNavigationProps): JSX.Element {
+}: PrimaryNavigationProps) {
   return (
     <nav
       className={mobile ? 'mobile-primary' : 'top-nav'}
@@ -44,15 +45,17 @@ export function PrimaryNavigation({
   );
 }
 
-export function Header({
-  locale,
-  route,
-  t,
-  drawerOpen,
-  onMenu,
-  onSearch,
-  onTheme,
-}: HeaderProps): JSX.Element {
+interface HeaderProps {
+  locale: Locale;
+  route: PortalRoute;
+  t: TranslateFn;
+  drawerOpen: boolean;
+  onMenu: () => void;
+  onSearch: () => void;
+  onTheme: () => void;
+}
+
+export function Header({ locale, route, t, drawerOpen, onMenu, onSearch, onTheme }: HeaderProps) {
   const home = routeHref({ locale, area: 'learn', id: 'home' });
   return (
     <header className="site-header">

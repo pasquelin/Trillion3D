@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { Table } from '../components/Table.tsx';
 import { readingName } from '../../js/reports/presentation.js';
 import { Cut } from './Cut.tsx';
@@ -8,7 +7,7 @@ import { Alert } from '../components/UI.tsx';
 import type { Report, ReportRecord, TimingStat } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface DetailsProps {
+interface DetailsProps {
   record?: ReportRecord | null;
   report: Report;
   locale: Locale;
@@ -21,7 +20,7 @@ interface TimingsProps {
   locale: Locale;
 }
 
-function Timings({ title, rows, locale }: TimingsProps): ReactElement | null {
+function Timings({ title, rows, locale }: TimingsProps) {
   if (!rows?.length) return null;
   return (
     <section className="grid min-w-0 gap-3">
@@ -48,7 +47,7 @@ function Timings({ title, rows, locale }: TimingsProps): ReactElement | null {
   );
 }
 
-export function Details({ record, report, locale, label }: DetailsProps): ReactElement | null {
+export function Details({ record, report, locale, label }: DetailsProps) {
   const c = reportCopy(locale);
   if (!record) return null;
   const run = report.runs.find((item) => item.id === record.runId);

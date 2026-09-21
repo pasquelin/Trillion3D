@@ -1,6 +1,21 @@
-import type { CanvasProps } from '../types/components.ts';
+import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
 import { Button } from './UI.tsx';
 import { Loading } from './Loading.tsx';
+
+interface CanvasAction extends Omit<ComponentPropsWithoutRef<'button'>, 'title' | 'aria-label'> {
+  label: string;
+  symbol: ReactNode;
+  [key: `data-${string}`]: unknown;
+}
+
+interface CanvasProps extends ComponentPropsWithoutRef<'canvas'> {
+  label?: string;
+  canvasRef?: Ref<HTMLCanvasElement>;
+  actions?: CanvasAction[];
+  pending?: boolean;
+  loadingLabel?: string;
+  overlay?: ReactNode;
+}
 
 export function Canvas({
   label,

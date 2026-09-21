@@ -1,4 +1,3 @@
-import type { Locale } from './portal.ts';
 import type { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
 import type { DiagnosticMode as EngineDiagnosticMode } from '../../../packages/sdk/index.ts';
 import type { sceneCopy } from '../../js/engine-scene/content.js';
@@ -10,33 +9,3 @@ type OfferedByEngine<Mode extends EngineDiagnosticMode> = Mode;
 export type DiagnosticMode = OfferedByEngine<(typeof DIAGNOSTIC_MODES)[number]>;
 
 export type EngineCopy = typeof sceneCopy.en & typeof sceneControlsCopy.en;
-
-export interface EnginePreviewProps {
-  locale?: Locale;
-  diagnostic?: DiagnosticMode;
-}
-
-export interface EngineGuideProps {
-  copy: EngineCopy;
-  locale: Locale;
-  diagnostic: DiagnosticMode;
-}
-
-export interface SceneControlsProps {
-  copy: EngineCopy;
-  diagnostic: DiagnosticMode;
-}
-
-export interface EngineStatsProps {
-  copy: EngineCopy;
-}
-
-export interface EngineExampleProps {
-  locale?: Locale;
-  diagnostic?: DiagnosticMode;
-  code?: string;
-}
-
-export interface EngineSceneProps {
-  locale?: Locale;
-}

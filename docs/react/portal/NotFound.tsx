@@ -1,13 +1,13 @@
-import { useState, type JSX } from 'react';
+import { useState } from 'react';
 import { routeHref } from '../../js/portal/routes.js';
 import { initialState, SCENARIOS } from '../../js/gallery/scenarios.js';
 import { WebGPUCanvas } from '../gallery/WebGPUCanvas.tsx';
 import { usePlaygroundMotion } from '../gallery/usePlaygroundMotion.ts';
 import { SectionHeader } from '../components/SectionHeader.tsx';
 import { Section } from '../components/Section.tsx';
-import type { NotFoundProps } from '../types/portal.ts';
+import type { Locale } from '../types/portal.ts';
 
-export function NotFound({ locale }: NotFoundProps): JSX.Element {
+export function NotFound({ locale }: { locale: Locale }) {
   const fr = locale === 'fr';
   const [state, setState] = useState(() => initialState('hierarchy'));
   const motion = usePlaygroundMotion(SCENARIOS.hierarchy, setState, { autoPlay: true });

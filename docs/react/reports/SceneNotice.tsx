@@ -1,16 +1,15 @@
-import type { ReactElement } from 'react';
 import { Alert } from '../components/UI.tsx';
 import { Collapse } from '../components/Collapse.tsx';
 import { reportCopy } from '../../js/reports/copy.js';
 import type { Locale } from '../types/portal.ts';
 
-export interface SceneNoticeProps {
+interface SceneNoticeProps {
   note?: string | null;
   locale: Locale;
 }
 
 /** Preserve campaign-supplied scene limitations, including the original source wording. */
-export function SceneNotice({ note, locale }: SceneNoticeProps): ReactElement | null {
+export function SceneNotice({ note, locale }: SceneNoticeProps) {
   if (!note) return null;
   return (
     <Alert tone="warning" className="grid-cols-1">

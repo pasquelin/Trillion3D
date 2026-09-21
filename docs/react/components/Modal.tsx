@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from './UI.tsx';
 
-export interface ModalProps {
+interface ModalProps {
   title: string;
   triggerLabel?: ReactNode;
   closeLabel?: string;

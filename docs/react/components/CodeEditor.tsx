@@ -1,18 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
-import type {
-  CodeEditorProps,
-  ModuleExecutionResult,
-  ModuleExecutionTask,
-} from '../types/components.ts';
+import type { Locale } from '../types/portal.ts';
 import { runModule } from '../../js/code/execute.js';
 import { CodeSurface } from './CodeSurface.tsx';
 import { CodeInput } from './CodeInput.tsx';
 import { Alert, Button } from './UI.tsx';
 
 /** Initial source is a snapshot: an animation cannot replace an edited document. */
+interface ModuleExecutionResult {
+  ok: boolean;
+  kind?: 'cancelled' | 'timeout';
+  text?: string;
+}
+
+interface ModuleExecutionTask {
+  promise: Promise<ModuleExecutionResult>;
+  cancel: () => void;
+}
+
+interface CodeEditorProps {
+  initialCode: string;
+  resetCode: () => string;
+  locale?: Locale;
+}
+
 export function CodeEditor({ initialCode, resetCode, locale = 'en' }: CodeEditorProps) {
-  const [code, setCode] = useState<string>(initialCode),
-    [running, setRunning] = useState<boolean>(false),
+  const [code, setCode] = useState(initialCode),
+    [running, setRunning] = useState(false),
     [result, setResult] = useState<ModuleExecutionResult | null>(null),
     task = useRef<ModuleExecutionTask | null>(null);
   const french = locale === 'fr';

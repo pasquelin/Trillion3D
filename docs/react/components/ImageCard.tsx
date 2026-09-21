@@ -1,7 +1,7 @@
 import { Card } from './UI.tsx';
 import { Modal } from './Modal.tsx';
 
-export interface ImageCardProps {
+interface ImageCardProps {
   title: string;
   src: string;
   alt: string;

@@ -1,15 +1,14 @@
-import type { JSX } from 'react';
 import { routeHref } from '../../js/portal/routes.js';
 import { examples } from '../../js/gallery/catalog.js';
 import { SectionHeader } from '../components/SectionHeader.tsx';
 import { ExampleCard } from '../gallery/ExampleCard.tsx';
-import type { HomeProps, Locale, RouteArea } from '../types/portal.ts';
+import type { Locale, RouteArea, TranslateFn } from '../types/portal.ts';
 
 const FEATURED = ['compose-transform', 'perspective', 'lod-budget'].map((id) =>
   examples.find((example: { id: string }) => example.id === id),
 );
 
-function HeroArt({ locale }: { locale: Locale }): JSX.Element {
+function HeroArt({ locale }: { locale: Locale }) {
   return (
     <svg
       className="hero-art"
@@ -50,7 +49,7 @@ function HeroArt({ locale }: { locale: Locale }): JSX.Element {
   );
 }
 
-export function Home({ locale, t }: HomeProps): JSX.Element {
+export function Home({ locale, t }: { locale: Locale; t: TranslateFn }) {
   const fr = locale === 'fr';
   const steps: [string, RouteArea][] = [
     ['quick-start', 'learn'],

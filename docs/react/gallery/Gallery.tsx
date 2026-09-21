@@ -5,7 +5,6 @@ import {
   useState,
   type ChangeEvent,
   type Dispatch,
-  type ReactElement,
   type SetStateAction,
 } from 'react';
 import type { Locale } from '../types/portal.ts';
@@ -40,13 +39,13 @@ const searchable = (entry: GalleryExample): string =>
     `${entry.id} ${entry.title.en} ${entry.title.fr} ${entry.description?.en ?? ''} ${entry.description?.fr ?? ''} ${entry.subject ?? ''} ${entry.supplementaryTopic ?? ''} ${(entry.functions ?? []).join(' ')}`,
   );
 
-export function Gallery({ locale = 'en' }: { locale?: Locale }): ReactElement {
+export function Gallery({ locale = 'en' }: { locale?: Locale }) {
   const restored = useRef<GalleryViewState | undefined>(viewState.get(locale));
-  const [query, setQuery] = useState<string>(restored.current?.query ?? '');
-  const [category, setCategory] = useState<string>(restored.current?.category ?? 'all');
-  const [expanded, setExpanded] = useState<string>('');
+  const [query, setQuery] = useState(restored.current?.query ?? '');
+  const [category, setCategory] = useState(restored.current?.category ?? 'all');
+  const [expanded, setExpanded] = useState('');
   const progressive = useRef<ProgressiveListState | undefined>(restored.current?.progressive);
-  const scrollY = useRef<number>(restored.current?.scrollY ?? 0);
+  const scrollY = useRef(restored.current?.scrollY ?? 0);
   const currentView = useRef<{ query: string; category: string }>({ query, category });
   currentView.current = { query, category };
   const entries = useMemo(
@@ -114,7 +113,7 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }): ReactElement {
           active={category}
           available={categories}
           locale={locale}
-          onSelect={(item: string) => {
+          onSelect={(item) => {
             setCategory(item);
             progressive.current = undefined;
             setExpanded('');
@@ -141,7 +140,7 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }): ReactElement {
             loading: french ? 'Chargement…' : 'Loading…',
             end: french ? 'Fin des résultats' : 'End of results',
           }}
-          renderItem={(entry: GalleryExample) => (
+          renderItem={(entry) => (
             <ExampleCard
               key={entry.id}
               example={entry}
