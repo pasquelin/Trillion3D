@@ -8,15 +8,13 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const DOCS = join(ROOT, 'docs/js');
+const CONTENT = join(ROOT, 'site/content');
 
 const modules = await Promise.all(
-  readdirSync(DOCS)
-    .filter((name) => name.startsWith('docsContent'))
-    .map((name) => import(join(DOCS, name))),
+  readdirSync(join(CONTENT, 'entries')).map((name) => import(join(CONTENT, 'entries', name))),
 );
 const ENTRIES = modules.flatMap((module) => Object.values(module).flat());
-const { ISSUES, SECTIONS } = await import(join(DOCS, 'docsModel.js'));
+const { ISSUES, SECTIONS } = await import(join(CONTENT, 'model.ts'));
 
 /** Names a file declares or re-exports, read once per file. */
 const exportsOf = new Map();
@@ -71,7 +69,7 @@ function signatureArguments(signature, name) {
 }
 
 test('a documented signature takes the arguments the function really takes', async () => {
-  const engine = await import(join(ROOT, 'docs/js/engine.js'));
+  const engine = await import(join(ROOT, 'site/demos/engine.ts'));
   for (const entry of ENTRIES) {
     if (entry.issue || !entry.signature || !entry.exports) continue;
     for (const symbol of entry.exports) {
@@ -154,7 +152,7 @@ test('examples cannot treat arbitrary implementation files as public modules', (
 });
 
 test('every demo belongs to an entry of the portal', async () => {
-  const { DEMOS } = await import(join(DOCS, 'demoRegistry.js'));
+  const { DEMOS } = await import(join(ROOT, 'site/demos/registry.ts'));
   const ids = new Set(ENTRIES.map((entry) => entry.id));
   for (const id of Object.keys(DEMOS)) assert.ok(ids.has(id), `demo ${id} has no entry`);
 });

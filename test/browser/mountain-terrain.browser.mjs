@@ -11,7 +11,7 @@ const root = resolve(import.meta.dirname, '../..'),
     '/sdk/': 'dist',
     '/vendor/three/': 'node_modules/three',
     '/vendor/meshoptimizer/': 'node_modules/meshoptimizer',
-    '/docs/': 'docs',
+    '/site/': 'site',
   };
 await mkdir(output, { recursive: true });
 const server = await startServer({
@@ -40,7 +40,7 @@ try {
     document.body.append(canvas);
     const { createExplorer, webgpuPagesBackend } = await import(sdkUrl);
     window.scene = await createExplorer('terrain-proof', {
-      manifestUrl: '/docs/assets/gallery/offline/terrain/cache/native/full/manifest.json',
+      manifestUrl: '/site/assets/gallery/offline/terrain/cache/native/full/manifest.json',
       scope: 'full',
       importedLights: true,
       interactive: false,

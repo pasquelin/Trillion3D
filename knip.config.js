@@ -3,8 +3,8 @@
 // integration lane load them by URL, never by import.
 export default {
   entry: [
-    'docs/react/main.tsx',
-    'scripts/docs/highlight-entry.mjs',
+    'site/app/main.tsx',
+    'site/demos/engine.ts',
     'packages/sdk-browser/pageDecodeWorker.ts',
     'packages/sdk-browser/pageIntegrationWorker.ts',
     'packages/sdk-node/{index,cli}.mts',
@@ -35,7 +35,7 @@ export default {
     'test/browser/*.browser.mjs',
   ],
   project: [
-    'docs/react/**/*.{ts,tsx}',
+    'site/**/*.{ts,tsx}',
     'packages/**/*.{ts,mts,mjs,js}',
     'scripts/**/*.{ts,mts,mjs,js}',
     'test/**/*.{ts,mts,mjs,js}',

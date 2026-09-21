@@ -115,6 +115,6 @@ const collisions = Object.entries(Object.groupBy(inventory, (entry) => entry.nam
   .filter(([, entries]) => new Set(entries.map((entry) => entry.bindingIdentity)).size > 1)
   .map(([name, entries]) => ({ name, bindings: entries.map((entry) => entry.bindingIdentity) }));
 await write(
-  'docs/api-inventory.json',
+  'site/data/api-inventory.json',
   `${JSON.stringify({ generatedFrom: ENTRIES, collisions, exports: inventory }, null, 2)}\n`,
 );

@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mountainTerrain } from './docs/mountain-terrain/model.mjs';
 import { writeMountainTerrain } from './docs/mountain-terrain/write.mjs';
 const root = resolve(import.meta.dirname, '..'),
-  directory = resolve(root, 'docs/assets/gallery/offline/terrain'),
+  directory = resolve(root, 'site/assets/gallery/offline/terrain'),
   compiler =
     process.env.WG_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
