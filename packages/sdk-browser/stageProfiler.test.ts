@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createStageProfiler, type StageAdd } from './stageProfiler.ts';
-import { addCpuSteps } from './stageMapping.ts';
+import { addCpuSteps } from './stageCpuSteps.ts';
 
 test('addCpuSteps deposits only indices whose stage is not null', () => {
   const deposits: Array<[string, number]> = [];
