@@ -1,13 +1,12 @@
-// The witness of the perf base: a second calculation of the same thing, timed under the same
-// settings, read on the row as `ecartTemoin` beside `ecartBaseline` — so every line that compares
-// the engine to a host library reads the same way, whatever bench wrote it.
+// The witness of the perf base (`docs/TESTS.md`): timed like the calculation, read on the row as
+// `ecartTemoin`; `null` on a row without one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mesure } from './mesure.mjs';
 
 const conf = {
   fichier: 'packages/sdk-core/bench/socle/mesure.mjs',
-  options: { chauffe: 1, tours: 5, budgetMs: 1000 },
+  options: { chauffe: 1, tours: 5 },
 };
 const cas = [{ name: 'one case', size: 4, input: 4 }];
 /** Enough work for the clock to see it, whatever its resolution. */
