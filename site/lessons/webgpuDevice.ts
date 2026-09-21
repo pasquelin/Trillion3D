@@ -16,7 +16,14 @@ fn rotate(p: vec3f) -> vec3f {
 }
 @fragment fn fs(input: Out) -> @location(0) vec4f { return vec4f(input.color,1.0); }
 `;
-let gpuPromise;
+
+interface IllustrationGpu {
+  device: GPUDevice;
+  format: GPUTextureFormat;
+  pipeline: GPURenderPipeline;
+}
+
+let gpuPromise: Promise<IllustrationGpu | null> | undefined;
 export async function getIllustrationGpu() {
   if (!navigator.gpu) return null;
   gpuPromise ??= (async () => {

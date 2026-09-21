@@ -5,6 +5,15 @@ import { createLessonExplorer } from './lessonExplorer.ts';
 import { addSceneFillLight } from './sceneFillLight.ts';
 import { applyRendererLesson } from './rendererLessonApply.ts';
 import { createRendererLessonDeadline } from './rendererLessonDeadline.ts';
+import { createReadyGate } from './rendererLessonReadyGate.ts';
+import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
+export type { RendererMetrics, RendererLessonSession } from './rendererLessonSessionTypes.ts';
+import type {
+  RendererMetrics,
+  RendererLessonSession,
+  Controls,
+} from './rendererLessonSessionTypes.ts';
 export { applyRendererLesson } from './rendererLessonApply.ts';
 
 const COLD_FRAME_LIMIT = 2400,
@@ -12,12 +21,24 @@ const COLD_FRAME_LIMIT = 2400,
   SETTLE_MINIMUM_MS = 2_000,
   SETTLE_TIME_LIMIT_MS = 30_000;
 
-export async function createRendererLessonRuntime({ canvas, lesson, state, report, signal }) {
+export async function createRendererLessonRuntime({
+  canvas,
+  lesson,
+  state,
+  report,
+  signal,
+}: {
+  canvas: HTMLCanvasElement;
+  lesson: RendererLessonItem;
+  state: Record<string, number>;
+  report: (metrics: RendererMetrics) => void;
+  signal?: AbortSignal;
+}): Promise<RendererLessonSession> {
   const startup = createRendererLessonDeadline(signal, SETTLE_TIME_LIMIT_MS);
   const importedLights =
     lesson.importedLights ??
-    (['lod', 'memory', 'offline'].includes(lesson.kind) || lesson.runtime === 'camera-pose');
-  let explorer;
+    (['lod', 'memory', 'offline'].includes(lesson.kind ?? '') || lesson.runtime === 'camera-pose');
+  let explorer: Explorer;
   try {
     const opts = { canvas, signal: startup.signal, manifest: lesson.manifest, importedLights };
     explorer = await startup.wait(createLessonExplorer(opts));
@@ -32,31 +53,17 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     remaining = 0,
     settleNotBefore = 0,
     previous = 0,
-    resize,
-    controls,
-    ready,
-    readyResolve,
-    readyReject,
+    resize: ResizeObserver | undefined,
+    controls: Controls,
     updateChain = Promise.resolve();
   const added = { value: false },
-    lighting = createLightingLessonSession();
-  const nextReady = () => {
-    ready = new Promise((resolve, reject) => {
-      readyResolve = resolve;
-      readyReject = reject;
-    });
-    ready.catch(() => {});
-    return ready;
-  };
-  const settle = (outcome, value) => {
-    outcome?.(value);
-    readyResolve = readyReject = undefined;
-  };
+    lighting = createLightingLessonSession(),
+    gate = createReadyGate();
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     startup.cancel();
-    settle(readyReject, new DOMException('Cancelled', 'AbortError'));
+    gate.settleReject(new DOMException('Cancelled', 'AbortError'));
     cancelAnimationFrame(frame);
     resize?.disconnect();
     controls?.dispose();
@@ -86,14 +93,14 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         diagnostic: explorer.diagnostic,
         idle,
       });
-      if (!coldStart) settle(readyResolve);
+      if (!coldStart) gate.settleResolve();
       previous = now;
       frame = 0;
-      if (idle) settle(readyResolve);
+      if (idle) gate.settleResolve();
       else frame = requestAnimationFrame(draw);
     } catch (error) {
       frame = 0;
-      settle(readyReject, error);
+      gate.settleReject(error);
       dispose();
     }
   };
@@ -104,7 +111,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     previous = 0;
     if (!starting && !frame) frame = requestAnimationFrame(draw);
   };
-  const update = async (next) => {
+  const update = async (next: Record<string, number>) => {
     if (disposed) return;
     if (lesson.runtime === 'advanced-lighting')
       applyLightingLesson(explorer, lesson, next, lighting);
@@ -115,7 +122,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
   try {
     await startup.wait(explorer.awaitPages());
     if (disposed) throw new DOMException('Cancelled', 'AbortError');
-    nextReady();
+    gate.nextReady();
     if (lesson.sceneLight)
       explorer.addLight({
         id: 'scene',
@@ -151,14 +158,14 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     resizeCanvas();
     starting = false;
     reset();
-    await startup.wait(ready);
+    await startup.wait(gate.current);
     if (lesson.kind === 'lod-diagnostic') {
-      nextReady();
+      gate.nextReady();
       await startup.wait(update({ ...state, pixelError: 0 }));
-      await startup.wait(ready);
-      nextReady();
+      await startup.wait(gate.current);
+      gate.nextReady();
       await startup.wait(update(state));
-      await startup.wait(ready);
+      await startup.wait(gate.current);
     }
     coldStart = false;
     startup.finish();
@@ -166,7 +173,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
       update: (next) => {
         const run = async () => {
           if (disposed) throw new DOMException('Cancelled', 'AbortError');
-          const settled = nextReady();
+          const settled = gate.nextReady();
           await update(next);
           await settled;
         };

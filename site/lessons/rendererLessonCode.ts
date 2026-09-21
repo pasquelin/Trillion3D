@@ -1,7 +1,8 @@
 import { lessonCode } from './lessonCode.ts';
 import { lightingLessonCode } from './lightingLessonCode.ts';
 import { cameraLessonCode } from './cameraLessonCode.ts';
-const line = (lesson, state) => {
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
+const line = (lesson: RendererLessonItem, state: Record<string, number>) => {
   if (lesson.kind === 'point')
     return `explorer.addLight({ id: 'lesson', kind: 'point', position: [0, 4, 2], color: [1, 0.72, 0.42], intensity: ${state.intensity}, range: ${state.range}, emitterRadius: 0.1, castsShadow: true });`;
   if (lesson.kind === 'spot')
@@ -18,7 +19,7 @@ explorer.setEnvironment({ exposure: ${state.exposure} });`;
   return `await explorer.setMemoryBudgets({ geometryPoolBytes: ${state.geometryMiB} * 1024 * 1024 });`;
 };
 
-export function rendererCodeFor(lesson, state) {
+export function rendererCodeFor(lesson: RendererLessonItem, state: Record<string, number>) {
   if (lesson.kind === 'offline') return lessonCode('', { manifest: lesson.manifest });
   if (lesson.runtime === 'advanced-lighting') return lightingLessonCode(lesson, state);
   if (lesson.runtime === 'camera-pose') return cameraLessonCode(lesson, state);

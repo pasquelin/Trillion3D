@@ -1,4 +1,8 @@
-function lightFor(kind, state) {
+import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { SceneLight } from '../../packages/sdk/index.ts';
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
+
+function lightFor(kind: string | undefined, state: Record<string, number>): SceneLight {
   if (kind === 'point')
     return {
       id: 'lesson',
@@ -34,8 +38,13 @@ function lightFor(kind, state) {
   };
 }
 
-export function applyRendererLesson(explorer, lesson, state, added) {
-  if (['point', 'spot', 'directional', 'exposure'].includes(lesson.kind)) {
+export function applyRendererLesson(
+  explorer: Explorer,
+  lesson: RendererLessonItem,
+  state: Record<string, number>,
+  added: { value: boolean },
+) {
+  if (['point', 'spot', 'directional', 'exposure'].includes(lesson.kind ?? '')) {
     const light = lightFor(lesson.kind === 'exposure' ? 'directional' : lesson.kind, state);
     if (added.value) {
       const { id, ...patch } = light;

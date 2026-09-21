@@ -1,8 +1,9 @@
 import { codeForBounds, codeForScene } from './codeScene.ts';
 import { codeForTransform, codeForVector } from './codeSpatial.ts';
 import { codeForAdvanced } from './codeAdvanced.ts';
+import type { ScenarioState } from './scenarios.ts';
 
-export function codeFor(id, state) {
+export function codeFor(id: string, state: ScenarioState) {
   if (
     ['matrix-inverse', 'reflection-orientation', 'quaternion-turn', 'normal-transform'].includes(id)
   )

@@ -1,4 +1,4 @@
-export const offlineTitlesFr = {
+export const offlineTitlesFr: Record<string, string> = {
   'implicit-shell': 'Deux champs, une enveloppe échantillonnée',
   'terrain-hit': 'Un rayon rencontre le relief',
   'curve-control': 'Préparer une trajectoire ondulée',
@@ -24,7 +24,7 @@ export const offlineTitlesFr = {
   'wide-indices': 'Dépasser les indices sur seize bits',
   'bent-prism': 'Préparer une courbure non linéaire',
 };
-export const offlineNotesFr = {
+export const offlineNotesFr: Record<string, string> = {
   'implicit-shell':
     'Faces exposées de voxels issus d’un champ implicite ; ce n’est pas marching cubes.',
   'curve-control': 'Une courbe ondulée préparée, pas un éditeur interactif de splines.',

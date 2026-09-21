@@ -1,12 +1,15 @@
-export function createRendererLessonDeadline(parentSignal, timeoutMs) {
+export function createRendererLessonDeadline(
+  parentSignal: AbortSignal | undefined,
+  timeoutMs: number,
+) {
   const controller = new AbortController();
-  let rejectLimit,
+  let rejectLimit: (error: DOMException) => void,
     pending = true;
-  const limit = new Promise((_, reject) => {
+  const limit = new Promise<never>((_, reject) => {
     rejectLimit = reject;
   });
   limit.catch(() => {});
-  const stop = (error) => {
+  const stop = (error: DOMException) => {
     if (controller.signal.aborted) return;
     const reject = pending;
     pending = false;
@@ -24,7 +27,7 @@ export function createRendererLessonDeadline(parentSignal, timeoutMs) {
   else parentSignal?.addEventListener('abort', cancel, { once: true });
   return {
     signal: controller.signal,
-    wait: (work) => (pending ? Promise.race([work, limit]) : work),
+    wait: <T>(work: Promise<T>) => (pending ? Promise.race([work, limit]) : work),
     cancel,
     finish() {
       if (!pending) return;

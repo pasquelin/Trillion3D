@@ -1,7 +1,9 @@
-const source = (names) => `import { ${names.join(', ')} } from './js/engine.js';`;
-const number = (value) => Number(value);
+import type { ScenarioState } from './scenarios.ts';
 
-export function codeForBounds(id, state) {
+const source = (names: string[]) => `import { ${names.join(', ')} } from './js/engine.js';`;
+const number = (value: number) => Number(value);
+
+export function codeForBounds(id: string, state: ScenarioState) {
   if (id === 'box-grow')
     return `${source(['boxEmpty', 'boxExpandByPoint'])}
 const points = [[-2, -1], [1, 1.4], [2.4, -0.4], [-0.5, 2], [3, 1.8], [-2.7, 1.1]].slice(0, ${number(state.points)});
@@ -16,7 +18,7 @@ sphereFromBounds(result, 0, -width / 2, -height / 2, 0, width / 2, height / 2, 0
 export default Array.from(result);`;
 }
 
-export function codeForScene(id, state) {
+export function codeForScene(id: string, state: ScenarioState) {
   if (id === 'hierarchy')
     return `${source(['createTransformTree', 'addTransformNode', 'setNodePosition', 'setNodeQuaternion', 'updateNodeWorldMatrix', 'nodeWorldPosition'])}
 const tree = createTransformTree(2), parent = addTransformNode(tree), child = addTransformNode(tree, parent);
