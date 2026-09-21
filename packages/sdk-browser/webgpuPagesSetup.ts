@@ -18,6 +18,8 @@ import {
   DEFAULT_TEXTURE_POOL_BUDGET,
   geometryPoolFor,
   texturePoolFor,
+  textureTransferBytesFor,
+  textureUploadMsFor,
 } from './webgpuMemoryBudgets.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
@@ -123,12 +125,10 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     gpuDevice,
   );
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
-  const textureBudget = Math.max(
-    1,
-    Number.isFinite(context.maxTextureTransferBytesPerFrame)
-      ? context.maxTextureTransferBytesPerFrame!
-      : 16 * 1024 * 1024,
-  );
+  // The tile pass's two budgets: bytes, and the reference's fixed upload cadence in the frame's
+  // own unit.
+  const textureBudget = textureTransferBytesFor(context.maxTextureTransferBytesPerFrame);
+  const textureUploadMs = textureUploadMsFor(context.maxTextureUploadMsPerFrame);
   return {
     source,
     // Index of the engine's world matrices: what the image walks, and what a moved node recomputes.
@@ -160,6 +160,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     sourceBytes,
     reserveHiz,
     textureBudget,
+    textureUploadMs,
     // The two pools as they are held; `setMemoryBudgets` replaces them with another drawn from the
     // same rule, `slots` follows.
     geometryPool,
