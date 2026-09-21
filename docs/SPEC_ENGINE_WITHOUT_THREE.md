@@ -138,6 +138,14 @@ allocation per frame, batched operations (n boxes, n spheres) rather than per ob
 each Three method while keeping `THREE.Vector3`, `THREE.Matrix4` or `Object3D` in the signatures
 does not count: the dependency is gone when no Three type crosses the engine.
 
+The batched form is part of the runtime's public maths (#80): `packages/sdk-core/mathBatch*.ts`,
+listed in `docs/API.md` § "Batch math for hosts" and taught in `docs/SDK.md` under the same title
+— `n` elements per call on flat arrays or sub-views of a fixed stride, no allocation, each
+repeating the unit function that stays its oracle, exported by `sdk-core`, `sdk-browser` and
+`web-geometry` alike. A WebAssembly kernel exists only where the governor (`mathPathGovernor.ts`)
+has a measured loop to arbitrate; a loop the engine's own frame measures under its clock keeps its
+JavaScript form.
+
 R1c. **Transforms and camera owned by the engine.** The hard part is not the formula but the
 hierarchy: parent/child, update order, dirty marking, negative and non-uniform scales (the sign of
 the determinant decides face winding), singular matrices, camera (view, projection,
@@ -319,6 +327,42 @@ replays one after the host has taken its lists — and a per-frame flag does not
 after it. Cost of forgetting, measured: 5,918 pixels and a cut of 1,273,565 triangles instead of
 1,599,951, invisible with a still camera. Criterion: **every optimisation of lists, residency or
 pinning is proven with a moving camera**, at both thresholds, in addition to the still poses.
+R6d. **Transmission is a fullscreen pass, not a forward blend.** A material that transmits —
+`KHR_materials_transmission`, with `KHR_materials_ior` and `KHR_materials_volume`; water, thick
+glass — is composed by the water pass (`webgpuWaterPass.ts`), after the ordinary blends, on the
+image they left. Contract, in three steps and one hook (`webgpuWaterFrame.ts` holds the frame side:
+its bind group, its copies and its two passes, rebuilt only when a target or a lighting resource
+changed identity). **(a)** The backdrop is frozen: the lit image is copied once, and the opaque
+depth once into the depth the surface stage tests (`webgpuTransmission.ts`); the composite reads
+the opaque depth itself, which nothing writes in between. **(b)** The surface stage (`WG water
+surfaces`) draws the transmission slice of the blend plan with the blend vertex stage and the blend
+material read (`webgpuBlendShaderSurface.ts`, the single read of a transparent material, shared
+with the blend fragment), into the opaque resolve's own surface buffer — free once that resolve
+consumed it — plus the item's water rank and the opacity (`webgpuWaterSurfaceWgsl.ts`); hardware
+depth is tested against the opaque copy and written, so the nearest surface of a pixel is the one
+composed and a surface behind an opaque never is. **(c)** The composite (`WG water composite`,
+`webgpuWaterCompositeWgsl.ts`) lights each water pixel once, with the engine's only lighting
+formula and its only reflection model — `declaredLighting`, `sampleBounce`, on the deferred bounce
+layout's own binding numbers and WGSL blocks —, refracts the backdrop by the material IOR
+and attenuates it by the volume colour over **the distance the ray travels in the volume: the
+declared thickness, or the distance to the opaque backdrop under the pixel when that is shorter**.
+That bound is what makes the pass water as the reference's single-layer water is: a basin declared
+deeper than its floor renders its floor, a block just below the surface is displaced and tinted by
+its own depth. Over an empty backdrop the transmitted share keeps that emptiness as coverage, and
+the display background shows through. The hook is one line of `encodeBlend`: the pass is encoded
+when the frustum kept a transmissive surface; a diagnostic view or variant, or a capture from a
+second camera, draws the slice as one more blend. Nothing is bound per item any more: the material
+volume is read by water rank — carried above the item's flags, compact over the transmissive items
+— in a storage buffer sized to them, the blend layout lost its three transmission bindings, and the
+transmission slice merges its runs on the blend's terms. Declared limits, shared with the forward
+pass that preceded: one screen-space sample at the exit, never a march, so a ray that crosses an
+object before its exit does not see it; no transmissive surface sees through another. Criterion:
+0 px A/A on the repository fixture (`fixtures/classes-materiaux/transmission.gltf`, the only asset
+in the repository with a transmissive surface — neither bench scene carries one) and on the bench
+scene, whose image the batch does not move; the browser proof
+`test/browser/water-pass-webgpu.browser.mjs` predicts the composed pixel from the material numbers
+alone, paged and unpaged, and holds the still image.
+
 R7. **WebGL2 rendering**: the same lighting formulas in GLSL generated from the same source as the
 WGSL, persistent index buffers, `WEBGL_multi_draw`, one draw per material not per object (instance
 matrices in a texture), sorted transparents, textures and mips managed by the runtime. Criterion:
