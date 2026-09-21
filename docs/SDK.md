@@ -222,7 +222,8 @@ the `cpu-timing` reports the engine published inside the measured loop, on a 0.1
 step that reads `0.000 / 0.100` is under it, not zero. The bench has since read them from the
 profile window instead (`explorer.cpuSteps()`, `bornesCpu` in the bench README): the same bounds,
 over the profiled images only, so a rerun re-reads them there — and a still image, held, files a
-row of zeros in that window where the reports below published nothing. `null` is unmeasured,
+row of zeros in that window (its tile pump alone unmeasured) where the reports below published
+nothing. `null` is unmeasured,
 never an estimate.
 
 | scene · camera                      | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs`            | `selectionDispatchMs`             | CPU frame p50 | rAF p50    | roots                                                                                                                                                                              | verdict                                                                                                        |
