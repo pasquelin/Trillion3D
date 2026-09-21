@@ -15,12 +15,8 @@ pub(super) fn store_page(
     let (data, flags, vertex_count) = geometry_page::encode(slice, pos, page_attributes)?;
     let digest = hash(&data);
     let name = format!("../../objects/{}.bin", digest);
-    let target = o
-        .cache
-        .join("native")
-        .join("objects")
-        .join(format!("{}.bin", digest));
-    let reused = target.exists() && hash_file(&target)? == digest;
+    let target = object_path(o, &digest);
+    let reused = object_intact(&target, &digest)?.is_some();
     if !reused {
         store_object(&target, &data)?;
     }
