@@ -1,4 +1,6 @@
-export const vectorFr = {
+import type { LocaleOverlay } from './entryOverlay.ts';
+
+export const vectorFr: LocaleOverlay = {
   srgbToLinear: {
     description:
       'Courbe sRGB exacte et son inverse, les valeurs négatives étant ramenées à zéro avant l’exposant.',

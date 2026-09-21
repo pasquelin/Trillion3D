@@ -1,8 +1,10 @@
+import type { PortalEntry } from '../model.ts';
+
 /** Engine lifecycle: compiling a scene, opening an explorer, driving it. */
 const NODE = { section: 'lifecycle', kind: 'Function', module: 'packages/sdk-node/index.mts' };
 const BROWSER = { section: 'lifecycle', kind: 'Function' };
 
-export const LIFECYCLE = [
+export const LIFECYCLE: PortalEntry[] = [
   {
     ...NODE,
     id: 'prepare',

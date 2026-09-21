@@ -1,7 +1,9 @@
+import type { PortalEntry } from '../model.ts';
+
 /** Batch math: `n` elements per call on flat buffers, the governor that arbitrates the paths. */
 const BATCH = { section: 'batches', kind: 'Function', module: 'packages/sdk-core/mathBatch.ts' };
 
-export const BATCHES = [
+export const BATCHES: PortalEntry[] = [
   {
     ...BATCH,
     id: 'multiplyMatrix4Batch',

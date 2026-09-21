@@ -1,6 +1,7 @@
 import { demoDetailsFr } from './demoDetails.fr.ts';
+import type { Locale } from '../locale.ts';
 
-const EXACT = {
+const EXACT: Record<string, string> = {
   kept: 'conservé',
   rejected: 'rejeté',
   note: 'note',
@@ -164,7 +165,7 @@ const EXACT = {
   'the same (1, 2, 3), three ways': 'le même (1, 2, 3), par trois chemins',
 };
 
-export function localizeDemoText(text, locale) {
+export function localizeDemoText(text: string, locale: Locale): string {
   if (locale !== 'fr' || typeof text !== 'string') return text;
   if (EXACT[text] ?? demoDetailsFr[text]) return EXACT[text] ?? demoDetailsFr[text];
   const singular = text.match(

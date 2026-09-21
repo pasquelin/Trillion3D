@@ -1,7 +1,8 @@
 /** Engine guides — memory, admission — kept apart so the guide list stays within its line budget. */
 import { GUIDE } from './guides.ts';
+import type { PortalEntry } from '../model.ts';
 
-export const ENGINE_GUIDES = [
+export const ENGINE_GUIDES: PortalEntry[] = [
   {
     ...GUIDE,
     id: 'memory-pools',

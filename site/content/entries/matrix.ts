@@ -1,3 +1,5 @@
+import type { PortalEntry } from '../model.ts';
+
 /** 4×4 and 3×3 matrices, and the singularity rule the normal matrix follows. */
 const M4 = { section: 'matrices', kind: 'Function', module: 'packages/sdk-core/mathMatrix4.ts' };
 const TRS = {
@@ -7,7 +9,7 @@ const TRS = {
 };
 const SING = { section: 'matrices', kind: 'Function', module: 'packages/sdk-core/mathSingular.ts' };
 
-export const MATRICES = [
+export const MATRICES: PortalEntry[] = [
   {
     ...M4,
     id: 'multiplyMatrix4',

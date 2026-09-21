@@ -1,3 +1,5 @@
+import type { PortalEntry } from '../model.ts';
+
 /** Camera and projection (`sdk-core`), then the host-camera bridge and sides (`sdk-browser`). */
 const CAM = { section: 'camera', kind: 'Function', module: 'packages/sdk-core/mathCamera.ts' };
 const ORIGIN = {
@@ -11,7 +13,7 @@ const HOST = {
   module: 'packages/sdk-browser/engineCamera.ts',
 };
 
-export const CAMERA = [
+export const CAMERA: PortalEntry[] = [
   {
     ...CAM,
     id: 'perspectiveProjection',
@@ -79,7 +81,7 @@ perspectiveProjection(projection, 50, canvas.width / canvas.height, 0.1, 1);`,
   },
 ];
 
-export const HOST_CAMERA = [
+export const HOST_CAMERA: PortalEntry[] = [
   {
     ...HOST,
     id: 'createEngineCamera',

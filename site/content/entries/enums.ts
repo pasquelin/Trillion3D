@@ -1,8 +1,10 @@
+import type { PortalEntry } from '../model.ts';
+
 /** Constants and enums of the image and its quality, each read from the file named in `module`. */
 const ENUM = { section: 'enums', kind: 'Type' };
 const CONST = { section: 'enums', kind: 'Constant' };
 
-export const ENUMS_IMAGE = [
+export const ENUMS_IMAGE: PortalEntry[] = [
   {
     ...CONST,
     id: 'IDENTITY_MATRIX4',

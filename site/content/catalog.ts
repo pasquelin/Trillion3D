@@ -1,6 +1,28 @@
 import { rendererLessons } from '../lessons/rendererLessons.ts';
+import type { Localized } from './locale.ts';
 
-export const examples = [
+interface ExampleBase {
+  id: string;
+  title: Localized;
+  category: string;
+  functions?: string[];
+  engine?: boolean;
+  renderer?: boolean;
+  preview?: string;
+  readyLessonId?: string;
+}
+
+/** A catalog lesson describes itself and is ready. */
+export interface CatalogExample extends ExampleBase {
+  status?: 'ready';
+  description: Localized;
+  concept?: undefined;
+  reason?: undefined;
+  subject?: undefined;
+  supplementaryTopic?: undefined;
+}
+
+export const examples: CatalogExample[] = [
   {
     id: 'compose-transform',
     category: 'transforms',
@@ -170,4 +192,4 @@ export const examples = [
   ...rendererLessons,
 ];
 
-export const byId = (id) => examples.find((example) => example.id === id) ?? examples[0];
+export const byId = (id: string) => examples.find((example) => example.id === id) ?? examples[0];
