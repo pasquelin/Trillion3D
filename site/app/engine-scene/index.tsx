@@ -5,6 +5,7 @@ import { CodeBlock } from '../components/CodeBlock.tsx';
 import { ExampleLayout } from '../components/ExampleLayout.tsx';
 import { Alert } from '../components/UI.tsx';
 import { engineExampleCode } from '../../lessons/engine-scene/code.ts';
+import { sceneCopy } from '../../lessons/engine-scene/content.ts';
 import { mountScene } from '../../lessons/engine-scene/lifecycle.ts';
 import { EnginePreview, engineCopy } from './EnginePreview.tsx';
 import { EngineStats } from './Stats.tsx';
@@ -25,7 +26,7 @@ export function EngineExample({
   const copy = engineCopy(locale);
   useEffect(() => {
     if (host.current) {
-      return mountScene(host.current, copy, locale);
+      return mountScene(host.current, sceneCopy[locale], locale);
     }
   }, [locale, diagnostic]);
   return (

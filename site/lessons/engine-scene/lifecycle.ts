@@ -6,7 +6,7 @@ import { addSceneFillLight } from '../sceneFillLight.ts';
 import type { Explorer } from '../../../packages/sdk-browser/index.ts';
 import type { FrameMetrics } from '../../../packages/sdk/index.ts';
 import { isDiagnosticMode } from './diagnosticModes.ts';
-import type { EngineCopy } from './content.ts';
+import type { SceneCopy } from './content.ts';
 import type { Locale } from '../../content/locale.ts';
 
 // The mount template (docs/index.html) always renders these nodes alongside the scene host.
@@ -15,7 +15,7 @@ const required = <T extends Element>(host: ParentNode, selector: string): T =>
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-export function mountScene(host: ParentNode, copy: EngineCopy, locale: Locale) {
+export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
   const canvas = required<HTMLCanvasElement>(host, '[data-scene-canvas]');
   const start = required<HTMLButtonElement>(host, '[data-scene-start]');
   const mode = required<HTMLSelectElement>(host, '[data-scene-mode]');
