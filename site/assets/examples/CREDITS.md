@@ -1,7 +1,7 @@
 # Example assets: provenance and credits
 
 Every scene under this folder is compiled by the repository's native compiler from the sources
-beside it (`scripts/docs-examples-assets.mjs`). The procedural scenes — `corner-cube`,
+beside it (`scripts/docs-examples-assets.ts`). The procedural scenes — `corner-cube`,
 `still-life`, `clay-to-chrome`, `sundial`, `colonnade` — are original, written by
 `scripts/docs/examples/scenes.mjs` under the repository licence, with no third-party geometry.
 

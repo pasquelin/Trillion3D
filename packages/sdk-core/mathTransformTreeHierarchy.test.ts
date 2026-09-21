@@ -1,24 +1,23 @@
 // Batch M3a, parent/child cases: the same operations replayed on real Three.js `Object3D` and
-// cameras (`hierarchieRejeuThree.mjs`) and on the sdk-core hierarchy (`hierarchieRejeuNous.mjs`),
+// cameras (`hierarchieRejeuThree.ts`) and on the sdk-core hierarchy (`hierarchieRejeuNous.ts`),
 // compared component by component with `Object.is` — `NaN` accepted on both sides at the same place.
-// The scenarios (`hierarchieScenarios*.mjs`) cover: depth ≥ 4 chains with a two-child
+// The scenarios (`hierarchieScenarios*.ts`) cover: depth ≥ 4 chains with a two-child
 // branch, negative scale on one axis and zero scale, parent rotation on non-uniform scale,
 // camera child of a node, reparenting, partial marking (`updateWorldMatrix`), `lookAt` (direction
 // collinear with up, mirrored parent, zero-scale parent), and degenerate projections in both
 // depth conventions. Three is used only as a reference, never in a `math*.ts` file.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { joueNous } from '../sdk-browser/bench/appui/hierarchieRejeuNous.mjs';
-import { joueThree } from '../sdk-browser/bench/appui/hierarchieRejeuThree.mjs';
-import { chainesFigees } from '../sdk-browser/bench/appui/hierarchieScenarios.mjs';
-import { objectifs, visees } from '../sdk-browser/bench/appui/hierarchieScenariosCamera.mjs';
-import { marquages, liveScenario } from '../sdk-browser/bench/appui/hierarchieScenariosVivants.mjs';
+import { joueNous } from '../sdk-browser/bench/appui/hierarchieRejeuNous.ts';
+import { joueThree } from '../sdk-browser/bench/appui/hierarchieRejeuThree.ts';
+import { chainesFigees } from '../sdk-browser/bench/appui/hierarchieScenarios.ts';
+import type { HierarchyOp } from '../sdk-browser/bench/appui/hierarchieScenarios.ts';
+import { objectifs, visees } from '../sdk-browser/bench/appui/hierarchieScenariosCamera.ts';
+import { marquages, liveScenario } from '../sdk-browser/bench/appui/hierarchieScenariosVivants.ts';
 
-type Output = number[];
-
-function compare(scenario: unknown[], label: string) {
-  const attendu = joueThree(scenario) as Output[];
-  const obtenu = joueNous(scenario) as Output[];
+function compare(scenario: HierarchyOp[], label: string) {
+  const attendu = joueThree(scenario);
+  const obtenu = joueNous(scenario);
   assert.equal(obtenu.length, attendu.length, `${label}: number of outputs`);
   for (let i = 0; i < attendu.length; i++) {
     const a = attendu[i],

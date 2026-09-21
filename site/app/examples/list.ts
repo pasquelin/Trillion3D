@@ -1,4 +1,4 @@
-import roadmap from '../../content/gallery-roadmap.json';
+import roadmap from '../../content/gallery-roadmap.json' with { type: 'json' };
 
 /** The examples list, theme by theme, in the order of the file. */
 export const themedEntries = roadmap.themes.map((theme) => ({

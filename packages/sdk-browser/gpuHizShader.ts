@@ -13,7 +13,7 @@ const COMPUTE = 4;
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
  * browser proofs READ them here — none copies them, so none can lag behind the shader. That
- * lag is what turned `hiz-webgpu.browser.mjs` red: its copy had stopped at `@binding(4)` while
+ * lag is what turned `hiz-webgpu.browser.ts` red: its copy had stopped at `@binding(4)` while
  * `state` entered at 5.
  */
 export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] {
