@@ -62,6 +62,7 @@ function rejectByFrustum(blendState: BlendState) {
     keep = blendState.keepPacked,
     planes = blendState.blendPlanes;
   let rejected = 0,
+    transmissiveInView = 0,
     bouge = false,
     mot = 0;
   // The mask is composed word by word, and a word is written only if it has changed: a still pose
@@ -77,11 +78,16 @@ function rejectByFrustum(blendState: BlendState) {
     const box = items[i].bounds;
     if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5]))
       rejected++;
-    else mot |= 1 << (i & 31);
+    else {
+      mot |= 1 << (i & 31);
+      // The water pass is encoded for a surface in view, never for a scene that merely has one.
+      if (items[i].transmissive) transmissiveInView++;
+    }
     if ((i & 31) === 31) pose(i >>> 5);
   }
   if (items.length & 31) pose(items.length >>> 5);
   blendState.keepMoved = bouge;
+  blendState.transmissiveInView = transmissiveInView;
   return rejected;
 }
 
@@ -141,6 +147,7 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
   if (!eye || !blendState.blendGpu.length) {
     blendState.runCount[0] = 0;
     blendState.runCount[1] = 0;
+    blendState.transmissiveInView = 0;
     return 0;
   }
   refreshEyeKeys(blendState, eye);
@@ -150,8 +157,7 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
   for (let pass = 0; pass < orders.length; pass++) {
     if (!sortPlanFarToNear(orders[pass], items) && !blendState.orderMoved[pass]) continue;
     blendState.orderMoved[pass] = true;
-    // The transmission pass keeps one run per entry: each still offsets its volume.
-    blendState.runCount[pass] = buildBlendRuns(orders[pass], pass === 0, blendState.runs[pass]);
+    blendState.runCount[pass] = buildBlendRuns(orders[pass], blendState.runs[pass]);
   }
   return rejected;
 }
