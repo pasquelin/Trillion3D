@@ -3,40 +3,65 @@ name: Quality
 on:
   pull_request:
     branches: [develop, main]
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
   push:
     branches: [develop]
   workflow_dispatch:
 
+# One run per branch. A new push supersedes the run it replaces, instead of queueing behind it;
+# on `develop` every commit keeps its own run, since that is the record that the branch is green.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
-  validate:
+  # The gates that read the sources alone, and nothing this workflow builds. They answer in under a
+  # minute, which is when a formatting or a lint mistake should be reported.
+  quick:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/node
+      # `format:check` covers the Rust sources too, and rustfmt alone needs no build cache.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: pnpm run validate --group quick
+
+  # The TypeScript build and the gates that read its products.
+  typescript:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/node
+      - run: pnpm run validate --group typescript
+
+  # Clippy, the release build, the Rust tests, and the unit suite — which drives the compiled
+  # compiler and reads `dist/`, so it runs where both exist (`scripts/validate-steps.ts`). The
+  # longest group, and the one a cache hit empties down to the unit suite.
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     env:
       NATIVE_BINARIES: |
         packages/asset-compiler-rust/target/release/web-geometry-compiler
         packages/asset-compiler-rust/target/release/web-geometry-oracle
     steps:
       - uses: actions/checkout@v7
-      - name: Pull request body — issue linked, local review filled
-        if: github.event_name == 'pull_request'
-        env:
-          BODY: ${{ github.event.pull_request.body }}
-        run: printf '%s\n' "$BODY" | scripts/check-pr-body.sh
-      # pnpm BEFORE setup-node: `cache: pnpm` asks it where the store is, and it reads the version
-      # from the `packageManager` field of `package.json`.
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22.18.0'
-          cache: pnpm
+      - uses: ./.github/actions/node
       - uses: dtolnay/rust-toolchain@stable
         id: rust
         with:
           components: clippy, rustfmt
       # The native binaries, keyed on the CONTENT of the Rust sources and the compiler. A hit means
-      # a green run already built these exact sources: `validate` skips the Rust steps
+      # a green run already built these exact sources: the group skips its Rust steps
       # (`scripts/validate-steps.ts` says why Cargo cannot decide this itself). The save is a
-      # separate step after `validate`, so a red run never publishes its binaries.
+      # separate step after the gates, so a red run never publishes its binaries.
       - uses: actions/cache/restore@v4
         id: native
         with:
@@ -51,8 +76,7 @@ jobs:
           workspaces: |
             packages/asset-compiler-rust
             packages/page-codec-wasm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run validate
+      - run: pnpm run validate --group native
         env:
           WEB_GEOMETRY_SKIP_NATIVE: ${{ steps.native.outputs.cache-hit == 'true' && '1' || '' }}
       - uses: actions/cache/save@v4
@@ -60,3 +84,21 @@ jobs:
         with:
           path: ${{ env.NATIVE_BINARIES }}
           key: ${{ steps.native.outputs.cache-primary-key }}
+
+  # The one required check of `.github/ruleset.json`: it stays a single stable name whatever the
+  # jobs above are split into. A group that failed, was cancelled or never ran fails it.
+  validate:
+    needs: [quick, typescript, native]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every group green
+        env:
+          RESULTS: ${{ needs.quick.result }} ${{ needs.typescript.result }} ${{ needs.native.result }}
+        run: |
+          echo "quick typescript native: $RESULTS"
+          case "$RESULTS" in
+            'success success success') ;;
+            *) exit 1 ;;
+          esac
