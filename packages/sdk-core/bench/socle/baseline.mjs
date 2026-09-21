@@ -76,6 +76,10 @@ export function sauveBaseline(domaine, mesures) {
 export const SEUIL_AVERTISSEMENT = 0.1;
 export const SEUIL_ECHEC = 0.25;
 
+/** A median relative to a reference median — baseline or witness; `null` without one, never `0`. */
+export const ecartRelatif = (medianeMs, referenceMs) =>
+  referenceMs && medianeMs !== null ? (medianeMs - referenceMs) / referenceMs : null;
+
 /** The level of a discrepancy: `absent` if no baseline, then `ok`, `avertissement`, and `echec`. */
 export function niveauEcart(ecart, options = {}) {
   const { seuilAvertissement = SEUIL_AVERTISSEMENT, seuilEchec = SEUIL_ECHEC } = options;

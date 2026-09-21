@@ -8,6 +8,8 @@ import { dropGpuHiz } from './webgpuPagesDrops.ts';
 import { backdropBytes, createBackdrop, disposeBackdrop } from './webgpuTransmission.ts';
 import { ensureTaaTargets } from './taaPrepare.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { MATERIAL_DEPTH_FORMAT } from './visibilityMaterialClass.ts';
+import { MATERIAL_DEPTH_PASS } from './webgpuMaterialPasses.ts';
 
 /**
  * Bytes of the image targets at this size. As in the reference, targets follow resolution: no byte
@@ -62,12 +64,15 @@ export function ensureTargets(
   gpu.colorTexture?.destroy();
   gpu.depthTexture?.destroy();
   vis.visTexture?.destroy();
+  vis.materialDepthTexture?.destroy();
   gpu.hdrTexture?.destroy();
   gpu.feedbackTexture?.destroy();
   disposeBackdrop(gpu);
   gpu.surfaces?.dispose();
   vis.visTexture = undefined;
   vis.visView = undefined;
+  vis.materialDepthTexture = undefined;
+  vis.materialDepthView = undefined;
   vis.shadeBindGroup = undefined;
   vis.visBindGroup = undefined;
   vis.visHizBindGroup = undefined;
@@ -123,6 +128,14 @@ export function ensureTargets(
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     });
     vis.visView = vis.visTexture.createView();
+    // Each pixel's material class, as the depth every class pass tests against.
+    vis.materialDepthTexture = device.createTexture({
+      label: MATERIAL_DEPTH_PASS,
+      size: { width, height },
+      format: MATERIAL_DEPTH_FORMAT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    vis.materialDepthView = vis.materialDepthTexture.createView();
   } catch (error) {
     diag.diagnosticFailure('visibility-target-failed', error);
   }

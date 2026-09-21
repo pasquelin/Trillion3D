@@ -38,6 +38,8 @@ const explorer: Explorer = await createExplorer('viewer', options);
     title: 'Architecture & rules',
     description: 'What the engine promises and the conventions every function below follows.',
     html: `<p>The mission, in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/architecture/PRODUCT_PRINCIPLES.md">Product principles</a>: virtualized geometry for the web at the performance of the best desktop engines — geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal antialiasing, fixed streaming and memory budgets. The lighting is what the geometry is for; its stages are in <code>docs/SPEC_ENGINE_WITHOUT_THREE.md</code> §8.</p>
+<h3 class="text-lg font-bold mt-4">One frame, on the WebGPU path</h3>
+<p>The GPU cuts the DAG and compacts the clusters to draw; the hardware raster writes a <strong>visibility buffer</strong> (one identifier per pixel) behind a Hi-Z occlusion test; the <strong>material resolve</strong> then rebuilds each pixel's surface — base colour, normal, roughness, emission — <em>one material class per pass</em>: a pass writes every pixel's class as an exact depth, and each class draws one full-screen triangle at its own depth under the hardware <code>equal</code> test, with a pipeline compiled for that class's features alone (maps, cut-out, vertex normals, tangents). Deferred lighting, transparents, temporal antialiasing and presentation follow. Observe it live with <code>setDiagnostic('materials')</code> (one colour per class), the <code>material-classes-ready</code> diagnostic (the scene's classes) and <code>stageProfile()</code> (the <code>materials</code> block: <code>WG material depth</code> and <code>WG material surfaces v1</code>).</p>
 <h3 class="text-lg font-bold mt-4">Conventions of the math API</h3>
 <ul class="list-disc pl-6 space-y-1">
 <li><strong>Column-major 4×4 matrices</strong> in sixteen consecutive numbers, <code>[12..14]</code> the translation — a host-library matrix copies without reordering.</li>
@@ -79,9 +81,53 @@ const explorer: Explorer = await createExplorer('viewer', options);
 </tbody></table></div>
 <p>Two-step path for a host: keep Three.js for loading and scene building and render with the engine (what the measurement Lab does today); then replace the loading by the compiled cache and drop <code>three</code> from the dependencies.</p>`,
   },
+  {
+    ...GUIDE,
+    id: 'occlusion-two-phase',
+    title: 'Occlusion: the two-phase Hi-Z',
+    description:
+      'How a cluster hidden behind another leaves the image, what decides it, and the counters that say so.',
+    html: `<p>The WebGPU visibility path draws its opaque clusters in two passes, following the published two-phase design. There is no option to set: the mechanism is fixed, automatic, and reads its own history.</p>
+<ol class="list-decimal pl-6 space-y-1">
+<li><strong>Main pass.</strong> A cluster is an <em>occluder</em> when the previous image drew it and the previous image's depth pyramid does not hide it: its rectangle and depth bound from that image are read against that pyramid, still in its buffer. The occluders are rasterised first.</li>
+<li><strong>Pyramid.</strong> The depth of the main pass becomes a Hi-Z pyramid: a mip chain where each texel keeps the farthest depth of its footprint.</li>
+<li><strong>Post pass.</strong> Every other cluster — withdrawn from the occluders, or rejected last image — is tested against that pyramid: a footprint clipped to the viewport, the mip that covers it in sixteen texels, and the comparison of the cluster's nearest depth to the farthest depth read there. What stays hidden is not drawn; what is not is rasterised in a second pass over the same targets.</li>
+</ol>
+<p>The post-pass test is the only thing allowed to reject, and it is conservative to the ulp: the rectangle contains the reference's, the depth bound stays below it, a box that crosses the near plane is never rejected. The main-pass verdict only decides <em>draw order</em>: a wrong one costs a second test, never a pixel. That is why a moved world, a resized target or a page that changed rank need no invalidation — only a rank that changed page forgets what it held.</p>
+<p>In a still view the two halves converge within one antialiasing jitter cycle: a cluster the test kept stays an occluder until the view, or a world, moves. The image is then held — no pass runs — which a moving pyramid would forbid.</p>
+<h3 class="text-lg font-bold mt-4">Reading it</h3>
+<ul class="list-disc pl-6 space-y-1">
+<li><code>render()</code> returns <code>hizTestedClusters</code>, <code>hizRejectedClusters</code>, <code>hizRejectedTriangles</code> and <code>hizCountedFrame</code>: what the post pass tested and rejected on the image the last periodic sample described — the device counts, the host rereads one image in fifteen, and <code>null</code> means no sample yet, never zero.</li>
+<li><code>stageProfile()</code> carries the partition stage: <code>lignes</code> (resident rows), <code>occulteurs</code>, <code>testees</code>, <code>historiqueOcculteurs</code> (rows the previous image drew) and <code>retiresParLaPyramide</code> (rows that pyramid withdrew), with the GPU milliseconds of the <code>WG partition</code>, <code>WG HiZ pyramid</code>, <code>WG HiZ test</code>, <code>WG visibility primary</code> and <code>WG visibility secondary</code> passes.</li>
+<li>The measurement harness prints the same numbers per view as <em>Hi-Z tested/rejected</em>; the street view of the reference scene rejects 5,131 of 24,902 rows where the former history rejected 440.</li>
+</ul>
+<p>The lesson <a class="link link-primary" href="#/en/examples/occlusion-two-phase">Hide a ring behind a ring</a> shows the counters move on the garden as the eye drops to ring height.</p>`,
+  },
 ];
 
 export const EXAMPLES = [
+  {
+    ...EXAMPLE,
+    id: 'example-many-lights',
+    title: 'Many lights, one budget',
+    description:
+      'Declare a ring of shadowed lamps, read the sampling budget, and tell a converged still image from a moving one.',
+    html: `<p>Every declared light is culled per 16×16 screen tile (<code>lightSettings.maxLightsPerTile</code> of them kept). What a pixel does with its tile's list depends on the image: a <strong>moving</strong> image that temporal antialiasing accumulates weighs every light without its shadow — the cheap part — and shades in full only <code>lightSettings.samplesPerPixel</code> (4) of them, the shadow read included: a light worth a sample's share is shaded exactly, the rest are drawn in proportion to their weight and divided by their probability, so the history averages an unbiased estimate. A <strong>still</strong> image shades every light of the tile and converges to the exact sum over its sixteen accumulated frames, then holds: two runs give the same image to the bit.</p>
+<p>What a host observes: <code>explorer.lightSettings</code> publishes the budgets; <code>metrics().lightsSampled</code> is the mode flag: <code>true</code> when the resolve ran in its sampled mode — a moving image on a history, where a pixel with more lights than samples draws a subset —, <code>false</code> when it ran the full loop; <code>metrics().frameHeld</code> says the still image has converged; <code>stageProfile()</code> carries the lighting resolve stage. The declared cost is a faint grain on lit surfaces while the camera moves, measured in <code>docs/SDK.md</code>; the gain, on a moving camera over thirty-two shadowed lamps reaching one pixel, is a GPU envelope of 39.9 → 17.9 ms at 2496×1404. The <a class="link link-primary" href="#/en/playground/many-lights-sampling">ring lesson</a> shows it live.</p>`,
+    example: `const { maxLightsPerTile, samplesPerPixel } = explorer.lightSettings; // 32 per tile, 4 shaded per moving pixel
+for (let i = 0; i < 12; i++) {
+  const angle = (i / 12) * Math.PI * 2;
+  explorer.addLight({
+    id: \`ring-\${i}\`, kind: 'point', castsShadow: true, range: 11, intensity: 45,
+    position: [Math.cos(angle) * 6, 4.5, Math.sin(angle) * 6],
+    color: i % 2 ? [0.08, 0.35, 1] : [1, 0.3, 0.08],
+  });
+}
+const metrics = explorer.render();
+// While the camera moves on a history: lightsSampled === true, at most samplesPerPixel lamps shaded per pixel.
+// Once still and converged: lightsSampled === false, frameHeld === true — the exact image, held.
+console.log(metrics.lightsSampled, metrics.frameHeld, metrics.lightsActive);`,
+  },
   {
     ...EXAMPLE,
     id: 'example-explorer',
@@ -151,6 +197,7 @@ hierarchyUpdateBatch(
     description: 'Switching what the frame draws and how fine the cut is, on a live explorer.',
     example: `explorer.setDiagnostic('clusters'); // one stable colour per cluster, on the real cut
 explorer.setDiagnostic('screen-error'); // the projected error the cut compares to the threshold
+explorer.setDiagnostic('materials'); // one colour per material class: the pass that resolved the pixel
 explorer.setDiagnostic('beauty'); // back to the lit image
 explorer.setPixelError(2); // coarser cut: up to two pixels of projected error
 console.log(explorer.diagnostics); // which modes this backend can produce, and why not
