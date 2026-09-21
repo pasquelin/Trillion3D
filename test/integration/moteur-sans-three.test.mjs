@@ -37,7 +37,6 @@ const AUTORISES = {
   clusterBatchRange: 'batch witness: index ranges of a host geometry',
   clusterBatchSetup: 'batch witness: mount of its primitives',
   clusterBatchUpdate: 'batch witness: rewrite of its ranges',
-  comparison: 'comparison witness: it composes two images through a host scene',
   exactPagesAttachment: 'exact witness: it attaches its pages to the host graph',
   exactPagesBackend: 'exact witness: engine written with the host library',
   exactPagesContractLights: 'exact witness: it maps contract lights to host-library lights',
@@ -51,6 +50,8 @@ const AUTORISES = {
   referenceBackend: 'reference witness: the host engine, as-is',
   threeBounds: 'witness: bounds as the host library computes them',
   threeLod: 'witness: the host level-of-detail selection, `LOD.update` included',
+  threeSceneAdapter:
+    'witness adapter: the one host renderer the witnesses share to draw their scenes',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
   backendCommon: 'boundary: it creates the scene each engine renders to the host',
@@ -59,16 +60,10 @@ const AUTORISES = {
   explorerCamera: 'boundary: the host SETS its camera, and rereads `bounds` and `center`',
   explorerCameraApi: 'boundary: pose round-trip between the host and its camera',
   explorerCapabilities: 'boundary: it sets the anisotropy of the host textures',
-  explorerCapture: 'boundary: it reads pixels of the host target',
   explorerDisposeSource: 'boundary: it frees host-graph resources',
-  explorerDraw: 'boundary: it calls the host renderer',
-  // Split out of `explorerDraw`, not a new dependency: the same boundary, on its own file.
-  explorerDrawScene: 'boundary: it draws the scene an engine hands to the host renderer',
-  explorerHeldFrame: 'boundary: it recomposes the held image in a host scene',
-  explorerHostState: 'boundary: it mounts the host draw adapter and restores a recorded pose',
-  explorerLifecycle: 'boundary: it disposes the host renderer and the engine surface',
+  explorerHostState: 'boundary: it restores a recorded pose on the host camera',
+  explorerLifecycle: 'boundary: it disposes the host materials and source graph',
   explorerPrepare: 'boundary: it prepares the host source graph',
-  explorerRender: 'boundary: the host frame loop, its targets and its textures',
   exactPagesBounds: 'boundary: it walks the host source graph to bound its pages',
   explorerScene: 'boundary: it builds the host’s prepared scene',
   frameGateCore: 'boundary: the frame gate rereads the host source node',

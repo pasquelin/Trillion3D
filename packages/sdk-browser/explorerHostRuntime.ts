@@ -5,7 +5,7 @@ import { createExplorerHostFrame } from './explorerHostFrame.ts';
 import { createExplorerLifecycle } from './explorerLifecycle.ts';
 import type { ExplorerResources, prepareExplorer } from './explorerPrepare.ts';
 import type { ExplorerSession } from './explorerSession.ts';
-import { createSceneDrawer } from './explorerDrawScene.ts';
+import { createFrameComposer } from './explorerCompose.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 type Inputs = {
@@ -15,31 +15,8 @@ type Inputs = {
 };
 
 export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, signal } = session;
+  const { canvas, options, metadata, scope, signal, diagnose } = session;
   const { prepared, resources, backends } = inputs;
-  const host = createExplorerHostState(
-    prepared,
-    options,
-    backends,
-    canvas,
-    resources.webglSurface,
-    signal,
-  );
-  try {
-    return mountExplorerHostRuntime(session, inputs, host);
-  } catch (error) {
-    // The adapter's owner is the lifecycle, which does not exist yet: nothing else disposes it.
-    host.renderer?.dispose();
-    throw error;
-  }
-}
-
-function mountExplorerHostRuntime(
-  session: ExplorerSession,
-  { prepared, resources, backends }: Inputs,
-  host: ReturnType<typeof createExplorerHostState>,
-) {
-  const { canvas, options, metadata, scope, diagnose } = session;
   const {
     source,
     pageSources,
@@ -53,11 +30,10 @@ function mountExplorerHostRuntime(
     homeOffset,
   } = prepared;
   const { geometryUrls, streamer } = pageSources;
-  const { gpuDevice } = resources;
+  const { gpuDevice, webglSurface } = resources;
+  const host = createExplorerHostState(prepared, options, backends, canvas, webglSurface, signal);
   const {
     state,
-    webglSurface,
-    renderer,
     beautyMaterials,
     overlays,
     hostedControls,
@@ -67,25 +43,24 @@ function mountExplorerHostRuntime(
     check,
     setPose,
   } = host;
-  const drawScene = renderer
-    ? createSceneDrawer(renderer, camera)
+  // The composer lives on the engine's context; the direct GPU path composes nothing.
+  const compose = webglSurface
+    ? createFrameComposer(webglSurface.context, camera)
     : Object.assign(
         () => {
-          throw new Error('The direct GPU path has no host scene drawer');
+          throw new Error('The direct GPU path has no host composer');
         },
         { dispose() {} },
       );
-  if (renderer) hostedControls.push({ dispose: drawScene.dispose });
   const { render, profiler, streaming } = createExplorerHostFrame(session, {
     prepared,
     host,
     backends,
-    drawScene,
+    compose,
   });
   const capture = createExplorerCapture({
     canvas,
     camera,
-    renderer: renderer!,
     context: webglSurface?.context,
     options,
     directGpu,
@@ -93,7 +68,7 @@ function mountExplorerHostRuntime(
     state,
     check,
     diagnose,
-    drawScene,
+    compose,
   });
   const { dispose, flush, awaitPages } = createExplorerLifecycle(session, {
     check,
@@ -101,13 +76,12 @@ function mountExplorerHostRuntime(
     gpuDevice,
     profiler,
     hostedControls,
-    compositor,
+    composition: [compose, presentBackend, ...(compositor ? [compositor] : [])],
     streamer,
     streaming,
     overlays,
     backends,
     source,
-    renderer,
     webglSurface,
     camera,
     geometryUrls,
@@ -136,7 +110,6 @@ function mountExplorerHostRuntime(
     check,
     scope,
     directGpu,
-    renderer: renderer!,
     webglSurface,
     viewport,
     context,
