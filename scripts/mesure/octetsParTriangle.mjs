@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { decodeManifestBinary } from '../../packages/sdk-core/manifestBinary.ts';
 
 /** The manifest of a compiled cache — pointer, small JSON, sidecar columns — decoded whole. */
-export async function readCacheManifest(cache) {
+async function readCacheManifest(cache) {
   const pointer = JSON.parse(await readFile(join(cache, 'manifest.json'), 'utf8'));
   const clustersPath = join(cache, pointer.url);
   const slim = JSON.parse(await readFile(clustersPath, 'utf8'));

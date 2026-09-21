@@ -106,6 +106,7 @@ export const guidesFr = {
 <li><strong>Coordonnées de texture.</strong> Une grille fixe de <code>2^-14</code> : un quart de texel sur une carte de 4096 de large.</li>
 <li><strong>Normales.</strong> Deux octets octaédriques, à 1° de la source. <strong>Couleurs.</strong> Une grille de <code>2^-8</code> par canal, avec des minima par page : un canal constant — l’alpha, le plus souvent — ne coûte aucun bit.</li>
 <li><strong>Sommets partagés.</strong> Deux sommets source qui tombent sur les mêmes cellules ne sont gardés qu’une fois : une source qui répète un sommet par coin retombe à ses sommets distincts sans changer un triangle.</li>
+<li><strong>Ce qui n’est pas écrit.</strong> Les tangentes, reconstruites par le nuanceur depuis le triangle ; et un jeu de coordonnées de texture qu’aucune texture du matériau ne nomme dans <code>texCoord</code>.</li>
 </ul>
 <p>Le coût est déclaré, jamais caché. Chaque page porte dans son en-tête son pire déplacement de position ; chaque primitive publie <code>quantization</code> — <code>positionExponent</code>, <code>positionStep</code>, <code>uvExponent</code>, <code>maxPositionError</code> — dans le manifeste, et chaque descripteur de page nomme ses octets résidents (<code>geometry.bytes</code>) à côté de ce que son décodage flottant occupe (<code>geometry.uncompressedBytes</code>). La coupe n’ajoute pas encore l’erreur de quantification à la bande d’erreur d’une grappe ; le C4 de la spécification reste ouvert.</p>
 <h3 class="text-lg font-bold mt-4">Comment l’observer</h3>

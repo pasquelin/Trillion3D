@@ -11,7 +11,7 @@ import { OCT_SCALE } from './clusterFormat.ts';
  * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
  * to `pageWords:array<u32>`.
  */
-export const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
+const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
  vertexCount:u32,indexCount:u32,flags:u32,indexBits:u32,
  posBits:vec3u,posStep:f32,posMin:vec3f,
  uvBits:vec2u,uvStep:f32,uvMin:vec2f,uv1Bits:vec2u,uv1Step:f32,uv1Min:vec2f,
