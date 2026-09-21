@@ -9,6 +9,7 @@ import type {
   StageProfile,
 } from '../sdk-core/index.ts';
 import type { BackendMetrics } from './backendMetricKeys.ts';
+import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 import type { CpuStepSummary } from './cpuProfile.ts';
 export type { BackendCapabilities, HostDrawOutput };
 
@@ -30,9 +31,7 @@ export interface RenderBackend {
   /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
   setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
-  setMemoryBudgets?(
-    budgets: import('./webgpuPagesMemory.ts').MemoryBudgets,
-  ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
+  setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
   /** Draws the engine's whole image — paged clusters, diagnostic pages, scene copies, or the
@@ -44,10 +43,11 @@ export interface RenderBackend {
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
   readonly frameHeld?: boolean;
   scene: THREE.Scene;
-  /** Canvas the engine presented its image into, when that canvas is not the host's own surface.
-   *  A host composing on another surface copies it (`createBackendPresenter`) instead of drawing
-   *  `scene`, which such an engine does not use for display; absent from an engine that draws on
-   *  the host surface itself. */
+  /** Canvas the engine presented its image into, when that canvas is not the host's own surface:
+   *  a host composing elsewhere copies it (`createBackendPresenter`) instead of drawing `scene`.
+   *  Absent from an engine drawing on the host surface itself, and withdrawn — canvas blanked —
+   *  by a lost or disposed device before the next call raises `WEBGPU_LOST`: no host composes a
+   *  frame older than the device. */
   readonly presentedSurface?: HTMLCanvasElement;
   metrics(): BackendMetrics & {
     drawCalls?: number;
@@ -153,9 +153,10 @@ export interface BackendContext {
   webglContext?: WebGL2RenderingContext;
   /** Texture-tile bytes admitted per frame. */
   maxTextureTransferBytesPerFrame?: number;
-  /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default.
-   *  The root cover always fits; the rest draws coarser when it does not fit. Image
-   *  targets are not budgeted: they follow resolution. */
+  /** CPU milliseconds a frame's tile pass may spend copying; the rest waits. */
+  maxTextureUploadMsPerFrame?: number;
+  /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root cover
+   *  always fits; the rest draws coarser when it does not fit. Image targets follow resolution. */
   geometryPoolBytes?: number;
   /** The largest geometry pool a `setMemoryBudgets` may ask for during the session;
    *  the starting budget without it. Per-drawable-page tables are sized once, to it. */

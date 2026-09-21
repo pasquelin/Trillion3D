@@ -21,10 +21,17 @@ export const guidesFr = {
     description:
       'Dix mille nœuds composés puis multipliés par leurs parents en une passe sur des tampons plats.',
   },
+  'example-texture-streaming': {
+    title: 'Tuiles de texture sous un budget par image',
+    description:
+      'Comment les textures arrivent tuile par tuile, ce qui borne chaque image et comment l’hôte lit la cadence.',
+    html: `<p>Les textures des matériaux sont virtuelles : des tuiles de 128×128 texels vivent dans deux pools fixes, et l’image rendue demande elle-même les tuiles qu’elle lit (<code>textureTilesRequested</code>). Une tuile absente affiche son plus fin niveau ancêtre résident, jusqu’à la queue épinglée — jamais un trou. À chaque image, une passe copie les tuiles demandées, les plus regardées d’abord, sous deux budgets fixes : <code>maxTextureTransferBytesPerFrame</code> (16 Mio) et <code>maxTextureUploadMsPerFrame</code> (1,0 ms de CPU). Dès que l’un est épuisé, la passe s’arrête ; le reste est reporté aux images suivantes — proposé à nouveau dans le même ordre jusqu’à ce qu’un retour d’image frais le remplace —, si bien qu’une traversée à cache froid diffuse à cadence fixe au lieu de bloquer l’image. La première tuile d’une passe est toujours copiée : même un budget nul avance. <code>flush()</code> lève les deux budgets et fait converger la pose.</p>
+<p>Lisez la cadence sur les pics, jamais sur les médianes : <code>textureUploadPeakMs</code> est la pire passe budgétée depuis le départ, <code>textureUploadMs</code> la dernière passe (<code>null</code> quand elle n’avait rien à servir, ou sous une barrière), <code>textureTilesDeferred</code> ce que le budget a repoussé à l’image suivante, et <code>stageProfile()</code> donne les p50/p95 de l’étape « Textures ». Mesuré sur le cache Emerald au commit 8c20f71b, vue générale, cache froid et caméra mobile (1280×720, DPR 1, seuil 1 px, deux exécutions, Apple M2 Max, Chrome 153) : le p95 de l’étape « Textures » passe de 4,2–9,3 ms à 1,1–1,2 ms, le p99 de l’intervalle d’image du navigateur de 33–133 ms à 16,8 ms ; le coût déclaré est une image plus grossière pendant que les tuiles arrivent — 8 à 12 tuiles par image, 1,2–1,8 niveau manquant en moyenne en fin de traversée contre 0,6–0,7 avant — et une pose fixe converge vers la même capture à 0 px. L’horloge de la passe couvrant aussi le suivi des ombres des tuiles arrivées (619e34fb, même commande, deux exécutions) : « Textures » 1,0 / 1,2 ms p50/p95, pic de session 5,1–16,6 ms sur les quatre sessions (les deux exécutions et leurs répétitions A/A), sur la seule image qui pose la première tuile couleur. Le banc la lit avec <code>--budget-textures &lt;ms&gt;</code> (<code>scripts/mesure/README.md</code>).</p>`,
+  },
   'example-diagnostics': {
     title: 'Diagnostics et qualité',
     description:
-      'Changez ce que dessine l’image et la finesse de la coupe sur un explorateur actif.',
+      'Changez ce que dessine l’image et la finesse de la coupe sur un explorateur actif ; et ce qu’un appareil GPU perdu laisse à l’écran — rien de périmé.',
   },
   'quick-start': {
     title: 'Démarrage rapide',
