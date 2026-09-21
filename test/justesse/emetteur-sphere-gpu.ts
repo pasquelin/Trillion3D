@@ -21,11 +21,25 @@ import { readFileSync } from 'node:fs';
 import { dansPageWebgpu } from './pageWebgpu.ts';
 import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../packages/sdk-browser/depthConvention.ts';
 
+type LightsFile = { lights?: { emitterRadius?: number; position?: number[] }[] };
+
+interface ExecuterArgs {
+  shader: string;
+  cas: { nom: string; emitter: number[]; world: number[] }[];
+  size: number;
+  triangle: number[];
+  depthCompare: GPUCompareFunction;
+  depthClear: number;
+}
+
 /** Lamp centre and radius: those of the given cache product, otherwise those of the audit. */
-function emetteur(chemin) {
+function emetteur(chemin: string | undefined) {
   if (!chemin) return { centre: [0, 0, 0], rayon: 0.2, source: 'reproduction' };
-  const fichier = JSON.parse(readFileSync(chemin, 'utf8'));
-  const lampe = (fichier.lights ?? []).find((light) => typeof light.emitterRadius === 'number');
+  const fichier: LightsFile = JSON.parse(readFileSync(chemin, 'utf8'));
+  const lampe = (fichier.lights ?? []).find(
+    (light): light is { emitterRadius: number; position: number[] } =>
+      typeof light.emitterRadius === 'number' && Array.isArray(light.position),
+  );
   assert.ok(lampe, `no lamp carries emitterRadius in ${chemin}`);
   return { centre: lampe.position, rayon: lampe.emitterRadius, source: chemin };
 }
@@ -43,7 +57,7 @@ struct VsOut{@builtin(position) position:vec4f,@location(0) fromEmitter:vec3f,}
 }`;
 
 /** Run in the page: a depth-only pipeline, one triangle per case, the map read back. */
-async function executer({ shader, cas, size, triangle, depthCompare, depthClear }) {
+async function executer({ shader, cas, size, triangle, depthCompare, depthClear }: ExecuterArgs) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
@@ -59,7 +73,7 @@ async function executer({ shader, cas, size, triangle, depthCompare, depthClear 
     ],
   });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-  const buffers = [
+  const buffers: GPUVertexBufferLayout[] = [
     { arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
     { arrayStride: 12, attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x3' }] },
   ];
@@ -138,7 +152,7 @@ async function executer({ shader, cas, size, triangle, depthCompare, depthClear 
 }
 
 const { centre, rayon, source } = emetteur(process.argv[2]);
-const au = (offset) => centre.map((axe, i) => axe + offset[i]);
+const au = (offset: number[]) => centre.map((axe, i) => axe + offset[i]);
 const cas = [
   { nom: 'diagonale-hors-sphere', emitter: [...centre, rayon], world: au([0.19, 0.18, 0.17]) },
   { nom: 'dans-la-sphere', emitter: [...centre, rayon], world: au([0.19, 0, 0]) },
@@ -163,6 +177,7 @@ console.log(JSON.stringify({ source, centre, rayon, ...resultat }, null, 2));
 assert.equal(resultat.indisponible ?? null, null, String(resultat.indisponible));
 assert.deepEqual(resultat.compilation ?? [], []);
 assert.deepEqual(resultat.erreurs, []);
+assert.ok(resultat.resultats, 'GPU run produced no results');
 const par = Object.fromEntries(resultat.resultats.map((r) => [r.nom, r]));
 // INVERTED depth: the map starts at far (`DEPTH_CLEAR`) and a fragment writes 0.5, so
 // "a shadow is cast" is read on the MAXIMUM, and "nothing is written" on a map that stayed

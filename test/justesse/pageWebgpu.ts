@@ -24,7 +24,8 @@ declare global {
  */
 export async function empaquetePage(
   input: string,
-  nomGlobal: string,
+  // Only read below for `format: 'iife'`; every ESM caller may omit it.
+  nomGlobal?: string,
   { format = 'iife' }: { format?: Format } = {},
 ) {
   const paquet = await esbuild.build({

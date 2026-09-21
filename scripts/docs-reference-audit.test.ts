@@ -4,8 +4,8 @@ import audit from '../site/data/gallery-reference-audit.json' with { type: 'json
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 import { rendererLessons } from '../site/lessons/rendererLessons.ts';
 
-const states = (field) =>
-  audit.entries.reduce((counts, entry) => {
+const states = (field: 'visualReview' | 'capabilityReview') =>
+  audit.entries.reduce<Record<string, number>>((counts, entry) => {
     const state = entry[field].state;
     counts[state] = (counts[state] ?? 0) + 1;
     return counts;
@@ -30,9 +30,9 @@ test('visual review states never turn an unobserved reference into evidence', ()
     if (row.visualReview.state === 'pending') {
       assert.equal(row.visualReview.observed, null);
       assert.equal(row.visualReview.interaction, null);
-    } else assert.ok(row.visualReview.observed?.length > 20, row.id);
+    } else assert.ok((row.visualReview.observed?.length ?? 0) > 20, row.id);
     if (row.visualReview.state === 'incomplete')
-      assert.ok(row.visualReview.limitation?.length > 10, row.id);
+      assert.ok((row.visualReview.limitation?.length ?? 0) > 10, row.id);
   }
 });
 
@@ -47,7 +47,7 @@ test('capability states distinguish delivered, blocked and unaudited topics', ()
     if (row.capabilityReview.state === 'supported')
       assert.ok(
         row.closestLessons.some(
-          (lessonId) => lessons.get(lessonId).referenceCoverage?.[row.id] === 'full',
+          (lessonId) => lessons.get(lessonId)?.referenceCoverage?.[row.id] === 'full',
         ),
         row.id,
       );

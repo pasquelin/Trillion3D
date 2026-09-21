@@ -2,8 +2,17 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { startServer } from '../../scripts/mesure/serveur.ts';
+import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
+import type { Explorer } from '../../packages/sdk-browser/explorer.ts';
+
+// `window.scene` only exists in the page this harness evaluates code in, never in Node; declared
+// here so the `page.evaluate` callbacks below (type-checked, though they run in the browser) see it.
+declare global {
+  interface Window {
+    scene: Explorer;
+  }
+}
 
 const root = resolve(import.meta.dirname, '../..'),
   output = resolve(root, 'benchmark-runs/mountain-terrain'),
@@ -23,14 +32,14 @@ const server = await startServer({
   })),
 });
 const browser = await launchChrome({ headless: true }),
-  errors = [];
+  errors: string[] = [];
 try {
   const page = await browser.newPage({
     viewport: { width: 900, height: 620 },
     deviceScaleFactor: 2,
   });
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.address().port}`);
+  await page.goto(`http://127.0.0.1:${serverPort(server)}`);
   await page.evaluate(async (sdkUrl) => {
     document.body.replaceChildren();
     document.body.style.margin = '0';
@@ -98,6 +107,7 @@ try {
   assert.ok(sample.visiblePixels > 150_000, 'the landscape occupies a meaningful image area');
   assert.ok(sample.riverPixels > 8, 'the river remains visible through the mountain valley');
   assert.ok(sample.colorBuckets > 24, 'lighting and material strata remain visually distinct');
+  assert.ok(sample.metrics, 'no frame ever rendered');
   assert.equal(sample.metrics.selectedTriangles, 18592);
   assert.deepEqual(errors, []);
   await page.screenshot({ path: resolve(output, 'mountain-watershed.png') });

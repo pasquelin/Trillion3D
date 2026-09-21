@@ -10,7 +10,7 @@ import {
 import type { Locale } from '../../content/locale.ts';
 import type { ProgressiveListState } from '../components/ProgressiveList.tsx';
 import type { GalleryExample } from './roadmapPlan.ts';
-import roadmap from '../../content/gallery-roadmap.json';
+import roadmap from '../../content/gallery-roadmap.json' with { type: 'json' };
 import { Alert, Field } from '../components/UI.tsx';
 import { examples } from '../../content/catalog.ts';
 import { engineExample, ExampleCard } from './ExampleCard.tsx';

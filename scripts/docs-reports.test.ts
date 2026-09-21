@@ -2,16 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadReactComponents } from './docs/render-react.ts';
 import { parseRoute, routeHref, resolvePage } from '../site/app/portal/routes.ts';
 import { reportCopy, METRIC_COPY } from '../site/reports/copy.ts';
 import { flattenFields } from '../site/reports/availability.ts';
 import { pairedImages } from '../site/reports/presentation.ts';
 import { readingGroups } from '../site/reports/sources.ts';
 import { metricValue } from '../site/reports/metrics.ts';
+import { baseRecord, baseRun, baseReport } from './docs/report-fixtures.ts';
+import {
+  Comparison,
+  Evidence,
+  AllReadings,
+  BarChart,
+  Findings,
+  SceneNotice,
+} from './docs/report-components.ts';
 
 test('report routes and labels remain bilingual without a selection form', () => {
-  for (const locale of ['en', 'fr']) {
+  for (const locale of ['en', 'fr'] as const) {
     const route = parseRoute(routeHref({ locale, area: 'reports', id: 'september-18' }));
     assert.equal(route.id, 'september-18');
     assert.equal(resolvePage(route, []).kind, 'report');
@@ -20,16 +28,20 @@ test('report routes and labels remain bilingual without a selection form', () =>
   assert.ok(Object.values(METRIC_COPY).every((pair) => pair.length === 2 && pair.every(Boolean)));
 });
 
-test('comparison names engines, explains missing values and shows observed arithmetic', async () => {
-  const { Comparison } = await loadReactComponents('site/app/reports/Comparison.tsx');
-  const a = { id: 'a', engine: 'three-nu', settings: {}, data: { cpuFrameMs: { p50: 4 } } };
+test('comparison names engines, explains missing values and shows observed arithmetic', () => {
+  const a = {
+    ...baseRecord,
+    id: 'a',
+    engine: 'three-nu',
+    data: { cpuFrameMs: { p50: 4, p95: 4 } },
+  };
   const b = {
+    ...baseRecord,
     id: 'b',
     engine: 'webgpu-page-raster',
-    settings: {},
-    data: { cpuFrameMs: { p50: 1 } },
+    data: { cpuFrameMs: { p50: 1, p95: 1 } },
   };
-  for (const locale of ['en', 'fr']) {
+  for (const locale of ['en', 'fr'] as const) {
     const html = renderToStaticMarkup(
       createElement(Comparison, { locale, a, b, variable: 'engine' }),
     );
@@ -40,11 +52,16 @@ test('comparison names engines, explains missing values and shows observed arith
   }
 });
 
-test('image pairing never combines different measured frames', async () => {
-  const a = { id: 'a', engine: 'three-nu', image: 'a.png', differencePair: 'pair', data: {} };
+test('image pairing never combines different measured frames', () => {
+  const a = {
+    ...baseRecord,
+    id: 'a',
+    engine: 'three-nu',
+    image: 'a.png',
+    differencePair: 'pair',
+  };
   const b = { ...a, id: 'b', engine: 'webgpu-page-raster', image: 'b.png' };
   assert.deepEqual(pairedImages([a, b, { ...b, id: 'c', differencePair: 'other' }]), [[a, b]]);
-  const { Evidence } = await loadReactComponents('site/app/reports/Evidence.tsx');
   const html = renderToStaticMarkup(
     createElement(Evidence, { a, b, campaign: 'test', locale: 'fr' }),
   );
@@ -70,17 +87,18 @@ test('complete tables preserve every source leaf, repeats, zero, null and record
       ['errors', '[]'],
     ],
   );
-  assert.equal(
-    metricValue({ data: { metrics: { textureBudgetBytes: 1048576 } } }, 'textureBudget'),
-    1,
-  );
-  assert.equal(metricValue({ data: { metrics: { textureBudgetBytes: 1048576 } } }, 'pool'), null);
+  // `metricValue` reads dotted paths dynamically (`readPath`), including ones like
+  // `metrics.textureBudgetBytes` that `ReportRecordData` does not model statically; spreading
+  // its (empty, but typed) shape in keeps `metrics` structurally attached to a real
+  // `ReportRecordData`-shaped value instead of a bare, unrelated object literal.
+  const dataWithMetrics = { ...baseRecord.data, metrics: { textureBudgetBytes: 1048576 } };
+  assert.equal(metricValue({ ...baseRecord, data: dataWithMetrics }, 'textureBudget'), 1);
+  assert.equal(metricValue({ ...baseRecord, data: dataWithMetrics }, 'pool'), null);
 });
 
-test('complete source tables include primary and repeated readings plus failed-run metadata', async () => {
-  const { AllReadings } = await loadReactComponents('site/app/reports/AllReadings.tsx');
-  const run = { id: 'r', name: 'mobile' },
-    failed = { id: 'f', name: 'failed' };
+test('complete source tables include primary and repeated readings plus failed-run metadata', () => {
+  const run = { ...baseRun, id: 'r', name: 'mobile' },
+    failed = { ...baseRun, id: 'f', name: 'failed' };
   const sources = [
     {
       run,
@@ -105,7 +123,11 @@ test('complete source tables include primary and repeated readings plus failed-r
     },
   ];
   const html = renderToStaticMarkup(
-    createElement(AllReadings, { report: { runs: [run, failed] }, sources, locale: 'en' }),
+    createElement(AllReadings, {
+      report: { ...baseReport, runs: [run, failed] },
+      sources,
+      locale: 'en',
+    }),
   );
   const expanded = JSON.stringify([...readingGroups(sources).values()]);
   for (const value of [
@@ -123,8 +145,7 @@ test('complete source tables include primary and repeated readings plus failed-r
   assert.doesNotMatch(html, /<details[^>]* open|<select/);
 });
 
-test('missing chart readings keep a disabled track and never announce a measured zero', async () => {
-  const { BarChart } = await loadReactComponents('site/app/components/BarChart.tsx');
+test('missing chart readings keep a disabled track and never announce a measured zero', () => {
   const html = renderToStaticMarkup(
     createElement(BarChart, {
       title: 'Memory',
@@ -139,24 +160,30 @@ test('missing chart readings keep a disabled track and never announce a measured
   assert.match(html, /<strong[^>]*>Not measured/);
 });
 
-test('campaign summary derives missing provenance from current readings', async () => {
-  const { Findings } = await loadReactComponents('site/app/reports/Findings.tsx');
-  const report = {
-    runs: [{ id: 'r', name: 'other', status: 'complete' }],
-    records: [{ runId: 'r', provenance: { machine: { id: 'm' } }, canvas: { dpr: 2 } }],
+test('campaign summary derives missing provenance from current readings', () => {
+  const report: typeof baseReport = {
+    ...baseReport,
+    runs: [{ ...baseRun, id: 'r', name: 'other', status: 'complete' }],
+    records: [
+      {
+        ...baseRecord,
+        runId: 'r',
+        provenance: { machine: { id: 'm' } },
+        canvas: { width: 0, height: 0, dpr: 2 },
+      },
+    ],
   };
   const render = () => renderToStaticMarkup(createElement(Findings, { report, locale: 'en' }));
   assert.doesNotMatch(render(), /Machine identity is missing|DPR is missing/);
-  report.records[0].canvas = {};
+  report.records[0].canvas = { width: 0, height: 0 };
   assert.match(render(), /DPR is missing/);
   assert.doesNotMatch(render(), /Machine identity is missing/);
   report.records[0].provenance = null;
   assert.match(render(), /Machine identity is missing/);
 });
 
-test('scene limitations remain visible with their original campaign wording', async () => {
-  const { SceneNotice } = await loadReactComponents('site/app/reports/SceneNotice.tsx');
-  for (const locale of ['fr', 'en']) {
+test('scene limitations remain visible with their original campaign wording', () => {
+  for (const locale of ['fr', 'en'] as const) {
     const html = renderToStaticMarkup(
       createElement(SceneNotice, {
         locale,
