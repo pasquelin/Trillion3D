@@ -2,12 +2,12 @@
 import {
   BOX_VALUES,
   HIERARCHY_ROOT,
+  IDENTITY_MATRIX4,
   MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
   createCameraFrame,
-  frustumExcludesBox,
   frustumKeepsBoxBatch,
   hierarchyUpdateBatch,
   multiplyMatrix4,
@@ -24,10 +24,16 @@ function gridBoxes(count) {
   const boxes = new Float64Array(count * BOX_VALUES),
     side = Math.ceil(Math.sqrt(count));
   for (let i = 0; i < count; i++) {
-    const x = (i % side) - side / 2,
+    const at = i * BOX_VALUES,
+      x = (i % side) - side / 2,
       y = Math.floor(i / side) - side / 2,
       z = i % 2 === 0 ? -20 : 20;
-    boxes.set([x, y, z, x + 1, y + 1, z + 1], i * BOX_VALUES);
+    boxes[at] = x;
+    boxes[at + 1] = y;
+    boxes[at + 2] = z;
+    boxes[at + 3] = x + 1;
+    boxes[at + 4] = y + 1;
+    boxes[at + 5] = z + 1;
   }
   return boxes;
 }
@@ -46,10 +52,9 @@ export const BATCH_DEMOS = {
         centres = new Float64Array(count * POSITION_VALUES),
         viewCentres = new Float64Array(count * POSITION_VALUES),
         frame = createCameraFrame(),
-        projection = new Float64Array(16),
-        cameraWorld = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+        projection = new Float64Array(16);
       perspectiveProjection(projection, state.fov, 16 / 9, 0.1, 1);
-      updateCameraFrame(frame, projection, cameraWorld, 100);
+      updateCameraFrame(frame, projection, IDENTITY_MATRIX4, 100);
       const visible = frustumKeepsBoxBatch(kept, frame.planes, boxes, count);
       sphereFromBoundsBatch(spheres, boxes, count);
       let m = 0;
@@ -59,19 +64,13 @@ export const BATCH_DEMOS = {
         centres.set(spheres.subarray(at, at + POSITION_VALUES), m++ * POSITION_VALUES);
       }
       transformPointsBatch(viewCentres, frame.view, centres, m);
-      let disagreements = 0;
-      for (let i = 0; i < count; i++) {
-        const at = i * BOX_VALUES;
-        const excluded = frustumExcludesBox(frame.planes, ...boxes.subarray(at, at + BOX_VALUES));
-        if (kept[i] !== (excluded ? 0 : 1)) disagreements++;
-      }
       return [
         valueView('cull, then transform the survivors: two calls, no allocation between them', [
           ['boxes tested', String(count)],
           ['kept by the frustum', String(visible)],
+          ['rejected by the frustum', String(count - visible)],
           ['behind the camera, by construction', String(Math.floor(count / 2))],
           ['first survivor, view-space z', m ? formatNumber(viewCentres[2]) : '—'],
-          ['boxes where the batch and frustumExcludesBox disagree', String(disagreements)],
         ]),
       ];
     },

@@ -31,12 +31,10 @@ export const BATCHES = [
       'MATRIX_VALUES',
       'POSITION_VALUES',
       'QUATERNION_VALUES',
-      'SPHERE_VALUES',
-      'NORMAL_MATRIX_VALUES',
     ],
     title: 'hierarchyUpdateBatch()',
     signature:
-      'hierarchyUpdateBatch(worldViews, positions, rotations, scales, parents: Uint32Array, n, local)\nHIERARCHY_ROOT = 0xffffffff · MATRIX_VALUES = 16 · POSITION_VALUES = 3 · QUATERNION_VALUES = 4 · SPHERE_VALUES = 4 · NORMAL_MATRIX_VALUES = 9',
+      'hierarchyUpdateBatch(worldViews, positions, rotations, scales, parents: Uint32Array, n, local)\nHIERARCHY_ROOT = 0xffffffff · MATRIX_VALUES = 16 · POSITION_VALUES = 3 · QUATERNION_VALUES = 4',
     description:
       "A full hierarchy updated in one pass: `n` nodes ordered parents before children, each composing its local matrix then multiplying it by its parent's world matrix — the traversal of `mathTransformTreeUpdate.ts`, the same two formulas in the same order, on flat buffers. `parents[i]` **must** index an already updated node, hence strictly less than `i`; any other value — the `HIERARCHY_ROOT` sentinel included — makes the node a root whose world matrix is its local matrix. The rule is identical on both paths: no input, however hostile, can make them diverge. `local` is one scratch matrix, reused by every element.",
     replaces: 'Object3D.updateMatrixWorld over a whole scene',
@@ -55,13 +53,12 @@ export const BATCHES = [
   {
     ...BATCH,
     id: 'frustumKeepsBoxBatch',
-    exports: ['frustumKeepsBoxBatch', 'sphereFromBoundsBatch'],
+    exports: ['frustumKeepsBoxBatch', 'sphereFromBoundsBatch', 'SPHERE_VALUES'],
     title: 'frustumKeepsBoxBatch() · sphereFromBoundsBatch()',
-    module: 'packages/sdk-core/mathBatchCulling.ts',
     signature:
-      'frustumKeepsBoxBatch(kept: Uint8Array, planes: Float64Array, boxes, n): number\nsphereFromBoundsBatch(out: Float64Array, boxes, n)',
+      'frustumKeepsBoxBatch(kept: Uint8Array, planes: Float64Array, boxes, n): number\nsphereFromBoundsBatch(out: Float64Array, boxes, n) · SPHERE_VALUES = 4',
     description:
-      '`n` boxes of six numbers (min then max) against the twenty-four floats of a frustum: `kept[i]` is 1 where the box intersects or sits inside, and the count kept is returned — `frustumExcludesBox` negated, the polarity the reference answers in. The sphere batch writes four numbers per box, centre then radius to the corner, as `sphereFromBounds` does.',
+      '`n` boxes of six numbers (min then max) against the twenty-four floats of a frustum: `kept[i]` is 1 where the box intersects or sits inside, and the count kept is returned — `frustumExcludesBox` negated, the polarity the reference answers in. The sphere batch writes `SPHERE_VALUES` numbers per box, centre then radius to the corner, as `sphereFromBounds` does. Both loops live in `mathBatchCulling.ts`.',
     replaces: 'a loop of Frustum.intersectsBox, of Box3.getBoundingSphere',
   },
   {
@@ -83,14 +80,14 @@ export const BATCHES = [
       'normalMatrix3Batch',
       'composeMatrix4Batch',
       'decomposeMatrix4Batch',
+      'NORMAL_MATRIX_VALUES',
     ],
     title:
       'invertMatrix4Batch() · normalMatrix3Batch() · composeMatrix4Batch() · decomposeMatrix4Batch()',
-    module: 'packages/sdk-core/mathBatchTransforms.ts',
     signature:
-      'invertMatrix4Batch(out: Float64Array[], mats, n, singular?: Uint8Array)\nnormalMatrix3Batch(out: Float64Array, mats, n)\ncomposeMatrix4Batch(out, positions, quaternions, scales, n)\ndecomposeMatrix4Batch(positions, quaternions, scales, mats, n)',
+      'invertMatrix4Batch(out: Float64Array[], mats, n, singular?: Uint8Array)\nnormalMatrix3Batch(out: Float64Array, mats, n) · NORMAL_MATRIX_VALUES = 9\ncomposeMatrix4Batch(out, positions, quaternions, scales, n)\ndecomposeMatrix4Batch(positions, quaternions, scales, mats, n)',
     description:
-      '`n` inverses, `n` normal matrices of nine numbers, `n` compositions `T · R · S`, `n` decompositions. A matrix with a zero determinant is inverted to the identity and flagged in `singular[i]` — never a throw in the middle of a batch. `composeMatrix4Batch` takes everything flat or everything as sub-views, and settles the form before the loop.',
+      '`n` inverses, `n` normal matrices of `NORMAL_MATRIX_VALUES` numbers, `n` compositions `T · R · S`, `n` decompositions. A matrix with a zero determinant is inverted to the identity and flagged in `singular[i]` — never a throw in the middle of a batch. `composeMatrix4Batch` takes everything flat or everything as sub-views, and settles the form before the loop. The four loops live in `mathBatchTransforms.ts`.',
     replaces: 'a loop of Matrix4.invert, getNormalMatrix, compose, decompose',
   },
   {

@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BOX_VALUES,
+  IDENTITY_MATRIX4,
   POSITION_VALUES,
   SPHERE_VALUES,
   createCameraFrame,
@@ -27,14 +28,20 @@ const centres = new Float64Array(N * POSITION_VALUES); // survivors' centres, pa
 const viewCentres = new Float64Array(N * POSITION_VALUES); // the same, in view space
 const frame = createCameraFrame();
 const projection = new Float64Array(16);
-const cameraWorld = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+const cameraWorld = Float64Array.from(IDENTITY_MATRIX4); // the host's, moved below
 
 // A hundred-by-hundred grid of unit boxes on the plane z = -20, half of it behind the camera.
 for (let i = 0; i < N; i++) {
-  const x = (i % 100) - 50,
+  const at = i * BOX_VALUES,
+    x = (i % 100) - 50,
     y = Math.floor(i / 100) - 50,
     z = i % 2 === 0 ? -20 : 20;
-  boxes.set([x, y, z, x + 1, y + 1, z + 1], i * BOX_VALUES);
+  boxes[at] = x;
+  boxes[at + 1] = y;
+  boxes[at + 2] = z;
+  boxes[at + 3] = x + 1;
+  boxes[at + 4] = y + 1;
+  boxes[at + 5] = z + 1;
 }
 
 /** One frame: cull, then transform the survivors. Returns how many boxes were kept. */

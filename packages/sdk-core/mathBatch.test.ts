@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  BOX_VALUES,
   SPHERE_VALUES,
+  boxTransform,
+  boxTransformBatch,
   boxTransformUnionBatch,
   boxUnionBatch,
   frustumKeepsBoxBatch,
@@ -74,6 +77,21 @@ test('boxUnionBatch and boxTransformUnionBatch: bounds union', () => {
   boxTransformUnionBatch(into2, boxes, [m, m], 2);
   assert.equal(into2[0], -1);
   assert.equal(into2[3], 2);
+});
+
+test('boxTransformBatch: out[i] is boxTransform(boxes[i], mats[i]), one matrix per box', () => {
+  const boxes = new Float64Array([0, 0, 0, 1, 1, 1, -2, -2, -2, 0, 0, 0]);
+  const a = new Float64Array(16),
+    b = new Float64Array(16);
+  composeMatrix4(a, [1, 1, 1], [0, 0, 0, 1], [1, 1, 1]);
+  composeMatrix4(b, [0, 0, -10], [0, 0, 0.7071067811865476, 0.7071067811865476], [2, 2, 2]);
+  const out = new Float64Array(2 * BOX_VALUES),
+    one = new Float64Array(BOX_VALUES);
+  boxTransformBatch(out, boxes, [a, b], 2);
+  boxTransform(one, 0, boxes, 0, a);
+  assert.deepEqual(Array.from(out.subarray(0, BOX_VALUES)), Array.from(one));
+  boxTransform(one, 0, boxes, BOX_VALUES, b);
+  assert.deepEqual(Array.from(out.subarray(BOX_VALUES)), Array.from(one));
 });
 
 test('sphereFromBoundsBatch: derives sphere centre and radius', () => {

@@ -17,7 +17,7 @@ export const treeFr = {
   },
   frustumKeepsBoxBatch: {
     description:
-      '`n` boîtes de six nombres (min puis max) contre les vingt-quatre flottants d’un frustum : `kept[i]` vaut 1 où la boîte coupe ou tient dans le volume, et le nombre gardé est renvoyé — `frustumExcludesBox` inversé, la polarité de la référence. Le lot de sphères écrit quatre nombres par boîte, centre puis rayon jusqu’au coin, comme `sphereFromBounds`.',
+      '`n` boîtes de six nombres (min puis max) contre les vingt-quatre flottants d’un frustum : `kept[i]` vaut 1 où la boîte coupe ou tient dans le volume, et le nombre gardé est renvoyé — `frustumExcludesBox` inversé, la polarité de la référence. Le lot de sphères écrit `SPHERE_VALUES` nombres par boîte, centre puis rayon jusqu’au coin, comme `sphereFromBounds`. Les deux boucles vivent dans `mathBatchCulling.ts`.',
   },
   boxUnionBatch: {
     description:
@@ -25,7 +25,7 @@ export const treeFr = {
   },
   invertMatrix4Batch: {
     description:
-      '`n` inverses, `n` matrices normales de neuf nombres, `n` compositions `T · R · S`, `n` décompositions. Une matrice de déterminant nul est inversée en identité et signalée dans `singular[i]` — jamais d’exception au milieu d’un lot. `composeMatrix4Batch` prend tout à plat ou tout en sous-vues, et tranche la forme avant la boucle.',
+      '`n` inverses, `n` matrices normales de `NORMAL_MATRIX_VALUES` nombres, `n` compositions `T · R · S`, `n` décompositions. Une matrice de déterminant nul est inversée en identité et signalée dans `singular[i]` — jamais d’exception au milieu d’un lot. `composeMatrix4Batch` prend tout à plat ou tout en sous-vues, et tranche la forme avant la boucle. Les quatre boucles vivent dans `mathBatchTransforms.ts`.',
   },
   transformPointsBatch: {
     description:
