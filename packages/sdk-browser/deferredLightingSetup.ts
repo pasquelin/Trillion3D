@@ -15,9 +15,14 @@ const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;
  * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform;
  * the contract program adds the declared lights, their per-tile lists, their shadow slices
  * and the atlas; the bounce one adds the probe grid. None of the three reads a light written
- * in the scene: there is none left.
+ * in the scene: there is none left. The water composite extends the full list with its own
+ * bindings, so a surface lit there is read on the same numbers.
  */
-export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce = false) {
+export function deferredLayoutEntries(
+  direct: boolean,
+  bounce = false,
+  proxy: GPUBufferBindingLayout = { type: 'storage' },
+) {
   const entries: GPUBindGroupLayoutEntry[] = [0, 1, 2, 3, 4].map((binding) => ({
     binding,
     visibility: GPUShaderStage.FRAGMENT,
@@ -35,12 +40,9 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
       { binding: 10, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
       // Resident proxy of the sun's distant shadow: a single binding, which carries both
       // the columns a ray traverses, that ray's settings and the two counters of the
-      // counted frame. That is what lets the blend pass bind it too.
-      {
-        binding: SUN_FAR_PROXY_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'storage' },
-      },
+      // counted frame. That is what lets the blend pass bind it too. Writable here, where the
+      // counters are written; the water composite, which only traces, declares it read-only.
+      { binding: SUN_FAR_PROXY_BINDING, visibility: GPUShaderStage.FRAGMENT, buffer: proxy },
     );
   // Probe grid and their coefficients: bound only by the bounce program, so a session
   // without bounce keeps exactly the previous layout.
@@ -49,8 +51,12 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: 12, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
     );
+  return entries;
+}
+
+export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce = false) {
   return {
-    lighting: device.createBindGroupLayout({ entries }),
+    lighting: device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) }),
     composition: device.createBindGroupLayout({
       entries: [
         {
