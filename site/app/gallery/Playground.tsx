@@ -4,8 +4,8 @@ import { LearningCards } from '../components/LearningCards.tsx';
 import { CodeEditor } from '../components/CodeEditor.tsx';
 import { formatNumericText } from '../code/formatNumber.ts';
 import { ExampleLayout } from '../components/ExampleLayout.tsx';
-import { Section } from '../components/Section.tsx';
-import { Button, Field, Form, Range, Select } from '../components/UI.tsx';
+import { Button, Field, Range, Select } from '../components/UI.tsx';
+import { ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
 import { examples, byId } from '../../content/catalog.ts';
 import { codeFor } from '../../lessons/code.ts';
 import { evaluate } from '../../lessons/evaluate.ts';
@@ -54,42 +54,14 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
     onSelect?.(next);
   };
   const controls = (
-    <Section
+    <ControlPanel
       className="playground-controls"
       title={french ? 'Commandes de l’expérience' : 'Experiment controls'}
-    >
-      <Form>
-        <Field label={french ? 'Expérience' : 'Experiment'}>
-          <Select
-            size="sm"
-            value={example.id}
-            onChange={(event) => choose(event.target.value)}
-            aria-label={french ? 'Choisir une expérience' : 'Choose an experiment'}
-          >
-            {examples.map((item) => (
-              <option key={item.id} value={item.id}>
-                {local(item.title, locale)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <div className="flex flex-wrap gap-4">
-          {scenario.controls.map(([name, min, max, , step]) => (
-            <Field key={name} label={controlLabel(name, locale)} className="grow">
-              <Range
-                aria-label={controlLabel(name, locale)}
-                min={min}
-                max={max}
-                step={step}
-                value={state[name]}
-                onChange={(event) => setState({ ...state, [name]: Number(event.target.value) })}
-              />
-            </Field>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
+      actions={
+        <>
           <Button
             size="sm"
+            variant="outline"
             onClick={() => {
               motion.stop();
               setState(initialState(example.id));
@@ -97,7 +69,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
           >
             {french ? 'Réinitialiser' : 'Reset'}
           </Button>
-          <Button size="sm" onClick={motion.applyPreset}>
+          <Button size="sm" variant="outline" onClick={motion.applyPreset}>
             {french ? 'Préréglage' : 'Preset'}
           </Button>
           {scenario.animated && (
@@ -105,9 +77,39 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
               {motion.playing ? (french ? 'Pause' : 'Pause') : french ? 'Animer' : 'Animate'}
             </Button>
           )}
-        </div>
-      </Form>
-    </Section>
+        </>
+      }
+    >
+      <Field className="control-panel-wide" label={french ? 'Expérience' : 'Experiment'}>
+        <Select
+          size="sm"
+          value={example.id}
+          onChange={(event) => choose(event.target.value)}
+          aria-label={french ? 'Choisir une expérience' : 'Choose an experiment'}
+        >
+          {examples.map((item) => (
+            <option key={item.id} value={item.id}>
+              {local(item.title, locale)}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {scenario.controls.map(([name, min, max, , step]) => (
+        <Field
+          key={name}
+          label={<ControlLabel label={controlLabel(name, locale)} value={state[name]} />}
+        >
+          <Range
+            aria-label={controlLabel(name, locale)}
+            min={min}
+            max={max}
+            step={step}
+            value={state[name]}
+            onChange={(event) => setState({ ...state, [name]: Number(event.target.value) })}
+          />
+        </Field>
+      ))}
+    </ControlPanel>
   );
   const cards = (
     <LearningCards
