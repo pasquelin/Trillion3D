@@ -9,9 +9,9 @@ import { BarChart } from '../components/BarChart.tsx';
 import { Details } from './Details.tsx';
 import { Conditions } from './Conditions.tsx';
 import { Diagnostics } from './Diagnostics.tsx';
-import type { Report, ReportRecord } from '../types/reports.ts';
+import type { Report, ReportRecord } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
-import type { BarChartRow } from '../types/components.ts';
+import type { BarChartRow } from '../components/BarChart.tsx';
 
 interface ProfileReadingProps {
   record: ReportRecord;

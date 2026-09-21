@@ -164,7 +164,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
               label={local(example.title, locale)}
             />
             <div className="flex flex-wrap gap-2 mt-4">
-              {example.functions.map((name: string) => (
+              {(example.functions ?? []).map((name: string) => (
                 <a
                   key={name}
                   className="badge badge-soft badge-secondary font-mono"

@@ -4,13 +4,6 @@ import { cameraLessonDefinitions } from './cameraLessonDefinitions.ts';
 import { occlusionLessonDefinition } from './occlusionLesson.ts';
 import { offlineLessons } from './offline/lessons.ts';
 import { rendererSceneFor } from './rendererSceneAssignments.ts';
-export type {
-  RendererLessonItem,
-  RendererLessonControl,
-  RendererLessonLegendItem,
-  RendererLessonPose,
-  RendererLessonReferenceReview,
-} from './rendererLessonTypes.ts';
 import type { RendererLessonItem } from './rendererLessonTypes.ts';
 
 const baseLessons: RendererLessonItem[] = [

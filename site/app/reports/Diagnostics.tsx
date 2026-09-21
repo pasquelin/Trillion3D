@@ -2,7 +2,7 @@ import { Table } from '../components/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { DIAGNOSTICS, diagnosticValue } from '../../reports/diagnostics.ts';
 import { formatValue } from '../../reports/metrics.ts';
-import type { ReportRecord } from '../types/reports.ts';
+import type { ReportRecord } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface DiagnosticsProps {

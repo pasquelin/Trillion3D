@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react';
 import type { Locale } from '../../content/locale.ts';
-import type { DiagnosticMode } from '../types/engine-scene.ts';
+import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import { CodeBlock } from '../components/CodeBlock.tsx';
 import { ExampleLayout } from '../components/ExampleLayout.tsx';
 import { Alert } from '../components/UI.tsx';
 import { engineExampleCode } from '../../lessons/engine-scene/code.ts';
-import { sceneCopy } from '../../lessons/engine-scene/content.ts';
 import { mountScene } from '../../lessons/engine-scene/lifecycle.ts';
 import { EnginePreview, engineCopy } from './EnginePreview.tsx';
 import { EngineStats } from './Stats.tsx';
@@ -26,7 +25,7 @@ export function EngineExample({
   const copy = engineCopy(locale);
   useEffect(() => {
     if (host.current) {
-      return mountScene(host.current, sceneCopy[locale] ?? sceneCopy.en, locale);
+      return mountScene(host.current, copy, locale);
     }
   }, [locale, diagnostic]);
   return (

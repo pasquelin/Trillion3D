@@ -5,7 +5,8 @@ import { viewName, runName, engineName } from '../../reports/names.ts';
 import { Section } from '../components/Section.tsx';
 import { sceneName, runOf } from '../../reports/presentation.ts';
 import { MetricCharts } from './MetricCharts.tsx';
-import type { MetricKey, Report } from '../types/reports.ts';
+import type { Report } from '../../reports/types.ts';
+import type { MetricKey } from '../../reports/metrics.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ExperimentsProps {

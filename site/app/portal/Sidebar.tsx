@@ -5,7 +5,9 @@ import { searchEntries } from './search.ts';
 import { PrimaryNavigation } from './Header.tsx';
 import { expandEntryLinks } from './entryLinks.ts';
 import type { RefObject } from 'react';
-import type { PortalEntry, PortalRoute, TranslateFn } from '../types/portal.ts';
+import type { PortalEntry } from '../../content/model.ts';
+import type { PortalRoute } from './routes.ts';
+import type { TranslateFn } from '../../content/i18n/index.ts';
 
 interface SidebarProps {
   entries: PortalEntry[];

@@ -1,4 +1,7 @@
-import type { ProgressiveRange } from '../types/components.ts';
+export interface ProgressiveRange {
+  start: number;
+  end: number;
+}
 
 /** Page-range arithmetic for a list that grows in both directions from the visible page. */
 export const clamp = (value: number, min: number, max: number): number =>

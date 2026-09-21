@@ -26,6 +26,8 @@ export const METRICS = {
   preparation: { unit: 'ms', path: 'preparationMs' },
 } satisfies Record<string, MetricDefinition>;
 export type MetricKey = keyof typeof METRICS;
+/** The keys of `METRICS`, in declaration order: `Object.keys` alone gives `string[]`. */
+export const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
 
 export function metricValue(
   record: ReportRecord | null | undefined,

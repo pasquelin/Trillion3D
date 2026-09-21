@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { ProgressiveListState, ProgressiveRange } from '../types/components.ts';
 import { Loading } from './Loading.tsx';
 import { clamp, progressiveRange, rangeForScroll } from './progressiveRange.ts';
+import type { ProgressiveRange } from './progressiveRange.ts';
+
+export interface ProgressiveListState extends ProgressiveRange {
+  heights?: Record<string | number, number>;
+}
 
 interface ProgressiveListLabels {
   previous: ReactNode;

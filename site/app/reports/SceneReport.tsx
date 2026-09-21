@@ -7,7 +7,7 @@ import { sceneName, runOf } from '../../reports/presentation.ts';
 import { viewName } from '../../reports/names.ts';
 import { MetricCharts } from './MetricCharts.tsx';
 import { Comparison } from './Comparison.tsx';
-import type { Report, ReportRecord } from '../types/reports.ts';
+import type { Report, ReportRecord } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface SceneReportProps {

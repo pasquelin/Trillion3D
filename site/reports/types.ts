@@ -2,7 +2,7 @@
 import type { RunStatus } from './contract.ts';
 import type { REPORT_VERSION } from './contract.ts';
 
-export interface ReportRun {
+interface ReportRun {
   id: string;
   name: string;
   scene: string | null;
@@ -18,7 +18,7 @@ interface ReportMachineProvenance {
   cpu?: string;
 }
 
-export interface ReportProvenance {
+interface ReportProvenance {
   machine?: ReportMachineProvenance;
   browser?: string;
   displayCapHz?: number;
@@ -50,7 +50,7 @@ export interface TimingStat {
   max?: number;
 }
 
-export interface StageTiming {
+interface StageTiming {
   stage: string;
   label?: string;
   cpuMs: TimingStat | null;
@@ -66,7 +66,7 @@ interface GpuPassTiming {
 
 /** Every field a static path reads by name; dynamic dotted paths (METRICS, DIAGNOSTICS) read
  * the rest through an `unknown` traversal instead of widening this interface. */
-export interface ReportRecordData {
+interface ReportRecordData {
   gpuFrameMs?: TimingStat;
   cpuFrameMs?: TimingStat;
   imageSyncMs?: TimingStat | null;

@@ -1,4 +1,4 @@
-import type { EngineCopy } from '../types/engine-scene.ts';
+import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
 import { Stat, StatGroup } from '../components/Stats.tsx';
 
 export function EngineStats({ copy }: { copy: EngineCopy }) {

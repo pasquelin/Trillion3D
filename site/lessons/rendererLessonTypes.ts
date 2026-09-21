@@ -1,7 +1,7 @@
 import type { Localized } from '../content/locale.ts';
 
 /** One legend swatch of a control that colours the image, e.g. the LOD diagnostic's levels. */
-export interface RendererLessonLegendItem {
+interface RendererLessonLegendItem {
   color: string;
   label: Localized;
 }
@@ -24,7 +24,7 @@ export interface RendererLessonPose {
 }
 
 /** How a lesson positions its original scene against a third-party reference example. */
-export interface RendererLessonReferenceReview {
+interface RendererLessonReferenceReview {
   urls: string[];
   observed: string;
   originalGoal: string;

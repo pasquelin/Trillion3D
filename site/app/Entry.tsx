@@ -11,9 +11,9 @@ import { CodeBlock } from './components/CodeBlock.tsx';
 import { ExampleLayout } from './components/ExampleLayout.tsx';
 import { Card, Alert } from './components/UI.tsx';
 import { Inline, Prose, Table } from './components/Prose.tsx';
-import type { DemoDef } from './types/demo.ts';
+import type { DemoDef } from '../demos/kit.ts';
 import type { Locale } from '../content/locale.ts';
-import type { PortalEntry } from './types/portal.ts';
+import type { PortalEntry } from '../content/model.ts';
 
 function LiveDemo({ demo, locale }: { demo: DemoDef; locale: Locale }) {
   return (
@@ -53,6 +53,7 @@ function Example({
   );
   if (!scenario) return code;
   const example = examples.find(({ id }) => id === scenario);
+  if (!example) return code;
   return (
     <ExampleLayout
       left={

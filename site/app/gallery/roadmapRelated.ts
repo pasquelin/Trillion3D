@@ -1,5 +1,5 @@
 import { rendererLessons } from '../../lessons/rendererLessons.ts';
-import type { GalleryExample, RoadmapExample } from '../types/gallery.ts';
+import type { GalleryExample, RoadmapExample } from './roadmapPlan.ts';
 
 type RoadmapReference = Pick<GalleryExample, 'id' | 'subject' | 'supplementaryTopic' | 'title'>;
 
@@ -31,7 +31,7 @@ export function relatedReadyLesson(entry: RoadmapReference): string | undefined 
 function lessonReference(entry: RoadmapReference) {
   const lesson = rendererLessons.find((candidate) => candidate.referenceCoverage?.[entry.id]);
   if (!lesson) return undefined;
-  return { lesson, coverage: lesson.referenceCoverage[entry.id] };
+  return { lesson, coverage: lesson.referenceCoverage?.[entry.id] };
 }
 
 export function galleryRoadmapEntry(entry: RoadmapExample): GalleryExample {

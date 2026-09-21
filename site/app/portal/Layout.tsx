@@ -1,7 +1,9 @@
 import { Header } from './Header.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import type { ReactNode, RefObject } from 'react';
-import type { PortalEntry, PortalRoute, TranslateFn } from '../types/portal.ts';
+import type { PortalEntry } from '../../content/model.ts';
+import type { PortalRoute } from './routes.ts';
+import type { TranslateFn } from '../../content/i18n/index.ts';
 
 interface LayoutProps {
   children: ReactNode;
