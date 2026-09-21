@@ -1,5 +1,6 @@
 //! The grids of a page: a constant colour costs nothing, the primitive grid follows the finest
-//! group error, vertices on one cell are kept once, and a page beyond every grid is refused.
+//! group error, vertices on one cell are kept once, every page shares its primitive's exponent, and a page
+//! beyond that grid is refused.
 
 use crate::geometry_page::{encode, Attribute, FLAG_COLOR};
 use crate::geometry_page_quant::primitive_exponent;
@@ -58,14 +59,28 @@ fn vertices_on_the_same_grid_cells_are_kept_once() {
 }
 
 #[test]
-fn a_page_wider_than_its_grid_coarsens_and_a_page_beyond_any_grid_is_refused() {
+fn every_page_of_a_primitive_shares_its_exponent_and_a_page_beyond_the_grid_is_refused() {
+    // A primitive 1000 units wide whose DAG asks for a 2^-33 grid: the extent bounds it at
+    // 2^-13 (2^22 steps), so its widest page still fits, on the primitive's own exponent.
+    let corners = [0.0, 0.0, 0.0, 1000.0, 0.0, 0.0, 0.0, 1000.0, 0.0];
+    let exponent = primitive_exponent(&corners, [1e-9f64].into_iter());
+    assert_eq!(exponent, -13);
+    let near = [0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.0];
+    for page in [&corners, &near] {
+        let encoded = encode(&[0, 1, 2], page, &[], exponent).expect("page on the grid");
+        let header = codec::Header::parse(&encoded.bytes, 1 << 20).expect("header");
+        assert_eq!(header.position.exponent, exponent);
+    }
+    // A page wider than 2^24 steps of the grid it was given is refused, never re-gridded.
     let wide = [0.0, 0.0, 0.0, 1e9, 0.0, 0.0, 0.0, 1e9, 0.0];
-    let encoded = encode(&[0, 1, 2], &wide, &[], -16).expect("coarsened");
-    let page = codec::decode(&encoded.bytes, 1 << 20).expect("decode");
-    assert!((f64::from(page.position[3]) - 1e9).abs() <= encoded.quantization_error);
-    let beyond = [-f32::MAX, 0.0, 0.0, f32::MAX, 0.0, 0.0, 0.0, 0.0, 0.0];
     assert_eq!(
-        encode(&[0, 1, 2], &beyond, &[], -16).unwrap_err().code,
-        "INVALID_PAGE_ATTRIBUTE"
+        encode(&[0, 1, 2], &wide, &[], -16).unwrap_err().code,
+        "PAGE_ATTRIBUTE_RANGE"
+    );
+    let beyond = [-f32::MAX, 0.0, 0.0, f32::MAX, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let grid = primitive_exponent(&beyond, [].into_iter());
+    assert_eq!(
+        encode(&[0, 1, 2], &beyond, &[], grid).unwrap_err().code,
+        "PAGE_ATTRIBUTE_RANGE"
     );
 }
