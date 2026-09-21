@@ -4,12 +4,14 @@ dist/
 benchmark-runs/
 .idea/
 .mesure/
-# Personal files stay local. Shared checks read these patterns.
+# Personal files stay local. Shared checks read these patterns. No entry ends with a slash: a
+# pattern that does matches directories alone, and a linked worktree carries these as symbolic
+# links (scripts/local-files.ts), which git would then see as files to track.
 # Local files begin
-.claude/
-.codex/
-.agents/
-.grok/
+.claude
+.codex
+.agents
+.grok
 AGENTS.md
 AGENTS.local.md
 AGENTS.override.md
@@ -21,7 +23,7 @@ GROK.md
 GROK.local.md
 RTK.md
 .graphifyignore
-graphify-out/
+graphify-out
 /scripts/graphify-communautes.json
 /scripts/graphify-libelles.mjs
 /scripts/graphify-libelles.test.mjs
