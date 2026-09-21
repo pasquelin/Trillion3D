@@ -151,3 +151,17 @@ export function transformDirectionVector3<T extends NumberSink>(
   normalizeVector3(out, outOffset);
   return out;
 }
+
+/**
+ * Copies `next` over `kept` and says whether every number was already there. `Object.is`
+ * decides, so `-0` and `NaN` count as what a calculation would make of them: what a memo
+ * keyed on numbers needs, allocation-free.
+ */
+export function keepNumbers(kept: Float64Array, next: ArrayLike<number>) {
+  let same = true;
+  for (let i = 0; i < kept.length; i++) {
+    if (!Object.is(kept[i], next[i])) same = false;
+    kept[i] = next[i];
+  }
+  return same;
+}

@@ -156,6 +156,16 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
         <Stat title={french ? 'Triangles dessinés' : 'Drawn triangles'}>
           {value(metrics.triangles, '')}
         </Stat>
+        {lesson.shadowStats && (
+          <Stat title={french ? 'Pages d’ombre redessinées' : 'Shadow pages redrawn'}>
+            {value(metrics.shadowPages, '')}
+          </Stat>
+        )}
+        {lesson.shadowStats && (
+          <Stat title={french ? 'Pages d’ombre en attente' : 'Shadow pages pending'}>
+            {value(metrics.shadowPending, '')}
+          </Stat>
+        )}
         <Stat title={french ? 'Grappes occultées' : 'Occluded clusters'}>
           {typeof metrics.occluded === 'number' && Number.isFinite(metrics.occluded)
             ? `${metrics.occluded} / ${value(metrics.tested, '')}`

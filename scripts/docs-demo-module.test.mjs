@@ -1,18 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { bundleDemoMath } from './build-demo-math.mjs';
 
-// The bundle is built into the site, never committed; here, behaviour: what the portal's demos
-// call must really be the engine, and answer as the engine answers.
-const temporary = await mkdtemp(join(tmpdir(), 'wg-demo-math-'));
-await bundleDemoMath(resolve(import.meta.dirname, '../..'), join(temporary, 'engine.js'));
-const kernels = await import(
-  `data:text/javascript;base64,${(await readFile(join(temporary, 'engine.js'))).toString('base64')}`
-);
-await rm(temporary, { recursive: true, force: true });
+// The demos import this module and the site build bundles it as `js/engine.js`, the module the
+// code editor's snippets import. Here, behaviour: what the portal's demos call must really be the
+// engine, and answer as it.
+const kernels = await import('../site/demos/engine.ts');
 
 test('the bundle carries the public maths the demos call', () => {
   const missing = [
