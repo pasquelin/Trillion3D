@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { launchChrome } from './mesure/chrome.mjs';
-import { createDocsServer } from './docs-serve.mjs';
+import { startDocsServer } from './docs-serve.mjs';
 
 const LESSON = '[data-renderer-lesson="runtime-pixel-error"]';
 const lessonText = (page) => page.evaluate((s) => document.querySelector(s)?.textContent, LESSON);
@@ -21,17 +21,11 @@ const drawing = (page) =>
   );
 
 test('the viewport select drives the runtime mode and follows the mode the lesson sets', async () => {
-  const server = await createDocsServer();
-  await new Promise((ready, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', ready);
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
+  const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await page.goto(`http://127.0.0.1:${address.port}/#/en/examples/runtime-pixel-error`);
+    await page.goto(`http://127.0.0.1:${port}/#/en/examples/runtime-pixel-error`);
     const lesson = page.locator(LESSON),
       select = lesson.locator('[data-renderer-diagnostic]');
     await lesson.locator('canvas:not([aria-busy])').waitFor({ timeout: 40_000 });
@@ -65,17 +59,11 @@ test('the viewport select drives the runtime mode and follows the mode the lesso
 });
 
 test('setDiagnostic on the lesson runtime draws a frame that reports the new mode', async () => {
-  const server = await createDocsServer();
-  await new Promise((ready, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', ready);
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
+  const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 960, height: 640 } });
-    await page.goto(`http://127.0.0.1:${address.port}/`);
+    await page.goto(`http://127.0.0.1:${port}/`);
     const modes = await page.evaluate(
       async ({ runtimeUrl, lessonsUrl }) => {
         const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] =
@@ -103,8 +91,8 @@ test('setDiagnostic on the lesson runtime draws a frame that reports the new mod
         return { before: [...new Set(reports.slice(0, started))], after: reports.slice(started) };
       },
       {
-        runtimeUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessonRuntime.js`,
-        lessonsUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessons.js`,
+        runtimeUrl: `http://127.0.0.1:${port}/js/gallery/rendererLessonRuntime.js`,
+        lessonsUrl: `http://127.0.0.1:${port}/js/gallery/rendererLessons.js`,
       },
     );
     assert.deepEqual(modes.before, ['beauty']);

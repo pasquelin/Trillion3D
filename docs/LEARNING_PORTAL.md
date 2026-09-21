@@ -46,39 +46,26 @@ pnpm docs:serve
 ```
 
 `build:docs` runs `scripts/docs-build.mjs`. It compiles `docs/styles/tailwind.css` with Tailwind
-and DaisyUI into `docs/css/site.css`, scans the handwritten HTML and JavaScript for class names,
-and bundles the React portal, browser SDK and workers into `docs/runtime/`. The CSS and everything
-under `docs/runtime/` are generated artifacts: change their sources and rebuild instead of editing
-the outputs. The React components and the content, gallery, localization and engine-scene modules
-under `docs/js/` are handwritten.
+and DaisyUI into `docs/css/site.css`, scans the handwritten HTML, JavaScript and TypeScript for
+class names, bundles the public maths the demos run into `docs/js/engine.js`, and bundles the React
+portal, browser SDK and workers into `docs/runtime/`. `scripts/docs/bundles.mjs` names these
+generated files: change their sources and rebuild instead of editing the outputs. The React
+components and the content, gallery, localization and engine-scene modules under `docs/js/` are
+handwritten.
 
 `docs:serve` runs `scripts/docs-serve.mjs`: it builds the bundles, then serves only the `docs/`
 tree on `http://127.0.0.1:4177`. This matches the published paths and adds no development framework
 or fallback route.
 
-### Published bundles: built at release, never in a batch
+### Generated bundles: never committed, built by Pages
 
-The bundles are ignored by git and absent from `develop`: a batch never commits them, every
-consumer builds them on demand (`docs:serve`, the browser proofs under `scripts/` and
-`test/browser/`, `scripts/docs-build.test.mjs`), and `check:docs-bundles` in `validate` has
-nothing to compare there. Pages serves `main`, where the release commits them:
-
-1. Cut the release branch from `main`, merge `develop` into it and open the pull request to
-   `main`: `git checkout -b <issue>-release origin/main && git merge origin/develop`. Cut from
-   `main`, the bundles stay tracked on the branch and the rebuild is a plain modification; cut from
-   `develop`, every release after the first would add them against `main`'s copy and conflict.
-2. The `validate` workflow, on a pull request to `main`, runs `scripts/release-bundles.mjs` on
-   that head branch: it builds the bundles and, when they differ from what the head carries,
-   commits them (`docs(release): rebuild the published bundles`, the Actions bot as author),
-   pushes them on the head branch and dispatches the workflow again on the new head. A head that
-   is already that rebuild and still differs stops the release: the build did not reproduce.
-3. On that head, `check:docs-bundles` (`node scripts/docs-build.mjs --check`) compares the
-   bundles as `HEAD` tracks them, whatever the working tree holds, with a fresh build and refuses
-   a stale or missing one. The maintainer merges once it is green.
-
-`node scripts/release-bundles.mjs <branch> --dry-run` runs the same checks and build on a release
-branch and prints the decision without committing anything. A pull request to `develop` fails
-`validate` when its merge tracks any bundle: a batch that force-adds one is refused there.
+The bundles are ignored by git and tracked on no branch: every consumer builds them on demand
+(`docs:serve`, the browser proofs under `scripts/` and `test/browser/`, the unit tests that import
+`js/engine.js`), and `check:docs-bundles` in `validate` (`node scripts/docs-build.mjs --untracked`)
+fails when git tracks any of them. The repository's Pages source is "GitHub Actions":
+`.github/workflows/pages.yml` runs on every push to `main`, installs the dependencies, runs
+`build:docs` and deploys the `docs/` tree as the Pages artifact. A release (`develop` → `main`)
+therefore publishes the bundles built from the merged sources, without committing them.
 
 The browser SDK keeps `three` and `three/*` external during the documentation build. The scene
 loads the repository's current Three.js peer dependency from one pinned CDN URL at runtime. Do not
