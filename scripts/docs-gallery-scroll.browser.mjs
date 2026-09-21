@@ -8,7 +8,7 @@ test('gallery progressively loads a bounded window and restores navigation state
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await page.goto(`http://127.0.0.1:${port}/#/en/examples`);
+    await page.goto(`http://127.0.0.1:${port}/#/en/lessons`);
     const list = page.locator('[data-progressive-list]');
     await list.waitFor();
     assert.equal(await list.getAttribute('data-mounted-items'), '24');

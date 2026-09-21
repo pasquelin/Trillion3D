@@ -27,7 +27,7 @@ test('a cold observatory load settles without user input', async () => {
       await delay(600);
       await route.continue();
     });
-    await page.goto(`http://127.0.0.1:${port}/#/en/examples/runtime-pixel-error`);
+    await page.goto(`http://127.0.0.1:${port}/#/en/lessons/runtime-pixel-error`);
     const lesson = page.locator('[data-renderer-lesson="runtime-pixel-error"]');
     await lesson.waitFor();
     await lesson.locator('canvas:not([aria-busy])').waitFor({ timeout: 40_000 });

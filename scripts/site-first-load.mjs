@@ -12,7 +12,7 @@ import { launchChrome } from './mesure/chrome.mjs';
 import { createDocsServer, listen } from './docs-serve.mjs';
 import { SITE_OUTPUT } from './docs/site.mjs';
 
-const DEFAULT_ROUTES = ['#/en/learn/home', '#/en/examples/shadow-casting-switch'];
+const DEFAULT_ROUTES = ['#/en/learn/home', '#/en/lessons/shadow-casting-switch'];
 const THREE = 'https://cdn.jsdelivr.net/npm/three@0.174.0/';
 
 const median = (values) => [...values].sort((a, b) => a - b)[values.length >> 1];

@@ -268,6 +268,13 @@ kbd {
   flex: 1;
   flex-direction: column;
 }
+.example-frame {
+  width: 100%;
+  height: min(60dvh, 42rem);
+  border: 0;
+  border-radius: var(--radius-box, 1rem);
+  background: #0e1621;
+}
 .engine-canvas-frame {
   display: block;
   width: 100%;
