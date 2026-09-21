@@ -7,7 +7,13 @@
 // summary conclusion of that same table. This test holds the rule in a single place.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compareBaseline, niveauEcart, SEUIL_AVERTISSEMENT, SEUIL_ECHEC } from './baseline.mjs';
+import {
+  compareBaseline,
+  ecartRelatif,
+  niveauEcart,
+  SEUIL_AVERTISSEMENT,
+  SEUIL_ECHEC,
+} from './baseline.mjs';
 
 const cas = (name, ecartBaseline) => ({ name, ecartBaseline });
 
@@ -63,4 +69,12 @@ test('published thresholds are those applied by verdict, and caller can tighten 
   const serre = compareBaseline([cas('a', 0.14)], { seuilAvertissement: 0.05, seuilEchec: 0.1 });
   assert.equal(serre.verdict, 'echec');
   assert.equal(serre.seuilEchec, 0.1);
+});
+
+test('a relative gap reads a median against its reference, and null without one', () => {
+  assert.equal(ecartRelatif(1.5, 1), 0.5);
+  assert.equal(ecartRelatif(0.5, 2), -0.75);
+  assert.equal(ecartRelatif(1, null), null, 'no reference: nothing compared');
+  assert.equal(ecartRelatif(null, 1), null, 'no measure: nothing compared');
+  assert.equal(ecartRelatif(1, 0), null, 'a zero reference is not a reference');
 });

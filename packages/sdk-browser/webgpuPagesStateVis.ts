@@ -7,14 +7,8 @@ import type { GpuDraw } from './gpuDraw.ts';
 import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
-
-type GeometryBlock = {
-  vertexBase: number;
-  count: number;
-  hasUv: boolean;
-  hasNormal: boolean;
-  hasTangent: boolean;
-};
+import { createPresentClasses, type PresentClasses } from './webgpuMaterialPasses.ts';
+import type { GeometryBlock } from './webgpuPageRowMaterial.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
@@ -27,7 +21,16 @@ export interface WebgpuVisState {
   visPipelineNone: GPURenderPipeline | undefined;
   visPipelineFront: GPURenderPipeline | undefined;
   visPipelineFrontCw: GPURenderPipeline | undefined;
-  shadePipeline: GPURenderPipeline | undefined;
+  /** Material depth: each pixel's class, written once per image and tested by every class pass. */
+  materialDepthTexture: GPUTexture | undefined;
+  materialDepthView: GPUTextureView | undefined;
+  materialDepthPipeline: GPURenderPipeline | undefined;
+  /** One resolve pipeline per class, by class key (`visibilityMaterialClass.ts`): the scene's
+   *  classes at preparation, and any class a material changed into since, made on first draw. */
+  shadePipelines: Map<number, GPURenderPipeline>;
+  shadePipelineFor: ((key: number) => GPURenderPipeline) | undefined;
+  /** Classes the image being encoded has rows of (`webgpuMaterialPasses.ts`). */
+  presentClasses: PresentClasses;
   gpuHiz: GpuHiz | undefined;
   gpuRaster: GpuRaster | undefined;
   visHizRestBack: GPURenderPipeline | undefined;
@@ -87,7 +90,12 @@ export function createWebgpuVisState(): WebgpuVisState {
     visPipelineNone: undefined,
     visPipelineFront: undefined,
     visPipelineFrontCw: undefined,
-    shadePipeline: undefined,
+    materialDepthTexture: undefined,
+    materialDepthView: undefined,
+    materialDepthPipeline: undefined,
+    shadePipelines: new Map(),
+    shadePipelineFor: undefined,
+    presentClasses: createPresentClasses(),
     gpuHiz: undefined,
     gpuRaster: undefined,
     visHizRestBack: undefined,
