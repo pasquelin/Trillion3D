@@ -36,7 +36,7 @@ export interface PortalEntry {
 
 export const SECTIONS = [
   { id: 'guides', title: 'Guides' },
-  { id: 'examples', title: 'Examples' },
+  { id: 'examples', title: 'SDK examples' },
   { id: 'demo', title: 'Live demo' },
   { id: 'enums', title: 'Constants & enums' },
   { id: 'lifecycle', title: 'Engine lifecycle' },

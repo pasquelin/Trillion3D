@@ -1,34 +1,40 @@
-import { copyFile, mkdir } from 'node:fs/promises';
+import { copyFile, cp, mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { theatreWorkshop } from '../shadow-theatre/geometry.mjs';
+import { appendSurfacesGltf } from './gltf.mjs';
 import { placeObj, writeBoxesObj } from './obj.mjs';
 
 /**
  * The scenes built around an imported model (`site/assets/examples/models/`, credited in
- * `CREDITS.md`): the model is copied into the scene's source folder, scaled to metres and placed,
- * with an original setting written as boxes beside it; the compiler merges the folder.
+ * `CREDITS.md`): an OBJ model is copied into the scene's source folder, scaled to metres and
+ * placed, with an original setting written as boxes beside it, and the compiler merges the
+ * folder; a glTF model is copied as-is and the setting appended to it as one more node.
  */
-const CONCRETE = [0.42, 0.42, 0.4],
-  DARK = [0.16, 0.16, 0.18];
+const DARK = [0.16, 0.16, 0.18];
 
 async function copyModel(models, name, files, directory) {
   for (const file of files) await copyFile(resolve(models, name, file), resolve(directory, file));
 }
 
-/** A helicopter parked on a square pad with its painted circle of corner blocks. */
-async function helipad(models, directory) {
-  await copyModel(models, 'helicopter', ['helicopter.mtl', 'helicopter1.bmp'], directory);
-  await placeObj(
-    resolve(models, 'helicopter/helicopter.obj'),
-    resolve(directory, 'helicopter.obj'),
-    { scale: 0.06, offset: [0, -0.1, -2] },
-  );
-  const corners = [-1, 1].flatMap((x) =>
-    [-1, 1].map((z) => [[x * 5.6, 0.15, z * 5.6], [0.5, 0.3, 0.5], 'paint']),
-  );
-  await writeBoxesObj(
-    resolve(directory, 'pad.obj'),
-    [[[0, -0.15, 0], [12, 0.3, 12], 'concrete'], ...corners],
-    { concrete: CONCRETE, paint: [0.85, 0.75, 0.15] },
+/** A marble bust on a stone pedestal, a wall behind it to catch its shadow. */
+async function bust(models, directory) {
+  const source = resolve(models, 'marble-bust');
+  await cp(resolve(source, 'textures'), resolve(directory, 'textures'), { recursive: true });
+  await copyFile(resolve(source, 'marble_bust_01.bin'), resolve(directory, 'marble_bust_01.bin'));
+  const shop = theatreWorkshop();
+  shop.box(0, [0, -1.15, 0], [4, 0.3, 4]);
+  shop.box(0, [0, 0.3, -1.85], [4, 3.2, 0.3]);
+  shop.box(1, [0, -0.5, 0], [0.42, 1, 0.42]);
+  shop.box(1, [0, -0.02, 0], [0.5, 0.04, 0.5]);
+  await appendSurfacesGltf(
+    JSON.parse(await readFile(resolve(source, 'marble_bust_01_1k.gltf'), 'utf8')),
+    directory,
+    'Pedestal and niche',
+    [
+      ['Plaster niche', [0.6, 0.56, 0.5, 1], 0, 0.85],
+      ['Dark stone pedestal', [0.16, 0.15, 0.15, 1], 0, 0.5],
+    ],
+    shop.surfaces,
   );
 }
 
@@ -69,7 +75,7 @@ async function crates(models, directory) {
   });
 }
 
-export const modelScenes = { helipad, 'street-corner': streetCorner, crates };
+export const modelScenes = { bust, 'street-corner': streetCorner, crates };
 
 /** Assembles the source folder of every model scene under `examples` from `models`. */
 export async function writeModelScenes(examples, models) {

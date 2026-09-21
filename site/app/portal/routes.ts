@@ -85,8 +85,8 @@ export function localizedHref(hash: string, locale: Locale) {
 }
 
 export function entryRoute(entry: PortalEntry, locale: Locale) {
-  if (entry.section === 'guides') return routeHref({ locale, area: 'learn', id: entry.id });
-  if (entry.section === 'examples') return routeHref({ locale, area: 'examples', id: entry.id });
+  if (['guides', 'examples'].includes(entry.section))
+    return routeHref({ locale, area: 'learn', id: entry.id });
   if (entry.section === 'demo') return routeHref({ locale, area: 'playground', id: entry.id });
   return routeHref({ locale, area: 'api', id: entry.id });
 }
@@ -101,11 +101,11 @@ export function resolvePage(
   const entry = entries.find((candidate) => candidate.id === route.id);
   const isLesson = lessonIds.includes(route.id);
   if (route.area === 'learn' && route.id === 'home') return { kind: 'home' };
-  if (route.area === 'learn' && entry?.section === 'guides') return { kind: 'entry', entry };
+  if (route.area === 'learn' && entry && ['guides', 'examples'].includes(entry.section))
+    return { kind: 'entry', entry };
   if (route.area === 'examples' && !route.id) return { kind: 'examples' };
   if (route.area === 'examples' && exampleIds.includes(route.id))
     return { kind: 'example', id: route.id };
-  if (route.area === 'examples' && entry?.section === 'examples') return { kind: 'entry', entry };
   if (route.area === 'lessons' && !route.id) return { kind: 'gallery' };
   if (route.area === 'lessons' && route.id === 'engine-scene') return { kind: 'engine-scene' };
   if (route.area === 'lessons' && isLesson) return { kind: 'playground', id: route.id };

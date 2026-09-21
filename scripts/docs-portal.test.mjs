@@ -73,7 +73,12 @@ test('page resolution distinguishes entries, playgrounds, and unknown addresses'
     resolvePage({ area: 'lessons', id: 'rotate' }, entries, ['rotate']).kind,
     'playground',
   );
-  assert.equal(resolvePage({ area: 'examples', id: 'example-camera' }, entries).kind, 'entry');
+  assert.equal(resolvePage({ area: 'learn', id: 'example-camera' }, entries).kind, 'entry');
+  assert.equal(resolvePage({ area: 'examples', id: 'example-camera' }, entries).kind, 'not-found');
+  assert.equal(
+    entryRoute({ id: 'example-camera', section: 'examples' }, 'en'),
+    '#/en/learn/example-camera',
+  );
   assert.equal(resolvePage({ area: 'examples', id: '' }, entries).kind, 'examples');
   assert.equal(
     resolvePage({ area: 'examples', id: 'cube' }, entries, [], ['cube']).kind,
