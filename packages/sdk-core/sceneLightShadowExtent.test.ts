@@ -87,3 +87,28 @@ test('a region refused at the seam leaves the other side waiting', () => {
   assert.equal(regions.count, 1);
   assert.equal(dirty.pages(0, 0), ROWS * ROWS - regions.pages, 'the refused side still waits');
 });
+
+test('a page awaiting a redraw for a world change still holds the extent; a slid strip does not', () => {
+  const dirty = createShadowDirty();
+  const regions = createShadowRegions(8);
+  dirty.setExtent(0, 0, 0, 0);
+  dirty.whole(0, 0, ROWS, 0, 0);
+  for (let row = 0; row < ROWS; row++)
+    assert.equal(dirty.heldRow(0, 0, row), 0, 'nothing held yet');
+  regions.addFace(dirty, 0, 0, 0, ROWS, () => true);
+  for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xff, 'all drawn');
+  // A moved node stales two rows of pages: they stay held, the read keeps their last depth.
+  const identity = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  dirty.box(0, 0, ROWS, identity, 0, [-0.2, -0.2, 0], [0.2, 0.2, 0.5], 16, 1);
+  assert.ok(dirty.pages(0, 0) > 0, 'the box staled pages');
+  for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xff, 'still held');
+  // The extent slides right by one page: only the entering column (physical 0, wrap 1) is unheld.
+  dirty.setExtent(0, 0, 1, 0);
+  dirty.slide(0, 0, ROWS, 1, 0, 32, 2);
+  for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xfe);
+  // A refused draw on that column keeps it unheld; a landed one holds it again.
+  dirty.undrew(0, 0, 0, 0, 0, ROWS - 1, 48, 3);
+  assert.equal(dirty.heldRow(0, 0, 3), 0xfe);
+  dirty.drew(0, 0, 0, 0, 0, ROWS - 1);
+  for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xff);
+});
