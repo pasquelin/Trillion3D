@@ -23,8 +23,8 @@ const { rendererLessons } = await import(new URL('rendererLessons.js', root));
 const mathExamples = examples.filter(({ renderer }) => !renderer);
 
 test('gallery exposes bilingual math and public renderer lessons', () => {
-  assert.equal(examples.length, 55);
-  assert.equal(rendererLessons.length, 39);
+  assert.equal(examples.length, 57);
+  assert.equal(rendererLessons.length, 41);
   assert.equal(new Set(examples.map(({ id }) => id)).size, examples.length);
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
@@ -106,7 +106,7 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /#\/en\/examples\/engine-scene/);
   assert.match(gallery, /assets\/kinetic-garden\/preview\.png/);
   assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, 24);
-  assert.match(gallery, /663 results shown · 56 ready lessons in the full gallery/);
+  assert.match(gallery, /665 results shown · 58 ready lessons in the full gallery/);
   assert.doesNotMatch(gallery, /data-geometry-3d="webgl_/);
   assert.doesNotMatch(gallery, /Try it|À essayer/);
   assert.match(gallery, /#\/en\/playground\/compose-transform/);

@@ -132,6 +132,7 @@ const AUTORISES = {
   webgpuGeometryPrepare: 'host geometries to prepare',
   webgpuMaterialTextures: 'host-material textures',
   webgpuPageRow: 'host geometry and textures of a row',
+  webgpuPageRowMaterial: 'contract: host textures a row material addresses by atlas slot',
   webgpuPagesHelpers: 'host colours and colour management',
   webgpuPagesPrepare: 'host geometry attributes',
   webgpuPagesSetup: 'meshes of the host scene',
