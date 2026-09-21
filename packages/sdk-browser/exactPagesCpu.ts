@@ -2,7 +2,8 @@ import { disabledStageProfile } from '../sdk-core/index.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { createStageProfiler } from './stageProfiler.ts';
 import { logFrameCostAudit } from './frameCostAudit.ts';
-import { addCpuSteps, cpuStepTable, WEBGL_STAGES } from './stageMapping.ts';
+import { addCpuSteps, cpuStepTable } from './stageCpuSteps.ts';
+import { WEBGL_STAGES } from './stageMapping.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { HostCpuStep } from './hostCpuProfile.ts';
 

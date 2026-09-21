@@ -99,6 +99,7 @@ const AUTORISES = {
   webgpuPagesTestScenes: 'test-scene mounts: meshes and materials',
   webgpuTransformCisaillementFixture:
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
+  webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
 
   // 3. Host resources: materials, textures, geometries, colours, face constants.
   backendTypes: 'contract: host resources an engine receives',
