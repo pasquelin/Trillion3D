@@ -64,17 +64,22 @@ export function createCpuStepProfile(
         if (worstFilled < worstCount) worstFilled++;
       }
     },
-    /** Percentiles over the ring and the worst images, then forgets both. */
+    /** Percentiles over the ring and the worst images, then forgets both. A bound an image did not
+     *  file (`NaN`) is left out of its quantiles; a bound no image filed reads `NaN`, never zero. */
     summary(): CpuStepSummary | null {
       if (!recorded) return null;
       const steps: Record<string, { p50: number; p95: number; max: number }> = {};
       for (let c = 0; c < width; c++) {
-        for (let i = 0; i < recorded; i++) column[i] = ring[i * width + c];
-        const sorted = column.subarray(0, recorded).sort();
+        let filed = 0;
+        for (let i = 0; i < recorded; i++) {
+          const ms = ring[i * width + c];
+          if (Number.isFinite(ms)) column[filed++] = ms;
+        }
+        const sorted = column.subarray(0, filed).sort();
         steps[names[c]] = {
-          p50: pick(sorted, recorded, 0.5),
-          p95: pick(sorted, recorded, 0.95),
-          max: sorted[recorded - 1],
+          p50: filed ? pick(sorted, filed, 0.5) : NaN,
+          p95: filed ? pick(sorted, filed, 0.95) : NaN,
+          max: filed ? sorted[filed - 1] : NaN,
         };
       }
       const worst: Array<Record<string, number>> = [];
