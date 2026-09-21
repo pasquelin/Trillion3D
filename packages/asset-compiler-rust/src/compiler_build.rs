@@ -60,11 +60,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     }
     let mesh_values = values(g, "meshes")?;
     let BufferPlan {
-        accessors,
+        layout,
         jobs,
         estimated_working_bytes,
     } = plan_buffers(o, g, bin, g_bytes, &meshes)?;
     let directory = cache_directory(o, &key)?;
+    let (output_views, source_bin) = write_source_bin(o, g, bin, &layout, &directory)?;
+    let offset = source_bin.bytes as usize;
     let import_ms = shared_math::elapsed_ms(started);
     progress(
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
@@ -83,8 +85,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         mesh_map: &mesh_map,
         mesh_scales: &mesh_scales,
         scene_triangles: selected_triangles,
-        validated: &accessors,
-        directory: &directory,
+        validated: &layout.accessors,
         progress: &progress,
     };
     let compiled: Vec<CompiledPrimitive> = pool.install(|| {
@@ -92,12 +93,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             .map(|(old, primitive)| compile_primitive(&primitive_inputs, old, primitive))
             .collect::<Result<Vec<_>>>()
     })?;
-    let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds, coarse_vertices) =
+    let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds) =
         compiler_coplanar::split_compiled(compiled);
-    // `source.bin` is written once the DAG has spoken: a primitive that created vertices
-    // replaces its source attributes with them, so the buffer's layout is only known here.
-    let written = write_source_bin(o, g, bin, &meshes, &directory, &coarse_vertices)?;
-    let offset = written.product.bytes as usize;
     let bootstrap_bundles = {
         let _t = perf::Timer::new(perf::Phase::PageWrite);
         share_bootstrap_bundles(o, &mut primitives)?
@@ -119,13 +116,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         meshes: &meshes,
         chosen: &chosen,
         mesh_map: &mesh_map,
-        accessors: &written.layout.accessors,
-        access_map: &written.layout.access_map,
-        view_map: &written.layout.view_map,
+        accessors: &layout.accessors,
+        access_map: &layout.access_map,
+        view_map: &layout.view_map,
         directory: &directory,
-        output_views: &written.output_views,
+        output_views: &output_views,
         offset,
-        extension: &written.extension,
     })?;
     // Mip chain of each atlas texture and the cutout sheet, on the pool.
     let (texture_previews, texture_preview_report, cutout_report) = stage_textures(
@@ -136,7 +132,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             bin,
             image_root: &image_root,
             meshes: &meshes,
-            view_map: &written.layout.view_map,
+            view_map: &layout.view_map,
             decisions: &decisions,
             applied: &cutouts,
             primitives: &primitives,
@@ -159,8 +155,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Lights declared by the source file, in world space, in the engine contract.
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, scene) =
-        write_autonomous_scene(&directory, &source, &primitives, &written.output_views)?;
-    let mut products = vec![written.product, source_gltf, lights];
+        write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
+    let mut products = vec![source_bin, source_gltf, lights];
     products.extend(scene);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);

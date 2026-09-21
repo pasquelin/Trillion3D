@@ -1,29 +1,25 @@
 use super::*;
 
-/// The compiled primitives and, beside them, the plane of each of their clusters, the coarse
-/// cut its proxy keeps and the vertex buffer a DAG rewrote. None travels inside the primitive:
-/// each is read once by a later stage.
+/// The compiled primitives and, beside them, the plane of each of their clusters and the coarse
+/// cut its proxy keeps. Neither travels inside the primitive: each is read once by a later stage.
 pub(super) type SplitCompiled = (
     Vec<Value>,
     Vec<Vec<Option<coplanar::ClusterPlane>>>,
     Vec<Vec<f32>>,
     Vec<f64>,
-    Vec<compiler_source_extend::CoarseVertices>,
 );
 pub(super) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled {
     let mut primitives = Vec::with_capacity(compiled.len());
     let mut planes = Vec::with_capacity(compiled.len());
     let mut cuts = Vec::with_capacity(compiled.len());
     let mut thresholds = Vec::with_capacity(compiled.len());
-    let mut coarse = Vec::new();
     for entry in compiled {
         primitives.push(entry.value);
         planes.push(entry.cluster_planes);
         cuts.push(entry.proxy_cut);
         thresholds.push(entry.proxy_threshold);
-        coarse.extend(entry.coarse_vertices);
     }
-    (primitives, planes, cuts, thresholds, coarse)
+    (primitives, planes, cuts, thresholds)
 }
 
 /// Everything the stage reads that is not the primitives it writes into.

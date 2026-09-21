@@ -1,9 +1,6 @@
 use super::*;
-use compiler_source_extend::{append_to_source_bin, CoarseVertices, ExtensionViews};
 
 /// The cache folder of this compilation, and the object store beside it, created.
-/// The folder is opened before the DAG runs: a primitive that creates vertices writes
-/// them there while it compiles (`compiler_source_extend.rs`).
 pub(super) fn cache_directory(o: &Options, key: &str) -> Result<PathBuf> {
     let directory = o.key_directory(key);
     fs::create_dir_all(directory.join("pages"))?;
@@ -12,17 +9,15 @@ pub(super) fn cache_directory(o: &Options, key: &str) -> Result<PathBuf> {
 }
 
 /// Copies the buffer views the compiled scene keeps into `source.bin`, packed and
-/// aligned, then appends the vertex buffer of every primitive the DAG rewrote.
-/// Returns the rewritten views, the extension those vertices need and the product
-/// record — fingerprinted as the bytes go by, never read back.
+/// aligned. Returns the rewritten views and the product record — fingerprinted as the
+/// bytes go by, never read back.
 pub(super) fn copy_source_bin(
     o: &Options,
     bin: &[u8],
     view_values: &[Value],
     views: &BTreeSet<usize>,
     directory: &Path,
-    coarse: &[CoarseVertices],
-) -> Result<(Vec<Value>, Vec<ExtensionViews>, Product)> {
+) -> Result<(Vec<Value>, Product)> {
     let temp = directory.join("source.bin.tmp");
     let mut writer = Hashing::new(BufWriter::new(File::create(&temp)?));
     let mut offset = 0;
@@ -51,9 +46,8 @@ pub(super) fn copy_source_bin(
         offset += len;
         output_views.push(v);
     }
-    let extension = append_to_source_bin(&mut writer, &mut offset, &mut output_views, coarse)?;
     writer.flush()?;
     let product = writer.product("source.bin");
     fs::rename(temp, directory.join("source.bin"))?;
-    Ok((output_views, extension, product))
+    Ok((output_views, product))
 }

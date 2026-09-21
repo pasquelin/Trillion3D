@@ -10,14 +10,6 @@ pub(super) const PAGE_ATTRIBUTES: [(&str, usize, u32); 4] = [
     ("COLOR_0", 4, geometry_page::FLAG_COLOR),
 ];
 
-/// glTF name of a page attribute, by its flag.
-pub(super) fn attribute_name(flag: u32) -> &'static str {
-    PAGE_ATTRIBUTES
-        .iter()
-        .find(|(_, _, f)| *f == flag)
-        .map_or("", |(name, _, _)| name)
-}
-
 /// Decodes, as float, every page attribute the primitive declares. Each must count as many
 /// vertices as POSITION; COLOR_0 may come three wide, the page widens it.
 pub(super) fn decode_page_attributes(

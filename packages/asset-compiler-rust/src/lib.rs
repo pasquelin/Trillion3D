@@ -151,7 +151,6 @@ mod compiler_reuse_proof;
 mod compiler_runtime;
 mod compiler_scene;
 mod compiler_source;
-mod compiler_source_extend;
 mod compiler_storage;
 mod compiler_textures;
 mod compiler_types;

@@ -2,7 +2,6 @@ use super::*;
 use crate::compiler_primitive_warn::primitive_event;
 use compiler_primitive_attributes::decode_page_attributes;
 use compiler_primitive_weld::prepare_indices;
-use compiler_source_extend::write_coarse_vertices;
 
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
@@ -19,8 +18,6 @@ pub(super) struct PrimitiveInputs<'a> {
     pub scene_triangles: usize,
     /// Accessors that `plan_buffers` has already validated once, on the same bytes.
     pub validated: &'a BTreeSet<usize>,
-    /// Cache folder of this compilation, where a rewritten primitive drops its vertex file.
-    pub directory: &'a Path,
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
 
@@ -33,8 +30,6 @@ pub(super) struct CompiledPrimitive {
     pub proxy_cut: Vec<f32>,
     /// The threshold, in metres, that this cut requested.
     pub proxy_threshold: f64,
-    /// The vertex buffer this primitive rewrote, when its DAG created vertices.
-    pub coarse_vertices: Option<compiler_source_extend::CoarseVertices>,
 }
 
 pub(super) fn compile_primitive(
@@ -52,7 +47,6 @@ pub(super) fn compile_primitive(
         mesh_scales,
         scene_triangles,
         validated,
-        directory,
         progress,
     } = inputs;
     check(o)?;
@@ -177,11 +171,6 @@ pub(super) fn compile_primitive(
     } else {
         DagResult::default()
     };
-    // A DAG that created vertices carries them in the compiled scene: the primitive's vertex
-    // buffer is rewritten with the source vertices first (`compiler_source_extend.rs`).
-    let coarse_vertices = (added_vertices > 0)
-        .then(|| write_coarse_vertices(directory, (*old, *primitive), &pos, &attributes))
-        .transpose()?;
     progress(primitive_event(mesh, *primitive, pages.len(), &warnings));
     let quantization = compiler_page_object::quantization_report(&pages, position_exponent);
     Ok(CompiledPrimitive {
@@ -189,7 +178,6 @@ pub(super) fn compile_primitive(
         proxy_cut,
         // The threshold is back in object space: it goes out in metres for the report.
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
-        coarse_vertices,
         value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"vertices":weld.map_or(Value::Null,|weld|json!({"source":positions.count,"used":weld.vertices,"welded":weld.welded,"weldRefused":weld.refused,"coarse":added_vertices})),"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }

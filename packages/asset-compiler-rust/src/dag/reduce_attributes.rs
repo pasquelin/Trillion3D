@@ -49,12 +49,18 @@ pub(super) fn updated(
     })
 }
 
-/// Names every surviving local vertex: a survivor whose position and attributes are bit for bit
-/// what the buffer holds keeps its buffer index — a locked vertex always does, which is what
+/// A solve that moved a vertex by less than this fraction of the region's extent, and left every
+/// weighed attribute within the same fraction, did not move it: the vertex keeps its buffer index
+/// instead of becoming a copy of itself. The fraction is read against the region, as the
+/// simplifier reads its own error, so it means the same on a leaf and on a facade.
+const SOLVE_TOLERANCE: f64 = 1e-4;
+
+/// Names every surviving local vertex: a survivor the solve left within `SOLVE_TOLERANCE` of the
+/// vertex it started from keeps its buffer index — a locked vertex always does, which is what
 /// keeps two groups meeting on the same vertices —, the others become new vertices ranked in the
 /// order the surviving triangles first use them. Returns, with them, the largest object-space
-/// displacement of a new vertex from the source position it started from — at least one
-/// single-precision ulp of the region's extent when vertices were created without moving, so
+/// displacement between a survivor as drawn and the source position it started from — at least
+/// one single-precision ulp of the region's extent when vertices were created without moving, so
 /// the error stays positive once the runtime packs it as `f32`.
 fn sort_survivors(
     input: &GroupReductionInput,
@@ -62,6 +68,7 @@ fn sort_survivors(
     weights: &[f32],
 ) -> (Vec<u32>, NewVertices, f64) {
     let stride = weights.len();
+    let tolerance = region.scale * SOLVE_TOLERANCE;
     let mut named = vec![u32::MAX; region.remap.len()];
     let mut new = NewVertices::default();
     let mut deviation = 0.0f64;
@@ -79,20 +86,31 @@ fn sort_survivors(
         }
         let solved = &region.attributes[l * stride..(l + 1) * stride];
         let position = &input.positions[source * 3..source * 3 + 3];
-        named[l] =
-            if region.positions[l * 3..l * 3 + 3] == *position && *solved == *source_attributes {
-                source as u32
-            } else {
-                deviation = deviation
-                    .max(region.displacement(l, position))
-                    .max(region.scale * f32::EPSILON as f64);
-                let rank = new.count() as u32;
-                new.positions
-                    .extend_from_slice(&region.positions[l * 3..l * 3 + 3]);
-                new.attributes.extend_from_slice(solved);
-                new.protected.push(input.protect[source]);
-                NEW_VERTEX | rank
-            };
+        let moved = region.displacement(l, position);
+        // A weight says what one unit of an attribute is worth against the region's extent: the
+        // drift is judged in that same currency as the position, so one tolerance covers both.
+        let drifted =
+            solved
+                .iter()
+                .zip(&source_attributes)
+                .zip(weights)
+                .any(|((solved, from), weight)| {
+                    (*solved as f64 - *from as f64).abs() * *weight as f64 > SOLVE_TOLERANCE
+                });
+        // Kept or created, the vertex is drawn where this says: snapping a survivor back onto
+        // its source position is a displacement like any other, and the level's error carries it.
+        deviation = deviation.max(moved);
+        named[l] = if moved <= tolerance && !drifted {
+            source as u32
+        } else {
+            deviation = deviation.max(region.scale * f32::EPSILON as f64);
+            let rank = new.count() as u32;
+            new.positions
+                .extend_from_slice(&region.positions[l * 3..l * 3 + 3]);
+            new.attributes.extend_from_slice(solved);
+            new.protected.push(input.protect[source]);
+            NEW_VERTEX | rank
+        };
     }
     (named, new, deviation)
 }

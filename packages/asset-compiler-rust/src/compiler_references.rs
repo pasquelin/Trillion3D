@@ -1,7 +1,6 @@
 //! What the compiled scene references: the accessors and buffer views `source.gltf` keeps, and
-//! their output ranks. Walked twice — before compilation, to validate and admit the job, and
-//! after it, once the DAG has said which primitives carry vertices of their own and whose source
-//! attributes the extension therefore replaces (`compiler_source_extend.rs`).
+//! their output ranks. Walked twice — once before compilation, to validate and admit the job,
+//! once to lay `source.bin` out.
 use super::*;
 
 /// The accessors a scene references and the primitives to compile, `(mesh, primitive)` each.
@@ -15,14 +14,9 @@ pub(super) struct SourceLayout {
     pub view_map: BTreeMap<usize, usize>,
 }
 impl SourceLayout {
-    /// Layout of the scene once `rewritten` primitives draw their vertices from the extension:
-    /// their source attribute accessors, and the views only they read, leave the output.
-    pub(super) fn narrowed(
-        g: &Value,
-        meshes: &BTreeSet<usize>,
-        rewritten: &BTreeSet<(usize, usize)>,
-    ) -> Result<Self> {
-        let (accessors, _) = referenced_accessors(g, meshes, rewritten)?;
+    /// Layout of the compiled scene: the views `accessors` read, each of the two in its
+    /// output rank.
+    pub(super) fn of(g: &Value, accessors: BTreeSet<usize>) -> Result<Self> {
         let views = referenced_views(g, &accessors)?;
         Ok(Self {
             access_map: rank_map(&accessors),
@@ -34,13 +28,10 @@ impl SourceLayout {
 }
 
 /// Accessors the compiled scene references, and the primitives to compile: every primitive of
-/// the selected meshes, plus skins and animations. The vertex attributes of a `rewritten`
-/// primitive are left out — the coarse-vertex extension replaces them — unless another
-/// reference still names the accessor.
+/// the selected meshes, plus skins and animations.
 pub(super) fn referenced_accessors(
     g: &Value,
     meshes: &BTreeSet<usize>,
-    rewritten: &BTreeSet<(usize, usize)>,
 ) -> Result<ReferencedAccessors> {
     let mesh_values = values(g, "meshes")?;
     let mut accessors = BTreeSet::new();
@@ -60,10 +51,8 @@ pub(super) fn referenced_accessors(
             if !attributes.contains_key("POSITION") {
                 return Err(invalid("primitive.attributes.POSITION is required"));
             }
-            if !rewritten.contains(&(*old, primitive)) {
-                for a in attributes.values() {
-                    accessors.insert(required_index(Some(a), "primitive attribute")?);
-                }
+            for a in attributes.values() {
+                accessors.insert(required_index(Some(a), "primitive attribute")?);
             }
             if let Some(targets) = p.get("targets").and_then(Value::as_array) {
                 for target in targets {
@@ -137,46 +126,16 @@ pub(super) fn referenced_views(g: &Value, accessors: &BTreeSet<usize>) -> Result
     Ok(views)
 }
 
-/// What writing `source.bin` produced: the layout the compiled scene is written in, the
-/// buffer views it holds, the accessors the created vertices need, and the product record.
-pub(super) struct WrittenSource {
-    pub layout: SourceLayout,
-    pub output_views: Vec<Value>,
-    pub extension: Vec<compiler_source_extend::ExtensionViews>,
-    pub product: Product,
-}
-
-/// Lays the compiled scene out and writes `source.bin`, once the DAG has said which primitives
-/// carry vertices of their own: their source attributes leave the buffer, their vertex files
-/// enter it.
+/// Writes `source.bin` in the layout the plan settled on.
 pub(super) fn write_source_bin(
     o: &Options,
     g: &Value,
     bin: &[u8],
-    meshes: &BTreeSet<usize>,
+    layout: &SourceLayout,
     directory: &Path,
-    coarse: &[compiler_source_extend::CoarseVertices],
-) -> Result<WrittenSource> {
-    let rewritten: BTreeSet<(usize, usize)> =
-        coarse.iter().map(|c| (c.mesh, c.primitive)).collect();
-    let layout = SourceLayout::narrowed(g, meshes, &rewritten)?;
-    let (output_views, extension, product) = {
-        let _t = perf::Timer::new(perf::Phase::PageWrite);
-        copy_source_bin(
-            o,
-            bin,
-            values(g, "bufferViews")?,
-            &layout.views,
-            directory,
-            coarse,
-        )?
-    };
-    Ok(WrittenSource {
-        layout,
-        output_views,
-        extension,
-        product,
-    })
+) -> Result<(Vec<Value>, Product)> {
+    let _t = perf::Timer::new(perf::Phase::PageWrite);
+    copy_source_bin(o, bin, values(g, "bufferViews")?, &layout.views, directory)
 }
 
 /// Output rank of every member of a set, in its order.

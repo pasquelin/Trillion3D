@@ -1,10 +1,9 @@
 use super::*;
 
-/// What the scene declares, validated, and what compiling it will cost: the layout the
-/// compiled scene is written in comes later (`compiler_references.rs`), once the DAG has said
-/// which primitives carry vertices of their own.
+/// What the scene declares, validated: the layout the compiled scene is written in
+/// (`compiler_references.rs`), the primitives to compile and what compiling them will cost.
 pub(super) struct BufferPlan {
-    pub accessors: BTreeSet<usize>,
+    pub layout: SourceLayout,
     pub jobs: Vec<(usize, usize)>,
     pub estimated_working_bytes: usize,
 }
@@ -40,7 +39,7 @@ pub(super) fn plan_buffers(
     let mesh_values = values(g, "meshes")?;
     let accessor_values = values(g, "accessors")?;
     let view_values = values(g, "bufferViews")?;
-    let (accessors, jobs) = referenced_accessors(g, meshes, &BTreeSet::new())?;
+    let (accessors, jobs) = referenced_accessors(g, meshes)?;
     for id in &accessors {
         accessor_validation::validate(g, bin, *id)?;
     }
@@ -50,12 +49,13 @@ pub(super) fn plan_buffers(
             .checked_add(dense_bytes(item(accessor_values, *a, "accessor")?)?)
             .ok_or_else(|| invalid("Working set overflow"))?;
     }
-    let views = referenced_views(g, &accessors)?;
+    let layout = SourceLayout::of(g, accessors)?;
+    let views = &layout.views;
     let mut estimated_working_bytes = g_bytes
         .len()
         .saturating_mul(2)
         .saturating_add(o.threads.saturating_mul(1024 * 1024));
-    for id in &views {
+    for id in views {
         estimated_working_bytes = estimated_working_bytes
             .checked_add(required_index(
                 item(view_values, *id, "bufferView")?.get("byteLength"),
@@ -95,7 +95,7 @@ pub(super) fn plan_buffers(
         ));
     }
     Ok(BufferPlan {
-        accessors,
+        layout,
         jobs,
         estimated_working_bytes,
     })
