@@ -1,5 +1,11 @@
 import { poolLayerBytes, tileBytes, TILES_PER_LAYER } from './textureTiles.ts';
-import { POOL_LANES, type PoolLane } from './textureBlockFormats.ts';
+import {
+  laneCounts,
+  POOL_LANES,
+  type AtlasLanes,
+  type LaneCounts,
+  type PoolLane,
+} from './textureBlockFormats.ts';
 import { pageBufferCap } from './gpuPageResize.ts';
 
 /**
@@ -97,15 +103,10 @@ export function geometryPoolFor(options: {
   return { budgetBytes, slots, pageBytes, allocatedBytes: slots * pageBytes, clamp };
 }
 
-/** Tiles each lane's textures would hold at full residency — tails and streamed entries. */
-export type LaneDemand = Record<PoolLane, number>;
-export type AtlasDemand = { color: LaneDemand; data: LaneDemand };
-export type AtlasLayers = { color: Record<PoolLane, number>; data: Record<PoolLane, number> };
-
 export type TexturePool = {
   budgetBytes: number;
   /** Layers of each lane pool, per atlas, and the bytes of every pool added up. */
-  layers: AtlasLayers;
+  layers: AtlasLanes;
   allocatedBytes: number;
   clamp: PoolClamp;
 };
@@ -122,15 +123,16 @@ export type TexturePool = {
 export function texturePoolFor(
   budgetBytes: number,
   device: { limits?: { maxTextureArrayLayers?: number } } | undefined,
-  demand: AtlasDemand,
+  /** Tiles each lane's textures would hold at full residency — tails and streamed entries. */
+  demand: AtlasLanes,
   texelBytes: (lane: PoolLane) => number,
 ): TexturePool {
   checkBudget(budgetBytes, 'INVALID_TEXTURE_POOL_BUDGET');
   const limit = device?.limits?.maxTextureArrayLayers;
   const clamps = new Set<PoolClamp>();
   const layerBytes = (lane: PoolLane) => poolLayerBytes(texelBytes(lane));
-  const atlas = (lanes: LaneDemand) => {
-    const layers = { lossless: 0, rgba: 0, 'two-channel': 0 } as Record<PoolLane, number>;
+  const atlas = (lanes: LaneCounts) => {
+    const layers = laneCounts();
     const open = new Set(POOL_LANES.filter((lane) => lanes[lane] > 0));
     for (const lane of open) layers[lane] = 1;
     let budget = budgetBytes / 2 - [...open].reduce((sum, lane) => sum + layerBytes(lane), 0);

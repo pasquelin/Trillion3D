@@ -1,4 +1,8 @@
-import { textureLevelUrl, type TextureLevelFormat } from '../sdk-core/index.ts';
+import {
+  PREVIEW_LOSSLESS_FORMAT,
+  textureLevelUrl,
+  type TextureLevelFormat,
+} from '../sdk-core/index.ts';
 import { checked } from './clusterPages.ts';
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —
@@ -37,7 +41,7 @@ export function createTextureLevelReader(
   return async ({ sha256, atlas, level, format }) => {
     const url = new URL(textureLevelUrl(textures.url, sha256, atlas, level, format), base).href;
     const response = await checked(url, signal);
-    if (format === 'png')
+    if (format === PREVIEW_LOSSLESS_FORMAT)
       return createImageBitmap(await response.blob(), {
         premultiplyAlpha: 'none',
         colorSpaceConversion: 'none',

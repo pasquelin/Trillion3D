@@ -1,10 +1,6 @@
 import type { TextureLevelReader } from './textureLevelReader.ts';
-import type { PoolEncoding } from './textureBlockFormats.ts';
+import type { AtlasLanes, PoolEncoding } from './textureBlockFormats.ts';
 import { createWebgpuTileAtlas, type TileTexture } from './webgpuTileAtlas.ts';
-import type { LaneLayers } from './webgpuTileLanes.ts';
-
-/** Layers of each lane's pool, for the colour atlas and the data atlas. */
-export type AtlasLayers = { color: LaneLayers; data: LaneLayers };
 import { createWebgpuTileFeedback } from './webgpuTileFeedback.ts';
 import { createTileSources } from './webgpuTileSources.ts';
 import { createWebgpuTileReduce } from './webgpuTileReduce.ts';
@@ -32,7 +28,7 @@ export function createWebgpuTileStreamer(options: {
   color: TileTexture[];
   data: TileTexture[];
   /** Layers of each lane's pool, per atlas. */
-  layers: AtlasLayers;
+  layers: AtlasLanes;
   /** The encoding the lanes take: their formats, their texel cost, their level file. */
   encoding: PoolEncoding;
   /** Tile bytes admitted per image outside a barrier. */
@@ -158,14 +154,17 @@ export function createWebgpuTileStreamer(options: {
     get requestReduce() {
       return reduce !== undefined;
     },
-    /** Every lane pool changes layers while keeping its tiles; returns the evicted tiles. */
-    resize(layers: AtlasLayers) {
-      const evicted = color.resize(device, layers.color) + data.resize(device, layers.data);
-      flushAll();
-      options.onColorChanged(-1);
-      return evicted;
+    /** Every lane pool whose layers change is replaced while keeping its tiles; returns the
+     *  evicted tiles. Layers already held change nothing, and nothing is signalled. */
+    resize(layers: AtlasLanes) {
+      const results = [color.resize(device, layers.color), data.resize(device, layers.data)];
+      if (results.some((result) => result.replaced)) {
+        flushAll();
+        options.onColorChanged(-1);
+      }
+      return results.reduce((total, result) => total + result.evicted, 0);
     },
-    metrics: () => counters.metrics([color, data], sources.levels, encoding.block ?? 'rgba8'),
+    metrics: () => counters.metrics([color, data], sources.levels, encoding.name),
     /** True while a cooked level is being read: a missing tile can still arrive. */
     get reading() {
       return (sources.levels?.inFlight ?? 0) > 0;

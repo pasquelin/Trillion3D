@@ -6,6 +6,7 @@ import {
   TILES_PER_LAYER,
   type TilePlace,
 } from './textureTiles.ts';
+import type { PoolLane } from './textureBlockFormats.ts';
 
 /**
  * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
@@ -22,11 +23,10 @@ export type WebgpuTilePool = {
   view: GPUTextureView;
   layers: number;
   /** Tiles the pool can carry, and allocated bytes — fixed as long as this pool lives — with
-   *  what one tile and one layer cost in this pool's format. */
+   *  what one tile costs in this pool's format. */
   tiles: number;
   bytes: number;
   tileBytes: number;
-  layerBytes: number;
   /** Occupied tiles, and their bytes. */
   readonly resident: number;
   readonly residentBytes: number;
@@ -56,7 +56,7 @@ export type TilePoolDevice = Pick<GPUDevice, 'createTexture'>;
 /** A pool's shape: its atlas and lane, its format, what a texel costs in it, and its layers. */
 export type TilePoolOptions = {
   kind: 'color' | 'data';
-  lane: string;
+  lane: PoolLane;
   format: GPUTextureFormat;
   texelBytes: number;
   layers: number;
@@ -69,8 +69,7 @@ export function createWebgpuTilePool(
   const { layers, format, texelBytes } = options;
   if (!Number.isSafeInteger(layers) || layers < 1) throw new Error('TEXTURE_POOL_LAYERS');
   const tiles = layers * TILES_PER_LAYER;
-  const perTile = tileBytes(texelBytes),
-    perLayer = poolLayerBytes(texelBytes);
+  const perTile = tileBytes(texelBytes);
   // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination; a block
   // format cannot be one, and no browser image is ever copied into it.
   const attachment = texelBytes === 1 ? 0 : GPUTextureUsage.RENDER_ATTACHMENT;
@@ -112,9 +111,8 @@ export function createWebgpuTilePool(
     view: texture.createView({ dimension: '2d-array' }),
     layers,
     tiles,
-    bytes: layers * perLayer,
+    bytes: layers * poolLayerBytes(texelBytes),
     tileBytes: perTile,
-    layerBytes: perLayer,
     get resident() {
       return resident;
     },

@@ -90,14 +90,12 @@ export type SmallBindResources = AtlasResources & {
   selectionMask: GPUBuffer;
 };
 
-/** The four entries of an atlas: its three lane pools and its page table. */
+/** The four entries of an atlas: one view per lane, in `POOL_LANES` order, and its page table. */
 const atlasEntries = (
   bindings: AtlasBindings,
   atlas: WebgpuTileStreamer['color'],
 ): GPUBindGroupEntry[] => [
-  { binding: bindings.raw, resource: atlas.views[0] },
-  { binding: bindings.pool, resource: atlas.views[1] },
-  { binding: bindings.two, resource: atlas.views[2] },
+  ...bindings.lanes.map((binding, lane) => ({ binding, resource: atlas.views[lane] })),
   { binding: bindings.pages, resource: { buffer: atlas.pages.buffer } },
 ];
 

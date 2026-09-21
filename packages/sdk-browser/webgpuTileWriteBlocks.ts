@@ -1,4 +1,9 @@
-import { PREVIEW_BLOCK_BYTES, levelBlockBytes } from '../sdk-core/index.ts';
+import {
+  blocksAcross,
+  levelBlockBytes,
+  PREVIEW_BLOCK_BYTES,
+  PREVIEW_BLOCK_SIDE,
+} from '../sdk-core/index.ts';
 import { levelSize, type TilePlace } from './textureTiles.ts';
 import { cellOrigin, tailOrigin, type TileRegion } from './webgpuTileWrite.ts';
 
@@ -8,11 +13,10 @@ import { cellOrigin, tailOrigin, type TileRegion } from './webgpuTileWrite.ts';
  * tiles and gutters are —, its extent is rounded up to the block that contains its last texel,
  * which the level's padded bytes hold; and every destination lies inside the cell, gutter
  * included. A block copy into the middle of a pool cannot stop mid-block: WebGPU refuses it.
- * A level whose bytes are not the whole blocks its dimensions imply is refused here, once, for
- * tiles and tails alike.
+ * A level whose bytes are not the whole blocks its dimensions imply is refused once per path:
+ * a tile's level before its slot is taken (`webgpuTileSources.ts`), a tail's level here.
  */
-const blocksAcross = (width: number) => Math.ceil(width / 4);
-const roundUp = (texels: number) => blocksAcross(texels) * 4;
+const roundUp = (texels: number) => blocksAcross(texels) * PREVIEW_BLOCK_SIDE;
 
 /** Refuses a level whose bytes are not the whole blocks its dimensions imply — checked before a
  *  tile is placed, so a short or foreign file never occupies a slot with whatever it held. */
@@ -30,7 +34,6 @@ function writeBlocks(
   level: readonly [number, number],
   region: Pick<TileRegion, 'sx' | 'sy' | 'width' | 'height'>,
 ) {
-  checkLevelBlocks(blocks, level);
   const [levelWidth, levelHeight] = level;
   const rowBlocks = blocksAcross(levelWidth);
   const width = Math.min(roundUp(region.width), roundUp(levelWidth) - region.sx);
@@ -39,9 +42,11 @@ function writeBlocks(
     { texture, origin },
     blocks as Uint8Array<ArrayBuffer>,
     {
-      offset: ((region.sy / 4) * rowBlocks + region.sx / 4) * PREVIEW_BLOCK_BYTES,
+      offset:
+        ((region.sy / PREVIEW_BLOCK_SIDE) * rowBlocks + region.sx / PREVIEW_BLOCK_SIDE) *
+        PREVIEW_BLOCK_BYTES,
       bytesPerRow: rowBlocks * PREVIEW_BLOCK_BYTES,
-      rowsPerImage: height / 4,
+      rowsPerImage: height / PREVIEW_BLOCK_SIDE,
     },
     { width, height },
   );
@@ -71,6 +76,7 @@ export function writeTailFromBlocks(
   levels.forEach((blocks, rank) => {
     const level = levelSize(size[0], size[1], tail + rank);
     const [width, height] = level;
+    checkLevelBlocks(blocks, level);
     writeBlocks(queue, pool, tailOrigin(place, rank), blocks, level, {
       sx: 0,
       sy: 0,

@@ -18,6 +18,19 @@ export type {
   SlimStructure,
 } from '../../sdk-core/manifestBinaryTypes.ts';
 export {
+  blocksAcross,
+  levelBlockBytes,
+  PREVIEW_BASE,
+  PREVIEW_MAX_LEVELS,
+  previewBlockBytes,
+  previewFirstLevel,
+  previewIsWhole,
+  previewLastLevel,
+  previewLevelCount,
+  previewLevelSize,
+  previewPixelBytes,
+} from '../../sdk-core/texturePreviewLevels.ts';
+export {
   clusterSphereValid,
   pageCarriesClusterError,
   primitiveIsDrawable,
@@ -55,18 +68,6 @@ export {
   COLUMN_KIND,
 } from '../../sdk-core/manifestBinaryFormat.ts';
 export type { ColumnKind } from '../../sdk-core/manifestBinaryFormat.ts';
-export {
-  levelBlockBytes,
-  PREVIEW_BASE,
-  PREVIEW_MAX_LEVELS,
-  previewBlockBytes,
-  previewFirstLevel,
-  previewIsWhole,
-  previewLastLevel,
-  previewLevelCount,
-  previewLevelSize,
-  previewPixelBytes,
-} from '../../sdk-core/texturePreviewLevels.ts';
 export {
   PAGE_DECODE_FAILURES,
   PAGE_DECODE_PROTOCOL,
@@ -109,6 +110,7 @@ export {
   PREVIEW_ATLAS_NAMES,
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_FORMATS,
+  PREVIEW_BLOCK_SIDE,
   PREVIEW_LAYOUT_NAMES,
   PREVIEW_LOSSLESS_FORMAT,
   TEXTURE_PREVIEW_VERSION,
