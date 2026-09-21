@@ -3,8 +3,8 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadReactComponents } from './docs/render-react.mjs';
-import { modelScenes } from './docs/examples/models.mjs';
+import { loadReactComponents } from './docs/render-react.ts';
+import { modelScenes } from './docs/examples/models.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 
 const site = new URL('../site/', import.meta.url);

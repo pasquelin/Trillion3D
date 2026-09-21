@@ -2,7 +2,7 @@
 // transmissive quad, and a small blended quad in front of both, off centre — the two scene
 // copies the engine draws itself, transmissive then blended.
 import * as THREE from 'three';
-import { quad } from './webglClusterPixels.mjs';
+import { quad } from './webglClusterPixels.ts';
 
 const page = {
   id: 0,
