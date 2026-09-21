@@ -73,11 +73,13 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
       invalidateOccluderHistory(run);
     }
   }
-  if (!sameHizView(run.previousHizView, cam)) {
-    // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
-    // names pages, it only chooses the pass where a cluster is drawn, and this image's pyramid
-    // remains the sole judge of what is withdrawn. Keeping it avoids projecting every box and
-    // reclassifying them at every moving image.
+  // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
+  // only chooses the pass where a cluster is drawn, and this image's pyramid remains the sole
+  // judge of what is withdrawn. The GPU partition still learns of the move: while the view
+  // stands still, a row the test has kept is not sent back to the tested half — that is what
+  // lets the halves converge under the antialiasing jitter, and an image be held.
+  run.hizViewMoved = !sameHizView(run.previousHizView, cam);
+  if (run.hizViewMoved) {
     invalidateTemporalPyramid(run);
     // The world pose is copied into the already-held camera: the same comparison, without a clone per image.
     run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam);

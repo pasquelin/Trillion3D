@@ -5,6 +5,18 @@ import { computeRasterReady } from './webgpuPagesEncodeVisSetup.ts';
 import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { SHADE_UNIFORM_BYTES, writeSunSlice } from './visibilityShaderRequest.ts';
+import type { DiagnosticMode } from '../sdk-core/index.ts';
+
+/** `uni.mode` of the resolve, per diagnostic view (`visibilityShaderShade.ts`); beauty is zero. */
+const SHADE_MODE: Partial<Record<DiagnosticMode, number>> = {
+  wireframe: 1,
+  clusters: 2,
+  pages: 3,
+  lod: 4,
+  visibility: 5,
+  'screen-error': 6,
+  materials: 7,
+};
 
 /** One entry per indirect draw slot, plus the direct path's. Size follows the scene's coplanar-layer
  *  count: with no layer, it is exactly the previous buffer. */
@@ -65,19 +77,6 @@ export function writeWebgpuVisibilityUniforms(
   // The sun's shadow slice, so resolve asks for the tiles a foliage shadow reads; with no sun to
   // shadow, a faceless slice, and nothing is asked.
   writeSunSlice(rt.lights, shadeUniPacked);
-  shadeInts[21] =
-    diagnostic === 'beauty'
-      ? 0
-      : diagnostic === 'wireframe'
-        ? 1
-        : diagnostic === 'clusters'
-          ? 2
-          : diagnostic === 'pages'
-            ? 3
-            : diagnostic === 'lod'
-              ? 4
-              : diagnostic === 'visibility'
-                ? 5
-                : 6;
+  shadeInts[21] = SHADE_MODE[diagnostic] ?? 0;
   device.queue.writeBuffer(shadeUniform, 0, shadeUniPacked);
 }

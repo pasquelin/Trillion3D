@@ -29,6 +29,10 @@ export function createExplorerDiagnosticApi(inputs: Inputs) {
         getActive().id === 'three-webgl-reference'
       )
         throw new Error('Reference has no clusters');
+      // The class a pixel was resolved under exists on the visibility path alone: the forward
+      // engines shade each material in one program and would show nothing true under that name.
+      if (mode === 'materials' && getActive().id !== 'webgpu-page-raster')
+        throw new Error('Only the WebGPU visibility path resolves by material class');
       for (const [mesh, material] of beautyMaterials) mesh.material = material;
       overlays.splice(0).forEach((m) => m.dispose());
       for (const backend of backends) {

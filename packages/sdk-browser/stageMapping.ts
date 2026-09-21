@@ -6,24 +6,24 @@ import { TAA_PASS } from './taaShaderWgsl.ts';
 import { LIGHT_TILES_PASS } from './gpuLightTiles.ts';
 import { REST_COMPACT_PASS } from './gpuRestCompact.ts';
 import { SHADOW_PASS } from './gpuShadowAtlas.ts';
+import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from './webgpuMaterialPasses.ts';
 import type { StageAdd } from './stageProfiler.ts';
 
 /**
  * The two blocks of a frame that can be set against a published profile, and nothing else.
  * `visibility` is building the visibility buffer: selection, partition, Hi-Z and raster.
- * `materials` is writing surfaces from that buffer. Everything else is `other`: shadows,
- * light lists, bounce, transparents, deferred lighting, present, and the fallback path that
- * does not go through the buffer — putting any of those in a block would inflate a comparison
- * instead of serving it, so they stay outside AND named, each pass keeping its duration.
+ * `materials` is writing surfaces from that buffer. Everything else is `other`: shadows, light
+ * lists, bounce, transparents, deferred lighting, present, and the fallback path that does not go
+ * through the buffer — putting any of those in a block would inflate a comparison instead of
+ * serving it, so they stay outside AND named, each pass keeping its duration.
  */
 export type GpuPassBlock = 'visibility' | 'materials' | 'other';
 
 /**
  * Profile stage and comparison block of each GPU pass, read from the label the pass already
- * carries. This is the only read of deposit labels: direct-light durations, the per-stage
- * profile and the blocks share it. An unknown label joins `geometry`, the only stage that
- * draws without a name of its own, and `other`, so a new pass does not silently swell a
- * compared block.
+ * carries. This is the only read of deposit labels: direct-light durations, the per-stage profile
+ * and the blocks share it. An unknown label joins `geometry`, the only stage that draws without a
+ * name of its own, and `other`, so a new pass does not silently swell a compared block.
  */
 const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlock]>> =
   Object.freeze({
@@ -49,7 +49,8 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     'WG raster occluder hiz': ['hiZ', 'visibility'],
     'WG raster resolve': ['geometry', 'visibility'],
     'WG empty surfaces': ['geometry', 'materials'],
-    'WG material surfaces v1': ['geometry', 'materials'],
+    [MATERIAL_DEPTH_PASS]: ['geometry', 'materials'],
+    [MATERIAL_SURFACES_PASS]: ['geometry', 'materials'],
     'WG opaque fallback': ['geometry', 'other'],
     'WG transparents': ['transparents', 'other'],
     'WG transmission': ['transparents', 'other'],

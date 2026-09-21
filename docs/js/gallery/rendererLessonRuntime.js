@@ -85,6 +85,8 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         cpu: metrics.cpuFrameMs,
         memory: metrics.geometryPoolAllocatedBytes,
         triangles: metrics.drawnTriangles,
+        occluded: metrics.hizRejectedClusters ?? null, // the device's count, never estimated
+        tested: metrics.hizTestedClusters ?? null,
         idle,
       });
       if (!coldStart) {
