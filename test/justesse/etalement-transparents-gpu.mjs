@@ -64,7 +64,7 @@ function cas(items, isoles, base) {
   // The split into runs is PRODUCTION's, not a copy: a "GPU = model" proof that replayed its
   // own splitter would prove nothing of the shipped path.
   const runs = new Uint32Array(items * RUN_WORDS);
-  const count = buildBlendRuns(order, true, runs);
+  const count = buildBlendRuns(order, runs);
   // The indirect count compaction writes: four words per item, the count in the second.
   const indirect = new Uint32Array(items * 4);
   for (let item = 0; item < items; item++) indirect[item * 4 + 1] = counts[item];
