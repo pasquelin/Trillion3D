@@ -2,7 +2,7 @@ import { advancedGeometry } from './sceneGeometryAdvanced.ts';
 import { arrow, beam, box, frameBox, sphere, vertices, COLORS } from './sceneGeometryPrimitives.ts';
 import type { EvaluationResult } from './evaluate.ts';
 
-export function geometryFor(id: string, result: EvaluationResult): Float32Array<ArrayBuffer> {
+export function geometryFor(result: EvaluationResult) {
   vertices.length = 0;
   if (
     result.kind === 'inverse' ||
