@@ -45,11 +45,11 @@ dispose them before the next route. `docs/` holds the repository documentation o
   area is that list by theme, through the same `portal/SidebarMenu.tsx` as the Learn tree; the
   landing page is the lessons' card grid, one card per example with its settled render as
   thumbnail (`site/assets/examples/thumbnails/<id>.png`, captured by
-  `scripts/docs-examples-thumbnails.mjs`); `site/app/examples/Example.tsx` shows one example, the
+  `scripts/docs-examples-thumbnails.ts`); `site/app/examples/Example.tsx` shows one example, the
   file's source on the left (highlighted, copy button) and the same file in an iframe on the
   right; nothing else. The compiled scenes live under
   `site/assets/examples/`, each `<scene>/source` beside its `cache`, built by
-  `scripts/docs-examples-assets.mjs` with this checkout's native compiler; the models that some
+  `scripts/docs-examples-assets.ts` with this checkout's native compiler; the models that some
   scenes import, and their licences, are listed in `site/assets/examples/CREDITS.md`.
 - `site/demos/` contains the pure per-entry demonstration models; `kit.ts` declares their controls
   and result views, `registry.ts` maps entry ids to demos, and `engine.ts` is the one list of what
@@ -116,9 +116,9 @@ dependency and exercise the live scene after the change.
 2. If it needs a scene, add it to `scripts/docs/examples/scenes.mjs` (procedural) or
    `scripts/docs/examples/models.mjs` (around an imported model, credited in
    `site/assets/examples/CREDITS.md`), then run `pnpm build:native` and
-   `node scripts/docs-examples-assets.mjs <scene>`.
+   `node scripts/docs-examples-assets.ts <scene>`.
 3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, and
-   capture its thumbnail: `node scripts/docs-examples-thumbnails.mjs <id>`.
+   capture its thumbnail: `node scripts/docs-examples-thumbnails.ts <id>`.
 4. Run `node --test scripts/docs-examples.test.mjs`, then the browser proof
    `node --test scripts/docs-examples.browser.mjs`.
 

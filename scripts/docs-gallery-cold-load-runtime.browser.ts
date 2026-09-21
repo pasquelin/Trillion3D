@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
-import { launchChrome } from './mesure/chrome.mjs';
-import { startDocsServer } from './docs-serve.mjs';
+import { launchChrome } from './mesure/chrome.ts';
+import { startDocsServer } from './docs-serve.ts';
 
 async function openDocsBrowser() {
   const { server, port } = await startDocsServer();

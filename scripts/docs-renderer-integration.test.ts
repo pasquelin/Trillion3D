@@ -5,7 +5,7 @@ import { rendererLessons, rendererInitialState } from '../site/lessons/rendererL
 import { rendererCodeFor } from '../site/lessons/rendererLessonCode.ts';
 import { syncRendererState } from '../site/lessons/syncRendererState.ts';
 import { transformSync } from 'esbuild';
-import { loadReactComponents } from './docs/render-react.mjs';
+import { loadReactComponents } from './docs/render-react.ts';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');

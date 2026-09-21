@@ -1,8 +1,8 @@
 import { copyFile, cp, mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { theatreWorkshop } from '../shadow-theatre/geometry.mjs';
-import { appendSurfacesGltf } from './gltf.mjs';
-import { placeObj, writeBoxesObj } from './obj.mjs';
+import { theatreWorkshop } from '../shadow-theatre/geometry.ts';
+import { appendSurfacesGltf } from './gltf.ts';
+import { placeObj, writeBoxesObj } from './obj.ts';
 
 /**
  * The scenes built around an imported model (`site/assets/examples/models/`, credited in

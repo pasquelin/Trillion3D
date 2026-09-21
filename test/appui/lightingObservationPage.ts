@@ -2,7 +2,7 @@
 // material that drew it before: same GLSL, same meshes, same textures and uniforms, one image
 // drawn twice — by the engine on its context, by the host renderer on its own canvas.
 import * as THREE from 'three';
-import { experimentScene, hostSource, renderState } from './lightingObservationScene.mjs';
+import { experimentScene, hostSource, renderState } from './lightingObservationScene.ts';
 import { createLightingExperimentBackend } from '../../packages/sdk-browser/lightingExperimentBackend.ts';
 import { createObservationResources } from '../../packages/sdk-browser/lightingObservationResources.ts';
 import { createObservationMeshes } from '../../packages/sdk-browser/lightingObservationMeshes.ts';

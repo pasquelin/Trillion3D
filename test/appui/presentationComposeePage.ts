@@ -5,7 +5,7 @@
 // every channel goes through unchanged, and the rows come out in the convention the SDK
 // publishes — the first row read is the last row presented.
 import { createSynchronousCanvasCapture } from '../../packages/sdk-browser/gpuPresentation.ts';
-import { createChecks } from './presentationChecks.mjs';
+import { createChecks } from './presentationChecks.ts';
 
 const WIDTH = 64,
   HEIGHT = 48;

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { triangleGeometry } from '../../packages/sdk-browser/triangleDiagnostic.ts';
-import { drawCoplanarBlend } from './webglClusterCoplanarBlend.mjs';
-import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.mjs';
+import { drawCoplanarBlend } from './webglClusterCoplanarBlend.ts';
+import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.ts';
 
 const geometry = (reverseFirst = false) => {
   const result = new THREE.BufferGeometry();
