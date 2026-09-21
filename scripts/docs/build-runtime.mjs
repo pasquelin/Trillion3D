@@ -9,7 +9,6 @@ export async function buildRuntime(root, outdir) {
     absWorkingDir: root,
     entryPoints: {
       engine: 'packages/sdk-browser/index.ts',
-      highlighter: 'scripts/docs/highlight-entry.mjs',
       pageDecodeWorker: 'packages/sdk-browser/pageDecodeWorker.ts',
       pageIntegrationWorker: 'packages/sdk-browser/pageIntegrationWorker.ts',
     },
