@@ -8,8 +8,10 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** What image close reads, and nothing else: a profile, a flag, an image number. */
 function banc() {
+  const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES);
   const timing = {
-    cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
+    cpuProfile,
+    cpuWindow: createCpuStepProfile(CPU_STEP_NAMES, { row: cpuProfile.row }),
     rowFilled: false,
     stages: undefined,
     cpuSample: undefined,
@@ -66,4 +68,16 @@ test('an image that has not filled its row deposits nothing, a filled image depo
   assert.equal(resume?.steps.pendingMs.p50, 1.25, 'the host bound is in the image');
   assert.equal(resume?.steps.worldMs.p50, 0.5);
   assert.equal(resume?.worst[0].frame, 7);
+});
+
+test('the host window keeps every filed row until it is read, whatever the publish cadence forgot', () => {
+  const { rt, timing } = banc();
+  for (const total of [4, 2]) {
+    timing.cpuProfile.row[CPU_STEP.totalMs] = total;
+    timing.rowFilled = true;
+    endCpuFrame(rt);
+  }
+  assert.equal(timing.cpuProfile.summary()?.frames, 2, 'the publish window reads and forgets');
+  assert.equal(timing.cpuWindow.summary()?.frames, 2, 'the host window still holds both images');
+  assert.equal(timing.cpuWindow.summary(), null, 'read once, then forgotten');
 });

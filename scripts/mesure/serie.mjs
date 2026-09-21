@@ -162,8 +162,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     incidentsGpu: result.lost.length ? result.lost : null,
     // A DAG the compiler did not mount, spoken by the engine at open: `null` with none.
     avertissementsDag: result.avertissementsDag ?? null,
-    // The engine's CPU bounds per named step (`cpu-timing`), each report stamped with the
-    // measured frame it came on; `null` when the engine published none.
+    // The engine's CPU bounds per named step over the profiled images; `null` where the path
+    // keeps no row.
     bornesCpu: result.bornesCpu ?? null,
     canvas: result.size,
     metrics,
