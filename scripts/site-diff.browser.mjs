@@ -1,12 +1,13 @@
 // Differential DOM render of every portal route between two built site trees, in headless Chrome.
 //
-//   node scripts/site-diff.browser.mjs <beforeDir> <afterDir>
+//   node scripts/site-diff.browser.mjs <beforeDir> <afterDir> [routeFilter]
 //
 // Both trees are served by the docs server. Each route is loaded on each side until `networkidle`,
 // no `aria-busy`, then 1.5 s more, and `document.body` is serialised after normalising what is
 // dynamic by nature: canvas contents and sizes, `disabled`, stat values and outputs, generated
 // ids, frame metrics. A DOM-at-rest comparison, not a pixel claim. Differences are written under
-// `benchmark-runs/site-diff/` and the exit code is 1 when any route differs.
+// `benchmark-runs/site-diff/` and the exit code is 1 when any route differs. A filter keeps the
+// routes containing it, to look again at a few.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { launchChrome } from './mesure/chrome.mjs';
@@ -72,7 +73,7 @@ async function newPage(browser) {
   return context.newPage();
 }
 
-const [beforeDir, afterDir] = process.argv.slice(2);
+const [beforeDir, afterDir, filter = ''] = process.argv.slice(2);
 if (!beforeDir || !afterDir) {
   console.error('usage: node scripts/site-diff.browser.mjs <beforeDir> <afterDir>');
   process.exit(2);
@@ -86,7 +87,7 @@ await mkdir(OUT, { recursive: true });
 const differences = [];
 try {
   const pages = [await newPage(browser), await newPage(browser)];
-  const routes = portalRoutes();
+  const routes = portalRoutes().filter((route) => route.includes(filter));
   for (const route of routes) {
     const [before, after] = await Promise.all(
       pages.map((page, side) => render(page, origins[side], route)),
