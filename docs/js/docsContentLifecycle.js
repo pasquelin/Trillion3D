@@ -11,7 +11,7 @@ export const LIFECYCLE = [
     signature:
       'prepare(input: string, output: string, scope = DEFAULT_SCOPE, budget = 150000, options: PrepareOptions): Promise<CompilationResult>',
     description:
-      'Compiles a source scene into the cache the browser reads. Runs the native compiler — the production path — and returns the manifest read from disk, its `metrics` completed by what only the pointer holds (`wallMs`, `pruneMs`). `resourceBaseUrl` is required: it is the URL the browser will fetch pages and textures from. What each reader does to its source — polygon faces cut as a fan when convex, by ear clipping otherwise — is in `docs/COMPILER.md`.',
+      'Compiles a source scene into the cache the browser reads. Runs the native compiler — the production path — and returns the manifest read from disk, its `metrics` completed by what only the pointer holds (`wallMs`, `pruneMs`). A source whose product is already in the cache is not recompiled: the folder is proven file by file and kept, and `reused` says what was checked (`null` when the job compiled). `resourceBaseUrl` is required: it is the URL the browser will fetch pages and textures from. What each reader does to its source — polygon faces cut as a fan when convex, by ear clipping otherwise — is in `docs/COMPILER.md`.',
     values: [
       {
         name: 'input',
