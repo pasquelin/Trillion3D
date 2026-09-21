@@ -30,7 +30,7 @@ type Hooked = Record<string, number> & { [HOOK]: Hook };
  * `_x`, `_y`, `_z` fields of the instance — the shape the reference gives its own quaternion.
  * No field of an existing object is ever redefined: V8 drops an object whose data field
  * becomes an accessor into dictionary mode for good, and the reference's matrix walk over
- * such nodes costs several times its price (measured in `bench/scene-hooks.perf.mjs`).
+ * such nodes costs several times its price (measured in `bench/scene-hooks.perf.ts`).
  */
 const prototypes = new WeakMap<object, object>();
 function hookedPrototype(plain: object) {

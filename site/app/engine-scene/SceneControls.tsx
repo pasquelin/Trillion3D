@@ -14,15 +14,15 @@ interface SceneControlsProps {
 export function SceneControls({ copy, diagnostic }: SceneControlsProps) {
   return (
     <LessonControls
+      picker={{
+        kind: 'select',
+        id: 'mode',
+        label: copy.mode,
+        defaultValue: diagnostic,
+        options: DIAGNOSTIC_MODES.map((mode) => ({ value: mode, label: copy[mode] })),
+        props: { 'data-scene-mode': '', disabled: true },
+      }}
       controls={[
-        {
-          kind: 'select',
-          id: 'mode',
-          label: copy.mode,
-          defaultValue: diagnostic,
-          options: DIAGNOSTIC_MODES.map((mode) => ({ value: mode, label: copy[mode] })),
-          props: { 'data-scene-mode': '', disabled: true },
-        },
         {
           kind: 'range',
           id: 'quality',

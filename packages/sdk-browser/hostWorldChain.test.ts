@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { hostWorldChainInto } from './hostWorldChain.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
 
 /** Root → posed child → grandchild → leaf chain, hostile poses included. */
 function chaineHostile() {

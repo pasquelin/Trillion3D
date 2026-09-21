@@ -1,12 +1,12 @@
 // G3: visibilityLighting.ts hoists the hemispheric-lighting constants (sun direction, its
 // length, ground and sky colour) out of `shadeLit`, called per pixel, instead of recomputing and
 // reallocating them at every call. Oracle: the pre-lot-G version, copied as-is into
-// `bench/oracles/eclairage-pixel.mjs`, its ground colour on the exact sRGB curve since #76.
+// `bench/oracles/eclairage-pixel.ts`, its ground colour on the exact sRGB curve since #76.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadeLit } from './visibilityLighting.ts';
-import { referenceShadeLit } from './bench/oracles/eclairage-pixel.mjs';
+import { referenceShadeLit } from './bench/oracles/eclairage-pixel.ts';
 import type { VisPage, VisMaterial } from './visibilityTypes.ts';
 import type { Projected } from './visibilityProjection.ts';
 import { cameraMoteur } from './cameraFixture.ts';
@@ -37,6 +37,10 @@ function material(overrides: Partial<VisMaterial> = {}): VisMaterial {
     aoIntensity: 1,
     emissive: [0, 0, 0],
     transmission: 0,
+    ior: 1.5,
+    thickness: 0,
+    attenuationDistance: 0,
+    attenuationColor: [1, 1, 1],
     ...overrides,
   };
 }
@@ -55,6 +59,7 @@ const TRI_BASE = {
   a: vertex(-1, -1, 0, 1),
   b: vertex(1, -1.2, 0.3, 1.1),
   c: vertex(0.2, 1, -0.4, 0.9),
+  page: pageOf(),
   triangleIndex: 0,
   i0: 0,
   i1: 1,
