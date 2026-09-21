@@ -14,8 +14,6 @@ type InstanceEnvironment = {
   baseBootstrap: PageRec[];
   byUrl: Map<string, PageRec[]>;
   baseMaterials: Map<PageRec, HostMaterials>;
-  /** The one vertex-coloured-twin cache of the backend, shared with the geometry store. */
-  colorMaterials: Map<THREE.Material, THREE.Material>;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   cap: number;
   /** Notified by every entry point that writes the scene: that is where the origin is. */
@@ -76,7 +74,6 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     baseBootstrap,
     byUrl,
     baseMaterials,
-    colorMaterials,
     geometryStore,
     cap,
     sceneChanged,
@@ -87,7 +84,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     string,
     { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bases: PageRec[]; bootstrap: PageRec[] }
   >();
-  const { geometryBytes, removeRecords, sync } = geometryStore;
+  const { geometryBytes, removeRecords, sync, colorMaterials } = geometryStore;
   /** The material this engine built from the contract for a primitive, and therefore frees
    *  itself: one entry per repainted primitive, replaced — not stacked — by the next paint. */
   const owned = new Map<string, THREE.Material>();
