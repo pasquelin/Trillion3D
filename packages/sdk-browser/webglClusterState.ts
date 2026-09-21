@@ -63,12 +63,9 @@ export class WebglClusterState {
     }
     return next;
   }
-  apply(
-    material: Material,
-    doubleSided: boolean,
-    backSide: boolean,
-    polygonMaterial: Material = material,
-  ) {
+  /** `polygonOffsetUnits` is the depth offset of a coplanar layer, which replaces the
+   *  material's own offset; undefined, the material's applies. */
+  apply(material: Material, doubleSided: boolean, backSide: boolean, polygonOffsetUnits?: number) {
     const gl = this.gl;
     this.blend = this.capability(material.transparent, this.blend, gl.BLEND);
     if (material.transparent) {
@@ -95,18 +92,14 @@ export class WebglClusterState {
         material.colorWrite,
       );
     this.colorWrite = colorWrite;
-    this.polygon = this.capability(
-      polygonMaterial.polygonOffset,
-      this.polygon,
-      gl.POLYGON_OFFSET_FILL,
-    );
-    if (
-      polygonMaterial.polygonOffset &&
-      (this.polygonFactor !== polygonMaterial.polygonOffsetFactor ||
-        this.polygonUnits !== polygonMaterial.polygonOffsetUnits)
-    )
-      gl.polygonOffset(polygonMaterial.polygonOffsetFactor, polygonMaterial.polygonOffsetUnits);
-    this.polygonFactor = polygonMaterial.polygonOffsetFactor;
-    this.polygonUnits = polygonMaterial.polygonOffsetUnits;
+    const layered = polygonOffsetUnits !== undefined,
+      offset = layered || material.polygonOffset,
+      factor = layered ? 0 : material.polygonOffsetFactor,
+      units = layered ? polygonOffsetUnits : material.polygonOffsetUnits;
+    this.polygon = this.capability(offset, this.polygon, gl.POLYGON_OFFSET_FILL);
+    if (offset && (this.polygonFactor !== factor || this.polygonUnits !== units))
+      gl.polygonOffset(factor, units);
+    this.polygonFactor = factor;
+    this.polygonUnits = units;
   }
 }

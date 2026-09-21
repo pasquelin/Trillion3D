@@ -4,24 +4,15 @@ import { readFile } from 'node:fs/promises';
 import { rendererLessons, rendererInitialState } from '../site/lessons/rendererLessons.ts';
 import { rendererCodeFor } from '../site/lessons/rendererLessonCode.ts';
 import { syncRendererState } from '../site/lessons/syncRendererState.ts';
-import { galleryRoadmapEntry, relatedReadyLesson } from '../site/app/gallery/roadmapRelated.ts';
-import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 import { transformSync } from 'esbuild';
-import { loadReactComponents } from './docs/render-react.ts';
+import { loadReactComponents } from './docs/render-react.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { Playground as PlaygroundComponent } from '../site/app/gallery/Playground.tsx';
-import { readPointedManifest, requiredLesson, noopSession } from './docs/lesson-manifest.ts';
-
-const { Playground } = (await loadReactComponents('site/app/gallery/Playground.tsx')) as {
-  Playground: typeof PlaygroundComponent;
-};
+const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
 
 test('every integrated renderer lesson emits complete parseable host code', () => {
   for (const lesson of rendererLessons) {
     const code = rendererCodeFor(lesson, rendererInitialState(lesson));
-    const manifest = lesson.manifest;
-    assert.ok(manifest, lesson.id);
     assert.doesNotThrow(() => transformSync(code, { format: 'esm' }), lesson.id);
     assert.match(code, /from 'web-geometry'[\s\S]*createExplorer\(canvas/);
     assert.match(code, /backends: \[webgpuPagesBackend\]/);
@@ -31,8 +22,8 @@ test('every integrated renderer lesson emits complete parseable host code', () =
     assert.match(code, /interactive: false/);
     assert.match(code, /explorer\.dispose\(\)/);
     assert.ok(code.indexOf('await explorer.awaitPages()') < code.indexOf('explorer.render()'));
-    assert.ok(code.includes(manifest), `${lesson.id} uses its displayed manifest`);
-    if (lesson.kind === 'offline') assert.ok(code.includes(manifest));
+    assert.ok(code.includes(lesson.manifest), `${lesson.id} uses its displayed manifest`);
+    if (lesson.kind === 'offline') assert.ok(code.includes(lesson.manifest));
     assert.match(code, new RegExp(`importedLights: ${lesson.importedLights}`));
     if (lesson.sceneLight) assert.match(code, /id: 'scene'.*kind: 'directional'/);
     if (lesson.sceneFill) assert.match(code, /id: 'scene-fill'.*castsShadow: false/);
@@ -42,7 +33,7 @@ test('every integrated renderer lesson emits complete parseable host code', () =
 test('live renderer lessons use diverse original scenes and matching captures', () => {
   const live = rendererLessons.filter((lesson) => lesson.kind !== 'offline');
   assert.equal(live.length, 17);
-  const scenes = new Map<string | undefined, string[]>();
+  const scenes = new Map();
   for (const lesson of live)
     scenes.set(lesson.manifest, [...(scenes.get(lesson.manifest) ?? []), lesson.id]);
   assert.deepEqual(
@@ -50,10 +41,8 @@ test('live renderer lessons use diverse original scenes and matching captures', 
     [],
   );
   for (const lesson of live) {
-    const manifest = lesson.manifest;
-    assert.ok(manifest, lesson.id);
     assert.match(
-      manifest,
+      lesson.manifest,
       /^\.\/assets\/(gallery\/(offline|shadow-theatre|signature-architecture)|kinetic-garden)\//,
     );
     assert.equal(lesson.preview, `./assets/gallery/renderer/${lesson.id}.png`);
@@ -61,13 +50,22 @@ test('live renderer lessons use diverse original scenes and matching captures', 
 });
 
 test('the LOD lesson uses a compiled multi-level cache', async () => {
-  const lesson = requiredLesson(({ id }) => id === 'runtime-pixel-error');
-  const { manifest: manifestPath, referenceReview } = lesson;
-  assert.ok(manifestPath && referenceReview);
-  const manifest = await readPointedManifest(manifestPath, import.meta.url);
+  const lesson = rendererLessons.find(({ id }) => id === 'runtime-pixel-error');
+  const pointer = JSON.parse(
+    await readFile(new URL(`../site/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
+  );
+  const manifest = JSON.parse(
+    await readFile(
+      new URL(
+        `../site/${lesson.manifest.slice(2).replace('manifest.json', pointer.url)}`,
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  );
   assert.equal(manifest.simplification, true);
   assert.equal(manifest.selectedTriangles, 91_352);
-  assert.deepEqual(referenceReview.urls, [
+  assert.deepEqual(lesson.referenceReview.urls, [
     'https://threejs.org/examples/webgl_lod.html',
     'https://threejs.org/examples/webgl_batch_lod_bvh.html',
   ]);
@@ -109,8 +107,7 @@ test('the LOD lesson uses a compiled multi-level cache', async () => {
 });
 
 test('renderer badges link only to documented API entries', () => {
-  const render = (id: string) =>
-    renderToStaticMarkup(createElement(Playground, { id, locale: 'en' }));
+  const render = (id) => renderToStaticMarkup(createElement(Playground, { id, locale: 'en' }));
   const light = render('point-light-range');
   assert.doesNotMatch(light, /#\/en\/api\/addLight/);
   assert.match(light, />addLight<\/code>/);
@@ -118,13 +115,24 @@ test('renderer badges link only to documented API entries', () => {
 });
 
 test('the shadow switch uses its original theatre and keeps direct light in both states', async () => {
-  const lesson = requiredLesson(({ id }) => id === 'shadow-casting-switch');
-  const { manifest: manifestPath, referenceReview } = lesson;
-  assert.ok(manifestPath && referenceReview);
-  const manifest = await readPointedManifest(manifestPath, import.meta.url);
+  const lesson = rendererLessons.find(({ id }) => id === 'shadow-casting-switch'),
+    pointer = JSON.parse(
+      await readFile(new URL(`../site/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
+    ),
+    manifest = JSON.parse(
+      await readFile(
+        new URL(
+          `../site/${lesson.manifest.slice(2).replace('manifest.json', pointer.url)}`,
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
   assert.equal(manifest.sourceTriangles, 26_313);
   assert.equal(lesson.sceneFill, false);
-  assert.deepEqual(referenceReview.urls, ['https://threejs.org/examples/webgl_shadowmap.html']);
+  assert.deepEqual(lesson.referenceReview.urls, [
+    'https://threejs.org/examples/webgl_shadowmap.html',
+  ]);
   const on = rendererCodeFor(lesson, { shadow: 1 }),
     off = rendererCodeFor(lesson, { shadow: 0 });
   assert.match(on, /intensity: 1800.*castsShadow: true/);
@@ -154,46 +162,11 @@ test('binary lesson controls render as accessible toggles', () => {
   assert.doesNotMatch(markup, /<input[^>]*type="range"[^>]*aria-label="Show detail levels"/);
 });
 
-test('partial reference topics link to qualified original offline lessons', () => {
-  for (const id of [
-    'webgl_marchingcubes',
-    'webgl_modifier_simplifier',
-    'webgl_geometry_spline_editor',
-  ]) {
-    const related = relatedReadyLesson({
-      id,
-      subject: '',
-      supplementaryTopic: '',
-      title: { en: '', fr: '' },
-    });
-    const lesson = requiredLesson((entry) => entry.id === related);
-    assert.ok(lesson.referenceCoverage);
-    assert.equal(lesson.referenceCoverage[id], 'partial');
-    assert.equal(lesson.coverage, 'offline-analogue');
-  }
-});
-
-test('full reference topics become ready links to their actual lesson', () => {
-  const ready = roadmap.entries
-    .map(galleryRoadmapEntry)
-    .filter(({ readyLessonId }) => readyLessonId);
-  assert.equal(ready.length, 12);
-  for (const entry of ready) {
-    const lesson = requiredLesson(({ id }) => id === entry.readyLessonId);
-    const referenceCoverage = lesson.referenceCoverage;
-    assert.ok(referenceCoverage);
-    assert.equal(referenceCoverage[entry.id], 'full');
-    assert.equal(entry.status, 'ready');
-    assert.equal(entry.preview, lesson.preview);
-  }
-});
 test('a control change during setup reaches the mounted renderer', async () => {
   const initial = { intensity: 60 },
     latest = { intensity: 80 },
-    updates: Record<string, number>[] = [];
-  const runtime = noopSession(async (state) => {
-    updates.push(state);
-  });
+    updates = [],
+    runtime = { update: async (state) => updates.push(state) };
   await syncRendererState(runtime, initial, initial);
   await syncRendererState(runtime, initial, latest);
   assert.deepEqual(updates, [latest]);

@@ -7,7 +7,7 @@
  * The cost is the second opaque pass, paid only by a frame that carries a transmissive copy.
  */
 import { refuseCluster } from './webglClusterRefusal.ts';
-import type { WebglClusterScene } from './webglClusterLights.ts';
+import type { SceneColour, WebglClusterScene } from './webglClusterLights.ts';
 
 const BACKDROP_EXTENSIONS = ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'];
 
@@ -80,7 +80,7 @@ export class WebglClusterBackdrop {
     const gl = this.gl,
       { colorUnit, depthUnit } = this,
       // A texture background carries no colour: the union says `object` for it.
-      colour = background as { isColor?: boolean; r: number; g: number; b: number } | null;
+      colour = background as SceneColour;
     this.savedViewport.set(gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.savedFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
     this.savedScissor = gl.isEnabled(gl.SCISSOR_TEST);

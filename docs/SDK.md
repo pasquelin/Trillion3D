@@ -552,14 +552,19 @@ The transparent path still uses the authored Three.js light graph and its fixed 
 
 For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. `presentedSurface` is published only while its image is current: a lost or disposed device withdraws it and blanks the canvas, on either path, before the next call raises `WEBGPU_LOST`, and the loss is announced once, after that withdrawal, by the `gpu-device-lost` diagnostic (`code: 'WEBGPU_LOST'`, `reason`: the device's own, `unknown` when its `lost` promise rejected, `uncaptured-error` or `residency`) — no host composes a frame older than the device. The browser proof (`test/browser/surface-appareil-perdu.browser.ts`) covers the composed path; the direct path shares the presenter code that blanks the canvas. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 
-For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before any
-scene renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from
+For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before
+anything else exists. It fixes the context attributes, computes drawing-buffer dimensions from
 logical size and DPR, avoids resetting the buffer on an unchanged size, observes context loss and
-restoration, and releases the context once. That surface is the session's only WebGL2 resource;
-the Three scene renderer is a temporary draw adapter the composition host mounts on it and
-disposes with it, for the comparison compositor, the held frame, the render targets and the
-scenes the witness engines hand over — what it costs and what reads the surface instead is in
-[API.md](API.md#batch-e6--the-engine-surface-as-the-sessions-webgl2-authority-85-first-pull-request).
+restoration, and releases the context once. That surface is the session's only WebGL2 resource,
+and the composition host holds no renderer: targets, held frame, comparison compositor and
+presenter are engine objects on that context, the frame composer asks every engine to draw its
+whole image through `drawHostGeometry`, and only the Three witnesses draw a Three scene, through
+the one adapter they share. A comparison side is the single view of its engine, byte for byte.
+Each function, what it replaces and its proof:
+[API.md](API.md#batch-e7--composition-host-and-captures-on-engine-owned-framebuffers-85-second-pull-request)
+for the composition host,
+[API.md](API.md#batch-e8--draw-records-and-observation-meshes-on-engine-buffers-85-third-pull-request)
+for the draw records, the scene copies and the transport experiment's observation.
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
 `exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
@@ -571,8 +576,15 @@ Direct light adds Lambert diffuse to a Cook-Torrance GGX distribution, correlate
 and Schlick Fresnel, the published model described in Brian Karis's
 [Real Shading course notes](https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
 This is not glTF Appendix B's Fresnel mixture: its diffuse term does not multiply by `(1 - F)`.
-The host then returns the context to the temporary scene adapter for the remaining blended
-non-cluster copies and composition. `autonomousClusterDrawsTotal` is the session counter that
+The scene copies — the transmissive meshes over the frozen backdrop, then the blended ones — are
+submitted by the same owner, in the order the reference draws a scene, and nothing of this engine
+enters a host renderer. A draw record is an engine object: the primitive's resident index buffer,
+the host material as declared, the placement and the ranges of the visible clusters; a two-sided
+transparent surface draws back faces then front faces, read at the draw, and a coplanar layer
+carries its depth offset as a number, so no host material is cloned or frozen. What the engine
+still reads of the host library on this path is its data model — geometry attributes, materials,
+textures — through the contract types, until the engine-owned scene model (#78) replaces it.
+`autonomousClusterDrawsTotal` is the session counter that
 proves the cluster draws came from the owned program. It is cumulative and therefore is not a
 per-frame draw-call measurement.
 

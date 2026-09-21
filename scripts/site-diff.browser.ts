@@ -29,9 +29,9 @@ export function portalRoutes() {
   for (const locale of LOCALES) {
     routes.push(routeHref({ locale, area: 'learn', id: 'home' }));
     for (const entry of rawEntries) routes.push(entryRoute(entry, locale));
-    for (const { id } of examples) routes.push(routeHref({ locale, area: 'examples', id }));
-    routes.push(routeHref({ locale, area: 'examples', id: '' }));
-    routes.push(routeHref({ locale, area: 'examples', id: 'engine-scene' }));
+    for (const { id } of examples) routes.push(routeHref({ locale, area: 'lessons', id }));
+    routes.push(routeHref({ locale, area: 'lessons', id: '' }));
+    routes.push(routeHref({ locale, area: 'lessons', id: 'engine-scene' }));
     routes.push(routeHref({ locale, area: 'api', id: '' }));
     routes.push(routeHref({ locale, area: 'reports', id: '' }));
     routes.push(routeHref({ locale, area: 'learn', id: 'no-such-page' }));

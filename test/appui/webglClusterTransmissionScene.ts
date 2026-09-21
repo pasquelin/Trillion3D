@@ -1,10 +1,10 @@
-// A prepared scene of two meshes for the public exact-pages path: one paged opaque quad and,
-// in front of it, one transmissive quad the engine keeps as a scene copy of its own.
+// A prepared scene for the public exact-pages path: one paged opaque quad, in front of it one
+// transmissive quad, and a small blended quad in front of both, off centre — the two scene
+// copies the engine draws itself, transmissive then blended.
 import * as THREE from 'three';
-import type { ClusterManifest, Page, Primitive } from '../../packages/sdk-core/index.ts';
-import { quad } from './webglClusterPixels.ts';
+import { quad } from './webglClusterPixels.mjs';
 
-const page: Page = {
+const page = {
   id: 0,
   url: 'quad',
   count: 6,
@@ -23,16 +23,22 @@ const page: Page = {
   source: null,
 };
 
-/** `glass` shapes the transmissive material; the default is plain glass over a red cluster. */
-export function transmissionScene(glass: Partial<THREE.MeshPhysicalMaterialParameters> = {}) {
+/** `glass` shapes the transmissive material; the default is plain glass over a red cluster.
+ *  The half-transparent blue quad sits at pixel (55, 32) of a 64 × 64 view. */
+export function transmissionScene(glass = {}) {
   const opaque = new THREE.Mesh(quad(-3, 2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
   const copy = new THREE.Mesh(
     quad(-1, 1),
     new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: 1, ...glass }),
   );
+  const blend = new THREE.Mesh(
+    quad(-0.5, 0.06),
+    new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.5 }),
+  );
+  blend.position.x = 0.21;
   const source = new THREE.Group();
-  source.add(opaque, copy);
-  const primitive = (mesh: THREE.Mesh, primitiveIndex: number, pages: Page[]): Primitive => ({
+  source.add(opaque, copy, blend);
+  const primitive = (mesh, primitiveIndex, pages) => ({
     mesh: 0,
     primitive: primitiveIndex,
     pass: 'exact-clusters',
@@ -40,35 +46,30 @@ export function transmissionScene(glass: Partial<THREE.MeshPhysicalMaterialParam
     pages,
     structure: { version: 1, roots: pages.map((_, index) => index), groups: [] },
   });
-  const primitives = [primitive(opaque, 0, [page]), primitive(copy, 1, [])];
-  const metadata: ClusterManifest = {
-    errorModel: 'dag-group-qem-v1',
-    clusterStrategy: 'dag-groups',
-    schema: 1,
-    status: 'ready',
-    key: 'transmission-scene',
-    scope: 'slice',
-    sourceTriangles: primitives.length,
-    selectedTriangles: primitives.length,
-    selectedNodes: [],
-    totalNodes: primitives.length,
-    primitives,
-  };
   return {
     source,
     opaque,
     copy,
-    metadata,
+    metadata: {
+      errorModel: 'dag-group-qem-v1',
+      clusterStrategy: 'dag-groups',
+      primitives: [
+        primitive(opaque, 0, [page]),
+        primitive(copy, 1, []),
+        { ...primitive(blend, 2, []), pass: 'shared-blend' },
+      ],
+    },
     indices: new Map([['quad', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
-    associations: new Map<THREE.Object3D, { meshes: number; primitives: number }>([
+    associations: new Map([
       [opaque, { meshes: 0, primitives: 0 }],
       [copy, { meshes: 0, primitives: 1 }],
+      [blend, { meshes: 0, primitives: 2 }],
     ]),
     dispose() {
-      opaque.geometry.dispose();
-      opaque.material.dispose();
-      copy.geometry.dispose();
-      copy.material.dispose();
+      for (const mesh of [opaque, copy, blend]) {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      }
     },
   };
 }

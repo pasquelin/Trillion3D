@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { triangleGeometry } from '../../packages/sdk-browser/triangleDiagnostic.ts';
-import { drawCoplanarBlend } from './webglClusterCoplanarBlend.ts';
-import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.ts';
+import { drawCoplanarBlend } from './webglClusterCoplanarBlend.mjs';
+import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.mjs';
 
 const geometry = (reverseFirst = false) => {
   const result = new THREE.BufferGeometry();
@@ -53,24 +53,12 @@ export function execute() {
     vertexColors: true,
     side: THREE.DoubleSide,
   });
-  const back = double.clone(),
-    front = double.clone();
-  back.side = THREE.BackSide;
-  front.side = THREE.FrontSide;
-  const pair: [THREE.Material, THREE.Material] = [back, front],
-    split = clusterRecord(geometry(true), pair);
-  split._sideSplitMaterials = pair;
-  split._sideSplitBack = back;
-  split._sideSplitFront = front;
-  split._sideSplitSource = double;
+  // The record carries the source material: its two passes are read at the draw.
+  const split = clusterRecord(geometry(true), double);
   clear(gl);
   const splitSubmissions = renderer.draw([split], scene, drawCamera, false, false);
   const splitPixel = pixel(gl);
-  double.side = THREE.DoubleSide;
   double.forceSinglePass = true;
-  split.material = double;
-  split._sideSplitMaterials = undefined;
-  split._sideSplitSource = undefined;
   clear(gl);
   const singleSubmissions = renderer.draw([split], scene, drawCamera, false, false);
 
@@ -126,9 +114,6 @@ export function execute() {
   const diagnosticPixel = pixel(gl);
 
   double.forceSinglePass = false;
-  split.material = pair;
-  split._sideSplitMaterials = pair;
-  split._sideSplitSource = double;
   double.visible = false;
   clear(gl);
   const hiddenSubmissions = renderer.draw([split], scene, drawCamera, false, false);
@@ -144,7 +129,8 @@ export function execute() {
   }
   const sourceRejectionPixel = pixel(gl);
   double.premultipliedAlpha = false;
-  pair[0] = double;
+  // A material array set on a record is refused by name before any pass draws.
+  split.material = [double, double];
   clear(gl);
   let mutationRejected = false;
   try {

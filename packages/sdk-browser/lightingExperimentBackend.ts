@@ -3,6 +3,7 @@ import type { LightingExperimentRenderState } from './lightingObservationContrac
 import { createObservationResources } from './lightingObservationResources.ts';
 import { createObservationMeshes } from './lightingObservationMeshes.ts';
 import { updateObservation } from './lightingObservationUpdate.ts';
+import { createObservationDraw } from './lightingObservationDraw.ts';
 import {
   createObservationCapabilities,
   observationDiagnostic,
@@ -13,18 +14,19 @@ export type {
 } from './lightingObservationContracts.ts';
 
 /**
- * Observation backend for the transport experiment. Rasterizes prepared source
- * meshes; visibility for reflections is restricted to the declared rectangles
- * and sphere. It does not exercise cluster selection or general mesh tracing.
+ * Observation backend for the transport experiment. Rasterizes the prepared source meshes on
+ * the engine's own program; visibility for reflections is restricted to the declared
+ * rectangles and sphere. It does not exercise cluster selection or general mesh tracing.
  */
 export function createLightingExperimentBackend(
   state: LightingExperimentRenderState,
 ): BackendFactory {
-  return ({ source, signal, onDiagnostic }) => {
+  return ({ source, signal, onDiagnostic, webglContext }) => {
     const resources = createObservationResources(state);
     const meshes = createObservationMeshes(state, resources, source);
     const { triangles, geometryAllocationBytes, copies } = meshes;
     const { scene } = resources;
+    const draw = createObservationDraw(webglContext, resources, meshes);
     let disposed = false;
     const update = () => {
       if (disposed) throw new Error('Lighting experiment backend is disposed');
@@ -43,6 +45,7 @@ export function createLightingExperimentBackend(
       render() {
         update();
       },
+      drawHostGeometry: draw.drawHostGeometry,
       metrics: () => ({
         clusters: null,
         selectedTriangles: triangles,
@@ -63,9 +66,7 @@ export function createLightingExperimentBackend(
       dispose() {
         if (disposed) return;
         disposed = true;
-        meshes.dispose();
-        resources.dispose();
-        scene.clear();
+        draw.dispose();
       },
     };
   };

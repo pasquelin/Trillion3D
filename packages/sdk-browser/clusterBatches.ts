@@ -1,14 +1,13 @@
-import type * as THREE from 'three';
-
 import type { BatchPage } from './clusterBatchRange.ts';
 import { PrimitiveIndex, BatchGroup } from './clusterBatchPrimitive.ts';
-import { wholeMeshTriangles, type ClusterDrawMesh } from './clusterBatchMesh.ts';
+import { wholeMeshTriangles, type ClusterDrawMesh, type WholeMesh } from './clusterBatchMesh.ts';
 import { setupClusterBatches } from './clusterBatchSetup.ts';
 import { everyGroup } from './clusterBatchLayers.ts';
 import { updateClusterBatches } from './clusterBatchUpdate.ts';
 import type { WebglClusterOwner } from './webglClusterOwner.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
-import { drawClusterBatches } from './webglClusterBatchDraw.ts';
+import { drawClusterBatches, type ClusterDrawScene } from './webglClusterBatchDraw.ts';
+import type { SceneCopy } from './webglClusterCopyCulling.ts';
 import { EngineError } from '../sdk-core/index.ts';
 export { IndexRangeAllocator, DrawRanges } from './clusterBatchRange.ts';
 export type { BatchPage } from './clusterBatchRange.ts';
@@ -29,28 +28,26 @@ export type ClusterBatchStats = {
   cpuSubmitMs: number | null;
 };
 
-const NO_MESHES: THREE.Mesh[] = [];
+const NO_MESHES: WholeMesh[] = [];
 /** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
-export type ClusterDraw = ClusterDrawMesh | THREE.Mesh;
+export type ClusterDraw = ClusterDrawMesh | WholeMesh;
 /** What draws: the engine-owned WebGL2 program's public surface, or nothing at all. */
 export type ClusterDrawOwner = Pick<WebglClusterOwner, keyof WebglClusterOwner>;
 
 /** Resident index ranges of the paged clusters, batched per primitive instance, and the draw
  *  records the owner submits each frame. The host scene is read for its lights and background. */
 export class ClusterBatches {
-  private scene: THREE.Scene;
+  private scene: ClusterDrawScene;
   private primitives: PrimitiveIndex[] = [];
   private groups: Array<BatchGroup | undefined> = [];
   private layerGroups: Array<Map<number, BatchGroup> | undefined> = [];
   private active: BatchGroup[] = [];
   private touched: BatchGroup[] = [];
-  /** Clones created here — back/front of transparents, biased materials: to free, not those of the scene. */
-  private ownedMaterials: THREE.Material[] = [];
   private attributeBytes = 0;
   private indexCapacityBytes = 0;
   private owner: ClusterDrawOwner | undefined;
-  private diagnosticMeshes: readonly THREE.Mesh[] = NO_MESHES;
-  private copies: readonly THREE.Mesh[];
+  private diagnosticMeshes: readonly WholeMesh[] = NO_MESHES;
+  private copies: readonly SceneCopy[];
   private stats: ClusterBatchStats = {
     drawCalls: 0,
     subDraws: 0,
@@ -66,10 +63,10 @@ export class ClusterBatches {
 
   /** No `owner` where no WebGL2 context exists: the cut still runs, a draw is refused by name. */
   constructor(
-    scene: THREE.Scene,
+    scene: ClusterDrawScene,
     pages: readonly BatchPage[],
     owner?: ClusterDrawOwner,
-    copies: readonly THREE.Mesh[] = [],
+    copies: readonly SceneCopy[] = [],
   ) {
     this.scene = scene;
     this.owner = owner;
@@ -78,7 +75,6 @@ export class ClusterBatches {
     this.primitives = setup.primitives;
     this.groups = setup.groups;
     this.layerGroups = setup.layerGroups;
-    this.ownedMaterials = setup.ownedMaterials;
     this.attributeBytes = setup.attributeBytes;
     this.indexCapacityBytes = setup.indexCapacityBytes;
     for (const page of pages) if (page.array) this.acceptPage([page], page.array);
@@ -158,7 +154,7 @@ export class ClusterBatches {
     this.touched = state.touched;
   }
   /** A diagnostic mode draws whole page meshes instead of the batches, until the next `update`. */
-  showPages(meshes: THREE.Mesh[]) {
+  showPages(meshes: WholeMesh[]) {
     this.diagnosticMeshes = meshes;
     this.active.length = 0;
     this.stats.drawCalls = this.stats.subDraws = meshes.length;
@@ -184,13 +180,7 @@ export class ClusterBatches {
     this.owner?.dispose();
     this.owner = undefined;
     this.showPages([]);
-    for (const material of this.ownedMaterials) material.dispose();
-    this.ownedMaterials.length = 0;
-    for (const group of everyGroup(this.groups, this.layerGroups)) {
-      group.mesh = undefined;
-      group.split = undefined;
-      group.biased = undefined;
-    }
+    for (const group of everyGroup(this.groups, this.layerGroups)) group.mesh = undefined;
     for (const primitive of this.primitives) primitive.dispose();
     this.primitives.length = 0;
     this.groups.length = 0;

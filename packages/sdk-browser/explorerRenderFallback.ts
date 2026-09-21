@@ -3,7 +3,7 @@ import type { RenderBackend } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
-import type { createSceneDrawer } from './explorerDrawScene.ts';
+import type { createFrameComposer } from './explorerCompose.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = ExplorerEmitters & {
@@ -15,7 +15,7 @@ type Inputs = ExplorerEmitters & {
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'active' | 'fallbackReason'>;
   scope: AssetScope;
-  drawScene: ReturnType<typeof createSceneDrawer>;
+  compose: ReturnType<typeof createFrameComposer>;
 };
 
 export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
@@ -29,7 +29,7 @@ export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
     scope,
     emit,
     diagnose,
-    drawScene,
+    compose,
   } = inputs;
   if (measuring || diagnostic !== 'beauty') throw error;
   if (webglSurface?.lost) {
@@ -59,7 +59,7 @@ export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
   state.active = baseline;
   try {
     baseline.render(camera);
-    drawScene(baseline, null, false);
+    compose(baseline, null, false);
   } catch (fatal) {
     emit({
       eventVersion: 1,

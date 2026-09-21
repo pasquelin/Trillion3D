@@ -13,7 +13,7 @@ import { launchChrome } from './mesure/chrome.ts';
 import { createDocsServer, listen } from './docs-serve.ts';
 import { SITE_OUTPUT } from './docs/site.ts';
 
-const DEFAULT_ROUTES = ['#/en/learn/home', '#/en/examples/shadow-casting-switch'];
+const DEFAULT_ROUTES = ['#/en/learn/home', '#/en/lessons/shadow-casting-switch'];
 const THREE = 'https://cdn.jsdelivr.net/npm/three@0.174.0/';
 const SUMMARY_KEYS = ['domContentLoaded', 'settled', 'requests', 'bytes'] as const;
 

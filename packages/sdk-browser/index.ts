@@ -33,6 +33,7 @@ export type {
 } from './diagnosticChannel.ts';
 export type { SurfaceBuffer, SurfaceCapture } from './surfaceBuffer.ts';
 export type { HostDrawCamera } from './cameraWorld.ts';
+export type { HostDrawOutput } from './webglRenderTarget.ts';
 export type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 export type { GeometryPool, PoolClamp, TexturePool } from './webgpuMemoryBudgets.ts';
 export type { ShadowAtlasDigest } from './gpuShadowDigest.ts';

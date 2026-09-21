@@ -29,46 +29,31 @@ const AUTORISES: Record<string, string> = {
   autonomousInstances: 'autonomous witness: its instances carry host matrices',
   autonomousPages: 'autonomous witness: its pages are host geometries',
   blendCopyMesh: 'witness: the transparent copy is a host mesh',
-  clusterBatches: 'batch witness: it groups host geometries',
   clusterBatchesFixture: 'batch-witness mount',
-  clusterBatchLayers: 'batch witness: host mesh layers',
-  clusterBatchMesh: 'batch draw record: host geometry and materials of one submission',
-  clusterBatchPrimitive: 'batch witness: one host primitive per material',
   clusterBatchRange: 'batch witness: index ranges of a host geometry',
-  clusterBatchSetup: 'batch witness: mount of its primitives',
-  clusterBatchUpdate: 'batch witness: rewrite of its ranges',
-  comparison: 'comparison witness: it composes two images through a host scene',
   exactPagesAttachment: 'exact witness: it attaches its pages to the host graph',
   exactPagesBackend: 'exact witness: engine written with the host library',
   exactPagesContractLights: 'exact witness: it maps contract lights to host-library lights',
   exactPagesMaterials: 'exact witness: its materials are the host’s',
   exactPagesUnlitAlbedo: 'exact witness: its unlit view zeros the host material factors',
-  exactPagesMetrics: 'exact witness: it counts what the host renderer submitted',
-  exactPagesRender: 'exact witness: it renders through the host renderer',
+  exactPagesMetrics: 'exact witness: the host meshes and geometries it counts and disposes',
+  exactPagesRender: 'exact witness: the host camera and scene copies its frame reads',
+  explorerCameraApi:
+    'boundary: the orbit and fly controls of `three/addons` it returns to the host',
   exactPagesRequests: 'exact witness: its requests start from its host graph',
-  lightingObservationMeshes: 'lighting witness: observed host meshes',
-  lightingObservationResources: 'lighting witness: its resources are the host’s',
+  lightingObservationResources: 'boundary: the empty host scene the experiment publishes',
   referenceBackend: 'reference witness: the host engine, as-is',
   threeBounds: 'witness: bounds as the host library computes them',
   threeLod: 'witness: the host level-of-detail selection, `LOD.update` included',
+  threeSceneAdapter:
+    'witness adapter: the one host renderer the witnesses share to draw their scenes',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
   backendCommon: 'boundary: it creates the scene each engine renders to the host',
   cameraWorld: 'camera-pose contract: the only one that maps a host camera to an engine camera',
   explorerBackends: 'boundary: it mounts engines on the host renderer',
   explorerCamera: 'boundary: the host SETS its camera, and rereads `bounds` and `center`',
-  explorerCameraApi: 'boundary: pose round-trip between the host and its camera',
-  explorerCapabilities: 'boundary: it sets the anisotropy of the host textures',
-  explorerCapture: 'boundary: it reads pixels of the host target',
   explorerDisposeSource: 'boundary: it frees host-graph resources',
-  explorerDraw: 'boundary: it calls the host renderer',
-  // Split out of `explorerDraw`, not a new dependency: the same boundary, on its own file.
-  explorerDrawScene: 'boundary: it draws the scene an engine hands to the host renderer',
-  explorerHeldFrame: 'boundary: it recomposes the held image in a host scene',
-  explorerHostState: 'boundary: it mounts the host draw adapter and restores a recorded pose',
-  explorerLifecycle: 'boundary: it disposes the host renderer and the engine surface',
-  explorerPrepare: 'boundary: it prepares the host source graph',
-  explorerRender: 'boundary: the host frame loop, its targets and its textures',
   exactPagesBounds: 'boundary: it walks the host source graph to bound its pages',
   explorerScene: 'boundary: it builds the host’s prepared scene',
   frameGateCore: 'boundary: the frame gate listens to the host source node',
@@ -105,7 +90,6 @@ const AUTORISES: Record<string, string> = {
   explorerOptions: 'contract: host resources the host declares',
   explorerDiagnosticApi: 'it replaces host materials and geometries with diagnostic ones',
   explorerSceneApi: 'contract: materials and poses the host rewrites on its scene',
-  explorerViewportApi: 'boundary: the capture view is a host camera',
   gpuDagTypes: 'contract: materials and matrices the host writes',
   gpuSelection: 'host material type carried by a page',
   materialSide: 'host-material face constants, read once into the engine `Side`',
@@ -118,11 +102,6 @@ const AUTORISES: Record<string, string> = {
   visibilityMaterial: 'host material properties converted to engine material',
   visibilityTypes: 'contract: host materials, textures and colours',
   visibilityWrapModes: 'host-texture wrap modes',
-  webglClusterBatchDraw: 'host meshes whose autonomous submissions it counts',
-  webglClusterOwner: 'contract: host diagnostic meshes submitted by the owner',
-  webglClusterRenderer: 'host materials and geometries converted for autonomous drawing',
-  webglClusterSubmit: 'host geometry buffers submitted by the autonomous renderer',
-  webglClusterValidation: 'host materials and attributes validated before autonomous drawing',
   webgpuTileAtlas: 'host texture as a tile source',
   webgpuTileCatalogue: 'host textures in the pool catalogue',
   webgpuTileScratch: 'host image transferred into the working texture',
@@ -142,7 +121,7 @@ const AUTORISES: Record<string, string> = {
   webgpuPositions: 'position attribute of the host geometry',
 };
 
-const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three['"]/m;
+const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three(?:\/[^'"]*)?['"]/m;
 
 const sources = async () =>
   (await readdir(browser)).filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'));

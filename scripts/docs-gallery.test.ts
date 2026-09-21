@@ -3,27 +3,22 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { loadReactComponents } from './docs/render-react.mjs';
 import { codeFor } from '../site/lessons/code.ts';
 import { evaluate } from '../site/lessons/evaluate.ts';
-import { expectedResultFor } from './docs/expected-result.ts';
 import { geometryFor } from '../site/lessons/sceneGeometry.ts';
 import { draw, legendAnchors } from '../site/lessons/draw.ts';
 import { initialState } from '../site/lessons/scenarios.ts';
 import { examples } from '../site/content/catalog.ts';
 import { rendererLessons } from '../site/lessons/rendererLessons.ts';
-import type { Locale } from '../site/content/locale.ts';
-import {
-  Gallery,
-  Playground,
-  ExampleCard,
-  Home,
-  CodeBlock,
-} from './docs/gallery-test-components.ts';
-import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 
 const root = new URL('../site/lessons/', import.meta.url);
-const renderGallery = (locale: Locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
-const renderPlayground = (id: string, locale: Locale) =>
+const { Gallery } = await loadReactComponents('site/app/gallery/Gallery.tsx');
+const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
+const { Home } = await loadReactComponents('site/app/portal/Home.tsx');
+const { CodeBlock } = await loadReactComponents('site/app/components/CodeBlock.tsx');
+const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
+const renderPlayground = (id, locale) =>
   renderToStaticMarkup(createElement(Playground, { id, locale }));
 const mathExamples = examples.filter(({ renderer }) => !renderer);
 
@@ -34,7 +29,7 @@ test('gallery exposes bilingual math and public renderer lessons', () => {
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
     assert.ok(example.description.en && example.description.fr);
-    assert.ok(example.functions && example.functions.length > 0);
+    assert.ok(example.functions.length > 0);
   }
   assert.match(renderGallery('fr'), /Décisions du frustum/);
   assert.match(renderPlayground('dot-product', 'en'), /Dot product as alignment/);
@@ -65,26 +60,19 @@ test('diagram legends assign a distinct fixed anchor to every label', () => {
 
 test('all four advanced lessons mount their complementary diagram with finite geometry', () => {
   class SvgNode {
-    children: Element[] = [];
-    setAttribute(name: string, value: unknown) {
+    children = [];
+    setAttribute(name, value) {
       assert.doesNotMatch(String(value), /NaN|undefined/, name);
     }
-    append(...children: Element[]) {
+    append(...children) {
       this.children.push(...children);
     }
-    replaceChildren(...children: Element[]) {
+    replaceChildren(...children) {
       this.children = children;
     }
   }
   const previous = globalThis.document;
-  // `document` is only used here as a minimal SVG-node factory; the mock cannot satisfy the
-  // full `Document`/`SVGSVGElement` contracts, so the swap goes through `PropertyDescriptor`
-  // (whose `value` is `any` in the standard lib) instead of an unsound cast.
-  Object.defineProperty(globalThis, 'document', {
-    value: { createElementNS: () => new SvgNode() },
-    configurable: true,
-    writable: true,
-  });
+  globalThis.document = { createElementNS: () => new SvgNode() };
   try {
     for (const id of [
       'matrix-inverse',
@@ -107,7 +95,6 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /type="search"/);
   assert.match(gallery, /aria-pressed="true"/);
   assert.match(gallery, /tabs tabs-box bg-base-200/);
-  assert.match(gallery, />Animation<\/button>/);
   assert.match(gallery, />Lights and shadows<\/button>/);
   assert.match(gallery, /<summary[^>]*aria-label="More">More/);
   assert.doesNotMatch(gallery, /overflow-x-auto/);
@@ -115,31 +102,12 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.equal((gallery.match(/<canvas /g) ?? []).length, mathExamples.length);
   assert.doesNotMatch(gallery, /data-geometry-fps/);
   assert.match(renderPlayground('compose-transform', 'en'), /data-geometry-fps/);
-  assert.match(gallery, /#\/en\/examples\/engine-scene/);
+  assert.match(gallery, /#\/en\/lessons\/engine-scene/);
   assert.match(gallery, /assets\/kinetic-garden\/preview\.png/);
   assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, 24);
-  assert.match(gallery, /665 results shown · 58 ready lessons in the full gallery/);
-  assert.doesNotMatch(gallery, /data-geometry-3d="webgl_/);
+  assert.match(gallery, /58 lessons shown/);
   assert.doesNotMatch(gallery, /Try it|À essayer/);
   assert.match(gallery, /#\/en\/playground\/compose-transform/);
-});
-
-test('planned lessons stay honest, specific, and link to related ready material', () => {
-  assert.equal(roadmap.entries.length, 607);
-  for (const locale of ['en', 'fr'] as const)
-    assert.equal(new Set(roadmap.entries.map((entry) => entry.title[locale])).size, 607);
-  const entry = roadmap.entries.find(({ subject }) => subject === 'camera');
-  assert.ok(entry);
-  const card = renderToStaticMarkup(
-    createElement(ExampleCard, { example: entry, locale: 'fr', expanded: true, onOpen() {} }),
-  );
-  assert.match(card, /Plan non exécutable/);
-  assert.match(card, /Pourquoi/);
-  assert.match(card, /#\/fr\/playground\/perspective/);
-  assert.doesNotMatch(card, /contrat public prouvé|prise en charge actuelle/);
-  const frenchTitles = roadmap.entries.map((item) => item.title.fr).join('\n');
-  assert.match(frenchTitles, /Réfraction/);
-  assert.doesNotMatch(frenchTitles, /^Walk$/m);
 });
 
 test('home and gallery reuse the same linked example card', () => {
@@ -167,8 +135,24 @@ test('every displayed snippet runs and matches its playground result', async () 
     const source = codeFor(example.id, state).replace("'./js/engine.js'", JSON.stringify(engine));
     const actual = (await import(`data:text/javascript,${encodeURIComponent(source)}`)).default;
     const result = evaluate(example.id, state);
-    const expected = expectedResultFor(example.id, result);
-    assert.ok(expected !== undefined, example.id);
+    const expected = {
+      'compose-transform': result.points?.[2],
+      'matrix-chain': result.point,
+      'matrix-inverse': result.identity,
+      'reflection-orientation': [result.determinant, result.linear],
+      'quaternion-turn': result.direction,
+      'normal-transform': result.normal,
+      perspective: result.ndc,
+      frustum: result.status,
+      'dot-product': result.dot,
+      'cross-product': result.cross,
+      normalize: result.after,
+      'box-grow': result.box,
+      'sphere-from-box': result.sphere,
+      hierarchy: result.point,
+      'color-space': [result.screen, result.light],
+      'lod-budget': result.error,
+    }[example.id];
     if (typeof expected === 'number') assert.ok(Math.abs(actual - expected) < 1e-10, example.id);
     else assert.deepEqual(Array.from(actual), Array.from(expected), example.id);
   }
@@ -184,7 +168,7 @@ test('every scenario calls the engine module', async () => {
   ).join('\n');
   for (const example of mathExamples)
     assert.ok(
-      example.functions?.some((name) => source.includes(name)),
+      example.functions.some((name) => source.includes(name)),
       `${example.id} has no engine call`,
     );
   assert.doesNotMatch(source, /eval\(|new Function/);
