@@ -129,7 +129,7 @@ fn vector<const N: usize>(out: &mut [u32], words: &[u32], starts: [usize; N], re
     for c in 0..N {
         let bits = record.bits[c];
         let base = starts[c] * 32;
-        for (i, vertex) in out.chunks_exact_mut(N).enumerate() {
+        for (i, vertex) in out.as_chunks_mut::<N>().0.iter_mut().enumerate() {
             let q = field(words, base + i * bits as usize, bits);
             vertex[c] = dequant(record.min[c], q, step).to_bits();
         }
@@ -155,9 +155,9 @@ pub fn split(words: &[u32], h: &Header) -> Result<DecodedPage, PageError> {
     };
     vector(take(3), words, layout.position, &h.position);
     if h.flags & FLAG_NORMAL != 0 {
-        for (i, normal) in take(3).chunks_exact_mut(3).enumerate() {
+        for (i, normal) in take(3).as_chunks_mut::<3>().0.iter_mut().enumerate() {
             let unit = oct_decode(field(words, layout.normal * 32 + i * 16, 16));
-            normal.copy_from_slice(&unit.map(f32::to_bits));
+            *normal = unit.map(f32::to_bits);
         }
     }
     if h.flags & FLAG_UV != 0 {
