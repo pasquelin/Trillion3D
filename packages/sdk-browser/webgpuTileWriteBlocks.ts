@@ -14,15 +14,22 @@ import { cellOrigin, tailOrigin, type TileRegion } from './webgpuTileWrite.ts';
  * which the level's padded bytes hold; and every destination lies inside the cell, gutter
  * included. A block copy into the middle of a pool cannot stop mid-block: WebGPU refuses it.
  * A level whose bytes are not the whole blocks its dimensions imply is refused once per path:
- * a tile's level before its slot is taken (`webgpuTileSources.ts`), a tail's level here.
+ * a streamed level where its read resolves (`webgpuTileLevels.ts`), a tail's level here.
  */
 const roundUp = (texels: number) => blocksAcross(texels) * PREVIEW_BLOCK_SIDE;
 
-/** Refuses a level whose bytes are not the whole blocks its dimensions imply — checked before a
- *  tile is placed, so a short or foreign file never occupies a slot with whatever it held. */
-export function checkLevelBlocks(blocks: Uint8Array, [width, height]: readonly [number, number]) {
-  if (blocks.byteLength !== levelBlockBytes(width, height))
-    throw new Error(`TEXTURE_LEVEL_BYTES ${width}x${height}: ${blocks.byteLength}`);
+/** A short or foreign level file: its bytes are not the whole blocks its dimensions imply. */
+export class LevelBytesError extends Error {
+  constructor([width, height]: readonly [number, number], bytes: number) {
+    super(`TEXTURE_LEVEL_BYTES ${width}x${height}: ${bytes}`);
+  }
+}
+
+/** Refuses a level whose bytes are not the whole blocks its dimensions imply — checked before
+ *  the level is held or a tile placed, so such a file never occupies a slot with what it held. */
+export function checkLevelBlocks(blocks: Uint8Array, size: readonly [number, number]) {
+  if (blocks.byteLength !== levelBlockBytes(size[0], size[1]))
+    throw new LevelBytesError(size, blocks.byteLength);
 }
 
 /** Copies the block rows of `region` out of a `width` × `height` level to `origin`. */

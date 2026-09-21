@@ -1,7 +1,7 @@
 import { levelSize, type TilePlace } from './textureTiles.ts';
 import type { TextureLevelReader } from './textureLevelReader.ts';
 import type { PoolEncoding } from './textureBlockFormats.ts';
-import { checkLevelBlocks, writeTileFromBlocks } from './webgpuTileWriteBlocks.ts';
+import { writeTileFromBlocks } from './webgpuTileWriteBlocks.ts';
 import type { WebgpuTileAtlas } from './webgpuTileAtlas.ts';
 import { createWebgpuTileLevels, type LevelKey } from './webgpuTileLevels.ts';
 import { createTileScratch, type TileScratch } from './webgpuTileScratch.ts';
@@ -104,12 +104,10 @@ export function createTileSources(options: {
         const held = levels?.get(levelKey, frame);
         if (!held) {
           if (!atlas.roomFor(key.slot, frame)) return 'refused';
-          if (levels && levels.inFlight < MAX_LEVEL_READS) levels.request(levelKey, frame);
+          if (levels && levels.inFlight < MAX_LEVEL_READS)
+            levels.request(levelKey, frame, [width, height]);
           return 'waiting';
         }
-        // A level of the wrong length is refused before a slot is taken: placed first, the tile
-        // would stay resident over the texels its slot held before.
-        if (held instanceof Uint8Array) checkLevelBlocks(held, [width, height]);
         const place = atlas.place(key, frame);
         if (!place) return 'refused';
         if (held instanceof Uint8Array)
