@@ -1,4 +1,4 @@
-import { addCpuSteps, cpuStepTable } from './stageMapping.ts';
+import { addCpuSteps, cpuStepTable } from './stageCpuSteps.ts';
 import { sunFarCounts } from './webgpuPagesPrepareSunFar.ts';
 import {
   frameCostAuditEnabled,

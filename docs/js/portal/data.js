@@ -1,5 +1,6 @@
 import { EXAMPLES } from '../docsContentExamples.js';
 import { GUIDES } from '../docsContentGuides.js';
+import { RENDERING_GUIDES } from '../docsContentGuidesRendering.js';
 import { ENGINE_GUIDES } from '../docsContentGuidesEngine.js';
 import { ENUMS_IMAGE } from '../docsContentEnums.js';
 import { ENUMS_RUNTIME } from '../docsContentEnumsRuntime.js';
@@ -13,6 +14,7 @@ import { BATCHES } from '../docsContentBatches.js';
 
 export const rawEntries = [
   ...GUIDES,
+  ...RENDERING_GUIDES,
   ...ENGINE_GUIDES,
   ...EXAMPLES,
   ...ENUMS_IMAGE,
