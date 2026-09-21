@@ -23,6 +23,8 @@ export function mockGpu(
   let seq = 0;
   const textures: Array<{
     label?: string;
+    width: number;
+    height: number;
     format?: string;
     usage?: number;
     depthOrArrayLayers: number;

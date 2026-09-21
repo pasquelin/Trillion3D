@@ -212,7 +212,7 @@ clock is too coarse to arbitrate, and everything then stays on JavaScript. The o
 kernel: none of their loops was measured above 0.1 ms in the engine's own frame (below), and a
 kernel for a cost that is not measured is refused by AGENTS.md.
 
-**What the engine's own frame pays for them** (#80 stage 1, `scripts/mesure/banc.mjs --moteur
+**What the engine's own frame pays for them** (#80 stage 1, `scripts/mesure/banc.ts --moteur
 webgpu --apres dist --pixelError 1`, WebGPU, 1280×720, DPR 1, Emerald Square `generale` and `rue`
 over 180 measured frames, Whisperwind Village `generale` over 60, each line run three times with
 its A/A witness — six series per line — on commits `805450a2`–`2713f646` of the branch, Apple M2
@@ -248,7 +248,7 @@ visibility oracle (`visibilityShadingNormal.ts`) that no frame calls; `sphereFro
 diagnostic and to the GPU-cut oracle, outside a measured beauty pass. What remains every moving
 image is the world step: the root rebase (`rootWorldsToRenderOrigin`, sixteen floats per root),
 the change scan (`worldsChanged`) and the stretch scan (`refreshWorldStretch`) — timed on the
-nanosecond clock by `packages/sdk-browser/bench/rebase-racines.perf.mjs` (`pnpm run
+nanosecond clock by `packages/sdk-browser/bench/rebase-racines.perf.ts` (`pnpm run
 perf:browser`) on the same 2 479 roots: **0.031–0.032 ms**, 0.000 ms (a moved first root ends the
 scan; 0.041–0.043 ms when nothing moved, a case the held image never reaches) and
 **0.025–0.026 ms** per image,
@@ -385,7 +385,7 @@ Declare lights through `addLight`/`setLight`/`removeLight`. `SceneLight` (versio
 
 The per-tile list bounds what a pixel may walk; what it walks depends on the image. A **moving** image — one temporal antialiasing accumulates on a history, at one eighth — weighs every light of its tile without its shadow (incidence, attenuation, the cosine and the light's luminance: the cheap part) and shades in full, shadow read included, only `samplesPerPixel` (4, `explorer.lightSettings`) of them. A light worth a sample's share of the pixel's weight is shaded exactly and leaves the pool — it would be drawn every image anyway, and drawing it a varying number of times is what would make a sunlit wall flicker; the remaining samples are drawn from the rest, evenly spaced along the cumulative weight from a per-pixel offset that advances by the golden ratio every image, each drawn light divided by its probability. The estimate is unbiased, so the history averages it toward the sum over every light; a list of four lights or fewer is summed in full. A **still** image — the sixteen quiet ones the hold waits for, and any image nothing averages: a capture, a diagnostic view, `temporalAntialiasing: false`, the first moving image after the history was dropped — shades every light of the tile, character for character the loop from before, so the held image is the exact sum and two runs give it to the bit (`0 px` A/A, Emerald ground view, thirty-two shadowed lights of three-cell range). The blend pass keeps shading its lights in full: a forward surface has no history to average.
 
-Measured (Emerald cache, 2496×1404, DPR 1, `pixelError` 1, ground view, `--lampes 32 --portee 3`: thirty-two shadowed point lights whose ranges reach one pixel, moving camera, 60 Hz display cap, the before side built from `develop` 3e6508b7 and the after side from the batch's shader at 99d1e9c3, both measured in one execution): whole-image GPU envelope p50 39.9 → 17.9 ms, the after side's two runs at 17.9 and 19.3; without any light the same image reads 5.0 ms, without shadows and with every light shaded 10.3. `metrics().lightsSampled` is the mode flag: `true` when the resolve ran in its sampled mode — a moving image on a history, where a pixel with more lights than samples draws a subset —, `false` when it ran the full loop. The declared cost: a moving image carries a faint grain on lit surfaces where lights of different colours overlap — on a plane under eight lamps of two colours built so that two draws differ as much as they can, the interior settles within 2.4 levels of the still image on average and 27 at worst after twenty-four moving frames (`test/browser/eclairage-echantillonne.browser.mjs`); the still image differs from the one before this rule by 52 pixels of one level over 3.5 million, scattered single pixels; the rank-zero loop is the same text, the compiled module is not, and the cause is not isolated further. What remains, where the reference has one: a spatial denoise before the history.
+Measured (Emerald cache, 2496×1404, DPR 1, `pixelError` 1, ground view, `--lampes 32 --portee 3`: thirty-two shadowed point lights whose ranges reach one pixel, moving camera, 60 Hz display cap, the before side built from `develop` 3e6508b7 and the after side from the batch's shader at 99d1e9c3, both measured in one execution): whole-image GPU envelope p50 39.9 → 17.9 ms, the after side's two runs at 17.9 and 19.3; without any light the same image reads 5.0 ms, without shadows and with every light shaded 10.3. `metrics().lightsSampled` is the mode flag: `true` when the resolve ran in its sampled mode — a moving image on a history, where a pixel with more lights than samples draws a subset —, `false` when it ran the full loop. The declared cost: a moving image carries a faint grain on lit surfaces where lights of different colours overlap — on a plane under eight lamps of two colours built so that two draws differ as much as they can, the interior settles within 2.4 levels of the still image on average and 27 at worst after twenty-four moving frames (`test/browser/eclairage-echantillonne.browser.ts`); the still image differs from the one before this rule by 52 pixels of one level over 3.5 million, scattered single pixels; the rank-zero loop is the same text, the compiled module is not, and the cause is not isolated further. What remains, where the reference has one: a spatial denoise before the history.
 
 #### Shadow maps are invalidated page by page, under a millisecond budget
 
@@ -540,7 +540,7 @@ bounced; the proxy carries diffuse albedo only.
 
 `setLightingView('bounce')` is the measurement view: the indirect irradiance alone, multiplied by
 exposure, in linear values with no ACES and no sRGB. It is not an image to look at — it is the
-quantity `scripts/mesure/oracle.mjs` compares against the compiler's own path tracer
+quantity `scripts/mesure/oracle.ts` compares against the compiler's own path tracer
 (`web-geometry-oracle`, built by `pnpm run build:native`), which traces the source triangles with the
 same light and diffuse-material model. The oracle truncates the bounce series at its `bounces`
 count while the engine carries the whole series, so a comparison only means something at a matching
@@ -550,16 +550,21 @@ order.
 
 The transparent path still uses the authored Three.js light graph and its fixed ambient, so `sceneLighting?: THREE.Object3D` still supplies that graph (falling back to the loaded glTF graph, then to a hemisphere/sun rig), still adapts directional, point, spot, hemisphere and ambient lights to a bounded buffer (maximum 256 visible lights; excess and unsupported types fail explicitly), and `explorer.refreshSceneLighting()` still applies after adding or removing lights there. Extending the no-implicit-light rule to transparents is later work. Environment-map lighting, area lights, probes and global illumination are not implemented.
 
-For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. `presentedSurface` is published only while its image is current: a lost or disposed device withdraws it and blanks the canvas, on either path, before the next call raises `WEBGPU_LOST`, and the loss is announced once, after that withdrawal, by the `gpu-device-lost` diagnostic (`code: 'WEBGPU_LOST'`, `reason`: the device's own, `unknown` when its `lost` promise rejected, `uncaptured-error` or `residency`) — no host composes a frame older than the device. The browser proof (`test/browser/surface-appareil-perdu.browser.mjs`) covers the composed path; the direct path shares the presenter code that blanks the canvas. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
+For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. `presentedSurface` is published only while its image is current: a lost or disposed device withdraws it and blanks the canvas, on either path, before the next call raises `WEBGPU_LOST`, and the loss is announced once, after that withdrawal, by the `gpu-device-lost` diagnostic (`code: 'WEBGPU_LOST'`, `reason`: the device's own, `unknown` when its `lost` promise rejected, `uncaptured-error` or `residency`) — no host composes a frame older than the device. The browser proof (`test/browser/surface-appareil-perdu.browser.ts`) covers the composed path; the direct path shares the presenter code that blanks the canvas. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 
-For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before any
-scene renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from
+For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before
+anything else exists. It fixes the context attributes, computes drawing-buffer dimensions from
 logical size and DPR, avoids resetting the buffer on an unchanged size, observes context loss and
-restoration, and releases the context once. That surface is the session's only WebGL2 resource;
-the Three scene renderer is a temporary draw adapter the composition host mounts on it and
-disposes with it, for the comparison compositor, the held frame, the render targets and the
-scenes the witness engines hand over — what it costs and what reads the surface instead is in
-[API.md](API.md#batch-e6--the-engine-surface-as-the-sessions-webgl2-authority-85-first-pull-request).
+restoration, and releases the context once. That surface is the session's only WebGL2 resource,
+and the composition host holds no renderer: targets, held frame, comparison compositor and
+presenter are engine objects on that context, the frame composer asks every engine to draw its
+whole image through `drawHostGeometry`, and only the Three witnesses draw a Three scene, through
+the one adapter they share. A comparison side is the single view of its engine, byte for byte.
+Each function, what it replaces and its proof:
+[API.md](API.md#batch-e7--composition-host-and-captures-on-engine-owned-framebuffers-85-second-pull-request)
+for the composition host,
+[API.md](API.md#batch-e8--draw-records-and-observation-meshes-on-engine-buffers-85-third-pull-request)
+for the draw records, the scene copies and the transport experiment's observation.
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
 `exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
@@ -571,8 +576,15 @@ Direct light adds Lambert diffuse to a Cook-Torrance GGX distribution, correlate
 and Schlick Fresnel, the published model described in Brian Karis's
 [Real Shading course notes](https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
 This is not glTF Appendix B's Fresnel mixture: its diffuse term does not multiply by `(1 - F)`.
-The host then returns the context to the temporary scene adapter for the remaining blended
-non-cluster copies and composition. `autonomousClusterDrawsTotal` is the session counter that
+The scene copies — the transmissive meshes over the frozen backdrop, then the blended ones — are
+submitted by the same owner, in the order the reference draws a scene, and nothing of this engine
+enters a host renderer. A draw record is an engine object: the primitive's resident index buffer,
+the host material as declared, the placement and the ranges of the visible clusters; a two-sided
+transparent surface draws back faces then front faces, read at the draw, and a coplanar layer
+carries its depth offset as a number, so no host material is cloned or frozen. What the engine
+still reads of the host library on this path is its data model — geometry attributes, materials,
+textures — through the contract types, until the engine-owned scene model (#78) replaces it.
+`autonomousClusterDrawsTotal` is the session counter that
 proves the cluster draws came from the owned program. It is cumulative and therefore is not a
 per-frame draw-call measurement.
 
@@ -688,11 +700,11 @@ For image checks, call `setPose()`, `awaitPages()`, `render()`, then `await flus
 `pnpm run test:gpu` runs every hardware proof (`test/justesse/`, `test/browser/`) with the repository's own Playwright and esbuild, the machine's Chrome and its actual WebGPU device, and the assets under `.mesure/assets/` (see `scripts/mesure/README.md` § Assets). Nothing outside this repository is read. The material and Emerald visual proofs run standalone on the test harness server:
 
 ```sh
-node test/browser/materiaux-temoin.browser.mjs
-node test/browser/emeraude-webgpu.browser.mjs
+node test/browser/materiaux-temoin.browser.ts
+node test/browser/emeraude-webgpu.browser.ts
 ```
 
-The material check renders twelve fixtures (`test/appui/materialFixtures.mjs`) with `three-webgl-reference` and `webgpu-page-raster`, both from `dist/`, and compares four or five pixels of each — base colour and its map, alpha MASK at the two 8-bit alphas around its cutoff, BLEND over the background and over an opaque surface, single- and double-sided back faces, rough dielectric, polished metal, emissive and normal map under one declared sun — within one level per channel, except the blend over an opaque surface, where the engine blends in linear radiance and the witness in display space: the fixture declares the 45-level gap of that pair, one level either side, and the proof holds the engine inside it. It fails on a gap outside a fixture's window, on a missing render diagnostic, on a GPU failure and on an engine image that never holds — the blend over the background excepted, since a view with no opaque cluster publishes no held frame (#198) — and writes both images and the readings under `benchmark-runs/material-pixels/`. The Emerald check replays ten bench poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. The runner measures no performance and proves no memory stability.
+The material check renders twelve fixtures (`test/appui/materialFixtures.ts`) with `three-webgl-reference` and `webgpu-page-raster`, both from `dist/`, and compares four or five pixels of each — base colour and its map, alpha MASK at the two 8-bit alphas around its cutoff, BLEND over the background and over an opaque surface, single- and double-sided back faces, rough dielectric, polished metal, emissive and normal map under one declared sun — within one level per channel, except the blend over an opaque surface, where the engine blends in linear radiance and the witness in display space: the fixture declares the 45-level gap of that pair, one level either side, and the proof holds the engine inside it. It fails on a gap outside a fixture's window, on a missing render diagnostic, on a GPU failure and on an engine image that never holds — the blend over the background excepted, since a view with no opaque cluster publishes no held frame (#198) — and writes both images and the readings under `benchmark-runs/material-pixels/`. The Emerald check replays ten bench poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.ts` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. The runner measures no performance and proves no memory stability.
 
 The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps, shadows and the full material contract. Padded texture-array boundaries and full-scene pixel differences still need dedicated parity checks; transparent compositing has its material fixtures. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
 

@@ -35,7 +35,9 @@ test('a wanted page that has not arrived yet puts the frame on hold, without dro
   assert.equal(b.adopter.adopt(), false, 'the frame does not adopt an incomplete shown list');
   assert.equal(b.adopter.metrics.incomplete, true, 'and it says so');
   assert.equal(b.adopter.metrics.ready, false, 'no count from the shown list is published');
-  assert.deepEqual(b.shown, [], 'nothing is drawn from an incomplete shown list');
+  // Typed as `typeof b.shown`, not a bare `[]`: `assert/strict`'s `deepEqual` is `deepStrictEqual`,
+  // whose `expected` sets the narrowed type of `actual` afterwards.
+  assert.deepEqual(b.shown, [] as typeof b.shown, 'nothing is drawn from an incomplete shown list');
   // The wanted list is published anyway: it is what fetches the missing page.
   assert.deepEqual(
     b.desired.map((page) => page.url),

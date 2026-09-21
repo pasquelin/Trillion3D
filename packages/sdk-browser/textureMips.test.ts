@@ -12,6 +12,7 @@ function scratch() {
     size: { width: 4, height: 4, depthOrArrayLayers: 1 },
     format: 'rgba8unorm',
     mipLevelCount: mipLevelCountFor(4, 4),
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
   }) as unknown as GPUTexture;
   return { ...gpu, texture };
 }

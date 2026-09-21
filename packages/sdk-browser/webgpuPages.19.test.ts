@@ -26,7 +26,7 @@ test('writePageRow writes the layer bias in positive units at the table row dept
   try {
     await backend.prepare();
     backend.render(view);
-    await backend.flush();
+    await backend.flush?.();
     const table = buffers.find((buffer) => buffer.label === 'WG page table');
     assert.ok(table, 'the page table is allocated once');
     const words = PAGE_INFO_STRIDE / 4;

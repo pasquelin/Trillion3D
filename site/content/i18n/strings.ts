@@ -5,6 +5,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
   en: {
     'nav.learn': 'Learn',
     'nav.examples': 'Examples',
+    'nav.lessons': 'Lessons',
     'nav.playground': 'Playground',
     'nav.api': 'API',
     'nav.reports': 'Measurements',
@@ -77,6 +78,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
   fr: {
     'nav.learn': 'Apprendre',
     'nav.examples': 'Exemples',
+    'nav.lessons': 'Leçons',
     'nav.playground': 'Bac à sable',
     'nav.api': 'API',
     'nav.reports': 'Mesures',

@@ -33,7 +33,7 @@ test('webgpu pages never publish an incomplete initial cover', async () => {
   assert.equal(backend.metrics().coverageReady, false);
   assert.equal(draws.length, 0);
   backend.acceptPage?.('1', new Uint32Array([0, 2, 3]));
-  await backend.flush();
+  await backend.flush?.();
   backend.render(camera());
   assert.equal(backend.metrics().coverageReady, true);
   assert.equal(backend.metrics().residentPages, 2);
