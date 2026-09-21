@@ -81,6 +81,13 @@ test('vertices that land on the same cells are kept once and the indices remappe
   assert.deepEqual(Array.from(decoded.attributes.position.subarray(3, 6)), [1, 0, 0]);
 });
 
+test('the reference encoder refuses a page too wide for its grid instead of re-gridding it', () => {
+  const wide = {
+    POSITION: { itemSize: 3, array: new Float32Array([0, 0, 0, 2 ** 20, 0, 0, 0, 1, 0]) },
+  };
+  assert.throws(() => encodeGeometryPage([0, 1, 2], wide, -8), /PAGE_ATTRIBUTE_RANGE/);
+});
+
 test('a short header, a wrong version, a field beyond the format, a forged index and a truncation are refused in that order', () => {
   const { encoded } = page(4);
   assert.throws(() => decodeGeometryPage(encoded.data.subarray(0, 16)), /GEOMETRY_PAGE_HEADER/);
