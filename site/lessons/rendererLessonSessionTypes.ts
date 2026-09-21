@@ -1,5 +1,6 @@
 import type { Explorer } from '../../packages/sdk-browser/index.ts';
 import type { DiagnosticMode } from './engine-scene/diagnosticModes.ts';
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
 import type { DiagnosticMode as EngineDiagnosticMode } from '../../packages/sdk/index.ts';
 
 /** What the lesson runtime reports each frame; `null` is a count the device did not give. */
@@ -14,6 +15,15 @@ export interface RendererMetrics {
   occluded?: number | null;
   tested?: number | null;
   diagnostic?: EngineDiagnosticMode;
+}
+
+/** What mounts a lesson: its canvas, definition, first state, metrics sink and cancellation. */
+export interface RendererLessonRuntimeOptions {
+  canvas: HTMLCanvasElement;
+  lesson: RendererLessonItem;
+  state: Record<string, number>;
+  report: (metrics: RendererMetrics) => void;
+  signal?: AbortSignal;
 }
 
 export interface RendererLessonSession {

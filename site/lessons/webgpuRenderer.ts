@@ -124,7 +124,7 @@ export async function mountIllustration(
     if (!scheduled) scheduled = requestAnimationFrame(render);
   };
   const update = (nextState: ScenarioState) => {
-    const data = geometryFor(id, evaluate(id, nextState, options.locale));
+    const data = geometryFor(evaluate(id, nextState, options.locale));
     vertexBuffer?.destroy();
     vertexBuffer = device.createBuffer({
       size: Math.max(4, data.byteLength),
