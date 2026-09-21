@@ -51,13 +51,15 @@ export function tileCatalogue(
     };
   });
   // The fill takes a lane the textures already open, so its one texel costs no layer of its
-  // own: the block lane when a chain is kept there, the lossless one when only that one is
-  // open — a host-image scene, a cache cooked without this family —, the cheaper block lane
-  // when neither is.
+  // own: the family's RGBA lane when a chain is kept there, else any lane that is open — the
+  // lossless one of a host-image scene, the two-channel one of an atlas of normal maps —, and
+  // the cheaper block lane only when the atlas has no texture at all.
   const open = new Set(textures.map((texture) => texture.lane));
   const fill: TileTexture = {
     layout: tileLayout(1, 1),
-    lane: open.has(encoding.fillLane) || !open.has('lossless') ? encoding.fillLane : 'lossless',
+    lane: open.has(encoding.fillLane)
+      ? encoding.fillLane
+      : (open.values().next().value ?? encoding.fillLane),
     source: { kind: 'bytes', tail: WHITE_TAIL },
   };
   return [fill, ...textures];

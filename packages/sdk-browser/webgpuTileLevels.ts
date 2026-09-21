@@ -5,6 +5,7 @@ import {
   type TextureLevelReader,
   type TextureLevelRequest,
 } from './textureLevelReader.ts';
+import { checkLevelBlocks, LevelBytesError } from './webgpuTileWriteBlocks.ts';
 
 /**
  * Decoded cooked levels, held long enough to cut tiles from them.
@@ -16,15 +17,18 @@ import {
  * host memory, and it does not depend on the scene.
  *
  * An in-flight read is never doubled, and a failure is returned to the caller, never retried in
- * silence: the tile will stay served by its coarse level, and the diagnostic will say so.
+ * silence: the tile will stay served by its coarse level, and the diagnostic will say so. A block
+ * level whose bytes are not the whole blocks its dimensions imply is refused where the read
+ * resolves — reported once, never held, never read again: the file is what it is.
  */
 export type LevelKey = TextureLevelRequest;
 
 export type WebgpuTileLevels = {
   /** The level if it is there, marking it read; otherwise `undefined`, launching nothing. */
   get(key: LevelKey, frame: number): TextureLevel | undefined;
-  /** Starts the read if it is neither there nor in flight. */
-  request(key: LevelKey, frame: number): void;
+  /** Starts the read if it is neither there, nor in flight, nor refused; `size` is the level's
+   *  dimensions, what a block level's bytes are checked against. */
+  request(key: LevelKey, frame: number, size: readonly [number, number]): void;
   readonly inFlight: number;
   readonly fetched: number;
   readonly bytes: number;
@@ -33,7 +37,9 @@ export type WebgpuTileLevels = {
   destroy(): void;
 };
 
-const keyOf = ({ sha256, atlas, level }: LevelKey) => `${sha256}/${atlas}/${level}`;
+// The format is in the key: a session that changes family mid-life reads the other file.
+const keyOf = ({ sha256, atlas, level, format }: LevelKey) =>
+  `${sha256}/${atlas}/${level}/${format}`;
 
 export function createWebgpuTileLevels(options: {
   read: TextureLevelReader;
@@ -42,6 +48,7 @@ export function createWebgpuTileLevels(options: {
 }): WebgpuTileLevels {
   const held = new Map<string, { level: TextureLevel; bytes: number; lastUse: number }>();
   const pending = new Map<string, Promise<void>>();
+  const refused = new Set<string>();
   let bytes = 0,
     fetched = 0;
   const drop = (id: string) => {
@@ -71,19 +78,23 @@ export function createWebgpuTileLevels(options: {
       entry.lastUse = frame;
       return entry.level;
     },
-    request(key, frame) {
+    request(key, frame, size) {
       const id = keyOf(key);
-      if (held.has(id) || pending.has(id)) return;
+      if (held.has(id) || pending.has(id) || refused.has(id)) return;
       const read = options
         .read(key)
         .then((level) => {
+          if (level instanceof Uint8Array) checkLevelBlocks(level, size);
           fetched++;
-          const size = textureLevelBytes(level);
-          makeRoom(size);
-          held.set(id, { level, bytes: size, lastUse: frame });
-          bytes += size;
+          const heldBytes = textureLevelBytes(level);
+          makeRoom(heldBytes);
+          held.set(id, { level, bytes: heldBytes, lastUse: frame });
+          bytes += heldBytes;
         })
-        .catch((error: unknown) => options.onFailure(key, error))
+        .catch((error: unknown) => {
+          if (error instanceof LevelBytesError) refused.add(id);
+          options.onFailure(key, error);
+        })
         .finally(() => pending.delete(id));
       pending.set(id, read);
     },
