@@ -7,8 +7,13 @@
 //! the error of the group that replaces it. A flat runtime cut `parent_error > t >= lod_error`
 //! then covers the surface exactly once.
 //!
-//! The metric is positional only: indices keep pointing at the source vertices, so UV, normals and
-//! colours survive untouched, but they do not participate in the simplification error yet.
+//! Two simplifiers, chosen by `DagStrategy`. `QemEndpoints` keeps the source vertices: a collapse
+//! lands on one of its endpoints, so coarse indices point at source vertices and their
+//! attributes stay whatever the survivor carried. `QemAttributes` puts normals, texture
+//! coordinates and colours in the quadric and solves every surviving vertex to the position and
+//! attributes that minimise it (`attributes.rs`): a coarse level then carries vertices the source
+//! does not have, appended to the buffer the DAG was given, and its indices point at them.
+use crate::geometry_page::Attribute;
 use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
 use crate::{invalid, Result};
@@ -26,32 +31,40 @@ pub const DAG_MAX_LEVELS: usize = 32;
 /// meshopt's relative error ceiling. Large enough to always reach the triangle target.
 const SIMPLIFY_ERROR_CEILING: f32 = 1.0;
 
-/// What `simplification` option requests from build. Mode not speed preference:
-/// specifies whether DAG allowed to carry, above exact clusters, surface
-/// source does not contain.
+/// What the `simplification` option requests from the build. A mode, not a speed preference:
+/// it says whether the DAG may carry, above the exact clusters, a surface the source does not
+/// contain, and which vertices that surface is made of.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DagStrategy {
     /// `none`: level zero only, exact partition of source triangles. No group
     /// reduced, no cluster replaced, each stays root.
     ExactClusters,
-    /// `qem-endpoints`: coarse levels, each group reduced by QEM locked border.
+    /// `qem-endpoints`: coarse levels, each group reduced by a positional QEM whose collapses
+    /// land on existing vertices; the border is locked.
     QemEndpoints,
+    /// `qem-attributes`: coarse levels, each group reduced by an attribute-aware QEM that moves
+    /// the surviving vertices and interpolates their attributes; the border is locked and a
+    /// texture seam only slides along itself.
+    QemAttributes,
 }
 impl DagStrategy {
-    /// Strategy named by option. Any other spelling refused by options validation:
-    /// only `none` retains build.
-    pub fn named(option: &str) -> Self {
-        if option == "none" {
-            Self::ExactClusters
-        } else {
-            Self::QemEndpoints
+    /// The option values, in the order the CLI documents them.
+    pub const NAMES: [&str; 3] = ["none", "qem-endpoints", "qem-attributes"];
+    /// Strategy named by the option; `None` for a spelling the option validation refuses.
+    pub fn named(option: &str) -> Option<Self> {
+        match option {
+            "none" => Some(Self::ExactClusters),
+            "qem-endpoints" => Some(Self::QemEndpoints),
+            "qem-attributes" => Some(Self::QemAttributes),
+            _ => None,
         }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct DagCluster {
-    /// Triangle list in the source vertex buffer, three indices per triangle.
+    /// Triangle list in the vertex buffer, three indices per triangle. Level zero indexes source
+    /// vertices only; a coarse level may name vertices the build appended.
     pub indices: Vec<u32>,
     pub level: usize,
     /// Object-space error of the simplification that produced this cluster. Zero at level 0.
@@ -82,17 +95,43 @@ impl DagCluster {
     }
 }
 
+/// The vertex buffer of a primitive: what the DAG reads at every level and, under
+/// `QemAttributes`, extends with the vertices its coarse levels create. Positions are three
+/// floats per vertex; each attribute holds `width` floats per vertex, in the same order.
+pub struct DagVertices<'a> {
+    pub positions: &'a mut Vec<f32>,
+    pub attributes: &'a mut [Attribute],
+}
+impl DagVertices<'_> {
+    pub fn count(&self) -> usize {
+        self.positions.len() / 3
+    }
+}
+
+/// Everything a build publishes: the clusters, the groups that replace them, the tally of every
+/// level, and how many vertices the coarse levels appended to the buffer.
+#[derive(Debug)]
+pub struct DagBuild {
+    pub clusters: Vec<DagCluster>,
+    pub groups: Vec<DagGroup>,
+    pub tallies: Vec<GroupTally>,
+    pub added_vertices: usize,
+}
+
 // ---------------------------------------------------------------- geometry helpers
 
 struct GroupReduction {
     error: f64,
     sphere: [f64; 4],
+    /// Cluster indices; a corner flagged `NEW_VERTEX` names one of `vertices`.
     clusters: Vec<Vec<u32>>,
     source_rank: u32,
     /// Reduction had to weld indices by position (`reduce.rs`).
     welded: bool,
     /// Reduction had to lock additional triangles to preserve border.
     relocked: bool,
+    /// Vertices the reduction created, appended to the buffer once the level is gathered.
+    vertices: NewVertices,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
 ///
@@ -108,46 +147,20 @@ pub struct DagGroup {
     pub outputs: Vec<usize>,
 }
 struct GroupReductionInput<'a> {
+    strategy: DagStrategy,
     positions: &'a [f32],
+    attributes: &'a [Attribute],
     locks: &'a [bool],
+    /// Source vertices on a texture seam: `QemAttributes` protects them from a collapse across
+    /// the seam while it lets every other copied position collapse (`weld.rs`).
+    protect: &'a [bool],
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
-    /// Canonical vertex by (position, uv): fallback reduction weld.
+    /// Canonical vertex by (position, uv): the weld a stalled reduction falls back on.
     weld_seam: &'a [u32],
 }
-pub const CULLING_BRANCHING: usize = 8;
-pub const CULLING_LEAF: usize = 8;
-/// One node of the per-primitive culling hierarchy.
-///
-/// `sphere` encloses every `parent_sphere` of the subtree and `max_parent_error` is the largest
-/// `parent_error` in it, so a single projection bounds the whole subtree from above: when that bound
-/// already fits the pixel budget, no cluster below can be selected and the subtree is skipped.
-#[derive(Clone, Debug)]
-pub struct CullingNode {
-    pub min: [f64; 3],
-    pub max: [f64; 3],
-    pub sphere: [f64; 4],
-    pub max_parent_error: f64,
-    pub first_child: usize,
-    pub child_count: usize,
-    pub first_cluster: usize,
-    pub cluster_count: usize,
-}
-impl Default for CullingNode {
-    fn default() -> Self {
-        Self {
-            min: [0.0; 3],
-            max: [0.0; 3],
-            sphere: [0.0; 4],
-            max_parent_error: 0.0,
-            first_child: 0,
-            child_count: 0,
-            first_cluster: 0,
-            cluster_count: 0,
-        }
-    }
-}
 
+pub(crate) mod attributes;
 pub(crate) mod border;
 pub(crate) mod bounds;
 mod build;
@@ -155,14 +168,18 @@ pub(crate) mod clusters;
 mod culling;
 pub(crate) mod groups;
 pub(crate) mod reduce;
+mod reduce_attributes;
 mod tally;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
+pub(crate) mod weld;
 
+use attributes::{NewVertices, NEW_VERTEX};
 use bounds::*;
 pub use build::build_dag_tallied;
 use clusters::*;
-pub use culling::build_culling_bvh;
+pub use culling::{build_culling_bvh, CullingNode};
 use groups::*;
 use reduce::*;
 pub use tally::{GroupOutcome, GroupTally};
+use weld::*;

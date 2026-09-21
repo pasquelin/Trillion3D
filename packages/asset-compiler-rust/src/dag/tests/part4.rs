@@ -1,4 +1,5 @@
 use super::*;
+use crate::dag::culling::{CullingNode, CULLING_BRANCHING, CULLING_LEAF};
 
 #[test]
 fn the_culling_hierarchy_owns_every_cluster_once_and_bounds_its_subtree() {

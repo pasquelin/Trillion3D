@@ -84,7 +84,7 @@ pub fn enclosing_sphere(spheres: &[[f64; 4]]) -> [f64; 4] {
 
 /// Local vertex buffer for a triangle region. Dense inputs use a direct table, sparse ones a map.
 /// Spatial clusters of at most `max_triangles` triangles, built with meshopt's meshlet builder.
-/// meshopt 0.4 exposes `build_meshlets`; it does not expose a cluster partitioner, so grouping
+/// The crate exposes `build_meshlets`; it does not expose a cluster partitioner, so grouping
 /// below uses a local recursive bisection instead.
 pub(super) fn cluster_bounds(positions: &[f32], indices: &[u32]) -> ([f64; 3], [f64; 3]) {
     let mut min = [f64::INFINITY; 3];

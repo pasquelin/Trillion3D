@@ -28,15 +28,23 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
-/// Full mesh DAG, no UVs, no cancel point.
+/// Full mesh DAG, no attributes, no cancel point.
 pub(super) fn build_of(
     positions: &[f32],
     indices: &[u32],
 ) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>) {
-    build_dag_tallied(positions, None, indices, DagStrategy::QemEndpoints, &|| {
-        Ok(())
-    })
-    .expect("dag")
+    let mut positions = positions.to_vec();
+    let built = build_dag_tallied(
+        DagVertices {
+            positions: &mut positions,
+            attributes: &mut [],
+        },
+        indices,
+        DagStrategy::QemEndpoints,
+        &|| Ok(()),
+    )
+    .expect("dag");
+    (built.clusters, built.groups, built.tallies)
 }
 
 pub(super) fn build(n: usize) -> (Vec<f32>, Vec<u32>, Vec<DagCluster>) {
