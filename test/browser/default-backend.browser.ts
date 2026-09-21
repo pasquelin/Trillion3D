@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import {
@@ -22,7 +22,7 @@ declare global {
 
 type CaseResult = Awaited<ReturnType<typeof runDefaultBackendCase>>;
 type ImageDelta = ReturnType<typeof compareDefaultBackendCaptures> | null;
-type MachineResult = { cases: Record<string, CaseResult>; image: ImageDelta };
+type MachineResult = { cases: Record<string, CaseResult>; image: ImageDelta; captures: string[] };
 
 const root = resolve(import.meta.dirname, '../..');
 const out = resolve(root, 'benchmark-runs/default-backend');
@@ -95,14 +95,16 @@ try {
             string,
           ])
         : null;
+    const captures: string[] = [];
     for (const key of Object.keys(cases)) {
       if (!cases[key].backend) continue;
       const url = await page.evaluate(defaultBackendCapturePng, key);
       const name = `${webgpu ? 'webgpu' : 'webgl2-only'}-${key === 'witness' ? 'before' : 'after'}`;
       await writeFile(resolve(out, `${name}.png`), Buffer.from(url.split(',')[1], 'base64'));
+      captures.push(`${name}.png`);
     }
     await context.close();
-    return { cases, image } as MachineResult;
+    return { cases, image, captures } as MachineResult;
   };
   const withGpu = await machine(true, ['default', 'witness', 'autonomous']);
   const withoutGpu = await machine(false, ['default', 'witness']);
@@ -129,10 +131,13 @@ try {
       previousDefaultBackend: run.cases.witness.backend,
       explicitAutonomousError: run.cases.autonomous?.error ?? null,
       imageAgainstPreviousDefault: run.image,
+      captures: run.captures,
       cadence: { default: cadence(run.cases.default), previous: cadence(run.cases.witness) },
     },
   ];
   const result = {
+    // Every number below is reproduced by re-running this file; the captures land beside it.
+    captureDirectory: relative(root, out),
     commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     scene: `${SCENE} (35 840 selected triangles)`,
     viewport: { width: 480, height: 320, devicePixelRatio: 1 },
