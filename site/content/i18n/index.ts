@@ -1,30 +1,11 @@
-import { boundsFr } from './bounds.fr.ts';
-import { cameraFr } from './camera.fr.ts';
-import { enumsFr } from './enums.fr.ts';
-import { guidesFr } from './guides.fr.ts';
-import { lifecycleFr } from './lifecycle.fr.ts';
-import { matrixFr } from './matrix.fr.ts';
+import { FRENCH } from './overlays.ts';
 import { sectionStrings } from './sections.ts';
 import { STRINGS } from './strings.ts';
-import { treeFr } from './tree.fr.ts';
-import { vectorFr } from './vector.fr.ts';
-import type { EntryOverlay, LocaleOverlay } from './entryOverlay.ts';
+import type { EntryOverlay } from './entryOverlay.ts';
 import type { Locale } from '../locale.ts';
 import type { PortalEntry } from '../model.ts';
 
 export const supportedLocales: Locale[] = ['en', 'fr'];
-
-const FRENCH: LocaleOverlay = Object.assign(
-  {},
-  boundsFr,
-  cameraFr,
-  enumsFr,
-  guidesFr,
-  lifecycleFr,
-  matrixFr,
-  treeFr,
-  vectorFr,
-);
 
 export function t(locale: Locale, key: string) {
   const selected = supportedLocales.includes(locale) ? locale : 'en';
