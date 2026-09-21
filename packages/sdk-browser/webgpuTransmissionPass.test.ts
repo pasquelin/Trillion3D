@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
+import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
+import { blendLightResources } from './webgpuBlendLighting.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { copyBackdrop, writeVolumeRecords, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
@@ -108,7 +110,6 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
   const drawn: number[][] = [];
   let current: number[] = [];
   const items = blendState.blendGpu;
-  for (const item of items) item.group = {} as GPUBindGroup;
   const pass = {
     setViewport() {},
     setBindGroup(_slot: number, group: GPUBindGroup) {
@@ -150,17 +151,10 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
       blendSubmittedTriangles: 0,
     },
   } as unknown as WebgpuPagesRuntime;
-  // Groups are already built on these lighting resources: the pass therefore need not rebuild them,
-  // and this test observes draw order, not group construction.
-  const { placeholders } = gpu.deferred!;
-  blendState.lighting = {
-    directLights: rt.lights.buffer!,
-    shadowSlices: placeholders.slices,
-    shadowAtlas: placeholders.atlasView,
-    shadowSampler: placeholders.sampler,
-    bounceGrid: placeholders.bounceGrid,
-    probes: placeholders.probes,
-  };
+  // Groups are already built on these resources: their identity is primed on them, so the pass
+  // need not rebuild them — this test observes draw order, not group construction.
+  voidStaleBlendGroups(rt, blendLightResources(rt));
+  for (const item of items) item.group = {} as GPUBindGroup;
   // No paged item here, and the shared group is posted ahead for the same reason.
   blendState.pagedGroup = {} as GPUBindGroup;
   drawBlendPass(rt, device, encoder);
