@@ -3,7 +3,7 @@
  * Every consumer — `build:docs`, `docs:serve`, the browser proofs, the Pages deployment — builds
  * the same tree from the same function; nothing under `site/` is a build product.
  */
-import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { gitPathsSync } from '../git-paths.mjs';
 import { buildDemo } from './build-demo.mjs';
@@ -41,8 +41,13 @@ async function copyTree(source, target) {
   await copyFile(source, target);
 }
 
+/** The folders of `out` the build writes: emptied first, so no chunk of an earlier build stays. */
+const BUILT_FOLDERS = ['css', 'js', 'runtime'];
+
 /** Writes the build products into `out`: styles, engine runtime, demo maths, portal. */
 export async function buildBundles(root, out) {
+  for (const folder of BUILT_FOLDERS)
+    await rm(resolve(out, folder), { recursive: true, force: true });
   await mkdir(out, { recursive: true });
   await buildStyles(root, { output: resolve(out, 'css/site.css') });
   await buildRuntime(root, resolve(out, 'runtime'));
