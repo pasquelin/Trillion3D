@@ -40,7 +40,7 @@ export const offlineExamples = geometryRecipes.map((recipe) => {
     },
     category: 'geometry',
     functions: ['createExplorer'],
-    status: 'ready',
+    status: 'ready' as const,
     coverage: 'offline-analogue',
     referenceIds: recipe.referenceIds,
     referenceCoverage: Object.fromEntries(

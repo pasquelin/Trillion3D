@@ -45,7 +45,7 @@ async function loadOnce(browser, origin, route) {
 const [siteDir = SITE_OUTPUT, ...routes] = process.argv.slice(2);
 const runs = Number(process.env.SITE_LOAD_RUNS ?? 5);
 const server = createDocsServer(resolve(siteDir));
-const origin = await listen(server);
+const origin = `http://127.0.0.1:${await listen(server)}`;
 const browser = await launchChrome({ headless: true });
 try {
   for (const route of routes.length ? routes : DEFAULT_ROUTES) {

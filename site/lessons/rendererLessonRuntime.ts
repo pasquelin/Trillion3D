@@ -6,6 +6,7 @@ import { addSceneFillLight } from './sceneFillLight.ts';
 import { applyRendererLesson } from './rendererLessonApply.ts';
 import { createRendererLessonDeadline } from './rendererLessonDeadline.ts';
 import { createReadyGate } from './rendererLessonReadyGate.ts';
+import { createShadowPageCounter } from './lessonShadowPages.ts';
 import type { Explorer } from '../../packages/sdk-browser/index.ts';
 import type { RendererLessonItem } from './rendererLessonTypes.ts';
 export type { RendererMetrics, RendererLessonSession } from './rendererLessonSessionTypes.ts';
@@ -58,7 +59,8 @@ export async function createRendererLessonRuntime({
     updateChain = Promise.resolve();
   const added = { value: false },
     lighting = createLightingLessonSession(),
-    gate = createReadyGate();
+    gate = createReadyGate(),
+    shadows = createShadowPageCounter();
   const dispose = () => {
     if (disposed) return;
     disposed = true;
@@ -76,19 +78,23 @@ export async function createRendererLessonRuntime({
     try {
       await startup.wait(explorer.awaitPages());
       if (disposed) return;
-      const metrics = explorer.render();
+      const metrics = explorer.render(),
+        shadowPages = shadows.observe(metrics);
       await startup.wait(explorer.flush());
       if (disposed) return;
       const now = performance.now(),
         settled = now >= settleNotBefore && metrics.frameHeld && (metrics.pagesLoading ?? 0) === 0,
         exhausted = --remaining <= 0,
         idle = coldStart ? settled || exhausted : exhausted;
+      // Cluster and page counts are the device's own, never estimated.
       report({
         fps: !idle && previous ? 1000 / (now - previous) : null,
         cpu: metrics.cpuFrameMs,
         memory: metrics.geometryPoolAllocatedBytes,
         triangles: metrics.drawnTriangles,
-        occluded: metrics.hizRejectedClusters ?? null, // the device's count, never estimated
+        shadowPages,
+        shadowPending: metrics.shadowPagesPending,
+        occluded: metrics.hizRejectedClusters ?? null,
         tested: metrics.hizTestedClusters ?? null,
         diagnostic: explorer.diagnostic,
         idle,
@@ -109,6 +115,7 @@ export async function createRendererLessonRuntime({
     remaining = coldStart ? COLD_FRAME_LIMIT : INTERACTIVE_FRAME_LIMIT;
     settleNotBefore = performance.now() + (coldStart ? SETTLE_MINIMUM_MS : 0);
     previous = 0;
+    shadows.reset();
     if (!starting && !frame) frame = requestAnimationFrame(draw);
   };
   const update = async (next: Record<string, number>) => {
@@ -159,14 +166,13 @@ export async function createRendererLessonRuntime({
     starting = false;
     reset();
     await startup.wait(gate.current);
-    if (lesson.kind === 'lod-diagnostic') {
-      gate.nextReady();
-      await startup.wait(update({ ...state, pixelError: 0 }));
-      await startup.wait(gate.current);
-      gate.nextReady();
-      await startup.wait(update(state));
-      await startup.wait(gate.current);
-    }
+    // The detail lesson opens on the exact cut, then on its own state, each settled in turn.
+    if (lesson.kind === 'lod-diagnostic')
+      for (const step of [{ ...state, pixelError: 0 }, state]) {
+        gate.nextReady();
+        await startup.wait(update(step));
+        await startup.wait(gate.current);
+      }
     coldStart = false;
     startup.finish();
     return {

@@ -3,6 +3,7 @@ import { EXAMPLES } from '../../content/entries/examples.ts';
 import { GUIDES } from '../../content/entries/guides.ts';
 import { RENDERING_GUIDES } from '../../content/entries/guidesRendering.ts';
 import { ENGINE_GUIDES } from '../../content/entries/guidesEngine.ts';
+import { LIGHTING_GUIDES } from '../../content/entries/lighting.ts';
 import { ENUMS_IMAGE } from '../../content/entries/enums.ts';
 import { ENUMS_RUNTIME } from '../../content/entries/enumsRuntime.ts';
 import { LIFECYCLE } from '../../content/entries/lifecycle.ts';
@@ -17,6 +18,7 @@ export const rawEntries: PortalEntry[] = [
   ...GUIDES,
   ...RENDERING_GUIDES,
   ...ENGINE_GUIDES,
+  ...LIGHTING_GUIDES,
   ...EXAMPLES,
   ...ENUMS_IMAGE,
   ...ENUMS_RUNTIME,

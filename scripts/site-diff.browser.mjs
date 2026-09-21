@@ -78,7 +78,9 @@ if (!beforeDir || !afterDir) {
   process.exit(2);
 }
 const servers = [createDocsServer(resolve(beforeDir)), createDocsServer(resolve(afterDir))];
-const origins = await Promise.all(servers.map((server) => listen(server)));
+const origins = await Promise.all(
+  servers.map(async (server) => `http://127.0.0.1:${await listen(server)}`),
+);
 const browser = await launchChrome({ headless: true });
 await mkdir(OUT, { recursive: true });
 const differences = [];

@@ -126,8 +126,9 @@ async function main() {
       ]);
     }
   }
-  if (testFiles.length) run('node', ['--experimental-strip-types', '--test', ...testFiles]);
-  else
+  if (testFiles.length) {
+    run('node', ['--experimental-strip-types', '--test', ...testFiles]);
+  } else
     console.log('No directly related unit test; the final validation still runs the full suite.');
 }
 

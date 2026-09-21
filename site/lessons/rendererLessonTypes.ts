@@ -48,6 +48,8 @@ export interface RendererLessonItem {
   changes: Localized;
   warning?: Localized;
   constructionCode?: string;
+  /** The lesson shows the shadow page counters: pages redrawn since the last change, pages pending. */
+  shadowStats?: boolean;
   /** The lesson's operation, e.g. `'point'`, `'shadow-switch'`, `'offline'`. */
   kind?: string;
   /** A camera lesson's operation, e.g. `'dolly'`, `'orbit'`. */
@@ -63,7 +65,8 @@ export interface RendererLessonItem {
   initialPose?: RendererLessonPose;
   referenceCoverage?: Record<string, string>;
   referenceReview?: RendererLessonReferenceReview;
-  status?: string;
+  /** An offline geometry lesson is published ready; the catalogue's union narrows on it. */
+  status?: 'ready';
   coverage?: string;
   referenceIds?: string[];
   asset?: string;

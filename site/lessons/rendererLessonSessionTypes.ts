@@ -9,6 +9,8 @@ export interface RendererMetrics {
   cpu?: number;
   memory?: number | null;
   triangles?: number | null;
+  shadowPages?: number;
+  shadowPending?: number | null;
   occluded?: number | null;
   tested?: number | null;
   diagnostic?: EngineDiagnosticMode;

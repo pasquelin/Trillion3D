@@ -5,8 +5,6 @@ import { resolve, extname, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildSite, SITE_OUTPUT } from './docs/site.mjs';
 
-export { SITE_OUTPUT };
-
 const types = {
   '.html': 'text/html',
   '.js': 'text/javascript',
@@ -38,22 +36,23 @@ export function createDocsServer(root = SITE_OUTPUT) {
   });
 }
 
-/** Listens on the loopback interface (`port` 0 picks a free one) and resolves with the origin. */
+/** Listens on the loopback interface (`port` 0 picks a free one) and resolves with the port. */
 export function listen(server, port = 0) {
   return new Promise((ready, reject) => {
     server.once('error', reject);
-    server.listen(port, '127.0.0.1', () => ready(`http://127.0.0.1:${server.address().port}`));
+    server.listen(port, '127.0.0.1', () => ready(server.address().port));
   });
 }
 
-/** Builds the site, then serves it: what the browser proofs and `docs:serve` share. */
-export async function serveSite(port = 0) {
-  await buildSite();
+let built;
+/** Builds the site once per process (nothing is committed), then listens on the loopback port. */
+export async function startDocsServer(port = 0) {
+  await (built ??= buildSite());
   const server = createDocsServer();
-  return { server, origin: await listen(server, port) };
+  return { server, port: await listen(server, port) };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { origin } = await serveSite(Number(process.env.PORT ?? 4177));
-  console.log(`Learning portal: ${origin}`);
+  const { port } = await startDocsServer(Number(process.env.PORT ?? 4177));
+  console.log(`Learning portal: http://127.0.0.1:${port}`);
 }

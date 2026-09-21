@@ -76,6 +76,17 @@ push to `main`) build the same tree from the same function, `buildSite()` in
 `http://127.0.0.1:4177`. This matches the published paths and adds no development framework or
 fallback route.
 
+### Build products: never committed, built by Pages
+
+`dist/site/` is ignored by git and tracked on no branch: every consumer builds it on demand
+(`docs:serve` and the browser proofs under `scripts/` and `test/browser/` build the whole tree; the
+unit tests import the sources directly, the demos through `site/demos/engine.ts`, so no runner
+builds anything), and `check:docs-bundles` in `validate` (`node scripts/docs-build.mjs --untracked`)
+fails when git tracks any file of it. The repository's Pages source is "GitHub Actions":
+`.github/workflows/pages.yml` runs on every push to `main`, installs the dependencies, runs
+`build:docs` and deploys `dist/site/` as the Pages artifact. A release (`develop` → `main`)
+therefore publishes the site built from the merged sources, without committing it.
+
 The browser SDK keeps `three` and `three/*` external during the site build. The scene loads the
 repository's current Three.js peer dependency from one pinned CDN URL at runtime. Do not bundle,
 copy or vendor that dependency into the built tree; update the pinned URL together with the peer
