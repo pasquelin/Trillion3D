@@ -6,10 +6,9 @@ import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
  *  index of a page mesh. */
 export function drawnIndices(draw: ClusterDraw) {
   const index = draw.geometry.getIndex();
-  if (!index) return [];
   const out: number[] = [];
   for (const [first, length] of drawnRanges(draw))
-    for (let i = first; i < first + length; i++) out.push(index.getX(i));
+    for (let i = first; i < first + length; i++) out.push(index ? index.getX(i) : i);
   return out;
 }
 

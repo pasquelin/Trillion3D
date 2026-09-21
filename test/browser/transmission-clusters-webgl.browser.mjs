@@ -17,7 +17,11 @@ preuveSaine(result);
 const near = (actual, expected, tolerance = 3) =>
   actual.every((channel, i) => Math.abs(channel - expected[i]) <= tolerance);
 assert.equal(result.withoutGlass, 1);
-assert.equal(result.submissions, 2, 'the cluster batch and the glass copy are two submissions');
+assert.equal(
+  result.submissions,
+  3,
+  'the batch into the backdrop, then to the display, then the glass',
+);
 assert.deepEqual(result.opaquePixel, [255, 0, 0, 255]);
 // Normal incidence on IOR 1.5: Fresnel 0.04, so 96 % of the red cluster comes through.
 assert.ok(near(result.throughGlass, [245, 0, 0, 255]), JSON.stringify(result.throughGlass));

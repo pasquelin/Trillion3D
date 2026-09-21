@@ -16,10 +16,11 @@ export function submittedDraws(backend: object): readonly ClusterDraw[] {
 /** A batch record, as opposed to the whole page mesh of a diagnostic mode. */
 export const isClusterDrawMesh = (draw: ClusterDraw): draw is ClusterDrawMesh =>
   '_multiDrawCount' in draw;
-/** Index ranges a submission draws: those of a batch record, the whole index of a page mesh. */
+/** Index ranges a submission draws: those of a batch record, the whole index — or the whole
+ *  vertex list, a wireframe page being non-indexed — of a page mesh. */
 export function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {
   if (!isClusterDrawMesh(draw)) {
-    yield [0, draw.geometry.getIndex()!.count];
+    yield [0, draw.geometry.getIndex()?.count ?? draw.geometry.getAttribute('position').count];
     return;
   }
   for (let range = 0; range < draw._multiDrawCount; range++)
