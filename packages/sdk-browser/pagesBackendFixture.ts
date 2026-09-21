@@ -5,10 +5,10 @@ import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
 /** Indices one submission draws, in submission order: the ranges of a batch record, the whole
  *  index of a page mesh. */
 export function drawnIndices(draw: ClusterDraw) {
-  const index = draw.geometry.getIndex();
+  const index = draw.geometry.index;
   const out: number[] = [];
   for (const [first, length] of drawnRanges(draw))
-    for (let i = first; i < first + length; i++) out.push(index ? index.getX(i) : i);
+    for (let i = first; i < first + length; i++) out.push(index ? index.array[i] : i);
   return out;
 }
 

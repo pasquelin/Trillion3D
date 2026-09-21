@@ -1,5 +1,6 @@
-// Public exact-pages proof of transmission composition: same owner on the canvas and on a
-// comparison target, the glass never in the host pass, identical repeats, named refusal.
+// Public exact-pages proof of the scene copies: same owner on the canvas and on a comparison
+// target, the glass then the blended quad, no mesh in the host scene, identical repeats, named
+// refusal.
 //
 //   node --experimental-strip-types test/browser/transmission-explorateur-webgl.browser.mjs
 import assert from 'node:assert/strict';
@@ -18,18 +19,23 @@ assert.deepEqual(result.repeatPixel, result.canvasPixel, 'A/A: the second frame 
 // The comparison target holds the display image: the same 0.96 red, the same bytes.
 assert.deepEqual(result.canvasPixel, [250, 0, 0, 255]);
 assert.deepEqual(result.targetPixel, result.canvasPixel, 'the comparison target sees the same');
-assert.equal(result.copyDraws, 1, 'the glass is one owned submission');
+// The blended quad, half blue over the glass, drawn after it by the owner: blue and red share
+// the pixel, and green is absent.
+assert.equal(result.blendedPixel[1], 0);
+assert.ok(result.blendedPixel[0] > 90 && result.blendedPixel[0] < 160, 'half the red remains');
+assert.ok(result.blendedPixel[2] > 90, 'half the blue is added');
+assert.equal(result.copyDraws, 2, 'the glass and the blended quad are two owned submissions');
 assert.ok(result.clusterDraws > 0);
-assert.equal(result.targetCopyDraws, 1);
+assert.equal(result.targetCopyDraws, 2);
 assert.equal(result.backdropBytes, 64 * 64 * 12);
-assert.equal(result.drawCalls, 3, 'the backdrop pass, the display pass and the scene copy');
-assert.equal(result.transparentMeshes, 1);
-assert.equal(result.physicalInHostPass, 0, 'the glass entered WebGLRenderer.render');
+assert.equal(result.drawCalls, 4, 'the backdrop pass, the display pass and the two copies');
+assert.equal(result.transparentMeshes, 2);
+assert.equal(result.meshesInHostPass, 0, 'a scene copy entered the host scene');
 assert.ok(result.hostCalls > 0);
 assert.deepEqual(
   result.wireframe,
-  { copyDraws: 1, drawCalls: 2 },
-  'the painted glass is drawn as a whole mesh, without a backdrop pass',
+  { copyDraws: 2, drawCalls: 3 },
+  'the painted copies are drawn as whole meshes, without a backdrop pass',
 );
 assert.deepEqual(
   result.mutationRefusal,
