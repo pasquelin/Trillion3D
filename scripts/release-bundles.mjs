@@ -6,7 +6,7 @@
 // refuse a direct push, so a release cut from develop itself stops here with the reason.
 //
 //   node scripts/release-bundles.mjs <head branch>            build, commit, push, re-validate
-//   node scripts/release-bundles.mjs <head branch> --dry-run  build and print the decision only
+//   node scripts/release-bundles.mjs <head branch> --dry-run  same checks and build, no commit
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { BUNDLES, buildDocs } from './docs/bundles.mjs';
@@ -47,7 +47,7 @@ if (import.meta.filename === process.argv[1]) {
   if (!branch || PROTECTED.has(branch))
     fail('Usage: release-bundles.mjs <head branch>; the release branch is cut from main.');
   try {
-    if (!dryRun) git(root, 'merge-base', '--is-ancestor', 'origin/main', 'HEAD');
+    git(root, 'merge-base', '--is-ancestor', 'origin/main', 'HEAD');
   } catch {
     fail('The release branch does not contain origin/main: merge it first.');
   }

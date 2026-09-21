@@ -76,8 +76,9 @@ nothing to compare there. Pages serves `main`, where the release commits them:
    bundles as `HEAD` tracks them, whatever the working tree holds, with a fresh build and refuses
    a stale or missing one. The maintainer merges once it is green.
 
-`node scripts/release-bundles.mjs <branch> --dry-run` builds and prints the decision without
-committing anything.
+`node scripts/release-bundles.mjs <branch> --dry-run` runs the same checks and build on a release
+branch and prints the decision without committing anything. A pull request to `develop` fails
+`validate` when its merge tracks any bundle: a batch that force-adds one is refused there.
 
 The browser SDK keeps `three` and `three/*` external during the documentation build. The scene
 loads the repository's current Three.js peer dependency from one pinned CDN URL at runtime. Do not
