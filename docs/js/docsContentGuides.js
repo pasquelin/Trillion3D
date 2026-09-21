@@ -72,6 +72,12 @@ const explorer: Explorer = await createExplorer('viewer', options);
 </tbody></table></div>
 <p>The delivered functions are listed batch by batch, with their proof, in
 <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>
+<h3 class="text-lg font-bold mt-4">What the WebGL2 path draws itself</h3>
+<p>On a WebGL2 session the engine owns the context and draws every paged cluster with its own program — opaque, alpha-masked and blended batches, diagnostic pages — and, since #120, the transmissive surfaces of the scene: a <code>KHR_materials_transmission</code> mesh is kept as a scene copy, composed after the clusters over a frozen backdrop of the frame in linear light, the same model as the WebGPU pass. There is no other renderer for clusters: a material, light or texture the program cannot preserve fails the preparation with <code>EngineError</code> <code>CLUSTER_MATERIAL_UNSUPPORTED</code>, its <code>details.reason</code> naming the input, never a partial image. The host renderer still composes the remaining blended copies, the comparison compositor, captures and held frames (#85).</p>
+<div class="overflow-x-auto my-4"><table class="table table-zebra table-sm"><thead><tr><th>Three.js</th><th>Engine</th><th>Declared difference</th></tr></thead><tbody>
+<tr><td><code>WebGLRenderer.renderTransmissionPass</code></td><td>transmission pass of <code>WebglClusterRenderer</code></td><td>the backdrop is a plain copy: roughness does not blur it, one glass does not see through another</td></tr>
+<tr><td><code>MeshPhysicalMaterial</code> extensions</td><td>transmission, IOR and volume factors only</td><td>clearcoat, sheen, iridescence, anisotropy, dispersion, specular and the extension maps are refused by name</td></tr>
+</tbody></table></div>
 <p>Two-step path for a host: keep Three.js for loading and scene building and render with the engine (what the measurement Lab does today); then replace the loading by the compiled cache and drop <code>three</code> from the dependencies.</p>`,
   },
   {
