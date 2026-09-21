@@ -6,7 +6,7 @@ import type { ClusterDraw } from './clusterBatches.ts';
 /** A backend whose paged clusters the engine's program draws publishes its submissions here.
  *  The raster oracle and the tests read them; a host never does, so the public backend
  *  contract does not carry it. */
-export interface ClusterDrawSource {
+interface ClusterDrawSource {
   clusterDraws(): readonly ClusterDraw[];
 }
 /** The draw records `backend` submits for the cut; none from a backend that owns no cluster. */
