@@ -57,6 +57,24 @@ export const guidesFr = {
 </ul>
 <p>La leçon <a class="link link-primary" href="#/fr/examples/occlusion-two-phase">Cacher un anneau derrière un anneau</a> montre les compteurs bouger sur le jardin quand l’œil descend à hauteur d’anneau.</p>`,
   },
+  'water-pass': {
+    title: 'Eau et verre : la passe d’eau plein écran',
+    description:
+      'Comment un matériau transmissif est composé sur le chemin WebGPU — un tampon de surface, une composition plein écran sur l’arrière-plan figé — et ce que le matériau importé décide.',
+    html: `<p>Un matériau qui transmet — glTF <code>KHR_materials_transmission</code>, avec <code>KHR_materials_ior</code> et <code>KHR_materials_volume</code> ; l’eau, le verre épais — n’est pas mélangé par son opacité : il relit ce que l’image a déjà dessiné derrière lui. Sur le chemin WebGPU, cette lecture est une passe à part, après les mélanges ordinaires, et il n’y a rien à régler : la classe se lit sur le matériau importé, jamais sur un nom.</p>
+<ol class="list-decimal pl-6 space-y-1">
+<li><strong>Arrière-plan figé.</strong> L’image éclairée est copiée une fois, et la profondeur opaque une fois dans la profondeur que l’étape de surface teste. Chaque surface transmissive lit la même image figée, si bien que l’ordre entre deux d’entre elles ne change rien — et aucune ne voit à travers une autre, la même limite déclarée que la visionneuse de référence glTF.</li>
+<li><strong>Étape de surface</strong> (<code>WG water surfaces</code>). Les éléments transmissifs se dessinent avec l’étage de sommets du mélange et sa lecture du matériau, dans le tampon de surface de la résolution opaque elle-même, libre une fois cette résolution consommée — couleur de base, normale, rugosité, émission, occlusion — plus le rang d’eau de l’élément et l’opacité, avec la profondeur matérielle testée contre la copie opaque et écrite : la surface la plus proche d’un pixel est celle qui reste, quel que soit le nombre de surfaces empilées, et une surface derrière un opaque n’atteint jamais la composition.</li>
+<li><strong>Composition</strong> (<code>WG water composite</code>). Un triangle plein écran éclaire chaque pixel d’eau une fois, avec la seule formule d’éclairage du moteur : l’arrière-plan réfracté par l’indice et atténué par la couleur du volume, le reflet des sondes pondéré par Fresnel, le spéculaire des lumières déclarées, et la couleur éclairée de la surface pour la part que le matériau ne transmet pas. Un pixel sans eau est rejeté, et l’image garde ce qu’elle tenait.</li>
+</ol>
+<p><strong>Le volume s’arrête où la scène opaque commence.</strong> Le rayon parcourt l’épaisseur déclarée, ou la distance à l’arrière-plan sous le pixel quand elle est plus courte ; la sortie où il est relu et l’atténuation suivent cette distance. Un bassin déclaré plus profond que son fond rend le même pixel qu’un bassin déclaré exactement aussi profond ; un bloc juste sous la surface est déplacé et teinté par sa propre profondeur, non par celle du bassin. Devant rien, la part transmise laisse passer le fond d’affichage au lieu d’une radiance noire.</p>
+<h3 class="text-lg font-bold mt-4">Le lire</h3>
+<ul class="list-disc pl-6 space-y-1">
+<li><code>stageProfile()</code> dépose les deux passes sur l’étape <em>transparents</em>, par étiquette ; une scène sans matériau transmissif ne les encode jamais et n’alloue qu’un texel à leurs cibles. Une image dont toutes les surfaces transmissives sont hors champ n’en encode rien non plus.</li>
+<li>Le budget des cibles d’image compte la couleur figée (8 octets par pixel) et la profondeur d’eau (4) seulement quand la scène transmet : <code>gpuFrameTargetBytes</code> le dit. Les surfaces elles-mêmes sont celles de la résolution opaque, déjà payées.</li>
+<li>Une vue de diagnostic — grappes, fil de fer, erreur écran —, une variante GPU de diagnostic, ou une capture depuis une seconde caméra, qui lit le tampon de surface comme opaque, dessine la tranche de transmission comme un mélange de plus, si bien que la variante mesure le même étage de fragments sur tous les transparents.</li>
+</ul>`,
+  },
   architecture: {
     title: 'Architecture et règles',
     description:
@@ -114,5 +132,17 @@ export const guidesFr = {
 <p>Sur un explorateur actif, <code>explorer.metadata.primitives</code> est le manifeste ouvert : additionnez <code>pages[].geometry.bytes</code> sur <code>pages[].count / 3</code> triangles pour le chiffre compact, <code>uncompressedBytes</code> pour le chiffre flottant, et lisez le plus grand <code>quantization.maxPositionError</code>. Dans le dépôt, <code>node --experimental-strip-types scripts/mesure/octetsParTriangle.mjs &lt;cache&gt;/native/full</code> imprime ces chiffres pour n’importe quel cache compilé. Ce sont les chiffres du cache : le moteur de dessin WebGPU téléverse encore les sommets flottants de la source et les pages d’indices, et son pool de géométrie le dit.</p>
 <h3 class="text-lg font-bold mt-4">Contrat et refus</h3>
 <p><code>pages[].geometry.formatVersion</code> vaut 3 et <code>codec</code> vaut <code>quantized</code> ; le sidecar binaire qui les nomme est en version 6, et un lecteur refuse une autre version en bloc plutôt que page par page. Une page dont l’en-tête sort du format — une largeur au-delà de 24 bits, un exposant au-delà de ±64, un drapeau inconnu, une longueur qui ne correspond pas à ses flux — est refusée avant toute lecture de flux ; un indice au-delà du nombre de sommets est refusé avant qu’un flottant ne soit produit. Les routines WGSL sont prouvées sur la carte graphique contre le décodeur JavaScript, bit à bit sur les positions, les coordonnées de texture et les couleurs (<code>test/justesse/decodage-cluster-gpu.mjs</code>).</p>`,
+  },
+  'memory-pools': {
+    title: 'Pools mémoire et admission de la coupe',
+    description:
+      'Deux pools fixes réglés par l’hôte, ce qu’une vue demande au-delà, et comment lire le verdict.',
+    html: `<p>Le moteur tient deux pools fixes, en octets, jamais lus sur la machine : <code>geometryPoolBytes</code> pour les pages de grappes (512 Mio par défaut, <code>floor(octets / pageBytes)</code> fentes) et <code>texturePoolBytes</code> pour les tuiles de texture virtuelle. Un budget qui ne peut être tenu tel quel est ramené à ce qui peut l’être, et la raison est publiée : <code>geometryPoolClamp</code> vaut <code>root-cover</code> (relevé à la couverture racine, toujours résidente), <code>scene</code> (la scène est plus petite), <code>ceiling</code> (au-dessus de <code>geometryPoolCeilingBytes</code>, le plus haut qu’une session puisse monter), <code>page-cap</code>, <code>device-limit</code> ou <code>null</code>.</p>
+<h3 class="text-lg font-bold mt-4">Ce qu’une vue demande au-delà du pool</h3>
+<p>Rien n’est refusé et rien ne s’arrête : la coupe est <strong>rendue plus grossière, jamais tronquée</strong>. Quand les pages demandées par la coupe — couverture racine comprise — dépassent les fentes, l’admission double l’erreur écran à laquelle l’image était dessinée (1 px au moins au premier débordement, puis 2, 4…), et la redescend cran par cran jusqu’à 0,125 px dès que la coupe tient avec de la marge. Deux règles la tiennent immobile : un cran ne bouge que sur une coupe échantillonnée au cran en vigueur, et un cran dont la coupe demandée a débordé pour cette vue n’est plus redemandé tant que ni la vue ni le pool ne changent. Une caméra immobile se pose donc en quelques échantillons et tient son image.</p>
+<h3 class="text-lg font-bold mt-4">Changer un pool en cours de session</h3>
+<p><code>explorer.setMemoryBudgets({ geometryPoolBytes, texturePoolBytes })</code> redimensionne sans vider : la couverture racine garde sa place avant toute autre page, puis les pages épinglées, puis les plus récentes ; seul ce qui ne tient plus part, et le rapport dit combien (<code>evictedPages</code>, <code>evictedTiles</code>, <code>durationMs</code>). Les groupes de liaison qui nommaient l’ancien pool sont rebâtis à l’image suivante, par l’identité de ce qu’ils nomment.</p>
+<h3 class="text-lg font-bold mt-4">Lire le verdict</h3>
+<p>À chaque image, <code>render()</code> renvoie <code>coverageBudgetLimited</code> (la coupe demandée ne tient pas encore) et <code>budgetPixelError</code> (0 tant que le détail demandé tient, sinon le cran auquel l’image est dessinée), ainsi que <code>geometryPoolSaturated</code>. Le diagnostic <code>coverage-budget</code>, livré pendant <code>flush()</code>, nomme chaque changement de verdict avec les fentes demandées et tenues.</p>`,
   },
 };
