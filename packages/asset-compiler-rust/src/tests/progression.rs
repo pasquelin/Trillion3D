@@ -53,3 +53,27 @@ fn a17_le_proxy_et_les_lampes_sont_des_phases_connues() {
     }
     fs::remove_dir_all(root).expect("cleanup");
 }
+
+// Behaviour: a proven folder is a known phase at 0.98, and the bar still ends
+// at one without going back — no clustering phase came before it.
+#[test]
+fn a_reused_folder_is_a_known_phase_and_the_bar_still_ends_at_one() {
+    let (root, options) = grid_fixture_displaced(24, 24, 1.0);
+    ratios(&options);
+    let steps = ratios(&options);
+    let (_, ratio) = steps
+        .iter()
+        .find(|(phase, _)| phase == "reuse")
+        .unwrap_or_else(|| panic!("phase reuse missing from {steps:?}"));
+    assert_eq!(*ratio, 0.98, "{steps:?}");
+    assert!(
+        steps.iter().all(|(phase, _)| phase != "primitive"),
+        "no clustering on a reuse: {steps:?}"
+    );
+    assert!(
+        steps.windows(2).all(|pair| pair[0].1 <= pair[1].1),
+        "{steps:?}"
+    );
+    assert_eq!(steps.last().expect("an end").1, 1.0, "{steps:?}");
+    fs::remove_dir_all(root).expect("cleanup");
+}

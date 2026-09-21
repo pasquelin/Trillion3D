@@ -151,14 +151,11 @@ pub(super) fn stage_scene_lights(
     scene_nodes: &BTreeSet<usize>,
     directory: &Path,
     progress: impl Fn(Value),
-) -> Result<()> {
+) -> Result<Product> {
     let lights = scene_lights(g, bin, scene_nodes)?;
-    atomic(
-        &directory.join(SCENE_LIGHTS_FILE),
-        &serde_json::to_vec(&lights)?,
-    )?;
+    let written = product(directory, SCENE_LIGHTS_FILE, &serde_json::to_vec(&lights)?)?;
     progress(
         json!({"phase":"lights","completed":1,"total":1,"lights":lights["count"],"rejected":lights["rejected"],"counts":lights["counts"]}),
     );
-    Ok(())
+    Ok(written)
 }

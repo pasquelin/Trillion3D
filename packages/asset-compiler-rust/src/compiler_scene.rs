@@ -14,7 +14,7 @@ pub(super) struct SourceSceneInputs<'a> {
     pub offset: usize,
 }
 
-pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<Value> {
+pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value, Product)> {
     let SourceSceneInputs {
         g,
         o,
@@ -150,9 +150,6 @@ pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<Value>
     source["bufferViews"] = json!(output_views);
     source["buffers"] = json!([{"uri":"source.bin","byteLength":offset}]);
     rewrite_images(&mut source, &o.resource_base, view_map)?;
-    atomic(
-        &directory.join("source.gltf"),
-        &serde_json::to_vec(&source)?,
-    )?;
-    Ok(source)
+    let written = product(directory, "source.gltf", &serde_json::to_vec(&source)?)?;
+    Ok((source, written))
 }
