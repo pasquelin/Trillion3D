@@ -74,8 +74,9 @@ export interface ExplorerOptions {
    *  the device samples among those the cache bakes — BC7 on desktop cards, ASTC 4×4 on
    *  mobile ones —, one byte per texel in the pool instead of four, the same budget holding
    *  four times the tiles; `'bc7'` or `'astc'` insist on one, `'none'` keeps RGBA8, the
-   *  lossless "before" of a comparison. Requires `textureSource: 'cache'` and a chain baked
-   *  for every texture: otherwise the pools stay RGBA8 and `texturePoolFormat` says so. */
+   *  lossless "before" of a comparison. Only a texture whose chain the cache baked and kept in
+   *  that family reads blocks (`textureSource: 'cache'`); a host image, a chain the gate
+   *  refused or a cache cooked without the family stays RGBA8 in the lossless lane. */
   textureCompression?: import('./textureBlockFormats.ts').TextureCompression;
   /** Temporal antialiasing of the WebGPU engine, on by default as in the reference: each
    *  frame is rendered with a fraction-of-a-pixel jitter and accumulated over the previous
