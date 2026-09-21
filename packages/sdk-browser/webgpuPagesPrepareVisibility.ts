@@ -3,7 +3,7 @@ import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import {
   createWebgpuCoplanarLayerPipelines,
-  createWebgpuShadePipeline,
+  createWebgpuShadePipelines,
   createWebgpuVisibilityRasterPipelines,
 } from './webgpuVisibilityPipelines.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
@@ -14,7 +14,8 @@ import { createGpuPartition } from './gpuPartitionFactory.ts';
 import { createGpuRestCompact } from './gpuRestCompact.ts';
 import { prepareTransparentOcclusion } from './webgpuTransparentOcclusionHost.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
-import { SURFACE_FORMATS } from './surfaceBuffer.ts';
+import { sceneMaterialClasses } from './webgpuPageRowMaterial.ts';
+import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { dropGpuHiz, dropVis, grantCapability } from './webgpuPagesDrops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -25,22 +26,24 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     { drawSlots } = rt.layout,
     [width, height] = rt.setup.viewport;
   try {
-    ({
-      blendBindGroupLayout: vis.blendBindGroupLayout,
-      pipelineBlendTextured: vis.pipelineBlendTextured,
-      pipelineBlendFront: vis.pipelineBlendFront,
-      pipelineBlendBack: vis.pipelineBlendBack,
-    } = await createWebgpuBlendPipelines(
+    const built = await createWebgpuBlendPipelines(
       gpuDevice,
       blendState.blendGpu,
       rt.context.diagnosticGpuVariant,
-    ));
-    // A new layout voids the shared group of paged items like the others'.
-    blendState.pagedGroup = undefined;
+    );
+    ({
+      blendBindGroupLayout: vis.blendBindGroupLayout,
+      blendPipelines: vis.blendPipelines,
+      water: blendState.water,
+    } = built);
+    // No water pass — the device refused it: the blends stay, the transmission slice draws as one
+    // of them, and the host reads why.
+    if (built.waterRefused) diag.diagnosticFailure('water-pass-refused', built.waterRefused);
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;
-    vis.pipelineBlendTextured = undefined;
+    vis.blendPipelines = undefined;
+    blendState.water = undefined;
   }
   // Coplanar-stack depth sets the draw-slot count, therefore the visibility uniform size and that of
   // indirect compaction: it is read before creating them.
@@ -113,8 +116,19 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       vis.visLayerPipelines = [];
       vis.drawLayerSlots = 1;
     }
-  ({ shadeBindGroupLayout: vis.shadeBindGroupLayout, shadePipeline: vis.shadePipeline } =
-    await createWebgpuShadePipeline(gpuDevice, shadeModule, variant));
+  // The resolve classes of the scene are known here, from the same fields its rows will carry:
+  // one pipeline each, and the material-depth export they all test against.
+  const classes = sceneMaterialClasses(rt.setup.allPages, vis.geometryBlocks, vis);
+  ({
+    shadeBindGroupLayout: vis.shadeBindGroupLayout,
+    materialDepthPipeline: vis.materialDepthPipeline,
+    shadePipelineFor: vis.shadePipelineFor,
+    shadePipelines: vis.shadePipelines,
+  } = await createWebgpuShadePipelines(gpuDevice, shadeModule, classes, variant));
+  diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
+    classes: classes.length,
+    keys: classes,
+  });
   if (!vis.pageTable)
     vis.pageTable = gpuDevice.createBuffer({
       size: PAGE_INFO_STRIDE,
@@ -122,12 +136,15 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     });
   ensureWebgpuShadeBindings(rt, gpuDevice);
   vis.visEnabled =
-    !!vis.visTexture && !!vis.shadeBindGroup && !!vis.shadePipeline && !!vis.visPipelineBack;
+    !!vis.visTexture &&
+    !!vis.shadeBindGroup &&
+    !!vis.materialDepthPipeline &&
+    !!vis.visPipelineBack;
   if (!vis.visEnabled) return dropVis(rt);
   diag.engineDiagnostic('material-surfaces-ready', 'Surfaces and lighting split', {
     surfaceVersion: 1,
     formats: SURFACE_FORMATS,
-    bytesPerPixel: 28,
+    bytesPerPixel: SURFACE_BYTES_PER_PIXEL,
     lighting: 'HDR',
     globalIllumination: false,
     motionVectors: false,
@@ -148,6 +165,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       flags: vis.gpuHiz.flags,
       restBits: vis.gpuDraw.restBitsBuffer,
       slotUsed: vis.gpuDraw.slotUsedBuffer,
+      pyramid: () => vis.gpuHiz?.pyramidBuffer(),
     });
     // Compaction of the tested half reads the pyramid verdict and rewrites the instance list draw
     // compaction just posted: it exists only with both.

@@ -2,7 +2,6 @@
 // that describes it, and the face-on camera. Nothing names a bench scene — the engine
 // only sees passes and materials, as for any imported scene.
 import * as THREE from 'three';
-import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 
 export const VIEWPORT = [96, 96];
 
@@ -131,18 +130,37 @@ export async function image(backend, camera) {
   return { pixels: backend.capture(), metriques: backend.metrics() };
 }
 
+/** Maximum images rendered before giving up waiting for frame hold. */
+export const PLAFOND = 64;
+
+/** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
+export async function jusquaTenue(backend, camera) {
+  let rendue,
+    rendues = 0;
+  for (let i = 0; i < PLAFOND; i++) {
+    const { pixels, metriques } = await image(backend, camera);
+    if (metriques.frameHeld) return { rendue, tenue: Array.from(pixels), rendues };
+    rendue = Array.from(pixels);
+    rendues++;
+  }
+  return { rendue, tenue: null, rendues };
+}
+
 /** Public counters of a profile stage, or `null` when the host did not ask for it. */
 export function comptesEtape(backend, etape) {
   const profil = backend.stageProfile?.();
   return profil?.stages?.find((input) => input.stage === etape)?.counts ?? null;
 }
 
-/** Releases the scene and the engine of a proof. */
+/** Releases the engine of a proof and its scene: geometries, materials and their textures. */
 export function libere(backend, canvas, scene) {
   backend.dispose();
   canvas.remove();
   for (const g of scene.geometries) g.dispose();
-  for (const m of scene.materials) m.dispose();
+  for (const m of scene.materials) {
+    for (const value of Object.values(m)) if (value?.isTexture) value.dispose();
+    m.dispose();
+  }
 }
 
 /** How many RGBA quadruplets differ between two images of the same size. */
@@ -162,26 +180,4 @@ export function redCount(pixels) {
   let n = 0;
   for (let i = 0; i < pixels.length; i += 4) if (estRouge(pixels, i)) n++;
   return n;
-}
-
-/**
- * Common envelope of a two-pass proof (paged, unpaged): opens the device, runs
- * `sequence(device, pagine, evenements)` for each, closes the device. `sequence` carries all
- * staging proper to the proof; this function only carries what every two-pass proof
- * repeats identically.
- */
-export async function executerPasses(sequence) {
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
-  const evenements = [],
-    passes = {};
-  try {
-    for (const pagine of [false, true])
-      passes[pagine ? 'pagine' : 'non-pagine'] = await sequence(device, pagine, evenements);
-  } catch (error) {
-    return { erreur: String(error) + (error?.stack ?? ''), passes, evenements, erreurs };
-  }
-  const info = await appareil.fermer();
-  return { adaptateur: info.court, passes, evenements, erreurs };
 }

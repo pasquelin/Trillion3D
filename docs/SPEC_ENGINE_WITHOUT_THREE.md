@@ -63,10 +63,13 @@ city, identical image at 0 px, differences at 1 px localised and under the thres
 C4. **Certified error**: `error(cluster) = max(group geometric error, child errors) + quantisation
 error + colour error` (UV deviation and texture-weighted normal), monotonic, in object units, with
 a projection sphere. Criterion: monotonicity test on every scene, zero violations.
-C5. **Self-contained packets**: each packet (~64 to 128 KiB) holds indices, quantised positions
-(16 bits per axis on the cluster box), 16-bit octahedral normals, 16-bit UVs, 8-bit colours,
-material ranges; meshopt-encoded; `source.bin` is no longer read by the runtime. Criterion: bytes
-per triangle ≤ 12; Emerald general-view fill < 300 ms warm.
+C5. **Self-contained packets**: each cluster is a page of its own (`WGP3`, `docs/FORMAT.md`)
+holding bit-packed local indices, positions on a per-primitive power-of-two grid with per-cluster
+minima and widths, 16-bit octahedral normals, UVs on a `2^-14` grid, colours on a `2^-8` grid, no
+tangent; streams the GPU reads in place, no compression library; `source.bin` is no longer read by
+the runtime. Criterion: bytes per triangle ≤ 12 — measured 18.3 on Emerald Square and 9.9 on
+Whisperwind Village (#9), the gap being one vertex per triangle of topology and index bits;
+Emerald general-view fill < 300 ms warm.
 C6. **Textures**: PNG/JPEG decode in the compiler, mip generation, split into tiles or streamable
 levels, atlas table; raw GPU format, lossless, or lossy block-compressed (BC/ASTC, see §7 and
 Textures T5; the bench's 0 px thresholds do not apply to that lot). Criterion: Emerald's first
@@ -104,11 +107,27 @@ material equations and handles the glTF texture channels, transforms, UV sets an
 its explicit compatibility gate. Published geometric normal variance filters specular roughness, and
 identical mobile-scene campaigns must equal or beat the temporary adapter's whole-frame envelope.
 One frame owner routes display, render targets, held-frame recovery
-and capture through that program, then restores state for the temporary scene adapter. Unsupported
-clustered blend and diagnostic ordering remain #119; transmission composition and removal of the
-temporary complete-scene fallback remain #120. The image delta, curved-surface stability and
-whole-frame cost against the witness are measured and published; this stage does not claim bit
-identity or an unmeasured speed gain.
+and capture through that program, then restores state for the temporary scene adapter. The image
+delta, curved-surface stability and whole-frame cost against the witness are measured and
+published; this stage does not claim bit identity or an unmeasured speed gain.
+
+The following stages own clustered blend, side-split ordering and diagnostic pages on the same
+program (#119), then transmission (#120): a transmissive source mesh stays a scene copy of the
+engine's, composed after the clusters over a frozen backdrop of the frame in linear light, the
+same model as the WebGPU transmission pass. With that, no paged cluster has another renderer:
+the temporary complete-scene path is gone, and a scene the program cannot draw in full fails its
+preparation with a named error instead of a partial image. What remains of the adapter is the
+composition host of the non-transmissive blended copies, the comparison compositor, captures and
+held frames (#85).
+
+The first stage of #85 measured that remainder before touching it — at most 0.3 ms of the CPU
+frame on `exact-cluster-pages`, 0.1 ms p95 per host segment, no gain to claim (the numbers in
+`docs/API.md`, batch E6) — and
+made the engine surface the session's WebGL2 authority, the Three adapter a detail of the
+composition host alone. The stages that follow replace what that host still needs it for — held
+frame and render targets on engine framebuffers, comparison on an engine program, the witnesses
+drawing themselves through `drawHostGeometry` — then the draw records' `BufferGeometry` and
+`Material` descriptors and the observation meshes.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
@@ -137,6 +156,14 @@ Representation: column-major `Float64Array`/`Float32Array` like Three, outputs p
 allocation per frame, batched operations (n boxes, n spheres) rather than per object. Replacing
 each Three method while keeping `THREE.Vector3`, `THREE.Matrix4` or `Object3D` in the signatures
 does not count: the dependency is gone when no Three type crosses the engine.
+
+The batched form is part of the runtime's public maths (#80): `packages/sdk-core/mathBatch*.ts`,
+listed in `docs/API.md` § "Batch math for hosts" and taught in `docs/SDK.md` under the same title
+— `n` elements per call on flat arrays or sub-views of a fixed stride, no allocation, each
+repeating the unit function that stays its oracle, exported by `sdk-core`, `sdk-browser` and
+`web-geometry` alike. A WebAssembly kernel exists only where the governor (`mathPathGovernor.ts`)
+has a measured loop to arbitrate; a loop the engine's own frame measures under its clock keeps its
+JavaScript form.
 
 R1c. **Transforms and camera owned by the engine.** The hard part is not the formula but the
 hierarchy: parent/child, update order, dirty marking, negative and non-uniform scales (the sign of
@@ -210,8 +237,10 @@ R4. **Coverage**: pinned roots, per-group fallback onto the resident coarse repr
 a hole, never an exception other than a missing root. Criterion: `tri = selected` at every budget
 ≥ roots.
 R5. **Selection**: WebGPU compute (one thread per cluster, early-reject culling hierarchy,
-previous-frame Hi-Z occlusion); WebGL2 on CPU (culling hierarchy, allocation-free) with a Wasm
-SIMD option if > 2 ms. Criterion: Emerald selection < 1 ms GPU, < 2 ms CPU.
+two-phase Hi-Z occlusion — main pass culled by the previous image's pyramid, post pass re-tested
+by this image's, `gpuPartitionProjectWgsl.ts`); WebGL2 on CPU (culling hierarchy,
+allocation-free) with a Wasm SIMD option if > 2 ms. Criterion: Emerald selection < 1 ms GPU,
+< 2 ms CPU.
 R5b. **Hi-Z test invariant.** The occlusion test never decides that a visible cluster will not be
 drawn: it compares a **strict lower bound** of the depth the cluster will write to an **upper
 bound** of the depth already written on its footprint. The upper bound is the max reduction of the
@@ -278,7 +307,8 @@ longer the trunk but the record itself: `traverse`'s page loop, the per-cluster 
 per-root cost (2,479 world box tests, two matrix products and a plane extraction).
 
 R6. **WebGPU rendering**: visibility buffer, compaction and `drawIndexedIndirect` per cluster,
-software raster bounded to real small triangles, material resolve by binning, deferred lighting
+software raster bounded to real small triangles, material resolve one class per pass under the
+material-depth test (#11; tile binning of classes is not done), deferred lighting
 (GGX, IBL if and when shipped, ACES tone mapping, sRGB), transparents in GPU selection and
 indirect per material, static page table updated per page, zero allocation per frame. Criterion:
 Emerald 1280×720 CPU < 4 ms, GPU < 6 ms, image identical to the reference.
@@ -316,6 +346,42 @@ replays one after the host has taken its lists — and a per-frame flag does not
 after it. Cost of forgetting, measured: 5,918 pixels and a cut of 1,273,565 triangles instead of
 1,599,951, invisible with a still camera. Criterion: **every optimisation of lists, residency or
 pinning is proven with a moving camera**, at both thresholds, in addition to the still poses.
+R6d. **Transmission is a fullscreen pass, not a forward blend.** A material that transmits —
+`KHR_materials_transmission`, with `KHR_materials_ior` and `KHR_materials_volume`; water, thick
+glass — is composed by the water pass (`webgpuWaterPass.ts`), after the ordinary blends, on the
+image they left. Contract, in three steps and one hook (`webgpuWaterFrame.ts` holds the frame side:
+its bind group, its copies and its two passes, rebuilt only when a target or a lighting resource
+changed identity). **(a)** The backdrop is frozen: the lit image is copied once, and the opaque
+depth once into the depth the surface stage tests (`webgpuTransmission.ts`); the composite reads
+the opaque depth itself, which nothing writes in between. **(b)** The surface stage (`WG water
+surfaces`) draws the transmission slice of the blend plan with the blend vertex stage and the blend
+material read (`webgpuBlendShaderSurface.ts`, the single read of a transparent material, shared
+with the blend fragment), into the opaque resolve's own surface buffer — free once that resolve
+consumed it — plus the item's water rank and the opacity (`webgpuWaterSurfaceWgsl.ts`); hardware
+depth is tested against the opaque copy and written, so the nearest surface of a pixel is the one
+composed and a surface behind an opaque never is. **(c)** The composite (`WG water composite`,
+`webgpuWaterCompositeWgsl.ts`) lights each water pixel once, with the engine's only lighting
+formula and its only reflection model — `declaredLighting`, `sampleBounce`, on the deferred bounce
+layout's own binding numbers and WGSL blocks —, refracts the backdrop by the material IOR
+and attenuates it by the volume colour over **the distance the ray travels in the volume: the
+declared thickness, or the distance to the opaque backdrop under the pixel when that is shorter**.
+That bound is what makes the pass water as the reference's single-layer water is: a basin declared
+deeper than its floor renders its floor, a block just below the surface is displaced and tinted by
+its own depth. Over an empty backdrop the transmitted share keeps that emptiness as coverage, and
+the display background shows through. The hook is one line of `encodeBlend`: the pass is encoded
+when the frustum kept a transmissive surface; a diagnostic view or variant, or a capture from a
+second camera, draws the slice as one more blend. Nothing is bound per item any more: the material
+volume is read by water rank — carried above the item's flags, compact over the transmissive items
+— in a storage buffer sized to them, the blend layout lost its three transmission bindings, and the
+transmission slice merges its runs on the blend's terms. Declared limits, shared with the forward
+pass that preceded: one screen-space sample at the exit, never a march, so a ray that crosses an
+object before its exit does not see it; no transmissive surface sees through another. Criterion:
+0 px A/A on the repository fixture (`fixtures/classes-materiaux/transmission.gltf`, the only asset
+in the repository with a transmissive surface — neither bench scene carries one) and on the bench
+scene, whose image the batch does not move; the browser proof
+`test/browser/water-pass-webgpu.browser.mjs` predicts the composed pixel from the material numbers
+alone, paged and unpaged, and holds the still image.
+
 R7. **WebGL2 rendering**: the same lighting formulas in GLSL generated from the same source as the
 WGSL, persistent index buffers, `WEBGL_multi_draw`, one draw per material not per object (instance
 matrices in a texture), sorted transparents, textures and mips managed by the runtime. Criterion:
@@ -415,8 +481,8 @@ What the reference is made of, and our counterpart:
 | Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget | L4              |
 | Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                   | L5              |
 | Reflections                                       | screen traces, then distance fields reading the cache        | none                                                         | L1, L6          |
-| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, cascades, 1 ms budget                            | L3              |
-| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling shipped, sampling not                          | L2              |
+| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | 4096 atlas, page-cached sliding cascades, 1 ms budget        | L3              |
+| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest    | L2 (denoise)    |
 
 What the web imposes, and the answer:
 
@@ -438,10 +504,16 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
 - **L0** — done (Lumière 17, campaign 18 Sept. 2026, Emerald 2496×1404): the sun is 4.7 ms of
   envelope on the ground view and 5.8 ms on the street view (`mobile` − `sans-lumiere`); lighting
   without maps ≤ 0.96 ms (`lampes-4-sans-ombres` − `sans-lumiere`); still camera: 0 page redrawn,
-  envelope no lower. What remains is sampling (L2 / Lumière 13), not a cascade ring.
+  envelope no lower. What remained, the sampling, is L2 below — not a cascade ring.
 - **L1** — screen traces: reflections and short bounce from the already-rendered HDR, depth and
   normal; the cheapest piece of the reference, and the first.
-- **L2** — stochastic direct denoised by TAA (Lumière 13): dozens of lights at the price of one.
+- **L2** — sampling done (#36, 20 Sept. 2026, Emerald 2496×1404, ground view, 32 shadowed
+  lights reaching one pixel): a moving pixel weighs every light of its tile without its shadow,
+  shades the four it draws — exactly those worth a sample's share, stratified for the rest —
+  and the history averages the draws; a still image shades every light and converges to the
+  exact sum, 0 px A/A. Envelope 39.9 → 17.9 ms GPU on a moving camera; the grain left in motion
+  is measured in `docs/SDK.md`. What remains of L2: a spatial denoise before the history,
+  where the reference has one.
 - **L3** — shadows in virtual pages from the hardware raster (Lumière 2, 6, 12): only the pages
   seen, cached. The compute raster has been off since Geometry 26, measurement done.
 - **L4** — baked global distance field, walked in compute, reading the proxy's surface cache.

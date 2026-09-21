@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { sceneNote } from '../scene.mjs';
-import { assertReport, REPORT_VERSION } from '../../../docs/js/reports/contract.js';
+import { assertReport, REPORT_VERSION } from '../../../site/reports/contract.ts';
 
 /** Strip workstation paths from public evidence while retaining measurement fields. */
 function publicData(value) {

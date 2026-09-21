@@ -12,14 +12,23 @@ export function createTileCounters() {
   return {
     served: 0,
     pending: 0,
+    deferred: 0,
     requested: 0,
     atLevel: 0,
     missingAverage: 0,
     bytesLastFrame: 0,
     scratches: 0,
-    /** True when the last pass had image feedback to serve, and what it cost. */
+    /** True when the last pass had tiles to serve. */
     worked: false,
-    lastMs: 0,
+    /** What the last pass cost, on the one clock its budget is read on — the `tilesPumpMs` CPU
+     *  step files it, never a second bracket — and the worst bounded pass of the session. Both are
+     *  `null` for a barrier pass: it lifts the budget and is not a frame's cost. */
+    lastMs: null as number | null,
+    peakMs: null as number | null,
+    pass(ms: number, unbounded: boolean) {
+      this.lastMs = unbounded ? null : ms;
+      if (!unbounded && ms > (this.peakMs ?? -1)) this.peakMs = ms;
+    },
     metrics(atlases: readonly WebgpuTileAtlas[], levels: WebgpuTileLevels | undefined) {
       const sum = (of: (atlas: WebgpuTileAtlas) => number) =>
         atlases.reduce((total, atlas) => total + of(atlas), 0);
@@ -32,10 +41,13 @@ export function createTileCounters() {
         textureTilesAtLevel: this.atLevel,
         textureMissingLevels: this.missingAverage,
         textureTilesPending: this.pending,
+        textureTilesDeferred: this.deferred,
         textureTilesServed: this.served,
         textureTilesEvicted: sum((atlas) => atlas.evictions),
         textureTilesRefused: sum((atlas) => atlas.refused),
         textureBytesLastFrame: this.bytesLastFrame,
+        textureUploadMs: this.worked ? this.lastMs : null,
+        textureUploadPeakMs: this.peakMs,
         textureLevelReads: levels ? levels.inFlight : null,
         textureLevelsDecoded: levels ? levels.fetched : null,
         textureLevelCacheBytes: levels ? levels.bytes : null,

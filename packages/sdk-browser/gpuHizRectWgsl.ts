@@ -4,12 +4,13 @@ import { HIZ_KERNEL_TEXELS } from './hizCounts.ts';
  * Choice of the mip that answers for a screen rectangle ALREADY clipped to the viewport: GPU
  * mirror of `premierNiveau` then of the search `hizTestRect` did box by box on the CPU.
  *
- * This snippet is written once because two kernels depend on it — packing the opaque tested-half
- * bounds and the transparent-cluster occlusion test — and two writings of the same rule would
- * eventually diverge. Neither reads the pyramid here: only the level and whether it exists come
- * out, and a rectangle no mip covers is never rejected.
+ * This snippet is written once because three kernels depend on it — packing the opaque tested-
+ * half bounds, the opaque main-pass cull and the transparent-cluster occlusion test — and two
+ * writings of the same rule would eventually diverge. It reads no pyramid: only the level and
+ * whether it exists come out, and a rectangle no mip covers is never rejected. It travels with
+ * `hiddenByPyramid` below, the only reader outside this module.
  */
-export const HIZ_LEVEL_WGSL = `
+const HIZ_LEVEL_WGSL = `
 /** Mirror of \`premierNiveau\` (hizOcclusion.ts): lowest mip that can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
  if(span<${HIZ_KERNEL_TEXELS}){return 0u;}
@@ -49,5 +50,27 @@ fn pyramidFar(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32)->f32{
  }
  if(!hit){return HIZ_NOTHING;}
  return far;
+}
+`;
+
+/**
+ * Whether a pyramid hides a projected box: the unclipped rectangle is clipped to the viewport,
+ * the mip that covers it is chosen, and the farthest depth read there is compared to the box's
+ * nearest — reverse-Z, so hidden means SMALLER. A rectangle outside the viewport, or one no mip
+ * covers, hides nothing. Reads the shared uniform (`PARTITION_UNI_WGSL`) and `pyramid`, which
+ * the host kernel declares; the opaque main-pass cull and the transparent-cluster test are this
+ * same function on their own inputs, so the two rules cannot diverge.
+ */
+export const HIZ_HIDDEN_WGSL = `${HIZ_LEVEL_WGSL}${HIZ_FAR_WGSL}
+fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
+ let x0=max(rect.x,0);let y0=max(rect.y,0);
+ let x1=min(rect.z,i32(uni.width)-1);let y1=min(rect.w,i32(uni.height)-1);
+ if(x1<x0||y1<y0){return false;}
+ let pick=hizLevelFor(vec4i(x0,y0,x1,y1),uni.levels);
+ if(pick.y==0u){return false;}
+ let l=pick.x;
+ let far=pyramidFar(x0>>l,y0>>l,x1>>l,y1>>l,
+  uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u]);
+ return nearest<far;
 }
 `;

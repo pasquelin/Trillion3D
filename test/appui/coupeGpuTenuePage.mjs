@@ -32,7 +32,8 @@ export async function executer() {
     pixelError: 0,
     clearColor: 0x000000,
     diagnosticDetail: 'summary',
-    onDiagnostic: (e) => evenements.push({ phase: e.phase, message: e.message }),
+    onDiagnostic: (e) =>
+      evenements.push({ phase: e.phase, message: e.message, context: e.context }),
   });
   const camera = wideCamera(),
     images = [];

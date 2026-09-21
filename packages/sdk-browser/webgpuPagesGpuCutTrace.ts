@@ -10,7 +10,14 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   const submitMs = m.cpuEnd - m.encodeStart;
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
-  steps[CPU_STEP.worldMs] = m.blendStart - m.preStart;
+  steps[CPU_STEP.gateMs] = m.gateEnd - m.preStart;
+  // The pass is timed once, on the clock its millisecond budget is read on: the step files that
+  // measure. A pump with no feedback to serve did nothing at all, not zero work — no bound is
+  // filed —, and a barrier image pumps nothing: the pass before it is not this image's cost.
+  const tiles = rt.vis.textures?.counters;
+  const pumped = tiles?.worked && !run.textureConverging ? tiles.lastMs : null;
+  steps[CPU_STEP.tilesPumpMs] = pumped ?? NaN;
+  steps[CPU_STEP.worldMs] = m.blendStart - m.tilesEnd;
   steps[CPU_STEP.blendWorldMs] = m.cpuStart - m.blendStart;
   steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart;
   steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.lightsEnd;

@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../sdk-core/index.ts';
+import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentOcclusion } from './gpuTransparentOcclusion.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
 import type { BlendExpand } from './webgpuBlendExpand.ts';
+import type { WaterPass } from './webgpuWaterPass.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 
 export type BlendGpuItem = {
@@ -29,6 +31,8 @@ export type BlendGpuItem = {
   worldBox?: Float64Array;
   rgba: [number, number, number, number];
   map?: THREE.Texture;
+  /** Material flags (`visibilityTypes.ts`) in the low sixteen bits; above them the one-based water
+   *  rank of a transmissive item, zero for a blend (`webgpuWaterSurfaceWgsl.ts`). */
   flags: number;
   /** Wrap of the material's six maps, one nibble each (`visibilityWrapModes.ts`). */
   wrapModes: number;
@@ -78,14 +82,21 @@ export function createWebgpuBlendState() {
     dirtySpans: new Set<number>(),
     /** Instances each item drew this image; only a CPU cut counts them, a GPU cut does not. */
     cpuItemCounts: new Uint32Array(0),
-    /** Lighting resources the current bind groups were built on: the shadow atlas and the probe
-     *  grid only arrive after the first frames. */
+    /** What the transparent groups currently name: a moved identity voids them. */
+    identity: createWebgpuBindIdentity(),
+    /** Lighting resources of the image, resolved once by `encodeBlend`: the blends, the water
+     *  surfaces and the water composite bind the same. */
     lighting: undefined as BlendLighting | undefined,
-    /** How many transparent items transmit: zero means no background copy is allocated or encoded,
-     *  and the transmission pass does not exist of the frame. */
+    /** How many transparent items transmit: zero means no backdrop is allocated, and the water pass
+     *  does not exist of the scene. `transmissiveInView` is how many the frustum kept this image:
+     *  zero, and the pass is not encoded (`webgpuBlendOrder.ts`). */
     transmissive: 0,
-    /** Volume of each item of the draw list, at uniform write. */
+    transmissiveInView: 0,
+    /** Volume of each transmissive item, at its water rank, written with the records. */
     volumePacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
+    /** The water pass — surface pipelines and composite — of a scene that transmits, mounted with
+     *  the blend pipelines; absent, the transmission slice draws as a blend (`webgpuWaterPass.ts`). */
+    water: undefined as WaterPass | undefined,
     /** Per-catalogue-entry cluster identity, and the mode it was written for. */
     clusterIdentity: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     diagnosticMode: undefined as DiagnosticMode | undefined,

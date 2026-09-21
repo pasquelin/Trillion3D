@@ -80,16 +80,16 @@ export function flatOf(objects, stride, out) {
 }
 
 /**
- * One measure with two lines: `three` timed, then `core` timed, each running its operation and
- * nothing else on `size` elements. `oracle` reads Three's result untimed; `core` returns the
- * engine's. Without `tolerance`, the two must be equal bit for bit; with it, the largest absolute
- * difference must stay under it and the line counts the values that differ. `motif` names what
- * the comparison leaves out, when it leaves something out.
+ * One row, `three` the perf base's witness and `core` the calculation, each running its operation
+ * and nothing else on `size` elements. `oracle` reads Three's result untimed, after one run of
+ * `three`; `core` returns the engine's. Without `tolerance`, the two must be equal bit for bit;
+ * with it, the largest absolute difference must stay under it and the line counts the values that
+ * differ. `motif` names what the comparison leaves out, when it leaves something out.
  *
  * `slower` is for the one case where the two sides do not compute the same thing: `{ atMost, reason }`
- * lets the engine reach `atMost` times Three, on the MEDIAN — the statistic the table prints — and
- * the measured ratio and the reason go on the line. It is a declaration, not a waiver: the ceiling
- * still fails the test, and a line without `slower` is gated on its best time and must win.
+ * lets the engine reach `atMost` times Three, on the MEDIAN — the statistic the `vs witness` column
+ * prints — and the ceiling and the reason go on the line. It is a declaration, not a waiver: the
+ * ceiling still fails the test, and a line without `slower` is gated on its best time and must win.
  */
 export async function duel({
   name,
@@ -102,8 +102,6 @@ export async function duel({
   motif,
   slower,
 }) {
-  const cas = [{ name, size, input: null }];
-  const witness = await mesure({ name, fichier, cas, calcul: three, motif: 'Three.js witness' });
   let maxAbs = 0;
   const differences = (ref, obt, chemin) => {
     const c = compteur();
@@ -118,35 +116,40 @@ export async function duel({
   const engine = await mesure({
     name,
     fichier,
-    cas,
+    cas: [{ name, size, input: null }],
+    temoin: three,
     calcul: core,
-    attendu: oracle,
+    attendu: () => {
+      three();
+      return oracle();
+    },
     motif,
     ...(tolerance === undefined ? {} : { differences }),
   });
-  if (tolerance !== undefined)
-    engine.resultats[0].motif = `largest gap ${maxAbs.toExponential(1)} ; ${engine.resultats[0].motif}`;
-  const t = { ...witness.resultats[0], name: `${name} · Three.js` },
-    c = { ...engine.resultats[0], name: `${name} · sdk-core` };
-  const ratio = slower ? c.medianeMs / t.medianeMs : null;
+  const c = engine.resultats[0],
+    t = c.temoin;
+  if (tolerance !== undefined) c.motif = `largest gap ${maxAbs.toExponential(1)} ; ${c.motif}`;
   if (slower)
-    c.motif = [`${ratio.toFixed(2)}× Three.js (median): ${slower.reason}`, c.motif]
+    c.motif = [`declared up to ${slower.atMost}× Three.js: ${slower.reason}`, c.motif]
       .filter(Boolean)
       .join(' ; ');
   test(`${name}: same result as Three.js, at least as fast`, () => {
     if (tolerance !== undefined)
       assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`);
     else assert.equal(c.correct, true, `${name}: ${c.difference}`);
-    if (slower)
+    if (slower) {
+      // The median ratio the `vs witness` column prints, read as a quotient so that a witness
+      // without a median (`ecartTemoin` null) fails the gate instead of reading as 1.
+      const ratio = c.medianeMs / t.medianeMs;
       assert.ok(
         ratio <= slower.atMost,
         `${name}: sdk-core median ${ratio.toFixed(2)}× Three.js, above the declared ${slower.atMost}× (${slower.reason})`,
       );
-    else
+    } else
       assert.ok(
         c.minMs <= t.minMs,
         `${name}: sdk-core best ${c.minMs.toFixed(3)} ms above Three.js ${t.minMs.toFixed(3)} ms`,
       );
   });
-  return { name, fichier, resultats: [t, c] };
+  return engine;
 }

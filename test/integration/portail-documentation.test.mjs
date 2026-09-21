@@ -6,17 +6,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { ISSUES, SECTIONS } from '../../site/content/model.ts';
+import { DEMOS } from '../../site/demos/registry.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const DOCS = join(ROOT, 'docs/js');
+const CONTENT = join(ROOT, 'site/content');
 
 const modules = await Promise.all(
-  readdirSync(DOCS)
-    .filter((name) => name.startsWith('docsContent'))
-    .map((name) => import(join(DOCS, name))),
+  readdirSync(join(CONTENT, 'entries')).map((name) => import(join(CONTENT, 'entries', name))),
 );
 const ENTRIES = modules.flatMap((module) => Object.values(module).flat());
-const { ISSUES, SECTIONS } = await import(join(DOCS, 'docsModel.js'));
 
 /** Names a file declares or re-exports, read once per file. */
 const exportsOf = new Map();
@@ -71,7 +70,7 @@ function signatureArguments(signature, name) {
 }
 
 test('a documented signature takes the arguments the function really takes', async () => {
-  const engine = await import(join(ROOT, 'docs/js/engine.js'));
+  const engine = await import(join(ROOT, 'site/demos/engine.ts'));
   for (const entry of ENTRIES) {
     if (entry.issue || !entry.signature || !entry.exports) continue;
     for (const symbol of entry.exports) {
@@ -153,8 +152,7 @@ test('examples cannot treat arbitrary implementation files as public modules', (
   assert.equal(exampleModule('packages/sdk-browser/explorer.ts'), null);
 });
 
-test('every demo belongs to an entry of the portal', async () => {
-  const { DEMOS } = await import(join(DOCS, 'demoRegistry.js'));
+test('every demo belongs to an entry of the portal', () => {
   const ids = new Set(ENTRIES.map((entry) => entry.id));
   for (const id of Object.keys(DEMOS)) assert.ok(ids.has(id), `demo ${id} has no entry`);
 });

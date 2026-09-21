@@ -2,6 +2,7 @@ import { SHADOW_CULL_FLOATS } from '../sdk-core/index.ts';
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from './gpuDraw.ts';
 import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
 import { SHADOW_CULL_SHADER } from './gpuShadowCullShader.ts';
+import { createGpuShadowCullCounts } from './gpuShadowCullCounts.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
@@ -41,7 +42,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const indirect = device.createBuffer({
     label: 'WG shadow indirect v1',
     size: MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
-    usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE,
+    // `COPY_SRC` for the periodic sample of the kept counts, a diagnostic outside the pass.
+    usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
   const faceVolumes = device.createBuffer({
     label: 'WG shadow face volumes v1',
@@ -59,9 +61,11 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     size: MAX_SHADOW_REGIONS * PAGE_BIND_ALIGN,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
+  const counts = createGpuShadowCullCounts(device);
   const all = [kept, indirect, faceVolumes, uniforms, live, offsets, drawUniform];
   const release = () => {
     for (const buffer of all) buffer.destroy();
+    counts.dispose();
   };
   try {
     // Each region's place in the shared list, and its draw slot: set once.
@@ -102,6 +106,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       offsets,
       drawUniform,
       volumes,
+      /** Periodic sample of what the region culls kept, read after submission. */
+      counts,
       /** Pushes the volumes of the first `faces` faces: one write, never one per face. */
       flushVolumes(faces: number) {
         if (faces) device.queue.writeBuffer(faceVolumes, 0, volumes, 0, faces * SHADOW_CULL_FLOATS);

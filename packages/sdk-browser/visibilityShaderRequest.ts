@@ -17,7 +17,8 @@ import { quartet } from './visibilityShaderMaps.ts';
  * (`directShadowWgsl.ts`), copied into the pass uniform: binding the slice buffer would give
  * it one more lifetime on the bind group — rebuilt when a shadow is born or dies —
  * for five hundred bytes copied per frame. The host shader declares `uni.sun`, `uni.feedback`,
- * `PageInfo`, `vertUv`, `wrapOf` and `TILE_REQUEST_WGSL` before this block.
+ * `PageInfo`, `vertUv`, `wrapOf`, `TILE_REQUEST_WGSL` and the class overrides `HAS_UV`,
+ * `HAS_MAP` and `HAS_MASK` (`visibilityMaterialClass.ts`) before this block.
  */
 const HEADER_WORDS = 24;
 /** Words of the resolve uniform: the header, then the sun slice. */
@@ -44,9 +45,9 @@ fn cascadeGradient(c:u32,w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec
 }
 /** Tile rank this pixel asks for, plus one, or zero. */
 fn shadeRequest(page:PageInfo,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
- if((page.flags&12u)!=12u||!feedbackPhase(pos,uni.feedback)){return 0u;}
+ if(!(HAS_UV&&HAS_MAP)||!feedbackPhase(pos,uni.feedback)){return 0u;}
  let p=requestPick(pos,MAP_CHOICES+SUN_CASCADES);
- if(p.sel>=MAP_CHOICES&&(page.flags&128u)!=0u){
+ if(p.sel>=MAP_CHOICES&&HAS_MASK){
   let uva=vertUv(page.vertexBase,i0);
   let g=cascadeGradient(p.sel-MAP_CHOICES,w0,w1,w2,vertUv(page.vertexBase,i1)-uva,vertUv(page.vertexBase,i2)-uva,wp);
   if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,${quartet('base')},g.xy,g.zw,p.next);}

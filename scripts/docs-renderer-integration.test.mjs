@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { rendererLessons, rendererInitialState } from '../docs/js/gallery/rendererLessons.js';
-import { rendererCodeFor } from '../docs/js/gallery/rendererLessonCode.js';
-import { syncRendererState } from '../docs/js/gallery/syncRendererState.js';
-import { galleryRoadmapEntry, relatedReadyLesson } from '../docs/react/gallery/roadmapRelated.js';
-import roadmap from '../docs/data/gallery-roadmap.json' with { type: 'json' };
+import { rendererLessons, rendererInitialState } from '../site/lessons/rendererLessons.ts';
+import { rendererCodeFor } from '../site/lessons/rendererLessonCode.ts';
+import { syncRendererState } from '../site/lessons/syncRendererState.ts';
+import { galleryRoadmapEntry, relatedReadyLesson } from '../site/app/gallery/roadmapRelated.ts';
+import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 import { transformSync } from 'esbuild';
 import { loadReactComponents } from './docs/render-react.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-const { Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
+const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
 
 test('every integrated renderer lesson emits complete parseable host code', () => {
   for (const lesson of rendererLessons) {
@@ -34,7 +34,7 @@ test('every integrated renderer lesson emits complete parseable host code', () =
 
 test('live renderer lessons use diverse original scenes and matching captures', () => {
   const live = rendererLessons.filter((lesson) => lesson.kind !== 'offline');
-  assert.equal(live.length, 15);
+  assert.equal(live.length, 17);
   const scenes = new Map();
   for (const lesson of live)
     scenes.set(lesson.manifest, [...(scenes.get(lesson.manifest) ?? []), lesson.id]);
@@ -54,12 +54,12 @@ test('live renderer lessons use diverse original scenes and matching captures', 
 test('the LOD lesson uses a compiled multi-level cache', async () => {
   const lesson = rendererLessons.find(({ id }) => id === 'runtime-pixel-error');
   const pointer = JSON.parse(
-    await readFile(new URL(`../docs/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
+    await readFile(new URL(`../site/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
   );
   const manifest = JSON.parse(
     await readFile(
       new URL(
-        `../docs/${lesson.manifest.slice(2).replace('manifest.json', pointer.url)}`,
+        `../site/${lesson.manifest.slice(2).replace('manifest.json', pointer.url)}`,
         import.meta.url,
       ),
       'utf8',
@@ -88,14 +88,14 @@ test('the LOD lesson uses a compiled multi-level cache', async () => {
 
   const proof = JSON.parse(
       await readFile(
-        new URL('../docs/assets/gallery/proofs/observatory-proof.json', import.meta.url),
+        new URL('../site/assets/gallery/proofs/observatory-proof.json', import.meta.url),
         'utf8',
       ),
     ),
     [fine, coarse, restored] = [proof.samples[0], proof.samples[2], proof.samples[3]],
     captures = await Promise.all([
-      readFile(new URL('../docs/assets/gallery/proofs/observatory-detail-0.png', import.meta.url)),
-      readFile(new URL('../docs/assets/gallery/proofs/observatory-detail-8.png', import.meta.url)),
+      readFile(new URL('../site/assets/gallery/proofs/observatory-detail-0.png', import.meta.url)),
+      readFile(new URL('../site/assets/gallery/proofs/observatory-detail-8.png', import.meta.url)),
     ]);
   assert.deepEqual(proof.resolution, [1600, 1040]);
   assert.equal(proof.dpr, 2);
@@ -119,12 +119,12 @@ test('renderer badges link only to documented API entries', () => {
 test('the shadow switch uses its original theatre and keeps direct light in both states', async () => {
   const lesson = rendererLessons.find(({ id }) => id === 'shadow-casting-switch'),
     pointer = JSON.parse(
-      await readFile(new URL(`../docs/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
+      await readFile(new URL(`../site/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
     ),
     manifest = JSON.parse(
       await readFile(
         new URL(
-          `../docs/${lesson.manifest.slice(2).replace('manifest.json', pointer.url)}`,
+          `../site/${lesson.manifest.slice(2).replace('manifest.json', pointer.url)}`,
           import.meta.url,
         ),
         'utf8',
@@ -145,10 +145,10 @@ test('the shadow switch uses its original theatre and keeps direct light in both
   assert.match(markup, /aria-busy="true"[^>]*class="[^"]*invisible/);
   const [onCapture, offCapture] = await Promise.all([
     readFile(
-      new URL('../docs/assets/gallery/proofs/shadow-casting-switch-on.png', import.meta.url),
+      new URL('../site/assets/gallery/proofs/shadow-casting-switch-on.png', import.meta.url),
     ),
     readFile(
-      new URL('../docs/assets/gallery/proofs/shadow-casting-switch-off.png', import.meta.url),
+      new URL('../site/assets/gallery/proofs/shadow-casting-switch-off.png', import.meta.url),
     ),
   ]);
   assert.notDeepEqual(onCapture, offCapture);
@@ -181,7 +181,7 @@ test('full reference topics become ready links to their actual lesson', () => {
   const ready = roadmap.entries
     .map(galleryRoadmapEntry)
     .filter(({ readyLessonId }) => readyLessonId);
-  assert.equal(ready.length, 10);
+  assert.equal(ready.length, 12);
   for (const entry of ready) {
     const lesson = rendererLessons.find(({ id }) => id === entry.readyLessonId);
     assert.equal(lesson.referenceCoverage[entry.id], 'full');
