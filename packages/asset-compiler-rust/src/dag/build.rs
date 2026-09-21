@@ -64,16 +64,9 @@ pub fn build_dag_tallied(
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
         return Ok(build(dag, reductions_kept, tallies, &vertices));
     }
-    let (mut weld, weld_seam) = {
+    let mut welds = {
         let _t = Timer::new(Phase::Weld);
-        let uvs = vertices
-            .attributes
-            .iter()
-            .find(|a| a.flag == crate::geometry_page::FLAG_UV);
-        (
-            Weld::by_position(vertices.positions, indices),
-            uvs.map(|uv| weld_positions_and_uv(vertices.positions, &uv.values, indices)),
-        )
+        Welds::of(&vertices, indices)
     };
     let mut current: Vec<usize> = (0..dag.len()).collect();
     for level in 1..=DAG_MAX_LEVELS {
@@ -103,17 +96,24 @@ pub fn build_dag_tallied(
         if groups.len() >= current.len() {
             break;
         }
-        let locks = {
+        // Texture seams, reread on the welds the previous level extended: a seam vertex is
+        // never moved, but its attributes are solved, so the copy that carries them is a
+        // created vertex that must stay protected.
+        let (locks, protect) = {
             let _t = Timer::new(Phase::Locks);
-            level_locks(&weld, &lists, &groups)
+            (
+                level_locks(&welds.position, &lists, &groups),
+                welds.texture_seams(),
+            )
         };
         let input = GroupReductionInput {
             strategy,
             positions: vertices.positions,
             attributes: vertices.attributes,
             locks: &locks,
-            weld: &weld,
-            weld_seam: weld_seam.as_deref().unwrap_or(&weld),
+            protect: &protect,
+            weld: &welds.position,
+            weld_seam: welds.seam.as_deref().unwrap_or(&welds.position),
         };
         let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
             .par_iter()
@@ -185,7 +185,7 @@ pub fn build_dag_tallied(
                 outputs,
             });
         }
-        weld.extend(vertices.positions);
+        welds.extend(&vertices);
         tallies.push(tally);
         if next.is_empty() {
             break;

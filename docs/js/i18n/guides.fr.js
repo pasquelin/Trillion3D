@@ -1,4 +1,7 @@
+import { guidesCompilerFr } from './guidesCompiler.fr.js';
+
 export const guidesFr = {
+  ...guidesCompilerFr,
   'example-many-lights': {
     title: 'Beaucoup de lumières, un seul budget',
     description:

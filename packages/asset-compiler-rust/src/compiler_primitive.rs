@@ -109,10 +109,8 @@ pub(super) fn compile_primitive(
     };
     let is_skinned_or_morph = p.get("targets").is_some()
         || skinned_meshes.contains(old)
-        || p.get("attributes")
-            .and_then(Value::as_object)
-            .map(|a| a.contains_key("JOINTS_0") || a.contains_key("WEIGHTS_0"))
-            .unwrap_or(false);
+        || p["attributes"].get("JOINTS_0").is_some()
+        || p["attributes"].get("WEIGHTS_0").is_some();
     let material = if let Some(material) = p.get("material") {
         let id = required_index(Some(material), "primitive.material")?;
         values(g, "materials")?.get(id)
@@ -144,11 +142,14 @@ pub(super) fn compile_primitive(
     };
     // One vertex per (position, attributes) tuple, whatever the source format wrote
     // (`compiler_primitive_weld.rs`); the surface is the same, the DAG sees one mesh.
-    let weld = dag_primitive
-        .then(|| compiler_primitive_weld::weld_identical(&pos, &attributes, &mut index_values));
-    let topology = {
+    let (weld, topology) = {
         let _t = perf::Timer::new(perf::Phase::Topology);
-        crate::topology::classify_topology(&index_values, positions.count)?
+        compiler_primitive_weld::prepare_indices(
+            dag_primitive,
+            &pos,
+            &attributes,
+            &mut index_values,
+        )?
     };
     let scale = mesh_scales.get(old).copied();
     let demand = crate::proxy::cut::cut_demand(
@@ -193,6 +194,6 @@ pub(super) fn compile_primitive(
         // The threshold is back in object space: it goes out in metres for the report.
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
         coarse_vertices,
-        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"vertices":weld.map_or(Value::Null,|weld|json!({"source":positions.count,"used":weld.vertices,"welded":weld.welded,"coarse":added_vertices})),"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
+        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"vertices":weld.map_or(Value::Null,|weld|json!({"source":positions.count,"used":weld.vertices,"welded":weld.welded,"weldRefused":weld.refused,"coarse":added_vertices})),"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }

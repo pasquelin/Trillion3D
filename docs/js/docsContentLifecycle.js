@@ -22,7 +22,7 @@ export const LIFECYCLE = [
       { name: 'budget', desc: 'Triangle budget, `150000` by default.' },
       {
         name: 'options',
-        desc: "`{ resourceBaseUrl, executable, threads = 2, ramBudgetMb = 256, simplification = 'none', signal, onProgress }`. `WEB_GEOMETRY_COMPILER_BIN` names the executable when `executable` does not.",
+        desc: "`{ resourceBaseUrl, executable, threads = 2, ramBudgetMb = 256, simplification = 'none', signal, onProgress }`. `simplification` is `'none'`, `'qem-endpoints'` or `'qem-attributes'` — what the cluster DAG may hold above the exact clusters, explained in the guide *Simplification: the cluster DAG and its two quadrics*. `WEB_GEOMETRY_COMPILER_BIN` names the executable when `executable` does not.",
       },
     ],
     example: `import { prepare } from 'web-geometry';

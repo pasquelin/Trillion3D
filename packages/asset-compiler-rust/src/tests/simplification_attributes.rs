@@ -127,6 +127,25 @@ fn a_texture_seam_is_kept_and_never_interpolated_across() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 
+// Behaviour: a coarse level made of solved vertices is never the source bit for bit, so it
+// carries a positive error and a threshold of zero draws level zero alone — even where the
+// collapses themselves were lossless.
+#[test]
+fn a_solved_level_carries_a_positive_error() {
+    let (root, result, _, _) = compiled("qem-attributes");
+    let pages = result["primitives"][0]["pages"].as_array().expect("pages");
+    let coarse = pages
+        .iter()
+        .filter(|page| page["level"] != json!(0))
+        .count();
+    assert!(coarse > 0);
+    for page in pages.iter().filter(|page| page["level"] != json!(0)) {
+        let error = page["lodError"].as_f64().expect("lodError");
+        assert!(error > 0.0, "a coarse page with error {error}");
+    }
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
 // Behaviour: two compilations of the same scene write the same bytes, created vertices included.
 #[test]
 fn two_compilations_write_the_same_vertices() {

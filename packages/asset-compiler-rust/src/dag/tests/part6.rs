@@ -27,7 +27,7 @@ fn a_vertex_soup_still_climbs_to_a_single_root() {
         tallies.iter().any(|t| t.welded > 0),
         "at least one group had to weld"
     );
-    let weld = Weld::by_position(&positions, &indices);
+    let weld = PositionWeld::by_position(&positions, &indices);
     for cluster in dag.iter().filter(|c| c.level > 0) {
         for &id in &cluster.indices {
             assert_eq!(
@@ -70,4 +70,48 @@ fn lock_triangles_touching_locks_every_corner_of_a_triangle_that_lost_a_lock() {
 fn live_triangles_drops_a_triangle_with_two_corners_on_one_position() {
     let kept = live_triangles([0u32, 1, 2, 3, 3, 4, 5, 6, 5, 7, 8, 9].into_iter());
     assert_eq!(kept, vec![0, 1, 2, 7, 8, 9]);
+}
+
+// Behaviour: under the attribute strategy the soup climbs to a single root too: its fallback
+// weld follows the buffer that the created vertices grow, level after level (measured: Emerald,
+// a cluster index of 3 259 against a seam weld of 1 899 entries before the weld followed).
+#[test]
+fn a_vertex_soup_climbs_under_the_attribute_strategy_as_its_welds_follow_the_buffer() {
+    let (mut positions, indices) = soup(64);
+    let source = positions.len() / 3;
+    let uvs: Vec<f32> = (0..source)
+        .flat_map(|v| [positions[v * 3] / 64.0, positions[v * 3 + 1] / 64.0])
+        .collect();
+    let mut attributes = [Attribute {
+        offset: 24,
+        width: 2,
+        source_width: 2,
+        flag: crate::geometry_page::FLAG_UV,
+        values: uvs,
+    }];
+    let built = build_dag_tallied(
+        DagVertices {
+            positions: &mut positions,
+            attributes: &mut attributes,
+        },
+        &indices,
+        DagStrategy::QemAttributes,
+        &|| Ok(()),
+    )
+    .expect("dag");
+    assert_eq!(built.clusters.iter().filter(|c| c.is_root()).count(), 1);
+    assert!(built.added_vertices > 0, "coarse levels created vertices");
+    assert!(
+        built.tallies.iter().any(|t| t.welded > 0),
+        "the fallback weld was used"
+    );
+    let count = positions.len() / 3;
+    assert_eq!(
+        attributes[0].values.len(),
+        count * 2,
+        "every attribute follows the buffer"
+    );
+    for cluster in &built.clusters {
+        assert!(cluster.indices.iter().all(|&id| (id as usize) < count));
+    }
 }

@@ -10,7 +10,7 @@ export const lifecycleFr = {
       { desc: "`'slice'` ou `'full'`." },
       { desc: 'Budget de triangles, `150000` par défaut.' },
       {
-        desc: "`{ resourceBaseUrl, executable, threads = 2, ramBudgetMb = 256, simplification = 'none', signal, onProgress }`. `WEB_GEOMETRY_COMPILER_BIN` désigne l’exécutable si `executable` est absent.",
+        desc: "`{ resourceBaseUrl, executable, threads = 2, ramBudgetMb = 256, simplification = 'none', signal, onProgress }`. `simplification` vaut `'none'`, `'qem-endpoints'` ou `'qem-attributes'` — ce que le DAG de grappes peut porter au-dessus des grappes exactes, expliqué dans le guide *Simplification : le DAG de grappes et ses deux quadriques*. `WEB_GEOMETRY_COMPILER_BIN` désigne l’exécutable si `executable` est absent.",
       },
     ],
   },

@@ -13,8 +13,9 @@
 //!   its normal stands for the others, that is the declared cost — and level
 //!   zero is unchanged. Welding texture seams too was tried and measured: Emerald
 //!   facades at the 2 px threshold drew with the texture from the other side of
-//!   the seam. Refused. `QemAttributes` has no such fallback: it solves the
-//!   survivor's attributes instead of choosing a copy (`reduce_attributes.rs`).
+//!   the seam. Refused. Under `QemAttributes` the welded survivor's attributes
+//!   are solved rather than chosen (`reduce_attributes.rs`), and the weld follows
+//!   the buffer as coarse levels create vertices.
 //! - **Added locks.** On foliage, a chart whose edge is shared with another group
 //!   disappears when its free vertices collapse onto locked vertices, and the
 //!   other group keeps its half (measured: 92 groups of 123 lost that way, 339
@@ -90,9 +91,8 @@ pub(super) fn reduce_group(
         raw => {
             let welded_indices =
                 live_triangles(merged.iter().map(|&i| input.weld_seam[i as usize]));
-            // Already indexed mesh, with no copy to weld, does not restart for same result;
-            // neither does the attribute strategy, which has no copy to choose.
-            let welded = if welded_indices == live || input.strategy != DagStrategy::QemEndpoints {
+            // Already indexed mesh, with no copy to weld, does not restart for same result.
+            let welded = if welded_indices == live {
                 Err(GroupOutcome::NoCollapse)
             } else {
                 attempt(input, &welded_indices)?

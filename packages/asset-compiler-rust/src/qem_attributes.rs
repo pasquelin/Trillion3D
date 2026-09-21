@@ -3,9 +3,19 @@
 //! then solves every surviving vertex — position and attributes — to the minimum of its
 //! accumulated quadric. A locked vertex is neither moved nor rewritten; a vertex on an attribute
 //! seam or a mesh border keeps its position and only its attributes are solved.
+//!
+//! The simplifier runs permissive: a copied position — a hard edge, a vertex colour step — may
+//! collapse across its seam, all copies moving together and their attributes solved afterwards,
+//! except where a copy is flagged `PROTECT`: there the seam is kept and only slid along.
 use crate::qem::compact_region;
 use crate::{invalid, Result};
 use meshopt::{SimplifyOptions, VertexDataAdapter};
+
+/// Per-vertex flag: the vertex is neither moved nor rewritten.
+pub const LOCK: u8 = 1;
+/// Per-vertex flag: the attribute seam at this vertex is kept; the position may still slide
+/// along it.
+pub const PROTECT: u8 = 2;
 
 /// A region after simplification, in its own local vertex space: `positions` and `attributes`
 /// are the region's vertices as solved, `remap` names in the source buffer the vertex each local
@@ -16,14 +26,43 @@ pub struct UpdatedRegion {
     /// Interleaved, `stride` floats per local vertex.
     pub attributes: Vec<f32>,
     pub remap: Vec<u32>,
-    /// Object-space error of the reduction: distance to the surface and weighed attribute
-    /// deviation, in the units of `positions`.
+    /// Object-space error of the collapses: distance to the surface and weighed attribute
+    /// deviation, in the units of `positions`. The solve that follows the collapses is not in
+    /// it: `deviation` measures what it moved.
     pub error_object: f64,
+    /// Object units per unit of the region's extent: what a weighed attribute deviation, which
+    /// the simplifier counts against that extent, is multiplied by to join `error_object`.
+    pub scale: f64,
+}
+impl UpdatedRegion {
+    /// Object-space distance between a local vertex as solved and the source vertex it started
+    /// from: its displacement and its weighed attribute deviation, brought to object units.
+    pub fn deviation(
+        &self,
+        local: usize,
+        source: &[f32],
+        attributes: &[f32],
+        weights: &[f32],
+    ) -> f64 {
+        let stride = weights.len();
+        let squared: f64 = self.positions[local * 3..local * 3 + 3]
+            .iter()
+            .zip(source)
+            .map(|(solved, from)| (*solved as f64 - *from as f64).powi(2))
+            .sum();
+        let mut attribute = 0.0f64;
+        for (k, weight) in weights.iter().enumerate() {
+            let delta = self.attributes[local * stride + k] as f64 - attributes[k] as f64;
+            attribute += (*weight as f64 * delta).powi(2);
+        }
+        (squared + attribute * self.scale * self.scale).sqrt()
+    }
 }
 
-/// Simplifies a region to `target_triangles`, with `locked` queried on source vertex indices and
-/// `gather` producing the interleaved attributes of the region's vertices, `weights.len()` per
-/// vertex. `None` when the simplifier removed no triangle: the region is then what it was.
+/// Simplifies a region to `target_triangles`, with `flags` — `LOCK`, `PROTECT` — queried on
+/// source vertex indices and `gather` producing the interleaved attributes of the region's
+/// vertices, `weights.len()` per vertex. `None` when the simplifier removed no triangle: the
+/// region is then what it was.
 pub fn simplify_region_with_attributes(
     positions: &[f32],
     indices: &[u32],
@@ -31,7 +70,7 @@ pub fn simplify_region_with_attributes(
     weights: &[f32],
     target_triangles: usize,
     target_error: f32,
-    locked: &dyn Fn(u32) -> bool,
+    flags: &dyn Fn(u32) -> u8,
 ) -> Result<Option<UpdatedRegion>> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) {
         return Err(invalid("Index count must be a positive multiple of three"));
@@ -51,7 +90,7 @@ pub fn simplify_region_with_attributes(
             "Attribute count differs from the region's vertices",
         ));
     }
-    let locks: Vec<u8> = remap.iter().map(|&s| u8::from(locked(s))).collect();
+    let locks: Vec<u8> = remap.iter().map(|&s| flags(s)).collect();
     let scale = {
         let bytes = unsafe {
             std::slice::from_raw_parts(compact_pos.as_ptr() as *const u8, compact_pos.len() * 4)
@@ -78,7 +117,7 @@ pub fn simplify_region_with_attributes(
             locks.as_ptr(),
             target_triangles.max(1) * 3,
             target_error,
-            SimplifyOptions::None.bits(),
+            SimplifyOptions::Permissive.bits(),
             &mut result_error,
         )
     };
@@ -93,6 +132,7 @@ pub fn simplify_region_with_attributes(
         attributes,
         remap,
         error_object: (result_error as f64) * scale,
+        scale,
     }))
 }
 

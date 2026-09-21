@@ -151,9 +151,12 @@ struct GroupReductionInput<'a> {
     positions: &'a [f32],
     attributes: &'a [Attribute],
     locks: &'a [bool],
+    /// Source vertices on a texture seam: `QemAttributes` protects them from a collapse across
+    /// the seam while it lets every other copied position collapse (`weld.rs`).
+    protect: &'a [bool],
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
-    /// Canonical vertex by (position, uv): fallback reduction weld of `QemEndpoints`.
+    /// Canonical vertex by (position, uv): the weld a stalled reduction falls back on.
     weld_seam: &'a [u32],
 }
 
