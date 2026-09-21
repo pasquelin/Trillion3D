@@ -36,7 +36,7 @@ const M4A = [
   'explorerViewportApi',
   'hostSceneHookCore',
   'hostSceneHooks',
-  'hostSceneHooksLight',
+  'hostSceneScan',
   'hostSceneWatch',
   'hostWorldBounds',
   'hostWorldChain',

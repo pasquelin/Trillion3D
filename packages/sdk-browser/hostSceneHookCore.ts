@@ -1,114 +1,89 @@
-/** What every host hook shares: the revisions it bumps, and the accessor a hooked field becomes. */
+/** What every host hook shares: the revision it bumps, and the hooked twin a node's vector becomes. */
 
 /**
- * Revisions a watch owns. Every write the host makes on one of the nodes hooked for it — a
- * pose, a visibility, a light's number — increments `revision` at the instant of the write, so
- * the frame compares one integer instead of rereading the graph. A write that changes WHICH
- * objects are read (a light retargeted, a node reparented) also increments `shape`: the watched
- * set is to be rebuilt, where a pose write leaves it as it stands.
+ * Revision a watch owns. Every write the host makes on the hooked pose of one of its nodes —
+ * a position, a scale, a rotation — increments it at the instant of the write, so the frame
+ * compares one integer instead of rereading those numbers.
  */
 export interface WriteRevision {
   revision: number;
-  shape: number;
 }
 
-/** Hook of one host node: the revisions it bumps, and how to take every accessor back. */
+/** Hook of one host node: the revisions its writes bump. Empty once every watch has left. */
 export interface Hook {
   revisions: WriteRevision[];
-  undo: Array<() => void>;
 }
 
-export function bump(hook: Hook, shape = false) {
+export function bump(hook: Hook) {
   const list = hook.revisions;
-  for (let i = 0; i < list.length; i++) {
-    list[i].revision++;
-    if (shape) list[i].shape++;
-  }
+  for (let i = 0; i < list.length; i++) list[i].revision++;
 }
 
-/** The plain data field a hooked one becomes again. */
-const plain = (target: object, key: string, value: unknown) =>
-  Object.defineProperty(target, key, {
-    configurable: true,
-    enumerable: true,
-    writable: true,
-    value,
-  });
+const HOOK = Symbol('hook'),
+  TWIN = Symbol('twin');
+const XYZ = ['x', 'y', 'z'] as const;
+type Key = (typeof XYZ)[number];
+type Hooked = Record<string, number> & { [HOOK]: Hook };
 
 /**
- * Redefines a data field as an accessor of the instance: a write of ANOTHER value is announced
- * to `written` — every write when `always`, for a flag whose repeated raise means something.
- * The undo restores the field with the value it holds.
+ * One prototype per plain one, shared by every hooked vector: the accessors live there, over
+ * `_x`, `_y`, `_z` fields of the instance — the shape the reference gives its own quaternion.
+ * No field of an existing object is ever redefined: V8 drops an object whose data field
+ * becomes an accessor into dictionary mode for good, and the reference's matrix walk over
+ * such nodes costs several times its price (measured in `bench/scene-hooks.perf.mjs`).
  */
-export function accessor<T extends object, K extends keyof T & string>(
-  target: T,
-  key: K,
-  hook: Hook,
-  written: (value: T[K]) => void,
-  always = false,
-) {
-  let held = target[key];
-  Object.defineProperty(target, key, {
-    configurable: true,
-    enumerable: true,
-    get: () => held,
-    set: (value: T[K]) => {
-      if (!always && value === held) return;
-      held = value;
-      written(value);
-    },
-  });
-  hook.undo.push(() => plain(target, key, held));
-}
-
-/** Backing slots of a triple: its held numbers, and the hook its writes bump. */
-const HELD = Symbol('held'),
-  HOOK = Symbol('hook');
-type Triple = { [HELD]?: Record<string, number>; [HOOK]?: Hook };
-
-/** One descriptor per key, shared by every hooked instance: no closure per field, and every
- *  hooked vector of the host takes the same shape, so its hot sites stay monomorphic. */
-const descriptors = new Map<string, PropertyDescriptor>();
-function descriptor(key: string) {
-  let found = descriptors.get(key);
+const prototypes = new WeakMap<object, object>();
+function hookedPrototype(plain: object) {
+  let found = prototypes.get(plain);
   if (!found) {
-    found = {
-      configurable: true,
-      enumerable: true,
-      get(this: Triple) {
-        return (this[HELD] as Record<string, number>)[key];
-      },
-      set(this: Triple, value: number) {
-        const held = this[HELD] as Record<string, number>;
-        if (held[key] === value) return;
-        held[key] = value;
-        bump(this[HOOK] as Hook);
-      },
-    };
-    descriptors.set(key, found);
+    const accessors: PropertyDescriptorMap = {};
+    for (const key of XYZ) {
+      const slot = `_${key}`;
+      accessors[key] = {
+        get(this: Hooked) {
+          return this[slot];
+        },
+        set(this: Hooked, value: number) {
+          if (this[slot] === value) return;
+          this[slot] = value;
+          bump(this[HOOK]);
+        },
+      };
+    }
+    found = Object.create(plain, accessors) as object;
+    prototypes.set(plain, found);
   }
   return found;
 }
 
-/**
- * `x`, `y`, `z` of a vector, or `r`, `g`, `b` of a colour, as accessors of the instance. The
- * reference gives a node its own vectors, so a triple belongs to one node; a triple already
- * hooked — a colour two lights share — keeps the hook it has.
- */
-export function hookTriple(target: object, keys: readonly string[], hook: Hook) {
-  const triple = target as Triple & Record<string, number>;
-  if (triple[HOOK]) return;
-  const held: Record<string, number> = {};
-  for (const key of keys) held[key] = triple[key];
-  triple[HELD] = held;
-  triple[HOOK] = hook;
-  for (const key of keys) Object.defineProperty(triple, key, descriptor(key));
-  hook.undo.push(() => {
-    for (const key of keys) plain(triple, key, held[key]);
-    delete triple[HELD];
-    delete triple[HOOK];
-  });
-}
+/** The fields of the vector the host may have kept, forwarded to its twin: one descriptor per
+ *  key for every such vector, no closure per field. */
+type Kept = Record<Key, number> & { [TWIN]: Hooked };
+const forwarders = XYZ.map((key): PropertyDescriptor => ({
+  configurable: true,
+  enumerable: true,
+  get(this: Kept) {
+    return this[TWIN][key];
+  },
+  set(this: Kept, value: number) {
+    this[TWIN][key] = value;
+  },
+}));
 
-export const XYZ = ['x', 'y', 'z'] as const,
-  RGB = ['r', 'g', 'b'] as const;
+/**
+ * Replaces `node[key]` — a vector the reference defines configurable and read-only — by a hooked
+ * twin holding the same numbers: a write of another `x`, `y` or `z` bumps `hook`. The object
+ * the host may have kept from before the hook forwards its reads and writes to the twin (an
+ * animation bound to `mesh.position` keeps driving the node); it is off every hot path, so its
+ * own fields may become accessors. Already hooked: the twin stays, with the hook it carries.
+ */
+export function hookVector<K extends string>(node: Record<K, object>, key: K, hook: Hook) {
+  const kept = node[key] as Hooked & Kept;
+  if (kept[HOOK]) return;
+  const twin = Object.create(hookedPrototype(Object.getPrototypeOf(kept))) as Hooked;
+  for (const field of XYZ) twin[`_${field}`] = kept[field];
+  twin[HOOK] = hook;
+  Object.defineProperty(node, key, { value: twin });
+  kept[TWIN] = twin;
+  for (let i = 0; i < XYZ.length; i++) Object.defineProperty(kept, XYZ[i], forwarders[i]);
+}

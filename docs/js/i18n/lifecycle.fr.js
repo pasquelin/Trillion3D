@@ -52,7 +52,7 @@ export const lifecycleFr = {
         desc: 'Lisent les lumières et l’exposition tenues sous forme de copies détachées, tableaux compris : y écrire ne change rien dans le moteur, et chaque appel relit le magasin. La copie est payée par l’appel, jamais par l’image.',
       },
       {
-        desc: 'Une pose, une visibilité ou une lampe écrite sur un nœud source sans aucun appel — `mesh.position.x = 100` — est vue : l’écriture elle-même incrémente la révision de scène, l’image compare un entier et une scène immobile ne relit aucun nœud. Une matrice posée à la main (`matrixAutoUpdate = false`) s’annonce comme Three l’exige, par `matrixWorldNeedsUpdate = true` ; une lampe ajoutée au graphe ou retirée s’annonce par `refreshSceneLighting()`.',
+        desc: 'Une pose, une visibilité ou une lampe écrite sur un nœud source sans aucun appel — `mesh.position.x = 100` — est vue : l’écriture d’une pose incrémente elle-même la révision de scène, l’image compare un entier ; les autres champs, matrice posée à la main (`matrixAutoUpdate = false`) comprise, sont comparés à chaque image, quelques valeurs par nœud. Une lampe ajoutée au graphe ou retirée s’annonce par `refreshSceneLighting()`.',
       },
       { desc: 'Libère backends, appareil GPU et sources. Obligatoire.' },
     ],

@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { WriteRevision } from './hostSceneHookCore.ts';
 import { hookHostNode, unhookHostNode } from './hostSceneHooks.ts';
+import { scan, snapshot, type NodeState, type WatchVerdict } from './hostSceneScan.ts';
 
 /**
  * Mark of a node the engine created itself — an instance copy, for example. The host never
@@ -32,12 +33,14 @@ function withAncestors(node: THREE.Object3D | undefined, into: Set<THREE.Object3
  *
  * The contract lets it move a node (`mesh.position.x = 100`), hide it, change a light's intensity
  * or pose. No engine API is called: no revision announces it, and a frame held on those
- * revisions would show a stale scene. What announces it is the WRITE ITSELF: every field the
- * contract lets the host write is hooked on the watched nodes (`hostSceneHooks.ts`), and a
- * write of another value increments this watch's revision at that instant. The frame then
- * compares one integer to the one it last saw — no node is reread, whatever their number.
+ * revisions would show a stale scene. What announces a POSE is the write itself: the position,
+ * scale and rotation of the watched nodes are hooked (`hostSceneHooks.ts`), and a write of
+ * another value increments this watch's revision at that instant. The rest — visibility, parent,
+ * a matrix set by hand, a light's numbers — are the node's own data fields, which the reference
+ * writes on its walk and which no hook may touch without slowing that walk: they are compared
+ * per frame, a few values per node (`hostSceneScan.ts`).
  *
- * What is hooked is bounded twice. By SOURCE NODES first: a drawn entry names the node it
+ * What is watched is bounded twice. By SOURCE NODES first: a drawn entry names the node it
  * comes from, and several entries of the same node hook it once. By the LOCAL pose next: an
  * ancestor's pose is hooked in its own right, and no world matrix is ever walked up here.
  *
@@ -46,16 +49,16 @@ function withAncestors(node: THREE.Object3D | undefined, into: Set<THREE.Object3
  * trigger a second one.
  */
 export function createHostSceneWatch() {
-  const mark: WriteRevision = { revision: 1, shape: 0 };
-  let watched = new Set<THREE.Object3D>(),
-    seen = 0,
-    seenShape = 0;
+  const mark: WriteRevision = { revision: 1 };
+  let watched: NodeState[] = [],
+    seen = 0;
   return {
     /**
-     * Sets the list of hooked nodes: the source models of what the engine draws, the lights,
-     * and the ancestors of both. To be called when the scene changes shape — one more instance,
-     * a light set after the fact — never per frame: the scene change that made the list stale
-     * is what announced it, and a node that enters the list is read as-is by that same frame.
+     * Sets the list of watched nodes: the source models of what the engine draws, the lights,
+     * and the ancestors of both, each read as it stands. To be called when the scene changes
+     * shape — one more instance, a light set after the fact — never per frame: the scene change
+     * that made the list stale is what announced it, and a node that enters the list is read
+     * as-is by that same frame.
      */
     observe(source: THREE.Object3D, drawn: WatchedSources) {
       const set = new Set<THREE.Object3D>();
@@ -68,32 +71,34 @@ export function createHostSceneWatch() {
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
       // With neither a declared root nor a light, there is nothing to hook: the whole graph is not a default.
       if (!set.size) withAncestors(source, set);
-      for (const node of watched) if (!set.has(node)) unhookHostNode(node, mark);
-      for (const node of set) hookHostNode(node, mark);
-      watched = set;
+      for (const state of watched) if (!set.has(state.node)) unhookHostNode(state.node, mark);
+      watched = [];
+      for (const node of set) {
+        hookHostNode(node, mark);
+        watched.push(snapshot(node));
+      }
     },
-    /** Says whether the host wrote one of the hooked nodes since the previous read. Reads nothing else. */
-    changed() {
-      if (seen === mark.revision) return false;
+    /** Takes what the host wrote since the previous read: one integer for the hooked poses,
+     *  and the scan of the other fields. `reshaped` says the list is to be rebuilt. */
+    take(): WatchVerdict {
+      let verdict: WatchVerdict = seen === mark.revision ? 0 : 'moved';
       seen = mark.revision;
-      return true;
+      for (let i = 0; i < watched.length; i++) {
+        const scanned = scan(watched[i]);
+        if (scanned === 'reshaped') verdict = scanned;
+        else if (scanned && !verdict) verdict = scanned;
+      }
+      return verdict;
     },
-    /** Says whether a write since the previous read changed which objects are read — a light
-     *  retargeted, a node reparented — so that the list is to be rebuilt. */
-    reshaped() {
-      if (seenShape === mark.shape) return false;
-      seenShape = mark.shape;
-      return true;
-    },
-    /** The engine wrote the graph itself, under a scene revision it already incremented. */
+    /** The engine wrote the graph itself, under a scene revision it already incremented: the
+     *  poses it bumped are taken as seen, and that scene revision has the list observed anew. */
     settle() {
       seen = mark.revision;
-      seenShape = mark.shape;
     },
     /** Forgets every node: their writes no longer reach this watch. */
     release() {
-      for (const node of watched) unhookHostNode(node, mark);
-      watched.clear();
+      for (const state of watched) unhookHostNode(state.node, mark);
+      watched = [];
     },
   };
 }

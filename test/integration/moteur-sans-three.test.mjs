@@ -73,7 +73,7 @@ const AUTORISES = {
   explorerScene: 'boundary: it builds the host’s prepared scene',
   frameGateCore: 'boundary: the frame gate listens to the host source node',
   hostSceneHooks: 'boundary: it hooks the fields the host writes on its nodes',
-  hostSceneHooksLight: 'boundary: it hooks the fields the host writes on its lights',
+  hostSceneScan: 'boundary: it compares the fields the host writes that no hook may touch',
   hostSceneWatch: 'boundary: it names the host nodes whose writes are listened to',
   hostWorldBounds: 'boundary: host-graph bounds, returned flat',
   hostWorldChain: 'boundary: it reads the ancestor chain of a host node',
