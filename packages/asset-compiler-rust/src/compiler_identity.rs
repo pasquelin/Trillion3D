@@ -74,6 +74,7 @@ pub(super) fn cache_key(
         "compiler":COMPILER_VERSION,"implementation":implementation_hash(),
         "plugins":plugins::fingerprint(),"scope":o.scope,"budget":o.triangle_budget,
         "resourceBase":o.resource_base,"simplification":o.simplification,
+        "textureFormats":o.texture_formats.iter().map(|f| f.name()).collect::<Vec<_>>(),
         "errorModel":DAG_ERROR_MODEL,"cutouts":cutouts,
     });
     Ok(hash(serde_json::to_string(&material)?.as_bytes()))

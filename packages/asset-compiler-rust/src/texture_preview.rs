@@ -7,7 +7,12 @@
 //! not keep up with screen. Here, every level exists: tail in sidecar,
 //! RGBA8; levels above are lossless PNGs in cache, one file per level,
 //! addressed by source byte hash and atlas (`textures/<sha>/<srgb|linear>-<k>.png`),
-//! shared across scenes sharing image, never rewritten if present.
+//! shared across scenes sharing image, never rewritten if present. Beside each
+//! PNG, when a quality gate lets it, the same level block-compressed in the
+//! families the cook asked for — the BC family for desktop cards, ASTC for
+//! mobile ones — and the tail carried in those blocks too (`blocks.rs`): one
+//! byte per texel in the pool instead of four, and no visible loss, since a
+//! chain the read-back cannot reproduce within the bar stays lossless.
 //!
 //! Reduction rule matches GPU (`reduce.rs`): baking instead of
 //! regenerating does not change image. Covers both engine atlases — base color
@@ -20,8 +25,11 @@ use super::*;
 use std::sync::atomic::AtomicUsize;
 
 pub(crate) mod bake;
+mod bake_write;
+pub(crate) mod blocks;
 pub(crate) mod collect;
 mod curves;
+mod gate;
 mod levels;
 mod reduce;
 pub(crate) mod source;
@@ -29,17 +37,21 @@ pub(crate) mod source;
 mod tests;
 pub use levels::*;
 
-/// Section contract: moving level scale, order, reduction rule, or
-/// color space requires incrementing this version and binary sidecar version
-/// carrying it. Version 3 is GPU rule and full chain, both atlases included.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 3;
-pub use bake::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, TEXTURE_DIR};
+/// Section contract: moving level scale, order, reduction rule, color space,
+/// a block codec or the gate's bar requires incrementing this version and
+/// binary sidecar version carrying it. Version 3 is GPU rule and full chain,
+/// both atlases included; version 4 adds the gated block-compressed levels and
+/// tails.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 4;
+pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
+pub use blocks::{BlockFormat, Layout};
 pub use reduce::AtlasKind;
-/// Baked level template path, relative to `native/`; `bake::level_path` populates.
+/// Baked level template path, relative to `native/`; `bake_write::level_path`
+/// populates. `{format}` is `png`, or a block format's name.
 pub fn level_template() -> String {
     format!(
-        "{}/{{sha}}/{{kind}}-{{level}}.png",
-        bake::texture_version_dir()
+        "{}/{{sha}}/{{kind}}-{{level}}.{{format}}",
+        bake_write::texture_version_dir()
     )
 }
 /// Largest side sidecar level can have. Choice bounds section: at most
@@ -89,6 +101,13 @@ pub struct TexturePreview {
     /// when chain complete, 0 when nothing could be written.
     pub baked_levels: u32,
     pub pixels: Vec<u8>,
+    /// What each family holds of the chain, `BlockFormat::ALL` order: a layout
+    /// when the gate kept it, `None` when the chain stays lossless in that
+    /// family — not cooked, or under the bar.
+    pub layouts: [Option<Layout>; 2],
+    /// The same tail in each family's blocks, `BlockFormat::ALL` order; empty
+    /// where the layout is `None`.
+    pub blocks: [Vec<u8>; 2],
 }
 
 /// Everything step reads. `view_map` translates input glTF views to those written in
@@ -125,7 +144,14 @@ pub(super) fn stage_texture_previews(
         inputs.g.get("textures").and_then(Value::as_array),
         inputs.g.get("images").and_then(Value::as_array),
     ) else {
-        let report = bake::report(&wanted, &[], &BTreeMap::new(), &BTreeMap::new());
+        let report = gate::report(
+            inputs.o,
+            &wanted,
+            &[],
+            &[],
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+        );
         return Ok((Vec::new(), BTreeMap::new(), report));
     };
     // Per image: (texture, atlas) reading it. Texture without image is report
@@ -141,7 +167,10 @@ pub(super) fn stage_texture_previews(
                     .and_then(Value::as_u64)
                     .ok_or("texture-without-image")
             }) {
-            Ok(image) => by_image.entry(image as usize).or_default().push(*entry),
+            Ok(image) => by_image
+                .entry(image as usize)
+                .or_default()
+                .push(entry.clone()),
             Err(reason) => *skipped.entry(reason).or_default() += 1,
         }
     }
@@ -159,6 +188,7 @@ pub(super) fn stage_texture_previews(
         .collect::<Result<Vec<_>>>()?;
     let mut previews = Vec::new();
     let mut shapes = BTreeMap::new();
+    let mut gates = Vec::new();
     let mut notes: BTreeMap<&'static str, usize> = BTreeMap::new();
     for outcome in results {
         match outcome {
@@ -168,11 +198,15 @@ pub(super) fn stage_texture_previews(
                     *notes.entry(note).or_default() += 1;
                 }
                 previews.extend(baked.previews);
+                gates.extend(baked.gates);
             }
             Err((reason, count)) => *skipped.entry(reason).or_default() += count,
         }
     }
     previews.sort_by_key(|p| (p.texture, p.kind));
-    let report = bake::report(&wanted, &previews, &skipped, &notes);
+    gates.sort_by(|a, b| {
+        (&a.sha256, a.kind, a.format.name()).cmp(&(&b.sha256, b.kind, b.format.name()))
+    });
+    let report = gate::report(inputs.o, &wanted, &previews, &gates, &skipped, &notes);
     Ok((previews, shapes, report))
 }
