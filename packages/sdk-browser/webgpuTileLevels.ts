@@ -1,22 +1,28 @@
-import type { TextureLevelReader } from './textureLevelReader.ts';
+import {
+  closeTextureLevel,
+  textureLevelBytes,
+  type TextureLevel,
+  type TextureLevelReader,
+  type TextureLevelRequest,
+} from './textureLevelReader.ts';
 
 /**
  * Decoded cooked levels, held long enough to cut tiles from them.
  *
- * A tile is read in the cache's whole level, decoded by the browser; neighbouring tiles of the same
- * level generally arrive in the same images, and re-decoding a 2048² level for each would cost more
- * than the transfer. Decoded levels therefore stay here, under a fixed host-byte budget, the least
- * recently read leaving first. That is the chain's only host memory, and it does not depend on the
- * scene.
+ * A tile is read in the cache's whole level — decoded by the browser, or block-compressed as the
+ * file holds it; neighbouring tiles of the same level generally arrive in the same images, and
+ * re-reading a 2048² level for each would cost more than the transfer. Levels therefore stay here,
+ * under a fixed host-byte budget, the least recently read leaving first. That is the chain's only
+ * host memory, and it does not depend on the scene.
  *
  * An in-flight read is never doubled, and a failure is returned to the caller, never retried in
  * silence: the tile will stay served by its coarse level, and the diagnostic will say so.
  */
-export type LevelKey = { sha256: string; atlas: number; level: number };
+export type LevelKey = TextureLevelRequest;
 
 export type WebgpuTileLevels = {
-  /** The decoded level if it is there, marking it read; otherwise `undefined`, launching nothing. */
-  get(key: LevelKey, frame: number): ImageBitmap | undefined;
+  /** The level if it is there, marking it read; otherwise `undefined`, launching nothing. */
+  get(key: LevelKey, frame: number): TextureLevel | undefined;
   /** Starts the read if it is neither there nor in flight. */
   request(key: LevelKey, frame: number): void;
   readonly inFlight: number;
@@ -34,7 +40,7 @@ export function createWebgpuTileLevels(options: {
   budgetBytes: number;
   onFailure: (key: LevelKey, error: unknown) => void;
 }): WebgpuTileLevels {
-  const held = new Map<string, { bitmap: ImageBitmap; bytes: number; lastUse: number }>();
+  const held = new Map<string, { level: TextureLevel; bytes: number; lastUse: number }>();
   const pending = new Map<string, Promise<void>>();
   let bytes = 0,
     fetched = 0;
@@ -43,7 +49,7 @@ export function createWebgpuTileLevels(options: {
     if (!entry) return;
     held.delete(id);
     bytes -= entry.bytes;
-    entry.bitmap.close();
+    closeTextureLevel(entry.level);
   };
   /** Makes room for `needed` bytes: the least recently read leaves first. */
   const makeRoom = (needed: number) => {
@@ -63,18 +69,18 @@ export function createWebgpuTileLevels(options: {
       const entry = held.get(keyOf(key));
       if (!entry) return undefined;
       entry.lastUse = frame;
-      return entry.bitmap;
+      return entry.level;
     },
     request(key, frame) {
       const id = keyOf(key);
       if (held.has(id) || pending.has(id)) return;
       const read = options
-        .read(key.sha256, key.atlas, key.level)
-        .then((bitmap) => {
+        .read(key)
+        .then((level) => {
           fetched++;
-          const size = bitmap.width * bitmap.height * 4;
+          const size = textureLevelBytes(level);
           makeRoom(size);
-          held.set(id, { bitmap, bytes: size, lastUse: frame });
+          held.set(id, { level, bytes: size, lastUse: frame });
           bytes += size;
         })
         .catch((error: unknown) => options.onFailure(key, error))

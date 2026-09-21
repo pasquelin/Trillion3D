@@ -9,8 +9,8 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 function mount() {
   let built = 0;
   const device = { createBindGroup: () => ({ id: ++built }) } as unknown as GPUDevice;
-  const pool = { view: {} },
-    dataPool = { view: {} },
+  const views = [{}, {}, {}],
+    dataViews = [{}, {}, {}],
     pages = { buffer: {} };
   const vis = {
     visBindGroupLayout: {},
@@ -24,7 +24,7 @@ function mount() {
     shadeUniform: {},
     zeroFlags: {},
     gpuHiz: { flags: {} },
-    textures: { color: { pool, pages }, data: { pool: dataPool, pages } },
+    textures: { color: { views, pages }, data: { views: dataViews, pages } },
     mapsSampler: {},
     visBindGroup: undefined as unknown,
     visHizBindGroup: undefined as unknown,
@@ -63,8 +63,8 @@ test('an atlas that changed layers voids only the groups that sample it', () => 
   const { vis, ensure } = mount();
   ensure();
   // The data atlas: sampled by the resolve, never by the visibility raster.
-  vis.textures.data.pool = { view: {} };
+  vis.textures.data.views = [{}, {}, {}];
   assert.equal(ensure(), 4, 'the resolve group alone is rebuilt');
-  vis.textures.color.pool = { view: {} };
+  vis.textures.color.views = [{}, {}, {}];
   assert.equal(ensure(), 7, 'the colour atlas is named by all three');
 });

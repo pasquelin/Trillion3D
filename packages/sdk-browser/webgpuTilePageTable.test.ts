@@ -96,14 +96,14 @@ test('a leaving tile gives its entries back to the finest resident ancestor, or 
   assert.equal(writes.length, 1, 'nothing to send when nothing has moved');
 });
 
-test("a texture's queue is posted in its header and sent alone", () => {
+test("a texture's queue is posted in its header with its lane, and sent alone", () => {
   const { device, writes } = fakeDevice();
   const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 });
   writes.length = 0;
-  table.setTail(1, { x: 4, y: 2, layer: 1 });
+  table.setTail(1, { x: 4, y: 2, layer: 1 }, 2);
   table.flush(device);
   assert.deepEqual(writes, [[PAGE_HEADER_WORDS + 4 + 3, 1]]);
-  assert.equal(table.words[PAGE_HEADER_WORDS + 7], 4 | (2 << 8) | (1 << 16));
+  assert.equal(table.words[PAGE_HEADER_WORDS + 7], 4 | (2 << 8) | (1 << 16) | (2 << 24));
   const word = packEntry({ x: 4, y: 2, layer: 1 }, 3);
   assert.equal(entryLevel(word), 3);
   assert.deepEqual(entryPlace(word), { x: 4, y: 2, layer: 1 });

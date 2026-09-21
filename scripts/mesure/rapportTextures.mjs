@@ -22,8 +22,9 @@ export function textures(metrics, resultat = {}) {
       ? `${(resultat.preparationMs / 1000).toFixed(2)} s`
       : 'unmeasured';
   return [
-    `- Textures: pool ${go(m.texturePoolBytes)} computed, ${n(m.texturePoolLayers)} layer(s) per ` +
-      `atlas; resident ${go(m.textureResidentBytes)} in ${n(m.textureTilesResident)} tiles`,
+    `- Textures: pool ${go(m.texturePoolBytes)} computed in ${m.texturePoolFormat ?? 'unmeasured'}, ` +
+      `${n(m.texturePoolLayers)} layer(s) over both atlases; resident ${go(m.textureResidentBytes)} in ` +
+      `${n(m.textureTilesResident)} tiles`,
     `- Image feedback: ${n(m.textureTilesRequested)} tiles requested, ${n(m.textureTilesAtLevel)} ` +
       `served at the requested level, ${n2(m.textureMissingLevels)} missing level(s) on average, ` +
       `${n(m.textureTilesPending)} pending, ${n(m.textureTilesDeferred)} deferred by the budget`,

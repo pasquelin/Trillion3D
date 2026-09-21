@@ -56,10 +56,13 @@ export {
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_DATA,
   PREVIEW_ATLAS_NAMES,
+  PREVIEW_BLOCK_FORMATS,
+  PREVIEW_LOSSLESS_FORMAT,
   TEXTURE_PREVIEW_VERSION,
   COLUMN_KIND,
 } from '../../sdk-core/manifestBinaryFormat.ts';
-export type { ColumnKind } from '../../sdk-core/manifestBinaryFormat.ts';
+export type { ColumnKind, TextureBlockFormat } from '../../sdk-core/manifestBinaryFormat.ts';
+export type { TextureLevelFormat } from '../../sdk-core/textureLevelUrl.ts';
 export {
   PAGE_DECODE_FAILURES,
   PAGE_DECODE_PROTOCOL,
