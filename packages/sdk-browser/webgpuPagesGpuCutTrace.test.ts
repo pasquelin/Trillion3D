@@ -30,7 +30,7 @@ function image(worked: boolean) {
   const rt = {
     timing,
     run: { frame: 3, imageRevision: 1, textureConverging: false },
-    vis: { textures: { counters: { worked, lastMs: 2 } } },
+    vis: { textures: { counters: { worked, lastMs: 1.25 } } },
   } as unknown as WebgpuPagesRuntime;
   return { rt, timing };
 }
@@ -40,7 +40,7 @@ test('the gate, the tile pump and the world step each own their bound', () => {
   recordGpuCutTiming(rt);
   const row = timing.cpuProfile.row;
   assert.equal(row[CPU_STEP.gateMs], 0.5);
-  assert.equal(row[CPU_STEP.tilesPumpMs], 2, 'the pass measured itself: the step files it');
+  assert.equal(row[CPU_STEP.tilesPumpMs], 1.25, 'the pass measured itself: the step files it');
   assert.equal(row[CPU_STEP.worldMs], 0.5, 'the world step no longer carries the tile pump');
   assert.equal(row[CPU_STEP.blendWorldMs], 0.25);
   assert.equal(row[CPU_STEP.totalMs], 6, 'the total still opens at the image entry');
