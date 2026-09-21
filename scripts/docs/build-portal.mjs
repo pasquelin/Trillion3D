@@ -1,5 +1,4 @@
 import { build } from 'esbuild';
-import { resolve } from 'node:path';
 import { externalEngine } from './external-engine.mjs';
 
 /**
@@ -10,7 +9,7 @@ export async function buildPortal(root, outdir) {
   await build({
     absWorkingDir: root,
     entryPoints: { portal: 'site/app/main.tsx' },
-    outdir: resolve(outdir),
+    outdir,
     chunkNames: 'portal-[hash]',
     splitting: true,
     bundle: true,
