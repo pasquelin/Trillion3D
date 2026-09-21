@@ -86,11 +86,11 @@ export function createWebgpuTileStreamer(options: {
     },
     /**
      * One pass: requested tiles, served in weight order until the byte or the millisecond budget is
-     * spent; `unbounded` lifts both. The budgets are read between copies, after at least one: a
-     * budget under one copy still lands a tile, and the copy that crosses it overshoots it — the
-     * peak says by how much. Returns what was served and what still waits — for its bytes, or for
-     * the next pass; a pool refusal is neither — nothing will come, the coarse level holds, and the
-     * image can settle on it — and is counted in the atlas metrics.
+     * spent; `unbounded` lifts both. The budgets are read after each copy, never before the first:
+     * a budget under one copy still lands a tile, and the copy that crosses it overshoots it — the
+     * peak says by how much. Returns what was served and what is pending — waiting for its bytes,
+     * or deferred to the next pass; a pool refusal is neither — nothing will come, the coarse level
+     * holds, and the image can settle on it — and is counted in the atlas metrics.
      */
     pump(frame: number, unbounded = false) {
       const started = now();
@@ -98,17 +98,14 @@ export function createWebgpuTileStreamer(options: {
         waiting = 0,
         bytes = 0,
         index = 0,
+        stop = false,
         encoder: GPUCommandEncoder | undefined;
       colorChanged.clear();
       const open = () => (encoder ??= device.createCommandEncoder({ label: 'WG texture tiles' }));
       const wanted = requests.take(frame),
         at = requests.frame;
       counters.worked = wanted.length > 0;
-      const spent = () =>
-        !unbounded &&
-        served > 0 &&
-        (bytes >= options.budgetBytes || now() - started >= options.budgetMs);
-      for (; index < wanted.length && !spent(); index++) {
+      for (; index < wanted.length && !stop; index++) {
         const request = wanted[index];
         let verdict: ReturnType<typeof sources.serve> = 'waiting';
         try {
@@ -121,6 +118,8 @@ export function createWebgpuTileStreamer(options: {
           served++;
           bytes += TILE_BYTES;
           if (request.atlas === color) colorChanged.add(request.key.slot);
+          stop =
+            !unbounded && (bytes >= options.budgetBytes || now() - started >= options.budgetMs);
         }
       }
       if (encoder) device.queue.submit([encoder.finish()]);
@@ -131,9 +130,10 @@ export function createWebgpuTileStreamer(options: {
       counters.deferred = requests.deferred;
       counters.pending = waiting + requests.deferred;
       counters.bytesLastFrame = bytes;
-      counters.pass(now() - started, unbounded);
+      // The shadows that follow the landed tiles are the pass's cost too: timed before the clock stops.
       if (colorChanged.size) options.onColorChanged(colorChanged);
-      return { served, waiting: counters.pending };
+      counters.pass(now() - started, unbounded);
+      return { served, pending: counters.pending };
     },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
      *  pass wrote it — is reduced to counters for the phase, copied to their readback then zeroed. */
