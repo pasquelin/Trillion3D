@@ -1,6 +1,7 @@
 //! The stage report: the bar, how many chains each family holds in each
 //! layout, the kept chains' decibels, and — one line each, with their figures —
-//! the chains the gate left lossless.
+//! the chains that stay lossless in the family, refused by the gate or not
+//! delivered by the cook (the notes say which).
 use super::blocks::quality::{GATE_DB, GATE_MAX_DELTA};
 use super::blocks::Layout;
 use super::collect::AtlasTexture;
@@ -53,7 +54,7 @@ pub(super) fn report(
         let (kept, lossless): (Vec<&Gate>, Vec<&Gate>) = gates
             .iter()
             .filter(|g| g.format == *format)
-            .partition(|g| g.measure.passes());
+            .partition(|g| g.kept);
         let of = |layout: Layout| kept.iter().filter(|g| g.layout == layout).count();
         encoded.insert(
             format.name().to_string(),
@@ -61,11 +62,7 @@ pub(super) fn report(
                 "lossless":lossless.len(),"keptPsnrDb":kept_db(&kept)}),
         );
     }
-    let lossless: Vec<Value> = gates
-        .iter()
-        .filter(|g| !g.measure.passes())
-        .map(Gate::json)
-        .collect();
+    let lossless: Vec<Value> = gates.iter().filter(|g| !g.kept).map(Gate::json).collect();
     json!({"version":TEXTURE_PREVIEW_VERSION,"base":PREVIEW_BASE,"maxLevels":PREVIEW_MAX_LEVELS,
         "colorTextures":wanted.iter().filter(|w| w.kind == AtlasKind::Color).count(),
         "dataTextures":wanted.iter().filter(|w| w.kind == AtlasKind::Data).count(),

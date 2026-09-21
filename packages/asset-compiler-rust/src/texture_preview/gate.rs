@@ -62,6 +62,10 @@ pub(super) struct Gate {
     /// The layout the chain was tried in.
     pub layout: Layout,
     pub measure: Measure,
+    /// Whether the chain came out in the family's blocks: false when the gate
+    /// refused it, and false too when the cook could not deliver it — a level
+    /// file that would not write — since the sidecar then says lossless.
+    pub kept: bool,
 }
 
 /// Encodes a chain in one family under its sheet, reads it back and decides:
@@ -80,12 +84,16 @@ pub(super) fn cook_chain(
     (width, height): (u32, u32),
 ) -> (Gate, Cooked) {
     let sizes: Vec<(u32, u32)> = preview_level_sizes(width, height).collect();
-    let gate = |measure| Gate {
-        sha256: sha256.to_string(),
-        kind,
-        format,
-        layout: sheet.layout,
-        measure,
+    let gate = |measure, cooked: Cooked| {
+        let gate = Gate {
+            sha256: sha256.to_string(),
+            kind,
+            format,
+            layout: sheet.layout,
+            measure,
+            kept: matches!(cooked, Cooked::Kept(_)),
+        };
+        (gate, cooked)
     };
     let file = format.file_name(sheet.layout);
     let first = preview_first_level(width, height) as usize;
@@ -104,7 +112,7 @@ pub(super) fn cook_chain(
         &sheet.cutoffs,
     ) {
         Ok(cooked) => cooked,
-        Err(note) => return (gate(Measure::default()), Cooked::Failed(note)),
+        Err(note) => return gate(Measure::default(), Cooked::Failed(note)),
     };
     let measure = known.unwrap_or_else(|| {
         if first > 0 {
@@ -113,7 +121,7 @@ pub(super) fn cook_chain(
         measured
     });
     if !measure.passes() {
-        return (gate(measure), Cooked::Lossless);
+        return gate(measure, Cooked::Lossless);
     }
     // A level the verdict vouched for and that vanished meanwhile is encoded on the spot.
     let written = write_levels(o, sha256, kind, (width, height), file, |level, (w, h)| {
@@ -123,7 +131,7 @@ pub(super) fn cook_chain(
         })
     });
     if written.is_err() {
-        return (gate(measure), Cooked::Failed(LEVEL_WRITE_FAILED));
+        return gate(measure, Cooked::Failed(LEVEL_WRITE_FAILED));
     }
-    (gate(measure), Cooked::Kept(blocks[first - from..].concat()))
+    gate(measure, Cooked::Kept(blocks[first - from..].concat()))
 }

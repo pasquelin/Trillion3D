@@ -143,3 +143,36 @@ fn no_block_family_leaves_every_chain_lossless() {
     assert_eq!(report["lossless"], json!([]));
     assert_eq!(report["blockBytes"], json!(0));
 }
+
+// Behaviour: a chain the gate keeps but whose block level cannot be written
+// stays lossless in the family — the sidecar says so — and the report counts
+// it there, not among the kept, under the note; the verdict is not left behind.
+#[cfg(unix)]
+#[test]
+fn a_kept_chain_whose_level_will_not_write_is_counted_lossless() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = temp_dir("gate-unwritable");
+    rgba_from(256, 256, |x, _| [x as u8, 255 - x as u8, 77, 255])
+        .save(dir.join("map.png"))
+        .expect("save");
+    let material = json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}});
+    // The PNG pass first, alone; then the image's folder refuses every new file.
+    let (previews, _) = stage_scene_in(&dir, &scene(material.clone()), Vec::new());
+    let folder = dir
+        .join("cache")
+        .join("native")
+        .join(texture_version_dir())
+        .join(&previews[0].sha256);
+    let lock = |mode| fs::set_permissions(&folder, fs::Permissions::from_mode(mode));
+    lock(0o555).expect("read-only folder");
+    let (previews, report) = stage_scene(&dir, &scene(material));
+    lock(0o755).expect("folder given back");
+    assert_eq!(previews[0].baked_levels, 2, "the PNG levels were there");
+    assert_eq!(previews[0].layouts, [None; 2]);
+    assert!(previews[0].blocks[0].is_empty());
+    assert_eq!(report["encoded"]["bc7"]["rgba"], json!(0));
+    assert_eq!(report["encoded"]["bc7"]["lossless"], json!(1));
+    assert_eq!(report["encoded"]["bc7"]["keptPsnrDb"], Value::Null);
+    assert_eq!(report["lossless"][0]["sha256"], json!(previews[0].sha256));
+    assert_eq!(report["notes"]["texture-level-write-failed"], json!(1));
+}
