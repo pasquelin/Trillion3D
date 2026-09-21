@@ -5,7 +5,7 @@ import type {
   RendererLessonItem,
 } from '../../lessons/rendererLessonTypes.ts';
 import { examples } from '../../content/catalog.ts';
-import { ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
+import { ControlActions, ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
 import { Button, Field, Range, Select, Toggle } from '../components/UI.tsx';
 
 export const controlValue = (
@@ -39,15 +39,7 @@ export function RendererControls({
 }: RendererControlsProps) {
   const french = locale === 'fr';
   return (
-    <ControlPanel
-      actions={
-        lesson.controls.length > 0 && (
-          <Button size="sm" variant="outline" onClick={onReset}>
-            {french ? 'Réinitialiser' : 'Reset'}
-          </Button>
-        )
-      }
-    >
+    <ControlPanel>
       <Field
         className="control-panel-wide"
         label={french ? 'Expérience' : 'Experiment'}
@@ -66,9 +58,17 @@ export function RendererControls({
           ))}
         </Select>
       </Field>
+      {lesson.controls.length > 0 && (
+        <ControlActions>
+          <Button size="sm" variant="outline" onClick={onReset}>
+            {french ? 'Réinitialiser' : 'Reset'}
+          </Button>
+        </ControlActions>
+      )}
       {lesson.controls.map((item) => (
         <Field
           key={item.id}
+          className={item.type === 'boolean' ? 'control-panel-toggle' : ''}
           data-control={item.id}
           label={
             <ControlLabel
@@ -78,7 +78,7 @@ export function RendererControls({
           }
         >
           {item.type === 'boolean' ? (
-            <>
+            <div className="control-toggle">
               <Toggle
                 aria-label={local(item.label, locale)}
                 checked={(state[item.id] ?? item.value) === 1}
@@ -100,7 +100,7 @@ export function RendererControls({
                   ))}
                 </ul>
               )}
-            </>
+            </div>
           ) : (
             <Range
               aria-label={local(item.label, locale)}

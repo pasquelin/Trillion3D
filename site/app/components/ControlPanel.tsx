@@ -3,24 +3,24 @@ import { Card } from './UI.tsx';
 
 interface ControlPanelProps {
   title?: ReactNode;
-  /** Buttons closing the panel: shown as its last cell, small and aligned to the end. */
-  actions?: ReactNode;
   children: ReactNode;
   className?: string;
 }
 
-/** The control surface every interactive page shares: one dense grid of fields, each field as
- * tall as its own control, and the panel's buttons in the grid rather than on a row of their
- * own. Lessons, the playground and the engine scene all read the same way. */
-export function ControlPanel({ title, actions, children, className = '' }: ControlPanelProps) {
+/** The control surface every interactive page shares: one wrapping row of fields, each as tall as
+ * its own control, its buttons placed among them rather than on a row of their own. Lessons, the
+ * playground and the engine scene all read the same way. */
+export function ControlPanel({ title, children, className = '', ...props }: ControlPanelProps) {
   return (
-    <Card title={title} className={`control-panel ${className}`}>
-      <div className="control-panel-grid">
-        {children}
-        {actions && <div className="control-panel-actions">{actions}</div>}
-      </div>
+    <Card title={title} className={`control-panel ${className}`} {...props}>
+      <div className="control-panel-grid">{children}</div>
     </Card>
   );
+}
+
+/** The panel's buttons: placed by the caller among the fields, pushed to the end of their row. */
+export function ControlActions({ children }: { children: ReactNode }) {
+  return <div className="control-panel-actions">{children}</div>;
 }
 
 /** A field label carrying the control's current value, so a slider reads without guessing. */

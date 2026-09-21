@@ -1,6 +1,6 @@
 import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
-import { ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
+import { ControlActions, ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
 import { Button, Field, Range, Select, Toggle } from '../components/UI.tsx';
 import { DIAGNOSTIC_MODES } from '../../lessons/engine-scene/diagnosticModes.ts';
 
@@ -11,15 +11,12 @@ interface SceneControlsProps {
 
 export function SceneControls({ copy, diagnostic }: SceneControlsProps) {
   return (
-    <ControlPanel
-      aria-label={copy.controls}
-      className="scene-controls mb-4"
-      actions={
+    <ControlPanel aria-label={copy.controls} className="scene-controls mb-4">
+      <ControlActions>
         <Button variant="primary" data-scene-start hidden>
           {copy.retry}
         </Button>
-      }
-    >
+      </ControlActions>
       <Field label={copy.mode}>
         <div className="scene-control-slot">
           <Select data-scene-mode defaultValue={diagnostic} disabled>
