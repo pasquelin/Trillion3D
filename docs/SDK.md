@@ -558,10 +558,13 @@ logical size and DPR, avoids resetting the buffer on an unchanged size, observes
 restoration, and releases the context once. That surface is the session's only WebGL2 resource,
 and the composition host holds no renderer: targets, held frame, comparison compositor and
 presenter are engine objects on that context, the frame composer asks every engine to draw its
-whole image through `drawHostGeometry`, and an engine whose image is a Three scene draws it
-through the one adapter the witnesses share. A comparison side is the single view of its engine,
-byte for byte. Each function, what it replaces and its proof:
-[API.md](API.md#batch-e7--composition-host-and-captures-on-engine-owned-framebuffers-85-second-pull-request).
+whole image through `drawHostGeometry`, and only the Three witnesses draw a Three scene, through
+the one adapter they share. A comparison side is the single view of its engine, byte for byte.
+Each function, what it replaces and its proof:
+[API.md](API.md#batch-e7--composition-host-and-captures-on-engine-owned-framebuffers-85-second-pull-request)
+for the composition host,
+[API.md](API.md#batch-e8--draw-records-and-observation-meshes-on-engine-buffers-85-third-pull-request)
+for the draw records, the scene copies and the transport experiment's observation.
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
 `exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
@@ -573,8 +576,15 @@ Direct light adds Lambert diffuse to a Cook-Torrance GGX distribution, correlate
 and Schlick Fresnel, the published model described in Brian Karis's
 [Real Shading course notes](https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
 This is not glTF Appendix B's Fresnel mixture: its diffuse term does not multiply by `(1 - F)`.
-The host then returns the context to the temporary scene adapter for the remaining blended
-non-cluster copies and composition. `autonomousClusterDrawsTotal` is the session counter that
+The scene copies — the transmissive meshes over the frozen backdrop, then the blended ones — are
+submitted by the same owner, in the order the reference draws a scene, and nothing of this engine
+enters a host renderer. A draw record is an engine object: the primitive's resident index buffer,
+the host material as declared, the placement and the ranges of the visible clusters; a two-sided
+transparent surface draws back faces then front faces, read at the draw, and a coplanar layer
+carries its depth offset as a number, so no host material is cloned or frozen. What the engine
+still reads of the host library on this path is its data model — geometry attributes, materials,
+textures — through the contract types, until the engine-owned scene model (#78) replaces it.
+`autonomousClusterDrawsTotal` is the session counter that
 proves the cluster draws came from the owned program. It is cumulative and therefore is not a
 per-frame draw-call measurement.
 
