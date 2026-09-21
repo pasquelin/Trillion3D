@@ -66,8 +66,9 @@ pnpm docs:serve
 `dist/site/`: it compiles `site/styles/tailwind.css` with Tailwind and DaisyUI into `css/site.css`
 after scanning the handwritten HTML and TypeScript for class names, bundles the browser SDK and its
 workers into `runtime/`, the demo maths into `js/engine.js` and the React portal into
-`runtime/portal.js`, then copies the statics (pages, assets, data, reports) — files only when
-missing or older. Nothing under `site/` is a build product and nothing built is committed: the
+`runtime/portal.js` with the areas `App.tsx` imports on demand — the gallery and its roadmap, the
+playground and its code editor, the reports — as `runtime/portal-<hash>.js` chunks beside it,
+then copies the statics (pages, assets, data, reports) — files only when missing or older. Nothing under `site/` is a build product and nothing built is committed: the
 docs server, the browser proofs and the Pages workflow (`.github/workflows/pages.yml`, on every
 push to `main`) build the same tree from the same function, `buildSite()` in
 `scripts/docs/site.mjs`.
