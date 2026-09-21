@@ -1,12 +1,7 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 import type { BatchPage } from './clusterBatchRange.ts';
 import { PrimitiveIndex, BatchGroup } from './clusterBatchPrimitive.ts';
-import {
-  zeroIndirectTexture,
-  neutraliseBatchingShader,
-  sideSplit,
-  type ShaderHook,
-} from './clusterBatchMesh.ts';
+import { sideSplit } from './clusterBatchMesh.ts';
 import { buildLayerGroups } from './clusterBatchLayers.ts';
 
 type PrimitiveDraft = {
@@ -19,12 +14,11 @@ type PrimitiveDraft = {
   max: [number, number, number];
 };
 
-export function setupClusterBatches(pages: readonly BatchPage[], installThreeShaderHooks = true) {
+export function setupClusterBatches(pages: readonly BatchPage[]) {
   const state = {
     primitives: [] as PrimitiveIndex[],
     groups: [] as Array<BatchGroup | undefined>,
     layerGroups: [] as Array<Map<number, BatchGroup> | undefined>,
-    shaderHooks: new Map<THREE.Material, ShaderHook>(),
     ownedMaterials: [] as THREE.Material[],
     attributeBytes: 0,
     indexCapacityBytes: 0,
@@ -34,7 +28,6 @@ export function setupClusterBatches(pages: readonly BatchPage[], installThreeSha
     | { draft: PrimitiveDraft; transparent: boolean; material: THREE.Material | THREE.Material[] }
     | undefined
   > = [];
-  let maxDraws = 1;
   for (const page of pages) {
     let draft = drafts.get(page.attributes);
     if (!draft) {
@@ -63,7 +56,6 @@ export function setupClusterBatches(pages: readonly BatchPage[], installThreeSha
       if (page.min[axis] < draft.min[axis]) draft.min[axis] = page.min[axis];
       if (page.max[axis] > draft.max[axis]) draft.max[axis] = page.max[axis];
     }
-    if (draft.pages > maxDraws) maxDraws = draft.pages;
     if (!groupDrafts[page.renderOrder])
       groupDrafts[page.renderOrder] = {
         draft,
@@ -71,7 +63,6 @@ export function setupClusterBatches(pages: readonly BatchPage[], installThreeSha
         material: page.material,
       };
   }
-  const indirect = zeroIndirectTexture(maxDraws);
   const built = new Map<PrimitiveDraft, PrimitiveIndex>();
   const seen = new Set<ArrayBufferView>();
   for (const draft of drafts.values()) {
@@ -96,58 +87,27 @@ export function setupClusterBatches(pages: readonly BatchPage[], installThreeSha
       state.attributeBytes += array.byteLength;
     }
   }
+  // The two-sided transparent passes are frozen once per source material, shared by every
+  // instance that draws it.
+  const splits = new Map<THREE.Material, [THREE.Material, THREE.Material]>();
   for (let order = 0; order < groupDrafts.length; order++) {
     const entry = groupDrafts[order];
     if (!entry) continue;
     const group = new BatchGroup(built.get(entry.draft)!);
     group.transparent = entry.transparent;
     state.groups[order] = group;
-  }
-  // The two two-sided transparent passes are frozen per primitive: geometry is shared
-  // by all instances, so the two groups can be set only if every instance of this
-  // primitive falls under the same split.
-  const splitable = new Map<PrimitiveIndex, boolean>();
-  for (let order = 0; order < groupDrafts.length; order++) {
-    const entry = groupDrafts[order];
-    if (!entry) continue;
-    const primitive = built.get(entry.draft)!;
-    const eligible =
-      !Array.isArray(entry.material) &&
-      entry.material.transparent === true &&
-      entry.material.side === THREE.DoubleSide &&
-      entry.material.forceSinglePass !== true;
-    splitable.set(primitive, (splitable.get(primitive) ?? true) && eligible);
-  }
-  const splits = new Map<THREE.Material, [THREE.Material, THREE.Material]>();
-  for (let order = 0; order < groupDrafts.length; order++) {
-    const entry = groupDrafts[order],
-      group = state.groups[order];
-    if (!entry || !group || (installThreeShaderHooks && !splitable.get(group.primitive))) continue;
-    const original = entry.material as THREE.Material;
-    let pair = splits.get(original);
+    if (Array.isArray(entry.material)) continue;
+    let pair = splits.get(entry.material);
     if (!pair) {
-      const made = sideSplit(original);
+      const made = sideSplit(entry.material);
       if (!made) continue;
       pair = made;
-      splits.set(original, pair);
+      splits.set(entry.material, pair);
     }
     group.split = pair;
   }
-  if (installThreeShaderHooks)
-    for (const primitive of state.primitives) {
-      if (!splitable.get(primitive)) continue;
-      primitive.geometry.addGroup(0, Infinity, 0);
-      primitive.geometry.addGroup(0, Infinity, 1);
-    }
   const layered = buildLayerGroups(pages, state.groups);
   state.layerGroups = layered.layerGroups;
   state.ownedMaterials = [...splits.values()].flat().concat(layered.materials);
-  if (installThreeShaderHooks) {
-    for (const page of pages)
-      for (const material of Array.isArray(page.material) ? page.material : [page.material])
-        neutraliseBatchingShader(material, state.shaderHooks);
-    for (const material of state.ownedMaterials)
-      neutraliseBatchingShader(material, state.shaderHooks);
-  }
-  return { ...state, indirect };
+  return state;
 }
