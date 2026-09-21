@@ -21,7 +21,7 @@ type Inputs = {
   streaming: ReturnType<typeof createExplorerStreaming>;
   directGpu: boolean;
   webglSurface?: WebglSurface;
-  presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
+  presentBackend: (backend: RenderBackend) => boolean;
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
   compose: ReturnType<typeof createFrameComposer>;
@@ -66,12 +66,12 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       ? createWebglFrameTimer(webglSurface.context)
       : null;
   /** A presented surface is copied where the frame lands: the composer binds a target before
-   *  asking an engine to draw, the copy binds it itself and must know how it encodes. */
+   *  asking an engine to draw, the copy binds it itself. */
   const present = (backend: RenderBackend, target: WebglRenderTarget | null) => {
     if (!backend.presentedSurface) return false;
     if (!webglSurface) throw new Error('The direct GPU path composes nothing');
     bindWebglTarget(webglSurface.context, target);
-    return presentBackend(backend, target?.srgb ?? false);
+    return presentBackend(backend);
   };
   const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
     const { measuring } = state;

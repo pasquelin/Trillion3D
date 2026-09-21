@@ -1,6 +1,6 @@
-// Page side of the proof: two engine render targets on a real WebGL2 context, one cleared to a
-// linear red, the other to a linear blue, composed on the drawing buffer by the engine's
-// comparison program in every layout, and reread on both halves.
+// Page side of the proof: two engine render targets on a real WebGL2 context, one holding a red
+// display image, the other a blue one, composed on the drawing buffer by the engine's comparison
+// program in every layout, and reread on both halves.
 import { createComparisonCompositor } from '../../packages/sdk-browser/comparison.ts';
 import {
   bindWebglTarget,
@@ -17,9 +17,9 @@ function pixel(gl, x, y) {
   return [...value];
 }
 
-/** A target filled with one linear colour, as an engine's frame would leave it. */
+/** A target filled with one display colour, as an engine's frame would leave it. */
 function filled(gl, r, g, b) {
-  const target = createWebglRenderTarget(gl, WIDTH, HEIGHT, { srgb: true });
+  const target = createWebglRenderTarget(gl, WIDTH, HEIGHT);
   bindWebglTarget(gl, target);
   gl.clearColor(r, g, b, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -35,21 +35,18 @@ export function execute() {
   const gl = canvas.getContext('webgl2', WEBGL_CONTEXT_ATTRIBUTES);
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
   try {
-    const a = filled(gl, 0.5, 0, 0),
-      b = filled(gl, 0, 0, 0.5),
+    const a = filled(gl, 0.6, 0, 0),
+      b = filled(gl, 0, 0, 0.6),
       compositor = createComparisonCompositor(gl);
     const left = () => pixel(gl, WIDTH / 4, HEIGHT / 2),
       right = () => pixel(gl, (3 * WIDTH) / 4, HEIGHT / 2);
     const layouts = {};
     for (const layout of ['single', 'side-by-side', 'wipe', 'toggle', 'difference']) {
-      compositor.render(a, b, layout, 0.5, 0, [false, true]);
+      compositor.render(a, b, layout, 0.5, 0);
       layouts[layout] = { left: left(), right: right() };
     }
-    compositor.render(a, b, 'toggle', 0.5, 1, [false, true]);
+    compositor.render(a, b, 'toggle', 0.5, 1);
     layouts.toggled = { left: left(), right: right() };
-    // The same blue side without its light: identity chain, the clear colour encoded and nothing else.
-    compositor.render(a, b, 'toggle', 0.5, 1, [false, false]);
-    layouts.unlitB = { left: left(), right: right() };
     compositor.dispose();
     a.dispose();
     b.dispose();
