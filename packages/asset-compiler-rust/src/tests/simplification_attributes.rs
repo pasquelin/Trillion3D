@@ -4,7 +4,10 @@ use super::*;
 /// Compiles the seam sheet and rereads what the cache says of its one primitive: the
 /// compilation result, the written `source.gltf`, and the length of `source.bin`.
 fn compiled(simplification: &str) -> (PathBuf, Value, Value, u64) {
-    let (root, options) = seam_fixture(64, 64, simplification);
+    compiled_seam(simplification, "TEXCOORD_0")
+}
+fn compiled_seam(simplification: &str, seam_set: &str) -> (PathBuf, Value, Value, u64) {
+    let (root, options) = seam_fixture(64, 64, simplification, seam_set);
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options
         .cache
@@ -98,13 +101,21 @@ fn coarse_levels_create_vertices_that_the_compiled_scene_carries() {
 
 // Behaviour: a texture seam is never crossed: no created vertex carries a texture coordinate
 // from the gap between the two sides, and the seam column keeps both its copies at every level.
+// Whichever texture coordinate set carries the seam.
 #[test]
 fn a_texture_seam_is_kept_and_never_interpolated_across() {
-    let (root, result, source, _) = compiled("qem-attributes");
+    seam_is_kept("TEXCOORD_0");
+}
+#[test]
+fn a_seam_of_the_second_texture_set_is_kept_as_well() {
+    seam_is_kept("TEXCOORD_1");
+}
+fn seam_is_kept(seam_set: &str) {
+    let (root, result, source, _) = compiled_seam("qem-attributes", seam_set);
     let key = result["key"].as_str().expect("key");
     let bin = fs::read(root.join("cache/native/full").join(key).join("source.bin")).expect("bin");
     let p = &source["meshes"][0]["primitives"][0];
-    let uv = &source["accessors"][p["attributes"]["TEXCOORD_0"].as_u64().expect("uv") as usize];
+    let uv = &source["accessors"][p["attributes"][seam_set].as_u64().expect("uv") as usize];
     let view = &source["bufferViews"][uv["bufferView"].as_u64().expect("view") as usize];
     let start = view["byteOffset"].as_u64().expect("offset") as usize;
     let count = uv["count"].as_u64().expect("count") as usize;
@@ -122,7 +133,7 @@ fn a_texture_seam_is_kept_and_never_interpolated_across() {
     }
     assert_eq!(
         crossed, 0,
-        "a created vertex took its texture from across the seam"
+        "a created vertex took its {seam_set} from across the seam"
     );
     fs::remove_dir_all(root).expect("cleanup");
 }

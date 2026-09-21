@@ -50,19 +50,54 @@ fn seam_sheet(nx: usize, ny: usize) -> (Vec<f32>, Vec<f32>, Vec<f32>, Vec<u32>) 
     (positions, normals, uvs, indices)
 }
 
-/// The seam sheet as a glTF fixture, compiled with `simplification`.
-pub(super) fn seam_fixture(nx: usize, ny: usize, simplification: &str) -> (PathBuf, Options) {
+/// The seam sheet as a glTF fixture, compiled with `simplification`, the seam carried by the
+/// texture coordinate set `seam_set` (`TEXCOORD_0` or `TEXCOORD_1`); the other set, when it is
+/// the first, is continuous across the column.
+pub(super) fn seam_fixture(
+    nx: usize,
+    ny: usize,
+    simplification: &str,
+    seam_set: &str,
+) -> (PathBuf, Options) {
     let (positions, normals, uvs, indices) = seam_sheet(nx, ny);
+    // The continuous set: the position's own plane, no gap anywhere.
+    let flat: Vec<f32> = positions
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .flat_map(|[x, y, _]| [x / nx as f32, y / ny as f32])
+        .collect();
+    let (set0, set1): (&[f32], Option<&[f32]>) = if seam_set == "TEXCOORD_1" {
+        (&flat, Some(&uvs))
+    } else {
+        (&uvs, None)
+    };
     let mut bin = Vec::new();
     let mut views = Vec::new();
-    for column in [&positions, &normals, &uvs] {
+    let mut accessors = Vec::new();
+    let mut attributes = serde_json::Map::new();
+    let columns = [
+        ("POSITION", &positions[..]),
+        ("NORMAL", &normals[..]),
+        ("TEXCOORD_0", set0),
+    ]
+    .into_iter()
+    .chain(set1.map(|set| ("TEXCOORD_1", set)));
+    for (name, column) in columns {
         views.push(json!({"buffer":0,"byteOffset":bin.len(),"byteLength":column.len()*4}));
         bin.extend(column.iter().flat_map(|v| v.to_le_bytes()));
+        let kind = if name.starts_with("TEXCOORD") {
+            "VEC2"
+        } else {
+            "VEC3"
+        };
+        attributes.insert(name.into(), json!(accessors.len()));
+        accessors.push(json!({"bufferView":views.len()-1,"componentType":5126,"type":kind,"count":positions.len()/3}));
     }
     views.push(json!({"buffer":0,"byteOffset":bin.len(),"byteLength":indices.len()*4}));
     bin.extend(indices.iter().flat_map(|v| v.to_le_bytes()));
-    let count = positions.len() / 3;
-    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"seam.bin","byteLength":bin.len()}],"bufferViews":views,"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":count},{"bufferView":1,"componentType":5126,"type":"VEC3","count":count},{"bufferView":2,"componentType":5126,"type":"VEC2","count":count},{"bufferView":3,"componentType":5125,"type":"SCALAR","count":indices.len()}],"meshes":[{"primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
+    accessors.push(json!({"bufferView":views.len()-1,"componentType":5125,"type":"SCALAR","count":indices.len()}));
+    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"seam.bin","byteLength":bin.len()}],"bufferViews":views,"accessors":accessors,"meshes":[{"primitives":[{"attributes":attributes,"indices":accessors.len()-1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
     let (root, mut options) = gltf_fixture("seam", &gltf, &bin, indices.len() / 3);
     options.simplification = simplification.into();
     (root, options)
