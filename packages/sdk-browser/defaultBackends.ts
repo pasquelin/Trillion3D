@@ -29,40 +29,40 @@ export function chooseBackends(
   metadata: ClusterManifest,
   gpuDevice: GPUDevice | undefined,
 ): BackendChoice {
+  // `autonomous` is stated, never derived from the factory: a host list naming the autonomous
+  // backend without `autonomousGeometry` keeps reading `source.gltf`, as it always has.
+  const choice = (
+    factories: BackendFactory[],
+    autonomous: boolean,
+    origin: BackendChoice['origin'],
+    reason: string,
+  ): BackendChoice => ({ factories, autonomous, origin, reason });
   if (options.autonomousGeometry === true) {
     if (options.backends || !autonomousCacheReady(metadata))
       throw new EngineError(
         'AUTONOMOUS_SCENE_UNAVAILABLE',
         'Autonomous geometry requires a prepared static scene and the autonomous backend',
       );
-    return {
-      factories: [autonomousPagesBackend],
-      autonomous: true,
-      origin: 'host',
-      reason: 'the host asked for the autonomous WebGL2 path',
-    };
+    return choice(
+      [autonomousPagesBackend],
+      true,
+      'host',
+      'the host asked for the autonomous WebGL2 path',
+    );
   }
+  // A host list is taken as it stands, witnesses included; only a single-entry autonomous list
+  // reads the cache's prepared scene, and that list is the one above.
   if (options.backends)
-    return {
-      factories: options.backends,
-      autonomous: false,
-      origin: 'host',
-      reason: 'the host named the backends itself',
-    };
+    return choice(options.backends, false, 'host', 'the host named the backends itself');
   if (gpuDevice)
-    return {
-      factories: [webgpuPagesBackend],
-      autonomous: false,
-      origin: 'default',
-      reason: 'a WebGPU device was granted',
-    };
+    return choice([webgpuPagesBackend], false, 'default', 'a WebGPU device was granted');
   if (autonomousCacheReady(metadata))
-    return {
-      factories: [autonomousPagesBackend],
-      autonomous: true,
-      origin: 'default',
-      reason: 'no WebGPU device; the cache carries a prepared autonomous scene',
-    };
+    return choice(
+      [autonomousPagesBackend],
+      true,
+      'default',
+      'no WebGPU device; the cache carries a prepared autonomous scene',
+    );
   throw new EngineError(
     'NO_ENGINE_BACKEND',
     'No engine path is available: WebGPU was refused and this cache carries no prepared scene ' +

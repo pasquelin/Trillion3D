@@ -1,4 +1,3 @@
-import { directWebgpu } from './explorerInteractiveOptions.ts';
 import { mathBatchMetrics, prepareMathBatch } from './mathBatchState.ts';
 import { pageDecodeTransport } from './pageDecodeShared.ts';
 import { materialTextures, meshes as objects } from './sceneMeshes.ts';
@@ -17,7 +16,8 @@ import type { WebglSurface } from './webglSurface.ts';
 import { prepareExplorerWebglSurface } from './explorerWebglHost.ts';
 type Inputs = {
   choice: BackendChoice;
-  gpuDevice?: GPUDevice;
+  /** The chosen engine presents its own surface: the host composes nothing (`directWebgpu`). */
+  directGpu: boolean;
   manifestUrl: string;
   metadataUrl: string;
   sceneFile: string;
@@ -36,13 +36,11 @@ function maxAnisotropy(gl: WebGL2RenderingContext) {
 }
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, scope, metadata, diagnosticChannel, diagnose } = session;
-  const { choice, gpuDevice, manifestUrl, metadataUrl, sceneFile, base, source, pageSources } =
-    inputs;
-  const { resources } = inputs;
-  const autonomous = choice.autonomous;
+  const { choice, directGpu, manifestUrl, metadataUrl, sceneFile, base } = inputs;
+  const { source, pageSources, resources } = inputs;
+  const { autonomous } = choice;
   const { pages, geometryPages, cacheCap } = pageSources;
   const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
-  const directGpu = directWebgpu(options, choice.factories, gpuDevice);
   if (!directGpu) {
     // The engine's surface is the session's only WebGL2 resource: the composition host builds
     // its programs and targets on it later.
@@ -99,5 +97,4 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
           texture.needsUpdate = true;
         }
   }
-  return { directGpu };
 }

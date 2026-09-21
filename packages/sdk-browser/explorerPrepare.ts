@@ -1,6 +1,7 @@
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import { chooseBackends } from './defaultBackends.ts';
 import { configureExplorer } from './explorerCapabilities.ts';
+import { directWebgpu } from './explorerInteractiveOptions.ts';
 import { probeExplorerCapabilities } from './explorerCapabilityProbe.ts';
 import { prepareExplorerBackends } from './explorerBackends.ts';
 import { createExplorerCamera } from './explorerCamera.ts';
@@ -73,9 +74,10 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     diagnosticChannel,
     progress,
   );
-  const configured = await configureExplorer(session, {
+  const directGpu = directWebgpu(options, choice.factories, gpuDevice);
+  await configureExplorer(session, {
     choice,
-    gpuDevice,
+    directGpu,
     manifestUrl,
     metadataUrl,
     sceneFile,
@@ -92,7 +94,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     pageSources,
     gpuDevice,
     webglContext: resources.webglSurface?.context,
-    directGpu: configured.directGpu,
+    directGpu,
     factories: choice.factories,
     backends,
     base,
@@ -112,7 +114,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     source,
     pageSources,
     capabilities,
-    directGpu: configured.directGpu,
+    directGpu,
     viewport,
     context,
     ...cameraState,

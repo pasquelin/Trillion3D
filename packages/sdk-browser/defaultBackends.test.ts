@@ -43,8 +43,7 @@ test('a witness renders only because the host opted into it', () => {
 test('no WebGPU and no prepared scene fails by name instead of falling back to a witness', () => {
   assert.throws(
     () => chooseBackends({}, cache(null), undefined),
-    (error: unknown) =>
-      error instanceof EngineError && error.code === 'NO_ENGINE_BACKEND' ? true : false,
+    (error: unknown) => error instanceof EngineError && error.code === 'NO_ENGINE_BACKEND',
   );
 });
 
@@ -52,7 +51,7 @@ test('an explicit autonomous request still refuses a cache without a prepared sc
   assert.throws(
     () => chooseBackends({ autonomousGeometry: true }, cache(null), undefined),
     (error: unknown) =>
-      error instanceof EngineError && error.code === 'AUTONOMOUS_SCENE_UNAVAILABLE' ? true : false,
+      error instanceof EngineError && error.code === 'AUTONOMOUS_SCENE_UNAVAILABLE',
   );
   const choice = chooseBackends({ autonomousGeometry: true }, cache('scene.gltf'), undefined);
   assert.deepEqual(choice.factories, [autonomousPagesBackend]);
