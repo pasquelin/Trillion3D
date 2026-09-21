@@ -1,4 +1,3 @@
-import type * as THREE from 'three';
 import type { BatchPage } from './clusterBatchRange.ts';
 import { BatchGroup } from './clusterBatchPrimitive.ts';
 import { ClusterDrawMesh } from './clusterBatchMesh.ts';
@@ -22,26 +21,6 @@ type BatchUpdateState = {
   indexCapacityBytes: number;
   attributeBytes: number;
 };
-
-function setMaterial(
-  mesh: ClusterDrawMesh,
-  material: THREE.Material | THREE.Material[],
-  source: THREE.Material | THREE.Material[],
-  biased: boolean,
-) {
-  mesh.material = material;
-  mesh._sideSplitMaterials = Array.isArray(material)
-    ? (material as [THREE.Material, THREE.Material])
-    : undefined;
-  mesh._sideSplitBack = mesh._sideSplitMaterials?.[0];
-  mesh._sideSplitFront = mesh._sideSplitMaterials?.[1];
-  mesh._sideSplitSource = mesh._sideSplitMaterials
-    ? Array.isArray(source)
-      ? undefined
-      : source
-    : undefined;
-  mesh._sideSplitPolygonMaterials = biased ? mesh._sideSplitMaterials : undefined;
-}
 
 /** Updates the sub-draws and the draw records without copying the indices. */
 export function updateClusterBatches(state: BatchUpdateState, display: readonly BatchPage[]) {
@@ -99,27 +78,20 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
     group.touched = false;
     const sample = group.sample!;
     let mesh = group.mesh;
-    const material = group.biased ?? group.split ?? sample.material;
-    if (!mesh) {
-      mesh = new ClusterDrawMesh(
+    if (!mesh)
+      mesh = group.mesh = new ClusterDrawMesh(
         group.primitive.geometry,
-        material,
+        sample.material,
         group.ranges,
         sample.renderOrder,
+        group.polygonOffsetUnits,
       );
-      group.mesh = mesh;
-      setMaterial(mesh, material, sample.material, group.biased === material);
-    } else if (
-      mesh.material !== material ||
-      (Array.isArray(material) && mesh._sideSplitSource !== sample.material)
-    )
-      setMaterial(mesh, material, sample.material, group.biased === material);
+    else mesh.material = sample.material;
     mesh.matrix.elements.set(sample.matrix.elements);
     // Arrays are reused; their identity changes only when they had to grow.
     mesh._multiDrawStarts = group.ranges.starts;
     mesh._multiDrawCounts = group.ranges.counts;
     mesh._multiDrawCount = group.ranges.count;
-    group.primitive.flush();
     draws++;
     subDraws += group.ranges.count;
     triangles += group.triangles;
