@@ -11,8 +11,7 @@ import { buildPortal } from './build-portal.mjs';
 import { buildRuntime } from './build-runtime.mjs';
 import { buildStyles } from './build-styles.mjs';
 
-export const ROOT = resolve(import.meta.dirname, '../..');
-export const SITE_SOURCE = resolve(ROOT, 'site');
+const ROOT = resolve(import.meta.dirname, '../..');
 export const SITE_OUTPUT = resolve(ROOT, 'dist/site');
 
 /** What the site serves as is: pages, scene assets, data records and the measurement reports. */

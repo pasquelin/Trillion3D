@@ -4,7 +4,7 @@ import { Cut } from './Cut.tsx';
 import { reportCopy } from '../../reports/copy.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import { Alert } from '../components/UI.tsx';
-import type { Report, ReportRecord, TimingStat } from '../types/reports.ts';
+import type { Report, ReportRecord, TimingStat } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface DetailsProps {

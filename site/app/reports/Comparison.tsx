@@ -1,10 +1,10 @@
 import { Table } from '../components/Table.tsx';
-import { METRICS, metricValue, formatValue } from '../../reports/metrics.ts';
+import { METRICS, METRIC_KEYS, metricValue, formatValue } from '../../reports/metrics.ts';
 import { metricLabel, reportCopy } from '../../reports/copy.ts';
 import { missingMetric } from '../../reports/availability.ts';
 import { readingName } from '../../reports/presentation.ts';
 import { comparison } from '../../reports/compare.ts';
-import type { ReportRecord } from '../types/reports.ts';
+import type { ReportRecord } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ComparisonProps {
@@ -37,7 +37,8 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
           </tr>
         </thead>
         <tbody>
-          {Object.entries(METRICS).map(([key, metric]) => {
+          {METRIC_KEYS.map((key) => {
+            const metric = METRICS[key];
             const left = metricValue(a, key),
               right = metricValue(b, key);
             const controlled = comparison(a, b, key, variable);

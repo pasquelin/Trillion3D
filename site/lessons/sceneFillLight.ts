@@ -1,7 +1,7 @@
 import type { Explorer } from '../../packages/sdk-browser/index.ts';
 import type { SceneLight } from '../../packages/sdk/index.ts';
 
-export const SCENE_FILL_LIGHT: SceneLight = {
+const SCENE_FILL_LIGHT: SceneLight = {
   id: 'scene-fill',
   kind: 'directional',
   direction: [0.45, -0.35, 0.8],

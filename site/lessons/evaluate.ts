@@ -46,7 +46,7 @@ export interface NormalizeResult {
   after: Float64Array;
   value: string;
 }
-export interface DotResult {
+interface DotResult {
   kind: 'vectors';
   input: string;
   a: number[];
@@ -54,7 +54,7 @@ export interface DotResult {
   dot: number;
   value: string;
 }
-export interface CrossResult {
+interface CrossResult {
   kind: 'vectors';
   input: string;
   a: number[];

@@ -1,5 +1,6 @@
 import type { Locale } from '../../content/locale.ts';
-import type { DiagnosticMode, EngineCopy } from '../types/engine-scene.ts';
+import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
+import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
 import { sceneCopy } from '../../lessons/engine-scene/content.ts';
 import { sceneControlsCopy } from '../../lessons/engine-scene/controlsCopy.ts';
 import { Canvas } from '../components/Canvas.tsx';

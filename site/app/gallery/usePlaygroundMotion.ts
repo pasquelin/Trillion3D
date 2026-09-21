@@ -6,7 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import type { Scenario } from '../types/gallery.ts';
+import type { Scenario } from '../../lessons/scenarios.ts';
 
 export function usePlaygroundMotion(
   scenario: Scenario,

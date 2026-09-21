@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { IllustrationSession, WebGPUCanvasProps } from '../types/gallery.ts';
+import type { Locale } from '../../content/locale.ts';
+import type { IllustrationSession } from '../../lessons/webgpuSession.ts';
 import { Canvas } from '../components/Canvas.tsx';
 import { Alert } from '../components/UI.tsx';
 import { Stat, StatGroup } from '../components/Stats.tsx';
 import { mountIllustration } from '../../lessons/webgpuRenderer.ts';
 import { initialState } from '../../lessons/scenarios.ts';
+
+export interface WebGPUCanvasProps {
+  id: string;
+  state: Record<string, number>;
+  locale: Locale;
+  preview?: boolean;
+  interactive?: boolean;
+  animating?: boolean;
+  label?: string;
+  related?: boolean;
+}
 
 type GeometryPreviewProps = Pick<
   WebGPUCanvasProps,
@@ -52,9 +64,11 @@ export function WebGPUCanvas({
   useEffect(() => {
     let active = true;
     let observer: IntersectionObserver | undefined;
-    const mount = () =>
-      mountIllustration(canvas.current, id, latestState.current, { locale, interactive })
-        .then((value: IllustrationSession) => {
+    const mount = () => {
+      // The canvas ref is bound by the `Canvas` component before this effect runs.
+      if (!canvas.current) return;
+      return mountIllustration(canvas.current, id, latestState.current, { locale, interactive })
+        .then((value) => {
           if (active) {
             mounted.current = value;
             value.setAnimating?.(latestAnimating.current);
@@ -66,6 +80,7 @@ export function WebGPUCanvas({
             active &&
             setError(locale === 'fr' ? 'Rendu 3D indisponible.' : '3D rendering unavailable.'),
         );
+    };
     if (preview && 'IntersectionObserver' in window) {
       observer = new IntersectionObserver(
         ([entry]) => {

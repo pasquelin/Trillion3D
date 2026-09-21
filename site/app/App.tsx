@@ -12,9 +12,10 @@ import { NotFound } from './portal/NotFound.tsx';
 import { Home } from './portal/Home.tsx';
 import { Layout } from './portal/Layout.tsx';
 import { canonicalEntryId } from './portal/entryLinks.ts';
-import type { PortalEntry, PortalRoute, ResolvedPage } from './types/portal.ts';
+import type { PortalEntry } from '../content/model.ts';
+import type { PortalRoute, ResolvedPage } from './portal/routes.ts';
 
-function currentRoute(): PortalRoute {
+function currentRoute() {
   return parseRoute(location.hash, document.documentElement.lang === 'fr' ? 'fr' : 'en');
 }
 
@@ -64,7 +65,7 @@ export function App() {
   const [theme, setTheme] = useState(readTheme);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const entries: PortalEntry[] = useMemo(
-    () => localizeEntries(rawEntries satisfies PortalEntry[], route.locale),
+    () => localizeEntries(rawEntries, route.locale),
     [route.locale],
   );
   const resolvedRoute = useMemo(
@@ -76,7 +77,7 @@ export function App() {
       resolvedRoute,
       entries,
       examples.map(({ id }: { id: string }) => id),
-    ) as ResolvedPage;
+    );
   }, [resolvedRoute, entries]);
 
   useEffect(() => {

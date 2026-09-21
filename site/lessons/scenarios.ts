@@ -1,5 +1,5 @@
 /** A single control: `[name, min, max, initial, step]`. */
-export type ScenarioControl = [string, number, number, number, number];
+type ScenarioControl = [string, number, number, number, number];
 
 /** One interactive demo: its controls, two preset value sets, whether it animates. */
 export interface Scenario {

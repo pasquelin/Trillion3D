@@ -1,5 +1,5 @@
 import type { Locale } from '../../content/locale.ts';
-import type { GalleryExample } from '../types/gallery.ts';
+import type { GalleryExample } from './roadmapPlan.ts';
 
 export const themes: [string, string, string][] = [
   ['transforms', 'Transforms', 'Transformations'],

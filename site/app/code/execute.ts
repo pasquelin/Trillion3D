@@ -13,7 +13,7 @@ export interface ModuleExecutionTask {
 }
 
 /** The part of a worker the runner drives; node tests adapt a `worker_threads` worker to it. */
-export type ModuleWorker = Pick<Worker, 'onmessage' | 'onerror' | 'terminate'>;
+type ModuleWorker = Pick<Worker, 'onmessage' | 'onerror' | 'terminate'>;
 
 interface RunOptions {
   timeout?: number;
@@ -21,7 +21,7 @@ interface RunOptions {
 }
 
 /** Execute one edited module off the UI thread. Each run owns and disposes its worker. */
-export function executionSource(code: string, sdkUrl: string) {
+function executionSource(code: string, sdkUrl: string) {
   const resolved = resolveSdkImports(String(code), sdkUrl);
   const moduleUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(resolved)}`;
   return `import(${JSON.stringify(moduleUrl)}).then(async module => {

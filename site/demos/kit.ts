@@ -1,30 +1,15 @@
 import type { Locale } from '../content/locale.ts';
 import { localizeDemoText } from '../content/i18n/demo.fr.ts';
 
-export interface DemoSliderControl {
-  kind?: 'slider';
+/** A demo's control: every demo drives its model with numeric sliders. */
+export interface DemoControlDef {
   name: string;
   label: string;
   min: number;
   max: number;
-  step?: number;
+  step: number;
   value: number;
 }
-
-export interface DemoChoiceOption {
-  value: string | number;
-  label: string;
-}
-
-export interface DemoChoiceControl {
-  kind: 'choice';
-  name: string;
-  label: string;
-  options: DemoChoiceOption[];
-  value: string | number;
-}
-
-export type DemoControlDef = DemoSliderControl | DemoChoiceControl;
 
 export interface MatrixView {
   kind: 'matrix';
@@ -33,13 +18,13 @@ export interface MatrixView {
   note?: string;
 }
 
-export interface ValuesView {
+interface ValuesView {
   kind: 'values';
   title?: string;
   rows: [string, string | number][];
 }
 
-export interface VerdictView {
+interface VerdictView {
   kind: 'verdict';
   title?: string;
   ok: boolean;
@@ -51,7 +36,7 @@ export interface SwatchItem {
   css: string;
 }
 
-export interface SwatchView {
+interface SwatchView {
   kind: 'swatch';
   title?: string;
   swatches: SwatchItem[];
@@ -82,16 +67,7 @@ export function slider(
   value: number,
   step?: number,
 ) {
-  return { kind: 'slider' as const, name, label, min, max, value, step: step ?? (max - min) / 100 };
-}
-
-export function choice(
-  name: string,
-  label: string,
-  options: DemoChoiceOption[],
-  value?: string | number,
-) {
-  return { kind: 'choice' as const, name, label, options, value: value ?? options[0].value };
+  return { name, label, min, max, value, step: step ?? (max - min) / 100 };
 }
 
 export function matrixView(title: string, matrix: Float64Array, note?: string) {

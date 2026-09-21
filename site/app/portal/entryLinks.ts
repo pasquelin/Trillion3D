@@ -1,4 +1,12 @@
-import type { EntryLinkItem, PortalEntry } from '../types/portal.ts';
+import type { PortalEntry } from '../../content/model.ts';
+
+export interface EntryLinkItem {
+  entry: PortalEntry;
+  key: string;
+  id: string;
+  label: string;
+  primary: boolean;
+}
 
 function symbolOf(label: string): string {
   return label.replace(/\(\)$/, '').trim();

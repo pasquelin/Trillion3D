@@ -7,7 +7,7 @@ function normalized(value: string | undefined) {
     .toLowerCase();
 }
 
-export function searchDocument(entry: PortalEntry) {
+function searchDocument(entry: PortalEntry) {
   return normalized(
     [entry.title, entry.id, entry.signature, entry.description, entry.module, entry.kind]
       .filter(Boolean)

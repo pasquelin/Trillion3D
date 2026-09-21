@@ -20,7 +20,7 @@ const range = (
   step,
 });
 export const LESSON_POINT_INTENSITY = 80;
-export const LESSON_COLORED_INTENSITY = 60;
+const LESSON_COLORED_INTENSITY = 60;
 /** Lamps of the ring lesson, above the watershed's peaks: two colours in turn, so a drawn
  *  subset differs from the whole; a range that reaches past the valley, so every lamp meets
  *  the others there while each still pools its colour on its own slope. */

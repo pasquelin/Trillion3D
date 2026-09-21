@@ -1,4 +1,5 @@
-import type { DiagnosticMode, EngineCopy } from '../types/engine-scene.ts';
+import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
+import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
 import type { Locale } from '../../content/locale.ts';
 import { Accordion } from '../components/Accordion.tsx';
 import { Alert } from '../components/UI.tsx';

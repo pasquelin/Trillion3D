@@ -8,7 +8,6 @@ import { createRendererLessonDeadline } from './rendererLessonDeadline.ts';
 import { createReadyGate } from './rendererLessonReadyGate.ts';
 import { createShadowPageCounter } from './lessonShadowPages.ts';
 import type { Explorer } from '../../packages/sdk-browser/index.ts';
-export type { RendererMetrics, RendererLessonSession } from './rendererLessonSessionTypes.ts';
 import type {
   RendererLessonRuntimeOptions,
   RendererLessonSession,

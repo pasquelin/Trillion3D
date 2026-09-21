@@ -2,7 +2,7 @@ import type { Report } from './types.ts';
 
 /** Shared browser/export validation. Unknown versions fail rather than silently changing meaning. */
 export const REPORT_VERSION = 1;
-export const RUN_STATUSES = ['complete', 'failed', 'missing'] as const;
+const RUN_STATUSES = ['complete', 'failed', 'missing'] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
 /** Where raw JSON is inspected, a type predicate narrows it: no interface carries an index signature. */
@@ -15,7 +15,7 @@ function isRunStatus(value: unknown): value is RunStatus {
   return typeof value === 'string' && statuses.includes(value);
 }
 
-export function assetPath(value: unknown): boolean {
+function assetPath(value: unknown): boolean {
   return (
     typeof value === 'string' &&
     /^[a-zA-Z0-9][a-zA-Z0-9_./-]*$/.test(value) &&

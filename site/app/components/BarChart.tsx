@@ -1,7 +1,19 @@
 import type { ReactNode } from 'react';
-import type { BarChartRow, ChartTone } from '../types/components.ts';
 import { Card } from './UI.tsx';
 import { StatusBadge } from './StatusBadge.tsx';
+
+export type ChartTone =
+  'primary' | 'secondary' | 'accent' | 'info' | 'success' | 'warning' | 'error' | 'neutral';
+
+export interface BarChartRow {
+  id?: string | number;
+  label: ReactNode;
+  value: number | null;
+  missing?: string;
+  tone?: ChartTone;
+  status?: ReactNode;
+  p95?: number | null;
+}
 
 interface BarChartProps {
   title: ReactNode;

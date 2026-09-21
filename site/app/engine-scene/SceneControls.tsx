@@ -1,4 +1,5 @@
-import type { DiagnosticMode, EngineCopy } from '../types/engine-scene.ts';
+import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
+import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
 import { Section } from '../components/Section.tsx';
 import { Button, Field, Form, Range, Select, Toggle } from '../components/UI.tsx';
 import { DIAGNOSTIC_MODES } from '../../lessons/engine-scene/diagnosticModes.ts';

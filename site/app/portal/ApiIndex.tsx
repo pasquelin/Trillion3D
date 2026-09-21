@@ -5,7 +5,8 @@ import { searchEntries } from './search.ts';
 import { Card } from '../components/UI.tsx';
 import { expandEntryLinks } from './entryLinks.ts';
 import type { Locale } from '../../content/locale.ts';
-import type { PortalEntry, TranslateFn } from '../types/portal.ts';
+import type { PortalEntry } from '../../content/model.ts';
+import type { TranslateFn } from '../../content/i18n/index.ts';
 
 interface ApiIndexProps {
   locale: Locale;

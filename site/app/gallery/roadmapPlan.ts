@@ -1,4 +1,18 @@
-import type { RoadmapExample } from '../types/gallery.ts';
+import type { CatalogExample } from '../../content/catalog.ts';
+import type roadmapModule from '../../content/gallery-roadmap.json';
+
+/** One roadmap entry, as `gallery-roadmap.json` declares it, with the fields a ready example
+ * carries but a roadmap entry does not yet (populated once a ready lesson covers it). */
+export type RoadmapExample = (typeof roadmapModule)['entries'][number] & {
+  description?: undefined;
+  functions?: string[];
+  engine?: boolean;
+  renderer?: boolean;
+  preview?: string;
+  readyLessonId?: string;
+};
+
+export type GalleryExample = CatalogExample | RoadmapExample;
 
 const plans: Record<string, string[]> = {
   animation: [

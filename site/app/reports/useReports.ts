@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { assertReport } from '../../reports/contract.ts';
-import type { CampaignIndexItem, Report, ReportsState, ReportSource } from '../types/reports.ts';
+import type { CampaignIndexItem, Report, ReportsState, ReportSource } from '../../reports/types.ts';
 
 export function useReports(campaign?: string): ReportsState {
   const [state, setState] = useState<ReportsState>({ loading: true });

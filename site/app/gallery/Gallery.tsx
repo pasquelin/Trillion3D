@@ -8,8 +8,8 @@ import {
   type SetStateAction,
 } from 'react';
 import type { Locale } from '../../content/locale.ts';
-import type { ProgressiveListState } from '../types/components.ts';
-import type { GalleryExample, GalleryViewState } from '../types/gallery.ts';
+import type { ProgressiveListState } from '../components/ProgressiveList.tsx';
+import type { GalleryExample } from './roadmapPlan.ts';
 import roadmap from '../../content/gallery-roadmap.json';
 import { Alert, Field } from '../components/UI.tsx';
 import { examples } from '../../content/catalog.ts';
@@ -20,11 +20,19 @@ import { ThemeTabs } from './ThemeTabs.tsx';
 import { galleryRoadmapEntry } from './roadmapRelated.ts';
 import { GalleryShowcase } from './GalleryShowcase.tsx';
 
+/** A visitor's restored gallery state: search, category and scroll position, kept per locale. */
+interface GalleryViewState {
+  query: string;
+  category: string;
+  progressive?: ProgressiveListState;
+  scrollY: number;
+}
+
 const PAGE_SIZE = 24;
 const viewState = new Map<Locale, GalleryViewState>();
 const READY: GalleryExample[] = [engineExample, ...examples].map((entry) => ({
   ...entry,
-  status: 'ready',
+  status: 'ready' as const,
 }));
 const ROADMAP = roadmap.entries.map(galleryRoadmapEntry);
 

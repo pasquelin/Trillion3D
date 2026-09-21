@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '../../content/locale.ts';
-import type { DiagnosticMode } from '../types/engine-scene.ts';
+import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
+import type { RendererLessonItem } from '../../lessons/rendererLessonTypes.ts';
 import type {
-  RendererLessonItem,
   RendererLessonSession,
   RendererMetrics,
-} from '../types/gallery.ts';
+} from '../../lessons/rendererLessonSessionTypes.ts';
 import { Canvas } from '../components/Canvas.tsx';
 import { Alert, Select } from '../components/UI.tsx';
 import { Stat, StatGroup } from '../components/Stats.tsx';
@@ -17,8 +17,8 @@ import { sceneCopy } from '../../lessons/engine-scene/content.ts';
 const value = (num: number | null | undefined, suffix: string, digits = 0): string =>
   typeof num === 'number' && Number.isFinite(num) ? `${num.toFixed(digits)}${suffix}` : '—';
 
-const poolSize = (bytes?: number): string =>
-  bytes === undefined
+const poolSize = (bytes: number | null | undefined): string =>
+  bytes === undefined || bytes === null
     ? '—'
     : bytes < 1048576
       ? value(bytes / 1024, ' KiB', 1)
@@ -58,11 +58,15 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
     setError('');
     setMetrics({});
     setPending(true);
+    // The canvas ref is bound by the `Canvas` component before this effect runs.
+    if (!canvas.current) return;
     createRendererLessonRuntime({
       canvas: canvas.current,
       lesson,
       state: initialState,
-      report: (next: RendererMetrics) => active && setMetrics(next),
+      report: (next: RendererMetrics) => {
+        if (active) setMetrics(next);
+      },
       signal: lifecycle.signal,
     })
       .then((mounted: RendererLessonSession) => {
@@ -93,6 +97,13 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
   }, [state, locale]);
   const french = locale === 'fr';
   const copy = sceneCopy[locale] ?? sceneCopy.en;
+  // `RendererMetrics.diagnostic` is the engine's full mode union; the select only offers this
+  // viewport's narrower `DIAGNOSTIC_MODES`, so a mode outside it (never emitted by these
+  // lessons in practice) falls back to Image, matching the pre-typed select's Image default.
+  const isKnownMode = (mode: string): mode is DiagnosticMode =>
+    DIAGNOSTIC_MODES.some((known) => known === mode);
+  const diagnosticValue: DiagnosticMode =
+    metrics.diagnostic && isKnownMode(metrics.diagnostic) ? metrics.diagnostic : 'beauty';
   // The runtime reports the mode it draws (a lesson may set it from its own state); the select
   // shows that report, updated at once on a pick so the control never lags its own change.
   const onSelectMode = (mode: DiagnosticMode): void => {
@@ -118,8 +129,10 @@ export function RendererViewport({ lesson, state, locale, label }: RendererViewp
             className="bg-base-100/90 shadow-sm text-xs font-medium rounded-box"
             aria-label={copy.mode}
             data-renderer-diagnostic
-            value={metrics.diagnostic ?? 'beauty'}
+            value={diagnosticValue}
             disabled={pending}
+            // DOM boundary: the select's options are exactly `DIAGNOSTIC_MODES`, so its value
+            // is always a `DiagnosticMode`.
             onChange={(event) => onSelectMode(event.target.value as DiagnosticMode)}
           >
             {DIAGNOSTIC_MODES.map((mode) => (

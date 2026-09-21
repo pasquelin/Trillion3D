@@ -1,5 +1,6 @@
 import type { Locale } from '../../content/locale.ts';
-import type { CatalogExample, GalleryExample, RoadmapExample } from '../types/gallery.ts';
+import type { CatalogExample } from '../../content/catalog.ts';
+import type { GalleryExample, RoadmapExample } from './roadmapPlan.ts';
 import { Alert, Card } from '../components/UI.tsx';
 import { CodeBlock } from '../components/CodeBlock.tsx';
 import { routeHref } from '../portal/routes.ts';

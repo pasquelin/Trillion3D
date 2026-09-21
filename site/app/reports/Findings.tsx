@@ -4,7 +4,7 @@ import { Collapse } from '../components/Collapse.tsx';
 import { Stat, StatGroup } from '../components/Stats.tsx';
 import { formatValue, metricValue } from '../../reports/metrics.ts';
 import { runOf, sceneName } from '../../reports/presentation.ts';
-import type { Report } from '../types/reports.ts';
+import type { Report } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface FindingsProps {
