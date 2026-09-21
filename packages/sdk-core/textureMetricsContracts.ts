@@ -36,8 +36,9 @@ export interface TextureFrameMetrics {
    * tiles that no slot could take, everything the pool holds having been watched in
    * the frame — the pool is too small for the view, and that is published, never compensated.
    * `textureBytesLastFrame`: tile bytes admitted by the last pass. `textureUploadMs`: CPU
-   * milliseconds of the last pass, `null` when it had nothing to serve; `textureUploadPeakMs`:
-   * the worst budgeted pass since the start — a stutter is a peak, never a median.
+   * milliseconds of the last pass, `null` when it had nothing to serve or when a barrier lifted
+   * its budget; `textureUploadPeakMs`: the worst budgeted pass since the start — a stutter is a
+   * peak, never a median.
    */
   textureTilesServed?: number | null;
   textureTilesEvicted?: number | null;

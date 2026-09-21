@@ -100,11 +100,11 @@ test('a pass copies until its millisecond budget is spent, then defers the rest 
   assert.equal(textures.metrics().textureUploadPeakMs, null, 'no pass yet: unmeasured');
   await feed();
   // First pass: the levels are not decoded yet, nothing is copied, the reads are launched.
-  assert.deepEqual(textures.pump(1), { served: 0, waiting: 5 });
+  assert.deepEqual(textures.pump(1), { served: 0, pending: 5 });
   await textures.settled();
   await feed();
   // One copy fits under the budget, the second closes it: two served, three deferred.
-  assert.deepEqual(textures.pump(2), { served: 2, waiting: 3 });
+  assert.deepEqual(textures.pump(2), { served: 2, pending: 3 });
   assert.equal(copies(), 2);
   const metrics = textures.metrics();
   assert.equal(metrics.textureTilesDeferred, 3);
@@ -112,12 +112,12 @@ test('a pass copies until its millisecond budget is spent, then defers the rest 
   assert.equal(metrics.textureUploadPeakMs, 2 * COPY_MS, 'the peak is the pass that was measured');
   assert.equal(metrics.textureUploadMs, 2 * COPY_MS);
   // No fresh feedback: the deferred tiles are served from the backlog, budget after budget.
-  assert.deepEqual(textures.pump(3), { served: 2, waiting: 1 });
-  assert.deepEqual(textures.pump(4), { served: 1, waiting: 0 });
+  assert.deepEqual(textures.pump(3), { served: 2, pending: 1 });
+  assert.deepEqual(textures.pump(4), { served: 1, pending: 0 });
   assert.equal(textures.metrics().textureTilesDeferred, 0);
   assert.equal(copies(), 5);
   // Nothing named, nothing deferred: the pass does no work and costs nothing measurable.
-  assert.deepEqual(textures.pump(5), { served: 0, waiting: 0 });
+  assert.deepEqual(textures.pump(5), { served: 0, pending: 0 });
   assert.equal(textures.counters.worked, false);
   assert.equal(textures.metrics().textureUploadMs, null);
 });
@@ -128,9 +128,10 @@ test('a zero budget still lands one tile per pass, and a barrier lifts the budge
   textures.pump(1);
   await textures.settled();
   await feed();
-  assert.deepEqual(textures.pump(2), { served: 1, waiting: 4 });
+  assert.deepEqual(textures.pump(2), { served: 1, pending: 4 });
   const peak = textures.metrics().textureUploadPeakMs;
-  assert.deepEqual(textures.pump(3, true), { served: 4, waiting: 0 });
+  assert.deepEqual(textures.pump(3, true), { served: 4, pending: 0 });
   assert.equal(copies(), 5);
   assert.equal(textures.metrics().textureUploadPeakMs, peak, 'an unbounded pass is not a frame');
+  assert.equal(textures.metrics().textureUploadMs, null, 'nor is it a last pass');
 });
