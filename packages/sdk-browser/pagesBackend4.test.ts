@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exactPagesBackend } from './index.ts';
 import { frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
+import { submittedDraws } from './clusterBatchMesh.ts';
 
 test('exact pages attach accepted pages in the same frame without a second frustum walk', () => {
   const { geometry, material, context } = quadRootsContext(false, { maxResidentPages: 2 });
@@ -14,7 +15,7 @@ test('exact pages attach accepted pages in the same frame without a second frust
   backend.acceptPage?.('1', new Uint32Array([0, 2, 3]));
   backend.syncResident?.();
   assert.equal(backend.metrics().residentPages, 2);
-  assert.equal(backend.clusterDraws!().length, 1);
+  assert.equal(submittedDraws(backend).length, 1);
   backend.dispose();
   geometry.dispose();
   material.dispose();

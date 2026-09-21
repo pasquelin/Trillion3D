@@ -9,6 +9,7 @@ import {
 import { hashId } from './backendCommon.ts';
 import { exactPagesBackend, referenceBackend } from './index.ts';
 import { quadScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
+import { submittedDraws } from './clusterBatchMesh.ts';
 
 test('triangle diagnostic expands indexed geometry and assigns a color per submitted triangle', () => {
   const { geometry } = quadScene();
@@ -57,7 +58,7 @@ test('exact pages wireframe uses non-indexed submitted triangles', () => {
   backend.render(camera);
   backend.setDiagnostic('wireframe');
   backend.render(camera);
-  const drawn = backend.clusterDraws!();
+  const drawn = submittedDraws(backend);
   assert.ok(drawn.length >= 1);
   assert.ok(drawn.every((item) => item.geometry.getIndex() === null));
   assert.ok(

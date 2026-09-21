@@ -4,6 +4,7 @@ import type { ClusterDraw } from './clusterBatches.ts';
 import type { PageRec } from './pageSelection.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
+import { submittedDraws } from './clusterBatchMesh.ts';
 
 export const RASTER_BACKGROUND = 0x171d28;
 const BACKGROUND = RASTER_BACKGROUND;
@@ -52,7 +53,7 @@ function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {
 /** CPU raster of what a backend draws: its owned draw records, then the plain meshes of its
  *  scene. Used as an oracle; not a GPU timestamp. */
 export function rasterPageRecords(
-  backend: Pick<RenderBackend, 'scene' | 'clusterDraws'>,
+  backend: Pick<RenderBackend, 'scene'>,
   camera: THREE.PerspectiveCamera,
   size: [number, number],
 ) {
@@ -66,7 +67,7 @@ export function rasterPageRecords(
   );
   const world = new THREE.Matrix4();
   // A batch record submits only its ranges: the oracle follows the same cut, not the whole buffer.
-  for (const draw of backend.clusterDraws?.() ?? []) {
+  for (const draw of submittedDraws(backend)) {
     const index = draw.geometry.getIndex()!,
       position = draw.geometry.getAttribute('position'),
       rgb = colorOf(draw.material);

@@ -10,6 +10,7 @@ import {
   quadIndices,
   frontCamera,
 } from './pagesBackendScenes.ts';
+import { submittedDraws } from './clusterBatchMesh.ts';
 
 test('exact pages keep replica meshes in separate batches despite shared glTF ids', () => {
   const { geometry, material, mesh: m1, source } = quadScene();
@@ -32,7 +33,7 @@ test('exact pages keep replica meshes in separate batches despite shared glTF id
     ]),
     maxResidentPages: 10,
   });
-  const meshes = () => backend.clusterDraws!();
+  const meshes = () => submittedDraws(backend);
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 8;
   camera.lookAt(0, 0, 0);
