@@ -1,8 +1,8 @@
 import type { FrameMetrics } from '../../../packages/sdk/index.ts';
-import type { EngineCopy } from './content.ts';
+import type { SceneCopy } from './content.ts';
 import type { Locale } from '../../content/locale.ts';
 
-export function createSceneTelemetry(host: ParentNode, copy: EngineCopy, locale: Locale) {
+export function createSceneTelemetry(host: ParentNode, copy: SceneCopy, locale: Locale) {
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   const format = (value: number | null | undefined) =>
     typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString(locale) : '—';
