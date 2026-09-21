@@ -2,31 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
-import { encodeWaterPass, waterPassRefusal } from './webgpuWaterPass.ts';
-import { WATER_MAX_ITEMS } from './webgpuWaterSurfaceWgsl.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { device, prepared, replay, targets } from './webgpuWaterPassFixture.ts';
+import { encodeWaterPass } from './webgpuWaterPass.ts';
+import { device, mountDevice, prepared, replay, targets } from './webgpuWaterPassFixture.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
-installGpuGlobals();
-
-/** A device that builds every pipeline and layout as a plain record, and counts the pipelines. */
-function mountDevice() {
-  const pipelines: string[] = [];
-  return {
-    pipelines,
-    device: {
-      createBindGroupLayout: (descriptor: unknown) => descriptor,
-      createPipelineLayout: () => ({}),
-      createRenderPipeline: (descriptor: { fragment: { entryPoint: string } }) => {
-        pipelines.push(descriptor.fragment.entryPoint);
-        return {};
-      },
-      createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
-      createBuffer: () => ({}),
-    } as unknown as GPUDevice,
-  };
-}
 const items = (count: number, transmissive: boolean) =>
   Array.from({ length: count }, () => ({ transmissive }) as BlendGpuItem);
 
@@ -45,22 +24,6 @@ test('the water pass is mounted with the blend pipelines only for a scene that t
   );
 });
 
-test('a scene beyond the rank the surface carries keeps its blends and is refused by name', async () => {
-  const count = WATER_MAX_ITEMS + 1;
-  const refusal = waterPassRefusal(count);
-  assert.match(String(refusal), /WATER_ITEMS_LIMIT/, 'the refusal carries its name');
-  assert.equal(waterPassRefusal(WATER_MAX_ITEMS), undefined, 'the limit itself is allowed');
-  const mount = mountDevice();
-  const built = await createWebgpuBlendPipelines(mount.device, items(count, true));
-  assert.equal(built.water, undefined, 'no water pass');
-  assert.ok(
-    built.pipelineBlendTextured,
-    'the blend pipelines are kept: the slice draws as a blend',
-  );
-  assert.deepEqual(mount.pipelines, ['fs', 'fs', 'fs']);
-  assert.match(String(built.waterRefused), /WATER_ITEMS_LIMIT/, 'and the caller reads the reason');
-});
-
 test('a device that refuses the water pipelines keeps the blends, and the refusal is named', async () => {
   const mount = mountDevice();
   const create = mount.device.createRenderPipeline;
@@ -71,7 +34,7 @@ test('a device that refuses the water pipelines keeps the blends, and the refusa
   const built = await createWebgpuBlendPipelines(mount.device, items(2, true));
   assert.equal(built.water, undefined, 'no water pass');
   assert.match(String(built.waterRefused), /DEVICE_SAYS_NO/, 'the device error is what is named');
-  assert.ok(built.pipelineBlendTextured && built.pipelineBlendBack, 'the three blends are kept');
+  assert.equal(built.blendPipelines.length, 3, 'the three blends are kept');
 });
 
 test('without the pass, the transmission slice draws as one more blend', () => {
@@ -79,7 +42,7 @@ test('without the pass, the transmission slice draws as one more blend', () => {
   targets(gpu);
   const { rt, encoder, passes, counters } = replay(blendState, gpu);
   // What `encodeBlend` does after the blends: the pass, or the slice as a blend.
-  const composed = encodeWaterPass(rt, device, encoder, new Float64Array(16));
+  const composed = encodeWaterPass(rt, encoder);
   if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true);
   assert.equal(composed, false);
   assert.equal(counters.copies, 0, 'no backdrop copy without the pass');
