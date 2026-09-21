@@ -57,10 +57,13 @@ export async function writePartsGltf(directory, name, materials, parts, nodes, o
     return index;
   };
   gltf.scenes[0].nodes = nodes.map(place);
+  // A reader activates an extension it finds in `extensionsUsed` alone.
+  const used = new Set(gltf.materials.flatMap((entry) => Object.keys(entry.extensions ?? {})));
   if (lights.length) {
-    gltf.extensionsUsed = ['KHR_lights_punctual'];
+    used.add('KHR_lights_punctual');
     gltf.extensions = { KHR_lights_punctual: { lights } };
   }
+  if (used.size) gltf.extensionsUsed = [...used];
   if (images.length) {
     gltf.images = images.map((uri) => ({ uri }));
     gltf.textures = images.map((_, source) => ({ source }));

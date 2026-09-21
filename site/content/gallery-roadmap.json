@@ -176,7 +176,7 @@
         "fr": "Surfaces peintes et texturées"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/painted-and-textured.html"
     },
     {
       "id": "bricks-with-a-normal-map",
@@ -185,7 +185,7 @@
         "fr": "Des briques avec une carte de normales"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/bricks-with-a-normal-map.html"
     },
     {
       "id": "leaves-cut-by-alpha",
@@ -194,7 +194,7 @@
         "fr": "Des feuilles découpées par leur alpha"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/leaves-cut-by-alpha.html"
     },
     {
       "id": "glass-on-the-table",
@@ -212,7 +212,7 @@
         "fr": "Une enseigne au néon qui luit"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/a-neon-sign.html"
     },
     {
       "id": "brushed-metal",
@@ -239,7 +239,7 @@
         "fr": "Un dégradé en lumière linéaire"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/a-colour-ramp-in-linear-light.html"
     },
     {
       "id": "sundial-in-the-afternoon",
