@@ -14,8 +14,16 @@ import { buildStyles } from './build-styles.mjs';
 const ROOT = resolve(import.meta.dirname, '../..');
 export const SITE_OUTPUT = resolve(ROOT, 'dist/site');
 
-/** What the site serves as is: pages, scene assets, data records and the measurement reports. */
-const STATIC_ENTRIES = ['.nojekyll', 'index.html', 'report.html', 'assets', 'data', 'reports'];
+/** What the site serves as is: pages, examples, scene assets, data records and the reports. */
+const STATIC_ENTRIES = [
+  '.nojekyll',
+  'index.html',
+  'report.html',
+  'examples',
+  'assets',
+  'data',
+  'reports',
+];
 /** Source modules living beside the reports' records are not served. */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 

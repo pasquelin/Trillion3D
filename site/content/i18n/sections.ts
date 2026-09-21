@@ -3,7 +3,7 @@ import type { Locale } from '../locale.ts';
 export const sectionStrings: Record<Locale, Record<string, string>> = {
   en: {
     'section.guides': 'Guides',
-    'section.examples': 'Examples',
+    'section.examples': 'SDK examples',
     'section.demo': 'Live demo',
     'section.enums': 'Constants & types',
     'section.lifecycle': 'Engine lifecycle',
@@ -18,7 +18,7 @@ export const sectionStrings: Record<Locale, Record<string, string>> = {
   },
   fr: {
     'section.guides': 'Guides',
-    'section.examples': 'Exemples',
+    'section.examples': 'Exemples SDK',
     'section.demo': 'Démo interactive',
     'section.enums': 'Constantes et types',
     'section.lifecycle': 'Cycle de vie du moteur',
