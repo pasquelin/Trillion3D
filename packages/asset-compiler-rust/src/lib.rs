@@ -99,6 +99,9 @@ pub struct Options {
     pub threads: usize,
     pub ram_budget_mb: usize,
     pub simplification: String,
+    /// Block families the texture stage cooks, `--textures-format`: the
+    /// desktop family alone by default, since a cook runs on a desktop.
+    pub texture_formats: Vec<texture_preview::BlockFormat>,
     pub cancelled: Arc<AtomicBool>,
 }
 pub const CLUSTER_TRIANGLES: usize = 256;
@@ -154,7 +157,7 @@ mod shared_math_tests;
 mod tests;
 use compiler_accessor_create::*;
 use compiler_accessor_types::*;
-pub use compiler_args::parse_compiler_args;
+pub use compiler_args::{parse_compiler_args, texture_formats, TEXTURE_FORMAT_DEFAULT};
 use compiler_buffers::*;
 pub use compiler_build::compile;
 use compiler_bundles::*;

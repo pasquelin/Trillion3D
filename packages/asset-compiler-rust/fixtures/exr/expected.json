@@ -4,24 +4,41 @@
   "report": {
     "bakedLevels": 0,
     "base": 64,
+    "blockBytes": 0,
+    "blockFormats": ["bc7"],
     "colorTextures": 1,
     "dataTextures": 0,
+    "encoded": {
+      "bc7": {
+        "keptPsnrDb": null,
+        "lossless": 0,
+        "rgba": 0,
+        "twoChannel": 0
+      }
+    },
+    "lossless": [],
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 0,
     "previews": 0,
+    "qualityGate": {
+      "decoder": "texture2ddecoder",
+      "maskFlips": 0,
+      "maxDelta": 8,
+      "psnrDb": 48.0
+    },
     "skipped": {
       "image-float-unsupported": 1
     },
-    "version": 3
+    "version": 4
   },
   "rule": "A float texture fails no compilation and is never cut down to eight bits: the progressive previews are RGBA8 sRGB, the texture is counted, no preview is produced, and the reason image-float-unsupported is named in the report.",
   "scene": {
     "formatVersion": 3,
-    "manifestBinaryVersion": 6,
+    "manifestBinaryVersion": 7,
     "primitives": 1,
     "selectedTriangles": 2,
-    "sidecarSha256": "1f2690772fc8aedf5971d7442dddc130b5ead0ba1e7c04ac2a404013861910c5",
+    "sidecarSha256": "a8ec18ba3aa5fe9f08a82b62613c131ea2609d2fc8c4b6343ceac1cb8774a1a3",
     "texturePreviewBytes": 0
   }
 }
