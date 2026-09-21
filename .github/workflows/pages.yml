@@ -32,9 +32,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Styles, demo maths, browser engine, workers and portal, bundled from the sources alone.
       - run: pnpm run build:docs
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: docs
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
         id: deployment
