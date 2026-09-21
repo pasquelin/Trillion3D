@@ -54,8 +54,14 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         pass.draw(3);
         pass.end();
       },
+      /** Withdraws the image: nothing that samples the canvas afterwards reads a frame of this device. */
       dispose() {
         context.unconfigure();
+        // Unconfiguring replaces the drawing buffer with transparent black, but a reader that
+        // samples the canvas (`texImage2D`) still sees the last image in Chromium: resetting the
+        // bitmap the HTML way — a size write — makes the withdrawal hold for every reader.
+        const { width } = canvas;
+        canvas.width = width;
         group = undefined;
         texture = undefined;
       },
