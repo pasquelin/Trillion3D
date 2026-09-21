@@ -4,7 +4,6 @@ import {
   createWaterCompositePipeline,
 } from './webgpuWaterPipelines.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
-import { sameLighting } from './webgpuBlendLighting.ts';
 import type { TransmissionBackdrop } from './webgpuPagesStateGpu.ts';
 
 /** Label of the measured pass; its GPU duration is read under this name. */
@@ -52,7 +51,9 @@ export async function createWaterComposite(device: GPUDevice) {
         bound.backdrop === backdrop &&
         bound.uniform === uniform &&
         bound.volumes === volumes &&
-        sameLighting(bound.lighting, lighting)
+        (Object.keys(lighting) as (keyof BlendLighting)[]).every(
+          (key) => bound!.lighting[key] === lighting[key],
+        )
       )
         return;
       bound = { backdrop, uniform, volumes, lighting };
