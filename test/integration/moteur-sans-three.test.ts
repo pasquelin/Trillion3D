@@ -100,6 +100,8 @@ const AUTORISES: Record<string, string> = {
 };
 
 const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three(?:\/[^'"]*)?['"]/m;
+/** A call of the crossing back, `asHostLibrary<T>(x)` or `asHostLibrary(x)`, never its import. */
+const TRAVERSE = /\basHostLibrary\s*[<(]/;
 
 const sources = async () =>
   (await readdir(browser)).filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'));
@@ -114,6 +116,18 @@ test('only declared files import the host library', async () => {
     if (IMPORTE_HOTE.test(texte)) fuites.push(file);
   }
   assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`);
+});
+
+// `hostResources.ts` declares the crossing; the same closed list says who may call it, so the
+// doc of `asHostLibrary` stays a rule and not a hope.
+test('only the declared boundary files cross back through `asHostLibrary`', async () => {
+  const fichiers = await sources();
+  const fuites: string[] = [];
+  for (const file of fichiers) {
+    if (file === 'hostResources.ts' || AUTORISES[file.slice(0, -3)]) continue;
+    if (TRAVERSE.test(await readFile(new URL(file, browser), 'utf8'))) fuites.push(file);
+  }
+  assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`);
 });
 
 test('no dead lines: each declared file exists and still imports', async () => {
