@@ -55,8 +55,9 @@ export interface WebgpuTimingState {
     imageRelevee: number;
   };
   /** What the world step walks: counts, never durations. `racines` is how many root matrices one
-   *  rebase brings back to the eye; `racinesRebasees` is how many this image did — all of them when
-   *  the camera or the scene moved, none otherwise, so a held or still image reports zero. */
+   *  rebase brings back to the eye, fixed with the layout; `racinesRebasees` is how many this image
+   *  did — all of them when the camera or the scene moved, none otherwise, so a held or still image
+   *  reports zero. */
   worldCounts: { racines: number; racinesRebasees: number };
   /** What encode uploaded and submitted: counts, never durations. */
   encodeCounts: {
@@ -67,7 +68,11 @@ export interface WebgpuTimingState {
     /** Compute-raster dispatches, counted separately: they are not draw calls. */
     lancementsDeCalcul: number;
   };
+  /** CPU bounds of the last images, on the publish cadence of the `cpu-timing` diagnostic. */
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
+  /** The same bounds over the window a host opens with `resetStageProfile()` and reads once with
+   *  `cpuSteps()`: the same row, filed twice, so neither window forgets for the other. */
+  cpuWindow: ReturnType<typeof createCpuStepProfile>;
   /** True when the image has filled its bound row and waits to be filed by the host. */
   rowFilled: boolean;
   marks: GpuCutMarks;
@@ -103,7 +108,8 @@ export function createWebgpuStageProfiler(): StageProfiler {
   return stages;
 }
 
-export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingState {
+export function createWebgpuTimingState(stages?: StageProfiler, roots = 0): WebgpuTimingState {
+  const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES);
   return {
     gpuTiming: undefined,
     lastGpuPassMs: null,
@@ -121,7 +127,7 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       retiresParLaPyramide: 0,
       imageRelevee: -1,
     },
-    worldCounts: { racines: 0, racinesRebasees: 0 },
+    worldCounts: { racines: roots, racinesRebasees: 0 },
     encodeCounts: {
       lignesTeleversees: 0,
       fichesTeleversees: 0,
@@ -129,7 +135,8 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       appelsDeMelange: 0,
       lancementsDeCalcul: 0,
     },
-    cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
+    cpuProfile,
+    cpuWindow: createCpuStepProfile(CPU_STEP_NAMES, { row: cpuProfile.row }),
     rowFilled: false,
     marks: {
       preStart: 0,
