@@ -1,7 +1,7 @@
 import { Alert } from '../components/UI.tsx';
 import { Collapse } from '../components/Collapse.tsx';
 import { reportCopy } from '../../reports/copy.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface SceneNoticeProps {
   note?: string | null;

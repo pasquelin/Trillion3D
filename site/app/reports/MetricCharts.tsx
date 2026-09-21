@@ -9,7 +9,7 @@ import { BarChart } from '../components/BarChart.tsx';
 import { Collapse } from '../components/Collapse.tsx';
 import { Table } from '../components/Table.tsx';
 import type { MetricKey, Report, ReportRecord } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface MetricChartsProps {
   records: ReportRecord[];

@@ -12,7 +12,8 @@ import { ExampleLayout } from './components/ExampleLayout.tsx';
 import { Card, Alert } from './components/UI.tsx';
 import { Inline, Prose, Table } from './components/Prose.tsx';
 import type { DemoDef } from './types/demo.ts';
-import type { Locale, PortalEntry } from './types/portal.ts';
+import type { Locale } from '../content/locale.ts';
+import type { PortalEntry } from './types/portal.ts';
 
 function LiveDemo({ demo, locale }: { demo: DemoDef; locale: Locale }) {
   return (

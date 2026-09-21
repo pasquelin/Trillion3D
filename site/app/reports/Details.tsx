@@ -5,7 +5,7 @@ import { reportCopy } from '../../reports/copy.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import { Alert } from '../components/UI.tsx';
 import type { Report, ReportRecord, TimingStat } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface DetailsProps {
   record?: ReportRecord | null;

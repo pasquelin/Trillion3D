@@ -3,7 +3,7 @@ import { readingName } from '../../reports/presentation.ts';
 import { reportCopy } from '../../reports/copy.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import type { ReportRecord } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface ConditionsProps {
   a: ReportRecord;

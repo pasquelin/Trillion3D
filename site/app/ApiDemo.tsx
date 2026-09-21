@@ -4,7 +4,7 @@ import { localizeDemoText } from '../content/i18n/demo.fr.ts';
 import { Canvas } from './components/Canvas.tsx';
 import { Section } from './components/Section.tsx';
 import { Alert, Card, Field, Form, Range, Select } from './components/UI.tsx';
-import type { Locale } from './types/portal.ts';
+import type { Locale } from '../content/locale.ts';
 import type {
   DemoControlDef,
   DemoDef,
