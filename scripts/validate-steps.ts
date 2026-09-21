@@ -19,6 +19,7 @@ export const VALIDATE_STEPS = [
   'check:no-js',
   'check:docs-bundles',
   'check:site-types',
+  'check:tools-types',
   'check:links',
   'test',
   'test:native',
