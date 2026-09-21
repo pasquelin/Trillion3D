@@ -206,23 +206,28 @@ kernel: none of their loops was measured above 0.1 ms in the engine's own frame 
 kernel for a cost that is not measured is refused by AGENTS.md.
 
 **What the engine's own frame pays for them** (#80 stage 1, `scripts/mesure/banc.mjs`, WebGPU,
-1280×720, DPR 1, `pixelError 1`, 60 measured frames, three runs per line, commit `<<COMMIT>>`,
-Apple M2 Max under a load average of <<LOAD>> — the spread quoted is the run-to-run range of the
-p50). The per-step profile (`cpu-timing` diagnostic) has a 0.1 ms clock: a step that reads
-`0.000 / 0.100` is under it, not zero.
+1280×720, DPR 1, `pixelError 1`, three runs per line, the machine's load average published with
+each run in `mesure.json` under `charge`). The per-step bounds come from the `cpu-timing`
+diagnostic, kept per series under `bornesCpu` (bench README), on a 0.1 ms clock: a step that reads
+`0.000 / 0.100` is under it, not zero. `null` is unmeasured, never an estimate.
 
-<<TABLE>>
+| scene · camera | `worldMs` p50 / p95 | `lightsMs` | `selectionDispatchMs` | CPU frame p50 | roots rebased per frame | verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| Emerald Square · still | null | null | null | null | null | null |
+| Emerald Square · moving | null | null | null | null | null | null |
+| Whisperwind Village · still | null | null | null | null | null | null |
+| Whisperwind Village · moving | null | null | null | null | null | null |
 
 The reading: on the GPU-cut path (Emerald Square), `lightsMs` is zero by construction — declared
-lamps live in a store the frame does not walk — and `selectionDispatchMs` is under the clock; the
-only per-element loop the CPU runs every moving frame is the root rebase
-(`rootWorldsToRenderOrigin`, <<ROOTS>> roots, sixteen floats each), inside `worldMs`, whose share is
-at the clock's edge. On Whisperwind Village the GPU cut is unavailable (visibility-identifier
-capacity) and the frame runs the CPU reference cut, where `frustumExcludesBox` is called per DAG
-node visited (`cpuSelectNodesTested`); that traversal is not a batch — a node is tested only if its
-parent was kept — and its cost is the cut's, published as `cpuSelectMs`. No engine loop was
-replaced by a batch in this stage: the verdict per loop is in the table's last column, and the
-rule stays that a batch enters the frame only where its loop's share is measured above the spread.
+lamps live in a store the frame does not walk — and the only per-element loop the CPU runs every
+moving frame is the root rebase (`rootWorldsToRenderOrigin`, one root = sixteen floats), inside
+`worldMs`. On Whisperwind Village the GPU cut is unavailable (visibility-identifier capacity) and
+the frame runs the CPU reference cut, where `frustumExcludesBox` is called per DAG node visited;
+that traversal is not a batch — a node is tested only if its parent was kept — and its cost is the
+cut's, published as `cpuSelectMs`. No engine loop was replaced by a batch in this stage, and no
+WebAssembly kernel was written for the host batches: the rule stays that a kernel is written only
+where a loop's share is measured above 0.1 ms in the engine's own frame, and the table above is
+that measurement.
 
 ## Browser explorer
 
