@@ -48,12 +48,15 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     ready.catch(() => {});
     return ready;
   };
+  const settle = (outcome, value) => {
+    outcome?.(value);
+    readyResolve = readyReject = undefined;
+  };
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     startup.cancel();
-    readyReject?.(new DOMException('Cancelled', 'AbortError'));
-    readyResolve = readyReject = undefined;
+    settle(readyReject, new DOMException('Cancelled', 'AbortError'));
     cancelAnimationFrame(frame);
     resize?.disconnect();
     controls?.dispose();
@@ -80,22 +83,17 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         triangles: metrics.drawnTriangles,
         occluded: metrics.hizRejectedClusters ?? null, // the device's count, never estimated
         tested: metrics.hizTestedClusters ?? null,
+        diagnostic: explorer.diagnostic,
         idle,
       });
-      if (!coldStart) {
-        readyResolve?.();
-        readyResolve = readyReject = undefined;
-      }
+      if (!coldStart) settle(readyResolve);
       previous = now;
       frame = 0;
-      if (idle) {
-        readyResolve?.();
-        readyResolve = readyReject = undefined;
-      } else frame = requestAnimationFrame(draw);
+      if (idle) settle(readyResolve);
+      else frame = requestAnimationFrame(draw);
     } catch (error) {
       frame = 0;
-      readyReject?.(error);
-      readyResolve = readyReject = undefined;
+      settle(readyReject, error);
       dispose();
     }
   };
