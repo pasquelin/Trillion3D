@@ -10,12 +10,12 @@ const SURFACE_BYTES_PER_PIXEL = 28;
 /** Virtual-texture feedback target: the tile rank a pixel asks for, written by hardware
  *  resolve then by transparents, reduced to counters for one pixel in sixteen. */
 export const FEEDBACK_FORMAT: GPUTextureFormat = 'r32uint';
-/** Color, depth, visibility, HDR, material surfaces, the transparent texture feedback target and
- *  optional two Hi-Z pyramids. */
+/** Color, depth, visibility, material depth, HDR, material surfaces, the transparent texture
+ *  feedback target and optional two Hi-Z pyramids. */
 export function frameTargetBytes(width: number, height: number, withHiz: boolean) {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
     throw new Error('INVALID_SURFACE_SIZE');
-  let bytes = width * height * 52;
+  let bytes = width * height * 56;
   if (withHiz) {
     bytes += width * height * 4;
     let w = width,
