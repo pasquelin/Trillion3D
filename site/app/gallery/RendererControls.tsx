@@ -5,8 +5,9 @@ import type {
   RendererLessonItem,
 } from '../../lessons/rendererLessonTypes.ts';
 import { examples } from '../../content/catalog.ts';
-import { ControlActions, ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
-import { Button, Field, Range, Select, Toggle } from '../components/UI.tsx';
+import type { LessonControl } from '../components/LessonControls.tsx';
+import { LessonControls } from '../components/LessonControls.tsx';
+import { Button } from '../components/UI.tsx';
 
 export const controlValue = (
   item: RendererLessonControl,
@@ -28,7 +29,7 @@ interface RendererControlsProps {
   onSelect?: (id: string) => void;
 }
 
-/** The experiment picker and the lesson's own controls, on the shared control panel. */
+/** The experiment picker and the lesson's own controls, described for the shared renderer. */
 export function RendererControls({
   lesson,
   locale,
@@ -38,77 +39,55 @@ export function RendererControls({
   onSelect,
 }: RendererControlsProps) {
   const french = locale === 'fr';
+  const controls: LessonControl[] = [
+    {
+      kind: 'select',
+      id: 'experiment',
+      value: lesson.id,
+      options: examples.map((example) => ({
+        value: example.id,
+        label: local(example.title, locale),
+      })),
+      onChange: (id) => onSelect?.(id),
+      props: { 'aria-label': french ? 'Choisir une expérience' : 'Choose an experiment' },
+    },
+    ...lesson.controls.map((item): LessonControl => {
+      const label = local(item.label, locale);
+      if (item.type === 'boolean')
+        return {
+          kind: 'toggle',
+          id: item.id,
+          label,
+          checked: (state[item.id] ?? item.value) === 1,
+          onChange: (checked) => setState({ ...state, [item.id]: checked ? 1 : 0 }),
+          legend: item.legend?.map((entry) => ({
+            color: entry.color,
+            label: local(entry.label, locale),
+          })),
+        };
+      return {
+        kind: 'range',
+        id: item.id,
+        label,
+        display: controlValue(item, state, french),
+        min: item.min,
+        max: item.max,
+        step: item.step,
+        value: state[item.id] ?? item.value,
+        onChange: (value) => setState({ ...state, [item.id]: value }),
+      };
+    }),
+  ];
   return (
-    <ControlPanel>
-      <div className="control-panel-wide" data-control="experiment">
-        <Select
-          size="sm"
-          value={lesson.id}
-          aria-label={french ? 'Choisir une expérience' : 'Choose an experiment'}
-          onChange={(event) => onSelect?.(event.target.value)}
-        >
-          {examples.map((example) => (
-            <option key={example.id} value={example.id}>
-              {local(example.title, locale)}
-            </option>
-          ))}
-        </Select>
-      </div>
-      {lesson.controls.length > 0 && (
-        <ControlActions>
+    <LessonControls
+      controls={controls}
+      actions={
+        lesson.controls.length > 0 && (
           <Button size="sm" variant="outline" onClick={onReset}>
             {french ? 'Réinitialiser' : 'Reset'}
           </Button>
-        </ControlActions>
-      )}
-      {lesson.controls.map((item) => (
-        <Field
-          key={item.id}
-          className={item.type === 'boolean' ? 'control-panel-toggle' : ''}
-          data-control={item.id}
-          label={
-            <ControlLabel
-              label={local(item.label, locale)}
-              value={item.type === 'boolean' ? undefined : controlValue(item, state, french)}
-            />
-          }
-        >
-          {item.type === 'boolean' ? (
-            <div className="control-toggle">
-              <Toggle
-                aria-label={local(item.label, locale)}
-                checked={(state[item.id] ?? item.value) === 1}
-                onChange={(event) =>
-                  setState({ ...state, [item.id]: event.target.checked ? 1 : 0 })
-                }
-              />
-              {item.legend && (
-                <ul className="control-legend">
-                  {item.legend.map((entry) => (
-                    <li key={entry.color}>
-                      <span
-                        className="size-2.5 rounded-full"
-                        style={{ backgroundColor: entry.color }}
-                        aria-hidden="true"
-                      />
-                      {local(entry.label, locale)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : (
-            <Range
-              aria-label={local(item.label, locale)}
-              min={item.min}
-              max={item.max}
-              step={item.step}
-              value={state[item.id] ?? item.value}
-              onChange={(event) => setState({ ...state, [item.id]: Number(event.target.value) })}
-            />
-          )}
-        </Field>
-      ))}
-    </ControlPanel>
+        )
+      }
+    />
   );
 }
