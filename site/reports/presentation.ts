@@ -1,22 +1,22 @@
+import type { Locale } from '../content/locale.ts';
 import { engineName, runName, viewName } from './names.ts';
-export const sceneName = (id) =>
+import type { Report, ReportRecord } from './types.ts';
+
+export const sceneName = (id: string | null | undefined) =>
   (id ?? '—').replaceAll('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-export const runOf = (report, record) => report.runs.find((r) => r.id === record.runId)?.name ?? '';
-export function readingName(record, locale) {
+export const runOf = (report: Report, record: ReportRecord) =>
+  report.runs.find((r) => r.id === record.runId)?.name ?? '';
+export function readingName(record: ReportRecord | null | undefined, locale: Locale) {
   if (!record) return '—';
   return `${engineName(record.engine)} · ${viewName(record.view ?? '—', locale)} · ${record.quality ?? '—'} px`;
 }
-export function recordLabel(report, record, locale) {
+export function recordLabel(report: Report, record: ReportRecord, locale: Locale) {
   const size = record.canvas ? `${record.canvas.width} × ${record.canvas.height}` : '—';
   return `${runName(runOf(report, record), locale)} · ${readingName(record, locale)} · ${size}`;
 }
-/**
- * @template T
- * @param {T[]} records
- * @returns {[T, T][]}
- */
-export function pairedImages(records) {
-  const groups = new Map();
+/** The two members of an A/B image pair, same shape as the records they came from. */
+export function pairedImages<T extends ReportRecord>(records: T[]): [T, T][] {
+  const groups = new Map<string, T[]>();
   for (const r of records) {
     if (!r.image || !r.differencePair) continue;
     const group = groups.get(r.differencePair) ?? [];
@@ -25,11 +25,13 @@ export function pairedImages(records) {
   }
   return [...groups.values()]
     .filter((rows) => rows.length === 2)
-    .map((rows) =>
-      rows.toSorted(
-        (a, b) =>
-          Number(a.engine === 'webgpu-page-raster') - Number(b.engine === 'webgpu-page-raster'),
-      ),
+    .map(
+      (rows) =>
+        // filtered above to exactly two entries; `toSorted` returns T[], so this closes the tuple
+        rows.toSorted(
+          (a, b) =>
+            Number(a.engine === 'webgpu-page-raster') - Number(b.engine === 'webgpu-page-raster'),
+        ) as [T, T],
     );
 }
 export const REPORT_SECTIONS = [

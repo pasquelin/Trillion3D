@@ -1,10 +1,12 @@
-const VIEWS = {
+import type { Locale } from '../content/locale.ts';
+
+const VIEWS: Record<string, [string, string]> = {
   generale: ['Overview', 'Vue générale'],
   sol: ['Street level', 'Au sol'],
   rue: ['Street corner', 'Angle de rue'],
   detail: ['Close-up', 'Gros plan'],
 };
-const RUNS = {
+const RUNS: Record<string, [string, string]> = {
   'raster-1248': [
     'Two ways to draw the same image · 1248 × 702',
     'Deux façons de dessiner la même image · 1248 × 702',
@@ -35,8 +37,8 @@ const RUNS = {
   'lampe-mobile': ['Moving light', 'Lumière mobile'],
   visible: ['Visible browser window', 'Fenêtre du navigateur visible'],
 };
-export const viewName = (id, locale) => VIEWS[id]?.[locale === 'fr' ? 1 : 0] ?? id;
-export function runName(id, locale) {
+export const viewName = (id: string, locale: Locale) => VIEWS[id]?.[locale === 'fr' ? 1 : 0] ?? id;
+export function runName(id: string, locale: Locale) {
   const fr = locale === 'fr';
   if (RUNS[id]) return RUNS[id][fr ? 1 : 0];
   const size = id?.match(/^(?:res|three-(?:nu|lod))-(\d+)(?:-e(\d+))?$/);
@@ -52,12 +54,10 @@ export function runName(id, locale) {
     return `${engineName(shadows[1])} / Web Geometry · ${fr ? 'sans ombres' : 'without shadows'}`;
   return id;
 }
-export const engineName = (id) =>
-  ({
-    'webgpu-page-raster': 'Web Geometry · WebGPU',
-    'exact-cluster-pages': 'SDK · reference',
-    'three-nu': 'Three.js',
-    'three-lod': 'Three.js LOD',
-  })[id] ??
-  id ??
-  '—';
+const ENGINE_NAMES: Record<string, string> = {
+  'webgpu-page-raster': 'Web Geometry · WebGPU',
+  'exact-cluster-pages': 'SDK · reference',
+  'three-nu': 'Three.js',
+  'three-lod': 'Three.js LOD',
+};
+export const engineName = (id: string) => ENGINE_NAMES[id] ?? id ?? '—';
