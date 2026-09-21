@@ -6,6 +6,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
+import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 
 test('clustered transparency submits only visible pages in one two-sided mesh draw', async () => {
   installGpuGlobals();
@@ -26,17 +27,12 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
   primitive.pass = 'clustered-blend';
   primitive.pages[1].min = [99, -1, 0];
   primitive.pages[1].max = [101, 1, 0];
-  primitive.hierarchy = {
-    min: [-1, -1, 0],
-    max: [101, 1, 0],
-    children: primitive.pages.map((p) => ({ min: p.min, max: p.max, page: p.id })),
-  };
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     backend.render(camera());
@@ -89,7 +85,9 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
     try {
       await backend.prepare();
       backend.render(camera());
-      allocations.push(backend.metrics().geometryAllocationBytes);
+      const bytes = backend.metrics().geometryAllocationBytes;
+      assert.ok(typeof bytes === 'number');
+      allocations.push(bytes);
     } finally {
       await backend.dispose();
       fixture.geometry.dispose();
@@ -118,7 +116,7 @@ test('clustered transparency switches LOD with resident coverage and retains bot
     gpuDevice: device,
     maxResidentPages: 3,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     backend.render(camera());
@@ -171,7 +169,7 @@ test('a transparent switched to double-sided still expands all its instances', a
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     backend.render(camera());

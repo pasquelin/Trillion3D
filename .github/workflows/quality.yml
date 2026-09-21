@@ -42,7 +42,7 @@ jobs:
       - run: pnpm run validate --group typescript
 
   # Clippy, the release build, the Rust tests, and the unit suite — which drives the compiled
-  # compiler and reads `dist/`, so it runs where both exist (`scripts/validate-steps.mjs`). The
+  # compiler and reads `dist/`, so it runs where both exist (`scripts/validate-steps.ts`). The
   # longest group, and the one a cache hit empties down to the unit suite.
   native:
     runs-on: ubuntu-24.04
@@ -59,8 +59,8 @@ jobs:
         with:
           components: clippy, rustfmt
       # The native binaries, keyed on the CONTENT of the Rust sources and the compiler. A hit means
-      # a green run already built these exact sources: the group skips its steps
-      # (`scripts/validate-steps.mjs` says why Cargo cannot decide this itself). The save is a
+      # a green run already built these exact sources: the group skips its Rust steps
+      # (`scripts/validate-steps.ts` says why Cargo cannot decide this itself). The save is a
       # separate step after the gates, so a red run never publishes its binaries.
       - uses: actions/cache/restore@v4
         id: native

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
 import {
   createEngineCamera,
   defaultEngineCamera,
@@ -15,7 +15,7 @@ import { readCameraWorld } from './cameraWorld.ts';
 
 const FIELDS = ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'] as const;
 function assertSameCamera(engine: EngineCamera, host: EngineCamera) {
-  for (const field of FIELDS) assertBits(engine[field], host[field], field);
+  for (const field of FIELDS) assertBits(engine[field], host[field]);
   for (const field of ['near', 'far', 'fov', 'aspect'] as const)
     assert.ok(Object.is(engine[field], host[field]), field);
 }
