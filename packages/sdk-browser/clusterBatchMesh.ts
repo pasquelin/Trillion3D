@@ -1,6 +1,18 @@
 import * as THREE from 'three';
 import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
 import type { DrawRanges } from './clusterBatchRange.ts';
+import type { ClusterDraw } from './clusterBatches.ts';
+
+/** A backend whose paged clusters the engine's program draws publishes its submissions here.
+ *  The raster oracle and the tests read them; a host never does, so the public backend
+ *  contract does not carry it. */
+export interface ClusterDrawSource {
+  clusterDraws(): readonly ClusterDraw[];
+}
+/** The draw records `backend` submits for the cut; none from a backend that owns no cluster. */
+export function submittedDraws(backend: object): readonly ClusterDraw[] {
+  return 'clusterDraws' in backend ? (backend as ClusterDrawSource).clusterDraws() : [];
+}
 
 /**
  * Draw record of a group: the primitive's shared geometry, the material of its pass, the

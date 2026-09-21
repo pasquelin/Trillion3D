@@ -39,7 +39,6 @@ export interface RenderBackend {
     camera: import('./cameraWorld.ts').HostDrawCamera,
     output: { encodeSrgb: boolean; toneMapped: boolean },
   ): void;
-  clusterDraws?(): readonly import('./clusterBatches.ts').ClusterDraw[]; // what the owner submits
   readonly overBudget: boolean;
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
