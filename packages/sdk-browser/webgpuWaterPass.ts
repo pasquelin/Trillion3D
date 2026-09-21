@@ -1,6 +1,7 @@
 import { blendPassReady, countBlendDraws, drawBlendRuns } from './webgpuBlendDraw.ts';
 import { shadeColorAttachments } from './webgpuPagesAttachments.ts';
 import { copyBackdrop } from './webgpuTransmission.ts';
+import { blendLightResources } from './webgpuBlendLighting.ts';
 import { createWaterComposite, type WaterComposite } from './webgpuWaterComposite.ts';
 import { createWaterSurfacePipelines, type WaterSurfacePipelines } from './webgpuWaterPipelines.ts';
 import { WATER_MAX_ITEMS } from './webgpuWaterSurfaceWgsl.ts';
@@ -90,7 +91,7 @@ export function encodeWaterPass(
   water.composite.update(inverseViewProjection, width, height);
   water.composite.bind(
     { backdrop, uniform: blendState.viewBuffer, volumes: gpu.volumeBuffer },
-    blendState.lighting!,
+    blendLightResources(rt),
   );
   water.composite.compose(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
