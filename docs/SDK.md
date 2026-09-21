@@ -218,16 +218,30 @@ diagnostic, kept per series under `bornesCpu` (bench README), on a 0.1 ms clock:
 | Whisperwind Village · still | null | null | null | null | null | null |
 | Whisperwind Village · moving | null | null | null | null | null | null |
 
-The reading: on the GPU-cut path (Emerald Square), `lightsMs` is zero by construction — declared
-lamps live in a store the frame does not walk — and the only per-element loop the CPU runs every
-moving frame is the root rebase (`rootWorldsToRenderOrigin`, one root = sixteen floats), inside
-`worldMs`. On Whisperwind Village the GPU cut is unavailable (visibility-identifier capacity) and
-the frame runs the CPU reference cut, where `frustumExcludesBox` is called per DAG node visited;
-that traversal is not a batch — a node is tested only if its parent was kept — and its cost is the
-cut's, published as `cpuSelectMs`. No engine loop was replaced by a batch in this stage, and no
-WebAssembly kernel was written for the host batches: the rule stays that a kernel is written only
-where a loop's share is measured above 0.1 ms in the engine's own frame, and the table above is
-that measurement.
+The reading, loop by loop (the list of #80): on the GPU-cut path (Emerald Square) `lightsMs` is
+zero by construction — declared lamps live in a store the frame does not walk (`hostSceneWatch.ts`
+only reads the host graph at a scene revision) — and `blendWorldMs` is zero: the frustum × box
+loops of `webgpuBlendOrder.ts` and `webgpuBlendSelection.ts` run on the transparent path only,
+and only where a scene has transparents. `invertMatrix4` (`webgpuPagesTransform.ts`) and
+`boxTransform` + `boxUnion` (`mathBatchBoxes.ts`, `webgpuPagesTransform.ts`) run at a host write
+or at `prepare()`, never per image; `normalMatrix3` (`pageCone.ts`) at prepare, and in the CPU
+visibility oracle (`visibilityShadingNormal.ts`) that no frame calls; `sphereFromBounds`
+(`threeBounds.ts`) at import; the `frameCostAudit.ts` and `gpuDagOracleMath.ts` loops belong to a
+diagnostic and to the GPU-cut oracle, outside a measured beauty pass. What remains every moving
+image is the world step: the root rebase (`rootWorldsToRenderOrigin`, sixteen floats per root),
+the change scan (`worldsChanged`) and the stretch scan (`refreshWorldStretch`) — timed on the
+nanosecond clock by `packages/sdk-browser/bench/rebase-racines.perf.mjs` (`pnpm run
+perf:browser`) on the same 2 479 roots: **0.031–0.032 ms**, 0.000 ms (a moved first root ends the
+scan; 0.041–0.043 ms on a still image, where nothing else runs) and **0.025–0.026 ms** per image,
+three runs, spread under 2 µs. The rest of `worldMs` is the 158 KB world upload and the pyramid
+invalidation, not a math loop. On Whisperwind Village the GPU cut is unavailable
+(visibility-identifier capacity) and the frame runs the CPU reference cut, where
+`frustumExcludesBox` is called per DAG node visited (`pageSelectionCut.ts`) and
+`transformAffinePoint` per sphere (`streamingPriority.ts`); that traversal is not a batch — a node
+is tested only if its parent was kept — and its cost is the cut's, published as `cpuSelectMs`. No
+engine loop was replaced by a batch in this stage, and no WebAssembly kernel was written for the
+host batches: the rule stays that a kernel is written only where a loop's share is measured above
+0.1 ms in the engine's own frame, and no loop above reaches it.
 
 ## Browser explorer
 
