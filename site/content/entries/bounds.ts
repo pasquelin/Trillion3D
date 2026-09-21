@@ -1,8 +1,10 @@
+import type { PortalEntry } from '../model.ts';
+
 /** Boxes, spheres, frustums and cones: what decides, per frame, whether a cluster is drawn. */
 const B = { section: 'bounds', kind: 'Function', module: 'packages/sdk-core/mathBox.ts' };
 const F = { section: 'bounds', kind: 'Function', module: 'packages/sdk-core/mathFrustum.ts' };
 
-export const BOUNDS = [
+export const BOUNDS: PortalEntry[] = [
   {
     ...B,
     id: 'boxUnion',

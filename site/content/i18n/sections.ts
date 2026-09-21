@@ -1,4 +1,6 @@
-export const sectionStrings = {
+import type { Locale } from '../locale.ts';
+
+export const sectionStrings: Record<Locale, Record<string, string>> = {
   en: {
     'section.guides': 'Guides',
     'section.examples': 'Examples',
