@@ -78,7 +78,6 @@ export function dropGpuHiz(rt: WebgpuPagesRuntime) {
   dropGpuPartition(rt);
   vis.gpuHiz?.dispose();
   vis.gpuHiz = undefined;
-  vis.visHizBindGroup = undefined;
   vis.visHizRestBack = undefined;
   vis.visHizRestNone = undefined;
   vis.visHizRestFront = undefined;
@@ -94,23 +93,6 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
   rt.vis.gpuDraw = undefined;
   if (!rt.capabilities.unsupported.includes('indirect draw'))
     rt.capabilities.unsupported.push('indirect draw');
-}
-
-/**
- * Bind groups that name the shared draw resources — page-pool buffer, page table, tile pools,
- * uniforms —: one of them just changed identity, they are rebuilt next image. Shadow-region groups
- * are indexed by the identity of what they hold and rebuild themselves.
- */
-export function dropPoolBindGroups(rt: Pick<WebgpuPagesRuntime, 'vis' | 'gpu' | 'blendState'>) {
-  const { vis, gpu, blendState } = rt;
-  vis.visBindGroup = undefined;
-  vis.visHizBindGroup = undefined;
-  vis.shadeBindGroup = undefined;
-  vis.visSlotGroups.fill(undefined);
-  vis.rasterGroups.fill(undefined);
-  gpu.bindGroups.clear();
-  for (const item of blendState.blendGpu) item.group = undefined;
-  blendState.pagedGroup = undefined;
 }
 
 export function dropVis(rt: WebgpuPagesRuntime) {
@@ -133,10 +115,9 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.visBindGroupLayout = undefined;
   vis.mapsSampler = undefined;
   vis.blendBindGroupLayout = undefined;
-  vis.pipelineBlendTextured = undefined;
-  vis.pipelineBlendFront = undefined;
-  vis.pipelineBlendBack = undefined;
-  dropPoolBindGroups(rt);
+  vis.blendPipelines = undefined;
+  rt.blendState.water?.frame.dispose();
+  rt.blendState.water = undefined;
   rt.blendState.overdraw?.dispose();
   rt.blendState.overdraw = undefined;
   vis.gpuRaster?.dispose();
@@ -152,8 +133,6 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.zeroFlags?.destroy();
   vis.textures?.destroy();
   vis.textures = undefined;
-  vis.visSlotGroups.fill(undefined);
-  vis.rasterGroups.fill(undefined);
   vis.concatPos =
     vis.concatUv =
     vis.concatNrm =
