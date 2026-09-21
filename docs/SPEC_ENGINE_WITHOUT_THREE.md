@@ -131,9 +131,10 @@ closed the output path (`docs/API.md`, batch E8): the draw records name the engi
 index and the host material with the layer's depth offset as a number, the passes of a two-sided
 transparent surface are read at the draw and no host material is cloned; every scene copy is the
 owner's, in the order the reference draws a scene; the transport experiment's observation draws
-on an engine program from engine records and float textures. With it, group E is done: no object
-of the host's rendering library takes part in what the engine draws or composes, and the witness
-adapter serves the Three witnesses alone. What the WebGL2 path still reads of the host library is
+on an engine program from engine records and float textures. With it, group E is done: no
+renderer, program, render target or material clone of the host's rendering library takes part in
+what the engine draws or composes — a scene copy stays a host mesh read by shape — and the
+witness adapter serves the Three witnesses alone. What the WebGL2 path still reads of the host library is
 its data model — geometry attributes, materials, textures, the host camera and source graph —
 named through the contract types and replaced by batch C (#78); `explorerCameraApi.ts` keeps the
 host's orbit and fly controls it returns to the host.
