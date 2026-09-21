@@ -83,7 +83,7 @@ test('both lighting passes fire the same ray, counters aside', () => {
 test('the resident proxy is bound to both passes, on a single storage binding', async () => {
   installGpuGlobals();
   const device = fakeDevice();
-  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
+  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device);
   const deferred = createDeferredLayouts(device, true, true);
   const inBlend = entriesOf(blendBindGroupLayout).filter(
     (entry) => entry.binding === BLEND_BINDINGS.proxy,
