@@ -37,8 +37,8 @@ const right = new Float64Array(3),
   eye = new Float64Array(3);
 /**
  * What the last cascade was computed from: the view's ten numbers, the sun axis, then index
- * and side. The same numbers give the same cascade, and it is not recomputed: the
- * invalidation of a face and every region drawn in it read one calculation.
+ * and side. The same numbers give the same cascade, and it is not recomputed: the regions of
+ * one face, which follow each other, read one calculation instead of one each.
  */
 const KEY = VIEW_NUMBERS + 5;
 const key = new Float64Array(KEY).fill(NaN),
@@ -65,7 +65,8 @@ function writeKey(view: ShadowViewpoint, axis: readonly number[], index: number,
  * takes a grid of `2r` and an extent of `4r` for the same reason.
  *
  * The returned object is reused from one call to the next, and kept as long as the inputs
- * are the same: the scheduler allocates nothing per frame, and computes each cascade once.
+ * are the same: the scheduler allocates nothing per frame, and consecutive calls for one
+ * face cost one calculation.
  */
 export function sunCascadeOf(
   view: ShadowViewpoint,

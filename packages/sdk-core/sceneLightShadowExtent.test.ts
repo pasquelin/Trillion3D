@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShadowDirty } from './sceneLightShadowDirty.ts';
 import { createShadowRegions } from './sceneLightShadowRegions.ts';
-import { markExtentRect } from './sceneLightShadowPages.ts';
+import { markExtentRect, rowSpan } from './sceneLightShadowPages.ts';
 
 const ROWS = 8;
 
@@ -106,15 +106,24 @@ test('a page awaiting a redraw for a world change still holds the extent; a slid
   dirty.setExtent(0, 0, 1, 0);
   dirty.slide(0, 0, ROWS, 1, 0, 32, 2);
   for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xfe);
-  // A refused draw gives the pages back what they held before the draw — the two face words
-  // the region recorded —: the slid column stays unheld, a staled column beside it stays held.
-  const low = dirty.heldWord(0, 0, 0),
-    high = dirty.heldWord(0, 0, 1);
-  assert.deepEqual([low, high], [0xfefefefe, 0xfefefefe], 'rows four by four, low row first');
-  dirty.drew(0, 0, 0, 1, 0, ROWS - 1);
-  dirty.undrew(0, 0, 0, 1, 0, ROWS - 1, low, high, 48, 3);
-  assert.equal(dirty.heldRow(0, 0, 3), 0xfe);
+  // The regions of the next frame record the two face words before their own draw, then draw:
+  // rows four by four, low row first.
+  regions.reset();
+  regions.addFace(dirty, 0, 0, 0, ROWS, () => true);
+  assert.ok(regions.count >= 1);
+  assert.deepEqual([regions.heldLowOf(0), regions.heldHighOf(0)], [0xfefefefe, 0xfefefefe]);
+  for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xff, 'all drawn');
+  // The first region's draw is refused: its pages get back what they held before it — the slid
+  // column unheld again where the region covered it, a staled column beside it still held.
+  const x0 = regions.x0Of(0),
+    x1 = regions.x1Of(0),
+    y0 = regions.y0Of(0),
+    y1 = regions.y1Of(0);
+  dirty.undrew(0, 0, x0, x1, y0, y1, regions.heldLowOf(0), regions.heldHighOf(0), 48, 3);
+  const span = rowSpan(x0, x1);
+  for (let row = y0; row <= y1; row++)
+    assert.equal(dirty.heldRow(0, 0, row), (0xff & ~span) | (0xfe & span));
   // A landed draw holds it again.
-  dirty.drew(0, 0, 0, 0, 0, ROWS - 1);
+  dirty.drew(0, 0, x0, x1, y0, y1);
   for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xff);
 });
