@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { Table } from '../components/Table.tsx';
 import { readingName } from '../../js/reports/presentation.js';
 import { DIAGNOSTICS, diagnosticValue } from '../../js/reports/diagnostics.js';
@@ -6,13 +5,13 @@ import { formatValue } from '../../js/reports/metrics.js';
 import type { ReportRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface DiagnosticsProps {
+interface DiagnosticsProps {
   a: ReportRecord;
   b?: ReportRecord | null;
   locale: Locale;
 }
 
-export function Diagnostics({ a, b, locale }: DiagnosticsProps): ReactElement {
+export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
   const language = locale === 'fr' ? 1 : 0;
   return (
     <>

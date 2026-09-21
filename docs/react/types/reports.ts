@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-import type { Locale } from './portal.ts';
 import type { METRICS } from '../../js/reports/metrics.js';
 import type { REPORT_VERSION, RUN_STATUSES } from '../../js/reports/contract.js';
 
@@ -160,22 +158,4 @@ export interface SourceReadingRecord {
     frame: Record<string, unknown>;
     measurement: Record<string, unknown>;
   };
-}
-
-export interface ProfilesProps {
-  report: Report;
-  locale: Locale;
-}
-
-export interface SceneProfilesProps {
-  records: ReportRecord[];
-  report: Report;
-  locale: Locale;
-}
-
-export interface ProfileReadingProps {
-  record: ReportRecord;
-  report: Report;
-  locale: Locale;
-  filters?: ReactNode;
 }

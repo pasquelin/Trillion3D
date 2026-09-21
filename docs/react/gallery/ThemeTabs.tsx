@@ -1,11 +1,17 @@
-import type { ReactElement } from 'react';
-import type { ThemeTabsProps } from '../types/gallery.ts';
+import type { Locale } from '../types/portal.ts';
 import { TabsMenu } from '../components/TabsMenu.tsx';
 import { themeLabel } from './roadmapThemes.ts';
 
 const primary = ['transforms', 'camera', 'geometry', 'animation'];
 
-export function ThemeTabs({ active, available, locale, onSelect }: ThemeTabsProps): ReactElement {
+interface ThemeTabsProps {
+  active: string;
+  available: string[];
+  locale: Locale;
+  onSelect: (item: string) => void;
+}
+
+export function ThemeTabs({ active, available, locale, onSelect }: ThemeTabsProps) {
   const french = locale === 'fr';
   return (
     <TabsMenu

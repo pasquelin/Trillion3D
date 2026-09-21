@@ -1,14 +1,13 @@
-import type { ReactElement } from 'react';
 import { Table } from '../components/Table.tsx';
 import { Section } from '../components/Section.tsx';
 import { reportCopy } from '../../js/reports/copy.js';
 import type { Locale } from '../types/portal.ts';
 
-export interface ReferencesProps {
+interface ReferencesProps {
   locale: Locale;
 }
 
-export function References({ locale }: ReferencesProps): ReactElement {
+export function References({ locale }: ReferencesProps) {
   const c = reportCopy(locale),
     fr = locale === 'fr';
   const rows = [

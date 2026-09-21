@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { Collapse } from '../components/Collapse.tsx';
 import { ImageComparison } from '../components/ImageComparison.tsx';
 import { SectionHeader } from '../components/SectionHeader.tsx';
@@ -7,7 +6,7 @@ import { formatValue } from '../../js/reports/metrics.js';
 import type { ReportRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface EvidenceProps {
+interface EvidenceProps {
   a: ReportRecord;
   b: ReportRecord;
   campaign: string;
@@ -15,13 +14,7 @@ export interface EvidenceProps {
   imageOnly?: boolean;
 }
 
-export function Evidence({
-  a,
-  b,
-  campaign,
-  locale,
-  imageOnly = false,
-}: EvidenceProps): ReactElement {
+export function Evidence({ a, b, campaign, locale, imageOnly = false }: EvidenceProps) {
   const fr = locale === 'fr';
   const name = (r: ReportRecord) =>
     r.variant === 'raster-calcul'

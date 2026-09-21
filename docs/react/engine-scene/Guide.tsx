@@ -1,5 +1,4 @@
-import type { ReactElement } from 'react';
-import type { EngineGuideProps } from '../types/engine-scene.ts';
+import type { DiagnosticMode, EngineCopy } from '../types/engine-scene.ts';
 import type { Locale } from '../types/portal.ts';
 import { Accordion } from '../components/Accordion.tsx';
 import { Alert } from '../components/UI.tsx';
@@ -9,7 +8,13 @@ const QUALITY_HELP: Record<Locale, string> = {
   fr: 'Une erreur de 0 px conserve les feuilles exactes ; l’augmenter autorise une coupe du DAG plus grossière et bornée.',
 };
 
-export function EngineGuide({ copy, locale, diagnostic }: EngineGuideProps): ReactElement {
+interface EngineGuideProps {
+  copy: EngineCopy;
+  locale: Locale;
+  diagnostic: DiagnosticMode;
+}
+
+export function EngineGuide({ copy, locale, diagnostic }: EngineGuideProps) {
   const [what, tryThis, observe] = copy.views[diagnostic];
   return (
     <Accordion title={copy.details}>

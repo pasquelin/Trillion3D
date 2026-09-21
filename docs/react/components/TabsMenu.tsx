@@ -1,5 +1,8 @@
 import { useRef } from 'react';
-import type { TabsMenuOption, TabsMenuProps } from '../types/components.ts';
+interface TabsMenuOption {
+  value: string;
+  label: string;
+}
 
 interface TabItemProps {
   option: TabsMenuOption;
@@ -21,6 +24,16 @@ function Tab({ option, active, onSelect, className = '' }: TabItemProps) {
       {option.label}
     </button>
   );
+}
+
+interface TabsMenuProps {
+  value: string;
+  options: TabsMenuOption[];
+  primary?: string[];
+  allLabel: string;
+  moreLabel: string;
+  ariaLabel?: string;
+  onChange: (value: string) => void;
 }
 
 export function TabsMenu({

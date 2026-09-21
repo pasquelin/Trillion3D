@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export interface InlineProps {
+interface InlineProps {
   text?: string;
 }
 
@@ -15,7 +15,7 @@ export function Inline({ text = '' }: InlineProps) {
     });
 }
 
-export interface ProseProps {
+interface ProseProps {
   html: string;
 }
 

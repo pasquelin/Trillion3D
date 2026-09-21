@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export interface TableProps {
+interface TableProps {
   children: ReactNode;
   label?: string;
   wide?: boolean;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatNumber, localizedCanvasContext } from '../js/demoKit.js';
 import { localizeDemoText } from '../js/i18n/demo.fr.js';
 import { Canvas } from './components/Canvas.tsx';
@@ -6,8 +6,8 @@ import { Section } from './components/Section.tsx';
 import { Alert, Card, Field, Form, Range, Select } from './components/UI.tsx';
 import type { Locale } from './types/portal.ts';
 import type {
-  ApiDemoProps,
-  DemoControlProps,
+  DemoControlDef,
+  DemoDef,
   DemoViewItem,
   DrawingView,
   MatrixView,
@@ -16,7 +16,14 @@ import type {
 const text = (value: unknown, locale: Locale): string =>
   localizeDemoText(String(value ?? ''), locale);
 
-function DemoControl({ control, value, locale, onChange }: DemoControlProps): JSX.Element {
+interface DemoControlProps {
+  control: DemoControlDef;
+  value: unknown;
+  locale: Locale;
+  onChange: (value: string | number) => void;
+}
+
+function DemoControl({ control, value, locale, onChange }: DemoControlProps) {
   const label = text(control.label, locale);
   if (control.kind === 'choice') {
     return (
@@ -51,7 +58,7 @@ function DemoControl({ control, value, locale, onChange }: DemoControlProps): JS
   );
 }
 
-function Matrix({ view }: { view: MatrixView }): JSX.Element {
+function Matrix({ view }: { view: MatrixView }) {
   const rows = Array.from({ length: 4 }, (_, row) =>
     Array.from({ length: 4 }, (_, column) => view.values[column * 4 + row]),
   );
@@ -74,7 +81,7 @@ function Matrix({ view }: { view: MatrixView }): JSX.Element {
   );
 }
 
-function Drawing({ view, locale }: { view: DrawingView; locale: Locale }): JSX.Element {
+function Drawing({ view, locale }: { view: DrawingView; locale: Locale }) {
   const canvas = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     const element = canvas.current;
@@ -96,8 +103,8 @@ function Drawing({ view, locale }: { view: DrawingView; locale: Locale }): JSX.E
   );
 }
 
-function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }): JSX.Element {
-  let body: JSX.Element;
+function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }) {
+  let body;
   if (view.kind === 'matrix') {
     body = (
       <>
@@ -108,7 +115,7 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }): JSX
   } else if (view.kind === 'values') {
     body = (
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        {view.rows.map((row: [string, string | number], index: number) => (
+        {view.rows.map((row, index) => (
           <div className="contents" key={`${row[0]}-${index}`}>
             <dt className="font-mono text-xs opacity-70">{text(row[0], locale)}</dt>
             <dd className="min-w-0 break-words font-mono text-xs">{text(row[1], locale)}</dd>
@@ -126,7 +133,7 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }): JSX
   } else if (view.kind === 'swatch') {
     body = (
       <div className="flex flex-wrap gap-3">
-        {view.swatches.map((swatch: { label: string; css: string }, index: number) => (
+        {view.swatches.map((swatch, index) => (
           <div className="text-xs" key={`${swatch.label}-${index}`}>
             <div
               className="w-24 h-12 rounded-box border border-base-300"
@@ -147,7 +154,7 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }): JSX
   );
 }
 
-export function ApiDemo({ demo, locale = 'en' }: ApiDemoProps): JSX.Element {
+export function ApiDemo({ demo, locale = 'en' }: { demo: DemoDef; locale?: Locale }) {
   const controls = demo.controls ?? [];
   const initial = (): Record<string, unknown> =>
     Object.fromEntries(controls.map((control) => [control.name, control.value]));

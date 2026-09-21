@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import type { RendererLessonControl, RendererLessonProps } from '../types/gallery.ts';
+import { useEffect, useMemo, useState } from 'react';
+import type { Locale } from '../types/portal.ts';
+import type { RendererLessonControl, RendererLessonItem } from '../types/gallery.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { Section } from '../components/Section.tsx';
 import { SectionHeader } from '../components/SectionHeader.tsx';
@@ -13,7 +14,7 @@ import { RendererViewport } from './RendererViewport.tsx';
 import { rawEntries } from '../../js/portal/data.js';
 import { local } from './localized.ts';
 
-const documentedApi = new Set<string>(rawEntries.map(({ id }: { id: string }) => id));
+const documentedApi = new Set(rawEntries.map(({ id }) => id));
 
 const controlValue = (
   item: RendererLessonControl,
@@ -26,11 +27,13 @@ const controlValue = (
   return Number(current.toFixed(3));
 };
 
-export function RendererLesson({
-  lesson,
-  locale = 'en',
-  onSelect,
-}: RendererLessonProps): ReactElement {
+interface RendererLessonProps {
+  lesson: RendererLessonItem;
+  locale?: Locale;
+  onSelect?: (id: string) => void;
+}
+
+export function RendererLesson({ lesson, locale = 'en', onSelect }: RendererLessonProps) {
   const initial: Record<string, number> = useMemo(() => rendererInitialState(lesson), [lesson]);
   const [state, setState] = useState<Record<string, number>>(initial);
   const french = locale === 'fr';

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export interface ExampleLayoutProps {
+interface ExampleLayoutProps {
   left: ReactNode;
   right: ReactNode;
   footer?: ReactNode;

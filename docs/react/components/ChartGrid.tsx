@@ -1,7 +1,7 @@
 import { Children, isValidElement } from 'react';
 import type { ReactNode } from 'react';
 
-export interface ChartGridProps {
+interface ChartGridProps {
   children: ReactNode;
   columns?: number;
 }

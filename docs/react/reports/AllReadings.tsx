@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { readingGroups } from '../../js/reports/sources.js';
 import { Table } from '../components/Table.tsx';
 import { flattenFields } from '../../js/reports/availability.js';
@@ -8,7 +7,7 @@ import { Collapse } from '../components/Collapse.tsx';
 import type { Report, ReportSource, SourceReadingRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface AllReadingsProps {
+interface AllReadingsProps {
   report: Report;
   sources: ReportSource[];
   locale: Locale;
@@ -24,7 +23,7 @@ function cell(value: unknown, locale: Locale): string {
   return String(value);
 }
 
-export function AllReadings({ report, sources, locale }: AllReadingsProps): ReactElement {
+export function AllReadings({ report, sources, locale }: AllReadingsProps) {
   const groups: Map<string, SourceReadingRecord[]> = readingGroups(sources);
   return (
     <section className="grid min-w-0 gap-4" id="report-all-values">

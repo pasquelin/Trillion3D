@@ -1,6 +1,18 @@
-import type { StatGroupProps, StatProps } from '../types/components.ts';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
-export function StatGroup({ children, className = '', ...props }: StatGroupProps) {
+interface StatSlotProps extends ComponentPropsWithoutRef<'div'> {
+  [key: `data-${string}`]: unknown;
+}
+
+interface StatProps {
+  title: ReactNode;
+  children: ReactNode;
+  description?: ReactNode;
+  valueProps?: StatSlotProps;
+  descriptionProps?: StatSlotProps;
+}
+
+export function StatGroup({ children, className = '', ...props }: ComponentPropsWithoutRef<'div'>) {
   return (
     <div className={`stats stats-grid bg-base-300 shadow-sm ${className}`} {...props}>
       {children}

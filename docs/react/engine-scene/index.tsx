@@ -1,5 +1,6 @@
-import { useEffect, useRef, type ReactElement } from 'react';
-import type { EngineExampleProps, EngineSceneProps } from '../types/engine-scene.ts';
+import { useEffect, useRef } from 'react';
+import type { Locale } from '../types/portal.ts';
+import type { DiagnosticMode } from '../types/engine-scene.ts';
 import { CodeBlock } from '../components/CodeBlock.tsx';
 import { ExampleLayout } from '../components/ExampleLayout.tsx';
 import { Alert } from '../components/UI.tsx';
@@ -10,11 +11,17 @@ import { EnginePreview, engineCopy } from './EnginePreview.tsx';
 import { EngineStats } from './Stats.tsx';
 import { EngineGuide } from './Guide.tsx';
 
+interface EngineExampleProps {
+  locale?: Locale;
+  diagnostic?: DiagnosticMode;
+  code?: string;
+}
+
 export function EngineExample({
   locale = 'en',
   diagnostic = 'beauty',
   code = engineExampleCode,
-}: EngineExampleProps): ReactElement {
+}: EngineExampleProps) {
   const host = useRef<HTMLDivElement>(null);
   const copy = engineCopy(locale);
   useEffect(() => {
@@ -43,7 +50,7 @@ export function EngineExample({
   );
 }
 
-export function EngineScene({ locale = 'en' }: EngineSceneProps): ReactElement {
+export function EngineScene({ locale = 'en' }: { locale?: Locale }) {
   const copy = engineCopy(locale);
   return (
     <section>

@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ReadingLegend } from './ReadingLegend.tsx';
 import { reportCopy } from '../../js/reports/copy.js';
 import { sceneName } from '../../js/reports/presentation.js';
@@ -16,11 +16,11 @@ import { Findings } from './Findings.tsx';
 import { References } from './References.tsx';
 import type { PortalRoute } from '../types/portal.ts';
 
-export interface ReportProps {
+interface ReportProps {
   route: PortalRoute;
 }
 
-export function Report({ route }: ReportProps): ReactElement {
+export function Report({ route }: ReportProps) {
   const [campaign, active = 'overview'] = route.id.split('/');
   const state = useReports(campaign);
   const locale = route.locale,

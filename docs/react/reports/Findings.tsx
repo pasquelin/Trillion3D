@@ -1,25 +1,24 @@
-import type { ReactElement } from 'react';
 import { SceneNotice } from './SceneNotice.tsx';
 import { Section } from '../components/Section.tsx';
 import { Collapse } from '../components/Collapse.tsx';
 import { Stat, StatGroup } from '../components/Stats.tsx';
 import { formatValue, metricValue } from '../../js/reports/metrics.js';
 import { runOf, sceneName } from '../../js/reports/presentation.js';
-import type { Report, ReportRecord } from '../types/reports.ts';
+import type { Report } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface FindingsProps {
+interface FindingsProps {
   report: Report;
   locale: Locale;
 }
 
-export function Findings({ report, locale }: FindingsProps): ReactElement {
+export function Findings({ report, locale }: FindingsProps) {
   const fr = locale === 'fr';
   const records = report.records.filter(
-    (r: ReportRecord) => runOf(report, r) === 'mobile' && r.view === 'sol' && r.quality === 1,
+    (r) => runOf(report, r) === 'mobile' && r.view === 'sol' && r.quality === 1,
   );
-  const missingMachine = report.records.some((r: ReportRecord) => !r.provenance?.machine?.id);
-  const missingDpr = report.records.some((r: ReportRecord) => !r.canvas?.dpr);
+  const missingMachine = report.records.some((r) => !r.provenance?.machine?.id);
+  const missingDpr = report.records.some((r) => !r.canvas?.dpr);
   const failed = report.runs.filter((r) => r.status !== 'complete').length;
   return (
     <div className="grid min-w-0 gap-4">
@@ -29,7 +28,7 @@ export function Findings({ report, locale }: FindingsProps): ReactElement {
           : 'Street-level view, moving camera, 1 px threshold. The two scenes show very different situations.'}
       </p>
       <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-        {records.map((r: ReportRecord) => {
+        {records.map((r) => {
           const gpu = metricValue(r, 'gpu'),
             cpu = metricValue(r, 'cpu');
           const over = gpu !== null && gpu > 1000 / 60;

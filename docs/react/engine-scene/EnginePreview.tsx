@@ -1,6 +1,5 @@
-import type { ReactElement } from 'react';
 import type { Locale } from '../types/portal.ts';
-import type { EngineCopy, EnginePreviewProps } from '../types/engine-scene.ts';
+import type { DiagnosticMode, EngineCopy } from '../types/engine-scene.ts';
 import { sceneCopy } from '../../js/engine-scene/content.js';
 import { sceneControlsCopy } from '../../js/engine-scene/controlsCopy.js';
 import { Canvas } from '../components/Canvas.tsx';
@@ -16,7 +15,10 @@ export const engineCopy = (locale: Locale): EngineCopy => ({
 export function EnginePreview({
   locale = 'en',
   diagnostic = 'beauty',
-}: EnginePreviewProps): ReactElement {
+}: {
+  locale?: Locale;
+  diagnostic?: DiagnosticMode;
+}) {
   const copy = engineCopy(locale);
   return (
     <section data-engine-scene className="engine-preview min-w-0">

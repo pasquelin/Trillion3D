@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import type {
-  GeometryPreviewProps,
-  IllustrationSession,
-  WebGPUCanvasProps,
-} from '../types/gallery.ts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { IllustrationSession, WebGPUCanvasProps } from '../types/gallery.ts';
 import { Canvas } from '../components/Canvas.tsx';
 import { Alert } from '../components/UI.tsx';
 import { Stat, StatGroup } from '../components/Stats.tsx';
 import { mountIllustration } from '../../js/gallery/webgpuRenderer.js';
 import { initialState } from '../../js/gallery/scenarios.js';
+
+type GeometryPreviewProps = Pick<
+  WebGPUCanvasProps,
+  'id' | 'locale' | 'interactive' | 'label' | 'related'
+>;
 
 export function GeometryPreview({
   id,
@@ -16,7 +17,7 @@ export function GeometryPreview({
   interactive = true,
   label,
   related = false,
-}: GeometryPreviewProps): ReactElement {
+}: GeometryPreviewProps) {
   const state: Record<string, number> = useMemo(() => initialState(id), [id]);
   return (
     <WebGPUCanvas
@@ -40,12 +41,12 @@ export function WebGPUCanvas({
   animating = false,
   label,
   related = false,
-}: WebGPUCanvasProps): ReactElement {
+}: WebGPUCanvasProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const mounted = useRef<IllustrationSession | null>(null);
   const latestState = useRef<Record<string, number>>(state);
-  const latestAnimating = useRef<boolean>(animating);
-  const [error, setError] = useState<string>('');
+  const latestAnimating = useRef(animating);
+  const [error, setError] = useState('');
   latestState.current = state;
   latestAnimating.current = animating;
   useEffect(() => {

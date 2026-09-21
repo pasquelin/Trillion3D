@@ -1,5 +1,3 @@
-import type { Locale } from './portal.ts';
-
 interface DemoSliderControl {
   kind?: 'slider';
   name: string;
@@ -23,14 +21,7 @@ interface DemoChoiceControl {
   value: string | number;
 }
 
-type DemoControlDef = DemoSliderControl | DemoChoiceControl;
-
-export interface DemoControlProps {
-  control: DemoControlDef;
-  value: unknown;
-  locale: Locale;
-  onChange: (value: string | number) => void;
-}
+export type DemoControlDef = DemoSliderControl | DemoChoiceControl;
 
 export interface MatrixView {
   kind: 'matrix';
@@ -75,9 +66,4 @@ export type DemoViewItem = MatrixView | ValuesView | VerdictView | SwatchView | 
 export interface DemoDef {
   controls?: DemoControlDef[];
   run: (state: Record<string, unknown>) => DemoViewItem[];
-}
-
-export interface ApiDemoProps {
-  demo: DemoDef;
-  locale?: Locale;
 }

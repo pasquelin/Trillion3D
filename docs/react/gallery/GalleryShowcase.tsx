@@ -1,8 +1,17 @@
-import { useState, type ReactElement } from 'react';
-import type { GalleryShowcaseProps, ShowcaseScene } from '../types/gallery.ts';
+import { useState } from 'react';
+import type { Locale } from '../types/portal.ts';
 import { routeHref } from '../../js/portal/routes.js';
 import { Card } from '../components/UI.tsx';
-import { local } from './localized.ts';
+import { local, type Localized } from './localized.ts';
+
+interface ShowcaseScene {
+  id: string;
+  preview: string;
+  title: Localized;
+  description: Localized;
+  action: Localized;
+  alt: Localized;
+}
 
 const scenes: ShowcaseScene[] = [
   {
@@ -35,9 +44,9 @@ const scenes: ShowcaseScene[] = [
   },
 ];
 
-export function GalleryShowcase({ locale }: GalleryShowcaseProps): ReactElement {
+export function GalleryShowcase({ locale }: { locale: Locale }) {
   const french = locale === 'fr',
-    [selectedId, setSelectedId] = useState<string>(scenes[0].id),
+    [selectedId, setSelectedId] = useState(scenes[0].id),
     selected = scenes.find(({ id }) => id === selectedId) ?? scenes[0];
   return (
     <Card className="mb-8 overflow-hidden shadow-lg" data-gallery-showcase>

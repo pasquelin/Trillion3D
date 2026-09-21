@@ -1,4 +1,3 @@
-import type { JSX } from 'react';
 import { t } from '../js/i18n/index.js';
 import { issueUrl, REPOSITORY } from '../js/docsModel.js';
 import { demoFor } from '../js/demoRegistry.js';
@@ -13,9 +12,9 @@ import { ExampleLayout } from './components/ExampleLayout.tsx';
 import { Card, Alert } from './components/UI.tsx';
 import { Inline, Prose, Table } from './components/Prose.tsx';
 import type { DemoDef } from './types/demo.ts';
-import type { EntryProps, Locale, PortalEntry, PortalEntryValue } from './types/portal.ts';
+import type { Locale, PortalEntry } from './types/portal.ts';
 
-function LiveDemo({ demo, locale }: { demo: DemoDef; locale: Locale }): JSX.Element {
+function LiveDemo({ demo, locale }: { demo: DemoDef; locale: Locale }) {
   return (
     <section className="space-y-4">
       <div>
@@ -35,7 +34,7 @@ function Example({
   entry: PortalEntry;
   locale: Locale;
   demo: DemoDef | null;
-}): JSX.Element | null {
+}) {
   if (!entry.example) return null;
   if (['example-explorer', 'createExplorer', 'example-diagnostics'].includes(entry.id)) {
     const diagnostics = entry.id === 'example-diagnostics';
@@ -78,7 +77,7 @@ function Example({
   );
 }
 
-export function Entry({ entry, locale = 'en' }: EntryProps): JSX.Element {
+export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: Locale }) {
   const demo = demoFor(entry.id);
   const embedsDemo = Boolean(
     demo &&
@@ -126,7 +125,7 @@ export function Entry({ entry, locale = 'en' }: EntryProps): JSX.Element {
         >
           <Table>
             <tbody>
-              {entry.values?.map((value: PortalEntryValue) => (
+              {entry.values?.map((value) => (
                 <tr key={value.name}>
                   <td className="font-mono font-semibold align-top">{value.name}</td>
                   <td>

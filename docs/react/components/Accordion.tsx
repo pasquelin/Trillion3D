@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import { CARD_SURFACE } from './UI.tsx';
 
-export interface AccordionProps extends Omit<ComponentPropsWithoutRef<'details'>, 'title'> {
+interface AccordionProps extends Omit<ComponentPropsWithoutRef<'details'>, 'title'> {
   title: ReactNode;
 }
 

@@ -1,9 +1,23 @@
 import { useId, useRef } from 'react';
-import type { KeyboardEvent } from 'react';
-import type { TabsProps } from '../types/components.ts';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { StickyPanel } from './StickyPanel.tsx';
 
 /** Shared DaisyUI tabs with linked panels and standard arrow/Home/End keyboard navigation. */
+interface TabItem<T extends string> {
+  id: T;
+  label: ReactNode;
+  render: () => ReactNode;
+}
+
+interface TabsProps<T extends string> {
+  items: TabItem<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  label?: string;
+  sticky?: boolean;
+  accessory?: ReactNode;
+}
+
 export function Tabs<T extends string = string>({
   items,
   value,

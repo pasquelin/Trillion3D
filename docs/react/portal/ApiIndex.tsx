@@ -1,12 +1,18 @@
-import { useMemo, useState, type JSX } from 'react';
+import { useMemo, useState } from 'react';
 import { SECTIONS } from '../../js/docsModel.js';
 import { routeHref } from '../../js/portal/routes.js';
 import { searchEntries } from '../../js/portal/search.js';
 import { Card } from '../components/UI.tsx';
 import { expandEntryLinks } from './entryLinks.ts';
-import type { ApiIndexProps, EntryLinkItem, PortalEntry } from '../types/portal.ts';
+import type { Locale, PortalEntry, TranslateFn } from '../types/portal.ts';
 
-export function ApiIndex({ locale, entries, t }: ApiIndexProps): JSX.Element {
+interface ApiIndexProps {
+  locale: Locale;
+  entries: PortalEntry[];
+  t: TranslateFn;
+}
+
+export function ApiIndex({ locale, entries, t }: ApiIndexProps) {
   const [query, setQuery] = useState('');
   const matches = useMemo(() => searchEntries(entries, query), [entries, query]);
   const groups = SECTIONS.filter(({ id }) => !['guides', 'examples', 'demo'].includes(id))
@@ -43,7 +49,7 @@ export function ApiIndex({ locale, entries, t }: ApiIndexProps): JSX.Element {
         {groups.map(({ section, items }) => (
           <Card key={section.id} className="api-group" title={t(locale, `section.${section.id}`)}>
             <ul className="menu w-full p-0">
-              {items.map(({ key, label, id }: EntryLinkItem) => (
+              {items.map(({ key, label, id }) => (
                 <li key={key}>
                   <a href={routeHref({ locale, area: 'api', id })}>
                     <code className="api-name">{label}</code>

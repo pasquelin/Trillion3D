@@ -1,10 +1,14 @@
-import type { ReactElement } from 'react';
-import type { SceneControlsProps } from '../types/engine-scene.ts';
+import type { DiagnosticMode, EngineCopy } from '../types/engine-scene.ts';
 import { Section } from '../components/Section.tsx';
 import { Button, Field, Form, Range, Select, Toggle } from '../components/UI.tsx';
 import { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
 
-export function SceneControls({ copy, diagnostic }: SceneControlsProps): ReactElement {
+interface SceneControlsProps {
+  copy: EngineCopy;
+  diagnostic: DiagnosticMode;
+}
+
+export function SceneControls({ copy, diagnostic }: SceneControlsProps) {
   return (
     <Section aria-label={copy.controls} className="scene-controls mb-4">
       <Form className="scene-controls-grid">

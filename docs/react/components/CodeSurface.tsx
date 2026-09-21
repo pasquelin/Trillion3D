@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import type { CodeSurfaceProps } from '../types/components.ts';
+import type { ReactNode } from 'react';
+import type { Locale } from '../types/portal.ts';
 import { Button } from './UI.tsx';
 
 /** Shared code chrome for both read-only snippets and the editable code primitive. */
+interface CodeSurfaceProps {
+  code: string;
+  locale: Locale;
+  title: ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
+}
+
 export function CodeSurface({ code, locale, title, actions, children }: CodeSurfaceProps) {
-  const [status, setStatus] = useState<string>('');
+  const [status, setStatus] = useState('');
   const french = locale === 'fr';
   async function copy() {
     try {

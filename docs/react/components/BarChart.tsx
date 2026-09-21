@@ -1,6 +1,15 @@
-import type { BarChartProps, ChartTone } from '../types/components.ts';
+import type { ReactNode } from 'react';
+import type { BarChartRow, ChartTone } from '../types/components.ts';
 import { Card } from './UI.tsx';
 import { StatusBadge } from './StatusBadge.tsx';
+
+interface BarChartProps {
+  title: ReactNode;
+  note?: ReactNode;
+  rows: BarChartRow[];
+  format: (value: number) => string;
+  missingLabel?: string;
+}
 
 const TONES: Record<ChartTone, string> = {
   primary: 'progress-primary',

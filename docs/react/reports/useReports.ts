@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { assertReport } from '../../js/reports/contract.js';
 import type { CampaignIndexItem, Report, ReportsState, ReportSource } from '../types/reports.ts';
 
-export type { ReportsState };
-
 export function useReports(campaign?: string): ReportsState {
   const [state, setState] = useState<ReportsState>({ loading: true });
   useEffect(() => {

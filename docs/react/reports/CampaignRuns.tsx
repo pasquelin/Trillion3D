@@ -1,11 +1,10 @@
-import type { ReactElement } from 'react';
 import { Table } from '../components/Table.tsx';
 import { reportCopy } from '../../js/reports/copy.js';
 import { runName } from '../../js/reports/names.js';
 import type { Report, RunStatus } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface CampaignRunsProps {
+interface CampaignRunsProps {
   report: Report;
   locale: Locale;
 }
@@ -16,7 +15,7 @@ const STATUS: Record<RunStatus, [string, string]> = {
   missing: ['No measurement file', 'Aucun fichier de mesure'],
 };
 
-export function CampaignRuns({ report, locale }: CampaignRunsProps): ReactElement {
+export function CampaignRuns({ report, locale }: CampaignRunsProps) {
   const c = reportCopy(locale);
   return (
     <section className="grid min-w-0 gap-3">

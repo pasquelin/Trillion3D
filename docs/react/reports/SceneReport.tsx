@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { SceneNotice } from './SceneNotice.tsx';
 import { Section } from '../components/Section.tsx';
@@ -11,27 +10,27 @@ import { Comparison } from './Comparison.tsx';
 import type { Report, ReportRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface SceneReportProps {
+interface SceneReportProps {
   scene: string;
   report: Report;
   locale: Locale;
 }
 
-export function SceneReport({ scene, report, locale }: SceneReportProps): ReactElement {
+export function SceneReport({ scene, report, locale }: SceneReportProps) {
   const [selected, setSelected] = useState('sol');
   const fr = locale === 'fr';
   const records = report.records.filter(
-    (r: ReportRecord) =>
+    (r) =>
       r.scene === scene && ['three-nu', 'three-lod'].includes(runOf(report, r)) && r.quality === 1,
   );
   const fallback = report.records.filter(
-    (r: ReportRecord) => r.scene === scene && runOf(report, r) === 'mobile' && r.quality === 1,
+    (r) => r.scene === scene && runOf(report, r) === 'mobile' && r.quality === 1,
   );
   const views = [...new Set((records.length ? records : fallback).map((r) => r.view))];
   return (
     <Section title={sceneName(scene)}>
       <SceneNotice
-        note={report.records.find((r: ReportRecord) => r.scene === scene && r.sceneNote)?.sceneNote}
+        note={report.records.find((r) => r.scene === scene && r.sceneNote)?.sceneNote}
         locale={locale}
       />
       <Tabs
@@ -43,18 +42,16 @@ export function SceneReport({ scene, report, locale }: SceneReportProps): ReactE
           id: view,
           label: viewName(view, locale),
           render: () => {
-            const all = records.filter((r: ReportRecord) => r.view === view);
+            const all = records.filter((r) => r.view === view);
             const web =
               all.find(
-                (r: ReportRecord) =>
-                  r.engine === 'webgpu-page-raster' && runOf(report, r) === 'three-nu',
+                (r) => r.engine === 'webgpu-page-raster' && runOf(report, r) === 'three-nu',
               ) ??
-              all.find((r: ReportRecord) => r.engine === 'webgpu-page-raster') ??
-              fallback.find((r: ReportRecord) => r.view === view);
-            const rows = [
-              ...all.filter((r: ReportRecord) => r.engine !== 'webgpu-page-raster'),
-              web,
-            ].filter((r): r is ReportRecord => Boolean(r));
+              all.find((r) => r.engine === 'webgpu-page-raster') ??
+              fallback.find((r) => r.view === view);
+            const rows = [...all.filter((r) => r.engine !== 'webgpu-page-raster'), web].filter(
+              (r): r is ReportRecord => Boolean(r),
+            );
             return (
               <div className="grid min-w-0 gap-4">
                 <p>
@@ -86,14 +83,13 @@ export function SceneReport({ scene, report, locale }: SceneReportProps): ReactE
                   }
                 >
                   {all
-                    .filter((r: ReportRecord) => r.engine !== 'webgpu-page-raster')
-                    .map((r: ReportRecord) => (
+                    .filter((r) => r.engine !== 'webgpu-page-raster')
+                    .map((r) => (
                       <Comparison
                         key={r.id}
                         a={r}
                         b={all.find(
-                          (other: ReportRecord) =>
-                            other.id !== r.id && other.differencePair === r.differencePair,
+                          (other) => other.id !== r.id && other.differencePair === r.differencePair,
                         )}
                         locale={locale}
                         variable="engine"
