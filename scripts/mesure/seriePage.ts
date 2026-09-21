@@ -98,7 +98,7 @@ export async function runInPage(
     const err = error instanceof Error ? error : new Error(String(error));
     if (!incidents.length) throw err;
     throw new Error(`${err.message}\nGPU incidents:\n${incidents.join('\n')}`, {
-      cause: err,
+      cause: error,
     });
   }
 }
