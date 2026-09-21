@@ -8,8 +8,11 @@
 import * as THREE from 'three';
 import { VIEWPORT } from './preuveSceneCommune.mjs';
 
-/** Side of the square viewport every fixture is rendered in, in pixels. */
+/** Side of the square viewport every fixture is rendered in, in pixels: `rgbAt` reads both
+ * images with this row stride, so a viewport that is not square would misread them silently. */
 export const [SIZE] = VIEWPORT;
+if (VIEWPORT[1] !== SIZE)
+  throw new Error(`material fixtures need a square viewport, got ${VIEWPORT}`);
 
 /** The one declared light of the lit fixtures: a sun above and in front of the square. */
 export const SUN = {

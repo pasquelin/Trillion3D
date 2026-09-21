@@ -11,6 +11,7 @@
 //
 //   node test/browser/materiaux-temoin.browser.mjs [run-name]
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { launchChrome } from '../../scripts/mesure/chrome.mjs';
@@ -21,6 +22,10 @@ import { fixtures } from '../appui/materialFixtures.mjs';
 const ROOT = resolve(import.meta.dirname, '../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
 const out = resolve(ROOT, 'benchmark-runs/material-pixels', run);
+assert.ok(
+  existsSync(resolve(ROOT, 'dist/sdk-browser/index.js')),
+  'dist missing: run `pnpm run build` before this proof',
+);
 const mounts = [
   ...resolveMounts(ROOT, []),
   { prefix: '/dist/', dir: resolve(ROOT, 'dist') },
