@@ -3,7 +3,6 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadReactComponents } from './docs/render-react.ts';
 import { codeFor } from '../site/lessons/code.ts';
 import { evaluate } from '../site/lessons/evaluate.ts';
 import { expectedResultFor } from './docs/expected-result.ts';
