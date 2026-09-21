@@ -107,11 +107,13 @@ export function WebGPUCanvas({
     mounted.current?.setAnimating?.(animating);
   }, [animating]);
   const french = locale === 'fr';
+  // A card preview keeps its 16/9 box and a related illustration its own size; a lesson's viewport
+  // is the one that fills the column it is given.
+  const shell = preview
+    ? 'geometry-3d-preview gallery-preview'
+    : `flex flex-col gap-4 ${related ? 'geometry-3d-related' : 'geometry-3d-viewport'}`;
   return (
-    <div
-      className={`geometry-3d${preview ? ' geometry-3d-preview gallery-preview' : ' grid gap-4'}${related ? ' geometry-3d-related' : ''}`}
-      data-geometry-3d={id}
-    >
+    <div className={`geometry-3d ${shell}`} data-geometry-3d={id}>
       <Canvas canvasRef={canvas} className="geometry-3d-canvas rounded-box" label={label} />
       {!preview && (
         <StatGroup data-geometry-stats>
