@@ -22,18 +22,33 @@ test('WEB_GEOMETRY_SKIP_NATIVE=1 drops exactly the Rust steps and keeps their or
   assert.ok(steps.includes('test'), 'the JS tests stay: they run the restored binary');
 });
 
-test('a group runs its own gates, and every gate belongs to exactly one group', () => {
+test('a group runs its own gates, and a full run runs each gate once', () => {
   for (const [group, gates] of Object.entries(VALIDATE_GROUPS))
     assert.deepEqual(stepsToRun({}, group), gates);
   assert.equal(new Set(VALIDATE_STEPS).size, VALIDATE_STEPS.length);
+  for (const gates of Object.values(VALIDATE_GROUPS))
+    for (const gate of gates) assert.ok(VALIDATE_STEPS.includes(gate), gate);
+});
+
+test('the unit suite runs where the compiled compiler and dist both exist', () => {
+  assert.ok(
+    VALIDATE_GROUPS.native.indexOf('build') < VALIDATE_GROUPS.native.indexOf('test'),
+    'dist/ is read by the integration tests, so tsc comes first',
+  );
+  assert.ok(
+    VALIDATE_GROUPS.native.indexOf('build:native') < VALIDATE_GROUPS.native.indexOf('test'),
+    'a suite run without the binary would skip the compiler tests in silence',
+  );
+  for (const gates of [VALIDATE_GROUPS.quick, VALIDATE_GROUPS.typescript])
+    assert.ok(!gates.includes('test'), 'nowhere else: the binary is only in the native job');
 });
 
 test('an unknown group stops the run instead of silently checking nothing', () => {
   assert.throws(() => stepsToRun({}, 'typescipt'), /Unknown validate group 'typescipt'/);
 });
 
-test('the native group alone is emptied when the binaries are restored', () => {
-  assert.deepEqual(stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '1' }, 'native'), []);
+test('restored binaries drop the Rust gates, and keep the suite that drives them', () => {
+  assert.deepEqual(stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '1' }, 'native'), ['build', 'test']);
   assert.deepEqual(
     stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '1' }, 'quick'),
     VALIDATE_GROUPS.quick,
