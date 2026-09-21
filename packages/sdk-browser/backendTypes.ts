@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
-import type { HostCamera } from './cameraWorld.ts';
+import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
+import type { HostDrawOutput } from './webglRenderTarget.ts';
 import type {
   BackendCapabilities,
   ClusterManifest,
@@ -9,7 +10,7 @@ import type {
 } from '../sdk-core/index.ts';
 import type { BackendMetrics } from './backendMetricKeys.ts';
 import type { CpuStepSummary } from './cpuProfile.ts';
-export type { BackendCapabilities };
+export type { BackendCapabilities, HostDrawOutput };
 
 export interface RenderBackend {
   id: string;
@@ -34,12 +35,10 @@ export interface RenderBackend {
   ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
-  /** Draws engine-owned geometry (clusters, diagnostic pages, transmissive copies) into the
-   *  host's bound framebuffer; the host clears first and draws its remaining scene after. */
-  drawHostGeometry?(
-    camera: import('./cameraWorld.ts').HostDrawCamera,
-    output: { encodeSrgb: boolean; toneMapped: boolean },
-  ): void;
+  /** Draws the engine's whole image — paged clusters, diagnostic pages, scene copies, or the
+   *  scene a witness holds — into the framebuffer the host has bound and cleared, `output`
+   *  naming it and its display chain. Absent from an engine that presents its own surface. */
+  drawHostGeometry?(camera: HostDrawCamera, output: HostDrawOutput): void;
   readonly overBudget: boolean;
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
