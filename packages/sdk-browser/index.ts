@@ -38,6 +38,7 @@ export type { GeometryPool, PoolClamp, TexturePool } from './webgpuMemoryBudgets
 export type { ShadowAtlasDigest } from './gpuShadowDigest.ts';
 export type { PartitionAudit } from './webgpuPartitionAudit.ts';
 export type { TransparentOcclusionAudit } from './webgpuTransparentOcclusionAudit.ts';
+export type { CpuStepSummary } from './cpuProfile.ts';
 export type { ArrivalPlan } from './pageIntegrationHost.ts';
 export type { DecodedGeometryPage } from './geometryPage.ts';
 export type { TextureLevelReader } from './textureLevelReader.ts';

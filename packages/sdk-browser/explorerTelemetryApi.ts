@@ -47,6 +47,14 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
     resetStageProfile() {
       active().resetStageProfile?.();
     },
+    /**
+     * CPU bounds of the active engine over the same window: p50, p95 and max of each named bound
+     * (`gateMs`, `worldMs`, `selectionDispatchMs`, …) and its worst images, read once, then
+     * forgotten. `null` from an engine that keeps no row — the CPU reference cut — or none yet.
+     */
+    cpuSteps() {
+      return active().cpuSteps?.() ?? null;
+    },
     printReport() {
       profiler.printReport();
     },
