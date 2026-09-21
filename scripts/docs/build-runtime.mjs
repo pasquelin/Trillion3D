@@ -3,7 +3,7 @@ import { build } from 'esbuild';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-export async function buildRuntime(root, outdir = resolve(root, 'docs/runtime')) {
+export async function buildRuntime(root, outdir) {
   await mkdir(outdir, { recursive: true });
   await build({
     absWorkingDir: root,

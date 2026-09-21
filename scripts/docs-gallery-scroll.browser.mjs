@@ -4,7 +4,7 @@ import { launchChrome } from './mesure/chrome.mjs';
 import { createDocsServer } from './docs-serve.mjs';
 
 test('gallery progressively loads a bounded window and restores navigation state', async () => {
-  const server = createDocsServer();
+  const server = await createDocsServer();
   await new Promise((ready, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', ready);
