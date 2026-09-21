@@ -1,8 +1,8 @@
 // CRITERION for normal proofs, tested on manually chosen vectors without going through
-// kernel. `angleEntre` and `verdictNormale` (`test/justesse/inverseTransposeF32.mjs`) decide if a
+// kernel. `angleEntre` and `verdictNormale` (`test/justesse/inverseTransposeF32.ts`) decide if a
 // rendered normal is correct: as long as they accept a reversed or lost normal, none of
 // proofs relying on them — `normalTransform.test.ts` without GPU,
-// `test/browser/normal-transform-arithmetique.browser.mjs` on real GPU — proves anything. That was
+// `test/browser/normal-transform-arithmetique.browser.ts` on real GPU — proves anything. That was
 // the case: absolute value on dot product confused N and −N, and `atan2(0, 0) = 0`
 // declared correct a normal that shader had lost.
 //
@@ -15,8 +15,8 @@ import {
   TOLERANCE_NORME,
   verdictNormale,
   xformNormalModele,
-} from '../../test/justesse/inverseTransposeF32.mjs';
-import { DECROCHE_DEG, REGULIERE_MINUSCULE } from '../../test/justesse/normalTransformCas.mjs';
+} from '../../test/justesse/inverseTransposeF32.ts';
+import { DECROCHE_DEG, REGULIERE_MINUSCULE } from '../../test/justesse/normalTransformCas.ts';
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
 const verdict = (cas: { vraie: number[] }, rendue: number[]) =>

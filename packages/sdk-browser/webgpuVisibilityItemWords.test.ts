@@ -13,13 +13,14 @@ import {
 } from './webgpuVisibilityItemWords.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { pageRecFixture } from './bench/appui/pageRecFixture.ts';
 
 /** A minimal runtime of `n` rows: each carries a coplanar layer and a page index. */
 function runtime(n: number, drawLayerSlots: number) {
   const material = new THREE.MeshBasicMaterial();
   const packedRecs: PageRec[] = [];
   for (let i = 0; i < n; i++)
-    packedRecs.push({ depthLayer: i % 3, material, matrix: new THREE.Matrix4() } as PageRec);
+    packedRecs.push(pageRecFixture({ depthLayer: i % 3, material, matrix: new THREE.Matrix4() }));
   const layout = {
     rows: {
       packedCount: n,
@@ -29,7 +30,7 @@ function runtime(n: number, drawLayerSlots: number) {
       dirtyTo: n - 1,
     },
     drawItemWords: new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
-    itemWordsHold: createDrawItemWordsHold(),
+    itemWordsHold: createDrawItemWordsHold(drawLayerSlots),
   };
   const rt = { layout, vis: { drawLayerSlots } } as unknown as WebgpuPagesRuntime;
   return { rt, layout };

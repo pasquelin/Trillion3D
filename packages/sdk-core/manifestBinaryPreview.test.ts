@@ -51,7 +51,12 @@ function manifestWith(previews: TexturePreview[]): ClusterManifest {
 function encode(previews: TexturePreview[]) {
   const { manifest: slim, binary } = encodeManifestBinary(manifestWith(previews), TEMPLATES);
   slim.binary.sha256 = sha('f');
-  const buffer = binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength);
+  // `encodeManifestBinary` always backs the view with a plain `ArrayBuffer`; `.buffer` types as
+  // the wider `ArrayBufferLike`.
+  const buffer = binary.buffer.slice(
+    binary.byteOffset,
+    binary.byteOffset + binary.byteLength,
+  ) as ArrayBuffer;
   return { slim, buffer };
 }
 /** The `texturePreviewU32` words of entry `entry`, on the finished buffer: the only way to

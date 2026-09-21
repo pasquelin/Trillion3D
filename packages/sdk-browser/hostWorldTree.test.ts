@@ -12,7 +12,7 @@ import { EngineError, MATRIX_VALUES } from '../sdk-core/index.ts';
 import { prepareSdkWasm } from './geometryPageWasm.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import { hostWorldLot, hostWorldTree } from './hostWorldTree.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, 'pageCodec.wasm')));
 

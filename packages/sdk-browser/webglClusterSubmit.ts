@@ -1,5 +1,4 @@
-import type * as THREE from 'three';
-import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import type { ClusterDrawMesh, WholeMesh } from './clusterBatchMesh.ts';
 
 export type MultiDraw = {
   multiDrawElementsWEBGL(
@@ -38,7 +37,10 @@ export function submitClusterMesh(
       );
 }
 
-export function submitDiagnosticMesh(gl: WebGL2RenderingContext, mesh: THREE.Mesh) {
+export function submitDiagnosticMesh(
+  gl: WebGL2RenderingContext,
+  mesh: Pick<WholeMesh, 'geometry'>,
+) {
   const index = mesh.geometry.index;
   if (!index) {
     gl.drawArrays(gl.TRIANGLES, 0, mesh.geometry.attributes.position.count);

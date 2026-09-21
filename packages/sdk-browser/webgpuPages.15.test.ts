@@ -5,6 +5,8 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { twoCoarseQuadsScene } from './webgpuPagesTestOccluder.ts';
+import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
+import { DEFAULT_SCOPE, type ClusterManifest, type Primitive } from '../sdk-core/index.ts';
 
 test('surface capture keeps external renders blocked until main-view restoration has finished', async () => {
   installGpuGlobals();
@@ -52,10 +54,8 @@ test('a failed transparent material pipeline cannot leave an HDR pass with an rg
   fixture.metadata.primitives[0].pass = 'shared-blend';
   const create = device.createRenderPipeline.bind(device);
   device.createRenderPipeline = (descriptor) => {
-    if (
-      descriptor.vertex.entryPoint === 'vs' &&
-      descriptor.fragment?.targets[0]?.format === 'rgba16float'
-    )
+    const target = descriptor.fragment ? [...descriptor.fragment.targets][0] : undefined;
+    if (descriptor.vertex.entryPoint === 'vs' && target?.format === 'rgba16float')
       throw new Error('NO_FORWARD_MATERIAL');
     return create(descriptor);
   };
@@ -81,12 +81,28 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
   installGpuGlobals();
   const { device } = mockGpu(),
     fixture = twoCoarseQuadsScene();
+  // `twoCoarseQuadsScene` rebuilds `metadata` with only `primitives`, itself narrowed to `{url}`
+  // pages by an inner callback's own annotation: the real page objects it spreads keep every
+  // field at runtime, only their perceived type loses them. The rest of `ClusterManifest` is
+  // never read past `primitives`, so the rest is filled with placeholders.
+  const metadata: ClusterManifest = {
+    schema: 0,
+    status: 'ready',
+    key: 'test-two-coarse-quads',
+    scope: DEFAULT_SCOPE,
+    sourceTriangles: 0,
+    selectedTriangles: 0,
+    selectedNodes: [],
+    totalNodes: 0,
+    primitives: fixture.metadata.primitives as Primitive[],
+  };
   const backend = webgpuPagesBackend({
     ...fixture,
+    metadata,
     gpuDevice: device,
     maxResidentPages: 4,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   const cam = camera(),
     move = (x: number) => {
       cam.position.set(x, 0, 5);
@@ -127,11 +143,11 @@ test('a visible opaque primitive without a hierarchy still has complete exact-pa
     { device } = mockGpu();
   const backend = webgpuPagesBackend({
     ...fixture,
-    metadata: { primitives: [{ ...fixture.metadata.primitives[0], hierarchy: null }] },
+    metadata: { ...fixture.metadata, primitives: [{ ...fixture.metadata.primitives[0] }] },
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     backend.render(camera());

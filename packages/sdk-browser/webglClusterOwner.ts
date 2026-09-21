@@ -1,10 +1,10 @@
-import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import type { ClusterDrawMesh, WholeMesh } from './clusterBatchMesh.ts';
 import { WebglClusterRenderer } from './webglClusterRenderer.ts';
 import type { WebglClusterScene } from './webglClusterLights.ts';
+import type { SceneCopy } from './webglClusterCopyCulling.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
-import type * as THREE from 'three';
 
-/** The one draw owner of a session's paged clusters, diagnostic pages and owned scene copies. */
+/** The one draw owner of a session's paged clusters, diagnostic pages and scene copies. */
 export class WebglClusterOwner {
   private renderer: WebglClusterRenderer;
   private context: WebGL2RenderingContext;
@@ -35,8 +35,8 @@ export class WebglClusterOwner {
     camera: HostDrawCamera,
     toneMapped: boolean,
     srgbDestination: boolean,
-    diagnosticMeshes: readonly THREE.Mesh[] = [],
-    copies: readonly THREE.Mesh[] = [],
+    diagnosticMeshes: readonly WholeMesh[] = [],
+    copies: readonly SceneCopy[] = [],
   ) {
     return this.renderer.draw(
       meshes,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineProfiler } from './telemetry.ts';
-import { referenceIntervals } from './bench/oracles/telemetrie.mjs';
+import { referenceIntervals } from './bench/oracles/telemetrie.ts';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
 
 test('EngineProfiler records frames and produces accurate statistics and bottlenecks', () => {
@@ -33,6 +33,7 @@ test('EngineProfiler records frames and produces accurate statistics and bottlen
     frustumRejected: 300,
     pageLoads: 150,
     pageBytesRead: 1024 * 1024 * 5,
+    geometryAllocationBytes: null,
     vramBytes: 1024 * 1024 * 32,
     cacheHits: 140,
     cacheMisses: 10,
@@ -76,6 +77,8 @@ test('EngineProfiler diagnoses CPU bound state when cpuFrameMs exceeds budget', 
     residentPages: 50,
     pageLoads: 50,
     pageBytesRead: 1024 * 1024,
+    geometryAllocationBytes: null,
+    vramBytes: null,
   };
 
   profiler.record(heavyMetrics, 1000);
@@ -88,7 +91,7 @@ test('EngineProfiler diagnoses CPU bound state when cpuFrameMs exceeds budget', 
 
 // A14: `record()` writes into a circular buffer instead of `push` then `shift()` of the whole
 // array. Oracle: the `push`/`shift` version from before batch A, in
-// `bench/oracles/telemetrie.mjs`.
+// `bench/oracles/telemetrie.ts`.
 test('the circular interval buffer matches push+shift after wraparound and rejected deltas', () => {
   const max = 5;
   const profiler = new EngineProfiler(max);

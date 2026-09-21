@@ -10,8 +10,6 @@ import { ClusterBatches } from './clusterBatches.ts';
 type MetricsContext = {
   batches: ClusterBatches;
   blendCopies: THREE.Mesh[];
-  /** How many of the copies the draw owner submits itself, culled like the host would. */
-  ownedCopies: number;
   metricsSeen: Set<ArrayBufferView>;
   attached: PageRec[];
   counters: { pagesDetached: number };
@@ -31,7 +29,6 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
   const {
     batches,
     blendCopies,
-    ownedCopies,
     metricsSeen,
     attached,
     counters,
@@ -74,8 +71,9 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         totalSubmittedTriangles: batched.submittedTriangles + transparentSubmittedTriangles,
         transparentMeshes: blendCopies.length,
         transparentSubmittedTriangles,
-        transparentDrawCalls: blendCopies.length - ownedCopies + batched.copyDraws,
-        drawCalls: blendCopies.length - ownedCopies + batched.copyDraws + batched.drawCalls,
+        // Every copy is the owner's, submitted when in view, culled like the host would.
+        transparentDrawCalls: batched.copyDraws,
+        drawCalls: batched.copyDraws + batched.drawCalls,
         batchRebuilds: batched.pageRangeWrites,
         batchIndexBytesUpdated: batched.indexBytesWritten,
         pageRangeWrites: batched.pageRangeWrites,

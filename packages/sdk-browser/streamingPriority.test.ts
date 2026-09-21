@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { orderPendingUrls, pixelScaleOf, type PriorityRecord } from './streamingPriority.ts';
-import { referenceOrder } from './bench/oracles/socle-math-priorite.mjs';
+import { referenceOrder } from './bench/oracles/socle-math-priorite.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 function camera() {

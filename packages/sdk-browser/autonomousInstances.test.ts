@@ -1,12 +1,12 @@
 // Batch F, F12: `deplaceInstance` (autonomousInstances.ts) reads the page/base-page pair set
 // once at creation (`instance.pages[i]` / `instance.bases[i]`) instead of rebuilding a
 // page → base-page hash table on every move. The oracle is the reconstruction from before
-// batch F, copied as-is into `oracles/cadre-vue.mjs`.
+// batch F, copied as-is into `oracles/cadre-vue.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { deplaceInstance } from './autonomousInstances.ts';
-import { referenceUpdateInstance } from './bench/oracles/cadre-vue.mjs';
+import { referenceUpdateInstance } from './bench/oracles/cadre-vue.ts';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
 
 function page(matrice: THREE.Matrix4): PageRec {
