@@ -20,7 +20,7 @@ export function levelLengths(geometry: ReturnType<typeof previewGeometry>) {
 }
 
 /** The layout a family's word names, or a refusal of a word no layout owns. */
-export function layoutOf(entry: number, name: format.TextureBlockFormat, word: number) {
+function layoutOf(entry: number, name: format.TextureBlockFormat, word: number) {
   const layout = format.PREVIEW_LAYOUT_NAMES[word];
   if (layout === undefined)
     throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown block layout', {
