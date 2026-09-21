@@ -94,12 +94,7 @@ export function linearToSrgb8(c: number) {
 }
 
 /** Rank of the texel in the image, not its components: that byte indexes the sRGB table. */
-function texelAt(
-  image: { width: number; height: number },
-  map: HostTexture,
-  u: number,
-  v: number,
-) {
+function texelAt(image: { width: number; height: number }, map: HostTexture, u: number, v: number) {
   const x = wrapTexel(u, image.width, map.wrapS),
     y = wrapTexel(v, image.height, map.wrapT);
   return (y * image.width + x) * 4;

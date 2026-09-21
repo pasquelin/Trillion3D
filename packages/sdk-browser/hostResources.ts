@@ -1,5 +1,3 @@
-import type { MatrixElements } from './matrixElements.ts';
-
 /**
  * Host resources named by shape, never by library.
  *
@@ -80,10 +78,9 @@ export type HostGeometry = {
  * it into the engine's `Side`.
  */
 export type HostMaterial = {
-  readonly uuid: string;
-  readonly name: string;
   /** Bumped by the host on every change: what a cached row compares to rebuild its fields. */
   readonly version: number;
+  readonly visible: boolean;
   readonly side: number;
   /** The host draws a double-sided transparent surface in one pass instead of back then front. */
   readonly forceSinglePass: boolean;
@@ -100,15 +97,14 @@ export type HostMaterial = {
   readonly transparent: boolean;
   readonly opacity: number;
   readonly alphaTest: number;
-  readonly visible: boolean;
 };
 
 /** What a surface declares: one material, or one per geometry group. */
 export type HostMaterials = HostMaterial | HostMaterial[];
 
 /** A host mesh, held by identity: the draw record, the transparent table and the selection sets
- *  name the surface the host placed, they never read it. */
-export type HostMesh = { readonly id: number; readonly name: string };
+ *  name the surface the host placed; nothing but its name is read. */
+export type HostMesh = { readonly name: string };
 
 /** A node of the host scene graph, held by identity and by the two fields a walk needs. */
 export type HostNode = { readonly name: string; readonly visible: boolean };

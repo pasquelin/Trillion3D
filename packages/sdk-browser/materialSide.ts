@@ -4,7 +4,7 @@ import type { HostMaterial, HostMaterials } from './hostResources.ts';
 /** The host face constants, in the order glTF and every rendering library built on it number
  *  them: front, back, then both. Read here once and nowhere else — the raster, the cones, the
  *  pipelines and the blend plan compare against `Side`. */
-export const HOST_SIDE_FRONT = 0,
+const HOST_SIDE_FRONT = 0,
   HOST_SIDE_BACK = 1,
   HOST_SIDE_DOUBLE = 2;
 

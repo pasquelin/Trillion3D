@@ -86,9 +86,9 @@ const AUTORISES: Record<string, string> = {
   webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
 
   // 3. Host resources: materials, textures, geometries, colours, face constants. The contract
-//    types no longer name them (#269): materials, textures, attributes, meshes and scene nodes
-//    cross the engine as `hostResources.ts` shapes, and only the files below turn one back into
-//    the host library's own type, through `asHostLibrary`.
+  //    types no longer name them (#269): materials, textures, attributes, meshes and scene nodes
+  //    cross the engine as `hostResources.ts` shapes, and only the files below turn one back into
+  //    the host library's own type, through `asHostLibrary`.
   explorerDiagnosticApi: 'it replaces host materials and geometries with diagnostic ones',
   triangleDiagnostic: 'it colours a host geometry in a host material',
   visibilityMath: 'host attributes, textures and wrap modes',

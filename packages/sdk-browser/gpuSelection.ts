@@ -138,10 +138,7 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
   };
 }
 
-export function leafCone(page: {
-  cone?: NormalCone;
-  material?: HostMaterials;
-}): NormalCone {
+export function leafCone(page: { cone?: NormalCone; material?: HostMaterials }): NormalCone {
   if (page.material && sideOf(page.material) !== 'front') return OPEN_CONE;
   return page.cone ?? OPEN_CONE;
 }
