@@ -14,4 +14,4 @@ scene model, but cannot complete material or frame-hook conversion yet.
 
 Manual mixed-backend fallback: `detectCapabilities('webgl')` never touches WebGPU. A missing or lost WebGPU backend falls back silently to the Three.js path without user warnings; `audience:'diagnostic'` events remain reserved for lab/developer monitoring.
 
-Interactive startup defaults to direct WebGPU and rejects `WEBGPU_UNAVAILABLE` when unavailable. Choose an explicit backend to select a different capability set. Use canvas elements for framework refs and shadow roots; a string is a literal document ID, not a selector.
+Startup defaults to the engine's own path: direct WebGPU where a device was granted, the autonomous WebGL2 path where the cache carries its prepared scene, and a named `EngineError` where neither exists. A host that names `backends: [webgpuPagesBackend]` explicitly is still rejected with `WEBGPU_UNAVAILABLE` when no device is granted. Choose an explicit backend to select a different capability set. Use canvas elements for framework refs and shadow roots; a string is a literal document ID, not a selector.
