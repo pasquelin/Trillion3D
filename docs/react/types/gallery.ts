@@ -94,7 +94,7 @@ export interface RendererMetrics {
   memory?: number;
   triangles?: number;
   shadowPages?: number;
-  shadowPending?: number;
+  shadowPending?: number | null;
   occluded?: number | null;
   tested?: number | null;
   diagnostic?: DiagnosticMode;
