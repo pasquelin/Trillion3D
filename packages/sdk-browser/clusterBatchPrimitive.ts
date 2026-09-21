@@ -118,7 +118,6 @@ export class BatchGroup {
   ranges = new DrawRanges();
   mesh: ClusterDrawMesh | undefined;
   sample: BatchPage | undefined;
-  attached = false;
   touched = false;
   triangles = 0;
   transparent = false;

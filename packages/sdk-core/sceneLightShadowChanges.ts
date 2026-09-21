@@ -1,3 +1,7 @@
+import { boxEmpty, boxUnion } from './mathBox.ts';
+import { keepNumbers } from './mathVector.ts';
+import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from './sceneLightContracts.ts';
+
 /** Motion boxes kept separate before merge: beyond that, two boxes join. */
 const MOVED_BOXES = 8;
 
@@ -17,11 +21,28 @@ const readMin = new Float64Array(3),
  * The scheduler consumes them every frame: it derives the stale pages of each face, which
  * then carry the state. The boxes therefore have nothing to retain from one frame to the next, and
  * everything is allocated once.
+ *
+ * Two kinds of change enter. A **world** change — a node or a light that moves — stales its
+ * pages at once. A **representation** change — a cluster that swaps level of detail, a page
+ * that enters or leaves residency, a colour tile that arrives — describes the same world at
+ * another precision: it is held in one union box while the camera moves, and enters the list
+ * at the first frame the camera rests. Under a moving camera the cut churns every frame, and
+ * staling the far cascades for a sub-texel change of detail cost a whole scene draw per frame;
+ * at rest the union restales exactly what changed, so a settled map is that of the current
+ * cut, whatever the history (#159).
  */
 export function createShadowChanges() {
   const min = new Float64Array(MOVED_BOXES * 3),
     max = new Float64Array(MOVED_BOXES * 3);
   let count = 0;
+  /** The union of representation changes held until the camera rests: empty when none waits. */
+  const defer = new Float64Array(6),
+    deferMin = defer.subarray(0, 3),
+    deferMax = defer.subarray(3, 6);
+  boxEmpty(defer, 0);
+  /** The view of the last frame, and this frame's the time to compare them. */
+  const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
+    viewNow = new Float64Array(VIEW_NUMBERS);
   const volume = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>) => {
     let product = 1;
     for (let axis = 0; axis < 3; axis++)
@@ -36,27 +57,52 @@ export function createShadowChanges() {
       max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis];
     }
   };
+  const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>) => {
+    if (count < MOVED_BOXES) {
+      write(count * 3, lo, hi, false);
+      count++;
+      return;
+    }
+    let best = 0,
+      bestGrowth = Infinity;
+    for (let box = 0; box < count; box++) {
+      const growth = volume(box * 3, lo, hi) - own(box * 3);
+      if (growth < bestGrowth) {
+        bestGrowth = growth;
+        best = box;
+      }
+    }
+    write(best * 3, lo, hi, true);
+  };
+  /** The held union enters the list as one box, when one waits. */
+  const release = () => {
+    if (defer[0] === Infinity) return;
+    worldChanged(deferMin, deferMax);
+    boxEmpty(defer, 0);
+  };
   return {
     get count() {
       return count;
     },
-    /** A node or a residency page has moved: its box enters the list, or joins a neighbour. */
-    worldChanged(lo: readonly number[], hi: readonly number[]) {
-      if (count < MOVED_BOXES) {
-        write(count * 3, lo, hi, false);
-        count++;
-        return;
-      }
-      let best = 0,
-        bestGrowth = Infinity;
-      for (let box = 0; box < count; box++) {
-        const growth = volume(box * 3, lo, hi) - own(box * 3);
-        if (growth < bestGrowth) {
-          bestGrowth = growth;
-          best = box;
-        }
-      }
-      write(best * 3, lo, hi, true);
+    /** A representation change waits for the camera to rest: the hold must not close before. */
+    get deferred() {
+      return defer[0] !== Infinity;
+    },
+    /** A node has moved: its box enters the list, or joins a neighbour. */
+    worldChanged,
+    /** The same world at another precision: its box joins the union held until the camera rests. */
+    representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>) {
+      boxUnion(defer, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+    },
+    /**
+     * The frame's view. When it is the one of the previous frame the camera rests, and what
+     * changed representation meanwhile enters the list as one box; while it moves, the union
+     * only grows. Returns true when the camera rests.
+     */
+    observeView(view: ShadowViewpoint) {
+      const still = keepNumbers(lastView, writeView(view, viewNow));
+      if (still) release();
+      return still;
     },
     /**
      * Influence sphere of a light against box `box`: an analytic test, not a ray. A
@@ -87,6 +133,17 @@ export function createShadowChanges() {
     /** The boxes are consumed: the pages they stale now carry the state. */
     settled() {
       count = 0;
+    },
+    /**
+     * No plan consumes the union this frame — no atlas, no light, unlit view — while the slices
+     * survive: it enters the list now, and the next plan, at rest or not, stales what changed.
+     */
+    releaseDeferred: release,
+    /** Nothing waits anymore, and the next view is a first one. */
+    reset() {
+      count = 0;
+      boxEmpty(defer, 0);
+      lastView.fill(NaN);
     },
   };
 }
