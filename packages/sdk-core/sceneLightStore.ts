@@ -104,6 +104,8 @@ export function createSceneLightStore() {
       view = next;
       epoch++;
     },
+    /** The held record, the store's own: engines read it on the frame path and copy nothing.
+     *  Not for the host — the public API hands out `cloneSceneLight` copies. */
     light(id: string) {
       return records.get(id);
     },
