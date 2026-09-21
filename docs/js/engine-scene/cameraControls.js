@@ -6,7 +6,7 @@ export function configureSceneCamera(explorer, controls) {
     homeDistance = Math.max(0.001, controls.object.position.distanceTo(explorer.center));
     controls.minDistance = homeDistance * 0.15;
     controls.maxDistance = homeDistance * 2.5;
-    controls.enableZoom = false;
+    controls.enableZoom = true;
     controls.update();
   };
   const zoom = (factor) => {
