@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { Table } from '../components/Table.tsx';
 import { readingName } from '../../js/reports/presentation.js';
 import { reportCopy } from '../../js/reports/copy.js';
@@ -6,7 +5,7 @@ import { formatValue } from '../../js/reports/metrics.js';
 import type { ReportRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface ConditionsProps {
+interface ConditionsProps {
   a: ReportRecord;
   b?: ReportRecord | null;
   locale: Locale;
@@ -28,7 +27,7 @@ const FIELDS: [string, string, string, string?][] = [
   ['texturePoolBytes', 'Texture pool budget', 'Budget du pool de textures', 'MiB'],
 ];
 
-export function Conditions({ a, b, locale }: ConditionsProps): ReactElement {
+export function Conditions({ a, b, locale }: ConditionsProps) {
   const c = reportCopy(locale),
     fr = locale === 'fr';
   const value = (record: ReportRecord | null | undefined, key: string, unit?: string) => {

@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { assessment, ASSESSMENT_LABELS, engineTone } from '../../js/reports/assessment.js';
 import { engineName } from '../../js/reports/names.js';
 import { missingMetric } from '../../js/reports/availability.js';
@@ -12,7 +11,7 @@ import { Table } from '../components/Table.tsx';
 import type { MetricKey, Report, ReportRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface MetricChartsProps {
+interface MetricChartsProps {
   records: ReportRecord[];
   report: Report;
   locale: Locale;
@@ -32,7 +31,7 @@ export function MetricCharts({
   labelRecord,
   colorByEngine = false,
   columns = 2,
-}: MetricChartsProps): ReactElement {
+}: MetricChartsProps) {
   const label = (r: ReportRecord) =>
     labelRecord
       ? labelRecord(r)
@@ -50,7 +49,7 @@ export function MetricCharts({
             <BarChart
               key={key}
               title={metricLabel(key, locale)}
-              format={(v: number | null) => formatValue(v, locale, METRICS[key].unit)}
+              format={(v) => formatValue(v, locale, METRICS[key].unit)}
               missingLabel={locale === 'fr' ? 'Non mesuré' : 'Not measured'}
               rows={records.map((r) => ({
                 id: colorByEngine

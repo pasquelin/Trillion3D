@@ -1,10 +1,12 @@
-import { useEffect, useRef, type ReactElement } from 'react';
-import type { DiagramProps } from '../types/gallery.ts';
+import { useEffect, useRef } from 'react';
+import type { WebGPUCanvasProps } from '../types/gallery.ts';
 import { Accordion } from '../components/Accordion.tsx';
 import { draw } from '../../js/gallery/draw.js';
 import { evaluate } from '../../js/gallery/evaluate.js';
 
-export function Diagram({ id, state, locale, label }: DiagramProps): ReactElement {
+type DiagramProps = Pick<WebGPUCanvasProps, 'id' | 'state' | 'locale' | 'label'>;
+
+export function Diagram({ id, state, locale, label }: DiagramProps) {
   const svg = useRef<SVGSVGElement>(null);
   useEffect(() => {
     if (svg.current) {

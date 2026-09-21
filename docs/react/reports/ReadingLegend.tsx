@@ -1,15 +1,14 @@
-import type { ReactElement } from 'react';
 import { engineTone } from '../../js/reports/assessment.js';
 import { engineName } from '../../js/reports/names.js';
 import { StatusBadge } from '../components/StatusBadge.tsx';
 import type { Locale } from '../types/portal.ts';
 
-export interface ReadingLegendProps {
+interface ReadingLegendProps {
   locale: Locale;
   engines?: boolean;
 }
 
-export function ReadingLegend({ locale, engines = false }: ReadingLegendProps): ReactElement {
+export function ReadingLegend({ locale, engines = false }: ReadingLegendProps) {
   const fr = locale === 'fr';
   if (engines)
     return (

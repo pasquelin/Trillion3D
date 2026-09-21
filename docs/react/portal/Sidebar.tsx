@@ -1,21 +1,23 @@
-import type { JSX } from 'react';
 import { ReportNavigation } from '../reports/Navigation.tsx';
 import { SECTIONS } from '../../js/docsModel.js';
 import { entryRoute, routeHref } from '../../js/portal/routes.js';
 import { searchEntries } from '../../js/portal/search.js';
 import { PrimaryNavigation } from './Header.tsx';
 import { expandEntryLinks } from './entryLinks.ts';
-import type { EntryLinkItem, PortalEntry, SidebarProps } from '../types/portal.ts';
+import type { RefObject } from 'react';
+import type { PortalEntry, PortalRoute, TranslateFn } from '../types/portal.ts';
 
-export function Sidebar({
-  entries,
-  route,
-  query,
-  t,
-  inputRef,
-  onQuery,
-  onClose,
-}: SidebarProps): JSX.Element {
+interface SidebarProps {
+  entries: PortalEntry[];
+  route: PortalRoute;
+  query: string;
+  t: TranslateFn;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onQuery: (query: string) => void;
+  onClose: () => void;
+}
+
+export function Sidebar({ entries, route, query, t, inputRef, onQuery, onClose }: SidebarProps) {
   const groups = SECTIONS.map((section) => ({
     section,
     items: expandEntryLinks(
@@ -67,7 +69,7 @@ export function Sidebar({
                       <span className="sidebar-count">{items.length}</span>
                     </summary>
                     <ul>
-                      {items.map(({ entry, key, label, primary, id }: EntryLinkItem) => {
+                      {items.map(({ entry, key, label, primary, id }) => {
                         const active = id === route.id || (entry.id === route.id && primary);
                         return (
                           <li key={key}>

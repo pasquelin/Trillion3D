@@ -1,15 +1,14 @@
-import type { ReactElement } from 'react';
 import { Table } from '../components/Table.tsx';
 import { formatValue } from '../../js/reports/metrics.js';
 import type { CutAnalysis, CutRow } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface CutProps {
+interface CutProps {
   analysis?: CutAnalysis;
   locale: Locale;
 }
 
-export function Cut({ analysis, locale }: CutProps): ReactElement | null {
+export function Cut({ analysis, locale }: CutProps) {
   if (!analysis) return null;
   const fr = locale === 'fr';
   const tables: [string, CutRow[]][] = [

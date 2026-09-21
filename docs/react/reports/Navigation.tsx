@@ -1,14 +1,13 @@
-import type { ReactElement } from 'react';
 import { REPORT_SECTIONS } from '../../js/reports/presentation.js';
 import { routeHref } from '../../js/portal/routes.js';
 import type { PortalRoute } from '../types/portal.ts';
 
-export interface ReportNavigationProps {
+interface ReportNavigationProps {
   route: PortalRoute;
   onClose?: () => void;
 }
 
-export function ReportNavigation({ route, onClose }: ReportNavigationProps): ReactElement {
+export function ReportNavigation({ route, onClose }: ReportNavigationProps) {
   const [campaign = '', active = 'overview'] = route.id.split('/');
   return (
     <ul className="menu menu-md w-full p-0">

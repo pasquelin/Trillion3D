@@ -1,14 +1,23 @@
 import { createContext, useContext, useId } from 'react';
-import type {
-  AlertProps,
-  ButtonProps,
-  CardProps,
-  FieldProps,
-  FormProps,
-  RangeProps,
-  SelectProps,
-  ToggleProps,
-} from '../types/components.ts';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { CardProps } from '../types/components.ts';
+
+interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+}
+
+interface AlertProps extends ComponentPropsWithoutRef<'div'> {
+  tone?: 'info' | 'success' | 'warning' | 'error';
+}
+
+interface FieldProps extends ComponentPropsWithoutRef<'fieldset'> {
+  label: ReactNode;
+}
+
+interface SelectProps extends Omit<ComponentPropsWithoutRef<'select'>, 'size'> {
+  size?: 'sm' | 'md';
+}
 
 const FieldLabel = createContext<string | undefined>(undefined);
 const tones: Record<NonNullable<AlertProps['tone']>, string> = {
@@ -98,7 +107,7 @@ export function Field({ label, children, className = '', ...props }: FieldProps)
   );
 }
 
-export function Form({ children, className = '', ...props }: FormProps) {
+export function Form({ children, className = '', ...props }: ComponentPropsWithoutRef<'fieldset'>) {
   return (
     <fieldset className={`fieldset gap-4 ${className}`} {...props}>
       {children}
@@ -119,7 +128,7 @@ export function Select({ children, size = 'md', className = '', ...props }: Sele
   );
 }
 
-export function Range({ className = '', ...props }: RangeProps) {
+export function Range({ className = '', ...props }: ComponentPropsWithoutRef<'input'>) {
   const labelId = useContext(FieldLabel);
   return (
     <input
@@ -131,7 +140,7 @@ export function Range({ className = '', ...props }: RangeProps) {
   );
 }
 
-export function Toggle({ className = '', ...props }: ToggleProps) {
+export function Toggle({ className = '', ...props }: ComponentPropsWithoutRef<'input'>) {
   const labelId = useContext(FieldLabel);
   return (
     <input

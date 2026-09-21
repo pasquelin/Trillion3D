@@ -1,38 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ProgressiveListProps, ProgressiveRange } from '../types/components.ts';
+import type { ReactNode } from 'react';
+import type { ProgressiveListState, ProgressiveRange } from '../types/components.ts';
 import { Loading } from './Loading.tsx';
+import { clamp, progressiveRange, rangeForScroll } from './progressiveRange.ts';
 
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(value, max));
-
-function progressiveRange(
-  direction: 'back' | 'forward',
-  range: ProgressiveRange,
-  pageCount: number,
-  maxPages: number,
-): ProgressiveRange {
-  if (pageCount <= 1) return { start: 0, end: 0 };
-  if (direction === 'back') {
-    const start = Math.max(0, range.start - 1);
-    return { start, end: Math.min(pageCount - 1, start + maxPages - 1) };
-  }
-  const end = Math.min(pageCount - 1, range.end + 1);
-  return { start: Math.max(0, end - maxPages + 1), end };
+interface ProgressiveListLabels {
+  previous: ReactNode;
+  next: ReactNode;
+  loading: ReactNode;
+  end: ReactNode;
 }
 
-function rangeForScroll(
-  scrollY: number,
-  rootTop: number,
-  heights: Record<string | number, number>,
-  pageCount: number,
-  maxPages: number,
-): ProgressiveRange | null {
-  const known = Object.values(heights).filter((height): height is number => height > 0);
-  if (!known.length) return null;
-  const average = known.reduce((sum: number, height: number) => sum + height, 0) / known.length;
-  const page = clamp(Math.floor(Math.max(0, scrollY - rootTop) / average), 0, pageCount - 1);
-  const start = clamp(page - 1, 0, Math.max(0, pageCount - maxPages));
-  return { start, end: Math.min(pageCount - 1, start + maxPages - 1) };
+interface ProgressiveListProps<T> {
+  items: T[];
+  renderItem: (item: T, index: number) => ReactNode;
+  batchSize?: number;
+  maxBatches?: number;
+  initialState?: ProgressiveListState;
+  labels: ProgressiveListLabels;
+  onStateChange?: (state: ProgressiveListState) => void;
 }
 
 export function ProgressiveList<T>({
@@ -52,9 +38,9 @@ export function ProgressiveList<T>({
   const [heights, setHeights] = useState<Record<string | number, number>>(
     () => initialState?.heights ?? {},
   );
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
   const root = useRef<HTMLDivElement | null>(null);
-  const lastScrollY = useRef<number>(typeof window === 'undefined' ? 0 : window.scrollY);
+  const lastScrollY = useRef(typeof window === 'undefined' ? 0 : window.scrollY);
   const pages = useMemo(
     () => Array.from({ length: range.end - range.start + 1 }, (_, index) => range.start + index),
     [range],
