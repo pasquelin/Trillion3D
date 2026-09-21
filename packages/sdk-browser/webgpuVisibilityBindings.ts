@@ -1,9 +1,6 @@
 import { visBindEntries } from './webgpuBindEntries.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Resources the visibility groups — direct, Hi-Z, per slot, compute raster — name. */
-export const VIS_IDENTITY_SIZE = 13;
-
 /**
  * Voids every visibility group when one of the resources it names changed identity: the page pool
  * after a resize, the page table after a reallocation, the colour atlas after a layer change, the

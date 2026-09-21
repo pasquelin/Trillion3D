@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
 
 test('a family moves when one of the resources it names changes identity, and only then', () => {
-  const identity = createWebgpuBindIdentity(3);
+  const identity = createWebgpuBindIdentity();
   const cache = {},
     table = {},
     pool = {};

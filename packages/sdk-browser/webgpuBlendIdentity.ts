@@ -1,10 +1,6 @@
 import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Resources the transparent groups name, the two builders — visibility path and fallback — put
- *  together: the geometry, the item records, the atlases, the lighting, the backdrop. */
-export const BLEND_IDENTITY_SIZE = 27;
-
 /**
  * Voids the transparent groups — the one every paged item shares and each unpaged item's own — when
  * a resource they name changed identity: the page pool after a resize, an atlas after a layer

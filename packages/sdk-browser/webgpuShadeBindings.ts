@@ -1,9 +1,6 @@
 import { shadeBindEntries } from './webgpuBindEntries.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Resources the hardware-resolve group names. */
-export const SHADE_IDENTITY_SIZE = 11;
-
 /**
  * Bind group of the hardware resolve, built when its resources are there. One construction, for
  * prepare as for the image; it is rebuilt when one of the resources it names changed identity —

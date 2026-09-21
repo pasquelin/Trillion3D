@@ -1,7 +1,6 @@
 import type * as THREE from 'three';
 import type { createGpuPageCache } from './gpuPages.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from './webgpuBindIdentity.ts';
-import { FALLBACK_IDENTITY_SIZE } from './webgpuPagesPipelineFor.ts';
 import type { createGpuPresenter, createSynchronousCanvasCapture } from './gpuPresentation.ts';
 import type { createDeferredLighting } from './deferredLighting.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
@@ -115,7 +114,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     uniformPacked: new Float32Array(UNIFORM_STRIDE / 4),
     volumeBuffer: undefined,
     bindGroups: new Map(),
-    fallbackIdentity: createWebgpuBindIdentity(FALLBACK_IDENTITY_SIZE),
+    fallbackIdentity: createWebgpuBindIdentity(),
     clusterRgbCache: new Map(),
     zeroUv: undefined,
     synchronousCapture: undefined,
