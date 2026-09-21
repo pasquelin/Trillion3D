@@ -1,5 +1,5 @@
 import { engineExampleCode } from './engine-scene/code.js';
-/** Application examples: prose in `html`, code in `example`, both rendered by the React Entry component. */
+/** Application examples: code in `example`, rendered by the React Entry component. */
 const EXAMPLE = { section: 'examples', kind: 'Example' };
 
 export const EXAMPLES = [
@@ -119,6 +119,7 @@ await explorer.flush(); // the barrier lifts both budgets: the pose converges be
     description: 'Switching what the frame draws and how fine the cut is, on a live explorer.',
     example: `explorer.setDiagnostic('clusters'); // one stable colour per cluster, on the real cut
 explorer.setDiagnostic('screen-error'); // the projected error the cut compares to the threshold
+explorer.setDiagnostic('materials'); // one colour per material class: the pass that resolved the pixel
 explorer.setDiagnostic('beauty'); // back to the lit image
 explorer.setPixelError(2); // coarser cut: up to two pixels of projected error
 console.log(explorer.diagnostics); // which modes this backend can produce, and why not

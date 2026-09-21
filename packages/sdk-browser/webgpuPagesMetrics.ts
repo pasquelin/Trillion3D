@@ -43,6 +43,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   return {
     coverageReady: services.bootstrapState.ready,
     coverageBudgetLimited: run.coverageBudgetLimited,
+    budgetPixelError: run.budgetPixelError,
     frameHeld: run.frameHeld,
     clusters: pending ? null : run.visible,
     selectedTriangles: run.selectedTriangles,
@@ -95,6 +96,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowFacesDrawn: lights.shadowFaces,
     shadowDrawCalls: lights.shadowDrawCalls,
     shadowPagesDrawn: lights.shadowPages,
+    shadowPagesTotal: lights.shadowPagesTotal,
     shadowPagesPending: lights.plan.counts.pendingPages,
     shadowWaitMs: lights.plan.counts.waitedMs,
     ...directLightTimings(timing.lastGpuPassMs),
@@ -117,6 +119,9 @@ export function disposeWebgpuPages(
   vis.visTexture?.destroy();
   vis.visTexture = undefined;
   vis.visView = undefined;
+  vis.materialDepthTexture?.destroy();
+  vis.materialDepthTexture = undefined;
+  vis.materialDepthView = undefined;
   for (const buffer of gpu.positionBuffers.values()) buffer.destroy();
   dropBlendBuffers(gpu);
   gpu.vertexBytes = 0;

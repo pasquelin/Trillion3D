@@ -18,7 +18,8 @@ export function createTileCounters() {
     missingAverage: 0,
     bytesLastFrame: 0,
     scratches: 0,
-    /** True when the last pass had tiles to serve, and what it cost. */
+    /** True when the last pass had tiles to serve, and what it cost — the one clock of the pass,
+     *  the same the budget is read on; the `tilesPumpMs` CPU step files it, never a second bracket. */
     worked: false,
     lastMs: 0,
     /** Worst bounded pass of the session, `null` until one ran: a barrier lifts the budget and is

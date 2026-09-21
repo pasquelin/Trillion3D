@@ -75,12 +75,12 @@ test('the explicit capture composes the presented surface instead of drawing the
       getRenderTarget: () => null,
       setRenderTarget: () => {},
       render: () => rendered.push('scene'),
-      getContext: () => ({ readPixels: () => {} }),
     };
     const capture = createExplorerCapture({
       canvas: { width: 2, height: 2 } as HTMLCanvasElement,
       camera: {} as never,
       renderer: renderer as never,
+      context: { readPixels: () => rendered.push('read') } as unknown as WebGL2RenderingContext,
       options: {} as never,
       directGpu: false,
       presentBackend: () => presented,
@@ -89,6 +89,6 @@ test('the explicit capture composes the presented surface instead of drawing the
       diagnose: () => {},
     });
     capture();
-    assert.deepEqual(rendered, presented ? [] : ['scene']);
+    assert.deepEqual(rendered, presented ? ['read', 'read'] : ['read', 'scene', 'read']);
   }
 });

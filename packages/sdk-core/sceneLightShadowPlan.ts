@@ -17,6 +17,7 @@ import { pageRowsOf } from './sceneLightShadowPages.ts';
 import { createShadowCounts, screenCoverage } from './sceneLightShadowCounts.ts';
 import { createShadowAdmission } from './sceneLightShadowAdmit.ts';
 import { createShadowRelease } from './sceneLightShadowRelease.ts';
+import { castsShadow, countShadowCasters } from './sceneLightShadowCasters.ts';
 
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
@@ -49,6 +50,17 @@ export function createShadowPlan(capacity: number) {
     counts,
     /** A node has moved: its box enters the list the scheduler will consume next frame. */
     worldChanged: changes.worldChanged,
+    /** The same world at another precision — level of detail, residency, colour tile —: its box
+     *  waits for the camera to rest, then enters the list (`sceneLightShadowChanges.ts`). */
+    representationChanged: changes.representationChanged,
+    /** True while a representation change waits for the camera to rest: the frame must not
+     *  hold before a plan consumes it. */
+    get deferredChanges() {
+      return changes.deferred;
+    },
+    /** The frame plans no shadow — no atlas, no light, unlit view —: the held union enters the
+     *  list at once, where the next plan reads it, rather than keeping the frame from holding. */
+    releaseDeferred: changes.releaseDeferred,
     /** Timer of a frame's Shadows pass, reported to the pages it had redrawn. */
     observeCost: budget.observe,
     setBudgetMs: budget.setBudgetMs,
@@ -72,15 +84,13 @@ export function createShadowPlan(capacity: number) {
       // Before any slice request: those that no live shadow light claims anymore
       // go back to the common pot. This is the only place a slice is released.
       release(slices, store);
-      let casters = 0;
-      for (let slot = 0; slot < store.count; slot++)
-        if (packed[SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS + LIGHT_FIELD.castsShadow])
-          casters++;
+      changes.observeView(view);
+      const casters = countShadowCasters(store);
       for (let slot = 0; slot < store.count; slot++) {
         const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
         coverage[slot] = 0;
         // Its slice has already been released by `release`: the light skips its turn, with no other effect.
-        if (packed[base + LIGHT_FIELD.castsShadow] === 0) continue;
+        if (!castsShadow(store, slot)) continue;
         let slice = store.sliceOf(slot);
         const kind = packed[base + LIGHT_FIELD.kind];
         const sun = kind === LIGHT_KIND.directional;
@@ -159,6 +169,8 @@ export function createShadowPlan(capacity: number) {
           regions.x1Of(region),
           regions.y0Of(region),
           regions.y1Of(region),
+          regions.heldLowOf(region),
+          regions.heldHighOf(region),
           nowMs,
           frame,
         );
@@ -166,7 +178,7 @@ export function createShadowPlan(capacity: number) {
     },
     reset() {
       slices.reset();
-      changes.settled();
+      changes.reset();
       budget.reset();
       regions.reset();
       counts.reset();

@@ -1,13 +1,13 @@
 import type * as THREE from 'three';
 import type { HostDrawCamera } from './cameraWorld.ts';
-import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
-import type { ClusterBatchStats } from './clusterBatches.ts';
-import type { WebglClusterOwner } from './webglClusterOwner.ts';
+import { wholeMeshTriangles, type ClusterDrawMesh } from './clusterBatchMesh.ts';
+import type { ClusterBatchStats, ClusterDrawOwner } from './clusterBatches.ts';
 
 export function drawClusterBatches(
-  renderer: WebglClusterOwner,
+  owner: ClusterDrawOwner,
   active: readonly { mesh?: ClusterDrawMesh }[],
   diagnosticMeshes: readonly THREE.Mesh[],
+  copies: readonly THREE.Mesh[],
   scene: THREE.Scene,
   camera: HostDrawCamera,
   toneMapped: boolean,
@@ -18,22 +18,25 @@ export function drawClusterBatches(
   const meshes: ClusterDrawMesh[] = [];
   for (const group of active) if (group.mesh) meshes.push(group.mesh);
   const start = performance.now();
-  const submitted = renderer.draw(
+  const submitted = owner.draw(
     meshes,
     scene,
     camera,
     toneMapped,
     srgbDestination,
     diagnosticMeshes,
+    copies,
   );
-  stats.drawCalls = submitted;
   stats.subDraws = 0;
   stats.submittedTriangles = 0;
+  // With a transmissive copy in view, the frame was drawn once more into the backdrop.
+  const frames = 1 + owner.backdropPasses;
   for (const mesh of meshes) {
     let passes = 0;
     if (Array.isArray(mesh.material)) {
       if (mesh._sideSplitSource?.visible) passes = 2;
     } else if (mesh.material.visible) passes = 1;
+    passes *= frames;
     stats.subDraws += mesh._multiDrawCount * passes;
     let indices = 0;
     for (let i = 0; i < mesh._multiDrawCount; i++) indices += mesh._multiDrawCounts[i];
@@ -41,10 +44,14 @@ export function drawClusterBatches(
   }
   for (const mesh of diagnosticMeshes) {
     if (Array.isArray(mesh.material) || !mesh.material.visible) continue;
-    const indices = mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count;
-    stats.subDraws++;
-    stats.submittedTriangles += indices / 3;
+    stats.subDraws += frames;
+    stats.submittedTriangles += wholeMeshTriangles(mesh) * frames;
   }
+  // Copies are not paged clusters: the cluster counters leave them out. The session counter
+  // stays a count of display submissions; the frame's draw calls include the backdrop pass.
+  stats.copyDraws = owner.copySubmissions;
+  stats.drawCalls = submitted + owner.backdropSubmissions;
   stats.cpuSubmitMs = performance.now() - start;
   stats.autonomousClusterDrawsTotal += submitted;
+  stats.backdropBytes = owner.backdropBytes;
 }
