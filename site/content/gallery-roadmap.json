@@ -104,7 +104,7 @@
         "fr": "Un champ de dix mille galets"
       },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/a-field-of-pebbles.html"
     },
     {
       "id": "a-vase-turned-on-the-lathe",
@@ -113,7 +113,7 @@
         "fr": "Un vase tourné au tour"
       },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/a-vase-turned-on-the-lathe.html"
     },
     {
       "id": "a-staircase-from-one-step",
@@ -122,7 +122,7 @@
         "fr": "Un escalier en colimaçon à partir d’une marche"
       },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/a-staircase-from-one-step.html"
     },
     {
       "id": "a-terrain-from-a-height-map",
@@ -131,7 +131,7 @@
         "fr": "Un terrain d’après une carte de hauteurs"
       },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/a-terrain-from-a-height-map.html"
     },
     {
       "id": "letters-carved-in-relief",
@@ -140,7 +140,7 @@
         "fr": "Des lettres taillées en relief"
       },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/letters-carved-in-relief.html"
     },
     {
       "id": "a-mesh-simplified-on-demand",
@@ -149,7 +149,7 @@
         "fr": "Un maillage simplifié à la demande"
       },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/a-mesh-simplified-on-demand.html"
     },
     {
       "id": "boxes-culled-by-the-frustum",
@@ -158,7 +158,7 @@
         "fr": "Dix mille boîtes triées par le frustum"
       },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/boxes-culled-by-the-frustum.html"
     },
     {
       "id": "from-clay-to-chrome",
@@ -176,7 +176,7 @@
         "fr": "Surfaces peintes et texturées"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/painted-and-textured.html"
     },
     {
       "id": "bricks-with-a-normal-map",
@@ -185,7 +185,7 @@
         "fr": "Des briques avec une carte de normales"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/bricks-with-a-normal-map.html"
     },
     {
       "id": "leaves-cut-by-alpha",
@@ -194,7 +194,7 @@
         "fr": "Des feuilles découpées par leur alpha"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/leaves-cut-by-alpha.html"
     },
     {
       "id": "glass-on-the-table",
@@ -203,7 +203,7 @@
         "fr": "Du verre sur la table"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/glass-on-the-table.html"
     },
     {
       "id": "a-neon-sign",
@@ -212,7 +212,7 @@
         "fr": "Une enseigne au néon qui luit"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/a-neon-sign.html"
     },
     {
       "id": "brushed-metal",
@@ -221,7 +221,7 @@
         "fr": "Métal brossé, anisotrope"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/brushed-metal.html"
     },
     {
       "id": "car-paint-under-clear-coat",
@@ -230,7 +230,7 @@
         "fr": "Peinture de carrosserie sous vernis"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/car-paint-under-clear-coat.html"
     },
     {
       "id": "a-colour-ramp-in-linear-light",
@@ -239,7 +239,7 @@
         "fr": "Un dégradé en lumière linéaire"
       },
       "theme": "materials",
-      "file": ""
+      "file": "examples/a-colour-ramp-in-linear-light.html"
     },
     {
       "id": "sundial-in-the-afternoon",
@@ -275,7 +275,7 @@
         "fr": "Un anneau de lampes sur un budget"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/a-ring-of-lamps.html"
     },
     {
       "id": "two-lamps-that-mix",
@@ -284,7 +284,7 @@
         "fr": "Une lampe chaude et une froide qui se mélangent"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/two-lamps-that-mix.html"
     },
     {
       "id": "a-lamp-in-its-glass",
@@ -293,7 +293,7 @@
         "fr": "Une lampe logée dans son propre verre"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/a-lamp-in-its-glass.html"
     },
     {
       "id": "from-noon-to-dusk",
@@ -302,7 +302,7 @@
         "fr": "L’exposition de midi au crépuscule"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/from-noon-to-dusk.html"
     },
     {
       "id": "light-off-a-red-wall",
@@ -311,7 +311,7 @@
         "fr": "La lumière rebondit sur un mur rouge"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/light-off-a-red-wall.html"
     },
     {
       "id": "a-lighthouse-beam",
@@ -320,7 +320,7 @@
         "fr": "Le faisceau d’un phare balaie le rivage"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/a-lighthouse-beam.html"
     },
     {
       "id": "lights-from-the-scene-file",
@@ -329,7 +329,7 @@
         "fr": "Les lumières venues du fichier de scène"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/lights-from-the-scene-file.html"
     },
     {
       "id": "soft-shadows-from-a-wide-lamp",
@@ -338,7 +338,7 @@
         "fr": "Des ombres douces sous une lampe large"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/soft-shadows-from-a-wide-lamp.html"
     },
     {
       "id": "circling-the-bust",
@@ -365,7 +365,7 @@
         "fr": "Un travelling le long du canal"
       },
       "theme": "camera",
-      "file": ""
+      "file": "examples/a-dolly-along-the-canal.html"
     },
     {
       "id": "the-near-plane-cuts-a-wall",
@@ -374,7 +374,7 @@
         "fr": "Le plan proche tranche un mur"
       },
       "theme": "camera",
-      "file": ""
+      "file": "examples/the-near-plane-cuts-a-wall.html"
     },
     {
       "id": "an-elevation-of-the-house",
@@ -383,7 +383,7 @@
         "fr": "Une élévation orthographique de la maison"
       },
       "theme": "camera",
-      "file": ""
+      "file": "examples/an-elevation-of-the-house.html"
     },
     {
       "id": "a-recorded-fly-through",
@@ -392,7 +392,7 @@
         "fr": "Un survol enregistré, rejoué"
       },
       "theme": "camera",
-      "file": ""
+      "file": "examples/a-recorded-fly-through.html"
     },
     {
       "id": "two-views-of-one-scene",
@@ -401,7 +401,7 @@
         "fr": "Deux vues d’une même scène"
       },
       "theme": "camera",
-      "file": ""
+      "file": "examples/two-views-of-one-scene.html"
     },
     {
       "id": "the-home-pose",
@@ -410,7 +410,7 @@
         "fr": "La pose d’accueil et les points d’intérêt"
       },
       "theme": "camera",
-      "file": ""
+      "file": "examples/the-home-pose.html"
     },
     {
       "id": "marble-bust-on-its-pedestal",
@@ -428,7 +428,7 @@
         "fr": "Un OBJ avec sa bibliothèque de matériaux"
       },
       "theme": "loaders",
-      "file": ""
+      "file": "examples/an-obj-with-its-materials.html"
     },
     {
       "id": "an-fbx-with-its-lights",
@@ -437,7 +437,7 @@
         "fr": "Un FBX qui apporte ses lumières"
       },
       "theme": "loaders",
-      "file": ""
+      "file": "examples/an-fbx-with-its-lights.html"
     },
     {
       "id": "a-folder-merged-into-one-scene",
@@ -446,7 +446,7 @@
         "fr": "Un dossier de fichiers fondus en une scène"
       },
       "theme": "loaders",
-      "file": ""
+      "file": "examples/a-folder-merged-into-one-scene.html"
     },
     {
       "id": "a-scene-with-its-own-cameras",
@@ -455,7 +455,7 @@
         "fr": "Un fichier de scène avec ses propres caméras"
       },
       "theme": "loaders",
-      "file": ""
+      "file": "examples/a-scene-with-its-own-cameras.html"
     },
     {
       "id": "compiled-on-the-fly",
@@ -464,7 +464,7 @@
         "fr": "Un modèle compilé à la volée"
       },
       "theme": "loaders",
-      "file": ""
+      "file": "examples/compiled-on-the-fly.html"
     },
     {
       "id": "what-the-compiler-refused",
@@ -473,7 +473,7 @@
         "fr": "Ce que le compilateur a refusé, et pourquoi"
       },
       "theme": "loaders",
-      "file": ""
+      "file": "examples/what-the-compiler-refused.html"
     },
     {
       "id": "observatory-streamed",
@@ -491,7 +491,7 @@
         "fr": "Une ville sous un budget mémoire fixe"
       },
       "theme": "streaming",
-      "file": ""
+      "file": "examples/memory-on-a-budget.html"
     },
     {
       "id": "a-walk-through-the-city",
@@ -500,7 +500,7 @@
         "fr": "Une ville qui se charge à mesure qu’on marche"
       },
       "theme": "streaming",
-      "file": ""
+      "file": "examples/a-walk-through-the-city.html"
     },
     {
       "id": "from-coarse-to-exact",
@@ -509,7 +509,7 @@
         "fr": "De la couverture grossière à la coupe exacte"
       },
       "theme": "streaming",
-      "file": ""
+      "file": "examples/from-coarse-to-exact.html"
     },
     {
       "id": "texture-tiles-arriving",
@@ -518,7 +518,7 @@
         "fr": "Des tuiles de texture qui arrivent image par image"
       },
       "theme": "streaming",
-      "file": ""
+      "file": "examples/texture-tiles-arriving.html"
     },
     {
       "id": "the-first-frame",
@@ -527,7 +527,7 @@
         "fr": "Ce que montre la première image"
       },
       "theme": "streaming",
-      "file": ""
+      "file": "examples/the-first-frame.html"
     },
     {
       "id": "pages-kept-in-the-cache",
@@ -536,7 +536,7 @@
         "fr": "Les pages que le cache garde"
       },
       "theme": "streaming",
-      "file": ""
+      "file": "examples/pages-kept-in-the-cache.html"
     },
     {
       "id": "a-crane-that-swings",
@@ -545,7 +545,7 @@
         "fr": "Une grue qui balance sa charge"
       },
       "theme": "animation",
-      "file": ""
+      "file": "examples/a-crane-that-swings.html"
     },
     {
       "id": "a-carousel",
@@ -554,7 +554,7 @@
         "fr": "Un manège de chevaux de bois"
       },
       "theme": "animation",
-      "file": ""
+      "file": "examples/a-carousel.html"
     },
     {
       "id": "a-pendulum-clock",
@@ -563,7 +563,7 @@
         "fr": "Une horloge à balancier"
       },
       "theme": "animation",
-      "file": ""
+      "file": "examples/a-pendulum-clock.html"
     },
     {
       "id": "doors-that-open",
@@ -572,7 +572,7 @@
         "fr": "Des portes qui s’ouvrent à l’approche"
       },
       "theme": "animation",
-      "file": ""
+      "file": "examples/doors-that-open.html"
     },
     {
       "id": "a-wave-across-a-grid",
@@ -581,7 +581,7 @@
         "fr": "Une vague qui parcourt une grille"
       },
       "theme": "animation",
-      "file": ""
+      "file": "examples/a-wave-across-a-grid.html"
     },
     {
       "id": "pick-under-the-cursor",
@@ -590,7 +590,7 @@
         "fr": "Désigner l’objet sous le curseur"
       },
       "theme": "interaction",
-      "file": ""
+      "file": "examples/pick-under-the-cursor.html"
     },
     {
       "id": "drag-a-crate",
@@ -599,7 +599,7 @@
         "fr": "Tirer une caisse sur le sol"
       },
       "theme": "interaction",
-      "file": ""
+      "file": "examples/drag-a-crate.html"
     },
     {
       "id": "hover-to-highlight",
@@ -608,7 +608,7 @@
         "fr": "Survoler pour surligner une pièce"
       },
       "theme": "interaction",
-      "file": ""
+      "file": "examples/hover-to-highlight.html"
     },
     {
       "id": "measure-a-distance",
@@ -617,7 +617,7 @@
         "fr": "Mesurer une distance entre deux points"
       },
       "theme": "interaction",
-      "file": ""
+      "file": "examples/measure-a-distance.html"
     },
     {
       "id": "a-rubber-band-selection",
@@ -626,7 +626,7 @@
         "fr": "Sélectionner au lasso rectangulaire"
       },
       "theme": "interaction",
-      "file": ""
+      "file": "examples/a-rubber-band-selection.html"
     },
     {
       "id": "bloom-on-the-neon",
@@ -635,7 +635,7 @@
         "fr": "Halo lumineux sur l’enseigne au néon"
       },
       "theme": "post-processing",
-      "file": ""
+      "file": "examples/bloom-on-the-neon.html"
     },
     {
       "id": "antialiasing-on-and-off",
@@ -644,7 +644,7 @@
         "fr": "L’antialiasing temporel, avec et sans"
       },
       "theme": "post-processing",
-      "file": ""
+      "file": "examples/antialiasing-on-and-off.html"
     },
     {
       "id": "fog-by-depth",
@@ -653,7 +653,7 @@
         "fr": "Un brouillard qui s’épaissit avec la profondeur"
       },
       "theme": "post-processing",
-      "file": ""
+      "file": "examples/fog-by-depth.html"
     },
     {
       "id": "outline-the-selection",
@@ -662,7 +662,7 @@
         "fr": "Détourer l’objet sélectionné"
       },
       "theme": "post-processing",
-      "file": ""
+      "file": "examples/outline-the-selection.html"
     },
     {
       "id": "grain-and-vignette",
@@ -671,7 +671,7 @@
         "fr": "Grain de pellicule et vignettage"
       },
       "theme": "post-processing",
-      "file": ""
+      "file": "examples/grain-and-vignette.html"
     },
     {
       "id": "a-hundred-thousand-instances",
@@ -680,7 +680,7 @@
         "fr": "Cent mille instances"
       },
       "theme": "performance",
-      "file": ""
+      "file": "examples/a-hundred-thousand-instances.html"
     },
     {
       "id": "hidden-behind-a-wall",
@@ -689,7 +689,7 @@
         "fr": "Caché derrière un mur : l’occlusion"
       },
       "theme": "performance",
-      "file": ""
+      "file": "examples/hidden-behind-a-wall.html"
     },
     {
       "id": "a-frame-budget-meter",
@@ -698,7 +698,7 @@
         "fr": "Un compteur de budget par image"
       },
       "theme": "performance",
-      "file": ""
+      "file": "examples/a-frame-budget-meter.html"
     },
     {
       "id": "shadows-redrawn-per-frame",
@@ -707,7 +707,7 @@
         "fr": "Les pages d’ombre redessinées par image"
       },
       "theme": "performance",
-      "file": ""
+      "file": "examples/shadows-redrawn-per-frame.html"
     },
     {
       "id": "the-cost-of-a-pixel-error",
@@ -716,7 +716,7 @@
         "fr": "Le coût d’un pixel d’erreur"
       },
       "theme": "performance",
-      "file": ""
+      "file": "examples/the-cost-of-a-pixel-error.html"
     },
     {
       "id": "inside-a-component",
@@ -725,7 +725,7 @@
         "fr": "Dans un composant : monter et libérer"
       },
       "theme": "integration",
-      "file": ""
+      "file": "examples/inside-a-component.html"
     },
     {
       "id": "two-canvases-one-engine",
@@ -734,7 +734,7 @@
         "fr": "Deux canevas, un moteur"
       },
       "theme": "integration",
-      "file": ""
+      "file": "examples/two-canvases-one-engine.html"
     },
     {
       "id": "a-capture-saved-to-disk",
@@ -743,7 +743,7 @@
         "fr": "Une capture enregistrée sur disque"
       },
       "theme": "integration",
-      "file": ""
+      "file": "examples/a-capture-saved-to-disk.html"
     },
     {
       "id": "drawn-inside-a-host-scene",
@@ -752,7 +752,7 @@
         "fr": "Dessiné dans la scène d’un rendu hôte"
       },
       "theme": "integration",
-      "file": ""
+      "file": "examples/drawn-inside-a-host-scene.html"
     },
     {
       "id": "listening-to-the-diagnostics",
@@ -761,7 +761,7 @@
         "fr": "À l’écoute du canal de diagnostics"
       },
       "theme": "integration",
-      "file": ""
+      "file": "examples/listening-to-the-diagnostics.html"
     }
   ]
 }
