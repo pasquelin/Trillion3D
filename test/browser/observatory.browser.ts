@@ -2,8 +2,20 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { startServer } from '../../scripts/mesure/serveur.ts';
+import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
+import type { Explorer } from '../../packages/sdk-browser/explorer.ts';
+
+// `window.scene`/`firstPixels`/`lastPixels` only exist in the page this harness evaluates code
+// in, never in Node; declared here so the `page.evaluate` callbacks below (type-checked, though
+// they run in the browser) see them.
+declare global {
+  interface Window {
+    scene: Explorer;
+    firstPixels?: Uint8Array;
+    lastPixels?: Uint8Array;
+  }
+}
 
 const root = resolve(import.meta.dirname, '../..');
 const output = resolve(root, 'benchmark-runs/observatory');
@@ -19,14 +31,14 @@ const server = await startServer({
   ],
 });
 const browser = await launchChrome({ headless: true });
-const errors = [];
+const errors: string[] = [];
 try {
   const page = await browser.newPage({
     viewport: { width: 800, height: 520 },
     deviceScaleFactor: 2,
   });
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.address().port}`);
+  await page.goto(`http://127.0.0.1:${serverPort(server)}`);
   await page.evaluate(async (sdkUrl) => {
     document.body.replaceChildren();
     document.body.style.margin = '0';
@@ -91,15 +103,17 @@ try {
             difference++;
       if (!window.firstPixels) window.firstPixels = new Uint8Array(pixels);
       window.lastPixels = pixels;
+      const firstPixels = window.firstPixels;
       let restoredDifference = 0;
       if (pixelError === 0)
         for (let i = 0; i < pixels.length; i += 4)
           if (
-            pixels[i] !== window.firstPixels[i] ||
-            pixels[i + 1] !== window.firstPixels[i + 1] ||
-            pixels[i + 2] !== window.firstPixels[i + 2]
+            pixels[i] !== firstPixels[i] ||
+            pixels[i + 1] !== firstPixels[i + 1] ||
+            pixels[i + 2] !== firstPixels[i + 2]
           )
             restoredDifference++;
+      if (!metrics) throw new Error('no frame ever rendered');
       return {
         pixelError,
         held,
@@ -115,14 +129,14 @@ try {
     assert.equal(sample.held, true, 'every still pose returns to held-frame rest');
     assert.equal(sample.backend, 'webgpu-page-raster');
     assert.deepEqual(sample.size, [1600, 1040], 'rendering retains CSS size times DPR');
-    assert.ok(sample.triangles > 0);
+    assert.ok((sample.triangles ?? 0) > 0);
     assert.equal(sample.triangles, sample.selected, 'drawn triangles match the selected cut');
     assert.equal(sample.stillDifference, 0, 'a repeated still capture is identical');
     await page.screenshot({ path: resolve(output, `detail-${threshold}-${samples.length}.png`) });
     samples.push(sample);
   }
-  assert.ok(samples[2].triangles < samples[1].triangles);
-  assert.ok(samples[1].triangles < samples[0].triangles);
+  assert.ok((samples[2].triangles ?? 0) < (samples[1].triangles ?? 0));
+  assert.ok((samples[1].triangles ?? 0) < (samples[0].triangles ?? 0));
   assert.ok(samples[2].difference > 0, 'the detail control changes the actual image');
   assert.equal(samples[3].triangles, samples[0].triangles);
   await page.evaluate(() => window.scene.dispose());
