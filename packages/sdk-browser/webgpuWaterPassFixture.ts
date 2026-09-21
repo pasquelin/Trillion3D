@@ -148,6 +148,7 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
     sunFar: { gpu: undefined },
     blendState,
     run: {
+      diagnostic: 'beauty',
       gpuDrawCalls: 0,
       blendDrawCalls: 0,
       blendUnpagedTriangles: 0,

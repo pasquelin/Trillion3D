@@ -46,7 +46,7 @@ export async function createWaterPass(
  * the transmissive surfaces are drawn into their surface buffer — hardware depth against the
  * opaque, nearest surface kept —, then one fullscreen triangle lights and composes every water
  * pixel into the HDR target. Returns whether the pass was encoded; without a transmissive
- * surface, or without the pipelines, nothing of it exists in the frame.
+ * surface, without the pipelines, or under a diagnostic view, nothing of it exists in the frame.
  */
 export function encodeWaterPass(
   rt: WebgpuPagesRuntime,
@@ -57,7 +57,10 @@ export function encodeWaterPass(
   const { gpu, run, blendState } = rt,
     water = blendState.water,
     backdrop = gpu.backdrop;
+  // A diagnostic view colours a surface instead of lighting it: the slice draws as a blend, whose
+  // fragment carries that colouring, and the composite has none.
   if (
+    run.diagnostic !== 'beauty' ||
     !water ||
     !backdrop ||
     !gpu.hdrView ||

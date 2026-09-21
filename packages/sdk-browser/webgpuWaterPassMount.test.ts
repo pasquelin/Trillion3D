@@ -58,6 +58,20 @@ test('a scene beyond the rank the surface carries keeps its blends and is refuse
     'the blend pipelines are kept: the slice draws as a blend',
   );
   assert.deepEqual(mount.pipelines, ['fs', 'fs', 'fs']);
+  assert.match(String(built.waterRefused), /WATER_ITEMS_LIMIT/, 'and the caller reads the reason');
+});
+
+test('a device that refuses the water pipelines keeps the blends, and the refusal is named', async () => {
+  const mount = mountDevice();
+  const create = mount.device.createRenderPipeline;
+  mount.device.createRenderPipeline = (descriptor: GPURenderPipelineDescriptor) => {
+    if (descriptor.fragment?.entryPoint === 'fsWater') throw new Error('DEVICE_SAYS_NO');
+    return create(descriptor);
+  };
+  const built = await createWebgpuBlendPipelines(mount.device, items(2, true));
+  assert.equal(built.water, undefined, 'no water pass');
+  assert.match(String(built.waterRefused), /DEVICE_SAYS_NO/, 'the device error is what is named');
+  assert.ok(built.pipelineBlendTextured && built.pipelineBlendBack, 'the three blends are kept');
 });
 
 test('without the pass, the transmission slice draws as one more blend', () => {
