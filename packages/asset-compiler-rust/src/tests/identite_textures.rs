@@ -7,7 +7,12 @@ use super::*;
 
 /// A solid 8×8 PNG, whose colour distinguishes two files of the same name.
 fn png(couleur: [u8; 4]) -> Vec<u8> {
-    let image = image::RgbaImage::from_pixel(8, 8, image::Rgba(couleur));
+    png_sized(8, couleur)
+}
+
+/// A solid square PNG of the given side: above 64 texels its levels are baked as files.
+pub(super) fn png_sized(side: u32, colour: [u8; 4]) -> Vec<u8> {
+    let image = image::RgbaImage::from_pixel(side, side, image::Rgba(colour));
     let mut bytes = Vec::new();
     image
         .write_to(
@@ -19,7 +24,7 @@ fn png(couleur: [u8; 4]) -> Vec<u8> {
 }
 
 /// The fixture, whose only material carries a base colour linked to `color.png`.
-fn source_texturee() -> (PathBuf, Options, PathBuf) {
+pub(super) fn source_texturee() -> (PathBuf, Options, PathBuf) {
     let (root, options) = fixture();
     let mut gltf = read_gltf(&options);
     gltf["images"] = json!([{"uri":"color.png"}]);

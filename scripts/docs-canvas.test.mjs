@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFile } from 'node:fs/promises';
 import { loadReactComponents } from './docs/render-react.mjs';
-const { Canvas } = await loadReactComponents('docs/react/components/Canvas.jsx');
+const { Canvas } = await loadReactComponents('docs/react/components/Canvas.tsx');
 const { DIAGNOSTIC_MODES } = await import('../docs/js/engine-scene/diagnosticModes.js');
 const { sceneCopy } = await import('../docs/js/engine-scene/content.js');
 
@@ -25,7 +25,7 @@ test('a pending canvas stays mounted behind one loading state and disables its a
 
 test('switching renderer lessons remounts the pending viewport', async () => {
   const source = await readFile(
-    new URL('../docs/react/gallery/RendererLesson.jsx', import.meta.url),
+    new URL('../docs/react/gallery/RendererLesson.tsx', import.meta.url),
     'utf8',
   );
   assert.match(source, /<RendererViewport\s+key=\{lesson\.id\}/);
@@ -115,7 +115,7 @@ test('zoom buttons scale the offset from the controls target, the pivot the whee
 });
 
 test('RendererViewport offers every shared diagnostic mode with the scene copy of each locale', async () => {
-  const { RendererViewport } = await loadReactComponents('docs/react/gallery/RendererViewport.jsx');
+  const { RendererViewport } = await loadReactComponents('docs/react/gallery/RendererViewport.tsx');
   for (const locale of ['en', 'fr']) {
     const copy = sceneCopy[locale];
     const html = renderToStaticMarkup(
