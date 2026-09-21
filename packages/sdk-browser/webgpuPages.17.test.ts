@@ -7,6 +7,7 @@ import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
+import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 
 test('a GPU-driven image reaches the queue as one command buffer', async () => {
   installGpuGlobals();
@@ -23,7 +24,7 @@ test('a GPU-driven image reaches the queue as one command buffer', async () => {
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   try {
     await backend.prepare();
     const cam = camera();
@@ -67,7 +68,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     gpuDevice: device,
     maxResidentPages: 3,
     viewport: [32, 32],
-  });
+  }) as WebgpuPagesBackend;
   const render = () => {
     draws.length = 0;
     backend.render(camera());

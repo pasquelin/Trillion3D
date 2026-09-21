@@ -91,7 +91,7 @@ fn formules() -> Vec<Row> {
 }
 
 /// Lot G points carried by the native compiler. Their rows are written in the
-/// JavaScript bench fragment format: `scripts/mesure/calculs/agrege-g.mjs` assembles
+/// JavaScript bench fragment format: `scripts/mesure/calculs/agrege-g.ts` assembles
 /// the twelve points of the lot into one table, without distinguishing what comes
 /// from Rust from what comes from Node.
 #[test]

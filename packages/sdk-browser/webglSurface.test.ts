@@ -66,7 +66,9 @@ test('engine surface owns context size, loss, restoration, and disposal', () => 
   });
   surface.resize(641, 359, 1.5);
   assert.deepEqual(f.writes(), [1, 1]);
-  f.listeners.get('webglcontextlost')!({ preventDefault: () => prevented++ } as Event);
+  f.listeners.get('webglcontextlost')!({
+    preventDefault: () => prevented++,
+  } as unknown as Event);
   assert.equal(surface.lost, true);
   assert.equal(lost, 1);
   assert.equal(prevented, 1);

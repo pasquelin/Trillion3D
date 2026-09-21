@@ -1,4 +1,5 @@
 import { add, legend, point, text } from './drawPrimitives.ts';
+import type { SvgHost } from './drawPrimitives.ts';
 import type { EvaluationResult } from './evaluate.ts';
 import type {
   AdvancedResult,
@@ -10,7 +11,7 @@ import type {
 
 type Vec = readonly number[] | Float64Array;
 
-const line = (svg: SVGSVGElement, from: Vec, to: Vec, color: string, width = 4) =>
+const line = (svg: SvgHost, from: Vec, to: Vec, color: string, width = 4) =>
   add(svg, 'line', {
     x1: from[0],
     y1: from[1],
@@ -21,10 +22,10 @@ const line = (svg: SVGSVGElement, from: Vec, to: Vec, color: string, width = 4) 
     'marker-end': 'url(#arrow)',
   });
 
-const arrow = (svg: SVGSVGElement, vector: Vec, color: string) =>
+const arrow = (svg: SvgHost, vector: Vec, color: string) =>
   line(svg, [320, 160], point(vector), color, 5);
 
-function drawInverse(svg: SVGSVGElement, result: InverseResult, french: boolean) {
+function drawInverse(svg: SvgHost, result: InverseResult, french: boolean) {
   const local = point(result.local),
     world = point(result.world),
     recovered = point(result.recovered);
@@ -45,7 +46,7 @@ function drawInverse(svg: SVGSVGElement, result: InverseResult, french: boolean)
   ]);
 }
 
-function drawReflection(svg: SVGSVGElement, result: ReflectionResult, french: boolean) {
+function drawReflection(svg: SvgHost, result: ReflectionResult, french: boolean) {
   const width = Math.max(4, Math.abs(result.scale) * 90),
     x = result.scale < 0 ? 320 - width : 320;
   add(svg, 'rect', {
@@ -66,11 +67,7 @@ function drawReflection(svg: SVGSVGElement, result: ReflectionResult, french: bo
   );
 }
 
-function drawDirections(
-  svg: SVGSVGElement,
-  result: QuaternionResult | NormalResult,
-  french: boolean,
-) {
+function drawDirections(svg: SvgHost, result: QuaternionResult | NormalResult, french: boolean) {
   if (result.kind === 'quaternion') {
     arrow(svg, [1, 0], '#94a3b8');
     arrow(svg, result.direction, '#7c3aed');
@@ -89,7 +86,7 @@ function drawDirections(
 }
 
 export function drawAdvanced(
-  svg: SVGSVGElement,
+  svg: SvgHost,
   result: EvaluationResult,
   french: boolean,
 ): result is AdvancedResult {

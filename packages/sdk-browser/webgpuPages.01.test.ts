@@ -81,8 +81,10 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     maxResidentPages: 2,
     viewport: [32, 32],
     diagnosticDetail: 'trace' as never,
-    onDiagnostic: (event) => events.push(event),
+    onDiagnostic: (event: { phase: string; message: string; context: Record<string, unknown> }) =>
+      events.push(event),
   } as never);
+  assert.ok(backend.flush, 'this backend always publishes flush()');
   try {
     await backend.prepare();
     backend.render(camera());
@@ -122,6 +124,7 @@ test('summary diagnostics keep frame traces disabled', async () => {
     diagnosticDetail: 'summary' as never,
     onDiagnostic: (event) => events.push(event),
   });
+  assert.ok(backend.flush, 'this backend always publishes flush()');
   try {
     await backend.prepare();
     backend.render(camera());

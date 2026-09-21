@@ -101,7 +101,7 @@ test('composition presents and preserves the capture target in one fullscreen dr
   const capture = h.view(),
     presentation = h.view(),
     clear: GPUColor = [0.1, 0.2, 0.3, 1];
-  lighting.bind(h.surface, h.view(), h.view());
+  lighting.bind(h.surface, h.view(), h.view(), false);
   lighting.compose(h.encoder, capture, clear, presentation);
   assert.equal(h.passes.length, 1);
   const pass = h.passes[0],
@@ -132,7 +132,7 @@ test('composition without presentation keeps its capture-only output and clear c
     lighting = await createDeferredLighting(h.device, {} as GPUBuffer);
   const capture = h.view(),
     clear: GPUColor = [0.1, 0.2, 0.3, 1];
-  lighting.bind(h.surface, h.view(), h.view());
+  lighting.bind(h.surface, h.view(), h.view(), false);
   lighting.compose(h.encoder, capture, clear);
   assert.equal(h.passes.length, 1);
   const pass = h.passes[0];
@@ -162,7 +162,7 @@ test('diagnostic composition retains the display-space flag and unbound calls fa
   assert.deepEqual([...h.writes[0].slice(20, 24)], [800, 600, 1, 0]);
   lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false);
   assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0]);
-  lighting.bind(h.surface, h.view(), h.view());
+  lighting.bind(h.surface, h.view(), h.view(), false);
   lighting.dispose();
   assert.equal(h.destroyed, true);
   assert.throws(

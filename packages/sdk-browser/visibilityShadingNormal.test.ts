@@ -1,6 +1,6 @@
 // Lot 4: `visibilityShadingNormal.ts` rewritten on the core's flat vectors (`mathVector.ts`),
-// without the host library. Oracle: `bench/oracles/normale-ombrage.mjs`, the previous file copied
-// as-is with its `Vector3`/`Matrix3`. The `bench/normale.bench.mjs` bench replays 42 000 frames;
+// without the host library. Oracle: `bench/oracles/normale-ombrage.ts`, the previous file copied
+// as-is with its `Vector3`/`Matrix3`. The `bench/normale.bench.ts` bench replays 42 000 frames;
 // this test hard-codes a handful, two of which show the operation order:
 //   — a pose whose first row is (1e16, −1e16, 3), crossed by all-ones tangents:
 //     the sum is 3 in the reference order, 4 if an add reassociates;
@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadingNormal } from './visibilityShadingNormal.ts';
-import { referenceShadingNormal } from './bench/oracles/normale-ombrage.mjs';
+import { referenceShadingNormal } from './bench/oracles/normale-ombrage.ts';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
 
 const attribut = (valeurs: number[], taille: number) =>
@@ -30,6 +30,10 @@ function materiau(overrides: Partial<VisMaterial> = {}): VisMaterial {
     aoIntensity: 1,
     emissive: [0, 0, 0],
     transmission: 0,
+    ior: 1.5,
+    thickness: 0,
+    attenuationDistance: 0,
+    attenuationColor: [1, 1, 1],
     ...overrides,
   };
 }
@@ -59,8 +63,9 @@ const UV: [number, number] = [0.3, 0.6];
 /** Compares `shadingNormal` (optimised) to `referenceShadingNormal` (oracle) on the same frame,
  *  component by component, `Object.is` — signed zero and NaN count as the reference. */
 function assertSameNormal(page: VisPage, mat: VisMaterial, screenFace: number, label: string) {
-  const optimisee = shadingNormal(page, TRI, BARY, UV, mat, screenFace);
-  const reference = referenceShadingNormal(page, TRI, BARY, UV, mat, screenFace);
+  const tri = { ...TRI, page };
+  const optimisee = shadingNormal(page, tri, BARY, UV, mat, screenFace);
+  const reference = referenceShadingNormal(page, tri, BARY, UV, mat, screenFace);
   const attendu = [reference.x, reference.y, reference.z];
   for (let c = 0; c < 3; c++)
     assert.ok(
@@ -142,11 +147,12 @@ test('normal-mapped surface: a thousand shaded pixels in a row always return the
     matrix,
   } as unknown as VisPage;
   const mat = materiau({ normalMap: carteNormales(), normalScale: 1.3, normalScaleY: 0.7 });
+  const tri = { ...TRI, page };
   let premierTampon: Float64Array | undefined;
   for (let i = 0; i < 1000; i++) {
     const bary = { w0: (i % 7) / 7, w1: ((i + 1) % 5) / 5, w2: ((i + 2) % 3) / 3 };
     const uvPixel: [number, number] = [(i % 11) / 11, (i % 13) / 13];
-    const rendu = shadingNormal(page, TRI, bary, uvPixel, mat, i % 2 === 0 ? 1 : -1);
+    const rendu = shadingNormal(page, tri, bary, uvPixel, mat, i % 2 === 0 ? 1 : -1);
     if (i === 0) premierTampon = rendu;
     assert.equal(rendu, premierTampon, `pixel ${i}: a new buffer was built`);
   }
@@ -162,8 +168,9 @@ test('NaN and infinities in barycentric weights and tangents, map with no vertex
   } as unknown as VisPage;
   const mat = materiau({ normalMap: carteNormales() });
   const baryHostile = { w0: NaN, w1: Infinity, w2: -Infinity };
-  const optimisee = shadingNormal(page, TRI, baryHostile, UV, mat, 1);
-  const reference = referenceShadingNormal(page, TRI, baryHostile, UV, mat, 1);
+  const tri = { ...TRI, page };
+  const optimisee = shadingNormal(page, tri, baryHostile, UV, mat, 1);
+  const reference = referenceShadingNormal(page, tri, baryHostile, UV, mat, 1);
   const attendu = [reference.x, reference.y, reference.z];
   for (let c = 0; c < 3; c++)
     assert.ok(Object.is(optimisee[c], attendu[c]), `hostile bary, component ${c}`);

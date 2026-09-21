@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { emptyWorldBox, hostWorldBounds } from './hostWorldBounds.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
 
 /** The same box, flattened, as `Box3.setFromObject` computes it. */
 function referenceBox(source: THREE.Object3D) {
@@ -73,7 +73,10 @@ test('geometry carried by a non-mesh object (Points) counts, like expandByObject
 
 test("an object's own box (object.boundingBox) wins over its geometry's, like expandByObject", () => {
   const source = new THREE.Group();
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100), new THREE.MeshBasicMaterial());
+  const mesh: THREE.Mesh & { boundingBox?: THREE.Box3 | null } = new THREE.Mesh(
+    new THREE.BoxGeometry(100, 100, 100),
+    new THREE.MeshBasicMaterial(),
+  );
   // Object box much smaller than its 100×100×100 geometry box.
   mesh.boundingBox = new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
   source.add(mesh);

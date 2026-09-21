@@ -6,16 +6,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from './sceneLightStore.ts';
 import { createShadowPlan } from './sceneLightShadowPlan.ts';
-import type { SceneLight, ShadowViewpoint } from './sceneLightContracts.ts';
+import type { SceneLight } from './sceneLightContracts.ts';
+import { VIEW } from './sceneLightShadowFixture.ts';
 
-const VIEW: ShadowViewpoint = {
-  position: [0, 5, 0],
-  forward: [0, 0, -1],
-  halfFovY: 0.6,
-  aspect: 16 / 9,
-  near: 0.1,
-  far: 200,
-};
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
 /** Region cap of one frame, matching the engine's buffers. */

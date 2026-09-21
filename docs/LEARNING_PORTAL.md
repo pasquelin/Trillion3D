@@ -45,11 +45,11 @@ dispose them before the next route. `docs/` holds the repository documentation o
   area is that list by theme, through the same `portal/SidebarMenu.tsx` as the Learn tree; the
   landing page is the lessons' card grid, one card per example with its settled render as
   thumbnail (`site/assets/examples/thumbnails/<id>.png`, captured by
-  `scripts/docs-examples-thumbnails.mjs`); `site/app/examples/Example.tsx` shows one example, the
+  `scripts/docs-examples-thumbnails.ts`); `site/app/examples/Example.tsx` shows one example, the
   file's source on the left (highlighted, copy button) and the same file in an iframe on the
   right; nothing else. The compiled scenes live under
   `site/assets/examples/`, each `<scene>/source` beside its `cache`, built by
-  `scripts/docs-examples-assets.mjs` with this checkout's native compiler; the models that some
+  `scripts/docs-examples-assets.ts` with this checkout's native compiler; the models that some
   scenes import, and their licences, are listed in `site/assets/examples/CREDITS.md`.
 - `site/demos/` contains the pure per-entry demonstration models; `kit.ts` declares their controls
   and result views, `registry.ts` maps entry ids to demos, and `engine.ts` is the one list of what
@@ -76,7 +76,7 @@ pnpm build:docs
 pnpm docs:serve
 ```
 
-`build:docs` runs `scripts/docs-build.mjs`, which writes the whole published tree into
+`build:docs` runs `scripts/docs-build.ts`, which writes the whole published tree into
 `dist/site/`: it compiles `site/styles/tailwind.css` with Tailwind and DaisyUI into `css/site.css`
 after scanning the handwritten HTML and TypeScript for class names, bundles the browser SDK and its
 workers into `runtime/`, the demo maths into `js/engine.js` and the React portal into
@@ -86,9 +86,9 @@ beside it, then copies the statics (pages, examples, assets, data, reports) — 
 missing or older. Nothing under `site/` is a build product and nothing built is committed: the
 docs server, the browser proofs and the Pages workflow (`.github/workflows/pages.yml`, on every
 push to `main`) build the same tree from the same function, `buildSite()` in
-`scripts/docs/site.mjs`.
+`scripts/docs/site.ts`.
 
-`docs:serve` runs `scripts/docs-serve.mjs`: it builds, then serves only `dist/site/` on
+`docs:serve` runs `scripts/docs-serve.ts`: it builds, then serves only `dist/site/` on
 `http://127.0.0.1:4177`. This matches the published paths and adds no development framework or
 fallback route.
 
@@ -97,7 +97,7 @@ fallback route.
 `dist/site/` is ignored by git and tracked on no branch: every consumer builds it on demand
 (`docs:serve` and the browser proofs under `scripts/` and `test/browser/` build the whole tree; the
 unit tests import the sources directly, the demos through `site/demos/engine.ts`, so no runner
-builds anything), and `check:docs-bundles` in `validate` (`node scripts/docs-build.mjs --untracked`)
+builds anything), and `check:docs-bundles` in `validate` (`node scripts/docs-build.ts --untracked`)
 fails when git tracks any file of it. The repository's Pages source is "GitHub Actions":
 `.github/workflows/pages.yml` runs on every push to `main`, installs the dependencies, runs
 `build:docs` and deploys `dist/site/` as the Pages artifact. A release (`develop` → `main`)
@@ -116,9 +116,9 @@ dependency and exercise the live scene after the change.
 2. If it needs a scene, add it to `scripts/docs/examples/scenes.mjs` (procedural) or
    `scripts/docs/examples/models.mjs` (around an imported model, credited in
    `site/assets/examples/CREDITS.md`), then run `pnpm build:native` and
-   `node scripts/docs-examples-assets.mjs <scene>`.
+   `node scripts/docs-examples-assets.ts <scene>`.
 3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, and
-   capture its thumbnail: `node scripts/docs-examples-thumbnails.mjs <id>`.
+   capture its thumbnail: `node scripts/docs-examples-thumbnails.ts <id>`.
 4. Run `node --test scripts/docs-examples.test.mjs`, then the browser proof
    `node --test scripts/docs-examples.browser.mjs`.
 
@@ -131,7 +131,7 @@ dependency and exercise the live scene after the change.
    source to `code.ts`. Split detail modules when a maintained file approaches 200 lines.
 3. Add every visible sentence to both languages in the relevant catalogue, guidance or control-label
    module; keep API names and code unchanged.
-4. Run `node --test scripts/docs-gallery.test.mjs`. Confirm that the API pages for the declared
+4. Run `node --test scripts/docs-gallery.test.ts`. Confirm that the API pages for the declared
    functions link to the new playground and that changing language preserves the example route.
 
 ## Adding or translating documentation
@@ -142,14 +142,14 @@ it is editorial; function, type and constant names remain exact. Translate descr
 descriptions and guide HTML, while signatures, exports, module paths and code examples remain the
 source contract. Add new navigation or component text to both locale tables used by `t()`.
 
-Run `node --test scripts/docs-i18n.test.mjs test/integration/portail-documentation.test.mjs` after
+Run `node --test scripts/docs-i18n.test.ts test/integration/portail-documentation.test.ts` after
 content changes. The localization test requires parity across all entries and verifies that the
 French overlays do not alter technical fields.
 
 ## Original scene and asset provenance
 
 `site/assets/kinetic-garden/` is an original procedural teaching scene. Its source is generated by
-`scripts/docs/garden-source.mjs` under the repository license; it contains no third-party models,
+`scripts/docs/garden-source.ts` under the repository license; it contains no third-party models,
 textures, shaders or sample code. Provenance and limitations live beside it in
 `site/assets/kinetic-garden/README.md`. The scene is compact and demonstrates the public browser
 SDK; it is not a performance or large-residency benchmark.
@@ -161,11 +161,11 @@ pnpm build:native
 pnpm docs:scene
 ```
 
-`docs:scene` runs `scripts/docs-scene.mjs`, regenerates the deterministic glTF source, then invokes
+`docs:scene` runs `scripts/docs-scene.ts`, regenerates the deterministic glTF source, then invokes
 this checkout's native compiler to write the published cache. `WG_COMPILER` may select a compatible
 compiler binary. Never replace source assets with compiler outputs or import assets from a
 neighbouring project. Review the generated manifest provenance and run
-`node --test scripts/docs-scene.test.mjs` before publishing a regenerated cache.
+`node --test scripts/docs-scene.test.ts` before publishing a regenerated cache.
 
 ## Reading live performance counters
 
