@@ -8,10 +8,23 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { startServer } from '../../scripts/mesure/serveur.ts';
+import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { resolveMounts } from '../../scripts/mesure/options.ts';
 import { ENGINES } from '../../scripts/mesure/optionsCote.ts';
+import type { Explorer } from '../../packages/sdk-browser/explorer.ts';
+
+// `window.scene`/`settle`/`stopped`/`pose` only exist in the page this harness evaluates code
+// in, never in Node; declared here so the `page.evaluate` callbacks below (type-checked, though
+// they run in the browser) see them.
+declare global {
+  interface Window {
+    scene: Explorer;
+    settle: (pose: unknown) => Promise<boolean>;
+    stopped: Uint8Array;
+    pose: unknown;
+  }
+}
 
 const root = resolve(import.meta.dirname, '../..');
 const output = resolve(root, 'benchmark-runs/shadow-camera-stop');
@@ -26,20 +39,20 @@ const server = await startServer({
 });
 // The bench's flags: GPU timestamps are what the shadow budget measures itself against.
 const browser = await launchChrome({ headless: true, args: ENGINES.webgpu.flags });
-const errors = [];
+const errors: string[] = [];
 try {
   const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT } });
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.address().port}/`);
+  await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
   const stop = await page.evaluate(
-    async ({ sdkUrl, width, height }) => {
+    async ({ sdkUrl, posesUrl, width, height }) => {
       const canvas = document.createElement('canvas');
       canvas.id = 'stop';
       canvas.style.cssText = `width:${width}px;height:${height}px;display:block`;
       document.body.style.margin = '0';
       document.body.append(canvas);
       const { createExplorer, webgpuPagesBackend } = await import(sdkUrl);
-      const { poseAt, VIEWS } = await import('/mesure/poses.ts');
+      const { poseAt, VIEWS } = await import(posesUrl);
       const scene = await createExplorer('stop', {
         manifestUrl: '/benchmark-assets/emerald-square-derived/native/full/manifest.json',
         scope: 'full',
@@ -67,7 +80,7 @@ try {
       });
       await scene.awaitPages();
       // The bench's still pose: rendered and flushed until the frame is held, pages awaited.
-      window.settle = async (pose) => {
+      window.settle = async (pose: unknown) => {
         for (let i = 0; i < 128; i++) {
           const metrics = scene.render(pose);
           await scene.flush();
@@ -80,7 +93,7 @@ try {
       // The street of the bench: from the `sol` view, `STEPS` trajectory frames along it.
       const START = 6,
         STEPS = 24;
-      const pose = (step) => poseAt(scene.bounds, VIEWS.sol.index + START + step);
+      const pose = (step: number) => poseAt(scene.bounds, VIEWS.sol.index + START + step);
       const settledStart = await window.settle(pose(0));
       // The move: one pose per animation frame, no flush, as an interactive camera would do;
       // the cut readback lands between frames and the cut churns.
@@ -101,7 +114,12 @@ try {
       window.pose = pose(STEPS);
       return { settledStart, pending, pendingAtCapture: metrics.shadowPagesPending ?? 0 };
     },
-    { sdkUrl: '/sdk/sdk-browser/index.js', width: WIDTH, height: HEIGHT },
+    {
+      sdkUrl: '/sdk/sdk-browser/index.js',
+      posesUrl: '/mesure/poses.ts',
+      width: WIDTH,
+      height: HEIGHT,
+    },
   );
   await page.screenshot({ path: resolve(output, 'stopped.png') });
   const settled = await page.evaluate(async () => {
@@ -109,7 +127,8 @@ try {
     const settledEnd = await window.settle(window.pose);
     const pixels = new Uint8Array(scene.capture()),
       stopped = window.stopped;
-    const luminance = (p, i) => 0.2126 * p[i] + 0.7152 * p[i + 1] + 0.0722 * p[i + 2];
+    const luminance = (p: Uint8Array, i: number) =>
+      0.2126 * p[i] + 0.7152 * p[i + 1] + 0.0722 * p[i + 2];
     let lighter = 0,
       darker = 0,
       shaded = 0;

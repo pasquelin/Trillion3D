@@ -11,6 +11,10 @@ import { searchEntries } from '../site/app/portal/search.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { localizeEntries } from '../site/content/i18n/index.ts';
 import { canonicalEntryId, expandEntryLinks } from '../site/app/portal/entryLinks.ts';
+import type { PortalEntry } from '../site/content/model.ts';
+
+/** The fields every `PortalEntry` requires; tests spread it and override what they exercise. */
+const baseEntry: PortalEntry = { id: '', section: '', kind: '', description: '' };
 
 test('canonical routes preserve locale, area, and multi-part identifier', () => {
   assert.deepEqual(parseRoute('#/fr/playground/matrix-compose'), {
@@ -37,7 +41,10 @@ test('legacy documentation hashes keep their destination in the chosen locale', 
     id: 'engine-scene',
   });
   assert.equal(localizedHref('#guides/quick-start', 'fr'), '#/fr/learn/quick-start');
-  assert.equal(entryRoute({ id: 'intro', section: 'guides' }, 'en'), '#/en/learn/intro');
+  assert.equal(
+    entryRoute({ ...baseEntry, id: 'intro', section: 'guides' }, 'en'),
+    '#/en/learn/intro',
+  );
 });
 
 test('unknown and incomplete routes resolve to stable landing pages', () => {
@@ -47,9 +54,9 @@ test('unknown and incomplete routes resolve to stable landing pages', () => {
 
 test('search is accent-insensitive, requires every word, and ranks title matches first', () => {
   const entries = [
-    { id: 'camera', title: 'Caméra frame', description: 'Projection helpers' },
-    { id: 'projection', title: 'Projection', description: 'Camera frame' },
-    { id: 'vector', title: 'Vector', description: 'Math helpers' },
+    { ...baseEntry, id: 'camera', title: 'Caméra frame', description: 'Projection helpers' },
+    { ...baseEntry, id: 'projection', title: 'Projection', description: 'Camera frame' },
+    { ...baseEntry, id: 'vector', title: 'Vector', description: 'Math helpers' },
   ];
   assert.deepEqual(
     searchEntries(entries, 'camera projection').map(({ id }) => id),
@@ -64,27 +71,41 @@ test('search is accent-insensitive, requires every word, and ranks title matches
 
 test('page resolution distinguishes entries, playgrounds, and unknown addresses', () => {
   const entries = [
-    { id: 'quick-start', section: 'guides' },
-    { id: 'matrix4', section: 'matrices' },
-    { id: 'example-camera', section: 'examples' },
+    { ...baseEntry, id: 'quick-start', section: 'guides' },
+    { ...baseEntry, id: 'matrix4', section: 'matrices' },
+    { ...baseEntry, id: 'example-camera', section: 'examples' },
   ];
-  assert.equal(resolvePage({ area: 'learn', id: 'quick-start' }, entries).kind, 'entry');
   assert.equal(
-    resolvePage({ area: 'examples', id: 'rotate' }, entries, ['rotate']).kind,
+    resolvePage({ locale: 'en', area: 'learn', id: 'quick-start' }, entries).kind,
+    'entry',
+  );
+  assert.equal(
+    resolvePage({ locale: 'en', area: 'examples', id: 'rotate' }, entries, ['rotate']).kind,
     'playground',
   );
-  assert.equal(resolvePage({ area: 'examples', id: 'example-camera' }, entries).kind, 'entry');
-  assert.equal(resolvePage({ area: 'api', id: 'missing' }, entries).kind, 'not-found');
-  assert.equal(resolvePage({ area: 'api', id: '' }, entries).kind, 'api-index');
   assert.equal(
-    resolvePage({ area: 'playground', id: 'missing' }, entries, ['rotate']).kind,
+    resolvePage({ locale: 'en', area: 'examples', id: 'example-camera' }, entries).kind,
+    'entry',
+  );
+  assert.equal(
+    resolvePage({ locale: 'en', area: 'api', id: 'missing' }, entries).kind,
+    'not-found',
+  );
+  assert.equal(resolvePage({ locale: 'en', area: 'api', id: '' }, entries).kind, 'api-index');
+  assert.equal(
+    resolvePage({ locale: 'en', area: 'playground', id: 'missing' }, entries, ['rotate']).kind,
     'not-found',
   );
 });
 
 test('composite API entries become one navigation link per function', () => {
   const links = expandEntryLinks([
-    { id: 'boxUnion', title: 'boxEmpty() · boxIsEmpty() · boxUnion()', section: 'bounds' },
+    {
+      ...baseEntry,
+      id: 'boxUnion',
+      title: 'boxEmpty() · boxIsEmpty() · boxUnion()',
+      section: 'bounds',
+    },
   ]);
   assert.deepEqual(
     links.map(({ label }) => label),
@@ -101,6 +122,7 @@ test('composite API entries become one navigation link per function', () => {
 
 test('localized prose titles keep canonical routes and old encoded links still resolve', () => {
   const frenchEntry = {
+    ...baseEntry,
     id: 'host-batches',
     title: 'L’API de lots pour les hôtes',
     section: 'batches',
@@ -114,7 +136,7 @@ test('localized prose titles keep canonical routes and old encoded links still r
 });
 
 test('every bilingual API menu link resolves to its source entry', () => {
-  for (const locale of ['en', 'fr']) {
+  for (const locale of ['en', 'fr'] as const) {
     const entries = localizeEntries(rawEntries, locale).filter(
       ({ section }) => !['guides', 'examples', 'demo'].includes(section),
     );

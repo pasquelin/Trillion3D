@@ -4,12 +4,31 @@
 // other "GPU actually run" kernels.
 import { dansPageWebgpu } from './pageWebgpu.ts';
 
+/** The single dispatch call's argument: one bind group, four buffers to read back none of, and
+ * the two words the kernel must produce (`instanceWords`, `argsWords`). */
+export interface EtalementArg {
+  code: string;
+  uni: number[];
+  plan: number[];
+  keep: number[];
+  draws: number[];
+  indirect: number[];
+  clusters: number[];
+  scratchWords: number;
+  types: GPUBufferBindingType[];
+  noms: string[];
+  lancements: number[];
+  uniBytes: number;
+  instanceWords: number;
+  argsWords: number;
+}
+
 /** The kernel, launched in the page: four dispatches, then readout of the two outputs. */
-async function dansLaPage(arg) {
+async function dansLaPage(arg: EtalementArg) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return null;
   const { device } = appareil;
-  const tampon = (data, usage) => {
+  const tampon = (data: number[] | Uint32Array, usage: GPUBufferUsageFlags) => {
     const buffer = device.createBuffer({
       size: Math.max(16, data.length * 4),
       usage,
@@ -90,4 +109,4 @@ async function dansLaPage(arg) {
 }
 
 /** Opens the page, launches the kernel there, and returns what the GPU wrote. */
-export const etalementGpu = (arg) => dansPageWebgpu(dansLaPage, arg);
+export const etalementGpu = (arg: EtalementArg) => dansPageWebgpu(dansLaPage, arg);

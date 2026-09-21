@@ -34,7 +34,39 @@ interface Vector3Like {
   add(v: Vector3Like): Vector3Like;
   length(): number;
   setLength(l: number): Vector3Like;
+  distanceTo(v: { x: number; y: number; z: number }): number;
 }
+
+// A mutating vector with the operations the camera helper uses, as Three's Vector3 behaves;
+// shared so a stub `controls`/`explorer` overlaps `OrbitControls`/`Explorer` enough for the cast
+// below (a handful of loose scalar fields does not, per TS's structural "sufficient overlap").
+const vector = (x: number, y: number, z: number): Vector3Like => ({
+  x,
+  y,
+  z,
+  clone() {
+    return vector(this.x, this.y, this.z);
+  },
+  copy(v) {
+    return Object.assign(this, { x: v.x, y: v.y, z: v.z });
+  },
+  sub(v) {
+    return Object.assign(this, { x: this.x - v.x, y: this.y - v.y, z: this.z - v.z });
+  },
+  add(v) {
+    return Object.assign(this, { x: this.x + v.x, y: this.y + v.y, z: this.z + v.z });
+  },
+  length() {
+    return Math.hypot(this.x, this.y, this.z);
+  },
+  setLength(l) {
+    const k = l / this.length();
+    return Object.assign(this, { x: this.x * k, y: this.y * k, z: this.z * k });
+  },
+  distanceTo(v) {
+    return Math.hypot(this.x - v.x, this.y - v.y, this.z - v.z);
+  },
+});
 
 test('a pending canvas stays mounted behind one loading state and disables its actions', () => {
   const html = renderToStaticMarkup(
@@ -75,14 +107,14 @@ test('a canvas frames its overlay in the hover-revealed chrome next to the actio
 test('configureSceneCamera clamps the distance and leaves wheel zoom enabled', () => {
   let homeReset = false;
   const explorer = {
-    center: { x: 0, y: 0, z: 0 },
+    center: vector(0, 0, 0),
     resetHome() {
       homeReset = true;
     },
   } as Explorer;
   const controls = {
-    target: { copy() {} },
-    object: { position: { distanceTo: () => 10 } },
+    target: vector(0, 0, 0),
+    object: { position: vector(10, 0, 0) },
     minDistance: 0,
     maxDistance: 0,
     update() {},
@@ -95,31 +127,6 @@ test('configureSceneCamera clamps the distance and leaves wheel zoom enabled', (
 });
 
 test('zoom buttons scale the offset from the controls target, the pivot the wheel uses', () => {
-  // A mutating vector with the operations the helper uses, as Three's Vector3 behaves.
-  const vector = (x: number, y: number, z: number): Vector3Like => ({
-    x,
-    y,
-    z,
-    clone() {
-      return vector(this.x, this.y, this.z);
-    },
-    copy(v) {
-      return Object.assign(this, { x: v.x, y: v.y, z: v.z });
-    },
-    sub(v) {
-      return Object.assign(this, { x: this.x - v.x, y: this.y - v.y, z: this.z - v.z });
-    },
-    add(v) {
-      return Object.assign(this, { x: this.x + v.x, y: this.y + v.y, z: this.z + v.z });
-    },
-    length() {
-      return Math.hypot(this.x, this.y, this.z);
-    },
-    setLength(l) {
-      const k = l / this.length();
-      return Object.assign(this, { x: this.x * k, y: this.y * k, z: this.z * k });
-    },
-  });
   const controls = {
     target: vector(0, 3, 0),
     object: { position: vector(0, 3, 10) },

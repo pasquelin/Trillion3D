@@ -12,6 +12,7 @@
 //
 //   node --experimental-strip-types test/browser/enroulement-texture-gpu.browser.ts
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import { wrapNibble } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import {
   MODES_GPU,
@@ -48,16 +49,23 @@ const COUTURES = [0, 0.02, 0.999, -0.01, -3, 1000.04, 2.98].flatMap((t) => [
 ]);
 
 const lots = [UV, COUTURES].flatMap((uv) =>
-  MODES_GPU.map(({ wrap, adresse }) => ({
-    filtre: 'linear',
-    texture: 0,
-    adresseS: adresse,
-    adresseT: adresse,
-    uv: uv.flat(),
-    // `MELANGE` asks the tap shader for the full read: this bench only probes linear
-    // filtering, including the blend of the four taps on a period seam.
-    flags: uv.map(() => wrapNibble({ wrapS: wrap, wrapT: wrap }) | MELANGE),
-  })),
+  MODES_GPU.map(({ wrap, adresse }) => {
+    assert.ok(adresse, `no WebGPU address mode for wrap ${wrap}`);
+    // A real Texture, not a `{ wrapS, wrapT }` stub: `wrapNibble` takes `THREE.Texture`.
+    const map = new THREE.Texture();
+    map.wrapS = wrap;
+    map.wrapT = wrap;
+    return {
+      filtre: 'linear' as const,
+      texture: 0,
+      adresseS: adresse,
+      adresseT: adresse,
+      uv: uv.flat(),
+      // `MELANGE` asks the tap shader for the full read: this bench only probes linear
+      // filtering, including the blend of the four taps on a period seam.
+      flags: uv.map(() => wrapNibble(map) | MELANGE),
+    };
+  }),
 );
 
 const sorties = await executerDansChromium({
@@ -67,7 +75,8 @@ const sorties = await executerDansChromium({
 });
 
 /** The rule's exact colour on component `k`'s axis, the two texels blended. */
-const regle = (uv, wrap, k) => regleNormalisee(uv[k], k ? HAUTEUR : LARGEUR, wrap);
+const regle = (uv: number[], wrap: THREE.Wrapping, k: number) =>
+  regleNormalisee(uv[k], k ? HAUTEUR : LARGEUR, wrap);
 
 let ecarts = 0,
   couturesEprouvees = 0;

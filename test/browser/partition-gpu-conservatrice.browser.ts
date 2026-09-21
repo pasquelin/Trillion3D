@@ -18,7 +18,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { empaquetePage } from '../justesse/pageWebgpu.ts';
-import { startServer } from '../../scripts/mesure/serveur.ts';
+import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { ASSETS, DEFAULT_SCENE, assetsManifest } from '../../scripts/mesure/scene.ts';
 import { poseAt } from '../../scripts/mesure/poses.ts';
 
@@ -28,7 +28,7 @@ const SDK_URL = '/sdk/sdk-browser/index.js',
   MESURE_URL = '/mesure/';
 const POSES = 30;
 /** Directory of an installed package, looked up the way Node does: from the root upward. */
-function packageDir(name) {
+function packageDir(name: string) {
   for (let dir = ROOT; ; dir = dirname(dir)) {
     const candidate = join(dir, 'node_modules', name);
     if (existsSync(candidate)) return candidate;
@@ -46,7 +46,9 @@ function cacheAvecTransparents() {
   const clusters = JSON.parse(
     readFileSync(join(dirname(manifest), JSON.parse(readFileSync(manifest, 'utf8')).url), 'utf8'),
   );
-  return clusters.primitives.some((primitive) => primitive.pass === 'clustered-blend');
+  return clusters.primitives.some(
+    (primitive: { pass?: string }) => primitive.pass === 'clustered-blend',
+  );
 }
 assert.ok(
   existsSync(join(ROOT, 'dist/sdk-browser/index.js')),
@@ -74,10 +76,10 @@ const mounts = [
 ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
 
 const server = await startServer({ port: 0, mounts, captures: new Map() });
-const port = server.address().port;
+const port = serverPort(server);
 const browser = await launchChrome({ headless: true });
 let resultat;
-const erreursPage = [];
+const erreursPage: string[] = [];
 try {
   const page = await browser.newPage({ viewport: { width: 1012, height: 1000 } });
   page.on('pageerror', (e) => erreursPage.push(String(e.message)));
@@ -138,7 +140,9 @@ for (const image of resultat.images) {
 }
 // Without an occlusion reject, conservativeness would prove nothing: the test must decide.
 assert.ok(
-  resultat.images.some((image) => (image.hizRejectedClusters ?? 0) > 0),
+  resultat.images.some(
+    (image: { hizRejectedClusters?: number }) => (image.hizRejectedClusters ?? 0) > 0,
+  ),
   'the Hi-Z test rejected no cluster: the proof would cover nothing',
 );
 // Transparent clusters take the SAME test, on the same pyramid: each one the GPU removed
@@ -157,7 +161,7 @@ if (cacheAvecTransparents()) {
   assert.equal(occ.examinees, 0, 'transparent clusters were examined with none in the cache');
   console.warn('transparent clusters: not examined, the reference cache holds none');
 }
-const pourcent = (n) => ((100 * n) / t.margeTexelsCount).toFixed(2);
+const pourcent = (n: number) => ((100 * n) / t.margeTexelsCount).toFixed(2);
 console.log(
   `OK: ${t.clusters} clusters audited over ${POSES} poses — 0 violations of the three rules.\n` +
     `  Rectangle: ${pourcent(t.margeParPalier[0])} % of sides identical to the reference, ` +

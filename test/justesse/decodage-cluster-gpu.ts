@@ -9,7 +9,7 @@ import { decodeGeometryPage } from '../../packages/sdk-browser/geometryPage.ts';
 import { anneau } from '../../packages/sdk-browser/bench/appui/pagesWasm.ts';
 import { decodageClusterGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodageClusterGpu.ts';
 
-function page(triangles, exponent) {
+function page(triangles: number, exponent: number) {
   const { encoded, indices } = anneau(triangles, exponent);
   const decoded = decodeGeometryPage(encoded.data);
   return {
@@ -20,14 +20,20 @@ function page(triangles, exponent) {
   };
 }
 
-const cross = (a, b) => [
+const cross = (a: readonly number[], b: readonly number[]): number[] => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
-const sub = (a, b) => a.map((v, i) => v - b[i]);
+const sub = (a: readonly number[], b: readonly number[]): number[] => a.map((v, i) => v - b[i]);
 /** The frame of a triangle, as the shader computes it: `p * du1 + q * du2`, the longer unit. */
-function cotangentFrame(N, e1, e2, duv1, duv2) {
+function cotangentFrame(
+  N: readonly number[],
+  e1: readonly number[],
+  e2: readonly number[],
+  duv1: readonly number[],
+  duv2: readonly number[],
+) {
   const p = cross(e2, N),
     q = cross(N, e1);
   const T = p.map((v, i) => v * duv1[0] + q[i] * duv2[0]),
@@ -41,12 +47,14 @@ const gpu = await decodageClusterGpu(pages);
 assert.equal(gpu.indisponible ?? null, null, gpu.indisponible);
 assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
 
-const floats = (words) => new Float32Array(Uint32Array.from(words).buffer);
+const floats = (words: number[]) => new Float32Array(Uint32Array.from(words).buffer);
 let pireNormale = 0,
   pireRepere = 0;
+const resultats = gpu.resultats;
+assert.ok(resultats, 'GPU run produced no results');
 for (const [k, { decoded, vertexCount, indexCount }] of pages.entries()) {
-  const words = gpu.resultats[k],
-    values = floats(words),
+  const words: number[] = resultats[k];
+  const values = floats(words),
     { position, normal, uv, uv2, color } = decoded.attributes;
   for (let i = 0; i < vertexCount; i++) {
     const base = i * VERTEX_WORDS;
@@ -61,10 +69,11 @@ for (const [k, { decoded, vertexCount, indexCount }] of pages.entries()) {
     for (let c = 0; c < 4; c++)
       assert.ok(Object.is(values[base + 10 + c], color[i * 4 + c]), `page ${k} colour ${i}.${c}`);
   }
-  const at = (array, i, n) => Array.from(array.subarray(i * n, i * n + n));
+  const at = (array: Float32Array, i: number, n: number) =>
+    Array.from(array.subarray(i * n, i * n + n));
   for (let t = 0; t < indexCount / 3; t++) {
     const base = vertexCount * VERTEX_WORDS + t * TRIANGLE_WORDS,
-      corners = [words[base], words[base + 1], words[base + 2]];
+      corners: number[] = [words[base], words[base + 1], words[base + 2]];
     assert.deepEqual(
       corners,
       Array.from(decoded.indices.subarray(t * 3, t * 3 + 3)),

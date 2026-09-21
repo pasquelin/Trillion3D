@@ -35,12 +35,17 @@ const alea = graine(1789);
 const MOTS = 48,
   GRAPPES = 6;
 
+interface CasBase {
+  instances: number;
+  args: number;
+}
+
 /**
  * One case: paged items that share a run, primitives that carry their own buffers and split the
  * run, a frustum that rejects some of them, and enough entries that several count packets follow
  * each other — that is where the running sum is proved.
  */
-function cas(items, isoles, base) {
+function cas(items: number, isoles: number[], base: CasBase) {
   const draws = new Uint32Array(items * 4),
     counts = new Uint32Array(items),
     clusters = new Uint32Array(items * GRAPPES),
@@ -71,8 +76,10 @@ function cas(items, isoles, base) {
   return { items, draws, keep, counts, indirect, clusters, order, runs, runCount: count, base };
 }
 
+type CasEntry = ReturnType<typeof cas>;
+
 /** The CPU model, on the same inputs: that is what the kernel must repeat. */
-function attendu(entree, instanceWords, argsWords) {
+function attendu(entree: CasEntry, instanceWords: number, argsWords: number) {
   const expanded = new Uint32Array(instanceWords),
     args = new Uint32Array(argsWords);
   expandBlendPlan({
@@ -94,7 +101,7 @@ function attendu(entree, instanceWords, argsWords) {
 }
 
 /** The twelve uniform words, set by the production writer: one layout. */
-const uniformeDe = (entree) =>
+const uniformeDe = (entree: CasEntry) =>
   Array.from(
     blendExpandUniform(
       new Uint32Array(UNI_WORDS),

@@ -5,9 +5,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import type { ProgressiveList as ProgressiveListComponent } from '../site/app/components/ProgressiveList.tsx';
 
-const { ProgressiveList } = (await loadReactComponents(
+const { ProgressiveList: GenericProgressiveList } = (await loadReactComponents(
   'site/app/components/ProgressiveList.tsx',
 )) as { ProgressiveList: typeof ProgressiveListComponent };
+// `createElement` cannot infer a generic component's type parameter the way JSX does; an
+// instantiation expression monomorphizes it once for this test's `string` items.
+const ProgressiveList = GenericProgressiveList<string>;
 const labels = {
   previous: 'Load previous results',
   next: 'Load more results',

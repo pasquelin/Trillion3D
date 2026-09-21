@@ -16,8 +16,11 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { resolveMounts } from '../../scripts/mesure/options.ts';
-import { startServer } from '../../scripts/mesure/serveur.ts';
+import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { fixtures } from '../appui/materialFixtures.ts';
+import type { run as runOnPage } from '../appui/materialPixelsPage.ts';
+
+type RunResult = Awaited<ReturnType<typeof runOnPage>> & { pageErrors?: string[] };
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
@@ -33,18 +36,25 @@ const mounts = [
 ];
 const server = await startServer({ port: 0, mounts, captures: new Map() });
 const browser = await launchChrome({ headless: true });
-let result;
+let result: RunResult;
 try {
   const page = await browser.newPage();
-  const pageErrors = [];
+  const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   page.on('console', (message) => {
     if (message.type() === 'error') console.error(message.text());
   });
-  await page.goto(`http://127.0.0.1:${server.address().port}/`);
+  await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
   result = await page.evaluate(
-    (urls) => import('/test/appui/materialPixelsPage.ts').then((m) => m.run(urls)),
-    { sdkUrl: '/dist/sdk-browser/index.js', coreUrl: '/dist/sdk-core/index.js' },
+    // A template literal, not a static specifier: TypeScript cannot resolve this page module
+    // (served only at runtime by the harness) as a real import, so it stays untyped `any`
+    // rather than a "cannot find module" error.
+    (urls) => import(`${urls.pageUrl}`).then((m) => m.run(urls)),
+    {
+      sdkUrl: '/dist/sdk-browser/index.js',
+      coreUrl: '/dist/sdk-core/index.js',
+      pageUrl: '/test/appui/materialPixelsPage.ts',
+    },
   );
   result.pageErrors = pageErrors;
 } finally {
@@ -57,7 +67,7 @@ for (const fixture of result.results ?? [])
   for (const [side, dataUrl] of Object.entries(fixture.images)) {
     const file = `${fixture.name.replaceAll(' ', '-')}-${side}.png`;
     await writeFile(resolve(out, file), Buffer.from(dataUrl.split(',')[1], 'base64'));
-    delete fixture.images[side];
+    delete (fixture.images as Record<string, string>)[side];
   }
 await writeFile(resolve(out, 'result.json'), JSON.stringify(result, null, 2));
 console.log(
@@ -76,6 +86,7 @@ assert.equal(result.unavailable ?? null, null, String(result.unavailable));
 assert.equal(result.error ?? null, null, String(result.error));
 assert.deepEqual(result.pageErrors, []);
 assert.deepEqual(result.errors, [], 'GPU uncaptured errors');
+assert.ok(result.results, 'no fixture results');
 assert.equal(result.results.length, fixtures.length, 'one reading per fixture');
 for (const fixture of result.results) {
   const phases = fixture.events.map((event) => event.phase);
