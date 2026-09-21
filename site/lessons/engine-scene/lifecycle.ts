@@ -30,14 +30,30 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
   const status = required<HTMLElement>(host, '[data-scene-status]');
   const loading = required<HTMLElement>(host, '[data-scene-loading]');
   const controller = new AbortController();
+  // Each load runs under its own generation: a failure or a loss ends the current one, so a
+  // create still pending when it happens is released once it settles, never adopted.
   let explorer: Explorer | null | undefined,
     disposed = false,
+    generation = 0,
     camera: ReturnType<typeof configureSceneCamera> | undefined,
     lighting: ReturnType<typeof createLightingControls> | undefined;
   const events = { signal: controller.signal };
   const telemetry = createSceneTelemetry(host, copy, locale);
   const invalidate = () => {
     if (!disposed) explorer?.invalidate();
+  };
+  /** The scene is gone: what it held is released, and the start button offers to reopen it. */
+  const fail = (message: string) => {
+    generation++;
+    telemetry.stop();
+    explorer?.dispose();
+    explorer = null;
+    camera = lighting = undefined;
+    status.textContent = message;
+    loading.hidden = true;
+    start.disabled = false;
+    start.hidden = false;
+    start.textContent = copy.retry;
   };
   const selectedMode = () => (isDiagnosticMode(mode.value) ? mode.value : 'beauty');
   const updateGuide = () => {
@@ -47,6 +63,8 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
     required<HTMLElement>(host, '[data-scene-observe]').textContent = observe;
   };
   const load = async () => {
+    const attempt = generation;
+    const superseded = () => disposed || attempt !== generation;
     start.disabled = true;
     start.hidden = true;
     loading.hidden = false;
@@ -55,6 +73,7 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
       if (!navigator.gpu) throw new Error('WEBGPU_UNAVAILABLE');
       const { createExplorer } = await import('../../../packages/sdk-browser/index.ts');
       if (disposed) return;
+      // The engine has already withdrawn its image on a loss: only a new explorer draws again.
       const created = await createExplorer(canvas, {
         manifestUrl: new URL(
           'assets/kinetic-garden/cache/native/full/manifest.json',
@@ -73,15 +92,16 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
         signal: controller.signal,
         diagnosticDetail: 'trace',
         onDiagnostic: (event) => {
+          if (superseded()) return;
           // the frame diagnostic's context always carries FrameMetrics under this key
-          if (!disposed && event.phase === 'frame')
-            telemetry.frame(event.context.metrics as FrameMetrics);
+          if (event.phase === 'frame') telemetry.frame(event.context.metrics as FrameMetrics);
+          else if (event.phase === 'gpu-device-lost') fail(copy.lost);
         },
         onEvent: (event) => {
-          if (!disposed && event.type === 'fatal') status.textContent = copy.failed;
+          if (!superseded() && event.type === 'fatal') status.textContent = copy.failed;
         },
       });
-      if (disposed) {
+      if (superseded()) {
         created.dispose();
         return;
       }
@@ -107,18 +127,12 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
       status.textContent = '';
       invalidate();
     } catch (error) {
-      if (disposed) return;
-      telemetry.stop();
-      explorer?.dispose();
-      explorer = null;
-      const message = /WEBGPU|adapter|GPU/.test(String(error))
-        ? copy.unavailable
-        : `${copy.failed} (${errorMessage(error)})`;
-      status.textContent = message;
-      loading.hidden = true;
-      start.disabled = false;
-      start.hidden = false;
-      start.textContent = copy.retry;
+      if (superseded()) return;
+      fail(
+        /WEBGPU|adapter|GPU/.test(String(error))
+          ? copy.unavailable
+          : `${copy.failed} (${errorMessage(error)})`,
+      );
     }
   };
   start.addEventListener('click', load, events);

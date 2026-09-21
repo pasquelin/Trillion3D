@@ -1,10 +1,11 @@
+import { COTANGENT_FRAME_WGSL } from './clusterDecodeWgsl.ts';
 import { WRAP_MAP } from './visibilityWrapModes.ts';
 
 /**
  * What a transparent fragment reads on its material, before any lighting: base colour and
  * opacity, the normal — from the vertex attribute, from screen derivatives, then bent by the
- * normal map —, roughness, metalness, occlusion, emission, and the tile rank the pixel asks
- * of the virtual textures.
+ * normal map in the cotangent frame the opaque resolve uses —, roughness, metalness, occlusion,
+ * emission, and the tile rank the pixel asks of the virtual textures.
  *
  * Two fragment stages consume it, and it is the only place the material is read: the blend
  * stage, which lights it in place (`webgpuBlendShader.ts`), and the water surface stage, which
@@ -13,6 +14,7 @@ import { WRAP_MAP } from './visibilityWrapModes.ts';
  * discards here, so no stage shades a fragment the material rejects.
  */
 export const BLEND_SURFACE_WGSL = `
+${COTANGENT_FRAME_WGSL}
 struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,}
 fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  let flags=in.ids.y;
@@ -44,12 +46,13 @@ fn blendSurface(in:VSOut,front:bool)->BlendSurface{
  if(in.maps.w!=0u){ao+=in.alphaAo.y*(dataSample(in.maps.w,in.uv,wrapOf(wrap,${WRAP_MAP.ao}u),gradX,gradY).r-1.0);}
  if(in.maps.z!=0u){
   let mapN=dataSample(in.maps.z,in.uv,wrapOf(wrap,${WRAP_MAP.normal}u),gradX,gradY).xyz*2.0-vec3f(1.0);
-  var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
-  var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
+  // The frame of the opaque resolve, on screen derivatives: framebuffer y runs down, hence the
+  // sign, as on the geometric normal above.
+  let frame=cotangentFrame(N,q0,q1,gradX,gradY);
+  var T=-frame.T;var B=-frame.B;
   if((flags&2048u)!=0u){T=uniteOuZero(in.tangent);B=uniteOuZero(in.bitangent);}
   if((flags&2u)!=0u&&(flags&16u)!=0u){T*=face;B*=face;}
-  let tbnScale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
-  N=uniteOuZero(T*tbnScale*mapN.x*in.pbr.z+B*tbnScale*mapN.y*in.pbr.w+N*mapN.z);
+  N=uniteOuZero(T*mapN.x*in.pbr.z+B*mapN.y*in.pbr.w+N*mapN.z);
  }
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,in.uv,wrapOf(wrap,${WRAP_MAP.emissive}u),gradX,gradY).rgb;}

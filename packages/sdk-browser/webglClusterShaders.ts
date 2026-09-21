@@ -2,16 +2,19 @@ import { TRANSMISSION_GLSL } from './webglClusterTransmissionGlsl.ts';
 
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
-in vec3 position;in vec3 normal;in vec4 tangent;in vec2 uv;in vec2 uv1;in vec4 color;
+in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;
 uniform mat4 modelViewMatrix,projectionMatrix;uniform mat3 normalMatrix;
-out vec3 viewPosition;out vec3 viewNormal;out vec4 viewTangent;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
+out vec3 viewPosition;out vec3 viewNormal;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
 void main(){vec4 view=modelViewMatrix*vec4(position,1.0);viewPosition=view.xyz;
-viewNormal=normalize(normalMatrix*normal);viewTangent=vec4(normalize(mat3(modelViewMatrix)*tangent.xyz),tangent.w);
+viewNormal=normalize(normalMatrix*normal);
 texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*(modelViewMatrix*vec4(position,1.0));}`;
 
+// `cotangentFrame`: the tangent frame a page does not store, from the screen derivatives of
+// position and texture coordinate — the WGSL routine of `clusterDecodeWgsl.ts`, operation for
+// operation, so the three lighting passes bend a normal map in one frame.
 export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;const float PI=3.141592653589793;const int MAX_LIGHTS=64;
-in vec3 viewPosition;in vec3 viewNormal;in vec4 viewTangent;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
+in vec3 viewPosition;in vec3 viewNormal;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
 uniform vec3 emissiveFactor;uniform bool lit,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
@@ -19,6 +22,10 @@ uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform int lightCount;uniform ivec4 mapChannels;uniform ivec2 extraChannels;layout(std140) uniform ClusterLights{vec4 lightData[256];};
 vec2 sourceUv(int channel){return channel==1?texcoord1:texcoord0;}
 vec2 mapUv(mat3 transform,vec2 source){return(transform*vec3(source,1.0)).xy;}
+struct CotangentFrame{vec3 T;vec3 B;};
+CotangentFrame cotangentFrame(vec3 N,vec3 e1,vec3 e2,vec2 duv1,vec2 duv2){vec3 p=cross(e2,N),q=cross(N,e1);
+vec3 T=p*duv1.x+q*duv2.x,B=p*duv1.y+q*duv2.y;float scale=inversesqrt(max(max(dot(T,T),dot(B,B)),1e-20));
+return CotangentFrame(T*scale,B*scale);}
 vec3 fresnel(float h,vec3 f0){return f0+(1.0-f0)*pow(max(0.0,1.0-h),5.0);}
 float filteredRoughness(vec3 N,float rough){vec3 du=dFdx(N),dv=dFdy(N);float variance=.25*(dot(du,du)+dot(dv,dv));
 float alpha=rough*rough,filtered=clamp(alpha*alpha+min(variance,.18),7.596914e-6,1.0);return sqrt(sqrt(filtered));}
@@ -43,8 +50,8 @@ ${TRANSMISSION_GLSL}
 void main(){vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
 float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0),rough=clamp(roughFactor*roughSample,0.0525,1.0);
-vec3 N=normalize(viewNormal);if(hasNormalMap){vec3 n=texture(normalMap,mapUv(normalUv,sourceUv(mapChannels.w))).xyz*2.0-1.0;n.xy*=normalScale;
-vec3 T=normalize(viewTangent.xyz-N*dot(N,viewTangent.xyz)),B=normalize(cross(N,T)*viewTangent.w);N=normalize(mat3(T,B,N)*n);}if(!gl_FrontFacing)N=-N;
+vec3 N=normalize(viewNormal);if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
+CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));N=normalize(frame.T*n.x+frame.B*n.y+N*n.z);}if(!gl_FrontFacing)N=-N;
 rough=filteredRoughness(N,rough);
 vec3 V=normalize(-viewPosition);float ao=1.0;if((mapMask&16)!=0)ao+=aoStrength*(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0);
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;

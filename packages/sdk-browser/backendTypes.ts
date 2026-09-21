@@ -45,10 +45,11 @@ export interface RenderBackend {
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
   readonly frameHeld?: boolean;
   scene: THREE.Scene;
-  /** Canvas the engine presented its image into, when that canvas is not the host's own surface.
-   *  A host composing on another surface copies it (`createBackendPresenter`) instead of drawing
-   *  `scene`, which such an engine does not use for display; absent from an engine that draws on
-   *  the host surface itself. */
+  /** Canvas the engine presented its image into, when that canvas is not the host's own surface:
+   *  a host composing elsewhere copies it (`createBackendPresenter`) instead of drawing `scene`.
+   *  Absent from an engine drawing on the host surface itself, and withdrawn — canvas blanked —
+   *  by a lost or disposed device before the next call raises `WEBGPU_LOST`: no host composes a
+   *  frame older than the device. */
   readonly presentedSurface?: HTMLCanvasElement;
   metrics(): BackendMetrics & {
     drawCalls?: number;

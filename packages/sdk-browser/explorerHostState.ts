@@ -4,6 +4,7 @@ import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts';
 import { createBackendPresenter } from './explorerComposeSurface.ts';
 import type { prepareExplorer } from './explorerPrepare.ts';
+import type { WebglSurface } from './webglSurface.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 
@@ -27,12 +28,29 @@ export type ExplorerHostState = {
   pageBytesRead: number;
 };
 
+/**
+ * The draw adapter of the composition host, mounted on the engine's surface: the one place that
+ * still builds a `WebGLRenderer`, for the compositor, the held frame, the render targets and the
+ * scenes the witness engines hand over. It is told the size the surface already set — no call of
+ * the adapter records a size without rewriting the canvas, so the still undrawn buffer resets
+ * once here — and leaves with the composition host (#85).
+ */
+function createHostDrawAdapter(surface: WebglSurface) {
+  const renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context });
+  const { width, height, pixelRatio } = surface.size;
+  renderer.setDrawingBufferSize(width, height, pixelRatio);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1;
+  return renderer;
+}
+
 export function createExplorerHostState(
   prepared: Prepared,
   options: ExplorerOptions,
   backends: RenderBackend[],
   canvas: HTMLCanvasElement,
-  renderer: THREE.WebGLRenderer | undefined,
+  webglSurface: WebglSurface | undefined,
   signal?: AbortSignal,
 ) {
   const { camera, center } = prepared;
@@ -67,10 +85,11 @@ export function createExplorerHostState(
   const overlays: THREE.Material[] = [];
   const hostedControls: { dispose(): void }[] = [];
   const lookAtTarget = new THREE.Vector3().copy(center);
-  const compositor = prepared.directGpu ? undefined : createComparisonCompositor(renderer!);
+  const renderer = webglSurface && createHostDrawAdapter(webglSurface);
+  const compositor = renderer && createComparisonCompositor(renderer);
   // Same owner as the compositor: what puts an engine's image on the host surface, for the frame
   // and for the explicit capture alike.
-  const presentBackend = prepared.directGpu ? () => false : createBackendPresenter(renderer!);
+  const presentBackend = renderer ? createBackendPresenter(renderer) : () => false;
   const targetOptions = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace };
   const ensureTarget = (current?: THREE.WebGLRenderTarget) =>
     current ?? new THREE.WebGLRenderTarget(canvas.width, canvas.height, targetOptions);
@@ -91,6 +110,8 @@ export function createExplorerHostState(
   return {
     state,
     baseline,
+    webglSurface,
+    renderer,
     beautyMaterials,
     overlays,
     hostedControls,

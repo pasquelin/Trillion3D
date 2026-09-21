@@ -1,6 +1,6 @@
 [package]
 name = "web-geometry-compiler"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 license = "PolyForm-Noncommercial-1.0.0"
 [lib]
@@ -51,9 +51,9 @@ ruzstd = { version = "0.7.3", default-features = false, features = ["std", "hash
 # without C++ dependency: no editor code or SDK, no Pixar library. Read-only here.
 # Pinned version: names the driver and participates in cache identity.
 openusd = "0.7.0"
-[dev-dependencies]
-# The page decoder, shared with the WebAssembly module: the compiler does not embed it,
-# it uses it to prove that what it encodes decodes identically.
+# The page format, shared with the WebAssembly module: its header, its bit fields and its
+# dequantization are written there once; the compiler encodes with them, measures its error with
+# them, and proves that what it encodes decodes identically.
 web-geometry-page-codec = { path = "../page-codec-wasm" }
 
 [build-dependencies]

@@ -183,7 +183,7 @@ try {
   assert.deepEqual(errors, []);
   assert.equal(result.results.length, 20);
   assert.ok(
-    !result.events.some((event) => /failed|uncaptured-error/.test(event.phase)),
+    !result.events.some((event) => /failed|gpu-device-lost/.test(event.phase)),
     'render diagnostic failure: inspect result.json',
   );
   if (!process.env.WEBGPU_BASELINE_DIR)

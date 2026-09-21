@@ -34,7 +34,7 @@ use format::*;
 /// Version 5 widens an entry from ten to twelve words — the atlas it serves and the number of
 /// levels baked as files under `textures/` — and its pixels follow the graphics card's mip rule.
 /// A reader of version 4 would stride through the entries wrongly, so it refuses this file.
-pub const MANIFEST_BINARY_VERSION: u32 = 5;
+pub const MANIFEST_BINARY_VERSION: u32 = 6;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;

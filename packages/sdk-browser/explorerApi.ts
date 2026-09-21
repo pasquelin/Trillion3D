@@ -93,7 +93,6 @@ export function createExplorerApi(inputs: Inputs) {
       renderer,
       webglSurface: inputs.webglSurface,
       viewport,
-      directGpu,
       options,
     }),
     ...createExplorerSelectionApi({
