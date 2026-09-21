@@ -28,5 +28,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+      # Cargo AFTER the toolchain: the cache key includes the rustc version. Keeps `target/` and
+      # the registry between runs, so a pull request that does not touch Rust skips the three
+      # release compilations (clippy, build, test) that made the job ten minutes long.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/asset-compiler-rust
       - run: pnpm install --frozen-lockfile
       - run: pnpm run validate
