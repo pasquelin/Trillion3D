@@ -132,6 +132,136 @@ This first #78 lot is the hierarchy foundation only. `createExplorer` does not a
 `SceneRoot` yet. Engine materials, texture references, frame hooks, and browser-contract migration
 remain later #78 lots; lights continue to use the existing `SceneLight` version 2 contract.
 
+## Batch math for hosts
+
+A host that moves ten thousand instances or culls ten thousand boxes writes the loop itself with a
+per-object library, one `Vector3` or `Matrix4` per call and a temporary per step. The engine's
+**batches** take `n` elements in one call: flat typed arrays, no allocation, the same formula as the
+unit function they repeat — which stays the oracle — and a count as the only return value. They are
+exported by `web-geometry`, `packages/sdk-core` and `packages/sdk-browser` alike, so a host imports
+one entry point, and none of them needs `three`.
+
+**Layout.** One element occupies a fixed number of consecutive values, each declared once:
+`MATRIX_VALUES` 16 (column-major, `[12..14]` the translation), `POSITION_VALUES` 3,
+`QUATERNION_VALUES` 4 (`x, y, z, w`), `SPHERE_VALUES` 4 (centre then radius) and
+`NORMAL_MATRIX_VALUES` 9 in `mathBatchStrides.ts`; `BOX_VALUES` 6 (min x, y, z then max x, y, z)
+in `mathBox.ts`; `FRUSTUM_PLANE_VALUES` 24 (six planes `a, b, c, d`, facing inward, in the order
+of `frustumPlanesFromMatrix`) in `mathFrustum.ts`. Flat inputs are read as `ArrayLike<number>` — a `Float32Array`, a plain
+array or a host buffer enters as-is; outputs are `Float64Array` (or a `Uint8Array` of flags).
+Matrices that are read one at a time — `mats[i]` — travel as **sub-views** of sixteen numbers
+(`buffer.subarray(i * 16, (i + 1) * 16)`), built once at load, never per frame: `multiplyMatrix4`
+reads its operands at constant indices, and a computed offset costs 6 % of the product.
+
+**Allocate once, reuse every frame.** The buffers below are the host's; a call writes into `out`
+and nothing else. Culling ten thousand boxes and bringing the survivors' centres into view space is
+two calls — this is `packages/sdk-core/mathBatchHost.test.ts`, run by `pnpm test`:
+
+```javascript
+import {
+  BOX_VALUES,
+  IDENTITY_MATRIX4,
+  POSITION_VALUES,
+  SPHERE_VALUES,
+  createCameraFrame,
+  perspectiveProjection,
+  updateCameraFrame,
+  frustumKeepsBoxBatch,
+  sphereFromBoundsBatch,
+  transformPointsBatch,
+} from 'web-geometry';
+
+const N = 10_000;
+// Allocated once, at scene load.
+const boxes = new Float64Array(N * BOX_VALUES); // min x, y, z then max x, y, z, per box
+const kept = new Uint8Array(N); // 1 where the frustum keeps the box
+const spheres = new Float64Array(N * SPHERE_VALUES); // centre x, y, z then radius, per box
+const centres = new Float64Array(N * POSITION_VALUES); // survivors' centres, packed
+const viewCentres = new Float64Array(N * POSITION_VALUES); // the same, in view space
+const frame = createCameraFrame();
+const projection = new Float64Array(16);
+const cameraWorld = Float64Array.from(IDENTITY_MATRIX4); // the host's, moved between frames
+
+// Every frame: the frustum, one cull, the survivors packed, one transform.
+perspectiveProjection(projection, 60, 16 / 9, 0.1, 1);
+updateCameraFrame(frame, projection, cameraWorld, 100);
+const visible = frustumKeepsBoxBatch(kept, frame.planes, boxes, N);
+sphereFromBoundsBatch(spheres, boxes, N);
+let m = 0;
+for (let i = 0; i < N; i++) {
+  if (!kept[i]) continue;
+  const at = i * SPHERE_VALUES;
+  centres.set(spheres.subarray(at, at + POSITION_VALUES), m++ * POSITION_VALUES);
+}
+transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
+```
+
+**The batches**, each named after the unit function it repeats, with the reference loop it
+replaces, its measured ratio and the exceptions it declares, are listed once, in
+[`docs/API.md`](API.md#batch-math-for-hosts-104-80).
+
+**Which path ran.** Three of them — `hierarchyUpdateBatch`, `multiplyMatrix4Batch`,
+`boxTransformBatch` — also exist as WebAssembly kernels (`packages/page-codec-wasm/src/math.rs`),
+bit-identical to the JavaScript loop, and the governor (`mathPathGovernor.ts`) plays whichever it
+measured faster, operation by operation. `createExplorer(canvas, { mathPath })` takes `'auto'`
+(the default), `'js'` or `'wasm'` — `'wasm'` falls back on `'js'` where the module is missing and
+says so. `explorer.metrics().mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
+`operations[name].path` is the path the next call plays, `jsNsPerElement` and `wasmNsPerElement`
+the sliding medians in nanoseconds per element (`null` while unmeasured — never zero), `switches`
+how many times the decision changed, `elements` the total processed; `clockCoarse` says the thread
+clock is too coarse to arbitrate, and everything then stays on JavaScript. The other batches have no
+kernel: none of their loops was measured above 0.1 ms in the engine's own frame (below), and a
+kernel for a cost that is not measured is refused by AGENTS.md.
+
+**What the engine's own frame pays for them** (#80 stage 1, `scripts/mesure/banc.mjs --moteur
+webgpu --apres dist --pixelError 1`, WebGPU, 1280×720, DPR 1, Emerald Square `generale` and `rue`
+over 180 measured frames, Whisperwind Village `generale` over 60, each line run three times with
+its A/A witness — six series per line — on commits `805450a2`–`2713f646` of the branch, Apple M2
+Max, the machine shared and its load average kept per series under `charge`: 3 to 25 during these
+runs). The values are the run-to-run range of the p50 / p95; the per-step bounds were read from
+the `cpu-timing` reports the engine published inside the measured loop, on a 0.1 ms clock — a
+step that reads `0.000 / 0.100` is under it, not zero. The bench has since read them from the
+profile window instead (`explorer.cpuSteps()`, `bornesCpu` in the bench README): the same bounds,
+over the profiled images only, so a rerun re-reads them there — and a still image, held, files a
+row of zeros in that window (its tile pump alone unmeasured) where the reports below published
+nothing. `null` is unmeasured,
+never an estimate.
+
+| scene · camera                      | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs`            | `selectionDispatchMs`             | CPU frame p50 | rAF p50    | roots                                                                                                                                                                              | verdict                                                                                                        |
+| ----------------------------------- | ------------------ | ------------------- | --------------------- | --------------------------------- | ------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Emerald Square · still              | null               | null                | 0.000 / 0.000 (stage) | 0.000 / 0.000 (stage)             | 0.2–0.7 ms    | 16.7 ms    | 2 479, none rebased                                                                                                                                                                | held image: no loop runs                                                                                       |
+| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4  | 0.4–0.5 / 0.5–0.6   | 0.000 / 0.000         | 0.000 / 0.100                     | 2.7–3.3 ms    | 16.7 ms    | 2 479 (`racines`); rebased on every moved image by construction — the published `racinesRebasees` is the 0 of the last image that ran the step with neither origin nor scene moved | world step at the clock's edge; its loops under 0.1 ms (below)                                                 |
+| Emerald Square · moving, `rue`      | 0.3 / 0.3–0.4      | 0.0–0.5 / 0.5–0.6   | 0.000 / 0.000         | 0.000 / 0.100                     | 2.5–2.8 ms    | 16.7 ms    | 2 479, as above                                                                                                                                                                    | same                                                                                                           |
+| Whisperwind Village · still         | null (CPU cut)     | null (CPU cut)      | 0.000 (sample)        | `selectionMs` 181–245 ms (sample) | 386–420 ms    | 383–417 ms | 11 263                                                                                                                                                                             | the CPU reference cut over 2 022 678 resident pages, `cpuSelectMs` p50 94–103 ms: the cut's cost, not a loop's |
+| Whisperwind Village · moving        | null (CPU cut)     | null (CPU cut)      | 0.000 (sample)        | `selectionMs` 117–272 ms (sample) | 843–856 ms    | 850–867 ms | 11 263                                                                                                                                                                             | same, `cpuSelectMs` p50 111–115 ms                                                                             |
+
+The reading, loop by loop (the list of #80): on the GPU-cut path (Emerald Square) `lightsMs` is
+zero by construction — declared lamps live in a store the frame does not walk (`hostSceneWatch.ts`
+only reads the host graph at a scene revision) — and `blendWorldMs` is zero, as are the transparent steps
+(`transparentPrepareMs`, `transparentEncodeMs`) under which the frustum × box loops of
+`webgpuBlendOrder.ts` and `webgpuBlendSelection.ts` run — on the transparent path only, and only
+where a scene has transparents. `invertMatrix4` (`webgpuPagesTransform.ts`,
+`lightingObservationMeshes.ts` at the lighting experiment's creation) and `boxTransform` +
+`boxUnion` (`mathBatchBoxes.ts`, `webgpuPagesTransform.ts`, `pageSelectionCollect.ts` at setup)
+run at a host write or at `prepare()`, never per image; `normalMatrix3` (`pageCone.ts`) at prepare, and in the CPU
+visibility oracle (`visibilityShadingNormal.ts`) that no frame calls; `sphereFromBounds`
+(`threeBounds.ts`) at import; the `frameCostAudit.ts` and `gpuDagOracleMath.ts` loops belong to a
+diagnostic and to the GPU-cut oracle, outside a measured beauty pass. What remains every moving
+image is the world step: the root rebase (`rootWorldsToRenderOrigin`, sixteen floats per root),
+the change scan (`worldsChanged`) and the stretch scan (`refreshWorldStretch`) — timed on the
+nanosecond clock by `packages/sdk-browser/bench/rebase-racines.perf.mjs` (`pnpm run
+perf:browser`) on the same 2 479 roots: **0.031–0.032 ms**, 0.000 ms (a moved first root ends the
+scan; 0.041–0.043 ms when nothing moved, a case the held image never reaches) and
+**0.025–0.026 ms** per image,
+three runs, spread under 2 µs on a quiet machine, 6 µs under load. The rest of `worldMs` is the 158 KB world upload and the pyramid
+invalidation, not a math loop. On Whisperwind Village the GPU cut is unavailable
+(visibility-identifier capacity) and the frame runs the CPU reference cut, where
+`frustumExcludesBox` is called per DAG node visited (`pageSelectionCut.ts`) and
+`transformAffinePoint` per sphere (`streamingPriority.ts`); that traversal is not a batch — a node
+is tested only if its parent was kept — and its cost is the cut's, published as `cpuSelectMs`. No
+engine loop was replaced by a batch in this stage, and no WebAssembly kernel was written for the
+host batches: the rule stays that a kernel is written only where a loop's share is measured above
+0.1 ms in the engine's own frame, and no loop above reaches it.
+
 ## Browser explorer
 
 ### Simple browser startup
@@ -217,7 +347,7 @@ The `wireframe` diagnostic is a filled unique color per submitted triangle, not 
 
 ### Separated surfaces and lighting (pipeline version 1)
 
-The opaque/masked path writes visibility, then reconstructs material properties into three `rgba16float` textures and one `r32uint` texture (28 logical bytes per pixel): base color/metalness, world normal/roughness, emission/AO, and surface flags. Depth uses `depth32float`. Lighting consumes these surfaces and reconstructs world position from depth and the inverse view-projection matrix. Transparency is shaded separately into the HDR target. ACES and sRGB conversion occur at final composition. This changes transparent compositing between drawn surfaces relative to the previous display-encoded blend — a blend surface over the display background is still composed in display space, as the witness does it. The material proof measures the two: to the level over the background, 45 levels against the witness on red at half opacity over an opaque blue, and holds the engine to that declared gap.
+The opaque/masked path writes visibility, then reconstructs material properties into three `rgba16float` textures and one `r32uint` texture (28 logical bytes per pixel): base color/metalness, world normal/roughness, emission/AO, and surface flags. Depth uses `depth32float`. Lighting consumes these surfaces and reconstructs world position from depth and the inverse view-projection matrix. Transparency is shaded separately into the HDR target; a transmissive material — `KHR_materials_transmission` with its IOR and volume — is composed after it by the water pass, the same surface buffer written again once lighting consumed it and one fullscreen composite on a frozen copy of the lit image, the volume bounded by the opaque depth (`SPEC_ENGINE_WITHOUT_THREE.md` R6d). ACES and sRGB conversion occur at final composition. This changes transparent compositing between drawn surfaces relative to the previous display-encoded blend — a blend surface over the display background is still composed in display space, as the witness does it. The material proof measures the two: to the level over the background, 45 levels against the witness on red at half opacity over an opaque blue, and holds the engine to that declared gap.
 
 The reconstruction runs one pass per **material class**, the published visibility-buffer design, instead of one full-screen program that tests every material feature per pixel. A class is the set of features the resolve shader would otherwise branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and normal maps, vertex normals, double-sidedness, tangents — as a word of eleven bits; every page carries its class in its row, and the scene's classes are known once the atlases are laid out, so their pipelines are compiled at preparation, never on the frame that first draws one (a material the host changes into a new class compiles on its first draw). Each frame, the `WG material depth` pass writes every pixel's class as an exact `depth32float` value (`(class + 1) / 4096`, zero on the background); the `WG material surfaces v1` pass then draws one full-screen triangle per class that has a drawable row, at that class's depth under `depthCompare: 'equal'`, so the hardware depth test keeps the class's pixels and its fragment stage — compiled with the class's feature bits as pipeline overrides — reads only the maps that class has. Lighting is unchanged: the surfaces are the same, and there is no per-class lighting model. The `material-classes-ready` diagnostic publishes the classes found and their keys; the `materials` diagnostic view colours each pixel by the class that resolved it; `stageProfile()` reports both passes under the `materials` block. Not done: classifying screen tiles per class, so a class present anywhere costs one full-screen triangle, rejected pixel by pixel where it is absent.
 
