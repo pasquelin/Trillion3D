@@ -98,7 +98,7 @@ export async function mesure({ name, fichier, cas, options = {}, ...conf }) {
       nsParElement: item.size > 0 ? (s.medianeMs * 1e6) / item.size : null,
       opsParSec: s.medianeMs > 0 ? Math.round(1000 / s.medianeMs) : null,
       temoin: t,
-      ecartTemoin: ecartRelatif(s.medianeMs, t?.medianeMs ?? null),
+      ecartTemoin: ecartRelatif(s.medianeMs, t?.medianeMs),
       ...verdict,
     });
   }
