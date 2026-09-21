@@ -9,7 +9,8 @@ import { CAMERA, HOST_CAMERA } from '../docsContentCamera.js';
 import { MATRICES } from '../docsContentMatrix.js';
 import { COLORS, VECTORS } from '../docsContentVector.js';
 import { BOUNDS } from '../docsContentBounds.js';
-import { BATCHES, TREE } from '../docsContentTree.js';
+import { TREE } from '../docsContentTree.js';
+import { BATCHES } from '../docsContentBatches.js';
 
 export const rawEntries = [
   ...GUIDES,
