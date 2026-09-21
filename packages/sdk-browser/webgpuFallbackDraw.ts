@@ -3,7 +3,12 @@ import { clearValueOf, createRenderEncoder } from './webgpuPagesEncoder.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from './visibilityBuffer.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
-import { bindGroupFor, pageRgb, pipelineFor } from './webgpuPagesPipelineFor.ts';
+import {
+  bindGroupFor,
+  pageRgb,
+  pipelineFor,
+  voidStaleFallbackGroups,
+} from './webgpuPagesPipelineFor.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 
@@ -61,6 +66,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     },
   });
   pass.setViewport(0, 0, width, height, 0, 1);
+  voidStaleFallbackGroups(rt);
   let vertices = 0;
   for (let i = 0; i < rows.packedCount; i++) {
     const position = rows.packedPositions[i];

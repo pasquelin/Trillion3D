@@ -77,7 +77,9 @@ category and reason, and the command prints it before starting — never in sile
 (`emeraude-webgpu`) reads the compiled cache `emerald-square-derived` under `.mesure/assets/`, off
 git, and a sibling worktree has none of its own: point `WG_ASSETS` at the shared folder. Without it
 the proof exits on an `HTTP 404` naming the manifest it could not fetch, and `pnpm run test:gpu`
-fails with it — loudly, never in silence.
+fails with it — loudly, never in silence. The material proof (`materiaux-temoin`) needs no asset:
+its fixtures are built in the page and served from `test/appui/`, the SDK from `dist/`, so
+`pnpm run build` precedes it.
 
 `test/test-gpu.test.mjs` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would

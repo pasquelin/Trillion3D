@@ -12,6 +12,7 @@ export interface CanvasProps extends ComponentPropsWithoutRef<'canvas'> {
   actions?: CanvasAction[];
   pending?: boolean;
   loadingLabel?: string;
+  overlay?: ReactNode;
 }
 
 export interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
