@@ -1,5 +1,6 @@
 import { build } from 'esbuild';
 import { resolve } from 'node:path';
+import { externalEngine } from './external-engine.mjs';
 
 export async function buildPortal(root, outdir) {
   await build({
@@ -12,17 +13,7 @@ export async function buildPortal(root, outdir) {
     format: 'esm',
     target: 'es2022',
     define: { 'process.env.NODE_ENV': '"production"' },
-    plugins: [
-      {
-        name: 'external-engine-runtime',
-        setup(bundler) {
-          bundler.onResolve({ filter: /runtime\/engine\.js$/ }, () => ({
-            path: './engine.js',
-            external: true,
-          }));
-        },
-      },
-    ],
+    plugins: [externalEngine],
     supported: { 'template-literal': false },
     logLevel: 'warning',
   });

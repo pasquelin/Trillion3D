@@ -4,7 +4,8 @@
 export default {
   entry: [
     'docs/react/main.jsx',
-    'scripts/docs/highlight-entry.mjs',
+    // docs/js is outside the project set: listed so its Highlight.js import counts.
+    'docs/js/components/highlighter.js',
     'packages/sdk-browser/pageDecodeWorker.ts',
     'packages/sdk-browser/pageIntegrationWorker.ts',
     'packages/sdk-node/{index,cli}.mts',
