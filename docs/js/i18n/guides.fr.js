@@ -71,6 +71,7 @@ export const guidesFr = {
 <li><strong><code>Float64Array</code> pour les calculs</strong>, <code>ArrayLike&lt;number&gt;</code> pour la lecture. La simple précision intervient lors de l’envoi vers le GPU.</li>
 <li><strong>Mêmes bits que la référence</strong>, vérifiés par <code>pnpm run perf:core</code>, sauf les deux écarts déclarés : courbe sRGB et termes de profondeur de la projection inversée infinie.</li>
 <li><strong>Mesurer avant d’optimiser.</strong> Les profils CPU et GPU localisent le coût d’une image ; aucune optimisation ne part d’une supposition.</li>
+<li><strong>Matériaux prouvés à l’écran.</strong> <code>pnpm run test:gpu</code> rend douze matériaux témoins — couleur de base et sa carte, masque alpha à son seuil, mélange, faces arrière, métal-rugosité, émissif, carte de normales — avec le moteur et avec le témoin Three, tous deux depuis <code>dist/</code>, et tient chaque pixel lu à un niveau près du témoin ; le seul écart déclaré, un mélange sur une surface opaque, est mesuré à 45 niveaux et tenu là (<code>docs/SDK.md</code> § Separated surfaces and lighting).</li>
 </ul>
 <h3 class="text-lg font-bold mt-4">Lire ce portail</h3>
 <p>Chaque entrée nomme le fichier qui la contient. Le badge <span class="badge badge-warning badge-sm">en développement</span> désigne une fonction absente de <code>develop</code> et renvoie vers l’issue qui porte son contrat. Toutes les autres entrées sont livrées aujourd’hui.</p>`,
@@ -94,5 +95,17 @@ export const guidesFr = {
 </tbody></table></div>
 <p>Les fonctions livrées et leurs preuves figurent dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>
 <p>Parcours en deux temps : garder Three.js pour charger et construire la scène tout en dessinant avec le moteur, puis passer au cache compilé et retirer <code>three</code> des dépendances.</p>`,
+  },
+  'memory-pools': {
+    title: 'Pools mémoire et admission de la coupe',
+    description:
+      'Deux pools fixes réglés par l’hôte, ce qu’une vue demande au-delà, et comment lire le verdict.',
+    html: `<p>Le moteur tient deux pools fixes, en octets, jamais lus sur la machine : <code>geometryPoolBytes</code> pour les pages de grappes (512 Mio par défaut, <code>floor(octets / pageBytes)</code> fentes) et <code>texturePoolBytes</code> pour les tuiles de texture virtuelle. Un budget qui ne peut être tenu tel quel est ramené à ce qui peut l’être, et la raison est publiée : <code>geometryPoolClamp</code> vaut <code>root-cover</code> (relevé à la couverture racine, toujours résidente), <code>scene</code> (la scène est plus petite), <code>ceiling</code> (au-dessus de <code>geometryPoolCeilingBytes</code>, le plus haut qu’une session puisse monter), <code>page-cap</code>, <code>device-limit</code> ou <code>null</code>.</p>
+<h3 class="text-lg font-bold mt-4">Ce qu’une vue demande au-delà du pool</h3>
+<p>Rien n’est refusé et rien ne s’arrête : la coupe est <strong>rendue plus grossière, jamais tronquée</strong>. Quand les pages demandées par la coupe — couverture racine comprise — dépassent les fentes, l’admission double l’erreur écran à laquelle l’image était dessinée (1 px au moins au premier débordement, puis 2, 4…), et la redescend cran par cran jusqu’à 0,125 px dès que la coupe tient avec de la marge. Deux règles la tiennent immobile : un cran ne bouge que sur une coupe échantillonnée au cran en vigueur, et un cran dont la coupe demandée a débordé pour cette vue n’est plus redemandé tant que ni la vue ni le pool ne changent. Une caméra immobile se pose donc en quelques échantillons et tient son image.</p>
+<h3 class="text-lg font-bold mt-4">Changer un pool en cours de session</h3>
+<p><code>explorer.setMemoryBudgets({ geometryPoolBytes, texturePoolBytes })</code> redimensionne sans vider : la couverture racine garde sa place avant toute autre page, puis les pages épinglées, puis les plus récentes ; seul ce qui ne tient plus part, et le rapport dit combien (<code>evictedPages</code>, <code>evictedTiles</code>, <code>durationMs</code>). Les groupes de liaison qui nommaient l’ancien pool sont rebâtis à l’image suivante, par l’identité de ce qu’ils nomment.</p>
+<h3 class="text-lg font-bold mt-4">Lire le verdict</h3>
+<p>À chaque image, <code>render()</code> renvoie <code>coverageBudgetLimited</code> (la coupe demandée ne tient pas encore) et <code>budgetPixelError</code> (0 tant que le détail demandé tient, sinon le cran auquel l’image est dessinée), ainsi que <code>geometryPoolSaturated</code>. Le diagnostic <code>coverage-budget</code>, livré pendant <code>flush()</code>, nomme chaque changement de verdict avec les fentes demandées et tenues.</p>`,
   },
 };

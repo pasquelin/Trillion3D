@@ -82,12 +82,13 @@ export function createGpuPageCache(
     load,
     /**
      * Changes the pool size while keeping its pages, behind in-flight loads: nothing is written
-     * into a buffer while it is being copied. Returns keys evicted for lack of room.
+     * into a buffer while it is being copied. `held` names the pages that keep a place before
+     * any other. Returns keys evicted for lack of room.
      */
-    resize(slots: number) {
+    resize(slots: number, held?: ReadonlySet<string>) {
       const operation = state.pending.then(() => {
         check();
-        return resizeGpuPages(context, slots);
+        return resizeGpuPages(context, slots, held);
       });
       state.pending = operation.catch(() => {});
       return operation;

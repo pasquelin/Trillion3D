@@ -19,14 +19,8 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     (['lod', 'memory', 'offline'].includes(lesson.kind) || lesson.runtime === 'camera-pose');
   let explorer;
   try {
-    explorer = await startup.wait(
-      createLessonExplorer({
-        canvas,
-        signal: startup.signal,
-        manifest: lesson.manifest,
-        importedLights,
-      }),
-    );
+    const opts = { canvas, signal: startup.signal, manifest: lesson.manifest, importedLights };
+    explorer = await startup.wait(createLessonExplorer(opts));
   } catch (error) {
     startup.finish();
     throw error;
@@ -54,13 +48,15 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     ready.catch(() => {});
     return ready;
   };
+  const settle = (outcome, value) => {
+    outcome?.(value);
+    readyResolve = readyReject = undefined;
+  };
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     startup.cancel();
-    readyReject?.(new DOMException('Cancelled', 'AbortError'));
-    readyResolve = undefined;
-    readyReject = undefined;
+    settle(readyReject, new DOMException('Cancelled', 'AbortError'));
     cancelAnimationFrame(frame);
     resize?.disconnect();
     controls?.dispose();
@@ -87,25 +83,17 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         triangles: metrics.drawnTriangles,
         occluded: metrics.hizRejectedClusters ?? null, // the device's count, never estimated
         tested: metrics.hizTestedClusters ?? null,
+        diagnostic: explorer.diagnostic,
         idle,
       });
-      if (!coldStart) {
-        readyResolve?.();
-        readyResolve = undefined;
-        readyReject = undefined;
-      }
+      if (!coldStart) settle(readyResolve);
       previous = now;
       frame = 0;
-      if (idle) {
-        readyResolve?.();
-        readyResolve = undefined;
-        readyReject = undefined;
-      } else frame = requestAnimationFrame(draw);
+      if (idle) settle(readyResolve);
+      else frame = requestAnimationFrame(draw);
     } catch (error) {
       frame = 0;
-      readyReject?.(error);
-      readyResolve = undefined;
-      readyReject = undefined;
+      settle(readyReject, error);
       dispose();
     }
   };
@@ -186,6 +174,12 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         return updateChain;
       },
       dispose,
+      setDiagnostic(mode) {
+        if (!disposed) {
+          explorer.setDiagnostic(mode);
+          invalidate();
+        }
+      },
       camera: {
         zoomIn: camera.zoomIn,
         zoomOut: camera.zoomOut,
