@@ -41,7 +41,11 @@ function compteAppels(blendState: BenchSide['blendState']) {
 }
 
 /** The CPU-fallback expansion, reread as index ranges: what the rasterizer would see. */
-function etale(blendState: BenchSide['blendState'], miroir: { expanded: Uint32Array; args: Uint32Array }, output: Uint32Array) {
+function etale(
+  blendState: BenchSide['blendState'],
+  miroir: { expanded: Uint32Array; args: Uint32Array },
+  output: Uint32Array,
+) {
   // Reduced fixture, matching the pattern already used by `webgpuBlendPlan.test.ts`.
   const items = blendState.blendGpu as unknown as BenchItem[];
   const instances = expandBlendPlan({

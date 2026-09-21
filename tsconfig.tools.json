@@ -3,15 +3,8 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": [
-      "ES2023",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "types": [
-      "node",
-      "@webgpu/types"
-    ],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node", "@webgpu/types"],
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
@@ -23,9 +16,7 @@
     "erasableSyntaxOnly": true,
     "baseUrl": ".",
     "paths": {
-      "/mesure/*": [
-        "scripts/mesure/*"
-      ]
+      "/mesure/*": ["scripts/mesure/*"]
     }
   },
   "include": [
@@ -38,9 +29,5 @@
     "knip.config.ts",
     "eslint.config.ts"
   ],
-  "exclude": [
-    "**/node_modules/**",
-    "**/target/**",
-    "test/fixtures/**"
-  ]
+  "exclude": ["**/node_modules/**", "**/target/**", "test/fixtures/**"]
 }
