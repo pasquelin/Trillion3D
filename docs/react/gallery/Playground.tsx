@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import type { PlaygroundProps } from '../types/gallery.ts';
+import { useEffect, useMemo, useState } from 'react';
+import type { Locale } from '../types/portal.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { CodeEditor } from '../components/CodeEditor.tsx';
 import { formatNumericText } from '../../js/code/formatNumber.js';
@@ -19,7 +19,13 @@ import { rendererLessonById } from '../../js/gallery/rendererLessons.js';
 import { RendererLesson } from './RendererLesson.tsx';
 import { local } from './localized.ts';
 
-export function Playground({ id, locale = 'en', onSelect }: PlaygroundProps): ReactElement {
+interface PlaygroundProps {
+  id: string;
+  locale?: Locale;
+  onSelect?: (id: string) => void;
+}
+
+export function Playground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   const rendererLesson = rendererLessonById(id);
   if (rendererLesson)
     return (
@@ -33,7 +39,7 @@ export function Playground({ id, locale = 'en', onSelect }: PlaygroundProps): Re
   return <MathPlayground id={id} locale={locale} onSelect={onSelect} />;
 }
 
-function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps): ReactElement {
+function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   const example = byId(id),
     scenario = SCENARIOS[example.id],
     [state, setState] = useState<Record<string, number>>(() => initialState(example.id));

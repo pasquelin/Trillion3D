@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { SceneNotice } from './SceneNotice.tsx';
 import { ImageCard } from '../components/ImageCard.tsx';
@@ -12,7 +11,7 @@ import { Evidence } from './Evidence.tsx';
 import type { Report, ReportRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface SceneEvidenceProps {
+interface SceneEvidenceProps {
   report: Report;
   scene: string;
   locale: Locale;
@@ -38,7 +37,7 @@ interface CaptureGroupsProps {
   name: string;
 }
 
-function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsProps): ReactElement {
+function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsProps) {
   const fr = locale === 'fr';
   const engines = pairs.length > 0 && pairs.every(([a]) => family(runOf(report, a)) === 'engines');
   return (
@@ -89,13 +88,13 @@ function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsPr
   );
 }
 
-export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps): ReactElement | null {
+export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
   const [selected, setSelected] = useState('engines');
   const [chosenRun, setChosenRun] = useState('');
-  const records = report.records.filter((r: ReportRecord) => r.scene === scene);
+  const records = report.records.filter((r) => r.scene === scene);
   const pairs = pairedImages(records) as [ReportRecord, ReportRecord][];
   const paired = new Set(pairs.flat().map((r) => r.id));
-  const singles = records.filter((r: ReportRecord) => r.image && !paired.has(r.id));
+  const singles = records.filter((r) => r.image && !paired.has(r.id));
   const groups = FAMILIES.map(([id, en, fr]) => ({
     id,
     label: locale === 'fr' ? fr : en,
@@ -120,7 +119,7 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps): Re
   return (
     <Section title={sceneName(scene)}>
       <SceneNotice
-        note={report.records.find((r: ReportRecord) => r.scene === scene && r.sceneNote)?.sceneNote}
+        note={report.records.find((r) => r.scene === scene && r.sceneNote)?.sceneNote}
         locale={locale}
       />
       <Tabs

@@ -1,7 +1,23 @@
-import type { JSX } from 'react';
 import { Header } from './Header.tsx';
 import { Sidebar } from './Sidebar.tsx';
-import type { LayoutProps } from '../types/portal.ts';
+import type { ReactNode, RefObject } from 'react';
+import type { PortalEntry, PortalRoute, TranslateFn } from '../types/portal.ts';
+
+interface LayoutProps {
+  children: ReactNode;
+  entries: PortalEntry[];
+  route: PortalRoute;
+  localeRoute?: PortalRoute;
+  query: string;
+  t: TranslateFn;
+  drawerOpen: boolean;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onMenu: () => void;
+  onClose: () => void;
+  onSearch: () => void;
+  onQuery: (query: string) => void;
+  onTheme: () => void;
+}
 
 export function Layout({
   children,
@@ -17,7 +33,7 @@ export function Layout({
   onSearch,
   onQuery,
   onTheme,
-}: LayoutProps): JSX.Element {
+}: LayoutProps) {
   return (
     <>
       <Header

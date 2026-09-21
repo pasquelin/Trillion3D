@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { Select } from '../components/UI.tsx';
 import { Tabs } from '../components/Tabs.tsx';
@@ -6,10 +5,10 @@ import { viewName, runName, engineName } from '../../js/reports/names.js';
 import { Section } from '../components/Section.tsx';
 import { sceneName, runOf } from '../../js/reports/presentation.js';
 import { MetricCharts } from './MetricCharts.tsx';
-import type { MetricKey, Report, ReportRecord } from '../types/reports.ts';
+import type { MetricKey, Report } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface ExperimentsProps {
+interface ExperimentsProps {
   report: Report;
   scene: string;
   locale: Locale;
@@ -42,20 +41,16 @@ const GROUPS: [string, string, RegExp, MetricKey[]][] = [
   ],
 ];
 
-export function Experiments({ report, scene, locale }: ExperimentsProps): ReactElement {
+export function Experiments({ report, scene, locale }: ExperimentsProps) {
   const [selected, setSelected] = useState('sol');
   const [quality, setQuality] = useState('1');
   const records = report.records.filter(
-    (r: ReportRecord) => r.scene === scene && !['three-nu', 'three-lod'].includes(runOf(report, r)),
+    (r) => r.scene === scene && !['three-nu', 'three-lod'].includes(runOf(report, r)),
   );
-  const views = [...new Set(records.map((r: ReportRecord) => r.view))];
+  const views = [...new Set(records.map((r) => r.view))];
   const view = views.includes(selected) ? selected : views[0];
   const qualities = [
-    ...new Set(
-      records
-        .filter((r: ReportRecord) => r.view === view)
-        .map((r: ReportRecord) => String(r.quality)),
-    ),
+    ...new Set(records.filter((r) => r.view === view).map((r) => String(r.quality))),
   ];
   const activeQuality = qualities.includes(quality) ? quality : qualities[0];
   return (
@@ -88,7 +83,7 @@ export function Experiments({ report, scene, locale }: ExperimentsProps): ReactE
             <>
               {GROUPS.map(([en, fr, , metrics], groupIndex) => {
                 const rows = records.filter(
-                  (r: ReportRecord) =>
+                  (r) =>
                     r.view === key &&
                     String(r.quality) === activeQuality &&
                     GROUPS.findIndex(([, , pattern]) => pattern.test(runOf(report, r))) ===
@@ -102,7 +97,7 @@ export function Experiments({ report, scene, locale }: ExperimentsProps): ReactE
                       columns={1}
                       {...{ report, locale, metrics }}
                       records={rows}
-                      labelRecord={(r: ReportRecord) =>
+                      labelRecord={(r) =>
                         `${runName(runOf(report, r), locale)} · ${r.variant === 'raster-calcul' ? (locale === 'fr' ? 'dessin par calcul' : 'compute drawing') : engineName(r.engine)}`
                       }
                     />

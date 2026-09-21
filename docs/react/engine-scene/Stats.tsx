@@ -1,8 +1,7 @@
-import type { ReactElement } from 'react';
-import type { EngineStatsProps } from '../types/engine-scene.ts';
+import type { EngineCopy } from '../types/engine-scene.ts';
 import { Stat, StatGroup } from '../components/Stats.tsx';
 
-export function EngineStats({ copy }: EngineStatsProps): ReactElement {
+export function EngineStats({ copy }: { copy: EngineCopy }) {
   return (
     <div className="scene-stats" aria-label={copy.stats}>
       <StatGroup className="scene-stat-pair">

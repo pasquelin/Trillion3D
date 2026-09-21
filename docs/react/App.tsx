@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Report } from './reports/Report.tsx';
 import { Entry } from './Entry.tsx';
 import { EngineScene } from './engine-scene/index.tsx';
@@ -26,7 +26,7 @@ function Page({
   page: ResolvedPage;
   route: PortalRoute;
   entries: PortalEntry[];
-}): JSX.Element {
+}) {
   if (page.kind === 'report') return <Report route={route} />;
   if (page.kind === 'home') return <Home locale={route.locale} t={t} />;
   if (page.kind === 'api-index') return <ApiIndex locale={route.locale} entries={entries} t={t} />;
@@ -37,7 +37,7 @@ function Page({
       <Playground
         id={page.id}
         locale={route.locale}
-        onSelect={(id: string) => {
+        onSelect={(id) => {
           location.hash = routeHref({ locale: route.locale, area: 'playground', id });
         }}
       />
@@ -57,7 +57,7 @@ function readTheme(): string {
   return matchMedia('(prefers-color-scheme: dark)').matches ? 'dim' : 'light';
 }
 
-export function App(): JSX.Element {
+export function App() {
   const [route, setRoute] = useState<PortalRoute>(currentRoute);
   const [query, setQuery] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);

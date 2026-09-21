@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Alert } from './UI.tsx';
 import type { Locale } from '../types/portal.ts';
 
-export interface LearningCardsProps {
+interface LearningCardsProps {
   input: ReactNode;
   output: ReactNode;
   attempt: ReactNode;

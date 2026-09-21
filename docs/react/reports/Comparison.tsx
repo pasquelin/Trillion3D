@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { Table } from '../components/Table.tsx';
 import { METRICS, metricValue, formatValue } from '../../js/reports/metrics.js';
 import { metricLabel, reportCopy } from '../../js/reports/copy.js';
@@ -8,14 +7,14 @@ import { comparison } from '../../js/reports/compare.js';
 import type { ReportRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
-export interface ComparisonProps {
+interface ComparisonProps {
   a: ReportRecord;
   b?: ReportRecord | null;
   variable?: string;
   locale: Locale;
 }
 
-export function Comparison({ a, b, variable, locale }: ComparisonProps): ReactElement {
+export function Comparison({ a, b, variable, locale }: ComparisonProps) {
   const c = reportCopy(locale),
     fr = locale === 'fr';
   return (

@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
-export interface LoadingProps extends ComponentPropsWithoutRef<'div'> {
+interface LoadingProps extends ComponentPropsWithoutRef<'div'> {
   label?: ReactNode;
 }
 

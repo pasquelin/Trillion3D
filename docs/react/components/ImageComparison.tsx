@@ -3,7 +3,7 @@ interface ImageComparisonItem {
   src: string;
 }
 
-export interface ImageComparisonProps {
+interface ImageComparisonProps {
   left: ImageComparisonItem;
   right: ImageComparisonItem;
   label: string;

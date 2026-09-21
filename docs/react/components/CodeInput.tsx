@@ -1,16 +1,21 @@
 import { useEffect, useRef } from 'react';
-import type { CodeInputProps } from '../types/components.ts';
 import { basicSetup, EditorView } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { codeHighlight } from './codeHighlight.tsx';
 
 /** The site's single editable JavaScript primitive, backed by CodeMirror. */
+interface CodeInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+}
+
 export function CodeInput({ value, onChange, label }: CodeInputProps) {
   const parent = useRef<HTMLDivElement | null>(null),
     view = useRef<EditorView | null>(null),
-    change = useRef<(val: string) => void>(onChange);
+    change = useRef(onChange);
   change.current = onChange;
-  const initial = useRef<string>(value);
+  const initial = useRef(value);
   initial.current = value;
   useEffect(() => {
     if (!parent.current) return;

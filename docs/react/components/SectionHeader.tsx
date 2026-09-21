@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export interface SectionHeaderProps {
+interface SectionHeaderProps {
   title: ReactNode;
   description?: ReactNode;
   eyebrow?: ReactNode;

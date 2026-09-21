@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import type { StickyPanelProps } from '../types/components.ts';
+import type { ReactNode } from 'react';
 
 interface PositionState {
   offset: number;
@@ -9,6 +9,12 @@ interface PositionState {
 const Position = createContext<PositionState>({ offset: 0, depth: 0 });
 
 /** Nested toolbars stack below the portal header using their actual rendered heights. */
+interface StickyPanelProps {
+  controls: ReactNode;
+  children: ReactNode;
+  sticky?: boolean;
+}
+
 export function StickyPanel({ controls, children, sticky = false }: StickyPanelProps) {
   const parent = useContext(Position);
   const ref = useRef<HTMLDivElement | null>(null);

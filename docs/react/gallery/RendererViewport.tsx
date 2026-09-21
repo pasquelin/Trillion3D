@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '../types/portal.ts';
 import type { DiagnosticMode } from '../types/engine-scene.ts';
 import type {
+  RendererLessonItem,
   RendererLessonSession,
   RendererMetrics,
-  RendererViewportProps,
 } from '../types/gallery.ts';
 import { Canvas } from '../components/Canvas.tsx';
 import { Alert, Select } from '../components/UI.tsx';
@@ -34,18 +34,20 @@ const errorMessage = (error: unknown, locale: Locale, action: 'update' | 'render
   return error instanceof Error && error.message ? `${fallback} ${error.message}` : fallback;
 };
 
-export function RendererViewport({
-  lesson,
-  state,
-  locale,
-  label,
-}: RendererViewportProps): ReactElement {
+interface RendererViewportProps {
+  lesson: RendererLessonItem;
+  state: Record<string, number>;
+  locale: Locale;
+  label: string;
+}
+
+export function RendererViewport({ lesson, state, locale, label }: RendererViewportProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const runtime = useRef<RendererLessonSession | null>(null);
   const latest = useRef<Record<string, number>>(state);
   const [metrics, setMetrics] = useState<RendererMetrics>({});
-  const [error, setError] = useState<string>('');
-  const [pending, setPending] = useState<boolean>(true);
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(true);
   latest.current = state;
   useEffect(() => {
     let active = true;
@@ -96,7 +98,7 @@ export function RendererViewport({
     try {
       runtime.current.setDiagnostic(mode);
       setMetrics((current) => ({ ...current, diagnostic: mode }));
-    } catch (err: unknown) {
+    } catch (err) {
       setError(errorMessage(err, locale, 'update'));
     }
   };
