@@ -542,14 +542,23 @@ The transparent path still uses the authored Three.js light graph and its fixed 
 
 For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 
-For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before any
-scene renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from
+For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before
+anything else exists. It fixes the context attributes, computes drawing-buffer dimensions from
 logical size and DPR, avoids resetting the buffer on an unchanged size, observes context loss and
-restoration, and releases the context once. That surface is the session's only WebGL2 resource;
-the Three scene renderer is a temporary draw adapter the composition host mounts on it and
-disposes with it, for the comparison compositor, the held frame, the render targets and the
-scenes the witness engines hand over — what it costs and what reads the surface instead is in
-[API.md](API.md#batch-e6--the-engine-surface-as-the-sessions-webgl2-authority-85-first-pull-request).
+restoration, and releases the context once. That surface is the session's only WebGL2 resource,
+and the composition host holds no renderer: its render targets (`webglRenderTarget.ts`), its
+held frame (`explorerHeldFrame.ts`, one blit each way), its comparison compositor
+(`comparison.ts`, an engine program) and its presenter are engine objects on that context, rebuilt
+after a loss; the frame composer (`explorerCompose.ts`) binds the destination, clears it with the
+engine's background and asks the engine to draw its whole image there through `drawHostGeometry`.
+An engine whose image is a Three scene — the witnesses `three-webgl-reference` and `three-lod`,
+the autonomous and lighting-experiment engines, and `exact-cluster-pages` for the blended copies
+it does not own yet — draws it through one adapter the witnesses share over the engine's
+context (`threeSceneAdapter.ts`), acquired at the first draw and released with the last user. A
+comparison side is the single view of its engine, byte for byte: a render target holds the
+display image, and the compositor copies texels. What each function computes, what it replaces
+and its proof are in
+[API.md](API.md#batch-e7--composition-host-and-captures-on-engine-owned-framebuffers-85-second-pull-request).
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
 `exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
