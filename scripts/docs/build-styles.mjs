@@ -5,7 +5,7 @@ import { transform } from 'esbuild';
 import { compile } from 'tailwindcss';
 
 const require = createRequire(import.meta.url);
-const SOURCE_EXTENSIONS = new Set(['.html', '.js', '.jsx', '.ts', '.tsx']);
+const SOURCE_EXTENSIONS = new Set(['.html', '.js', '.ts', '.tsx']);
 const TOKEN = /[!@A-Za-z0-9_:[\]().,%/#-]+/g;
 
 async function sourceFiles(directory) {
