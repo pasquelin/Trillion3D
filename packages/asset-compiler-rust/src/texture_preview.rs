@@ -33,9 +33,11 @@ mod entry;
 mod gate;
 mod levels;
 mod reduce;
+mod report;
 pub(crate) mod source;
 #[cfg(test)]
 mod tests;
+mod verdict;
 pub use entry::{PreviewSource, TexturePreview};
 pub use levels::*;
 
@@ -98,7 +100,7 @@ pub(super) fn stage_texture_previews(
         inputs.g.get("textures").and_then(Value::as_array),
         inputs.g.get("images").and_then(Value::as_array),
     ) else {
-        let report = gate::report(
+        let report = report::report(
             inputs.o,
             &wanted,
             &[],
@@ -161,6 +163,6 @@ pub(super) fn stage_texture_previews(
     gates.sort_by(|a, b| {
         (&a.sha256, a.kind, a.format.name()).cmp(&(&b.sha256, b.kind, b.format.name()))
     });
-    let report = gate::report(inputs.o, &wanted, &previews, &gates, &skipped, &notes);
+    let report = report::report(inputs.o, &wanted, &previews, &gates, &skipped, &notes);
     Ok((previews, shapes, report))
 }

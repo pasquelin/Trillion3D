@@ -8,6 +8,7 @@ mod cancellation;
 mod collect_textures;
 mod decode_failure;
 mod gate;
+mod gate_verdict;
 mod image_source;
 mod levels;
 mod median_alpha;
