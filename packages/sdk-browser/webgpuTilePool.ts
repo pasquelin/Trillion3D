@@ -1,11 +1,12 @@
 import {
   placeOf,
-  POOL_LAYER_BYTES,
+  poolLayerBytes,
   POOL_LAYER_SIDE,
-  TILE_BYTES,
+  tileBytes,
   TILES_PER_LAYER,
   type TilePlace,
 } from './textureTiles.ts';
+import type { PoolLane } from './textureBlockFormats.ts';
 
 /**
  * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
@@ -21,9 +22,11 @@ export type WebgpuTilePool = {
   texture: GPUTexture;
   view: GPUTextureView;
   layers: number;
-  /** Tiles the pool can carry, and allocated bytes — fixed as long as this pool lives. */
+  /** Tiles the pool can carry, and allocated bytes — fixed as long as this pool lives — with
+   *  what one tile costs in this pool's format. */
   tiles: number;
   bytes: number;
+  tileBytes: number;
   /** Occupied tiles, and their bytes. */
   readonly resident: number;
   readonly residentBytes: number;
@@ -50,23 +53,35 @@ export type WebgpuTilePool = {
 
 export type TilePoolDevice = Pick<GPUDevice, 'createTexture'>;
 
+/** A pool's shape: its atlas and lane, its format, what a texel costs in it, and its layers. */
+export type TilePoolOptions = {
+  kind: 'color' | 'data';
+  lane: PoolLane;
+  format: GPUTextureFormat;
+  texelBytes: number;
+  layers: number;
+};
+
 export function createWebgpuTilePool(
   device: TilePoolDevice,
-  options: { kind: 'color' | 'data'; format: GPUTextureFormat; layers: number },
+  options: TilePoolOptions,
 ): WebgpuTilePool {
-  const { layers } = options;
+  const { layers, format, texelBytes } = options;
   if (!Number.isSafeInteger(layers) || layers < 1) throw new Error('TEXTURE_POOL_LAYERS');
   const tiles = layers * TILES_PER_LAYER;
+  const perTile = tileBytes(texelBytes);
+  // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination; a block
+  // format cannot be one, and no browser image is ever copied into it.
+  const attachment = texelBytes === 1 ? 0 : GPUTextureUsage.RENDER_ATTACHMENT;
   const texture = device.createTexture({
-    label: `WG texture pool ${options.kind}`,
+    label: `WG texture pool ${options.kind} ${options.lane}`,
     size: { width: POOL_LAYER_SIDE, height: POOL_LAYER_SIDE, depthOrArrayLayers: layers },
-    format: options.format,
-    // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination.
+    format,
     usage:
       GPUTextureUsage.TEXTURE_BINDING |
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC |
-      GPUTextureUsage.RENDER_ATTACHMENT,
+      attachment,
   });
   const owner = new Int32Array(tiles).fill(-1),
     lastUse = new Uint32Array(tiles),
@@ -96,12 +111,13 @@ export function createWebgpuTilePool(
     view: texture.createView({ dimension: '2d-array' }),
     layers,
     tiles,
-    bytes: layers * POOL_LAYER_BYTES,
+    bytes: layers * poolLayerBytes(texelBytes),
+    tileBytes: perTile,
     get resident() {
       return resident;
     },
     get residentBytes() {
-      return resident * TILE_BYTES;
+      return resident * perTile;
     },
     acquire(key, frame, pin = false) {
       settle();

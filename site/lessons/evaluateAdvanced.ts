@@ -10,6 +10,7 @@ import {
   transformAffinePoint,
   transformDirectionVector3,
 } from '../demos/engine.ts';
+import { round } from './evaluateDetail.ts';
 import type { ScenarioState } from './scenarios.ts';
 
 export interface InverseResult {
@@ -67,7 +68,6 @@ export interface ChainResult {
 }
 
 const matrix = () => new Float64Array(16);
-const round = (value: number) => Number(value.toFixed(3));
 const quaternion = (degrees: number): number[] => {
   const half = (degrees * Math.PI) / 360;
   return [0, 0, Math.sin(half), Math.cos(half)];

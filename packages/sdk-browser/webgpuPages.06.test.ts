@@ -8,6 +8,7 @@ import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 
 test('webgpu pages without compute keep the CPU cut and report gpuDriven false', async () => {
   installGpuGlobals();
@@ -16,7 +17,7 @@ test('webgpu pages without compute keep the CPU cut and report gpuDriven false',
   await backend.prepare();
   assert.equal(backend.capabilities.gpuDriven, false);
   backend.render(camera());
-  assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
+  assert.deepEqual((backend as WebgpuPagesBackend).selectedPageIds().sort(), ['0', '1']);
   backend.dispose();
   fixture.geometry.dispose();
   fixture.material.dispose();
@@ -38,12 +39,11 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
     maxResidentPages: 4,
     viewport,
     pixelError: 0,
-  });
+  }) as WebgpuPagesBackend;
   const cam = camera();
   const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport,
-    frame: 1,
   });
   await backend.prepare();
   assert.equal(backend.capabilities.gpuDriven, true);
@@ -82,12 +82,11 @@ test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
     maxResidentPages: 4,
     viewport,
     pixelError: 10,
-  });
+  }) as WebgpuPagesBackend;
   const cam = camera();
   const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
     pixelError: 10,
     viewport,
-    frame: 1,
   });
   await backend.prepare();
   backend.render(cam);

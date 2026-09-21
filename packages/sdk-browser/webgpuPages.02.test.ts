@@ -5,10 +5,12 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
+import type { BackendDiagnostic } from './backendTypes.ts';
+import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
   installGpuGlobals();
-  const events: Array<{ phase: string; message: string; context: Record<string, unknown> }> = [];
+  const events: BackendDiagnostic[] = [];
   const fixture = quadScene(),
     { device } = mockGpu();
   const backend = webgpuPagesBackend({
@@ -20,7 +22,7 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-    onDiagnostic: (event) => events.push(event),
+    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
   } as never);
   try {
     await assert.rejects(backend.prepare(), /PAGE_STREAM_FAILED/);
@@ -50,14 +52,14 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     roughnessMap: rough,
     emissiveMap: emissive,
   });
-  fixture.source.children[0].material = material;
+  (fixture.source.children[0] as THREE.Mesh).material = material;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
     maxTextureTransferBytesPerFrame: 16,
-  });
+  }) as WebgpuPagesBackend;
   try {
     // Three queues per atlas — the fill texel and two textures — placed before any image: what
     // the screen shows while no tile is requested.
@@ -66,7 +68,10 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     assert.equal(prepared.textureTilesResident, 6);
     assert.equal(prepared.textureTilesServed, 0);
     assert.equal(prepared.textureTilesPending, 0);
-    assert.equal(prepared.texturePoolLayers, 4, '512 MiB, two atlases, 63.5 MiB layers');
+    // 512 MiB would give each atlas four 63.5 MiB layers; three queues need one, and the pool
+    // stops at what the scene can fill, by name.
+    assert.equal(prepared.texturePoolLayers, 2, 'one lossless layer per atlas');
+    assert.equal(prepared.texturePoolClamp, 'scene');
     // A 2×2 texture fits in its queue: no streamed tile to request, the barrier converges
     // without copying anything, and the pool does not move.
     backend.render(camera());
@@ -127,7 +132,7 @@ test('vis draws instance each packed page from the page table', async () => {
   fixture.material.dispose();
 });
 
-test('texture pools are copy destinations, allocated once at the budget size', async () => {
+test('texture pools are copy destinations, allocated once at the size the scene fills', async () => {
   installGpuGlobals();
   const { device, textures } = mockGpu();
   const { fixture, backend } = quadBackend(device);
@@ -138,7 +143,7 @@ test('texture pools are copy destinations, allocated once at the budget size', a
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
   for (const pool of pools) {
     assert.equal((pool.usage ?? 0) & need, need);
-    assert.equal(pool.depthOrArrayLayers, 4);
+    assert.equal(pool.depthOrArrayLayers, 1);
   }
   assert.deepEqual(pools.map((pool) => pool.format).sort(), ['rgba8unorm', 'rgba8unorm-srgb']);
   backend.dispose();

@@ -1,11 +1,11 @@
 // A9: a cluster's winding is memoised on the page and invalidated only when the row table's epoch
 // changes, instead of a 3×3 determinant recomputed on every read. Oracle: the uncached version from
-// before lot A, in `bench/oracles/pages-webgpu.mjs`.
+// before lot A, in `bench/oracles/pages-webgpu.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { setWindingEpoch, windingCw } from './webgpuPagesWinding.ts';
-import { referenceWindingCw } from './bench/oracles/pages-webgpu.mjs';
+import { referenceWindingCw } from './bench/oracles/pages-webgpu.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 function rec(matrix: THREE.Matrix4): PageRec {

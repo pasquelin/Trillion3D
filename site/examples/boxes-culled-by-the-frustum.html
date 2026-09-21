@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ten thousand boxes culled by the frustum</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0e1621; }
+      canvas { display: block; width: 100%; height: 100%; }
+      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+    </style>
+    <script type="importmap">
+      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p id="cut"></p>
+    <script type="module">
+      import { createExplorer, webgpuPagesBackend } from '../runtime/engine.js';
+
+      // Manual rendering: the loop below draws every frame itself, so the canvas size is given.
+      const canvas = document.getElementById('view');
+      const explorer = await createExplorer(canvas, {
+        manifestUrl: '../assets/examples/boxes/cache/native/full/manifest.json',
+        scope: 'full',
+        backends: [webgpuPagesBackend],
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+        pixelRatio: devicePixelRatio,
+      });
+      explorer.addLight({
+        id: 'sun',
+        kind: 'directional',
+        direction: [-0.5, -0.8, -0.3],
+        color: [1, 0.95, 0.85],
+        intensity: 3,
+        castsShadow: true,
+      });
+      explorer.addLight({
+        id: 'sky',
+        kind: 'directional',
+        direction: [0.5, -0.6, 0.3],
+        color: [0.6, 0.7, 0.9],
+        intensity: 0.6,
+        castsShadow: false,
+      });
+
+      // The camera stands in the middle of the grid and turns on the spot: what its frustum
+      // does not contain is rejected before any page is drawn. The counter reads, for each
+      // frame, the clusters in the cut and the hierarchy nodes the frustum rejected — a rejected
+      // node stands for its whole subtree of boxes.
+      const home = explorer.homePose(),
+        cut = document.getElementById('cut');
+      async function frame(time) {
+        const angle = time / 6000;
+        explorer.setPose({
+          ...home,
+          position: [0, 2.2, 0],
+          target: [Math.sin(angle) * 10, 0.8, Math.cos(angle) * 10],
+          fov: 60,
+        });
+        await explorer.awaitPages();
+        const { clusters, frustumRejected } = explorer.render();
+        cut.textContent = `${clusters ?? '?'} clusters drawn — ${frustumRejected ?? '?'} hierarchy nodes rejected by the frustum`;
+        await explorer.flush();
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

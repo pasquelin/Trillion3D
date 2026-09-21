@@ -1,5 +1,9 @@
 import { POOL_LAYER_SIDE, TILE_PITCH } from './textureTiles.ts';
-import { createWebgpuTilePool, type WebgpuTilePool } from './webgpuTilePool.ts';
+import {
+  createWebgpuTilePool,
+  type TilePoolOptions,
+  type WebgpuTilePool,
+} from './webgpuTilePool.ts';
 import type { WebgpuTilePageTable } from './webgpuTilePageTable.ts';
 import { cellOrigin } from './webgpuTileWrite.ts';
 import { tailSlotOf, tileKeyOf } from './webgpuTileIds.ts';
@@ -15,13 +19,16 @@ import { tailSlotOf, tileKeyOf } from './webgpuTileIds.ts';
  */
 export function resizeTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
-  options: { kind: 'color' | 'data'; format: GPUTextureFormat; layers: number },
+  options: TilePoolOptions,
+  tap: number,
   pool: WebgpuTilePool,
   pages: WebgpuTilePageTable,
   resident: Map<number, number>,
 ): { pool: WebgpuTilePool; evicted: number } {
   const next = createWebgpuTilePool(device, options);
-  const encoder = device.createCommandEncoder({ label: `WG texture pool ${options.kind} resize` });
+  const encoder = device.createCommandEncoder({
+    label: `WG texture pool ${options.kind} ${options.lane} resize`,
+  });
   const kept = Math.min(pool.layers, next.layers);
   encoder.copyTextureToTexture({ texture: pool.texture }, { texture: next.texture }, [
     POOL_LAYER_SIDE,
@@ -56,7 +63,7 @@ export function resizeTileAtlas(
       { texture: next.texture, origin: [...cellOrigin(place), place.layer] },
       [TILE_PITCH, TILE_PITCH, 1],
     );
-    if (tail !== undefined) pages.setTail(tail, place);
+    if (tail !== undefined) pages.setTail(tail, place, tap);
     else {
       resident.set(id, target);
       pages.setTile(tileKeyOf(id), place);
