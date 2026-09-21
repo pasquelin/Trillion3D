@@ -2,23 +2,23 @@
 // reread image. No internal state is inspected — the public `setTransform` call on one side,
 // pixels and public counters on the other.
 import * as THREE from 'three';
+import type { RenderBackend } from '../../packages/sdk-browser/backendTypes.ts';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
-import {
-  VIEWPORT,
-  cameraFace,
-  estRouge,
-  image,
-  libere,
-  engine,
-  versApi,
-} from './preuveSceneCommune.ts';
+import { VIEWPORT, cameraFace, libere, engine, versApi } from './preuveSceneCommune.ts';
+import { estRouge, image } from './preuveSceneImage.ts';
 import { executerPasses } from './preuveAppareil.ts';
 import { sceneTransparente } from './transparentTransformScene.ts';
 
 const point = new THREE.Vector3();
 
 /** Colour read where world point `(x, y, z)` projects. Bottom-left origin, like `capture`. */
-function couleurEn(pixels, camera, x, y, z = 0) {
+function couleurEn(
+  pixels: Uint8Array,
+  camera: THREE.PerspectiveCamera,
+  x: number,
+  y: number,
+  z = 0,
+) {
   point.set(x, y, z).project(camera);
   const [w, h] = VIEWPORT;
   const px = Math.min(w - 1, Math.max(0, Math.round(((point.x + 1) / 2) * (w - 1)))),
@@ -28,22 +28,29 @@ function couleurEn(pixels, camera, x, y, z = 0) {
 }
 
 /** True when the read colour carries the tile's red and not the background blue. */
-const rouge = (c) => estRouge(c, 0);
+const rouge = (c: number[]) => estRouge(c, 0);
 
 /** Pure translation on `x`. */
-function translation(x) {
+function translation(x: number) {
   return versApi(new THREE.Matrix4().makeTranslation(x, 0, 0));
 }
 
 /** A sheared matrix: `y` pushes `x`. No translation-rotation-scale decomposition yields it, and
  *  the leaning tile covers a corner a straight tile does not. */
-function cisaillement(x, facteur) {
+function cisaillement(x: number, facteur: number) {
   const m = new THREE.Matrix4().set(1, facteur, 0, x, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
   return versApi(m);
 }
 
 /** A named reading: where the red sits, and what the counters say of the blend. */
-function releve(name, backend, camera, pixels, metriques, sondes) {
+function releve(
+  name: string,
+  backend: RenderBackend,
+  camera: THREE.PerspectiveCamera,
+  pixels: Uint8Array,
+  metriques: ReturnType<RenderBackend['metrics']>,
+  sondes: [number, number][],
+) {
   return {
     name,
     rouge: sondes.map(([x, y]) => rouge(couleurEn(pixels, camera, x, y))),
@@ -58,44 +65,46 @@ function releve(name, backend, camera, pixels, metriques, sondes) {
  * Proof sequence for a given pass: start, node move, parent move, shear, out of view, return,
  * then stabilisation and a move after hold.
  */
-async function sequence(device, pagine, evenements) {
+async function sequence(device: GPUDevice, pagine: boolean, evenements: unknown[]) {
   const s = sceneTransparente(pagine);
   const { backend, canvas } = engine(webgpuPagesBackend, s, device, (e) =>
     evenements.push({ pagine, ...e }),
   );
+  if (!backend.setTransform) throw new Error('backend missing setTransform');
+  const setTransform = backend.setTransform;
   const camera = cameraFace(),
-    etapes = [];
+    etapes: ReturnType<typeof releve>[] = [];
   // Three probes: left, right, and the top-right corner only a sheared tile covers.
-  const sondes = [
+  const sondes: [number, number][] = [
     [-0.8, 0],
     [0.8, 0],
     [0.5, 0.3],
   ];
-  const etape = async (name) => {
+  const etape = async (name: string) => {
     const { pixels, metriques } = await image(backend, camera);
     etapes.push(releve(name, backend, camera, pixels, metriques, sondes));
   };
   try {
     await backend.prepare();
-    backend.setTransform('vitre', translation(-0.8));
+    setTransform('vitre', translation(-0.8));
     await etape('gauche');
-    backend.setTransform('vitre', translation(0.8));
+    setTransform('vitre', translation(0.8));
     await etape('droite');
     // The node comes home; it is the PARENT that carries the move.
-    backend.setTransform('vitre', translation(0));
-    backend.setTransform('pivot', translation(-0.8));
+    setTransform('vitre', translation(0));
+    setTransform('pivot', translation(-0.8));
     await etape('parent-gauche');
-    backend.setTransform('pivot', translation(0));
-    backend.setTransform('vitre', cisaillement(0, 0.9));
+    setTransform('pivot', translation(0));
+    setTransform('vitre', cisaillement(0, 0.9));
     await etape('cisaille');
-    backend.setTransform('vitre', translation(60));
+    setTransform('vitre', translation(60));
     await etape('hors-champ');
-    backend.setTransform('vitre', translation(-0.8));
+    setTransform('vitre', translation(-0.8));
     await etape('retour');
     // Stabilisation: two identical frames, then the held image. The move that follows must
     // break it and show the new location.
     for (let i = 0; i < 6; i++) await etape('stabilisation-' + i);
-    backend.setTransform('vitre', translation(0.8));
+    setTransform('vitre', translation(0.8));
     await etape('apres-tenue');
   } finally {
     libere(backend, canvas, s);

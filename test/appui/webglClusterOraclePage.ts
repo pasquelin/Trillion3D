@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 import { curvedComparison, curvedPixels } from './webglClusterCurvedPage.ts';
 
+/** `curvedComparison(..., true)` either finds no WebGL2 or returns the detailed comparison,
+ *  `raw`/`reference` included; the oracle only ever calls it with `details: true`. */
+function mustDetailed(result: ReturnType<typeof curvedComparison>) {
+  if ('unavailable' in result) throw new Error(result.unavailable);
+  if (!('raw' in result) || !('reference' in result))
+    throw new Error('curvedComparison missing raw/reference detail');
+  return result as typeof result & { raw: Uint8Array; reference: Uint8Array };
+}
+
 const VERTEX = `precision highp float;varying vec3 p,n;void main(){vec4 v=modelViewMatrix*vec4(position,1.);p=v.xyz;n=normalize(normalMatrix*normal);gl_Position=projectionMatrix*v;}`;
 const FRAGMENT = `precision highp float;varying vec3 p,n;const float PI=3.141592653589793;
 vec3 F(float h,vec3 f0){return f0+(1.-f0)*pow(max(0.,1.-h),5.);}
@@ -10,12 +19,12 @@ float nl=max(dot(N,L),0.),nv=max(dot(N,V),1e-4),nh=max(dot(N,H),0.),vh=max(dot(V
 float d0=nh*nh*(a2-1.)+1.,D=a2/(PI*d0*d0),gv=nl*sqrt(nv*nv*(1.-a2)+a2),gl=nv*sqrt(nl*nl*(1.-a2)+a2),vis=.5/(gv+gl+1e-7);
 vec3 fres=F(vh,f0),rgb=((1.-fres)*base*.2/PI+D*vis*fres)*nl;gl_FragColor=vec4(srgb(rgb),1.);}`;
 
-const srgbToLinear = (value) =>
+const srgbToLinear = (value: number) =>
   value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
-const linearToSrgb = (value) =>
+const linearToSrgb = (value: number) =>
   value <= 0.0031308 ? value * 12.92 : 1.055 * Math.pow(value, 1 / 2.4) - 0.055;
 
-const oracle = (size, offset, scale) => {
+const oracle = (size: number, offset: number, scale: number) => {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size * scale;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false }),
@@ -50,14 +59,20 @@ const oracle = (size, offset, scale) => {
   return low;
 };
 
-const errors = (frames, key, oracles, temporal = false) => {
+const errors = (
+  frames: Record<string, unknown>[],
+  key: string,
+  oracles: Uint8Array[],
+  temporal = false,
+) => {
+  const pixelsAt = (frame: number) => frames[frame][key] as Uint8Array;
   let sum = 0,
     count = 0,
     max = 0;
   for (let frame = temporal ? 1 : 0; frame < frames.length; frame++)
     for (let i = 0; i < oracles[frame].length; i += 4)
       for (let c = 0; c < 3; c++) {
-        const actual = frames[frame][key][i + c] - (temporal ? frames[frame - 1][key][i + c] : 0),
+        const actual = pixelsAt(frame)[i + c] - (temporal ? pixelsAt(frame - 1)[i + c] : 0),
           expected = oracles[frame][i + c] - (temporal ? oracles[frame - 1][i + c] : 0),
           delta = Math.abs(actual - expected);
         sum += delta * delta;
@@ -70,7 +85,7 @@ const errors = (frames, key, oracles, temporal = false) => {
 export function curvedOracleQuality() {
   const size = 128,
     offsets = [-0.02, -0.01, 0, 0.01, 0.02],
-    frames = offsets.map((offset) => curvedComparison(size, offset, true)),
+    frames = offsets.map((offset) => mustDetailed(curvedComparison(size, offset, true))),
     oracles = offsets.map((offset) => oracle(size, offset, 8)),
     oracle4 = offsets.map((offset) => ({ value: oracle(size, offset, 4) }));
   return {

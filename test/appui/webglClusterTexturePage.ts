@@ -1,10 +1,17 @@
 import * as THREE from 'three';
+import type { ClusterDrawMesh } from '../../packages/sdk-browser/clusterBatchMesh.ts';
+import type { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
+import type { HostDrawCamera } from '../../packages/sdk-browser/cameraWorld.ts';
+import type { pixel as pixelType } from './webglClusterPixels.ts';
 
-const canvasTexture = (width, paint) => {
+type DrawParams = Parameters<WebglClusterRenderer['draw']>;
+
+const canvasTexture = (width: number, paint: (context: CanvasRenderingContext2D) => void) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = 1;
   const context = canvas.getContext('2d');
+  if (!context) throw new Error('2d context unavailable');
   paint(context);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.NoColorSpace;
@@ -12,14 +19,29 @@ const canvasTexture = (width, paint) => {
   return texture;
 };
 
-const draw = (renderer, gl, mesh, scene, camera, material, pixel) => {
+const draw = (
+  renderer: WebglClusterRenderer,
+  gl: WebGL2RenderingContext,
+  mesh: ClusterDrawMesh,
+  scene: DrawParams[1],
+  camera: HostDrawCamera,
+  material: THREE.Material,
+  pixel: typeof pixelType,
+) => {
   mesh.material = material;
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, camera, false, true);
   return pixel(gl, 16, 16);
 };
 
-export function textureFixtures(renderer, gl, mesh, scene, camera, pixel) {
+export function textureFixtures(
+  renderer: WebglClusterRenderer,
+  gl: WebGL2RenderingContext,
+  mesh: ClusterDrawMesh,
+  scene: DrawParams[1],
+  camera: HostDrawCamera,
+  pixel: typeof pixelType,
+) {
   const previous = mesh.material,
     linear = canvasTexture(1, (context) => {
       context.fillStyle = 'rgb(46,46,46)';

@@ -15,7 +15,20 @@ import { readFile } from 'node:fs/promises';
 export const MEASURE_WIDTH = 2496;
 export const MEASURE_HEIGHT = 1404;
 
-export async function emeraldProvenance(harnessUrl) {
+export interface Provenance {
+  startedAt: string;
+  purpose: string;
+  harnessUrl: string;
+  head: string;
+  hashes: Record<string, string>;
+  width: number;
+  height: number;
+  pixelError: number;
+  warmupFrames: number;
+  baselineOverrides: { file: string; sha256: string }[];
+}
+
+export async function emeraldProvenance(harnessUrl: string): Promise<Provenance> {
   const sourceFiles = [
     'index.ts',
     'webgpuPages.ts',
@@ -31,7 +44,7 @@ export async function emeraldProvenance(harnessUrl) {
     'taaWeights.ts',
     'temporalAntialiasing.ts',
   ];
-  const hashes = {};
+  const hashes: Record<string, string> = {};
   for (const file of sourceFiles)
     hashes[file] = createHash('sha256')
       .update(await readFile(resolve('packages/sdk-browser', file)))

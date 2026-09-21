@@ -1,8 +1,19 @@
-export function createChecks(checks) {
-  const check = (condition, message) => {
+/** One assertion this proof recorded: either an image comparison or a captured pass list. */
+export type CheckRecord =
+  | { name: string; bytes: number; differentChannels: number; maxChannelError: number }
+  | { name: string; passes: EncodedPass[] };
+
+/** A GPU pass as a diagnostic capture names it, enough for the composition-shape checks below. */
+export interface EncodedPass {
+  name: string;
+  colorAttachments?: number;
+}
+
+export function createChecks(checks: CheckRecord[]) {
+  const check = (condition: unknown, message: string) => {
     if (!condition) throw Error(message);
   };
-  const equal = (a, b, name) => {
+  const equal = (a: Uint8Array, b: Uint8Array, name: string) => {
     check(a.length === b.length, name + ': image dimensions differ');
     let differentChannels = 0,
       maxChannelError = 0;
@@ -16,7 +27,7 @@ export function createChecks(checks) {
       name + ': ' + differentChannels + ' channels differ (max ' + maxChannelError + ')',
     );
   };
-  const checkNormalPasses = (name, encoded) => {
+  const checkNormalPasses = (name: string, encoded: EncodedPass[]) => {
     const composition = encoded.filter((pass) => pass.name.startsWith('WG HDR composition'));
     check(
       composition.length === 1 && composition[0].colorAttachments === 2,
