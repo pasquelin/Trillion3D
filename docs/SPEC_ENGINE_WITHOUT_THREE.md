@@ -322,26 +322,30 @@ pinning is proven with a moving camera**, at both thresholds, in addition to the
 R6d. **Transmission is a fullscreen pass, not a forward blend.** A material that transmits —
 `KHR_materials_transmission`, with `KHR_materials_ior` and `KHR_materials_volume`; water, thick
 glass — is composed by the water pass (`webgpuWaterPass.ts`), after the ordinary blends, on the
-image they left. Contract, in three steps and one hook. **(a)** The backdrop is frozen: the lit
-image and the opaque depth are copied once (`webgpuTransmission.ts`), and the opaque depth a second
-time into the depth the surface stage tests. **(b)** The surface stage (`WG water surfaces`) draws
-the transmission slice of the blend plan with the blend vertex stage and the blend material read
-(`webgpuBlendShaderSurface.ts`, the single read of a transparent material, shared with the blend
-fragment), into a surface buffer of the opaque resolve's layout plus the item rank and the opacity
-(`webgpuWaterSurfaceWgsl.ts`); hardware depth is tested against the opaque copy and written, so the
-nearest surface of a pixel is the one composed and a surface behind an opaque never is. **(c)** The
-composite (`WG water composite`, `webgpuWaterCompositeWgsl.ts`) lights each water pixel once, with
-the engine's only lighting formula and its only reflection model — `declaredLighting`,
-`sampleBounce`, the same bindings as the blend pass —, refracts the backdrop by the material IOR
+image they left. Contract, in three steps and one hook (`webgpuWaterFrame.ts` holds the frame side:
+its bind group, its copies and its two passes, rebuilt only when a target or a lighting resource
+changed identity). **(a)** The backdrop is frozen: the lit image is copied once, and the opaque
+depth once into the depth the surface stage tests (`webgpuTransmission.ts`); the composite reads
+the opaque depth itself, which nothing writes in between. **(b)** The surface stage (`WG water
+surfaces`) draws the transmission slice of the blend plan with the blend vertex stage and the blend
+material read (`webgpuBlendShaderSurface.ts`, the single read of a transparent material, shared
+with the blend fragment), into the opaque resolve's own surface buffer — free once that resolve
+consumed it — plus the item's water rank and the opacity (`webgpuWaterSurfaceWgsl.ts`); hardware
+depth is tested against the opaque copy and written, so the nearest surface of a pixel is the one
+composed and a surface behind an opaque never is. **(c)** The composite (`WG water composite`,
+`webgpuWaterCompositeWgsl.ts`) lights each water pixel once, with the engine's only lighting
+formula and its only reflection model — `declaredLighting`, `sampleBounce`, on the deferred bounce
+layout's own binding numbers and WGSL blocks —, refracts the backdrop by the material IOR
 and attenuates it by the volume colour over **the distance the ray travels in the volume: the
 declared thickness, or the distance to the opaque backdrop under the pixel when that is shorter**.
 That bound is what makes the pass water as the reference's single-layer water is: a basin declared
 deeper than its floor renders its floor, a block just below the surface is displaced and tinted by
 its own depth. Over an empty backdrop the transmitted share keeps that emptiness as coverage, and
 the display background shows through. The hook is one line of `encodeBlend`: the pass is encoded
-when the scene transmits and the frame carries an inverse projection; a diagnostic view or variant
-draws the slice as one more blend. Nothing is bound per item any more: the material volume is read
-by rank in a storage buffer, the blend layout lost its three transmission bindings, and the
+when the frustum kept a transmissive surface; a diagnostic view or variant, or a capture from a
+second camera, draws the slice as one more blend. Nothing is bound per item any more: the material
+volume is read by water rank — carried above the item's flags, compact over the transmissive items
+— in a storage buffer sized to them, the blend layout lost its three transmission bindings, and the
 transmission slice merges its runs on the blend's terms. Declared limits, shared with the forward
 pass that preceded: one screen-space sample at the exit, never a march, so a ray that crosses an
 object before its exit does not see it; no transmissive surface sees through another. Criterion:
