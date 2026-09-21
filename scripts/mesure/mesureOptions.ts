@@ -9,6 +9,7 @@ import type {
 } from '../../packages/sdk-core/index.ts';
 import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
 import type { ScreenErrorVariant } from '../../packages/sdk-core/index.ts';
+import type { TextureCompression } from '../../packages/sdk-browser/textureBlockFormats.ts';
 import type { MovingLightPlan } from './lampes.ts';
 import type { Coupe, MovingNode, ReglageVivant, Reseau } from './report/types.ts';
 
@@ -51,6 +52,8 @@ export interface MeasureViewOptions {
   shadowDigest: boolean;
   textureSource: 'cache' | 'host';
   textureUploadMs: number | null;
+  /** Block format asked of the texture pools; `undefined` leaves the engine's own choice. */
+  textureCompression: TextureCompression | undefined;
   temporalAntialiasing: boolean;
   mathPath: 'js' | 'wasm' | null;
   movingNode: string | null;
