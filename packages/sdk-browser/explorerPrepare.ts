@@ -1,5 +1,4 @@
-import * as THREE from 'three';
-import type { RenderBackend } from './backendTypes.ts';
+import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import { configureExplorer } from './explorerCapabilities.ts';
 import { prepareExplorerBackends } from './explorerBackends.ts';
 import { createExplorerCamera } from './explorerCamera.ts';
@@ -9,7 +8,7 @@ import type { ExplorerSession } from './explorerSession.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 export type ExplorerResources = {
-  source?: THREE.Object3D;
+  source?: BackendContext['source'];
   webglSurface?: WebglSurface;
   gpuDevice?: GPUDevice;
 };
