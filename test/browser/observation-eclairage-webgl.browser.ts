@@ -1,7 +1,7 @@
 // The transport experiment's observation drawn by the engine's program: the image the host
 // shader material drew, from the same records, and the public backend composed like any engine.
 //
-//   node --experimental-strip-types test/browser/observation-eclairage-webgl.browser.mjs
+//   node --experimental-strip-types test/browser/observation-eclairage-webgl.browser.ts
 import assert from 'node:assert/strict';
 import {
   preuveDansLaPage,

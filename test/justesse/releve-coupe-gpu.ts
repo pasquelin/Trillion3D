@@ -18,7 +18,6 @@ import {
 import type { executer, Ligne } from './releveCoupePage.ts';
 
 declare global {
-  // eslint-disable-next-line no-var
   var releveCoupe: { executer: typeof executer };
 }
 

@@ -12,8 +12,6 @@ import { drawnPageIds, indirectDraws, installGpuGlobals } from './webgpuPagesTes
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, mixedBinScene, quadBackend } from './webgpuPagesTestScenes.ts';
 
-/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
   installGpuGlobals();
   const { source, metadata, indices, associations, geometry, material } = quadScene();

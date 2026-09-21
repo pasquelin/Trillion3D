@@ -14,8 +14,6 @@ import {
 } from './pagesBackendScenes.ts';
 import { submittedDraws } from './clusterBatchMesh.ts';
 
-/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-
 test('source instance transforms update all three WebGL backends without rebuilding pages', () => {
   for (const factory of [referenceBackend, exactPagesBackend, threeLodBackend]) {
     const geometry = new THREE.BufferGeometry();

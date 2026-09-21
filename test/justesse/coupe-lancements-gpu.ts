@@ -14,7 +14,6 @@ import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
 import type { executer } from './coupeLancementsPage.ts';
 
 declare global {
-  // eslint-disable-next-line no-var
   var coupeLancements: { executer: typeof executer };
 }
 
