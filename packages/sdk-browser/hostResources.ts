@@ -120,7 +120,9 @@ export type HostScene = HostNode & {
 /**
  * The crossing back: a host resource handed to the library its owner wrote it with. Only a
  * boundary file may call it — a witness engine or a host adapter, both declared by
- * `test/integration/moteur-sans-three.test.ts` — and only to give the resource back to its
- * owner. The engine never casts a contract into a calculation of its own.
+ * `test/integration/moteur-sans-three.test.ts`, which fails on any other caller — and only to
+ * give the resource back to its owner. Reading a contract through another of the engine's own
+ * shapes is not this crossing and does not come through here: `asWholeMesh` of
+ * `clusterBatchMesh.ts` is that reading for a mesh the engine placed and draws whole.
  */
 export const asHostLibrary = <T>(resource: unknown) => resource as T;
