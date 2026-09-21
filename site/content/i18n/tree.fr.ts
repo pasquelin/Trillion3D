@@ -1,4 +1,6 @@
-export const treeFr = {
+import type { LocaleOverlay } from './entryOverlay.ts';
+
+export const treeFr: LocaleOverlay = {
   multiplyMatrix4Batch: {
     description:
       '`n` produits `out[i] = a[i] · b[i]`, sur des sous-vues de seize nombres créées une seule fois. Un noyau WebAssembly répète la même formule et le gouverneur choisit le chemin mesuré le plus rapide.',

@@ -1,3 +1,5 @@
+import type { PortalEntry } from '../model.ts';
+
 /** The transform tree: the engine's scene graph, data-oriented. */
 const T = {
   section: 'tree',
@@ -5,7 +7,7 @@ const T = {
   module: 'packages/sdk-core/mathTransformTree.ts',
 };
 
-export const TREE = [
+export const TREE: PortalEntry[] = [
   {
     ...T,
     id: 'createTransformTree',

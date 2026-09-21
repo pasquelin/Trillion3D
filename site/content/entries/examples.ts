@@ -1,8 +1,9 @@
 import { engineExampleCode } from '../../lessons/engine-scene/code.ts';
+import type { PortalEntry } from '../model.ts';
 /** Application examples: code in `example`, rendered by the React Entry component. */
 const EXAMPLE = { section: 'examples', kind: 'Example' };
 
-export const EXAMPLES = [
+export const EXAMPLES: PortalEntry[] = [
   {
     ...EXAMPLE,
     id: 'example-many-lights',
