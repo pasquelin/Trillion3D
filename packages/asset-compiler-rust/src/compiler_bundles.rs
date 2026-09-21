@@ -1,7 +1,6 @@
 use super::*;
 
 pub(super) fn share_bootstrap_bundles(o: &Options, primitives: &mut [Value]) -> Result<usize> {
-    let objects = o.cache.join("native").join("objects");
     // (primitive, bundle) of every pinned bundle, in manifest order: the packing is deterministic.
     let mut members: Vec<(usize, usize)> = Vec::new();
     for (index, primitive) in primitives.iter().enumerate() {
@@ -47,7 +46,7 @@ pub(super) fn share_bootstrap_bundles(o: &Options, primitives: &mut [Value]) -> 
         }
         let chunk = payloads.len() - 1;
         let offset = payloads[chunk].len();
-        let source = fs::read(objects.join(format!("{digest}.bin")))?;
+        let source = fs::read(object_path(o, &digest))?;
         if source.len() != bytes {
             return Err(CompilerError::new(
                 "INVALID_CLUSTER_PARTITION",
@@ -62,8 +61,8 @@ pub(super) fn share_bootstrap_bundles(o: &Options, primitives: &mut [Value]) -> 
     let mut names = Vec::with_capacity(payloads.len());
     for payload in &payloads {
         let digest = hash(payload);
-        let target = objects.join(format!("{digest}.bin"));
-        if !(target.exists() && hash_file(&target)? == digest) {
+        let target = object_path(o, &digest);
+        if object_intact(&target, &digest)?.is_none() {
             store_object(&target, payload)?;
         }
         names.push(digest);

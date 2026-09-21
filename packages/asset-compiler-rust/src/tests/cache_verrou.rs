@@ -3,10 +3,10 @@ use super::*;
 /// Cache consistency held regardless of outcome: published pointer names key whose
 /// folder exists, and each page named by sidecar columns is still on
 /// disk. Exactly what concurrent purge destroys.
-fn assert_cache_coherent(cache: &Path, scope: &str) {
-    let pointer = read_json(&cache.join("native").join(scope).join("manifest.json"));
+fn assert_cache_coherent(o: &Options) {
+    let pointer = read_json(&o.scope_directory().join("manifest.json"));
     let key = pointer["key"].as_str().expect("pointer key");
-    let directory = cache.join("native").join(scope).join(key);
+    let directory = o.key_directory(key);
     assert!(
         directory.join("clusters.json").exists(),
         "the pointer names {key}, whose directory is gone"
@@ -14,10 +14,7 @@ fn assert_cache_coherent(cache: &Path, scope: &str) {
     let binary = fs::read(directory.join(MANIFEST_BINARY_FILE)).expect("sidecar");
     for digest in manifest_binary::digests(&binary).expect("sidecar columns") {
         assert!(
-            cache
-                .join("native/objects")
-                .join(format!("{digest}.bin"))
-                .exists(),
+            object_path(o, &digest).exists(),
             "the page {digest} the manifest names is gone"
         );
     }
@@ -56,7 +53,7 @@ fn a02_deux_fils_sur_un_meme_cache_laissent_un_pointeur_lisible() {
             outcomes.iter().any(Result::is_ok),
             "at least one compilation succeeds"
         );
-        assert_cache_coherent(&first.cache, "full");
+        assert_cache_coherent(&first);
         fs::remove_dir_all(first_root).expect("cleanup");
         fs::remove_dir_all(second_root).expect("cleanup");
     }

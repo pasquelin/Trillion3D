@@ -1,7 +1,7 @@
 //! Fast path (#47), what the proof refuses: a corrupted product, a bake the
 //! compile could not finish, a missing answer sheet — and what it counts when
 //! several textures share one image.
-use super::reuse::{compile_with_events, key_directory, textured};
+use super::reuse::{compile_with_events, textured};
 use super::*;
 
 // Behaviour: a folder whose compile could not write a level file — the report
@@ -11,8 +11,9 @@ use super::*;
 fn an_unfinished_bake_is_not_reused() {
     let (root, options) = textured();
     let (first, _) = compile_with_events(&options);
-    let manifest_path =
-        key_directory(&options, first["key"].as_str().unwrap()).join("clusters.json");
+    let manifest_path = options
+        .key_directory(first["key"].as_str().unwrap())
+        .join("clusters.json");
     let mut manifest = read_json(&manifest_path);
     manifest["texturePreviews"]["notes"][texture_preview::LEVEL_WRITE_FAILED] = json!(1);
     fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).expect("tamper");
@@ -83,7 +84,9 @@ fn shared_image_levels_are_counted_once() {
     write_gltf(&options, &gltf, None);
     let (first, _) = compile_with_events(&options);
     let sidecar = fs::read(
-        key_directory(&options, first["key"].as_str().unwrap()).join(MANIFEST_BINARY_FILE),
+        options
+            .key_directory(first["key"].as_str().unwrap())
+            .join(MANIFEST_BINARY_FILE),
     )
     .expect("sidecar");
     let entries = manifest_binary::texture_levels(&sidecar).expect("levels");
@@ -100,7 +103,7 @@ fn shared_image_levels_are_counted_once() {
 fn corrupted_entry_is_rejected_and_rebuilt() {
     let (root, options) = textured();
     let (first, _) = compile_with_events(&options);
-    let directory = key_directory(&options, first["key"].as_str().unwrap());
+    let directory = options.key_directory(first["key"].as_str().unwrap());
     let native = options.cache.join("native");
     let sidecar = fs::read(directory.join(MANIFEST_BINARY_FILE)).expect("sidecar");
     let object = manifest_binary::digests(&sidecar)
@@ -118,11 +121,10 @@ fn corrupted_entry_is_rejected_and_rebuilt() {
         texture_preview::AtlasKind::from_word(kind).unwrap(),
         0,
     ));
-    let object_path = native.join("objects").join(format!("{object}.bin"));
     let corruptions: [(&str, PathBuf, Option<&[u8]>); 4] = [
         (
-            "does not match its name",
-            object_path.clone(),
+            "does not match its fingerprint",
+            object_path(&options, &object),
             Some(b"corrupt"),
         ),
         (

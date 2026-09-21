@@ -1,4 +1,5 @@
 use super::*;
+use compiler_autonomous::write_autonomous_scene;
 
 pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
@@ -67,7 +68,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         view_map,
         estimated_working_bytes,
     } = plan_buffers(o, g, bin, g_bytes, &meshes)?;
-    let (directory, offset, output_views) = copy_source_bin(o, bin, view_values, &views, &key)?;
+    let (directory, output_views, source_bin) = copy_source_bin(o, bin, view_values, &views, &key)?;
+    let offset = source_bin.bytes as usize;
     let import_ms = shared_math::elapsed_ms(started);
     progress(
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
@@ -111,7 +113,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     };
     let coplanar_report =
         compiler_coplanar::stage_depth_layers(&scene, &mut primitives, &progress)?;
-    let source = write_source_scene(SourceSceneInputs {
+    let (source, source_gltf) = write_source_scene(SourceSceneInputs {
         g,
         o,
         meshes: &meshes,
@@ -164,13 +166,11 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Lights declared by the source file, in world space, in the engine contract.
-    stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
-    let (autonomous_scene, autonomous_refusal) = compiler_autonomous::write_autonomous_scene(
-        &directory,
-        &source,
-        &primitives,
-        &output_views,
-    )?;
+    let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
+    let (autonomous_scene, autonomous_refusal, scene) =
+        write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
+    let mut products = vec![source_bin, source_gltf, lights];
+    products.extend(scene);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
     let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
@@ -181,6 +181,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             directory: &directory,
             cache_format,
             proxy_bytes: &proxy_bytes,
+            proxy_sha: &proxy_sha,
+            products: &products,
             previews: &texture_previews,
         },
         &result,
