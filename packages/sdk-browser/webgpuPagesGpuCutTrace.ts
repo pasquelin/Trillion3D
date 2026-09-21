@@ -11,7 +11,8 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
   steps[CPU_STEP.gateMs] = m.gateEnd - m.preStart;
-  steps[CPU_STEP.tilesPumpMs] = m.tilesEnd - m.gateEnd;
+  // A pump with no feedback to serve did nothing at all, not zero work: no bound is filed.
+  steps[CPU_STEP.tilesPumpMs] = rt.vis.textures?.counters.worked ? m.tilesEnd - m.gateEnd : NaN;
   steps[CPU_STEP.worldMs] = m.blendStart - m.tilesEnd;
   steps[CPU_STEP.blendWorldMs] = m.cpuStart - m.blendStart;
   steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart;
