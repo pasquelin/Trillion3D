@@ -86,14 +86,7 @@ test('configureSceneCamera enables wheel zoom on controls within distance limits
 });
 
 test('RendererViewport renders the diagnostic mode select with all active modes in French and English', async () => {
-  const { RendererViewport, DIAGNOSTIC_MODES } = await loadReactComponents(
-    'docs/react/gallery/RendererViewport.jsx',
-  );
-  assert.equal(DIAGNOSTIC_MODES.length, 7);
-  assert.deepEqual(
-    DIAGNOSTIC_MODES.map((m) => m.id),
-    ['beauty', 'wireframe', 'clusters', 'pages', 'lod', 'screen-error', 'visibility'],
-  );
+  const { RendererViewport } = await loadReactComponents('docs/react/gallery/RendererViewport.jsx');
 
   const htmlEn = renderToStaticMarkup(
     createElement(RendererViewport, {
@@ -105,8 +98,13 @@ test('RendererViewport renders the diagnostic mode select with all active modes 
   );
   assert.match(htmlEn, /data-renderer-diagnostic/);
   assert.match(htmlEn, /aria-label="Render mode"/);
+  assert.match(htmlEn, /<option value="beauty"[^>]*>Image<\/option>/);
   assert.match(htmlEn, /<option value="wireframe">Triangles<\/option>/);
   assert.match(htmlEn, /<option value="clusters">Clusters<\/option>/);
+  assert.match(htmlEn, /<option value="pages">Pages<\/option>/);
+  assert.match(htmlEn, /<option value="lod">Level of detail<\/option>/);
+  assert.match(htmlEn, /<option value="screen-error">Screen error<\/option>/);
+  assert.match(htmlEn, /<option value="visibility">Visibility<\/option>/);
 
   const htmlFr = renderToStaticMarkup(
     createElement(RendererViewport, {
@@ -117,7 +115,11 @@ test('RendererViewport renders the diagnostic mode select with all active modes 
     }),
   );
   assert.match(htmlFr, /aria-label="Mode de rendu"/);
+  assert.match(htmlFr, /<option value="beauty"[^>]*>Image<\/option>/);
   assert.match(htmlFr, /<option value="wireframe">Triangles<\/option>/);
   assert.match(htmlFr, /<option value="clusters">Groupes<\/option>/);
+  assert.match(htmlFr, /<option value="pages">Pages<\/option>/);
   assert.match(htmlFr, /<option value="lod">Niveau de détail<\/option>/);
+  assert.match(htmlFr, /<option value="screen-error">Erreur écran<\/option>/);
+  assert.match(htmlFr, /<option value="visibility">Visibilité<\/option>/);
 });
