@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary } from '../../hostResources.ts';
 import type { PageRec } from '../../pageSelection.ts';
 
 /**
@@ -19,22 +20,26 @@ export function referenceAutonomousSync({
   const affichees = new Set<PageRec>();
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
-      scene.remove(rec.mesh);
+      scene.remove(asHostLibrary<THREE.Object3D>(rec.mesh));
       rec.attached = false;
     }
   };
   const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
     if (!rec.mesh) {
-      const mesh = new THREE.Mesh(rec.geometry, rec.material);
+      const mesh = new THREE.Mesh(
+        asHostLibrary<THREE.BufferGeometry>(rec.geometry),
+        asHostLibrary<THREE.Material>(rec.material),
+      );
       mesh.matrixAutoUpdate = false;
       mesh.frustumCulled = false;
       mesh.renderOrder = rec.renderOrder;
       rec.mesh = mesh;
     }
-    rec.mesh.matrix.copy(rec.matrix);
+    const placed = asHostLibrary<THREE.Mesh>(rec.mesh);
+    placed.matrix.fromArray(rec.matrix.elements);
     if (!rec.attached) {
-      scene.add(rec.mesh);
+      scene.add(placed);
       rec.attached = true;
     }
   };
