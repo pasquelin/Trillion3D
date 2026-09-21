@@ -1,5 +1,5 @@
 import { IDENTITY_MATRIX4, type Side } from '../sdk-core/index.ts';
-import type { HostAttributes, HostMaterials } from './hostResources.ts';
+import type { HostAttributes, HostMaterials, HostMesh } from './hostResources.ts';
 import type { DrawRanges } from './clusterBatchRange.ts';
 import type { ClusterDraw } from './clusterBatches.ts';
 import { firstMaterial, sideOf } from './materialSide.ts';
@@ -24,6 +24,11 @@ export type WholeMesh = {
   material: HostMaterials;
   matrix: { elements: ArrayLike<number> };
 };
+
+/** The whole-mesh reading of a host mesh the engine placed itself: the same object, seen through
+ *  the fields a diagnostic submission draws. It stays inside the engine's own shapes — the
+ *  crossing back to the host library is `asHostLibrary`, and this is not one. */
+export const asWholeMesh = (mesh: HostMesh): WholeMesh => mesh as unknown as WholeMesh;
 
 /** A backend whose paged clusters the engine's program draws publishes its submissions here.
  *  The raster oracle and the tests read them; a host never does, so the public backend
