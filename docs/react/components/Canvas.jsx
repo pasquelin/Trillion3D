@@ -21,9 +21,9 @@ export function Canvas({
         {...props}
       />
       {pending && <Loading label={loadingLabel} />}
-      {overlay}
+      {overlay && <div className="canvas-overlay absolute top-3 left-3 z-20">{overlay}</div>}
       {actions.length > 0 && (
-        <div className="canvas-actions absolute top-3 right-3 z-20 join rounded-box bg-base-100/90 shadow-sm">
+        <div className="canvas-overlay absolute top-3 right-3 z-20 join rounded-box bg-base-100/90 shadow-sm">
           {actions.map(({ label: actionLabel, symbol, ...buttonProps }) => (
             <Button
               key={actionLabel}

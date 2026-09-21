@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFile } from 'node:fs/promises';
 import { loadReactComponents } from './docs/render-react.mjs';
 const { Canvas } = await loadReactComponents('docs/react/components/Canvas.jsx');
+const { DIAGNOSTIC_MODES } = await import('../docs/js/engine-scene/diagnosticModes.js');
+const { sceneCopy } = await import('../docs/js/engine-scene/content.js');
 
 test('a pending canvas stays mounted behind one loading state and disables its actions', () => {
   const html = renderToStaticMarkup(
@@ -29,18 +31,20 @@ test('switching renderer lessons remounts the pending viewport', async () => {
   assert.match(source, /<RendererViewport\s+key=\{lesson\.id\}/);
 });
 
-test('a canvas renders an overlay element and places it inside the canvas frame', () => {
+test('a canvas frames its overlay in the hover-revealed chrome next to the actions', () => {
   const html = renderToStaticMarkup(
     createElement(Canvas, {
       label: 'Scene',
-      overlay: createElement('div', { className: 'canvas-modes' }, 'Diagnostic'),
+      overlay: createElement('span', null, 'Diagnostic'),
+      actions: [{ label: 'Reset', symbol: '↺' }],
     }),
   );
   assert.match(html, /<div class="engine-canvas-frame/);
-  assert.match(html, /<div class="canvas-modes">Diagnostic<\/div>/);
+  assert.match(html, /<div class="canvas-overlay[^"]*"><span>Diagnostic<\/span><\/div>/);
+  assert.equal(html.match(/class="canvas-overlay/g).length, 2);
 });
 
-test('configureSceneCamera enables wheel zoom on controls within distance limits', async () => {
+test('configureSceneCamera clamps the distance and leaves wheel zoom enabled', async () => {
   const { configureSceneCamera } = await import('../docs/js/engine-scene/cameraControls.js');
   let homeReset = false;
   const explorer = {
@@ -51,75 +55,36 @@ test('configureSceneCamera enables wheel zoom on controls within distance limits
   };
   const controls = {
     target: { copy() {} },
-    object: {
-      position: {
-        distanceTo() {
-          return 10;
-        },
-        clone() {
-          return {
-            sub() {
-              return this;
-            },
-            length() {
-              return 10;
-            },
-            setLength() {},
-          };
-        },
-        copy() {
-          return { add() {} };
-        },
-      },
-    },
-    enableZoom: false,
+    object: { position: { distanceTo: () => 10 } },
     minDistance: 0,
     maxDistance: 0,
     update() {},
   };
-  const camera = configureSceneCamera(explorer, controls);
-  camera.reset();
+  configureSceneCamera(explorer, controls).reset();
   assert.equal(homeReset, true);
-  assert.equal(controls.enableZoom, true);
+  assert.equal(controls.enableZoom, undefined);
   assert.equal(controls.minDistance, 1.5);
   assert.equal(controls.maxDistance, 25);
 });
 
-test('RendererViewport renders the diagnostic mode select with all active modes in French and English', async () => {
+test('RendererViewport offers every shared diagnostic mode with the scene copy of each locale', async () => {
   const { RendererViewport } = await loadReactComponents('docs/react/gallery/RendererViewport.jsx');
-
-  const htmlEn = renderToStaticMarkup(
-    createElement(RendererViewport, {
-      lesson: { id: 'test-lesson' },
-      state: {},
-      locale: 'en',
-      label: 'Viewport',
-    }),
-  );
-  assert.match(htmlEn, /data-renderer-diagnostic/);
-  assert.match(htmlEn, /aria-label="Render mode"/);
-  assert.match(htmlEn, /<option value="beauty"[^>]*>Image<\/option>/);
-  assert.match(htmlEn, /<option value="wireframe">Triangles<\/option>/);
-  assert.match(htmlEn, /<option value="clusters">Clusters<\/option>/);
-  assert.match(htmlEn, /<option value="pages">Pages<\/option>/);
-  assert.match(htmlEn, /<option value="lod">Level of detail<\/option>/);
-  assert.match(htmlEn, /<option value="screen-error">Screen error<\/option>/);
-  assert.match(htmlEn, /<option value="visibility">Visibility<\/option>/);
-
-  const htmlFr = renderToStaticMarkup(
-    createElement(RendererViewport, {
-      lesson: { id: 'test-lesson' },
-      state: {},
-      locale: 'fr',
-      label: 'Viewport',
-    }),
-  );
-  assert.match(htmlFr, /aria-label="Mode de rendu"/);
-  assert.match(htmlFr, /<option value="beauty"[^>]*>Image<\/option>/);
-  assert.match(htmlFr, /<option value="wireframe">Triangles<\/option>/);
-  assert.match(htmlFr, /<option value="clusters">Groupes<\/option>/);
-  assert.match(htmlFr, /<option value="pages">Pages<\/option>/);
-  assert.match(htmlFr, /<option value="lod">Niveau de détail<\/option>/);
-  assert.match(htmlFr, /<option value="screen-error">Erreur écran<\/option>/);
-  assert.match(htmlFr, /<option value="visibility">Visibilité<\/option>/);
+  for (const locale of ['en', 'fr']) {
+    const copy = sceneCopy[locale];
+    const html = renderToStaticMarkup(
+      createElement(RendererViewport, {
+        lesson: { id: 'test-lesson' },
+        state: {},
+        locale,
+        label: 'Viewport',
+      }),
+    );
+    assert.match(
+      html,
+      new RegExp(`<select[^>]*aria-label="${copy.mode}"[^>]*data-renderer-diagnostic`),
+    );
+    for (const mode of DIAGNOSTIC_MODES)
+      assert.match(html, new RegExp(`<option value="${mode}"[^>]*>${copy[mode]}</option>`));
+    assert.equal(html.match(/<option /g).length, DIAGNOSTIC_MODES.length);
+  }
 });
