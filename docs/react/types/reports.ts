@@ -6,7 +6,7 @@ export type RunStatus = (typeof RUN_STATUSES)[number];
 
 export type MetricKey = keyof typeof METRICS;
 
-export interface ReportRun {
+interface ReportRun {
   id: string;
   name: string;
   scene: string | null;
