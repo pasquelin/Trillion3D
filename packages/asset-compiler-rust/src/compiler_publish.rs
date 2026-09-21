@@ -65,7 +65,7 @@ fn folder_files(directory: &Path) -> Result<Value> {
         if transient || !entry.file_type()?.is_file() {
             continue;
         }
-        let (sha256, bytes) = (hash_file(&entry.path())?, entry.metadata()?.len());
+        let (sha256, bytes) = hash_file_sized(&entry.path())?;
         files.insert(name.to_string(), json!({"sha256":sha256,"bytes":bytes}));
     }
     Ok(Value::Object(files))
