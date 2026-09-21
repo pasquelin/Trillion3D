@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { apiScenario } from '../docs/js/gallery/apiScenario.js';
-import { evaluate } from '../docs/js/gallery/evaluate.js';
+import { apiScenario } from '../site/lessons/apiScenario.ts';
+import { evaluate } from '../site/lessons/evaluate.ts';
 
 test('API functions resolve to a visual example', () => {
   assert.equal(apiScenario('crossVector3'), 'cross-product');
