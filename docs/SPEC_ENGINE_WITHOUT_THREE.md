@@ -117,8 +117,9 @@ preparation with a named error instead of a partial image. What remains of the a
 composition host of the non-transmissive blended copies, the comparison compositor, captures and
 held frames (#85).
 
-The first stage of #85 measured that remainder before touching it — at most 0.1 ms of the CPU
-frame on `exact-cluster-pages`, no gain to claim (the numbers in `docs/API.md`, batch E6) — and
+The first stage of #85 measured that remainder before touching it — at most 0.3 ms of the CPU
+frame on `exact-cluster-pages`, 0.1 ms p95 per host segment, no gain to claim (the numbers in
+`docs/API.md`, batch E6) — and
 made the engine surface the session's WebGL2 authority, the Three adapter a detail of the
 composition host alone. The stages that follow replace what that host still needs it for — held
 frame and render targets on engine framebuffers, comparison on an engine program, the witnesses

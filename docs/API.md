@@ -166,10 +166,12 @@ composition host mounts it as its draw adapter, next to the compositor, the pres
 scene drawer it still serves, and nowhere else; capabilities, preparation, the loss fallback, the
 frame timer and the pixel readback read the engine's surface. Measured first, on
 `exact-cluster-pages` (Emerald Square, general view, moving camera, 1280 × 720, DPR 1, 0 px,
-three runs of 60 frames, commit 8d7ad744, the split in the pull request): the host pass — clear,
-`render` of the light group, held-frame copy — holds 0.0 ms p50 / 0.1 ms p95 of a 13 ms CPU frame
-(spread 0.5 ms) and nothing of the 16.7 ms envelope, which sits on the display cap. **No gain is
-claimed:** the batch is the removal, and the 5.7 ms of the submit are the engine's own program.
+three runs of 60 frames, commit 8d7ad744, the split in the pull request): each of the three host
+segments — clear, `render` of the light group, held-frame copy — reads 0.0 ms p50 / 0.1 ms p95,
+so the host pass holds at most 0.3 ms of a 13 ms CPU frame (spread 0.5 ms; percentiles do not
+add, the bound is their sum) and nothing of the 16.7 ms envelope, which sits on the display cap.
+**No gain is claimed:** the batch is the removal, and the 5.7 ms of the submit are the engine's
+own program.
 
 | Function or contract                                         | Computes                                                                                                                                | Replaces                                                                            | Proof                                                                                   |
 | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
