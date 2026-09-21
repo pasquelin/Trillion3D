@@ -15,6 +15,7 @@ import type { PageRec } from './pageSelection.ts';
 function fakeGeometryStore() {
   return {
     state: { allocationBytes: 0, submittedTriangles: 0 },
+    colorMaterials: new Map(),
     detach: () => {},
     sync: () => {},
     geometryBytes: () => 0,
