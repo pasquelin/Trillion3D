@@ -60,4 +60,5 @@ const ENGINE_NAMES: Record<string, string> = {
   'three-nu': 'Three.js',
   'three-lod': 'Three.js LOD',
 };
-export const engineName = (id: string) => ENGINE_NAMES[id] ?? id ?? '—';
+export const engineName = (id: string | undefined) =>
+  id === undefined ? '—' : (ENGINE_NAMES[id] ?? id);

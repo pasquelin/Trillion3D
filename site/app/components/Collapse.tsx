@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import type { CardProps } from '../types/components.ts';
 import { surfaceClass } from './UI.tsx';
+import type { CardProps } from './UI.tsx';
 
 interface CollapseProps {
   title: ReactNode;

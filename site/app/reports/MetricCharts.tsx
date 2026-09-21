@@ -8,7 +8,8 @@ import { ChartGrid } from '../components/ChartGrid.tsx';
 import { BarChart } from '../components/BarChart.tsx';
 import { Collapse } from '../components/Collapse.tsx';
 import { Table } from '../components/Table.tsx';
-import type { MetricKey, Report, ReportRecord } from '../types/reports.ts';
+import type { Report, ReportRecord } from '../../reports/types.ts';
+import type { MetricKey } from '../../reports/metrics.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface MetricChartsProps {

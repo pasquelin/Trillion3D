@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-
-const root = new URL('../site/lessons/', import.meta.url);
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
+import { codeFor } from '../site/lessons/code.ts';
+import { evaluate } from '../site/lessons/evaluate.ts';
+import { geometryFor } from '../site/lessons/sceneGeometry.ts';
+import { draw, legendAnchors } from '../site/lessons/draw.ts';
+import { initialState } from '../site/lessons/scenarios.ts';
+import { examples } from '../site/content/catalog.ts';
+import { rendererLessons } from '../site/lessons/rendererLessons.ts';
+
+const root = new URL('../site/lessons/', import.meta.url);
 const { Gallery, Playground } = await loadReactComponents('site/app/gallery/index.tsx');
 const { ExampleCard } = await loadReactComponents('site/app/gallery/ExampleCard.tsx');
 const { Home } = await loadReactComponents('site/app/portal/Home.tsx');
@@ -13,13 +20,6 @@ const { CodeBlock } = await loadReactComponents('site/app/components/CodeBlock.t
 const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
 const renderPlayground = (id, locale) =>
   renderToStaticMarkup(createElement(Playground, { id, locale }));
-const { codeFor } = await import(new URL('code.ts', root));
-const { evaluate } = await import(new URL('evaluate.ts', root));
-const { geometryFor } = await import(new URL('sceneGeometry.ts', root));
-const { draw, legendAnchors } = await import(new URL('draw.ts', root));
-const { initialState } = await import(new URL('scenarios.ts', root));
-const { examples } = await import('../site/content/catalog.ts');
-const { rendererLessons } = await import(new URL('rendererLessons.ts', root));
 const mathExamples = examples.filter(({ renderer }) => !renderer);
 
 test('gallery exposes bilingual math and public renderer lessons', () => {

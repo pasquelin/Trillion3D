@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { WebGPUCanvasProps } from '../types/gallery.ts';
+import type { WebGPUCanvasProps } from './WebGPUCanvas.tsx';
 import { Accordion } from '../components/Accordion.tsx';
 import { draw } from '../../lessons/draw.ts';
 import { evaluate } from '../../lessons/evaluate.ts';

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { ChartTone } from '../types/components.ts';
+import type { ChartTone } from './BarChart.tsx';
 
 const TONES: Record<ChartTone, string> = {
   primary: 'badge-primary',

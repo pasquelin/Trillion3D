@@ -1,16 +1,19 @@
 import type { Locale } from '../content/locale.ts';
 import { engineName, runName, viewName } from './names.ts';
-import type { Report, ReportRecord } from './types.ts';
+import type { Report, ReportRecord, SourceReadingRecord } from './types.ts';
+
+/** What a reading's label reads: a report record carries it all, a source reading part of it. */
+type Reading = Pick<SourceReadingRecord, 'runId' | 'engine' | 'view' | 'quality' | 'canvas'>;
 
 export const sceneName = (id: string | null | undefined) =>
   (id ?? '—').replaceAll('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-export const runOf = (report: Report, record: ReportRecord) =>
+export const runOf = (report: Report, record: Reading) =>
   report.runs.find((r) => r.id === record.runId)?.name ?? '';
-export function readingName(record: ReportRecord | null | undefined, locale: Locale) {
+export function readingName(record: Reading | null | undefined, locale: Locale) {
   if (!record) return '—';
   return `${engineName(record.engine)} · ${viewName(record.view ?? '—', locale)} · ${record.quality ?? '—'} px`;
 }
-export function recordLabel(report: Report, record: ReportRecord, locale: Locale) {
+export function recordLabel(report: Report, record: Reading, locale: Locale) {
   const size = record.canvas ? `${record.canvas.width} × ${record.canvas.height}` : '—';
   return `${runName(runOf(report, record), locale)} · ${readingName(record, locale)} · ${size}`;
 }

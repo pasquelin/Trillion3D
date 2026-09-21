@@ -29,7 +29,7 @@ export type ResolvedPage =
   | { kind: 'api-index' }
   | { kind: 'not-found' };
 
-export const DEFAULT_ROUTE: PortalRoute = Object.freeze({
+const DEFAULT_ROUTE: PortalRoute = Object.freeze({
   locale: 'en',
   area: 'learn',
   id: 'home',

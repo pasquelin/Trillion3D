@@ -1,6 +1,10 @@
 import { createContext, useContext, useId } from 'react';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
-import type { CardProps } from '../types/components.ts';
+
+export interface CardProps extends Omit<ComponentPropsWithoutRef<'section'>, 'title'> {
+  title?: ReactNode;
+  surface?: 'default' | 'nested' | 'inset';
+}
 
 interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'outline';

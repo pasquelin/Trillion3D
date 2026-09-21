@@ -14,7 +14,7 @@ import { CampaignRuns } from './CampaignRuns.tsx';
 import { AllReadings } from './AllReadings.tsx';
 import { Findings } from './Findings.tsx';
 import { References } from './References.tsx';
-import type { PortalRoute } from '../types/portal.ts';
+import type { PortalRoute } from '../portal/routes.ts';
 
 interface ReportProps {
   route: PortalRoute;
