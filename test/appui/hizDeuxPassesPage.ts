@@ -7,26 +7,23 @@
 // withdraws them (`retiresParLaPyramide`), the post pass rejects them, and they stay rejected.
 // Temporal antialiasing is ON: its jitter is what once made rows trade halves every image, and
 // the image must still be held. Each held image is compared to a fresh engine's at the same pose.
+import type { BackendDiagnostic, RenderBackend } from '../../packages/sdk-browser/backendTypes.ts';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
-import {
-  cameraFace,
-  comptesEtape,
-  difference,
-  image,
-  libere,
-  engine,
-} from './preuveSceneCommune.ts';
+import { cameraFace, comptesEtape, libere, engine } from './preuveSceneCommune.ts';
+import { difference, image } from './preuveSceneImage.ts';
 import { dallePixels, sceneOccultante, surSceneOccultante } from './sceneOccultante.ts';
+
+type Camera = ReturnType<typeof cameraFace>;
 
 const LIMITE = 64;
 const options = { stageProfile: true, temporalAntialiasing: true };
 
 /** Renders `camera` until the engine holds the image, at most `LIMITE` images. Returns the
  *  held image, the images it took, and the largest withdrawal and rejection sampled meanwhile. */
-async function jusquaTenue(backend, camera) {
+async function jusquaTenue(backend: RenderBackend, camera: Camera) {
   let retires = 0,
     rejetees = 0,
-    derniere;
+    derniere: Awaited<ReturnType<typeof image>> | undefined;
   for (let i = 0; i < LIMITE; i++) {
     derniere = await image(backend, camera);
     const partition = comptesEtape(backend, 'partition');
@@ -34,11 +31,12 @@ async function jusquaTenue(backend, camera) {
     rejetees = Math.max(rejetees, derniere.metriques.hizRejectedClusters ?? 0);
     if (derniere.metriques.frameHeld) return { ...derniere, images: i + 1, retires, rejetees };
   }
+  if (!derniere) throw new Error('jusquaTenue rendered no frame');
   return { ...derniere, images: null, retires, rejetees };
 }
 
 /** The same pose on an engine that has never seen another: the witness of the held image. */
-async function poseNeuve(device, x, onDiag) {
+async function poseNeuve(device: GPUDevice, x: number, onDiag: (e: BackendDiagnostic) => void) {
   const scene = sceneOccultante();
   const { backend, canvas } = engine(webgpuPagesBackend, scene, device, onDiag, options);
   try {

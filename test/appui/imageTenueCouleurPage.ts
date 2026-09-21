@@ -17,8 +17,10 @@ const POINTS = [
   [LARGEUR >> 2, (3 * HAUTEUR) >> 2],
 ];
 
+type GlContext = WebGLRenderingContext | WebGL2RenderingContext;
+
 /** RGBA bytes of the draw buffer at the control points, reread just after submit. */
-function lire(gl) {
+function lire(gl: GlContext) {
   return POINTS.map(([x, y]) => {
     const octets = new Uint8Array(4);
     gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, octets);
@@ -27,9 +29,9 @@ function lire(gl) {
 }
 
 /** Two planes of different colours, lit or not according to what the case asks. */
-function scene(eclairee) {
+function scene(eclairee: boolean) {
   const scene = new THREE.Scene();
-  const materiau = (couleur) =>
+  const materiau = (couleur: number) =>
     eclairee
       ? new THREE.MeshStandardMaterial({ color: couleur, roughness: 0.6 })
       : new THREE.MeshBasicMaterial({ color: couleur });
@@ -46,7 +48,7 @@ function scene(eclairee) {
 }
 
 /** One case: a complete image, then the same image held. Returns both pixel readings. */
-function cas(renderer, gl, eclairee) {
+function cas(renderer: THREE.WebGLRenderer, gl: GlContext, eclairee: boolean) {
   // The engine's display chain: ACES is the last link only if a light exists.
   renderer.toneMapping = eclairee ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
   const camera = new THREE.PerspectiveCamera(50, LARGEUR / HAUTEUR, 0.1, 100);
@@ -66,8 +68,10 @@ function cas(renderer, gl, eclairee) {
     readings.push(lire(gl));
   }
   monde.traverse((objet) => {
-    objet.geometry?.dispose();
-    objet.material?.dispose();
+    if (objet instanceof THREE.Mesh) {
+      objet.geometry.dispose();
+      (objet.material as THREE.Material).dispose();
+    }
   });
   return { eclairee, complete, tenues: readings };
 }
@@ -87,7 +91,8 @@ export async function executer() {
   try {
     return { cas: [cas(renderer, gl, false), cas(renderer, gl, true)] };
   } catch (error) {
-    return { erreur: String(error) + (error?.stack ?? '') };
+    const trace = error instanceof Error ? (error.stack ?? '') : '';
+    return { erreur: String(error) + trace };
   } finally {
     renderer.dispose();
     canvas.remove();

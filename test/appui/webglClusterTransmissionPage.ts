@@ -1,9 +1,10 @@
 // Standalone proof of the autonomous transmission pass: what a transmissive scene copy lets
 // through is the engine's own cluster image, opaque and blended, depth-tested both ways.
 import * as THREE from 'three';
+import type { ClusterDrawMesh } from '../../packages/sdk-browser/clusterBatchMesh.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel, quad } from './webglClusterPixels.ts';
 
-const glassMesh = (options = {}) => {
+const glassMesh = (options: Partial<THREE.MeshPhysicalMaterialParameters> = {}) => {
   const mesh = new THREE.Mesh(
     quad(-1),
     new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: 1, ...options }),
@@ -19,7 +20,7 @@ export function execute() {
   const red = clusterRecord(quad(-3), new THREE.MeshBasicMaterial({ color: 0xff0000 })),
     glass = glassMesh();
   scene.background = new THREE.Color(0x0000ff);
-  const draw = (clusters, copies, srgb = false) =>
+  const draw = (clusters: ClusterDrawMesh[], copies: THREE.Mesh[], srgb = false) =>
     renderer.draw(clusters, scene, drawCamera, false, srgb, [], copies);
   const passes = () => ({
     backdrop: renderer.backdropSubmissions,
@@ -103,7 +104,8 @@ export function execute() {
   try {
     draw([red], [coated]);
   } catch (error) {
-    refused = { code: error.code ?? null, reason: error.details?.reason ?? null };
+    const details = error as { code?: string; details?: { reason?: string } };
+    refused = { code: details.code ?? null, reason: details.details?.reason ?? null };
   }
   const refusedPixel = pixel(gl);
   const drawError = gl.getError();
