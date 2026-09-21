@@ -29,11 +29,14 @@ export function drawClusterBatches(
   );
   stats.subDraws = 0;
   stats.submittedTriangles = 0;
+  // With a transmissive copy in view, the frame was drawn once more into the backdrop.
+  const frames = 1 + owner.backdropPasses;
   for (const mesh of meshes) {
     let passes = 0;
     if (Array.isArray(mesh.material)) {
       if (mesh._sideSplitSource?.visible) passes = 2;
     } else if (mesh.material.visible) passes = 1;
+    passes *= frames;
     stats.subDraws += mesh._multiDrawCount * passes;
     let indices = 0;
     for (let i = 0; i < mesh._multiDrawCount; i++) indices += mesh._multiDrawCounts[i];
@@ -41,8 +44,8 @@ export function drawClusterBatches(
   }
   for (const mesh of diagnosticMeshes) {
     if (Array.isArray(mesh.material) || !mesh.material.visible) continue;
-    stats.subDraws++;
-    stats.submittedTriangles += wholeMeshTriangles(mesh);
+    stats.subDraws += frames;
+    stats.submittedTriangles += wholeMeshTriangles(mesh) * frames;
   }
   // Copies are not paged clusters: the cluster counters leave them out.
   stats.copyDraws = owner.copySubmissions;

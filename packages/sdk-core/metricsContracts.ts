@@ -50,7 +50,8 @@ export interface FrameMetrics
   autonomousClusterDrawsTotal?: number | null;
   /** Scene copies — the transmissive surfaces — the engine-owned WebGL2 program drew this frame. */
   autonomousCopyDraws?: number | null;
-  /** Bytes of the frozen backdrop the WebGL2 transmission pass reads; zero without transmission. */
+  /** Bytes of the frozen backdrop the WebGL2 transmission pass reads, kept until a resize or
+   *  the dispose; zero before the first transmissive copy in view. */
   transmissionBackdropBytes?: number | null;
   /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them, or
    *  as the host renderer drew them when it is the one drawing. `null` when neither

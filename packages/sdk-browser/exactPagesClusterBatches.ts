@@ -35,5 +35,5 @@ export function createExactPagesClusterBatches(
     else scene.add(copy);
   }
   const batches = new ClusterBatches(scene, pages, owner, transmissive);
-  return { batches, refusal };
+  return { batches, refusal, ownedCopies: transmissive.length };
 }
