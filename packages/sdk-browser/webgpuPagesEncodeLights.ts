@@ -34,8 +34,12 @@ export function encodeDirectLights(
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
   // the declared lights do not already light.
   directParams[3] = environment ? environment.exposure : 1;
-  // The unlit view reads neither light lists nor an atlas: it therefore encodes none of them.
-  if (!active || store.unlit) return directParams;
+  // The unlit view reads neither light lists nor an atlas: it therefore encodes none of them,
+  // and no shadow plan will consume a representation change held for the camera to rest.
+  if (!active || store.unlit) {
+    lights.plan.dropDeferred();
+    return directParams;
+  }
   const frame = rt.run.frame,
     nowMs = performance.now(),
     pagesSlot = frame % PAGES_RING;
