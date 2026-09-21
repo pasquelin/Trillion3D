@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
@@ -8,11 +9,7 @@ import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { camera } from './webgpuPagesTestScenes.ts';
 import { twoCoarseQuadsScene } from './webgpuPagesTestOccluder.ts';
-import {
-  CLUSTERED_BLEND_FORMAT_VERSION,
-  type ClusterManifest,
-  type Primitive,
-} from '../sdk-core/index.ts';
+import { type ClusterManifest, type Primitive } from '../sdk-core/index.ts';
 
 /** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
  *  general `RenderBackend` contract leaves optional or omits. */
@@ -22,16 +19,6 @@ type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
 };
 
 /** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-const MANIFEST_IDENTITY = {
-  schema: CLUSTERED_BLEND_FORMAT_VERSION,
-  status: 'ready' as const,
-  key: 'k',
-  scope: 'full' as const,
-  sourceTriangles: 0,
-  selectedTriangles: 0,
-  selectedNodes: [] as number[],
-  totalNodes: 0,
-};
 
 /** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
  *  omits — unread by the backends under test. Its second primitive's `pages` carry every `Page`

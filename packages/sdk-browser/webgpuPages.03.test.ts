@@ -1,11 +1,8 @@
 import test from 'node:test';
+import { MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {
-  compareImages,
-  CLUSTERED_BLEND_FORMAT_VERSION,
-  type ClusterManifest,
-} from '../sdk-core/index.ts';
+import { compareImages, type ClusterManifest } from '../sdk-core/index.ts';
 import { exactPagesBackend } from './index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { rasterPageRecords } from './pageRaster.ts';
@@ -16,16 +13,6 @@ import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, mixedBinScene, quadBackend } from './webgpuPagesTestScenes.ts';
 
 /** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-const MANIFEST_IDENTITY = {
-  schema: CLUSTERED_BLEND_FORMAT_VERSION,
-  status: 'ready' as const,
-  key: 'k',
-  scope: 'full' as const,
-  sourceTriangles: 0,
-  selectedTriangles: 0,
-  selectedNodes: [] as number[],
-  totalNodes: 0,
-};
 
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
   installGpuGlobals();

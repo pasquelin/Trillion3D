@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import assert from 'node:assert/strict';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import type { ClusterManifest } from '../sdk-core/index.ts';
-import { DAG, dagRoots, type Cluster } from './pagesBackendFixture.ts';
+import { DAG, dagRoots, dagLevel, MANIFEST_IDENTITY, type Cluster } from './pagesBackendFixture.ts';
 
 /** The quad's manifest without its primitives: a ready slice of two triangles over the DAG model. */
 export const QUAD_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
@@ -112,4 +112,28 @@ export function fanScene() {
     ['4', new Uint32Array([1, 2, 3])],
   ]);
   return { geometry, material, mesh, source, indices };
+}
+
+/** The quad with two clusters replaced by one coarser cluster whose screen error clears a 10 px
+ *  budget, as a backend context at `pixelError`; the scene comes back with it. */
+export function coarseQuadContext(pixelError: number) {
+  const scene = quadScene();
+  const level = dagLevel([quadCluster(0), quadCluster(1)], [quadCluster(2)], 0.001);
+  const context = {
+    source: scene.source,
+    metadata: {
+      ...DAG,
+      ...MANIFEST_IDENTITY,
+      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level }],
+    },
+    indices: new Map([
+      ['0', new Uint32Array([0, 1, 2])],
+      ['1', new Uint32Array([0, 2, 3])],
+      ['2', new Uint32Array([0, 1, 2])],
+    ]),
+    associations: new Map([[scene.mesh, { meshes: 0, primitives: 0 }]]),
+    pixelError,
+    viewport: [960, 540] as [number, number],
+  };
+  return { ...scene, context };
 }
