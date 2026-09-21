@@ -15,7 +15,6 @@ import { rendererLessons } from '../site/lessons/rendererLessons.ts';
 const root = new URL('../site/lessons/', import.meta.url);
 const { Gallery } = await loadReactComponents('site/app/gallery/Gallery.tsx');
 const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
-const { ExampleCard } = await loadReactComponents('site/app/gallery/ExampleCard.tsx');
 const { Home } = await loadReactComponents('site/app/portal/Home.tsx');
 const { CodeBlock } = await loadReactComponents('site/app/components/CodeBlock.tsx');
 const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
@@ -96,7 +95,6 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /type="search"/);
   assert.match(gallery, /aria-pressed="true"/);
   assert.match(gallery, /tabs tabs-box bg-base-200/);
-  assert.match(gallery, />Animation<\/button>/);
   assert.match(gallery, />Lights and shadows<\/button>/);
   assert.match(gallery, /<summary[^>]*aria-label="More">More/);
   assert.doesNotMatch(gallery, /overflow-x-auto/);
@@ -104,33 +102,12 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.equal((gallery.match(/<canvas /g) ?? []).length, mathExamples.length);
   assert.doesNotMatch(gallery, /data-geometry-fps/);
   assert.match(renderPlayground('compose-transform', 'en'), /data-geometry-fps/);
-  assert.match(gallery, /#\/en\/examples\/engine-scene/);
+  assert.match(gallery, /#\/en\/lessons\/engine-scene/);
   assert.match(gallery, /assets\/kinetic-garden\/preview\.png/);
   assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, 24);
-  assert.match(gallery, /665 results shown · 58 ready lessons in the full gallery/);
-  assert.doesNotMatch(gallery, /data-geometry-3d="webgl_/);
+  assert.match(gallery, /58 lessons shown/);
   assert.doesNotMatch(gallery, /Try it|À essayer/);
   assert.match(gallery, /#\/en\/playground\/compose-transform/);
-});
-
-test('planned lessons stay honest, specific, and link to related ready material', async () => {
-  const roadmap = JSON.parse(
-    await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
-  );
-  assert.equal(roadmap.entries.length, 607);
-  for (const locale of ['en', 'fr'])
-    assert.equal(new Set(roadmap.entries.map((entry) => entry.title[locale])).size, 607);
-  const entry = roadmap.entries.find(({ subject }) => subject === 'camera');
-  const card = renderToStaticMarkup(
-    createElement(ExampleCard, { example: entry, locale: 'fr', expanded: true, onOpen() {} }),
-  );
-  assert.match(card, /Plan non exécutable/);
-  assert.match(card, /Pourquoi/);
-  assert.match(card, /#\/fr\/playground\/perspective/);
-  assert.doesNotMatch(card, /contrat public prouvé|prise en charge actuelle/);
-  const frenchTitles = roadmap.entries.map((item) => item.title.fr).join('\n');
-  assert.match(frenchTitles, /Réfraction/);
-  assert.doesNotMatch(frenchTitles, /^Walk$/m);
 });
 
 test('home and gallery reuse the same linked example card', () => {

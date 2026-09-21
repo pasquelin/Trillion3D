@@ -25,7 +25,7 @@ test('the viewport select drives the runtime mode and follows the mode the lesso
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await page.goto(`http://127.0.0.1:${port}/#/en/examples/runtime-pixel-error`);
+    await page.goto(`http://127.0.0.1:${port}/#/en/lessons/runtime-pixel-error`);
     const lesson = page.locator(LESSON),
       select = lesson.locator('[data-renderer-diagnostic]');
     await lesson.locator('canvas:not([aria-busy])').waitFor({ timeout: 40_000 });

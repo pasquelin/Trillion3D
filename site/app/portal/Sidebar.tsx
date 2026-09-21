@@ -1,4 +1,6 @@
 import { ReportNavigation } from '../reports/Navigation.tsx';
+import { examplesMenu } from '../examples/examplesMenu.ts';
+import { SidebarMenu } from './SidebarMenu.tsx';
 import { SECTIONS } from '../../content/model.ts';
 import { entryRoute, routeHref } from './routes.ts';
 import { searchEntries } from './search.ts';
@@ -21,10 +23,20 @@ interface SidebarProps {
 
 export function Sidebar({ entries, route, query, t, inputRef, onQuery, onClose }: SidebarProps) {
   const groups = SECTIONS.map((section) => ({
-    section,
+    id: section.id,
+    title: t(route.locale, `section.${section.id}`),
     items: expandEntryLinks(
       searchEntries(entries, query).filter((entry: PortalEntry) => entry.section === section.id),
-    ),
+    ).map(({ entry, key, label, primary, id }) => ({
+      key,
+      label,
+      href:
+        id === entry.id
+          ? entryRoute(entry, route.locale)
+          : routeHref({ locale: route.locale, area: 'api', id }),
+      active: id === route.id || (entry.id === route.id && primary),
+      dot: entry.issue ? t(route.locale, 'common.inDevelopment') : undefined,
+    })),
   })).filter(({ items }) => items.length);
 
   return (
@@ -55,52 +67,14 @@ export function Sidebar({ entries, route, query, t, inputRef, onQuery, onClose }
         <nav>
           {route.area === 'reports' && !query ? (
             <ReportNavigation route={route} onClose={onClose} />
+          ) : route.area === 'examples' && !query ? (
+            <SidebarMenu groups={examplesMenu(route)} open onNavigate={onClose} />
           ) : !groups.length ? (
             <p className="empty-search" role="status">
               {t(route.locale, 'sidebar.noResults')}
             </p>
           ) : (
-            <ul className="menu menu-md w-full p-0">
-              {groups.map(({ section, items }) => (
-                <li key={section.id}>
-                  <details open={query ? true : undefined}>
-                    <summary>
-                      <span className="sidebar-section-title">
-                        {t(route.locale, `section.${section.id}`)}
-                      </span>
-                      <span className="sidebar-count">{items.length}</span>
-                    </summary>
-                    <ul>
-                      {items.map(({ entry, key, label, primary, id }) => {
-                        const active = id === route.id || (entry.id === route.id && primary);
-                        return (
-                          <li key={key}>
-                            <a
-                              className={active ? 'menu-active' : ''}
-                              href={
-                                id === entry.id
-                                  ? entryRoute(entry, route.locale)
-                                  : routeHref({ locale: route.locale, area: 'api', id })
-                              }
-                              aria-current={active ? 'page' : undefined}
-                              onClick={onClose}
-                            >
-                              <span>{label}</span>
-                              {entry.issue ? (
-                                <span
-                                  className="status-dot"
-                                  title={t(route.locale, 'common.inDevelopment')}
-                                />
-                              ) : null}
-                            </a>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </details>
-                </li>
-              ))}
-            </ul>
+            <SidebarMenu groups={groups} open={Boolean(query)} onNavigate={onClose} />
           )}
         </nav>
       </aside>
