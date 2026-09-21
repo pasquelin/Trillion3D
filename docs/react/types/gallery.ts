@@ -1,4 +1,5 @@
 import type { Locale } from './portal.ts';
+import type { DiagnosticMode } from './engine-scene.ts';
 import type { ProgressiveListState } from './components.ts';
 
 export type LocalizedString = { en: string; fr: string } | { en: string; fr?: string };
@@ -148,11 +149,13 @@ export interface RendererMetrics {
   triangles?: number;
   occluded?: number;
   tested?: number;
+  diagnostic?: DiagnosticMode;
 }
 
 export interface RendererLessonSession {
   update: (next: Record<string, number>) => Promise<void>;
   dispose: () => void;
+  setDiagnostic: (mode: DiagnosticMode) => void;
   camera: {
     zoomIn: () => void;
     zoomOut: () => void;

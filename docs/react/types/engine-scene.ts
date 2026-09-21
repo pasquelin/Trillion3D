@@ -1,14 +1,8 @@
 import type { Locale } from './portal.ts';
 
-export type DiagnosticMode =
-  | 'beauty'
-  | 'clusters'
-  | 'pages'
-  | 'wireframe'
-  | 'lod'
-  | 'screen-error'
-  | 'materials'
-  | 'visibility';
+import type { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
+
+export type DiagnosticMode = (typeof DIAGNOSTIC_MODES)[number];
 
 type SceneViewsCopy = Record<string, [string, string, string]>;
 

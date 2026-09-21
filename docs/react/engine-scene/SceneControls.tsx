@@ -1,18 +1,8 @@
 import type { ReactElement } from 'react';
-import type { DiagnosticMode, SceneControlsProps } from '../types/engine-scene.ts';
+import type { SceneControlsProps } from '../types/engine-scene.ts';
 import { Section } from '../components/Section.tsx';
 import { Button, Field, Form, Range, Select, Toggle } from '../components/UI.tsx';
-
-const MODES: DiagnosticMode[] = [
-  'beauty',
-  'clusters',
-  'pages',
-  'wireframe',
-  'lod',
-  'screen-error',
-  'materials',
-  'visibility',
-];
+import { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
 
 export function SceneControls({ copy, diagnostic = 'beauty' }: SceneControlsProps): ReactElement {
   return (
@@ -24,7 +14,7 @@ export function SceneControls({ copy, diagnostic = 'beauty' }: SceneControlsProp
         <Field label={copy.mode}>
           <div className="scene-control-slot">
             <Select data-scene-mode defaultValue={diagnostic} disabled>
-              {MODES.map((mode) => (
+              {DIAGNOSTIC_MODES.map((mode) => (
                 <option value={mode} key={mode}>
                   {copy[mode] as string}
                 </option>
