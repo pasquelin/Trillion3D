@@ -1916,7 +1916,19 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["test/fixtures/publicBrowser.ts", "test/fixtures/publicTypesOnly.ts"],
+      "affectedConsumers": [
+        "site/lessons/cameraLessonRuntime.ts",
+        "site/lessons/engine-scene/cameraControls.ts",
+        "site/lessons/engine-scene/lifecycle.ts",
+        "site/lessons/engine-scene/lightingControls.ts",
+        "site/lessons/lightingLessonRuntime.ts",
+        "site/lessons/rendererLessonApply.ts",
+        "site/lessons/rendererLessonRuntime.ts",
+        "site/lessons/rendererLessonSessionTypes.ts",
+        "site/lessons/sceneFillLight.ts",
+        "test/fixtures/publicBrowser.ts",
+        "test/fixtures/publicTypesOnly.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/explorer\".Explorer"
     },
@@ -2019,7 +2031,8 @@
         "packages/sdk-browser/frameCostAudit.test.ts",
         "packages/sdk-browser/frameCostAudit.ts",
         "packages/sdk-browser/telemetry.test.ts",
-        "packages/sdk-browser/telemetry.ts"
+        "packages/sdk-browser/telemetry.ts",
+        "site/lessons/lessonShadowPages.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/metricsContracts\".FrameMetrics"
@@ -2874,6 +2887,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/socleEcarts.mjs",
+        "packages/sdk-browser/explorerCompose.test.ts",
         "packages/sdk-browser/explorerCompose.ts",
         "packages/sdk-browser/visibilityMath.ts"
       ],
@@ -3068,7 +3082,6 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/explorerScene.ts",
-        "packages/sdk-browser/hostSceneLightState.ts",
         "packages/sdk-browser/hostWorldChain.ts",
         "packages/sdk-browser/hostWorldTree.test.ts",
         "packages/sdk-browser/hostWorldTree.ts",
@@ -5980,8 +5993,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "site/content/entries/matrix.ts",
         "packages/sdk-browser/bench/appui/socleLigne.mjs",
+        "site/content/entries/matrix.ts",
         "test/justesse/inverseTransposeF32.mjs"
       ],
       "disposition": "newly exposed",
@@ -6072,8 +6085,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "site/content/entries/matrix.ts",
-        "packages/sdk-browser/bench/appui/socleLigne.mjs"
+        "packages/sdk-browser/bench/appui/socleLigne.mjs",
+        "site/content/entries/matrix.ts"
       ],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathSingular.ts:normalizedLinearDeterminant"

@@ -185,9 +185,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
       hostDraw.render(camera);
       renderFrame(camera);
     },
-    selectedPageIds() {
-      return (shown.length ? shown : desired).map((rec) => rec.clusterId);
-    },
+    selectedPageIds: () => (shown.length ? shown : desired).map((rec) => rec.clusterId),
     drawHostGeometry: hostDraw.drawHostGeometry,
     clusterDraws: () => batches.drawList,
     ...cpuMethods,
