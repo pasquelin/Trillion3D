@@ -1100,12 +1100,6 @@ kbd {
   align-items: center;
   gap: 0.375rem;
 }
-.scene-control-slot {
-  display: flex;
-  align-items: center;
-  height: 2.5rem;
-  min-width: 0;
-}
 .control-panel-grid .select {
   width: 100%;
   min-width: 0;
