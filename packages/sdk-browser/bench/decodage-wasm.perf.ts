@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeGeometryPage } from '../geometryPage.ts';
+import type { DecodedGeometryPage } from '../geometryPage.ts';
 import { decodeGeometryPageWasm, prepareSdkWasm } from '../geometryPageWasm.ts';
 import { RACINE, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { page, pageForgee } from './appui/pagesWasm.ts';
@@ -25,17 +26,19 @@ faussee[0] ^= 1;
 tropLarge[20] = 25;
 
 /** One lap: every page in the case, decoded; a rejection becomes its cause, compared as well. */
-const tour = (decode) => async (pages) => {
-  const output = [];
-  for (const octets of pages) {
-    try {
-      output.push(await decode(octets));
-    } catch (erreur) {
-      output.push({ refus: erreur.message });
+const tour =
+  (decode: (data: Uint8Array) => Promise<DecodedGeometryPage> | DecodedGeometryPage) =>
+  async (pages: Uint8Array[]) => {
+    const output: (DecodedGeometryPage | { refus: string })[] = [];
+    for (const octets of pages) {
+      try {
+        output.push(await decode(octets));
+      } catch (erreur) {
+        output.push({ refus: erreur instanceof Error ? erreur.message : String(erreur) });
+      }
     }
-  }
-  return output;
-};
+    return output;
+  };
 
 const resWasm = await mesure({
   name: 'page decode, wasm against JS',

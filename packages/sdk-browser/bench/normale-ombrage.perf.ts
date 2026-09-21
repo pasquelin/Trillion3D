@@ -4,10 +4,12 @@ import { shadingNormal } from '../visibilityShadingNormal.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { referenceShadingNormal } from './oracles/normale-ombrage.ts';
 import { reperes } from './appui/scenesNormale.ts';
+import { triangleAt } from '../visibilityMath.ts';
+import type { VisMaterial, VisPage } from '../visibilityTypes.ts';
 
 const alea = graine(0x4e07);
 
-function carteNormales(depart) {
+function carteNormales(depart: number) {
   const data = new Uint8Array(8 * 8 * 4),
     tire = graine(depart);
   for (let i = 0; i < data.length; i++) data[i] = Math.floor(tire() * 256) & 255;
@@ -25,7 +27,7 @@ const matieres = [
   { carte: true, doubleSided: true, backSide: false, normalScale: -2, normalScaleY: 0 },
   { carte: true, doubleSided: true, backSide: true, normalScale: 0, normalScaleY: 1e308 },
   { carte: true, doubleSided: false, backSide: true, normalScale: -0, normalScaleY: -0 },
-].map((m) => ({
+].map((m): VisMaterial => ({
   baseColor: [0.8, 0.6, 0.4],
   metalness: 0.3,
   roughness: 0.4,
@@ -39,10 +41,23 @@ const matieres = [
   aoIntensity: 1,
   emissive: [0, 0, 0],
   transmission: 0,
+  ior: 1.5,
+  thickness: 0,
+  attenuationDistance: 0,
+  attenuationColor: [1, 1, 1],
 }));
 
-function preparerLot() {
-  const lot = [];
+interface Item {
+  page: VisPage;
+  tri: NonNullable<ReturnType<typeof triangleAt>>;
+  bary: { w0: number; w1: number; w2: number };
+  uv: [number, number];
+  mat: VisMaterial;
+  screenFace: number;
+}
+
+function preparerLot(): Item[] {
+  const lot: Item[] = [];
   for (const repere of reperes())
     for (const mat of matieres)
       for (const screenFace of [1, -1])
@@ -58,17 +73,29 @@ function preparerLot() {
 }
 
 const lot = preparerLot();
-const passe = (normale, lit) => (items) => {
-  const output = new Float64Array(items.length * 3);
-  for (let i = 0; i < items.length; i++) {
-    const p = items[i];
-    const n = normale(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace);
-    output[i * 3] = lit(n, 0);
-    output[i * 3 + 1] = lit(n, 1);
-    output[i * 3 + 2] = lit(n, 2);
-  }
-  return output;
-};
+const passe =
+  <N>(
+    normale: (
+      page: VisPage,
+      tri: NonNullable<ReturnType<typeof triangleAt>>,
+      bary: { w0: number; w1: number; w2: number },
+      uv: [number, number],
+      mat: VisMaterial,
+      screenFace: number,
+    ) => N,
+    lit: (n: N, c: number) => number,
+  ) =>
+  (items: Item[]) => {
+    const output = new Float64Array(items.length * 3);
+    for (let i = 0; i < items.length; i++) {
+      const p = items[i];
+      const n = normale(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace);
+      output[i * 3] = lit(n, 0);
+      output[i * 3 + 1] = lit(n, 1);
+      output[i * 3 + 2] = lit(n, 2);
+    }
+    return output;
+  };
 
 const res = await mesure({
   name: 'shadingNormal hostile frames',

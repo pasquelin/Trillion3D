@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { shadeLit } from '../visibilityLighting.ts';
 import { triangleAt } from '../visibilityMath.ts';
+import type { VisMaterial, VisPage } from '../visibilityTypes.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { referenceShadeLit } from './oracles/eclairage-pixel.ts';
 import { cameraMoteur } from '../cameraFixture.ts';
@@ -9,7 +10,19 @@ import { cameraMoteur } from '../cameraFixture.ts';
 const alea = graine(0x6017);
 const HOSTILES = [0, -0, NaN, Infinity, -Infinity, 5e-324, 1];
 
-function texture(depart) {
+interface Pixel {
+  page: VisPage;
+  tri: NonNullable<ReturnType<typeof triangleAt>>;
+  affine: { area: number };
+  bary: { w0: number; w1: number; w2: number };
+  uv: [number, number];
+  mat: VisMaterial;
+  rgb: [number, number, number];
+  metalness: number;
+  roughness: number;
+}
+
+function texture(depart: number) {
   const data = new Uint8Array(8 * 8 * 4),
     tire = graine(depart);
   for (let i = 0; i < data.length; i++) data[i] = Math.floor(tire() * 256) & 255;
@@ -20,7 +33,7 @@ function texture(depart) {
   return map;
 }
 
-function page(depart) {
+function page(depart: number) {
   const tire = graine(depart);
   const positions = new Float32Array(9),
     normales = new Float32Array(9),
@@ -53,9 +66,9 @@ const viewProj = new THREE.Matrix4().multiplyMatrices(
   camera.projectionMatrix,
   camera.matrixWorldInverse,
 );
-const depthCam = { viewProjection: viewProj.elements };
+const depthCam = { viewProjection: new Float64Array(viewProj.elements) };
 
-const matiere = (cartes) => ({
+const matiere = (cartes: boolean): VisMaterial => ({
   baseColor: [0.8, 0.6, 0.4],
   metalness: 0.3,
   roughness: 0.4,
@@ -71,13 +84,18 @@ const matiere = (cartes) => ({
   emissive: [0.05, -0, 0.2],
   emissiveMap: cartes ? texture(0x33) : undefined,
   transmission: 0,
+  ior: 1.5,
+  thickness: 0,
+  attenuationDistance: 0,
+  attenuationColor: [1, 1, 1],
 });
 
-function pixels(nombre, cartes, hostiles) {
+function pixels(nombre: number, cartes: boolean, hostiles: boolean): Pixel[] {
   const p = page(0x77 ^ nombre),
     tri = triangleAt(p, 0, depthCam, 1600, 900),
     mat = matiere(cartes);
-  const lot = [];
+  if (!tri) throw new Error('ECLAIRAGE_PIXEL_TRIANGLE_MANQUANT');
+  const lot: Pixel[] = [];
   for (let i = 0; i < nombre; i++) {
     const w0 = hostiles ? HOSTILES[i % HOSTILES.length] : alea(),
       w1 = hostiles ? HOSTILES[(i + 3) % HOSTILES.length] : alea() * (1 - w0);
@@ -98,28 +116,44 @@ function pixels(nombre, cartes, hostiles) {
 
 const vue = cameraMoteur(camera);
 
-const passe = (ombre, oeil) => (lot) => {
-  const output = new Float64Array(lot.length * 3);
-  for (let i = 0; i < lot.length; i++) {
-    const p = lot[i];
-    const rgb = ombre(
-      p.page,
-      p.tri,
-      p.affine,
-      p.bary,
-      p.uv,
-      p.mat,
-      p.rgb,
-      p.metalness,
-      p.roughness,
-      oeil,
-    );
-    output[i * 3] = rgb[0];
-    output[i * 3 + 1] = rgb[1];
-    output[i * 3 + 2] = rgb[2];
-  }
-  return output;
-};
+const passe =
+  <Cam>(
+    ombre: (
+      page: VisPage,
+      tri: NonNullable<ReturnType<typeof triangleAt>>,
+      affine: { area: number },
+      bary: { w0: number; w1: number; w2: number },
+      uv: [number, number],
+      mat: VisMaterial,
+      rgb: [number, number, number],
+      metalness: number,
+      roughness: number,
+      cam: Cam,
+    ) => number[],
+    oeil: Cam,
+  ) =>
+  (lot: Pixel[]) => {
+    const output = new Float64Array(lot.length * 3);
+    for (let i = 0; i < lot.length; i++) {
+      const p = lot[i];
+      const rgb = ombre(
+        p.page,
+        p.tri,
+        p.affine,
+        p.bary,
+        p.uv,
+        p.mat,
+        p.rgb,
+        p.metalness,
+        p.roughness,
+        oeil,
+      );
+      output[i * 3] = rgb[0];
+      output[i * 3 + 1] = rgb[1];
+      output[i * 3 + 2] = rgb[2];
+    }
+    return output;
+  };
 
 const resOmbrage = await mesure({
   name: 'per-pixel visbuffer shading',

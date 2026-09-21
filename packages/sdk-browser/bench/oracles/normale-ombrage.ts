@@ -6,7 +6,8 @@
 // sides: this benchmark only proves vector algebra moved in this batch.
 import * as THREE from 'three';
 import { matrixWindingCw, normalMatrix3 } from '../../../sdk-core/index.ts';
-import { attr2, sampleLinear } from '../../visibilityMath.ts';
+import { attr2, sampleLinear, triangleAt } from '../../visibilityMath.ts';
+import type { VisMaterial, VisPage } from '../../visibilityTypes.ts';
 
 const normalScratch = new THREE.Matrix3();
 const frameNormals = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
@@ -18,7 +19,14 @@ const frameN = new THREE.Vector3(),
   frameQ = new THREE.Vector3(),
   frameOut = new THREE.Vector3();
 
-export function referenceShadingNormal(page, tri, bary, uv, mat, screenFace) {
+export function referenceShadingNormal(
+  page: VisPage,
+  tri: NonNullable<ReturnType<typeof triangleAt>>,
+  bary: { w0: number; w1: number; w2: number },
+  uv: [number, number],
+  mat: VisMaterial,
+  screenFace: number,
+) {
   const nx = tri.b.worldX - tri.a.worldX,
     ny = tri.b.worldY - tri.a.worldY,
     nz = tri.b.worldZ - tri.a.worldZ;
