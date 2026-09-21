@@ -50,9 +50,14 @@ export function chooseBlockFormat(
   };
 }
 
-/** The lanes of an atlas, in the order the bindings number them. */
+/** The lanes of an atlas, in the order the bindings and the shader's taps number them. */
 export const POOL_LANES = PREVIEW_LAYOUT_NAMES;
 export type PoolLane = TextureLayout;
+/** One number per lane — layers, tiles —, and one per atlas. */
+export type LaneCounts = Record<PoolLane, number>;
+export type AtlasLanes = { color: LaneCounts; data: LaneCounts };
+export const laneCounts = (): LaneCounts =>
+  Object.fromEntries(POOL_LANES.map((lane) => [lane, 0])) as LaneCounts;
 
 /** A tail as the sidecar carries it: RGBA8 levels, and the kept families' blocks. */
 export type TailBytes = Pick<TexturePreview, 'levels' | 'blocks'>;
@@ -71,6 +76,8 @@ const LANE_FORMATS: Record<TextureBlockFormat, Record<PoolLane, GPUTextureFormat
  */
 export type PoolEncoding = {
   block: TextureBlockFormat | undefined;
+  /** The family held, as the metrics publish it: `bc7`, `astc` or `rgba8`. */
+  name: TextureBlockFormat | 'rgba8';
   laneOf(chain: Pick<TexturePreview, 'layouts'>): PoolLane;
   formatOf(kind: 'color' | 'data', lane: PoolLane): GPUTextureFormat;
   /** Four in RGBA8, one in either block lane (sixteen per 4×4 block). */
@@ -90,6 +97,7 @@ export function poolEncoding(block: TextureBlockFormat | undefined): PoolEncodin
   const formats = block ? LANE_FORMATS[block] : undefined;
   return {
     block,
+    name: block ?? 'rgba8',
     laneOf: (chain) => (block ? chain.layouts[block] : 'lossless'),
     formatOf(kind, lane) {
       const base = formats?.[lane] ?? 'rgba8unorm';

@@ -55,7 +55,10 @@ test('each texture lives in the pool of its lane, and an empty lane has a stand-
   assert.equal(atlas.poolOf(1).resident, 3, 'its tail and two tiles');
   assert.equal(atlas.pages.words[4 + 3] >>> 24, encoding.tapOf('rgba'));
   assert.equal(atlas.pages.words[4 + 4 + 3] >>> 24, encoding.tapOf('lossless'));
-  assert.equal(atlas.resize(gpu, { lossless: 1, rgba: 1, 'two-channel': 0 }), 0);
+  assert.deepEqual(atlas.resize(gpu, { lossless: 1, rgba: 1, 'two-channel': 0 }), {
+    evicted: 0,
+    replaced: 1,
+  });
   assert.equal(destroyed(), 1, 'only the lane whose layers changed gets a new pool');
   atlas.destroy();
   assert.equal(destroyed(), 3);

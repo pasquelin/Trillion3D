@@ -17,52 +17,71 @@ pub(crate) struct AtlasTexture {
     pub cutoffs: Vec<f32>,
 }
 
+/// Merges what one more reader reads into `channels` and `cutoffs`: the union
+/// of the channels, a cutoff once. The one rule, for a texture's roles as for a
+/// chain's textures.
+pub(crate) fn absorb(
+    channels: &mut Channels,
+    cutoffs: &mut Vec<f32>,
+    more: Channels,
+    theirs: &[f32],
+) {
+    for (mine, read) in channels.iter_mut().zip(more) {
+        *mine |= read;
+    }
+    for &cutoff in theirs {
+        if !cutoffs.contains(&cutoff) {
+            cutoffs.push(cutoff);
+        }
+    }
+}
+
 /// A material binding, and the channels its shader reads: the base colour's
 /// alpha only when the material is not opaque; metallic in B, roughness in G;
 /// occlusion in R; the normal's three, Z included, since the shader rebuilds
 /// it from X and Y and the gate must measure that against the map's own.
-struct Role {
-    kind: AtlasKind,
-    channels: Channels,
-    normal: bool,
-    /// The base colour: the one channel a mask cutoff reads.
-    mask: bool,
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Role {
+    BaseColor,
+    Emissive,
+    MetalRough,
+    Normal,
+    Occlusion,
 }
 
-fn roles(material: &Value) -> [(Option<&Value>, Role); 5] {
-    let opaque = material
-        .get("alphaMode")
-        .and_then(Value::as_str)
-        .is_none_or(|mode| mode == "OPAQUE");
-    let role = |kind, channels, normal, mask| Role {
-        kind,
-        channels,
-        normal,
-        mask,
-    };
-    [
-        (
-            material.pointer("/pbrMetallicRoughness/baseColorTexture"),
-            role(AtlasKind::Color, [true, true, true, !opaque], false, true),
-        ),
-        (
-            material.get("emissiveTexture"),
-            role(AtlasKind::Color, [true, true, true, false], false, false),
-        ),
-        (
-            material.pointer("/pbrMetallicRoughness/metallicRoughnessTexture"),
-            role(AtlasKind::Data, [false, true, true, false], false, false),
-        ),
-        (
-            material.get("normalTexture"),
-            role(AtlasKind::Data, [true, true, true, false], true, false),
-        ),
-        (
-            material.get("occlusionTexture"),
-            role(AtlasKind::Data, [true, false, false, false], false, false),
-        ),
-    ]
+impl Role {
+    fn reference(self, material: &Value) -> Option<&Value> {
+        match self {
+            Self::BaseColor => material.pointer("/pbrMetallicRoughness/baseColorTexture"),
+            Self::Emissive => material.get("emissiveTexture"),
+            Self::MetalRough => material.pointer("/pbrMetallicRoughness/metallicRoughnessTexture"),
+            Self::Normal => material.get("normalTexture"),
+            Self::Occlusion => material.get("occlusionTexture"),
+        }
+    }
+    fn kind(self) -> AtlasKind {
+        match self {
+            Self::BaseColor | Self::Emissive => AtlasKind::Color,
+            _ => AtlasKind::Data,
+        }
+    }
+    fn channels(self, opaque: bool) -> Channels {
+        match self {
+            Self::BaseColor => [true, true, true, !opaque],
+            Self::Emissive | Self::Normal => [true, true, true, false],
+            Self::MetalRough => [false, true, true, false],
+            Self::Occlusion => [true, false, false, false],
+        }
+    }
 }
+
+const ROLES: [Role; 5] = [
+    Role::BaseColor,
+    Role::Emissive,
+    Role::MetalRough,
+    Role::Normal,
+    Role::Occlusion,
+];
 
 /// Textures that feed the engine atlases, sorted by texture then by atlas —
 /// exactly what `collectWebgpuMaterialTextures` puts there: base colour and
@@ -79,35 +98,37 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         let Some(material) = materials.get(id) else {
             continue;
         };
-        let cutoff =
-            (material.get("alphaMode").and_then(Value::as_str) == Some("MASK")).then(|| {
-                material
-                    .get("alphaCutoff")
-                    .and_then(Value::as_f64)
-                    .unwrap_or(0.5) as f32
-            });
-        for (reference, role) in roles(material) {
-            let Some(texture) = texture_index(reference) else {
+        let mode = material.get("alphaMode").and_then(Value::as_str);
+        let cutoff = (mode == Some("MASK")).then(|| {
+            material
+                .get("alphaCutoff")
+                .and_then(Value::as_f64)
+                .unwrap_or(crate::cutout::CUTOUT_ALPHA) as f32
+        });
+        for role in ROLES {
+            let Some(texture) = texture_index(role.reference(material)) else {
                 continue;
             };
             let entry = wanted
-                .entry((texture, role.kind))
+                .entry((texture, role.kind()))
                 .or_insert_with(|| AtlasTexture {
                     texture,
-                    kind: role.kind,
+                    kind: role.kind(),
                     channels: [false; 4],
                     normal_only: true,
                     cutoffs: Vec::new(),
                 });
-            for (mine, theirs) in entry.channels.iter_mut().zip(role.channels) {
-                *mine |= theirs;
-            }
-            entry.normal_only &= role.normal;
-            if let Some(cutoff) = cutoff.filter(|_| role.mask) {
-                if !entry.cutoffs.contains(&cutoff) {
-                    entry.cutoffs.push(cutoff);
-                }
-            }
+            let cutoffs: Vec<f32> = cutoff
+                .filter(|_| role == Role::BaseColor)
+                .into_iter()
+                .collect();
+            absorb(
+                &mut entry.channels,
+                &mut entry.cutoffs,
+                role.channels(mode.is_none_or(|m| m == "OPAQUE")),
+                &cutoffs,
+            );
+            entry.normal_only &= role == Role::Normal;
         }
     }
     Ok(wanted.into_values().collect())

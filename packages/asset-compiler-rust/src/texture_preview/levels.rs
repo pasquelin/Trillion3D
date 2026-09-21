@@ -38,23 +38,28 @@ pub fn preview_level_count(width: u32, height: u32) -> u32 {
     preview_last_level(width, height) - preview_first_level(width, height) + 1
 }
 
+/// Dimensions of every level of the chain, level 0 first through 1×1.
+pub fn preview_level_sizes(width: u32, height: u32) -> impl Iterator<Item = (u32, u32)> {
+    (0..=preview_last_level(width, height))
+        .map(move |level| preview_level_size(width, height, level))
+}
+
+/// Dimensions of every carried level, from finest to coarsest.
+fn carried_sizes(width: u32, height: u32) -> impl Iterator<Item = (u32, u32)> {
+    preview_level_sizes(width, height).skip(preview_first_level(width, height) as usize)
+}
+
 /// RGBA8 bytes of every carried level, end to end from finest to coarsest.
 pub fn preview_pixel_bytes(width: u32, height: u32) -> usize {
-    let mut bytes = 0usize;
-    for level in preview_first_level(width, height)..=preview_last_level(width, height) {
-        let (w, h) = preview_level_size(width, height, level);
-        bytes += (w as usize) * (h as usize) * 4;
-    }
-    bytes
+    carried_sizes(width, height)
+        .map(|(w, h)| (w as usize) * (h as usize) * 4)
+        .sum()
 }
 
 /// Bytes of every carried level once block-compressed, whole 4 × 4 blocks of
 /// sixteen bytes, end to end from finest to coarsest — the same in both formats.
 pub fn preview_block_bytes(width: u32, height: u32) -> usize {
-    (preview_first_level(width, height)..=preview_last_level(width, height))
-        .map(|level| {
-            let (w, h) = preview_level_size(width, height, level);
-            super::blocks::level_block_bytes(w, h)
-        })
+    carried_sizes(width, height)
+        .map(|(w, h)| super::blocks::level_block_bytes(w, h))
         .sum()
 }

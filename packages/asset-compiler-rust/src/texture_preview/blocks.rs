@@ -18,6 +18,7 @@ mod astc;
 mod astc_la;
 mod bc5;
 mod bc7;
+mod channel;
 pub mod decode;
 mod fit;
 mod ise;
@@ -48,6 +49,10 @@ impl BlockFormat {
     }
     pub fn named(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|format| format.name() == name)
+    }
+    /// Rank in `ALL`: the family's column, layout word and tail slot.
+    pub fn index(self) -> usize {
+        self as usize
     }
     /// The file extension of a level in `layout`, and the name the manifest
     /// template takes. The layout is in the name: a file already there is never
@@ -96,9 +101,12 @@ impl Layout {
     }
 }
 
+/// Texels along a block's side.
+pub const BLOCK_SIDE: u32 = 4;
+
 /// Blocks across and down a `width` × `height` level.
-pub fn blocks_of(width: u32, height: u32) -> (u32, u32) {
-    (width.div_ceil(4), height.div_ceil(4))
+fn blocks_of(width: u32, height: u32) -> (u32, u32) {
+    (width.div_ceil(BLOCK_SIDE), height.div_ceil(BLOCK_SIDE))
 }
 
 /// Compressed bytes of a `width` × `height` level.

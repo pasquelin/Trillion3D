@@ -1,10 +1,12 @@
 import { createWebgpuTilePool, type WebgpuTilePool } from './webgpuTilePool.ts';
 import type { WebgpuTilePageTable } from './webgpuTilePageTable.ts';
-import { POOL_LANES, type PoolEncoding, type PoolLane } from './textureBlockFormats.ts';
+import {
+  POOL_LANES,
+  type LaneCounts,
+  type PoolEncoding,
+  type PoolLane,
+} from './textureBlockFormats.ts';
 import { resizeTileAtlas } from './webgpuTileAtlasResize.ts';
-
-/** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
-export type LaneLayers = Record<PoolLane, number>;
 
 /** A lane's pool, the tiles resident in it by id, and the eviction candidates of the image. */
 export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; candidates: number[] };
@@ -20,7 +22,8 @@ export function createTileLanes(
   options: {
     kind: 'color' | 'data';
     encoding: PoolEncoding;
-    layers: LaneLayers;
+    /** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
+    layers: LaneCounts;
     textures: readonly { lane: PoolLane }[];
   },
 ) {
@@ -54,23 +57,28 @@ export function createTileLanes(
     })
     .createView({ dimension: '2d-array' });
   const views = () => POOL_LANES.map((lane) => lanes.get(lane)?.pool.view ?? standIn);
+  const pools = () => [...lanes.values()].map((lane) => lane.pool);
   return {
     lanes,
+    pools,
     of(slot: number) {
       const lane = lanes.get(textures[slot].lane);
       if (!lane) throw new Error(`TEXTURE_POOL_LANE ${textures[slot].lane}`);
       return lane;
     },
     views,
-    /** Every lane whose layers change gets a new pool that keeps its tiles; returns the evicted. */
+    /** Every lane whose layers change gets a new pool that keeps its tiles; returns the evicted
+     *  tiles and how many pools were replaced — none when the layers are those already held. */
     resize(
       target: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
-      layers: LaneLayers,
+      layers: LaneCounts,
       pages: WebgpuTilePageTable,
     ) {
-      let evicted = 0;
+      let evicted = 0,
+        replaced = 0;
       for (const [name, lane] of lanes) {
         if (layers[name] === lane.pool.layers) continue;
+        replaced++;
         const result = resizeTileAtlas(
           target,
           shape(name, layers[name]),
@@ -82,7 +90,7 @@ export function createTileLanes(
         lane.pool = result.pool;
         evicted += result.evicted;
       }
-      return evicted;
+      return { evicted, replaced };
     },
     destroy() {
       for (const lane of lanes.values()) lane.pool.destroy();
