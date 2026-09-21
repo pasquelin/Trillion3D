@@ -1,0 +1,7 @@
+newmtl concrete
+Kd 0.42 0.42 0.4
+Ks 0 0 0
+
+newmtl paint
+Kd 0.85 0.75 0.15
+Ks 0 0 0

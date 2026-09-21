@@ -1,34 +1,82 @@
 {
   "themes": [
-    { "id": "geometry", "title": { "en": "Geometry", "fr": "Géométrie" } },
-    { "id": "materials", "title": { "en": "Materials", "fr": "Matériaux" } },
-    { "id": "lights", "title": { "en": "Lights and shadows", "fr": "Lumières et ombres" } },
-    { "id": "camera", "title": { "en": "Camera", "fr": "Caméra" } },
-    { "id": "loaders", "title": { "en": "Loaded models", "fr": "Modèles chargés" } },
-    { "id": "streaming", "title": { "en": "Streaming", "fr": "Streaming" } }
+    {
+      "id": "geometry",
+      "title": {
+        "en": "Geometry",
+        "fr": "Géométrie"
+      }
+    },
+    {
+      "id": "materials",
+      "title": {
+        "en": "Materials",
+        "fr": "Matériaux"
+      }
+    },
+    {
+      "id": "lights",
+      "title": {
+        "en": "Lights and shadows",
+        "fr": "Lumières et ombres"
+      }
+    },
+    {
+      "id": "camera",
+      "title": {
+        "en": "Camera",
+        "fr": "Caméra"
+      }
+    },
+    {
+      "id": "loaders",
+      "title": {
+        "en": "Loaded models",
+        "fr": "Modèles chargés"
+      }
+    },
+    {
+      "id": "streaming",
+      "title": {
+        "en": "Streaming",
+        "fr": "Streaming"
+      }
+    }
   ],
   "entries": [
     {
       "id": "cube-on-its-corner",
-      "title": { "en": "A cube balanced on one corner", "fr": "Un cube en équilibre sur un coin" },
+      "title": {
+        "en": "A cube balanced on one corner",
+        "fr": "Un cube en équilibre sur un coin"
+      },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/cube-on-its-corner.html"
     },
     {
       "id": "still-life-of-primitives",
-      "title": { "en": "A still life of primitives", "fr": "Une nature morte de primitives" },
+      "title": {
+        "en": "A still life of primitives",
+        "fr": "Une nature morte de primitives"
+      },
       "theme": "geometry",
-      "file": ""
+      "file": "examples/still-life-of-primitives.html"
     },
     {
       "id": "from-clay-to-chrome",
-      "title": { "en": "From clay to chrome", "fr": "De l’argile au chrome" },
+      "title": {
+        "en": "From clay to chrome",
+        "fr": "De l’argile au chrome"
+      },
       "theme": "materials",
-      "file": ""
+      "file": "examples/from-clay-to-chrome.html"
     },
     {
       "id": "painted-and-textured",
-      "title": { "en": "Painted and textured surfaces", "fr": "Surfaces peintes et texturées" },
+      "title": {
+        "en": "Painted and textured surfaces",
+        "fr": "Surfaces peintes et texturées"
+      },
       "theme": "materials",
       "file": ""
     },
@@ -39,43 +87,61 @@
         "fr": "Un cadran solaire en fin d’après-midi"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/sundial-in-the-afternoon.html"
     },
     {
-      "id": "lantern-in-an-alcove",
-      "title": { "en": "A lantern lighting an alcove", "fr": "Une lanterne éclaire une alcôve" },
+      "id": "street-lamp-at-night",
+      "title": {
+        "en": "A street lamp at night",
+        "fr": "Un lampadaire la nuit"
+      },
       "theme": "lights",
-      "file": ""
+      "file": "examples/street-lamp-at-night.html"
     },
     {
       "id": "crates-under-a-spotlight",
-      "title": { "en": "Crates under one spotlight", "fr": "Des caisses sous un projecteur" },
+      "title": {
+        "en": "Crates under one spotlight",
+        "fr": "Des caisses sous un projecteur"
+      },
       "theme": "lights",
-      "file": ""
+      "file": "examples/crates-under-a-spotlight.html"
     },
     {
       "id": "a-ring-of-lamps",
-      "title": { "en": "A ring of lamps on one budget", "fr": "Un anneau de lampes sur un budget" },
+      "title": {
+        "en": "A ring of lamps on one budget",
+        "fr": "Un anneau de lampes sur un budget"
+      },
       "theme": "lights",
       "file": ""
     },
     {
       "id": "circling-the-helicopter",
-      "title": { "en": "Circling the parked helicopter", "fr": "Tourner autour de l’hélicoptère" },
+      "title": {
+        "en": "Circling the parked helicopter",
+        "fr": "Tourner autour de l’hélicoptère"
+      },
       "theme": "camera",
-      "file": ""
+      "file": "examples/circling-the-helicopter.html"
     },
     {
       "id": "zoom-down-the-colonnade",
-      "title": { "en": "Zooming down a colonnade", "fr": "Zoom le long d’une colonnade" },
+      "title": {
+        "en": "Zooming down a colonnade",
+        "fr": "Zoom le long d’une colonnade"
+      },
       "theme": "camera",
-      "file": ""
+      "file": "examples/zoom-down-the-colonnade.html"
     },
     {
       "id": "helicopter-on-its-pad",
-      "title": { "en": "A helicopter parked on its pad", "fr": "Un hélicoptère posé sur son aire" },
+      "title": {
+        "en": "A helicopter parked on its pad",
+        "fr": "Un hélicoptère posé sur son aire"
+      },
       "theme": "loaders",
-      "file": ""
+      "file": "examples/helicopter-on-its-pad.html"
     },
     {
       "id": "observatory-streamed",
@@ -84,7 +150,7 @@
         "fr": "Un observatoire streamé par grappes"
       },
       "theme": "streaming",
-      "file": ""
+      "file": "examples/observatory-streamed.html"
     },
     {
       "id": "memory-on-a-budget",

@@ -12,3 +12,5 @@ site/assets/gallery/offline/
 site/assets/gallery/signature-architecture/cache/
 
 site/assets/gallery/fossil-excavation/cache/
+
+site/assets/examples/*/cache/

@@ -1,0 +1,92 @@
+{
+  "formatVersion": 1,
+  "notes": [],
+  "runtime": {
+    "bytes": 3042,
+    "file": "model.gltf",
+    "meshNodes": 2,
+    "sha256": "4cdce6db67488b16a1dbbf4377b0e6335badc52fca3f49689d1cc57bc3306df3",
+    "sidecars": [
+      {
+        "file": "model.bin",
+        "sha256": "7bcf57b2e1b4df957afff8e5ef593a544a50936e7ff3b454a5779ce2e45968e8"
+      }
+    ],
+    "trianglesAcrossNodes": 1377
+  },
+  "source": {
+    "external": [
+      {
+        "file": "helicopter.mtl",
+        "kind": "material-library",
+        "sha256": "3540a2c2f1b79a3b42b70a19ff6de7fa794259fee692ea5d222869cbf75f09c9",
+        "truncated": false
+      },
+      {
+        "file": "pad.mtl",
+        "kind": "material-library",
+        "sha256": "a57d65b1764f7b10bed7a1c0d6a5d10eb17e97d831901e6b066137f82615aaf8",
+        "truncated": false
+      }
+    ],
+    "files": [
+      {
+        "ascii": true,
+        "bytes": 320005,
+        "creator": "",
+        "fbxVersion": 0,
+        "file": "helicopter.obj",
+        "format": "obj",
+        "hiddenNodes": 0,
+        "lights": 0,
+        "lodGroups": 0,
+        "materials": 1,
+        "meshNodes": 1,
+        "meshes": 1,
+        "ms": 5.578833,
+        "originalUnitMeters": 1.0,
+        "parseMs": 1.058875,
+        "sha256": "7018a1b360b9b9e39113bdd7e4725ed3d82773fcbbba9540328be4780fc74dcb",
+        "textures": 1,
+        "triangles": 1317,
+        "unitMeters": 1.0
+      },
+      {
+        "ascii": true,
+        "bytes": 4249,
+        "creator": "",
+        "fbxVersion": 0,
+        "file": "pad.obj",
+        "format": "obj",
+        "hiddenNodes": 0,
+        "lights": 0,
+        "lodGroups": 0,
+        "materials": 2,
+        "meshNodes": 1,
+        "meshes": 1,
+        "ms": 0.350833,
+        "originalUnitMeters": 1.0,
+        "parseMs": 0.100792,
+        "sha256": "20ab8ed659ddc3ecde96a167da9daa42eea399b29eed9e47334d46058dc05e4f",
+        "textures": 0,
+        "triangles": 60,
+        "unitMeters": 1.0
+      }
+    ],
+    "images": 1,
+    "importMs": 14.651083999999999,
+    "key": "241a8451cee62de2fa14b4d6de7ba046570d8db9d459002c430af1ee7314adf2",
+    "lights": 0,
+    "materials": 3,
+    "meshes": 2,
+    "path": "/Users/pasquelin/Applications/webGeometry-246-examples/site/assets/examples/helipad/source",
+    "plugin": {
+      "name": "obj",
+      "version": "obj-ufbx-0.11.3-gltf-7"
+    }
+  },
+  "status": "ready",
+  "unsupported": {
+    "material-ambient-color": 1
+  }
+}
