@@ -1,5 +1,5 @@
 /** The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. */
-export async function drawnShare(page) {
+async function drawnShare(page) {
   const png = await page.locator('canvas').screenshot();
   return page.evaluate(
     async (bytes) => {
