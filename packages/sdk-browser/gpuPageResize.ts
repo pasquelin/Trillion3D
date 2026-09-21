@@ -21,6 +21,24 @@ export const createPageBuffer = (device: GPUDevice, size: number) =>
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   });
 
+const byRecency = (a: ResidentPage, b: ResidentPage) => b.generation - a.generation;
+
+/** The resident pages, ranked only when some must leave: the `held` cover first, then the pinned
+ *  pages, then by recency. A pool that keeps everything has no rank to compute. */
+function rankedPages(
+  resident: ReadonlyMap<string, ResidentPage>,
+  slots: number,
+  pins: ReadonlySet<string>,
+  held?: ReadonlySet<string>,
+): ResidentPage[] {
+  const pages = [...resident.values()];
+  if (pages.length <= slots) return pages;
+  const buckets: ResidentPage[][] = [[], [], [], []];
+  for (const page of pages)
+    buckets[(held?.has(page.key) ? 2 : 0) + (pins.has(page.key) ? 1 : 0)].push(page);
+  return buckets.reverse().flatMap((bucket) => bucket.sort(byRecency));
+}
+
 /**
  * The pool changes size WITHOUT losing what it holds: the reference, by contrast, empties its
  * pool when `StreamingPoolSize` changes. The pages that matter most keep a place, wherever they
@@ -47,10 +65,7 @@ export function resizeGpuPages(
     0,
     Math.min(context.slots, slots) * pageBytes,
   );
-  const rank = (page: ResidentPage) => (held?.has(page.key) ? 2 : 0) + (pins.has(page.key) ? 1 : 0);
-  const pages = [...resident.values()].sort(
-    (a, b) => rank(b) - rank(a) || b.generation - a.generation,
-  );
+  const pages = rankedPages(resident, slots, pins, held);
   // The first `slots` pages stay; those already inside the new pool keep their slot, the others
   // take the slots the rest leaves free.
   const occupied = new Uint8Array(slots);
@@ -66,16 +81,16 @@ export function resizeGpuPages(
   // Free slots are taken from the top by a load; a displaced page takes the lowest.
   free.length = 0;
   for (let slot = 0; slot < slots; slot++) if (!occupied[slot]) free.push(slot);
-  let taken = 0;
-  for (const page of displaced) {
-    const slot = free[taken++];
+  // Every displaced page has a free slot: the pool keeps at most `slots` pages.
+  displaced.forEach((page, i) => {
+    const slot = free[i];
     encoder.copyBufferToBuffer(context.buffer, page.offset, next, slot * pageBytes, pageBytes);
     page.slot = slot;
     page.offset = slot * pageBytes;
     context.changeKeys.push(page.key);
     context.changeSlots.push(page.offset / 4);
-  }
-  free.splice(0, taken);
+  });
+  free.splice(0, displaced.length);
   device.queue.submit([encoder.finish()]);
   context.buffer.destroy();
   context.buffer = next;
