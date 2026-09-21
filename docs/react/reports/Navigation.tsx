@@ -9,7 +9,7 @@ export interface ReportNavigationProps {
 }
 
 export function ReportNavigation({ route, onClose }: ReportNavigationProps): ReactElement {
-  const [campaign = '', active = 'overview'] = (route.id ?? '').split('/');
+  const [campaign = '', active = 'overview'] = route.id.split('/');
   return (
     <ul className="menu menu-md w-full p-0">
       {REPORT_SECTIONS.map(([id, en, fr]) => (
