@@ -111,6 +111,8 @@ export async function measureView(options) {
     if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
       gpuPassSamples.push(sample);
   }
+  // A `cpu-timing` report published by the drain or the calm below comes from no measured image.
+  diagnostics.image = null;
   await explorer.flush();
   // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
   // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).

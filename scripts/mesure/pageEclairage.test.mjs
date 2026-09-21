@@ -13,7 +13,10 @@ const FAKE_SDK_URL =
   'data:text/javascript,' +
   encodeURIComponent(
     `export const creerMoteur = () => {};
-     export async function createExplorer() { return globalThis.__wgTestExplorer; }`,
+     export async function createExplorer(canvas, options) {
+       globalThis.__wgTestOptions = options;
+       return globalThis.__wgTestExplorer;
+     }`,
   );
 
 function canvasMock() {
@@ -149,4 +152,45 @@ test('stage profile covers the moving suffix and capture keeps its last pose', a
   for (const pose of afterMeasured) {
     assert.equal(pose, b, 'capture pose is the last measured pose, not poseAt(0)');
   }
+});
+
+test('a cpu-timing report published after the measured loop names no measured image', async () => {
+  const explorer = explorerMock({ drawCalls: 1 });
+  const report = { frame: 3, totalMs: 1, lightsMs: 0, selectionMs: 0, steps: null };
+  const publish = () =>
+    globalThis.__wgTestOptions.onDiagnostic({ phase: 'cpu-timing', context: report });
+  explorer.render = (pose) => (explorer.seen.push(pose), publish(), { drawCalls: 1 });
+  explorer.flush = async () => publish();
+  const originalDocument = globalThis.document;
+  const originalFetch = globalThis.fetch;
+  const originalRaf = globalThis.requestAnimationFrame;
+  globalThis.document = { createElement: () => canvasMock(), body: { append: () => {} } };
+  globalThis.fetch = async () => ({ status: 200 });
+  globalThis.requestAnimationFrame = (cb) => cb(0);
+  globalThis.__wgTestExplorer = explorer;
+  let result;
+  try {
+    result = await measureView({
+      sdkUrl: FAKE_SDK_URL,
+      modulesUrl: './',
+      backend: 'creerMoteur',
+      engineId: 'moteur-test',
+      width: 8,
+      height: 8,
+      pixelError: 1,
+      maxPages: 4,
+      warmup: 0,
+      frames: 2,
+      pose: { position: [1, 0, 0] },
+    });
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.fetch = originalFetch;
+    globalThis.requestAnimationFrame = originalRaf;
+    delete globalThis.__wgTestExplorer;
+    delete globalThis.__wgTestOptions;
+  }
+  const images = result.bornesCpu.map((entry) => entry.image);
+  assert.deepEqual(images.slice(0, 2), [0, 1], 'reports inside the loop carry their image');
+  assert.equal(images.at(-1), null, 'a report after the loop carries no measured image');
 });
