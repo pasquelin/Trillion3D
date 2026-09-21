@@ -1,20 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { launchChrome } from './mesure/chrome.mjs';
-import { createDocsServer } from './docs-serve.mjs';
+import { startDocsServer } from './docs-serve.mjs';
 
 test('gallery progressively loads a bounded window and restores navigation state', async () => {
-  const server = createDocsServer();
-  await new Promise((ready, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', ready);
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
+  const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await page.goto(`http://127.0.0.1:${address.port}/#/en/examples`);
+    await page.goto(`http://127.0.0.1:${port}/#/en/examples`);
     const list = page.locator('[data-progressive-list]');
     await list.waitFor();
     assert.equal(await list.getAttribute('data-mounted-items'), '24');

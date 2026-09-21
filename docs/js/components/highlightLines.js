@@ -1,4 +1,4 @@
-import { highlightCode } from '../../runtime/highlighter.js';
+import { highlightCode } from './highlighter.js';
 
 /** Keep multiline tokens balanced inside DaisyUI's separate numbered rows. */
 export function highlightLines(source) {
