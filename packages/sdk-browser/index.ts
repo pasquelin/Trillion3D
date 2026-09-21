@@ -47,7 +47,7 @@ export type {
   TextureLevelReader,
   TextureLevelRequest,
 } from './textureLevelReader.ts';
-export type { TextureCompression } from './textureBlockFormats.ts';
+export type { AtlasLanes, LaneCounts, TextureCompression } from './textureBlockFormats.ts';
 export type { HostRetentionDelta, StreamPage } from './streamingTypes.ts';
 export type { MultiplyLot } from './mathBatchRuntime.ts';
 export type { LightingCapabilities } from '../sdk-core/index.ts';
