@@ -2,12 +2,10 @@
 // the same dist, the same cache and the same poses.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { equipSide, sideReport } from './optionsCote.mjs';
+import { equipSide, sideReport } from './optionsCote.ts';
 
 const equip = (name: string, flags: Record<string, string>) => {
-  const side: { name: string; compression?: string | null } = { name };
-  equipSide(side, new Map(Object.entries(flags)), { engine: 'webgpu' });
-  return side;
+  return equipSide({ name } as never, new Map(Object.entries(flags)), { engine: 'webgpu' });
 };
 
 test('a side takes its own compression, then the campaign one, otherwise the engine choice', () => {
