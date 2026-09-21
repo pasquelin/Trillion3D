@@ -1,5 +1,4 @@
 import type { HostAttribute, HostAttributes } from './hostResources.ts';
-import type * as THREE from 'three';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 
 /**

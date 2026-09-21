@@ -1,5 +1,4 @@
 import type { HostTexture } from './hostResources.ts';
-import type * as THREE from 'three';
 import type { TextureRgba } from './visibilityTypes.ts';
 import { entryLevel, type TileLayout, type TilePlace } from './textureTiles.ts';
 import type { WebgpuTilePool } from './webgpuTilePool.ts';

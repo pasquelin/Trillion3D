@@ -285,7 +285,12 @@ contracts replace them, and the closed list of `test/integration/moteur-sans-thr
 the fifteen files that named it: `backendTypes.ts`, `explorerOptions.ts`, `explorerSceneApi.ts`,
 `gpuDagTypes.ts`, `gpuSelection.ts`, `materialSide.ts`, `pageCone.ts`, `pageSelectionCutState.ts`,
 `pageSelectionHelpers.ts`, `pageSelectionTypes.ts`, `visibilityTypes.ts`, `webgpuBlendState.ts`,
-`webgpuPageRowMaterial.ts`, `webgpuPagesStateGpu.ts`, `webgpuPagesStateVis.ts`.
+`webgpuPageRowMaterial.ts`, `webgpuPagesStateGpu.ts`, `webgpuPagesStateVis.ts`. Ten readers
+downstream of them stopped needing the library at all once their parameters became contract
+types, and left the list with them: `clusterBatchRange.ts`, `frameGateCore.ts`,
+`webgpuBlendBuffers.ts`, `webgpuBlendItems.ts`, `webgpuGeometryPrepare.ts`, `webgpuPageRow.ts`,
+`webgpuPositions.ts`, `webgpuTileAtlas.ts`, `webgpuTileCatalogue.ts`, `webgpuTileScratch.ts` —
+twenty-five files in all, and the list never grows.
 
 | Contract                                                                                                                   | What it names                                                                                                                                                         | Replaces                                                                     | Proof                                        |
 | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------- |

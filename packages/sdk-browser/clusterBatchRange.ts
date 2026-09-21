@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import type { HostAttributes, HostMaterials } from './hostResources.ts';
 import type { MatrixElements } from './matrixElements.ts';
 

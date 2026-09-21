@@ -1,6 +1,6 @@
 import { IDENTITY_MATRIX4, type Side } from '../sdk-core/index.ts';
 import type { HostAttributes, HostMaterials } from './hostResources.ts';
-import type { BatchPage, DrawRanges } from './clusterBatchRange.ts';
+import type { DrawRanges } from './clusterBatchRange.ts';
 import type { ClusterDraw } from './clusterBatches.ts';
 import { firstMaterial, sideOf } from './materialSide.ts';
 

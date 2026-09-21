@@ -1,5 +1,4 @@
 import type { HostAttributes } from './hostResources.ts';
-import type * as THREE from 'three';
 
 /** Uploads shared source positions once for opaque and transparent draws. */
 export function ensureWebgpuPositionBuffer(
