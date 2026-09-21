@@ -361,9 +361,17 @@ machine and the cache offer, and is reported by the `backend-choice` diagnostic 
 | Machine / cache                                                  | Backend that renders  | Scene file read       |
 | ---------------------------------------------------------------- | --------------------- | --------------------- |
 | A WebGPU device was granted                                        | `webgpu-page-raster`  | `source.gltf`         |
-| WebGL2 only, cache carries `autonomousScene`                       | `autonomous-pages-webgl` | the cache's `scene.gltf` |
+| WebGL2 only, cache carries `autonomousScene`                       | `autonomous-pages-webgl` chosen — it does not render yet, see below | the cache's `scene.gltf` |
 | WebGL2 only, cache carries no `autonomousScene`                    | none — `EngineError('NO_ENGINE_BACKEND')` | — |
 | No WebGL2 at all                                                   | none — `EngineError('NO_WEBGL2')` | — |
+
+Known limit on a WebGL2-only machine: the chosen `autonomous-pages-webgl` path does not produce
+an image today. On `site/assets/kinetic-garden`, the repository's only cache in the current
+format, its preparation stops with `EngineError('AUTONOMOUS_COVERAGE_MISSING')` — the prepared
+scene does not cover every page the cut requires. Such a machine therefore gets a named failure
+rather than a picture. The gap is in that WebGL2 path itself, not in the selection above, and it
+is lifted by #78. A host that must draw on such a machine names a backend itself —
+`backends: [exactPagesBackend]`, which is what the comparison views and the bench do.
 
 `referenceBackend`, `exactPagesBackend` and `threeLodBackend` are the Three witnesses of the
 comparison views and the bench: they are opt-in, reached only through `options.backends`, and a
