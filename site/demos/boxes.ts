@@ -8,8 +8,9 @@ import {
   sphereFromBounds,
 } from './engine.ts';
 import { formatNumber, slider, valueView, verdictView } from './kit.ts';
+import type { DemoDef } from './kit.ts';
 
-export const BOX_DEMOS = {
+export const BOX_DEMOS: Record<string, DemoDef> = {
   boxUnion: {
     controls: [
       slider('x', 'second box, x', -3, 3, 1.5, 0.1),
@@ -20,7 +21,7 @@ export const BOX_DEMOS = {
       out.set([-1, -1, -1, 1, 1, 1]);
       boxUnion(out, 0, state.x - 0.6, -0.6, state.z - 0.6, state.x + 0.6, 0.6, state.z + 0.6);
       const sphere = new Float64Array(4);
-      sphereFromBounds(sphere, 0, ...out);
+      sphereFromBounds(sphere, 0, out[0], out[1], out[2], out[3], out[4], out[5]);
       return [
         valueView('boxUnion of the unit box and the one you move', [
           ['lower bounds', Array.from(out.subarray(0, 3), formatNumber).join(', ')],

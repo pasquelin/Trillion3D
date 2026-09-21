@@ -1,7 +1,12 @@
 /** The two pictures the demos draw: a curve over [0, 1], and vectors seen from above. */
 import { formatNumber } from './kit.ts';
 
-export function drawCurve(context, width, height, fn) {
+export function drawCurve(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  fn: (x: number) => number,
+) {
   context.clearRect(0, 0, width, height);
   context.strokeStyle = '#898781';
   context.beginPath();
@@ -20,8 +25,20 @@ export function drawCurve(context, width, height, fn) {
   context.stroke();
 }
 
+/** One labelled arrow of `drawVectors`, seen from above. */
+interface VectorArrow {
+  v: Float64Array;
+  colour: string;
+  label: string;
+}
+
 /** Vectors seen from above: x to the right, z downwards, the origin at the centre. */
-export function drawVectors(context, width, height, vectors) {
+export function drawVectors(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  vectors: VectorArrow[],
+) {
   const unit = Math.min(width, height) / 6;
   const cx = width / 2,
     cy = height / 2;

@@ -7,12 +7,13 @@ import {
   transformHomogeneousPoint,
 } from './engine.ts';
 import { canvasView, formatNumber, slider, valueView } from './kit.ts';
+import type { DemoDef } from './kit.ts';
 import { drawVectors } from './draw.ts';
 
-const vector = (x, y, z) => new Float64Array([x, y, z]);
-const show = (v) => Array.from(v, formatNumber).join(', ');
+const vector = (x: number, y: number, z: number) => new Float64Array([x, y, z]);
+const show = (v: Float64Array) => Array.from(v, formatNumber).join(', ');
 
-export const VECTOR_TRANSFORM_DEMOS = {
+export const VECTOR_TRANSFORM_DEMOS: Record<string, DemoDef> = {
   transformAffinePoint: {
     controls: [
       slider('turn', 'rotation of the matrix (rad)', 0, 6.28, 0.7, 0.01),

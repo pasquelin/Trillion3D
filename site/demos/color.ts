@@ -1,11 +1,12 @@
 /** Colour demos: the engine's own curve and HSL conversion, on values the reader moves. */
 import { hslToLinearRgb, linearToSrgb, srgbToLinear } from './engine.ts';
 import { canvasView, formatNumber, slider, swatchView, valueView } from './kit.ts';
+import type { DemoDef } from './kit.ts';
 import { drawCurve } from './draw.ts';
 
-const show = (v) => Array.from(v, formatNumber).join(', ');
+const show = (v: Float64Array) => Array.from(v, formatNumber).join(', ');
 
-export const COLOR_DEMOS = {
+export const COLOR_DEMOS: Record<string, DemoDef> = {
   srgbToLinear: {
     controls: [slider('v', 'encoded sRGB value', 0, 1, 0.5, 0.01)],
     run(state) {
@@ -55,7 +56,7 @@ export const COLOR_DEMOS = {
   },
 };
 
-function grey(value) {
+function grey(value: number) {
   const level = Math.round(Math.min(1, Math.max(0, value)) * 255);
   return `rgb(${level},${level},${level})`;
 }

@@ -13,17 +13,21 @@ import {
   worldToRenderOrigin,
 } from './engine.ts';
 import { canvasView, formatNumber, matrixView, slider, valueView, verdictView } from './kit.ts';
+import type { DemoDef } from './kit.ts';
 
 const scratch = () => new Float64Array(16);
 
+/** Six flat box bounds, kept as a tuple so the engine's variadic box calls can spread it. */
+type Box6 = [number, number, number, number, number, number];
+
 /** Depth of a point at `distance` from the eye, as the projection writes it. */
-function depthAt(projection, distance) {
+function depthAt(projection: Float64Array, distance: number) {
   const clip = new Float64Array(4);
   transformHomogeneousPoint(clip, projection, 0, 0, -distance);
   return clip[3] === 0 ? Number.NaN : clip[2] / clip[3];
 }
 
-export const CAMERA_DEMOS = {
+export const CAMERA_DEMOS: Record<string, DemoDef> = {
   perspectiveProjection: {
     controls: [
       slider('fov', 'field of view (°)', 20, 110, 50, 1),
@@ -33,7 +37,7 @@ export const CAMERA_DEMOS = {
     run(state) {
       const projection = scratch();
       perspectiveProjection(projection, state.fov, state.aspect, state.near, 1);
-      const rows = [1, 10, 100, 1000, 100000].map((distance) => [
+      const rows: [string, string][] = [1, 10, 100, 1000, 100000].map((distance) => [
         `depth at ${distance} m`,
         formatNumber(depthAt(projection, distance)),
       ]);
@@ -68,8 +72,8 @@ export const CAMERA_DEMOS = {
       composeMatrix4(world, [0, 0, 0], [0, Math.sin(half), 0, Math.cos(half)], [1, 1, 1]);
       const frame = createCameraFrame();
       updateCameraFrame(frame, projection, world, state.far);
-      const near = [-0.5, -0.5, -3, 0.5, 0.5, -2];
-      const beyond = [-0.5, -0.5, -state.far - 20, 0.5, 0.5, -state.far - 10];
+      const near: Box6 = [-0.5, -0.5, -3, 0.5, 0.5, -2];
+      const beyond: Box6 = [-0.5, -0.5, -state.far - 20, 0.5, 0.5, -state.far - 10];
       return [
         matrixView('frame.view — the inverse of the camera world matrix', frame.view),
         valueView('the six planes it rewrote', [
@@ -121,7 +125,13 @@ export const CAMERA_DEMOS = {
   },
 };
 
-function drawDepth(context, width, height, projection, near) {
+function drawDepth(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  projection: Float64Array,
+  near: number,
+) {
   context.clearRect(0, 0, width, height);
   context.strokeStyle = 'rgba(128,128,128,0.4)';
   context.beginPath();

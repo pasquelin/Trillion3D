@@ -9,13 +9,14 @@ import {
   scaleVector3,
 } from './engine.ts';
 import { canvasView, formatNumber, slider, valueView } from './kit.ts';
+import type { DemoDef, DemoState } from './kit.ts';
 import { drawVectors } from './draw.ts';
 
-const vector = (x, y, z) => new Float64Array([x, y, z]);
-const show = (v) => Array.from(v, formatNumber).join(', ');
+const vector = (x: number, y: number, z: number) => new Float64Array([x, y, z]);
+const show = (v: Float64Array) => Array.from(v, formatNumber).join(', ');
 
 /** Two vectors the reader turns, in the xz plane, plus their heights. */
-function pair(state) {
+function pair(state: DemoState) {
   return {
     a: vector(Math.cos(state.angleA), state.heightA, Math.sin(state.angleA)),
     b: vector(Math.cos(state.angleB), 0, Math.sin(state.angleB)),
@@ -28,7 +29,7 @@ const PAIR_CONTROLS = [
   slider('angleB', 'direction of b (rad)', 0, 6.28, 1.9, 0.01),
 ];
 
-export const VECTOR_DEMOS = {
+export const VECTOR_DEMOS: Record<string, DemoDef> = {
   dotVector3: {
     controls: PAIR_CONTROLS,
     run(state) {

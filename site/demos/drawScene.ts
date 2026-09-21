@@ -7,7 +7,26 @@ const KEPT = '#199e70';
 const STRADDLING = '#c98500';
 const REJECTED = '#d95926';
 
-export function drawScene(context, width, height, { boxes, turn, fov, aspect }) {
+/** One box of the scene, with the frustum verdict already computed by the caller. */
+interface SceneBox {
+  box: readonly [number, number, number, number, number, number];
+  out: boolean;
+  state: number;
+}
+
+interface SceneSpec {
+  boxes: SceneBox[];
+  turn: number;
+  fov: number;
+  aspect: number;
+}
+
+export function drawScene(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  { boxes, turn, fov, aspect }: SceneSpec,
+) {
   const unit = height / 11;
   const cx = width / 2;
   const cy = height - 12;
@@ -32,7 +51,14 @@ export function drawScene(context, width, height, { boxes, turn, fov, aspect }) 
   legend(context, width);
 }
 
-function drawGrid(context, width, height, cx, cy, unit) {
+function drawGrid(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  cx: number,
+  cy: number,
+  unit: number,
+) {
   context.strokeStyle = 'rgba(128,128,128,0.18)';
   context.lineWidth = 1;
   context.beginPath();
@@ -47,7 +73,15 @@ function drawGrid(context, width, height, cx, cy, unit) {
   context.stroke();
 }
 
-function drawFrustum(context, cx, cy, turn, fov, aspect, height) {
+function drawFrustum(
+  context: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  turn: number,
+  fov: number,
+  aspect: number,
+  height: number,
+) {
   // `fov` is vertical; from above, what bounds the picture is the horizontal half-angle.
   const half = Math.atan(aspect * Math.tan(((fov / 2) * Math.PI) / 180));
   const far = height;
@@ -68,7 +102,7 @@ function drawFrustum(context, cx, cy, turn, fov, aspect, height) {
   context.fill();
 }
 
-function legend(context, width) {
+function legend(context: CanvasRenderingContext2D, width: number) {
   const items = [
     [KEPT, 'entirely inside'],
     [STRADDLING, 'straddling'],

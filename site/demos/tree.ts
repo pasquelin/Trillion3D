@@ -11,10 +11,12 @@ import {
   updateNodeMatrixWorld,
 } from './engine.ts';
 import { canvasView, formatNumber, slider, valueView } from './kit.ts';
+import type { DemoDef, DemoState } from './kit.ts';
 import { drawVectors } from './draw.ts';
+import type { TransformTree } from './engine.ts';
 
 /** A root with three children in a row, the pose of the root driven by the reader. */
-function builtTree(state, children = 3) {
+function builtTree(state: DemoState, children = 3) {
   const tree = createTransformTree(8);
   const root = addTransformNode(tree, -1);
   const half = state.turn * 0.5;
@@ -35,13 +37,13 @@ const POSE = [
   slider('turn', 'root rotation (rad)', 0, 6.28, 0.6, 0.01),
 ];
 
-const read = (tree, node) => {
+const read = (tree: TransformTree, node: number) => {
   const out = new Float64Array(3);
   nodeWorldPosition(out, tree, node);
   return out;
 };
 
-export const TREE_DEMOS = {
+export const TREE_DEMOS: Record<string, DemoDef> = {
   createTransformTree: {
     controls: POSE,
     run(state) {
@@ -50,7 +52,7 @@ export const TREE_DEMOS = {
         valueView('what the arrays hold', [
           ['nodes served', String(tree.end)],
           ['root world position', Array.from(read(tree, root), formatNumber).join(', ')],
-          ...nodes.map((node, index) => [
+          ...nodes.map((node, index): [string, string] => [
             `child ${index} world position`,
             Array.from(read(tree, node), formatNumber).join(', '),
           ]),

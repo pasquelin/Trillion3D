@@ -10,16 +10,20 @@ import {
   updateCameraFrame,
 } from './engine.ts';
 import { canvasView, formatNumber, slider, valueView, verdictView } from './kit.ts';
+import type { DemoDef, DemoState } from './kit.ts';
 import { drawScene } from './drawScene.ts';
 
 /** The camera of these demos: one shape, so the picture and the planes cannot disagree. */
 const ASPECT = 1.6;
 
+/** Six flat box bounds, kept as a tuple so the engine's variadic box calls can spread it. */
+type Box6 = [number, number, number, number, number, number];
+
 /**
  * A little world of four boxes in front of the camera — the engine's camera looks down its
  * own −z, like the reference, so everything it can see has a negative z.
  */
-const BOXES = [
+const BOXES: Box6[] = [
   [-1, -0.5, -3, 0.4, 0.5, -2],
   [1.4, -0.5, -4.6, 2.6, 0.5, -3.5],
   [-3, -0.5, -6.2, -1.6, 0.5, -5],
@@ -31,7 +35,7 @@ const BOXES = [
  * inverse of the camera's world matrix, and `updateCameraFrame` is what does that inversion
  * and extracts the six planes — the same call the renderer makes once per image.
  */
-function frustumOf(state) {
+function frustumOf(state: DemoState) {
   const world = new Float64Array(16),
     projection = new Float64Array(16),
     clip = new Float64Array(16);
@@ -44,7 +48,7 @@ function frustumOf(state) {
   return { clip, planes: frame.planes };
 }
 
-export const BOUNDS_DEMOS = {
+export const BOUNDS_DEMOS: Record<string, DemoDef> = {
   frustumExcludesBox: {
     controls: [
       slider('turn', 'camera heading (rad)', -1.2, 1.2, 0.2, 0.01),
