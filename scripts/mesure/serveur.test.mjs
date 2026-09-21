@@ -40,7 +40,7 @@ test('portal stylesheets are served as CSS so browser proofs use the real layout
   const server = await startServer({
     port: 0,
     captures: new Map(),
-    mounts: [{ prefix: '/styles/', dir: resolve(import.meta.dirname, '../../docs/styles') }],
+    mounts: [{ prefix: '/styles/', dir: resolve(import.meta.dirname, '../../site/styles') }],
   });
   try {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/styles/portal.css`);

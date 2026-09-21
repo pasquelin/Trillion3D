@@ -9,7 +9,7 @@ test('publication keeps immutable campaigns and portal entry, and validates evid
   const root = mkdtempSync(join(tmpdir(), 'wg-publish-'));
   try {
     const source = join(root, 'source'),
-      dest = join(root, 'docs');
+      dest = join(root, 'site');
     mkdirSync(source);
     mkdirSync(dest);
     writeFileSync(join(dest, 'index.html'), 'portal');
