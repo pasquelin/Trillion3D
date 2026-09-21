@@ -248,7 +248,10 @@ The blended scene copy — none in the bench scenes, `submittedTriangles` equals
 `totalSubmittedTriangles` on every view — is proved on
 `transmission-explorateur-webgl.browser.mjs`: the half-blue quad over the glass reads
 `[125, 0, 127, 255]` drawn by the owner and the same bytes drawn by the host renderer on
-`develop`. Envelope, `scripts/mesure/banc.mjs`, general view, moving camera, 1280 × 720, DPR 1,
+`develop`. Declared, not measured: a lit blended copy (`MeshStandardMaterial`, transparent, not
+transmissive) is now shaded by the engine's single lighting model instead of the host renderer; no
+bench scene carries one and the browser proof uses an unlit material, so its pixel difference is
+not captured here. Envelope, `scripts/mesure/banc.mjs`, general view, moving camera, 1280 × 720, DPR 1,
 0 px, 60 frames, `--profil on`, the two sides on one cache compiled by this commit's native
 compiler (WGP3, manifest 6, 150 000 triangles, 51 366 resident pages, 10.07 M submitted
 triangles — not the cache of batch E7's numbers, so the frame is not comparable with them), three
