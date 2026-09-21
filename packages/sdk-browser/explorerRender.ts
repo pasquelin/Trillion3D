@@ -45,7 +45,14 @@ type Inputs = {
   compose: ReturnType<typeof createFrameComposer>;
 };
 
-export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
+/** The `ExplorerSession` fields the frame render actually reads — narrower than the full
+ *  session so a caller can supply a session slice instead of every field it never touches. */
+export type ExplorerRenderSession = Pick<
+  ExplorerSession,
+  'scope' | 'diagnosticChannel' | 'emit' | 'diagnose'
+>;
+
+export function createExplorerRender(session: ExplorerRenderSession, inputs: Inputs) {
   const { scope, diagnosticChannel, emit, diagnose } = session;
   const {
     check,

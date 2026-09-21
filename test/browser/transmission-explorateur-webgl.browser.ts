@@ -18,6 +18,7 @@ interface Refusal {
 interface Resultat extends ResultatPagePreuve {
   repeatPixel: number[];
   canvasPixel: number[];
+  blendedPixel: number[];
   targetPixel: number[];
   copyDraws: number;
   clusterDraws: number;
@@ -25,7 +26,7 @@ interface Resultat extends ResultatPagePreuve {
   backdropBytes: number;
   drawCalls: number;
   transparentMeshes: number;
-  physicalInHostPass: number;
+  meshesInHostPass: number;
   hostCalls: number;
   wireframe: { copyDraws: number; drawCalls: number };
   mutationRefusal: Refusal;

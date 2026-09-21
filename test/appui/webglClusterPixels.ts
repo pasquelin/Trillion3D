@@ -38,20 +38,20 @@ export const clusterRecord = (
   material: THREE.Material | THREE.Material[],
   starts: number[] = [0],
   counts: number[] = [6],
-): ClusterDrawMesh => ({
-  geometry,
-  material,
-  renderOrder: 0,
-  matrix: { elements: new Float64Array(IDENTITY_MATRIX4) },
-  _multiDrawStarts: new Int32Array(starts.map((start) => start * 4)),
-  _multiDrawCounts: new Int32Array(counts),
-  _multiDrawCount: starts.length,
-  _sideSplitMaterials: undefined,
-  _sideSplitBack: undefined,
-  _sideSplitFront: undefined,
-  _sideSplitSource: undefined,
-  _sideSplitPolygonMaterials: undefined,
-});
+): ClusterDrawMesh => {
+  const index = geometry.index;
+  if (!index) throw new Error('clusterRecord requires an indexed geometry');
+  return {
+    geometry: { index, attributes: geometry.attributes },
+    material,
+    renderOrder: 0,
+    polygonOffsetUnits: undefined,
+    matrix: { elements: new Float64Array(IDENTITY_MATRIX4) },
+    _multiDrawStarts: new Int32Array(starts.map((start) => start * 4)),
+    _multiDrawCounts: new Int32Array(counts),
+    _multiDrawCount: starts.length,
+  };
+};
 
 /** A `ClusterDrawMesh` matrix field, `elements` a `Float64Array` as the renderer reads it, kept
  *  in sync with a private `THREE.Matrix4` so a proof can still pose it with the usual helpers. */

@@ -1,10 +1,63 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import type { Mesh } from '../shadow-theatre/geometry.ts';
+
+/** One material row, `[name, baseColor, metallic, roughness]`, as the example scenes list them. */
+export type MaterialRow = readonly [
+  name: string,
+  baseColorFactor: readonly [number, number, number, number],
+  metallicFactor: number,
+  roughnessFactor: number,
+];
+
+interface BufferView {
+  buffer: number;
+  byteOffset: number;
+  byteLength: number;
+  target: number;
+}
+
+interface Accessor {
+  bufferView: number;
+  componentType: number;
+  type: string;
+  count: number;
+  min?: readonly number[];
+  max?: readonly number[];
+}
+
+interface Primitive {
+  material: number;
+  attributes: { POSITION: number; NORMAL: number };
+  indices: number;
+}
+
+interface GltfMaterial {
+  name: string;
+  doubleSided: boolean;
+  pbrMetallicRoughness: {
+    baseColorFactor: readonly [number, number, number, number];
+    metallicFactor: number;
+    roughnessFactor: number;
+  };
+}
+
+/** The shape read from and written to `geometry.gltf`, the fields this recipe touches. */
+export interface GltfDocument {
+  scene?: number;
+  scenes: { nodes: number[] }[];
+  nodes: { name: string; mesh: number }[];
+  meshes: { name: string; primitives: Primitive[] }[];
+  materials: GltfMaterial[];
+  buffers: { uri: string; byteLength: number }[];
+  bufferViews: BufferView[];
+  accessors: Accessor[];
+}
 
 /** Bounds of flat xyz `values`, for the accessor a POSITION attribute requires. */
-function bounds(values) {
-  const min = [Infinity, Infinity, Infinity],
-    max = [-Infinity, -Infinity, -Infinity];
+function bounds(values: readonly number[]) {
+  const min: [number, number, number] = [Infinity, Infinity, Infinity],
+    max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
   values.forEach((value, index) => {
     min[index % 3] = Math.min(min[index % 3], value);
     max[index % 3] = Math.max(max[index % 3], value);
@@ -13,12 +66,18 @@ function bounds(values) {
 }
 
 /** The buffer views, accessors and primitives of workshop surfaces, in one binary chunk list. */
-function surfacesBuffers(surfaces, buffer, firstView, firstAccessor, firstMaterial) {
-  const views = [],
-    accessors = [],
-    chunks = [];
+function surfacesBuffers(
+  surfaces: Iterable<[number, Mesh]>,
+  buffer: number,
+  firstView: number,
+  firstAccessor: number,
+  firstMaterial: number,
+) {
+  const views: BufferView[] = [],
+    accessors: Accessor[] = [],
+    chunks: Buffer[] = [];
   let byteLength = 0;
-  const accessor = (values, indices) => {
+  const accessor = (values: readonly number[], indices = false): number => {
     const data = indices ? Uint32Array.from(values) : Float32Array.from(values);
     views.push({
       buffer,
@@ -37,7 +96,7 @@ function surfacesBuffers(surfaces, buffer, firstView, firstAccessor, firstMateri
     });
     return firstAccessor + accessors.length - 1;
   };
-  const primitives = [...surfaces].map(([material, mesh]) => ({
+  const primitives: Primitive[] = [...surfaces].map(([material, mesh]) => ({
     material: firstMaterial + material,
     attributes: { POSITION: accessor(mesh.positions), NORMAL: accessor(mesh.normals) },
     indices: accessor(mesh.indices, true),
@@ -45,7 +104,7 @@ function surfacesBuffers(surfaces, buffer, firstView, firstAccessor, firstMateri
   return { views, accessors, primitives, chunks, byteLength };
 }
 
-const material = ([name, baseColorFactor, metallicFactor, roughnessFactor]) => ({
+const material = ([name, baseColorFactor, metallicFactor, roughnessFactor]: MaterialRow) => ({
   name,
   doubleSided: true,
   pbrMetallicRoughness: { baseColorFactor, metallicFactor, roughnessFactor },
@@ -56,7 +115,12 @@ const material = ([name, baseColorFactor, metallicFactor, roughnessFactor]) => (
  * `materials` as `[name, baseColor, metallic, roughness]` rows — as `geometry.gltf` +
  * `geometry.bin` in `directory`: one mesh, one primitive per material, nothing external.
  */
-export async function writeSurfacesGltf(directory, name, materials, surfaces) {
+export async function writeSurfacesGltf(
+  directory: string,
+  name: string,
+  materials: readonly MaterialRow[],
+  surfaces: Iterable<[number, Mesh]>,
+) {
   const { views, accessors, primitives, chunks, byteLength } = surfacesBuffers(
     surfaces,
     0,
@@ -64,12 +128,7 @@ export async function writeSurfacesGltf(directory, name, materials, surfaces) {
     0,
     0,
   );
-  const gltf = {
-    asset: {
-      version: '2.0',
-      generator: 'Web Geometry examples recipe v1',
-      copyright: 'Original Web Geometry contributors; repository license',
-    },
+  const gltf: GltfDocument = {
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [{ name, mesh: 0 }],
@@ -89,7 +148,13 @@ export async function writeSurfacesGltf(directory, name, materials, surfaces) {
  * the model's own buffers, textures and nodes stay untouched. Writes the result as
  * `geometry.gltf` in `directory`.
  */
-export async function appendSurfacesGltf(gltf, directory, name, materials, surfaces) {
+export async function appendSurfacesGltf(
+  gltf: GltfDocument,
+  directory: string,
+  name: string,
+  materials: readonly MaterialRow[],
+  surfaces: Iterable<[number, Mesh]>,
+) {
   const { views, accessors, primitives, chunks, byteLength } = surfacesBuffers(
     surfaces,
     gltf.buffers.length,

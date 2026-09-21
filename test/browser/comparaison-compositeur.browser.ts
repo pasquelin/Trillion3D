@@ -5,14 +5,22 @@
 //
 //   node --experimental-strip-types test/browser/comparaison-compositeur.browser.mjs
 import assert from 'node:assert/strict';
-import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.ts';
+import {
+  preuveDansLaPage,
+  preuveSaine,
+  type ResultatPagePreuve,
+} from '../appui/preuvePageMoteur.ts';
 
-const result = await preuveDansLaPage(
+interface Resultat extends ResultatPagePreuve {
+  layouts: Record<string, { left: number[]; right: number[] }>;
+}
+
+const result = (await preuveDansLaPage(
   'comparisonCompositorPage.ts',
   'comparisonCompositorProof',
   'Engine comparison compositor',
   'execute',
-);
+)) as Resultat;
 console.log(JSON.stringify(result, null, 2));
 preuveSaine(result);
 const { layouts } = result;

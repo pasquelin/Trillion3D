@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { createFrameComposer } from '../../packages/sdk-browser/explorerCompose.ts';
 import { createThreeSceneDraw } from '../../packages/sdk-browser/threeSceneAdapter.ts';
 import { WEBGL_CONTEXT_ATTRIBUTES } from '../../packages/sdk-browser/webglSurface.ts';
+import { baseCapabilities } from '../../packages/sdk-browser/backendCommon.ts';
 
 const LARGEUR = 256,
   HAUTEUR = 192;
@@ -23,7 +24,7 @@ const POINTS = [
 ];
 
 /** RGBA bytes of the draw buffer at the control points, reread just after submit. */
-function lire(gl) {
+function lire(gl: WebGL2RenderingContext) {
   return POINTS.map(([x, y]) => {
     const octets = new Uint8Array(4);
     gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, octets);
@@ -32,10 +33,10 @@ function lire(gl) {
 }
 
 /** Two planes of different colours, lit or not according to what the case asks. */
-function scene(eclairee) {
+function scene(eclairee: boolean) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x171d28);
-  const materiau = (couleur) =>
+  const materiau = (couleur: number) =>
     eclairee
       ? new THREE.MeshStandardMaterial({ color: couleur, roughness: 0.6 })
       : new THREE.MeshBasicMaterial({ color: couleur });
@@ -51,8 +52,15 @@ function scene(eclairee) {
   return scene;
 }
 
+/** The counters right after a draw: `null` only before the first frame, never here. */
+const calls = (dessin: ReturnType<typeof createThreeSceneDraw>) => {
+  const counters = dessin.counters();
+  if (!counters) throw new Error('draw before render');
+  return counters.calls;
+};
+
 /** One case: a complete image, then the same image held. Returns both pixel readings. */
-function cas(gl, eclairee) {
+function cas(gl: WebGL2RenderingContext, eclairee: boolean) {
   const camera = new THREE.PerspectiveCamera(50, LARGEUR / HAUTEUR, 0.1, 100);
   camera.position.z = 3;
   camera.updateMatrixWorld(true);
@@ -61,8 +69,13 @@ function cas(gl, eclairee) {
   // A witness engine as the composer sees it: its scene, its light flag, its held-frame word.
   const moteur = {
     id: 'witness',
+    capabilities: baseCapabilities,
     scene: monde,
     frameHeld: false,
+    overBudget: false,
+    prepare: async () => {},
+    metrics: () => ({}),
+    dispose: () => {},
     sceneLit: () => eclairee,
     render: dessin.render,
     drawHostGeometry: dessin.drawHostGeometry,
@@ -71,20 +84,21 @@ function cas(gl, eclairee) {
   moteur.render(camera);
   compose(moteur, null);
   const complete = lire(gl);
-  const dessins = dessin.counters().calls;
+  const dessins = calls(dessin);
   moteur.frameHeld = true;
-  const readings = [];
+  const readings: number[][][] = [];
   // Several held images in a row: each puts back what it kept, without drifting.
   for (let i = 0; i < 3; i++) {
     compose(moteur, null);
     readings.push(lire(gl));
   }
-  const dessinsTenus = dessin.counters().calls;
+  const dessinsTenus = calls(dessin);
   compose.dispose();
   dessin.dispose();
   monde.traverse((objet) => {
-    objet.geometry?.dispose();
-    objet.material?.dispose();
+    if (!(objet instanceof THREE.Mesh)) return;
+    objet.geometry.dispose();
+    (Array.isArray(objet.material) ? objet.material : [objet.material]).forEach((m) => m.dispose());
   });
   return { eclairee, complete, tenues: readings, dessins, dessinsTenus };
 }
@@ -97,12 +111,13 @@ export async function executer() {
   const gl = canvas.getContext('webgl2', WEBGL_CONTEXT_ATTRIBUTES);
   if (!gl) return { erreur: 'WebGL2 unavailable' };
   try {
+    const attributes = gl.getContextAttributes();
     return {
-      alpha: gl.getContextAttributes().alpha,
+      alpha: attributes ? attributes.alpha : undefined,
       cas: [cas(gl, false), cas(gl, true)],
     };
   } catch (error) {
-    return { erreur: String(error) + (error?.stack ?? '') };
+    return { erreur: String(error) + (error instanceof Error ? (error.stack ?? '') : '') };
   } finally {
     gl.getExtension('WEBGL_lose_context')?.loseContext();
     canvas.remove();
