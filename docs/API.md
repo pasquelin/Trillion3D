@@ -152,8 +152,9 @@ typed arrays or sub-views of a fixed stride (`mathBatchStrides.ts`, `BOX_VALUES`
 repeats its unit function, which stays the oracle; how to lay out and reuse the buffers is in the
 [SDK guide](SDK.md#batch-math-for-hosts). The proof is `pnpm run perf:core`
 (`three-vs-core-batch-*.perf.mjs`; how a line reads: [TESTS.md](TESTS.md)). Ratios are the batch's
-speed-up over the reference's loop, the range of the per-run medians over three runs (PR #105,
-20 Sept. 2026, Apple M2 Max, Node 26.8.2); the three exceptions are declared on their line.
+speed-up over the reference's loop, rounded from the range of the per-run medians over three runs
+(PR #105, 20 Sept. 2026, Apple M2 Max, Node 26.8.2, the ranges in that pull request); the three
+exceptions are declared on their line.
 
 | Function                                                                  | Computes                                                                                                              | Replaces the loop                          | Proof                                                                                                              |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
