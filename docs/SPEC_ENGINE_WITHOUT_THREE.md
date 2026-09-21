@@ -124,17 +124,12 @@ The first stage of #85 measured that remainder before touching it — at most 0.
 frame on `exact-cluster-pages`, 0.1 ms p95 per host segment, no gain to claim (the numbers in
 `docs/API.md`, batch E6) — and
 made the engine surface the session's WebGL2 authority, the Three adapter a detail of the
-composition host alone. The second stage removed that adapter: the render targets, the held
-frame, the comparison compositor and the presenter are engine objects on the engine's context
-(`docs/API.md`, batch E7), the frame composer clears and asks every engine to draw its whole
-image into the bound framebuffer, and the witness engines draw the Three scenes they hold
-through one adapter they share (`threeSceneAdapter.ts`), acquired at their first draw and gone
-with the last of them — the host holds no renderer. Captures are byte-identical; two defects of
-the Three path left with it (a held frame the copy refused on the engine's alpha-less drawing
-buffer, a comparison shader that never compiled), both declared with before/after readings in
-that batch. What remains is the third stage: the draw records' `BufferGeometry` and `Material`
-descriptors, the non-transmissive blended copies the owner will submit — the scene the exact
-engine still hands the witness adapter — and the observation meshes.
+composition host alone. The second stage removed that adapter: the composition host holds no
+renderer (`docs/API.md`, batch E7: what each engine object computes, what it replaces, and the
+byte proof — captures identical, two defects of the Three path gone with it). What remains is
+the third stage: the draw records' `BufferGeometry` and `Material` descriptors, the
+non-transmissive blended copies the owner will submit — the scene the exact engine still hands
+the witness adapter — and the observation meshes.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are

@@ -4,7 +4,8 @@ import { handleExplorerRenderError } from './explorerRenderFallback.ts';
 import { createHostFrameCostAudit } from './frameCostAudit.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
-import type { ExplorerHostState } from './explorerHostState.ts';
+import type { BoundTarget, ExplorerHostState } from './explorerHostState.ts';
+import type { WebglRenderTarget } from './webglRenderTarget.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { createPageStreamer } from './streamingPages.ts';
@@ -12,7 +13,6 @@ import type { EngineProfiler } from './telemetry.ts';
 import type { ComparisonLayout } from './comparison.ts';
 import type { createFrameComposer } from './explorerCompose.ts';
 import type { HostCamera } from './cameraWorld.ts';
-import type { WebglRenderTarget } from './webglRenderTarget.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
@@ -23,7 +23,7 @@ type Inputs = {
   setPose: (pose: CameraPose) => void;
   streaming: ReturnType<typeof createExplorerStreaming>;
   drawBackend: (backend: RenderBackend, target: WebglRenderTarget | null) => void;
-  ensureTarget: (target?: WebglRenderTarget) => WebglRenderTarget;
+  ensureTarget: (target?: BoundTarget) => BoundTarget;
   directGpu: boolean;
   webglSurface?: WebglSurface;
   backends: RenderBackend[];
@@ -69,6 +69,12 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     compose,
   } = inputs;
   const auditFrame = createHostFrameCostAudit();
+  /** The live target, or the loss the frame will report: a dead one has no framebuffer. */
+  const live = (target: BoundTarget) => {
+    const current = target.current();
+    if (!current) throw new Error('CONTEXT_LOST');
+    return current;
+  };
   const render = (pose?: CameraPose): FrameMetrics => {
     const { measuring, diagnostic, comparisonLayout, comparisonPair, wipe, toggle } = state;
     check();
@@ -81,14 +87,15 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     (state.active as HostCpuProfile).cpuStep?.('arrivalsMs', performance.now() - arrivalStart);
     try {
       if (comparisonLayout === 'single' || measuring) {
+        let target: WebglRenderTarget | null = null;
         if (measuring && !directGpu)
-          state.measurementTarget = ensureTarget(state.measurementTarget);
-        drawBackend(state.active, measuring && !directGpu ? state.measurementTarget! : null);
+          target = live((state.measurementTarget = ensureTarget(state.measurementTarget)));
+        drawBackend(state.active, target);
       } else {
         const left = backends.find((b) => b.id === comparisonPair[0]) ?? state.active,
           right = backends.find((b) => b.id === comparisonPair[1]) ?? state.active;
-        const pairTargetA = (state.pairTargetA = ensureTarget(state.pairTargetA)),
-          pairTargetB = (state.pairTargetB = ensureTarget(state.pairTargetB));
+        const pairTargetA = live((state.pairTargetA = ensureTarget(state.pairTargetA))),
+          pairTargetB = live((state.pairTargetB = ensureTarget(state.pairTargetB)));
         drawBackend(left, pairTargetA);
         drawBackend(right, pairTargetB);
         compositor!.render(pairTargetA, pairTargetB, comparisonLayout, wipe, toggle);

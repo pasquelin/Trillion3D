@@ -2,12 +2,15 @@ import * as THREE from 'three';
 import type { CameraPose, DiagnosticMode } from '../sdk-core/index.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts';
-import { createBackendPresenter } from './explorerComposeSurface.ts';
+import { createFrameComposer } from './explorerCompose.ts';
 import type { prepareExplorer } from './explorerPrepare.ts';
+import { boundToContext } from './webglContextBound.ts';
 import { createWebglRenderTarget, type WebglRenderTarget } from './webglRenderTarget.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
+/** A composition target that outlives a context loss: `current()` is the live one. */
+export type BoundTarget = ReturnType<typeof boundToContext<WebglRenderTarget>>;
 
 /** The mutable state of one explorer host; every service reads and writes this same object. */
 export type ExplorerHostState = {
@@ -22,9 +25,9 @@ export type ExplorerHostState = {
   comparisonPair: [string, string];
   wipe: number;
   toggle: 0 | 1;
-  pairTargetA?: WebglRenderTarget;
-  pairTargetB?: WebglRenderTarget;
-  measurementTarget?: WebglRenderTarget;
+  pairTargetA?: BoundTarget;
+  pairTargetB?: BoundTarget;
+  measurementTarget?: BoundTarget;
   loaded: number;
   pageBytesRead: number;
 };
@@ -69,28 +72,32 @@ export function createExplorerHostState(
   const overlays: THREE.Material[] = [];
   const hostedControls: { dispose(): void }[] = [];
   const lookAtTarget = new THREE.Vector3().copy(center);
-  // The composition programs live on the engine's context, next to the targets they read: what
-  // puts an engine's image on the host surface, for the frame and for the explicit capture alike.
+  // The composition lives on the engine's context: the composer, which puts an engine's image
+  // on the surface or a target for the frame and the explicit capture alike, and the comparison
+  // compositor. The direct GPU path composes nothing.
   const gl = webglSurface?.context;
-  const compositor = gl && createComparisonCompositor(gl);
-  const presentBackend = gl
-    ? createBackendPresenter(gl)
-    : Object.assign(() => false, { dispose() {} });
-  /**
-   * A render target of the composition — one side of a comparison, the measurement surface —
-   * at the drawing-buffer size, holding the display image the page would show. Targets built on
-   * a context since lost are forgotten together: their names died with that context, and each
-   * is rebuilt when next asked for.
-   */
-  let targetsContext = webglSurface?.restorations;
-  const ensureTarget = (current?: WebglRenderTarget) => {
-    if (!gl || !webglSurface) throw new Error('The direct GPU path has no host render target');
-    if (webglSurface.restorations !== targetsContext) {
-      targetsContext = webglSurface.restorations;
-      state.pairTargetA = state.pairTargetB = state.measurementTarget = undefined;
-      current = undefined;
-    }
-    return current ?? createWebglRenderTarget(gl, canvas.width, canvas.height);
+  const composition = gl
+    ? { compose: createFrameComposer(gl, camera), compositor: createComparisonCompositor(gl) }
+    : {
+        compose: Object.assign(
+          () => {
+            throw new Error('The direct GPU path has no host composer');
+          },
+          { dispose() {} },
+        ),
+        compositor: undefined,
+      };
+  /** One side of a comparison or the measurement surface, at the drawing-buffer size. */
+  const ensureTarget = (current?: BoundTarget) => {
+    if (!gl) throw new Error('The direct GPU path has no host render target');
+    return (
+      current ??
+      boundToContext(
+        gl,
+        () => createWebglRenderTarget(gl, canvas.width, canvas.height),
+        (target) => target.dispose(),
+      )
+    );
   };
   const check = () => {
     if (state.disposed) throw new Error('Explorer disposed');
@@ -114,8 +121,11 @@ export function createExplorerHostState(
     overlays,
     hostedControls,
     lookAtTarget,
-    compositor,
-    presentBackend,
+    ...composition,
+    disposeComposition() {
+      composition.compose.dispose();
+      composition.compositor?.dispose();
+    },
     ensureTarget,
     check,
     setPose,

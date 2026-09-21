@@ -5,7 +5,6 @@ import { createExplorerHostFrame } from './explorerHostFrame.ts';
 import { createExplorerLifecycle } from './explorerLifecycle.ts';
 import type { ExplorerResources, prepareExplorer } from './explorerPrepare.ts';
 import type { ExplorerSession } from './explorerSession.ts';
-import { createFrameComposer } from './explorerCompose.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 type Inputs = {
@@ -38,25 +37,15 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     overlays,
     hostedControls,
     lookAtTarget,
-    compositor,
-    presentBackend,
+    compose,
+    disposeComposition,
     check,
     setPose,
   } = host;
-  // The composer lives on the engine's context; the direct GPU path composes nothing.
-  const compose = webglSurface
-    ? createFrameComposer(webglSurface.context, camera)
-    : Object.assign(
-        () => {
-          throw new Error('The direct GPU path has no host composer');
-        },
-        { dispose() {} },
-      );
   const { render, profiler, streaming } = createExplorerHostFrame(session, {
     prepared,
     host,
     backends,
-    compose,
   });
   const capture = createExplorerCapture({
     canvas,
@@ -64,7 +53,6 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     context: webglSurface?.context,
     options,
     directGpu,
-    presentBackend,
     state,
     check,
     diagnose,
@@ -76,7 +64,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     gpuDevice,
     profiler,
     hostedControls,
-    composition: [compose, presentBackend, ...(compositor ? [compositor] : [])],
+    disposeComposition,
     streamer,
     streaming,
     overlays,

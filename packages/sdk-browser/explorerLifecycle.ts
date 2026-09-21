@@ -18,9 +18,9 @@ type Inputs = {
   gpuDevice?: GPUDevice;
   profiler: EngineProfiler;
   hostedControls: { dispose(): void }[];
-  /** The composer, the presenter and the compositor: programs and copies on the engine's
-   *  context, released before the surface that carries them. */
-  composition: { dispose(): void }[];
+  /** The composer and the compositor: programs and copies on the engine's context, released
+   *  before the surface that carries them. */
+  disposeComposition: () => void;
   streamer: ReturnType<typeof createPageStreamer>;
   streaming: ReturnType<typeof createExplorerStreaming>;
   overlays: THREE.Material[];
@@ -39,7 +39,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     gpuDevice,
     profiler,
     hostedControls,
-    composition,
+    disposeComposition,
     streamer,
     streaming,
     overlays,
@@ -70,7 +70,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     state.pairTargetA?.dispose();
     state.pairTargetB?.dispose();
     state.measurementTarget = state.pairTargetA = state.pairTargetB = undefined;
-    composition.forEach((program) => program.dispose());
+    disposeComposition();
     streaming.backgroundFetchController?.abort();
     streamer.dispose();
     releasePageDecoders();

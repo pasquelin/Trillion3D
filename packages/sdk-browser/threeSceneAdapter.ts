@@ -19,7 +19,12 @@ import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
  * declarations; both are what its XR manager calls.
  */
 type Wrapper = THREE.WebGLRenderTarget & { isXRRenderTarget: boolean };
-type Shared = { renderer: FramebufferRenderer; wrapper: Wrapper; users: number };
+type Shared = {
+  gl: WebGL2RenderingContext;
+  renderer: FramebufferRenderer;
+  wrapper: Wrapper;
+  users: number;
+};
 type FramebufferRenderer = THREE.WebGLRenderer & {
   setRenderTargetFramebuffer(target: Wrapper, framebuffer: WebGLFramebuffer): void;
 };
@@ -36,24 +41,25 @@ function acquire(gl: WebGL2RenderingContext) {
     renderer.toneMappingExposure = 1;
     const wrapper = Object.assign(new THREE.WebGLRenderTarget(1, 1), { isXRRenderTarget: true });
     wrapper.texture.colorSpace = THREE.SRGBColorSpace;
-    entry = { renderer, wrapper, users: 0 };
+    entry = { gl, renderer, wrapper, users: 0 };
     shared.set(gl, entry);
   }
   entry.users++;
   return entry;
 }
 
-function release(gl: WebGL2RenderingContext, entry: Shared) {
+function release(entry: Shared) {
   if (--entry.users > 0) return;
-  shared.delete(gl);
+  shared.delete(entry.gl);
   entry.renderer.dispose();
 }
 
 /**
- * `drawHostGeometry` of an engine whose image is a Three scene. `render(camera)` records the
- * host camera of the frame, the one the draw uses; `counters()` gives what the last draw
- * submitted, `null` before the first. Without a context (a session that never draws on the
- * host surface) the draw is refused by name.
+ * `drawHostGeometry` of an engine whose image is a Three scene. `render(camera)` opens the
+ * frame: it records the host camera the draw uses and zeroes the counters, so that a frame the
+ * composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
+ * `null` before the first frame. Without a context (a session that never draws on the host
+ * surface) the draw is refused by name.
  */
 export function createThreeSceneDraw(gl: WebGL2RenderingContext | undefined, scene: THREE.Scene) {
   let entry: Shared | undefined,
@@ -62,6 +68,7 @@ export function createThreeSceneDraw(gl: WebGL2RenderingContext | undefined, sce
   return {
     render(hostCamera: HostCamera) {
       camera = hostCamera;
+      counters = { calls: 0, triangles: 0 };
     },
     drawHostGeometry(_camera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
@@ -95,7 +102,7 @@ export function createThreeSceneDraw(gl: WebGL2RenderingContext | undefined, sce
     },
     counters: () => counters,
     dispose() {
-      if (entry && gl) release(gl, entry);
+      if (entry) release(entry);
       entry = undefined;
     },
   };

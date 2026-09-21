@@ -4,7 +4,11 @@
 // must never appear.
 import { exactPagesBackend } from '../../packages/sdk-browser/exactPagesBackend.ts';
 import { createFrameComposer } from '../../packages/sdk-browser/explorerCompose.ts';
-import { createWebglRenderTarget } from '../../packages/sdk-browser/webglRenderTarget.ts';
+import {
+  bindWebglTarget,
+  createWebglRenderTarget,
+} from '../../packages/sdk-browser/webglRenderTarget.ts';
+import { pixel } from './webglClusterPixels.mjs';
 
 /** Null without WebGL2. `inHostPass(object)` names the objects counted on each scene pass. */
 export function mountExplorerProof(scene, camera, inHostPass, context = {}) {
@@ -46,11 +50,10 @@ export function mountExplorerProof(scene, camera, inHostPass, context = {}) {
     },
     /** One pixel of the comparison target, read on its own framebuffer. */
     targetPixel(x, y) {
-      const value = new Uint8Array(4);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-      gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      return [...value];
+      bindWebglTarget(gl, target);
+      const value = pixel(gl, x, y);
+      bindWebglTarget(gl, null);
+      return value;
     },
     dispose() {
       draw.dispose();

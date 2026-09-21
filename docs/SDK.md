@@ -546,18 +546,11 @@ For every WebGL2-hosted session, `createWebglSurface` creates and owns the conte
 anything else exists. It fixes the context attributes, computes drawing-buffer dimensions from
 logical size and DPR, avoids resetting the buffer on an unchanged size, observes context loss and
 restoration, and releases the context once. That surface is the session's only WebGL2 resource,
-and the composition host holds no renderer: its render targets (`webglRenderTarget.ts`), its
-held frame (`explorerHeldFrame.ts`, one blit each way), its comparison compositor
-(`comparison.ts`, an engine program) and its presenter are engine objects on that context, rebuilt
-after a loss; the frame composer (`explorerCompose.ts`) binds the destination, clears it with the
-engine's background and asks the engine to draw its whole image there through `drawHostGeometry`.
-An engine whose image is a Three scene — the witnesses `three-webgl-reference` and `three-lod`,
-the autonomous and lighting-experiment engines, and `exact-cluster-pages` for the blended copies
-it does not own yet — draws it through one adapter the witnesses share over the engine's
-context (`threeSceneAdapter.ts`), acquired at the first draw and released with the last user. A
-comparison side is the single view of its engine, byte for byte: a render target holds the
-display image, and the compositor copies texels. What each function computes, what it replaces
-and its proof are in
+and the composition host holds no renderer: targets, held frame, comparison compositor and
+presenter are engine objects on that context, the frame composer asks every engine to draw its
+whole image through `drawHostGeometry`, and an engine whose image is a Three scene draws it
+through the one adapter the witnesses share. A comparison side is the single view of its engine,
+byte for byte. Each function, what it replaces and its proof:
 [API.md](API.md#batch-e7--composition-host-and-captures-on-engine-owned-framebuffers-85-second-pull-request).
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 

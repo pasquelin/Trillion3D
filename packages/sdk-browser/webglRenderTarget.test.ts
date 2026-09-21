@@ -21,6 +21,17 @@ test('a target stores bytes as written, unfiltered, and 24-bit depth at the size
   );
   assert.deepEqual([target.width, target.height], [8, 4]);
   assert.equal(of('bindFramebuffer').at(-1)?.[1], null, 'the creation leaves nothing bound');
+  assert.deepEqual(of('activeTexture').at(-1), ['TEXTURE0']);
+  assert.equal(of('bindTexture').at(-1)?.[1], null, 'the texture leaves no sampler unit');
+});
+
+test('a colour-only target has no depth attachment', () => {
+  const { gl, of } = createTestContext();
+  const target = createWebglRenderTarget(gl, 8, 4, { depth: false });
+  assert.equal(of('createRenderbuffer').length, 0);
+  assert.equal(of('framebufferRenderbuffer').length, 0);
+  target.dispose();
+  assert.equal(of('deleteRenderbuffer').length, 0);
 });
 
 test('an incomplete framebuffer is refused by name', () => {
@@ -43,6 +54,7 @@ test('a resize reallocates both attachments once and keeps the same names', () =
   assert.deepEqual(of('renderbufferStorage').at(-1)?.slice(2), [4, 2]);
   assert.equal(of('createTexture').length, 1, 'the texture name survives the resize');
   assert.equal(of('createFramebuffer').length, 1);
+  assert.equal(of('bindTexture').at(-1)?.[1], null, 'a resize leaves no sampler unit bound');
   target.dispose();
   assert.deepEqual(
     ['deleteFramebuffer', 'deleteRenderbuffer', 'deleteTexture'].map((name) => of(name).length),
