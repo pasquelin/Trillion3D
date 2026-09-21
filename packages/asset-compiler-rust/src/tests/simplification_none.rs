@@ -44,11 +44,12 @@ fn simplification_none_ne_construit_aucun_niveau_grossier() {
     );
 }
 
-// Behaviour: `qem-endpoints` keeps the DAG it used to build — same depth, same root.
+// Behaviour: `qem-endpoints` keeps the DAG it used to build — same depth; the root count is
+// the one meshoptimizer 0.25 gives (127 under 0.22: its complex vertices now move).
 #[test]
 fn simplification_qem_endpoints_garde_son_dag() {
     let (depth, racines, niveau_zero) = dag_of("qem-endpoints");
     assert_eq!(depth, 6, "depth unchanged");
     assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
-    assert_eq!(racines, 125, "root unchanged");
+    assert_eq!(racines, 125, "root as meshoptimizer 0.25 leaves it");
 }

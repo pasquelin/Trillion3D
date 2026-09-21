@@ -30,6 +30,8 @@ pub struct UpdatedRegion {
     /// deviation, in the units of `positions`. The solve that follows the collapses is not in
     /// it: `displacement` measures how far it moved a vertex.
     pub error_object: f64,
+    /// Object units per unit of the region's extent, as the simplifier scales it.
+    pub scale: f64,
 }
 impl UpdatedRegion {
     /// Object-space distance between a local vertex as solved and the source position it
@@ -118,6 +120,7 @@ pub fn simplify_region_with_attributes(
         attributes,
         remap,
         error_object: (result_error as f64) * scale,
+        scale,
     }))
 }
 

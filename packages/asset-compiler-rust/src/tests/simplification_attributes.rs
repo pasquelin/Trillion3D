@@ -128,8 +128,9 @@ fn a_texture_seam_is_kept_and_never_interpolated_across() {
 }
 
 // Behaviour: a coarse level made of solved vertices is never the source bit for bit, so it
-// carries a positive error and a threshold of zero draws level zero alone — even where the
-// collapses themselves were lossless.
+// carries a positive error — one the runtime still reads as positive once packed in single
+// precision — and a threshold of zero draws level zero alone, even where the collapses
+// themselves were lossless.
 #[test]
 fn a_solved_level_carries_a_positive_error() {
     let (root, result, _, _) = compiled("qem-attributes");
@@ -141,7 +142,7 @@ fn a_solved_level_carries_a_positive_error() {
     assert!(coarse > 0);
     for page in pages.iter().filter(|page| page["level"] != json!(0)) {
         let error = page["lodError"].as_f64().expect("lodError");
-        assert!(error > 0.0, "a coarse page with error {error}");
+        assert!(error as f32 > 0.0, "a coarse page with error {error}");
     }
     fs::remove_dir_all(root).expect("cleanup");
 }

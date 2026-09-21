@@ -21,6 +21,6 @@ export const guidesCompilerFr = {
 <li>Un DAG qui n’est pas monté est un avertissement que le compilateur porte sur l’événement de progression de la primitive et que le moteur publie comme diagnostic <code>dag-warnings</code> : <code>DAG_FLAT</code> (des grappes, aucun niveau grossier) ou <code>DAG_ROOTS</code> (trop de racines pour sa taille).</li>
 <li>Dans l’image, <code>render()</code> renvoie <code>selectedTriangles</code> et <code>drawnTriangles</code> pour la coupe de l’image ; le diagnostic <code>lod</code> colore les grappes exactes et les relais grossiers.</li>
 </ul>
-<p>La leçon <a class="link link-primary" href="#/fr/examples/runtime-pixel-error">Traverser l’observatoire à toutes les échelles</a> montre la coupe bouger avec la tolérance sur un cache compilé avec <code>qem-endpoints</code> ; la même scène compilée avec <code>qem-attributes</code> révèle des niveaux faits de sommets résolus, leurs normales interpolées plutôt que choisies.</p>`,
+<p>La leçon <a class="link link-primary" href="#/fr/examples/runtime-pixel-error">Traverser l’observatoire à toutes les échelles</a> montre la coupe bouger avec la tolérance, sur un cache compilé avec <code>qem-endpoints</code>.</p>`,
   },
 };

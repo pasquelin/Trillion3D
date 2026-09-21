@@ -77,6 +77,7 @@ fn a_displacement_is_the_distance_from_the_source_position() {
         attributes: vec![1.0, 0.0],
         remap: vec![0],
         error_object: 0.0,
+        scale: 1.0,
     };
     let moved = region.displacement(0, &[0.0, 0.0, 0.0]);
     assert!((moved - 5.0).abs() < 1e-9, "{moved}");

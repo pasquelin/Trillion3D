@@ -53,8 +53,9 @@ pub(super) fn updated(
 /// what the buffer holds keeps its buffer index — a locked vertex always does, which is what
 /// keeps two groups meeting on the same vertices —, the others become new vertices ranked in the
 /// order the surviving triangles first use them. Returns, with them, the largest object-space
-/// displacement of a new vertex from the source position it started from — the smallest
-/// positive number when vertices were created without moving.
+/// displacement of a new vertex from the source position it started from — at least one
+/// single-precision ulp of the region's extent when vertices were created without moving, so
+/// the error stays positive once the runtime packs it as `f32`.
 fn sort_survivors(
     input: &GroupReductionInput,
     region: &UpdatedRegion,
@@ -84,7 +85,7 @@ fn sort_survivors(
             } else {
                 deviation = deviation
                     .max(region.displacement(l, position))
-                    .max(f64::MIN_POSITIVE);
+                    .max(region.scale * f32::EPSILON as f64);
                 let rank = new.count() as u32;
                 new.positions
                     .extend_from_slice(&region.positions[l * 3..l * 3 + 3]);

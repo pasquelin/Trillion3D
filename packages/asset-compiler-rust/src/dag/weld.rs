@@ -82,52 +82,65 @@ impl PositionWeld {
         self.extend(positions.len() / 3, |id| position_key(positions, id));
     }
 }
-/// Canonical vertex per (position, uv): the copies that differ only by their normal or their
-/// colour are one point, those on a texture seam stay two. It is the weld a stalled reduction
-/// falls back on, so a coarse level never draws one side of a seam with the other side's
-/// texture.
-pub type SeamWeld = Weld<([u32; 3], [u32; 2])>;
+/// Canonical vertex per (position, texture coordinates): the copies that differ only by their
+/// normal or their colour are one point, those on a texture seam — of either set — stay two. It
+/// is the weld a stalled reduction falls back on, so a coarse level never draws one side of a
+/// seam with the other side's texture.
+pub type SeamWeld = Weld<([u32; 3], [u32; 4])>;
 impl SeamWeld {
-    pub fn by_position_and_uv(positions: &[f32], uvs: &[f32], indices: &[u32]) -> Self {
+    pub fn by_position_and_uv(positions: &[f32], uvs: &TextureSets<'_>, indices: &[u32]) -> Self {
         Self(Welder::by_indices(positions.len() / 3, indices, |id| {
             seam_key(positions, uvs, id)
         }))
     }
-    pub fn extend_by_position_and_uv(&mut self, positions: &[f32], uvs: &[f32]) {
+    pub fn extend_by_position_and_uv(&mut self, positions: &[f32], uvs: &TextureSets<'_>) {
         self.extend(positions.len() / 3, |id| seam_key(positions, uvs, id));
     }
 }
-fn seam_key(positions: &[f32], uvs: &[f32], id: u32) -> ([u32; 3], [u32; 2]) {
+/// The texture coordinate sets a primitive carries, two floats per vertex each.
+pub type TextureSets<'a> = [Option<&'a [f32]>; 2];
+fn seam_key(positions: &[f32], uvs: &TextureSets<'_>, id: u32) -> ([u32; 3], [u32; 4]) {
     let i = id as usize * 2;
-    let uv = [uvs[i], uvs[i + 1]].map(normalized_bits);
-    (position_key(positions, id), uv)
+    let uv =
+        |set: Option<&[f32]>| set.map_or([0, 0], |uvs| [uvs[i], uvs[i + 1]].map(normalized_bits));
+    let [a, b] = [uv(uvs[0]), uv(uvs[1])];
+    (position_key(positions, id), [a[0], a[1], b[0], b[1]])
 }
 /// The two welds of a build, following the buffer together.
 pub struct Welds {
     pub position: PositionWeld,
     /// Absent when the primitive carries no texture coordinate: nothing then tells a seam.
     pub seam: Option<SeamWeld>,
-    uv_slot: Option<usize>,
+}
+/// The texture coordinate sets among a primitive's attributes.
+fn texture_sets(attributes: &[Attribute]) -> TextureSets<'_> {
+    let set = |flag| {
+        attributes
+            .iter()
+            .find(|a| a.flag == flag)
+            .map(|a| a.values.as_slice())
+    };
+    [
+        set(crate::geometry_page::FLAG_UV),
+        set(crate::geometry_page::FLAG_UV1),
+    ]
 }
 impl Welds {
     pub fn of(vertices: &DagVertices<'_>, indices: &[u32]) -> Self {
-        let uv_slot = vertices
-            .attributes
-            .iter()
-            .position(|a| a.flag == crate::geometry_page::FLAG_UV);
+        let uvs = texture_sets(vertices.attributes);
         Self {
             position: PositionWeld::by_position(vertices.positions, indices),
-            seam: uv_slot.map(|slot| {
-                let uvs = &vertices.attributes[slot].values;
-                SeamWeld::by_position_and_uv(vertices.positions, uvs, indices)
-            }),
-            uv_slot,
+            seam: uvs
+                .iter()
+                .any(Option::is_some)
+                .then(|| SeamWeld::by_position_and_uv(vertices.positions, &uvs, indices)),
         }
     }
     pub fn extend(&mut self, vertices: &DagVertices<'_>) {
         self.position.extend_by_position(vertices.positions);
-        if let (Some(seam), Some(slot)) = (self.seam.as_mut(), self.uv_slot) {
-            seam.extend_by_position_and_uv(vertices.positions, &vertices.attributes[slot].values);
+        if let Some(seam) = self.seam.as_mut() {
+            let uvs = texture_sets(vertices.attributes);
+            seam.extend_by_position_and_uv(vertices.positions, &uvs);
         }
     }
     /// Vertices on a texture seam: their position has copies that differ by texture

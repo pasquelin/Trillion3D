@@ -26,6 +26,6 @@ export const COMPILER_GUIDES = [
 <li>A DAG that did not climb is a warning the compiler carries on the primitive's progress event and the engine reports as the <code>dag-warnings</code> diagnostic: <code>DAG_FLAT</code> (clusters, no coarse level) or <code>DAG_ROOTS</code> (too many roots for its size).</li>
 <li>In the image, <code>render()</code> returns <code>selectedTriangles</code> and <code>drawnTriangles</code> for the cut of the frame; the <code>lod</code> diagnostic colours exact clusters and coarse fallbacks.</li>
 </ul>
-<p>The lesson <a class="link link-primary" href="#/en/examples/runtime-pixel-error">Cross the observatory at any scale</a> shows the cut move with the tolerance on a cache compiled with <code>qem-endpoints</code>; the same scene compiled with <code>qem-attributes</code> reveals levels made of solved vertices, their normals interpolated rather than picked.</p>`,
+<p>The lesson <a class="link link-primary" href="#/en/examples/runtime-pixel-error">Cross the observatory at any scale</a> shows the cut move with the tolerance, on a cache compiled with <code>qem-endpoints</code>.</p>`,
   },
 ];

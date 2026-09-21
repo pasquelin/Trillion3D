@@ -139,5 +139,10 @@ pub(super) fn append_to_source_bin(
             attributes,
         });
     }
+    // The folder served its files; a compilation that failed before this point leaves them,
+    // and the next one overwrites them under the same names.
+    if let Some(folder) = coarse.first().and_then(|v| v.file.parent()) {
+        let _ = fs::remove_dir(folder);
+    }
     Ok(out)
 }

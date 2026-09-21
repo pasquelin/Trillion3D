@@ -99,7 +99,7 @@ fn a_group_and_its_replacement_cover_the_same_triangles_once() {
 }
 
 #[test]
-fn a_planar_sheet_keeps_its_exact_level_and_coarsens_without_error() {
+fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_the_regulariser() {
     // A plane simplifies losslessly, so every level shares error zero; level 0 must still be emitted.
     let w = 65usize;
     let positions: Vec<f32> = (0..w)
