@@ -129,7 +129,6 @@ pub(super) fn compile_primitive(
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
     let mut attributes = Vec::<geometry_page::Attribute>::new();
     if !unsplit {
-        // Tangents are never read: a page carries none, the shader rebuilds them.
         for (name, width, flag) in [
             ("NORMAL", 3, geometry_page::FLAG_NORMAL),
             ("TEXCOORD_0", 2, geometry_page::FLAG_UV),
@@ -158,8 +157,9 @@ pub(super) fn compile_primitive(
             }
         }
     }
+    let carried = carried_attributes(&attributes, material);
     let store_packed = |slice: &[u32], position_exponent: i32| -> Result<(Value, bool)> {
-        compiler_page_object::store_page(o, slice, &pos, &attributes, position_exponent)
+        compiler_page_object::store_page(o, slice, &pos, &carried, position_exponent)
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.

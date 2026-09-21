@@ -46,7 +46,7 @@ pub struct Grids {
 pub fn grids(
     original: &[u32],
     positions: &[f32],
-    attributes: &[Attribute],
+    attributes: &[&Attribute],
     position_exponent: i32,
 ) -> Result<Grids> {
     let by_flag = |flag: u32| attributes.iter().find(|a| a.flag == flag);
