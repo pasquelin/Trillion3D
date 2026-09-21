@@ -2,8 +2,7 @@
 // `clusters.bin` sidecar, to say where the triangles come from — by primitive, by DAG level.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { INT_COUNT, INT_LEVEL } from '../../packages/sdk-core/manifestBinaryFormat.ts';
-import { readManifestColumns } from '../../packages/sdk-core/manifestBinaryRead.ts';
+import { readCacheManifest } from './cacheManifest.mjs';
 
 const shaOf = (id) =>
   String(id)
@@ -15,25 +14,17 @@ const ranked = (map) =>
     .map(([name, triangles]) => ({ name, triangles }))
     .sort((a, b) => b.triangles - a.triangles);
 
-/** SHA index → { mesh, material, level, triangles }, one entry per sidecar page. */
-function indexPages(slim, buffer) {
-  const cols = readManifestColumns(slim, buffer);
-  const pages = cols.pages.pageShaText,
-    ints = cols.pages.ints;
+/** SHA index → { mesh, material, level, triangles }, one entry per page of the manifest. */
+function indexPages(manifest) {
   const index = new Map();
-  let page = 0;
-  for (const primitive of slim.primitives) {
-    const n = primitive.binary?.pages ?? 0;
-    for (let i = 0; i < n; i++, page++) {
-      const sha = pages.substring(page * 64, page * 64 + 64).toLowerCase();
-      index.set(sha, {
+  for (const primitive of manifest.primitives)
+    for (const page of primitive.pages)
+      index.set(page.sha256.toLowerCase(), {
         mesh: primitive.mesh,
         material: primitive.material,
-        level: ints[page * 8 + INT_LEVEL],
-        triangles: ints[page * 8 + INT_COUNT] / 3,
+        level: page.level ?? -1,
+        triangles: page.count / 3,
       });
-    }
-  }
   return index;
 }
 
@@ -71,15 +62,8 @@ const cacheIndex = new Map();
 function loadIndex(derived) {
   const hit = cacheIndex.get(derived);
   if (hit) return hit;
-  const full = join(derived, 'native/full');
-  const pointer = JSON.parse(readFileSync(join(full, 'manifest.json'), 'utf8'));
-  const dir = join(full, pointer.key);
-  const slim = JSON.parse(readFileSync(join(dir, 'clusters.json'), 'utf8'));
-  const bin = readFileSync(join(dir, 'clusters.bin'));
-  const loaded = {
-    index: indexPages(slim, bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength)),
-    names: meshNames(join(dir, 'source.gltf')),
-  };
+  const { dir, manifest } = readCacheManifest(join(derived, 'native/full'));
+  const loaded = { index: indexPages(manifest), names: meshNames(join(dir, 'source.gltf')) };
   cacheIndex.set(derived, loaded);
   return loaded;
 }

@@ -4,24 +4,25 @@ import { join } from 'node:path';
 import { decodeGeometryPage } from '../geometryPage.ts';
 import { decodeGeometryPageWasm, prepareSdkWasm } from '../geometryPageWasm.ts';
 import { RACINE, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
-import { page, pageBrute, sommetsPlats } from './appui/pagesWasm.mjs';
+import { page, pageForgee } from './appui/pagesWasm.mjs';
 
 const MODULE = join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm');
 const codec = await prepareSdkWasm(readFileSync(MODULE));
 if (!codec) throw new Error('H2B_WASM_ABSENT: run `pnpm run build:wasm`');
 
-const dense = await page(65535, true),
-  moyenne = await page(2048, true),
-  nue = await page(2048, false),
-  petite = await page(96, true);
+const dense = page(65535, true),
+  moyenne = page(2048, true),
+  nue = page(2048, false),
+  petite = page(96, true);
 
-const horsBorne = await pageBrute(sommetsPlats(), [0, 1, 3], 3, 0),
-  nonFini = await pageBrute(sommetsPlats(Number.NaN), [0, 1, 2], 3, 0),
-  infini = await pageBrute(sommetsPlats(Number.POSITIVE_INFINITY), [0, 1, 2], 3, 0),
+const horsBorne = pageForgee([0, 1, 3]),
   tronquee = moyenne.subarray(0, moyenne.length - 1),
   courte = moyenne.subarray(0, 16),
-  faussee = Uint8Array.from(moyenne);
+  faussee = Uint8Array.from(moyenne),
+  tropLarge = Uint8Array.from(moyenne);
 faussee[0] ^= 1;
+// A position width past the format's 24 bits: refused by the header, before any stream.
+tropLarge[20] = 25;
 
 /** One lap: every page in the case, decoded; a rejection becomes its cause, compared as well. */
 const tour = (decode) => async (pages) => {
@@ -55,8 +56,7 @@ const resRefus = await mesure({
   fichier: 'packages/sdk-browser/geometryPageWasm.ts',
   cas: [
     { name: 'index out of bounds', input: [horsBorne], size: 3 },
-    { name: 'NaN float', input: [nonFini], size: 3 },
-    { name: 'infinite float', input: [infini], size: 3 },
+    { name: 'field wider than the format', input: [tropLarge], size: tropLarge.length },
     { name: 'truncated page', input: [tronquee], size: tronquee.length },
     { name: 'header too short', input: [courte], size: 16 },
     { name: 'wrong magic', input: [faussee], size: faussee.length },
