@@ -18,6 +18,7 @@ export const VALIDATE_STEPS = [
   'check:dts',
   'check:docs-demo',
   'check:docs-bundles',
+  'check:docs-types',
   'check:links',
   'test',
   'test:native',
