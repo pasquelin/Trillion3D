@@ -12,7 +12,7 @@ export interface PortalRoute {
 
 export type TranslateFn = (locale: Locale, key: string) => string;
 
-export interface PortalEntryValue {
+interface PortalEntryValue {
   name: string;
   desc: string;
 }
