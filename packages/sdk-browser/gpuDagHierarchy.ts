@@ -110,7 +110,7 @@ export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: numbe
  * dispatch argument's head word no longer has to be copied to an indirection buffer,
  * and nothing cuts descent — it fits in the head pass.
  *
- * THE MEASUREMENT THAT JUSTIFIES IT, published by `test/justesse/coupe-lancements-gpu.mjs`
+ * THE MEASUREMENT THAT JUSTIFIES IT, published by `test/justesse/coupe-lancements-gpu.ts`
  * and cited from here only: on apple metal-3, one more level costs about 26 µs when it
  * opens its own pass behind two off-pass copies, and about 1.5 µs when it is a flat
  * dispatch in the head pass. The bench republishes the slope each run; those two

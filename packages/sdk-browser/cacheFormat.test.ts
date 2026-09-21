@@ -18,7 +18,7 @@ for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
     t.mock.method(
       globalThis,
       'fetch',
-      async (input) =>
+      async (input: RequestInfo | URL) =>
         new Response(
           JSON.stringify(
             String(input).endsWith('manifest.json')

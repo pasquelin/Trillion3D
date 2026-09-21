@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { boxConeRejects, coneRejects } from './index.ts';
 
-/** `pageCone.ts` before batch M2, copied with Three primitives (see bench/oracles/volumes.mjs). */
+/** `pageCone.ts` before batch M2, copied with Three primitives (see bench/oracles/volumes.ts). */
 function reference(
   axe: number[],
   angle: number,
