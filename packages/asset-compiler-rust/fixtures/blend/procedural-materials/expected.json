@@ -11,12 +11,7 @@
       {
         "name": "Opaque",
         "pbrMetallicRoughness": {
-          "baseColorFactor": [
-            1.0,
-            1.0,
-            1.0,
-            1.0
-          ],
+          "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
           "baseColorTexture": {
             "index": 0
           },
@@ -28,12 +23,7 @@
         "alphaMode": "BLEND",
         "name": "Transparent",
         "pbrMetallicRoughness": {
-          "baseColorFactor": [
-            1.0,
-            1.0,
-            1.0,
-            1.0
-          ],
+          "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
           "baseColorTexture": {
             "index": 0
           },
@@ -42,19 +32,10 @@
         }
       },
       {
-        "emissiveFactor": [
-          1.0,
-          0.6000000238418579,
-          0.05999999865889549
-        ],
+        "emissiveFactor": [1.0, 0.6000000238418579, 0.05999999865889549],
         "name": "Emissive",
         "pbrMetallicRoughness": {
-          "baseColorFactor": [
-            1.0,
-            0.20000000298023224,
-            0.019999999552965164,
-            1.0
-          ],
+          "baseColorFactor": [1.0, 0.20000000298023224, 0.019999999552965164, 1.0],
           "metallicFactor": 0.0,
           "roughnessFactor": 0.5
         }
@@ -96,112 +77,30 @@
   },
   "rule": "Blender works with Z up, glTF with Y up: a single root node carries the axis conversion, and no vertex is touched. A mesh shared by three objects is written only once; only the matrices differ. The material index lives on the face in Blender and on the primitive in glTF: the six faces yield three primitives. Normals are not in the file and are computed at read, flat for a sharp face. Alpha wired to the alpha channel of the image the base colour already carries passes as-is: the factor is one, otherwise it would cancel the image, and the mode becomes BLEND. Blender places the UV origin bottom-left and glTF top-left: v becomes 1 - v, image bytes staying intact. Emission is colour x intensity, clamped to 1 by glTF and counted as soon as it exceeds. Packed image bytes go as-is into the scene binary, through a buffer view: no re-encoding.",
   "scene": {
-    "meshNames": [
-      "Cube"
-    ],
+    "meshNames": ["Cube"],
     "nodes": [
       {
-        "children": [
-          1,
-          2,
-          3
-        ],
-        "matrix": [
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          -1.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
+        "children": [1, 2, 3],
+        "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
         "name": "scene.blend"
       },
       {
-        "matrix": [
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
+        "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
         "mesh": 0,
         "name": "SharedMesh_0"
       },
       {
-        "matrix": [
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          3.0,
-          0.0,
-          0.0,
-          1.0
-        ],
+        "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 3.0, 0.0, 0.0, 1.0],
         "mesh": 0,
         "name": "SharedMesh_1"
       },
       {
-        "matrix": [
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          6.0,
-          0.0,
-          0.0,
-          1.0
-        ],
+        "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 6.0, 0.0, 0.0, 1.0],
         "mesh": 0,
         "name": "SharedMesh_2"
       }
     ],
-    "primitiveMaterials": [
-      [
-        0,
-        1,
-        2
-      ]
-    ],
-    "roots": [
-      0
-    ]
+    "primitiveMaterials": [[0, 1, 2]],
+    "roots": [0]
   }
 }

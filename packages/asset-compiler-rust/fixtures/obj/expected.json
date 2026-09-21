@@ -4,16 +4,8 @@
       "bufferView": 0,
       "componentType": 5126,
       "count": 4,
-      "max": [
-        1.0,
-        1.0,
-        0.0
-      ],
-      "min": [
-        -1.0,
-        -1.0,
-        0.0
-      ],
+      "max": [1.0, 1.0, 0.0],
+      "min": [-1.0, -1.0, 0.0],
       "type": "VEC3"
     },
     {
@@ -38,16 +30,8 @@
       "bufferView": 4,
       "componentType": 5126,
       "count": 5,
-      "max": [
-        4.0,
-        0.9510570168495178,
-        0.0
-      ],
-      "min": [
-        2.1909830570220947,
-        -0.9510570168495178,
-        0.0
-      ],
+      "max": [4.0, 0.9510570168495178, 0.0],
+      "min": [2.1909830570220947, -0.9510570168495178, 0.0],
       "type": "VEC3"
     },
     {
@@ -125,22 +109,13 @@
   "materials": [
     {
       "alphaMode": "BLEND",
-      "emissiveFactor": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "emissiveFactor": [0.0, 0.0, 0.0],
       "name": "VerreDepoli",
       "normalTexture": {
         "index": 1
       },
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          0.5
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 0.5],
         "baseColorTexture": {
           "index": 0
         },
@@ -149,30 +124,19 @@
       }
     },
     {
-      "emissiveFactor": [
-        1.0,
-        1.0,
-        1.0
-      ],
+      "emissiveFactor": [1.0, 1.0, 1.0],
       "emissiveTexture": {
         "index": 2
       },
       "name": "Braise",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          0.1,
-          0.1,
-          0.1,
-          1.0
-        ],
+        "baseColorFactor": [0.1, 0.1, 0.1, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.6
       }
     }
   ],
-  "meshNames": [
-    "Minuscule"
-  ],
+  "meshNames": ["Minuscule"],
   "meshNodes": 1,
   "meshes": [
     {
@@ -203,24 +167,7 @@
   ],
   "nodes": [
     {
-      "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
       "mesh": 0,
       "name": "Minuscule"
     }
@@ -230,9 +177,7 @@
     "name": "obj",
     "version": "obj-ufbx-0.11.3-gltf-7"
   },
-  "roots": [
-    0
-  ],
+  "roots": [0],
   "rule": "The driver yields what the library declares and counts the rest by name: the normal wins over the bump, opacity stays blend and never a cutout, -clamp becomes the sampler wrap mode, and ambient colour, specular, IOR, offset, scale and bump strength are counted for lack of a place in glTF's metal-roughness model.",
   "samplers": [
     {
@@ -252,9 +197,7 @@
     "name": "obj",
     "version": "obj-ufbx-0.11.3-gltf-7"
   },
-  "selectedNodes": [
-    0
-  ],
+  "selectedNodes": [0],
   "sidecarSha256": "c52281e2b3bed71bbd25444411af10e3185939dc8d70ab2001b1f619e83c161a",
   "sourceTriangles": 5,
   "textures": [

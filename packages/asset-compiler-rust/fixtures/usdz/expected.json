@@ -20,11 +20,7 @@
     "formatVersion": 4,
     "manifestBinaryVersion": 6,
     "primitives": 9,
-    "selectedNodes": [
-      0,
-      2,
-      4
-    ],
+    "selectedNodes": [0, 2, 4],
     "selectedTriangles": 36,
     "sidecarSha256": "ac4487042e2b5a72eff049493b936b78e0bd8b0c8a3acbc792f94927e4dcb1d6",
     "sourceTriangles": 36,
