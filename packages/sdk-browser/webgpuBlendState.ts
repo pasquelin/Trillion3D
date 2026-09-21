@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../sdk-core/index.ts';
-import type { BlendLighting } from './webgpuBindEntries.ts';
+import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
 import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentOcclusion } from './gpuTransparentOcclusion.ts';
@@ -79,9 +79,8 @@ export function createWebgpuBlendState() {
     dirtySpans: new Set<number>(),
     /** Instances each item drew this image; only a CPU cut counts them, a GPU cut does not. */
     cpuItemCounts: new Uint32Array(0),
-    /** Lighting resources the current bind groups were built on: the shadow atlas and the probe
-     *  grid only arrive after the first frames. */
-    lighting: undefined as BlendLighting | undefined,
+    /** What the transparent groups currently name: a moved identity voids them. */
+    identity: createWebgpuBindIdentity(),
     /** How many transparent items transmit: zero means no background copy is allocated or encoded,
      *  and the transmission pass does not exist of the frame. */
     transmissive: 0,
