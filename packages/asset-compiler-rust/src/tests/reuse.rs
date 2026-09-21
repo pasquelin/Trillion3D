@@ -5,14 +5,14 @@ use super::*;
 
 /// A textured fixture whose image is wide enough to bake one level file, so the
 /// proof has every kind of product to check: files, sidecar, objects, levels.
-fn textured() -> (PathBuf, Options) {
+pub(super) fn textured() -> (PathBuf, Options) {
     let (root, options, image) = source_texturee();
     fs::write(&image, png_sized(128, [255, 0, 0, 255])).expect("image");
     (root, options)
 }
 
 /// Compiles and returns the result with the `reuse` progress events it announced.
-fn compile_with_events(options: &Options) -> (Value, Vec<Value>) {
+pub(super) fn compile_with_events(options: &Options) -> (Value, Vec<Value>) {
     let events = std::sync::Mutex::new(Vec::new());
     let result = compile(options, |event| {
         if event["phase"] == "reuse" {
@@ -23,7 +23,7 @@ fn compile_with_events(options: &Options) -> (Value, Vec<Value>) {
     (result, events.into_inner().expect("events"))
 }
 
-fn key_directory(options: &Options, key: &str) -> PathBuf {
+pub(super) fn key_directory(options: &Options, key: &str) -> PathBuf {
     options.cache.join("native").join(&options.scope).join(key)
 }
 
@@ -132,66 +132,5 @@ fn another_compiler_version_under_the_key_recompiles() {
         COMPILER_VERSION,
         "rebuilt"
     );
-    fs::remove_dir_all(root).expect("cleanup");
-}
-
-// Behaviour: a folder that fails one check — a corrupted object, sidecar or
-// recorded file, a missing level — is refused with the reason, and rebuilt whole.
-#[test]
-fn corrupted_entry_is_rejected_and_rebuilt() {
-    let (root, options) = textured();
-    let (first, _) = compile_with_events(&options);
-    let directory = key_directory(&options, first["key"].as_str().unwrap());
-    let native = options.cache.join("native");
-    let sidecar = fs::read(directory.join(MANIFEST_BINARY_FILE)).expect("sidecar");
-    let object = manifest_binary::digests(&sidecar)
-        .expect("digests")
-        .remove(0);
-    let (level_sha, kind, _) = manifest_binary::texture_levels(&sidecar)
-        .expect("levels")
-        .remove(0);
-    let level = native.join(texture_preview::level_path(
-        &level_sha,
-        texture_preview::AtlasKind::from_word(kind).unwrap(),
-        0,
-    ));
-    let object_path = native.join("objects").join(format!("{object}.bin"));
-    let corruptions: [(&str, PathBuf, Option<&[u8]>); 4] = [
-        (
-            "does not match its name",
-            object_path.clone(),
-            Some(b"corrupt"),
-        ),
-        (
-            "sidecar does not match",
-            directory.join(MANIFEST_BINARY_FILE),
-            Some(b"corrupt"),
-        ),
-        (
-            "source.bin is",
-            directory.join("source.bin"),
-            Some(b"corrupt"),
-        ),
-        ("texture level", level.clone(), None),
-    ];
-    for (reason, path, bytes) in corruptions {
-        let intact = fs::read(&path).expect("product");
-        match bytes {
-            Some(bytes) => fs::write(&path, bytes).expect("corrupt"),
-            None => fs::remove_file(&path).expect("remove"),
-        }
-        let (second, events) = compile_with_events(&options);
-        assert!(second["reused"].is_null(), "{reason}: not reused");
-        let announced = events[0]["reason"].as_str().unwrap();
-        assert!(announced.contains(reason), "{reason}: {announced}");
-        assert_eq!(
-            fs::read(&path).expect("rebuilt"),
-            intact,
-            "{reason}: rebuilt whole"
-        );
-    }
-    let (third, events) = compile_with_events(&options);
-    assert_eq!(events[0]["completed"], 1, "whole again, reused: {events:?}");
-    assert_eq!(third["key"], first["key"]);
     fs::remove_dir_all(root).expect("cleanup");
 }
