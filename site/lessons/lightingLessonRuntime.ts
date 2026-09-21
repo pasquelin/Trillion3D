@@ -1,4 +1,20 @@
-const point = (id, position, color, intensity, patch = {}) => ({
+import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { SceneLight } from '../../packages/sdk/index.ts';
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
+
+/** The set of light identifiers a lighting lesson has already sent to the explorer, so a later
+ *  update knows to patch rather than add. */
+export interface LightingLessonSession {
+  ids: Set<string>;
+}
+
+const point = (
+  id: string,
+  position: [number, number, number],
+  color: [number, number, number],
+  intensity: number,
+  patch: Partial<SceneLight> = {},
+): SceneLight => ({
   id,
   kind: 'point',
   position,
@@ -10,7 +26,7 @@ const point = (id, position, color, intensity, patch = {}) => ({
   ...patch,
 });
 
-function upsert(explorer, session, light) {
+function upsert(explorer: Explorer, session: LightingLessonSession, light: SceneLight) {
   if (session.ids.has(light.id)) {
     const { id, ...patch } = light;
     explorer.setLight(id, patch);
@@ -21,19 +37,25 @@ function upsert(explorer, session, light) {
 }
 
 /** The ring lesson's lamps: `count` of them, evenly spaced above the terrain, colours in turn. */
-export function ringLamps(count) {
+export function ringLamps(count: number) {
   return Array.from({ length: count }, (_, i) => {
     const angle = (i / count) * Math.PI * 2;
-    const position = [
+    const raw = [
       Math.cos(angle) * LESSON_RING_RADIUS,
       LESSON_RING_HEIGHT,
       Math.sin(angle) * LESSON_RING_RADIUS,
     ].map((v) => +v.toFixed(2));
+    const position: [number, number, number] = [raw[0], raw[1], raw[2]];
     return { id: `ring-${i}`, position, color: LESSON_RING_COLORS[i % 2] };
   });
 }
 
-export function applyLightingLesson(explorer, lesson, state, session) {
+export function applyLightingLesson(
+  explorer: Explorer,
+  lesson: RendererLessonItem,
+  state: Record<string, number>,
+  session: LightingLessonSession,
+) {
   if (lesson.kind === 'color-balance') {
     upsert(explorer, session, point('warm', [-3, 3, 2], [1, 0.35, 0.12], state.warm));
     upsert(explorer, session, point('cool', [3, 3, 2], [0.12, 0.4, 1], state.cool));
@@ -88,7 +110,7 @@ export function applyLightingLesson(explorer, lesson, state, session) {
   }
 }
 
-export const createLightingLessonSession = () => ({ ids: new Set() });
+export const createLightingLessonSession = (): LightingLessonSession => ({ ids: new Set() });
 import {
   LESSON_POINT_INTENSITY,
   LESSON_RING_COLORS,

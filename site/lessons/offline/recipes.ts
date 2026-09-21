@@ -1,9 +1,26 @@
 import { implicitShell, verticalHit } from './implicit.ts';
 import { lettering, paintedTerrain, splitEdges, uvTiles } from './attributes.ts';
-import { box, combine, mapPositions } from './mesh.ts';
+import { box, combine, mapPositions, type Mesh } from './mesh.ts';
 import { city, loft, rationalPatch, sculpture, splineTube, terrain, vessel } from './surfaces.ts';
 import { extrude, polygon, subdivide, voxelDifference } from './operations.ts';
-const recipe = (id, title, referenceIds, expression, create) => ({
+
+/** One authored geometry example: the reference examples it stands in for, the expression shown
+ *  as construction code, and the function that builds the actual mesh. */
+export interface GeometryRecipe {
+  id: string;
+  title: string;
+  referenceIds: string[];
+  expression: string;
+  create: () => Mesh;
+}
+
+const recipe = (
+  id: string,
+  title: string,
+  referenceIds: string[],
+  expression: string,
+  create: () => Mesh,
+): GeometryRecipe => ({
   id,
   title,
   referenceIds,
@@ -27,7 +44,10 @@ export const geometryRecipes = [
     () =>
       combine([
         terrain(),
-        box([0.7, verticalHit(terrain(), 0.7, 0.3) + 0.15, 0.3], [0.15, 0.3, 0.15]),
+        box(
+          [0.7, verticalHit(terrain(), 0.7, 0.3)! + 0.15, 0.3], // never null: (0.7, 0.3) is inside this full grid
+          [0.15, 0.3, 0.15],
+        ),
       ]),
   ),
   recipe(

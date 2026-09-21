@@ -14,9 +14,57 @@ import {
   srgbToLinear,
   updateNodeWorldMatrix,
 } from '../demos/engine.ts';
+import type { MathPath } from '../demos/engine.ts';
+import type { ScenarioState } from './scenarios.ts';
 
-const round = (value) => Number(value.toFixed(3));
-const POINTS = [
+export interface BoundsResult {
+  kind: 'bounds';
+  input: string;
+  points: number[][];
+  box: number[];
+  value: string;
+}
+
+export interface SphereResult {
+  kind: 'sphere';
+  input: string;
+  box: number[];
+  sphere: Float64Array;
+  value: string;
+}
+
+export interface HierarchyResult {
+  kind: 'hierarchy';
+  input: string;
+  point: Float64Array;
+  value: string;
+}
+
+export interface ColourResult {
+  kind: 'colour';
+  input: string;
+  a: number;
+  b: number;
+  screen: number;
+  light: number;
+  value: string;
+}
+
+export interface BudgetResult {
+  kind: 'budget';
+  input: string;
+  base: number;
+  error: number;
+  quality: string;
+  path: MathPath;
+  value: string;
+}
+
+export type DetailResult =
+  BoundsResult | SphereResult | HierarchyResult | ColourResult | BudgetResult;
+
+const round = (value: number) => Number(value.toFixed(3));
+const POINTS: number[][] = [
   [-2, -1],
   [1, 1.4],
   [2.4, -0.4],
@@ -25,7 +73,7 @@ const POINTS = [
   [-2.7, 1.1],
 ];
 
-function bounds(id, state) {
+function bounds(id: string, state: ScenarioState): BoundsResult | SphereResult {
   if (id === 'box-grow') {
     const box = new Float64Array(6);
     boxEmpty(box, 0);
@@ -39,7 +87,14 @@ function bounds(id, state) {
       value: `min (${box[0]}, ${box[1]}) → max (${box[3]}, ${box[4]})`,
     };
   }
-  const box = [-state.width / 2, -state.height / 2, 0, state.width / 2, state.height / 2, 0];
+  const box: [number, number, number, number, number, number] = [
+    -state.width / 2,
+    -state.height / 2,
+    0,
+    state.width / 2,
+    state.height / 2,
+    0,
+  ];
   const sphere = new Float64Array(4);
   sphereFromBounds(sphere, 0, ...box);
   return {
@@ -51,7 +106,7 @@ function bounds(id, state) {
   };
 }
 
-function hierarchy(state) {
+function hierarchy(state: ScenarioState): HierarchyResult {
   const tree = createTransformTree(2),
     parent = addTransformNode(tree),
     child = addTransformNode(tree, parent);
@@ -68,7 +123,7 @@ function hierarchy(state) {
   };
 }
 
-function colour(state) {
+function colour(state: ScenarioState): ColourResult {
   const a = state.left / 255,
     b = state.right / 255,
     screen = (a + b) / 2;
@@ -84,7 +139,7 @@ function colour(state) {
   };
 }
 
-function budget(state) {
+function budget(state: ScenarioState): BudgetResult {
   const quality = lodQuality('adaptive');
   const error = adaptivePixelError(state.base, state.frame, state.budget);
   const governor = createPathGovernor(() => performance.now());
@@ -101,7 +156,7 @@ function budget(state) {
   };
 }
 
-export function evaluateDetail(id, state) {
+export function evaluateDetail(id: string, state: ScenarioState): DetailResult {
   if (id === 'box-grow' || id === 'sphere-from-box') return bounds(id, state);
   if (id === 'hierarchy') return hierarchy(state);
   if (id === 'color-space') return colour(state);

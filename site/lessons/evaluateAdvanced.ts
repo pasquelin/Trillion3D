@@ -10,23 +10,120 @@ import {
   transformAffinePoint,
   transformDirectionVector3,
 } from '../demos/engine.ts';
+import type { ScenarioState } from './scenarios.ts';
+
+export interface InverseResult {
+  kind: 'inverse';
+  input: string;
+  local: number[];
+  world: Float64Array;
+  recovered: Float64Array;
+  identity: Float64Array;
+  value: string;
+}
+
+export interface ReflectionResult {
+  kind: 'reflection';
+  input: string;
+  scale: number;
+  determinant: number;
+  linear: number;
+  value: string;
+}
+
+export interface QuaternionResult {
+  kind: 'quaternion';
+  input: string;
+  quaternion: number[];
+  direction: Float64Array;
+  value: string;
+}
+
+export interface NormalResult {
+  kind: 'normal';
+  input: string;
+  naive: Float64Array;
+  normal: Float64Array;
+  value: string;
+}
+
+export type AdvancedResult = InverseResult | ReflectionResult | QuaternionResult | NormalResult;
+
+/** Colocated with the advanced scenarios so every engine call this module makes stays in one
+ * file the docs tests scan for it; not part of `AdvancedResult` (draw.ts and sceneGeometry.ts
+ * still distinguish it from the four truly "advanced" kinds). */
+export interface TransformResult {
+  kind: 'transform';
+  input: string;
+  points: number[][];
+  value: string;
+}
+
+export interface ChainResult {
+  kind: 'chain';
+  input: string;
+  point: number[];
+  value: string;
+}
 
 const matrix = () => new Float64Array(16);
-const round = (value) => Number(value.toFixed(3));
-const quaternion = (degrees) => {
+const round = (value: number) => Number(value.toFixed(3));
+const quaternion = (degrees: number): number[] => {
   const half = (degrees * Math.PI) / 360;
   return [0, 0, Math.sin(half), Math.cos(half)];
 };
 
-export function evaluateAdvanced(id, state) {
+export function transforms(id: string, state: ScenarioState): TransformResult | ChainResult {
+  if (id === 'compose-transform') {
+    const transform = matrix();
+    composeMatrix4(transform, [state.tx, 0, 0], quaternion(state.angle), [
+      state.scale,
+      state.scale,
+      1,
+    ]);
+    const corners = [
+      [-1, -0.7],
+      [1, -0.7],
+      [1, 0.7],
+      [-1, 0.7],
+    ].map(([x, y]) => Array.from(transformAffinePoint(new Float64Array(3), transform, x, y, 0)));
+    return {
+      kind: 'transform',
+      input: `T(${state.tx}, 0) · R(${state.angle}°) · S(${state.scale})`,
+      points: corners,
+      value: `corner → (${round(corners[2][0])}, ${round(corners[2][1])})`,
+    };
+  }
+  const parent = matrix(),
+    child = matrix(),
+    combined = matrix();
+  composeMatrix4(parent, [0, 0, 0], quaternion(state.parent), [1, 1, 1]);
+  composeMatrix4(child, [state.child, 0, 0], quaternion(0), [1, 1, 1]);
+  multiplyMatrix4(combined, parent, child);
+  const point = Array.from(transformAffinePoint(new Float64Array(3), combined, 0, 0, 0));
+  return {
+    kind: 'chain',
+    input: `parent ${state.parent}° → child (${state.child}, 0)`,
+    point,
+    value: `world position = (${round(point[0])}, ${round(point[1])})`,
+  };
+}
+
+export function evaluateAdvanced(id: string, state: ScenarioState): AdvancedResult {
   const transform = matrix();
   if (id === 'matrix-inverse') {
     composeMatrix4(transform, [1.4, 0.4, 0], quaternion(state.angle), [state.scale, 0.8, 1]);
     const inverse = invertMatrix4(matrix(), transform),
       identity = multiplyMatrix4(matrix(), transform, inverse);
-    const local = [0.8, 0.5, 0],
+    const local: [number, number, number] = [0.8, 0.5, 0],
       world = transformAffinePoint(new Float64Array(3), transform, ...local);
-    const recovered = transformAffinePoint(new Float64Array(3), inverse, ...world);
+    const recovered = transformAffinePoint(
+      new Float64Array(3),
+      inverse,
+      world[0],
+      world[1],
+      world[2],
+    );
     return {
       kind: 'inverse',
       input: `rotation ${state.angle}°, scale ${state.scale}`,
@@ -63,7 +160,7 @@ export function evaluateAdvanced(id, state) {
     };
   }
   composeMatrix4(transform, [0, 0, 0], quaternion(28), [state.scale, state.scaleY, 1]);
-  const source = [0.7, 0.7, 0],
+  const source: [number, number, number] = [0.7, 0.7, 0],
     naive = transformDirectionVector3(new Float64Array(3), transform, ...source);
   const normal = applyMatrix3Vector3(
     new Float64Array(3),

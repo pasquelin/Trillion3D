@@ -2,8 +2,21 @@ import { SCENE_BACKGROUND } from './scenePalette.ts';
 import { evaluate } from './evaluate.ts';
 import { geometryFor } from './sceneGeometry.ts';
 import { getIllustrationGpu } from './webgpuDevice.ts';
+import {
+  DISTANCE_BY_SCENARIO,
+  type MountOptions,
+  type IllustrationSession,
+} from './webgpuSession.ts';
+import type { ScenarioState } from './scenarios.ts';
 
-export async function mountIllustration(canvas, id, state, options = {}) {
+export type { IllustrationSession } from './webgpuSession.ts';
+
+export async function mountIllustration(
+  canvas: HTMLCanvasElement,
+  id: string,
+  state: ScenarioState,
+  options: MountOptions = {},
+): Promise<IllustrationSession> {
   const wrapper = canvas.closest('[data-geometry-3d]');
   let gpu;
   try {
@@ -11,9 +24,10 @@ export async function mountIllustration(canvas, id, state, options = {}) {
   } catch (error) {
     const status = wrapper?.querySelector('[data-geometry-3d-status]');
     if (status) {
+      const message = error instanceof Error ? error.message : String(error);
       status.textContent = options.locale?.startsWith('fr')
-        ? `WebGPU indisponible : ${error.message}`
-        : `WebGPU unavailable: ${error.message}`;
+        ? `WebGPU indisponible : ${message}`
+        : `WebGPU unavailable: ${message}`;
       status.classList.remove('hidden');
     }
     return { update() {}, dispose() {} };
@@ -29,7 +43,9 @@ export async function mountIllustration(canvas, id, state, options = {}) {
     return { update() {}, dispose() {} };
   }
   const { device, format, pipeline } = gpu,
-    context = canvas.getContext('webgpu');
+    // getContext can return null per its DOM type; unguarded here exactly like the original code,
+    // which never checked it either and let the failure surface as a thrown TypeError.
+    context = canvas.getContext('webgpu')!;
   context.configure({ device, format, alphaMode: 'premultiplied' });
   const uniform = device.createBuffer({
     size: 32,
@@ -39,36 +55,22 @@ export async function mountIllustration(canvas, id, state, options = {}) {
     layout: pipeline.getBindGroupLayout(0),
     entries: [{ binding: 0, resource: { buffer: uniform } }],
   });
-  let vertexBuffer,
+  let vertexBuffer: GPUBuffer | undefined,
     count = 0,
-    depth,
+    depth: GPUTexture | undefined,
     yaw = 0.65,
     pitch = -0.35,
-    distance =
-      {
-        'compose-transform': 4,
-        'matrix-chain': 4,
-        perspective: 7,
-        frustum: 10,
-        'dot-product': 4,
-        'cross-product': 4,
-        normalize: 4,
-        'box-grow': 8,
-        'sphere-from-box': 7,
-        hierarchy: 5,
-        'color-space': 5,
-        'lod-budget': 6,
-      }[id] ?? 6,
+    distance = DISTANCE_BY_SCENARIO[id] ?? 6,
     disposed = false;
   if (options.interactive === false) distance *= 1.3;
   let scheduled = 0,
-    previousFrame,
+    previousFrame: number | undefined,
     consecutiveFrames = 0,
     animating = false;
   const fps = wrapper?.querySelector('[data-geometry-fps]'),
     cpu = wrapper?.querySelector('[data-geometry-cpu]'),
     memory = wrapper?.querySelector('[data-geometry-memory]');
-  const render = (timestamp) => {
+  const render = (timestamp: number) => {
     scheduled = 0;
     if (disposed || !count) return;
     const started = performance.now();
@@ -108,7 +110,7 @@ export async function mountIllustration(canvas, id, state, options = {}) {
       });
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.setVertexBuffer(0, vertexBuffer);
+    pass.setVertexBuffer(0, vertexBuffer ?? null);
     pass.draw(count);
     pass.end();
     device.queue.submit([encoder.finish()]);
@@ -121,7 +123,7 @@ export async function mountIllustration(canvas, id, state, options = {}) {
   const invalidate = () => {
     if (!scheduled) scheduled = requestAnimationFrame(render);
   };
-  const update = (nextState) => {
+  const update = (nextState: ScenarioState) => {
     const data = geometryFor(id, evaluate(id, nextState, options.locale));
     vertexBuffer?.destroy();
     vertexBuffer = device.createBuffer({
@@ -137,14 +139,14 @@ export async function mountIllustration(canvas, id, state, options = {}) {
   let dragging = false,
     lastX = 0,
     lastY = 0;
-  const down = (event) => {
+  const down = (event: PointerEvent) => {
     if (options.interactive === false) return;
     dragging = true;
     lastX = event.clientX;
     lastY = event.clientY;
     canvas.setPointerCapture(event.pointerId);
   };
-  const move = (event) => {
+  const move = (event: PointerEvent) => {
     if (!dragging) return;
     yaw += (event.clientX - lastX) * 0.01;
     pitch = Math.max(-1.3, Math.min(1.3, pitch + (event.clientY - lastY) * 0.01));
@@ -155,7 +157,7 @@ export async function mountIllustration(canvas, id, state, options = {}) {
   const up = () => {
     dragging = false;
   };
-  const wheel = (event) => {
+  const wheel = (event: WheelEvent) => {
     if (options.interactive === false) return;
     event.preventDefault();
     distance = Math.max(2, Math.min(20, distance + event.deltaY * 0.01));
@@ -170,7 +172,7 @@ export async function mountIllustration(canvas, id, state, options = {}) {
   update(state);
   return {
     update,
-    setAnimating(next) {
+    setAnimating(next: boolean) {
       if (next !== animating) {
         consecutiveFrames = 0;
         previousFrame = undefined;

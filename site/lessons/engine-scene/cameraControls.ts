@@ -1,4 +1,8 @@
-export function configureSceneCamera(explorer, controls) {
+import type { Explorer } from '../../../packages/sdk-browser/index.ts';
+
+type Controls = ReturnType<Explorer['controls']>;
+
+export function configureSceneCamera(explorer: Explorer, controls: Controls) {
   let homeDistance = 1;
   const reset = () => {
     explorer.resetHome();
@@ -8,7 +12,7 @@ export function configureSceneCamera(explorer, controls) {
     controls.maxDistance = homeDistance * 2.5;
     controls.update();
   };
-  const zoom = (factor) => {
+  const zoom = (factor: number) => {
     const offset = controls.object.position.clone().sub(controls.target);
     const distance = Math.min(
       controls.maxDistance,

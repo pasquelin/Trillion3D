@@ -12,7 +12,7 @@ const fullCoverage = new Set([
   'webgl_buffergeometry_uint',
   'webgpu_geometry_loft',
 ]);
-const qualifications = {
+const qualifications: Record<string, string> = {
   'implicit-shell': 'Exposed voxel faces from an implicit field; this is not marching cubes.',
   'curve-control': 'A baked wave path, not an interactive spline editor.',
   sampling: 'A lower sampling density at authoring time, not mesh simplification.',

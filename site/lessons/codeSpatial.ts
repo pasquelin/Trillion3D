@@ -1,7 +1,9 @@
-const source = (names) => `import { ${names.join(', ')} } from './js/engine.js';`;
-const number = (value) => Number(value);
+import type { ScenarioState } from './scenarios.ts';
 
-export function codeForTransform(id, state) {
+const source = (names: string[]) => `import { ${names.join(', ')} } from './js/engine.js';`;
+const number = (value: number) => Number(value);
+
+export function codeForTransform(id: string, state: ScenarioState) {
   if (id === 'compose-transform')
     return `${source(['composeMatrix4', 'transformAffinePoint'])}
 const matrix = new Float64Array(16);
@@ -32,7 +34,7 @@ const x = ${number(state.x)}, z = -${number(state.depth)};
 export default frustumClipBox(planes, x - 0.6, -0.6, z - 0.6, x + 0.6, 0.6, z + 0.6);`;
 }
 
-export function codeForVector(id, state) {
+export function codeForVector(id: string, state: ScenarioState) {
   if (id === 'normalize')
     return `${source(['normalizeVector3'])}
 const result = new Float64Array([${number(state.x)}, ${number(state.y)}, 0]);

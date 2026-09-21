@@ -5,8 +5,14 @@ export async function createLessonExplorer({
   signal,
   manifest = 'assets/kinetic-garden/cache/native/full/manifest.json',
   importedLights = true,
+}: {
+  canvas: HTMLCanvasElement;
+  signal?: AbortSignal;
+  manifest?: string;
+  importedLights?: boolean;
 }) {
-  const { createExplorer, webgpuPagesBackend } = await import('../../packages/sdk-browser/index.ts');
+  const { createExplorer, webgpuPagesBackend } =
+    await import('../../packages/sdk-browser/index.ts');
   const bounds = canvas.getBoundingClientRect();
   return createExplorer(canvas, {
     manifestUrl: new URL(manifest, document.baseURI).href,

@@ -1,27 +1,26 @@
 import { drawBounds, drawBudget, drawColour } from './drawDetails.ts';
 import { drawAdvanced } from './drawAdvanced.ts';
-import { add, legend, point, text } from './drawPrimitives.ts';
+import { drawVectors } from './drawVectors.ts';
+import { add, legend, line, point, text } from './drawPrimitives.ts';
 export { legendAnchors } from './drawPrimitives.ts';
+import type { Locale } from '../content/locale.ts';
+import type {
+  EvaluationResult,
+  TransformResult,
+  ChainResult,
+  PerspectiveResult,
+  FrustumResult,
+} from './evaluate.ts';
+import type { HierarchyResult } from './evaluateDetail.ts';
 
 const NS = 'http://www.w3.org/2000/svg';
-const make = (name, attributes = {}) => {
+const make = (name: string, attributes: Record<string, string | number> = {}) => {
   const element = document.createElementNS(NS, name);
-  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
   return element;
 };
-const line = (svg, x1, y1, x2, y2, color, width = 3, dash = '') =>
-  add(svg, 'line', {
-    x1,
-    y1,
-    x2,
-    y2,
-    stroke: color,
-    'stroke-width': width,
-    'stroke-dasharray': dash,
-    'marker-end': width > 2 ? 'url(#arrow)' : '',
-  });
 
-function base(svg) {
+function base(svg: SVGSVGElement) {
   svg.replaceChildren();
   svg.setAttribute('viewBox', '0 0 640 320');
   const defs = make('defs');
@@ -41,7 +40,7 @@ function base(svg) {
   line(svg, 320, 25, 320, 295, '#94a3b8', 1);
 }
 
-function polygon(svg, points, color) {
+function polygon(svg: SVGSVGElement, points: number[][], color: string) {
   add(svg, 'polygon', {
     points: points.map((p) => point(p).join(',')).join(' '),
     fill: `${color}22`,
@@ -50,7 +49,11 @@ function polygon(svg, points, color) {
   });
 }
 
-function drawTransform(svg, result, french) {
+function drawTransform(
+  svg: SVGSVGElement,
+  result: TransformResult | ChainResult | HierarchyResult,
+  french: boolean,
+) {
   if (result.kind === 'transform') {
     polygon(
       svg,
@@ -78,7 +81,11 @@ function drawTransform(svg, result, french) {
   }
 }
 
-function drawCamera(svg, result, french) {
+function drawCamera(
+  svg: SVGSVGElement,
+  result: PerspectiveResult | FrustumResult,
+  french: boolean,
+) {
   if (result.kind === 'perspective') {
     const size = 120 / result.depth;
     add(svg, 'rect', {
@@ -118,68 +125,7 @@ function drawCamera(svg, result, french) {
   }
 }
 
-function drawVectors(svg, result, french) {
-  if (result.kind === 'normalize') {
-    const vectors = [
-      [result.before, '#94a3b8', french ? 'avant' : 'before'],
-      [result.after, '#7c3aed', french ? 'direction unité' : 'unit direction'],
-    ];
-    vectors.forEach(([v, color]) => {
-      line(svg, 320, 160, 320 + v[0] * 42, 160 - v[1] * 42, color, 5);
-    });
-    legend(
-      svg,
-      vectors.map(([, color, label]) => ({ color, label })),
-    );
-    return;
-  }
-  [
-    [result.a, '#2563eb', 'a'],
-    [result.b, '#f97316', 'b'],
-  ].forEach(([v, color]) => {
-    line(svg, 320, 160, 320 + v[0] * 105, 160 - v[1] * 105, color, 5);
-  });
-  legend(svg, [
-    { color: '#2563eb', label: 'a' },
-    { color: '#f97316', label: 'b' },
-  ]);
-  if ('cross' in result) {
-    add(svg, 'circle', {
-      cx: 320,
-      cy: 160,
-      r: 34,
-      fill: 'none',
-      stroke: result.cross >= 0 ? '#22c55e' : '#ef4444',
-      'stroke-width': 5,
-      'stroke-dasharray': '8 5',
-    });
-    const turn =
-      result.cross >= 0
-        ? french
-          ? 'antihoraire ↺'
-          : 'counter-clockwise ↺'
-        : french
-          ? 'horaire ↻'
-          : 'clockwise ↻';
-    text(svg, 320, 215, turn, 'middle');
-  } else {
-    const width = Math.max(2, Math.abs(result.dot) * 18);
-    line(svg, 90, 275, 550, 275, '#cbd5e1', 10);
-    line(
-      svg,
-      320,
-      275,
-      320 + result.dot * 210,
-      275,
-      result.dot >= 0 ? '#22c55e' : '#ef4444',
-      width,
-    );
-    text(svg, 90, 300, french ? '−1 opposés' : '−1 opposed');
-    text(svg, 550, 300, french ? '+1 alignés' : '+1 aligned', 'end');
-  }
-}
-
-export function draw(svg, result, locale = 'en') {
+export function draw(svg: SVGSVGElement, result: EvaluationResult, locale: Locale = 'en') {
   base(svg);
   const french = String(locale).toLowerCase().startsWith('fr');
   if (drawAdvanced(svg, result, french)) return;

@@ -1,13 +1,23 @@
+/** An authored triangle mesh, before asset compilation: flat position/index arrays, plus the
+ *  optional per-vertex attributes a recipe may attach. */
+export interface Mesh {
+  positions: number[];
+  indices: number[];
+  colors?: number[];
+  normals?: number[];
+  uv?: number[];
+}
+
 /** Original triangle authoring helpers. These run before asset compilation. */
-export function mesh() {
+export function mesh(): Mesh {
   return { positions: [], indices: [] };
 }
-export function triangle(out, a, b, c) {
+export function triangle(out: Mesh, a: number[], b: number[], c: number[]) {
   const start = out.positions.length / 3;
   out.positions.push(...a, ...b, ...c);
   out.indices.push(start, start + 1, start + 2);
 }
-export function surface(nu, nv, point) {
+export function surface(nu: number, nv: number, point: (u: number, v: number) => number[]) {
   const out = mesh();
   for (let u = 0; u <= nu; u++)
     for (let v = 0; v <= nv; v++) out.positions.push(...point(u / nu, v / nv));
@@ -19,7 +29,7 @@ export function surface(nu, nv, point) {
     }
   return out;
 }
-export function combine(parts) {
+export function combine(parts: Mesh[]) {
   const out = mesh();
   for (const part of parts) {
     const offset = out.positions.length / 3;
@@ -28,7 +38,7 @@ export function combine(parts) {
   }
   return out;
 }
-export function box(center = [0, 0, 0], size = [1, 1, 1]) {
+export function box(center: number[] = [0, 0, 0], size: number[] = [1, 1, 1]) {
   const out = mesh();
   const p = Array.from({ length: 8 }, (_, i) =>
     center.map((c, k) => c + (((i >> k) & 1) - 0.5) * size[k]),
@@ -46,7 +56,7 @@ export function box(center = [0, 0, 0], size = [1, 1, 1]) {
   }
   return out;
 }
-export function mapPositions(source, transform) {
+export function mapPositions(source: Mesh, transform: (point: number[]) => number[]): Mesh {
   return {
     ...source,
     positions: source.positions.flatMap((_, i, p) => (i % 3 ? [] : transform(p.slice(i, i + 3)))),

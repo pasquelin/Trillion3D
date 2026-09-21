@@ -5,18 +5,19 @@ import {
   LESSON_RING_RANGE,
 } from './lightingLessonDefinitions.ts';
 import { ringLamps } from './lightingLessonRuntime.ts';
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
 const light = (
-  id,
-  position,
-  color,
-  intensity,
+  id: string,
+  position: string,
+  color: string,
+  intensity: number,
   emitterRadius = 0.1,
   castsShadow = true,
   range = 10,
 ) =>
   `explorer.addLight({ id: '${id}', kind: 'point', position: [${position}], color: [${color}], intensity: ${intensity}, range: ${range}, emitterRadius: ${emitterRadius}, castsShadow: ${castsShadow} });`;
 
-function operation(lesson, state) {
+function operation(lesson: RendererLessonItem, state: Record<string, number>) {
   if (lesson.kind === 'color-balance')
     return `${light('warm', '-3, 3, 2', '1, 0.35, 0.12', state.warm)}
 ${light('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
@@ -44,7 +45,7 @@ ${light('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
   return state.enabled === 1 ? created : `${created}\nexplorer.removeLight('lifecycle');`;
 }
 
-export function lightingLessonCode(lesson, state) {
+export function lightingLessonCode(lesson: RendererLessonItem, state: Record<string, number>) {
   return lessonCode(operation(lesson, state), {
     manifest: lesson.manifest,
     importedLights: lesson.importedLights,

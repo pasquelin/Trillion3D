@@ -1,4 +1,5 @@
 import { sceneViews } from './views.ts';
+import type { sceneControlsCopy } from './controlsCopy.ts';
 
 /** User-facing copy for the complete engine example, separate from its lifecycle. */
 export const sceneCopy = {
@@ -128,3 +129,6 @@ export const sceneCopy = {
     ],
   },
 };
+
+/** All the copy an engine-scene viewport reads: this example's own strings plus its controls'. */
+export type EngineCopy = typeof sceneCopy.en & typeof sceneControlsCopy.en;

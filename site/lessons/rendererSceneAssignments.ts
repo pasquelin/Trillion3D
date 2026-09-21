@@ -1,6 +1,8 @@
-const asset = (id) => `./assets/gallery/offline/${id}/cache/native/full/manifest.json`;
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
 
-const assignments = {
+const asset = (id: string) => `./assets/gallery/offline/${id}/cache/native/full/manifest.json`;
+
+const assignments: Record<string, string> = {
   'point-light-range': 'city',
   'spot-light-cone': 'sculpture',
   'directional-shadow': 'hard-edges',
@@ -20,7 +22,7 @@ const assignments = {
   'occlusion-two-phase': 'kinetic-garden',
 };
 
-export const rendererSceneFor = (lesson) => ({
+export const rendererSceneFor = (lesson: RendererLessonItem) => ({
   ...lesson,
   manifest:
     assignments[lesson.id] === 'kinetic-garden'
@@ -32,8 +34,8 @@ export const rendererSceneFor = (lesson) => ({
           : asset(assignments[lesson.id]),
   preview: `./assets/gallery/renderer/${lesson.id}.png`,
   importedLights: lesson.id === 'runtime-pixel-error',
-  sceneLight: ['lod', 'memory'].includes(lesson.kind) || lesson.runtime === 'camera-pose',
+  sceneLight: ['lod', 'memory'].includes(lesson.kind ?? '') || lesson.runtime === 'camera-pose',
   sceneFill:
     lesson.id !== 'runtime-pixel-error' &&
-    !['light-lifecycle', 'shadow-switch', 'many-lights'].includes(lesson.kind),
+    !['light-lifecycle', 'shadow-switch', 'many-lights'].includes(lesson.kind ?? ''),
 });

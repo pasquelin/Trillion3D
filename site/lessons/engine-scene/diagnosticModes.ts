@@ -1,6 +1,8 @@
+import type { DiagnosticMode as EngineDiagnosticMode } from '../../../packages/sdk/index.ts';
+
 // The diagnostic modes every documentation viewport offers, in display order; labels live in
 // `sceneCopy[locale]` (content.js). Availability is the engine's word, not this list's.
-export const DIAGNOSTIC_MODES = /** @type {const} */ ([
+export const DIAGNOSTIC_MODES = [
   'beauty',
   'clusters',
   'pages',
@@ -9,4 +11,6 @@ export const DIAGNOSTIC_MODES = /** @type {const} */ ([
   'screen-error',
   'materials',
   'visibility',
-]);
+] as const satisfies readonly EngineDiagnosticMode[];
+
+export type DiagnosticMode = (typeof DIAGNOSTIC_MODES)[number];

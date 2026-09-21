@@ -22,7 +22,7 @@ export function splineTube(bend = 1) {
   });
 }
 export function rationalPatch(weight = 2) {
-  const basis = (t) => [(1 - t) ** 2, 2 * t * (1 - t), t * t];
+  const basis = (t: number) => [(1 - t) ** 2, 2 * t * (1 - t), t * t];
   return surface(24, 24, (u, v) => {
     const bu = basis(u),
       bv = basis(v),

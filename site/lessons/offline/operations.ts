@@ -1,9 +1,9 @@
-import { mesh, triangle, box, combine } from './mesh.ts';
+import { mesh, triangle, box, combine, type Mesh } from './mesh.ts';
 /** Extrude a convex, counterclockwise contour in the XY plane. */
-export function extrude(points, depth = 1) {
+export function extrude(points: number[][], depth = 1) {
   const out = mesh(),
     n = points.length;
-  const at = (i, z) => [...points[i], z];
+  const at = (i: number, z: number) => [...points[i], z];
   for (let i = 1; i < n - 1; i++) {
     triangle(out, at(0, depth), at(i, depth), at(i + 1, depth));
     triangle(out, at(0, 0), at(i + 1, 0), at(i, 0));
@@ -22,10 +22,10 @@ export function polygon(sides = 6) {
   ]);
 }
 /** Linear midpoint refinement preserves the original piecewise planar surface. */
-export function subdivide(source) {
+export function subdivide(source: Mesh) {
   const out = mesh(),
-    vertex = (i) => source.positions.slice(i * 3, i * 3 + 3);
-  const middle = (a, b) => a.map((x, i) => (x + b[i]) / 2);
+    vertex = (i: number) => source.positions.slice(i * 3, i * 3 + 3);
+  const middle = (a: number[], b: number[]) => a.map((x, i) => (x + b[i]) / 2);
   for (let i = 0; i < source.indices.length; i += 3) {
     const [a, b, c] = source.indices.slice(i, i + 3).map(vertex),
       ab = middle(a, b),

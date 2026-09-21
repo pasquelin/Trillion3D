@@ -1,4 +1,4 @@
-import { mesh, triangle, box, combine } from './mesh.ts';
+import { mesh, triangle, box, combine, type Mesh } from './mesh.ts';
 import { terrain } from './surfaces.ts';
 export function paintedTerrain(lookup = false) {
   const out = terrain(24, 0.8);
@@ -12,7 +12,7 @@ export function paintedTerrain(lookup = false) {
   return out;
 }
 /** Separate corners and attach one face normal per triangle. */
-export function splitEdges(source) {
+export function splitEdges(source: Mesh) {
   const out = mesh();
   out.normals = [];
   for (let i = 0; i < source.indices.length; i += 3) {

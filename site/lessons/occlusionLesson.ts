@@ -1,5 +1,16 @@
-const text = (en, fr) => ({ en, fr });
-const range = (id, en, fr, min, max, value, step) => ({
+import type { Localized } from '../content/locale.ts';
+import type { RendererLessonControl, RendererLessonItem } from './rendererLessonTypes.ts';
+
+const text = (en: string, fr: string): Localized => ({ en, fr });
+const range = (
+  id: string,
+  en: string,
+  fr: string,
+  min: number,
+  max: number,
+  value: number,
+  step: number,
+): RendererLessonControl => ({
   id,
   label: text(en, fr),
   min,
@@ -14,7 +25,7 @@ const range = (id, en, fr, min, max, value, step) => ({
  * eye — its height, its angle around the garden — and the engine's own counters say how many
  * clusters the previous image's pyramid withdrew and this image's pyramid rejected.
  */
-export const occlusionLessonDefinition = {
+export const occlusionLessonDefinition: RendererLessonItem = {
   id: 'occlusion-two-phase',
   category: 'streaming',
   functions: ['homePose', 'setPose', 'createExplorer'],
