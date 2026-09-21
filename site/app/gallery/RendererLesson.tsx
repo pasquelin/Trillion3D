@@ -4,15 +4,13 @@ import type { RendererLessonItem } from '../../lessons/rendererLessonTypes.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { CodeBlock } from '../components/CodeBlock.tsx';
 import { LessonTemplate } from '../components/LessonTemplate.tsx';
+import { ApiBadges } from '../components/ApiBadges.tsx';
 import { Alert } from '../components/UI.tsx';
 import { rendererInitialState } from '../../lessons/rendererLessons.ts';
 import { rendererCodeFor } from '../../lessons/rendererLessonCode.ts';
 import { RendererControls, controlValue } from './RendererControls.tsx';
 import { RendererViewport } from './RendererViewport.tsx';
-import { rawEntries } from '../portal/data.ts';
 import { local } from '../../content/locale.ts';
-
-const documentedApi = new Set(rawEntries.map(({ id }) => id));
 
 interface RendererLessonProps {
   lesson: RendererLessonItem;
@@ -72,32 +70,17 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }: RendererLess
       label={`${title} — WebGPU`}
     />
   );
-  const badges = lesson.functions.map((name) =>
-    documentedApi.has(name) ? (
-      <a
-        key={name}
-        className="badge badge-soft badge-secondary font-mono"
-        href={`#/${locale}/api/${name}`}
-      >
-        {name}
-      </a>
-    ) : (
-      <code key={name} className="badge badge-soft badge-secondary">
-        {name}
-      </code>
-    ),
-  );
+  const badges = <ApiBadges names={lesson.functions} locale={locale} />;
   return (
-    <div data-renderer-playground={lesson.id}>
-      <LessonTemplate
-        title={title}
-        description={local(lesson.description, locale)}
-        badges={badges}
-        controls={controls}
-        cards={cards}
-        code={code}
-        viewport={viewport}
-      />
-    </div>
+    <LessonTemplate
+      id={lesson.id}
+      title={title}
+      description={local(lesson.description, locale)}
+      badges={badges}
+      controls={controls}
+      cards={cards}
+      code={code}
+      viewport={viewport}
+    />
   );
 }

@@ -337,22 +337,6 @@ kbd {
     height: min(60dvh, 42rem);
   }
 }
-/* The engine scene draws its own bordered stage; the frame inside it only carries the canvas. */
-.scene-frame {
-  display: block;
-  width: 100%;
-  height: clamp(18rem, 42dvh, 32rem);
-  min-height: clamp(18rem, 42dvh, 32rem);
-}
-.scene-frame > .render-frame {
-  border-radius: 0;
-  background: none;
-}
-.scene-frame [data-scene-canvas] {
-  flex: 1;
-  height: 100%;
-  max-height: none;
-}
 .example-learn :is(.card, .card-body, .fieldset, [data-code-block], .mockup-code) {
   max-width: 100%;
   min-width: 0;
@@ -512,12 +496,27 @@ kbd {
   overflow: auto;
   scrollbar-width: thin;
 }
-.lesson-observe > :first-child {
+.lesson-viewport {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   flex: 1;
   min-height: 0;
 }
-.lesson-observe [data-geometry-stats],
-.lesson-observe > p {
+.lesson-viewport > *,
+.lesson-viewport .geometry-3d-viewport {
+  min-width: 0;
+}
+.lesson-viewport .geometry-3d-viewport,
+.lesson-viewport .render-frame,
+.lesson-viewport .geometry-3d-canvas {
+  flex: 1;
+  min-height: 0;
+}
+.lesson-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   flex: none;
 }
 @media (min-width: 1100px) {
@@ -929,10 +928,6 @@ kbd {
   .example-footer {
     grid-column: 1 / -1;
   }
-  .scene-frame {
-    flex: 1;
-    max-height: min(60dvh, 42rem);
-  }
 }
 @media (max-width: 1099px) {
   .example-observe {
@@ -1013,14 +1008,6 @@ kbd {
   }
 }
 
-.scene-controls {
-  container-type: inline-size;
-}
-/* One control surface for the lessons, the playground and the engine scene: a dense grid whose
-   cells are as tall as their own control, values beside their label, buttons in the last cell. */
-.control-panel {
-  container-type: inline-size;
-}
 .control-panel-grid {
   display: flex;
   flex-direction: column;
@@ -1105,10 +1092,6 @@ kbd {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-}
-.control-panel-grid .select {
-  width: 100%;
-  min-width: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {

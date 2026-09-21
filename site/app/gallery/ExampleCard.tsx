@@ -30,6 +30,8 @@ function Preview({ example, locale, title }: PreviewProps) {
     return (
       <img
         className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
         src="./assets/kinetic-garden/preview.png"
         alt={
           locale === 'fr'
@@ -42,6 +44,8 @@ function Preview({ example, locale, title }: PreviewProps) {
     return (
       <img
         className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
         src={example.preview ?? './assets/kinetic-garden/preview.png'}
         alt={locale === 'fr' ? 'Aperçu de la scène WebGPU' : 'WebGPU scene preview'}
       />

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Entry } from './Entry.tsx';
-import { EngineScene } from './engine-scene/index.tsx';
+import { EngineExample } from './engine-scene/index.tsx';
 import { examples } from '../content/catalog.ts';
 import { readyExampleIds } from './examples/list.ts';
 import { rawEntries } from './portal/data.ts';
@@ -46,7 +46,7 @@ function Page({
   if (page.kind === 'examples') return <Examples locale={route.locale} />;
   if (page.kind === 'example') return <Example id={page.id} locale={route.locale} />;
   if (page.kind === 'gallery') return <Gallery locale={route.locale} />;
-  if (page.kind === 'engine-scene') return <EngineScene locale={route.locale} />;
+  if (page.kind === 'engine-scene') return <EngineExample locale={route.locale} />;
   if (page.kind === 'playground') {
     return (
       <Playground
