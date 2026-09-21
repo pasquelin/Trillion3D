@@ -11,19 +11,23 @@ import type {
 } from '../types/components.ts';
 
 const FieldLabel = createContext<string | undefined>(undefined);
-const tones: Record<string, string> = {
+const tones: Record<NonNullable<AlertProps['tone']>, string> = {
   info: 'alert-info',
   success: 'alert-success',
   warning: 'alert-warning',
   error: 'alert-error',
 };
-const buttons: Record<string, string> = {
+const buttons: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary: 'btn-primary',
   secondary: 'btn-secondary',
   ghost: 'btn-ghost',
   outline: 'btn-outline',
 };
-const sizes: Record<string, string> = { sm: 'btn-sm', md: 'btn-md', lg: 'btn-lg' };
+const sizes: Record<NonNullable<ButtonProps['size']>, string> = {
+  sm: 'btn-sm',
+  md: 'btn-md',
+  lg: 'btn-lg',
+};
 
 export function Button({
   children,
@@ -35,7 +39,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`btn ${buttons[variant] ?? buttons.ghost} ${sizes[size] ?? sizes.md} ${className}`}
+      className={`btn ${buttons[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
       {children}
@@ -45,9 +49,14 @@ export function Button({
 
 export const CARD_SURFACE = 'card bg-base-200 border border-base-300';
 
-export const surfaceClass = (surface?: string): string =>
-  ({ default: 'bg-base-200', nested: 'bg-base-100', inset: 'bg-base-300' })[surface ?? ''] ??
-  'bg-base-200';
+const surfaces: Record<NonNullable<CardProps['surface']>, string> = {
+  default: 'bg-base-200',
+  nested: 'bg-base-100',
+  inset: 'bg-base-300',
+};
+
+export const surfaceClass = (surface: CardProps['surface'] = 'default'): string =>
+  surfaces[surface];
 
 export function Card({
   children,
@@ -71,7 +80,7 @@ export function Card({
 
 export function Alert({ children, tone = 'info', className = '', ...props }: AlertProps) {
   return (
-    <div className={`alert alert-soft ${tones[tone] ?? tones.info} ${className}`} {...props}>
+    <div className={`alert alert-soft ${tones[tone]} ${className}`} {...props}>
       {children}
     </div>
   );

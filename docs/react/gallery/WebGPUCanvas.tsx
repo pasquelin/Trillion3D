@@ -17,7 +17,7 @@ export function GeometryPreview({
   label,
   related = false,
 }: GeometryPreviewProps): ReactElement {
-  const state = useMemo(() => initialState(id) as Record<string, number>, [id]);
+  const state: Record<string, number> = useMemo(() => initialState(id), [id]);
   return (
     <WebGPUCanvas
       id={id}
@@ -96,11 +96,7 @@ export function WebGPUCanvas({
       className={`geometry-3d${preview ? ' geometry-3d-preview gallery-preview' : ' grid gap-4'}${related ? ' geometry-3d-related' : ''}`}
       data-geometry-3d={id}
     >
-      <Canvas
-        canvasRef={canvas}
-        className="geometry-3d-canvas rounded-box"
-        label={label}
-      />
+      <Canvas canvasRef={canvas} className="geometry-3d-canvas rounded-box" label={label} />
       {!preview && (
         <StatGroup data-geometry-stats>
           <Stat title="FPS" valueProps={{ 'data-geometry-fps': true }}>

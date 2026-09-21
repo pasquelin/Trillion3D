@@ -1,4 +1,5 @@
 import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
+import type { Locale } from './portal.ts';
 
 interface CanvasAction extends Omit<ComponentPropsWithoutRef<'button'>, 'title' | 'aria-label'> {
   label: string;
@@ -45,23 +46,27 @@ export type ToggleProps = ComponentPropsWithoutRef<'input'>;
 
 export type StatGroupProps = ComponentPropsWithoutRef<'div'>;
 
+interface StatSlotProps extends ComponentPropsWithoutRef<'div'> {
+  [key: `data-${string}`]: unknown;
+}
+
 export interface StatProps {
   title: ReactNode;
   children: ReactNode;
   description?: ReactNode;
-  valueProps?: ComponentPropsWithoutRef<'div'> & Record<string, unknown>;
-  descriptionProps?: ComponentPropsWithoutRef<'div'> & Record<string, unknown>;
+  valueProps?: StatSlotProps;
+  descriptionProps?: StatSlotProps;
 }
 
 export type ChartTone =
   'primary' | 'secondary' | 'accent' | 'info' | 'success' | 'warning' | 'error' | 'neutral';
 
-interface BarChartRow {
+export interface BarChartRow {
   id?: string | number;
   label: ReactNode;
   value: number | null;
   missing?: string;
-  tone?: ChartTone | string;
+  tone?: ChartTone;
   status?: ReactNode;
   p95?: number | null;
 }
@@ -88,7 +93,7 @@ export interface ModuleExecutionTask {
 export interface CodeEditorProps {
   initialCode: string;
   resetCode: () => string;
-  locale?: string;
+  locale?: Locale;
 }
 
 export interface CodeInputProps {
@@ -99,7 +104,7 @@ export interface CodeInputProps {
 
 export interface CodeSurfaceProps {
   code: string;
-  locale?: string;
+  locale: Locale;
   title: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
@@ -110,9 +115,7 @@ export interface ProgressiveRange {
   end: number;
 }
 
-export interface ProgressiveListState {
-  start: number;
-  end: number;
+export interface ProgressiveListState extends ProgressiveRange {
   heights?: Record<string | number, number>;
 }
 
@@ -154,7 +157,7 @@ export interface TabsProps<T extends string = string> {
   accessory?: ReactNode;
 }
 
-interface TabsMenuOption {
+export interface TabsMenuOption {
   value: string;
   label: string;
 }

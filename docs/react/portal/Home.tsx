@@ -5,9 +5,9 @@ import { SectionHeader } from '../components/SectionHeader.tsx';
 import { ExampleCard } from '../gallery/ExampleCard.tsx';
 import type { HomeProps, Locale, RouteArea } from '../types/portal.ts';
 
-const FEATURED = ['compose-transform', 'perspective', 'lod-budget']
-  .map((id) => examples.find((example: { id: string }) => example.id === id))
-  .filter((example): example is NonNullable<typeof example> => Boolean(example));
+const FEATURED = ['compose-transform', 'perspective', 'lod-budget'].map((id) =>
+  examples.find((example: { id: string }) => example.id === id),
+);
 
 function HeroArt({ locale }: { locale: Locale }): JSX.Element {
   return (

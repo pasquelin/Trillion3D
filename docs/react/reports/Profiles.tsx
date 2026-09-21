@@ -17,11 +17,12 @@ import type {
   ReportRecord,
   SceneProfilesProps,
 } from '../types/reports.ts';
+import type { BarChartRow } from '../types/components.ts';
 
 function ProfileReading({ record: r, report, locale, filters }: ProfileReadingProps): ReactElement {
   const [clock, setClock] = useState('cpu');
   const fr = locale === 'fr';
-  const charts = [
+  const charts: { id: string; label: string; rows: BarChartRow[] }[] = [
     {
       id: 'cpu',
       label: fr ? 'CPU · préparer l’image' : 'CPU · prepare the image',

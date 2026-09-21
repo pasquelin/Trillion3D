@@ -22,16 +22,17 @@ export interface ReportProps {
 
 export function Report({ route }: ReportProps): ReactElement {
   const [campaign, active = 'overview'] = route.id.split('/');
-  const { report, sources, loading, error } = useReports(campaign);
+  const state = useReports(campaign);
   const locale = route.locale,
     c = reportCopy(locale),
     fr = locale === 'fr';
-  if (loading || error || !report)
+  if (!state.report)
     return (
-      <Alert tone={error ? 'warning' : 'info'}>
-        {c[loading ? 'loading' : error ? 'unavailable' : 'empty']}
+      <Alert tone={state.error ? 'warning' : 'info'}>
+        {c[state.loading ? 'loading' : state.error ? 'unavailable' : 'empty']}
       </Alert>
     );
+  const { report, sources } = state;
   const scenes = [...new Set(report.records.map((r) => r.scene))];
   const props = { report, locale };
   const content: Record<string, () => ReactNode> = {

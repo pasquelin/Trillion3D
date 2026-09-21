@@ -4,13 +4,12 @@ import { routeHref } from '../../js/portal/routes.js';
 import { searchEntries } from '../../js/portal/search.js';
 import { Card } from '../components/UI.tsx';
 import { expandEntryLinks } from './entryLinks.ts';
-import type { ApiIndexProps, EntryLinkItem, PortalEntry, SectionItem } from '../types/portal.ts';
+import type { ApiIndexProps, EntryLinkItem, PortalEntry } from '../types/portal.ts';
 
 export function ApiIndex({ locale, entries, t }: ApiIndexProps): JSX.Element {
   const [query, setQuery] = useState('');
   const matches = useMemo(() => searchEntries(entries, query), [entries, query]);
-  const groups = (SECTIONS as SectionItem[])
-    .filter(({ id }) => !['guides', 'examples', 'demo'].includes(id))
+  const groups = SECTIONS.filter(({ id }) => !['guides', 'examples', 'demo'].includes(id))
     .map((section) => ({
       section,
       items: expandEntryLinks(matches.filter((entry: PortalEntry) => entry.section === section.id)),

@@ -1,26 +1,41 @@
 import type { Locale } from './portal.ts';
 import type { DiagnosticMode } from './engine-scene.ts';
 import type { ProgressiveListState } from './components.ts';
+import type { Localized } from '../gallery/localized.ts';
+import type { SCENARIOS } from '../../js/gallery/scenarios.js';
 
-export type LocalizedString = { en: string; fr: string } | { en: string; fr?: string };
-
-export interface GalleryExample {
+interface ExampleBase {
   id: string;
-  title: LocalizedString;
-  description?: LocalizedString;
-  concept?: LocalizedString;
-  reason?: LocalizedString;
-  category?: string;
-  subject?: string;
-  supplementaryTopic?: string;
+  title: Localized;
+  category: string;
   functions?: string[];
   engine?: boolean;
   renderer?: boolean;
   preview?: string;
-  status?: 'ready' | 'planned' | string;
   readyLessonId?: string;
-  [key: string]: unknown;
 }
+
+/** A catalog lesson describes itself and is ready. */
+export interface CatalogExample extends ExampleBase {
+  status?: 'ready';
+  description: Localized;
+  concept?: undefined;
+  reason?: undefined;
+  subject?: undefined;
+  supplementaryTopic?: undefined;
+}
+
+/** A roadmap entry states the concept it will show and why it still waits. */
+export interface RoadmapExample extends ExampleBase {
+  status: string;
+  description?: undefined;
+  concept: Localized;
+  reason: Localized;
+  subject: string;
+  supplementaryTopic: string;
+}
+
+export type GalleryExample = CatalogExample | RoadmapExample;
 
 export interface ExampleCardProps {
   example: GalleryExample;
@@ -44,7 +59,7 @@ export interface PreviewProps {
 }
 
 export interface PlannedDetailsProps {
-  example: GalleryExample;
+  example: RoadmapExample;
   locale: Locale;
 }
 
@@ -62,23 +77,18 @@ export interface GalleryShowcaseProps {
 export interface ShowcaseScene {
   id: string;
   preview: string;
-  title: { en: string; fr: string };
-  description: { en: string; fr: string };
-  action: { en: string; fr: string };
-  alt: { en: string; fr: string };
+  title: Localized;
+  description: Localized;
+  action: Localized;
+  alt: Localized;
 }
+
+export type Scenario = (typeof SCENARIOS)[string];
 
 export interface PlaygroundProps {
   id: string;
   locale?: Locale;
   onSelect?: (id: string) => void;
-}
-
-export interface DiagramProps {
-  id: string;
-  state: Record<string, number>;
-  locale: Locale;
-  label?: string;
 }
 
 export interface WebGPUCanvasProps {
@@ -92,13 +102,12 @@ export interface WebGPUCanvasProps {
   related?: boolean;
 }
 
-export interface GeometryPreviewProps {
-  id: string;
-  locale?: Locale;
-  interactive?: boolean;
-  label?: string;
-  related?: boolean;
-}
+export type DiagramProps = Pick<WebGPUCanvasProps, 'id' | 'state' | 'locale' | 'label'>;
+
+export type GeometryPreviewProps = Pick<
+  WebGPUCanvasProps,
+  'id' | 'locale' | 'interactive' | 'label' | 'related'
+>;
 
 export interface IllustrationSession {
   update: (nextState: Record<string, unknown>) => void;
@@ -108,31 +117,30 @@ export interface IllustrationSession {
 
 interface RendererLessonLegend {
   color: string;
-  label: { en: string; fr: string };
+  label: Localized;
 }
 
 export interface RendererLessonControl {
   id: string;
-  label: { en: string; fr: string };
-  type: 'range' | 'boolean' | string;
+  label: Localized;
+  type?: 'range' | 'boolean';
   value: number;
-  min?: number;
-  max?: number;
-  step?: number;
+  min: number;
+  max: number;
+  step: number;
   legend?: RendererLessonLegend[];
 }
 
-interface RendererLessonItem {
+export interface RendererLessonItem {
   id: string;
-  title: { en: string; fr: string };
-  description: { en: string; fr: string };
-  try: { en: string; fr: string };
-  changes: { en: string; fr: string };
-  warning?: { en: string; fr: string };
+  title: Localized;
+  description: Localized;
+  try: Localized;
+  changes: Localized;
+  warning?: Localized;
   constructionCode?: string;
   functions: string[];
   controls: RendererLessonControl[];
-  [key: string]: unknown;
 }
 
 export interface RendererLessonProps {
@@ -141,14 +149,15 @@ export interface RendererLessonProps {
   onSelect?: (id: string) => void;
 }
 
+/** What the lesson runtime reports each frame; `null` is a count the device did not give. */
 export interface RendererMetrics {
   idle?: boolean;
-  fps?: number;
+  fps?: number | null;
   cpu?: number;
   memory?: number;
   triangles?: number;
-  occluded?: number;
-  tested?: number;
+  occluded?: number | null;
+  tested?: number | null;
   diagnostic?: DiagnosticMode;
 }
 

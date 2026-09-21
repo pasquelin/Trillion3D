@@ -1,71 +1,15 @@
 import type { Locale } from './portal.ts';
-
 import type { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
+import type { DiagnosticMode as EngineDiagnosticMode } from '../../../packages/sdk/index.ts';
+import type { sceneCopy } from '../../js/engine-scene/content.js';
+import type { sceneControlsCopy } from '../../js/engine-scene/controlsCopy.js';
 
-export type DiagnosticMode = (typeof DIAGNOSTIC_MODES)[number];
+type OfferedByEngine<Mode extends EngineDiagnosticMode> = Mode;
 
-type SceneViewsCopy = Record<string, [string, string, string]>;
+/** The documented modes, each one a mode the engine offers: a typo in the JS list fails here. */
+export type DiagnosticMode = OfferedByEngine<(typeof DIAGNOSTIC_MODES)[number]>;
 
-export interface EngineCopy {
-  title: string;
-  label: string;
-  intro: string;
-  try: string;
-  start: string;
-  loading: string;
-  ready: string;
-  unavailable: string;
-  failed: string;
-  retry: string;
-  mode: string;
-  beauty: string;
-  clusters: string;
-  pages: string;
-  wireframe: string;
-  lod: string;
-  'screen-error': string;
-  materials: string;
-  visibility: string;
-  views: SceneViewsCopy;
-  guideWhat: string;
-  guideTry: string;
-  guideObserve: string;
-  home: string;
-  light: string;
-  lightValue: string;
-  shadows: string;
-  quality: string;
-  taa: string;
-  previewAlt: string;
-  preview: string;
-  stats: string;
-  selected: string;
-  drawn: string;
-  selectedDesc: string;
-  drawnDesc: string;
-  fps: string;
-  fpsDesc: string;
-  idle: string;
-  cpu: string;
-  cpuDesc: string;
-  gpu: string;
-  gpuDesc: string;
-  geometryMemory: string;
-  geometryMemoryDesc: string;
-  textureMemory: string;
-  textureMemoryDesc: string;
-  unavailableMetric: string;
-  scope: string;
-  source: string;
-  code: string;
-  learn: string;
-  steps: string[];
-  controls: string;
-  details: string;
-  zoomIn: string;
-  zoomOut: string;
-  [key: string]: unknown;
-}
+export type EngineCopy = typeof sceneCopy.en & typeof sceneControlsCopy.en;
 
 export interface EnginePreviewProps {
   locale?: Locale;

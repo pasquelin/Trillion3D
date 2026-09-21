@@ -6,7 +6,7 @@ import { viewName, runName, engineName } from '../../js/reports/names.js';
 import { Section } from '../components/Section.tsx';
 import { sceneName, runOf } from '../../js/reports/presentation.js';
 import { MetricCharts } from './MetricCharts.tsx';
-import type { Report, ReportRecord } from '../types/reports.ts';
+import type { MetricKey, Report, ReportRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
 export interface ExperimentsProps {
@@ -15,7 +15,7 @@ export interface ExperimentsProps {
   locale: Locale;
 }
 
-const GROUPS: [string, string, RegExp, string[]][] = [
+const GROUPS: [string, string, RegExp, MetricKey[]][] = [
   [
     'Resolution and error threshold',
     'Résolution et seuil d’erreur',
