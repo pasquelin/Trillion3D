@@ -42,13 +42,16 @@ export const DIAGNOSTICS = [
     ],
   },
 ];
-export function diagnosticValue(record, path) {
+import { readPath } from './contract.ts';
+import type { ReportRecord } from './types.ts';
+
+export function diagnosticValue(record: ReportRecord | null | undefined, path: string) {
   if (path.startsWith('stage:')) {
     const [, stage, key] = path.split(':');
     const value = record?.data.profilParEtape?.stages?.find((item) => item.stage === stage)
       ?.counts?.[key];
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   }
-  const value = path.split('.').reduce((item, key) => item?.[key], record?.data);
+  const value = readPath(record?.data, path);
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
