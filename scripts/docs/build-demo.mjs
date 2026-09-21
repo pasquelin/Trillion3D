@@ -1,6 +1,7 @@
-// Bundles the public surface the documentation runs — the common facade's maths, diagnostic,
-// quality and format tables, and the internal browser depth convention — into one browser
-// module, so every demo of the portal executes the engine itself rather than a copy of it.
+// The public surface the documentation runs — the common facade's maths, diagnostic, quality and
+// format tables, and the internal browser depth convention — as one browser module, so every demo
+// of the portal executes the engine itself rather than a copy of it. The handwritten modules under
+// docs/js import it as `./engine.js`: generated, never committed, built where they load.
 import { build } from 'esbuild';
 import { resolve } from 'node:path';
 
@@ -15,10 +16,16 @@ const ENTRY = [
   `export { DEPTH_CLEAR, DEPTH_COMPARE_OR_EQUAL, DEPTH_NEAR } from '../sdk-browser/depthConvention.ts';`,
 ].join('\n');
 
-/** Writes the demo bundle: browser ESM, minified, a header naming its source. */
+const entry = (root) => ({
+  contents: ENTRY,
+  resolveDir: resolve(root, 'packages/sdk'),
+  loader: 'ts',
+});
+
+/** Writes the demo module: browser ESM, minified, a header naming its source. */
 export async function buildDemo(root, outfile) {
   await build({
-    stdin: { contents: ENTRY, resolveDir: resolve(root, 'packages/sdk'), loader: 'ts' },
+    stdin: entry(root),
     outfile,
     bundle: true,
     format: 'esm',
@@ -29,3 +36,17 @@ export async function buildDemo(root, outfile) {
     logLevel: 'silent',
   });
 }
+
+/** A bundle of the docs sources resolves their `./engine.js` to the entry itself: no file needed. */
+export const demoEngine = (root) => {
+  const file = resolve(root, 'docs/js/engine.js');
+  return {
+    name: 'demo-engine',
+    setup(bundler) {
+      bundler.onResolve({ filter: /\/engine\.js$/ }, ({ path, resolveDir }) =>
+        resolve(resolveDir, path) === file ? { path: file, namespace: 'demo-engine' } : null,
+      );
+      bundler.onLoad({ filter: /.*/, namespace: 'demo-engine' }, () => entry(root));
+    },
+  };
+};

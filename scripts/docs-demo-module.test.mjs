@@ -1,13 +1,9 @@
-import test, { after } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
-import { temporaryDemoBundle } from './docs/bundles.mjs';
 
-// The bundle is generated on demand, never committed; here, behaviour: what the portal's demos
-// call must really be the engine, and answer as the engine answers.
-const demo = await temporaryDemoBundle(resolve(import.meta.dirname, '..'));
-after(demo.remove);
-const kernels = await import(demo.url);
+// The module is generated, never committed: the unit runner builds it before any test loads.
+// Here, behaviour: what the portal's demos call must really be the engine, and answer as it.
+const kernels = await import('../docs/js/engine.js');
 
 test('the bundle carries the public maths the demos call', () => {
   const missing = [
