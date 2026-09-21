@@ -205,18 +205,24 @@ clock is too coarse to arbitrate, and everything then stays on JavaScript. The o
 kernel: none of their loops was measured above 0.1 ms in the engine's own frame (below), and a
 kernel for a cost that is not measured is refused by AGENTS.md.
 
-**What the engine's own frame pays for them** (#80 stage 1, `scripts/mesure/banc.mjs`, WebGPU,
-1280×720, DPR 1, `pixelError 1`, three runs per line, the machine's load average published with
-each run in `mesure.json` under `charge`). The per-step bounds come from the `cpu-timing`
-diagnostic, kept per series under `bornesCpu` (bench README), on a 0.1 ms clock: a step that reads
-`0.000 / 0.100` is under it, not zero. `null` is unmeasured, never an estimate.
+**What the engine's own frame pays for them** (#80 stage 1, `scripts/mesure/banc.mjs --moteur
+webgpu --apres dist --pixelError 1`, WebGPU, 1280×720, DPR 1, Emerald Square `generale` and `rue`
+over 180 measured frames, Whisperwind Village `generale` over 60, each line run three times with
+its A/A witness — six series per line — on commits `805450a2`–`2713f646` of the branch, Apple M2
+Max, the machine shared and its load average kept per series under `charge`: 3 to 25 during these
+runs). The values are the run-to-run range of the p50 / p95; the per-step bounds come from the
+`cpu-timing` reports published inside the measured loop (`bornesCpu`, bench README) on a 0.1 ms
+clock — a step that reads `0.000 / 0.100` is under it, not zero — and a still image, held, fills
+no row: its steps are `null`, and its CPU frame says what it costs. `null` is unmeasured, never an
+estimate.
 
-| scene · camera | `worldMs` p50 / p95 | `lightsMs` | `selectionDispatchMs` | CPU frame p50 | roots rebased per frame | verdict |
-| --- | --- | --- | --- | --- | --- | --- |
-| Emerald Square · still | null | null | null | null | null | null |
-| Emerald Square · moving | null | null | null | null | null | null |
-| Whisperwind Village · still | null | null | null | null | null | null |
-| Whisperwind Village · moving | null | null | null | null | null | null |
+| scene · camera | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs` | `selectionDispatchMs` | CPU frame p50 | rAF p50 | roots | verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Emerald Square · still | null | null | 0.000 / 0.000 (stage) | 0.000 / 0.000 (stage) | 0.2–0.7 ms | 16.7 ms | 2 479, none rebased | held image: no loop runs |
+| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4 | 0.4–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.7–3.3 ms | 16.7 ms | 2 479 rebased every image | world step at the clock's edge; its loops under 0.1 ms (below) |
+| Emerald Square · moving, `rue` | 0.3 / 0.3–0.4 | 0.0–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.5–2.8 ms | 16.7 ms | 2 479 rebased every image | same |
+| Whisperwind Village · still | null (CPU cut) | null (CPU cut) | 0.000 (sample) | `selectionMs` 181–245 ms (sample) | 386–420 ms | 383–417 ms | 11 263 | the CPU reference cut over 2 022 678 resident pages, `cpuSelectMs` p50 94–103 ms: the cut's cost, not a loop's |
+| Whisperwind Village · moving | null (CPU cut) | null (CPU cut) | 0.000 (sample) | `selectionMs` 117–272 ms (sample) | 843–856 ms | 850–867 ms | 11 263 | same, `cpuSelectMs` p50 111–115 ms |
 
 The reading, loop by loop (the list of #80): on the GPU-cut path (Emerald Square) `lightsMs` is
 zero by construction — declared lamps live in a store the frame does not walk (`hostSceneWatch.ts`
@@ -232,7 +238,8 @@ image is the world step: the root rebase (`rootWorldsToRenderOrigin`, sixteen fl
 the change scan (`worldsChanged`) and the stretch scan (`refreshWorldStretch`) — timed on the
 nanosecond clock by `packages/sdk-browser/bench/rebase-racines.perf.mjs` (`pnpm run
 perf:browser`) on the same 2 479 roots: **0.031–0.032 ms**, 0.000 ms (a moved first root ends the
-scan; 0.041–0.043 ms on a still image, where nothing else runs) and **0.025–0.026 ms** per image,
+scan; 0.041–0.043 ms when nothing moved, a case the held image never reaches) and
+**0.025–0.026 ms** per image,
 three runs, spread under 2 µs. The rest of `worldMs` is the 158 KB world upload and the pyramid
 invalidation, not a math loop. On Whisperwind Village the GPU cut is unavailable
 (visibility-identifier capacity) and the frame runs the CPU reference cut, where
