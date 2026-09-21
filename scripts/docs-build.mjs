@@ -1,11 +1,4 @@
-/** Reproducible production styles and engine modules for the static learning portal. */
-import { resolve } from 'node:path';
-import { buildPortal } from './docs/build-portal.mjs';
-import { buildRuntime } from './docs/build-runtime.mjs';
-import { buildStyles } from './docs/build-styles.mjs';
+/** Builds the whole site into `dist/site/`: styles, engine runtime, demo maths, portal, statics. */
+import { buildSite } from './docs/site.mjs';
 
-const root = resolve(import.meta.dirname, '..');
-await buildStyles(root);
-await buildRuntime(root);
-
-await buildPortal(root);
+await buildSite();
