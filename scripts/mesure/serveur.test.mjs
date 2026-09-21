@@ -45,7 +45,7 @@ test('portal stylesheets are served as CSS so browser proofs use the real layout
   try {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/styles/portal.css`);
     assert.equal(response.headers.get('content-type'), 'text/css; charset=utf-8');
-    assert.match(await response.text(), /engine-canvas-frame/);
+    assert.match(await response.text(), /scene-frame/);
   } finally {
     await new Promise((done) => server.close(done));
   }

@@ -42,7 +42,12 @@ test('the example page shows the file as source on the left and runs it on the r
   const [entry] = ready;
   const page = renderToStaticMarkup(createElement(Example, { id: entry.id, locale: 'fr' }));
   assert.match(page, new RegExp(`<h1[^>]*>${entry.title.fr}</h1>`));
-  assert.match(page, new RegExp(`<iframe class="example-frame" src="${entry.file}"`));
+  // The example runs in the very frame a lesson's canvas wears, loading state included.
+  assert.match(
+    page,
+    new RegExp(`<div class="render-frame relative min-w-0"><iframe src="${entry.file}"`),
+  );
+  assert.match(page, /role="status"[^>]*>.*Préparation de la scène/s);
   assert.match(page, new RegExp(`<span class="text-sm font-semibold">${entry.file}</span>`));
   assert.ok(page.indexOf('data-code-block') < page.indexOf('<iframe'));
   const route = { locale: 'en', area: 'examples', id: entry.id };

@@ -147,7 +147,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
     </div>
   );
   return (
-    <section className="grid gap-5" data-playground={example.id}>
+    <section className="lesson-layout grid gap-5" data-playground={example.id}>
       <header>
         <h1 className="text-3xl font-bold">{local(example.title, locale)}</h1>
         <p className="opacity-70 mt-2">{local(example.description, locale)}</p>
