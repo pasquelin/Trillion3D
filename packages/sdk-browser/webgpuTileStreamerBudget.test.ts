@@ -65,7 +65,7 @@ function tileDevice() {
 function streamer(budgetMs: number) {
   const { device, staging, copies, now, follow } = tileDevice();
   const layout = tileLayout(256, 256);
-  const tail: Uint8Array[] = [];
+  const tail: Uint8Array<ArrayBuffer>[] = [];
   for (let level = layout.tail; level <= layout.last; level++) {
     const [w, h] = levelSize(256, 256, level);
     tail.push(new Uint8Array(w * h * 4));

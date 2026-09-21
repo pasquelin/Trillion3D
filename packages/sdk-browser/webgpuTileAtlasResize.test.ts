@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTileAtlas } from './webgpuTileAtlas.ts';
-import { createWebgpuTilePool } from './webgpuTilePool.ts';
+import { createWebgpuTilePool, type TilePoolOptions } from './webgpuTilePool.ts';
 import { resizeTileAtlas } from './webgpuTileAtlasResize.ts';
 import { tailId, tileId } from './webgpuTileIds.ts';
 import { tileLayout, TILE_PITCH, TILES_PER_LAYER, POOL_LAYER_SIDE } from './textureTiles.ts';
@@ -36,10 +36,10 @@ function textureDevice() {
   return { gpu: gpu as never, copies, destroyed: () => destroyed };
 }
 
-const options = {
-  kind: 'color' as const,
+const options: Omit<TilePoolOptions, 'layers'> = {
+  kind: 'color',
   lane: 'lossless',
-  format: 'rgba8unorm' as const,
+  format: 'rgba8unorm',
   texelBytes: 4,
 };
 const empty = { levels: [], blocks: { bc7: [], astc: [] } };

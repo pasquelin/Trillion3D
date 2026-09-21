@@ -116,6 +116,7 @@ async function mesurer(
     shadowDigest: false,
     textureSource: 'host',
     textureUploadMs: null,
+    textureCompression: undefined,
     temporalAntialiasing: true,
     mathPath: null,
     movingNode: null,

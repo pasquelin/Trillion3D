@@ -120,18 +120,19 @@ function sideChoice(flags: Map<string, string>, name: string, key: string, allow
 }
 
 /** What a side publishes about itself in the report: dist, cache, engine, variant. */
-export const sideReport = (side: Side) => [
-  side.name,
-  {
-    dist: side.dist,
-    from: side.from,
-    cache: side.cache ?? null,
-    moteur: side.engine.id,
-    variante: side.variant,
-    compression: side.compression,
-    erreur: side.errorMetric ?? 'certifiee',
-  },
-];
+export const sideReport = (side: Side) =>
+  [
+    side.name,
+    {
+      dist: side.dist,
+      from: side.from,
+      cache: side.cache ?? null,
+      moteur: side.engine.id,
+      variante: side.variant,
+      compression: side.compression,
+      erreur: side.errorMetric ?? 'certifiee',
+    },
+  ] as const;
 
 /** Diagnostic variant of a side: `--variante-<side>`, otherwise campaign variant. */
 function variantOf(flags: Map<string, string>, name: string) {

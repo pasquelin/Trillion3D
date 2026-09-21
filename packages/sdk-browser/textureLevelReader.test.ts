@@ -6,7 +6,7 @@ const SHA = 'b'.repeat(64);
 const textures = { url: '../../textures/v4/{sha}/{kind}-{level}.{format}' };
 
 /** A fetch that serves what the test gives it, and records the address asked. */
-function serve(bytes: Uint8Array) {
+function serve(bytes: Uint8Array<ArrayBuffer>) {
   const asked: string[] = [];
   globalThis.fetch = (async (url: string | URL) => {
     asked.push(String(url));
