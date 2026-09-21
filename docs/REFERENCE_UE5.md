@@ -93,7 +93,7 @@ Their profile, PS5 demo, average 2496 × 1404 reconstructed to 4K, **25 M raster
 | **Total VisBuffer**       | **~2.5 ms**|                                    |
 | DepthExport               | 217 µs     |                                    |
 | Emit GBuffer              | 2,084 µs   | material pass                      |
-| **Material Pass**         | **~2 ms**  | 1 draw per material                |
+| **Material Pass**         | **~2 ms**  | material depth, 1 draw per class   |
 | Temporal Antialiasing (4) | unpublished| `WG temporal antialiasing`         |
 
 (1) The slide prints "108ms"; the pass sum and the stated 2.5 ms total indicate microseconds. We record 108 µs.
