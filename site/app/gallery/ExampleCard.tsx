@@ -5,6 +5,7 @@ import { routeHref } from '../portal/routes.ts';
 import { GeometryPreview } from './WebGPUCanvas.tsx';
 import { themeLabel, themeOf } from './lessonThemes.ts';
 import { local } from '../../content/locale.ts';
+import type { Localized } from '../../content/locale.ts';
 
 export const engineExample: CatalogExample = {
   id: 'engine-scene',
@@ -19,7 +20,7 @@ export const engineExample: CatalogExample = {
 };
 
 interface PreviewProps {
-  example: CatalogExample;
+  example: CardExample;
   locale: Locale;
   title: string;
 }
@@ -50,42 +51,55 @@ function Preview({ example, locale, title }: PreviewProps) {
   );
 }
 
-export function ExampleCard({
-  example,
-  locale = 'en',
-}: {
-  example: CatalogExample;
+/** A card's example: a lesson of the catalogue, or an example of the Examples area, which has no
+ * description and names its own route and badge. */
+export type CardExample = Omit<CatalogExample, 'description'> & { description?: Localized };
+
+interface ExampleCardProps {
+  example: CardExample;
   locale?: Locale;
-}) {
+  /** The card's route; `null` for an example that has no file yet: no link, no image. */
+  href?: string | null;
+  badge?: string;
+}
+
+export function ExampleCard({ example, locale = 'en', href, badge }: ExampleCardProps) {
   const french = locale === 'fr',
     title = local(example.title, locale);
-  const href = routeHref({
-    locale,
-    area: example.engine ? 'lessons' : 'playground',
-    id: example.id,
-  });
-  return (
-    <a
-      className="block h-full rounded-box focus-visible:outline-2 focus-visible:outline-primary"
-      href={href}
-    >
-      <Card className="h-full shadow-sm overflow-hidden">
-        <div className="gallery-preview rounded-box overflow-hidden bg-base-300">
-          <Preview example={example} locale={locale} title={title} />
-        </div>
-        <span className="badge badge-soft badge-primary">
-          {example.engine
+  const card = (
+    <Card className={`h-full shadow-sm overflow-hidden${href === null ? ' opacity-50' : ''}`}>
+      <div className="gallery-preview rounded-box overflow-hidden bg-base-300">
+        {href !== null && <Preview example={example} locale={locale} title={title} />}
+      </div>
+      <span className="badge badge-soft badge-primary">
+        {badge ??
+          (example.engine
             ? french
               ? 'Scène moteur'
               : 'Engine scene'
-            : themeLabel(themeOf(example), locale)}
-        </span>
-        <h2 className="card-title text-lg">{title}</h2>
+            : themeLabel(themeOf(example), locale))}
+      </span>
+      <h2 className="card-title text-lg">{title}</h2>
+      {example.description && (
         <p className="text-sm opacity-75 grow">{local(example.description, locale)}</p>
+      )}
+      {href !== null && (
         <span className="self-end text-primary text-xl" aria-hidden="true">
           →
         </span>
-      </Card>
+      )}
+    </Card>
+  );
+  if (href === null) return <div aria-disabled="true">{card}</div>;
+  return (
+    <a
+      className="block h-full rounded-box focus-visible:outline-2 focus-visible:outline-primary"
+      href={
+        href ??
+        routeHref({ locale, area: example.engine ? 'lessons' : 'playground', id: example.id })
+      }
+    >
+      {card}
     </a>
   );
 }

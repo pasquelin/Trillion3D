@@ -32,21 +32,14 @@ if (process.argv.includes('--source-only')) process.exit(0);
 for (const name of [...Object.keys(scenes), ...Object.keys(modelScenes)]) {
   if (only && name !== only) continue;
   const directory = resolve(examples, name),
-    source = name in scenes ? 'source/geometry.gltf' : 'source';
+    source = name in scenes || name === 'bust' ? 'source/geometry.gltf' : 'source';
   await rm(resolve(directory, 'cache'), { recursive: true, force: true });
+  // Relative paths, from the scene folder: the compiler records the paths it was given, and a
+  // cache that names the machine it was built on is refused (`depot-autonome.test.mjs`).
   const result = spawnSync(
     compiler,
-    [
-      resolve(directory, source),
-      resolve(directory, 'cache'),
-      'full',
-      '150000',
-      '2',
-      '256',
-      '../../../../source/',
-      'qem-endpoints',
-    ],
-    { stdio: ['ignore', 'ignore', 'inherit'] },
+    [source, 'cache', 'full', '150000', '2', '256', '../../../../source/', 'qem-endpoints'],
+    { cwd: directory, stdio: ['ignore', 'ignore', 'inherit'] },
   );
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`Example scene compilation failed: ${name}`);
