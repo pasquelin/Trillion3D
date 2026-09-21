@@ -39,12 +39,13 @@ export {
   PREVIEW_ATLAS_NAMES,
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_FORMATS,
+  PREVIEW_BLOCK_SIDE,
   PREVIEW_LAYOUT_NAMES,
   PREVIEW_LOSSLESS_FORMAT,
   type TextureBlockFormat,
   type TextureLayout,
 } from './manifestBinaryFormat.ts';
-export { levelBlockBytes, previewBlockBytes } from './texturePreviewLevels.ts';
+export { blocksAcross, levelBlockBytes, previewBlockBytes } from './texturePreviewLevels.ts';
 export type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,

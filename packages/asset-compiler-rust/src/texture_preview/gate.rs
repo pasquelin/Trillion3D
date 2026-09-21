@@ -5,9 +5,10 @@
 use super::bake_write::{write_levels, LEVEL_WRITE_FAILED};
 use super::blocks::quality::{encode_chain, Channels, Measure};
 use super::blocks::{encode_level, BlockFormat, Layout};
-use super::collect::AtlasTexture;
+use super::collect::{absorb, AtlasTexture};
 use super::reduce::AtlasKind;
 use super::{verdict, *};
+use std::borrow::Cow;
 
 /// What a chain's readers, together, ask of the gate.
 pub(super) struct GateSheet {
@@ -18,19 +19,18 @@ pub(super) struct GateSheet {
 
 impl GateSheet {
     /// Two channels only when every reader is a normal map; the union of the
-    /// channels read and of the cutoffs otherwise.
+    /// channels read and of the cutoffs otherwise, the cutoffs in one order so
+    /// the verdict file has one name.
     pub fn of(readers: &[&AtlasTexture]) -> Self {
         let mut channels = [false; 4];
         let mut cutoffs = Vec::new();
         for reader in readers {
-            for (mine, theirs) in channels.iter_mut().zip(reader.channels) {
-                *mine |= theirs;
-            }
-            for &cutoff in &reader.cutoffs {
-                if !cutoffs.contains(&cutoff) {
-                    cutoffs.push(cutoff);
-                }
-            }
+            absorb(
+                &mut channels,
+                &mut cutoffs,
+                reader.channels,
+                &reader.cutoffs,
+            );
         }
         cutoffs.sort_by(f32::total_cmp);
         let layout = if readers.iter().all(|r| r.normal_only) {
@@ -44,6 +44,14 @@ impl GateSheet {
             cutoffs,
         }
     }
+}
+
+/// What a chain came out of the gate as: kept, with the family's tail bytes;
+/// lossless; or not cooked at all, under a note.
+pub(super) enum Cooked {
+    Kept(Vec<u8>),
+    Lossless,
+    Failed(&'static str),
 }
 
 /// One gate decision, as the report lists it.
@@ -70,10 +78,8 @@ pub(super) fn cook_chain(
     sheet: &GateSheet,
     levels: &[Vec<u8>],
     (width, height): (u32, u32),
-) -> (Gate, Option<Vec<u8>>, Option<&'static str>) {
-    let sizes: Vec<(u32, u32)> = (0..levels.len())
-        .map(|level| preview_level_size(width, height, level as u32))
-        .collect();
+) -> (Gate, Cooked) {
+    let sizes: Vec<(u32, u32)> = preview_level_sizes(width, height).collect();
     let gate = |measure| Gate {
         sha256: sha256.to_string(),
         kind,
@@ -98,7 +104,7 @@ pub(super) fn cook_chain(
         &sheet.cutoffs,
     ) {
         Ok(cooked) => cooked,
-        Err(note) => return (gate(Measure::default()), None, Some(note)),
+        Err(note) => return (gate(Measure::default()), Cooked::Failed(note)),
     };
     let measure = known.unwrap_or_else(|| {
         if first > 0 {
@@ -107,17 +113,17 @@ pub(super) fn cook_chain(
         measured
     });
     if !measure.passes() {
-        return (gate(measure), None, None);
+        return (gate(measure), Cooked::Lossless);
     }
     // A level the verdict vouched for and that vanished meanwhile is encoded on the spot.
     let written = write_levels(o, sha256, kind, (width, height), file, |level, (w, h)| {
         Ok(match level.checked_sub(from) {
-            Some(index) => blocks[index].clone(),
-            None => encode_level(&levels[level], w, h, format, sheet.layout),
+            Some(index) => Cow::Borrowed(blocks[index].as_slice()),
+            None => Cow::Owned(encode_level(&levels[level], w, h, format, sheet.layout)),
         })
     });
     if written.is_err() {
-        return (gate(measure), None, Some(LEVEL_WRITE_FAILED));
+        return (gate(measure), Cooked::Failed(LEVEL_WRITE_FAILED));
     }
-    (gate(measure), Some(blocks[first - from..].concat()), None)
+    (gate(measure), Cooked::Kept(blocks[first - from..].concat()))
 }

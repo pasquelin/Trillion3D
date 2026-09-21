@@ -2,9 +2,9 @@
 //! what it decodes and where it writes it; it does not know what a cutout is, and
 //! receives the list of textures to measure.
 use super::bake_write::{write_lossless, LEVEL_WRITE_FAILED};
-use super::blocks::{BlockFormat, Layout};
+use super::blocks::Layout;
 use super::collect::AtlasTexture;
-use super::gate::{cook_chain, Gate, GateSheet};
+use super::gate::{cook_chain, Cooked, Gate, GateSheet};
 use super::reduce::AtlasKind;
 use super::*;
 use crate::plugins::image::DecodedImage;
@@ -94,18 +94,15 @@ pub(super) fn one_image(
         let mut layouts: [Option<Layout>; 2] = [None; 2];
         let mut blocks: [Vec<u8>; 2] = [Vec::new(), Vec::new()];
         for format in &inputs.o.texture_formats {
-            let slot = BlockFormat::ALL
-                .iter()
-                .position(|f| f == format)
-                .expect("a family");
-            let (gate, tail, failure) =
+            let (gate, cooked) =
                 cook_chain(inputs.o, &sha256, kind, *format, &sheet, &levels, size);
-            if let Some(tail) = tail {
-                layouts[slot] = Some(sheet.layout);
-                blocks[slot] = tail;
-            }
-            if let Some(failure) = failure {
-                note(failure);
+            match cooked {
+                Cooked::Kept(tail) => {
+                    layouts[format.index()] = Some(sheet.layout);
+                    blocks[format.index()] = tail;
+                }
+                Cooked::Lossless => {}
+                Cooked::Failed(failure) => note(failure),
             }
             gates.push(gate);
         }

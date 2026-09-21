@@ -3,7 +3,7 @@ import { prepareWebgpuGeometry } from './webgpuGeometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
 import { tileCatalogue } from './webgpuTileCatalogue.ts';
 import { createWebgpuTileStreamer } from './webgpuTileStreamer.ts';
-import { POOL_LANES } from './textureBlockFormats.ts';
+import { laneCounts, POOL_LANES } from './textureBlockFormats.ts';
 import { shadowsFollowTextures } from './webgpuPagesLightResources.ts';
 import {
   PREVIEW_ATLAS_COLOR,
@@ -17,7 +17,7 @@ import type { TileTexture } from './webgpuTileAtlas.ts';
 
 /** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
 const laneDemand = (textures: TileTexture[]) => {
-  const demand = { lossless: 0, rgba: 0, 'two-channel': 0 };
+  const demand = laneCounts();
   for (const texture of textures) demand[texture.lane] += 1 + texture.layout.entries;
   return demand;
 };
