@@ -30,14 +30,14 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
 // a file is a decision, not an oversight.
 
 /** Who is allowed to RESOLVE a world pose, and for which subject. */
-const RESOLVENT = {
+const RESOLVENT: Record<string, string> = {
   'cameraWorld.ts': 'the contract itself: the package’s only camera-pose resolution',
   'sceneLighting.ts': 'light target, not a camera',
   'webgpuPagesTransform.ts': 'scene subtree moved by the host, not a camera',
 };
 
 /** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */
-const POSE_LOCALE = {
+const POSE_LOCALE: Record<string, string> = {
   'cameraWorld.ts': 'the contract: it is what translates local pose into world pose',
   'explorerCamera.ts': 'the host POSES its camera; the local pose is what it writes',
   'explorerCameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
@@ -59,7 +59,7 @@ const POSE_LOCALE = {
  * `test/integration/moteur-sans-three.test.ts` forbids these files from importing host library.
  * Only the contract and the oracle traversing host graph remain here.
  */
-const LISENT_LA_POSE = {
+const LISENT_LA_POSE: Record<string, string> = {
   'cameraWorld.ts': 'the contract',
   'pageRaster.ts': 'host-graph raster oracle — resolves (callable alone)',
 };
@@ -72,7 +72,7 @@ const POSE_DIRECTE = new RegExp(
 const POSE_MONDE = new RegExp(`${RECEVEUR}\\??\\.matrixWorld(?:Inverse)?\\b`);
 
 /** Lines triggering a pattern, comments excluded. */
-const lignesFautives = (text, motif) =>
+const lignesFautives = (text: string, motif: RegExp): string[] =>
   text
     .split('\n')
     .filter((line) => !/^\s*(?:\/\/|\*|\/\*)/.test(line) && motif.test(line))
@@ -83,14 +83,15 @@ test('camera pose is read only through the `cameraWorld.ts` contract', async () 
     (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
   );
   assert.ok(fichiers.length > 100, 'the browser package must be found');
-  const fuites = [];
+  const fuites: string[] = [];
+  const regles: Array<[RegExp, Record<string, string>, string]> = [
+    [RESOUT, RESOLVENT, 'resolves the pose itself instead of calling `resolveCameraWorld`'],
+    [POSE_DIRECTE, POSE_LOCALE, 'touches a camera local pose outside the contract'],
+    [POSE_MONDE, LISENT_LA_POSE, 'reads world pose without being a declared consumer'],
+  ];
   for (const file of fichiers) {
     const text = await readFile(new URL(file, browser), 'utf8');
-    for (const [motif, permis, faute] of [
-      [RESOUT, RESOLVENT, 'resolves the pose itself instead of calling `resolveCameraWorld`'],
-      [POSE_DIRECTE, POSE_LOCALE, 'touches a camera local pose outside the contract'],
-      [POSE_MONDE, LISENT_LA_POSE, 'reads world pose without being a declared consumer'],
-    ]) {
+    for (const [motif, permis, faute] of regles) {
       if (permis[file]) continue;
       for (const ligne of lignesFautives(text, motif)) fuites.push(`${file} ${faute} : ${ligne}`);
     }

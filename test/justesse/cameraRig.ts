@@ -24,7 +24,17 @@ export const POSES_SANS_PARENT = Array.from({ length: 24 }, (_, i) => ({
   rx: Math.cos(i * 0.9) * 0.2,
 }));
 
-const regle = (camera, fov, aspect) => {
+/** A pose of the parented rig: `poseRig` only ever reads these three fields. */
+export type PoseParent = { x: number; z: number; ry: number };
+/** A pose of a parentless camera, posed directly: local position and yaw/pitch. */
+export type PoseLibre = { x: number; y: number; z: number; ry: number; rx: number };
+export type Rig = { parent: THREE.Group; camera: THREE.PerspectiveCamera };
+
+const regle = (
+  camera: THREE.PerspectiveCamera,
+  fov: number,
+  aspect: number,
+): THREE.PerspectiveCamera => {
   camera.fov = fov;
   camera.aspect = aspect;
   camera.near = 0.1;
@@ -34,7 +44,7 @@ const regle = (camera, fov, aspect) => {
 };
 
 /** The camera is posed locally, never looked at a point: no parent is read. */
-export function creeRig(fov = 55, aspect = 16 / 9) {
+export function creeRig(fov = 55, aspect = 16 / 9): Rig {
   const parent = new THREE.Group();
   const camera = regle(new THREE.PerspectiveCamera(), fov, aspect);
   camera.position.set(0.3, 0.2, 5);
@@ -44,7 +54,7 @@ export function creeRig(fov = 55, aspect = 16 / 9) {
 }
 
 /** Poses the parent. `hote`: the host also updates its rig before the frame, as it should. */
-export function poseRig(rig, pose, hote) {
+export function poseRig(rig: Rig, pose: PoseParent, hote: boolean): THREE.PerspectiveCamera {
   rig.parent.position.set(pose.x, 0, pose.z);
   rig.parent.rotation.y = pose.ry;
   if (hote) rig.parent.updateMatrixWorld(true);
@@ -57,7 +67,11 @@ export function poseRig(rig, pose, hote) {
  * translation. View, inverse, direction and position are therefore exactly those a correct rig
  * must produce.
  */
-export function cameraAplatie(pose, fov = 55, aspect = 16 / 9) {
+export function cameraAplatie(
+  pose: PoseParent,
+  fov = 55,
+  aspect = 16 / 9,
+): THREE.PerspectiveCamera {
   const jumeau = creeRig(fov, aspect);
   poseRig(jumeau, pose, true);
   const plate = regle(new THREE.PerspectiveCamera(), fov, aspect);
@@ -70,7 +84,11 @@ export function cameraAplatie(pose, fov = 55, aspect = 16 / 9) {
 }
 
 /** Parentless camera posed directly. */
-export function cameraSansParent(pose, fov = 55, aspect = 16 / 9) {
+export function cameraSansParent(
+  pose: PoseLibre,
+  fov = 55,
+  aspect = 16 / 9,
+): THREE.PerspectiveCamera {
   const camera = regle(new THREE.PerspectiveCamera(), fov, aspect);
   camera.position.set(pose.x, pose.y, pose.z);
   camera.rotation.set(pose.rx, pose.ry, 0);

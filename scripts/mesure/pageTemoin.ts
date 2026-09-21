@@ -20,6 +20,8 @@
 // off` on both sides, otherwise the measured delta first carries the shadows only the
 // engine draws.
 import * as THREE from 'three';
+import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
 
 /** Physical inverse-square of the contract: `directIncidence` knows no other falloff. */
 const DECAY = 2;
@@ -29,13 +31,15 @@ const DECAY = 2;
  * with `smoothstep(cos θ, cos θ + douceur, cos α)`; Three with `smoothstep(cos θ, cos(θ(1 − p)), cos α)`.
  * The two edges therefore coincide for `p = 1 − acos(cos θ + douceur) / θ`, clamped to [0, 1].
  */
-function penombre(coneAngle, douceur) {
+function penombre(coneAngle: number, douceur: number) {
   const interieur = Math.acos(Math.min(1, Math.cos(coneAngle) + douceur));
   return Math.min(1, Math.max(0, 1 - interieur / Math.max(coneAngle, 1e-6)));
 }
 
+export type ThreeLight = THREE.DirectionalLight | THREE.SpotLight | THREE.PointLight;
+
 /** The Three light of the declared type. Three types in the contract, three here, and nothing else. */
-export function creer(light) {
+export function creer(light: SceneLight): ThreeLight {
   if (light.kind === 'directional') return new THREE.DirectionalLight();
   if (light.kind === 'spot') return new THREE.SpotLight();
   return new THREE.PointLight();
@@ -48,30 +52,35 @@ export function creer(light) {
  * direction counts, which Three reads as `position − target`, hence the opposite of
  * propagation.
  */
-export function appliquer(objet, light, douceur) {
+export function appliquer(objet: ThreeLight, light: SceneLight, douceur: number) {
   objet.color.setRGB(light.color[0], light.color[1], light.color[2], THREE.LinearSRGBColorSpace);
   objet.intensity = light.intensity;
   objet.castShadow = false;
   if (light.kind === 'directional') {
-    objet.position.set(-light.direction[0], -light.direction[1], -light.direction[2]);
-    objet.target.position.set(0, 0, 0);
+    const direction = light.direction ?? [0, -1, 0];
+    objet.position.set(-direction[0], -direction[1], -direction[2]);
+    (objet as THREE.DirectionalLight).target.position.set(0, 0, 0);
     return;
   }
-  objet.position.fromArray(light.position);
-  objet.distance = light.range;
-  objet.decay = DECAY;
+  const position = light.position ?? [0, 0, 0];
+  objet.position.fromArray(position);
+  (objet as THREE.PointLight).distance = light.range ?? 0;
+  (objet as THREE.PointLight).decay = DECAY;
   if (light.kind !== 'spot') return;
-  objet.angle = light.coneAngle;
-  objet.penumbra = penombre(light.coneAngle, douceur);
-  objet.target.position.set(
-    light.position[0] + light.direction[0] * light.range,
-    light.position[1] + light.direction[1] * light.range,
-    light.position[2] + light.direction[2] * light.range,
+  const spot = objet as THREE.SpotLight;
+  const direction = light.direction ?? [0, -1, 0];
+  const range = light.range ?? 0;
+  spot.angle = light.coneAngle ?? 0;
+  spot.penumbra = penombre(light.coneAngle ?? 0, douceur);
+  spot.target.position.set(
+    position[0] + direction[0] * range,
+    position[1] + direction[1] * range,
+    position[2] + direction[2] * range,
   );
 }
 
 /** Summary published in the reading: what the witness received, never what one assumes it received. */
-const resume = (lights) => ({
+const resume = (lights: SceneLight[]) => ({
   nombre: lights.length,
   ponctuelles: lights.filter((light) => light.kind === 'point').length,
   projecteurs: lights.filter((light) => light.kind === 'spot').length,
@@ -90,11 +99,11 @@ const resume = (lights) => ({
  */
 export function creerEclairageTemoin() {
   const groupe = new THREE.Group();
-  const poses = new Map();
-  let signature = null;
+  const poses = new Map<string, ThreeLight>();
+  let signature: string | null = null;
   return {
     groupe,
-    suivre(explorer) {
+    suivre(explorer: Explorer) {
       if (typeof explorer.lights !== 'function') return null;
       const lights = explorer.lights();
       const douceur = explorer.lightSettings ? explorer.lightSettings.spotEdgeSoftness : 0;
@@ -110,7 +119,10 @@ export function creerEclairageTemoin() {
         }
         signature = clef;
       }
-      for (const light of lights) appliquer(poses.get(light.id), light, douceur);
+      for (const light of lights) {
+        const objet = poses.get(light.id);
+        if (objet) appliquer(objet, light, douceur);
+      }
       // Only a set change asks for a refresh: the adapter copies values on its own.
       if (change) for (const backend of explorer.backends) backend.refreshSceneLighting?.();
       return resume(lights);

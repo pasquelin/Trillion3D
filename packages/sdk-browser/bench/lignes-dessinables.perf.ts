@@ -1,8 +1,10 @@
 // the drawable-row table.
+import * as THREE from 'three';
 import { createWebgpuRowState } from '../webgpuRowState.ts';
 import { createWebgpuRowCommit } from '../webgpuRowCommit.ts';
 import { createWebgpuRowSync } from '../webgpuRowSync.ts';
 import { PAGE_INFO_STRIDE } from '../visibilityTypes.ts';
+import type { PageRec } from '../pageSelectionTypes.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { referenceRowCommit, referenceRowState } from './oracles/lignes-dessinables.ts';
 
@@ -11,31 +13,53 @@ const alea = graine(509);
 const PAGES = 12000,
   SLOTS = 8192;
 
-const catalogue = () => {
-  const pages = [];
+/** Fields the row table never reads: shared across every fixture record. */
+const DUMMY_MATRIX = new THREE.Matrix4();
+const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const DUMMY_BOUNDS: number[] = [0, 0, 0];
+
+const catalogue = (): PageRec[] => {
+  const pages: PageRec[] = [];
   for (let i = 0; i < PAGES; i++)
     pages.push({
       id: i,
       url: `p/${i}`,
+      clusterId: `p/${i}`,
       triangles: 3,
+      indexBytes: 0,
+      min: DUMMY_BOUNDS,
+      max: DUMMY_BOUNDS,
       array: i % 7 ? new Uint32Array(3) : undefined,
       transparent: i % 11 === 0,
       depthLayer: 0,
+      attributes: DUMMY_ATTRIBUTES,
+      material: [],
+      matrix: DUMMY_MATRIX,
+      renderOrder: 0,
+      attached: true,
     });
   return pages;
 };
 
-const ecrivain = (rec, pageIndex, row, offsetWords, index, floats, ints) => {
+const ecrivain = (
+  rec: PageRec,
+  pageIndex: number,
+  row: number,
+  offsetWords: number,
+  index: Uint32Array | undefined,
+  floats: Float32Array,
+  ints: Uint32Array,
+) => {
   const base = row * MOTS;
   floats.fill(0, base, base + MOTS);
   floats[base] = pageIndex;
   floats[base + 1] = offsetWords;
-  floats[base + 2] = index.length;
+  floats[base + 2] = index?.length ?? 0;
   ints[base + 3] = row + 1;
   ints[base + 4] = rec.id;
 };
 
-const images = [];
+const images: Int32Array[] = [];
 for (let image = 0; image < 8; image++) {
   const offsets = new Int32Array(PAGES).fill(-1);
   for (let i = 0; i < PAGES; i++)
@@ -45,13 +69,15 @@ for (let image = 0; image < 8; image++) {
 
 const pagesCommunes = catalogue();
 
-const mount = (fabriqueCommit) => {
+type RowCommitFactory = typeof createWebgpuRowCommit | typeof referenceRowCommit;
+
+const mount = (fabriqueCommit: RowCommitFactory) => {
   const pages = pagesCommunes;
   const rows = createWebgpuRowState(pages, SLOTS);
   const tampon = new ArrayBuffer(SLOTS * PAGE_INFO_STRIDE);
   rows.pageTableFloats = new Float32Array(tampon);
   rows.pageTableInts = new Uint32Array(tampon);
-  for (let i = 0; i < PAGES; i++) rows.pagePositions[i] = i % 23 ? { slot: i } : undefined;
+  for (let i = 0; i < PAGES; i++) rows.pagePositions[i] = i % 23 ? ({} as GPUBuffer) : undefined;
   const commit = fabriqueCommit(rows, ecrivain);
   const sync = createWebgpuRowSync(
     rows,
@@ -65,8 +91,9 @@ const mount = (fabriqueCommit) => {
   return { rows, pages, sync };
 };
 
-const etatComplet = (rows) => ({
-  table: new Uint32Array(rows.pageTableInts.buffer.slice(0)),
+const etatComplet = (rows: ReturnType<typeof createWebgpuRowState>) => ({
+  // `mount` always binds the table before a pass runs; this reads it back once done.
+  table: new Uint32Array((rows.pageTableInts ?? new Uint32Array(0)).buffer.slice(0)),
   rowPageIndex: rows.rowPageIndex.slice(),
   rowOffsetWords: rows.rowOffsetWords.slice(),
   rowEpoch: rows.rowEpoch.slice(),
@@ -83,16 +110,17 @@ const etatComplet = (rows) => ({
   rowsChanged: rows.rowsChanged,
 });
 
-const passe = (fabriqueCommit) => (input) => {
-  const { rows, sync } = mount(fabriqueCommit);
-  for (let tour = 0; tour < input.images.length; tour++) {
-    rows.residentOffsetWords.set(input.images[tour]);
-    rows.tableEpoch += input.epoques ? 1 : 0;
-    rows.rowsEpoch = -1;
-    sync.syncRows();
-  }
-  return etatComplet(rows);
-};
+const passe =
+  (fabriqueCommit: RowCommitFactory) => (input: { images: Int32Array[]; epoques: boolean }) => {
+    const { rows, sync } = mount(fabriqueCommit);
+    for (let tour = 0; tour < input.images.length; tour++) {
+      rows.residentOffsetWords.set(input.images[tour]);
+      rows.tableEpoch += input.epoques ? 1 : 0;
+      rows.rowsEpoch = -1;
+      sync.syncRows();
+    }
+    return etatComplet(rows);
+  };
 
 const cas = [
   { name: '8 frames, 12 000 pages', input: { images, epoques: false }, size: PAGES * 8 },
@@ -112,20 +140,22 @@ const resLignes = await mesure({
 const pagesF5 = catalogue();
 const etatF5 = createWebgpuRowState(pagesF5, SLOTS);
 const referenceF5 = referenceRowState(pagesF5, SLOTS);
-const etrangeres = [];
-for (let i = 0; i < 2000; i++) etrangeres.push({ id: i, url: `x/${i}`, packedIndex: i });
-const demandes = [];
+const etrangeres = catalogue()
+  .slice(0, 2000)
+  .map((page, i) => ({ ...page, url: `x/${i}` }));
+const demandes: PageRec[] = [];
 for (let i = 0; i < 20000; i++) {
   const r = alea();
   demandes.push(
     r < 0.9 ? pagesF5[Math.floor(alea() * PAGES)] : etrangeres[Math.floor(alea() * 2000)],
   );
 }
-const rangs = (etat) => (liste) => {
-  const output = new Array(liste.length);
-  for (let i = 0; i < liste.length; i++) output[i] = etat.pageIndexOf(liste[i]) ?? -1;
-  return output;
-};
+const rangs =
+  (etat: { pageIndexOf: (rec: PageRec) => number | undefined }) => (liste: PageRec[]) => {
+    const output = new Array<number>(liste.length);
+    for (let i = 0; i < liste.length; i++) output[i] = etat.pageIndexOf(liste[i]) ?? -1;
+    return output;
+  };
 
 const resRangs = await mesure({
   name: 'rank of a catalogue page',
@@ -143,7 +173,7 @@ const resRangs = await mesure({
 
 await stress({
   name: 'createWebgpuRowState extremes',
-  calcul: (p) => createWebgpuRowState(p, 10),
+  calcul: (p: PageRec[]) => createWebgpuRowState(p, 10),
   extremes: [{ name: 'empty', input: [] }],
 });
 

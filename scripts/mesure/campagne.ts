@@ -20,7 +20,7 @@ import { parseArgs, scenesOf } from './options.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 // Argument groups that lines name in one word, replaced at execution.
-const GROUPES = {
+const GROUPES: Record<string, string> = {
   PLEINE: '--largeur 2496 --hauteur 1404',
   QUART: '--largeur 1248 --hauteur 702',
   TOUTES: '--vues generale,sol,rue,detail',
@@ -79,19 +79,26 @@ visible | window open: cadence not capped at 60 Hz | DEUX --pixelError 1 MOBILE 
 `;
 
 /** Words in an argument line, groups replaced. */
-const mots = (texte) =>
+const mots = (texte: string): string[] =>
   texte
     .split(/\s+/)
     .filter(Boolean)
     .flatMap((mot) => (GROUPES[mot] ? GROUPES[mot].split(' ') : [mot]));
 
 /** Executions in order: `[name, why, arguments beyond base]`. */
-export const CAMPAGNE = LIGNES.trim()
+export const CAMPAGNE: [string, string, string[]][] = LIGNES.trim()
   .split('\n')
   .map((ligne) => ligne.split('|').map((champ) => champ.trim()))
   .map(([nom, pourquoi, args]) => [nom, pourquoi, mots(args)]);
 
-async function run(name, args, out, log, scene, browserVersion) {
+async function run(
+  name: string,
+  args: string[],
+  out: string,
+  log: string,
+  scene: string,
+  browserVersion: string,
+) {
   const dir = join(out, scene, name);
   const identity = await campaignIdentity(
     ROOT,

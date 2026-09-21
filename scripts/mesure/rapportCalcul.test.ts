@@ -3,27 +3,53 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cheminsCalcul } from './rapportCalcul.ts';
+import type { MathBatch, MathOperation } from './rapportCalcul.ts';
+import type { Report, Row } from './report/types.ts';
 
 /** A report reduced to what `cheminsCalcul` reads: one series, one side, its metrics. */
-const rapport = (cheminCalcul) => ({
-  series: [{ view: 'salon', pixelError: 1, sides: { a: { cheminCalcul } } }],
+const rapport = (cheminCalcul: MathBatch | null): Report => ({
+  startedAt: 't0',
+  provenance: { machine: null, browser: null, displayCapHz: null },
+  campaignIdentity: null,
+  commande: 'pnpm run mesure',
+  head: 'abc123',
+  scene: 'scene-test',
+  engine: 'moteur-test',
+  pathVersion: 1,
+  settings: { frames: 8, warmup: 2, width: 640, height: 360 } as Report['settings'],
+  flags: [],
+  ressources: null,
+  sides: {},
+  finishedAt: 't1',
+  errors: [],
+  series: [
+    {
+      view: 'salon',
+      pixelError: 1,
+      segment: 'segment-test',
+      index: 0,
+      pose: { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
+      sides: { a: { cheminCalcul } as Partial<Row> as Row },
+    },
+  ],
 });
 
 /** Governor metrics, completed by what the case wants to show. */
-const releve = (fields) => ({
-  contract: 1,
-  mode: 'auto',
-  wasmAvailable: true,
-  wasmSimd: true,
-  clockResolutionMs: 0.005,
-  clockCoarse: false,
-  unavailableReason: null,
-  operations: {},
-  ...fields,
-});
+const releve = (fields: Partial<MathBatch>): MathBatch =>
+  ({
+    contract: 1,
+    mode: 'auto',
+    wasmAvailable: true,
+    wasmSimd: true,
+    clockResolutionMs: 0.005,
+    clockCoarse: false,
+    unavailableReason: null,
+    operations: {},
+    ...fields,
+  }) as MathBatch;
 
 /** An operation, completed by what the case wants to show. */
-const operation = (fields) => ({
+const operation = (fields: Partial<MathOperation>): MathOperation => ({
   path: 'wasm',
   jsNsPerElement: null,
   wasmNsPerElement: null,

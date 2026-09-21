@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { prepareCones } from '../webgpuPagesPrepare.ts';
 import { compteMateriauxEtTangentes, indexSourceBytes } from '../webgpuPagesCatalogue.ts';
+import type { PageRec } from '../pageSelectionTypes.ts';
+import type { WebgpuPagesRuntime } from '../webgpuPagesRuntime.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import {
   entreeCones,
@@ -10,6 +12,11 @@ import {
   referencePrepareCones,
 } from './oracles/cones-normaux.ts';
 import { catalogueDePages } from './appui/scenesChargement.ts';
+
+/** `entreeCones` builds the oracle's `{setup: {allPages, roots}}` shape, a small fraction of the
+ *  real `WebgpuPagesRuntime` — the same bridge `webgpuPagesPrepare.test.ts` already takes for
+ *  this pair, since `prepareCones` only ever reads `rt.setup.roots`. */
+const runtimeOf = (rt: ReturnType<typeof entreeCones>) => rt as unknown as WebgpuPagesRuntime;
 
 const alea = graine(6151);
 const pages = catalogueDePages({ pages: 20000, materiaux: 60 });
@@ -31,15 +38,15 @@ const hostiles = catalogueDePages({ pages: 400, materiaux: 8, seed: 23 }).map((r
   return rec;
 });
 
-const passeCones = (fn) => (liste) => {
+const passeCones = (fn: (rt: WebgpuPagesRuntime) => void) => (liste: PageRec[]) => {
   const copies = liste.map((rec) => ({ ...rec, cone: undefined }));
-  fn(entreeCones(copies));
-  return copies.map((rec) => (rec.cone ? Float64Array.from(rec.cone) : null));
+  fn(runtimeOf(entreeCones(copies)));
+  return copies.map((rec) => (rec.cone ? Float64Array.from(rec.cone as ArrayLike<number>) : null));
 };
 
-const blocs = new Map();
+const blocs = new Map<string, { hasTangent: boolean }>();
 for (let i = 0; i < 4000; i++) blocs.set(`bloc/${i}`, { hasTangent: i % 3 === 0 });
-const blocVide = new Map();
+const blocVide = new Map<string, { hasTangent: boolean }>();
 
 const casPages = [
   { name: '20 000 pages, 60 materials', input: pages, size: 20000 },
@@ -74,14 +81,16 @@ const resDiagnostic = await mesure({
     { name: 'no blocks', input: { pages: unePage, blocs: blocVide }, size: 1 },
     { name: 'nothing to count', input: { pages: [], blocs: blocVide }, size: 0 },
   ],
-  calcul: (e) => compteMateriauxEtTangentes(e.pages, e.blocs),
-  attendu: (e) => referenceCompteMateriauxEtTangentes(e.pages, e.blocs),
+  calcul: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
+    compteMateriauxEtTangentes(e.pages, e.blocs),
+  attendu: (e: { pages: PageRec[]; blocs: Map<string, { hasTangent: boolean }> }) =>
+    referenceCompteMateriauxEtTangentes(e.pages, e.blocs),
   options: { tours: 60, budgetMs: 1500 },
 });
 
 await stress({
   name: 'prepareCones extremes',
-  calcul: (c) => prepareCones(entreeCones(c)),
+  calcul: (c: PageRec[]) => prepareCones(runtimeOf(entreeCones(c))),
   extremes: [{ name: 'empty', input: [] }],
 });
 

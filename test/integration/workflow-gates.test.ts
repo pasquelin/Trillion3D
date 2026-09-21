@@ -13,8 +13,9 @@ const env = {
   GIT_COMMITTER_NAME: 'gate',
   GIT_COMMITTER_EMAIL: 'gate@test',
 };
-const git = (cwd, ...args) => spawnSync('git', args, { cwd, env, encoding: 'utf8' });
-const ok = (cwd, ...args) => {
+const git = (cwd: string, ...args: string[]) =>
+  spawnSync('git', args, { cwd, env, encoding: 'utf8' });
+const ok = (cwd: string, ...args: string[]) => {
   const r = git(cwd, ...args);
   assert.equal(r.status, 0, r.stderr);
   return r;
@@ -42,7 +43,7 @@ function makeRepo() {
   return work;
 }
 
-const commit = (cwd, message) => {
+const commit = (cwd: string, message: string) => {
   writeFileSync(join(cwd, `${Date.now()}-${Math.random()}.txt`), message);
   ok(cwd, 'add', '-A');
   return git(cwd, 'commit', '-q', '-m', message);
@@ -78,7 +79,7 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
   assert.equal(execFileSync('cat', [join(work, 'local.log')], { encoding: 'utf8' }), 'ran\n');
 });
 
-const checkBody = (body) =>
+const checkBody = (body: string) =>
   spawnSync(new URL('scripts/check-pr-body.sh', repo).pathname, [], {
     input: body,
     encoding: 'utf8',

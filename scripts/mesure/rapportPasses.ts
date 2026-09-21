@@ -5,7 +5,8 @@ import type { GpuPassBlockTotals } from '../../packages/sdk-browser/gpuPassBlock
 export type Distribution = ReturnType<typeof summarize>;
 
 /** `p50 / p95` of a distribution, or "unmeasured": a dash would not be distinct from a zero. */
-export const p50p95 = (d: Distribution) => (d ? `${d.p50.toFixed(3)} / ${d.p95.toFixed(3)}` : 'unmeasured');
+export const p50p95 = (d: { p50: number; p95: number } | null) =>
+  d ? `${d.p50.toFixed(3)} / ${d.p95.toFixed(3)}` : 'unmeasured';
 const BLOCS: [keyof GpuPassBlockTotals, string][] = [
   ['visibilityMs', 'Visibility buffer'],
   ['materialsMs', 'Materials pass'],

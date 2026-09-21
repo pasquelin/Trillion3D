@@ -26,7 +26,24 @@ import { SELECTION_HEADER_WORDS } from '../../packages/sdk-browser/gpuDagLayout.
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 import { ouvrirAppareil } from './appareilWebgpu.ts';
 
-export async function executer({ tailles, niveaux, tours, rondes, plafond, erreurs: seuils }) {
+interface ExecuterParams {
+  tailles: number[];
+  niveaux: number;
+  tours: number;
+  rondes: number;
+  plafond: number;
+  erreurs: number[];
+}
+export type Ligne = { feuilles: number; refus: string } | Awaited<ReturnType<typeof mesure>>;
+
+export async function executer({
+  tailles,
+  niveaux,
+  tours,
+  rondes,
+  plafond,
+  erreurs: seuils,
+}: ExecuterParams) {
   const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
@@ -35,13 +52,13 @@ export async function executer({ tailles, niveaux, tours, rondes, plafond, erreu
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld();
 
-  const lignes = [];
+  const lignes: Ligne[] = [];
   for (const feuilles of tailles) {
-    let ligne;
+    let ligne: Ligne;
     try {
       ligne = await mesure(device, scene(feuilles, niveaux), camera, { tours, rondes, seuils });
     } catch (error) {
-      lignes.push({ feuilles, refus: String(error?.message ?? error) });
+      lignes.push({ feuilles, refus: String(error instanceof Error ? error.message : error) });
       break;
     }
     lignes.push(ligne);
@@ -50,7 +67,12 @@ export async function executer({ tailles, niveaux, tours, rondes, plafond, erreu
   return { adaptateur: info.court, erreurs, plafond, lignes };
 }
 
-async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils }) {
+async function mesure(
+  device: GPUDevice,
+  { packed, roots }: ReturnType<typeof scene>,
+  camera: THREE.PerspectiveCamera,
+  { tours, rondes, seuils }: { tours: number; rondes: number; seuils: number[] },
+) {
   const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]);
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
   const livre = await createDagResources(device, packed, true);
@@ -58,7 +80,7 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
   const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
   /** The frame's screen threshold: it is what decides the CUT SIZE, hence what a
    *  cap can lose. Time is measured at the last one set. */
-  const poseSeuil = (erreur) => {
+  const poseSeuil = (erreur: number): void => {
     writeDagUniforms(uni, packed, { ...uniforms, pixelError: erreur }, true);
     device.queue.writeBuffer(livre.uniforms, 0, uni);
   };
@@ -80,19 +102,29 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
   });
 
   /** A whole frame: the kernels, the readout copy, then its read. */
-  const image = async (octets, depuis = livre.output) => {
+  const image = async (
+    octets: number,
+    depuis: GPUBuffer = livre.output,
+  ): Promise<number | undefined> => {
     const encoder = device.createCommandEncoder();
     encodeDagKernels(encoder, livre);
     if (octets) encoder.copyBufferToBuffer(depuis, 0, lecture, 0, octets);
     device.queue.submit([encoder.finish()]);
-    if (!octets) return await device.queue.onSubmittedWorkDone();
+    if (!octets) {
+      await device.queue.onSubmittedWorkDone();
+      return undefined;
+    }
     await lecture.mapAsync(GPUMapMode.READ);
     const ints = new Uint32Array(lecture.getMappedRange(0, octets));
     const tete = ints[0];
     lecture.unmap();
     return tete;
   };
-  const lot = async (octets, nombre, depuis) => {
+  const lot = async (
+    octets: number,
+    nombre: number,
+    depuis?: GPUBuffer,
+  ): Promise<{ ms: number }> => {
     const debut = performance.now();
     for (let i = 0; i < nombre; i++) await image(octets, depuis ?? livre.output);
     return { ms: (performance.now() - debut) / nombre };
@@ -100,7 +132,7 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
 
   // The screen threshold swept: the cut it keeps says which cap a scene of this size
   // actually hits. Measured, never assumed.
-  const coupes = [];
+  const coupes: Array<{ erreur: number; coupe: number | undefined }> = [];
   for (const erreur of seuils) {
     poseSeuil(erreur);
     coupes.push({ erreur, coupe: await image(livre.readbackBytes) });
@@ -109,12 +141,12 @@ async function mesure(device, { packed, roots }, camera, { tours, rondes, seuils
   // Three variants, including one WITH NO readout: that is what splits the copy's cost from
   // the kernel's. Without that zero, the gap between the other two would be read on a total
   // the cut dominates.
-  const variantes = [
+  const variantes: Array<{ nom: string; octets: number; source?: GPUBuffer }> = [
     { nom: 'no readout (kernels only)', octets: 0 },
     { nom: 'shipped readout (capped)', octets: livre.readbackBytes },
     { nom: "worst-case readout (yesterday's sizing)", octets: octetsPireCas, source },
   ];
-  const mesures = variantes.map(() => []);
+  const mesures: Array<Array<{ ms: number }>> = variantes.map(() => []);
   for (let ronde = 0; ronde < rondes; ronde++)
     for (let v = 0; v < variantes.length; v++) {
       if (!ronde) await lot(variantes[v].octets, Math.max(2, tours >> 2), variantes[v].source);

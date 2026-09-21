@@ -6,6 +6,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView } from './pageEclairage.ts';
+import type { MeasureViewOptions } from './mesureOptions.ts';
+import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { CameraPose } from '../../packages/sdk-core/index.ts';
 
 /** The fake SDK that `measureView` imports by URL: a `createExplorer` returning the mock set
  *  on `globalThis` before the call, as Playwright serializes `measureView` into the real page. */
@@ -22,9 +25,12 @@ function canvasMock() {
 
 /** Explorer mock: `render()` returns the reading and records the pose it saw; `cpuSteps()`
  *  counts the images since the last profile reset, as the engine's window does. */
-function explorerMock(metrics) {
-  const seen = [],
-    profileResets = [];
+function explorerMock(metrics: Record<string, unknown> | null): Explorer & {
+  seen: unknown[];
+  profileResets: number[];
+} {
+  const seen: unknown[] = [],
+    profileResets: number[] = [];
   return {
     seen,
     profileResets,
@@ -34,47 +40,97 @@ function explorerMock(metrics) {
     resetStageProfile: () => profileResets.push(seen.length),
     stageProfile: () => null,
     cpuSteps: () => ({ frames: seen.length - (profileResets.at(-1) ?? 0) }),
-    render: (pose) => {
+    render: (pose: unknown) => {
       seen.push(pose);
       return metrics;
     },
     flush: async () => {},
     capture: () => new Uint8Array(4),
     dispose: () => {},
-  };
+  } as unknown as Explorer & { seen: unknown[]; profileResets: number[] };
+}
+
+/** What this test replaces on `globalThis` while `measureView` runs: only what the page module
+ *  reads from the DOM and the platform, none of the rest of `Document`/`Window`. */
+interface TestGlobals {
+  document: unknown;
+  fetch: unknown;
+  requestAnimationFrame: unknown;
+  incidentsGpu?: string[];
+  __wgTestExplorer?: unknown;
 }
 
 /** Runs `measureView` on a mock page; `explorer` replaces the default mock, `options` the rest. */
-async function mesurer(metrics, { frames = 1, rafStep = 0, explorer, ...options } = {}) {
-  const originalDocument = globalThis.document;
-  const originalFetch = globalThis.fetch;
-  const originalRaf = globalThis.requestAnimationFrame;
-  globalThis.document = { createElement: () => canvasMock(), body: { append: () => {} } };
-  globalThis.fetch = async () => ({ status: 200 });
+async function mesurer(
+  metrics: Record<string, unknown> | null,
+  {
+    frames = 1,
+    rafStep = 0,
+    explorer,
+    ...options
+  }: Partial<MeasureViewOptions> & { rafStep?: number; explorer?: unknown } = {},
+) {
+  const test = globalThis as unknown as TestGlobals;
+  const originalDocument = test.document;
+  const originalFetch = test.fetch;
+  const originalRaf = test.requestAnimationFrame;
+  test.document = { createElement: () => canvasMock(), body: { append: () => {} } };
+  test.fetch = async () => ({ status: 200 });
   let rafTime = 0;
-  globalThis.requestAnimationFrame = (callback) => callback((rafTime += rafStep));
-  globalThis.__wgTestExplorer = explorer ?? explorerMock(metrics);
+  test.requestAnimationFrame = (callback: (time: number) => void) => callback((rafTime += rafStep));
+  test.__wgTestExplorer = explorer ?? explorerMock(metrics);
+  const base: MeasureViewOptions = {
+    sdkUrl: FAKE_SDK_URL,
+    manifestUrl: 'manifest.json',
+    modulesUrl: './',
+    backend: 'creerMoteur',
+    engineId: 'moteur-test',
+    autonomous: false,
+    witness: false,
+    page: 'pageEclairage.ts',
+    gltfUrl: null,
+    pose: { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
+    poses: null,
+    width: 8,
+    height: 8,
+    pixelError: 1,
+    frames,
+    warmup: 0,
+    maxPages: 4,
+    geometryPoolBytes: null,
+    texturePoolBytes: null,
+    geometryPoolCeilingBytes: null,
+    poolVivant: null,
+    instances: 1,
+    stageProfile: false,
+    variant: null,
+    errorMetric: null,
+    trace: false,
+    bounce: false,
+    importedLights: true,
+    profileFrames: 0,
+    lights: [],
+    moving: null,
+    shadowBudgetMs: null,
+    shadowPages: true,
+    shadowDigest: false,
+    textureSource: 'host',
+    textureUploadMs: null,
+    temporalAntialiasing: true,
+    mathPath: null,
+    movingNode: null,
+    movingNodeRadius: 1,
+    captureFile: 'test.png',
+  };
   try {
-    return await measureView({
-      sdkUrl: FAKE_SDK_URL,
-      modulesUrl: './',
-      backend: 'creerMoteur',
-      engineId: 'moteur-test',
-      width: 8,
-      height: 8,
-      pixelError: 1,
-      maxPages: 4,
-      warmup: 0,
-      frames,
-      pose: { position: [0, 0, 0] },
-      captureFile: 'test.png',
-      ...options,
-    });
+    const result = await measureView({ ...base, ...options });
+    if ('erreur' in result) throw new Error(result.erreur);
+    return result;
   } finally {
-    globalThis.document = originalDocument;
-    globalThis.fetch = originalFetch;
-    globalThis.requestAnimationFrame = originalRaf;
-    delete globalThis.__wgTestExplorer;
+    test.document = originalDocument;
+    test.fetch = originalFetch;
+    test.requestAnimationFrame = originalRaf;
+    delete test.__wgTestExplorer;
   }
 }
 
@@ -113,8 +169,8 @@ test('measureView keeps a table of numbers — bytes per label — and filters t
 });
 
 test('stage profile covers the moving suffix and capture keeps its last pose', async () => {
-  const a = { position: [1, 0, 0] },
-    b = { position: [2, 0, 0] };
+  const a: CameraPose = { position: [1, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
+    b: CameraPose = { position: [2, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 };
   const explorer = explorerMock({ drawCalls: 1 });
   await mesurer(null, {
     explorer,

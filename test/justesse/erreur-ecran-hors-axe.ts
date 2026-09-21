@@ -24,7 +24,7 @@ import { selectionGpu } from './noyauSelectionGpu.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const SEUIL = 0.4;
-const VIEWPORT = [1920, 1080];
+const VIEWPORT: [number, number] = [1920, 1080];
 const camera = new THREE.PerspectiveCamera(60, VIEWPORT[0] / VIEWPORT[1], 0.1, 1000);
 camera.updateMatrixWorld(true);
 const world = new THREE.Matrix4();
@@ -32,7 +32,7 @@ const focal = (VIEWPORT[1] * camera.projectionMatrix.elements[5]) / 2;
 
 const fin = [8, 0, -10, 8.01, 0, -10, 8, 0.01, -10];
 /** Bounding sphere of a vertex list: box centre, radius to the farthest vertex. */
-function sphereDe(sommets) {
+function sphereDe(sommets: number[]) {
   const box = new THREE.Box3().setFromArray(sommets);
   const c = box.getCenter(new THREE.Vector3());
   let r = 0;
@@ -60,7 +60,13 @@ function reel() {
 }
 
 const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
-const page = (id, boite, lodError, parentError, parentSphere) => ({
+const page = (
+  id: number,
+  boite: ReturnType<typeof sphereDe>,
+  lodError: number,
+  parentError: number | null,
+  parentSphere: number[] | null,
+) => ({
   id,
   url: String(id),
   triangles: 1,
@@ -83,24 +89,28 @@ const nodes = new Float64Array(15);
 nodes.set([...boiteGrossier.min, ...boiteGrossier.max, ...boiteGrossier.sphere, -1, 0, 0, 0, 2]);
 const culling = { nodes, stride: 15 };
 
-function coupeCpu(avecNoeud) {
-  const root = { world, pages, cones: false };
-  if (avecNoeud) root.culling = { ...culling, bounds: cullingBounds(culling, pages) };
+function coupeCpu(avecNoeud: boolean): string[] {
+  const root = {
+    world,
+    pages,
+    cones: false,
+    culling: avecNoeud ? { ...culling, bounds: cullingBounds(culling, pages) } : undefined,
+  };
   const { shown } = selectVisiblePages([root], cameraMoteur(camera), {
     pixelError: SEUIL,
     viewport: VIEWPORT,
   });
   return shown.map((rec) => (rec.id === 0 ? 'coarse' : 'fine'));
 }
-const name = (ids) => ids.map((i) => (i === 0 ? 'coarse' : 'fine'));
+const name = (ids: number[]): string[] => ids.map((i) => (i === 0 ? 'coarse' : 'fine'));
 
 const uniforms = cameraSelectionUniforms(cameraMoteur(camera), SEUIL, VIEWPORT);
-const empaquete = (avecNoeud) =>
+const empaquete = (avecNoeud: boolean) =>
   // The kernel works in the render frame: packed world matrices are brought to the eye, as the
   // engine carries them, otherwise relative view and absolute world would mix.
   packedWorldsToRenderOrigin(
     packDagSelection([{ world, pages, culling: avecNoeud ? culling : undefined }]),
-    [{ world }],
+    [{ world, pages: [] }],
     uniforms.cameraWorld,
   );
 const aPlat = empaquete(false),
@@ -109,7 +119,7 @@ const gpu = await selectionGpu([
   { name: 'aPlat', packed: aPlat, uniforms },
   { name: 'avecNoeud', packed: avecNoeud, uniforms },
 ]);
-const pagesGpu = (cas) => {
+const pagesGpu = (cas: string): string[] | null => {
   const pagesLues = gpu.resultats?.find((r) => r.name === cas)?.pages;
   return pagesLues ? name(pagesLues) : null;
 };
@@ -151,7 +161,7 @@ for (const [side, outputs] of Object.entries({
   oracleNoyau: rapport.oracleNoyau,
   gpu: rapport.gpu,
 }))
-  for (const cas of ['aPlat', 'avecNoeud'])
+  for (const cas of ['aPlat', 'avecNoeud'] as const)
     assert.deepEqual(
       outputs[cas],
       ['fine'],

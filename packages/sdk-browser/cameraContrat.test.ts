@@ -17,18 +17,17 @@ import { cameraMoteur } from './cameraFixture.ts';
 import { createEngineCamera, type CameraMotion } from './cameraWorld.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
-type Rig = { parent: THREE.Object3D; camera: THREE.PerspectiveCamera };
 const VIEWPORT: [number, number] = [1280, 720];
 /** Moved by +5 in X AND rotated by 0.6 rad: neither translation nor rotation can be guessed. */
 const DEPLACE_ET_TOURNE = POSES_PARENT[2] as Pose;
 
 /** A camera under a rig the host does not walk, and its parentless twin of the same world pose. */
 function sousRig(pose: Pose) {
-  const rig = creeRig() as Rig;
+  const rig = creeRig();
   return {
     rig,
-    camera: poseRig(rig, pose, false) as THREE.PerspectiveCamera,
-    aplatie: cameraAplatie(pose) as THREE.PerspectiveCamera,
+    camera: poseRig(rig, pose, false),
+    aplatie: cameraAplatie(pose),
   };
 }
 
@@ -58,7 +57,7 @@ test('contract: the published pose is the world pose, never the local pose', () 
 test('boundary: the held-frame gate sees a rig move that the host has not walked', () => {
   const gate = createWebglFrameGate();
   const source = new THREE.Object3D();
-  const rig = creeRig() as Rig;
+  const rig = creeRig();
   const viewport: [number, number] = [800, 600];
   /** A frame of a Three-rendered engine, reduced to what pose decides there. */
   const image = () => {
@@ -116,7 +115,7 @@ test('boundary: a function called alone resolves its own pose', () => {
 
 test('boundary: the adaptive threshold called alone measures the eye velocity in the world', () => {
   const contexte = { pixelError: 1, lodAdaptive: true };
-  const rig = creeRig() as Rig,
+  const rig = creeRig(),
     sousRigMotion: CameraMotion = {},
     aplatieMotion: CameraMotion = {};
   for (const pose of POSES_PARENT as Pose[]) {

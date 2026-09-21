@@ -15,8 +15,10 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { lampe, octets } from './pageThreeNuScene.ts';
 import { positionLampeMobile, posterCapture, reseauDepuis } from './pageMesure.ts';
+import type { CameraPose } from '../../packages/sdk-core/index.ts';
+import type { MeasureViewOptions, MeasureViewResult } from './mesureOptions.ts';
 
-function placer(camera, pose, aspect) {
+function placer(camera: THREE.PerspectiveCamera, pose: CameraPose, aspect: number) {
   camera.fov = pose.fov;
   camera.aspect = aspect;
   camera.near = pose.near;
@@ -27,13 +29,14 @@ function placer(camera, pose, aspect) {
 }
 
 /** Triangles of indexed geometries under `racine`, each geometry counted once. */
-function trianglesUniques(racine) {
-  const geometries = new Set();
+function trianglesUniques(racine: THREE.Object3D) {
+  const geometries = new Set<THREE.BufferGeometry>();
   racine.traverse((o) => {
-    if (o.isMesh && o.geometry?.index) geometries.add(o.geometry);
+    const mesh = o as THREE.Mesh;
+    if (mesh.isMesh && mesh.geometry?.index) geometries.add(mesh.geometry);
   });
   let total = 0;
-  for (const g of geometries) total += g.index.count / 3;
+  for (const g of geometries) total += (g.index?.count ?? 0) / 3;
   return total;
 }
 
@@ -43,12 +46,19 @@ function trianglesUniques(racine) {
  * is where the level-of-detail witness replaces its meshes — and returns extra metrics to
  * publish; without it, the scene stays as Three read it.
  */
-export async function mesurerThree(options, preparer) {
+export async function mesurerThree(
+  options: MeasureViewOptions,
+  preparer?: (
+    racine: THREE.Object3D,
+    options: MeasureViewOptions,
+  ) => Promise<Record<string, unknown>>,
+): Promise<MeasureViewResult> {
   if ((options.instances ?? 1) !== 1)
     return { erreur: 'the Three witness does not place instances' };
+  if (!options.gltfUrl) return { erreur: 'the Three witness requires a source glTF' };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
-  const lost = (globalThis.incidentsGpu = []);
+  const lost: string[] = (globalThis.incidentsGpu = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
   performance.setResourceTimingBufferSize(1_000_000);
   const resourcesBefore = performance.getEntriesByType('resource').length;
@@ -74,42 +84,43 @@ export async function mesurerThree(options, preparer) {
   const uniqueTriangles = trianglesUniques(gltf.scene);
   const temoin = await preparer?.(gltf.scene, options);
   gltf.scene.traverse((o) => {
-    if (!o.isMesh) return;
-    o.castShadow = o.receiveShadow = shadows;
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = mesh.receiveShadow = shadows;
     // glTF materials are two-sided: projecting both makes every thin wall shadow
     // itself and darkens the scene. Back face alone is Three's usual setting.
-    if (o.material) o.material.shadowSide = THREE.BackSide;
+    if (mesh.material) (mesh.material as THREE.Material).shadowSide = THREE.BackSide;
   });
   const box = new THREE.Box3().setFromObject(gltf.scene);
-  const lampes = new Map();
+  const lampes = new Map<string, THREE.DirectionalLight | THREE.SpotLight | THREE.PointLight>();
   for (const light of options.lights ?? []) {
     const objets = lampe(light, box, shadows);
     lampes.set(light.id, objets[0]);
     scene.add(...objets);
   }
   const camera = new THREE.PerspectiveCamera();
-  const poser = (pose) => placer(camera, pose, options.width / options.height);
+  const poser = (pose: CameraPose) => placer(camera, pose, options.width / options.height);
   poser(options.pose);
   await renderer.compileAsync(scene, camera);
   renderer.render(scene, camera);
   const preparationMs = performance.now() - preparationStart;
   const gl = renderer.getContext();
   const moving = options.moving;
-  const moveLight = (frame) => {
+  const moveLight = (frame: number) => {
     if (moving) lampes.get(moving.id)?.position.fromArray(positionLampeMobile(moving, frame));
   };
   let current = options.pose;
-  const poseAt = (frame) =>
+  const poseAt = (frame: number) =>
     (current = options.poses ? options.poses[frame % options.poses.length] : options.pose);
   const unPixel = new Uint8Array(4);
   const attendre = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, unPixel);
   for (let i = 0; i < options.warmup; i++) renderer.render(scene, camera);
   attendre();
-  const cpuFrameMs = [];
-  const rafIntervalMs = [];
-  let previousRaf = null;
+  const cpuFrameMs: number[] = [];
+  const rafIntervalMs: number[] = [];
+  let previousRaf: number | null = null;
   for (let i = 0; i < options.frames; i++) {
-    const now = await new Promise((done) => requestAnimationFrame(done));
+    const now = await new Promise<number>((done) => requestAnimationFrame(done));
     if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf);
     previousRaf = now;
     moveLight(i);
