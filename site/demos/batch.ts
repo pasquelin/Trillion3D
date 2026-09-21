@@ -18,9 +18,10 @@ import {
   updateCameraFrame,
 } from './engine.ts';
 import { formatNumber, slider, valueView } from './kit.ts';
+import type { DemoDef } from './kit.ts';
 
 /** The example of the SDK guide: a grid of unit boxes, half of it behind the camera. */
-function gridBoxes(count) {
+function gridBoxes(count: number) {
   const boxes = new Float64Array(count * BOX_VALUES),
     side = Math.ceil(Math.sqrt(count));
   for (let i = 0; i < count; i++) {
@@ -38,7 +39,7 @@ function gridBoxes(count) {
   return boxes;
 }
 
-export const BATCH_DEMOS = {
+export const BATCH_DEMOS: Record<string, DemoDef> = {
   frustumKeepsBoxBatch: {
     controls: [
       slider('count', 'boxes in the batch', 100, 40000, 10000, 100),
@@ -79,7 +80,7 @@ export const BATCH_DEMOS = {
     controls: [slider('count', 'nodes in the batch', 100, 20000, 5000, 100)],
     run(state) {
       const count = Math.round(state.count);
-      const views = (buffer, stride) =>
+      const views = (buffer: Float64Array, stride: number) =>
         Array.from({ length: count }, (_, index) =>
           buffer.subarray(index * stride, (index + 1) * stride),
         );
