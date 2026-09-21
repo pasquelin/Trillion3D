@@ -94,7 +94,8 @@ const appels = [
 ];
 
 const gpu = await selectionGpu(appels);
-const pages = (nom: string) => gpu.resultats?.find((r: { name: string }) => r.name === nom)?.pages ?? null;
+const pages = (nom: string) =>
+  gpu.resultats?.find((r: { name: string }) => r.name === nom)?.pages ?? null;
 console.log(
   JSON.stringify(
     {

@@ -86,9 +86,11 @@ test('setDiagnostic on the lesson runtime draws a frame that reports the new mod
     await page.goto(`http://127.0.0.1:${port}/`);
     const modes = await page.evaluate(
       async ({ runtimeUrl, lessonsUrl }): Promise<DiagnosticModes> => {
-        const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] = (
-          await Promise.all([import(runtimeUrl), import(lessonsUrl)])
-        ) as [RendererRuntimeModule, RendererLessonsModule];
+        const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] =
+          (await Promise.all([import(runtimeUrl), import(lessonsUrl)])) as [
+            RendererRuntimeModule,
+            RendererLessonsModule,
+          ];
         const lesson = rendererLessonById('runtime-pixel-error');
         if (!lesson) throw new Error('runtime-pixel-error lesson not found');
         const canvas = document.createElement('canvas'),

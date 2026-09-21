@@ -15,13 +15,7 @@ const {
 } = THREE;
 
 /** The six texture slots a `MeshStandardMaterial` carries, as the wrap word addresses them. */
-type MapChamp =
-  | 'map'
-  | 'roughnessMap'
-  | 'metalnessMap'
-  | 'normalMap'
-  | 'aoMap'
-  | 'emissiveMap';
+type MapChamp = 'map' | 'roughnessMap' | 'metalnessMap' | 'normalMap' | 'aoMap' | 'emissiveMap';
 
 /**
  * One map per material slot, each on a different pair of modes: no mode is shared by two

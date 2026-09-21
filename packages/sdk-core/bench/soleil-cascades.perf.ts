@@ -28,7 +28,14 @@ for (const near of HOSTILES) for (const far of HOSTILES) hostiles.push(vue(near,
 // The oracle predates the page-aligned window: the two sides share the split cache and the
 // frustum sphere, hence the radius, and that is what the comparison holds.
 const faces =
-  (cascadeDe: (view: ShadowViewpoint, axis: readonly [number, number, number], index: number, side: number) => { radius: number }) =>
+  (
+    cascadeDe: (
+      view: ShadowViewpoint,
+      axis: readonly [number, number, number],
+      index: number,
+      side: number,
+    ) => { radius: number },
+  ) =>
   (views: readonly ShadowViewpoint[]) => {
     const output = new Float64Array(views.length * LIGHT_SETTINGS.sunCascades);
     let at = 0;
