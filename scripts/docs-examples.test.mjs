@@ -23,7 +23,7 @@ test('every example is one standalone HTML file that imports the built engine', 
     const html = await readFile(new URL(entry.file, site), 'utf8');
     assert.match(html, /^<!doctype html>/);
     assert.match(html, /<canvas id="view"><\/canvas>/);
-    assert.match(html, /import \{ createExplorer \} from '\.\.\/runtime\/engine\.js'/);
+    assert.match(html, /import \{ createExplorer[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
     const manifest = html.match(/manifestUrl: '\.\.\/(assets\/[^']+)'/)?.[1];
     assert.ok(manifest, entry.id);
@@ -64,12 +64,17 @@ test('the example page shows the file as source on the left and runs it on the r
       theme.id,
     );
   }
-  for (const { id, file, title } of roadmap.entries) {
+  // The grid is the lessons' progressive list: its first batch of 24 cards is what the server
+  // renders, theme by theme; the rest mounts on scroll.
+  const shown = roadmap.themes
+    .flatMap((theme) => roadmap.entries.filter((entry) => entry.theme === theme.id))
+    .slice(0, 24);
+  for (const { id, file, title } of shown) {
     assert.ok(index.includes(`>${title.en}</h2>`), id);
     assert.equal(index.includes(`assets/examples/thumbnails/${id}.png`), Boolean(file), id);
   }
   assert.equal(
     (index.match(/aria-disabled="true"/g) ?? []).length,
-    roadmap.entries.length - ready.length,
+    shown.filter(({ file }) => !file).length,
   );
 });
