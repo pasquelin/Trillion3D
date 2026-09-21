@@ -82,6 +82,8 @@ export interface RendererLessonItem {
   constructionCode?: string;
   functions: string[];
   controls: RendererLessonControl[];
+  /** The lesson shows the shadow page counters: pages redrawn since the last change, pages pending. */
+  shadowStats?: boolean;
 }
 
 /** What the lesson runtime reports each frame; `null` is a count the device did not give. */
@@ -91,6 +93,8 @@ export interface RendererMetrics {
   cpu?: number;
   memory?: number;
   triangles?: number;
+  shadowPages?: number;
+  shadowPending?: number | null;
   occluded?: number | null;
   tested?: number | null;
   diagnostic?: DiagnosticMode;

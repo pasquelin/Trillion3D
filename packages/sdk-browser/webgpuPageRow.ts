@@ -11,6 +11,10 @@ import {
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
+/** Row words of the colour map's atlas slot and of the material flags: what the shadow pass
+ *  reads to cut a masked material, and so what a colour tile's arrival is matched against. */
+export const ROW_MAP_LAYER_WORD = 22,
+  ROW_FLAGS_WORD = 23;
 /** Word that holds wrap addressing for the page's maps, one nibble each (`visibilityWrapModes.ts`).
  *  It occupies one of the row's padding words: the row does not grow by a byte. */
 export const ROW_WRAP_MODES_WORD = 61;
@@ -60,8 +64,8 @@ export function createPageRowWriter(resources: PageRowResources) {
     floats[base + 21] = mat.roughness;
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
     assertVisibilityPageTriangles(index.length / 3, rec.url);
-    ints[base + 22] = maps.map;
-    ints[base + 23] = maps.flags;
+    ints[base + ROW_MAP_LAYER_WORD] = maps.map;
+    ints[base + ROW_FLAGS_WORD] = maps.flags;
     ints[base + 24] = offsetWords;
     ints[base + ROW_INDEX_WORDS] = index.length;
     ints[base + 26] = geo?.vertexBase ?? 0;
