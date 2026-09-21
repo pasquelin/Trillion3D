@@ -33,7 +33,7 @@ pub use levels::*;
 /// color space requires incrementing this version and binary sidecar version
 /// carrying it. Version 3 is GPU rule and full chain, both atlases included.
 pub const TEXTURE_PREVIEW_VERSION: u32 = 3;
-pub use bake::{level_path, texture_version_dir, TEXTURE_DIR};
+pub use bake::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, TEXTURE_DIR};
 pub use reduce::AtlasKind;
 /// Baked level template path, relative to `native/`; `bake::level_path` populates.
 pub fn level_template() -> String {
