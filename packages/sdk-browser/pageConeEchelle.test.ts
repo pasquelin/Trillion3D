@@ -69,7 +69,7 @@ test('a degenerate 3×3 (null scale on one axis, hence a null column) is not con
     [1, 0, 1],
     [1, 1, 0],
   ] as const) {
-    const world = new THREE.Matrix4().makeScale(...echelle);
+    const world = new THREE.Matrix4().makeScale(echelle[0], echelle[1], echelle[2]);
     const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
     assert.equal(ctx.conformal, false, `scale ${echelle}`);
     assert.equal(

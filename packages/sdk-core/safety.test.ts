@@ -67,7 +67,7 @@ test('WebGL probing matches production attributes, loses the probe context, and 
     },
   };
   const environment = {
-    get gpu() {
+    get gpu(): GPU {
       gpuCalls++;
       throw new Error('WebGPU touched');
     },

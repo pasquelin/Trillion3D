@@ -1,14 +1,26 @@
 // the three cluster-cut retries.
 import { createSelectionResult, selectVisiblePages } from '../pageSelection.ts';
+import type { ClusterRoot, SelectionResult } from '../pageSelection.ts';
 import { ligneDecrite, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { camera } from './appui/scenes.ts';
-import { dag, etatDeCoupe, racine } from './appui/dagCoupe.ts';
+import { dag, etatDeCoupe, racine, type DagPage } from './appui/dagCoupe.ts';
 import { cameraMoteur } from '../cameraFixture.ts';
 
-const cam = camera(9, 0.1, 16 / 9);
-const image = [1280, 720];
+interface Scene {
+  pages: DagPage[];
+  roots: ClusterRoot<DagPage>[];
+  shown: DagPage[];
+  wanted: DagPage[];
+  result: SelectionResult<DagPage>;
+  pixelError: number;
+  budget: number;
+  rootFallback: boolean;
+}
 
-function demande(input, pixelError, pageBudget) {
+const cam = camera(9, 0.1, 16 / 9);
+const image: [number, number] = [1280, 720];
+
+function demande(input: Scene, pixelError: number, pageBudget: number) {
   return {
     pixelError,
     viewport: image,
@@ -20,7 +32,7 @@ function demande(input, pixelError, pageBudget) {
   };
 }
 
-function referenceCoupe(input) {
+function referenceCoupe(input: Scene) {
   const budget = input.budget;
   let pixelError = input.pixelError;
   let result = selectVisiblePages(
@@ -41,7 +53,7 @@ function referenceCoupe(input) {
   return etatDeCoupe(result);
 }
 
-function optimiseeCoupe(input) {
+function optimiseeCoupe(input: Scene) {
   const result = selectVisiblePages(
     input.roots,
     cameraMoteur(cam),
@@ -51,7 +63,21 @@ function optimiseeCoupe(input) {
   return etatDeCoupe(result);
 }
 
-function scene({ feuilles, seed, residentes = 1, pixelError, budget, rootFallback = false }) {
+function scene({
+  feuilles,
+  seed,
+  residentes = 1,
+  pixelError,
+  budget,
+  rootFallback = false,
+}: {
+  feuilles: number;
+  seed: number;
+  residentes?: number;
+  pixelError: number;
+  budget: number;
+  rootFallback?: boolean;
+}): Scene {
   const pages = dag({ feuilles, seed, residentes });
   return {
     pages,

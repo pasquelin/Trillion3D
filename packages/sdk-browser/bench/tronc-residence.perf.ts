@@ -5,15 +5,18 @@ import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumClipBox } from '../../sdk-core/index.ts';
 import { collectPendingUrls } from '../pageSelectionRequests.ts';
 import { createAutonomousResidency } from '../autonomousResidency.ts';
-import { graine, mesure, rapport, stress } from '../../sdk-core/bench/socle.ts';
-import { boites, camera } from './appui/scenes.ts';
+import { createAutonomousGeometry } from '../autonomousGeometry.ts';
+import { mesure, rapport, stress } from '../../sdk-core/bench/socle.ts';
+import { boites, camera, type SceneBox } from './appui/scenes.ts';
+import { pageRecFixture } from './appui/pageRecFixture.ts';
+import type { PageRec } from '../pageSelectionTypes.ts';
 
 const cam = camera(6, 0.1, 16 / 9);
 const clip = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
 const planes = new Float64Array(24);
 clipPlanesFromMatrix(planes, clip.elements);
 
-const boxes = (liste) => {
+const boxes = (liste: SceneBox[]) => {
   const plat = new Float64Array(liste.length * 6);
   for (let i = 0; i < liste.length; i++) {
     plat.set(liste[i].min, i * 6);
@@ -24,7 +27,7 @@ const boxes = (liste) => {
 const grande = boxes(boites({ count: 20000 })),
   vide = new Float64Array(0);
 
-const clipper = (plat) => {
+const clipper = (plat: Float64Array) => {
   const verdicts = new Uint8Array(plat.length / 6);
   for (let i = 0; i < verdicts.length; i++) {
     const b = i * 6;
@@ -55,16 +58,22 @@ const clipResult = await mesure({
 });
 
 // ── Residency measurement ────────────────────────────────────────────
-const alea = graine(41);
-function hote(nombre) {
-  const pages = [];
+const pageDeHote = (
+  url: string,
+  streamUrl: string | undefined,
+  array: Uint32Array | undefined,
+): PageRec => pageRecFixture({ url, streamUrl, array });
+
+function hote(nombre: number) {
+  const pages: PageRec[] = [];
   for (let i = 0; i < nombre; i++)
-    pages.push({
-      url: `page-${i % Math.max(1, Math.floor(nombre * 0.6))}.bin`,
-      streamUrl: i % 5 ? undefined : `bundle-${i % 400}.bin`,
-      array: i % 3 ? undefined : new Uint32Array(3),
-      seen: alea(),
-    });
+    pages.push(
+      pageDeHote(
+        `page-${i % Math.max(1, Math.floor(nombre * 0.6))}.bin`,
+        i % 5 ? undefined : `bundle-${i % 400}.bin`,
+        i % 3 ? undefined : new Uint32Array(3),
+      ),
+    );
   const obtenu = createAutonomousResidency({
     bootstrapUrls: new Set(pages.slice(0, Math.min(200, nombre)).map((r) => r.url)),
     modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
@@ -73,9 +82,20 @@ function hote(nombre) {
     pending: [],
     retained: [],
     byUrl: new Map(),
-    geometryStore: { detach: () => {}, state: { allocationBytes: 0 } },
+    geometryStore: createAutonomousGeometry({
+      scene: new THREE.Scene(),
+      allPages: [],
+      bootstrap: [],
+      shown: [],
+      desired: [],
+      byUrl: new Map(),
+      descriptors: new Map(),
+      baseMaterials: new Map(),
+      colorMaterials: new Map(),
+      modifiedPages: new Set(),
+    }),
   });
-  return { pages, obtenu, vers: [] };
+  return { pages, obtenu, vers: [] as string[] };
 }
 const grandHote = hote(15000),
   hoteVide = hote(0);

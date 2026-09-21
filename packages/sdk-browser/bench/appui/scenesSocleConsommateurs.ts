@@ -6,6 +6,8 @@ import { graine } from '../../../sdk-core/bench/socle.ts';
 import { POINT_FACE_AXES } from '../../../sdk-core/sceneLightShadowFaces.ts';
 import { FULL_FACE } from '../../../sdk-core/sceneLightShadowVolume.ts';
 import { BORDS, affines, matrices } from './scenesSocle.ts';
+import { pageRecFixture } from './pageRecFixture.ts';
+import type { PageRec } from '../../pageSelectionTypes.ts';
 
 const alea = graine(0xc0de5);
 const bord = () => BORDS[Math.floor(alea() * BORDS.length)];
@@ -45,27 +47,28 @@ const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
 camera.position.set(3, 4, 12);
 camera.lookAt(0, 0, 0);
 camera.updateMatrixWorld();
-const erreurs = [0, 0.5, 2, Infinity, null, undefined];
-const liste = [];
+const erreurs: (number | null | undefined)[] = [0, 0.5, 2, Infinity, null, undefined];
+const liste: PageRec[] = [];
 for (let i = 0; i < 900; i++) {
   const fini = i % 3 !== 0;
   const source = fini ? affines[i % affines.length] : matrices[i % matrices.length];
   const c = [alea() * 40 - 20, alea() * 40 - 20, alea() * 40 - 20],
     r = alea() * 3;
   const sphere = i % 7 === 0 ? undefined : [...c, r];
-  liste.push({
-    url: `c${i}`,
-    streamUrl: i % 5 === 0 ? `b${i % 40}` : undefined,
-    matrix: new THREE.Matrix4().fromArray(source),
-    min: [c[0] - r, c[1] - r, c[2] - r],
-    max: [c[0] + r, c[1] + r, c[2] + r],
-    lodError: erreurs[i % erreurs.length] ?? 0,
-    sphere,
-    parentError: i % 4 === 0 ? null : erreurs[(i >> 1) % erreurs.length],
-    parentSphere: i % 6 === 0 ? null : sphere,
-    array: i % 50 === 0 ? new Uint32Array(1) : undefined,
-    fini,
-  });
+  liste.push(
+    pageRecFixture({
+      url: `c${i}`,
+      streamUrl: i % 5 === 0 ? `b${i % 40}` : undefined,
+      matrix: new THREE.Matrix4().fromArray(source),
+      min: [c[0] - r, c[1] - r, c[2] - r],
+      max: [c[0] + r, c[1] + r, c[2] + r],
+      lodError: erreurs[i % erreurs.length] ?? 0,
+      sphere,
+      parentError: i % 4 === 0 ? null : erreurs[(i >> 1) % erreurs.length],
+      parentSphere: i % 6 === 0 ? null : sphere,
+      array: i % 50 === 0 ? new Uint32Array(1) : undefined,
+    }),
+  );
 }
 export const enregistrements = {
   liste,

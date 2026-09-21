@@ -63,7 +63,10 @@ lines.push(
     fichier: 'packages/sdk-core/mathBox.ts',
     size: POINTS,
     three: () => geometry.computeBoundingBox(),
-    oracle: () => aPlat(geometry.boundingBox),
+    oracle: () => {
+      if (!geometry.boundingBox) throw new Error('BOUNDING_BOX_MISSING');
+      return aPlat(geometry.boundingBox);
+    },
     core: () => {
       boxEmpty(box, 0);
       for (let i = 0; i < POINTS; i++)
