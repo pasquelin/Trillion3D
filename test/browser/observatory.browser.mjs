@@ -15,7 +15,7 @@ const server = await startServer({
     { prefix: '/sdk/', dir: resolve(root, 'dist') },
     { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },
     { prefix: '/vendor/meshoptimizer/', dir: resolve(root, 'node_modules/meshoptimizer') },
-    { prefix: '/docs/', dir: resolve(root, 'docs') },
+    { prefix: '/site/', dir: resolve(root, 'site') },
   ],
 });
 const browser = await launchChrome({ headless: true });
@@ -36,7 +36,7 @@ try {
     document.body.append(canvas);
     const { createExplorer, webgpuPagesBackend } = await import(sdkUrl);
     window.scene = await createExplorer('observatory', {
-      manifestUrl: '/docs/assets/gallery/signature-architecture/cache/native/full/manifest.json',
+      manifestUrl: '/site/assets/gallery/signature-architecture/cache/native/full/manifest.json',
       scope: 'full',
       importedLights: true,
       interactive: false,

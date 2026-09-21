@@ -2,17 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { buildDocs } from './docs/bundles.mjs';
 import { launchChrome } from './mesure/chrome.mjs';
 import { startServer } from './mesure/serveur.mjs';
+import { buildSite, SITE_OUTPUT } from './docs/site.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 test('the original OBJ excavation renders stable exterior surfaces and coloured field markers', async () => {
-  await buildDocs(root);
+  await buildSite();
   const server = await startServer({
     port: 0,
     mounts: [
-      { prefix: '/docs/', dir: resolve(root, 'docs') },
+      { prefix: '/site/', dir: SITE_OUTPUT },
       { prefix: '/vendor/three/', dir: resolve(root, 'node_modules/three') },
       { prefix: '/vendor/meshoptimizer/', dir: resolve(root, 'node_modules/meshoptimizer') },
     ],
@@ -33,7 +33,7 @@ test('the original OBJ excavation renders stable exterior surfaces and coloured 
       canvas.style.cssText = 'display:block;width:900px;height:620px';
       document.body.replaceChildren(canvas);
       const model = await createExplorer(canvas, {
-        manifestUrl: '/docs/assets/gallery/fossil-excavation/cache/native/full/manifest.json',
+        manifestUrl: '/site/assets/gallery/fossil-excavation/cache/native/full/manifest.json',
         backends: [webgpuPagesBackend],
         scope: 'full',
         interactive: false,
@@ -96,7 +96,7 @@ test('the original OBJ excavation renders stable exterior surfaces and coloured 
       };
       window.disposeFossil = () => model.dispose();
       return result;
-    }, '/docs/runtime/engine.js');
+    }, '/site/runtime/engine.js');
     assert.equal(proof.triangles, 9784);
     assert.equal(proof.selected, proof.triangles);
     assert.equal(proof.held, true);
