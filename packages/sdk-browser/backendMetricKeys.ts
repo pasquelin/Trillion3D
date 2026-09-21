@@ -23,6 +23,8 @@ export const BACKEND_METRIC_KEYS = [
   'lodLevel',
   'frameHeld',
   'autonomousClusterDrawsTotal',
+  'autonomousCopyDraws',
+  'transmissionBackdropBytes',
   'submittedTriangles',
   'transparentMeshes',
   'transparentFrustumRejected',
