@@ -15,7 +15,7 @@ import { createGpuRestCompact } from './gpuRestCompact.ts';
 import { prepareTransparentOcclusion } from './webgpuTransparentOcclusionHost.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { sceneMaterialClasses } from './webgpuPageRowMaterial.ts';
-import { SURFACE_FORMATS } from './surfaceBuffer.ts';
+import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { dropGpuHiz, dropVis, grantCapability } from './webgpuPagesDrops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -33,20 +33,16 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     );
     ({
       blendBindGroupLayout: vis.blendBindGroupLayout,
-      pipelineBlendTextured: vis.pipelineBlendTextured,
-      pipelineBlendFront: vis.pipelineBlendFront,
-      pipelineBlendBack: vis.pipelineBlendBack,
+      blendPipelines: vis.blendPipelines,
       water: blendState.water,
     } = built);
-    // A new layout voids the shared group of paged items like the others'.
-    blendState.pagedGroup = undefined;
-    // No water pass — too many items for its rank, or a device that refused it: the blends stay,
-    // the transmission slice draws as one of them, and the host reads why.
+    // No water pass — the device refused it: the blends stay, the transmission slice draws as one
+    // of them, and the host reads why.
     if (built.waterRefused) diag.diagnosticFailure('water-pass-refused', built.waterRefused);
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;
-    vis.pipelineBlendTextured = undefined;
+    vis.blendPipelines = undefined;
     blendState.water = undefined;
   }
   // Coplanar-stack depth sets the draw-slot count, therefore the visibility uniform size and that of
@@ -148,7 +144,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   diag.engineDiagnostic('material-surfaces-ready', 'Surfaces and lighting split', {
     surfaceVersion: 1,
     formats: SURFACE_FORMATS,
-    bytesPerPixel: 28,
+    bytesPerPixel: SURFACE_BYTES_PER_PIXEL,
     lighting: 'HDR',
     globalIllumination: false,
     motionVectors: false,

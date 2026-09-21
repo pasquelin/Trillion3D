@@ -1,37 +1,42 @@
-import { FULLSCREEN_VERTEX } from './deferredLightingShaders.ts';
+import {
+  CONTRACT_BINDINGS_WGSL,
+  FULLSCREEN_VERTEX,
+  SURFACE_BINDINGS_WGSL,
+  VIEW_WGSL,
+  WORLD_AT_WGSL,
+} from './deferredLightingShaders.ts';
 import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts';
 import { declaredLightingWgsl } from './directLightingWgsl.ts';
 import { bounceApplyWgsl } from './bounceApplyWgsl.ts';
+import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
 import { BLEND_VIEW_WGSL } from './webgpuBlendShader.ts';
 import { WATER_UNPACK_WGSL } from './webgpuWaterSurfaceWgsl.ts';
 
-/** Bindings of the composite: the water surfaces, the frozen backdrop, the two view uniforms, the
- *  material volumes, then the lighting contract at the same names as the blend pass. */
+/** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
+ *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
+ *  opaque depth, the blend view uniform and the material volumes. */
 export const WATER_BINDINGS = {
   baseMetal: 0,
   normalRough: 1,
   emissiveAo: 2,
   flags: 3,
   depth: 4,
-  backdrop: 5,
-  backdropDepth: 6,
+  view: 5,
+  directLights: 6,
+  tileLights: 7,
+  shadowSlices: 8,
+  shadowAtlas: 9,
+  shadowSampler: 10,
+  bounceGrid: 11,
+  probes: 12,
+  proxy: SUN_FAR_PROXY_BINDING,
+  backdrop: 14,
+  backdropDepth: 15,
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
-  uniform: 7,
-  /** Inverse view-projection and viewport, written by the pass for its own reconstruction. */
-  view: 8,
-  volumes: 9,
-  directLights: 10,
-  tileLights: 11,
-  shadowSlices: 12,
-  shadowAtlas: 13,
-  shadowSampler: 14,
-  bounceGrid: 15,
-  probes: 16,
-  proxy: 17,
+  uniform: 16,
+  volumes: 17,
 };
-/** `inverseViewProj`, then the viewport size and two alignment words: 80 bytes. */
-export const WATER_VIEW_SIZE = 80;
 
 /**
  * Fullscreen composite of the water pass. A pixel the surface stage wrote is lit once here: the
@@ -52,34 +57,21 @@ export const WATER_VIEW_SIZE = 80;
  * And the share transmitted through an empty backdrop keeps that emptiness as coverage, so the
  * display background shows through a surface in front of nothing instead of a black radiance.
  */
-export const WATER_COMPOSITE_SHADER = `${BLEND_VIEW_WGSL}
-struct WaterView{inverseViewProj:mat4x4f,viewport:vec4f,}
+export const WATER_COMPOSITE_SHADER = `${VIEW_WGSL}
+${BLEND_VIEW_WGSL}
 struct Volume{transmission:f32,ior:f32,thickness:f32,attenuationDistance:f32,attenuationColor:vec4f,}
-@group(0) @binding(${WATER_BINDINGS.baseMetal}) var waterBase:texture_2d<f32>;
-@group(0) @binding(${WATER_BINDINGS.normalRough}) var waterNormal:texture_2d<f32>;
-@group(0) @binding(${WATER_BINDINGS.emissiveAo}) var waterEmissive:texture_2d<f32>;
-@group(0) @binding(${WATER_BINDINGS.flags}) var waterFlags:texture_2d<u32>;
-@group(0) @binding(${WATER_BINDINGS.depth}) var waterDepth:texture_depth_2d;
+${SURFACE_BINDINGS_WGSL}
+${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.backdrop}) var backdrop:texture_2d<f32>;
 @group(0) @binding(${WATER_BINDINGS.backdropDepth}) var backdropDepth:texture_depth_2d;
 @group(0) @binding(${WATER_BINDINGS.uniform}) var<uniform> uni:BlendView;
-@group(0) @binding(${WATER_BINDINGS.view}) var<uniform> water:WaterView;
 @group(0) @binding(${WATER_BINDINGS.volumes}) var<storage,read> volumes:array<Volume>;
-@group(0) @binding(${WATER_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
-@group(0) @binding(${WATER_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
-@group(0) @binding(${WATER_BINDINGS.shadowSlices}) var<storage,read> shadows:ShadowSlices;
-@group(0) @binding(${WATER_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d;
-@group(0) @binding(${WATER_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
 ${STANDARD_LIGHTING_WGSL}
 ${declaredLightingWgsl(WATER_BINDINGS.proxy)}
 ${bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes)}
 ${WATER_UNPACK_WGSL}
 ${FULLSCREEN_VERTEX}
-fn worldAt(pixel:vec2f,z:f32)->vec3f{
- let ndc=vec4f(pixel.x/water.viewport.x*2.0-1.0,1.0-pixel.y/water.viewport.y*2.0,z,1.0);
- let world=water.inverseViewProj*ndc;
- return world.xyz/world.w;
-}
+${WORLD_AT_WGSL}
 // Pixel where the ray from P along dir, advanced by dist, lands; the straight pixel when it
 // leaves the frustum.
 fn exitPixel(P:vec3f,dir:vec3f,dist:f32,straight:vec2i,size:vec2f)->vec2i{
@@ -118,16 +110,16 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
 }
 @fragment fn composeWater(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);
- let packed=textureLoad(waterFlags,coord,0).r;
+ let packed=textureLoad(flags,coord,0).r;
  if(packed==0u){discard;}
  let vol=volumes[waterRank(packed)];
  let alpha=waterOpacity(packed);
- let base=textureLoad(waterBase,coord,0);
- let normal=textureLoad(waterNormal,coord,0);
- let emissiveAo=textureLoad(waterEmissive,coord,0);
- let fragZ=textureLoad(waterDepth,coord,0);
+ let base=textureLoad(baseMetal,coord,0);
+ let normal=textureLoad(normalRough,coord,0);
+ let emissiveAo=textureLoad(emissiveAo,coord,0);
+ let fragZ=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,fragZ);
- let V=normalize(uni.camPos.xyz-P);
+ let V=normalize(view.camera.xyz-P);
  // Normal of the side we look from: a single-sided surface, or a mesh with no normal attribute
  // whose normal comes from screen derivatives, can arrive turned the wrong way, and refraction
  // would then go through the wrong way while Fresnel would yield a black mirror.

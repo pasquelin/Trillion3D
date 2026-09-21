@@ -7,6 +7,8 @@ import { orderBlendPasses, orderVisibleBlend } from './webgpuBlendOrder.ts';
 import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './webgpuBlendFallback.ts';
 import { encodeTransparentInstances } from './webgpuTransparentDraw.ts';
 import { encodeWaterPass } from './webgpuWaterPass.ts';
+import { blendLightResources } from './webgpuBlendLighting.ts';
+import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
@@ -25,7 +27,6 @@ export function encodeBlend(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   uniformBase: number,
-  inverseViewProjection?: ArrayLike<number>,
 ) {
   const { gpu, vis, run, timing, blendState, diag } = rt;
   if (
@@ -38,7 +39,7 @@ export function encodeBlend(
     return;
   const textured = !!(
     vis.blendBindGroupLayout &&
-    vis.pipelineBlendTextured &&
+    vis.blendPipelines &&
     vis.textures &&
     vis.mapsSampler &&
     vis.concatPos &&
@@ -79,6 +80,11 @@ export function encodeBlend(
   // where it drops the draw.
   run.blendFrustumRejected = orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
+  // The lighting resources of the image, resolved once for the blends and the water pass: the
+  // shadow atlas and the probe grid do not exist from the first frame, and a group built on the
+  // placeholders is voided the day the real resources arrive.
+  blendState.lighting = blendLightResources(rt);
+  voidStaleBlendGroups(rt, blendState.lighting);
   // The GPU then expands the sorted plan: an instance list, one indirect argument per slice, and
   // nothing more per item. With no compute stage, the CPU writes the same words.
   encodeBlendExpansion(rt, device, encoder);
@@ -87,11 +93,10 @@ export function encodeBlend(
   drawBlendPass(rt, device, encoder);
   // Water comes after blends, on a frozen backdrop: the copy splits the two, so no transmissive
   // surface reads a half-composed image. Without the pass — a diagnostic view, which colours the
-  // surface instead of lighting it, a diagnostic variant measuring the blend stage, or a frame
-  // with no inverse projection — the slice draws as one more blend.
-  const composed =
-    !!inverseViewProjection && encodeWaterPass(rt, device, encoder, inverseViewProjection);
-  if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true);
+  // surface instead of lighting it, a diagnostic variant measuring the blend stage, a capture from
+  // a second camera — the slice draws as one more blend.
+  if (blendState.transmissive && !encodeWaterPass(rt, encoder))
+    drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
   timing.transparentEncodeMs += finished - cpuStart;
@@ -155,7 +160,7 @@ export function encodeSurfaceLighting(
   );
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
-  encodeBlend(rt, device, encoder, uniformBase, inverseViewProj);
+  encodeBlend(rt, device, encoder, uniformBase);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
   // image as-is when this image does not accumulate.
   const composed = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);

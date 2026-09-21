@@ -1,28 +1,13 @@
-import { blendPassReady, countBlendDraws, drawBlendRuns } from './webgpuBlendDraw.ts';
-import { shadeColorAttachments } from './webgpuPagesAttachments.ts';
-import { copyBackdrop } from './webgpuTransmission.ts';
-import { blendLightResources } from './webgpuBlendLighting.ts';
-import { createWaterComposite, type WaterComposite } from './webgpuWaterComposite.ts';
-import { createWaterSurfacePipelines, type WaterSurfacePipelines } from './webgpuWaterPipelines.ts';
-import { WATER_MAX_ITEMS } from './webgpuWaterSurfaceWgsl.ts';
+import { countBlendDraws } from './webgpuBlendDraw.ts';
+import type { BlendPipelines } from './webgpuBlendStagePipelines.ts';
+import { createWaterFrame, type WaterFrame } from './webgpuWaterFrame.ts';
+import { createWaterSurfacePipelines } from './webgpuWaterPipelines.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Label of the measured surface stage; its GPU duration is read under this name. */
-export const WATER_SURFACE_PASS = 'WG water surfaces';
-
-/** The water pass of a scene: its surface pipelines and its composite, built at prepare. */
+/** The water pass of a scene: its surface pipelines and its frame side, built at prepare. */
 export interface WaterPass {
-  surfaces: WaterSurfacePipelines;
-  composite: WaterComposite;
-}
-
-/** The item rank travels in sixteen bits of the surface: a scene with more transparent items than
- *  that has no water pass — its transmission slice draws as a blend — and the refusal is named
- *  (`water-pass-refused`) rather than composed wrong. `undefined` when the scene fits. */
-export function waterPassRefusal(items: number) {
-  return items > WATER_MAX_ITEMS
-    ? new Error(`WATER_ITEMS_LIMIT: ${items} transparent items, ${WATER_MAX_ITEMS} at most`)
-    : undefined;
+  surfaces: BlendPipelines;
+  frame: WaterFrame;
 }
 
 /**
@@ -35,65 +20,37 @@ export async function createWaterPass(
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
 ): Promise<WaterPass> {
-  const [surfaces, composite] = await Promise.all([
+  const [surfaces, frame] = await Promise.all([
     createWaterSurfacePipelines(device, module, layout),
-    createWaterComposite(device),
+    createWaterFrame(device),
   ]);
-  return { surfaces, composite };
+  return { surfaces, frame };
 }
 
 /**
- * Encodes the water pass, after the blends and on the image they left: the backdrop is frozen,
- * the transmissive surfaces are drawn into their surface buffer — hardware depth against the
- * opaque, nearest surface kept —, then one fullscreen triangle lights and composes every water
- * pixel into the HDR target. Returns whether the pass was encoded; without a transmissive
- * surface, without the pipelines, or under a diagnostic view, nothing of it exists in the frame.
+ * Encodes the water pass after the blends, on the image they left (`webgpuWaterFrame.ts`).
+ * Returns whether the pass was encoded: without a transmissive surface in view, without the
+ * pipelines, under a diagnostic view or a capture from a second camera, nothing of it exists in
+ * the frame, and the transmission slice draws as one more blend.
  */
-export function encodeWaterPass(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  inverseViewProjection: ArrayLike<number>,
-) {
-  const { gpu, run, blendState } = rt,
-    water = blendState.water,
-    backdrop = gpu.backdrop;
+export function encodeWaterPass(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  const { gpu, run, capture, blendState } = rt,
+    water = blendState.water;
   // A diagnostic view colours a surface instead of lighting it: the slice draws as a blend, whose
-  // fragment carries that colouring, and the composite has none.
+  // fragment carries that colouring, and the composite has none. A capture from a second camera
+  // reads the surface buffer as opaque once the frame is drawn: the surface stage leaves it alone.
   if (
     run.diagnostic !== 'beauty' ||
+    capture.secondaryCamera ||
     !water ||
-    !backdrop ||
-    !gpu.hdrView ||
-    !gpu.volumeBuffer ||
+    !blendState.transmissiveInView ||
+    !blendState.argsBuffer ||
     !blendState.viewBuffer ||
-    !blendPassReady(rt, 1) ||
-    !copyBackdrop(rt, encoder)
+    !blendState.lighting ||
+    !water.frame.bind(gpu, blendState.viewBuffer, blendState.lighting)
   )
     return false;
-  const [width, height] = gpu.targetSize;
-  const pass = encoder.beginRenderPass({
-    label: WATER_SURFACE_PASS,
-    // The surfaces are cleared: zero says "no water here" to the composite.
-    colorAttachments: shadeColorAttachments(rt, backdrop.surfaces),
-    depthStencilAttachment: {
-      view: backdrop.waterDepthView,
-      depthLoadOp: 'load',
-      depthStoreOp: 'store',
-    },
-  });
-  pass.setViewport(0, 0, width, height, 0, 1);
-  const encoded = drawBlendRuns(rt, device, pass, 1, water.surfaces);
-  pass.end();
-  countBlendDraws(rt, encoded, true);
-  // The surface stage just resolved the lighting resources of the frame: the composite binds the
-  // same, and rebuilds its group only when one of them, or a target, has changed.
-  water.composite.update(inverseViewProjection, width, height);
-  water.composite.bind(
-    { backdrop, uniform: blendState.viewBuffer, volumes: gpu.volumeBuffer },
-    blendLightResources(rt),
-  );
-  water.composite.compose(encoder, gpu.hdrView);
+  countBlendDraws(rt, water.frame.encode(rt, encoder, water.surfaces), true);
   run.gpuDrawCalls++;
   return true;
 }

@@ -1,28 +1,26 @@
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Attachments of each view set the frame has drawn into, kept as long as the views live. */
-const surfaceCache = new WeakMap<GPUTextureView[], GPURenderPassColorAttachment[]>();
-const shadeCache = new WeakMap<GPUTextureView[], GPURenderPassColorAttachment[]>();
+let attachmentsFor: GPUTextureView[] | undefined,
+  attachments: GPURenderPassColorAttachment[] | undefined;
 
 /**
  * Surface colour attachments, kept as-is until the next view set. Their four descriptors depend only
  * on the views, and the views change only when the target is resized: rebuilding them every image
  * allocated five objects to write the same fields. `views()` is still called every image; it is what
- * refuses a released target. Two surface buffers — the opaque resolve's and the water pass's — keep
- * their own, so a frame that writes both allocates for neither.
+ * refuses a released target.
  */
 export function surfaceColorAttachments(surfaces: SurfaceBuffer) {
   const views = surfaces.views();
-  let attachments = surfaceCache.get(views);
-  if (!attachments) {
+  if (attachmentsFor !== views || !attachments) {
     attachments = views.map((view) => ({
       view,
       loadOp: 'clear' as const,
       storeOp: 'store' as const,
       clearValue: [0, 0, 0, 0],
     }));
-    surfaceCache.set(views, attachments);
+    attachmentsFor = views;
+    withFeedback = undefined;
   }
   return attachments;
 }
@@ -32,6 +30,7 @@ const feedback: GPURenderPassColorAttachment = {
   loadOp: 'clear',
   storeOp: 'store',
 };
+let withFeedback: GPURenderPassColorAttachment[] | undefined;
 
 /**
  * Attachment of the virtual-texture feedback target, and the only rule of its load: the first pass
@@ -47,14 +46,10 @@ export function feedbackAttachment(rt: WebgpuPagesRuntime) {
 }
 
 /** Surfaces then the feedback target: the five attachments of the hardware resolve, and of the
- *  water surface stage on its own buffer. */
+ *  water surface stage, which writes the same buffer once the resolve has consumed it. */
 export function shadeColorAttachments(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
   const base = surfaceColorAttachments(surfaces);
-  let attachments = shadeCache.get(surfaces.views());
-  if (!attachments) {
-    attachments = [...base, feedback];
-    shadeCache.set(surfaces.views(), attachments);
-  }
+  withFeedback ??= [...base, feedback];
   feedbackAttachment(rt);
-  return attachments;
+  return withFeedback;
 }
