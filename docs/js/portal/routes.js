@@ -6,7 +6,9 @@ function decodeId(value) {
   }
 }
 export const DEFAULT_ROUTE = Object.freeze({ locale: 'en', area: 'learn', id: 'home' });
-const AREAS = new Set(['learn', 'examples', 'playground', 'api', 'reports']);
+/** The portal areas, in navigation order. */
+export const AREAS = /** @type {const} */ (['learn', 'examples', 'playground', 'api', 'reports']);
+const AREA_SET = new Set(AREAS);
 const LEGACY_SECTIONS = new Set([
   'guides',
   'demo',
@@ -22,11 +24,12 @@ const LEGACY_SECTIONS = new Set([
   'batches',
 ]);
 
+/** @returns {{ locale: 'en' | 'fr', area: (typeof AREAS)[number], id: string }} */
 export function parseRoute(hash, fallbackLocale = 'en') {
   const parts = String(hash).replace(/^#\/?/, '').split('/').filter(Boolean);
   if (parts[0] === 'en' || parts[0] === 'fr') {
     const locale = parts[0];
-    const area = AREAS.has(parts[1]) ? parts[1] : 'learn';
+    const area = AREA_SET.has(parts[1]) ? parts[1] : 'learn';
     return {
       locale,
       area,
