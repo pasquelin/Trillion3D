@@ -1,27 +1,23 @@
-/** Reproducible styles, engine modules and portal for the static learning portal.
+/** Reproducible styles, demo maths, engine modules and portal for the static learning portal.
  *
- *   node scripts/docs-build.mjs           writes docs/css/site.css and docs/runtime/
- *   node scripts/docs-build.mjs --check   fails when the tracked bundles differ from a fresh build
+ *   node scripts/docs-build.mjs              writes the bundles under docs/
+ *   node scripts/docs-build.mjs --untracked  fails when git tracks any of them
  *
- * The bundles are not committed on develop: the release commits them on main (see
- * docs/LEARNING_PORTAL.md), so `--check` compares what HEAD tracks, whatever the working tree
- * holds, and has nothing to compare where HEAD tracks none of them.
+ * The bundles are never committed: every consumer builds them on demand and the Pages workflow
+ * builds them from main at deploy (docs/LEARNING_PORTAL.md).
  */
 import { resolve } from 'node:path';
-import { buildDocs, checkBundles, trackedBundles } from './docs/bundles.mjs';
+import { buildDocs, trackedBundles } from './docs/bundles.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-if (!process.argv.includes('--check')) await buildDocs(root);
-else if (!trackedBundles(root).length)
-  console.log('No published bundle is tracked in this tree: nothing to compare.');
+if (!process.argv.includes('--untracked')) await buildDocs(root);
 else {
-  const stale = await checkBundles(root);
-  if (stale.length) {
+  const tracked = trackedBundles(root);
+  if (tracked.length) {
     console.error(
-      `Published bundles stale or missing:\n${stale.map((bundle) => `  docs/${bundle}`).join('\n')}\n` +
-        'Run pnpm run build:docs and commit them on the release branch.',
+      `Generated bundles are never tracked:\n${tracked.map((file) => `  ${file}`).join('\n')}`,
     );
     process.exit(1);
   }
-  console.log('Published bundles match the sources.');
+  console.log('No generated bundle is tracked.');
 }
