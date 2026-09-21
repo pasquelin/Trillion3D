@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
+import { blendLightResources } from './webgpuBlendLighting.ts';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
 import { orderBlendPasses } from './webgpuBlendOrder.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
@@ -60,9 +61,7 @@ function joue(items: ReturnType<typeof item>[]) {
   const rt = {
     vis: {
       visEnabled: true,
-      pipelineBlendFront: FRONT,
-      pipelineBlendBack: BACK,
-      pipelineBlendTextured: TEXTURED,
+      blendPipelines: [TEXTURED, FRONT, BACK],
       blendBindGroupLayout: {},
       textures: {
         color: { pool: { view: {} }, pages: { buffer: {} } },
@@ -98,6 +97,8 @@ function joue(items: ReturnType<typeof item>[]) {
       blendSubmittedTriangles: 0,
     },
   } as unknown as WebgpuPagesRuntime;
+  // The lighting of the image, resolved once as `encodeBlend` does before any pass.
+  blendState.lighting = blendLightResources(rt);
   drawBlendPass(
     rt,
     { createBindGroup: () => ({}) } as unknown as GPUDevice,
