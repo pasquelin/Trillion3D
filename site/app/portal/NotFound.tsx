@@ -28,7 +28,7 @@ export function NotFound({ locale }: { locale: Locale }) {
           <a className="btn btn-primary" href={routeHref({ locale, area: 'learn', id: 'home' })}>
             {fr ? 'Revenir à l’accueil' : 'Return home'}
           </a>
-          <a className="btn btn-outline" href={routeHref({ locale, area: 'examples' })}>
+          <a className="btn btn-outline" href={routeHref({ locale, area: 'examples', id: '' })}>
             {fr ? 'Explorer les exemples' : 'Explore examples'}
           </a>
           <button

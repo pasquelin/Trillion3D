@@ -4,7 +4,7 @@ import { viewName } from '../../reports/names.ts';
 import { Section } from '../components/Section.tsx';
 import { runOf, sceneName } from '../../reports/presentation.ts';
 import { ProfileReading } from './ProfileReading.tsx';
-import type { Report, ReportRecord } from '../types/reports.ts';
+import type { Report, ReportRecord } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ProfilesProps {

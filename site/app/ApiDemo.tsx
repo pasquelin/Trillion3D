@@ -3,57 +3,40 @@ import { formatNumber, localizedCanvasContext } from '../demos/kit.ts';
 import { localizeDemoText } from '../content/i18n/demo.fr.ts';
 import { Canvas } from './components/Canvas.tsx';
 import { Section } from './components/Section.tsx';
-import { Alert, Card, Field, Form, Range, Select } from './components/UI.tsx';
+import { Alert, Card, Field, Form, Range } from './components/UI.tsx';
 import type { Locale } from '../content/locale.ts';
 import type {
   DemoControlDef,
   DemoDef,
+  DemoState,
   DemoViewItem,
   DrawingView,
   MatrixView,
-} from './types/demo.ts';
+} from '../demos/kit.ts';
 
 const text = (value: unknown, locale: Locale): string =>
   localizeDemoText(String(value ?? ''), locale);
 
 interface DemoControlProps {
   control: DemoControlDef;
-  value: unknown;
+  value: number;
   locale: Locale;
-  onChange: (value: string | number) => void;
+  onChange: (value: number) => void;
 }
 
 function DemoControl({ control, value, locale, onChange }: DemoControlProps) {
   const label = text(control.label, locale);
-  if (control.kind === 'choice') {
-    return (
-      <Field label={label}>
-        <Select
-          size="sm"
-          value={String(value ?? '')}
-          onChange={(event) => onChange(event.target.value)}
-        >
-          {control.options.map((option) => (
-            <option value={option.value} key={String(option.value)}>
-              {text(option.label, locale)}
-            </option>
-          ))}
-        </Select>
-      </Field>
-    );
-  }
-  const numericValue = Number(value ?? 0);
   return (
     <Field label={label} className="w-48">
       <Range
         min={control.min}
         max={control.max}
         step={control.step}
-        value={numericValue}
+        value={value}
         aria-label={label}
         onChange={(event) => onChange(Number(event.target.value))}
       />
-      <output className="font-mono text-xs text-right">{formatNumber(numericValue)}</output>
+      <output className="font-mono text-xs text-right">{formatNumber(value)}</output>
     </Field>
   );
 }
@@ -156,9 +139,9 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }) {
 
 export function ApiDemo({ demo, locale = 'en' }: { demo: DemoDef; locale?: Locale }) {
   const controls = demo.controls ?? [];
-  const initial = (): Record<string, unknown> =>
+  const initial = (): DemoState =>
     Object.fromEntries(controls.map((control) => [control.name, control.value]));
-  const [state, setState] = useState<Record<string, unknown>>(initial);
+  const [state, setState] = useState<DemoState>(initial);
   const views = useMemo(() => demo.run(state) ?? [], [demo, state]);
   return (
     <section className="api-demo">

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Locale } from '../../content/locale.ts';
-import type { RendererLessonControl, RendererLessonItem } from '../types/gallery.ts';
+import type {
+  RendererLessonControl,
+  RendererLessonItem,
+} from '../../lessons/rendererLessonTypes.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { Section } from '../components/Section.tsx';
 import { SectionHeader } from '../components/SectionHeader.tsx';

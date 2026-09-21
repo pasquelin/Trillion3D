@@ -1,13 +1,15 @@
 import { routeHref } from './routes.ts';
+import type { RouteArea } from './routes.ts';
 import { examples } from '../../content/catalog.ts';
+import type { CatalogExample } from '../../content/catalog.ts';
 import { SectionHeader } from '../components/SectionHeader.tsx';
 import { ExampleCard } from '../gallery/ExampleCard.tsx';
 import type { Locale } from '../../content/locale.ts';
-import type { RouteArea, TranslateFn } from '../types/portal.ts';
+import type { TranslateFn } from '../../content/i18n/index.ts';
 
-const FEATURED = ['compose-transform', 'perspective', 'lod-budget'].map((id) =>
-  examples.find((example: { id: string }) => example.id === id),
-);
+const FEATURED = ['compose-transform', 'perspective', 'lod-budget']
+  .map((id) => examples.find((example) => example.id === id))
+  .filter((example): example is CatalogExample => example !== undefined);
 
 function HeroArt({ locale }: { locale: Locale }) {
   return (

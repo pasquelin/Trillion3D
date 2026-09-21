@@ -60,11 +60,3 @@ export const ISSUES: Record<number, string> = {
 export function issueUrl(issue: number) {
   return `${REPOSITORY}/issues/${issue}`;
 }
-
-/** Text the sidebar filter matches: title, signature, description and module path. */
-export function searchText(entry: PortalEntry) {
-  return [entry.title || entry.id, entry.signature, entry.description, entry.module]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-}

@@ -1,6 +1,6 @@
 import { REPORT_SECTIONS } from '../../reports/presentation.ts';
 import { routeHref } from '../portal/routes.ts';
-import type { PortalRoute } from '../types/portal.ts';
+import type { PortalRoute } from '../portal/routes.ts';
 
 interface ReportNavigationProps {
   route: PortalRoute;

@@ -4,7 +4,7 @@ import { flattenFields } from '../../reports/availability.ts';
 import { recordLabel, sceneName } from '../../reports/presentation.ts';
 import { viewName } from '../../reports/names.ts';
 import { Collapse } from '../components/Collapse.tsx';
-import type { Report, ReportSource, SourceReadingRecord } from '../types/reports.ts';
+import type { Report, ReportSource } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface AllReadingsProps {
@@ -24,7 +24,7 @@ function cell(value: unknown, locale: Locale): string {
 }
 
 export function AllReadings({ report, sources, locale }: AllReadingsProps) {
-  const groups: Map<string, SourceReadingRecord[]> = readingGroups(sources);
+  const groups = readingGroups(sources);
   return (
     <section className="grid min-w-0 gap-4" id="report-all-values">
       <h2>

@@ -1,7 +1,8 @@
 import { AREAS, routeHref } from './routes.ts';
 import { Button } from '../components/UI.tsx';
 import type { Locale } from '../../content/locale.ts';
-import type { PortalRoute, RouteArea, TranslateFn } from '../types/portal.ts';
+import type { PortalRoute, RouteArea } from './routes.ts';
+import type { TranslateFn } from '../../content/i18n/index.ts';
 
 function navRoute(locale: Locale, area: RouteArea): PortalRoute {
   return {

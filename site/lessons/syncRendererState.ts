@@ -1,4 +1,4 @@
-import type { RendererLessonSession } from './rendererLessonRuntime.ts';
+import type { RendererLessonSession } from './rendererLessonSessionTypes.ts';
 
 export const syncRendererState = (
   runtime: RendererLessonSession,

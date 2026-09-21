@@ -1,5 +1,5 @@
-import type { CardProps } from '../types/components.ts';
 import { Card } from './UI.tsx';
+import type { CardProps } from './UI.tsx';
 
 /** A titled page section with the shared card surface and heading hierarchy. */
 export function Section({ title, children, className = '', ...props }: CardProps) {
