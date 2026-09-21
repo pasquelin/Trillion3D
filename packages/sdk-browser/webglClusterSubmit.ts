@@ -37,7 +37,10 @@ export function submitClusterMesh(
       );
 }
 
-export function submitDiagnosticMesh(gl: WebGL2RenderingContext, mesh: WholeMesh) {
+export function submitDiagnosticMesh(
+  gl: WebGL2RenderingContext,
+  mesh: Pick<WholeMesh, 'geometry'>,
+) {
   const index = mesh.geometry.index;
   if (!index) {
     gl.drawArrays(gl.TRIANGLES, 0, mesh.geometry.attributes.position.count);
