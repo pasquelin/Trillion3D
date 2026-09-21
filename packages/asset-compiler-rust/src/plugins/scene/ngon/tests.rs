@@ -1,5 +1,6 @@
-//! What ear clipping guarantees: the area of a simple polygon, the fan on a convex polygon, and
-//! a counted output rather than a panic on a ring that nothing makes cuttable.
+//! What ear clipping guarantees: the area of a simple polygon, and a counted output rather
+//! than a panic on a ring that nothing makes cuttable. The convex path is proved in
+//! `tests_convex`, against the ears.
 //!
 //! The U ring and the area measure are those of the drivers, in `crate::tests::ngones`: one
 //! definition of the audit polygon, and one way to measure what comes out of it.
@@ -7,17 +8,21 @@ use super::*;
 use crate::tests::ngones::{cut_area, U_RING};
 
 /// A planar ring, placed in the plane `z = 0`.
-fn flat_ring(points: &[[f64; 2]]) -> Vec<[f64; 3]> {
+pub(super) fn flat_ring(points: &[[f64; 2]]) -> Vec<[f64; 3]> {
     points.iter().map(|[x, y]| [*x, *y, 0.0]).collect()
 }
 
-/// Cut of a ring: its triangles, and whether it is exact.
-fn cut(ring: &[[f64; 3]]) -> (Vec<[usize; 3]>, bool) {
+/// A cutter holding the ring, ready to cut.
+pub(super) fn loaded(ring: &[[f64; 3]]) -> Ngon {
     let mut ngon = Ngon::default();
     ngon.begin();
-    for point in ring {
-        ngon.corner(*point);
-    }
+    ring.iter().for_each(|point| ngon.corner(*point));
+    ngon
+}
+
+/// Cut of a ring: its triangles, and whether it is exact.
+pub(super) fn cut(ring: &[[f64; 3]]) -> (Vec<[usize; 3]>, bool) {
+    let mut ngon = loaded(ring);
     let exact = ngon.cut(&AtomicBool::new(false)).expect("token at rest");
     (ngon.triangles().to_vec(), exact)
 }
@@ -40,25 +45,6 @@ fn a_concave_polygon_keeps_its_own_area() {
         (cut_area(&ring, &fan) - 11.0).abs() < 1e-9,
         "the fan, for its part, yielded eleven"
     );
-}
-
-// Behaviour: a convex polygon is cut exactly like the fan from its first corner, index by
-// index. A scene that has only convex faces therefore comes out unchanged.
-#[test]
-fn a_convex_polygon_is_cut_exactly_like_the_fan() {
-    for sides in 3..12usize {
-        let points: Vec<[f64; 2]> = (0..sides)
-            .map(|rank| {
-                let angle = std::f64::consts::TAU * rank as f64 / sides as f64;
-                [angle.cos(), angle.sin()]
-            })
-            .collect();
-        let ring = flat_ring(&points);
-        let (triangles, exact) = cut(&ring);
-        let fan: Vec<[usize; 3]> = (1..sides - 1).map(|step| [0, step, step + 1]).collect();
-        assert!(exact, "{sides} convex sides");
-        assert_eq!(triangles, fan, "{sides} sides: the cut follows the fan");
-    }
 }
 
 // Behaviour: collinear corners do not stall the cut. The square whose each side carries one
