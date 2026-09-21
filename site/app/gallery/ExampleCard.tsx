@@ -53,7 +53,7 @@ function Preview({ example, locale, title }: PreviewProps) {
 
 /** A card's example: a lesson of the catalogue, or an example of the Examples area, which has no
  * description and names its own route and badge. */
-export type CardExample = Omit<CatalogExample, 'description'> & { description?: Localized };
+type CardExample = Omit<CatalogExample, 'description'> & { description?: Localized };
 
 interface ExampleCardProps {
   example: CardExample;
