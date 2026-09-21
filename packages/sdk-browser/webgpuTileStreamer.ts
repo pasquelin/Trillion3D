@@ -105,7 +105,6 @@ export function createWebgpuTileStreamer(options: {
      * the atlas metrics.
      */
     pump(frame: number, unbounded = false) {
-      const started = performance.now();
       let served = 0,
         waiting = 0,
         bytes = 0,
@@ -138,7 +137,6 @@ export function createWebgpuTileStreamer(options: {
       counters.served += served;
       counters.pending = waiting;
       counters.bytesLastFrame = bytes;
-      counters.lastMs = performance.now() - started;
       if (colorServed) options.onColorChanged();
       return { served, waiting };
     },
