@@ -40,10 +40,10 @@ function recordingDevice(groups: Recorded[]) {
   } as unknown as GPUDevice;
 }
 
-/** Streamer in the shape constructors read: one pool and one table per atlas, plus feedback. */
+/** Streamer in the shape constructors read: three lane views and one table per atlas, plus feedback. */
 function stubTextures() {
   const atlas = () => ({
-    pool: { view: {} as GPUTextureView },
+    views: [{}, {}, {}] as GPUTextureView[],
     pages: { buffer: {} as GPUBuffer },
   });
   return {

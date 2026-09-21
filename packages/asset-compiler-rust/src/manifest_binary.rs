@@ -11,7 +11,8 @@
 //!   columnCount × (u32 byteOffset, u32 byteLength)
 //!   column payloads, each starting on an 8-byte boundary
 use crate::texture_preview::{
-    preview_first_level, preview_level_count, preview_pixel_bytes, TexturePreview,
+    preview_block_bytes, preview_first_level, preview_level_count, preview_pixel_bytes,
+    TexturePreview,
 };
 use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
@@ -34,7 +35,10 @@ use format::*;
 /// Version 5 widens an entry from ten to twelve words — the atlas it serves and the number of
 /// levels baked as files under `textures/` — and its pixels follow the graphics card's mip rule.
 /// A reader of version 4 would stride through the entries wrongly, so it refuses this file.
-pub const MANIFEST_BINARY_VERSION: u32 = 6;
+/// Version 6 names the quantized cluster page (`WGP3`) as the only geometry page. Version 7 adds
+/// a layout word per block family to the entry and two columns of block-compressed tails, the
+/// BC family then ASTC; a reader of version 6 would not know them, so it refuses.
+pub const MANIFEST_BINARY_VERSION: u32 = 7;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -63,15 +67,19 @@ const PAGE_DEPTH_LAYER: usize = 20;
 const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
-const COLUMNS: usize = 24;
+/// The tails block-compressed, one column per family in `BlockFormat::ALL` order.
+const TEXTURE_PREVIEW_BLOCKS: [usize; 2] = [24, 25];
+const COLUMNS: usize = 26;
 /// Numbers per level entry: texture, image, width, height, kind and provenance
 /// view, then the first carried level, their count, the start and length of its
-/// pixels, the atlas it serves and the count of levels baked as files.
-const PREVIEW_WORDS: usize = 12;
+/// pixels, the atlas it serves, the count of levels baked as files, and the
+/// layout word of each family — 0 when the chain stays lossless there.
+const PREVIEW_WORDS: usize = 14;
 /// Ranks, in an entry, of the words the level reader and the proof come back for.
 const PREVIEW_FIRST_LEVEL: usize = 6;
 const PREVIEW_KIND: usize = 10;
 const PREVIEW_BAKED: usize = 11;
+const PREVIEW_LAYOUTS: usize = 12;
 
 /// A digest as the columns and the object store spell it: 64 lowercase
 /// hexadecimal characters, and nothing a path could be made of.
@@ -159,9 +167,11 @@ pub fn split(
         )?);
     }
     preview::encode_previews(previews, &mut columns)?;
-    // The pixel column has no fixed stride: its total length enters the small JSON, without
-    // which a reader would not know how many bytes the column must be before reading it.
+    // The pixel and block columns have no fixed stride: their total lengths enter the small
+    // JSON, without which a reader would not know how many bytes a column must be before
+    // reading it.
     let preview_bytes = columns[TEXTURE_PREVIEW_PIXELS].bytes.len();
+    let [bc7_bytes, astc_bytes] = TEXTURE_PREVIEW_BLOCKS.map(|column| columns[column].bytes.len());
     let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
     let mut offset = (header_bytes + 7) & !7;
@@ -185,6 +195,6 @@ pub fn split(
     slim.insert("primitives".into(), Value::Array(slim_primitives));
     slim.insert("binary".into(),json!({"version":MANIFEST_BINARY_VERSION,"url":templates.binary,"sha256":"","bytes":bytes.len(),
   "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle,"texturePreviews":previews.len(),
-  "texturePreviewBytes":preview_bytes}));
+  "texturePreviewBytes":preview_bytes,"texturePreviewBc7Bytes":bc7_bytes,"texturePreviewAstcBytes":astc_bytes}));
     Ok((Value::Object(slim), bytes))
 }

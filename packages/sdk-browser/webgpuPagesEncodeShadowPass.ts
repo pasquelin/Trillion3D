@@ -30,7 +30,7 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
   // What the groups name and which can change identity — the colour tile pool, not the streamer
   // that holds it — compared in place: nothing is allocated per region or per image.
   const key = lights.shadowGroupsKey,
-    pool = textures.color.pool.view;
+    pool = textures.color.views;
   if (
     key[0] !== cacheBuffer ||
     key[1] !== concatPos ||

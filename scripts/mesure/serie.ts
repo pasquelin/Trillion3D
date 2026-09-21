@@ -24,8 +24,7 @@ export async function runSerie(
   suffix = '',
 ): Promise<{ row: Row; captureFile: string }> {
   const { MANIFEST, OUT, settings, lights, poses } = ctx;
-  // The side's engine: `--moteur-<side>` distinguishes it from the campaign's, and that is how
-  // the engine and the Three witness are measured in the same run.
+  // The side's engine (`--moteur-<side>`): how the engine and the Three witness share one run.
   const ENGINE = side.engine;
   const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`;
   const debut = machineLoad();

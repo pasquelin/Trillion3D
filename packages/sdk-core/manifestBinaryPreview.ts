@@ -1,23 +1,55 @@
 import { EngineError, type TexturePreview } from './contracts.ts';
 import * as format from './manifestBinaryFormat.ts';
-import { writeSha } from './manifestBinaryLayout.ts';
-import { previewGeometry, previewLevelSize } from './texturePreviewLevels.ts';
+import { levelBlockBytes, previewGeometry } from './texturePreviewLevels.ts';
 
 type PreviewColumns = {
   count: number;
   previewWords: Uint32Array;
   previewShaText: string;
   previewPixels: Uint8Array<ArrayBuffer>;
+  /** The block-compressed tails, one column per format, entries contiguous in order. */
+  previewBlocks: Record<format.TextureBlockFormat, Uint8Array<ArrayBuffer>>;
 };
+
+/** Byte length of each carried level in the pixel column and in a block column, tail order. */
+export function levelLengths(geometry: ReturnType<typeof previewGeometry>) {
+  return {
+    rgba: geometry.sizes.map(([w, h]) => w * h * 4),
+    blocks: geometry.sizes.map(([w, h]) => levelBlockBytes(w, h)),
+  };
+}
+
+/** The layout a family's word names, or a refusal of a word no layout owns. */
+function layoutOf(entry: number, name: format.TextureBlockFormat, word: number) {
+  const layout = format.PREVIEW_LAYOUT_NAMES[word];
+  if (layout === undefined)
+    throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown block layout', {
+      entry,
+      format: name,
+      word,
+    });
+  return layout;
+}
+
+/** Consecutive views of `lengths` bytes out of `column` from `at`, and where they end. */
+function slices(column: Uint8Array<ArrayBuffer>, at: number, lengths: readonly number[]) {
+  const views = lengths.map((length) => {
+    const view = column.subarray(at, at + length);
+    at += length;
+    return view;
+  });
+  return { views, end: at };
+}
 
 /** What both write and read require of an entry — integer (texture, atlas) pair
  *  strictly increasing, known atlas, real source dimensions, baked levels under the tail —
  *  so an entry rejected on write is exactly the one read would reject. Returns the
  *  entry key, which the next one must exceed. */
-function checkEntryHeader(
+export function checkEntryHeader(
   entry: number,
   header: Pick<TexturePreview, 'texture' | 'atlas' | 'width' | 'height' | 'bakedLevels'>,
   previous: number,
+  firstLevel: number,
 ) {
   const { texture, atlas, width, height, bakedLevels } = header;
   if (atlas !== format.PREVIEW_ATLAS_COLOR && atlas !== format.PREVIEW_ATLAS_DATA)
@@ -42,11 +74,7 @@ function checkEntryHeader(
       width,
       height,
     });
-  if (
-    !Number.isInteger(bakedLevels) ||
-    bakedLevels < 0 ||
-    bakedLevels > previewGeometry(width, height).firstLevel
-  )
+  if (!Number.isInteger(bakedLevels) || bakedLevels < 0 || bakedLevels > firstLevel)
     throw new EngineError(
       'INVALID_CACHE',
       'A texture preview bakes more levels than lie above its tail',
@@ -62,13 +90,16 @@ function checkEntryHeader(
  * Rebuilds the progressive level entries, checking every one before a byte of it is handed on: the
  * texture indices must climb, the source dimensions must be real, the declared level geometry must
  * be the one those dimensions imply, and the byte ranges must follow one another without a gap or
- * an overlap — so one entry can never be read as another's.
+ * an overlap — so one entry can never be read as another's. The block columns write no range:
+ * each kept entry's follows the previous one's at the length its dimensions imply, a lossless
+ * entry has none, and a column that ends before or after the last entry is refused whole.
  */
 export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[] {
-  const { count, previewWords, previewShaText, previewPixels } = columns;
+  const { count, previewWords, previewShaText, previewPixels, previewBlocks } = columns;
   const previews: TexturePreview[] = new Array(count);
   let previous = -1,
     consumed = 0;
+  const blocksAt = { bc7: 0, astc: 0 } as Record<format.TextureBlockFormat, number>;
   for (let entry = 0; entry < count; entry++) {
     const base = entry * format.PREVIEW_WORDS;
     const texture = previewWords[base + format.PREVIEW_TEXTURE];
@@ -76,8 +107,9 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       height = previewWords[base + format.PREVIEW_HEIGHT];
     const atlas = previewWords[base + format.PREVIEW_ATLAS],
       bakedLevels = previewWords[base + format.PREVIEW_BAKED_LEVELS];
-    previous = checkEntryHeader(entry, { texture, atlas, width, height, bakedLevels }, previous);
     const expected = previewGeometry(width, height);
+    const header = { texture, atlas, width, height, bakedLevels };
+    previous = checkEntryHeader(entry, header, previous, expected.firstLevel);
     const firstLevel = previewWords[base + format.PREVIEW_FIRST_LEVEL];
     const declared = {
       firstLevel,
@@ -103,14 +135,28 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
         bytes: declared.pixelBytes,
         column: previewPixels.length,
       });
-    const levels: Uint8Array<ArrayBuffer>[] = [];
-    let at = offset;
-    for (let index = 0; index < declared.levelCount; index++) {
-      const [w, h] = previewLevelSize(width, height, firstLevel + index);
-      levels.push(previewPixels.subarray(at, at + w * h * 4));
-      at += w * h * 4;
-    }
-    consumed = at;
+    const lengths = levelLengths(expected);
+    const pixels = slices(previewPixels, offset, lengths.rgba);
+    consumed = pixels.end;
+    const layouts = {} as TexturePreview['layouts'],
+      blocks = {} as TexturePreview['blocks'];
+    format.PREVIEW_BLOCK_FORMATS.forEach((name, family) => {
+      layouts[name] = layoutOf(entry, name, previewWords[base + format.PREVIEW_LAYOUTS + family]);
+      if (layouts[name] === 'lossless') {
+        blocks[name] = [];
+        return;
+      }
+      const column = previewBlocks[name];
+      if (blocksAt[name] + expected.blockBytes > column.length)
+        throw new EngineError('INVALID_CACHE', 'A texture preview block column is too short', {
+          entry,
+          format: name,
+          column: column.length,
+        });
+      const sliced = slices(column, blocksAt[name], lengths.blocks);
+      blocks[name] = sliced.views;
+      blocksAt[name] = sliced.end;
+    });
     const sourceKind = previewWords[base + format.PREVIEW_SOURCE_KIND];
     previews[entry] = {
       texture,
@@ -126,57 +172,17 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       atlas,
       firstLevel,
       bakedLevels,
-      levels,
+      levels: pixels.views,
+      layouts,
+      blocks,
     };
   }
+  for (const name of format.PREVIEW_BLOCK_FORMATS)
+    if (blocksAt[name] !== previewBlocks[name].length)
+      throw new EngineError('INVALID_CACHE', 'A texture preview block column is too long', {
+        format: name,
+        column: previewBlocks[name].length,
+        expected: blocksAt[name],
+      });
   return previews;
-}
-
-type ColumnView = <T>(
-  name: format.ColumnName,
-  make: (buffer: ArrayBuffer, offset: number, elements: number) => T,
-) => T;
-
-/**
- * Writes the three preview columns of an encoder that hands out views by column name, refusing
- * anything the reader above would refuse.
- */
-export function encodePreviewColumns(previews: readonly TexturePreview[], view: ColumnView) {
-  const words = view('texturePreviewU32', (b, o, n) => new Uint32Array(b, o, n));
-  const sha = view('texturePreviewSha', (b, o, n) => new Uint8Array(b, o, n));
-  const pixels = view('texturePreviewPixels', (b, o, n) => new Uint8Array(b, o, n));
-  let previous = -1,
-    offset = 0;
-  previews.forEach((preview, entry) => {
-    previous = checkEntryHeader(entry, preview, previous);
-    const expected = previewGeometry(preview.width, preview.height);
-    const base = entry * format.PREVIEW_WORDS;
-    words[base + format.PREVIEW_TEXTURE] = preview.texture;
-    words[base + format.PREVIEW_IMAGE] = preview.image;
-    words[base + format.PREVIEW_WIDTH] = preview.width;
-    words[base + format.PREVIEW_HEIGHT] = preview.height;
-    words[base + format.PREVIEW_SOURCE_KIND] = preview.sourceKind;
-    words[base + format.PREVIEW_SOURCE_VIEW] =
-      preview.sourceKind === format.PREVIEW_SOURCE_URI ? 0xffffffff : preview.sourceBufferView;
-    words[base + format.PREVIEW_FIRST_LEVEL] = expected.firstLevel;
-    words[base + format.PREVIEW_LEVEL_COUNT] = expected.levelCount;
-    words[base + format.PREVIEW_PIXEL_OFFSET] = offset;
-    words[base + format.PREVIEW_PIXEL_BYTES] = expected.pixelBytes;
-    words[base + format.PREVIEW_ATLAS] = preview.atlas;
-    words[base + format.PREVIEW_BAKED_LEVELS] = preview.bakedLevels;
-    writeSha(sha, entry, preview.sha256);
-    for (let index = 0; index < expected.levelCount; index++) {
-      const [w, h] = previewLevelSize(preview.width, preview.height, expected.firstLevel + index);
-      const source = preview.levels[index];
-      if (!source || source.length !== w * h * 4)
-        throw new EngineError('INVALID_CACHE', 'A texture preview level has the wrong length', {
-          entry,
-          level: expected.firstLevel + index,
-          length: source?.length ?? null,
-          expected: w * h * 4,
-        });
-      pixels.set(source, offset);
-      offset += source.length;
-    }
-  });
 }

@@ -1,15 +1,31 @@
 {
   "binary": {
+    "texturePreviewAstcBytes": 0,
+    "texturePreviewBc7Bytes": 0,
     "texturePreviewBytes": 44,
     "texturePreviews": 1
   },
   "case": "A quad whose base colour is vraies-couleurs-24-bas.bmp, a 4 × 2 24-bit true-colour BMP stored bottom-up, compiled by the common harness.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 6,
+  "manifestBinaryVersion": 7,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
+      "blocks": [
+        {
+          "bytes": 0,
+          "format": "bc7",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "bytes": 0,
+          "format": "astc",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
       "firstLevel": 0,
       "height": 2,
       "image": 0,
@@ -67,17 +83,44 @@
   "report": {
     "bakedLevels": 0,
     "base": 64,
+    "blockBytes": 0,
+    "blockFormats": ["bc7"],
     "colorTextures": 1,
     "dataTextures": 0,
+    "encoded": {
+      "bc7": {
+        "keptPsnrDb": null,
+        "lossless": 1,
+        "rgba": 0,
+        "twoChannel": 0
+      }
+    },
+    "lossless": [
+      {
+        "atlas": "srgb",
+        "format": "bc7",
+        "layout": "rgba",
+        "maskFlips": 0,
+        "maxDelta": 201,
+        "psnrDb": 10.91,
+        "sha256": "33d9656610aead9da9d93c144de38fb463eecb17ea733910d9365a270ed1e313"
+      }
+    ],
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 44,
     "previews": 1,
+    "qualityGate": {
+      "decoder": "texture2ddecoder",
+      "maskFlips": 0,
+      "maxDelta": 3,
+      "psnrDb": 48.0
+    },
     "skipped": {},
-    "version": 3
+    "version": 4
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Neither BMP nor GIF adds loss: the first is read as-is and put back in image order, the second is indexed, and a colour table already carries 8-8-8.",
   "textures": {
-    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+    "url": "../../textures/v4/{sha}/{kind}-{level}.{format}"
   }
 }

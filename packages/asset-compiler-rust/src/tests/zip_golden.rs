@@ -75,3 +75,11 @@ fn chain_report(run: &GoldenRun) -> Value {
         .map(|report| report["chain"].clone())
         .expect("the container publishes the driver chain")
 }
+
+#[test]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
+fn regenerate_the_zip_fixture() {
+    let dir = golden_dir("zip");
+    let inside = compile_golden_source(&dir.join("scene.zip"), "zip-archive");
+    write_expected(&dir, archive_digest(&dir, &inside), "", "");
+}
