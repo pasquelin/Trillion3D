@@ -1,11 +1,11 @@
-import * as THREE from 'three';
 import { awaitBackendPages } from './awaitBackendPages.ts';
 import { decodePageOffThread, releasePageDecoders } from './pageDecodeHost.ts';
 import { releasePageIntegration } from './pageIntegrationHost.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
 import { retainVisiblePages } from './retainVisiblePages.ts';
-import type { RenderBackend } from './backendTypes.ts';
-import type { ExplorerHostState } from './explorerHostState.ts';
+import type { BackendContext, RenderBackend } from './backendTypes.ts';
+import type { HostCamera } from './cameraWorld.ts';
+import type { createExplorerHostState, ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { createPageStreamer } from './streamingPages.ts';
@@ -23,11 +23,11 @@ type Inputs = {
   disposeComposition: () => void;
   streamer: ReturnType<typeof createPageStreamer>;
   streaming: ReturnType<typeof createExplorerStreaming>;
-  overlays: THREE.Material[];
+  overlays: ReturnType<typeof createExplorerHostState>['overlays'];
   backends: RenderBackend[];
-  source: THREE.Object3D;
+  source: BackendContext['source'];
   webglSurface?: WebglSurface;
-  camera: THREE.PerspectiveCamera;
+  camera: HostCamera;
   geometryUrls: Set<string>;
 };
 

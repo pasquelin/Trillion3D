@@ -1,7 +1,7 @@
-import * as THREE from 'three';
 import type { CameraPose } from '../sdk-core/index.ts';
 import { devicePixels } from './backendCommon.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { HostCamera } from './cameraWorld.ts';
 import type { BoundTarget } from './explorerHostState.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
@@ -10,7 +10,7 @@ type Inputs = {
   active: () => RenderBackend;
   setCapturingSurface: (value: boolean) => void;
   targets: () => (BoundTarget | undefined)[];
-  camera: THREE.PerspectiveCamera;
+  camera: HostCamera;
   canvas: HTMLCanvasElement;
   /** The engine's surface, which owns the drawing buffer; absent on the direct WebGPU path only,
    *  where the page canvas is sized directly. */
@@ -18,9 +18,6 @@ type Inputs = {
   viewport: [number, number];
   options: ExplorerOptions;
 };
-
-/** Target of the captured view, reused from capture to capture: nothing is allocated per call. */
-const captureTarget = new THREE.Vector3();
 
 export function createExplorerViewportApi(inputs: Inputs) {
   const {
@@ -48,7 +45,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       view.near = pose.near;
       view.far = pose.far;
       view.aspect = size.width / size.height;
-      view.lookAt(captureTarget.fromArray(pose.target));
+      view.lookAt(pose.target[0], pose.target[1], pose.target[2]);
       view.updateProjectionMatrix();
       view.updateMatrixWorld();
       setCapturingSurface(true);
