@@ -125,8 +125,12 @@ export async function decodeGeometryPageWasm(
   const inputPtr = codec.page_alloc(data.byteLength);
   if (!inputPtr) throw new Error('GEOMETRY_PAGE_BOUNDS');
   new Uint8Array(codec.memory.buffer, inputPtr, data.byteLength).set(data);
-  const bloc = codec.page_decode(inputPtr, data.byteLength, maxDecodedBytes);
-  codec.page_free(inputPtr, data.byteLength);
+  let bloc: number;
+  try {
+    bloc = codec.page_decode(inputPtr, data.byteLength, maxDecodedBytes);
+  } finally {
+    codec.page_free(inputPtr, data.byteLength);
+  }
   if (!bloc) throw new Error('GEOMETRY_PAGE_BOUNDS');
   try {
     return copie(codec, bloc);

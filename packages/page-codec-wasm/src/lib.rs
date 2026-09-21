@@ -75,9 +75,13 @@ impl Header {
             .sum::<usize>()
     }
 
-    /// Bytes of the decoded page: float attributes and 32-bit indices.
+    /// Bytes of the decoded page: float attributes and 32-bit indices. Saturating, since a
+    /// forged count would otherwise wrap a 32-bit `usize` back under the budget and let the
+    /// decoder trap on its allocation instead of refusing the header.
     pub fn decoded_bytes(&self) -> usize {
-        self.vertex_count * self.vertex_floats() * 4 + self.index_count * 4
+        self.vertex_count
+            .saturating_mul(self.vertex_floats() * 4)
+            .saturating_add(self.index_count.saturating_mul(4))
     }
 
     /// The header as its words, the exact inverse of `parse`.
@@ -134,7 +138,7 @@ impl Header {
         };
         let sane = w[21..].iter().all(|&word| word == 0)
             && (1..=MAX_VERTICES).contains(&header.vertex_count)
-            && header.index_count >= 3
+            && (3..=max_decoded_bytes / 4).contains(&header.index_count)
             && header.index_count.is_multiple_of(3)
             && header.flags & !FLAGS_ALL == 0
             && header.quantization_error.is_finite()

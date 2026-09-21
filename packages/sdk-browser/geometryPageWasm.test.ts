@@ -87,3 +87,20 @@ test('even once loaded, the module refuses a page that is too short before touch
     /GEOMETRY_PAGE_HEADER/,
   );
 });
+
+test('a forged index count is refused by both decoders before either allocates', async () => {
+  // One vertex, so indices cost no bits and the layout still matches the header alone; three
+  // times 2^30 indices, whose byte count wraps a 32-bit size to zero without saturation.
+  const { decodeGeometryPageWasm, prepareSdkWasm } = await frais();
+  assert.ok(await prepareSdkWasm(MODULE));
+  const { data } = encodeGeometryPage([0, 0, 0], {
+    POSITION: { itemSize: 3, array: new Float32Array([1, 2, 3]) },
+  });
+  const forged = (data as Uint8Array).slice();
+  new DataView(forged.buffer).setUint32(3 * 4, 3 * 2 ** 30, true);
+  assert.throws(() => decodeGeometryPage(forged.slice(), 1 << 24), /GEOMETRY_PAGE_BOUNDS/);
+  await assert.rejects(
+    () => decodeGeometryPageWasm(forged.slice(), 1 << 24),
+    /GEOMETRY_PAGE_BOUNDS/,
+  );
+});
