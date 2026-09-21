@@ -1,7 +1,6 @@
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 import { FEEDBACK_FORMAT } from './surfaceBuffer.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
-import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
 import { VOLUME_SIZE } from './webgpuTransmission.ts';
 import {
@@ -14,7 +13,6 @@ import { DEPTH_COMPARE } from './depthConvention.ts';
 /** Builds the forward-material pipelines for transparent draws. */
 export async function createWebgpuBlendPipelines(
   device: GPUDevice,
-  items: BlendGpuItem[],
   variant?: DiagnosticGpuVariant,
 ) {
   const b = BLEND_BINDINGS;
@@ -115,7 +113,6 @@ export async function createWebgpuBlendPipelines(
       ? device.createRenderPipelineAsync(descriptor)
       : Promise.resolve(device.createRenderPipeline(descriptor));
   };
-  for (const item of items) item.group = undefined;
   const pipelineBlendTextured = await makeBlend('none'),
     pipelineBlendFront = await makeBlend('front'),
     pipelineBlendBack = await makeBlend('back');
