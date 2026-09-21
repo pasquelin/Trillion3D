@@ -1,5 +1,5 @@
 import type { BackendContext, HostDrawOutput } from './backendTypes.ts';
-import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
+import type { HostDrawCamera } from './cameraWorld.ts';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
 import { createThreeSceneDraw } from './threeSceneAdapter.ts';
 import { clusterWebglCompatibility, ownedSceneCopy } from './webglClusterCompatibility.ts';
@@ -40,10 +40,10 @@ export function createExactPagesClusterBatches(
   const batches = new ClusterBatches(scene, pages, owner, transmissive);
   const sceneDraw = createThreeSceneDraw(gl, scene);
   const hostDraw = {
-    render: (camera: HostCamera) => sceneDraw.render(camera),
+    render: sceneDraw.render,
     drawHostGeometry(camera: HostDrawCamera, output: HostDrawOutput) {
       if (refusal) throw refusal;
-      batches.draw(camera, output.toneMapped, output.encodeSrgb);
+      batches.draw(camera, output.toneMapped, true);
       sceneDraw.drawHostGeometry(camera, output);
     },
     dispose: sceneDraw.dispose,

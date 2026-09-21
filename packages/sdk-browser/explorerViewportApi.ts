@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import type { CameraPose } from '../sdk-core/index.ts';
 import { devicePixels } from './backendCommon.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
-import type { WebglRenderTarget } from './webglRenderTarget.ts';
+import type { BoundTarget } from './explorerHostState.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
   check: () => void;
   active: () => RenderBackend;
   setCapturingSurface: (value: boolean) => void;
-  targets: () => (WebglRenderTarget | undefined)[];
+  targets: () => (BoundTarget | undefined)[];
   camera: THREE.PerspectiveCamera;
   canvas: HTMLCanvasElement;
   /** The engine's surface, which owns the drawing buffer; absent on the direct WebGPU path only,
@@ -72,7 +72,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       viewport[0] = canvas.width;
       viewport[1] = canvas.height;
       // The composition targets follow the drawing buffer, in its pixels.
-      for (const target of targets()) target?.resize(canvas.width, canvas.height);
+      for (const target of targets()) target?.current()?.resize(canvas.width, canvas.height);
     },
   };
 }

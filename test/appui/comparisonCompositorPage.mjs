@@ -7,15 +7,10 @@ import {
   createWebglRenderTarget,
 } from '../../packages/sdk-browser/webglRenderTarget.ts';
 import { WEBGL_CONTEXT_ATTRIBUTES } from '../../packages/sdk-browser/webglSurface.ts';
+import { pixel } from './webglClusterPixels.mjs';
 
 const WIDTH = 64,
   HEIGHT = 32;
-
-function pixel(gl, x, y) {
-  const value = new Uint8Array(4);
-  gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
-  return [...value];
-}
 
 /** A target filled with one display colour, as an engine's frame would leave it. */
 function filled(gl, r, g, b) {

@@ -1,6 +1,6 @@
 import { presentationColorDiagnostic } from './presentationDiagnostic.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { ExplorerOptions } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
 import type { createFrameComposer } from './explorerCompose.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -15,15 +15,13 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   context?: WebGL2RenderingContext;
   options: ExplorerOptions;
   directGpu: boolean;
-  presentBackend: (backend: RenderBackend) => boolean;
   state: Pick<ExplorerHostState, 'active' | 'measuring'>;
   check: () => void;
   compose: ReturnType<typeof createFrameComposer>;
 };
 
 export function createExplorerCapture(inputs: Inputs) {
-  const { canvas, camera, options, directGpu, presentBackend, state, check, diagnose, compose } =
-    inputs;
+  const { canvas, camera, options, directGpu, state, check, diagnose, compose } = inputs;
   const capturePool = [new Uint8Array(0), new Uint8Array(0), new Uint8Array(0)];
   let captureSlot = 0;
   const presentationDiagnostics = new Set<string>(),
@@ -49,8 +47,8 @@ export function createExplorerCapture(inputs: Inputs) {
       ),
     });
   };
-  // What the page shows is sampled once per engine, and only when the last frame went to the
-  // page: a measured frame landed on its own target, and the drawing buffer is stale.
+  // What the page shows is sampled once per engine, on the drawing buffer, and only when the
+  // last frame went to it: a measured frame landed on its own target, and it is stale.
   const logVisiblePresentation = (gl: WebGL2RenderingContext) => {
     const active = state.active;
     if (visiblePresentationDiagnostics.has(active.id) || state.measuring) return;
@@ -79,13 +77,12 @@ export function createExplorerCapture(inputs: Inputs) {
     if (directGpu && active.capture) return active.capture();
     const gl = inputs.context;
     if (!gl) throw new Error('The direct GPU path has no host surface to read');
-    logVisiblePresentation(gl);
-    // Reading the composition means composing it first, by the same rule as a frame. The
-    // destination is the page's own drawing buffer, which encodes nothing; the next frame binds
-    // its own target again.
-    active.render(camera);
     bindWebglTarget(gl, null);
-    if (!presentBackend(active)) compose(active, null, false);
+    logVisiblePresentation(gl);
+    // Reading the composition means composing it first, by the same rule as a frame, on the
+    // page's own drawing buffer; the next frame binds its own target again.
+    active.render(camera);
+    compose(active, null, false);
     const size = canvas.width * canvas.height * 4;
     captureSlot = (captureSlot + 1) % 3;
     if (capturePool[captureSlot].length !== size) capturePool[captureSlot] = new Uint8Array(size);

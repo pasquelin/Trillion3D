@@ -6,7 +6,7 @@ import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
 import type { createFrameComposer } from './explorerCompose.ts';
 import type { HostCamera } from './cameraWorld.ts';
-import { bindWebglTarget, type WebglRenderTarget } from './webglRenderTarget.ts';
+import type { WebglRenderTarget } from './webglRenderTarget.ts';
 import { retainVisiblePages } from './retainVisiblePages.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
@@ -21,7 +21,6 @@ type Inputs = {
   streaming: ReturnType<typeof createExplorerStreaming>;
   directGpu: boolean;
   webglSurface?: WebglSurface;
-  presentBackend: (backend: RenderBackend) => boolean;
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
   compose: ReturnType<typeof createFrameComposer>;
@@ -56,8 +55,7 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
 
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
-  const { camera, geometryUrls, streamer, streaming, presentBackend, baseline, state, compose } =
-    inputs;
+  const { camera, geometryUrls, streamer, streaming, baseline, state, compose } = inputs;
   const { directGpu, webglSurface } = inputs;
   // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit on the engine's
   // context, and is only mounted if the host asked for the per-step profile.
@@ -65,14 +63,6 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     session.options.stageProfile === true && webglSurface
       ? createWebglFrameTimer(webglSurface.context)
       : null;
-  /** A presented surface is copied where the frame lands: the composer binds a target before
-   *  asking an engine to draw, the copy binds it itself. */
-  const present = (backend: RenderBackend, target: WebglRenderTarget | null) => {
-    if (!backend.presentedSurface) return false;
-    if (!webglSurface) throw new Error('The direct GPU path composes nothing');
-    bindWebglTarget(webglSurface.context, target);
-    return presentBackend(backend);
-  };
   const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
     const { measuring } = state;
     const steps = backend as HostCpuProfile;
@@ -147,7 +137,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       state.fallbackReason = fallbackReason;
       state.active = baseline;
       baseline.render(camera);
-      if (!present(baseline, target)) compose(baseline, target, false);
+      compose(baseline, target, false);
       emit({
         eventVersion: 1,
         type: 'fallback',
@@ -166,9 +156,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       return;
     }
     gpuTimer?.begin();
-    // An engine that presented its own surface is copied from it; the others draw on the host
-    // surface through the composer, the only case the held frame belongs to.
-    if (!present(backend, target)) compose(backend, target);
+    compose(backend, target);
     gpuTimer?.end();
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {

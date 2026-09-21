@@ -43,8 +43,8 @@ export interface FrameMetrics
   cpuFrameMs: number;
   cpuSubmitMs: number | null;
   gpuMs: number | null;
-  /** Draw calls of this frame. `null` when neither the engine nor the host renderer
-   *  counts them: a zero would read as a frame with no draw. */
+  /** Draw calls of this frame, as the engine counted them. `null` when it has not counted
+   *  them: a zero would read as a frame with no draw. */
   drawCalls: number | null;
   /** Paged cluster draws issued by the engine-owned WebGL2 program in this session. */
   autonomousClusterDrawsTotal?: number | null;
@@ -52,9 +52,8 @@ export interface FrameMetrics
   autonomousCopyDraws?: number | null;
   /** Bytes the WebGL2 transmission backdrop holds since the first transmissive copy in view. */
   transmissionBackdropBytes?: number | null;
-  /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them, or
-   *  as the host renderer drew them when it is the one drawing. `null` when neither
-   *  has counted: a zero would read as an empty frame. */
+  /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them.
+   *  `null` when the engine has not counted them: a zero would read as an empty frame. */
   triangles: number | null;
   clusters: number | null;
   selectedTriangles: number | null;
@@ -115,8 +114,8 @@ export interface FrameMetrics
    * What the held frame DID is published as-is, never copied from the last complete render:
    * `drawCalls`, `triangles`, `submittedTriangles` and `totalSubmittedTriangles` count only
    * present, and per-stage CPU and GPU durations are zero when the stage did not
-   * run, `null` when nothing timed it. An engine that does not submit its own frame —
-   * the host redrawing the graph it holds — on the other hand counts the calls that host emits.
+   * run, `null` when nothing timed it. An engine whose image is a scene the witness adapter
+   * draws counts what that adapter submitted in this frame — nothing, on a held one.
    *
    * What the held frame SHOWS remains described by the cut it redisplays: `clusters`,
    * `selectedTriangles`, `frustumRejected`, `lodLevel` and `residentPages` are those of the

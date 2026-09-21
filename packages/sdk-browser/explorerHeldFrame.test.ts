@@ -1,7 +1,6 @@
-// An engine that draws on the host surface says when its frame cannot change: a held frame put
-// the whole scene back through the renderer while the engine had just said so. It is now one
-// copy each way, on an explicit texture of the drawing buffer — the canvas keeps nothing from
-// frame to frame, `preserveDrawingBuffer` being false — with no program and no conversion.
+// The held frame is one copy each way on a colour-only target of the drawing buffer, no program
+// and no conversion (`explorerHeldFrame.ts` says why); before, a full-screen mesh put it back
+// through the renderer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHeldFrame } from './explorerHeldFrame.ts';
@@ -19,7 +18,8 @@ test('the kept frame is put back by a single blit, and nothing of the scene', ()
   held.keep(8, 4);
   assert.equal(of('blitFramebuffer').length, 1, 'the complete frame is copied once');
   assert.equal(of('texImage2D').length, 1, 'one raw texture at the drawing-buffer size');
-  assert.equal(of('texImage2D')[0][2], 'RGBA8', 'raw bytes, no colour space on either side');
+  assert.deepEqual(of('texImage2D')[0].slice(2, 5), ['RGBA8', 8, 4], 'raw bytes, no conversion');
+  assert.equal(of('createRenderbuffer').length, 0, 'a colour-only copy: no depth');
   assert.equal(held.holds(8, 4), true);
   held.present();
   held.present();

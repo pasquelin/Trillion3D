@@ -3,62 +3,41 @@ import assert from 'node:assert/strict';
 import { createBackendPresenter } from './explorerComposeSurface.ts';
 import { createExplorerCapture } from './explorerCapture.ts';
 import type { RenderBackend } from './backendTypes.ts';
-
-/** A live context that answers everything and records the calls that carry the copy. */
-function fakeContext(calls: string[], lost = false) {
-  const fixed: Record<string, unknown> = {
-    canvas: { addEventListener: () => {}, removeEventListener: () => {} },
-    isContextLost: () => lost,
-  };
-  return new Proxy(
-    {},
-    {
-      get: (_target, name: string) =>
-        name in fixed
-          ? fixed[name]
-          : /^[A-Z0-9_]+$/.test(name)
-            ? 1
-            : (...args: unknown[]) => {
-                calls.push(name);
-                return name.startsWith('get') ? true : args.length ? undefined : {};
-              },
-    },
-  ) as unknown as WebGL2RenderingContext;
-}
+import { createTestContext } from './webglTestContext.ts';
 
 const surface = { width: 4, height: 4 } as HTMLCanvasElement;
 
 test('an engine that presented its own surface is copied from it, and says so', () => {
-  const calls: string[] = [];
-  const present = createBackendPresenter(fakeContext(calls));
+  const { gl, of, names } = createTestContext();
+  const present = createBackendPresenter(gl);
   assert.equal(present({ presentedSurface: surface }), true);
-  assert.ok(calls.includes('texImage2D'), 'the presented surface was not uploaded');
-  assert.ok(calls.includes('drawArrays'), 'the copy was not drawn');
-  const built = calls.filter((call) => call === 'linkProgram').length;
+  assert.ok(names().includes('texImage2D'), 'the presented surface was not uploaded');
+  assert.ok(names().includes('drawArrays'), 'the copy was not drawn');
   present({ presentedSurface: surface });
-  assert.equal(calls.filter((call) => call === 'linkProgram').length, built, 'one program');
+  assert.equal(of('linkProgram').length, 1, 'one program for every copy');
   present.dispose();
-  assert.ok(calls.includes('deleteProgram'), 'the program leaves with the presenter');
+  assert.equal(of('deleteProgram').length, 1, 'the program leaves with the presenter');
 });
 
 test('a lost context draws nothing and keeps no program of the dead one', () => {
-  const calls: string[] = [];
-  const present = createBackendPresenter(fakeContext(calls, true));
+  const { gl, calls } = createTestContext({ lost: true });
+  const present = createBackendPresenter(gl);
   assert.equal(present({ presentedSurface: surface }), true);
   assert.deepEqual(calls, []);
 });
 
 test('an engine that draws on the host surface is left to the composer: nothing is copied', () => {
-  const calls: string[] = [];
-  const present = createBackendPresenter(fakeContext(calls));
+  const { gl, calls } = createTestContext();
+  const present = createBackendPresenter(gl);
   assert.equal(present({}), false);
   assert.deepEqual(calls, []);
 });
 
 /** The explicit capture reads the host composition, so it must compose it the same way a frame
- *  does, on the page's drawing buffer: bound first, drawn, then read. */
-test('the explicit capture composes the presented surface instead of drawing the scene', () => {
-  for (const presented of [true, false]) {
+ *  does, on the page's drawing buffer: bound first, the visible sample, the composition, the
+ *  read — and no visible sample while a campaign measures on its own target. */
+test('the explicit capture binds the drawing buffer, samples it, composes, then reads', () => {
+  for (const measuring of [false, true]) {
     const steps: string[] = [];
     const capture = createExplorerCapture({
       canvas: { width: 2, height: 2 } as HTMLCanvasElement,
@@ -73,10 +52,9 @@ test('the explicit capture composes the presented surface instead of drawing the
       } as unknown as WebGL2RenderingContext,
       options: {} as never,
       directGpu: false,
-      presentBackend: () => presented,
       state: {
-        active: { id: 'engine', render: () => {} } as unknown as RenderBackend,
-        measuring: false,
+        active: { id: 'engine', render: () => steps.push('render') } as unknown as RenderBackend,
+        measuring,
       },
       check: () => {},
       diagnose: () => {},
@@ -85,7 +63,9 @@ test('the explicit capture composes the presented surface instead of drawing the
     capture();
     assert.deepEqual(
       steps,
-      presented ? ['read', 'bind:null', 'read'] : ['read', 'bind:null', 'compose', 'read'],
+      measuring
+        ? ['bind:null', 'render', 'compose', 'read']
+        : ['bind:null', 'read', 'render', 'compose', 'read'],
     );
   }
 });
