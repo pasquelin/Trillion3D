@@ -95,8 +95,18 @@ function Control({ control }: { control: LessonControl }) {
   );
 }
 
-/** One control with its label and, for a slider, its value beside it. */
+/** One control with its label: before the switch for a toggle, above the track for a slider, with
+ * its value on the right. */
 function ControlField({ control, className = '' }: { control: LessonControl; className?: string }) {
+  if (control.kind === 'toggle' && control.label !== undefined)
+    return (
+      <div
+        className={`control-panel-field control-toggle-field ${control.legend ? 'control-panel-span' : ''} ${className}`}
+      >
+        <span className="control-label">{control.label}</span>
+        <Control control={control} />
+      </div>
+    );
   if (control.label === undefined)
     return (
       <div className={className}>
