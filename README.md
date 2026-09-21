@@ -161,7 +161,7 @@ See [scripts/mesure/README.md](scripts/mesure/README.md) and [docs/TESTS.md](doc
 | `pnpm run check:lines`      | **200 physical lines per source file**, JS/TS/Rust, no legacy exception                                                                                                                          |
 | `pnpm run check:duplicates` | no repeated block ≥ 12 lines and ≥ 100 tokens across JS/TS/Rust                                                                                                                                  |
 | `pnpm run check:structure`  | core/adapter boundaries; `sdk-core` type-checks without DOM                                                                                                                                      |
-| `pnpm run validate`         | everything above plus Clippy, unused code/files/dependencies, TS and native builds, declarations, links, and all JS/TS/Rust tests — the CI gate ([`quality.yml`](.github/workflows/quality.yml)) |
+| `pnpm run validate`         | everything above plus Clippy, unused code/files/dependencies, TS and native builds, declarations, links, and all JS/TS/Rust tests — the CI gate ([`quality.yml`](.github/workflows/quality.yml)), which skips the Rust steps when the sources are unchanged since a green run |
 | `pnpm run test:gpu`         | browser proofs on a real GPU                                                                                                                                                                     |
 
 The engine stays generic: no scene names, no hardcoded lights or cameras, no object-type special
