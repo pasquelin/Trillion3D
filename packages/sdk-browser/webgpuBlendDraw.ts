@@ -107,10 +107,6 @@ export function drawBlendRuns(
   return encoded;
 }
 
-/** Whether a pass has anything to encode: runs, and the arguments the GPU wrote for them. */
-export const blendPassReady = (rt: WebgpuPagesRuntime, slice: number) =>
-  !!rt.blendState.runCount[slice] && !!rt.blendState.argsBuffer;
-
 /**
  * Encodes a forward transparent pass over the lit image: the blends, or — under a diagnostic
  * view or variant, which see it as one more blend — the transmission slice. Virtual-texture
@@ -125,7 +121,8 @@ export function drawBlendPass(
 ): boolean {
   const { gpu, vis, blendState } = rt,
     slice = transmissive ? 1 : 0;
-  if (!blendPassReady(rt, slice)) return false;
+  // Nothing to encode without runs, or without the arguments the GPU wrote for them.
+  if (!blendState.runCount[slice] || !blendState.argsBuffer) return false;
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
