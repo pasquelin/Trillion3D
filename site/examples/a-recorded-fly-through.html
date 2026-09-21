@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A recorded fly-through, replayed</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0e1621; }
+      canvas { display: block; width: 100%; height: 100%; }
+      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+    </style>
+    <script type="importmap">
+      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p>Street lamp by W. Sitters, Elements-3D, CC BY 3.0 — see assets/examples/CREDITS.md</p>
+    <script type="module">
+      import { createExplorer, webgpuPagesBackend } from '../runtime/engine.js';
+
+      const canvas = document.getElementById('view');
+      const explorer = await createExplorer(canvas, {
+        manifestUrl: '../assets/examples/street-corner/cache/native/full/manifest.json',
+        scope: 'full',
+        backends: [webgpuPagesBackend],
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+        pixelRatio: devicePixelRatio,
+      });
+      explorer.addLight({
+        id: 'sun',
+        kind: 'directional',
+        direction: [-0.6, -0.7, -0.4],
+        color: [1, 0.95, 0.85],
+        intensity: 3.5,
+        castsShadow: true,
+      });
+
+      // Smooth orbital fly-through around the street lamp.
+const home = explorer.homePose();
+async function fly(time) {
+  const a = time / 5000;
+  explorer.setPose({ ...home, position: [Math.cos(a) * 3, 2.0, Math.sin(a) * 3], target: [0, 1.2, 0] });
+  await explorer.awaitPages();
+  explorer.render();
+  await explorer.flush();
+  requestAnimationFrame(fly);
+}
+requestAnimationFrame(fly);
+    </script>
+  </body>
+</html>
