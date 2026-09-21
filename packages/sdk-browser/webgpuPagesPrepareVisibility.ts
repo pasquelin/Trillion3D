@@ -1,5 +1,4 @@
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
-import { waterPassRefusal } from './webgpuWaterPass.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import {
@@ -27,23 +26,23 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     { drawSlots } = rt.layout,
     [width, height] = rt.setup.viewport;
   try {
+    const built = await createWebgpuBlendPipelines(
+      gpuDevice,
+      blendState.blendGpu,
+      rt.context.diagnosticGpuVariant,
+    );
     ({
       blendBindGroupLayout: vis.blendBindGroupLayout,
       pipelineBlendTextured: vis.pipelineBlendTextured,
       pipelineBlendFront: vis.pipelineBlendFront,
       pipelineBlendBack: vis.pipelineBlendBack,
       water: blendState.water,
-    } = await createWebgpuBlendPipelines(
-      gpuDevice,
-      blendState.blendGpu,
-      rt.context.diagnosticGpuVariant,
-    ));
+    } = built);
     // A new layout voids the shared group of paged items like the others'.
     blendState.pagedGroup = undefined;
-    const refused = blendState.transmissive
-      ? waterPassRefusal(blendState.blendGpu.length)
-      : undefined;
-    if (refused) diag.diagnosticFailure('water-pass-refused', refused);
+    // No water pass — too many items for its rank, or a device that refused it: the blends stay,
+    // the transmission slice draws as one of them, and the host reads why.
+    if (built.waterRefused) diag.diagnosticFailure('water-pass-refused', built.waterRefused);
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;
