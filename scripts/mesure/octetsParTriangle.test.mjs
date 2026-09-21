@@ -10,8 +10,7 @@ const manifest = {
     {
       quantization: {
         positionExponent: -10,
-        positionStep: 2 ** -10,
-        uvExponent: -16,
+        uvExponent: -14,
         maxPositionError: 0.0004,
       },
       pages: [

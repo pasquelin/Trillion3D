@@ -21,10 +21,7 @@ fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_err
     let tinted = encode(&[0, 1, 2], &positions, &[&colour], -8).expect("tinted");
     assert_eq!(tinted.bytes.len(), plain);
     let page = codec::decode(&tinted.bytes, 1 << 20).expect("decode");
-    assert_eq!(
-        page.optional[3].as_deref(),
-        Some(&[0.5, 0.25, 1.0, 1.0].repeat(3)[..])
-    );
+    assert_eq!(page.attribute(4), Some(&[0.5, 0.25, 1.0, 1.0].repeat(3)[..]));
     // A primitive one unit wide: 2^-16 by extent; an error of 2^-15 asks for 2^-18, the finer.
     assert_eq!(primitive_exponent(&positions, [0.5f64].into_iter()), -16);
     assert_eq!(
@@ -52,10 +49,10 @@ fn vertices_on_the_same_grid_cells_are_kept_once() {
         0.0,
     ];
     let encoded = encode(&[0, 1, 3, 0, 2, 3], &positions, &[], -4).expect("encode");
-    assert_eq!(encoded.vertex_count, 3);
+    assert_eq!(encoded.header.vertex_count, 3);
     let page = codec::decode(&encoded.bytes, 1 << 20).expect("decode");
-    assert_eq!(page.indices, [0, 1, 2, 0, 1, 2]);
-    assert_eq!(page.position[3..6], [1.0, 0.0, 0.0]);
+    assert_eq!(page.indices(), [0, 1, 2, 0, 1, 2]);
+    assert_eq!(page.attribute(0).expect("position")[3..6], [1.0, 0.0, 0.0]);
 }
 
 #[test]

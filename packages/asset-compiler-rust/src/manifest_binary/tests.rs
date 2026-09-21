@@ -14,7 +14,7 @@ fn exact_page() -> Value {
     page["source"] = Value::Null;
     page["stream"] = json!(0);
     page["streamOffset"] = json!(0);
-    let mut geometry = json!({"bytes":32,"formatVersion":3,"codec":"quantized","vertexCount":8,"indexCount":12,"flags":1,"uncompressedBytes":128});
+    let mut geometry = json!({"bytes":32,"vertexCount":8,"indexCount":12,"flags":1,"uncompressedBytes":128});
     geometry["url"] = json!(format!("../../objects/{}.bin", sha('b')));
     geometry["sha256"] = json!(sha('b'));
     page["geometry"] = geometry;
