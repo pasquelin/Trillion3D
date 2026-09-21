@@ -13,6 +13,7 @@ import {
 import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
+import { writeDrawnMasks } from './webgpuShadowDrawnMask.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -34,13 +35,12 @@ const rectScratch = new Float64Array(4);
  */
 export const regionScissor = new Int32Array(MAX_SHADOW_REGIONS * 4);
 export const regionViewport = new Int32Array(MAX_SHADOW_REGIONS * 3);
-const flushedSlices = new Int32Array(MAX_SHADOW_REGIONS);
 
 /**
  * View the scheduler reads: position, axis, vertical half-fov, aspect, near and far planes. The
  * sun's cascades derive entirely from it — they follow the camera and nothing else.
  */
-function shadowViewpointOf(cam: EngineCamera) {
+export function shadowViewpointOf(cam: EngineCamera) {
   // Read in the world matrix image entry copied, ancestors included: the axis is that of
   // `Camera.getWorldDirection`, third column normalised then negated — same divide by length, same
   // sign, same bits.
@@ -83,12 +83,14 @@ export function planShadowRegions(
   lights.shadowPages = 0;
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
-  if (!shadows || !store.count) return 0;
+  if (!shadows || !store.count) {
+    plan.releaseDeferred();
+    return 0;
+  }
   const view = shadowViewpointOf(cam);
   const count = plan.plan(store, view, frame, nowMs);
   const { regions, slices } = plan;
-  let flushes = 0,
-    lastSlice = -1,
+  let lastSlice = -1,
     lastFace = -1;
   for (let region = 0; region < count; region++) {
     const slice = regions.sliceOf(region),
@@ -100,8 +102,12 @@ export function planShadowRegions(
     const x0 = regions.x0Of(region),
       x1 = regions.x1Of(region),
       y0 = regions.y0Of(region),
-      y1 = regions.y1Of(region);
+      y1 = regions.y1Of(region),
+      shiftX = regions.shiftXOf(region),
+      shiftY = regions.shiftYOf(region);
     const matrixBase = region * 16;
+    // The matrix and the volume are the extent's: the region rectangle is read in extent pages,
+    // the physical rectangle minus the translation the draw applies.
     const planes = writeFace(
       faceMatrices,
       matrixBase,
@@ -111,7 +117,7 @@ export function planShadowRegions(
       face,
       view,
       side,
-      regionRect(rectScratch, rows, x0, x1, y0, y1),
+      regionRect(rectScratch, rows, x0 - shiftX, x1 - shiftX, y0 - shiftY, y1 - shiftY),
     );
     shadows.writeRegion(
       region,
@@ -122,6 +128,8 @@ export function planShadowRegions(
       slices.rects,
       light.position,
       light.emitterRadius ?? 0,
+      (2 * shiftX) / rows,
+      (-2 * shiftY) / rows,
     );
     const rect = slice * RECTS_PER_SLICE + face * 3;
     const faceX = slices.rects[rect],
@@ -149,11 +157,11 @@ export function planShadowRegions(
         side,
         planes.near,
       );
-      flushedSlices[flushes++] = slice;
     }
   }
   if (count) shadows.flushRegions(count);
-  if (flushes) shadows.flushSlices(flushedSlices, flushes);
+  writeDrawnMasks(lights);
+  shadows.flushSlices();
   lights.shadowsUpdated = plan.counts.lights;
   lights.shadowRegions = count;
   lights.shadowPages = regions.pages;

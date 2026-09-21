@@ -17,6 +17,7 @@ export const VALIDATE_STEPS = [
   'check:structure',
   'check:dts',
   'check:no-js',
+  'check:docs-bundles',
   'check:site-types',
   'check:links',
   'test',
