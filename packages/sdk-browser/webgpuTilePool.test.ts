@@ -6,7 +6,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
 installGpuGlobals();
 
-const rgba = { kind: 'data', format: 'rgba8unorm', texelBytes: 4 } as const;
+const rgba = { kind: 'data', lane: 'lossless', format: 'rgba8unorm', texelBytes: 4 } as const;
 /** A dummy device: it keeps the descriptor of the texture it is asked for. */
 function fakeDevice() {
   const created: GPUTextureDescriptor[] = [];
@@ -26,6 +26,7 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
   const { device, created } = fakeDevice();
   const pool = createWebgpuTilePool(device, {
     kind: 'color',
+    lane: 'lossless',
     format: 'rgba8unorm-srgb',
     texelBytes: 4,
     layers: 2,
@@ -46,6 +47,7 @@ test('a block-compressed pool counts a quarter of the bytes and asks for no atta
   const { device, created } = fakeDevice();
   const pool = createWebgpuTilePool(device, {
     kind: 'color',
+    lane: 'rgba',
     format: 'bc7-rgba-unorm-srgb',
     texelBytes: 1,
     layers: 1,

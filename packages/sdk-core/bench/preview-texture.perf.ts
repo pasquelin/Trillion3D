@@ -17,8 +17,14 @@ const DIMENSIONS: [number, number][] = [
 const inputs: [number, number][] = [];
 for (let i = 0; i < 4000; i++) inputs.push(DIMENSIONS[i % DIMENSIONS.length]);
 
+/** The three numbers both sides publish: the oracle predates `sizes` and `blockBytes`. */
+type GeometryNumbers = Pick<
+  ReturnType<typeof previewGeometry>,
+  'firstLevel' | 'levelCount' | 'pixelBytes'
+>;
+
 const geometries =
-  (calcul: (width: number, height: number) => ReturnType<typeof previewGeometry>) =>
+  (calcul: (width: number, height: number) => GeometryNumbers) =>
   (liste: readonly [number, number][]) =>
     liste.map(([w, h]) => {
       const g = calcul(w, h);
