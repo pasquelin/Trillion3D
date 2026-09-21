@@ -275,7 +275,7 @@
         "fr": "Un anneau de lampes sur un budget"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/a-ring-of-lamps.html"
     },
     {
       "id": "two-lamps-that-mix",
@@ -284,7 +284,7 @@
         "fr": "Une lampe chaude et une froide qui se mélangent"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/two-lamps-that-mix.html"
     },
     {
       "id": "a-lamp-in-its-glass",
@@ -293,7 +293,7 @@
         "fr": "Une lampe logée dans son propre verre"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/a-lamp-in-its-glass.html"
     },
     {
       "id": "from-noon-to-dusk",
@@ -302,7 +302,7 @@
         "fr": "L’exposition de midi au crépuscule"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/from-noon-to-dusk.html"
     },
     {
       "id": "light-off-a-red-wall",
@@ -311,7 +311,7 @@
         "fr": "La lumière rebondit sur un mur rouge"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/light-off-a-red-wall.html"
     },
     {
       "id": "a-lighthouse-beam",
@@ -320,7 +320,7 @@
         "fr": "Le faisceau d’un phare balaie le rivage"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/a-lighthouse-beam.html"
     },
     {
       "id": "lights-from-the-scene-file",
@@ -329,7 +329,7 @@
         "fr": "Les lumières venues du fichier de scène"
       },
       "theme": "lights",
-      "file": ""
+      "file": "examples/lights-from-the-scene-file.html"
     },
     {
       "id": "soft-shadows-from-a-wide-lamp",
