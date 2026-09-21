@@ -49,7 +49,7 @@ test('getSdkProvenance hashes files without embedding source text', async () => 
   const sample = Object.values(provenance.files)[0] as FileProvenance;
   assert.equal(typeof sample.sha256, 'string');
   assert.equal(sample.text, undefined);
-  assert.ok(provenance.files['dist/sdk-node/index.ts']);
+  assert.ok(provenance.files['dist/sdk-node/index.mjs']);
   assert.equal(
     provenance.scope,
     'Installed JavaScript files; external compiler binary equality not established',

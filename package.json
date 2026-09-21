@@ -27,6 +27,7 @@
   },
   "files": [
     "dist",
+    "!dist/site",
     "README.md",
     "docs/SDK.md",
     "LICENSE",

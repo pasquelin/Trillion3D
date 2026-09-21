@@ -22,7 +22,7 @@ test('one key means one thing only', () => {
   assert.equal(answerOf('d', false), 'cutout');
   assert.equal(answerOf('V', false), 'blend', 'case does not change the meaning');
   assert.equal(answerOf('?', true), 'help');
-  assert.equal(answerOf('', true), 'quit');
+  assert.equal(answerOf('\u0003', true), 'quit');
   assert.equal(answerOf('z', true), null);
 });
 

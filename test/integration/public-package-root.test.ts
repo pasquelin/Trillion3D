@@ -26,7 +26,7 @@ test('package metadata exposes one environment-aware root', async () => {
   assert.equal(packageJson.name, 'web-geometry');
   assert.equal(packageJson.version, '0.2.0');
   assert.equal(packageJson.private, true);
-  assert.equal(packageJson.bin['web-geometry-compile'], './dist/sdk-node/cli.ts');
+  assert.equal(packageJson.bin['web-geometry-compile'], './dist/sdk-node/cli.mjs');
   assert.deepEqual(Object.keys(packageJson.exports), ['.', './package.json']);
   assert.deepEqual(Object.keys(packageJson.exports['.']), [
     'browser',

@@ -61,7 +61,8 @@ test('a TypeScript page module is served as JavaScript, its types stripped', asy
     const response = await fetch(`http://127.0.0.1:${serverPort(server)}/mesure/serveur.ts`);
     assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8');
     const code = await response.text();
-    assert.match(code, /export function startServer/);
+    assert.match(code, /function startServer\(/);
+    assert.match(code, /export \{[^}]*\bstartServer\b/);
     assert.doesNotMatch(code, /: Mount\[\]/);
   } finally {
     await new Promise((done) => server.close(done));

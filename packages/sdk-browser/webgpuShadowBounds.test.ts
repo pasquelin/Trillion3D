@@ -7,7 +7,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { noteResidenceChange } from './webgpuShadowBounds.ts';
-import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
 import { referenceClusterSphere } from './bench/oracles/socle-math.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
@@ -33,16 +32,15 @@ test('noteResidenceChange: matrices and boxes hostile to signed zeros — the bo
       sphereAttendue[2] + sphereAttendue[3],
     ];
     let recu: number[] | undefined;
-    const lights = createWebgpuLightState();
-    lights.store.add({
-      id: 'x',
-      kind: 'directional',
-      color: [1, 1, 1],
-      intensity: 1,
-      castsShadow: false,
-    });
-    lights.plan.representationChanged = (min: number[], max: number[]) => (recu = [...min, ...max]);
-    noteResidenceChange(lights, rec);
+    noteResidenceChange(
+      {
+        store: { count: 1 },
+        plan: {
+          representationChanged: (min: number[], max: number[]) => (recu = [...min, ...max]),
+        },
+      } as Parameters<typeof noteResidenceChange>[0],
+      rec,
+    );
     assert.ok(recu, 'representationChanged must be called');
     for (let i = 0; i < 6; i++)
       assert.ok(Object.is(attendu[i], recu![i]), `composante ${i} : ${attendu[i]} ≠ ${recu![i]}`);
