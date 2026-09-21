@@ -28,7 +28,7 @@ function confronteBaseline(domaine, mesures) {
     ...m,
     resultats: m.resultats.map((r) => {
       const base = connus.get(cleDeLigne(m.name, r.name));
-      return { ...r, ecartBaseline: ecartRelatif(r.medianeMs, base?.medianeMs ?? null) };
+      return { ...r, ecartBaseline: ecartRelatif(r.medianeMs, base?.medianeMs) };
     }),
   }));
 }
