@@ -33,7 +33,9 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await mkdir(join(source, 'reports/campaign'), { recursive: true });
     await mkdir(join(source, 'assets'), { recursive: true });
     await mkdir(join(source, 'data'), { recursive: true });
+    await mkdir(join(source, 'examples'), { recursive: true });
     await writeFile(join(source, '.nojekyll'), '');
+    await writeFile(join(source, 'examples/cube.html'), '<!doctype html>');
     await writeFile(join(source, 'index.html'), '<!doctype html>');
     await writeFile(join(source, 'report.html'), '<!doctype html>');
     await writeFile(join(source, 'reports/index.json'), '[]');
@@ -45,6 +47,7 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     assert.equal((await stat(join(out, '.nojekyll'))).size, 0);
     assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');
     assert.equal(await readFile(join(out, 'assets/manifest.json'), 'utf8'), '{}');
+    assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), '<!doctype html>');
     await assert.rejects(stat(join(out, 'reports/contract.ts')));
     await assert.rejects(stat(join(out, 'styles')));
     const copied = (await stat(join(out, 'assets/manifest.json'))).mtimeMs;

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Brushed metal, anisotropic</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0e1621; }
+      canvas { display: block; width: 100%; height: 100%; }
+      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+    </style>
+    <script type="importmap">
+      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createExplorer } from '../runtime/engine.js';
+
+      const view = document.getElementById('view');
+      const explorer = await createExplorer(view, {
+        manifestUrl: '../assets/examples/clay-to-chrome/cache/native/full/manifest.json',
+        scope: 'full',
+        interactive: true,
+      });
+      explorer.addLight({
+      "kind": "directional",
+      "direction": [
+              -0.6,
+              -0.7,
+              -0.4
+      ],
+      "intensity": 3,
+      "id": "sun",
+      "color": [
+              1,
+              0.95,
+              0.85
+      ]
+});
+      // Progressive roughness and metallic response across metallic samples.
+explorer.setPose({ ...explorer.homePose(), position: [4.0, 3.0, 4.0], target: [0, 0.5, 0] });
+explorer.invalidate();
+    </script>
+  </body>
+</html>
