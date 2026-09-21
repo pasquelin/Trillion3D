@@ -19,9 +19,8 @@ export interface RenderBackend {
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
   refreshSceneLighting?(): void;
-  /** True when the rendered scene carries at least one declared light. False = unlit view, whose
-   *  composition is identity (P6). Absent from an engine that does not go through Three. Read every
-   *  frame: a light placed after engine creation changes the answer. */
+  /** True when the rendered scene carries at least one declared light; false is the unlit view,
+   *  whose composition is identity (P6). Read every frame: a light added later changes it. */
   sceneLit?(): boolean;
   /** The contract light store has changed: the next frame will reread it. Absent = lights ignored. */
   refreshSceneLights?(): void;
@@ -91,13 +90,11 @@ export interface RenderBackend {
   ): void;
   acceptGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
   replaceGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
-  /** Additional prepared-scene instance, placed by sixteen column-major floats; supported by
-   *  backends that own mutable scene records. The engine copies them: the host keeps its array. */
+  /** Prepared-scene instance placed by sixteen column-major floats the engine copies. */
   addInstance?(id: string, transform: Float64Array): void;
   updateInstance?(id: string, transform: Float64Array): void;
   removeInstance?(id: string): void;
-  /** Repaints a primitive from the engine's own material parameters — the ones the compiler
-   *  imported from the source file. No shader and no program hook crosses this contract. */
+  /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
   dropPage?(url: string): void;
   syncResident?(): void;

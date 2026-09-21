@@ -63,7 +63,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     modifiedPages,
   });
   const { detach, sync, storeGeometryPage, acceptGeometryPage } = geometryStore;
-  const instances = createAutonomousInstances({
+  const { disposeOwnedMaterials, ...instances } = createAutonomousInstances({
     roots,
     baseRoots,
     allPages,
@@ -191,7 +191,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         rec.mesh = undefined;
         rec.array = undefined;
       }
-      instances.disposeOwnedMaterials();
+      disposeOwnedMaterials();
       for (const material of colorMaterials.values()) material.dispose();
       scene.clear();
       gate.release();
