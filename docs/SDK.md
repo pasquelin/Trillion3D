@@ -213,7 +213,8 @@ Max, the machine shared and its load average kept per series under `charge`: 3 t
 runs). The values are the run-to-run range of the p50 / p95; the per-step bounds come from the
 `cpu-timing` reports published inside the measured loop (`bornesCpu`, bench README) on a 0.1 ms
 clock — a step that reads `0.000 / 0.100` is under it, not zero — and a still image, held, fills
-no row: its steps are `null`, and its CPU frame says what it costs. `null` is unmeasured, never an
+a row of zeros without publishing a report: the first p50 read after a stop is pulled toward
+zero by those rows, so the moving values above come from series that never held. `null` is unmeasured, never an
 estimate.
 
 | scene · camera | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs` | `selectionDispatchMs` | CPU frame p50 | rAF p50 | roots | verdict |
