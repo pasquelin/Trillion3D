@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { buildDocs } from '../../scripts/docs/bundles.mjs';
 import { startServer } from '../../scripts/mesure/serveur.mjs';
 import { launchChrome } from '../../scripts/mesure/chrome.mjs';
 
@@ -19,6 +20,7 @@ const compiler =
 execFileSync(compiler, [fixture, resolve(out, 'cache'), 'full', '150000', '/fixture/'], {
   stdio: 'pipe',
 });
+await buildDocs(root);
 const server = await startServer({
   port: 0,
   captures: new Map(),

@@ -1,12 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bundleDemoMath } from './docs-demo-bundle.mjs';
 
-// Freshness is `pnpm run check:docs-demo`, a validate step like `check:dts`; here, behaviour:
-// what the portal's demos call must really be the engine, and answer as the engine answers.
-const kernels = await import(
-  `data:text/javascript;base64,${Buffer.from(await bundleDemoMath()).toString('base64')}`
-);
+// The module is generated, never committed: the unit runner builds it before any test loads.
+// Here, behaviour: what the portal's demos call must really be the engine, and answer as it.
+const kernels = await import('../docs/js/engine.js');
 
 test('the bundle carries the public maths the demos call', () => {
   const missing = [
