@@ -1,20 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { launchChrome } from './mesure/chrome.mjs';
-import { createDocsServer } from './docs-serve.mjs';
+import { startDocsServer } from './docs-serve.mjs';
 
 test('gallery showcase keeps both pilots visible and makes the selected scene the main link', async () => {
-  const server = await createDocsServer();
-  await new Promise((ready, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', ready);
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
+  const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-    await page.goto(`http://127.0.0.1:${address.port}/#/en/examples`);
+    await page.goto(`http://127.0.0.1:${port}/#/en/examples`);
     const showcase = page.locator('[data-gallery-showcase]');
     await showcase.waitFor();
     const box = await showcase.boundingBox();

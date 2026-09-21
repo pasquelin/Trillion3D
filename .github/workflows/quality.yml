@@ -11,22 +11,12 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-24.04
-    permissions:
-      # A release (pull request to main) commits the rebuilt docs bundles on its own head branch
-      # and dispatches this workflow on that new head; main and develop refuse every direct push.
-      contents: write
-      actions: write
     env:
       NATIVE_BINARIES: |
         packages/asset-compiler-rust/target/release/web-geometry-compiler
         packages/asset-compiler-rust/target/release/web-geometry-oracle
     steps:
       - uses: actions/checkout@v7
-        with:
-          # A release is validated on its head branch, main already merged in (the script checks),
-          # so the rebuild can be committed there; every other event keeps the merge reference.
-          ref: ${{ github.base_ref == 'main' && github.head_ref || '' }}
-          fetch-depth: ${{ github.base_ref == 'main' && '0' || '1' }}
       - name: Pull request body — issue linked, local review filled
         if: github.event_name == 'pull_request'
         env:
@@ -62,17 +52,6 @@ jobs:
             packages/asset-compiler-rust
             packages/page-codec-wasm
       - run: pnpm install --frozen-lockfile
-      - name: Batch — no published bundle committed on develop
-        if: github.base_ref == 'develop' || github.ref == 'refs/heads/develop'
-        run: |
-          tracked=$(git ls-tree --name-only HEAD -- docs/css/site.css docs/runtime)
-          [ -z "$tracked" ] || { printf 'Published bundles belong to main only:\n%s\n' "$tracked" >&2; exit 1; }
-      - name: Release — publish the docs bundles built from the merged sources
-        if: github.event_name == 'pull_request' && github.base_ref == 'main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_REF: ${{ github.head_ref }}
-        run: node scripts/release-bundles.mjs "$HEAD_REF"
       - run: pnpm run validate
         env:
           WEB_GEOMETRY_SKIP_NATIVE: ${{ steps.native.outputs.cache-hit == 'true' && '1' || '' }}

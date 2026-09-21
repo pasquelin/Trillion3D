@@ -2,19 +2,13 @@ import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 import { launchChrome } from './mesure/chrome.mjs';
-import { createDocsServer } from './docs-serve.mjs';
+import { startDocsServer } from './docs-serve.mjs';
 
 async function openDocsBrowser() {
-  const server = await createDocsServer();
-  await new Promise((ready, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', ready);
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') throw Error('HTTP listener unavailable');
+  const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   return {
-    address,
+    port,
     browser,
     close: async () => {
       await browser.close();
@@ -24,7 +18,7 @@ async function openDocsBrowser() {
 }
 
 test('a cold observatory load settles without user input', async () => {
-  const { address, browser, close } = await openDocsBrowser();
+  const { port, browser, close } = await openDocsBrowser();
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     let delayed = 0;
@@ -33,7 +27,7 @@ test('a cold observatory load settles without user input', async () => {
       await delay(600);
       await route.continue();
     });
-    await page.goto(`http://127.0.0.1:${address.port}/#/en/examples/runtime-pixel-error`);
+    await page.goto(`http://127.0.0.1:${port}/#/en/examples/runtime-pixel-error`);
     const lesson = page.locator('[data-renderer-lesson="runtime-pixel-error"]');
     await lesson.waitFor();
     await lesson.locator('canvas:not([aria-busy])').waitFor({ timeout: 40_000 });
@@ -81,10 +75,10 @@ test('a cold observatory load settles without user input', async () => {
 });
 
 test('disposing rejects overlapping public updates by name', async () => {
-  const { address, browser, close } = await openDocsBrowser();
+  const { port, browser, close } = await openDocsBrowser();
   try {
     const page = await browser.newPage({ viewport: { width: 960, height: 640 } });
-    await page.goto(`http://127.0.0.1:${address.port}/`);
+    await page.goto(`http://127.0.0.1:${port}/`);
     const names = await page.evaluate(
       async ({ runtimeUrl, lessonsUrl }) => {
         const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] =
@@ -106,8 +100,8 @@ test('disposing rejects overlapping public updates by name', async () => {
         return (await Promise.allSettled([first, second])).map((result) => result.reason?.name);
       },
       {
-        runtimeUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessonRuntime.js`,
-        lessonsUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessons.js`,
+        runtimeUrl: `http://127.0.0.1:${port}/js/gallery/rendererLessonRuntime.js`,
+        lessonsUrl: `http://127.0.0.1:${port}/js/gallery/rendererLessons.js`,
       },
     );
     assert.deepEqual(names, ['AbortError', 'AbortError']);
@@ -117,10 +111,10 @@ test('disposing rejects overlapping public updates by name', async () => {
 });
 
 test('a never-ending binary response exhausts one global startup deadline', async () => {
-  const { address, browser, close } = await openDocsBrowser();
+  const { port, browser, close } = await openDocsBrowser();
   try {
     const page = await browser.newPage({ viewport: { width: 960, height: 640 } });
-    await page.goto(`http://127.0.0.1:${address.port}/`);
+    await page.goto(`http://127.0.0.1:${port}/`);
     const result = await page.evaluate(
       async ({ runtimeUrl, lessonsUrl }) => {
         const nativeFetch = globalThis.fetch,
@@ -173,8 +167,8 @@ test('a never-ending binary response exhausts one global startup deadline', asyn
         return { name, elapsed: performance.now() - started, pendingBinaries, frames: frames.size };
       },
       {
-        runtimeUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessonRuntime.js`,
-        lessonsUrl: `http://127.0.0.1:${address.port}/js/gallery/rendererLessons.js`,
+        runtimeUrl: `http://127.0.0.1:${port}/js/gallery/rendererLessonRuntime.js`,
+        lessonsUrl: `http://127.0.0.1:${port}/js/gallery/rendererLessons.js`,
       },
     );
     assert.equal(result.name, 'TimeoutError');

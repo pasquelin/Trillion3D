@@ -154,12 +154,12 @@ identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command                     | Role                                                                    |
-| --------------------------- | ----------------------------------------------------------------------- |
-| `pnpm run check:lines`      | Maximum 200 physical lines per maintained JS/TS/Rust file               |
-| `pnpm run check:duplicates` | No duplicated blocks ≥ 12 lines and ≥ 100 tokens                        |
-| `pnpm run check:structure`  | Package boundary isolation, sdk-core typed without DOM                  |
-| `pnpm run check:unused`     | Dead exports and files (`knip`)                                         |
-| `pnpm run check:docs-demo`  | The demo bundle committed under `docs/js/` is the current packages      |
-| `pnpm run check:docs-types` | The React portal under `docs/react/` type-checks (`tsconfig.docs.json`) |
-| `pnpm run validate`         | Complete gate: formatting, linting, tests, builds, structure, links     |
+| Command                       | Role                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file               |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 12 lines and ≥ 100 tokens                        |
+| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                  |
+| `pnpm run check:unused`       | Dead exports and files (`knip`)                                         |
+| `pnpm run check:docs-bundles` | No generated bundle (`scripts/docs/bundles.mjs`) is tracked by git      |
+| `pnpm run check:docs-types`   | The React portal under `docs/react/` type-checks (`tsconfig.docs.json`) |
+| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links     |
