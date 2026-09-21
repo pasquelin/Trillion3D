@@ -5,7 +5,7 @@ import { transform } from 'esbuild';
 import { compile } from 'tailwindcss';
 
 const require = createRequire(import.meta.url);
-const SOURCE_EXTENSIONS = new Set(['.html', '.js', '.ts', '.tsx']);
+const SOURCE_EXTENSIONS = new Set(['.html', '.ts', '.tsx']);
 const TOKEN = /[!@A-Za-z0-9_:[\]().,%/#-]+/g;
 
 async function sourceFiles(directory) {
@@ -24,9 +24,12 @@ async function sourceFiles(directory) {
 
 async function collectCandidates(root) {
   const files = [
-    resolve(root, 'docs/index.html'),
-    ...(await sourceFiles(resolve(root, 'docs/js'))),
-    ...(await sourceFiles(resolve(root, 'docs/react'))),
+    resolve(root, 'site/index.html'),
+    ...(await sourceFiles(resolve(root, 'site/app'))),
+    ...(await sourceFiles(resolve(root, 'site/content'))),
+    ...(await sourceFiles(resolve(root, 'site/lessons'))),
+    ...(await sourceFiles(resolve(root, 'site/demos'))),
+    ...(await sourceFiles(resolve(root, 'site/reports'))),
   ];
   const candidates = new Set();
   for (const file of files) {
@@ -53,8 +56,9 @@ async function loadModule(id, base) {
   return { path, base: dirname(path), module: imported.default ?? imported };
 }
 
-export async function buildStyles(root, output) {
-  const input = resolve(root, 'docs/styles/tailwind.css');
+/** Compiles the site's Tailwind stylesheet into `output`, scanning the sources for class names. */
+export async function buildStyles(root, { minify = true, output }) {
+  const input = resolve(root, 'site/styles/tailwind.css');
   const source = await readFile(input, 'utf8');
   const compiler = await compile(source, {
     base: dirname(input),
@@ -63,7 +67,9 @@ export async function buildStyles(root, output) {
     loadStylesheet,
   });
   const candidates = await collectCandidates(root);
-  const css = (await transform(compiler.build(candidates), { loader: 'css', minify: true })).code;
+  let css = compiler.build(candidates);
+  if (minify) css = (await transform(css, { loader: 'css', minify: true })).code;
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, css);
+  return { candidates, css, output };
 }

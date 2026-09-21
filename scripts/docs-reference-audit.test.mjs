@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import audit from '../docs/data/gallery-reference-audit.json' with { type: 'json' };
-import roadmap from '../docs/data/gallery-roadmap.json' with { type: 'json' };
-import { rendererLessons } from '../docs/js/gallery/rendererLessons.js';
+import audit from '../site/data/gallery-reference-audit.json' with { type: 'json' };
+import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
+import { rendererLessons } from '../site/lessons/rendererLessons.ts';
 
 const states = (field) =>
   audit.entries.reduce((counts, entry) => {
