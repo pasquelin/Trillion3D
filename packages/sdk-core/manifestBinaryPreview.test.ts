@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TEMPLATES, previewLevels, sha } from '../../test/fixtures/manifestBinary.ts';
+import { TEMPLATES, sha } from '../../test/fixtures/manifestBinary.ts';
+import { preview } from '../../test/fixtures/manifestBinaryPreview.ts';
 import {
   encodeManifestBinary,
   decodeManifestBinary,
@@ -12,28 +13,13 @@ import {
   type ClusterManifest,
   type TexturePreview,
 } from './contracts.ts';
-import { previewBlockBytes, previewFirstLevel } from './texturePreviewLevels.ts';
+import { previewBlockBytes } from './texturePreviewLevels.ts';
 import {
   COLUMN_NAMES,
   MANIFEST_BINARY_HEADER_WORDS,
   PREVIEW_WORDS,
 } from './manifestBinaryFormat.ts';
 
-function preview(texture: number, width: number, height: number, seed: number): TexturePreview {
-  return {
-    texture,
-    image: texture,
-    width,
-    height,
-    sourceKind: 0,
-    sourceBufferView: -1,
-    atlas: 0,
-    bakedLevels: 0,
-    sha256: sha(String(texture)),
-    firstLevel: previewFirstLevel(width, height),
-    ...previewLevels(width, height, seed),
-  };
-}
 function manifestWith(previews: TexturePreview[]): ClusterManifest {
   return {
     schema: CLUSTERED_BLEND_FORMAT_VERSION,
