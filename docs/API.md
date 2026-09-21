@@ -198,12 +198,15 @@ capture is byte-identical (four engines, two lightings, a resize); every held fr
 — is now its capture, byte for byte; every comparison layout — the clear colour before, the
 shader never compiled — shows each side as that engine's single view, byte for byte. Envelope,
 `scripts/mesure/banc.mjs`, same scene, general view, moving camera, 1280 × 720, DPR 1, 0 px, 60
-frames, `--profil on`, three runs before and after, Apple M2 Max, Chrome 153 headless, display
-cap 60 Hz: rAF p50 16.7 ms on every run and side; CPU frame p50 13.6 – 14.0 ms before, 13.5 –
-13.8 ms after (spread 0.4 ms); `submitMs` p50 6.3 – 6.6 ms before, 6.3 – 6.5 ms after; GPU image
-p50 2.8 – 3.2 ms on both sides, p95 4.9 – 8.7 ms on both sides over six runs (the held-frame copy
-was ruled out with a scratch build that skips it: same spread). A/A 0 px, before/after 0 px on
-every run. **No gain is claimed**: the batch is the removal.
+frames, `--profil on`, `--avant` = `develop` c34c0b74, six runs before and after — runs 1 – 3 on
+b32ebbc3 under a load average of 8 – 11, runs 4 – 6 on the reviewed head 0fc25233 under 20 – 26,
+another session validating on the machine — Apple M2 Max, Chrome 153 headless, display cap
+60 Hz: rAF p50 16.7 ms on every run and side; CPU frame p50 13.6 – 14.6 ms before, 13.5 – 15.0 ms
+after (spread 1.0 / 1.5 ms); `submitMs` p50 6.3 – 6.8 ms before, 6.3 – 6.9 ms after (spread
+0.5 ms); GPU image p50 2.6 – 3.2 ms before, 2.8 – 3.6 ms after, p95 4.9 – 8.7 ms on both sides
+(the held-frame copy was ruled out with a scratch build that skips it: same spread). A/A 0 px,
+before/after 0 px on every run. The machine was not quiet, and the spread says so. **No gain is
+claimed**: the batch is the removal.
 
 | Function or contract                                                                          | Computes                                                                                                                                                                                                                                  | Replaces                                                                                                                          | Proof                                                                                                                                            |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
