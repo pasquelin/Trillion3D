@@ -110,14 +110,15 @@ fn compile_writes_pages_and_namespaced_pointer() {
     let directory = options.cache.join("native/slice").join(key);
     assert!(directory.join("source.gltf").exists());
     assert!(directory.join("scene.gltf").exists());
+    assert_eq!(result["geometryPages"]["formatVersion"], 3);
+    assert_eq!(result["geometryPages"]["codec"], "quantized");
     let geometry = &result["primitives"][0]["pages"][0]["geometry"];
-    assert_eq!(geometry["formatVersion"], 2);
+    assert!(geometry.get("formatVersion").is_none());
+    assert!(result["primitives"][0]["quantization"]["positionExponent"].is_number());
     let page = fs::read(directory.join(geometry["url"].as_str().expect("page URL")))
         .expect("autonomous geometry page");
-    let index_bytes = u32::from_le_bytes(page[24..28].try_into().expect("index bytes")) as usize;
-    let indices: Vec<u16> =
-        meshopt::decode_index_buffer(&page[32..32 + index_bytes], 3).expect("decode");
-    assert_eq!(indices, [0, 1, 2]);
+    let decoded = web_geometry_page_codec::decode(&page, 1 << 20).expect("decode");
+    assert_eq!(decoded.indices(), [0, 1, 2]);
     fs::remove_dir_all(root).expect("cleanup");
 }
 #[test]

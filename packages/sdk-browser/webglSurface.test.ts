@@ -105,3 +105,16 @@ test('failed delegated resize remains retryable', () => {
     drawingHeight: 0,
   });
 });
+
+test('engine surface reports a loss the context knows before its event arrives', () => {
+  let lost = false;
+  const canvas = {
+    getContext: () => ({ isContextLost: () => lost, getExtension: () => null }),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  } as unknown as HTMLCanvasElement;
+  const surface = createWebglSurface(canvas);
+  assert.equal(surface.lost, false);
+  lost = true;
+  assert.equal(surface.lost, true);
+});

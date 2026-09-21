@@ -36,6 +36,32 @@ test('a non-TTY stream gets one line per phase and a final summary built from th
   );
   assert.match(lines.at(-1), /^✔ 1\/1 city 1,234 triangles, 3 primitives, 42 ms/);
 });
+test('a reused folder prints what was proven, a refused one prints why', () => {
+  const out = capture();
+  const progress = createTerminalProgress({ label: 'city', stream: out.stream });
+  progress.event({
+    event: 'progress',
+    job: 'job',
+    phase: 'reuse',
+    ratio: 0.98,
+    completed: 1,
+    total: 1,
+    objects: 12,
+    objectBytes: 3 * 1048576,
+  });
+  progress.event({
+    event: 'progress',
+    job: 'job',
+    phase: 'reuse',
+    ratio: 0.98,
+    completed: 0,
+    total: 1,
+    reason: 'sidecar does not match binary.sha256',
+  });
+  const lines = out.text().trim().split('\n');
+  assert.match(lines[0], /98% reused 12 objects \(3 MB proven\)/);
+  assert.match(lines[1], /rebuilding: sidecar does not match binary\.sha256/);
+});
 test('errors and cancellations close the line with a cross and the code', () => {
   const out = capture();
   const progress = createTerminalProgress({ label: 'x', stream: out.stream });

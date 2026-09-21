@@ -929,13 +929,13 @@ kbd {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .canvas-actions {
+  .canvas-overlay {
     opacity: 0;
     transition: opacity 120ms ease;
   }
-  canvas:hover + .canvas-actions,
-  .canvas-actions:hover,
-  .canvas-actions:focus-within {
+  canvas:hover ~ .canvas-overlay,
+  .canvas-overlay:hover,
+  .canvas-overlay:focus-within {
     opacity: 1;
   }
 }

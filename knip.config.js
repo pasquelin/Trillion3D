@@ -3,8 +3,9 @@
 // integration lane load them by URL, never by import.
 export default {
   entry: [
-    'docs/react/main.jsx',
-    'scripts/docs/highlight-entry.mjs',
+    'docs/react/main.tsx',
+    // docs/js is outside the project set: listed so its Highlight.js import counts.
+    'docs/js/components/highlighter.js',
     'packages/sdk-browser/pageDecodeWorker.ts',
     'packages/sdk-browser/pageIntegrationWorker.ts',
     'packages/sdk-node/{index,cli}.mts',
@@ -35,7 +36,7 @@ export default {
     'test/browser/*.browser.mjs',
   ],
   project: [
-    'docs/react/**/*.jsx',
+    'docs/react/**/*.{ts,tsx}',
     'packages/**/*.{ts,mts,mjs,js}',
     'scripts/**/*.{ts,mts,mjs,js}',
     'test/**/*.{ts,mts,mjs,js}',
@@ -49,5 +50,10 @@ export default {
   ignoreDependencies: ['daisyui'],
   ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
-  ignoreUnresolved: ['/mesure/poses.mjs', '/__wg-fixture/drawRun.mjs'],
+  ignoreUnresolved: [
+    '/mesure/poses.mjs',
+    '/mesure/pageTemoin.mjs',
+    '/test/appui/materialPixelsPage.mjs',
+    '/__wg-fixture/drawRun.mjs',
+  ],
 };
