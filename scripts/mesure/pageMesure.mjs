@@ -60,32 +60,17 @@ export async function reglerReservoirs(explorer, pose, budgets) {
 /**
  * Collector of engine diagnostics during a series: GPU incidents and the image pose go into
  * `lost`, published on the page; compiler warnings — a DAG that did not mount, spoken at
- * open — stay apart, for the reading. The engine's CPU bounds (`cpu-timing`) are kept as they
- * come, each stamped with `image`, the index of the measured frame being rendered — `null`
- * before the loop: the one-frame sample every path publishes, and p50/p95/max per named step
- * over the images since the previous report where the path keeps a step profile (`null` where
- * it does not: the CPU reference cut).
+ * open — stay apart, for the reading.
  */
 export function collecteDiagnostics(lost) {
   const diagnostics = {
     avertissements: null,
-    bornesCpu: [],
-    image: null,
     onDiagnostic(event) {
       // What the barrier did to hold the image, and what still prevents it: the cause of a
       // noisy A/A witness is read here, not in the noise.
       if (event.phase === 'pose-settle')
         lost.push(`${event.phase} ${JSON.stringify(event.context)}`);
       if (event.phase === 'dag-warnings') diagnostics.avertissements = event.context;
-      if (event.phase === 'cpu-timing') {
-        const { frame, totalMs, lightsMs, selectionMs, steps } = event.context;
-        diagnostics.bornesCpu.push({
-          image: diagnostics.image,
-          echantillon: { image: frame, totalMs, lightsMs, selectionMs },
-          images: steps?.frames ?? null,
-          etapes: steps?.steps ?? null,
-        });
-      }
       if (event.phase !== 'gpu-uncaptured-error' && event.phase !== 'gpu-device-lost') return;
       const cause = event.context ?? {};
       lost.push(`${event.phase} : ${cause.error ?? cause.message ?? cause.reason ?? ''}`);

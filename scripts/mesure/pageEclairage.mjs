@@ -97,7 +97,6 @@ export async function measureView(options) {
     previousRaf = null;
   for (let i = 0; i < options.frames; i++) {
     if (options.stageProfile && i === profileStart) explorer.resetStageProfile();
-    diagnostics.image = i;
     const now = await new Promise((done) => requestAnimationFrame(done));
     if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf);
     previousRaf = now;
@@ -111,13 +110,15 @@ export async function measureView(options) {
     if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
       gpuPassSamples.push(sample);
   }
-  // A `cpu-timing` report published by the drain or the calm below comes from no measured image.
-  diagnostics.image = null;
   await explorer.flush();
   // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
   // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
   const capturePose = current;
   const stageProfile = options.stageProfile ? explorer.stageProfile() : null;
+  // The engine's CPU bounds over the same window as the stage profile, read once, before the
+  // drain and the calm below file images of their own. A dist older than #80 has no such function.
+  const bornesCpu =
+    options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null;
   // The shadow-page queue is drained before any atlas read: a pending page still holds the
   // previous depth, and the fingerprint would prove nothing. The loop is bounded, and the
   // remaining count is published as-is, never assumed zero.
@@ -184,8 +185,7 @@ export async function measureView(options) {
     lost,
     // Compiler warnings the engine reported at open; `null` with none.
     avertissementsDag: diagnostics.avertissements,
-    // The engine's CPU bounds, as it published them; `null` when it published none.
-    bornesCpu: diagnostics.bornesCpu.length ? diagnostics.bornesCpu : null,
+    bornesCpu,
     captureStatus: response.status,
   };
 }

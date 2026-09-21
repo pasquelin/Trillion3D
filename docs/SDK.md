@@ -158,9 +158,16 @@ two calls — this is `packages/sdk-core/mathBatchHost.test.ts`, run by `pnpm te
 
 ```javascript
 import {
-  BOX_VALUES, POSITION_VALUES, SPHERE_VALUES,
-  createCameraFrame, perspectiveProjection, updateCameraFrame,
-  frustumKeepsBoxBatch, sphereFromBoundsBatch, transformPointsBatch,
+  BOX_VALUES,
+  IDENTITY_MATRIX4,
+  POSITION_VALUES,
+  SPHERE_VALUES,
+  createCameraFrame,
+  perspectiveProjection,
+  updateCameraFrame,
+  frustumKeepsBoxBatch,
+  sphereFromBoundsBatch,
+  transformPointsBatch,
 } from 'web-geometry';
 
 const N = 10_000;
@@ -172,7 +179,7 @@ const centres = new Float64Array(N * POSITION_VALUES); // survivors' centres, pa
 const viewCentres = new Float64Array(N * POSITION_VALUES); // the same, in view space
 const frame = createCameraFrame();
 const projection = new Float64Array(16);
-const cameraWorld = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+const cameraWorld = Float64Array.from(IDENTITY_MATRIX4); // the host's, moved between frames
 
 // Every frame: the frustum, one cull, the survivors packed, one transform.
 perspectiveProjection(projection, 60, 16 / 9, 0.1, 1);
@@ -210,20 +217,21 @@ webgpu --apres dist --pixelError 1`, WebGPU, 1280×720, DPR 1, Emerald Square `g
 over 180 measured frames, Whisperwind Village `generale` over 60, each line run three times with
 its A/A witness — six series per line — on commits `805450a2`–`2713f646` of the branch, Apple M2
 Max, the machine shared and its load average kept per series under `charge`: 3 to 25 during these
-runs). The values are the run-to-run range of the p50 / p95; the per-step bounds come from the
-`cpu-timing` reports published inside the measured loop (`bornesCpu`, bench README) on a 0.1 ms
-clock — a step that reads `0.000 / 0.100` is under it, not zero — and a still image, held, fills
-a row of zeros without publishing a report: the first p50 read after a stop is pulled toward
-zero by those rows, so the moving values above come from series that never held. `null` is unmeasured, never an
-estimate.
+runs). The values are the run-to-run range of the p50 / p95; the per-step bounds were read from
+the `cpu-timing` reports the engine published inside the measured loop, on a 0.1 ms clock — a
+step that reads `0.000 / 0.100` is under it, not zero. The bench has since read them from the
+profile window instead (`explorer.cpuSteps()`, `bornesCpu` in the bench README): the same bounds,
+over the profiled images only, so a rerun re-reads them there — and a still image, held, files a
+row of zeros in that window where the reports below published nothing. `null` is unmeasured,
+never an estimate.
 
-| scene · camera | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs` | `selectionDispatchMs` | CPU frame p50 | rAF p50 | roots | verdict |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Emerald Square · still | null | null | 0.000 / 0.000 (stage) | 0.000 / 0.000 (stage) | 0.2–0.7 ms | 16.7 ms | 2 479, none rebased | held image: no loop runs |
-| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4 | 0.4–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.7–3.3 ms | 16.7 ms | 2 479 (`racines`); rebased on every moved image by construction — the published `racinesRebasees` is the 0 of the last image that ran the step with neither origin nor scene moved | world step at the clock's edge; its loops under 0.1 ms (below) |
-| Emerald Square · moving, `rue` | 0.3 / 0.3–0.4 | 0.0–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.5–2.8 ms | 16.7 ms | 2 479, as above | same |
-| Whisperwind Village · still | null (CPU cut) | null (CPU cut) | 0.000 (sample) | `selectionMs` 181–245 ms (sample) | 386–420 ms | 383–417 ms | 11 263 | the CPU reference cut over 2 022 678 resident pages, `cpuSelectMs` p50 94–103 ms: the cut's cost, not a loop's |
-| Whisperwind Village · moving | null (CPU cut) | null (CPU cut) | 0.000 (sample) | `selectionMs` 117–272 ms (sample) | 843–856 ms | 850–867 ms | 11 263 | same, `cpuSelectMs` p50 111–115 ms |
+| scene · camera                      | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs`            | `selectionDispatchMs`             | CPU frame p50 | rAF p50    | roots                                                                                                                                                                              | verdict                                                                                                        |
+| ----------------------------------- | ------------------ | ------------------- | --------------------- | --------------------------------- | ------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Emerald Square · still              | null               | null                | 0.000 / 0.000 (stage) | 0.000 / 0.000 (stage)             | 0.2–0.7 ms    | 16.7 ms    | 2 479, none rebased                                                                                                                                                                | held image: no loop runs                                                                                       |
+| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4  | 0.4–0.5 / 0.5–0.6   | 0.000 / 0.000         | 0.000 / 0.100                     | 2.7–3.3 ms    | 16.7 ms    | 2 479 (`racines`); rebased on every moved image by construction — the published `racinesRebasees` is the 0 of the last image that ran the step with neither origin nor scene moved | world step at the clock's edge; its loops under 0.1 ms (below)                                                 |
+| Emerald Square · moving, `rue`      | 0.3 / 0.3–0.4      | 0.0–0.5 / 0.5–0.6   | 0.000 / 0.000         | 0.000 / 0.100                     | 2.5–2.8 ms    | 16.7 ms    | 2 479, as above                                                                                                                                                                    | same                                                                                                           |
+| Whisperwind Village · still         | null (CPU cut)     | null (CPU cut)      | 0.000 (sample)        | `selectionMs` 181–245 ms (sample) | 386–420 ms    | 383–417 ms | 11 263                                                                                                                                                                             | the CPU reference cut over 2 022 678 resident pages, `cpuSelectMs` p50 94–103 ms: the cut's cost, not a loop's |
+| Whisperwind Village · moving        | null (CPU cut)     | null (CPU cut)      | 0.000 (sample)        | `selectionMs` 117–272 ms (sample) | 843–856 ms    | 850–867 ms | 11 263                                                                                                                                                                             | same, `cpuSelectMs` p50 111–115 ms                                                                             |
 
 The reading, loop by loop (the list of #80): on the GPU-cut path (Emerald Square) `lightsMs` is
 zero by construction — declared lamps live in a store the frame does not walk (`hostSceneWatch.ts`
