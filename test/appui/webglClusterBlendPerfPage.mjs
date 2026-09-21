@@ -62,26 +62,18 @@ export async function measureBlend() {
     own = new WebglClusterRenderer(gl),
     ownScene = new THREE.Scene(),
     ownCamera = readHostDrawCamera(createHostDrawCamera(), camera),
-    back = material.clone(),
-    front = material.clone(),
-    pair = [back, front],
+    // The two-sided transparent record draws back faces then front faces, read at the draw.
     ownMesh = {
       geometry: sharedGeometry,
-      material: pair,
+      material,
       matrix: new THREE.Matrix4(),
       _multiDrawStarts: new Int32Array([0]),
       _multiDrawCounts: new Int32Array([4096 * 3]),
       _multiDrawCount: 1,
-      _sideSplitMaterials: pair,
-      _sideSplitBack: back,
-      _sideSplitFront: front,
-      _sideSplitSource: material,
     },
     three = new THREE.WebGLRenderer({ canvas: canvas(), antialias: false }),
     threeScene = new THREE.Scene(),
     threeMesh = new THREE.Mesh(sharedGeometry, material.clone());
-  back.side = THREE.BackSide;
-  front.side = THREE.FrontSide;
   three.setSize(256, 256, false);
   threeScene.add(threeMesh);
   const ownDraw = () => own.draw([ownMesh], ownScene, ownCamera, false, false),
@@ -93,8 +85,6 @@ export async function measureBlend() {
   three.dispose();
   sharedGeometry.dispose();
   material.dispose();
-  back.dispose();
-  front.dispose();
   threeMesh.material.dispose();
   return { triangles: 4096, resolution: 256, ownA, reference, ownB };
 }

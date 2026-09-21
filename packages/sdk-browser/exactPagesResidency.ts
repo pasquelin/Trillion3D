@@ -1,6 +1,7 @@
 import type { PageRec } from './pageSelection.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { ClusterBatches } from './clusterBatches.ts';
+import type { WholeMesh } from './clusterBatchMesh.ts';
 
 export function createExactPagesResidency(
   shown: PageRec[],
@@ -11,7 +12,7 @@ export function createExactPagesResidency(
   getDiagnostic: () => DiagnosticMode,
   counters: { pagesDetached: number },
 ) {
-  const diagnosticMeshes: import('three').Mesh[] = [];
+  const diagnosticMeshes: WholeMesh[] = [];
   const displayList = () => (shown.length ? shown : desired);
   const syncResident = () => {
     const display = displayList();

@@ -9,10 +9,6 @@ type SceneCopy = {
   geometry: { attributes: BatchPage['attributes'] };
 };
 
-/** Whether the owner draws a scene copy itself: a transmissive one reads the frozen backdrop. */
-export const ownedSceneCopy = (copy: { material: BatchPage['material'] }) =>
-  isTransmissive(copy.material);
-
 /**
  * Names what keeps a scene off the autonomous path before anything is drawn. There is no other
  * renderer to fall back on: the reason becomes the backend's refusal, never a partial image.
@@ -25,11 +21,16 @@ export function clusterWebglCompatibility(
 ) {
   const lightReason = unsupportedClusterLight(scene);
   if (lightReason) return lightReason;
-  const owned = copies.filter(ownedSceneCopy);
-  const formatReason = owned.length ? backdropFormatReason(gl) : undefined;
+  // Every scene copy is the owner's; only a transmissive one reads the frozen backdrop.
+  const transmits = copies.some((copy) => isTransmissive(copy.material));
+  const formatReason = transmits ? backdropFormatReason(gl) : undefined;
   if (formatReason) return formatReason;
-  for (const copy of owned) {
-    const reason = clusterMaterialReason(copy.material, copy.geometry.attributes, true);
+  for (const copy of copies) {
+    const reason = clusterMaterialReason(
+      copy.material,
+      copy.geometry.attributes,
+      isTransmissive(copy.material),
+    );
     if (reason) return reason;
   }
   for (const page of pages) {

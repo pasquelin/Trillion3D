@@ -126,10 +126,18 @@ frame on `exact-cluster-pages`, 0.1 ms p95 per host segment, no gain to claim (t
 made the engine surface the session's WebGL2 authority, the Three adapter a detail of the
 composition host alone. The second stage removed that adapter: the composition host holds no
 renderer (`docs/API.md`, batch E7: what each engine object computes, what it replaces, and the
-byte proof — captures identical, two defects of the Three path gone with it). What remains is
-the third stage: the draw records' `BufferGeometry` and `Material` descriptors, the
-non-transmissive blended copies the owner will submit — the scene the exact engine still hands
-the witness adapter — and the observation meshes.
+byte proof — captures identical, two defects of the Three path gone with it). The third stage
+closed the output path (`docs/API.md`, batch E8): the draw records name the engine's resident
+index and the host material with the layer's depth offset as a number, the passes of a two-sided
+transparent surface are read at the draw and no host material is cloned; every scene copy is the
+owner's, in the order the reference draws a scene; the transport experiment's observation draws
+on an engine program from engine records and float textures. With it, group E is done: no
+renderer, program, render target or material clone of the host's rendering library takes part in
+what the engine draws or composes — a scene copy stays a host mesh read by shape — and the
+witness adapter serves the Three witnesses alone. What the WebGL2 path still reads of the host library is
+its data model — geometry attributes, materials, textures, the host camera and source graph —
+named through the contract types and replaced by batch C (#78); `explorerCameraApi.ts` keeps the
+host's orbit and fly controls it returns to the host.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are

@@ -100,13 +100,9 @@ const FRONTIERE = {
     'camera.updateMatrixWorld();': 'return to the home pose: the host camera, reset',
   },
   'explorerHostState.ts': {
-    'const lookAtTarget = new THREE.Vector3().copy(center);':
-      'the target the host rereads and rewrites between two poses',
     'camera.updateMatrixWorld();': 'the host restores a recorded pose into its camera',
   },
   'explorerViewportApi.ts': {
-    'const captureTarget = new THREE.Vector3();':
-      'target reused from one capture to the next: set, never allocated per call',
     'view.updateMatrixWorld();': 'the capture view is a host camera, set then resolved',
   },
 };
