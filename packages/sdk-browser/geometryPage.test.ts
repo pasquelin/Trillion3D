@@ -84,3 +84,14 @@ test('a short header, a wrong version, a field beyond the format, a forged index
   forged[96] = 0xff; // Every field of the first index word set: 7 > 6 vertices.
   assert.throws(() => decodeGeometryPage(forged), /GEOMETRY_PAGE_INDEX/);
 });
+
+test('a page view off the word boundary decodes bit for bit like the aligned one', () => {
+  const { encoded } = anneau(40, -10, 3);
+  const padded = new Uint8Array(encoded.data.length + 1);
+  padded.set(encoded.data, 1);
+  const aligned = decodeGeometryPage(encoded.data);
+  const shifted = decodeGeometryPage(new Uint8Array(padded.buffer, 1, encoded.data.length));
+  assert.deepEqual(shifted.indices, aligned.indices);
+  assert.deepEqual(shifted.attributes, aligned.attributes);
+  assert.equal(shifted.quantizationError, aligned.quantizationError);
+});
