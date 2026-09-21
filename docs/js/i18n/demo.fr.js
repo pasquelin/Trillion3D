@@ -72,10 +72,9 @@ const EXACT = {
   'boxes in the batch': 'boîtes dans le lot',
   'boxes tested': 'boîtes testées',
   'kept by the frustum': 'gardées par le frustum',
+  'rejected by the frustum': 'rejetées par le frustum',
   'behind the camera, by construction': 'derrière la caméra, par construction',
   'first survivor, view-space z': 'première survivante, z en espace vue',
-  'boxes where the batch and frustumExcludesBox disagree':
-    'boîtes où le lot et frustumExcludesBox divergent',
   'cull, then transform the survivors: two calls, no allocation between them':
     'trier, puis transformer les survivantes : deux appels, aucune allocation entre eux',
   'root position x': 'position x de la racine',

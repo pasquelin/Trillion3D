@@ -24,17 +24,24 @@ const resultats = await mesure({
   name: 'world step loops',
   fichier: ['packages/sdk-browser/gpuDagPack.ts', 'packages/sdk-browser/gpuDagWorlds.ts'],
   cas: [
-    { name: 'root rebase, 2 479 roots', input: 'rebase', size: ROOTS },
-    { name: 'change scan, first root moved', input: 'scan', size: ROOTS },
-    { name: 'change scan, nothing moved', input: 'still', size: ROOTS },
-    { name: 'stretch scan, translations only moved', input: 'stretch', size: ROOTS },
+    {
+      name: 'root rebase, 2 479 roots',
+      input: () => rootWorldsToRenderOrigin(worlds, roots, origin),
+      size: ROOTS,
+    },
+    {
+      name: 'change scan, first root moved',
+      input: () => worldsChanged(previous, worlds),
+      size: ROOTS,
+    },
+    { name: 'change scan, nothing moved', input: () => worldsChanged(worlds, worlds), size: ROOTS },
+    {
+      name: 'stretch scan, translations only moved',
+      input: () => refreshWorldStretch(previous, worlds, packed, frameData),
+      size: ROOTS,
+    },
   ],
-  calcul: (loop) => {
-    if (loop === 'rebase') return rootWorldsToRenderOrigin(worlds, roots, origin);
-    if (loop === 'scan') return worldsChanged(previous, worlds);
-    if (loop === 'still') return worldsChanged(worlds, worlds);
-    return refreshWorldStretch(previous, worlds, packed, frameData);
-  },
+  calcul: (loop) => loop(),
   motif:
     'correctness held by cameraRenderOrigin.test.ts and gpuDagWorlds.test.ts; these lines time the loops',
   options: { tours: 500, budgetMs: 1500 },
