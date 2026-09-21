@@ -437,18 +437,23 @@ A transmissive source mesh (`KHR_materials_transmission`, with `KHR_materials_io
 `KHR_materials_volume` factors) is not paged: the engine keeps it as a scene copy of its own and
 composes it after the clusters, through the same program. What the glass lets through is the
 engine's own image: the frame is first drawn into a frozen backdrop — linear half-float colour and
-depth, cleared to the scene background — then drawn to the display target, and the copy reads the
-backdrop at the refracted, thickness-advanced position, falls back to the unbent sample when the
-copied depth would put an object in front of the glass, and attenuates by the volume colour. The
-composition is the glTF one and the engine's WebGPU one (`webgpuTransmissionWgsl.ts`): the
-transmitted share replaces alpha blending, `a = alpha + t (1 - alpha)`, the specular of the
-declared lights stays on a null albedo, no light of the pass's own. The copy shares the frame's
-depth buffer, target encoding and tone mapping, and reaches captures, comparison targets and held
-frames through the same owner; `autonomousCopyDraws` counts it per frame and
-`transmissionBackdropBytes` publishes the two copies' cost, zero without a transmissive surface.
-The second cluster pass is the cost of the backdrop, paid only by a frame with a transmissive
-copy in view — copies are frustum-tested like the host renderer tests them — as the reference
-renderer pays its transmission target. The backdrop is a plain copy: roughness does
+depth, cleared to the scene background colour, black for a background that is not a colour — then
+drawn to the display target, and the copy reads the backdrop at the refracted, thickness-advanced
+position, falls back to the unbent sample when the copied depth would put an object in front of
+the glass, and attenuates by the volume colour. The composition is the glTF one and the engine's
+WebGPU one (`webgpuTransmissionWgsl.ts`): the transmitted share replaces alpha blending,
+`a = alpha + t (1 - alpha)`, the specular of the declared lights stays on a null albedo, no light
+of the pass's own. A two-sided transparent copy draws its back faces then its front faces, as
+the batches do. The copy shares the frame's depth buffer, target encoding and tone mapping, and
+reaches captures, comparison targets and held frames through the same owner;
+`autonomousCopyDraws` counts the copies submitted per frame and `transmissionBackdropBytes`
+publishes the two copies' cost, kept until a resize, zero before the first transmissive copy in
+view. The second cluster pass is the cost of the backdrop, paid only by a frame with a transmissive
+copy in view — copies are frustum-tested like the host renderer tests them — and counted in
+`drawCalls` and `submittedTriangles`, as the reference renderer pays its transmission target.
+A copy a diagnostic mode paints, or whose material stops transmitting, draws as a whole mesh
+through the same program. The copies draw in source order after the clusters and before the
+host's own blended copies: no back-to-front sort. The backdrop is a plain copy: roughness does
 not blur what comes through, and one transmissive surface does not see through another.
 
 There is no other renderer for paged clusters. A scene whose material, light or texture the

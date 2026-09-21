@@ -29,13 +29,13 @@ const validateWholeMesh = (
 };
 
 /**
- * Refuses every mesh of the frame before any of them is submitted: no partial image. The
- * copies are the transmission pass's by contract: one that no longer transmits is refused
- * by name rather than blended as if it were a page.
+ * Refuses every mesh of the frame before any of them is submitted: no partial image. Only the
+ * copies of the transmission pass may transmit; a page or a plain copy that does is refused.
  */
 export function validateClusterMeshes(
   meshes: readonly ClusterDrawMesh[],
   wholeMeshes: readonly THREE.Mesh[],
+  plainCopies: readonly THREE.Mesh[],
   transmissiveCopies: readonly THREE.Mesh[],
   seen: Map<Material, Attributes>,
 ) {
@@ -65,5 +65,6 @@ export function validateClusterMeshes(
     } else validateMaterial(mesh.material, mesh.geometry.attributes, seen);
   }
   for (const mesh of wholeMeshes) validateWholeMesh(mesh, seen, false);
+  for (const mesh of plainCopies) validateWholeMesh(mesh, seen, false);
   for (const mesh of transmissiveCopies) validateWholeMesh(mesh, seen, true);
 }

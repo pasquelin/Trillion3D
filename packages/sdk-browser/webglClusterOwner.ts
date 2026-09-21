@@ -23,6 +23,9 @@ export class WebglClusterOwner {
   get copySubmissions() {
     return this.renderer.copySubmissions;
   }
+  get backdropPasses() {
+    return this.renderer.backdropPasses;
+  }
   draw(
     meshes: readonly ClusterDrawMesh[],
     scene: WebglClusterScene,

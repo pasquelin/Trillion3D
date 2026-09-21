@@ -54,15 +54,16 @@ export function rasterPageRecords(
   const world = new THREE.Matrix4();
   // A batch record submits only its ranges: the oracle follows the same cut, not the whole buffer.
   for (const draw of submittedDraws(backend)) {
-    const index = draw.geometry.getIndex()!,
+    const index = draw.geometry.getIndex(),
       position = draw.geometry.getAttribute('position'),
-      rgb = colorOf(draw.material);
+      rgb = colorOf(draw.material),
+      vertex = (i: number) => (index ? index.getX(i) : i);
     world.fromArray(draw.matrix.elements);
     for (const [first, length] of drawnRanges(draw))
       for (let i = first; i < first + length; i += 3) {
-        projectAttribute(world, position, index.getX(i), viewProj, width, height, pa);
-        projectAttribute(world, position, index.getX(i + 1), viewProj, width, height, pb);
-        projectAttribute(world, position, index.getX(i + 2), viewProj, width, height, pc);
+        projectAttribute(world, position, vertex(i), viewProj, width, height, pa);
+        projectAttribute(world, position, vertex(i + 1), viewProj, width, height, pb);
+        projectAttribute(world, position, vertex(i + 2), viewProj, width, height, pc);
         fillTriangle(pixels, width, height, pa, pb, pc, rgb);
       }
   }

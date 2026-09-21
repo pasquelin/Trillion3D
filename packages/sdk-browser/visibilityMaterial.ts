@@ -106,7 +106,7 @@ const textureReason = (texture: THREE.Texture | undefined) => {
 /**
  * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
  * A transmissive physical material is accepted only where `transmissive` says the draw reads
- * the frozen backdrop: a paged cluster never does, a scene copy of the transmission pass does.
+ * the frozen backdrop: a scene copy of the transmission pass does, a paged cluster never does.
  */
 export function clusterMaterialReason(
   material: THREE.Material | THREE.Material[],
@@ -128,10 +128,8 @@ export function clusterMaterialReason(
     return `material ${material.type} uses an unsupported blend state`;
   const physical = physicalExtensionReason(standard as THREE.MeshPhysicalMaterial);
   if (physical) return physical;
-  if (isTransmissive(material) !== transmissive)
-    return transmissive
-      ? 'a scene copy without transmission is not drawn by the transmission pass'
-      : 'a transmissive material is drawn as a scene copy, not as a paged cluster';
+  if (!transmissive && isTransmissive(material))
+    return 'a transmissive material is drawn as a scene copy, not as a paged cluster';
   if (
     standard.envMap ||
     standard.lightMap ||

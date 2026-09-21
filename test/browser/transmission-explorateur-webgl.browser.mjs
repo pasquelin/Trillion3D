@@ -22,10 +22,20 @@ assert.equal(result.copyDraws, 1, 'the glass is one owned submission');
 assert.ok(result.clusterDraws > 0);
 assert.equal(result.targetCopyDraws, 1);
 assert.equal(result.backdropBytes, 64 * 64 * 12);
-assert.equal(result.drawCalls, 2, 'one cluster batch plus one scene copy');
+assert.equal(result.drawCalls, 3, 'the backdrop pass, the display pass and the scene copy');
 assert.equal(result.transparentMeshes, 1);
 assert.equal(result.physicalInHostPass, 0, 'the glass entered WebGLRenderer.render');
 assert.ok(result.hostCalls > 0);
+assert.deepEqual(
+  result.wireframe,
+  { copyDraws: 1, drawCalls: 2 },
+  'the painted glass is drawn as a whole mesh, without a backdrop pass',
+);
+assert.deepEqual(
+  result.mutationRefusal,
+  { code: 'CLUSTER_MATERIAL_UNSUPPORTED', reason: 'physical clearcoat is unsupported' },
+  'a mutation after the preparation is refused by the same name',
+);
 assert.deepEqual(result.refusal, {
   code: 'CLUSTER_MATERIAL_UNSUPPORTED',
   reason: 'physical sheen is unsupported',

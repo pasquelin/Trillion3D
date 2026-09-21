@@ -29,6 +29,24 @@ export async function execute() {
   const targetPixel = new Uint8Array(4);
   host.readRenderTargetPixels(target, 32, 32, 1, 1, targetPixel);
   const targetMetrics = backend.metrics();
+  // A diagnostic mode paints the glass like any copy: the owner draws it as a whole mesh.
+  backend.setDiagnostic('wireframe');
+  backend.render(camera);
+  draw(backend, null);
+  const wireframe = {
+    copyDraws: backend.metrics().autonomousCopyDraws,
+    drawCalls: backend.metrics().drawCalls,
+  };
+  backend.setDiagnostic('beauty');
+  // A mutation the program cannot preserve is refused by name on the next frame, no image drawn.
+  scene.copy.material.clearcoat = 0.5;
+  let mutationRefusal = null;
+  try {
+    backend.render(camera);
+    draw(backend, null);
+  } catch (error) {
+    mutationRefusal = errorOf(error);
+  }
   const physicalInHostPass = mounted.countedInHostPass,
     hostCalls = mounted.calls.length;
   mounted.dispose();
@@ -64,6 +82,8 @@ export async function execute() {
     transparentMeshes: metrics.transparentMeshes,
     physicalInHostPass,
     hostCalls,
+    wireframe,
+    mutationRefusal,
     refusal,
     drawRefusal,
   };

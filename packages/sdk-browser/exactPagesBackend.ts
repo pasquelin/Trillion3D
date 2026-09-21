@@ -41,7 +41,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     attached: PageRec[] = [];
   const requestData = createExactPagesRequestData(allPages, requestCount);
   // One resident index buffer per primitive: the visible cut is now only a list of ranges.
-  const { batches, refusal } = createExactPagesClusterBatches(
+  const { batches, refusal, ownedCopies } = createExactPagesClusterBatches(
     scene,
     allPages,
     blendCopies,
@@ -120,6 +120,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   const metricMethods = createExactPagesMetrics({
     batches,
     blendCopies,
+    ownedCopies,
     metricsSeen,
     attached,
     counters,

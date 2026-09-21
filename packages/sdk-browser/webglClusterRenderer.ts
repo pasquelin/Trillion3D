@@ -21,7 +21,7 @@ import {
   type Material,
 } from './webglClusterMaterialBinding.ts';
 import { refuseCluster } from './webglClusterRefusal.ts';
-import { WebglClusterCopyCulling } from './webglClusterCopyCulling.ts';
+import { WebglClusterCopies } from './webglClusterCopyCulling.ts';
 import type * as THREE from 'three';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './webglClusterSubmit.ts';
 
@@ -40,11 +40,11 @@ export class WebglClusterRenderer {
   private materialUniforms: WebglClusterMaterialUniforms;
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
-  private culling = new WebglClusterCopyCulling();
-  /** Transmissive copies of the frame being drawn that are in view; reused frame to frame. */
-  private transmissive: THREE.Mesh[] = [];
+  private copies = new WebglClusterCopies<THREE.Mesh>();
   /** Scene copies the last frame submitted: in view and visible. */
   copySubmissions = 0;
+  /** Whether the last frame drew the backdrop pass: its submissions are the display pass's again. */
+  backdropPasses = 0;
   private binding: Parameters<typeof bindClusterMaterial>[0];
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -103,16 +103,21 @@ export class WebglClusterRenderer {
     normalMatrix3(this.normal, this.modelView);
     setMatrix3(gl, this.at('normalMatrix'), this.normal);
     let submitted = 0;
-    if (Array.isArray(mesh.material)) {
+    const material = mesh.material;
+    if (Array.isArray(material)) {
       const source = (mesh as ClusterDrawMesh)._sideSplitSource!;
       const polygon = (mesh as ClusterDrawMesh)._sideSplitPolygonMaterials;
       submitted += this.pass(mesh, source, toneMapped, whole, 1, polygon?.[0]);
       submitted += this.pass(mesh, source, toneMapped, whole, 0, polygon?.[1]);
-    } else submitted = this.pass(mesh, mesh.material, toneMapped, whole);
+    } else if (material.transparent && material.side === 2 && !material.forceSinglePass) {
+      // A two-sided transparent whole mesh draws back faces then front faces, as the batches do.
+      submitted += this.pass(mesh, material, toneMapped, whole, 1);
+      submitted += this.pass(mesh, material, toneMapped, whole, 0);
+    } else submitted = this.pass(mesh, material, toneMapped, whole);
     return submitted;
   }
-  /** Every submission but the transmissive copies, in draw order. */
-  private submitOpaque(
+  /** The paged clusters and the whole page meshes, in draw order; the copies come after. */
+  private submitClusters(
     meshes: readonly ClusterDrawMesh[],
     wholeMeshes: readonly THREE.Mesh[],
     camera: HostDrawCamera,
@@ -123,17 +128,15 @@ export class WebglClusterRenderer {
     for (const mesh of wholeMeshes) submitted += this.mesh(mesh, camera, toneMapped);
     return submitted;
   }
+  private submitPlainCopies(camera: HostDrawCamera, toneMapped: boolean) {
+    let submitted = 0;
+    for (const mesh of this.copies.plain) submitted += this.mesh(mesh, camera, toneMapped);
+    return submitted;
+  }
   /** The pass's destination; the raster state is re-applied, the backdrop having written masks. */
   private setOutput(srgbDestination: boolean) {
     this.gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     this.state.invalidate();
-  }
-  /** The transmissive copies in view: the host renderer would cull them the same way. */
-  private cullCopies(copies: readonly THREE.Mesh[], camera: HostDrawCamera) {
-    this.transmissive.length = 0;
-    if (!copies.length) return;
-    this.culling.begin(camera);
-    for (const copy of copies) if (this.culling.visible(copy)) this.transmissive.push(copy);
   }
   /**
    * One frame: the batches, then whole host meshes — diagnostic pages, painted copies — then the
@@ -147,36 +150,39 @@ export class WebglClusterRenderer {
     toneMapped: boolean,
     srgbDestination: boolean,
     diagnosticMeshes: readonly THREE.Mesh[] = [],
-    transmissiveCopies: readonly THREE.Mesh[] = [],
+    copies: readonly THREE.Mesh[] = [],
   ) {
     const gl = this.gl;
     const lightReason = unsupportedClusterLight(scene);
     if (lightReason) refuseCluster(lightReason);
-    validateClusterMeshes(meshes, diagnosticMeshes, transmissiveCopies, this.validatedMaterials);
+    this.copies.cull(copies, camera);
+    const { plain, transmissive } = this.copies;
+    validateClusterMeshes(meshes, diagnosticMeshes, plain, transmissive, this.validatedMaterials);
     gl.useProgram(this.program);
     gl.disable(gl.STENCIL_TEST);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
     // The host's texture units are unknown at frame start; the backdrop pass touches only its own.
     this.textures.invalidateBindings();
-    this.cullCopies(transmissiveCopies, camera);
-    const transmissive = this.transmissive;
+    let backdropSubmissions = 0;
     if (transmissive.length) {
       this.backdrop.begin(scene.background);
       this.setOutput(false);
-      this.submitOpaque(meshes, diagnosticMeshes, camera, false);
+      backdropSubmissions = this.submitClusters(meshes, diagnosticMeshes, camera, false);
+      this.submitPlainCopies(camera, false);
       this.backdrop.end();
     }
+    this.backdropPasses = transmissive.length ? 1 : 0;
     this.setOutput(srgbDestination);
-    const submitted = this.submitOpaque(meshes, diagnosticMeshes, camera, toneMapped);
-    let copySubmissions = 0;
+    const submitted = this.submitClusters(meshes, diagnosticMeshes, camera, toneMapped);
+    let copySubmissions = this.submitPlainCopies(camera, toneMapped);
     if (transmissive.length) {
       this.backdrop.bind();
       gl.uniform2f(this.at('backdropOrigin'), this.backdrop.originX, this.backdrop.originY);
       for (const mesh of transmissive) copySubmissions += this.mesh(mesh, camera, toneMapped);
     }
     this.copySubmissions = copySubmissions;
-    return submitted + copySubmissions;
+    return backdropSubmissions + submitted + copySubmissions;
   }
   dispose() {
     this.backdrop.dispose();
