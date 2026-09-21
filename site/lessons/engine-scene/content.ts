@@ -15,6 +15,7 @@ export const sceneCopy = {
     unavailable:
       'This browser cannot start WebGPU. You can still use every geometric illustration in the playground. Try this scene in a current browser with WebGPU enabled.',
     failed: 'The scene could not load. Check your connection and try again.',
+    lost: 'The GPU device was lost; the image was withdrawn. Try again to reopen the scene.',
     retry: 'Try again',
     mode: 'View',
     beauty: 'Image',
@@ -77,6 +78,7 @@ export const sceneCopy = {
     unavailable:
       'Ce navigateur ne peut pas démarrer WebGPU. Toutes les illustrations géométriques du playground restent disponibles. Essayez cette scène dans un navigateur récent avec WebGPU activé.',
     failed: 'La scène n’a pas pu être chargée. Vérifiez votre connexion puis réessayez.',
+    lost: 'L’appareil GPU a été perdu ; l’image a été retirée. Réessayez pour rouvrir la scène.',
     retry: 'Réessayer',
     mode: 'Vue',
     beauty: 'Image',
