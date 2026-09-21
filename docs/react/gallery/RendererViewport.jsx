@@ -19,10 +19,21 @@ const errorMessage = (error, locale, action) => {
   return error instanceof Error && error.message ? `${fallback} ${error.message}` : fallback;
 };
 
+export const DIAGNOSTIC_MODES = [
+  { id: 'beauty', en: 'Image', fr: 'Image' },
+  { id: 'wireframe', en: 'Triangles', fr: 'Triangles' },
+  { id: 'clusters', en: 'Clusters', fr: 'Groupes' },
+  { id: 'pages', en: 'Pages', fr: 'Pages' },
+  { id: 'lod', en: 'Level of detail', fr: 'Niveau de détail' },
+  { id: 'screen-error', en: 'Screen error', fr: 'Erreur écran' },
+  { id: 'visibility', en: 'Visibility', fr: 'Visibilité' },
+];
+
 export function RendererViewport({ lesson, state, locale, label }) {
   const canvas = useRef(null),
     runtime = useRef(null),
     latest = useRef(state),
+    [diagnostic, setDiagnostic] = useState('beauty'),
     [metrics, setMetrics] = useState({}),
     [error, setError] = useState(''),
     [pending, setPending] = useState(true);
@@ -34,6 +45,7 @@ export function RendererViewport({ lesson, state, locale, label }) {
     setError('');
     setMetrics({});
     setPending(true);
+    setDiagnostic('beauty');
     createRendererLessonRuntime({
       canvas: canvas.current,
       lesson,
@@ -68,6 +80,14 @@ export function RendererViewport({ lesson, state, locale, label }) {
       .catch((error) => setError(errorMessage(error, locale, 'update')));
   }, [state, locale]);
   const french = locale === 'fr';
+  const onSelectMode = (nextMode) => {
+    setDiagnostic(nextMode);
+    try {
+      runtime.current?.setDiagnostic(nextMode);
+    } catch (err) {
+      setError(errorMessage(err, locale, 'update'));
+    }
+  };
   return (
     <div className="geometry-3d grid gap-4" data-renderer-lesson={lesson.id}>
       <Canvas
@@ -76,6 +96,24 @@ export function RendererViewport({ lesson, state, locale, label }) {
         label={label}
         pending={pending}
         loadingLabel={locale === 'fr' ? 'Préparation de la scène…' : 'Preparing the scene…'}
+        overlay={
+          <div className="canvas-modes absolute top-3 left-3 z-20">
+            <select
+              className="select select-sm bg-base-100/90 shadow-sm text-xs font-medium rounded-box"
+              aria-label={french ? 'Mode de rendu' : 'Render mode'}
+              data-renderer-diagnostic
+              value={diagnostic}
+              disabled={pending}
+              onChange={(e) => onSelectMode(e.target.value)}
+            >
+              {DIAGNOSTIC_MODES.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item[french ? 'fr' : 'en']}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
         actions={[
           {
             label: french ? 'Zoom arrière' : 'Zoom out',
