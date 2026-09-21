@@ -1,8 +1,4 @@
-import {
-  prepareExplorerWebglSurface,
-  resizeExplorerWebglHost,
-} from '../../packages/sdk-browser/explorerWebglHost.ts';
-import * as THREE from 'three';
+import { prepareExplorerWebglSurface } from '../../packages/sdk-browser/explorerWebglHost.ts';
 
 const waitFor = (read, timeout = 2000) =>
   new Promise((resolve, reject) => {
@@ -52,10 +48,9 @@ export async function execute() {
     canvas,
     onLifecycle: (state) => events.push(state),
   });
-  const renderer = new THREE.WebGLRenderer({ canvas, context: surface.context });
-  resizeExplorerWebglHost(surface, renderer, 32, 16, 2);
+  surface.resize(32, 16, 2);
   const before = draw(surface.context, [1, 0, 0, 1]);
-  resizeExplorerWebglHost(surface, renderer, 32, 16, 2);
+  surface.resize(32, 16, 2);
   const afterSameSize = new Uint8Array(4);
   surface.context.readPixels(
     0,
@@ -66,7 +61,7 @@ export async function execute() {
     surface.context.UNSIGNED_BYTE,
     afterSameSize,
   );
-  resizeExplorerWebglHost(surface, renderer, 16, 8, 2);
+  surface.resize(16, 8, 2);
   const afterResize = draw(surface.context, [0, 1, 0, 1]);
   const extension = surface.context.getExtension('WEBGL_lose_context');
   if (!extension) return { unavailable: 'WEBGL_lose_context unavailable' };
@@ -75,7 +70,6 @@ export async function execute() {
   extension.restoreContext();
   await waitFor(() => events.includes('restored'));
   const afterRestore = draw(surface.context, [0, 0, 1, 1]);
-  renderer.dispose();
   surface.dispose();
   await waitFor(() => surface.context.isContextLost());
   return {

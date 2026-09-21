@@ -13,7 +13,7 @@ export async function execute() {
     camera = transmissionCamera(),
     mounted = mountExplorerProof(scene, camera, physical, { clearColor: 0x0000ff });
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
-  const { gl, host, backend, draw, target } = mounted;
+  const { gl, backend, draw, target } = mounted;
   await backend.prepare();
   backend.render(camera);
   draw(backend, null);
@@ -22,12 +22,9 @@ export async function execute() {
   backend.render(camera);
   draw(backend, null);
   const repeatPixel = pixel(gl, 32, 32);
-  // The frame loop binds the target before handing the scene over (`explorerDraw.ts`).
-  host.setRenderTarget(target);
+  // The composer binds the target before asking the engine to draw (`explorerCompose.ts`).
   draw(backend, target);
-  host.setRenderTarget(null);
-  const targetPixel = new Uint8Array(4);
-  host.readRenderTargetPixels(target, 32, 32, 1, 1, targetPixel);
+  const targetPixel = mounted.targetPixel(32, 32);
   const targetMetrics = backend.metrics();
   // A diagnostic mode paints the glass like any copy: the owner draws it as a whole mesh.
   backend.setDiagnostic('wireframe');
@@ -73,7 +70,7 @@ export async function execute() {
   return {
     canvasPixel,
     repeatPixel,
-    targetPixel: [...targetPixel],
+    targetPixel,
     copyDraws: metrics.autonomousCopyDraws,
     clusterDraws: metrics.autonomousClusterDrawsTotal,
     targetCopyDraws: targetMetrics.autonomousCopyDraws,

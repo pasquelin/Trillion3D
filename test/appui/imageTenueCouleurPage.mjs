@@ -1,12 +1,17 @@
-// Page side of the proof: a real WebGL render in Chromium, the engine's display chain — sRGB
-// output, ACES as soon as a light exists — and the real held-image module.
+// Page side of the proof: a real WebGL render in Chromium on the engine's own surface — its
+// context attributes, `alpha: false` included —, the witness adapter drawing a Three scene through
+// the frame composer with the engine's display chain (sRGB output, ACES as soon as a light exists),
+// and the real held-frame module.
 //
-// The complete image is rendered then reread pixel for pixel; the same image is then kept and
-// re-presented by the full-screen quad, and reread at the same points. The two readings must be
-// identical byte for byte: the copy already carries the display output, re-presenting it must
-// neither re-encode nor re-tone-map it.
+// The complete image is composed then reread pixel for pixel; the engine then declares its frame
+// held, the composer puts the kept copy back, and the same points are reread. The two readings
+// must be identical byte for byte: the copy already carries the display output, putting it back
+// must neither re-encode nor re-tone-map it — and must work at all on a drawing buffer without
+// alpha, where a copy into an RGBA texture through `copyTexSubImage2D` was refused.
 import * as THREE from 'three';
-import { createHeldFrame } from '../../packages/sdk-browser/explorerHeldFrame.ts';
+import { createFrameComposer } from '../../packages/sdk-browser/explorerCompose.ts';
+import { createThreeSceneDraw } from '../../packages/sdk-browser/threeSceneAdapter.ts';
+import { WEBGL_CONTEXT_ATTRIBUTES } from '../../packages/sdk-browser/webglSurface.ts';
 
 const LARGEUR = 256,
   HAUTEUR = 192;
@@ -29,6 +34,7 @@ function lire(gl) {
 /** Two planes of different colours, lit or not according to what the case asks. */
 function scene(eclairee) {
   const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x171d28);
   const materiau = (couleur) =>
     eclairee
       ? new THREE.MeshStandardMaterial({ color: couleur, roughness: 0.6 })
@@ -46,30 +52,41 @@ function scene(eclairee) {
 }
 
 /** One case: a complete image, then the same image held. Returns both pixel readings. */
-function cas(renderer, gl, eclairee) {
-  // The engine's display chain: ACES is the last link only if a light exists.
-  renderer.toneMapping = eclairee ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+function cas(gl, eclairee) {
   const camera = new THREE.PerspectiveCamera(50, LARGEUR / HAUTEUR, 0.1, 100);
   camera.position.z = 3;
   camera.updateMatrixWorld(true);
   const monde = scene(eclairee);
-  const tenue = createHeldFrame();
-  const taille = new THREE.Vector2();
-  renderer.getDrawingBufferSize(taille);
-  renderer.render(monde, camera);
+  const dessin = createThreeSceneDraw(gl, monde);
+  // A witness engine as the composer sees it: its scene, its light flag, its held-frame word.
+  const moteur = {
+    id: 'witness',
+    scene: monde,
+    frameHeld: false,
+    sceneLit: () => eclairee,
+    render: dessin.render,
+    drawHostGeometry: dessin.drawHostGeometry,
+  };
+  const compose = createFrameComposer(gl, camera);
+  moteur.render(camera);
+  compose(moteur, null);
   const complete = lire(gl);
-  tenue.keep(renderer, taille);
+  const dessins = dessin.counters().calls;
+  moteur.frameHeld = true;
   const readings = [];
-  // Several held images in a row: each rereads what it just posed, without drifting.
+  // Several held images in a row: each puts back what it kept, without drifting.
   for (let i = 0; i < 3; i++) {
-    tenue.present(renderer);
+    compose(moteur, null);
     readings.push(lire(gl));
   }
+  const dessinsTenus = dessin.counters().calls;
+  compose.dispose();
+  dessin.dispose();
   monde.traverse((objet) => {
     objet.geometry?.dispose();
     objet.material?.dispose();
   });
-  return { eclairee, complete, tenues: readings };
+  return { eclairee, complete, tenues: readings, dessins, dessinsTenus };
 }
 
 export async function executer() {
@@ -77,19 +94,17 @@ export async function executer() {
   canvas.width = LARGEUR;
   canvas.height = HAUTEUR;
   document.body.append(canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-  renderer.setPixelRatio(1);
-  renderer.setSize(LARGEUR, HAUTEUR, false);
-  // The engine's output: sRGB. That is what the copy already carries.
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMappingExposure = 1;
-  const gl = renderer.getContext();
+  const gl = canvas.getContext('webgl2', WEBGL_CONTEXT_ATTRIBUTES);
+  if (!gl) return { erreur: 'WebGL2 unavailable' };
   try {
-    return { cas: [cas(renderer, gl, false), cas(renderer, gl, true)] };
+    return {
+      alpha: gl.getContextAttributes().alpha,
+      cas: [cas(gl, false), cas(gl, true)],
+    };
   } catch (error) {
     return { erreur: String(error) + (error?.stack ?? '') };
   } finally {
-    renderer.dispose();
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
     canvas.remove();
   }
 }

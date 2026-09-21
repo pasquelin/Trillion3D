@@ -18,6 +18,7 @@ export function createWebglSurface(canvas: HTMLCanvasElement, options: SurfaceOp
   const context = canvas.getContext('webgl2', WEBGL_CONTEXT_ATTRIBUTES);
   if (!context) throw new Error('WebGL2 unavailable');
   let lost = context.isContextLost(),
+    restorations = 0,
     disposed = false,
     logicalWidth = 0,
     logicalHeight = 0,
@@ -29,6 +30,7 @@ export function createWebglSurface(canvas: HTMLCanvasElement, options: SurfaceOp
   };
   const onContextRestored = () => {
     lost = false;
+    restorations++;
     options.onRestored?.();
   };
   canvas.addEventListener('webglcontextlost', onContextLost);
@@ -44,6 +46,11 @@ export function createWebglSurface(canvas: HTMLCanvasElement, options: SurfaceOp
     },
     get disposed() {
       return disposed;
+    },
+    /** How many times the context came back: a GPU object built before the last restoration
+     *  belongs to a dead context, and its owner rebuilds it. */
+    get restorations() {
+      return restorations;
     },
     get size() {
       return {
