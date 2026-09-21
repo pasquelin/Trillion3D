@@ -6,17 +6,17 @@ import ts from 'typescript';
 import { gitPaths } from './git-paths.ts';
 import { repositoryFiles } from './repository-files.ts';
 
-const sourcePattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx)$/;
-const testPattern = /\.test\.(?:ts|mts|mjs)$/;
-const formatPattern = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|json)$/;
+const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
+const testPattern = /\.test\.(?:ts|mts)$/;
+const formatPattern = /\.(?:[cm]?ts|tsx|json)$/;
 
 function candidates(importer: string, specifier: string): string[] {
   if (specifier === 'web-geometry')
     return ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'];
   if (!specifier.startsWith('.')) return [];
   const target = posix.normalize(posix.join(posix.dirname(importer), specifier));
-  const stem = target.replace(/\.(?:m?js)$/, '');
-  return [target, `${stem}.ts`, `${stem}.mts`, `${stem}.mjs`, `${stem}/index.ts`];
+  const stem = target.replace(/\.m?ts$/, '');
+  return [target, `${stem}.ts`, `${stem}.mts`, `${stem}/index.ts`];
 }
 
 /** Direct and transitive source imports select only the unit tests they can affect. */

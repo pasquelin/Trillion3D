@@ -12,7 +12,6 @@ import { serverPort } from '../../scripts/mesure/serveur.ts';
 import { ouvrirAppareil } from './appareilWebgpu.ts';
 
 declare global {
-  // eslint-disable-next-line no-var
   var ouvrirAppareil: typeof import('./appareilWebgpu.ts').ouvrirAppareil;
 }
 

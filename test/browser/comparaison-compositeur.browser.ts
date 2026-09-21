@@ -3,7 +3,7 @@
 // Before, the compositor was a `ShaderMaterial` whose fragment named a uniform `layout` —
 // reserved in GLSL ES 3.00 — and never compiled: every comparison showed the clear colour (#85).
 //
-//   node --experimental-strip-types test/browser/comparaison-compositeur.browser.mjs
+//   node --experimental-strip-types test/browser/comparaison-compositeur.browser.ts
 import assert from 'node:assert/strict';
 import {
   preuveDansLaPage,
