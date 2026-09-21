@@ -1,8 +1,11 @@
-import { EngineError } from '../sdk-core/index.ts';
 import type { BackendContext } from './backendTypes.ts';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
 import { clusterWebglCompatibility, ownedSceneCopy } from './webglClusterCompatibility.ts';
+import { clusterRefusal } from './webglClusterRefusal.ts';
 import { WebglClusterOwner } from './webglClusterOwner.ts';
+
+type HostScene = ConstructorParameters<typeof ClusterBatches>[0];
+type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[number];
 
 /**
  * The batches of a prepared scene and their one draw owner. A scene the owner cannot draw in
@@ -15,24 +18,22 @@ import { WebglClusterOwner } from './webglClusterOwner.ts';
  * diagnostic modes to restore.
  */
 export function createExactPagesClusterBatches(
-  scene: ConstructorParameters<typeof ClusterBatches>[0],
+  scene: HostScene,
   pages: readonly BatchPage[],
-  blendCopies: NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>,
+  blendCopies: readonly SceneCopy[],
   context: Pick<BackendContext, 'webglContext'>,
 ) {
   const gl = context.webglContext;
   const reason = gl && clusterWebglCompatibility(gl, pages, blendCopies, scene);
-  const refusal = reason
-    ? new EngineError('CLUSTER_MATERIAL_UNSUPPORTED', `Autonomous WebGL2 refused: ${reason}`, {
-        reason,
-      })
-    : undefined;
+  const refusal = reason ? clusterRefusal(reason) : undefined;
   const owner = gl && !refusal ? new WebglClusterOwner(gl) : undefined;
+  const transmissive: SceneCopy[] = [];
   for (const copy of blendCopies) {
     copy.userData.sourceGeometry = copy.geometry;
     copy.userData.sourceMaterial = copy.material;
-    if (!ownedSceneCopy(copy)) scene.add(copy);
+    if (ownedSceneCopy(copy)) transmissive.push(copy);
+    else scene.add(copy);
   }
-  const batches = new ClusterBatches(scene, pages, owner, blendCopies.filter(ownedSceneCopy));
+  const batches = new ClusterBatches(scene, pages, owner, transmissive);
   return { batches, refusal };
 }
