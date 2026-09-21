@@ -106,9 +106,13 @@ test('a page awaiting a redraw for a world change still holds the extent; a slid
   dirty.setExtent(0, 0, 1, 0);
   dirty.slide(0, 0, ROWS, 1, 0, 32, 2);
   for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xfe);
-  // A refused draw on that column keeps it unheld; a landed one holds it again.
-  dirty.undrew(0, 0, 0, 0, 0, ROWS - 1, 48, 3);
+  // A refused draw gives the pages back what they held before admission: the slid column
+  // stays unheld, a staled column beside it stays held.
+  dirty.snapshotHeld();
+  dirty.drew(0, 0, 0, 1, 0, ROWS - 1);
+  dirty.undrew(0, 0, 0, 1, 0, ROWS - 1, 48, 3);
   assert.equal(dirty.heldRow(0, 0, 3), 0xfe);
+  // A landed draw holds it again.
   dirty.drew(0, 0, 0, 0, 0, ROWS - 1);
   for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xff);
 });

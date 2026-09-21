@@ -7,7 +7,7 @@ import {
   faceDirty,
   markBoxPages,
   markWholeFace,
-  markExtentRect,
+  markExtentStrips,
   maskBase,
   setRect,
 } from './sceneLightShadowPages.ts';
@@ -90,6 +90,8 @@ export function createShadowDirty() {
     row: (slice: number, face: number, row: number) => mask[maskBase(slice, face) + row],
     /** Physical pages of the face that hold a depth of its current extent, eight per row. */
     heldRow: held.row,
+    /** Before the frame admits regions: what a refused draw gives back to its pages. */
+    snapshotHeld: held.snapshot,
     wrapXOf: (slice: number, face: number) => wrapX[indexOf(slice, face)],
     wrapYOf: (slice: number, face: number) => wrapY[indexOf(slice, face)],
     /** Physical page of the extent origin: where extent page `(0, 0)` lives in the face. */
@@ -112,19 +114,9 @@ export function createShadowDirty() {
     ) {
       const index = indexOf(slice, face),
         base = maskBase(slice, face),
-        wx = wrapX[index],
-        wy = wrapY[index];
-      const before = countPages(mask, base);
-      const columns = dx > 0 ? [rows - dx, rows - 1] : [0, -dx - 1],
-        strips = dy > 0 ? [rows - dy, rows - 1] : [0, -dy - 1];
-      if (dx) {
-        markExtentRect(mask, base, rows, wx, wy, columns[0], columns[1], 0, rows - 1);
-        held.clearExtentRect(slice, face, rows, wx, wy, columns[0], columns[1], 0, rows - 1);
-      }
-      if (dy) {
-        markExtentRect(mask, base, rows, wx, wy, 0, rows - 1, strips[0], strips[1]);
-        held.clearExtentRect(slice, face, rows, wx, wy, 0, rows - 1, strips[0], strips[1]);
-      }
+        before = countPages(mask, base);
+      markExtentStrips(mask, base, rows, wrapX[index], wrapY[index], dx, dy);
+      held.clearStrips(slice, face, rows, wrapX[index], wrapY[index], dx, dy);
       entered(slice, face, base, before, nowMs, frame);
     },
     /** The whole face is to remake: moved light, reallocated slice, moved cascade, first frame. */
@@ -159,7 +151,7 @@ export function createShadowDirty() {
     drew(slice: number, face: number, x0: number, x1: number, y0: number, y1: number) {
       const base = maskBase(slice, face);
       setRect(mask, base, x0, x1, y0, y1, false);
-      held.setRect(slice, face, x0, x1, y0, y1, true);
+      held.setRect(slice, face, x0, x1, y0, y1);
       if (!faceDirty(mask, base)) forget(indexOf(slice, face));
     },
     /**
@@ -178,8 +170,7 @@ export function createShadowDirty() {
       frame: number,
     ) {
       setRect(mask, maskBase(slice, face), x0, x1, y0, y1, true);
-      // What they held before is not kept: they fall through to the next cascade until drawn.
-      held.setRect(slice, face, x0, x1, y0, y1, false);
+      held.restoreRect(slice, face, x0, x1, y0, y1);
       // These pages had already been counted at their queue entry: they come back, without
       // going through `added` again, which counts entries and not round-trips.
       waitFrom(slice, face, nowMs, frame);

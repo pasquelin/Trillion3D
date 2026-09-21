@@ -149,6 +149,7 @@ export function createShadowPlan(capacity: number) {
       }
       // The boxes are consumed: it is the pages that now carry the remaining work.
       changes.settled();
+      slices.dirty.snapshotHeld();
       queue.run(slices, store, frame);
       counts.endFrame(slices, store, frame, nowMs);
       return regions.count;
