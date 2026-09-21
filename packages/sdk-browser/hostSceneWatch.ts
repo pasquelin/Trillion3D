@@ -1,6 +1,5 @@
 import type * as THREE from 'three';
-import { asHostLibrary } from './hostResources.ts';
-import type { HostNode } from './hostResources.ts';
+import { asHostLibrary, type HostNode } from './hostResources.ts';
 import type { WriteRevision } from './hostSceneHookCore.ts';
 import { hookHostNode, unhookHostNode } from './hostSceneHooks.ts';
 import { scan, snapshot, type NodeState, type WatchVerdict } from './hostSceneScan.ts';
