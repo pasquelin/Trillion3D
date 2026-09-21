@@ -1,5 +1,5 @@
 // First part of the foundation bench, `sdk-core` consumers: each computation attached to
-// the foundation, opposed to the code it was before, copied in `oracles/socle-math*.mjs`.
+// the foundation, opposed to the code it was before, copied in `oracles/socle-math*.ts`.
 // A single different value and the line fails: the attachment changes no bit.
 import { cross } from '../../../sdk-core/lightingSceneMath.ts';
 import { packSurface } from '../../../sdk-core/lightingTransportIntersections.ts';

@@ -21,14 +21,6 @@ import type { BackendFactory, BackendDiagnostic } from '../../packages/sdk-brows
 import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
 import type * as SdkCore from '../../packages/sdk-core/index.ts';
 
-/** What `ouvrirAppareil` hands back once the device is open, read at this boundary since
- *  `appareilWebgpu.ts` does not export its return type. */
-interface AppareilOuvert {
-  device: GPUDevice;
-  erreurs: string[];
-  fermer(): Promise<{ court: string; complet: string }>;
-}
-
 interface Sides {
   referenceBackend: BackendFactory;
   webgpuPagesBackend: BackendFactory;
@@ -108,7 +100,7 @@ export async function run({
 }): Promise<RunResult> {
   const { referenceBackend, webgpuPagesBackend } = (await import(sdkUrl)) as typeof SdkBrowser;
   const { createSceneLightStore } = (await import(coreUrl)) as typeof SdkCore;
-  const gpu = (await ouvrirAppareil()) as AppareilOuvert | null;
+  const gpu = await ouvrirAppareil();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
   const { device, erreurs: errors } = gpu;
   const { renderer, canvas } = witnessRenderer();

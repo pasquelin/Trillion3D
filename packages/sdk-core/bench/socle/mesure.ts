@@ -175,6 +175,4 @@ async function chronometre<Entree>(
   return stats(durees);
 }
 
-/** One extreme case a stress check must absorb without throwing. */
-
 export { compare, stress } from './mesureStress.ts';

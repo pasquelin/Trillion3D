@@ -22,14 +22,6 @@ import type {
 } from '../../packages/sdk-browser/backendTypes.ts';
 import type { DiagnosticGpuVariant } from '../../packages/sdk-browser/diagnosticGpuVariant.ts';
 
-/** What `ouvrirAppareil` hands back once the device is open, read at this boundary since
- *  `appareilWebgpu.ts` does not export its return type. */
-interface AppareilOuvert {
-  device: GPUDevice;
-  erreurs: string[];
-  fermer(): Promise<{ court: string; complet: string }>;
-}
-
 const estFond = (pixels: Uint8Array, i: number): boolean =>
   pixels[i] === 0 && pixels[i + 1] === 0 && pixels[i + 2] === 0;
 
@@ -116,7 +108,7 @@ interface ExecuterResult {
 }
 
 export async function executer(): Promise<ExecuterResult> {
-  const appareil = (await ouvrirAppareil()) as AppareilOuvert | null;
+  const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const evenements: BackendDiagnostic[] = [],

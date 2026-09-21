@@ -6,7 +6,7 @@
 //!
 //! Equality is structural, not hoped for. WebAssembly has no fused multiply-add instruction:
 //! neither the base set nor `simd128` carries one, and `relaxed-simd`, the only extension that
-//! has one, is refused then verified by `scripts/build-wasm.mjs`. Its f64 arithmetic is IEEE-754,
+//! has one, is refused then verified by `scripts/build-wasm.ts`. Its f64 arithmetic is IEEE-754,
 //! correctly rounded, exactly that of JavaScript numbers. And rustc never enables floating-point
 //! reassociation: it has no equivalent of `-ffast-math`, so `lto`, `opt-level` and automatic
 //! vectorisation can only reorder independent lanes, never reassociate a sum.

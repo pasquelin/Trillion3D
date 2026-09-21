@@ -2,14 +2,6 @@
 // and report the adapter, the events and the errors beside what the sequences returned.
 import { ouvrirAppareil } from '../justesse/appareilWebgpu.ts';
 
-/** What `ouvrirAppareil` hands back once the device is open — `appareilWebgpu.ts`'s own return
- *  is not yet typed at its source, so the shape used here is declared at this boundary. */
-interface AppareilOuvert {
-  device: GPUDevice;
-  erreurs: string[];
-  fermer(): Promise<{ court: string; complet: string }>;
-}
-
 /** Result common to every device proof: the adapter reading or `indisponible`/`erreur` on
  *  failure, the events and errors collected, plus whatever `corps` filled into `resultat`. */
 interface ResultatAppareil {
@@ -32,7 +24,7 @@ interface ResultatAppareil {
 async function executerAppareil(
   corps: (device: GPUDevice, evenements: unknown[], resultat: ResultatAppareil) => Promise<void>,
 ): Promise<ResultatAppareil> {
-  const appareil = (await ouvrirAppareil()) as AppareilOuvert | null;
+  const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const evenements: unknown[] = [],

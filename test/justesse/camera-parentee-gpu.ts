@@ -13,7 +13,6 @@ import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
 import type { executer } from './cameraParenteeGpuPage.ts';
 
 declare global {
-  // eslint-disable-next-line no-var
   var cameraParentee: { executer: typeof executer };
 }
 

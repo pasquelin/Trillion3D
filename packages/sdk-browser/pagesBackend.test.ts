@@ -6,8 +6,6 @@ import { drawnIndices, dagRoots, dagLevel, DAG, MANIFEST_IDENTITY } from './page
 import { quadCluster, fanScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 import { drawPasses, submittedDraws } from './clusterBatchMesh.ts';
 
-/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-
 test('transparent page batches preserve source order across exact and coarse cuts', () => {
   const { geometry, material, mesh, source, indices } = fanScene();
   // Clusters 0 and 1 are replaced together by the pair 3+4; cluster 2 is never replaced.
