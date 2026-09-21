@@ -21,9 +21,11 @@ test('disposing rejects overlapping public updates by name', async () => {
     await page.goto(`http://127.0.0.1:${port}/`);
     const names = await page.evaluate(
       async ({ runtimeUrl, lessonsUrl }: RuntimeModuleUrls) => {
-        const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] = (
-          await Promise.all([import(runtimeUrl), import(lessonsUrl)])
-        ) as [RendererRuntimeModule, RendererLessonsModule];
+        const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] =
+          (await Promise.all([import(runtimeUrl), import(lessonsUrl)])) as [
+            RendererRuntimeModule,
+            RendererLessonsModule,
+          ];
         const lesson = rendererLessonById('runtime-pixel-error');
         if (!lesson) throw new Error('runtime-pixel-error lesson not found');
         const state = rendererInitialState(lesson),
@@ -103,9 +105,11 @@ test('a never-ending binary response exhausts one global startup deadline', asyn
             else signal?.addEventListener('abort', cancel, { once: true });
           });
         };
-        const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] = (
-          await Promise.all([import(runtimeUrl), import(lessonsUrl)])
-        ) as [RendererRuntimeModule, RendererLessonsModule];
+        const [{ createRendererLessonRuntime }, { rendererInitialState, rendererLessonById }] =
+          (await Promise.all([import(runtimeUrl), import(lessonsUrl)])) as [
+            RendererRuntimeModule,
+            RendererLessonsModule,
+          ];
         const lesson = rendererLessonById('runtime-pixel-error');
         if (!lesson) throw new Error('runtime-pixel-error lesson not found');
         const state = rendererInitialState(lesson),

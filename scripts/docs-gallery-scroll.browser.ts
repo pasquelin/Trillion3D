@@ -44,8 +44,9 @@ test('gallery progressively loads a bounded window and restores navigation state
     await more().click();
     await page.waitForFunction(
       () =>
-        Number(document.querySelector<HTMLElement>('[data-progressive-list]')?.dataset.mountedItems) >=
-        48,
+        Number(
+          document.querySelector<HTMLElement>('[data-progressive-list]')?.dataset.mountedItems,
+        ) >= 48,
     );
     await page.locator('[data-progressive-page]').last().scrollIntoViewIfNeeded();
     const before = await page.evaluate(() => ({
@@ -70,8 +71,8 @@ test('gallery progressively loads a bounded window and restores navigation state
     await page.evaluate(() => scrollTo(0, 0));
     await page.waitForFunction(
       () =>
-        document.querySelector<HTMLElement>('[data-progressive-page]')?.dataset
-          .progressivePage === '0',
+        document.querySelector<HTMLElement>('[data-progressive-page]')?.dataset.progressivePage ===
+        '0',
     );
 
     await page.setViewportSize({ width: 390, height: 844 });

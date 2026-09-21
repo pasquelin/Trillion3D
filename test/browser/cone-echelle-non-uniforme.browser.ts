@@ -30,7 +30,11 @@ interface PageCasCone {
 /** The page packed IN THE RENDER FRAME of `uniforms` — the eye is its origin — as the frame
  *  input carries it to the GPU. Packing in absolute world under a relative view would mix two
  *  frames in the same formula, and both frustum and cone would cut wrongly. */
-function empaquete(world: THREE.Matrix4, page: PageCasCone, uniforms: { cameraWorld: [number, number, number] }) {
+function empaquete(
+  world: THREE.Matrix4,
+  page: PageCasCone,
+  uniforms: { cameraWorld: [number, number, number] },
+) {
   return packedWorldsToRenderOrigin(
     packDagSelection([{ world, pages: [{ url: '0', lodError: 0, parentError: null, ...page }] }]),
     [{ world, pages: [] } satisfies DagRoot],
@@ -95,7 +99,8 @@ const appels = cas.flatMap((c) => [
   { name: `${c.nom}:sansCone`, packed: c.sansCone, uniforms: c.uniforms },
 ]);
 const gpu = await selectionGpu(appels);
-const pages = (nom: string) => gpu.resultats?.find((r: { name: string }) => r.name === nom)?.pages ?? null;
+const pages = (nom: string) =>
+  gpu.resultats?.find((r: { name: string }) => r.name === nom)?.pages ?? null;
 const indisponible = gpu.indisponible ?? null;
 console.log(
   JSON.stringify(

@@ -14,7 +14,13 @@ interface Resultat extends ResultatPagePreuve {
   afterSameSize: number[];
   afterResize: number[];
   afterRestore: number[];
-  size: { width: number; height: number; pixelRatio: number; drawingWidth: number; drawingHeight: number };
+  size: {
+    width: number;
+    height: number;
+    pixelRatio: number;
+    drawingWidth: number;
+    drawingHeight: number;
+  };
   disposed: boolean;
   contextLostAfterDispose: boolean;
   events: string[];

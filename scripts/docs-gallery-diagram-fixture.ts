@@ -40,7 +40,7 @@ export function assertAdvancedDiagramsMountFiniteGeometry() {
   try {
     for (const id of ADVANCED_LESSON_IDS) {
       const svg = new SvgNode();
-      draw((svg as SvgHost) as SVGSVGElement, evaluate(id, initialState(id), 'fr'), 'fr');
+      draw(svg as SvgHost as SVGSVGElement, evaluate(id, initialState(id), 'fr'), 'fr');
       assert.ok(svg.children.length > 3, id);
     }
   } finally {

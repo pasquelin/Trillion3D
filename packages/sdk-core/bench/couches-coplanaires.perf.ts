@@ -45,15 +45,7 @@ const paires = (nombre: number, fixe?: number) => ({
 });
 const biaise =
   (calcule: (bits: number, layer: number | undefined) => number) =>
-  ({
-    bits,
-    layers,
-    output,
-  }: {
-    bits: Uint32Array;
-    layers: Couche[];
-    output: Float64Array;
-  }) => {
+  ({ bits, layers, output }: { bits: Uint32Array; layers: Couche[]; output: Float64Array }) => {
     for (let i = 0; i < bits.length; i++)
       output[i] = calcule(bits[i], layers[i] as number | undefined);
     return output;

@@ -23,10 +23,7 @@ const jeux = [
   cas(grande, '20 000 boxes including degenerate'),
   cas(grande.slice(0, 1), 'one box'),
   cas([], 'no box'),
-  cas(
-    grande.filter((_, i) => i % 311 === 0).slice(0, 64),
-    'only near plane cuts',
-  ),
+  cas(grande.filter((_, i) => i % 311 === 0).slice(0, 64), 'only near plane cuts'),
 ];
 
 const urls = (pages: SceneBox[]) => pages.map((page) => page.url);

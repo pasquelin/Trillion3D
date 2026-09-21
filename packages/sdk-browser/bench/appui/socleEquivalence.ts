@@ -113,7 +113,8 @@ async function lignesOperations(): Promise<Mesure[]> {
         croise(l, (m, p) =>
           f64(new THREE.Vector4(p[0], p[1], p[2], 1).applyMatrix4(m4(m)).toArray()),
         ),
-      (l) => croise(l, (m, p) => transformHomogeneousPoint(new Float64Array(4), m, p[0], p[1], p[2])),
+      (l) =>
+        croise(l, (m, p) => transformHomogeneousPoint(new Float64Array(4), m, p[0], p[1], p[2])),
     ),
     await ligne(
       'produits vectoriel et scalaire',

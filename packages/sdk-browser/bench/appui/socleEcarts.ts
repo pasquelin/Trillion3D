@@ -15,7 +15,8 @@ import {
 import { noeudsHierarchie } from './socleEquivalence.ts';
 import { SRGB_REFERENCE_GAP } from '../../../sdk-core/bench/oracles/three-duel.ts';
 
-const normeColonne = (m: ArrayLike<number>, c: number) => Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2]);
+const normeColonne = (m: ArrayLike<number>, c: number) =>
+  Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2]);
 /** Largest cosine between two linear columns: zero without shear. */
 function cisaillement(m: ArrayLike<number>) {
   let pire = 0;

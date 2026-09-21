@@ -15,7 +15,10 @@ interface TravailAdmission {
 
 const LIMITE = 6,
   BUDGET_TRANSFERT = 2 * 1024 * 1024;
-function optimiseeAdmission(queue: TravailAdmission[], octetsDe: (url: string) => number | undefined) {
+function optimiseeAdmission(
+  queue: TravailAdmission[],
+  octetsDe: (url: string) => number | undefined,
+) {
   const admis: string[] = [];
   let active = 0,
     activeBytes = 0,
@@ -52,7 +55,11 @@ const admission =
 
 /** What `createArrivalQueue`/`referenceArrivalQueue` both build: `queue`/`drain` on the same shape. */
 interface FabriqueFile {
-  queue(target: { acceptPage(url: string, array: Uint32Array): void }, url: string, array: Uint32Array): unknown;
+  queue(
+    target: { acceptPage(url: string, array: Uint32Array): void },
+    url: string,
+    array: Uint32Array,
+  ): unknown;
   drain(): number;
 }
 

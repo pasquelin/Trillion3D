@@ -34,11 +34,7 @@ interface Resultat extends ResultatPagePreuve {
   etapes: EtapeRig[];
 }
 
-const resultat = (await preuveDansLaPage(
-  'hizRigPage.ts',
-  'hizRig',
-  'Moved host rig',
-)) as Resultat;
+const resultat = (await preuveDansLaPage('hizRigPage.ts', 'hizRig', 'Moved host rig')) as Resultat;
 console.log(
   JSON.stringify(
     { adaptateur: resultat.adaptateur ?? null, etapes: resultat.etapes, erreurs: resultat.erreurs },

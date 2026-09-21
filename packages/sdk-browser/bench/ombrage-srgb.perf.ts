@@ -21,11 +21,7 @@ function referenceSampleTexel(
     d = image.data;
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255, d[i + 3] / 255];
 }
-function referenceSampleMap(
-  map: THREE.Texture,
-  u: number,
-  v: number,
-): [number, number, number] {
+function referenceSampleMap(map: THREE.Texture, u: number, v: number): [number, number, number] {
   const texel = referenceSampleTexel(map, u, v);
   if (!texel) return [1, 1, 1];
   return [
@@ -34,11 +30,7 @@ function referenceSampleMap(
     referenceSrgbToLinear(texel[2]),
   ];
 }
-function referenceSampleLinear(
-  map: THREE.Texture,
-  u: number,
-  v: number,
-): [number, number, number] {
+function referenceSampleLinear(map: THREE.Texture, u: number, v: number): [number, number, number] {
   const texel = referenceSampleTexel(map, u, v);
   if (!texel) return [1, 1, 1];
   return [texel[0], texel[1], texel[2]];

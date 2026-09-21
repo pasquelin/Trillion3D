@@ -11,9 +11,9 @@ import type { Locale } from '../site/content/locale.ts';
 const { Gallery } = (await loadReactComponents('site/app/gallery/Gallery.tsx')) as {
   Gallery: typeof GalleryComponent;
 };
-const { GalleryShowcase } = (await loadReactComponents(
-  'site/app/gallery/GalleryShowcase.tsx',
-)) as { GalleryShowcase: typeof GalleryShowcaseComponent };
+const { GalleryShowcase } = (await loadReactComponents('site/app/gallery/GalleryShowcase.tsx')) as {
+  GalleryShowcase: typeof GalleryShowcaseComponent;
+};
 const render = (component: ComponentType<{ locale: Locale }>, locale: Locale) =>
   renderToStaticMarkup(createElement(component, { locale }));
 

@@ -8,7 +8,12 @@ import { referenceShadeVisibility } from './oracles/ombrage-image.ts';
 import { cameraMoteur } from '../cameraFixture.ts';
 import type { ScenePage } from './appui/scenes.ts';
 
-const image = (largeur: number, hauteur: number, material: THREE.Material, pages_?: ScenePage[]) => {
+const image = (
+  largeur: number,
+  hauteur: number,
+  material: THREE.Material,
+  pages_?: ScenePage[],
+) => {
   const cam = camera(6, 0.1, largeur / hauteur),
     viewport: [number, number] = [largeur, hauteur];
   const pages = pages_ ?? coupe({ pages: 900, triangles: 48, material });
