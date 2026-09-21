@@ -9,17 +9,12 @@ interface ExampleBase {
   engine?: boolean;
   renderer?: boolean;
   preview?: string;
-  readyLessonId?: string;
 }
 
 /** A catalog lesson describes itself and is ready. */
 export interface CatalogExample extends ExampleBase {
   status?: 'ready';
   description: Localized;
-  concept?: undefined;
-  reason?: undefined;
-  subject?: undefined;
-  supplementaryTopic?: undefined;
 }
 
 export const examples: CatalogExample[] = [

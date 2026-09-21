@@ -54,22 +54,14 @@ export function createWebglSurface(canvas: HTMLCanvasElement, options: SurfaceOp
         drawingHeight: canvas.height,
       };
     },
-    resize(
-      width: number,
-      height: number,
-      ratio = DEFAULT_PIXEL_RATIO,
-      apply?: (width: number, height: number, ratio: number) => void,
-    ) {
+    resize(width: number, height: number, ratio = DEFAULT_PIXEL_RATIO) {
       if (disposed) throw new Error('WebGL surface disposed');
       const changed = width !== logicalWidth || height !== logicalHeight || ratio !== pixelRatio;
       if (!changed) return false;
-      if (apply) apply(width, height, ratio);
-      else {
-        const drawingWidth = devicePixels(width, ratio),
-          drawingHeight = devicePixels(height, ratio);
-        if (canvas.width !== drawingWidth) canvas.width = drawingWidth;
-        if (canvas.height !== drawingHeight) canvas.height = drawingHeight;
-      }
+      const drawingWidth = devicePixels(width, ratio),
+        drawingHeight = devicePixels(height, ratio);
+      if (canvas.width !== drawingWidth) canvas.width = drawingWidth;
+      if (canvas.height !== drawingHeight) canvas.height = drawingHeight;
       logicalWidth = width;
       logicalHeight = height;
       pixelRatio = ratio;
