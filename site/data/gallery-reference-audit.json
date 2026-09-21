@@ -2,7 +2,7 @@
   "schema": 1,
   "generatedAt": "2026-09-20",
   "provenance": {
-    "roadmap": "docs/data/gallery-roadmap.json",
+    "roadmap": "site/content/gallery-roadmap.json",
     "visualEvidence": "In-app browser observations recorded during the gallery quality audit; unvisited references remain pending.",
     "scope": "Capability states describe public feature coverage, not visual quality or performance parity. Reviewed references may still require a new original scene. Pending rows are not completed audits."
   },

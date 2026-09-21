@@ -143,5 +143,6 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
 no separate release branch is needed. Use the same template and `Closes #<issue>` first line,
 name the already reviewed implementation pull requests in the local-review section, and wait
-for validation and maintainer approval. Pages serves `main` and `/docs`, so a change is published
-only after that release merges.
+for validation and maintainer approval. Pages publishes the site built from `main` by
+`.github/workflows/pages.yml` (`site/` sources, `dist/site/` output, never committed), so a
+change is published only after that release merges.

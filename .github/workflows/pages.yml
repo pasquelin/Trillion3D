@@ -1,0 +1,38 @@
+# Publishes the site: the tree `build:docs` writes into `dist/site/` is uploaded as the Pages
+# artifact and deployed, on every push to `main`. Nothing built is committed anywhere.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.18.0'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:docs
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/site
+      - id: deployment
+        uses: actions/deploy-pages@v5
