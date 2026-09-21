@@ -34,16 +34,15 @@ impl DecodedPage {
     /// `None` when the page does not carry it.
     pub fn attribute(&self, rank: usize) -> Option<&[f32]> {
         let mut at = self.index_count;
-        let mut present = [(0u32, 3usize); 5];
-        present[1..].copy_from_slice(&OPTIONAL);
-        for (r, &(bit, width)) in present.iter().enumerate() {
-            let carried = bit == 0 || self.flags & bit != 0;
+        for (r, (bit, width)) in core::iter::once((0, 3)).chain(OPTIONAL).enumerate() {
+            if self.flags & bit != bit {
+                continue;
+            }
+            let run = at..at + self.vertex_count * width;
             if r == rank {
-                return carried.then(|| floats(&self.words[at..at + self.vertex_count * width]));
+                return Some(floats(&self.words[run]));
             }
-            if carried {
-                at += self.vertex_count * width;
-            }
+            at = run.end;
         }
         None
     }
