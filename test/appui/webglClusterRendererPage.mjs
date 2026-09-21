@@ -4,6 +4,7 @@ import * as host from '../../packages/sdk-browser/cameraWorld.ts';
 import { curvedComparison, planarWitness } from './webglClusterCurvedPage.mjs';
 import { curvedOracleQuality } from './webglClusterOraclePage.mjs';
 import { heldRestore } from './webglClusterRestorePage.mjs';
+import { normalMapFrames } from './webglClusterNormalMapPage.mjs';
 import { textureFixtures } from './webglClusterTexturePage.mjs';
 import { windingComparisons } from './webglClusterWindingPage.mjs';
 const pixel = (gl, x, y) => {
@@ -17,14 +18,10 @@ const triangle = () => {
     'position',
     new THREE.BufferAttribute(new Float32Array([-1, -1, -2, 1, -1, -2, 0, 1, -2]), 3),
   );
-  geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6), 2));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2));
   geometry.setAttribute(
     'normal',
     new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3),
-  );
-  geometry.setAttribute(
-    'tangent',
-    new THREE.BufferAttribute(new Float32Array([1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1]), 4),
   );
   geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
   const material = new THREE.MeshBasicMaterial();
@@ -157,6 +154,7 @@ export async function execute() {
   standard.transparent = standard.premultipliedAlpha = false;
   scene.clear();
   const textures = textureFixtures(renderer, gl, mesh, scene, drawCamera, pixel);
+  const normalFrames = normalMapFrames(renderer, gl, mesh, drawCamera, pixel);
   const sourceLights = new THREE.Scene(),
     nonPhysicalPoint = new THREE.PointLight(0xffffff, 1);
   nonPhysicalPoint.decay = 1;
@@ -190,6 +188,7 @@ export async function execute() {
     invisibleSubmissions,
     rejected,
     textures,
+    normalFrames,
     decayRejected,
     heldRestore: await heldRestore(),
     curved: [64, 128, 256].map((size) => curvedComparison(size)),
