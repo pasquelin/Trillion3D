@@ -1,8 +1,9 @@
 //! Fingerprints named by sidecar, read from its header. Split from `manifest_binary.rs`
 //! to respect repository line limit, without changing what they read.
 use super::{
-    bad, Result, BUNDLE_SHA, GEOMETRY_SHA, HEADER_WORDS, MANIFEST_BINARY_MAGIC,
-    MANIFEST_BINARY_VERSION, PAGE_SHA, PREVIEW_WORDS, TEXTURE_PREVIEW_SHA, TEXTURE_PREVIEW_U32,
+    bad, is_digest, Result, BUNDLE_SHA, GEOMETRY_SHA, HEADER_WORDS, MANIFEST_BINARY_MAGIC,
+    MANIFEST_BINARY_VERSION, PAGE_SHA, PREVIEW_BAKED, PREVIEW_FIRST_LEVEL, PREVIEW_KIND,
+    PREVIEW_WORDS, TEXTURE_PREVIEW_SHA, TEXTURE_PREVIEW_U32,
 };
 
 /// Every object digest a binary sidecar names: the PAGE, GEOMETRY and BUNDLE sha columns, 64 ASCII
@@ -45,13 +46,11 @@ pub fn texture_levels(bytes: &[u8]) -> Result<Vec<BakedLevels>> {
     };
     (0..entries)
         .map(|entry| {
-            let sha = std::str::from_utf8(&shas[entry * 64..entry * 64 + 64])
-                .map_err(|_| bad("Digest column is not ASCII"))?;
             Ok(BakedLevels {
-                sha256: sha.to_string(),
-                kind: word(entry, 10),
-                first: word(entry, 6),
-                baked: word(entry, 11),
+                sha256: digest(&shas[entry * 64..entry * 64 + 64])?,
+                kind: word(entry, PREVIEW_KIND),
+                first: word(entry, PREVIEW_FIRST_LEVEL),
+                baked: word(entry, PREVIEW_BAKED),
             })
         })
         .collect()
@@ -93,12 +92,17 @@ fn sha_columns(bytes: &[u8], wanted: &[usize]) -> Result<Vec<String>> {
         }
         // A page without its own geometry leaves a zero-filled slot in the geometry column.
         for entry in column.chunks(64).filter(|e| e[0] != 0) {
-            out.push(
-                std::str::from_utf8(entry)
-                    .map_err(|_| bad("Digest column is not ASCII"))?
-                    .to_string(),
-            );
+            out.push(digest(entry)?);
         }
     }
     Ok(out)
+}
+
+/// One column entry as the digest it spells; what is not a digest names no file.
+fn digest(entry: &[u8]) -> Result<String> {
+    std::str::from_utf8(entry)
+        .ok()
+        .filter(|value| is_digest(value))
+        .map(str::to_string)
+        .ok_or_else(|| bad("Digest column entry is not a digest"))
 }

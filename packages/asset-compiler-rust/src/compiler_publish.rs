@@ -12,6 +12,9 @@ pub(super) struct Publication<'a> {
     pub directory: &'a Path,
     pub cache_format: u32,
     pub proxy_bytes: &'a [u8],
+    pub proxy_sha: &'a str,
+    /// Every product already on disk in the folder, as its writer recorded it.
+    pub products: &'a [Product],
     pub previews: &'a [TexturePreview],
 }
 
@@ -38,10 +41,12 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
     let directory = inputs.directory;
     atomic(&directory.join(MANIFEST_BINARY_FILE), &binary)?;
     atomic(&directory.join(proxy::SCENE_PROXY_FILE), inputs.proxy_bytes)?;
-    // Every other product of the folder is on disk by now: the manifest records
-    // each one's fingerprint, so a later job can prove the folder whole before
-    // reusing it instead of rebuilding it (`compiler_reuse.rs`).
-    slim[FILES_FIELD] = folder_files(directory)?;
+    let proxy = Product {
+        name: proxy::SCENE_PROXY_FILE.to_string(),
+        sha256: inputs.proxy_sha.to_string(),
+        bytes: inputs.proxy_bytes.len() as u64,
+    };
+    slim[FILES_FIELD] = files_record(inputs.products.iter().chain([&proxy]));
     atomic(
         &directory.join("clusters.json"),
         &serde_json::to_vec(&slim)?,
@@ -49,26 +54,19 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
     write_pointer(inputs.o, inputs.key, inputs.cache_format)
 }
 
-/// Fingerprint and size of every product file in the key folder, by name: what a
-/// stage writes there enters the record without being named here. The manifest
-/// itself and its sidecar stay out — the sidecar is named by `binary.sha256`, and
-/// the manifest cannot carry its own fingerprint. A temporary of an atomic write
-/// is not a product either.
-fn folder_files(directory: &Path) -> Result<Value> {
-    let mut files = serde_json::Map::new();
-    for entry in fs::read_dir(directory)? {
-        let entry = entry?;
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        let transient =
-            name == "clusters.json" || name == MANIFEST_BINARY_FILE || name.contains(".tmp");
-        if transient || !entry.file_type()?.is_file() {
-            continue;
-        }
-        let (sha256, bytes) = hash_file_sized(&entry.path())?;
-        files.insert(name.to_string(), json!({"sha256":sha256,"bytes":bytes}));
-    }
-    Ok(Value::Object(files))
+/// The `files` record: fingerprint and size, by name, of every product of the
+/// key folder other than the manifest and its sidecar — the sidecar is named by
+/// `binary.sha256`, and the manifest cannot carry its own fingerprint. `proxy.bin`
+/// is in it under the digest `proxy.sha256` already carries, so that a later job
+/// proves the folder whole from this one record before reusing it
+/// (`compiler_reuse_proof.rs`). Each entry is what its writer had in hand: no
+/// product is read back from disk to record it.
+fn files_record<'a>(products: impl Iterator<Item = &'a Product>) -> Value {
+    Value::Object(
+        products
+            .map(|p| (p.name.clone(), json!({"sha256":p.sha256,"bytes":p.bytes})))
+            .collect(),
+    )
 }
 
 /// The scope pointer: the only stable entry of a cache, written once the key
@@ -76,7 +74,7 @@ fn folder_files(directory: &Path) -> Result<Value> {
 pub(super) fn write_pointer(o: &Options, key: &str, cache_format: u32) -> Result<()> {
     let pointer = json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{key}/clusters.json")});
     atomic(
-        &o.cache.join("native").join(&o.scope).join("manifest.json"),
+        &o.scope_directory().join("manifest.json"),
         &serde_json::to_vec(&pointer)?,
     )
 }
