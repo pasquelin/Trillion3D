@@ -117,10 +117,12 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           state.allocationBytes -= attr.array.byteLength;
         rec.geometry.dispose();
       }
-      const positions = data.attributes.position;
+      // A decoded position may leave the source box by the page's own quantization error.
+      const positions = data.attributes.position,
+        slack = 1e-5 + data.quantizationError;
       for (let i = 0; i < positions.length; i++) {
         const axis = i % 3;
-        if (positions[i] < rec.min[axis] - 1e-5 || positions[i] > rec.max[axis] + 1e-5)
+        if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)
           throw new Error('AUTONOMOUS_PAGE_BOUNDS');
       }
       const geometry = new THREE.BufferGeometry();
@@ -130,11 +132,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           name,
           new THREE.BufferAttribute(
             array,
-            name === 'position' || name === 'normal'
-              ? 3
-              : name === 'tangent' || name === 'color'
-                ? 4
-                : 2,
+            name === 'position' || name === 'normal' ? 3 : name === 'color' ? 4 : 2,
           ),
         );
       setGeometryBounds(geometry, rec.min, rec.max);
