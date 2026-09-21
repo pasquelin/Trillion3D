@@ -12,7 +12,7 @@ export type TypedArray =
   | Int8Array
   | Uint8Array;
 
-const TYPES: readonly Function[] = [
+const TYPES: readonly (new (length: number) => ArrayBufferView)[] = [
   Float64Array,
   Float32Array,
   Int32Array,

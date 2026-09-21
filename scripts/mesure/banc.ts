@@ -32,7 +32,7 @@ import { benchLights } from './lampes.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs, recordCuts } from './report/evidence.ts';
 import { runSerie } from './serie.ts';
-import type { ErreurPage, Report, RunContext, Serie } from './report/types.ts';
+import type { Report, RunContext, Serie } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const {

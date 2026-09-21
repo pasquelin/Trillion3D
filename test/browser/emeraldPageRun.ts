@@ -120,7 +120,7 @@ export async function runOnPage({
       let captureMax = 0,
         captureDiff = 0;
       for (let p = 0; p < pixels.length; p++) {
-        let d = Math.abs(pixels[p] - capture[p]);
+        const d = Math.abs(pixels[p] - capture[p]);
         captureMax = Math.max(d, captureMax);
         if (d > 2) captureDiff++;
       }
