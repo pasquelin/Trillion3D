@@ -13,7 +13,7 @@ import type {
   Reglages,
   Verdict,
 } from './mesureTypes.ts';
-export type { Stats, LigneResultat, Mesure, MesureCas, MesureParams } from './mesureTypes.ts';
+export type { LigneResultat, Mesure, MesureCas, MesureParams } from './mesureTypes.ts';
 
 export function graine(depart: number) {
   let etat = depart >>> 0 || 0x9e3779b9;
@@ -178,4 +178,3 @@ async function chronometre<Entree>(
 /** One extreme case a stress check must absorb without throwing. */
 
 export { compare, stress } from './mesureStress.ts';
-export type { CasExtreme, CompareParams } from './mesureStress.ts';
