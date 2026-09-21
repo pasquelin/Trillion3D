@@ -36,7 +36,7 @@ for (const name of names) {
   await rm(resolve(directory, 'cache'), { recursive: true, force: true });
   // The source folder holds one glTF or the OBJ files to merge; relative paths, from the scene
   // folder, since the compiler records the paths it was given and a cache that names the machine
-  // it was built on is refused (`depot-autonome.test.mjs`).
+  // it was built on is refused (`depot-autonome.test.ts`).
   const result = spawnSync(
     compiler,
     ['source', 'cache', 'full', '150000', '2', '256', '../../../../source/', 'qem-endpoints'],

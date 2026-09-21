@@ -18,8 +18,6 @@ type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
   selectedPageIds(): string[];
 };
 
-/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-
 /** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
  *  omits — unread by the backends under test. Its second primitive's `pages` carry every `Page`
  *  field at runtime (`...page` spread in the fixture); only the inline callback annotation

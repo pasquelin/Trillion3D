@@ -12,8 +12,6 @@ import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, rootPage, twoPrimitives } from './webgpuPagesTestScenes.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
-/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-
 /** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
  *  general `RenderBackend` contract leaves optional or omits. */
 type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {

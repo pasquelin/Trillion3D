@@ -1,5 +1,5 @@
 // First part of the foundation bench, `sdk-browser` consumers: each computation attached to
-// the foundation, opposed to the code it was before, copied in `oracles/socle-math*.mjs`.
+// the foundation, opposed to the code it was before, copied in `oracles/socle-math*.ts`.
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three';
 import { srgbToLinear } from '../../../sdk-core/index.ts';
@@ -38,9 +38,11 @@ export async function lignesConsommateursBrowser() {
   const vue = readCameraWorld(createEngineCamera(), camera);
   const paquets: PageRec[][] = [];
   for (let i = 0; i < liste.length; i += 30) paquets.push(liste.slice(i, i + 30));
-  // Built once, outside the timed closure below: the compared subject is `windingCw`, not a
-  // `Matrix4` allocation per hostile matrix.
-  const matricesTHREE = matrices.map((e) => new THREE.Matrix4().fromArray(e));
+  // The page records are built once, outside the timed closure below: the compared subject is
+  // `windingCw` alone — before the conversion the line also paid one object literal per matrix.
+  const pagesHostiles = matrices.map((e) =>
+    pageRecFixture({ matrix: new THREE.Matrix4().fromArray(e) }),
+  );
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3);
   // The compared subject is the projection of a vertex, not the read of a convention: the
   // view-projection/convention pairs are built once, outside the measured loops.
@@ -84,7 +86,7 @@ export async function lignesConsommateursBrowser() {
       (l) =>
         l.map((e, i) => {
           setWindingEpoch(i + 1);
-          return windingCw(pageRecFixture({ matrix: matricesTHREE[i] }));
+          return windingCw(pagesHostiles[i]);
         }),
     ),
     await ligne(
