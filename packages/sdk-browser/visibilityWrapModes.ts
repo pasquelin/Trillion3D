@@ -136,11 +136,7 @@ fn wrapUv(uv:vec2f,wrap:u32,texels:vec2f)->WrapTaps{
  * the taps then wrap the period. Two languages, one rule: the shader text is not shared with
  * TypeScript.
  */
-export function wrapLinear(
-  t: number,
-  size: number,
-  wrap: number,
-): [number, number, number] {
+export function wrapLinear(t: number, size: number, wrap: number): [number, number, number] {
   const repeat = wrap === THREE.RepeatWrapping;
   const p = wrap === THREE.MirroredRepeatWrapping ? t - 2 * Math.floor(t / 2) : 0;
   const c = repeat
