@@ -1,11 +1,20 @@
+import type { Browser, Page } from 'playwright';
+
+/** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */
+export interface GalleryEntry {
+  id: string;
+  file: string;
+}
+
 /** The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. */
-async function drawnShare(page) {
+async function drawnShare(page: Page): Promise<number> {
   const png = await page.locator('canvas').screenshot();
   return page.evaluate(
-    async (dataUrl) => {
+    async (dataUrl: string) => {
       const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
       const canvas = new OffscreenCanvas(bitmap.width, bitmap.height),
         context = canvas.getContext('2d');
+      if (!context) throw new Error('2D context unavailable');
       context.drawImage(bitmap, 0, 0);
       const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
       let drawn = 0;
@@ -22,9 +31,15 @@ async function drawnShare(page) {
  * `share` of it drawn at least (an engine that failed leaves the canvas blank); resolves with
  * the page and the errors it raised, which the caller closes and judges.
  */
-export async function openExample(browser, port, entry, viewport, share = 0.1) {
+export async function openExample(
+  browser: Browser,
+  port: number,
+  entry: GalleryEntry,
+  viewport: { width: number; height: number },
+  share = 0.1,
+) {
   const page = await browser.newPage({ viewport });
-  const errors = [];
+  const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${port}/${entry.file}`);
   let drawn = 0;

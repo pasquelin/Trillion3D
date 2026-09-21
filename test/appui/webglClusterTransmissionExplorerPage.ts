@@ -2,12 +2,19 @@
 // autonomous clusters on the host canvas and on a comparison target alike, through the same
 // draw owner, and no mesh ever enters the host scene. A scene the owner cannot draw in full is
 // refused by name.
+import * as THREE from 'three';
+import { EngineError } from '../../packages/sdk-core/index.ts';
 import { pixel } from './webglClusterPixels.ts';
 import { mountExplorerProof } from './webglClusterExplorerMount.ts';
 import { transmissionCamera, transmissionScene } from './webglClusterTransmissionScene.ts';
 
-const anyMesh = (object) => !!object.isMesh;
-const errorOf = (error) => ({ code: error.code ?? null, reason: error.details?.reason ?? null });
+const anyMesh = (object: THREE.Object3D) => object instanceof THREE.Mesh;
+/** The owner refuses a scene it cannot draw by throwing `EngineError`; anything else stays
+ *  code- and reason-less, since the proof only names what the engine itself declared. */
+const errorOf = (error: unknown) => ({
+  code: error instanceof EngineError ? error.code : null,
+  reason: error instanceof EngineError ? (error.details.reason ?? null) : null,
+});
 
 export async function execute() {
   const scene = transmissionScene(),
@@ -28,6 +35,7 @@ export async function execute() {
   draw(backend, target);
   const targetPixel = mounted.targetPixel(32, 32);
   const targetMetrics = backend.metrics();
+  if (!backend.setDiagnostic) throw new Error('the exact pages backend must set diagnostics');
   // A diagnostic mode paints the glass like any copy: the owner draws it as a whole mesh.
   backend.setDiagnostic('wireframe');
   backend.render(camera);
@@ -54,6 +62,7 @@ export async function execute() {
   // A physical extension beyond the transmission volume fails the preparation and every draw.
   const refusedScene = transmissionScene({ sheen: 1 }),
     refused = mountExplorerProof(refusedScene, camera, anyMesh, { clearColor: 0x0000ff });
+  if (!refused) return { unavailable: 'WebGL2 unavailable' };
   let refusal = null,
     drawRefusal = null;
   try {

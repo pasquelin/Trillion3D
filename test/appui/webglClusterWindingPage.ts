@@ -22,20 +22,22 @@ const inputs = () => {
   );
   geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
   material.color.setRGB(0.18, 0, 0, THREE.LinearSRGBColorSpace);
+  const index = geometry.index;
+  if (!index) throw new Error('winding proof requires an indexed geometry');
   return {
     geometry,
     ownMaterial: material,
-    material: material as THREE.Material | THREE.Material[],
-    renderOrder: 0,
     matrix,
-    _multiDrawCounts: new Int32Array([3]),
-    _multiDrawStarts: new Int32Array([0]),
-    _multiDrawCount: 1,
-    _sideSplitMaterials: undefined,
-    _sideSplitBack: undefined,
-    _sideSplitFront: undefined,
-    _sideSplitSource: undefined,
-    _sideSplitPolygonMaterials: undefined,
+    mesh: {
+      geometry: { index, attributes: geometry.attributes },
+      material: material as THREE.Material | THREE.Material[],
+      renderOrder: 0,
+      polygonOffsetUnits: undefined,
+      matrix,
+      _multiDrawCounts: new Int32Array([3]),
+      _multiDrawStarts: new Int32Array([0]),
+      _multiDrawCount: 1,
+    },
   };
 };
 
@@ -49,7 +51,7 @@ export function windingComparisons() {
     witness = new THREE.WebGLRenderer({ canvas: witnessCanvas, antialias: false }),
     mesh = inputs(),
     scene = new THREE.Scene(),
-    witnessMesh = new THREE.Mesh(mesh.geometry, mesh.material),
+    witnessMesh = new THREE.Mesh(mesh.geometry, mesh.ownMaterial),
     camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
     rig = new THREE.Object3D();
   witness.outputColorSpace = THREE.SRGBColorSpace;
@@ -66,7 +68,7 @@ export function windingComparisons() {
     rig.scale.set(cameraMirror ? -1 : 1, 1, 1);
     rig.updateMatrixWorld(true);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    raw.draw([mesh], scene, readHostDrawCamera(createHostDrawCamera(), camera), false, true);
+    raw.draw([mesh.mesh], scene, readHostDrawCamera(createHostDrawCamera(), camera), false, true);
     const owned = center(gl);
     witness.render(scene, camera);
     return { owned, witness: center(witness.getContext()) };

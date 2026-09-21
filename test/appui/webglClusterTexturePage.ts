@@ -63,8 +63,8 @@ export function textureFixtures(
   indexed.channel = 1;
   indexed.wrapS = THREE.RepeatWrapping;
   indexed.offset.x = 0.5;
-  mesh.geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6).fill(0.125), 2));
-  mesh.geometry.setAttribute('uv1', new THREE.BufferAttribute(new Float32Array(6).fill(0.375), 2));
+  mesh.geometry.attributes.uv = new THREE.BufferAttribute(new Float32Array(6).fill(0.125), 2);
+  mesh.geometry.attributes.uv1 = new THREE.BufferAttribute(new Float32Array(6).fill(0.375), 2);
   const uvMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: indexed }),
     uv1Transform = draw(renderer, gl, mesh, scene, camera, uvMaterial, pixel);
   mesh.material = previous;

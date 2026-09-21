@@ -5,7 +5,7 @@
 // every channel goes through unchanged, and the rows come out in the convention the SDK
 // publishes — the first row read is the last row presented.
 import { createSynchronousCanvasCapture } from '../../packages/sdk-browser/gpuPresentation.ts';
-import { createChecks } from './presentationChecks.ts';
+import { createChecks, type CheckRecord } from './presentationChecks.ts';
 
 const WIDTH = 64,
   HEIGHT = 48;
@@ -16,6 +16,7 @@ function sourcePresentee() {
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('2d context unavailable');
   const image = context.createImageData(WIDTH, HEIGHT);
   for (let y = 0; y < HEIGHT; y++)
     for (let x = 0; x < WIDTH; x++) {
@@ -31,7 +32,7 @@ function sourcePresentee() {
 
 export function executer() {
   const source = sourcePresentee();
-  const checks = [];
+  const checks: CheckRecord[] = [];
   const { equal } = createChecks(checks);
   const attendu = new Uint8Array(source.data.length);
   for (let y = 0; y < HEIGHT; y++)

@@ -1,35 +1,52 @@
 import { theatreWorkshop } from '../shadow-theatre/geometry.ts';
+import type { Vec3 } from '../shadow-theatre/geometry.ts';
+import type { MaterialRow } from './gltf.ts';
 
 const TAU = Math.PI * 2;
-const unit = (v) => v.map((value) => value / Math.hypot(...v));
-const cross = (a, b) => [
+
+const unit = (v: Vec3): Vec3 => {
+  const length = Math.hypot(...v);
+  return [v[0] / length, v[1] / length, v[2] / length];
+};
+
+const cross = (a: Vec3, b: Vec3): Vec3 => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
 
+/** Transposes three world-axis rows into the three columns a local-to-world matrix needs. */
+function transpose3(rows: readonly [Vec3, Vec3, Vec3]): readonly [Vec3, Vec3, Vec3] {
+  return [
+    [rows[0][0], rows[1][0], rows[2][0]],
+    [rows[0][1], rows[1][1], rows[2][1]],
+    [rows[0][2], rows[1][2], rows[2][2]],
+  ];
+}
+
 /** A workshop with the parts the example scenes need beyond the theatre's own. */
 function workshop() {
   const shop = theatreWorkshop();
   /** A box centred on `center` whose local x, y and z axes point along the world vectors `axes`. */
-  const block = (material, center, size, axes) => {
+  const block = (material: number, center: Vec3, size: Vec3, axes: readonly [Vec3, Vec3, Vec3]) => {
     for (let axis = 0; axis < 3; axis++)
       for (const side of [-1, 1]) {
         const across = (axis + 1) % 3,
           up = (axis + 2) % 3;
         shop.patch(material, 1, 1, (u, v) => {
-          const local = [0, 0, 0];
+          const local: [number, number, number] = [0, 0, 0];
           local[axis] = (side * size[axis]) / 2;
           local[across] = side * (u - 0.5) * size[across];
           local[up] = (v - 0.5) * size[up];
-          return center.map(
-            (value, k) =>
-              value + local[0] * axes[0][k] + local[1] * axes[1][k] + local[2] * axes[2][k],
-          );
+          return [
+            center[0] + local[0] * axes[0][0] + local[1] * axes[1][0] + local[2] * axes[2][0],
+            center[1] + local[0] * axes[0][1] + local[1] * axes[1][1] + local[2] * axes[2][1],
+            center[2] + local[0] * axes[0][2] + local[1] * axes[1][2] + local[2] * axes[2][2],
+          ];
         });
       }
   };
-  const sphere = (material, center, radius, segments = 32) =>
+  const sphere = (material: number, center: Vec3, radius: number, segments = 32) =>
     shop.patch(material, segments, segments / 2, (u, v) => {
       const phi = v * Math.PI,
         theta = u * TAU;
@@ -39,7 +56,7 @@ function workshop() {
         center[2] + Math.sin(phi) * Math.sin(theta) * radius,
       ];
     });
-  const torus = (material, center, ring, tube) =>
+  const torus = (material: number, center: Vec3, ring: number, tube: number) =>
     shop.patch(material, 48, 20, (u, v) => {
       const a = u * TAU,
         b = v * TAU;
@@ -49,7 +66,7 @@ function workshop() {
         center[2] + (ring + Math.cos(b) * tube) * Math.sin(a),
       ];
     });
-  const cylinder = (material, center, radius, height, top = radius) =>
+  const cylinder = (material: number, center: Vec3, radius: number, height: number, top = radius) =>
     shop.lathe(material, center, [
       [0, 0],
       [0, radius],
@@ -59,7 +76,9 @@ function workshop() {
   return { ...shop, block, sphere, torus, cylinder };
 }
 
-const slab = (shop, material, size = 8, thickness = 0.3) =>
+type Workshop = ReturnType<typeof workshop>;
+
+const slab = (shop: Workshop, material: number, size = 8, thickness = 0.3) =>
   shop.box(material, [0, -thickness / 2, 0], [size, thickness, size]);
 
 /** A cube standing on one corner over a slab: its body diagonal becomes the vertical. */
@@ -68,19 +87,14 @@ function cornerCube() {
     side = 1.6,
     up = unit([1, 1, 1]),
     right = unit([1, -1, 0]),
-    rows = [right, up, cross(right, up)],
-    // The rotation whose second row is the diagonal sends the diagonal onto the vertical.
-    axes = [0, 1, 2].map((i) => rows.map((row) => row[i]));
+    axes = transpose3([right, up, cross(right, up)]);
   slab(shop, 0, 6);
   shop.block(1, [0, (side * Math.sqrt(3)) / 2, 0], [side, side, side], axes);
-  return {
-    name: 'Cube on its corner',
-    materials: [
-      ['Slate slab', [0.22, 0.24, 0.27, 1], 0, 0.85],
-      ['Coral enamel', [0.85, 0.28, 0.2, 1], 0.1, 0.35],
-    ],
-    surfaces: shop.surfaces,
-  };
+  const materials: MaterialRow[] = [
+    ['Slate slab', [0.22, 0.24, 0.27, 1], 0, 0.85],
+    ['Coral enamel', [0.85, 0.28, 0.2, 1], 0.1, 0.35],
+  ];
+  return { name: 'Cube on its corner', materials, surfaces: shop.surfaces };
 }
 
 /** A still life: sphere, cylinder, cone, torus and box, arranged on one slab. */
@@ -92,24 +106,21 @@ function stillLife() {
   shop.cylinder(3, [2.3, 0, 0.2], 0.8, 2, 0);
   shop.torus(4, [-0.6, 0.35, 1.6], 0.9, 0.32);
   shop.box(5, [1.9, 0.55, 2.2], [1.1, 1.1, 1.1]);
-  return {
-    name: 'Still life of primitives',
-    materials: [
-      ['Slate slab', [0.22, 0.24, 0.27, 1], 0, 0.85],
-      ['Ivory sphere', [0.9, 0.86, 0.76, 1], 0, 0.4],
-      ['Teal cylinder', [0.1, 0.55, 0.5, 1], 0.2, 0.5],
-      ['Ochre cone', [0.8, 0.55, 0.15, 1], 0, 0.6],
-      ['Brass torus', [0.8, 0.6, 0.25, 1], 0.9, 0.3],
-      ['Plum box', [0.4, 0.15, 0.35, 1], 0, 0.7],
-    ],
-    surfaces: shop.surfaces,
-  };
+  const materials: MaterialRow[] = [
+    ['Slate slab', [0.22, 0.24, 0.27, 1], 0, 0.85],
+    ['Ivory sphere', [0.9, 0.86, 0.76, 1], 0, 0.4],
+    ['Teal cylinder', [0.1, 0.55, 0.5, 1], 0.2, 0.5],
+    ['Ochre cone', [0.8, 0.55, 0.15, 1], 0, 0.6],
+    ['Brass torus', [0.8, 0.6, 0.25, 1], 0.9, 0.3],
+    ['Plum box', [0.4, 0.15, 0.35, 1], 0, 0.7],
+  ];
+  return { name: 'Still life of primitives', materials, surfaces: shop.surfaces };
 }
 
 /** Five rows of five spheres: roughness grows to the right, metalness grows toward the back. */
 function clayToChrome() {
   const shop = workshop(),
-    materials = [['Graphite slab', [0.08, 0.08, 0.09, 1], 0, 0.9]];
+    materials: MaterialRow[] = [['Graphite slab', [0.08, 0.08, 0.09, 1], 0, 0.9]];
   slab(shop, 0, 7);
   for (let row = 0; row < 5; row++)
     for (let column = 0; column < 5; column++) {
@@ -128,7 +139,7 @@ function clayToChrome() {
 function sundial() {
   const shop = workshop(),
     tilt = unit([0, 1, -1]),
-    across = [1, 0, 0],
+    across: Vec3 = [1, 0, 0],
     forward = cross(across, tilt);
   shop.cylinder(0, [0, -0.4, 0], 3.2, 0.4);
   shop.block(1, [0, 0.7, -0.5], [0.08, 2, 0.08], [across, tilt, forward]);
@@ -136,14 +147,11 @@ function sundial() {
     const angle = (hour / 12) * TAU;
     shop.box(1, [Math.cos(angle) * 2.8, 0.2, Math.sin(angle) * 2.8], [0.16, 0.4, 0.16]);
   }
-  return {
-    name: 'Sundial',
-    materials: [
-      ['Limestone dial', [0.82, 0.78, 0.68, 1], 0, 0.8],
-      ['Bronze gnomon', [0.55, 0.38, 0.2, 1], 0.9, 0.35],
-    ],
-    surfaces: shop.surfaces,
-  };
+  const materials: MaterialRow[] = [
+    ['Limestone dial', [0.82, 0.78, 0.68, 1], 0, 0.8],
+    ['Bronze gnomon', [0.55, 0.38, 0.2, 1], 0.9, 0.35],
+  ];
+  return { name: 'Sundial', materials, surfaces: shop.surfaces };
 }
 
 /** Two rows of columns under their lintels, a long floor down the middle. */
@@ -170,14 +178,11 @@ function colonnade() {
     }
     shop.box(1, [side * 1.8, 3.15, 0], [0.9, 0.4, 13.5]);
   }
-  return {
-    name: 'Colonnade',
-    materials: [
-      ['Sand floor', [0.6, 0.55, 0.45, 1], 0, 0.9],
-      ['Chalk stone', [0.88, 0.85, 0.78, 1], 0, 0.7],
-    ],
-    surfaces: shop.surfaces,
-  };
+  const materials: MaterialRow[] = [
+    ['Sand floor', [0.6, 0.55, 0.45, 1], 0, 0.9],
+    ['Chalk stone', [0.88, 0.85, 0.78, 1], 0, 0.7],
+  ];
+  return { name: 'Colonnade', materials, surfaces: shop.surfaces };
 }
 
 export const scenes = {

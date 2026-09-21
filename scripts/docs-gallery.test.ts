@@ -8,17 +8,32 @@ import { codeFor } from '../site/lessons/code.ts';
 import { evaluate } from '../site/lessons/evaluate.ts';
 import { geometryFor } from '../site/lessons/sceneGeometry.ts';
 import { draw, legendAnchors } from '../site/lessons/draw.ts';
+import type { SvgHost } from '../site/lessons/drawPrimitives.ts';
 import { initialState } from '../site/lessons/scenarios.ts';
 import { examples } from '../site/content/catalog.ts';
 import { rendererLessons } from '../site/lessons/rendererLessons.ts';
+import { expectedResultFor } from './docs/expected-result.ts';
+import type { Locale } from '../site/content/locale.ts';
+import type { Gallery as GalleryComponent } from '../site/app/gallery/Gallery.tsx';
+import type { Playground as PlaygroundComponent } from '../site/app/gallery/Playground.tsx';
+import type { Home as HomeComponent } from '../site/app/portal/Home.tsx';
+import type { CodeBlock as CodeBlockComponent } from '../site/app/components/CodeBlock.tsx';
 
 const root = new URL('../site/lessons/', import.meta.url);
-const { Gallery } = await loadReactComponents('site/app/gallery/Gallery.tsx');
-const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
-const { Home } = await loadReactComponents('site/app/portal/Home.tsx');
-const { CodeBlock } = await loadReactComponents('site/app/components/CodeBlock.tsx');
-const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
-const renderPlayground = (id, locale) =>
+const { Gallery } = (await loadReactComponents('site/app/gallery/Gallery.tsx')) as {
+  Gallery: typeof GalleryComponent;
+};
+const { Playground } = (await loadReactComponents('site/app/gallery/Playground.tsx')) as {
+  Playground: typeof PlaygroundComponent;
+};
+const { Home } = (await loadReactComponents('site/app/portal/Home.tsx')) as {
+  Home: typeof HomeComponent;
+};
+const { CodeBlock } = (await loadReactComponents('site/app/components/CodeBlock.tsx')) as {
+  CodeBlock: typeof CodeBlockComponent;
+};
+const renderGallery = (locale: Locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
+const renderPlayground = (id: string, locale: Locale) =>
   renderToStaticMarkup(createElement(Playground, { id, locale }));
 const mathExamples = examples.filter(({ renderer }) => !renderer);
 
@@ -29,6 +44,7 @@ test('gallery exposes bilingual math and public renderer lessons', () => {
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
     assert.ok(example.description.en && example.description.fr);
+    assert.ok(example.functions);
     assert.ok(example.functions.length > 0);
   }
   assert.match(renderGallery('fr'), /Décisions du frustum/);
@@ -59,20 +75,28 @@ test('diagram legends assign a distinct fixed anchor to every label', () => {
 });
 
 test('all four advanced lessons mount their complementary diagram with finite geometry', () => {
-  class SvgNode {
-    children = [];
-    setAttribute(name, value) {
+  class SvgNode implements SvgHost {
+    children: Element[] = [];
+    setAttribute(name: string, value: string) {
       assert.doesNotMatch(String(value), /NaN|undefined/, name);
     }
-    append(...children) {
+    append(...children: Element[]) {
       this.children.push(...children);
     }
-    replaceChildren(...children) {
+    replaceChildren(...children: Element[]) {
       this.children = children;
     }
   }
   const previous = globalThis.document;
-  globalThis.document = { createElementNS: () => new SvgNode() };
+  // `document` does not exist in Node: this stub only ever serves `createElementNS`, the one
+  // member `add()` (site/lessons/drawPrimitives.ts) calls; the `Document` type is asserted through
+  // the generic, an empty (so non-conflicting) target for the `Proxy` constructor to widen from.
+  globalThis.document = new Proxy({} as Document, {
+    get(_target, property) {
+      if (property === 'createElementNS') return () => new SvgNode();
+      return undefined;
+    },
+  });
   try {
     for (const id of [
       'matrix-inverse',
@@ -135,26 +159,12 @@ test('every displayed snippet runs and matches its playground result', async () 
     const source = codeFor(example.id, state).replace("'./js/engine.js'", JSON.stringify(engine));
     const actual = (await import(`data:text/javascript,${encodeURIComponent(source)}`)).default;
     const result = evaluate(example.id, state);
-    const expected = {
-      'compose-transform': result.points?.[2],
-      'matrix-chain': result.point,
-      'matrix-inverse': result.identity,
-      'reflection-orientation': [result.determinant, result.linear],
-      'quaternion-turn': result.direction,
-      'normal-transform': result.normal,
-      perspective: result.ndc,
-      frustum: result.status,
-      'dot-product': result.dot,
-      'cross-product': result.cross,
-      normalize: result.after,
-      'box-grow': result.box,
-      'sphere-from-box': result.sphere,
-      hierarchy: result.point,
-      'color-space': [result.screen, result.light],
-      'lod-budget': result.error,
-    }[example.id];
+    const expected = expectedResultFor(example.id, result);
     if (typeof expected === 'number') assert.ok(Math.abs(actual - expected) < 1e-10, example.id);
-    else assert.deepEqual(Array.from(actual), Array.from(expected), example.id);
+    else {
+      assert.ok(expected !== undefined, example.id);
+      assert.deepEqual(Array.from(actual), Array.from(expected), example.id);
+    }
   }
 });
 
@@ -166,10 +176,12 @@ test('every scenario calls the engine module', async () => {
       ),
     )
   ).join('\n');
-  for (const example of mathExamples)
+  for (const example of mathExamples) {
+    assert.ok(example.functions);
     assert.ok(
       example.functions.some((name) => source.includes(name)),
       `${example.id} has no engine call`,
     );
+  }
   assert.doesNotMatch(source, /eval\(|new Function/);
 });

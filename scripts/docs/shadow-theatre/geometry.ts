@@ -1,8 +1,8 @@
 /** Small parametric mesh workshop for the original shadow-theatre model. */
 
-type Vec3 = readonly [number, number, number];
+export type Vec3 = readonly [number, number, number];
 
-interface Mesh {
+export interface Mesh {
   positions: number[];
   normals: number[];
   indices: number[];

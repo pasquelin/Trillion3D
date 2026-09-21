@@ -3,8 +3,9 @@
 // copies the engine draws itself, transmissive then blended.
 import * as THREE from 'three';
 import { quad } from './webglClusterPixels.ts';
+import type { Page } from '../../packages/sdk-core/index.ts';
 
-const page = {
+const page: Page = {
   id: 0,
   url: 'quad',
   count: 6,
@@ -38,11 +39,11 @@ export function transmissionScene(glass = {}) {
   blend.position.x = 0.21;
   const source = new THREE.Group();
   source.add(opaque, copy, blend);
-  const primitive = (mesh, primitiveIndex, pages) => ({
+  const primitive = (mesh: THREE.Mesh, primitiveIndex: number, pages: (typeof page)[]) => ({
     mesh: 0,
     primitive: primitiveIndex,
-    pass: 'exact-clusters',
-    clusterStrategy: 'dag-groups',
+    pass: 'exact-clusters' as const,
+    clusterStrategy: 'dag-groups' as const,
     pages,
     structure: { version: 1, roots: pages.map((_, index) => index), groups: [] },
   });
@@ -51,16 +52,24 @@ export function transmissionScene(glass = {}) {
     opaque,
     copy,
     metadata: {
+      schema: 1,
+      status: 'ready',
+      key: 'transmission',
+      scope: 'full' as const,
+      sourceTriangles: 6,
+      selectedTriangles: 6,
+      selectedNodes: [],
+      totalNodes: 3,
       errorModel: 'dag-group-qem-v1',
       clusterStrategy: 'dag-groups',
       primitives: [
         primitive(opaque, 0, [page]),
         primitive(copy, 1, []),
-        { ...primitive(blend, 2, []), pass: 'shared-blend' },
+        { ...primitive(blend, 2, []), pass: 'shared-blend' as const },
       ],
     },
     indices: new Map([['quad', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
-    associations: new Map([
+    associations: new Map<THREE.Object3D, { meshes: number; primitives: number }>([
       [opaque, { meshes: 0, primitives: 0 }],
       [copy, { meshes: 0, primitives: 1 }],
       [blend, { meshes: 0, primitives: 2 }],

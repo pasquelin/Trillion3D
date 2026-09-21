@@ -5,6 +5,11 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
+import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
+import type { SidebarMenu as SidebarMenuComponent } from '../site/app/portal/SidebarMenu.tsx';
+import type { examplesMenu as examplesMenuFunction } from '../site/app/examples/examplesMenu.ts';
+import type { Examples as ExamplesComponent } from '../site/app/examples/Examples.tsx';
+import type { PortalRoute } from '../site/app/portal/routes.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 
 const site = new URL('../site/', import.meta.url);
@@ -36,16 +41,22 @@ test('every example is one standalone HTML file that imports the built engine', 
 });
 
 test('the example page shows the file as source on the left and runs it on the right', async () => {
-  const { Example } = await loadReactComponents('site/app/examples/Example.tsx');
-  const { SidebarMenu } = await loadReactComponents('site/app/portal/SidebarMenu.tsx');
-  const { examplesMenu } = await loadReactComponents('site/app/examples/examplesMenu.ts');
+  const { Example } = (await loadReactComponents('site/app/examples/Example.tsx')) as {
+    Example: typeof ExampleComponent;
+  };
+  const { SidebarMenu } = (await loadReactComponents('site/app/portal/SidebarMenu.tsx')) as {
+    SidebarMenu: typeof SidebarMenuComponent;
+  };
+  const { examplesMenu } = (await loadReactComponents('site/app/examples/examplesMenu.ts')) as {
+    examplesMenu: typeof examplesMenuFunction;
+  };
   const [entry] = ready;
   const page = renderToStaticMarkup(createElement(Example, { id: entry.id, locale: 'fr' }));
   assert.match(page, new RegExp(`<h1[^>]*>${entry.title.fr}</h1>`));
   assert.match(page, new RegExp(`<iframe class="example-frame" src="${entry.file}"`));
   assert.match(page, new RegExp(`<span class="text-sm font-semibold">${entry.file}</span>`));
   assert.ok(page.indexOf('data-code-block') < page.indexOf('<iframe'));
-  const route = { locale: 'en', area: 'examples', id: entry.id };
+  const route: PortalRoute = { locale: 'en', area: 'examples', id: entry.id };
   const sidebar = renderToStaticMarkup(
     createElement(SidebarMenu, { groups: examplesMenu(route), open: true }),
   );
@@ -55,7 +66,9 @@ test('the example page shows the file as source on the left and runs it on the r
     sidebar,
     new RegExp(`class="menu-active" href="#/en/examples/${entry.id}" aria-current="page"`),
   );
-  const { Examples } = await loadReactComponents('site/app/examples/Examples.tsx');
+  const { Examples } = (await loadReactComponents('site/app/examples/Examples.tsx')) as {
+    Examples: typeof ExamplesComponent;
+  };
   const index = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
   for (const theme of roadmap.themes) {
     const entries = roadmap.entries.filter((entry) => entry.theme === theme.id),

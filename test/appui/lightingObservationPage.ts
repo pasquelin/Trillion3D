@@ -17,16 +17,22 @@ import {
   createHostDrawCamera,
   readHostDrawCamera,
 } from '../../packages/sdk-browser/cameraWorld.ts';
+import { MANIFEST_IDENTITY } from '../../packages/sdk-browser/pagesBackendFixture.ts';
+import type {
+  ObservationResources,
+  ObservationTexture,
+} from '../../packages/sdk-browser/lightingObservationResources.ts';
+import type { ObservationMeshes } from '../../packages/sdk-browser/lightingObservationMeshes.ts';
 
 const SIZE = 96;
 
 const canvas = () => Object.assign(document.createElement('canvas'), { width: SIZE, height: SIZE });
-const pixels = (gl) => {
+const pixels = (gl: WebGL2RenderingContext) => {
   const out = new Uint8Array(SIZE * SIZE * 4);
   gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, out);
   return out;
 };
-const floatTexture = ({ data, width, height }) => {
+const floatTexture = ({ data, width, height }: ObservationTexture) => {
   const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.FloatType);
   texture.minFilter = texture.magFilter = THREE.NearestFilter;
   texture.needsUpdate = true;
@@ -34,7 +40,11 @@ const floatTexture = ({ data, width, height }) => {
 };
 
 /** The host shader material drawing the same records on the host renderer. */
-function witnessPixels(resources, meshes, camera) {
+function witnessPixels(
+  resources: ObservationResources,
+  meshes: ObservationMeshes,
+  camera: THREE.PerspectiveCamera,
+) {
   const renderer = new THREE.WebGLRenderer({ canvas: canvas(), antialias: false });
   renderer.setSize(SIZE, SIZE, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -58,6 +68,11 @@ function witnessPixels(resources, meshes, camera) {
     useBvh: { value: uniforms.useBvh },
   };
   for (const copy of meshes.copies) {
+    // `copy.geometry` is the engine's low-level contract (`WholeMesh['geometry']`), but it is
+    // built straight from a source `THREE.Mesh`'s own geometry (`createObservationMeshes`),
+    // never rebuilt: the witness needs the real instance back to draw it with the library.
+    if (!(copy.geometry instanceof THREE.BufferGeometry))
+      throw new Error('the observed copy did not keep its source geometry instance');
     const mesh = new THREE.Mesh(
       copy.geometry,
       new THREE.ShaderMaterial({
@@ -72,12 +87,15 @@ function witnessPixels(resources, meshes, camera) {
     scene.add(mesh);
   }
   renderer.render(scene, camera);
-  const out = pixels(renderer.getContext());
+  const context = renderer.getContext();
+  if (!(context instanceof WebGL2RenderingContext))
+    throw new Error('the witness renderer requires a WebGL2 context');
+  const out = pixels(context);
   renderer.dispose();
   return out;
 }
 
-const compare = (a, b) => {
+const compare = (a: Uint8Array, b: Uint8Array) => {
   let max = 0,
     differing = 0;
   for (let i = 0; i < a.length; i++) {
@@ -110,7 +128,13 @@ export async function execute() {
   draw.dispose();
   const witness = witnessPixels(resources, meshes, camera);
   // The public backend, composed like any engine of the explorer.
-  const backend = createLightingExperimentBackend(state)({ source, webglContext: gl });
+  const backend = createLightingExperimentBackend(state)({
+    source,
+    webglContext: gl,
+    metadata: { ...MANIFEST_IDENTITY, primitives: [] },
+    indices: new Map(),
+    associations: new Map(),
+  });
   await backend.prepare();
   backend.render(camera);
   const compose = createFrameComposer(gl, camera);

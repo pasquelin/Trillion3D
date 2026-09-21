@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
-import { dagRoots, DAG } from './pagesBackendFixture.ts';
+import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import { submittedDraws } from './clusterBatchMesh.ts';
 
 test('exact pages batch clusters of the same primitive in beauty mode and unbatch in diagnostic mode', () => {
@@ -43,6 +43,7 @@ test('exact pages batch clusters of the same primitive in beauty mode and unbatc
   }));
   const metadata = {
     ...DAG,
+    ...MANIFEST_IDENTITY,
     primitives: [
       { mesh: 0, primitive: 0, pass: 'exact-clusters' as const, ...dagRoots(p1) },
       { mesh: 1, primitive: 0, pass: 'exact-clusters' as const, ...dagRoots(p2) },
