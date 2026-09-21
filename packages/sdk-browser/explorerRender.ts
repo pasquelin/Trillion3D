@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { type CameraPose, type FrameMetrics } from '../sdk-core/index.ts';
 import { emitExplorerFrameDiagnostic } from './explorerFrameDiagnostic.ts';
 import { handleExplorerRenderError } from './explorerRenderFallback.ts';
@@ -11,30 +10,32 @@ import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { EngineProfiler } from './telemetry.ts';
 import type { ComparisonLayout } from './comparison.ts';
-import type { createSceneDrawer } from './explorerDrawScene.ts';
+import type { createFrameComposer } from './explorerCompose.ts';
+import type { HostCamera } from './cameraWorld.ts';
+import type { WebglRenderTarget } from './webglRenderTarget.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
   check: () => void;
   state: ExplorerHostState;
-  camera: THREE.PerspectiveCamera;
-  lookAtTarget: THREE.Vector3;
+  camera: HostCamera;
+  lookAtTarget: { x: number; y: number; z: number };
   setPose: (pose: CameraPose) => void;
   streaming: ReturnType<typeof createExplorerStreaming>;
-  drawBackend: (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => void;
-  ensureTarget: (target?: THREE.WebGLRenderTarget) => THREE.WebGLRenderTarget;
+  drawBackend: (backend: RenderBackend, target: WebglRenderTarget | null) => void;
+  ensureTarget: (target?: WebglRenderTarget) => WebglRenderTarget;
   directGpu: boolean;
-  renderer: THREE.WebGLRenderer;
   webglSurface?: WebglSurface;
   backends: RenderBackend[];
   baseline: RenderBackend;
   compositor?: {
     render: (
-      a: THREE.Texture,
-      b: THREE.Texture,
+      a: WebglRenderTarget,
+      b: WebglRenderTarget,
       layout: ComparisonLayout,
       wipe: number,
       toggle: 0 | 1,
+      toneMapped: readonly [boolean, boolean],
     ) => void;
   };
   fillMetrics: (backend: RenderBackend) => void;
@@ -42,7 +43,7 @@ type Inputs = {
   profiler: EngineProfiler;
   pageIdByUrl: Map<string, number>;
   streamer: ReturnType<typeof createPageStreamer>;
-  drawScene: ReturnType<typeof createSceneDrawer>;
+  compose: ReturnType<typeof createFrameComposer>;
 };
 
 export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
@@ -57,7 +58,6 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     drawBackend,
     ensureTarget,
     directGpu,
-    renderer: ownedRenderer,
     webglSurface,
     backends,
     baseline,
@@ -67,7 +67,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     profiler,
     pageIdByUrl,
     streamer,
-    drawScene,
+    compose,
   } = inputs;
   const auditFrame = createHostFrameCostAudit();
   const render = (pose?: CameraPose): FrameMetrics => {
@@ -92,13 +92,11 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
           pairTargetB = (state.pairTargetB = ensureTarget(state.pairTargetB));
         drawBackend(left, pairTargetA);
         drawBackend(right, pairTargetB);
-        compositor!.render(
-          pairTargetA.texture,
-          pairTargetB.texture,
-          comparisonLayout,
-          wipe,
-          toggle,
-        );
+        // Each side takes the display chain its engine would apply on the canvas.
+        compositor!.render(pairTargetA, pairTargetB, comparisonLayout, wipe, toggle, [
+          left.sceneLit?.() !== false,
+          right.sceneLit?.() !== false,
+        ]);
       }
     } catch (error) {
       handleExplorerRenderError(error, {
@@ -111,27 +109,17 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
         scope,
         emit,
         diagnose,
-        drawScene,
+        compose,
       });
     }
     fillMetrics(state.active);
     const frameEnd = performance.now();
     metricsScratch.cpuFrameMs = frameEnd - start;
-    // Draw calls of this frame: the engine's, or the host renderer's when it is the one
-    // drawing. `null` when neither counts them — never zero.
-    // The host renderer counts only the frames it drew. On an engine that presented its own
-    // surface it drew nothing, and its counters still hold another engine's last frame: reading
-    // them would attribute that frame to this one.
-    const hostDrew = !directGpu && !state.active.presentedSurface;
-    if (metricsScratch.drawCalls == null)
-      metricsScratch.drawCalls = hostDrew ? (ownedRenderer?.info.render.calls ?? null) : null;
-    // Submitted triangles of this frame: those the engine counted, or those the host renderer
-    // drew when it is the one drawing. `null` when neither has counted them —
-    // a zero published here would read as an empty frame, and that is what the contract forbids.
-    metricsScratch.triangles =
-      metricsScratch.totalSubmittedTriangles ??
-      (hostDrew ? (ownedRenderer?.info.render.triangles ?? null) : null);
-    auditFrame(state.active.id, frameNumber, metricsScratch, hostDrew ? ownedRenderer : null);
+    // Submitted triangles of this frame: those the engine counted, and only those. `null` when
+    // it has not counted them — a zero published here would read as an empty frame, and that is
+    // what the contract forbids. Draw calls follow the same rule, in `fillMetrics`.
+    metricsScratch.triangles = metricsScratch.totalSubmittedTriangles ?? null;
+    auditFrame(state.active.id, frameNumber, metricsScratch);
     profiler.record(metricsScratch);
     emitExplorerFrameDiagnostic({
       diagnosticChannel,

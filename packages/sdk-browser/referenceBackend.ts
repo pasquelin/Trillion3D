@@ -1,6 +1,7 @@
 import { meshes as objects, geometryBytes } from './sceneMeshes.ts';
 import { baseCapabilities, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { sceneLightingApi } from './sceneLighting.ts';
+import { createThreeSceneDraw } from './threeSceneAdapter.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
@@ -10,9 +11,12 @@ export const referenceBackend: BackendFactory = ({
   source,
   sceneLighting,
   clearColor = DEFAULT_CLEAR_COLOR,
+  webglContext,
 }) => {
   const scene = new THREE.Scene();
   const sceneLights = lighting(scene, clearColor, sceneLighting ?? source);
+  // The witness draws itself, with the host library, through the adapter it shares (#85).
+  const hostDraw = createThreeSceneDraw(webglContext, scene);
   let order = 0,
     allocationBytes = 0,
     selectedTriangles = 0;
@@ -44,7 +48,8 @@ export const referenceBackend: BackendFactory = ({
     async prepare() {},
     // This engine re-traverses scene on every frame: no revision needs to notify it.
     ...sceneLightingApi(sceneLights, () => {}),
-    render() {
+    render(camera) {
+      hostDraw.render(camera);
       source.updateMatrixWorld(true);
       sceneLights.update();
       selectedTriangles = 0;
@@ -55,6 +60,8 @@ export const referenceBackend: BackendFactory = ({
           (index ? index.count : mesh.geometry.getAttribute('position').count) / 3;
       }
     },
+    drawHostGeometry: hostDraw.drawHostGeometry,
+    // What the adapter submitted: the meshes in view, and the calls they took; `null` before a draw.
     metrics: () => ({
       clusters: null,
       selectedTriangles,
@@ -64,8 +71,11 @@ export const referenceBackend: BackendFactory = ({
       frustumRejected: null,
       lodLevel: null,
       submittedTriangles: selectedTriangles,
+      totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
+      drawCalls: hostDraw.counters()?.calls,
     }),
     dispose() {
+      hostDraw.dispose();
       overlays.forEach((m) => m.dispose());
       for (const mesh of copies)
         disposeTriangleGeometry(mesh.userData.sourceGeometry as THREE.BufferGeometry);

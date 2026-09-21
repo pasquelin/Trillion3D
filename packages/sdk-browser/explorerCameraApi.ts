@@ -13,7 +13,6 @@ type Inputs = {
   lookAtTarget: THREE.Vector3;
   radius: number;
   canvas: HTMLCanvasElement;
-  renderer: THREE.WebGLRenderer;
   backends: RenderBackend[];
   disposed: () => boolean;
   setMeasuring: (value: boolean) => void;
@@ -31,7 +30,6 @@ export function createExplorerCameraApi(inputs: Inputs) {
     lookAtTarget,
     radius,
     canvas,
-    renderer,
     backends,
     disposed,
     setMeasuring,
@@ -65,10 +63,10 @@ export function createExplorerCameraApi(inputs: Inputs) {
       camera.lookAt(center);
       camera.updateMatrixWorld();
     },
+    // Every frame binds its own destination: leaving the measurement surface is the flag alone.
     restoreAfterCampaign(id: string, saved: THREE.PerspectiveCamera) {
       if (disposed()) return;
       setMeasuring(false);
-      renderer.setRenderTarget(null);
       setActive(backends.find((backend) => backend.id === id)!);
       camera.copy(saved);
       lookAtTarget.copy(center);
@@ -76,7 +74,6 @@ export function createExplorerCameraApi(inputs: Inputs) {
     setMeasurementSurface(enabled: boolean) {
       check();
       setMeasuring(enabled);
-      if (!enabled) renderer.setRenderTarget(null);
     },
     homePose,
     flyControls() {

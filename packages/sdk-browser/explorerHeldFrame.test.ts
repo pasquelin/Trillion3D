@@ -1,75 +1,61 @@
-// A Three-rendered engine submits nothing itself: a held frame redrew the whole scene while
-// the engine had just said it could not change. It is now redisplayed by a fullscreen quad
-// on an explicit copy of the drawing buffer — the canvas keeps nothing from frame to frame,
-// `preserveDrawingBuffer` being false.
+// An engine that draws on the host surface says when its frame cannot change: a held frame put
+// the whole scene back through the renderer while the engine had just said so. It is now one
+// copy each way, on an explicit texture of the drawing buffer — the canvas keeps nothing from
+// frame to frame, `preserveDrawingBuffer` being false — with no program and no conversion.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
 import { createHeldFrame } from './explorerHeldFrame.ts';
-
-/** A render double: what it copied from the drawing buffer, and what it drew. */
-function rendu() {
-  const copies: THREE.Texture[] = [];
-  const dessins: THREE.Scene[] = [];
-  // Output space in force at each draw: that is what says whether the command re-encodes
-  // what it puts back.
-  const sorties: string[] = [];
-  const renderer = {
-    outputColorSpace: THREE.SRGBColorSpace,
-    copyFramebufferToTexture: (texture: THREE.Texture) => copies.push(texture),
-    render: (scene: THREE.Scene) => {
-      dessins.push(scene);
-      sorties.push(renderer.outputColorSpace);
-    },
-  } as unknown as THREE.WebGLRenderer;
-  return { renderer, copies, dessins, sorties };
-}
-
-const taille = (x: number, y: number) => new THREE.Vector2(x, y);
+import { createTestContext } from './webglTestContext.ts';
 
 test('nothing is kept until a complete frame has been copied', () => {
-  const held = createHeldFrame();
-  assert.equal(held.holds(taille(1280, 720)), false, 'the first frame must be drawn');
+  const { gl } = createTestContext();
+  const held = createHeldFrame(gl);
+  assert.equal(held.holds(8, 4), false, 'the first frame must be drawn');
 });
 
-test('the kept frame is redisplayed by a single command, and nothing of the scene', () => {
-  const { renderer, copies, dessins } = rendu();
-  const held = createHeldFrame();
-  held.keep(renderer, taille(1280, 720));
-  assert.equal(copies.length, 1, 'the complete frame is copied once');
-  assert.equal(held.holds(taille(1280, 720)), true);
-  held.present(renderer);
-  assert.equal(dessins.length, 1, 'one command, not a scene walked again');
-  held.present(renderer);
-  assert.equal(dessins.length, 2, 'each held frame costs exactly one command');
-  assert.equal(copies.length, 1, 'a held frame copies nothing: it rereads what it set');
-  // What is drawn is the kept-frame quad, never the engine scene.
-  assert.equal(dessins[0], dessins[1]);
-  assert.equal(dessins[0].children.length, 1, 'a single object: the fullscreen quad');
-});
-
-test('presentation does not retouch colour: the output is already encoded', () => {
-  const { renderer, copies, dessins, sorties } = rendu();
-  const held = createHeldFrame();
-  held.keep(renderer, taille(1280, 720));
-  held.present(renderer);
-  const texture = copies[0]!;
-  const materiau = (dessins[0]!.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
-  // The copy stays a raw sample: an sRGB texture cannot receive the drawing buffer.
-  assert.equal(texture.colorSpace, THREE.NoColorSpace);
-  assert.equal(materiau.toneMapped, false, 'tone mapping has already been applied');
-  assert.equal(materiau.map, texture, 'the quad does present the complete-frame copy');
-  // The command that puts the copy back does not re-encode it, and the engine chain is restored afterwards.
-  assert.deepEqual(sorties, [THREE.LinearSRGBColorSpace]);
-  assert.equal(renderer.outputColorSpace, THREE.SRGBColorSpace);
+test('the kept frame is put back by a single blit, and nothing of the scene', () => {
+  const { gl, of, names } = createTestContext();
+  const held = createHeldFrame(gl);
+  held.keep(8, 4);
+  assert.equal(of('blitFramebuffer').length, 1, 'the complete frame is copied once');
+  assert.equal(of('texImage2D').length, 1, 'one raw texture at the drawing-buffer size');
+  assert.equal(of('texImage2D')[0][2], 'RGBA8', 'raw bytes, no colour space on either side');
+  assert.equal(held.holds(8, 4), true);
+  held.present();
+  held.present();
+  assert.equal(of('blitFramebuffer').length, 3, 'each held frame costs exactly one copy');
+  assert.equal(of('texImage2D').length, 1, 'a held frame copies nothing: it rereads what it kept');
+  assert.ok(!names().includes('useProgram') && !names().includes('drawArrays'), 'no program');
+  // The copy reads the kept texture and writes the drawing buffer: read bound, draw null.
+  const [read, draw] = of('bindFramebuffer').slice(-3, -1);
+  assert.deepEqual([read[0], draw[0], draw[1]], ['READ_FRAMEBUFFER', 'DRAW_FRAMEBUFFER', null]);
+  assert.ok(read[1] !== null, 'the kept framebuffer is read');
 });
 
 test('a resize drops the kept frame: it no longer describes the target', () => {
-  const { renderer } = rendu();
-  const held = createHeldFrame();
-  held.keep(renderer, taille(1280, 720));
-  assert.equal(held.holds(taille(640, 360)), false, 'another size is not this image');
-  held.keep(renderer, taille(640, 360));
-  assert.equal(held.holds(taille(640, 360)), true);
-  assert.equal(held.holds(taille(1280, 720)), false);
+  const { gl, of } = createTestContext();
+  const held = createHeldFrame(gl);
+  held.keep(8, 4);
+  assert.equal(held.holds(4, 2), false, 'another size is not this image');
+  held.keep(4, 2);
+  assert.equal(of('deleteTexture').length, 1, 'the old copy is released');
+  assert.equal(held.holds(4, 2), true);
+  assert.equal(held.holds(8, 4), false);
+});
+
+test('a lost context loses the copy: the frame is drawn again and kept on the new one', () => {
+  const { gl, of, canvas, state } = createTestContext();
+  const held = createHeldFrame(gl);
+  held.keep(8, 4);
+  state.lost = true;
+  assert.equal(held.holds(8, 4), false, 'the kept names belong to the dead context');
+  canvas.dispatch('webglcontextlost');
+  state.lost = false;
+  canvas.dispatch('webglcontextrestored');
+  assert.equal(held.holds(8, 4), false, 'nothing was kept on the restored context yet');
+  held.keep(8, 4);
+  assert.equal(of('createTexture').length, 2, 'rebuilt on the restored context');
+  assert.equal(held.holds(8, 4), true);
+  held.dispose();
+  assert.equal(held.holds(8, 4), false);
 });

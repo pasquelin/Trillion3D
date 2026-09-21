@@ -15,6 +15,7 @@ type MetricsContext = {
   attached: PageRec[];
   counters: { pagesDetached: number };
   materials: { disposeMaterials: () => void };
+  hostDraw: { dispose(): void };
   allPages: PageRec[];
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
@@ -33,6 +34,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
     attached,
     counters,
     materials,
+    hostDraw,
     allPages,
     disposeGeometry,
     scene,
@@ -84,6 +86,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
       };
     },
     dispose() {
+      hostDraw.dispose();
       materials.disposeMaterials();
       batches.dispose();
       for (const rec of allPages) {

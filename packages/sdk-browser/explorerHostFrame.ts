@@ -5,7 +5,7 @@ import { createExplorerMetrics } from './explorerMetrics.ts';
 import type { prepareExplorer } from './explorerPrepare.ts';
 import { createExplorerRender } from './explorerRender.ts';
 import type { ExplorerSession } from './explorerSession.ts';
-import type { createSceneDrawer } from './explorerDrawScene.ts';
+import type { createFrameComposer } from './explorerCompose.ts';
 import { createExplorerStreaming } from './explorerStreaming.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
@@ -13,19 +13,18 @@ type Inputs = {
   prepared: Prepared;
   host: ReturnType<typeof createExplorerHostState>;
   backends: RenderBackend[];
-  drawScene: ReturnType<typeof createSceneDrawer>;
+  compose: ReturnType<typeof createFrameComposer>;
 };
 
 export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs) {
   const { options, metadata } = session;
-  const { prepared, host, backends, drawScene } = inputs;
+  const { prepared, host, backends, compose } = inputs;
   const { camera, directGpu, pageSources } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
   const {
     state,
     baseline,
     webglSurface,
-    renderer,
     lookAtTarget,
     compositor,
     presentBackend,
@@ -52,12 +51,11 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     streamer,
     streaming,
     directGpu,
-    renderer: renderer!,
     webglSurface,
     presentBackend,
     baseline,
     state,
-    drawScene,
+    compose,
   });
   const render = createExplorerRender(session, {
     check,
@@ -69,7 +67,6 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     drawBackend,
     ensureTarget,
     directGpu,
-    renderer: renderer!,
     webglSurface,
     backends,
     baseline,
@@ -79,7 +76,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     profiler,
     pageIdByUrl,
     streamer,
-    drawScene,
+    compose,
   });
   return { render, profiler, streaming };
 }

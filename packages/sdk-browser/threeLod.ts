@@ -8,6 +8,7 @@ import { isTransmissive } from './visibilityBuffer.ts';
 import { setGeometryBounds } from './threeBounds.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/index.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
+import { createThreeSceneDraw } from './threeSceneAdapter.ts';
 
 /** What this engine does not claim to do, with or without levels of detail. */
 const HORS_PORTEE = [
@@ -25,6 +26,7 @@ export const threeLodBackend: BackendFactory = (context) => {
     context.sceneLighting ?? context.source,
     context.clearColor ?? 0x171d28,
   );
+  const hostDraw = createThreeSceneDraw(context.webglContext, scene);
   const lods: THREE.LOD[] = [];
   let levels = 1,
     allocationBytes = 0,
@@ -122,6 +124,7 @@ export const threeLodBackend: BackendFactory = (context) => {
     // This engine rewalks the scene every frame: no revision has to teach it.
     ...sceneLightingApi(sceneLights, () => {}),
     render(camera) {
+      hostDraw.render(camera);
       context.source.updateMatrixWorld(true);
       sceneLights.update();
       // Frame entry: the world pose, ancestors included, before any read (`cameraWorld.ts`).
@@ -152,10 +155,13 @@ export const threeLodBackend: BackendFactory = (context) => {
         frustumRejected: 0,
         lodLevel,
         submittedTriangles: selectedTriangles,
+        totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
         drawCalls: lods.length,
       };
     },
+    drawHostGeometry: hostDraw.drawHostGeometry,
     dispose() {
+      hostDraw.dispose();
       overlays.forEach((m) => m.dispose());
       for (const lod of lods) {
         for (const level of lod.levels) {

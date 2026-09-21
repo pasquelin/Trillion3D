@@ -1,78 +1,75 @@
-import * as THREE from 'three';
+import { boundToContext } from './webglContextBound.ts';
 
 /**
- * Held frame of a Three-rendered engine.
+ * Held frame of an engine that draws on the host surface.
  *
- * Such an engine submits nothing itself: the host renders the graph it holds, and a held
- * frame therefore redrew the whole scene while the engine had already answered that it could
- * not change. The canvas content, for its part, does not survive from frame to frame —
- * `preserveDrawingBuffer` is false, and relying on it would display whatever the browser
- * happens to keep.
+ * Such an engine says when its frame cannot differ from the previous one; redrawing it would
+ * cost the whole scene for the same image. The canvas content, for its part, does not survive
+ * from frame to frame — `preserveDrawingBuffer` is false, and relying on it would display
+ * whatever the browser happens to keep.
  *
- * What is kept is therefore an explicit copy: the last complete frame is copied from the
- * drawing buffer into a texture, and a held frame redisplays it with a fullscreen quad —
- * one draw command, no scene geometry, no scene material. The copy costs a whole frame of
- * bandwidth; it only happens after a complete frame, never after a held frame, which only
- * rereads what it just put back.
+ * What is kept is therefore an explicit copy: the last complete frame is blitted from the
+ * drawing buffer into a texture of the same size, and a held frame blits it back — one copy each
+ * way, no program, no scene, no colour conversion on either side, since the texture stores raw
+ * bytes like the drawing buffer. The copy costs a whole frame of bandwidth; it only happens after
+ * a complete frame, never after a held frame, which only puts back what it just read.
  */
-export function createHeldFrame() {
-  let texture: THREE.FramebufferTexture | undefined,
-    width = 0,
+export function createHeldFrame(gl: WebGL2RenderingContext) {
+  let width = 0,
     height = 0,
     kept = false;
-  // The copied buffer already carries the display output: tone mapping was applied to it
-  // before the copy, and reapplying it would brighten the held frame on every presentation.
-  const material = new THREE.MeshBasicMaterial({
-    depthTest: false,
-    depthWrite: false,
-    toneMapped: false,
-  });
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
-  quad.frustumCulled = false;
-  const scene = new THREE.Scene();
-  scene.add(quad);
-  return {
-    /** True when a complete frame has been kept at the current drawing-buffer size. */
-    holds(size: THREE.Vector2) {
-      return kept && size.x === width && size.y === height;
+  const copy = boundToContext(
+    gl,
+    () => {
+      const texture = gl.createTexture()!,
+        framebuffer = gl.createFramebuffer()!;
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      return { texture, framebuffer };
     },
-    /** Keeps the complete frame that was just submitted, by copying the drawing buffer. */
-    keep(renderer: THREE.WebGLRenderer, size: THREE.Vector2) {
-      if (!texture || size.x !== width || size.y !== height) {
-        texture?.dispose();
-        width = size.x;
-        height = size.y;
-        texture = new THREE.FramebufferTexture(width, height);
-        material.map = texture;
-        material.needsUpdate = true;
+    ({ texture, framebuffer }) => {
+      gl.deleteFramebuffer(framebuffer);
+      gl.deleteTexture(texture);
+    },
+  );
+  /** Whole-buffer copy between the drawing buffer and the kept texture, in either direction. */
+  const blit = (read: WebGLFramebuffer | null, draw: WebGLFramebuffer | null) => {
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, read);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, draw);
+    gl.disable(gl.SCISSOR_TEST);
+    gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  };
+  return {
+    /** True when a complete frame has been kept at the current drawing-buffer size, and the
+     *  context that holds it is alive: a lost one lost the copy with it. */
+    holds(drawingWidth: number, drawingHeight: number) {
+      return kept && drawingWidth === width && drawingHeight === height && copy.alive();
+    },
+    /** Keeps the complete frame that was just drawn, by copying the drawing buffer. */
+    keep(drawingWidth: number, drawingHeight: number) {
+      if (drawingWidth !== width || drawingHeight !== height) {
+        copy.dispose();
+        width = drawingWidth;
+        height = drawingHeight;
       }
-      renderer.copyFramebufferToTexture(texture);
+      const target = copy.current();
+      if (!target) return;
+      blit(null, target.framebuffer);
       kept = true;
     },
-    /**
-     * Redisplays the kept frame: a fullscreen quad, one command, nothing of the scene.
-     *
-     * The copy is a raw sample of the drawing buffer: it already carries the output conversion
-     * and the tone mapping of the complete frame. Putting it back as-is therefore requires that
-     * nothing retouch it — `toneMapped` is false on the material, and the output conversion is
-     * neutral for this command. Without that, already-encoded values would be reread as linear
-     * then re-encoded, and the held frame would brighten. The copy stays without a declared
-     * colour space: an sRGB texture cannot receive `copyFramebufferToTexture`.
-     */
-    present(renderer: THREE.WebGLRenderer) {
-      const sortie = renderer.outputColorSpace;
-      renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-      renderer.render(scene, camera);
-      renderer.outputColorSpace = sortie;
-    },
-    invalidate() {
-      kept = false;
+    /** Puts the kept frame back on the drawing buffer: one copy, nothing of the scene. */
+    present() {
+      const source = copy.current();
+      if (source) blit(source.framebuffer, null);
     },
     dispose() {
-      texture?.dispose();
-      material.dispose();
-      quad.geometry.dispose();
+      copy.dispose();
       kept = false;
     },
   };
