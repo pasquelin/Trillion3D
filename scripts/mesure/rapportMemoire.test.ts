@@ -3,12 +3,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { memoire } from './rapportMemoire.ts';
+import type { Report, Row, Serie } from './report/types.ts';
 
-const serie = (view, sides) => ({ view, pixelError: 1, sides });
+const serie = (view: string, sides: Record<string, Partial<Row>>): Serie => ({
+  view,
+  pixelError: 1,
+  segment: 'segment-test',
+  index: 0,
+  pose: { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
+  sides: sides as Record<string, Row>,
+});
+
+/** A minimal report: only the series `memoire()` reads. */
+const rapport = (series: Serie[]): Report => ({ series }) as Report;
 
 test('each side of each view has its row, and the rest is the difference', () => {
-  const lignes = memoire({
-    series: [
+  const lignes = memoire(
+    rapport([
       serie('sol', {
         apres: {
           metrics: {
@@ -27,8 +38,8 @@ test('each side of each view has its row, and the rest is the difference', () =>
           },
         },
       }),
-    ],
-  });
+    ]),
+  );
   assert.equal(
     lignes[2],
     '| sol | e1 | apres | 7.500 GB | 6.689 GB | 0.400 GB / 536.9 MB (scene) | 275.7 MB | 0.136 GB |',
@@ -42,8 +53,8 @@ test('each side of each view has its row, and the rest is the difference', () =>
 });
 
 test('a side without registry is unmeasured, never zero, and an unknown format is stated', () => {
-  const lignes = memoire({
-    series: [
+  const lignes = memoire(
+    rapport([
       serie('generale', {
         avant: { metrics: {} },
         apres: {
@@ -54,8 +65,8 @@ test('a side without registry is unmeasured, never zero, and an unknown format i
           },
         },
       }),
-    ],
-  });
+    ]),
+  );
   assert.equal(
     lignes[2],
     '| generale | e1 | avant | unmeasured | unmeasured | unmeasured / unmeasured | unmeasured | unmeasured |',

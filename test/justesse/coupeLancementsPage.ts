@@ -32,10 +32,18 @@ import {
 } from '../../packages/sdk-browser/bench/oracles/coupe-lancements.ts';
 import { ouvrirAppareil } from './appareilWebgpu.ts';
 import { commandes, mediane, scene } from './coupeLancementsDecor.ts';
+import type { ExecuterParams, ExecuterResultat } from './coupeLancementsTypes.ts';
 
 const SHADER_AVANT = DAG_SELECTION_SHADER.replace(DAG_LEVEL_WGSL, DAG_LEVEL_WGSL_AVANT);
 
-export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, bornes }) {
+export async function executer({
+  feuilles,
+  niveaux,
+  profondeurs,
+  tours,
+  rondes,
+  bornes,
+}: ExecuterParams): Promise<ExecuterResultat> {
   const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
@@ -52,7 +60,16 @@ export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, 
   if (!livre) return { indisponible: 'the shipped cut does not mount' };
   const { module, compilation } = await appareil.compile(SHADER_AVANT);
   if (compilation.length) return { compilation, erreurs };
-  const avant = ressourcesAvant(device, module, livre.layout, packed, livre.readbackBytes);
+  // `ressourcesAvant`'s own `PackedAvant` is a private, unexported interface: `packed` (`PackedDag`)
+  // is structurally what it reads (`levelSizes` included, indexed and measured by `.length`, which
+  // `Uint32Array` supports even where the private type says `readonly unknown[]`).
+  const avant = ressourcesAvant(
+    device,
+    module,
+    livre.layout,
+    packed as unknown as Parameters<typeof ressourcesAvant>[3],
+    livre.readbackBytes,
+  );
 
   const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
   writeDagUniforms(uni, packed, uniforms, true);
@@ -63,7 +80,7 @@ export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, 
     size: livre.readbackBytes,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
-  const relire = async (sortie) => {
+  const relire = async (sortie: GPUBuffer) => {
     const copie = device.createCommandEncoder();
     copie.copyBufferToBuffer(sortie, 0, lecture, 0, livre.readbackBytes);
     device.queue.submit([copie.finish()]);
@@ -72,7 +89,7 @@ export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, 
     lecture.unmap();
     const tete = livre.outputBytes / 4;
     const entete = SELECTION_HEADER_WORDS;
-    const liste = (at) =>
+    const liste = (at: number): number[] =>
       Array.from(ints.subarray(at + entete, at + entete + Math.min(ints[at], packed.pageCount)));
     return {
       pages: liste(0).sort((a, b) => a - b),
@@ -87,7 +104,7 @@ export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, 
    * commands, and the one we still wait once the last is submitted. Confusing them would
    * attribute a CPU encode to the GPU, which is not the same spend.
    */
-  const lot = async (encode, nombre) => {
+  const lot = async (encode: (encoder: GPUCommandEncoder) => void, nombre: number) => {
     const debut = performance.now();
     for (let image = 0; image < nombre; image++) {
       const encoder = device.createCommandEncoder();
@@ -101,11 +118,15 @@ export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, 
 
   // Tiers on which the shipped descent launches flat. Lengthening them changes no verdict —
   // extra threads exit on the count guard — and gives the depth we want.
-  const etages = (profondeur, largeur) =>
+  const etages = (profondeur: number, largeur: number): Uint32Array =>
     Uint32Array.from({ length: profondeur }, (_, l) =>
       l < packed.levelSizes.length ? Math.max(packed.levelSizes[l], largeur) : largeur,
     );
-  const variantes = [
+  const variantes: Array<{
+    nom: string;
+    sortie: GPUBuffer;
+    encode: (e: GPUCommandEncoder, p: number) => void;
+  }> = [
     {
       nom: 'avant (two queues, indirect and armed level)',
       sortie: avant.output,
@@ -121,11 +142,13 @@ export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, 
   // Scene depth first, then those we lengthen: extra tiers are empty.
   const toutes = [packed.levelSizes.length, ...profondeurs];
   const comptes = variantes.map((v) => toutes.map((p) => commandes((e) => v.encode(e, p))));
-  const mesures = variantes.map(() => toutes.map(() => []));
+  const mesures: Array<Array<Array<{ encodage: number; total: number }>>> = variantes.map(() =>
+    toutes.map(() => []),
+  );
   for (let ronde = 0; ronde < rondes; ronde++)
     for (let v = 0; v < variantes.length; v++)
       for (let p = 0; p < toutes.length; p++) {
-        const encode = (e) => variantes[v].encode(e, toutes[p]);
+        const encode = (e: GPUCommandEncoder) => variantes[v].encode(e, toutes[p]);
         await lot(encode, Math.max(2, tours >> 2));
         mesures[v][p].push(await lot(encode, tours));
       }
@@ -140,7 +163,7 @@ export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, 
   // the flat launch becomes more expensive again than the arming it replaces.
   const balayage = [];
   for (const largeur of bornes) {
-    const encode = (e) =>
+    const encode = (e: GPUCommandEncoder) =>
       encodeDagKernels(e, { ...livre, levelSizes: etages(packed.levelSizes.length, largeur) });
     await lot(encode, Math.max(2, tours >> 2));
     const releve = [];

@@ -4,6 +4,7 @@ import { collectClusterPages } from '../pageSelectionCollect.ts';
 import { exactPagesBounds } from '../exactPagesBounds.ts';
 import { indexManifestBundles, indexManifestPages } from '../manifestPageIndex.ts';
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
+import type { PageRec } from '../pageSelectionTypes.ts';
 import { referenceCollectClusterPages } from './oracles/collecte-pages.ts';
 import {
   referenceExactPagesBounds,
@@ -11,23 +12,40 @@ import {
   referenceIndexManifestPages,
 } from './oracles/bornes-et-index.ts';
 import { manifesteEtScene } from './appui/scenesChargement.ts';
+import { DEFAULT_SCOPE, type ClusterManifest } from '../../sdk-core/index.ts';
 
-const boiteVersTableau = (boite) =>
-  boite.isBox3 ? [...boite.min.toArray(), ...boite.max.toArray()] : Array.from(boite);
+const boiteVersTableau = (boite: THREE.Box3 | ArrayLike<number>): number[] =>
+  'isBox3' in boite && boite.isBox3
+    ? [...boite.min.toArray(), ...boite.max.toArray()]
+    : Array.from(boite as ArrayLike<number>);
+
+type ChargementScene = ReturnType<typeof manifesteEtScene>;
 
 const grande = manifesteEtScene({ primitives: 200, pages: 12, triangles: 8 });
 const petite = manifesteEtScene({ primitives: 1, pages: 1, triangles: 1, seed: 77 });
 const orpheline = manifesteEtScene({ primitives: 3, pages: 2, triangles: 2, seed: 99 });
-for (const mesh of orpheline.associations.keys()) orpheline.associations.set(mesh, undefined);
-const videMetadata = { primitives: [] };
-const videScene = {
+// Simulates a mesh without a prepared primitive: `.get(mesh)` reads `undefined` either way,
+// and nothing here reads `.has(mesh)` — deleting the key keeps the map's own value type.
+for (const mesh of orpheline.associations.keys()) orpheline.associations.delete(mesh);
+const videMetadata: ClusterManifest = {
+  schema: 0,
+  status: 'ready',
+  key: 'bench-empty',
+  scope: DEFAULT_SCOPE,
+  sourceTriangles: 0,
+  selectedTriangles: 0,
+  selectedNodes: [],
+  totalNodes: 0,
+  primitives: [],
+};
+const videScene: ChargementScene = {
   source: new THREE.Group(),
   associations: new Map(),
   metadata: videMetadata,
   indices: new Map(),
 };
 
-const recDe = (rec) => ({
+const recDe = (rec: PageRec) => ({
   id: rec.id,
   url: rec.url,
   clusterId: rec.clusterId,
@@ -55,47 +73,52 @@ const recDe = (rec) => ({
   packedIndex: rec.packedIndex,
 });
 
-const passeCollect = (fn) => (input) => {
-  let output;
-  try {
-    output = fn(input.source, input.metadata, input.indices, input.associations);
-  } catch (erreur) {
-    return { refus: erreur.message };
-  }
-  return {
-    refus: null,
-    requestCount: output.requestCount,
-    prepared: output.prepared,
-    blendCopies: output.blendCopies.length,
-    bootstrap: output.bootstrap.length,
-    pages: output.allPages.map(recDe),
-    boites: output.roots.flatMap((root) => [
-      ...boiteVersTableau(root.localBox),
-      ...boiteVersTableau(root.worldBox),
-    ]),
-    bornes: output.roots.map((root) => root.culling?.bounds ?? null),
+const passeCollect =
+  (fn: typeof collectClusterPages | typeof referenceCollectClusterPages) =>
+  (input: ChargementScene) => {
+    let output;
+    try {
+      output = fn(input.source, input.metadata, input.indices, input.associations);
+    } catch (erreur) {
+      return { refus: erreur instanceof Error ? erreur.message : String(erreur) };
+    }
+    return {
+      refus: null,
+      requestCount: output.requestCount,
+      prepared: output.prepared,
+      blendCopies: output.blendCopies.length,
+      bootstrap: output.bootstrap.length,
+      pages: output.allPages.map(recDe),
+      boites: output.roots.flatMap((root) => [
+        ...boiteVersTableau(root.localBox ?? new Float64Array(6)),
+        ...boiteVersTableau(root.worldBox ?? new Float64Array(6)),
+      ]),
+      bornes: output.roots.map((root) => root.culling?.bounds ?? null),
+    };
   };
-};
 
-const passeBounds = (fn) => (input) => {
-  const manquants = [];
-  const boite = fn(input.source, input.associations, input.metadata, (mesh) =>
-    manquants.push(mesh.id),
-  );
-  return { boite: boiteVersTableau(boite), manquants };
-};
-
-const passeIndex = (pages, bundles) => (metadata) => {
-  const index = pages(metadata);
-  return {
-    pages: index.pages.map((page) => page.url),
-    identifiants: index.pages.map((page) => page.id),
-    geometryPages: index.geometryPages.map((page) => page.url),
-    geometryUrls: index.geometryUrls,
-    pageIdByUrl: index.pageIdByUrl,
-    bundles: bundles(metadata).map((bundle) => bundle.url),
+const passeBounds =
+  (fn: typeof exactPagesBounds | typeof referenceExactPagesBounds) => (input: ChargementScene) => {
+    const manquants: string[] = [];
+    const boite = fn(input.source, input.associations, input.metadata, (mesh) =>
+      manquants.push(mesh.id.toString()),
+    );
+    return { boite: boiteVersTableau(boite), manquants };
   };
-};
+
+const passeIndex =
+  (pages: typeof indexManifestPages, bundles: typeof indexManifestBundles) =>
+  (metadata: import('../../sdk-core/index.ts').ClusterManifest) => {
+    const index = pages(metadata);
+    return {
+      pages: index.pages.map((page) => page.url),
+      identifiants: index.pages.map((page) => page.id),
+      geometryPages: index.geometryPages.map((page) => page.url),
+      geometryUrls: index.geometryUrls,
+      pageIdByUrl: index.pageIdByUrl,
+      bundles: bundles(metadata).map((bundle) => bundle.url),
+    };
+  };
 
 const cas = [
   { name: '200 primitives, 2 600 pages', input: grande, size: 2600 },
@@ -136,7 +159,8 @@ const resIndex = await mesure({
 
 await stress({
   name: 'exactPagesBounds extremes',
-  calcul: (scene) => exactPagesBounds(scene.source, scene.associations, scene.metadata),
+  calcul: (scene: ChargementScene) =>
+    exactPagesBounds(scene.source, scene.associations, scene.metadata, () => {}),
   extremes: [{ name: 'empty', input: videScene }],
 });
 

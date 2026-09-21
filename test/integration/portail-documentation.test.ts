@@ -7,19 +7,22 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ISSUES, SECTIONS } from '../../site/content/model.ts';
+import type { PortalEntry } from '../../site/content/model.ts';
 import { DEMOS } from '../../site/demos/registry.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const CONTENT = join(ROOT, 'site/content');
 
 const modules = await Promise.all(
-  readdirSync(join(CONTENT, 'entries')).map((name) => import(join(CONTENT, 'entries', name))),
+  readdirSync(join(CONTENT, 'entries')).map(
+    (name) => import(join(CONTENT, 'entries', name)) as Promise<Record<string, PortalEntry[]>>,
+  ),
 );
-const ENTRIES = modules.flatMap((module) => Object.values(module).flat());
+const ENTRIES: PortalEntry[] = modules.flatMap((module) => Object.values(module).flat());
 
 /** Names a file declares or re-exports, read once per file. */
-const exportsOf = new Map();
-function exported(module) {
+const exportsOf = new Map<string, Set<string>>();
+function exported(module: string): Set<string> {
   const known = exportsOf.get(module);
   if (known) return known;
   const source = readFileSync(join(ROOT, module), 'utf8');
@@ -28,12 +31,15 @@ function exported(module) {
       ...source.matchAll(/export\s+(?:async\s+)?(?:function|const|class|type|interface)\s+(\w+)/g),
     ].map((match) => match[1]),
     ...[...source.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)].flatMap((match) =>
-      match[1].split(',').map((name) =>
-        name
-          .trim()
-          .split(/\s+as\s+|\s+/)
-          .pop(),
-      ),
+      match[1]
+        .split(',')
+        .map((name) =>
+          name
+            .trim()
+            .split(/\s+as\s+|\s+/)
+            .pop(),
+        )
+        .filter((name): name is string => name !== undefined),
     ),
   ]);
   exportsOf.set(module, names);
@@ -55,6 +61,7 @@ test('every symbol a delivered entry documents is exported by the file it names'
       continue;
     }
     assert.ok(entry.exports.length > 0, `${entry.id}: an empty symbol list checks nothing`);
+    assert.ok(entry.module, `${entry.id}: exports without a module`);
     const names = exported(entry.module);
     for (const symbol of entry.exports)
       assert.ok(names.has(symbol), `${entry.id}: ${entry.module} does not export ${symbol}`);
@@ -62,7 +69,7 @@ test('every symbol a delivered entry documents is exported by the file it names'
 });
 
 /** The parameters a `name(a, b, c)` line of a signature declares, in order. */
-function signatureArguments(signature, name) {
+function signatureArguments(signature: string, name: string): string[] | null {
   const match = new RegExp(`\\b${name}\\s*(?:<[^>]*>)?\\s*\\(([^)]*)\\)`).exec(signature);
   if (!match) return null;
   const inside = match[1].trim();
@@ -70,7 +77,7 @@ function signatureArguments(signature, name) {
 }
 
 test('a documented signature takes the arguments the function really takes', async () => {
-  const engine = await import(join(ROOT, 'site/demos/engine.ts'));
+  const engine = (await import(join(ROOT, 'site/demos/engine.ts'))) as Record<string, unknown>;
   for (const entry of ENTRIES) {
     if (entry.issue || !entry.signature || !entry.exports) continue;
     for (const symbol of entry.exports) {
@@ -87,11 +94,11 @@ test('a documented signature takes the arguments the function really takes', asy
 });
 
 /** What a package entry point really exports: its own declarations and what it re-exports. */
-const surfaces = new Map();
-function surfaceOf(file, seen = new Set()) {
+const surfaces = new Map<string, Set<string>>();
+function surfaceOf(file: string, seen: Set<string> = new Set()): Set<string> {
   const cached = surfaces.get(file);
   if (cached) return cached;
-  const names = new Set();
+  const names = new Set<string>();
   if (seen.has(file) || !existsSync(join(ROOT, file))) return names;
   seen.add(file);
   const source = readFileSync(join(ROOT, file), 'utf8');
@@ -104,9 +111,9 @@ function surfaceOf(file, seen = new Set()) {
 }
 
 /** A relative import of the sources, `./x.ts` or `../pkg/x.ts`, as a repository path. */
-function resolveFrom(directory, specifier) {
+function resolveFrom(directory: string, specifier: string): string {
   const parts = `${directory}/${specifier}`.split('/');
-  const stack = [];
+  const stack: string[] = [];
   for (const part of parts) {
     if (part === '.' || part === '') continue;
     if (part === '..') stack.pop();
@@ -115,11 +122,11 @@ function resolveFrom(directory, specifier) {
   return stack.join('/');
 }
 
-const ENTRY_POINTS = {
+const ENTRY_POINTS: Record<string, string[]> = {
   'web-geometry': ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'],
 };
 
-function exampleModule(specifier) {
+function exampleModule(specifier: string): string[] | null {
   return ENTRY_POINTS[specifier] ?? null;
 }
 

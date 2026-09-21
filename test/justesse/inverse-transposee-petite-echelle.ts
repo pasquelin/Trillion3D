@@ -37,6 +37,7 @@ import { DETERMINISTES, HORS_BANDE, SCALES, tousLesCas } from './inverseTranspos
 import { classement, dessineParLeMoteur } from './inverseTransposeOracle.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
 import { substitueFormeAvant } from './substitutionAvant.ts';
+import type { Resultat } from './noyauSelectionGpuPack.ts';
 
 // --- Pre-batch text, put back into the shipped shader -------------------------------------------
 // Both texts come from `inverseTransposeWgsl.ts`: the bench rewrites neither the corrected
@@ -61,14 +62,15 @@ const uniforms = cameraSelectionUniforms(vue, 0, VIEWPORT);
 const packed = empaqueteCas(tousLesCas);
 
 /** Pages rejected by the WGSL kernel, for a given shader text. */
-async function rejetsGpu(shader) {
+async function rejetsGpu(shader: string) {
   const gpu = await selectionGpu([{ name: 'lot', packed, uniforms }], shader);
   assert.equal(gpu.indisponible ?? null, null, `GPU unavailable: ${gpu.indisponible}`);
   assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], [], 'WGSL');
-  const gardees = new Set(gpu.resultats.find((r) => r.name === 'lot').pages);
+  const lot: Resultat | undefined = gpu.resultats?.find((r) => r.name === 'lot');
+  assert.ok(lot, `${shader}: no "lot" result`);
+  const gardees = new Set(lot.pages);
   return { adaptateur: gpu.adaptateur, rejets: tousLesCas.map((_, i) => !gardees.has(i)) };
 }
-
 const before = await rejetsGpu(SHADER_AVANT);
 const after = await rejetsGpu(DAG_SELECTION_SHADER);
 
@@ -77,7 +79,8 @@ const { index, fausses, population } = classement({ cas: tousLesCas, verites, mo
 const popAvant = population(before.rejets);
 const popApres = population(after.rejets);
 const changements = index.filter((i) => before.rejets[i] !== after.rejets[i]);
-const aCetteEchelle = (s, liste) => liste.filter((i) => tousLesCas[i].s === s).length;
+const aCetteEchelle = (s: number, liste: number[]): number =>
+  liste.filter((i) => tousLesCas[i].s === s).length;
 const parEchelle = Object.fromEntries(
   SCALES.map((s) => [
     s,
@@ -125,7 +128,8 @@ console.log(
 );
 
 // --- The counter-example: the defect, then its disappearance -------------------------------------
-const nettementDeFace = (t) => t.face > 0.5 && t.airePixels > 100;
+const nettementDeFace = (t: { face: number; airePixels: number }): boolean =>
+  t.face > 0.5 && t.airePixels > 100;
 assert.ok(champs[0], 'the counter-example must be in the field of view');
 assert.ok(verites[0].triangles.every(nettementDeFace), 'both triangles must be front-facing');
 assert.ok(moteur.fragments[0] > 0, 'the counter-example must be drawn by the engine itself');
@@ -156,7 +160,7 @@ assert.equal(
 for (const [name, pop] of [
   ['before', popAvant],
   ['after', popApres],
-]) {
+] as const) {
   assert.equal(
     pop.brutes,
     pop.brutesDessinees + pop.brutesNonDessinees,

@@ -17,10 +17,33 @@ import {
   packedWorldsToRenderOrigin,
 } from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';
+import type { NormalCone } from '../../packages/sdk-browser/pageCone.ts';
+import type { DagRoot } from '../../packages/sdk-browser/gpuDagTypes.ts';
 import { poseMonde } from './normaleEclairageCas.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
-export const VIEWPORT = [1000, 1000];
+type Vec3T = [number, number, number];
+interface Boite {
+  min: Vec3T;
+  max: Vec3T;
+}
+interface CasEntree {
+  s: number;
+  kind: string;
+  worldSize: number;
+  axis: number[];
+  angleDeg: number;
+  miroir?: boolean;
+}
+export interface Cas extends Boite, CasEntree {
+  positions: number[];
+  indices: number[];
+  cone: NormalCone;
+  world: THREE.Matrix4;
+  miroir: boolean;
+}
+
+export const VIEWPORT: [number, number] = [1000, 1000];
 // Fixed camera: on -Z, it looks at the origin where each object is recentred whatever its
 // rotation (see `construireCas`), so that only orientation varies from case to case.
 export const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
@@ -37,7 +60,7 @@ frustumPlanesFromMatrix(WORLD_PLANES, vue.viewProjection);
  * of axis (0,0,1) and half-angle 45°. `L` fixes the scale of local coordinates; the world stays
  * of size `worldSize` whatever `s` since `L = worldSize / s`.
  */
-function geometrieLocale(L) {
+function geometrieLocale(L: number): { positions: number[]; indices: number[] } & Boite {
   const positions = [0, 0, 0, L, 0, -L, 0, L, 0, 0, 0, 0, -L, 0, -L, 0, -L, 0];
   const indices = [0, 1, 2, 3, 4, 5];
   return { positions, indices, min: [-L, -L, -L], max: [L, L, 0] };
@@ -49,7 +72,14 @@ function geometrieLocale(L) {
  * columns of equal length) but its determinant changes sign. The pose comes from
  * `poseMonde`: defects 6 and 9 exercise the same family of matrices.
  */
-export function construireCas({ s, kind, worldSize, axis, angleDeg, miroir = false }) {
+export function construireCas({
+  s,
+  kind,
+  worldSize,
+  axis,
+  angleDeg,
+  miroir = false,
+}: CasEntree): Cas {
   const L = worldSize / s;
   const { positions, indices, min, max } = geometrieLocale(L);
   const cone = triangleCone(positions, indices);
@@ -71,7 +101,7 @@ export function construireCas({ s, kind, worldSize, axis, angleDeg, miroir = fal
  * comes out on screen. For the engine's truth, measured by real rasterisation, see
  * `reflexion-cone.ts`.
  */
-export function veriteTerrain(cas) {
+export function veriteTerrain(cas: Cas) {
   const triangles = [
     [0, 1, 2],
     [3, 4, 5],
@@ -104,7 +134,7 @@ export function veriteTerrain(cas) {
 }
 
 /** What a case page always carries: its local box, its cone, a null level error. */
-const pageDuCas = (cas) => ({
+const pageDuCas = (cas: Cas) => ({
   url: '0',
   lodError: 0,
   min: cas.min,
@@ -118,27 +148,27 @@ const pageDuCas = (cas) => ({
  */
 // The kernel works in the render frame: packed world matrices are brought back to
 // the eye, as the engine feeds them, or else relative view and absolute world would mix.
-export const empaqueteCas = (liste) =>
+export const empaqueteCas = (liste: Cas[]) =>
   packedWorldsToRenderOrigin(
     packDagSelection(
-      liste.map((cas) => ({
+      liste.map((cas): DagRoot => ({
         world: cas.world,
         pages: [{ ...pageDuCas(cas), parentError: null, sphere: [0, 0, 0, cas.worldSize] }],
       })),
     ),
-    liste,
+    liste.map((cas): DagRoot => ({ world: cas.world, pages: [] })),
     vue.eye,
   );
 
 /** Is the cluster in the frustum (local box against the planes brought into local space)? */
-export function dansLeChamp(cas) {
+export function dansLeChamp(cas: Cas): boolean {
   const local = new Float64Array(24);
   frustumPlanesToLocal(local, WORLD_PLANES, cas.world.elements);
   return !frustumExcludesBox(local, ...cas.min, ...cas.max);
 }
 
 /** `coneCullsPageWith` and `selectVisiblePages`, as in batch 1: the same page, both entries. */
-export function decisionCpu(cas) {
+export function decisionCpu(cas: Cas) {
   const ctx = coneContextFor(createConeContext(), cas.world, vue.eye);
   const coneRejette = coneCullsPageWith(ctx, cas.cone, cas.world, cas.min, cas.max);
   const box = new THREE.Box3(

@@ -11,11 +11,16 @@ import { dagFixture } from '../../packages/sdk-browser/pageSelectionDagFixture.t
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './cameraRig.ts';
 import { ouvrirAppareil } from './appareilWebgpu.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
+import type { HostCamera } from '../../packages/sdk-browser/cameraWorld.ts';
 
-const VIEWPORT = [1280, 720];
+const VIEWPORT: [number, number] = [1280, 720];
 
 /** A fresh GPU selection per sequence: no reading from one sequence serves the other. */
-async function sequence(device, cameras, pixelError) {
+async function sequence(
+  device: GPUDevice,
+  cameras: () => Generator<HostCamera>,
+  pixelError: number,
+): Promise<Array<{ pages: string[]; frustumRejected: number }>> {
   const fixture = dagFixture();
   const { roots } = collectClusterPages(
     fixture.source,
@@ -26,7 +31,7 @@ async function sequence(device, cameras, pixelError) {
   const packed = packDagSelection(roots);
   const selection = await createGpuDagSelection(device, packed);
   if (!selection) throw new Error('GPU_SELECTION_UNAVAILABLE');
-  const images = [];
+  const images: Array<{ pages: string[]; frustumRejected: number }> = [];
   for (const camera of cameras()) {
     selection.dispatch(cameraSelectionUniforms(cameraMoteur(camera), pixelError, VIEWPORT));
     const result = await selection.flush();
@@ -40,11 +45,23 @@ async function sequence(device, cameras, pixelError) {
   return images;
 }
 
-export async function executer(pixelErrors) {
+/** One flat, all-optional shape for both outcomes: no adapter, or a completed run. */
+export interface ExecuterResultat {
+  indisponible?: string;
+  adaptateur?: string;
+  cas?: Array<{
+    pixelError: number;
+    avecParent: Array<{ pages: string[]; frustumRejected: number }>;
+    sansParent: Array<{ pages: string[]; frustumRejected: number }>;
+  }>;
+  erreurs?: string[];
+}
+
+export async function executer(pixelErrors: number[]): Promise<ExecuterResultat> {
   const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
-  const cas = [];
+  const cas: NonNullable<ExecuterResultat['cas']> = [];
   for (const pixelError of pixelErrors) {
     const rig = creeRig();
     const avecParent = await sequence(

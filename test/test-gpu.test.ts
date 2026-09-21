@@ -34,11 +34,13 @@ test('no test/justesse file remains orphaned: run, or named by a probe', async (
   const suivis = (await gitPaths(['ls-files', '-z'], RACINE)).filter((f) =>
     /\.(mjs|ts|mts)$/.test(f),
   );
-  const textes = new Map(suivis.map((f) => [f, readFileSync(join(RACINE, f), 'utf8')]));
+  const textes = new Map<string, string>(
+    suivis.map((f) => [f, readFileSync(join(RACINE, f), 'utf8')]),
+  );
   for (const fichier of tous) {
     if (lances.has(fichier)) continue;
     const nomme = suivis.some(
-      (autre) => !autre.endsWith(`/${fichier}`) && textes.get(autre).includes(fichier),
+      (autre) => !autre.endsWith(`/${fichier}`) && (textes.get(autre)?.includes(fichier) ?? false),
     );
     assert.ok(nomme, `${fichier} is neither launched nor named elsewhere: it never runs`);
   }

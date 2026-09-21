@@ -11,6 +11,12 @@ import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import type { executer } from './coupeLancementsPage.ts';
+
+declare global {
+  // eslint-disable-next-line no-var
+  var coupeLancements: { executer: typeof executer };
+}
 
 const ici = dirname(fileURLToPath(import.meta.url));
 
@@ -23,16 +29,19 @@ const TOURS = 200,
 /** Guardrail sweep: tier width over which each level is launched flat. */
 const BORNES = [0, 1000, 100000, 1000000];
 
-const mediane = (valeurs, champ) => {
+const mediane = (
+  valeurs: Array<{ encodage: number; total: number }>,
+  champ: 'encodage' | 'total',
+): number => {
   const triees = valeurs.map((v) => v[champ]).sort((a, b) => a - b);
   return Number(triees[triees.length >> 1].toFixed(4));
 };
 
 test('cut opens fewer commands and retains exactly the same pages', async () => {
   const script = await empaquetePage(resolve(ici, 'coupeLancementsPage.ts'), 'coupeLancements');
-  const erreursPage = [];
+  const erreursPage: string[] = [];
   const releve = await dansPageWebgpu(
-    (argument) => globalThis.coupeLancements.executer(argument),
+    (argument: Parameters<typeof executer>[0]) => globalThis.coupeLancements.executer(argument),
     {
       feuilles: 12000,
       niveaux: 8,
@@ -46,6 +55,10 @@ test('cut opens fewer commands and retains exactly the same pages', async () => 
   assert.equal(releve.indisponible, undefined, 'WebGPU must be available');
   assert.deepEqual(releve.compilation ?? [], [], 'both kernels must compile');
   assert.deepEqual([...(releve.erreurs ?? []), ...erreursPage], []);
+  assert.ok(
+    releve.sorties && releve.balayage && releve.profondeurs && releve.comptes && releve.mesures,
+    'the measurement is incomplete',
+  );
 
   const [avant, apres] = releve.sorties;
   assert.ok(avant.pages.length > 0, 'the cut must keep pages');
@@ -61,24 +74,28 @@ test('cut opens fewer commands and retains exactly the same pages', async () => 
       `bound ${ligne.borneParNiveau}: the cut must be unchanged`,
     );
 
-  const lignes = releve.profondeurs.map((profondeur, p) => ({
-    profondeur,
-    etages: profondeur === releve.profondeurLivree ? 'of the scene' : 'lengthened (empty tiers)',
-    // Counted on encoders themselves, not inferred from formula.
-    commandesAvant: releve.comptes[0][p].passes + releve.comptes[0][p].copies,
-    commandesApres: releve.comptes[1][p].passes + releve.comptes[1][p].copies,
-    passesApres: releve.comptes[1][p].passes,
-    copiesApres: releve.comptes[1][p].copies,
-    msTotalAvant: mediane(releve.mesures[0][p], 'total'),
-    msTotalApres: mediane(releve.mesures[1][p], 'total'),
-    msEncodageAvant: mediane(releve.mesures[0][p], 'encodage'),
-    msEncodageApres: mediane(releve.mesures[1][p], 'encodage'),
-  }));
-  for (const ligne of lignes)
-    ligne.gainPourCent = Number((100 * (1 - ligne.msTotalApres / ligne.msTotalAvant)).toFixed(1));
+  const { comptes, mesures } = releve;
+  const lignes = releve.profondeurs.map((profondeur, p) => {
+    const msTotalAvant = mediane(mesures[0][p], 'total'),
+      msTotalApres = mediane(mesures[1][p], 'total');
+    return {
+      profondeur,
+      etages: profondeur === releve.profondeurLivree ? 'of the scene' : 'lengthened (empty tiers)',
+      // Counted on encoders themselves, not inferred from formula.
+      commandesAvant: comptes[0][p].passes + comptes[0][p].copies,
+      commandesApres: comptes[1][p].passes + comptes[1][p].copies,
+      passesApres: comptes[1][p].passes,
+      copiesApres: comptes[1][p].copies,
+      msTotalAvant,
+      msTotalApres,
+      msEncodageAvant: mediane(mesures[0][p], 'encodage'),
+      msEncodageApres: mediane(mesures[1][p], 'encodage'),
+      gainPourCent: Number((100 * (1 - msTotalApres / msTotalAvant)).toFixed(1)),
+    };
+  });
   // SLOPE taken between shortest and longest depth: cost of one extra level on each side.
   const bornes = [lignes[0], lignes[lignes.length - 1]];
-  const pente = (champ) =>
+  const pente = (champ: 'msTotalAvant' | 'msTotalApres'): number =>
     Number(
       (
         (1000 * (bornes[1][champ] - bornes[0][champ])) /

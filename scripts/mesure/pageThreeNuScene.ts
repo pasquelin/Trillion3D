@@ -2,47 +2,61 @@
 // `pageThreeNu.ts`, imports only `three`.
 import * as THREE from 'three';
 import { appliquer, creer } from './pageTemoin.ts';
+import type { ThreeLight } from './pageTemoin.ts';
+import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
 
 const BYTES_PER_TEXEL_WITH_MIPS = 4 * 1.34;
 
 /** The contract's Three light — conversion from the witness (`pageTemoin.ts`) — plus what is
  *  specific to the bare path: the shadow. The sun sits outside the model box, its shadow camera covers it. */
-export function lampe(light, box, shadows) {
+export function lampe(
+  light: SceneLight,
+  box: THREE.Box3,
+  shadows: boolean,
+): [ThreeLight] | [ThreeLight, THREE.Object3D] {
   const objet = creer(light);
   appliquer(objet, light, 0);
   objet.castShadow = shadows && light.castsShadow !== false;
   if (light.kind !== 'directional') {
-    objet.shadow.mapSize.set(1024, 1024);
-    objet.shadow.camera.far = light.range;
-    return [objet];
+    const punctual = objet as THREE.SpotLight | THREE.PointLight;
+    punctual.shadow.mapSize.set(1024, 1024);
+    punctual.shadow.camera.far = light.range ?? 0;
+    return [punctual];
   }
+  const directionnelle = objet as THREE.DirectionalLight;
   const rayon = box.getSize(new THREE.Vector3()).length() / 2;
   const centre = box.getCenter(new THREE.Vector3());
-  const d = new THREE.Vector3().fromArray(light.direction).normalize();
-  objet.position.copy(centre).addScaledVector(d, -rayon * 2);
-  objet.target.position.copy(centre);
-  const cam = objet.shadow.camera;
+  const d = new THREE.Vector3().fromArray(light.direction ?? [0, -1, 0]).normalize();
+  directionnelle.position.copy(centre).addScaledVector(d, -rayon * 2);
+  directionnelle.target.position.copy(centre);
+  const cam = directionnelle.shadow.camera;
   cam.left = cam.bottom = -rayon;
   cam.right = cam.top = rayon;
   cam.near = 0;
   cam.far = rayon * 4;
   cam.updateProjectionMatrix();
-  objet.shadow.mapSize.set(4096, 4096);
-  objet.shadow.bias = -0.0005;
-  return [objet, objet.target];
+  directionnelle.shadow.mapSize.set(4096, 4096);
+  directionnelle.shadow.bias = -0.0005;
+  return [directionnelle, directionnelle.target];
 }
 
 /** Bytes Three holds for this scene: vertex and index buffers, texels with mips.
  *  A buffer shared by several geometries (levels of detail) is counted only once. */
-export function octets(scene) {
-  const geometries = new Set(),
-    tampons = new Set(),
-    images = new Set();
+export function octets(scene: THREE.Object3D) {
+  const geometries = new Set<THREE.BufferGeometry>(),
+    tampons = new Set<THREE.BufferAttribute | THREE.InterleavedBufferAttribute>(),
+    images = new Set<{ width?: number; height?: number }>();
   scene.traverse((o) => {
-    if (o.geometry) geometries.add(o.geometry);
-    if (o.material)
-      for (const value of Object.values(o.material))
-        if (value?.isTexture && value.image) images.add(value.image);
+    const mesh = o as THREE.Mesh;
+    if (mesh.geometry) geometries.add(mesh.geometry);
+    if (mesh.material)
+      for (const value of Object.values(mesh.material as object)) {
+        const texture = value as {
+          isTexture?: boolean;
+          image?: { width?: number; height?: number };
+        };
+        if (texture?.isTexture && texture.image) images.add(texture.image);
+      }
   });
   let geometrie = 0,
     textures = 0;

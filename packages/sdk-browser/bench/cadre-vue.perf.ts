@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { surfaceColorAttachments } from '../webgpuPagesAttachments.ts';
 import { anneauFroid } from '../explorerDraw.ts';
 import { deplaceInstance } from '../autonomousInstances.ts';
+import type { SurfaceBuffer } from '../surfaceBuffer.ts';
+import type { PageRec, ClusterRoot } from '../pageSelectionTypes.ts';
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import {
   referenceAnneauFroid,
@@ -10,50 +12,82 @@ import {
   referenceUpdateInstance,
 } from './oracles/cadre-vue.ts';
 
-const views = (etiquette) => [0, 1, 2, 3].map((i) => ({ surface: `${etiquette}/${i}` }));
-const surfaces = (etiquette) => {
-  const liste = views(etiquette);
-  return { views: () => liste };
+const DUMMY_TEXTURE = {} as GPUTexture;
+const buildSurfaces = (): SurfaceBuffer => {
+  const liste: GPUTextureView[] = [0, 1, 2, 3].map(() => ({}) as GPUTextureView);
+  return {
+    version: 1,
+    width: 1,
+    height: 1,
+    allocationBytes: 0,
+    baseMetal: DUMMY_TEXTURE,
+    normalRough: DUMMY_TEXTURE,
+    emissiveAo: DUMMY_TEXTURE,
+    flags: DUMMY_TEXTURE,
+    views: () => liste,
+    dispose: () => {},
+  };
 };
-const petite = surfaces('720p'),
-  grande = surfaces('1440p');
-const liberee = {
+const petite = buildSurfaces(),
+  grande = buildSurfaces();
+const liberee: SurfaceBuffer = {
+  ...buildSurfaces(),
   views: () => {
     throw new Error('SURFACE_DISPOSED');
   },
 };
 
-const passeAttachments = (fn) => (input) => {
-  const output = [];
-  for (const cible of input) {
-    try {
-      output.push(fn(cible).map((item) => ({ ...item, clearValue: [...item.clearValue] })));
-    } catch (erreur) {
-      output.push(erreur.message);
+const passeAttachments =
+  (fn: (surfaces: SurfaceBuffer) => GPURenderPassColorAttachment[]) => (input: SurfaceBuffer[]) => {
+    const output: unknown[] = [];
+    for (const cible of input) {
+      try {
+        output.push(
+          fn(cible).map((item) => ({ ...item, clearValue: [...(item.clearValue as number[])] })),
+        );
+      } catch (erreur) {
+        output.push(erreur instanceof Error ? erreur.message : String(erreur));
+      }
     }
-  }
-  return output;
-};
+    return output;
+  };
 
-const imagesSurfaces = [];
+const imagesSurfaces: SurfaceBuffer[] = [];
 for (let i = 0; i < 2000; i++) imagesSurfaces.push(petite);
 const redimensionnee = [petite, petite, grande, grande, petite, liberee, grande];
 
-const instanceDe = (pages) => {
-  const basePages = [],
-    baseRoots = [],
-    clones = [],
-    racines = [];
+/** Fields the instance displacement never reads: shared across every fixture record/root. */
+const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const DUMMY_BOUNDS: number[] = [0, 0, 0];
+const pageOf = (matrix: THREE.Matrix4, mesh?: THREE.Mesh): PageRec => ({
+  id: 0,
+  url: '',
+  clusterId: '',
+  triangles: 0,
+  indexBytes: 0,
+  min: DUMMY_BOUNDS,
+  max: DUMMY_BOUNDS,
+  depthLayer: 0,
+  attributes: DUMMY_ATTRIBUTES,
+  material: [],
+  matrix,
+  renderOrder: 0,
+  attached: true,
+  mesh,
+});
+
+const instanceDe = (pages: number) => {
+  const basePages: PageRec[] = [],
+    baseRoots: ClusterRoot<PageRec>[] = [],
+    clones: PageRec[] = [],
+    racines: ClusterRoot<PageRec>[] = [];
   for (let i = 0; i < pages; i++) {
-    basePages.push({ matrix: new THREE.Matrix4().makeTranslation(i, i * 2, i * 3) });
-    clones.push({
-      matrix: new THREE.Matrix4(),
-      mesh: i % 3 ? { matrix: new THREE.Matrix4() } : undefined,
-    });
+    basePages.push(pageOf(new THREE.Matrix4().makeTranslation(i, i * 2, i * 3)));
+    clones.push(pageOf(new THREE.Matrix4(), i % 3 ? new THREE.Mesh() : undefined));
   }
   for (let i = 0; i < 10; i++) {
-    baseRoots.push({ world: new THREE.Matrix4().makeScale(1 + i, 2, 3) });
-    racines.push({ world: new THREE.Matrix4() });
+    baseRoots.push({ world: new THREE.Matrix4().makeScale(1 + i, 2, 3), pages: [] });
+    racines.push({ world: new THREE.Matrix4(), pages: [] });
   }
   return { basePages, baseRoots, instance: { pages: clones, bases: basePages, roots: racines } };
 };
@@ -63,23 +97,34 @@ const transformation = new THREE.Matrix4()
   .makeRotationY(0.7)
   .multiply(new THREE.Matrix4().makeTranslation(3, -1, 2));
 
-const passeInstance = (fn) => (input) => {
-  const { basePages, baseRoots, instance } = input;
-  fn(instance, basePages, baseRoots, transformation);
-  const output = [];
-  for (const rec of instance.pages)
-    output.push(...rec.matrix.elements, ...(rec.mesh?.matrix.elements ?? []));
-  for (const root of instance.roots) output.push(...root.world.elements);
-  return Float64Array.from(output);
-};
+type Instance = ReturnType<typeof instanceDe>;
 
-const anneau = [];
+const passeInstance =
+  (
+    fn: (
+      instance: Instance['instance'],
+      basePages: PageRec[],
+      baseRoots: ClusterRoot<PageRec>[],
+      transform: THREE.Matrix4,
+    ) => void,
+  ) =>
+  (input: Instance) => {
+    const { basePages, baseRoots, instance } = input;
+    fn(instance, basePages, baseRoots, transformation);
+    const output: number[] = [];
+    for (const rec of instance.pages)
+      output.push(...rec.matrix.elements, ...(rec.mesh?.matrix.elements ?? []));
+    for (const root of instance.roots) output.push(...root.world.elements);
+    return Float64Array.from(output);
+  };
+
+const anneau: string[] = [];
 for (let i = 0; i < 10000; i++) anneau.push(`bundle/${i}`);
 const tenues = new Set(anneau.filter((_, i) => i % 30 !== 0));
 const streamer = {
-  has: (url) => tenues.has(url),
+  has: (url: string) => tenues.has(url),
   loading: () => false,
-  failed: (url) => url.endsWith('7777'),
+  failed: (url: string) => url.endsWith('7777'),
 };
 
 const resAttachments = await mesure({
@@ -116,14 +161,16 @@ const resAnneau = await mesure({
       size: 10000,
     },
   ],
-  calcul: (e) => anneauFroid(e.ring, e.streamer, e.limite),
-  attendu: (e) => referenceAnneauFroid(e.ring, e.streamer, e.limite),
+  calcul: (e: { ring: string[]; streamer: typeof streamer; limite: number }) =>
+    anneauFroid(e.ring, e.streamer, e.limite),
+  attendu: (e: { ring: string[]; streamer: typeof streamer; limite: number }) =>
+    referenceAnneauFroid(e.ring, e.streamer, e.limite),
   options: { tours: 100, budgetMs: 1500 },
 });
 
 await stress({
   name: 'anneauFroid extremes',
-  calcul: (lim) => anneauFroid([], streamer, lim),
+  calcul: (lim: number) => anneauFroid([], streamer, lim),
   extremes: [
     { name: '0 limite', input: 0 },
     { name: 'negative limite', input: -1 },

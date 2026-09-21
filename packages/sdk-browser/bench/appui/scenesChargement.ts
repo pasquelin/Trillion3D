@@ -4,11 +4,14 @@
 import * as THREE from 'three';
 import { graine } from '../../../sdk-core/bench/socle.ts';
 import type { PageRec } from '../../pageSelectionTypes.ts';
+import { DEFAULT_SCOPE, type ClusterManifest } from '../../../sdk-core/index.ts';
 
 const materiau = (index: number) =>
   new THREE.MeshStandardMaterial({ color: 0x808080 + index * 7, roughness: 0.5 });
 
-/** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers. */
+/** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers,
+ *  plus `sha256`, which `ClusterManifest['primitives'][number]['pages']` requires but nothing in
+ *  the loading path this bench measures reads. */
 type LoadedPage = Pick<
   PageRec,
   | 'id'
@@ -28,6 +31,7 @@ type LoadedPage = Pick<
   bytes: number;
   count: number;
   start: number | undefined;
+  sha256: string;
 };
 
 /** A primitive of the manifest: its pages, and an optional culling hierarchy of one node. */
@@ -69,6 +73,7 @@ function pageDe(
     source: null,
     depthLayer: id % 3 === 0 ? 1 : 0,
     start: depart,
+    sha256: '',
   };
 }
 
@@ -135,17 +140,34 @@ export function manifesteEtScene({
     liste.push(primitive);
   }
   source.updateMatrixWorld(true);
-  return { source, associations, metadata: { primitives: liste }, indices };
+  // The rest of `ClusterManifest` (schema, status, key, scope, node counts) is never read by
+  // the loading path this bench measures: only `primitives` is.
+  const metadata: ClusterManifest = {
+    schema: 0,
+    status: 'ready',
+    key: 'bench',
+    scope: DEFAULT_SCOPE,
+    sourceTriangles: 0,
+    selectedTriangles: 0,
+    selectedNodes: [],
+    totalNodes: 0,
+    primitives: liste,
+  };
+  return { source, associations, metadata, indices };
 }
+
+/** Fields the cones/catalogue paths never read: shared across every fixture page. */
+const DUMMY_MATRIX = new THREE.Matrix4();
+const DUMMY_BOUNDS: number[] = [0, 0, 0];
 
 /** Pages of a manifest seen as an engine catalogue: bytes, materials, attributes. */
 export function catalogueDePages({
   pages = 20000,
   materiaux = 60,
   seed = 5309,
-}: { pages?: number; materiaux?: number; seed?: number } = {}) {
+}: { pages?: number; materiaux?: number; seed?: number } = {}): PageRec[] {
   const alea = graine(seed);
-  const liste = [];
+  const liste: PageRec[] = [];
   const attributs: { position: THREE.BufferAttribute }[] = [];
   for (let i = 0; i < materiaux; i++) {
     const positions = new Float32Array(3 * 3 * 64);
@@ -158,10 +180,18 @@ export function catalogueDePages({
     liste.push({
       id: i,
       url: `p/${i % (pages - 7)}`,
+      clusterId: `p/${i % (pages - 7)}`,
       array,
       attributes: attributs[i % materiaux],
       material: materiau(i % materiaux),
       triangles: 1,
+      indexBytes: 0,
+      min: DUMMY_BOUNDS,
+      max: DUMMY_BOUNDS,
+      depthLayer: 0,
+      matrix: DUMMY_MATRIX,
+      renderOrder: 0,
+      attached: true,
       cone: undefined,
     });
   }

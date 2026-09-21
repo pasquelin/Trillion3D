@@ -26,6 +26,8 @@ import {
 } from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
+import type { NormalCone } from '../../packages/sdk-browser/pageCone.ts';
+import type { PackedDag } from '../../packages/sdk-browser/gpuDagTypes.ts';
 
 const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
 const indices = [0, 1, 2, 3, 4, 5];
@@ -38,7 +40,7 @@ const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
 camera.position.set(6, 0, -9);
 camera.lookAt(0, 0, -0.5);
 camera.updateMatrixWorld(true);
-const VIEWPORT = [1000, 1000];
+const VIEWPORT: [number, number] = [1000, 1000];
 
 /** What the camera sees, computed on world vertices: the face is visible, and large. */
 function temoin() {
@@ -63,7 +65,7 @@ function temoin() {
 }
 
 /** The engine's CPU cut, cones on or off. */
-function coupeCpu(cones) {
+function coupeCpu(cones: boolean) {
   const box = new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max)).applyMatrix4(
     world,
   );
@@ -89,7 +91,7 @@ function coupeCpu(cones) {
 }
 
 /** The same cluster for the GPU kernel: DAG root, null error, always in its band. */
-function empaquete(coneDuCluster) {
+function empaquete(coneDuCluster: NormalCone) {
   const sphere = [0, 0, -0.5, 2];
   return packDagSelection([
     {
@@ -103,14 +105,15 @@ const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
 const context = coneContextFor(createConeContext(), world, cameraMoteur(camera).eye);
 // The kernel works in the render frame: packed world matrices are brought to the eye, as the
 // engine carries them, otherwise relative view and absolute world would mix.
-const rebase = (packed) => packedWorldsToRenderOrigin(packed, [{ world }], uniforms.cameraWorld);
+const rebase = (packed: PackedDag): PackedDag =>
+  packedWorldsToRenderOrigin(packed, [{ world, pages: [] }], uniforms.cameraWorld);
 const avecCone = rebase(empaquete(cone)),
   sansCone = rebase(empaquete(OPEN_CONE));
 const gpu = await selectionGpu([
   { name: 'avecCone', packed: avecCone, uniforms },
   { name: 'sansCone', packed: sansCone, uniforms },
 ]);
-const pagesGpu = (nom) => gpu.resultats?.find((r) => r.name === nom)?.pages ?? null;
+const pagesGpu = (nom: string) => gpu.resultats?.find((r) => r.name === nom)?.pages ?? null;
 const rapport = {
   temoin: temoin(),
   cone,

@@ -3,14 +3,21 @@
 import * as THREE from 'three';
 import { perspectiveProjection } from '../../../sdk-core/index.ts';
 import { HIZ_BOUNDS_VALUES, projectBoxInto } from '../../hizCorners.ts';
-import { hizOversized } from '../../hizCounts.ts';
+import { hizOversized, type HizCounts } from '../../hizCounts.ts';
 import { hizRejects } from '../../hizOcclusion.ts';
+import type { HizBounds, HizPage, HizPyramid } from '../../hizTypes.ts';
 
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();
 const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
 /** `hizProjection.ts:65-92` before batch A: an `HizBounds` object allocated per box per frame. */
-function referenceProjectBoxToScreen(min, max, world, cam, viewport) {
+function referenceProjectBoxToScreen(
+  min: readonly number[],
+  max: readonly number[],
+  world: HizPage['matrix'],
+  cam: THREE.PerspectiveCamera,
+  viewport: [number, number],
+): HizBounds {
   cam.updateMatrixWorld();
   // Engine projection, not host: reversed depth, infinite far plane.
   perspectiveProjection(projScratch.elements, cam.fov, cam.aspect, cam.near, cam.zoom);
@@ -34,7 +41,11 @@ function referenceProjectBoxToScreen(min, max, world, cam, viewport) {
 
 /** `hizSplit.ts:70-91` before batch A: `.map` of objects, `.sort` by comparator, two `.filter`.
  *  Reversed depth: nearest carries GREATER depth, so order is descending. */
-export function referenceSplitOccluders(pages, cam, viewport) {
+export function referenceSplitOccluders<T extends HizPage>(
+  pages: T[],
+  cam: THREE.PerspectiveCamera,
+  viewport: [number, number],
+) {
   const ranked = pages.map((page, index) => {
     const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport);
     return { page, index, nearest: bounds.nearestDepth, clipsNear: bounds.clipsNear };
@@ -51,8 +62,15 @@ export function referenceSplitOccluders(pages, cam, viewport) {
 }
 
 /** `hizOcclusion.ts:152-178` before batch A: un-cached projection, allocation per page. */
-export function referenceCountUnoccluded(pages, pyramid, cam, viewport, counts, bias = 0) {
-  const kept = [];
+export function referenceCountUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
+  pages: T[],
+  pyramid: HizPyramid,
+  cam: THREE.PerspectiveCamera,
+  viewport: [number, number],
+  counts: HizCounts,
+  bias = 0,
+) {
+  const kept: T[] = [];
   for (const page of pages) {
     const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport);
     const triangles = page.array ? Math.floor(page.array.length / 3) : 0;

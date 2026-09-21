@@ -1,19 +1,37 @@
 // Settings passed to `createExplorer` by the measurement page. This module is served to the page
 // and imported by its URL, like `pageCoupe.ts`: `measureView` is serialised by Playwright and
 // cannot read any module variable.
+import type * as THREE from 'three';
+import type {
+  BackendFactory,
+  Explorer,
+  ExplorerOptions,
+} from '../../packages/sdk-browser/index.ts';
+import type { MeasureViewOptions } from './mesureOptions.ts';
+
+/** The witness light group a Three engine renders through, and its store-tracking function. */
+export interface WitnessLighting {
+  groupe: THREE.Group;
+  suivre: (explorer: Explorer) => unknown;
+}
 
 /**
  * Explorer settings for a series: what the bench asked for, and nothing else. A missing
  * option leaves the engine its own default; none is invented here.
  */
-export function explorerOptions(options, factory, lighting) {
+export function explorerOptions(
+  options: MeasureViewOptions,
+  factory: BackendFactory,
+  lighting: WitnessLighting | null,
+): ExplorerOptions {
   return {
     manifestUrl: options.manifestUrl,
     scope: 'full',
     width: options.width,
     height: options.height,
     pixelRatio: 1,
-    replicaCount: options.instances ?? 1,
+    // Validated to one of these four values by `options.ts` before it ever reaches the page.
+    replicaCount: (options.instances ?? 1) as 1 | 4 | 9 | 12,
     detail: 'source',
     pixelError: options.pixelError,
     lodAdaptive: false,
@@ -32,7 +50,11 @@ export function explorerOptions(options, factory, lighting) {
     // An engine DIAGNOSTIC variant, when the bench asks for one: it produces a different
     // image by construction, and the SDK refuses it outside the "trace" detail.
     diagnosticDetail: options.trace ? 'trace' : 'summary',
-    ...(options.variant ? { diagnosticGpuVariant: options.variant } : {}),
+    // Validated against the known variant list, and against `trace` detail, by the SDK itself
+    // (`resolveDiagnosticGpuVariant`) at `createExplorer`: an unknown name throws there.
+    ...(options.variant
+      ? { diagnosticGpuVariant: options.variant as ExplorerOptions['diagnosticGpuVariant'] }
+      : {}),
     // The EXPERIENCE screen-error metric: absent, the explorer keeps ours.
     ...(options.errorMetric ? { screenError: options.errorMetric } : {}),
     // The batch compute path imposed on the campaign (`--chemin-math js|wasm`); without it,
