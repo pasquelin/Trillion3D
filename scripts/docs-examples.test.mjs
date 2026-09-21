@@ -34,14 +34,42 @@ test('every example is one standalone HTML file that imports the built engine', 
 
 test('the example page shows the file as source on the left and runs it on the right', async () => {
   const { Example } = await loadReactComponents('site/app/examples/Example.tsx');
-  const { Examples } = await loadReactComponents('site/app/examples/Examples.tsx');
+  const { SidebarMenu } = await loadReactComponents('site/app/portal/SidebarMenu.tsx');
+  const { examplesMenu } = await loadReactComponents('site/app/examples/examplesMenu.ts');
   const [entry] = ready;
   const page = renderToStaticMarkup(createElement(Example, { id: entry.id, locale: 'fr' }));
   assert.match(page, new RegExp(`<h1[^>]*>${entry.title.fr}</h1>`));
   assert.match(page, new RegExp(`<iframe class="example-frame" src="${entry.file}"`));
   assert.match(page, new RegExp(`<span class="text-sm font-semibold">${entry.file}</span>`));
   assert.ok(page.indexOf('data-code-block') < page.indexOf('<iframe'));
-  const list = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
+  const route = { locale: 'en', area: 'examples', id: entry.id };
+  const sidebar = renderToStaticMarkup(
+    createElement(SidebarMenu, { groups: examplesMenu(route), open: true }),
+  );
   for (const { id, file } of roadmap.entries)
-    assert.equal(list.includes(`href="#/en/examples/${id}"`), Boolean(file), id);
+    assert.equal(sidebar.includes(`href="#/en/examples/${id}"`), Boolean(file), id);
+  assert.match(
+    sidebar,
+    new RegExp(`class="menu-active" href="#/en/examples/${entry.id}" aria-current="page"`),
+  );
+  const { Examples } = await loadReactComponents('site/app/examples/Examples.tsx');
+  const index = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
+  for (const theme of roadmap.themes) {
+    const entries = roadmap.entries.filter((entry) => entry.theme === theme.id),
+      done = entries.filter((entry) => entry.file).length;
+    assert.ok(
+      sidebar.includes(
+        `<span class="sidebar-section-title">${theme.title.en}</span><span class="sidebar-count">${done}/${entries.length}</span>`,
+      ),
+      theme.id,
+    );
+  }
+  for (const { id, file, title } of roadmap.entries) {
+    assert.ok(index.includes(`>${title.en}</h2>`), id);
+    assert.equal(index.includes(`assets/examples/thumbnails/${id}.png`), Boolean(file), id);
+  }
+  assert.equal(
+    (index.match(/aria-disabled="true"/g) ?? []).length,
+    roadmap.entries.length - ready.length,
+  );
 });
