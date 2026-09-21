@@ -6,6 +6,7 @@ import { ENUMS_IMAGE } from '../docs/js/docsContentEnums.js';
 import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
 import { EXAMPLES } from '../docs/js/docsContentExamples.js';
 import { GUIDES } from '../docs/js/docsContentGuides.js';
+import { ENGINE_GUIDES } from '../docs/js/docsContentGuidesEngine.js';
 import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
 import { MATRICES } from '../docs/js/docsContentMatrix.js';
 import { BATCHES, TREE } from '../docs/js/docsContentTree.js';
@@ -16,6 +17,7 @@ import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
 
 const entries = [
   ...GUIDES,
+  ...ENGINE_GUIDES,
   ...EXAMPLES,
   ...ENUMS_IMAGE,
   ...ENUMS_RUNTIME,
@@ -32,7 +34,7 @@ const entries = [
 
 test('French content covers every documentation entry and preserves its technical contract', () => {
   const localized = localizeEntries(entries, 'fr');
-  assert.equal(entries.length, 77);
+  assert.equal(entries.length, 78);
   assert.equal(localized.length, entries.length);
   for (let index = 0; index < entries.length; index += 1) {
     const source = entries[index];
