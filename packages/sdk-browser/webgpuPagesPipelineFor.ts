@@ -66,18 +66,21 @@ export const visBin = (rec: PageRec): 0 | 1 | 2 => {
   return (side === 'back') !== windingCw(rec) ? BIN_FRONT : BIN_BACK;
 };
 
-/** Resources the fallback groups name besides their own position buffer. */
-export const FALLBACK_IDENTITY_SIZE = 3;
-
-/** The fallback group of one position buffer, voided with the others when the layout, the page pool
- *  or the uniform it names changed identity. */
-export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {
+/** Voids every fallback group when the layout, the page pool or the uniform they name changed
+ *  identity. Read once before the fallback pass serves a group. */
+export function voidStaleFallbackGroups(rt: WebgpuPagesCore) {
   const { gpu } = rt,
     { next } = gpu.fallbackIdentity;
   next[0] = gpu.bindGroupLayout;
   next[1] = gpu.cache?.buffer;
   next[2] = gpu.uniformBuffer;
   if (gpu.fallbackIdentity.moved()) gpu.bindGroups.clear();
+}
+
+/** The fallback group of one position buffer, built once per position and kept until
+ *  `voidStaleFallbackGroups` drops it. */
+export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {
+  const { gpu } = rt;
   let id = gpu.positionIds.get(position);
   if (!id) {
     id = gpu.nextPositionId++;
