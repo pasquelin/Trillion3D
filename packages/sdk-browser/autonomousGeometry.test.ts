@@ -35,7 +35,8 @@ function makeRec(id: number, triangles: number): PageRec & { mesh: THREE.Mesh } 
     matrix: new THREE.Matrix4(),
     renderOrder: 0,
     geometry: {} as THREE.BufferGeometry,
-    mesh: { matrix: { copy: () => {} } } as unknown as THREE.Mesh,
+    // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
+    mesh: { matrix: { copy: () => {}, fromArray: () => {} } } as unknown as THREE.Mesh,
     attached: false,
   };
 }

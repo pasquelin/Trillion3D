@@ -1,3 +1,4 @@
+import type { HostAttributes } from './hostResources.ts';
 import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 type GeometryBlock = {
@@ -7,7 +8,7 @@ type GeometryBlock = {
   hasNormal: boolean;
   hasTangent: boolean;
 };
-type GeometryBlocks = Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
+type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 
 /** Packs each unique paged geometry once for the visibility, shade and transparent passes. */
 export function prepareWebgpuGeometry(
@@ -32,7 +33,7 @@ export function prepareWebgpuGeometry(
   const pos = new Float32Array(vertexCount * 3),
     uv = new Float32Array(vertexCount * 2),
     nrm = new Float32Array(vertexCount * 7),
-    filled = new Set<THREE.BufferGeometry['attributes']>();
+    filled = new Set<HostAttributes>();
   for (const rec of allPages) {
     if (filled.has(rec.attributes)) continue;
     filled.add(rec.attributes);

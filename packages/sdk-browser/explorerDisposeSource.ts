@@ -1,7 +1,9 @@
 import * as THREE from 'three';
+import { asHostLibrary, type HostNode } from './hostResources.ts';
 import { materialTextures, meshes as objects } from './sceneMeshes.ts';
 
-export function disposeSource(source: THREE.Object3D) {
+export function disposeSource(node: HostNode) {
+  const source = asHostLibrary<THREE.Object3D>(node);
   const geometries = new Set<THREE.BufferGeometry>(),
     materials = new Set<THREE.Material>(),
     textures = new Set<THREE.Texture>();

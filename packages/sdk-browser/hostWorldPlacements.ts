@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { HostNode } from './hostResources.ts';
 import { hostWorldTree } from './hostWorldTree.ts';
 import { copyElements } from './matrixElements.ts';
 
@@ -26,7 +27,7 @@ export interface HostWorldPlacements {
 
 /** World-matrix index of `source`, ready to be read: the pass is that of the core tree
  *  (`hostWorldTree.ts`), which accepts both a node that recomposes its pose and a posed node. */
-export function hostWorldPlacements(source: THREE.Object3D): HostWorldPlacements {
+export function hostWorldPlacements(source: HostNode): HostWorldPlacements {
   const tree = hostWorldTree(source);
   // Requested nodes, and them alone: a scene whose twelve nodes carry pages copies only twelve
   // matrices per scene change. One table, node → matrix: the rank of a parallel list would be a

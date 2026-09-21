@@ -1,3 +1,4 @@
+import type { HostAttribute, HostTexture } from './hostResources.ts';
 import * as THREE from 'three';
 import { linearToSrgb, srgbToLinear } from '../sdk-core/index.ts';
 import type { Projected } from './visibilityProjection.ts';
@@ -59,7 +60,7 @@ export function perspectiveBary(
 }
 
 export function attr2(
-  attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute | undefined,
+  attribute: HostAttribute | undefined,
   i0: number,
   i1: number,
   i2: number,
@@ -75,7 +76,7 @@ export function attr2(
 }
 
 /** Texel of an axis by the sampler's integer rule: mirror folds two periods. */
-export function wrapTexel(t: number, size: number, wrap: THREE.Wrapping) {
+export function wrapTexel(t: number, size: number, wrap: number) {
   const p = wrap === THREE.MirroredRepeatWrapping ? 2 : 1;
   const scaled =
     wrap === THREE.ClampToEdgeWrapping ? Math.min(1, Math.max(0, t)) : t - p * Math.floor(t / p);
@@ -95,7 +96,7 @@ export function linearToSrgb8(c: number) {
 /** Rank of the texel in the image, not its components: that byte indexes the sRGB table. */
 function texelAt(
   image: { width: number; height: number },
-  map: THREE.Texture,
+  map: HostTexture,
   u: number,
   v: number,
 ) {
@@ -104,7 +105,7 @@ function texelAt(
   return (y * image.width + x) * 4;
 }
 
-export function sampleMap(map: THREE.Texture, u: number, v: number): [number, number, number] {
+export function sampleMap(map: HostTexture, u: number, v: number): [number, number, number] {
   const image = textureRgba(map);
   if (!image) return [1, 1, 1];
   const d = image.data,
@@ -115,7 +116,7 @@ export function sampleMap(map: THREE.Texture, u: number, v: number): [number, nu
     SRGB8_LINEAIRE[d[i + 2]] ?? NaN,
   ];
 }
-export function sampleLinear(map: THREE.Texture, u: number, v: number): [number, number, number] {
+export function sampleLinear(map: HostTexture, u: number, v: number): [number, number, number] {
   const image = textureRgba(map);
   if (!image) return [1, 1, 1];
   const d = image.data,

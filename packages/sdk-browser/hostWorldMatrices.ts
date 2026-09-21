@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { asHostLibrary, type HostNode } from './hostResources.ts';
 import {
   EngineError,
   POSITION_VALUES,
@@ -23,7 +24,8 @@ import { copyElements } from './matrixElements.ts';
  */
 
 /** Whole subtree of `node` updated IN THE HOST SCENE, for its own readers. */
-export function resolveHostSubtree(node: THREE.Object3D) {
+export function resolveHostSubtree(source: HostNode) {
+  const node = asHostLibrary<THREE.Object3D>(source);
   node.updateMatrixWorld(true);
 }
 
