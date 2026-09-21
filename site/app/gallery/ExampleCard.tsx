@@ -38,7 +38,7 @@ function Preview({ example, locale, title }: PreviewProps) {
         }
       />
     );
-  if (example.renderer)
+  if (example.renderer || example.preview)
     return (
       <img
         className="h-full w-full object-cover"

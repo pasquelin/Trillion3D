@@ -2,8 +2,8 @@
 async function drawnShare(page) {
   const png = await page.locator('canvas').screenshot();
   return page.evaluate(
-    async (bytes) => {
-      const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)]));
+    async (dataUrl) => {
+      const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
       const canvas = new OffscreenCanvas(bitmap.width, bitmap.height),
         context = canvas.getContext('2d');
       context.drawImage(bitmap, 0, 0);
@@ -13,7 +13,7 @@ async function drawnShare(page) {
         if (data[at] !== data[0] || data[at + 1] !== data[1] || data[at + 2] !== data[2]) drawn++;
       return drawn / (data.length / 4);
     },
-    [...png],
+    `data:image/png;base64,${png.toString('base64')}`,
   );
 }
 
