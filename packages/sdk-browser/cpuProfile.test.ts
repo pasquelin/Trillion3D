@@ -21,6 +21,19 @@ test('a summary ranks the worst images by total, reports a percentile per step, 
   assert.equal(profile.summary(), null);
 });
 
+test('a bound an image did not file stays out of its quantiles; one no image filed reads NaN', () => {
+  const profile = createCpuStepProfile(['aMs', 'bMs']);
+  for (const ms of [0.3, NaN, NaN, 0.1]) {
+    profile.row[0] = ms;
+    profile.row[1] = NaN;
+    profile.record(1, 1);
+  }
+  const summary = profile.summary()!;
+  assert.equal(summary.frames, 4, 'the images are all filed');
+  assert.deepEqual(summary.steps.aMs, { p50: 0.3, p95: 0.3, max: 0.3 });
+  assert.ok(Object.values(summary.steps.bMs).every(Number.isNaN), 'unmeasured, never zero');
+});
+
 test('the ring keeps the most recent images once capacity is reached', () => {
   const profile = createCpuStepProfile(['aMs'], { capacity: 2, worst: 1 });
   for (const value of [1, 2, 3]) {
