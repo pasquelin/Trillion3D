@@ -1,29 +1,21 @@
-import type * as THREE from 'three';
+import type { RenderBackend } from './backendTypes.ts';
+import type { ClusterDraw } from './clusterBatches.ts';
+import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
 
-export function drawnIndices(mesh: THREE.Mesh) {
-  const index = mesh.geometry.getIndex();
-  if (!index) return [];
-  const batch = mesh as THREE.Mesh & {
-    isBatchedMesh?: boolean;
-    _multiDrawStarts?: Int32Array;
-    _multiDrawCounts?: Int32Array;
-    _multiDrawCount?: number;
-  };
-  if (!batch.isBatchedMesh || !batch._multiDrawStarts) return Array.from(index.array);
+/** Indices one submission draws, in submission order: the ranges of a batch record, the whole
+ *  index of a page mesh. */
+export function drawnIndices(draw: ClusterDraw) {
+  const index = draw.geometry.getIndex();
   const out: number[] = [];
-  for (let draw = 0; draw < (batch._multiDrawCount ?? 0); draw++) {
-    const first = batch._multiDrawStarts[draw] / Uint32Array.BYTES_PER_ELEMENT,
-      length = batch._multiDrawCounts![draw];
-    for (let i = first; i < first + length; i++) out.push(index.getX(i));
-  }
+  for (const [first, length] of drawnRanges(draw))
+    for (let i = first; i < first + length; i++) out.push(index ? index.getX(i) : i);
   return out;
 }
 
-export function drawnTriangles(scene: THREE.Object3D) {
+/** Triangles the owner submits for the current cut. */
+export function drawnTriangles(backend: RenderBackend) {
   let total = 0;
-  scene.traverse((object) => {
-    if ((object as THREE.Mesh).isMesh) total += drawnIndices(object as THREE.Mesh).length / 3;
-  });
+  for (const draw of submittedDraws(backend)) total += drawnIndices(draw).length / 3;
   return total;
 }
 

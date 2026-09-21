@@ -5,7 +5,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exactPagesBackend } from './index.ts';
+import { drawnIndices } from './pagesBackendFixture.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
+import { submittedDraws } from './clusterBatchMesh.ts';
 
 /** The Three engine on the DAG fixture, with no page in memory at the start. */
 function engine() {
@@ -23,9 +25,8 @@ function engine() {
 
 /** Displayed cover, in order: that is what must be a fixed point. */
 const couverture = (backend: ReturnType<typeof exactPagesBackend>) =>
-  backend.scene.children
-    .filter((child) => child.type === 'Mesh')
-    .map((child) => child.uuid)
+  submittedDraws(backend)
+    .map((draw) => `${draw.renderOrder}:${drawnIndices(draw).join('/')}`)
     .join(',');
 
 /** One frame: cut, then arrival of what the engine asked for, like a cache that answers. */
