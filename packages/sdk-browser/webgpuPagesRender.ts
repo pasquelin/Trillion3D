@@ -49,7 +49,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   run.cutHeld = false;
   setWindingEpoch(rows.tableEpoch);
   // What the previous image's feedback requested becomes resident, under the budget. It is bounded
-  // on its own: its cost is the streamer's, and `worldMs` below measures the world step alone.
+  // on its own, the one bound the textures stage reads; `worldMs` below measures the world step alone.
   marks.gateEnd = performance.now();
   pumpResidentTiles(vis.textures, run.frame, run.textureConverging);
   marks.tilesEnd = performance.now();
@@ -64,10 +64,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // in one case, in the other the same point is rewritten in a closer frame, and nothing the
   // records or the occluders describe has changed.
   const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye);
-  const rebased = worldsMoved || originMoved,
-    worldCounts = rt.timing.worldCounts;
-  worldCounts.racines = selectionRoots.length;
-  worldCounts.racinesRebasees = rebased ? selectionRoots.length : 0;
+  const rebased = worldsMoved || originMoved;
+  rt.timing.worldCounts.racinesRebasees = rebased ? selectionRoots.length : 0;
   if (rebased) {
     run.worldUploadRevision = run.gate.revisions.scene;
     run.worldUploadOrigin.set(cam.eye);
