@@ -1,7 +1,6 @@
 import { resolve } from 'node:path';
-import { rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { scenes } from './docs/examples/scenes.mjs';
 import { geometryScenes } from './docs/examples/scenes-geometry.mjs';
 import { materialScenes } from './docs/examples/scenes-materials.mjs';

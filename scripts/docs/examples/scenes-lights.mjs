@@ -1,11 +1,4 @@
-import { TAU, random, slab, workshop } from './workshop.mjs';
-
-const one = (name, shop, materials, nodes = []) => ({
-  name,
-  materials,
-  parts: [{ name: 'scene', surfaces: shop.surfaces }],
-  nodes: [{ name: 'scene', part: 'scene' }, ...nodes],
-});
+import { TAU, random, sceneOf, slab, workshop } from './workshop.mjs';
 
 /** A lamp on its post, a glass globe around the bulb, a wall behind to catch its light. */
 function lantern() {
@@ -16,7 +9,7 @@ function lantern() {
   shop.cylinder(1, [0, 0, 0], 0.3, 0.1);
   shop.sphere(2, [0, 2.4, 0], 0.09, 16);
   shop.sphere(3, [0, 2.4, 0], 0.32, 32);
-  return one('Lamp in its glass', shop, [
+  return sceneOf('Lamp in its glass', shop, [
     ['Pavement', [0.45, 0.44, 0.42, 1], 0, 0.9],
     ['Iron post', [0.12, 0.12, 0.13, 1], 0.8, 0.5],
     ['Bulb', [1, 0.9, 0.7, 1], 0, 0.5, { emissiveFactor: [1, 0.8, 0.5] }],
@@ -30,7 +23,7 @@ function redWall() {
   slab(shop, 0, 8);
   shop.box(1, [-2.5, 1.5, 0], [0.3, 3, 8]);
   shop.box(0, [-1.2, 1, 0.8], [0.6, 2, 0.6]);
-  return one('Red wall', shop, [
+  return sceneOf('Red wall', shop, [
     ['White plaster', [0.82, 0.8, 0.76, 1], 0, 0.9],
     ['Red paint', [0.75, 0.08, 0.05, 1], 0, 0.7],
   ]);
@@ -76,7 +69,7 @@ function lighthouse() {
       12,
     );
   }
-  return one('Lighthouse', shop, [
+  return sceneOf('Lighthouse', shop, [
     ['Wet sand', [0.5, 0.47, 0.4, 1], 0, 0.7],
     ['Rock', [0.28, 0.27, 0.26, 1], 0, 0.9],
     ['Whitewash', [0.85, 0.83, 0.78, 1], 0, 0.8],
@@ -96,28 +89,30 @@ function hall() {
     translation: [x, 3.2, 0],
     light: { type: 'point', color, intensity, range: 9 },
   });
-  return one(
+  return sceneOf(
     'Hall with its lamps',
     shop,
     [
       ['Plaster', [0.7, 0.68, 0.64, 1], 0, 0.9],
       ['Grey stone', [0.4, 0.4, 0.42, 1], 0, 0.6],
     ],
-    [
-      lamp('warm-lamp', -3, [1, 0.7, 0.4], 9000),
-      lamp('white-lamp', 0, [1, 1, 1], 7000),
-      lamp('cool-lamp', 3, [0.5, 0.7, 1], 9000),
-      // Two lamps the contract cannot hold: a point light of negative intensity, and a spot
-      // light whose node is flattened along its axis, so it points nowhere. The compiler counts
-      // them in `lights.json` by reason and keeps the three others.
-      { name: 'dead-lamp', translation: [2, 3, 2], light: { type: 'point', intensity: -5 } },
-      {
-        name: 'flat-lamp',
-        translation: [-2, 3, 2],
-        scale: [1, 1, 0],
-        light: { type: 'spot', intensity: 500, spot: { outerConeAngle: 0.5 } },
-      },
-    ],
+    {
+      nodes: [
+        lamp('warm-lamp', -3, [1, 0.7, 0.4], 9000),
+        lamp('white-lamp', 0, [1, 1, 1], 7000),
+        lamp('cool-lamp', 3, [0.5, 0.7, 1], 9000),
+        // Two lamps the contract cannot hold: a point light of negative intensity, and a spot
+        // light whose node is flattened along its axis, so it points nowhere. The compiler counts
+        // them in `lights.json` by reason and keeps the three others.
+        { name: 'dead-lamp', translation: [2, 3, 2], light: { type: 'point', intensity: -5 } },
+        {
+          name: 'flat-lamp',
+          translation: [-2, 3, 2],
+          scale: [1, 1, 0],
+          light: { type: 'spot', intensity: 500, spot: { outerConeAngle: 0.5 } },
+        },
+      ],
+    },
   );
 }
 

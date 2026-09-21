@@ -68,3 +68,12 @@ export function workshop() {
     ]);
   return { ...shop, block, sphere, torus, cylinder };
 }
+
+/** A scene made of one workshop: its surfaces as a single part, placed by the nodes it needs. */
+export const sceneOf = (name, shop, materials, { nodes = [], images } = {}) => ({
+  name,
+  materials,
+  ...(images ? { images } : {}),
+  parts: [{ name: 'scene', surfaces: shop.surfaces }],
+  nodes: [{ name: 'scene', part: 'scene' }, ...nodes],
+});

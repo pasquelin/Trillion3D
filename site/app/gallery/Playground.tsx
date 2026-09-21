@@ -7,7 +7,9 @@ import { LessonTemplate } from '../components/LessonTemplate.tsx';
 import { Button } from '../components/UI.tsx';
 import type { LessonControl } from '../components/LessonControls.tsx';
 import { LessonControls } from '../components/LessonControls.tsx';
-import { examples, byId } from '../../content/catalog.ts';
+import { experimentPicker } from './experimentPicker.ts';
+import { ApiBadges } from '../components/ApiBadges.tsx';
+import { byId } from '../../content/catalog.ts';
 import { codeFor } from '../../lessons/code.ts';
 import { evaluate } from '../../lessons/evaluate.ts';
 import { guidanceFor } from '../../lessons/guidance.ts';
@@ -57,27 +59,18 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   const controls = (
     <LessonControls
       title={french ? 'Commandes de l’expérience' : 'Experiment controls'}
-      controls={[
-        {
-          kind: 'select',
-          id: 'experiment',
-          value: example.id,
-          options: examples.map((item) => ({ value: item.id, label: local(item.title, locale) })),
-          onChange: choose,
-          props: { 'aria-label': french ? 'Choisir une expérience' : 'Choose an experiment' },
-        },
-        ...scenario.controls.map(([name, min, max, , step]): LessonControl => ({
-          kind: 'range',
-          id: name,
-          label: controlLabel(name, locale),
-          display: state[name],
-          min,
-          max,
-          step,
-          value: state[name],
-          onChange: (value) => setState({ ...state, [name]: value }),
-        })),
-      ]}
+      picker={experimentPicker(example.id, locale, choose)}
+      controls={scenario.controls.map(([name, min, max, , step]): LessonControl => ({
+        kind: 'range',
+        id: name,
+        label: controlLabel(name, locale),
+        display: state[name],
+        min,
+        max,
+        step,
+        value: state[name],
+        onChange: (value) => setState({ ...state, [name]: value }),
+      }))}
       actions={
         <>
           <Button
@@ -138,27 +131,18 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
       <Diagram id={example.id} state={state} locale={locale} label={local(example.title, locale)} />
     </>
   );
-  const badges = (example.functions ?? []).map((name: string) => (
-    <a
-      key={name}
-      className="badge badge-soft badge-secondary font-mono"
-      href={`#/${locale}/api/${name}`}
-    >
-      {name}
-    </a>
-  ));
+  const badges = <ApiBadges names={example.functions ?? []} locale={locale} />;
   return (
-    <div data-playground={example.id}>
-      <LessonTemplate
-        title={local(example.title, locale)}
-        description={local(example.description, locale)}
-        badges={badges}
-        controls={controls}
-        cards={cards}
-        code={code}
-        viewport={viewport}
-        note={note}
-      />
-    </div>
+    <LessonTemplate
+      id={example.id}
+      title={local(example.title, locale)}
+      description={local(example.description, locale)}
+      badges={badges}
+      controls={controls}
+      cards={cards}
+      code={code}
+      viewport={viewport}
+      note={note}
+    />
   );
 }

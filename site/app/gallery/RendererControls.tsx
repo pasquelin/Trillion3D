@@ -4,9 +4,9 @@ import type {
   RendererLessonControl,
   RendererLessonItem,
 } from '../../lessons/rendererLessonTypes.ts';
-import { examples } from '../../content/catalog.ts';
 import type { LessonControl } from '../components/LessonControls.tsx';
 import { LessonControls } from '../components/LessonControls.tsx';
+import { experimentPicker } from './experimentPicker.ts';
 import { Button } from '../components/UI.tsx';
 
 export const controlValue = (
@@ -39,47 +39,35 @@ export function RendererControls({
   onSelect,
 }: RendererControlsProps) {
   const french = locale === 'fr';
-  const controls: LessonControl[] = [
-    {
-      kind: 'select',
-      id: 'experiment',
-      value: lesson.id,
-      options: examples.map((example) => ({
-        value: example.id,
-        label: local(example.title, locale),
-      })),
-      onChange: (id) => onSelect?.(id),
-      props: { 'aria-label': french ? 'Choisir une expérience' : 'Choose an experiment' },
-    },
-    ...lesson.controls.map((item): LessonControl => {
-      const label = local(item.label, locale);
-      if (item.type === 'boolean')
-        return {
-          kind: 'toggle',
-          id: item.id,
-          label,
-          checked: (state[item.id] ?? item.value) === 1,
-          onChange: (checked) => setState({ ...state, [item.id]: checked ? 1 : 0 }),
-          legend: item.legend?.map((entry) => ({
-            color: entry.color,
-            label: local(entry.label, locale),
-          })),
-        };
+  const controls: LessonControl[] = lesson.controls.map((item): LessonControl => {
+    const label = local(item.label, locale);
+    if (item.type === 'boolean')
       return {
-        kind: 'range',
+        kind: 'toggle',
         id: item.id,
         label,
-        display: controlValue(item, state, french),
-        min: item.min,
-        max: item.max,
-        step: item.step,
-        value: state[item.id] ?? item.value,
-        onChange: (value) => setState({ ...state, [item.id]: value }),
+        checked: (state[item.id] ?? item.value) === 1,
+        onChange: (checked) => setState({ ...state, [item.id]: checked ? 1 : 0 }),
+        legend: item.legend?.map((entry) => ({
+          color: entry.color,
+          label: local(entry.label, locale),
+        })),
       };
-    }),
-  ];
+    return {
+      kind: 'range',
+      id: item.id,
+      label,
+      display: controlValue(item, state, french),
+      min: item.min,
+      max: item.max,
+      step: item.step,
+      value: state[item.id] ?? item.value,
+      onChange: (value) => setState({ ...state, [item.id]: value }),
+    };
+  });
   return (
     <LessonControls
+      picker={experimentPicker(lesson.id, locale, onSelect)}
       controls={controls}
       actions={
         lesson.controls.length > 0 && (

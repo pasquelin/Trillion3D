@@ -30,25 +30,21 @@ export function EngineExample({
     }
   }, [locale, diagnostic]);
   return (
-    <div ref={host} data-engine-lesson>
+    <div ref={host} className="contents">
       <LessonTemplate
+        id="engine-scene"
         title={copy.title}
         description={copy.intro}
         controls={<SceneControls copy={copy} diagnostic={diagnostic} />}
-
         code={<CodeBlock code={code} locale={locale} label={copy.code} />}
-        viewport={<EnginePreview locale={locale} />}
-        note={
+        viewport={
           <>
+            <EnginePreview locale={locale} />
             <EngineStats copy={copy} />
-            <EngineGuide copy={copy} locale={locale} diagnostic={diagnostic} />
           </>
         }
+        note={<EngineGuide copy={copy} locale={locale} diagnostic={diagnostic} />}
       />
     </div>
   );
-}
-
-export function EngineScene({ locale = 'en' }: { locale?: Locale }) {
-  return <EngineExample locale={locale} />;
 }
