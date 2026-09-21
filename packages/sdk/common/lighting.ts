@@ -24,6 +24,7 @@ export {
   POINT_FACE_AXES,
   SHADOW_CULL_FLOATS,
   SHADOW_FACE_FLOATS,
+  SHADOW_FACE_MASK_WORD,
   SHADOW_SLICE_FLOATS,
   writeFace,
 } from '../../sdk-core/sceneLightShadowFaces.ts';
