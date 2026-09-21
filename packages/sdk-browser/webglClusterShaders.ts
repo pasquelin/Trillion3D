@@ -41,8 +41,8 @@ vec3 linearToSrgb(vec3 x){bvec3 low=lessThanEqual(x,vec3(0.0031308));return mix(
 void main(){vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
 float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0),rough=clamp(roughFactor*roughSample,0.0525,1.0);
-vec3 N=normalize(viewNormal);if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec4 frame=clusterTangent(N,st);if(frame.w!=0.0){vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
-vec3 T=frame.xyz,B=normalize(cross(N,T)*frame.w);N=normalize(mat3(T,B,N)*n);}}if(!gl_FrontFacing)N=-N;
+vec3 N=normalize(viewNormal);if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
+vec4 frame=clusterTangent(N,st);if(frame.w!=0.0){vec3 T=frame.xyz,B=normalize(cross(N,T)*frame.w);N=normalize(mat3(T,B,N)*n);}}if(!gl_FrontFacing)N=-N;
 rough=filteredRoughness(N,rough);
 vec3 rgb=vec3(0.0),V=normalize(-viewPosition);float ao=1.0;if((mapMask&16)!=0)ao+=aoStrength*(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0);if(lit){for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
 vec4 positionRange=lightData[i*4],directionKind=lightData[i*4+1],colorIntensity=lightData[i*4+2],cone=lightData[i*4+3];
