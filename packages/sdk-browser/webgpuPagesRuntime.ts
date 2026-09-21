@@ -115,7 +115,10 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     sunFar: createWebgpuSunFarState(),
     run,
     capture: createWebgpuCaptureState(),
-    timing: createWebgpuTimingState(context.stageProfile ? createWebgpuStageProfiler() : undefined),
+    timing: createWebgpuTimingState(
+      context.stageProfile ? createWebgpuStageProfiler() : undefined,
+      layout.selectionRoots.length,
+    ),
     capabilities,
     blendState,
   };

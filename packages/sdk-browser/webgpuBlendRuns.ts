@@ -16,12 +16,12 @@ import {
  * entries that set the same pipeline and read the same buffers can therefore fit in ONE draw whose
  * instances are, in order, those of each entry.
  *
- * A run stops on three things, and on nothing else:
+ * A run stops on two things, and on nothing else:
  * - the pipeline changes (the back and the face of a double-sided item set two);
  * - the item is not paged: it carries its own index, position and UV buffers, hence its own bind
- *   group, and cannot share its neighbours' draw;
- * - the transmission pass asks for one run per entry, because each still offsets its material
- *   volume uniform (`webgpuTransmission.ts`).
+ *   group, and cannot share its neighbours' draw.
+ * The water surfaces (`webgpuWaterPass.ts`) merge on the same terms: their material volume is
+ * read by rank in the composite, never offset per draw.
  *
  * The worst case therefore yields exactly the previous draws; the ordinary case — paged primitives
  * that share a pipeline — yields them all in one.
@@ -69,16 +69,15 @@ export function blendChunkWords(shift: number, indexCount: number) {
 /**
  * Writes the runs of the sorted plan and returns their count.
  *
- * `merge` false gives one run per entry: that is the transmission pass, where each item keeps its
- * dynamic offset. `out` belongs to the scene and is `RUN_WORDS` words per plan entry — the worst
- * case — so nothing is allocated per frame.
+ * `out` belongs to the scene and is `RUN_WORDS` words per plan entry — the worst case — so nothing
+ * is allocated per frame.
  */
-export function buildBlendRuns(order: Uint32Array, merge: boolean, out: Uint32Array) {
+export function buildBlendRuns(order: Uint32Array, out: Uint32Array) {
   let runs = 0,
     first = 0;
   while (first < order.length) {
     const pipeline = planPipeline(order[first]);
-    const shared = merge && planShared(order[first]);
+    const shared = planShared(order[first]);
     // An entry extends the run when it carries the same pipeline AND the share bit: both fit in the
     // low three bits, and the plan is walked without ever following a rank.
     const suite = PLAN_SHARED_BIT | pipeline;
