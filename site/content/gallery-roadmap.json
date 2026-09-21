@@ -117,13 +117,13 @@
       "file": ""
     },
     {
-      "id": "circling-the-helicopter",
+      "id": "circling-the-bust",
       "title": {
-        "en": "Circling the parked helicopter",
-        "fr": "Tourner autour de l’hélicoptère"
+        "en": "Circling the marble bust",
+        "fr": "Tourner autour du buste de marbre"
       },
       "theme": "camera",
-      "file": "examples/circling-the-helicopter.html"
+      "file": "examples/circling-the-bust.html"
     },
     {
       "id": "zoom-down-the-colonnade",
@@ -135,13 +135,13 @@
       "file": "examples/zoom-down-the-colonnade.html"
     },
     {
-      "id": "helicopter-on-its-pad",
+      "id": "marble-bust-on-its-pedestal",
       "title": {
-        "en": "A helicopter parked on its pad",
-        "fr": "Un hélicoptère posé sur son aire"
+        "en": "A marble bust on its pedestal",
+        "fr": "Un buste de marbre sur son socle"
       },
       "theme": "loaders",
-      "file": "examples/helicopter-on-its-pad.html"
+      "file": "examples/marble-bust-on-its-pedestal.html"
     },
     {
       "id": "observatory-streamed",

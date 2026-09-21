@@ -57,7 +57,7 @@ export function Home({ locale, t }: { locale: Locale; t: TranslateFn }) {
   const steps: [string, RouteArea][] = [
     ['quick-start', 'learn'],
     ['architecture', 'learn'],
-    ['example-diagnostics', 'examples'],
+    ['example-diagnostics', 'learn'],
   ];
   return (
     <>
