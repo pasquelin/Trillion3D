@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { writeGarden } from './docs/garden-source.mjs';
 import { spawnSync } from 'node:child_process';
 const root = resolve(import.meta.dirname, '..');
-const scene = resolve(root, 'docs/assets/kinetic-garden');
+const scene = resolve(root, 'site/assets/kinetic-garden');
 await writeGarden(resolve(scene, 'source'));
 const executable =
   process.env.WG_COMPILER ??

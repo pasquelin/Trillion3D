@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { geometryRecipes } from '../../docs/js/gallery/offline/recipes.js';
-import { box } from '../../docs/js/gallery/offline/mesh.js';
-import { extrude, polygon, subdivide } from '../../docs/js/gallery/offline/operations.js';
-import { rationalPatch, terrain } from '../../docs/js/gallery/offline/surfaces.js';
+import { geometryRecipes } from '../../site/lessons/offline/recipes.ts';
+import { box } from '../../site/lessons/offline/mesh.ts';
+import { extrude, polygon, subdivide } from '../../site/lessons/offline/operations.ts';
+import { rationalPatch, terrain } from '../../site/lessons/offline/surfaces.ts';
 for (const recipe of geometryRecipes)
   test(`${recipe.id} produces finite deterministic triangles`, () => {
     const a = recipe.create(),
@@ -50,14 +50,14 @@ test('wide geometry requires a 32-bit index accessor', () => {
 });
 
 test('vertical ray hit matches a flat surface and rejects an outside point', async () => {
-  const { verticalHit } = await import('../../docs/js/gallery/offline/implicit.js');
+  const { verticalHit } = await import('../../site/lessons/offline/implicit.ts');
   const flat = terrain(4, 0);
   assert.equal(verticalHit(flat, 0.3, -0.5), 0);
   assert.equal(verticalHit(flat, 10, 0), null);
 });
 test('authored optional attributes cover every exported vertex', async () => {
   const { paintedTerrain, splitEdges, uvTiles } =
-    await import('../../docs/js/gallery/offline/attributes.js');
+    await import('../../site/lessons/offline/attributes.ts');
   for (const [g, key, width] of [
     [paintedTerrain(), 'colors', 4],
     [splitEdges(box()), 'normals', 3],
@@ -69,10 +69,10 @@ test('authored optional attributes cover every exported vertex', async () => {
 });
 test('every published cache preserves the authored triangle count', async () => {
   const { readFile } = await import('node:fs/promises');
-  const { offlineExamples } = await import('../../docs/js/gallery/offline/catalog.js');
+  const { offlineExamples } = await import('../../site/lessons/offline/catalog.ts');
   for (const [index, example] of offlineExamples.entries()) {
     if (example.id === 'offline-terrain' || example.id === 'offline-city') continue;
-    const url = new URL(`../../docs/${example.asset}`, import.meta.url);
+    const url = new URL(`../../site/${example.asset}`, import.meta.url);
     const pointer = JSON.parse(await readFile(url, 'utf8'));
     const manifest = JSON.parse(await readFile(new URL(pointer.url, url), 'utf8'));
     assert.equal(manifest.sourceTriangles, geometryRecipes[index].create().indices.length / 3);

@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
-import { parseRoute, routeHref, resolvePage } from '../docs/js/portal/routes.js';
-import { reportCopy, METRIC_COPY } from '../docs/js/reports/copy.js';
-import { flattenFields } from '../docs/js/reports/availability.js';
-import { pairedImages } from '../docs/js/reports/presentation.js';
-import { readingGroups } from '../docs/js/reports/sources.js';
-import { metricValue } from '../docs/js/reports/metrics.js';
+import { parseRoute, routeHref, resolvePage } from '../site/app/portal/routes.ts';
+import { reportCopy, METRIC_COPY } from '../site/reports/copy.ts';
+import { flattenFields } from '../site/reports/availability.ts';
+import { pairedImages } from '../site/reports/presentation.ts';
+import { readingGroups } from '../site/reports/sources.ts';
+import { metricValue } from '../site/reports/metrics.ts';
 
 test('report routes and labels remain bilingual without a selection form', () => {
   for (const locale of ['en', 'fr']) {
@@ -21,7 +21,7 @@ test('report routes and labels remain bilingual without a selection form', () =>
 });
 
 test('comparison names engines, explains missing values and shows observed arithmetic', async () => {
-  const { Comparison } = await loadReactComponents('docs/react/reports/Comparison.tsx');
+  const { Comparison } = await loadReactComponents('site/app/reports/Comparison.tsx');
   const a = { id: 'a', engine: 'three-nu', settings: {}, data: { cpuFrameMs: { p50: 4 } } };
   const b = {
     id: 'b',
@@ -44,7 +44,7 @@ test('image pairing never combines different measured frames', async () => {
   const a = { id: 'a', engine: 'three-nu', image: 'a.png', differencePair: 'pair', data: {} };
   const b = { ...a, id: 'b', engine: 'webgpu-page-raster', image: 'b.png' };
   assert.deepEqual(pairedImages([a, b, { ...b, id: 'c', differencePair: 'other' }]), [[a, b]]);
-  const { Evidence } = await loadReactComponents('docs/react/reports/Evidence.tsx');
+  const { Evidence } = await loadReactComponents('site/app/reports/Evidence.tsx');
   const html = renderToStaticMarkup(
     createElement(Evidence, { a, b, campaign: 'test', locale: 'fr' }),
   );
@@ -78,7 +78,7 @@ test('complete tables preserve every source leaf, repeats, zero, null and record
 });
 
 test('complete source tables include primary and repeated readings plus failed-run metadata', async () => {
-  const { AllReadings } = await loadReactComponents('docs/react/reports/AllReadings.tsx');
+  const { AllReadings } = await loadReactComponents('site/app/reports/AllReadings.tsx');
   const run = { id: 'r', name: 'mobile' },
     failed = { id: 'f', name: 'failed' };
   const sources = [
@@ -124,7 +124,7 @@ test('complete source tables include primary and repeated readings plus failed-r
 });
 
 test('missing chart readings keep a disabled track and never announce a measured zero', async () => {
-  const { BarChart } = await loadReactComponents('docs/react/components/BarChart.tsx');
+  const { BarChart } = await loadReactComponents('site/app/components/BarChart.tsx');
   const html = renderToStaticMarkup(
     createElement(BarChart, {
       title: 'Memory',
@@ -140,7 +140,7 @@ test('missing chart readings keep a disabled track and never announce a measured
 });
 
 test('campaign summary derives missing provenance from current readings', async () => {
-  const { Findings } = await loadReactComponents('docs/react/reports/Findings.tsx');
+  const { Findings } = await loadReactComponents('site/app/reports/Findings.tsx');
   const report = {
     runs: [{ id: 'r', name: 'other', status: 'complete' }],
     records: [{ runId: 'r', provenance: { machine: { id: 'm' } }, canvas: { dpr: 2 } }],
@@ -155,7 +155,7 @@ test('campaign summary derives missing provenance from current readings', async 
 });
 
 test('scene limitations remain visible with their original campaign wording', async () => {
-  const { SceneNotice } = await loadReactComponents('docs/react/reports/SceneNotice.tsx');
+  const { SceneNotice } = await loadReactComponents('site/app/reports/SceneNotice.tsx');
   for (const locale of ['fr', 'en']) {
     const html = renderToStaticMarkup(
       createElement(SceneNotice, {

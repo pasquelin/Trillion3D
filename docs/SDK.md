@@ -295,6 +295,16 @@ root cover; visible detail and temporal antialiasing refine progressively. No `c
 those same controls. After programmatic edits to the camera, scene or lights, call
 `explorer.invalidate()`. In manual mode, that method renders immediately.
 
+A value written directly on a source node — `mesh.position.x = 100`, `mesh.visible = false`, a
+light's intensity, colour or pose — needs no call to be seen by the next frame. The local pose
+of the drawn nodes, the lights and their ancestors is hooked: `position` and `scale` become
+twins whose accessors live on a prototype (a reference kept from before still drives the
+node), and the write itself increments the scene revision, so a frame compares one integer.
+Their other fields — visibility, parent, a matrix set by hand on a frozen node, a light's
+numbers — are the node's own data fields, which no hook may touch without slowing Three's
+walk: they are compared per frame, a few values per node. One rule remains: a light added to
+or removed from the graph changes its shape, and is announced by `refreshSceneLighting()`.
+
 Set a CSS width **and** height independently of the canvas drawing-buffer attributes, as
 above. Omitted `width`/`height` follow that CSS box; omitted `pixelRatio` follows the browser,
 including later DPR changes. Explicit values override each automatic dimension independently.

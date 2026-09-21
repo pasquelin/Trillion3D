@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { writeObservatory } from './docs/observatory/write.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-const destination = resolve(root, 'docs/assets/gallery/signature-architecture');
+const destination = resolve(root, 'site/assets/gallery/signature-architecture');
 await writeObservatory(resolve(destination, 'source'));
 if (!process.argv.includes('--source-only')) {
   const compiler =

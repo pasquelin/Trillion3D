@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cameraLessonDefinitions } from '../docs/js/gallery/cameraLessonDefinitions.js';
-import { cameraLessonCode } from '../docs/js/gallery/cameraLessonCode.js';
-import { applyCameraLesson, cameraPoseFor } from '../docs/js/gallery/cameraLessonRuntime.js';
+import { cameraLessonDefinitions } from '../site/lessons/cameraLessonDefinitions.ts';
+import { cameraLessonCode } from '../site/lessons/cameraLessonCode.ts';
+import { applyCameraLesson, cameraPoseFor } from '../site/lessons/cameraLessonRuntime.ts';
 
 const home = { position: [4, 3, 6], target: [0, 1, 0], fov: 50, near: 0.1, far: 100 };
 const explorer = { homePose: () => structuredClone(home) };

@@ -1,38 +1,56 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { BUNDLES, buildDocs, trackedBundles } from './docs/bundles.mjs';
-
-// No bundle is ever committed: the build runs on demand, here once into a temporary tree.
+import { join, resolve } from 'node:path';
+import { buildBundles, copyStatics } from './docs/site.mjs';
 const root = resolve(import.meta.dirname, '..');
 
-test('build:docs writes every generated bundle from the maintained sources', async () => {
-  const fresh = await mkdtemp(join(tmpdir(), 'wg-docs-build-'));
+test('the site build writes every bundle of the published tree', async () => {
+  const temporary = await mkdtemp(join(tmpdir(), 'wg-site-build-'));
   try {
-    await buildDocs(root, fresh);
-    for (const bundle of BUNDLES)
-      assert.ok((await stat(join(fresh, bundle))).size > 0, `${bundle} is empty`);
+    await buildBundles(root, temporary);
+    for (const file of [
+      'css/site.css',
+      'js/engine.js',
+      'runtime/portal.js',
+      'runtime/engine.js',
+      'runtime/pageDecodeWorker.js',
+      'runtime/pageIntegrationWorker.js',
+      'runtime/pageCodec.wasm',
+    ])
+      assert.ok((await stat(join(temporary, file))).size > 0, `${file} is built`);
   } finally {
-    await rm(fresh, { recursive: true, force: true });
+    await rm(temporary, { recursive: true, force: true });
   }
 });
 
-test('the untracked check names a bundle git tracks and nothing in this repository', async () => {
-  assert.deepEqual(trackedBundles(root), []);
-  const scratch = await mkdtemp(join(tmpdir(), 'wg-docs-tracked-'));
-  const git = (...args) => execFileSync('git', args, { cwd: scratch, stdio: 'pipe' });
+test('the statics are copied as served, sources excluded, up-to-date copies left alone', async () => {
+  const temporary = await mkdtemp(join(tmpdir(), 'wg-site-statics-'));
+  const source = join(temporary, 'site');
+  const out = join(temporary, 'out');
   try {
-    git('init', '-q');
-    const file = join(scratch, 'docs', BUNDLES[0]);
-    await mkdir(dirname(file), { recursive: true });
-    await writeFile(file, '');
-    assert.deepEqual(trackedBundles(scratch), []);
-    git('add', file);
-    assert.deepEqual(trackedBundles(scratch), [`docs/${BUNDLES[0]}`]);
+    await mkdir(join(source, 'reports/campaign'), { recursive: true });
+    await mkdir(join(source, 'assets'), { recursive: true });
+    await mkdir(join(source, 'data'), { recursive: true });
+    await writeFile(join(source, '.nojekyll'), '');
+    await writeFile(join(source, 'index.html'), '<!doctype html>');
+    await writeFile(join(source, 'report.html'), '<!doctype html>');
+    await writeFile(join(source, 'reports/index.json'), '[]');
+    await writeFile(join(source, 'reports/contract.ts'), 'export {};');
+    await writeFile(join(source, 'reports/campaign/report.json'), '{}');
+    await writeFile(join(source, 'assets/manifest.json'), '{}');
+    await copyStatics(source, out);
+    assert.equal(await readFile(join(out, 'index.html'), 'utf8'), '<!doctype html>');
+    assert.equal((await stat(join(out, '.nojekyll'))).size, 0);
+    assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');
+    assert.equal(await readFile(join(out, 'assets/manifest.json'), 'utf8'), '{}');
+    await assert.rejects(stat(join(out, 'reports/contract.ts')));
+    await assert.rejects(stat(join(out, 'styles')));
+    const copied = (await stat(join(out, 'assets/manifest.json'))).mtimeMs;
+    await copyStatics(source, out);
+    assert.equal((await stat(join(out, 'assets/manifest.json'))).mtimeMs, copied);
   } finally {
-    await rm(scratch, { recursive: true, force: true });
+    await rm(temporary, { recursive: true, force: true });
   }
 });

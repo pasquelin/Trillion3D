@@ -73,6 +73,18 @@ category and reason, and the command prints it before starting — never in sile
 - **stale-double** — the proof maintains a manual copy of a contract that evolved in the source.
   The engine is correct, the copy drifted: fix by reading the contract rather than duplicating it.
 
+### Site proofs
+
+The learning portal under `site/` has its own proofs, run on demand in system Chrome. The four
+`scripts/docs-*.browser.mjs` and `test/browser/explorer-startup.browser.mjs` build the site into
+`dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
+site is proved by `node scripts/site-diff.browser.mjs <beforeDir> <afterDir>`: every portal route
+(entries and examples in both locales, gallery, API index, reports, engine scene, not found),
+served from two built trees, settled, its DOM compared after normalising what is dynamic by
+nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame metrics).
+`node scripts/site-first-load.mjs <siteDir> [route ...]` measures a route's first load
+(DOMContentLoaded, settled, requests, bytes) over cold contexts: a measurement, not a proof.
+
 `BROWSER_ECARTES` is empty: every render proof runs. The Emerald proof
 (`emeraude-webgpu`) reads the compiled cache `emerald-square-derived` under `.mesure/assets/`, off
 git, and a sibling worktree has none of its own: point `WG_ASSETS` at the shared folder. Without it
@@ -154,12 +166,13 @@ identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command                       | Role                                                                    |
-| ----------------------------- | ----------------------------------------------------------------------- |
-| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file               |
-| `pnpm run check:duplicates`   | No duplicated blocks ≥ 12 lines and ≥ 100 tokens                        |
-| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                  |
-| `pnpm run check:unused`       | Dead exports and files (`knip`)                                         |
-| `pnpm run check:docs-bundles` | No generated bundle (`scripts/docs/bundles.mjs`) is tracked by git      |
-| `pnpm run check:docs-types`   | The React portal under `docs/react/` type-checks (`tsconfig.docs.json`) |
-| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links     |
+| Command                       | Role                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 12 lines and ≥ 100 tokens                         |
+| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                   |
+| `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
+| `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |
+| `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git            |
+| `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off) |
+| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links      |
