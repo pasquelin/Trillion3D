@@ -8,8 +8,6 @@ import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from './webgpuBindIdentity.ts';
-import { VIS_IDENTITY_SIZE } from './webgpuVisibilityBindings.ts';
-import { SHADE_IDENTITY_SIZE } from './webgpuShadeBindings.ts';
 import { createPresentClasses, type PresentClasses } from './webgpuMaterialPasses.ts';
 import type { GeometryBlock } from './webgpuPageRowMaterial.ts';
 
@@ -125,8 +123,8 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeBindGroup: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
     rasterGroups: new Array(8).fill(undefined),
-    visIdentity: createWebgpuBindIdentity(VIS_IDENTITY_SIZE),
-    shadeIdentity: createWebgpuBindIdentity(SHADE_IDENTITY_SIZE),
+    visIdentity: createWebgpuBindIdentity(),
+    shadeIdentity: createWebgpuBindIdentity(),
     concatPos: undefined,
     concatUv: undefined,
     concatNrm: undefined,

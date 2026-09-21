@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
-import { ensureWebgpuVisibilityBindings, VIS_IDENTITY_SIZE } from './webgpuVisibilityBindings.ts';
-import { ensureWebgpuShadeBindings, SHADE_IDENTITY_SIZE } from './webgpuShadeBindings.ts';
+import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
+import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** A device that counts its groups, and a runtime holding every resource the groups name. */
@@ -31,8 +31,8 @@ function mount() {
     shadeBindGroup: undefined as unknown,
     visSlotGroups: [undefined, undefined] as unknown[],
     rasterGroups: [undefined] as unknown[],
-    visIdentity: createWebgpuBindIdentity(VIS_IDENTITY_SIZE),
-    shadeIdentity: createWebgpuBindIdentity(SHADE_IDENTITY_SIZE),
+    visIdentity: createWebgpuBindIdentity(),
+    shadeIdentity: createWebgpuBindIdentity(),
   };
   const gpu = { cache: { buffer: {} } };
   const rt = { vis, gpu, run: {} } as unknown as WebgpuPagesRuntime;
