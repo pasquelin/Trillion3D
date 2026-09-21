@@ -47,10 +47,10 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     simplification: {
       type: 'string',
-      enum: ['none', 'qem-endpoints'],
+      enum: ['none', 'qem-endpoints', 'qem-attributes'],
       default: 'none',
       description:
-        "LOD simplification strategy: 'none' (no simplification) or 'qem-endpoints' (quadric error metrics QEM).",
+        "LOD simplification strategy: 'none' (exact clusters only), 'qem-endpoints' (positional quadrics, coarse levels reuse source vertices) or 'qem-attributes' (attribute-aware quadrics, coarse levels carry solved vertices).",
     },
   },
   required: ['source', 'cache', 'resourceBaseUrl'],

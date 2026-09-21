@@ -58,12 +58,21 @@ export interface TerminalProgressOptions {
   interval?: number;
 }
 
+/** What the cluster DAG may hold above the exact clusters: nothing (`none`), coarse levels
+ *  made of source vertices (`qem-endpoints`), or coarse levels whose vertices are solved with
+ *  their attributes (`qem-attributes`). */
+export const SIMPLIFICATIONS = ['none', 'qem-endpoints', 'qem-attributes'] as const;
+export type Simplification = (typeof SIMPLIFICATIONS)[number];
+export function isSimplification(value: string): value is Simplification {
+  return (SIMPLIFICATIONS as readonly string[]).includes(value);
+}
+
 export interface PrepareOptions {
   resourceBaseUrl: string;
   executable?: string;
   threads?: number;
   ramBudgetMb?: number;
-  simplification?: 'none' | 'qem-endpoints';
+  simplification?: Simplification;
   signal?: AbortSignal;
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void;
 }
@@ -127,7 +136,7 @@ export interface BatchJob {
   triangles?: number;
   threads?: number;
   ramBudgetMb?: number;
-  simplification?: 'none' | 'qem-endpoints';
+  simplification?: Simplification;
 }
 
 export interface BatchOptions {
@@ -166,35 +175,4 @@ export interface CompilationJobOptions extends PrepareOptions {
   scope?: AssetScope;
   triangleBudget?: number;
   telemetry?: (snapshot: JobSnapshot<CompilationResult>) => void;
-}
-
-/**
- * A model already compiled, as the cutout review reads it: where its product lives, where its
- * scene came from — the review shows the texture's own file when there is one — and the scope its
- * pointer names. Not a `BatchJob`: that one is what gets SUBMITTED to the compiler, and the review
- * neither submits nor needs a triangle budget to ask a question.
- */
-export interface CutoutModel {
-  id?: string;
-  cache: string;
-  source: string;
-  scope?: AssetScope;
-}
-
-export interface CutoutReviewOptions {
-  stream?: ProgressStream;
-  input?: NodeJS.ReadStream;
-  /** Defaults to whether the stream is a terminal. */
-  interactive?: boolean;
-}
-
-/**
- * What the pass did. `changed` names the models an answer moved: compiling them again is the
- * caller's to do, with its own budget, its own progress and its own cancellation — the review has
- * none of those and has no business guessing them.
- */
-export interface CutoutReviewSummary {
-  pending: number;
-  answered: number;
-  changed: CutoutModel[];
 }

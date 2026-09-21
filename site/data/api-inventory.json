@@ -157,6 +157,7 @@
         "packages/sdk-browser/explorerSession.ts",
         "packages/sdk-browser/manifestLoad.ts",
         "packages/sdk-node/contracts.ts",
+        "packages/sdk-node/cutoutContracts.ts",
         "packages/sdk-node/index.mts"
       ],
       "disposition": "retained",
@@ -1017,7 +1018,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-node/simplification.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/llm/compilerOptionsSchema\".COMPILER_OPTIONS_SCHEMA"
     },
@@ -1500,35 +1501,35 @@
     {
       "name": "CutoutModel",
       "kind": "type",
-      "definingModule": "packages/sdk-node/contracts.ts",
+      "definingModule": "packages/sdk-node/cutoutContracts.ts",
       "currentEntryPoints": ["web-geometry (node condition)"],
       "proposedEnvironments": "node",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-node/contracts\".CutoutModel"
+      "bindingIdentity": "\"packages/sdk-node/cutoutContracts\".CutoutModel"
     },
     {
       "name": "CutoutReviewOptions",
       "kind": "type",
-      "definingModule": "packages/sdk-node/contracts.ts",
+      "definingModule": "packages/sdk-node/cutoutContracts.ts",
       "currentEntryPoints": ["web-geometry (node condition)"],
       "proposedEnvironments": "node",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-node/contracts\".CutoutReviewOptions"
+      "bindingIdentity": "\"packages/sdk-node/cutoutContracts\".CutoutReviewOptions"
     },
     {
       "name": "CutoutReviewSummary",
       "kind": "type",
-      "definingModule": "packages/sdk-node/contracts.ts",
+      "definingModule": "packages/sdk-node/cutoutContracts.ts",
       "currentEntryPoints": ["web-geometry (node condition)"],
       "proposedEnvironments": "node",
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-node/contracts\".CutoutReviewSummary"
+      "bindingIdentity": "\"packages/sdk-node/cutoutContracts\".CutoutReviewSummary"
     },
     {
       "name": "DAG_ERROR_MODEL",
@@ -2821,6 +2822,17 @@
       "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryTypes\".isBinaryManifest"
+    },
+    {
+      "name": "isSimplification",
+      "kind": "value",
+      "definingModule": "packages/sdk-node/contracts.ts",
+      "currentEntryPoints": ["web-geometry (node condition)"],
+      "proposedEnvironments": "node",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-node/contracts\".isSimplification"
     },
     {
       "name": "JobProgress",
@@ -5244,6 +5256,28 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".ShadowViewpoint"
+    },
+    {
+      "name": "Simplification",
+      "kind": "type",
+      "definingModule": "packages/sdk-node/contracts.ts",
+      "currentEntryPoints": ["web-geometry (node condition)"],
+      "proposedEnvironments": "node",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-node/contracts\".Simplification"
+    },
+    {
+      "name": "SIMPLIFICATIONS",
+      "kind": "value",
+      "definingModule": "packages/sdk-node/contracts.ts",
+      "currentEntryPoints": ["web-geometry (node condition)"],
+      "proposedEnvironments": "node",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-node/contracts\".SIMPLIFICATIONS"
     },
     {
       "name": "SINGULAR_DETERMINANT_WGSL",
