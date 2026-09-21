@@ -1,4 +1,6 @@
-export const lifecycleFr = {
+import type { LocaleOverlay } from './entryOverlay.ts';
+
+export const lifecycleFr: LocaleOverlay = {
   prepare: {
     description:
       'Compile une scène source vers le cache lu par le navigateur. Lance le compilateur natif puis renvoie le manifeste avec ses mesures. Une source dont le produit est déjà dans le cache n’est pas recompilée : le dossier est vérifié fichier par fichier puis conservé, et `reused` dit ce qui a été contrôlé (`null` quand la tâche a compilé). `resourceBaseUrl` est obligatoire : c’est l’URL depuis laquelle le navigateur chargera pages et textures. Ce que chaque lecteur fait de sa source — faces polygonales coupées en éventail si convexes, en oreilles sinon — est dans `docs/COMPILER.md`.',

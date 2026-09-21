@@ -1,4 +1,4 @@
-export const demoDetailsFr = {
+export const demoDetailsFr: Record<string, string> = {
   'composeMatrix4(out, position, quaternion, scale)':
     'composeMatrix4(out, position, quaternion, scale)',
   'column-major; the translation is [12..14]': 'ordre colonne ; la translation occupe [12..14]',

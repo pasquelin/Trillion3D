@@ -5,163 +5,16 @@ import { guidesFr } from './guides.fr.ts';
 import { lifecycleFr } from './lifecycle.fr.ts';
 import { matrixFr } from './matrix.fr.ts';
 import { sectionStrings } from './sections.ts';
+import { STRINGS } from './strings.ts';
 import { treeFr } from './tree.fr.ts';
 import { vectorFr } from './vector.fr.ts';
+import type { EntryOverlay, LocaleOverlay } from './entryOverlay.ts';
+import type { Locale } from '../locale.ts';
+import type { PortalEntry } from '../model.ts';
 
-export const supportedLocales = ['en', 'fr'];
+export const supportedLocales: Locale[] = ['en', 'fr'];
 
-const STRINGS = {
-  en: {
-    'nav.learn': 'Learn',
-    'nav.examples': 'Examples',
-    'nav.playground': 'Playground',
-    'nav.api': 'API',
-    'nav.reports': 'Measurements',
-    'search.placeholder': 'Search the documentation',
-    'search.label': 'Search',
-    'sidebar.navigation': 'Documentation navigation',
-    'sidebar.noResults': 'No entry matches.',
-    'home.eyebrow': 'Web Geometry learning portal',
-    'home.title': 'Stream detailed worlds on the web',
-    'home.description': 'Learn the engine from first frame to fixed-budget streaming.',
-    'home.start': 'Start learning',
-    'home.explore': 'Explore the API',
-    'home.pathTitle': 'A practical path',
-    'home.pathDescription': 'Build understanding in three measured steps.',
-    'home.step1Title': 'Compile once',
-    'home.step1Description': 'Turn source geometry into bounded, streamable pages.',
-    'home.step2Title': 'Open an explorer',
-    'home.step2Description': 'Pass a canvas ID and let the engine handle interactive rendering.',
-    'home.step3Title': 'Measure the frame',
-    'home.step3Description': 'Inspect quality, residency and timing before tuning.',
-    'home.capabilitiesTitle': 'Built for the whole frame',
-    'home.capabilitiesDescription':
-      'Geometry, image quality and integration share explicit budgets.',
-    'home.cardGeometryTitle': 'Virtualized geometry',
-    'home.cardGeometryDescription': 'Select one DAG cut and stream only the pages the frame reads.',
-    'home.cardRenderingTitle': 'Measured rendering',
-    'home.cardRenderingDescription':
-      'Visibility, temporal antialiasing and lighting evolve through measured stages.',
-    'home.cardIntegrationTitle': 'Host-owned integration',
-    'home.cardIntegrationDescription':
-      'Your application owns the canvas layout and disposal; interactive mode handles rendering.',
-    'actions.openMenu': 'Open menu',
-    'actions.closeMenu': 'Close menu',
-    'actions.switchLanguage': 'Switch language',
-    'actions.theme': 'Change theme',
-    'common.inDevelopment': 'In development',
-    'entry.signature': 'Signature',
-    'entry.values': 'Values',
-    'entry.arguments': 'Arguments',
-    'entry.example': 'Example',
-    'entry.replaces': 'Replaces',
-    'entry.proof': 'Proof',
-    'entry.live': 'It runs, here',
-    'entry.liveHint':
-      'Move the controls: these values come from the engine function running in this browser.',
-    'entry.relatedDemo': 'Open the related gallery demo',
-    'kind.Function': 'Function',
-    'kind.Constant': 'Constant',
-    'kind.Type': 'Type',
-    'kind.Guide': 'Guide',
-    'kind.Example': 'Example',
-    'kind.Demo': 'Demo',
-    'entry.development': 'This is not on develop yet. It is tracked by',
-    'entry.issue': 'issue',
-    'entry.signatureCommit': 'The signature below is the contract committed by that issue.',
-    'issue.60': 'Targeted subtree update',
-    'issue.79': 'Three adapter and migration guide',
-    'issue.80': 'Batch math API for hosts',
-    'demo.badge': 'Math kernel demo',
-    'demo.title': 'Math kernels running in the browser',
-    'demo.description':
-      'This viewport uses the matrix kernels from packages/sdk-core. It demonstrates the maths, not the streamed geometry pipeline.',
-    'demo.shading': 'Shading',
-    'demo.faces': 'Face colours',
-    'demo.normals': 'Geometric normals',
-    'demo.fov': 'Field of view',
-    'demo.starting': 'Starting WebGPU…',
-    'demo.help': 'Drag to turn the mesh. The counter reports frames per second only.',
-  },
-  fr: {
-    'nav.learn': 'Apprendre',
-    'nav.examples': 'Exemples',
-    'nav.playground': 'Bac à sable',
-    'nav.api': 'API',
-    'nav.reports': 'Mesures',
-    'search.placeholder': 'Rechercher dans la documentation',
-    'search.label': 'Rechercher',
-    'sidebar.navigation': 'Navigation de la documentation',
-    'sidebar.noResults': 'Aucune entrée ne correspond.',
-    'home.eyebrow': 'Portail pédagogique Web Geometry',
-    'home.title': 'Diffusez des mondes détaillés sur le web',
-    'home.description':
-      'Découvrez le moteur, de la première image à la diffusion sous budget fixe.',
-    'home.start': 'Commencer',
-    'home.explore': 'Explorer l’API',
-    'home.pathTitle': 'Un parcours pratique',
-    'home.pathDescription': 'Comprenez le moteur en trois étapes mesurées.',
-    'home.step1Title': 'Compiler une fois',
-    'home.step1Description': 'Transformez la géométrie source en pages bornées et diffusables.',
-    'home.step2Title': 'Ouvrir un explorateur',
-    'home.step2Description':
-      'Passez un ID de canevas et laissez le moteur gérer le rendu interactif.',
-    'home.step3Title': 'Mesurer l’image',
-    'home.step3Description': 'Observez qualité, résidence et temps avant tout réglage.',
-    'home.capabilitiesTitle': 'Conçu pour l’image entière',
-    'home.capabilitiesDescription':
-      'Géométrie, qualité d’image et intégration partagent des budgets explicites.',
-    'home.cardGeometryTitle': 'Géométrie virtualisée',
-    'home.cardGeometryDescription':
-      'Sélectionnez une coupe du DAG et diffusez uniquement les pages lues par l’image.',
-    'home.cardRenderingTitle': 'Rendu mesuré',
-    'home.cardRenderingDescription':
-      'Visibilité, anticrénelage temporel et éclairage avancent par étapes mesurées.',
-    'home.cardIntegrationTitle': 'Intégration pilotée par l’hôte',
-    'home.cardIntegrationDescription':
-      'Votre application gère la disposition du canevas et sa fermeture ; le mode interactif gère le rendu.',
-    'actions.openMenu': 'Ouvrir le menu',
-    'actions.closeMenu': 'Fermer le menu',
-    'actions.switchLanguage': 'Changer de langue',
-    'actions.theme': 'Changer de thème',
-    'common.inDevelopment': 'En développement',
-    'entry.signature': 'Signature',
-    'entry.values': 'Valeurs',
-    'entry.arguments': 'Arguments',
-    'entry.example': 'Exemple',
-    'entry.replaces': 'Remplace',
-    'entry.proof': 'Preuve',
-    'entry.live': 'À vous d’essayer',
-    'entry.liveHint':
-      'Manipulez les contrôles : ces valeurs viennent de la fonction du moteur exécutée dans ce navigateur.',
-    'entry.relatedDemo': 'Ouvrir la démo associée dans la galerie',
-    'kind.Function': 'Fonction',
-    'kind.Constant': 'Constante',
-    'kind.Type': 'Type',
-    'kind.Guide': 'Guide',
-    'kind.Example': 'Exemple',
-    'kind.Demo': 'Démo',
-    'entry.development': 'Cette fonction n’est pas encore sur develop. Son suivi se trouve dans',
-    'entry.issue': 'l’issue',
-    'entry.signatureCommit': 'La signature ci-dessous est le contrat porté par cette issue.',
-    'issue.60': 'Mise à jour ciblée d’un sous-arbre',
-    'issue.79': 'Adaptateur Three et guide de migration',
-    'issue.80': 'API de calcul par lots pour les hôtes',
-    'demo.badge': 'Démonstration des noyaux mathématiques',
-    'demo.title': 'Les noyaux mathématiques exécutés dans le navigateur',
-    'demo.description':
-      'Cette vue emploie les noyaux matriciels de packages/sdk-core. Elle montre les calculs, pas le pipeline de géométrie diffusée.',
-    'demo.shading': 'Ombrage',
-    'demo.faces': 'Couleurs des faces',
-    'demo.normals': 'Normales géométriques',
-    'demo.fov': 'Champ de vision',
-    'demo.starting': 'Démarrage de WebGPU…',
-    'demo.help':
-      'Faites glisser pour tourner le maillage. Le compteur indique uniquement les images par seconde.',
-  },
-};
-
-const FRENCH = Object.assign(
+const FRENCH: LocaleOverlay = Object.assign(
   {},
   boundsFr,
   cameraFr,
@@ -173,7 +26,7 @@ const FRENCH = Object.assign(
   vectorFr,
 );
 
-export function t(locale, key) {
+export function t(locale: Locale, key: string) {
   const selected = supportedLocales.includes(locale) ? locale : 'en';
   return (
     STRINGS[selected]?.[key] ??
@@ -184,17 +37,17 @@ export function t(locale, key) {
   );
 }
 
-function localizedEntry(entry, overlay) {
+export type TranslateFn = typeof t;
+
+function localizedEntry(entry: PortalEntry, overlay: EntryOverlay | null) {
   if (!overlay) return { ...entry };
-  const result = { ...entry, ...overlay };
+  const { values: translated, ...fields } = overlay;
+  const result: PortalEntry = { ...entry, ...fields };
   if (entry.values)
-    result.values = entry.values.map((value, index) => ({
-      ...value,
-      ...(overlay.values?.[index] ?? {}),
-    }));
+    result.values = entry.values.map((value, index) => ({ ...value, ...translated?.[index] }));
   return result;
 }
 
-export function localizeEntries(entries, locale) {
+export function localizeEntries(entries: PortalEntry[], locale: Locale) {
   return entries.map((entry) => localizedEntry(entry, locale === 'fr' ? FRENCH[entry.id] : null));
 }

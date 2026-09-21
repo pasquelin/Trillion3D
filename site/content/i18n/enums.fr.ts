@@ -1,4 +1,6 @@
-export const enumsFr = {
+import type { LocaleOverlay } from './entryOverlay.ts';
+
+export const enumsFr: LocaleOverlay = {
   IDENTITY_MATRIX4: {
     description:
       'Identité en ordre colonne, lue sans jamais être modifiée : pose d’un nœud ou d’une racine sans pose.',

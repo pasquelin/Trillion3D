@@ -1,8 +1,10 @@
+import type { PortalEntry } from '../model.ts';
+
 /** Vectors and colours: every read at an offset, every write into a caller's buffer. */
 const V = { section: 'vectors', kind: 'Function', module: 'packages/sdk-core/mathVector.ts' };
 const C = { section: 'colors', kind: 'Function', module: 'packages/sdk-core/mathColor.ts' };
 
-export const VECTORS = [
+export const VECTORS: PortalEntry[] = [
   {
     ...V,
     id: 'dotVector3',
@@ -91,7 +93,7 @@ export const VECTORS = [
   },
 ];
 
-export const COLORS = [
+export const COLORS: PortalEntry[] = [
   {
     ...C,
     id: 'srgbToLinear',

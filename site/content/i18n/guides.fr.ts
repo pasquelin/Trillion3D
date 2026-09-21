@@ -1,4 +1,6 @@
-export const guidesFr = {
+import type { LocaleOverlay } from './entryOverlay.ts';
+
+export const guidesFr: LocaleOverlay = {
   'example-many-lights': {
     title: 'Beaucoup de lumières, un seul budget',
     description:

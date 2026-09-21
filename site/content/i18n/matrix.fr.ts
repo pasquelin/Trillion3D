@@ -1,4 +1,6 @@
-export const matrixFr = {
+import type { LocaleOverlay } from './entryOverlay.ts';
+
+export const matrixFr: LocaleOverlay = {
   multiplyMatrix4: {
     description:
       '`out = a · b`. Les trente-deux entrées sont lues avant la première écriture ; `out` peut donc être `a` ou `b`. Chaque terme additionne quatre produits sans zéro initial afin de préserver le signe de zéro. Entrées et sortie utilisent uniquement `Float64Array`.',

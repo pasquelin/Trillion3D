@@ -1,7 +1,9 @@
+import type { PortalEntry } from '../model.ts';
+
 /** Constants and enums of the runtime: math path, jobs, capabilities, timings, format, sides. */
 const ENUM = { section: 'enums', kind: 'Type' };
 
-export const ENUMS_RUNTIME = [
+export const ENUMS_RUNTIME: PortalEntry[] = [
   {
     ...ENUM,
     id: 'MathPathMode',

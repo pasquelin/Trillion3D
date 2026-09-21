@@ -1,7 +1,9 @@
+import type { PortalEntry } from '../model.ts';
+
 /** Rendering guides: what a frame does with a material class, and the counters that say so. */
 const GUIDE = { section: 'guides', kind: 'Guide' };
 
-export const RENDERING_GUIDES = [
+export const RENDERING_GUIDES: PortalEntry[] = [
   {
     ...GUIDE,
     id: 'water-pass',

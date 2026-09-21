@@ -1,4 +1,6 @@
-export const cameraFr = {
+import type { LocaleOverlay } from './entryOverlay.ts';
+
+export const cameraFr: LocaleOverlay = {
   perspectiveProjection: {
     description:
       'Projection perspective d’une caméra : `fov` vertical en degrés, ratio `aspect`, plan proche `near` et zoom. **Profondeur inversée, plan lointain infini** : `near` se projette à 1 et l’infini à 0. Aucun plan lointain n’intervient, ce qui préserve la précision en profondeur.',

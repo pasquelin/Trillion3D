@@ -1,4 +1,6 @@
-export const boundsFr = {
+import type { LocaleOverlay } from './entryOverlay.ts';
+
+export const boundsFr: LocaleOverlay = {
   boxUnion: {
     description:
       'Une boîte est formée de six nombres consécutifs : trois bornes basses puis trois hautes. Une boîte vide place ses bornes basses à `+Infinity` et ses bornes hautes à `-Infinity`. L’extension et l’union reçoivent directement les bornes et ne créent donc aucun objet temporaire.',
