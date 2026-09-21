@@ -13,10 +13,7 @@ import { modelScenes, writeModelScenes } from './docs/examples/models.mjs';
  */
 const root = resolve(import.meta.dirname, '..'),
   examples = resolve(root, 'site/assets/examples'),
-  only = process.argv.find(
-    (argument) =>
-      !argument.startsWith('-') && argument !== process.argv[1] && !argument.endsWith('node'),
-  ),
+  only = process.argv.slice(2).find((argument) => !argument.startsWith('-')),
   compiler =
     process.env.WG_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
@@ -31,14 +28,14 @@ if (process.argv.includes('--source-only')) process.exit(0);
 
 for (const name of [...Object.keys(scenes), ...Object.keys(modelScenes)]) {
   if (only && name !== only) continue;
-  const directory = resolve(examples, name),
-    source = name in scenes || name === 'bust' ? 'source/geometry.gltf' : 'source';
+  const directory = resolve(examples, name);
   await rm(resolve(directory, 'cache'), { recursive: true, force: true });
-  // Relative paths, from the scene folder: the compiler records the paths it was given, and a
-  // cache that names the machine it was built on is refused (`depot-autonome.test.mjs`).
+  // The source folder holds one glTF or the OBJ files to merge; relative paths, from the scene
+  // folder, since the compiler records the paths it was given and a cache that names the machine
+  // it was built on is refused (`depot-autonome.test.mjs`).
   const result = spawnSync(
     compiler,
-    [source, 'cache', 'full', '150000', '2', '256', '../../../../source/', 'qem-endpoints'],
+    ['source', 'cache', 'full', '150000', '2', '256', '../../../../source/', 'qem-endpoints'],
     { cwd: directory, stdio: ['ignore', 'ignore', 'inherit'] },
   );
   if (result.error) throw result.error;

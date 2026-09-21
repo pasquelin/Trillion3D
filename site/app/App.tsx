@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Entry } from './Entry.tsx';
 import { EngineScene } from './engine-scene/index.tsx';
 import { examples } from '../content/catalog.ts';
-import roadmap from '../content/gallery-roadmap.json';
+import { readyExampleIds } from './examples/list.ts';
 import { rawEntries } from './portal/data.ts';
 import { parseRoute, resolvePage, routeHref } from './portal/routes.ts';
 import { localizeEntries, t } from '../content/i18n/index.ts';
@@ -14,8 +14,9 @@ import { canonicalEntryId } from './portal/entryLinks.ts';
 import type { PortalEntry } from '../content/model.ts';
 import type { PortalRoute, ResolvedPage } from './portal/routes.ts';
 
-// The areas a route may never visit load on demand: the gallery carries the roadmap, the
-// playground the code editor, the reports their presentation — none of them on the home page.
+// The areas a route may never visit load on demand: the examples, the lessons gallery, the
+// playground and its code editor, the reports and their presentation — none of them on the home
+// page.
 const Gallery = lazy(() => import('./gallery/Gallery.tsx').then((m) => ({ default: m.Gallery })));
 const Examples = lazy(() =>
   import('./examples/Examples.tsx').then((m) => ({ default: m.Examples })),
@@ -90,7 +91,7 @@ export function App() {
       resolvedRoute,
       entries,
       examples.map(({ id }: { id: string }) => id),
-      roadmap.entries.filter(({ file }) => file).map(({ id }) => id),
+      readyExampleIds,
     );
   }, [resolvedRoute, entries]);
 

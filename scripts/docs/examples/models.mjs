@@ -10,8 +10,6 @@ import { placeObj, writeBoxesObj } from './obj.mjs';
  * placed, with an original setting written as boxes beside it, and the compiler merges the
  * folder; a glTF model is copied as-is and the setting appended to it as one more node.
  */
-const DARK = [0.16, 0.16, 0.18];
-
 async function copyModel(models, name, files, directory) {
   for (const file of files) await copyFile(resolve(models, name, file), resolve(directory, file));
 }
@@ -71,7 +69,7 @@ async function crates(models, directory) {
       offset,
     });
   await writeBoxesObj(resolve(directory, 'floor.obj'), [[[0, -0.1, 0], [8, 0.2, 8], 'floor']], {
-    floor: DARK,
+    floor: [0.16, 0.16, 0.18],
   });
 }
 

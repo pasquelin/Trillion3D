@@ -1,9 +1,9 @@
-import roadmap from '../../content/gallery-roadmap.json';
 import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import { ExampleCard } from '../gallery/ExampleCard.tsx';
 import { ProgressiveList } from '../components/ProgressiveList.tsx';
 import { routeHref } from '../portal/routes.ts';
+import { themedEntries } from './list.ts';
 
 /** The Examples landing page: the lessons' card grid, one card per entry of the list, theme by
  * theme — a done example with its settled render as thumbnail, opening the example; one still
@@ -14,8 +14,8 @@ export function Examples({ locale }: { locale: Locale }) {
     <section data-examples>
       <h1 className="text-3xl font-bold mb-6">{french ? 'Exemples' : 'Examples'}</h1>
       <ProgressiveList
-        items={roadmap.themes.flatMap((theme) =>
-          roadmap.entries.filter((entry) => entry.theme === theme.id),
+        items={themedEntries.flatMap(({ theme, entries }) =>
+          entries.map((entry) => ({ ...entry, badge: local(theme.title, locale) })),
         )}
         labels={{
           previous: french ? 'Charger les exemples précédents' : 'Load previous examples',
@@ -28,12 +28,11 @@ export function Examples({ locale }: { locale: Locale }) {
             key={entry.id}
             locale={locale}
             href={entry.file ? routeHref({ locale, area: 'examples', id: entry.id }) : null}
-            badge={local(roadmap.themes.find(({ id }) => id === entry.theme)!.title, locale)}
+            badge={entry.badge}
             example={{
               id: entry.id,
               category: entry.theme,
               title: entry.title,
-              renderer: true,
               preview: `./assets/examples/thumbnails/${entry.id}.png`,
             }}
           />
