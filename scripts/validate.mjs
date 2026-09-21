@@ -1,25 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import { pnpmCommand } from './only-pnpm.mjs';
+import { NATIVE_STEPS, skipsNative, stepsToRun } from './validate-steps.mjs';
 
-const steps = [
-  'check:local',
-  'format:check',
-  'check:lines',
-  'check:duplicates',
-  'lint',
-  'check:unused',
-  'build',
-  'build:native',
-  'check:structure',
-  'check:dts',
-  'check:docs-demo',
-  'check:docs-types',
-  'check:links',
-  'test',
-  'test:native',
-];
+if (skipsNative(process.env))
+  console.log(
+    `Native steps skipped, binaries restored for unchanged Rust sources: ${NATIVE_STEPS.join(', ')}`,
+  );
 
-for (const step of steps) {
+for (const step of stepsToRun(process.env)) {
   const result = spawnSync(...pnpmCommand('run', step), { stdio: 'inherit' });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
