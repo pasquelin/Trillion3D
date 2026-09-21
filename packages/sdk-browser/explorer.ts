@@ -2,7 +2,6 @@ import { resolveExplorerTarget, type ExplorerTarget } from './explorerTarget.ts'
 import { interactiveOptions } from './explorerInteractiveOptions.ts';
 import { startInteractiveExplorer } from './explorerInteractive.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
-import { EngineError } from '../sdk-core/index.ts';
 import { loadExplorerManifest } from './explorerManifest.ts';
 import type { RenderBackend, ExplorerOptions } from './backendTypes.ts';
 import { createExplorerSession, type ExplorerSession } from './explorerSession.ts';
@@ -30,14 +29,7 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
     diagnose,
     diagnosticChannel,
   );
-  const autonomous = options.autonomousGeometry === true;
-  if (autonomous && (!metadata.autonomousScene || options.backends))
-    throw new EngineError(
-      'AUTONOMOUS_SCENE_UNAVAILABLE',
-      'Autonomous geometry requires a prepared static scene and the autonomous backend',
-    );
   const base = loadedBase;
-  const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf';
   const resources: ExplorerResources = {};
   const backends: RenderBackend[] = [];
   const session: ExplorerSession = {
@@ -55,9 +47,7 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
     const prepared = await prepareExplorer(session, {
       manifestUrl,
       metadataUrl,
-      sceneFile,
       base,
-      autonomous,
       backends,
       resources,
       progress,
