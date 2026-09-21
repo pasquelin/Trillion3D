@@ -117,18 +117,13 @@ preparation with a named error instead of a partial image. What remains of the a
 composition host of the non-transmissive blended copies, the comparison compositor, captures and
 held frames (#85).
 
-The first stage of #85 measured that remainder before touching it: on `exact-cluster-pages`,
-Emerald Square, moving camera, the host pass around the engine's program — clear, `render` of a
-scene that holds the light group, held-frame copy — reads 0.0 ms p50 and 0.1 ms p95 of a 13 ms
-CPU frame over three runs, and the 16.7 ms envelope sits on the display cap. The removal has no
-measurable gain; it is done for the dependency. That stage makes the engine surface the session's
-WebGL2 authority: capabilities create and size it and return no renderer, the loss fallback reads
-`surface.lost`, the frame timer and the readback use `surface.context`, and the Three adapter is
-mounted by the composition host alone, over the surface, next to the compositor, the presenter
-and the scene drawer that still need it. The stages that follow replace those three — held frame
-and render targets on engine framebuffers, comparison on an engine program, the witnesses drawing
-themselves through `drawHostGeometry` — then the draw records' `BufferGeometry` and `Material`
-descriptors and the observation meshes.
+The first stage of #85 measured that remainder before touching it — at most 0.1 ms of the CPU
+frame on `exact-cluster-pages`, no gain to claim (the numbers in `docs/API.md`, batch E6) — and
+made the engine surface the session's WebGL2 authority, the Three adapter a detail of the
+composition host alone. The stages that follow replace what that host still needs it for — held
+frame and render targets on engine framebuffers, comparison on an engine program, the witnesses
+drawing themselves through `drawHostGeometry` — then the draw records' `BufferGeometry` and
+`Material` descriptors and the observation meshes.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
