@@ -10,6 +10,11 @@ export function recordLabel(report, record, locale) {
   const size = record.canvas ? `${record.canvas.width} × ${record.canvas.height}` : '—';
   return `${runName(runOf(report, record), locale)} · ${readingName(record, locale)} · ${size}`;
 }
+/**
+ * @template T
+ * @param {T[]} records
+ * @returns {[T, T][]}
+ */
 export function pairedImages(records) {
   const groups = new Map();
   for (const r of records) {

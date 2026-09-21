@@ -10,7 +10,7 @@ import {
 import { searchEntries } from '../docs/js/portal/search.js';
 import { rawEntries } from '../docs/js/portal/data.js';
 import { localizeEntries } from '../docs/js/i18n/index.js';
-import { canonicalEntryId, expandEntryLinks } from '../docs/react/portal/entryLinks.js';
+import { canonicalEntryId, expandEntryLinks } from '../docs/react/portal/entryLinks.ts';
 
 test('canonical routes preserve locale, area, and multi-part identifier', () => {
   assert.deepEqual(parseRoute('#/fr/playground/matrix-compose'), {
