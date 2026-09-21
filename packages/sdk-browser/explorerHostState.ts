@@ -2,11 +2,15 @@ import * as THREE from 'three';
 import type { CameraPose, DiagnosticMode } from '../sdk-core/index.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts';
-import { createBackendPresenter } from './explorerComposeSurface.ts';
+import { createFrameComposer } from './explorerCompose.ts';
 import type { prepareExplorer } from './explorerPrepare.ts';
+import { boundToContext } from './webglContextBound.ts';
+import { createWebglRenderTarget, type WebglRenderTarget } from './webglRenderTarget.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
+/** A composition target that outlives a context loss: `current()` is the live one. */
+export type BoundTarget = ReturnType<typeof boundToContext<WebglRenderTarget>>;
 
 /** The mutable state of one explorer host; every service reads and writes this same object. */
 export type ExplorerHostState = {
@@ -21,29 +25,12 @@ export type ExplorerHostState = {
   comparisonPair: [string, string];
   wipe: number;
   toggle: 0 | 1;
-  pairTargetA?: THREE.WebGLRenderTarget;
-  pairTargetB?: THREE.WebGLRenderTarget;
-  measurementTarget?: THREE.WebGLRenderTarget;
+  pairTargetA?: BoundTarget;
+  pairTargetB?: BoundTarget;
+  measurementTarget?: BoundTarget;
   loaded: number;
   pageBytesRead: number;
 };
-
-/**
- * The draw adapter of the composition host, mounted on the engine's surface: the one place that
- * still builds a `WebGLRenderer`, for the compositor, the held frame, the render targets and the
- * scenes the witness engines hand over. It is told the size the surface already set — no call of
- * the adapter records a size without rewriting the canvas, so the still undrawn buffer resets
- * once here — and leaves with the composition host (#85).
- */
-function createHostDrawAdapter(surface: WebglSurface) {
-  const renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context });
-  const { width, height, pixelRatio } = surface.size;
-  renderer.setDrawingBufferSize(width, height, pixelRatio);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1;
-  return renderer;
-}
 
 export function createExplorerHostState(
   prepared: Prepared,
@@ -85,14 +72,33 @@ export function createExplorerHostState(
   const overlays: THREE.Material[] = [];
   const hostedControls: { dispose(): void }[] = [];
   const lookAtTarget = new THREE.Vector3().copy(center);
-  const renderer = webglSurface && createHostDrawAdapter(webglSurface);
-  const compositor = renderer && createComparisonCompositor(renderer);
-  // Same owner as the compositor: what puts an engine's image on the host surface, for the frame
-  // and for the explicit capture alike.
-  const presentBackend = renderer ? createBackendPresenter(renderer) : () => false;
-  const targetOptions = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace };
-  const ensureTarget = (current?: THREE.WebGLRenderTarget) =>
-    current ?? new THREE.WebGLRenderTarget(canvas.width, canvas.height, targetOptions);
+  // The composition lives on the engine's context: the composer, which puts an engine's image
+  // on the surface or a target for the frame and the explicit capture alike, and the comparison
+  // compositor. The direct GPU path composes nothing.
+  const gl = webglSurface?.context;
+  const composition = gl
+    ? { compose: createFrameComposer(gl, camera), compositor: createComparisonCompositor(gl) }
+    : {
+        compose: Object.assign(
+          () => {
+            throw new Error('The direct GPU path has no host composer');
+          },
+          { dispose() {} },
+        ),
+        compositor: undefined,
+      };
+  /** One side of a comparison or the measurement surface, at the drawing-buffer size. */
+  const ensureTarget = (current?: BoundTarget) => {
+    if (!gl) throw new Error('The direct GPU path has no host render target');
+    return (
+      current ??
+      boundToContext(
+        gl,
+        () => createWebglRenderTarget(gl, canvas.width, canvas.height),
+        (target) => target.dispose(),
+      )
+    );
+  };
   const check = () => {
     if (state.disposed) throw new Error('Explorer disposed');
     if (state.capturingSurface) throw new Error('SURFACE_CAPTURE_BUSY');
@@ -111,13 +117,15 @@ export function createExplorerHostState(
     state,
     baseline,
     webglSurface,
-    renderer,
     beautyMaterials,
     overlays,
     hostedControls,
     lookAtTarget,
-    compositor,
-    presentBackend,
+    ...composition,
+    disposeComposition() {
+      composition.compose.dispose();
+      composition.compositor?.dispose();
+    },
     ensureTarget,
     check,
     setPose,

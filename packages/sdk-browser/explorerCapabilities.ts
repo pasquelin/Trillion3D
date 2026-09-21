@@ -126,8 +126,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   }
   const directGpu = directWebgpu(options, gpuDevice);
   if (!directGpu) {
-    // The engine's surface is the session's WebGL2 resource: the composition host mounts its
-    // draw adapter on it later, and nothing here knows of one.
+    // The engine's surface is the session's only WebGL2 resource: the composition host builds
+    // its programs and targets on it later.
     resources.webglSurface = prepareExplorerWebglSurface({
       canvas,
       size: options,

@@ -1,18 +1,22 @@
-// The public exact-pages mount the explorer proofs share: a 64 × 64 host renderer on a WebGL2
-// canvas, the backend of a prepared scene, the scene drawer, a comparison target, and a count
-// of what the host pass is handed — what the engine owns must never reach it.
-import * as THREE from 'three';
+// The public exact-pages mount the explorer proofs share: a 64 × 64 WebGL2 canvas, the backend of
+// a prepared scene, the frame composer, a comparison target, and a count of what the scene pass
+// is handed — the scene the witness adapter draws after the owner, where what the engine owns
+// must never appear.
 import { exactPagesBackend } from '../../packages/sdk-browser/exactPagesBackend.ts';
-import { createSceneDrawer } from '../../packages/sdk-browser/explorerDrawScene.ts';
+import { createFrameComposer } from '../../packages/sdk-browser/explorerCompose.ts';
+import {
+  bindWebglTarget,
+  createWebglRenderTarget,
+} from '../../packages/sdk-browser/webglRenderTarget.ts';
+import { pixel } from './webglClusterPixels.mjs';
 
-/** Null without WebGL2. `inHostPass(object)` names the objects counted on each host render. */
+/** Null without WebGL2. `inHostPass(object)` names the objects counted on each scene pass. */
 export function mountExplorerProof(scene, camera, inHostPass, context = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 64;
   const gl = canvas.getContext('webgl2');
   if (!gl) return null;
-  const host = new THREE.WebGLRenderer({ canvas, context: gl }),
-    backend = exactPagesBackend({
+  const backend = exactPagesBackend({
       source: scene.source,
       metadata: scene.metadata,
       indices: scene.indices,
@@ -22,34 +26,39 @@ export function mountExplorerProof(scene, camera, inHostPass, context = {}) {
       webglContext: gl,
       ...context,
     }),
-    draw = createSceneDrawer(host, camera),
-    target = new THREE.WebGLRenderTarget(64, 64),
+    draw = createFrameComposer(gl, camera),
+    target = createWebglRenderTarget(gl, 64, 64),
     calls = [];
-  const originalRender = host.render.bind(host);
-  host.render = (drawn, view) => {
+  const drawHostGeometry = backend.drawHostGeometry;
+  backend.drawHostGeometry = (drawCamera, output) => {
+    drawHostGeometry(drawCamera, output);
     let counted = 0;
-    drawn.traverse((object) => {
+    backend.scene.traverse((object) => {
       if (inHostPass(object)) counted++;
     });
-    calls.push({ counted, children: drawn.children.length });
-    return originalRender(drawn, view);
+    calls.push({ counted, children: backend.scene.children.length });
   };
   return {
     gl,
-    host,
     backend,
     draw,
     target,
     calls,
-    /** Objects the host pass was handed over the whole run. */
+    /** Objects the scene pass was handed over the whole run. */
     get countedInHostPass() {
       return calls.reduce((sum, call) => sum + call.counted, 0);
+    },
+    /** One pixel of the comparison target, read on its own framebuffer. */
+    targetPixel(x, y) {
+      bindWebglTarget(gl, target);
+      const value = pixel(gl, x, y);
+      bindWebglTarget(gl, null);
+      return value;
     },
     dispose() {
       draw.dispose();
       backend.dispose();
       target.dispose();
-      host.dispose();
     },
   };
 }

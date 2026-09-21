@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WebglClusterOwner } from '../../packages/sdk-browser/webglClusterOwner.ts';
-import { createSceneDrawer } from '../../packages/sdk-browser/explorerDrawScene.ts';
+import { createFrameComposer } from '../../packages/sdk-browser/explorerCompose.ts';
 import { prepareExplorerWebglSurface } from '../../packages/sdk-browser/explorerWebglHost.ts';
 
 const readPixel = (gl) => {
@@ -52,7 +52,6 @@ export async function heldRestore() {
       size: { width: 8, height: 8 },
       onLifecycle: (state) => events.push(state),
     }),
-    renderer = new THREE.WebGLRenderer({ canvas, context: surface.context }),
     gl = surface.context,
     camera = new THREE.PerspectiveCamera(),
     scene = new THREE.Scene(),
@@ -67,7 +66,7 @@ export async function heldRestore() {
   mesh.image.getContext('2d').fillStyle = 'red';
   mesh.image.getContext('2d').fillRect(0, 0, 1, 1);
   mesh.material.map.needsUpdate = true;
-  const draw = createSceneDrawer(renderer, camera);
+  const draw = createFrameComposer(gl, camera);
   draw(backend, null);
   backend.frameHeld = true;
   mesh.image.getContext('2d').fillStyle = 'lime';
@@ -83,7 +82,6 @@ export async function heldRestore() {
   const restoredPixel = readPixel(gl);
   draw.dispose();
   owner.dispose();
-  renderer.dispose();
   mesh.geometry.dispose();
   mesh.material.dispose();
   mesh.material.map.dispose();

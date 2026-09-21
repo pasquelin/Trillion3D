@@ -1,6 +1,5 @@
 import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from './backendCommon.ts';
 import { createWebglSurface } from './webglSurface.ts';
-import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
   canvas: HTMLCanvasElement;
@@ -21,17 +20,4 @@ export function prepareExplorerWebglSurface({ canvas, size = {}, onLifecycle }: 
     size.pixelRatio ?? DEFAULT_PIXEL_RATIO,
   );
   return surface;
-}
-
-/** Keeps the temporary draw adapter synchronized without resetting an unchanged buffer. */
-export function resizeExplorerWebglHost(
-  surface: WebglSurface,
-  renderer: { setDrawingBufferSize(width: number, height: number, pixelRatio: number): void },
-  width: number,
-  height: number,
-  pixelRatio: number,
-) {
-  return surface.resize(width, height, pixelRatio, (w, h, ratio) =>
-    renderer.setDrawingBufferSize(w, h, ratio),
-  );
 }

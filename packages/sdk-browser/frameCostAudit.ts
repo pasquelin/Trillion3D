@@ -88,18 +88,11 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   };
 }
 
-/** Counters the host renderer holds. Read by their shape: no computation comes out of them, and
- *  the audit does not have to name the type of a library it only consults. */
-type HostRenderer = {
-  info: { render: { calls: number; triangles: number } };
-  extensions: { has(name: string): boolean };
-};
-
-/** Host view, with real Three counters when this engine owns the WebGL render.
+/** Host view: what the frame published, as the engine counted it.
  * Detailed CPU percentiles are published separately by the existing profiles. */
 export function createHostFrameCostAudit() {
   let last = -Infinity;
-  return (backend: string, frame: number, metrics: FrameMetrics, renderer: HostRenderer | null) => {
+  return (backend: string, frame: number, metrics: FrameMetrics) => {
     if (!frameCostAuditEnabled()) return;
     const now = performance.now();
     if (now - last < 2000) return;
@@ -118,9 +111,6 @@ export function createHostFrameCostAudit() {
       transparentDrawCalls: metrics.transparentDrawCalls,
       pagesLoading: metrics.pagesLoading,
       residentPages: metrics.residentPages,
-      webglRendererCalls: renderer?.info.render.calls ?? null,
-      webglRendererTriangles: renderer?.info.render.triangles ?? null,
-      webglMultiDraw: renderer?.extensions.has('WEBGL_multi_draw') ?? null,
     });
   };
 }

@@ -22,7 +22,7 @@ function fixture(lost: boolean) {
     scope: 'scene' as never,
     emit: (event: { code: string }) => void events.push(event.code),
     diagnose: () => {},
-    drawScene: Object.assign(() => void drawn.push('scene'), { dispose() {} }),
+    compose: Object.assign(() => void drawn.push('compose'), { dispose() {} }),
   };
   return { events, drawn, state, baseline, inputs };
 }
@@ -40,6 +40,6 @@ test('a backend error on a live surface falls back to the baseline', () => {
   const f = fixture(false);
   handleExplorerRenderError(new Error('draw'), f.inputs);
   assert.deepEqual(f.events, ['BACKEND_ERROR']);
-  assert.deepEqual(f.drawn, ['render', 'scene']);
+  assert.deepEqual(f.drawn, ['render', 'compose']);
   assert.equal(f.state.active, f.baseline);
 });
