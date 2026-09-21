@@ -5721,7 +5721,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js"],
+      "affectedConsumers": ["site/content/entries/camera.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/engineCamera.ts:CameraOptics"
     },
@@ -5732,7 +5732,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentEnumsRuntime.js"],
+      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/manifestBinaryFormat.ts:COLUMN_KIND"
     },
@@ -5743,7 +5743,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentEnumsRuntime.js"],
+      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/manifestBinaryFormat.ts:ColumnKind"
     },
@@ -5754,7 +5754,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js", "test/fixtures/hiz.ts"],
+      "affectedConsumers": ["site/content/entries/camera.ts", "test/fixtures/hiz.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/engineCamera.ts:EngineCamera"
     },
@@ -5765,7 +5765,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js"],
+      "affectedConsumers": ["site/content/entries/camera.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/cameraWorld.ts:HostCamera"
     },
@@ -5776,7 +5776,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentEnumsRuntime.js"],
+      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathPathGovernor.ts:PATH_EXPLORE_EVERY"
     },
@@ -5787,7 +5787,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentEnumsRuntime.js"],
+      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathPathGovernor.ts:PATH_MIN_SAMPLES"
     },
@@ -5798,7 +5798,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentEnumsRuntime.js"],
+      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathPathGovernor.ts:PATH_SWITCH_RUNS"
     },
@@ -5810,7 +5810,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "docs/js/docsContentMatrix.js",
+        "site/content/entries/matrix.ts",
         "packages/sdk-browser/bench/appui/socleLigne.mjs",
         "test/justesse/inverseTransposeF32.mjs"
       ],
@@ -5824,7 +5824,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentEnumsRuntime.js"],
+      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/materialSide.ts:Side"
     },
@@ -5835,7 +5835,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentMatrix.js"],
+      "affectedConsumers": ["site/content/entries/matrix.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathSingular.ts:adjugateFactor"
     },
@@ -5846,7 +5846,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js", "test/justesse/cameraSites.mjs"],
+      "affectedConsumers": ["site/content/entries/camera.ts", "test/justesse/cameraSites.mjs"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/engineCamera.ts:createEngineCamera"
     },
@@ -5857,7 +5857,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js"],
+      "affectedConsumers": ["site/content/entries/camera.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/engineCamera.ts:defaultEngineCamera"
     },
@@ -5868,7 +5868,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js"],
+      "affectedConsumers": ["site/content/entries/camera.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/cameraWorld.ts:enginePose"
     },
@@ -5879,7 +5879,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js"],
+      "affectedConsumers": ["site/content/entries/camera.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/engineCamera.ts:holdCameraWorld"
     },
@@ -5890,7 +5890,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentEnumsRuntime.js"],
+      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/materialSide.ts:materialSide"
     },
@@ -5902,7 +5902,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "docs/js/docsContentMatrix.js",
+        "site/content/entries/matrix.ts",
         "packages/sdk-browser/bench/appui/socleLigne.mjs"
       ],
       "disposition": "newly exposed",
@@ -5915,7 +5915,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js", "test/justesse/cameraSites.mjs"],
+      "affectedConsumers": ["site/content/entries/camera.ts", "test/justesse/cameraSites.mjs"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/cameraWorld.ts:readCameraWorld"
     },
@@ -5926,7 +5926,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentEnumsRuntime.js"],
+      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/materialSide.ts:sideOf"
     },
@@ -5937,7 +5937,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["docs/js/docsContentCamera.js"],
+      "affectedConsumers": ["site/content/entries/camera.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/engineCamera.ts:writeEngineCamera"
     }

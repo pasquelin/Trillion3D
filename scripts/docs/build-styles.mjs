@@ -56,10 +56,8 @@ async function loadModule(id, base) {
   return { path, base: dirname(path), module: imported.default ?? imported };
 }
 
-export async function buildStyles(
-  root,
-  { minify = true, output = resolve(root, 'docs/css/site.css') } = {},
-) {
+/** Compiles the site's Tailwind stylesheet into `output`, scanning the sources for class names. */
+export async function buildStyles(root, { minify = true, output }) {
   const input = resolve(root, 'site/styles/tailwind.css');
   const source = await readFile(input, 'utf8');
   const compiler = await compile(source, {

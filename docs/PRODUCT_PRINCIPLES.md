@@ -1,6 +1,6 @@
 # Web Geometry Principles
 
-Canonical source of architecture and product behavior requirements. These requirements serve as targets to validate: they do not claim all features are implemented today. See [SDK capabilities and limits](../../packages/README.md).
+Canonical source of architecture and product behavior requirements. These requirements serve as targets to validate: they do not claim all features are implemented today. See [SDK capabilities and limits](../packages/README.md).
 
 1. **Portable Core.** Engine algorithms, formats, oracles, and contracts remain independent of React and Electron. The interface controls and observes campaigns; it contains no core engine logic.
 2. **Compiled and Versioned Preparation.** Expensive assets are built outside the interactive loop, versioned alongside their schemas, and loaded following manifest validation. No hidden preparation overhead is charged to current frame rendering.

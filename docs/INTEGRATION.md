@@ -1,6 +1,6 @@
 # Web / Electron / Node Integration
 
-- **Web**: `createExplorer(canvasOrId, { manifestUrl, scope, interactive: true })` owns controls, CSS/DPR sizing and demand-driven rendering. The application owns canvas layout and disposal. Without `interactive`, the host owns frame scheduling. See [browser startup](../SDK.md#simple-browser-startup).
+- **Web**: `createExplorer(canvasOrId, { manifestUrl, scope, interactive: true })` owns controls, CSS/DPR sizing and demand-driven rendering. The application owns canvas layout and disposal. Without `interactive`, the host owns frame scheduling. See [browser startup](SDK.md#simple-browser-startup).
 - **Electron**: `prepare` in main process, `createExplorer` in renderer process. No Electron imports in the SDK.
 - **Node**: `prepare` / `createCompilationJob` / CLI `web-geometry-compile`.
 - **Other Languages**: consumption via cache format (JSON pointer + `clusters.json` + SHA-256 objects + `source.gltf`). Interface is the versioned manifest.
