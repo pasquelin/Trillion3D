@@ -22,8 +22,8 @@
   },
   "scene": {
     "formatVersion": 3,
-    "manifestBinaryVersion": 5,
-    "sidecarSha256": "fc211765d715960f3e07dbec03f7d5eb4ab4315f35b5b692920c26cd6b74b2aa",
+    "manifestBinaryVersion": 6,
+    "sidecarSha256": "75a071270a9f8d7b8e74118668ae1d0aeebe84481e6b549edf1ae43125d4acb8",
     "primitives": 2,
     "selectedNodes": [0],
     "totalNodes": 1,

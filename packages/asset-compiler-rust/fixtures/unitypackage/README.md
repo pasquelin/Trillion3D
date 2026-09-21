@@ -5,13 +5,13 @@ Unity project **inside** its `.unitypackage` and **flat** outside it. The golden
 (`../../src/tests/unitypackage_golden.rs`) compiles both through the shared harness, compares the
 second against the first, then compares the first against `expected.json`.
 
-| file                             | what it pins                                                                                                               |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| file                             | what it pins                                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `test.unitypackage`              | the package: 11 GUID folders, each with `pathname`, `asset` and `asset.meta` — scene, prefabs, materials, FBX, TGA texture |
-| `hors-paquet/Assets/`            | the contents of `test.unitypackage`, rebuilt once and for all: the same project without a container                        |
-| `sortie-de-dossier.unitypackage` | a `pathname` `../escape/Map.unity`: escape from the extraction folder, refused `ARCHIVE_PATH_ESCAPE`                       |
-| `tronque.unitypackage`           | 31 of the 26,432 bytes of `test.unitypackage`: the gzip stream stops, rejection `ARCHIVE_UNREADABLE`                       |
-| `vide.unitypackage`              | the 63 bytes of a tar.gz with no entry: rejection `ARCHIVE_EMPTY`                                                          |
+| `hors-paquet/Assets/`            | the contents of `test.unitypackage`, rebuilt once and for all: the same project without a container  |
+| `sortie-de-dossier.unitypackage` | a `pathname` `../escape/Map.unity`: escape from the extraction folder, refused `ARCHIVE_PATH_ESCAPE` |
+| `tronque.unitypackage`           | 31 of the 26,432 bytes of `test.unitypackage`: the gzip stream stops, rejection `ARCHIVE_UNREADABLE` |
+| `vide.unitypackage`              | the 63 bytes of a tar.gz with no entry: rejection `ARCHIVE_EMPTY`                                    |
 
 What each choice puts under watch:
 

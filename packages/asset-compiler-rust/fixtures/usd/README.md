@@ -5,12 +5,12 @@ Two fixtures, two distinct questions. The golden is
 `usd_driver.rs`, what is counted in the report in `usd_rapport.rs`, hard rejections in
 `usd_refus.rs`.
 
-| file                             | what it pins                                                                                                                          |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `minuscule/scene.usda`           | what the driver produces: `Xform` hierarchy, `Mesh` of two quads, `GeomSubset` `materialBind`, two materials of which one is textured |
-| `minuscule/textures/checker.png` | the texture the translucent material cites, resolved relative to the layer folder                                                     |
-| `corpus/usda/scene.usda`         | the same scene as `corpus/usdc`, in text                                                                                              |
-| `corpus/usdc/scene.usdc`         | the same scene as `corpus/usda`, in binary “crate”                                                                                    |
+| file                         | what it pins                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `minuscule/scene.usda`       | what the driver produces: `Xform` hierarchy, `Mesh` of two quads, `GeomSubset` `materialBind`, two materials of which one is textured |
+| `minuscule/textures/checker.png` | the texture the translucent material cites, resolved relative to the layer folder |
+| `corpus/usda/scene.usda`     | the same scene as `corpus/usdc`, in text                                          |
+| `corpus/usdc/scene.usdc`     | the same scene as `corpus/usda`, in binary “crate”                                |
 
 What each choice puts under watch:
 
