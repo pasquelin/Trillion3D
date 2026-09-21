@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 
 /** Copies an OBJ with its vertices scaled then moved: `v` lines change, nothing else does. */
 export async function placeObj(input, output, { scale = 1, offset = [0, 0, 0] } = {}) {
@@ -12,12 +13,7 @@ export async function placeObj(input, output, { scale = 1, offset = [0, 0, 0] } 
 /** Writes axis-aligned boxes, `[center, size, material]` each, as one OBJ with its material
  * library beside it: `materials` maps a name to `[r, g, b]`. */
 export async function writeBoxesObj(file, boxes, materials) {
-  const lines = [
-      `mtllib ${file
-        .split('/')
-        .at(-1)
-        .replace(/\.obj$/, '.mtl')}`,
-    ],
+  const lines = [`mtllib ${basename(file, '.obj')}.mtl`],
     normals = [
       [1, 0, 0],
       [-1, 0, 0],

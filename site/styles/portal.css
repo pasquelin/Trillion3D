@@ -278,6 +278,7 @@ kbd {
 [data-example] {
   display: flex;
   flex-direction: column;
+  /* The viewport, less the header (4.25rem) and the main content's vertical padding. */
   height: calc(100dvh - 4.25rem - 5.5rem);
   min-height: 24rem;
 }
