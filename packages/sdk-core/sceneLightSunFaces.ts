@@ -51,8 +51,9 @@ export function writeSunFace(
     eye[a] = cascade.center[a] - axis[a] * EYE_RADII * radius;
     boxCenter[a] = eye[a] + axis[a] * (far / 2);
   }
-  const planes = shadowOrthographic(radius, far);
+  // The orthography spans the extent, one page wider than the sphere (`sunCascadeOf`).
+  const planes = shadowOrthographic(cascade.halfSide, far);
   composeFace(matrices, matBase, eye, axis);
-  if (cull) writeBoxVolume(cull, cullBase, boxCenter, radius, far / 2, rect);
+  if (cull) writeBoxVolume(cull, cullBase, boxCenter, cascade.halfSide, far / 2, rect);
   return planes;
 }

@@ -11,7 +11,7 @@ import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 /** Slices already queued for this frame's push: set once, cleared after each frame. */
 const queued = new Uint8Array(MAX_SHADOW_SLICES);
 
-/** Word of four rows of drawn pages: the complement of the stale rows, eight bits each. */
+/** Word of four rows of pages that hold the extent, eight bits each. */
 function drawnWord(
   dirty: WebgpuLightState['plan']['slices']['dirty'],
   slice: number,
@@ -21,18 +21,20 @@ function drawnWord(
 ) {
   let word = 0;
   for (let row = first; row < first + 4; row++) {
-    // A row past the face's own is never read: it is left "drawn" so the mask is never a hole.
-    const stale = row < rows ? dirty.row(slice, face, row) : 0;
-    word |= (~stale & 0xff) << ((row - first) * 8);
+    // A row past the face's own is never read: it is left "held" so the mask is never a hole.
+    const held = row < rows ? dirty.heldRow(slice, face, row) : 0xff;
+    word |= held << ((row - first) * 8);
   }
   return word >>> 0;
 }
 
 /**
  * Drawn-page masks of every shadowed light's faces, into the slice mirror, after the frame's
- * scheduling. A face whose mask changed joins `flushed` even when nothing was drawn in it:
- * an extent that slid has a stale strip the read must fall through, and only the slice buffer
- * can tell it so. Returns the new count of slices to push.
+ * scheduling: the pages that hold a depth of the face's extent, not the complement of the
+ * stale mask — a page awaiting a redraw still holds one. A face whose mask changed joins
+ * `flushed` even when nothing was drawn in it: an extent that slid has a strip the read must
+ * fall through, and only the slice buffer can tell it so. Returns the new count of slices to
+ * push.
  */
 export function writeDrawnMasks(lights: WebgpuLightState, flushed: Int32Array, count: number) {
   const { store, plan, shadows } = lights,
