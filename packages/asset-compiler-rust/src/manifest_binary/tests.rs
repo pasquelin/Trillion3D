@@ -65,6 +65,27 @@ fn digests_reads_back_every_sha_column() {
     assert_eq!(found, expected);
     assert!(digests(&bytes[..12]).is_err());
 }
+// Behaviour: a column entry that is not a digest names no object — the reader
+// refuses it, so neither the proof nor prune ever forms a path from it.
+#[test]
+fn a_sha_column_entry_that_is_not_a_digest_is_refused() {
+    let templates = Templates {
+        binary: "clusters.bin",
+        page: "../../objects/{sha}.bin",
+        geometry: "../../objects/{sha}.bin",
+        bundle: "../../objects/{sha}.bin",
+    };
+    let (_, mut bytes) = split(&sample(), &templates, &[]).expect("split");
+    let at = bytes
+        .windows(64)
+        .position(|window| window == sha('a').as_bytes())
+        .expect("page digest column");
+    bytes[at..at + 3].copy_from_slice(b"../");
+    assert_eq!(
+        digests(&bytes).unwrap_err().message,
+        "Digest column entry is not a digest"
+    );
+}
 #[test]
 fn columns_declare_their_own_offsets_and_lengths() {
     let templates = Templates {

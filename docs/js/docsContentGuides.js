@@ -1,7 +1,5 @@
-import { engineExampleCode } from './engine-scene/code.js';
-/** Guides and examples: prose in `html`, code in `example`, both rendered by the React Entry component. */
-const GUIDE = { section: 'guides', kind: 'Guide' };
-const EXAMPLE = { section: 'examples', kind: 'Example' };
+/** Guides: prose in `html`, rendered by the React Entry component. */
+export const GUIDE = { section: 'guides', kind: 'Guide' };
 
 export const GUIDES = [
   {
@@ -47,6 +45,7 @@ const explorer: Explorer = await createExplorer('viewer', options);
 <li><strong><code>Float64Array</code> for what is computed</strong>, <code>ArrayLike&lt;number&gt;</code> for what is only read. Single precision is a send conversion, done when a result is copied into a GPU buffer.</li>
 <li><strong>Same bits as the reference</strong>, proven by <code>pnpm run perf:core</code>: each line runs the host library and the engine on the same seeded inputs and refuses an engine slower than the reference. Two declared exceptions: the sRGB curve (gap ≤ 1e-11) and the depth terms of the projection (reversed, infinite far plane).</li>
 <li><strong>Measure before optimising.</strong> A per-step CPU profile (<code>cpu-timing</code> diagnostic) and a GPU stage profile (<code>stageProfile()</code>) say where a frame goes; nothing is optimised on a supposition.</li>
+<li><strong>Materials proven on screen.</strong> <code>pnpm run test:gpu</code> renders twelve material fixtures — base colour and its map, alpha MASK at its cutoff, BLEND, back faces, metal-roughness, emissive, normal map — with the engine and with the Three witness, both from <code>dist/</code>, and holds every read pixel within one level of the witness; the one declared gap, a blend over an opaque surface, is measured at 45 levels and held there (<code>docs/SDK.md</code> § Separated surfaces and lighting).</li>
 </ul>
 <h3 class="text-lg font-bold mt-4">Reading this portal</h3>
 <p>Every application example imports <code>web-geometry</code>. The source-module link on each entry is implementation provenance, not a consumer import path. An entry with an <span class="badge badge-warning badge-sm">in development</span> badge names a function the repository does not deliver yet: its page states the issue that carries it and the signature that issue commits to. Everything else is on <code>develop</code> today.</p>`,
@@ -73,6 +72,12 @@ const explorer: Explorer = await createExplorer('viewer', options);
 </tbody></table></div>
 <p>The delivered functions are listed batch by batch, with their proof, in
 <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>
+<h3 class="text-lg font-bold mt-4">What the WebGL2 path draws itself</h3>
+<p>On a WebGL2 session the engine owns the context and draws every paged cluster with its own program — opaque, alpha-masked and blended batches, diagnostic pages — and, since #120, the transmissive surfaces of the scene: a <code>KHR_materials_transmission</code> mesh is kept as a scene copy, composed after the clusters over a frozen backdrop of the frame in linear light, the same model as the WebGPU pass. There is no other renderer for clusters: a material, light or texture the program cannot preserve fails the preparation with <code>EngineError</code> <code>CLUSTER_MATERIAL_UNSUPPORTED</code>, its <code>details.reason</code> naming the input, never a partial image. The host renderer still composes the remaining blended copies, the comparison compositor, captures and held frames (#85).</p>
+<div class="overflow-x-auto my-4"><table class="table table-zebra table-sm"><thead><tr><th>Three.js</th><th>Engine</th><th>Declared difference</th></tr></thead><tbody>
+<tr><td><code>WebGLRenderer.renderTransmissionPass</code></td><td>transmission pass of <code>WebglClusterRenderer</code></td><td>the backdrop is a plain copy: roughness does not blur it, one glass does not see through another</td></tr>
+<tr><td><code>MeshPhysicalMaterial</code> extensions</td><td>transmission, IOR and volume factors only</td><td>clearcoat, sheen, iridescence, anisotropy, dispersion, specular and the extension maps are refused by name</td></tr>
+</tbody></table></div>
 <p>Two-step path for a host: keep Three.js for loading and scene building and render with the engine (what the measurement Lab does today); then replace the loading by the compiled cache and drop <code>three</code> from the dependencies.</p>`,
   },
   {
@@ -96,105 +101,5 @@ const explorer: Explorer = await createExplorer('viewer', options);
 <li>The measurement harness prints the same numbers per view as <em>Hi-Z tested/rejected</em>; the street view of the reference scene rejects 5,131 of 24,902 rows where the former history rejected 440.</li>
 </ul>
 <p>The lesson <a class="link link-primary" href="#/en/examples/occlusion-two-phase">Hide a ring behind a ring</a> shows the counters move on the garden as the eye drops to ring height.</p>`,
-  },
-];
-
-export const EXAMPLES = [
-  {
-    ...EXAMPLE,
-    id: 'example-many-lights',
-    title: 'Many lights, one budget',
-    description:
-      'Declare a ring of shadowed lamps, read the sampling budget, and tell a converged still image from a moving one.',
-    html: `<p>Every declared light is culled per 16×16 screen tile (<code>lightSettings.maxLightsPerTile</code> of them kept). What a pixel does with its tile's list depends on the image: a <strong>moving</strong> image that temporal antialiasing accumulates weighs every light without its shadow — the cheap part — and shades in full only <code>lightSettings.samplesPerPixel</code> (4) of them, the shadow read included: a light worth a sample's share is shaded exactly, the rest are drawn in proportion to their weight and divided by their probability, so the history averages an unbiased estimate. A <strong>still</strong> image shades every light of the tile and converges to the exact sum over its sixteen accumulated frames, then holds: two runs give the same image to the bit.</p>
-<p>What a host observes: <code>explorer.lightSettings</code> publishes the budgets; <code>metrics().lightsSampled</code> is the mode flag: <code>true</code> when the resolve ran in its sampled mode — a moving image on a history, where a pixel with more lights than samples draws a subset —, <code>false</code> when it ran the full loop; <code>metrics().frameHeld</code> says the still image has converged; <code>stageProfile()</code> carries the lighting resolve stage. The declared cost is a faint grain on lit surfaces while the camera moves, measured in <code>docs/SDK.md</code>; the gain, on a moving camera over thirty-two shadowed lamps reaching one pixel, is a GPU envelope of 39.9 → 17.9 ms at 2496×1404. The <a class="link link-primary" href="#/en/playground/many-lights-sampling">ring lesson</a> shows it live.</p>`,
-    example: `const { maxLightsPerTile, samplesPerPixel } = explorer.lightSettings; // 32 per tile, 4 shaded per moving pixel
-for (let i = 0; i < 12; i++) {
-  const angle = (i / 12) * Math.PI * 2;
-  explorer.addLight({
-    id: \`ring-\${i}\`, kind: 'point', castsShadow: true, range: 11, intensity: 45,
-    position: [Math.cos(angle) * 6, 4.5, Math.sin(angle) * 6],
-    color: i % 2 ? [0.08, 0.35, 1] : [1, 0.3, 0.08],
-  });
-}
-const metrics = explorer.render();
-// While the camera moves on a history: lightsSampled === true, at most samplesPerPixel lamps shaded per pixel.
-// Once still and converged: lightsSampled === false, frameHeld === true — the exact image, held.
-console.log(metrics.lightsSampled, metrics.frameHeld, metrics.lightsActive);`,
-  },
-  {
-    ...EXAMPLE,
-    id: 'example-explorer',
-    title: 'Explorer startup and budgets',
-    description:
-      'Interactive startup with explicit memory budgets; the engine owns controls, sizing and demand-driven rendering.',
-    example: engineExampleCode,
-  },
-  {
-    ...EXAMPLE,
-    id: 'example-camera',
-    title: 'Camera frame without allocation',
-    description:
-      'A projection and a camera frame allocated once, rewritten every frame from a world matrix.',
-    example: `import { createCameraFrame, perspectiveProjection, updateCameraFrame } from 'web-geometry';
-
-const projection = new Float64Array(16);
-const world = new Float64Array(16); // the camera's world matrix, column-major
-const frame = createCameraFrame(); // view, viewProjection, frustum planes
-
-function onResize(width, height) {
-  perspectiveProjection(projection, 50, width / height, 0.1, 1);
-}
-function onFrame() {
-  // world[12..14] = eye position, columns 0..2 = orientation
-  updateCameraFrame(frame, projection, world, 2000);
-  // frame.viewProjection feeds the GPU, frame.planes the culling
-}`,
-  },
-  {
-    ...EXAMPLE,
-    id: 'example-batch',
-    title: 'A hierarchy in one batch',
-    description:
-      'Ten thousand nodes composed and multiplied by their parents in one pass, on flat buffers.',
-    example: `import {
-  HIERARCHY_ROOT, MATRIX_VALUES, POSITION_VALUES, QUATERNION_VALUES, hierarchyUpdateBatch,
-} from 'web-geometry';
-
-const n = 10000;
-// One buffer per quantity, and fixed-size sub-views over it — built once, never per frame.
-const views = (buffer, stride) =>
-  Array.from({ length: n }, (_, i) => buffer.subarray(i * stride, (i + 1) * stride));
-const world = new Float64Array(n * MATRIX_VALUES);
-const positions = new Float64Array(n * POSITION_VALUES);
-const rotations = new Float64Array(n * QUATERNION_VALUES);
-const scales = new Float64Array(n * POSITION_VALUES).fill(1);
-const parents = new Uint32Array(n).fill(HIERARCHY_ROOT); // parents[i] < i, or a root
-for (let i = 0; i < n; i++) rotations[i * QUATERNION_VALUES + 3] = 1; // identity rotation
-const local = new Float64Array(MATRIX_VALUES); // scratch, reused by every element
-
-// One pass, parents before children: local = T·R·S, then world = parent world · local.
-hierarchyUpdateBatch(
-  views(world, MATRIX_VALUES),
-  views(positions, POSITION_VALUES),
-  views(rotations, QUATERNION_VALUES),
-  views(scales, POSITION_VALUES),
-  parents,
-  n,
-  local,
-);`,
-  },
-  {
-    ...EXAMPLE,
-    id: 'example-diagnostics',
-    title: 'Diagnostics and quality',
-    description: 'Switching what the frame draws and how fine the cut is, on a live explorer.',
-    example: `explorer.setDiagnostic('clusters'); // one stable colour per cluster, on the real cut
-explorer.setDiagnostic('screen-error'); // the projected error the cut compares to the threshold
-explorer.setDiagnostic('materials'); // one colour per material class: the pass that resolved the pixel
-explorer.setDiagnostic('beauty'); // back to the lit image
-explorer.setPixelError(2); // coarser cut: up to two pixels of projected error
-console.log(explorer.diagnostics); // which modes this backend can produce, and why not
-console.log(explorer.stageProfile()); // per-stage CPU/GPU quantiles over the last frames`,
   },
 ];
