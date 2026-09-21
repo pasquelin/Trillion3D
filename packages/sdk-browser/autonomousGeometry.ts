@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import type { HostMaterials } from './hostResources.ts';
-import { asHostLibrary } from './hostResources.ts';
+import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import { setGeometryBounds } from './threeBounds.ts';
 import type { GeometryPageDescriptor } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';

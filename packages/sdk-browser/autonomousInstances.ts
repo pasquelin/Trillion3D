@@ -158,15 +158,20 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
           rec.clusterId.startsWith(`${primitive}/`) || rec.clusterId.includes(`/${primitive}/`),
       );
       if (!records.length) throw new Error('AUTONOMOUS_PRIMITIVE_MISSING');
+      // Two host materials at most, built once for the whole primitive: the plain one, and the
+      // vertex-coloured twin a page with a colour attribute draws with.
       const painted = hostMaterialOf(material, false);
-      owned.push(painted);
-      let coloured: THREE.Material | undefined;
+      const coloured = records.some((rec) => rec.attributes.color)
+        ? hostMaterialOf(material, true)
+        : painted;
+      owned.push(painted, ...(coloured === painted ? [] : [coloured]));
       for (const rec of records) {
         baseMaterials.set(rec, painted);
-        if (rec.attributes.color && !coloured) owned.push((coloured = hostMaterialOf(material, true)));
-        rec.material = rec.attributes.color ? coloured! : painted;
+        rec.material = rec.attributes.color ? coloured : painted;
         if (rec.mesh)
-          asHostLibrary<THREE.Mesh>(rec.mesh).material = asHostLibrary<THREE.Material>(rec.material);
+          asHostLibrary<THREE.Mesh>(rec.mesh).material = asHostLibrary<THREE.Material>(
+            rec.material,
+          );
       }
     },
   };
