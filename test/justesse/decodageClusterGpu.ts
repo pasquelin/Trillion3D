@@ -12,6 +12,13 @@ export const VERTEX_WORDS = 14;
 /** Words a triangle occupies: its three corners, then the tangent and bitangent of its frame. */
 export const TRIANGLE_WORDS = 9;
 
+/** A page ready to upload: its encoded bytes and the vertex/index counts its header carries. */
+export interface ClusterPage {
+  octets: Uint8Array | number[];
+  vertexCount: number;
+  indexCount: number;
+}
+
 const SHADER = `@group(0) @binding(0) var<storage, read> pageWords:array<u32>;
 @group(0) @binding(1) var<storage, read_write> out:array<u32>;
 ${clusterDecodeWgsl('pageWords')}
@@ -40,7 +47,17 @@ fn put(at:u32,v:f32){out[at]=bitcast<u32>(v);}
 }`;
 
 /** Run in the page: one pipeline, every page decoded, the output words read back. */
-async function executer({ shader, pages, vertexWords, triangleWords }) {
+async function executer({
+  shader,
+  pages,
+  vertexWords,
+  triangleWords,
+}: {
+  shader: string;
+  pages: (ClusterPage & { octets: number[] })[];
+  vertexWords: number;
+  triangleWords: number;
+}) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
@@ -97,7 +114,7 @@ async function executer({ shader, pages, vertexWords, triangleWords }) {
 }
 
 /** Decodes each `{ octets, vertexCount, indexCount }` page on the GPU; words per page, in order. */
-export async function decodageClusterGpu(pages) {
+export async function decodageClusterGpu(pages: ClusterPage[]) {
   return await dansPageWebgpu(executer, {
     shader: SHADER,
     pages: pages.map((page) => ({ ...page, octets: Array.from(page.octets) })),

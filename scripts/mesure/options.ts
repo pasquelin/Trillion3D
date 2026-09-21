@@ -29,7 +29,7 @@ function packageDir(root: string, name: string) {
  * dist of each side and its cache if it has one. `resources` is the folder referenced by relative path
  * (`assets/textures/...`) in a compiled cache glTF; without it, textures in a compiled cache yield 404.
  */
-export function resolveMounts(root: string, sides: SideBase[], resources: string | null) {
+export function resolveMounts(root: string, sides: SideBase[], resources: string | null = null) {
   return [
     { prefix: '/vendor/three/', dir: packageDir(root, 'three') },
     // Modules imported by the page via URL: `pageCoupe.ts`, `pageTemoin.ts`.

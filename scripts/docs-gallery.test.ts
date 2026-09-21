@@ -6,20 +6,25 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import { codeFor } from '../site/lessons/code.ts';
 import { evaluate } from '../site/lessons/evaluate.ts';
+import { expectedResultFor } from './docs/expected-result.ts';
 import { geometryFor } from '../site/lessons/sceneGeometry.ts';
 import { draw, legendAnchors } from '../site/lessons/draw.ts';
 import { initialState } from '../site/lessons/scenarios.ts';
 import { examples } from '../site/content/catalog.ts';
 import { rendererLessons } from '../site/lessons/rendererLessons.ts';
+import type { Locale } from '../site/content/locale.ts';
+import {
+  Gallery,
+  Playground,
+  ExampleCard,
+  Home,
+  CodeBlock,
+} from './docs/gallery-test-components.ts';
+import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 
 const root = new URL('../site/lessons/', import.meta.url);
-const { Gallery } = await loadReactComponents('site/app/gallery/Gallery.tsx');
-const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
-const { ExampleCard } = await loadReactComponents('site/app/gallery/ExampleCard.tsx');
-const { Home } = await loadReactComponents('site/app/portal/Home.tsx');
-const { CodeBlock } = await loadReactComponents('site/app/components/CodeBlock.tsx');
-const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
-const renderPlayground = (id, locale) =>
+const renderGallery = (locale: Locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
+const renderPlayground = (id: string, locale: Locale) =>
   renderToStaticMarkup(createElement(Playground, { id, locale }));
 const mathExamples = examples.filter(({ renderer }) => !renderer);
 
@@ -30,7 +35,7 @@ test('gallery exposes bilingual math and public renderer lessons', () => {
   for (const example of examples) {
     assert.ok(example.title.en && example.title.fr);
     assert.ok(example.description.en && example.description.fr);
-    assert.ok(example.functions.length > 0);
+    assert.ok(example.functions && example.functions.length > 0);
   }
   assert.match(renderGallery('fr'), /Décisions du frustum/);
   assert.match(renderPlayground('dot-product', 'en'), /Dot product as alignment/);
@@ -61,19 +66,26 @@ test('diagram legends assign a distinct fixed anchor to every label', () => {
 
 test('all four advanced lessons mount their complementary diagram with finite geometry', () => {
   class SvgNode {
-    children = [];
-    setAttribute(name, value) {
+    children: Element[] = [];
+    setAttribute(name: string, value: unknown) {
       assert.doesNotMatch(String(value), /NaN|undefined/, name);
     }
-    append(...children) {
+    append(...children: Element[]) {
       this.children.push(...children);
     }
-    replaceChildren(...children) {
+    replaceChildren(...children: Element[]) {
       this.children = children;
     }
   }
   const previous = globalThis.document;
-  globalThis.document = { createElementNS: () => new SvgNode() };
+  // `document` is only used here as a minimal SVG-node factory; the mock cannot satisfy the
+  // full `Document`/`SVGSVGElement` contracts, so the swap goes through `PropertyDescriptor`
+  // (whose `value` is `any` in the standard lib) instead of an unsound cast.
+  Object.defineProperty(globalThis, 'document', {
+    value: { createElementNS: () => new SvgNode() },
+    configurable: true,
+    writable: true,
+  });
   try {
     for (const id of [
       'matrix-inverse',
@@ -113,14 +125,12 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(gallery, /#\/en\/playground\/compose-transform/);
 });
 
-test('planned lessons stay honest, specific, and link to related ready material', async () => {
-  const roadmap = JSON.parse(
-    await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
-  );
+test('planned lessons stay honest, specific, and link to related ready material', () => {
   assert.equal(roadmap.entries.length, 607);
-  for (const locale of ['en', 'fr'])
+  for (const locale of ['en', 'fr'] as const)
     assert.equal(new Set(roadmap.entries.map((entry) => entry.title[locale])).size, 607);
   const entry = roadmap.entries.find(({ subject }) => subject === 'camera');
+  assert.ok(entry);
   const card = renderToStaticMarkup(
     createElement(ExampleCard, { example: entry, locale: 'fr', expanded: true, onOpen() {} }),
   );
@@ -158,24 +168,8 @@ test('every displayed snippet runs and matches its playground result', async () 
     const source = codeFor(example.id, state).replace("'./js/engine.js'", JSON.stringify(engine));
     const actual = (await import(`data:text/javascript,${encodeURIComponent(source)}`)).default;
     const result = evaluate(example.id, state);
-    const expected = {
-      'compose-transform': result.points?.[2],
-      'matrix-chain': result.point,
-      'matrix-inverse': result.identity,
-      'reflection-orientation': [result.determinant, result.linear],
-      'quaternion-turn': result.direction,
-      'normal-transform': result.normal,
-      perspective: result.ndc,
-      frustum: result.status,
-      'dot-product': result.dot,
-      'cross-product': result.cross,
-      normalize: result.after,
-      'box-grow': result.box,
-      'sphere-from-box': result.sphere,
-      hierarchy: result.point,
-      'color-space': [result.screen, result.light],
-      'lod-budget': result.error,
-    }[example.id];
+    const expected = expectedResultFor(example.id, result);
+    assert.ok(expected !== undefined, example.id);
     if (typeof expected === 'number') assert.ok(Math.abs(actual - expected) < 1e-10, example.id);
     else assert.deepEqual(Array.from(actual), Array.from(expected), example.id);
   }
@@ -191,7 +185,7 @@ test('every scenario calls the engine module', async () => {
   ).join('\n');
   for (const example of mathExamples)
     assert.ok(
-      example.functions.some((name) => source.includes(name)),
+      example.functions?.some((name) => source.includes(name)),
       `${example.id} has no engine call`,
     );
   assert.doesNotMatch(source, /eval\(|new Function/);
