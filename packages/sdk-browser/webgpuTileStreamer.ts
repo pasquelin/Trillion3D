@@ -32,16 +32,20 @@ export function createWebgpuTileStreamer(options: {
   budgetBytes: number;
   readLevel?: TextureLevelReader;
   onFailure: (phase: string, error: unknown) => void;
-  /** Colour tiles have just arrived or left: what a cutout-foliage shadow must follow. */
-  onColorChanged: () => void;
+  /** Colour textures a tile of which arrived or was evicted in this pump — what a
+   *  cutout-foliage shadow must follow —, or `-1` when the pool was resized. */
+  onColorChanged: (slots: ReadonlySet<number> | -1) => void;
 }) {
   const { device } = options;
+  /** Colour textures a pump served or evicted a tile of: named once each, however many tiles. */
+  const colorChanged = new Set<number>();
   const color = createWebgpuTileAtlas(device, {
     kind: 'color',
     format: 'rgba8unorm-srgb',
     layers: options.layersPerAtlas,
     feedbackOffset: 0,
     textures: options.color,
+    onEvicted: (slot) => colorChanged.add(slot),
   });
   const data = createWebgpuTileAtlas(device, {
     kind: 'data',
@@ -108,8 +112,8 @@ export function createWebgpuTileStreamer(options: {
       let served = 0,
         waiting = 0,
         bytes = 0,
-        colorServed = false,
         encoder: GPUCommandEncoder | undefined;
+      colorChanged.clear();
       const open = () => (encoder ??= device.createCommandEncoder({ label: 'WG texture tiles' }));
       const wanted = requests(frame);
       counters.worked = wanted.length > 0;
@@ -128,7 +132,7 @@ export function createWebgpuTileStreamer(options: {
         else if (verdict === 'served') {
           served++;
           bytes += TILE_BYTES;
-          if (request.atlas === color) colorServed = true;
+          if (request.atlas === color) colorChanged.add(request.key.slot);
         }
       }
       if (encoder) device.queue.submit([encoder.finish()]);
@@ -137,7 +141,7 @@ export function createWebgpuTileStreamer(options: {
       counters.served += served;
       counters.pending = waiting;
       counters.bytesLastFrame = bytes;
-      if (colorServed) options.onColorChanged();
+      if (colorChanged.size) options.onColorChanged(colorChanged);
       return { served, waiting };
     },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
@@ -159,7 +163,7 @@ export function createWebgpuTileStreamer(options: {
     resize(layers: number) {
       const evicted = color.resize(device, layers) + data.resize(device, layers);
       flushAll();
-      options.onColorChanged();
+      options.onColorChanged(-1);
       return evicted;
     },
     metrics: () => counters.metrics([color, data], sources.levels),

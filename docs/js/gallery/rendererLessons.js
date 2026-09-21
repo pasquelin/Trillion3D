@@ -67,21 +67,22 @@ export const rendererLessons = [
     functions: ['addLight', 'setLight', 'lightingCapabilities'],
     title: title('Turn the shadow sun', 'Tourner le soleil des ombres'),
     description: title(
-      'Rotate a directional light whose cascaded shadows follow the camera.',
-      'Tournez une lumière directionnelle dont les ombres en cascades suivent la caméra.',
+      'Rotate a directional light whose cascaded shadow pages follow the camera and are cached.',
+      'Tournez une lumière directionnelle dont les pages d’ombre en cascades suivent la caméra et restent en cache.',
     ),
     controls: [
       control('intensity', 'Intensity', 'Intensité', 0.2, 6, 2.5, 0.1),
       control('angle', 'Sun angle', 'Angle du soleil', -180, 180, -35, 1),
     ],
     kind: 'directional',
+    shadowStats: true,
     try: title(
-      'Sweep the sun across the hard edges.',
-      'Balayez les arêtes franches avec le soleil.',
+      'Turn the sun, then zoom or orbit with the same sun, and read the shadow pages each move redraws.',
+      'Tournez le soleil, puis zoomez ou orbitez à soleil fixe, et lisez les pages d’ombre que chaque geste redessine.',
     ),
     changes: title(
-      'Light direction and cascaded shadows rotate together.',
-      'La lumière et les ombres en cascades tournent ensemble.',
+      'A new sun direction restarts every page of the four cascades; a camera move slides their extents by whole pages and redraws only the strips that enter; a still camera redraws nothing.',
+      'Une nouvelle direction du soleil relance toutes les pages des quatre cascades ; un déplacement de caméra fait glisser leurs fenêtres par pages entières et ne redessine que les bandes qui entrent ; une caméra immobile ne redessine rien.',
     ),
   },
   {
