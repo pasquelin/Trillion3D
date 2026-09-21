@@ -3,15 +3,17 @@ import { FEEDBACK_FORMAT } from './surfaceBuffer.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from './webgpuBindLayout.ts';
-import { VOLUME_SIZE } from './webgpuTransmission.ts';
+import { WATER_SURFACE_WGSL } from './webgpuWaterSurfaceWgsl.ts';
+import { ALPHA_BLEND, blendStagePipelines } from './webgpuBlendStagePipelines.ts';
+import { createWaterPass, type WaterPass } from './webgpuWaterPass.ts';
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
   type DiagnosticGpuVariant,
 } from './diagnosticGpuVariant.ts';
-import { DEPTH_COMPARE } from './depthConvention.ts';
 
-/** Builds the forward-material pipelines for transparent draws. */
+/** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
+ *  that transmits. */
 export async function createWebgpuBlendPipelines(
   device: GPUDevice,
   items: BlendGpuItem[],
@@ -63,61 +65,41 @@ export async function createWebgpuBlendPipelines(
       // stay with deferred resolve, which can write. It is the eighth and last storage binding of
       // this fragment stage, the one the spec still guarantees.
       { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      {
-        binding: b.volume,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: VOLUME_SIZE },
-      },
-      {
-        binding: b.backdrop,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float', viewDimension: '2d' },
-      },
-      {
-        binding: b.backdropDepth,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'depth', viewDimension: '2d' },
-      },
     ],
   });
+  // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
+  // the transmission slice draws as one more blend, so the variant measures the same fragment
+  // stage on all of it. Its surface stage is compiled into the blend module only then.
+  const wantsWater = !variant && items.some((item) => item.transmissive);
   const blendModule = device.createShaderModule({
-    code: variant ? BLEND_SHADER + DIAGNOSTIC_BLEND_WGSL : BLEND_SHADER,
+    code:
+      BLEND_SHADER +
+      (wantsWater ? WATER_SURFACE_WGSL : '') +
+      (variant ? DIAGNOSTIC_BLEND_WGSL : ''),
   });
-  const makeBlend = (cullMode: GPUCullMode) => {
-    const descriptor: GPURenderPipelineDescriptor = {
-      layout: device.createPipelineLayout({ bindGroupLayouts: [blendBindGroupLayout] }),
-      vertex: { module: blendModule, entryPoint: 'vs' },
-      fragment: {
-        module: blendModule,
-        entryPoint,
-        targets: [
-          {
-            format: 'rgba16float' as GPUTextureFormat,
-            writeMask,
-            blend: {
-              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-            },
-          },
-          // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
-          // that reduction rereads after the pass.
-          { format: FEEDBACK_FORMAT },
-        ],
-      },
-      primitive: { topology: 'triangle-list', cullMode, frontFace: 'ccw' },
-      depthStencil: {
-        format: 'depth32float',
-        depthWriteEnabled: false,
-        depthCompare: DEPTH_COMPARE,
-      },
-    };
-    return device.createRenderPipelineAsync
-      ? device.createRenderPipelineAsync(descriptor)
-      : Promise.resolve(device.createRenderPipeline(descriptor));
-  };
-  for (const item of items) item.group = undefined;
-  const pipelineBlendTextured = await makeBlend('none'),
-    pipelineBlendFront = await makeBlend('front'),
-    pipelineBlendBack = await makeBlend('back');
-  return { blendBindGroupLayout, pipelineBlendTextured, pipelineBlendFront, pipelineBlendBack };
+  const blendPipelines = await blendStagePipelines(
+    device,
+    blendModule,
+    blendBindGroupLayout,
+    {
+      module: blendModule,
+      entryPoint,
+      targets: [
+        { format: 'rgba16float', writeMask, blend: ALPHA_BLEND },
+        // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
+        // that reduction rereads after the pass.
+        { format: FEEDBACK_FORMAT },
+      ],
+    },
+    false,
+  );
+  // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.
+  let water: WaterPass | undefined, waterRefused: Error | undefined;
+  if (wantsWater)
+    try {
+      water = await createWaterPass(device, blendModule, blendBindGroupLayout);
+    } catch (error) {
+      waterRefused = error instanceof Error ? error : new Error(String(error));
+    }
+  return { blendBindGroupLayout, blendPipelines, water, waterRefused };
 }

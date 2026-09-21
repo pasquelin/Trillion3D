@@ -13,7 +13,7 @@ import {
 } from './webgpuPagesEncoder.ts';
 import { encodeBlend } from './webgpuPagesEncodeBlend.ts';
 import { encodeVis } from './webgpuPagesEncodeVis.ts';
-import { dropPoolBindGroups, dropVis } from './webgpuPagesDrops.ts';
+import { dropVis } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
@@ -26,7 +26,6 @@ export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   rows.pageTableFloats = new Float32Array(bytes / 4);
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer);
   vis.pageTable?.destroy();
-  dropPoolBindGroups(rt);
   vis.pageTable = device.createBuffer({
     label: 'WG page table',
     size: bytes,
@@ -90,7 +89,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       rows.markRowDirty(row);
     }
   }
-  if (vis.visEnabled && vis.visPipelineBack && vis.shadePipeline && vis.visView) {
+  if (vis.visEnabled && vis.visPipelineBack && vis.materialDepthPipeline && vis.visView) {
     try {
       return encodeVis(rt, device, cam);
     } catch (error) {

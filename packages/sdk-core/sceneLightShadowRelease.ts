@@ -1,10 +1,7 @@
-import {
-  MAX_SHADOW_SLICES,
-  SCENE_LIGHT_FLOATS,
-  SCENE_LIGHT_HEADER_FLOATS,
-} from './sceneLightContracts.ts';
+import { MAX_SHADOW_SLICES } from './sceneLightContracts.ts';
+import { castsShadow } from './sceneLightShadowCasters.ts';
 import type { createShadowSliceTable } from './sceneLightShadowSlices.ts';
-import { LIGHT_FIELD, type SceneLightStore } from './sceneLightStore.ts';
+import type { SceneLightStore } from './sceneLightStore.ts';
 
 type Slices = ReturnType<typeof createShadowSliceTable>;
 
@@ -31,9 +28,8 @@ export function createShadowRelease() {
     for (let slot = 0; slot < store.count; slot++) {
       const slice = store.sliceOf(slot);
       if (slice < 0) continue;
-      const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
       // The light is there but no longer casts a shadow: it drops its slice here, like a game.
-      if (store.packed[base + LIGHT_FIELD.castsShadow] === 0) store.assignSlice(slot, -1);
+      if (!castsShadow(store, slot)) store.assignSlice(slot, -1);
       else claimed[slice] = 1;
     }
     for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)

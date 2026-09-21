@@ -25,7 +25,7 @@ test('unsupported mutations refuse the autonomous draw before it becomes partial
     undefined,
   );
   material.premultipliedAlpha = true;
-  assert.match(clusterMaterialReason(material, { position })!, /clustered blend contract/);
+  assert.match(clusterMaterialReason(material, { position })!, /unsupported blend state/);
   material.premultipliedAlpha = false;
   material.transparent = false;
   material.wireframe = true;
@@ -33,6 +33,18 @@ test('unsupported mutations refuse the autonomous draw before it becomes partial
   material.wireframe = false;
   material.alphaMap = new THREE.Texture({});
   assert.match(clusterMaterialReason(material, { position })!, /unsupported extension/);
+});
+
+test('a normal-mapped material needs no tangent attribute: the shader rebuilds the frame', () => {
+  const material = new THREE.MeshStandardMaterial({ normalMap: new THREE.Texture({}) });
+  assert.equal(
+    clusterMaterialReason(material, {
+      position,
+      normal: new THREE.BufferAttribute(new Float32Array(9), 3),
+      uv: new THREE.BufferAttribute(new Float32Array(6), 2),
+    }),
+    undefined,
+  );
 });
 
 test('a texture selecting UV1 is refused when geometry has only UV0', () => {
@@ -59,6 +71,8 @@ test('one material is validated against every distinct geometry attribute set', 
           { material, geometry: { attributes: { position, uv } } },
         ] as never,
         [],
+        [],
+        [],
         new Map(),
       ),
     /no UV1 attribute/,
@@ -71,6 +85,8 @@ test('a runtime mutation to a material array is rejected instead of disappearing
     () =>
       validateClusterMeshes(
         [{ material: [material], geometry: { attributes: { position } } }] as never,
+        [],
+        [],
         [],
         new Map(),
       ),
@@ -92,7 +108,10 @@ test('mutating one generated sideSplit pass is refused before either pass draws'
     _sideSplitSource: source,
   };
   pair[0] = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.BackSide });
-  assert.throws(() => validateClusterMeshes([mesh] as never, [], new Map()), /invalid sideSplit/);
+  assert.throws(
+    () => validateClusterMeshes([mesh] as never, [], [], [], new Map()),
+    /invalid sideSplit/,
+  );
 });
 
 test('mutating a sideSplit source to an unsupported state is refused', () => {
@@ -112,13 +131,41 @@ test('mutating a sideSplit source to an unsupported state is refused', () => {
   };
   source.premultipliedAlpha = true;
   assert.throws(
-    () => validateClusterMeshes([mesh] as never, [], new Map()),
-    /clustered blend contract/,
+    () => validateClusterMeshes([mesh] as never, [], [], [], new Map()),
+    /unsupported blend state/,
   );
   source.premultipliedAlpha = false;
   source.forceSinglePass = true;
   assert.throws(
-    () => validateClusterMeshes([mesh] as never, [], new Map()),
+    () => validateClusterMeshes([mesh] as never, [], [], [], new Map()),
     /mutated sideSplit source/,
   );
+});
+
+test('a transmissive physical material is a scene copy of the transmission pass, never a cluster', () => {
+  const normal = new THREE.BufferAttribute(new Float32Array(9), 3);
+  const glass = new THREE.MeshPhysicalMaterial({ transmission: 1, ior: 1.5, thickness: 0.1 });
+  assert.match(clusterMaterialReason(glass, { position, normal })!, /drawn as a scene copy/);
+  assert.equal(clusterMaterialReason(glass, { position, normal }, true), undefined);
+  const plain = new THREE.MeshPhysicalMaterial();
+  assert.equal(clusterMaterialReason(plain, { position, normal }), undefined);
+  assert.equal(clusterMaterialReason(plain, { position, normal }, true), undefined);
+  plain.ior = 1.3;
+  assert.match(clusterMaterialReason(plain, { position, normal })!, /ior without transmission/);
+  glass.ior = 1.3;
+  assert.equal(clusterMaterialReason(glass, { position, normal }, true), undefined);
+  glass.clearcoat = 0.5;
+  assert.match(clusterMaterialReason(glass, { position, normal }, true)!, /clearcoat/);
+  glass.clearcoat = 0;
+  glass.thicknessMap = new THREE.Texture({});
+  assert.match(clusterMaterialReason(glass, { position, normal }, true)!, /thicknessMap/);
+});
+
+test('a transmissive copy mutated into another physical extension is refused before drawing', () => {
+  const normal = new THREE.BufferAttribute(new Float32Array(9), 3);
+  const glass = new THREE.MeshPhysicalMaterial({ transmission: 1 });
+  const copy = { material: glass, geometry: { attributes: { position, normal } } } as never;
+  validateClusterMeshes([], [], [], [copy], new Map());
+  glass.sheen = 1;
+  assert.throws(() => validateClusterMeshes([], [], [], [copy], new Map()), /sheen/);
 });

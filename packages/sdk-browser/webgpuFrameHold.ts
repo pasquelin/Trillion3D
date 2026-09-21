@@ -65,7 +65,10 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // A requested tile not yet served will change the frame when it arrives; and a settle must
   // render to read what the pose asks for, never hold.
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending;
-  if (lights.plan.counts.pendingPages > 0) mask |= BIT.shadowsPending;
+  // A representation change held until the camera rests must find a frame to enter the queue:
+  // a frame that plans no shadow releases it to the list, which the next plan reads.
+  if (lights.plan.counts.pendingPages > 0 || lights.plan.deferredChanges)
+    mask |= BIT.shadowsPending;
   // Every page of the requested cut carries its bytes. A still-pending page can still change the
   // cut, hence the frame: holding it would open a hole. This count is held by the cut difference,
   // never reread on the list.
@@ -104,6 +107,8 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
   steps.fill(0);
+  // No tile was pumped: the textures stage stays unmeasured, as on an image with nothing to serve.
+  steps[CPU_STEP.tilesPumpMs] = NaN;
   steps[CPU_STEP.queueSubmitMs] = submitMs;
   steps[CPU_STEP.encodeSubmitMs] = submitMs;
   steps[CPU_STEP.submitMs] = submitMs;

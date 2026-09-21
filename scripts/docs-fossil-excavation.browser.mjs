@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { buildDocs } from './docs/bundles.mjs';
 import { launchChrome } from './mesure/chrome.mjs';
 import { startServer } from './mesure/serveur.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 test('the original OBJ excavation renders stable exterior surfaces and coloured field markers', async () => {
+  await buildDocs(root);
   const server = await startServer({
     port: 0,
     mounts: [

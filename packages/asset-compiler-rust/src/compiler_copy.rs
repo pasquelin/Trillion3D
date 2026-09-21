@@ -1,17 +1,20 @@
 use super::*;
 
+/// Copies the buffer views the selection reads into `source.bin`, packed and
+/// aligned, and returns the key folder, the rewritten views and the product
+/// record — fingerprinted as the bytes go by, never read back.
 pub(super) fn copy_source_bin(
     o: &Options,
     bin: &[u8],
     view_values: &[Value],
     views: &BTreeSet<usize>,
     key: &str,
-) -> Result<(PathBuf, usize, Vec<Value>)> {
-    let directory = o.cache.join("native").join(&o.scope).join(key);
+) -> Result<(PathBuf, Vec<Value>, Product)> {
+    let directory = o.key_directory(key);
     fs::create_dir_all(directory.join("pages"))?;
     fs::create_dir_all(o.cache.join("native").join("objects"))?;
     let temp = directory.join("source.bin.tmp");
-    let mut writer = BufWriter::new(File::create(&temp)?);
+    let mut writer = Hashing::new(BufWriter::new(File::create(&temp)?));
     let mut offset = 0;
     let mut output_views = Vec::new();
     for id in views {
@@ -39,7 +42,7 @@ pub(super) fn copy_source_bin(
         output_views.push(v);
     }
     writer.flush()?;
-    drop(writer);
+    let product = writer.product("source.bin");
     fs::rename(temp, directory.join("source.bin"))?;
-    Ok((directory, offset, output_views))
+    Ok((directory, output_views, product))
 }

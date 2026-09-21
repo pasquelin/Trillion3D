@@ -129,12 +129,6 @@ pub(super) fn encode_page(
                 text(geometry.get("url"), "page.geometry.url")?,
                 digest,
             )?;
-            if integer(geometry.get("formatVersion"), "page.geometry.formatVersion")? != 2 {
-                return Err(bad("page.geometry.formatVersion is not 2"));
-            }
-            if text(geometry.get("codec"), "page.geometry.codec")? != "meshopt" {
-                return Err(bad("page.geometry.codec is not meshopt"));
-            }
             columns[GEOMETRY_SHA].sha(digest)?;
             for (key, label) in [
                 ("bytes", "page.geometry.bytes"),

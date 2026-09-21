@@ -36,7 +36,6 @@ test('public resize routes one changed size through the owned surface and skips 
     renderer: renderer as never,
     webglSurface: surface,
     viewport,
-    directGpu: false,
     options: { manifestUrl: '', pixelRatio: 2 },
   });
   api.resize(40, 30);
@@ -46,7 +45,7 @@ test('public resize routes one changed size through the owned surface and skips 
   assert.equal(camera.aspect, 4 / 3);
 });
 
-test('public direct-WebGPU resize never touches a supplied WebGL surface', () => {
+test('public direct-WebGPU resize sizes the page canvas, having no WebGL surface', () => {
   const canvas = { width: 0, height: 0 } as HTMLCanvasElement;
   const viewport: [number, number] = [0, 0];
   const api = createExplorerViewportApi({
@@ -57,9 +56,8 @@ test('public direct-WebGPU resize never touches a supplied WebGL surface', () =>
     camera: { aspect: 0, updateProjectionMatrix: () => {} } as never,
     canvas,
     renderer: {} as never,
-    webglSurface: { resize: () => assert.fail('WebGL surface used by direct WebGPU') } as never,
+    webglSurface: undefined,
     viewport,
-    directGpu: true,
     options: { manifestUrl: '', pixelRatio: 1.5 },
   });
   api.resize(20, 10);

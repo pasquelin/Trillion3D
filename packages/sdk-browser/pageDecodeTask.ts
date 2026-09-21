@@ -1,5 +1,6 @@
 import { PAGE_DECODE_PROTOCOL, pageDecodeFailureCode } from '../sdk-core/index.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
+import { pageViews } from './geometryPageBlock.ts';
 import { sha256Hex } from './sha256Hex.ts';
 import type {
   PageDecodeAnswer,
@@ -11,9 +12,8 @@ import type {
  * The page decoder, chosen once and kept. First the module compiled to WebAssembly: it names no
  * dependency, so a dedicated worker loads it even at a host that serves its modules as-is,
  * without an import map or a bundler. If it does not instantiate — no `WebAssembly`, no SIMD,
- * missing resource — the JavaScript decoder takes its place; that one pulls the decompression
- * library by a bare specifier, and can therefore itself be missing. When neither loads, the task
- * says so and the caller does the work again on its side.
+ * missing resource — the JavaScript decoder takes its place, and if that one cannot load either,
+ * the task says so and the caller does the work again on its side.
  *
  * Both yield the same buffers and the same refusals: the H2b bench proves it value by value.
  */
@@ -27,7 +27,7 @@ async function chargeDecodeur(): Promise<Decodeur> {
   const codec = await import('./geometryPageWasm.ts');
   if (await codec.prepareSdkWasm()) return { decode: codec.decodeGeometryPageWasm, wasm: true };
   const js = await import('./geometryPage.ts');
-  return { decode: js.decodeGeometryPage, wasm: false };
+  return { decode: async (data, max) => js.decodeGeometryPage(data, max), wasm: false };
 }
 
 /** No decoder on this side of the thread: the caller will redo the work on its side, rejecting nothing. */
@@ -90,7 +90,7 @@ export async function runPageDecodeTask(
         wasm: choisi.wasm,
         taskMs: performance.now() - started,
       },
-      transfer: [payload.indices, ...payload.attributes],
+      transfer: [payload.block],
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -108,33 +108,29 @@ export async function runPageDecodeTask(
 }
 
 /**
- * Buffers of a decoded page, ready to be transferred. Each typed array the decode just allocated
- * owns its buffer whole, from the first byte to the last: `buffer` is therefore exactly the
- * value, with no offset or remainder, and the transfer loses nothing and copies nothing.
+ * The decoded page, ready to be transferred: its indices and attributes are views on one block
+ * that owns its buffer whole, so `block` is exactly the page, and the transfer loses nothing
+ * and copies nothing.
  */
 function geometryPayload(page: DecodedGeometryPage): PageDecodeGeometryPayload {
-  const names = Object.keys(page.attributes);
   return {
-    indices: page.indices.buffer as ArrayBuffer,
-    names,
-    attributes: names.map((name) => page.attributes[name].buffer as ArrayBuffer),
+    block: page.indices.buffer,
+    names: Object.keys(page.attributes),
     vertexCount: page.vertexCount,
     flags: page.flags,
     decodedBytes: page.decodedBytes,
+    quantizationError: page.quantizationError,
   };
 }
 
-/** The decoded page rebuilt from its buffers. `names` yields the decode's write order, so the
+/** The decoded page rebuilt on its block. `names` yields the decode's write order, so the
  *  attribute `Record` finds its fields in the same order as an in-place decode. */
 export function restorePageDecode(payload: PageDecodeGeometryPayload): DecodedGeometryPage {
-  const attributes: Record<string, Float32Array> = {};
-  for (let i = 0; i < payload.names.length; i++)
-    attributes[payload.names[i]] = new Float32Array(payload.attributes[i]);
   return {
-    indices: new Uint32Array(payload.indices),
-    attributes,
+    ...pageViews(payload.block, payload.names, payload.vertexCount),
     vertexCount: payload.vertexCount,
     flags: payload.flags,
     decodedBytes: payload.decodedBytes,
+    quantizationError: payload.quantizationError,
   };
 }

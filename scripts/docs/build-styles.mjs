@@ -5,7 +5,7 @@ import { transform } from 'esbuild';
 import { compile } from 'tailwindcss';
 
 const require = createRequire(import.meta.url);
-const SOURCE_EXTENSIONS = new Set(['.html', '.js', '.jsx']);
+const SOURCE_EXTENSIONS = new Set(['.html', '.js', '.ts', '.tsx']);
 const TOKEN = /[!@A-Za-z0-9_:[\]().,%/#-]+/g;
 
 async function sourceFiles(directory) {
@@ -53,10 +53,7 @@ async function loadModule(id, base) {
   return { path, base: dirname(path), module: imported.default ?? imported };
 }
 
-export async function buildStyles(
-  root,
-  { minify = true, output = resolve(root, 'docs/css/site.css') } = {},
-) {
+export async function buildStyles(root, output) {
   const input = resolve(root, 'docs/styles/tailwind.css');
   const source = await readFile(input, 'utf8');
   const compiler = await compile(source, {
@@ -66,9 +63,7 @@ export async function buildStyles(
     loadStylesheet,
   });
   const candidates = await collectCandidates(root);
-  let css = compiler.build(candidates);
-  if (minify) css = (await transform(css, { loader: 'css', minify: true })).code;
+  const css = (await transform(compiler.build(candidates), { loader: 'css', minify: true })).code;
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, css);
-  return { candidates, css, output };
 }
