@@ -18,10 +18,12 @@ type ClusterLight = MatrixNode & {
   penumbra?: number;
   target?: MatrixNode;
 };
+/** A host scene background read by shape: a colour, in linear components, or anything else. */
+export type SceneColour = { isColor?: boolean; r: number; g: number; b: number } | null | undefined;
 export type WebglClusterScene = {
   traverse(visitor: (entry: MatrixNode) => void): void;
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
-  background?: { isColor?: boolean; r: number; g: number; b: number } | object | null;
+  background?: SceneColour | object;
 };
 
 const visibleThroughParents = (object: MatrixNode) => {

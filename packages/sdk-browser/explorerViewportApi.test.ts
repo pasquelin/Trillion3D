@@ -35,7 +35,7 @@ test('public resize sizes the owned surface once, and the composition targets in
     check: () => {},
     active: () => ({}) as never,
     setCapturingSurface: () => {},
-    targets: () => [target as never, undefined],
+    targets: () => [{ current: () => target } as never, undefined],
     camera: camera as never,
     canvas,
     webglSurface: surface,
