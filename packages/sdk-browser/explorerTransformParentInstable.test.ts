@@ -56,6 +56,7 @@ function banc() {
     store: undefined,
     imported: [],
     backends: [backend],
+    active: () => backend,
   });
   return { rt, source, parent, mesh, explorer, worlds, monde };
 }

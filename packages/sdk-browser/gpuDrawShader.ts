@@ -29,7 +29,7 @@ const COMPUTE = 4;
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
  * browser proof READ them here — none copies them, so none can lag behind the shader. That lag
- * is what turned `dessin-webgpu.browser.mjs` red: its copy stopped at `@binding(6)` while
+ * is what turned `dessin-webgpu.browser.ts` red: its copy stopped at `@binding(6)` while
  * `restBits` and `slotUsed` entered at 7 and 8.
  */
 export function drawBindEntries(): GPUBindGroupLayoutEntry[] {

@@ -99,7 +99,11 @@ test('published order decreases with the substitute’s screen error, like the W
   // would yield an infinite error for half the cut, in silence.
   const vues = Array.from({ length: packed.worldCount }, (_, w) => {
     const vue = new Float64Array(16);
-    multiplyMatrix4(vue, cam.viewRelative, packed.worlds.subarray(w * 16, w * 16 + 16));
+    multiplyMatrix4(
+      vue,
+      cam.viewRelative,
+      Float64Array.from(packed.worlds.subarray(w * 16, w * 16 + 16)),
+    );
     return { vue, stretch: maxStretch(vue as unknown as readonly number[]) };
   });
   // SUBSTITUTE screen error, by the core formula — the one `orderPendingUrls` uses, and of which

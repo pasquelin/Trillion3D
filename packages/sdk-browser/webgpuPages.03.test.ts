@@ -1,7 +1,8 @@
 import test from 'node:test';
+import { MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { compareImages } from '../sdk-core/index.ts';
+import { compareImages, type ClusterManifest } from '../sdk-core/index.ts';
 import { exactPagesBackend } from './index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { rasterPageRecords } from './pageRaster.ts';
@@ -69,7 +70,17 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
 
 test('vis drawIndirect consumes GPU instance indices against one unsorted page table', async () => {
   installGpuGlobals();
-  const { source, metadata, indices, associations, geoA, geoB, front, both } = mixedBinScene();
+  const {
+    source,
+    metadata: metadataPartial,
+    indices,
+    associations,
+    geoA,
+    geoB,
+    front,
+    both,
+  } = mixedBinScene();
+  const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY };
   const collected = collectClusterPages(source, metadata, indices, associations);
   const packed = packDagSelection(collected.roots);
   const { device, draws, computes, buffers } = mockGpu(undefined, packed);

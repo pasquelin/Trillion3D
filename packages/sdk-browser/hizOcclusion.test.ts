@@ -1,10 +1,10 @@
 // A5: hizTestRect starts at the first mip level `Math.clz32` allows instead of trying every
 // level from 0. Oracle: the linear search from before batch A, in
-// `bench/oracles/hiz.mjs`.
+// `bench/oracles/hiz.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HIZ_TEST_VALUES, hizTestRect } from './hizOcclusion.ts';
-import { referenceHizTestRect } from './bench/oracles/hiz.mjs';
+import { referenceHizTestRect } from './bench/oracles/hiz.ts';
 
 function bothAgree(
   minX: number,

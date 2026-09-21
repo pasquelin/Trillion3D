@@ -63,7 +63,8 @@ export interface BudgetResult {
 export type DetailResult =
   BoundsResult | SphereResult | HierarchyResult | ColourResult | BudgetResult;
 
-const round = (value: number) => Number(value.toFixed(3));
+/** Three decimals, the precision every lesson reading shows. */
+export const round = (value: number) => Number(value.toFixed(3));
 const POINTS: number[][] = [
   [-2, -1],
   [1, 1.4],

@@ -3,7 +3,7 @@
 import test from 'node:test';
 import * as THREE from 'three';
 import { boxTransform, sphereFromBounds } from './index.ts';
-import { assertBits, boite3 } from './bench/oracles/volumes.mjs';
+import { assertBits, boite3 } from './bench/oracles/volumes.ts';
 
 const sphereRef = (b: ArrayLike<number>) => {
   const s = boite3(b).getBoundingSphere(new THREE.Sphere());
