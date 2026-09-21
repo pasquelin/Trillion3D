@@ -73,7 +73,7 @@ function readTheme(): string {
 }
 
 export function App() {
-  const [route, setRoute] = useState<PortalRoute>(currentRoute);
+  const [route, setRoute] = useState(currentRoute);
   const [query, setQuery] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [theme, setTheme] = useState(readTheme);

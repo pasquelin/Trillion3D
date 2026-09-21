@@ -142,8 +142,8 @@ host's orbit and fly controls it returns to the host.
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
 reread from `git log` rather than copied here. The rule in force is the closed list held by
-`test/integration/moteur-sans-three.test.mjs` and
-`test/integration/moteur-sans-three-math.test.mjs`: any engine file that imports `three` outside
+`test/integration/moteur-sans-three.test.ts` and
+`test/integration/moteur-sans-three-math.test.ts`: any engine file that imports `three` outside
 that list fails the test, and the list never grows. On the per-frame WebGPU path: cluster cut
 (`pageSelectionCut.ts`), selection uniforms (`gpuSelection.ts`), encode of draws, blending and
 shadows (`webgpuPagesEncode*.ts`), face winding (`webgpuBlendDraw.ts`), Hi-Z (`hizDepth.ts`,
@@ -194,8 +194,8 @@ cases (negative scales, non-uniform, singular matrices, NaN, ±0, infinities): b
 where the formula is the same, otherwise a bounded difference explained before merge; common-bench
 campaign at 0 pixels (three still views and a moving camera, two thresholds, A/A witness),
 `tri = selected`, per-frame allocation counter at zero; structure tests
-(`test/integration/moteur-sans-three.test.mjs`,
-`test/integration/moteur-sans-three-math.test.mjs`) forbidding `three` in WebGPU-path files then
+(`test/integration/moteur-sans-three.test.ts`,
+`test/integration/moteur-sans-three-math.test.ts`) forbidding `three` in WebGPU-path files then
 in all of `sdk-browser` outside the witness adapter. A speed gain is not a goal of these lots: it
 is measured, it is not assumed.
 
@@ -389,7 +389,7 @@ object before its exit does not see it; no transmissive surface sees through ano
 0 px A/A on the repository fixture (`fixtures/classes-materiaux/transmission.gltf`, the only asset
 in the repository with a transmissive surface — neither bench scene carries one) and on the bench
 scene, whose image the batch does not move; the browser proof
-`test/browser/water-pass-webgpu.browser.mjs` predicts the composed pixel from the material numbers
+`test/browser/water-pass-webgpu.browser.ts` predicts the composed pixel from the material numbers
 alone, paged and unpaged, and holds the still image.
 
 R7. **WebGL2 rendering**: the same lighting formulas in GLSL generated from the same source as the
@@ -458,7 +458,7 @@ turn it off (`temporalAntialiasing: false`).
 B3. **Campaigns**: visible 120 Hz window, idle machine, measure mode without a trace, ABBA,
 DPR/pixelError/resolution/commit recorded, four engines, 1 and 9 instances, every scene; verdict
 per scene and engine (presented FPS, p95, p99, frames > 8.33 ms, different pixels, first frame).
-B4. **Repository bench** (`scripts/mesure/banc.mjs`) for the fast proofs of each merge: the
+B4. **Repository bench** (`scripts/mesure/banc.ts`) for the fast proofs of each merge: the
 repository measures itself, with no other project on the machine.
 
 ## 7. Risks and decisions taken

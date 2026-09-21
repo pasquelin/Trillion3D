@@ -56,11 +56,11 @@ test('exact pages wireframe uses non-indexed submitted triangles', () => {
   const backend = exactPagesBackend(context);
   const camera = frontCamera();
   backend.render(camera);
-  backend.setDiagnostic('wireframe');
+  backend.setDiagnostic?.('wireframe');
   backend.render(camera);
   const drawn = submittedDraws(backend);
   assert.ok(drawn.length >= 1);
-  assert.ok(drawn.every((item) => item.geometry.getIndex() === null));
+  assert.ok(drawn.every((item) => item.geometry.index === null));
   assert.ok(
     drawn.every(
       (item) =>
@@ -81,6 +81,7 @@ test('reference backend wireframe expands source triangles instead of MeshBasicM
     source,
     metadata: {
       primitives: [],
+      sourceTriangles: 2,
       selectedTriangles: 2,
       selectedNodes: [],
       totalNodes: 0,
@@ -100,7 +101,9 @@ test('reference backend wireframe expands source triangles instead of MeshBasicM
   assert.equal(drawn.length, 1);
   assert.equal(drawn[0].geometry.getIndex(), null);
   assert.equal(drawn[0].geometry.getAttribute('position').count, 6);
-  assert.equal((drawn[0].material as THREE.Material).wireframe, false);
+  const drawnMaterial = drawn[0].material;
+  assert.ok(drawnMaterial instanceof THREE.MeshBasicMaterial);
+  assert.equal(drawnMaterial.wireframe, false);
   backend.render(new THREE.PerspectiveCamera());
   assert.equal(backend.metrics().submittedTriangles, 2);
   backend.dispose();

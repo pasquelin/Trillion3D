@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { ClusterBatches } from './clusterBatches.ts';
+import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
 import { attributes, fixture, resident, drawOf } from './clusterBatchesFixture.ts';
 
 test('instances of one primitive share a single resident index buffer written once per page', () => {

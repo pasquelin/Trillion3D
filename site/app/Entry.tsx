@@ -81,12 +81,11 @@ function Example({
 
 export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: Locale }) {
   const demo = demoFor(entry.id);
-  const embedsDemo = Boolean(
+  const embedsDemo =
     demo &&
     entry.example &&
     !['example-explorer', 'createExplorer', 'example-diagnostics'].includes(entry.id) &&
-    apiScenario(entry.id, entry.section),
-  );
+    apiScenario(entry.id, entry.section);
   return (
     <article className="space-y-6">
       <header className="space-y-3">

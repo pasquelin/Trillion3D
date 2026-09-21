@@ -1,11 +1,8 @@
 import { add, legend, point, text } from './drawPrimitives.ts';
+import type { SvgHost } from './drawPrimitives.ts';
 import type { BoundsResult, ColourResult, BudgetResult, SphereResult } from './evaluateDetail.ts';
 
-export function drawBounds(
-  svg: SVGSVGElement,
-  result: BoundsResult | SphereResult,
-  french: boolean,
-) {
+export function drawBounds(svg: SvgHost, result: BoundsResult | SphereResult, french: boolean) {
   const box = result.box,
     a = point([box[0], box[1]]),
     b = point([box[3], box[4]]);
@@ -40,7 +37,7 @@ export function drawBounds(
   legend(svg, items);
 }
 
-export function drawColour(svg: SVGSVGElement, result: ColourResult, french: boolean) {
+export function drawColour(svg: SvgHost, result: ColourResult, french: boolean) {
   const swatches: [string, number][] = [
     [french ? 'gauche' : 'left', result.a],
     [french ? 'moyenne écran' : 'screen average', result.screen],
@@ -64,7 +61,7 @@ export function drawColour(svg: SVGSVGElement, result: ColourResult, french: boo
   });
 }
 
-export function drawBudget(svg: SVGSVGElement, result: BudgetResult, french: boolean) {
+export function drawBudget(svg: SvgHost, result: BudgetResult, french: boolean) {
   const scale = 410 / Math.max(result.error, result.base, 1);
   const rows: [string, number, string, number][] = [
     [french ? 'demandée' : 'requested', result.base, '#2563eb', 95],

@@ -1,6 +1,6 @@
 // Defect 5: a parented camera must give the same pose to ALL engine sites.
 //
-// Each site of `test/justesse/cameraSites.mjs` — selection uniforms, cut, Hi-Z, rasters,
+// Each site of `test/justesse/cameraSites.ts` — selection uniforms, cut, Hi-Z, rasters,
 // diagnostics, and the whole engines on the fake GPU device — is called frame after frame
 // with a camera child of a host group that belongs to no prepared scene, then with the
 // parentless camera of the same world pose bit for bit. The two samples must be equal.
@@ -10,8 +10,8 @@
 // by no one but it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.mjs';
-import { SITES, residuRepereDeRendu } from '../../test/justesse/cameraSites.mjs';
+import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.ts';
+import { SITES, residuRepereDeRendu } from '../../test/justesse/cameraSites.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
 type Site = {

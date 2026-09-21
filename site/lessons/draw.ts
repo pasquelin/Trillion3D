@@ -1,4 +1,5 @@
 import { drawBounds, drawBudget, drawColour } from './drawDetails.ts';
+import type { SvgHost } from './drawPrimitives.ts';
 import { drawAdvanced } from './drawAdvanced.ts';
 import { drawVectors } from './drawVectors.ts';
 import { add, legend, line, point, text } from './drawPrimitives.ts';
@@ -20,7 +21,7 @@ const make = (name: string, attributes: Record<string, string | number> = {}) =>
   return element;
 };
 
-function base(svg: SVGSVGElement) {
+function base(svg: SvgHost) {
   svg.replaceChildren();
   svg.setAttribute('viewBox', '0 0 640 320');
   const defs = make('defs');
@@ -40,7 +41,7 @@ function base(svg: SVGSVGElement) {
   line(svg, 320, 25, 320, 295, '#94a3b8', 1);
 }
 
-function polygon(svg: SVGSVGElement, points: number[][], color: string) {
+function polygon(svg: SvgHost, points: number[][], color: string) {
   add(svg, 'polygon', {
     points: points.map((p) => point(p).join(',')).join(' '),
     fill: `${color}22`,
@@ -50,7 +51,7 @@ function polygon(svg: SVGSVGElement, points: number[][], color: string) {
 }
 
 function drawTransform(
-  svg: SVGSVGElement,
+  svg: SvgHost,
   result: TransformResult | ChainResult | HierarchyResult,
   french: boolean,
 ) {
@@ -81,11 +82,7 @@ function drawTransform(
   }
 }
 
-function drawCamera(
-  svg: SVGSVGElement,
-  result: PerspectiveResult | FrustumResult,
-  french: boolean,
-) {
+function drawCamera(svg: SvgHost, result: PerspectiveResult | FrustumResult, french: boolean) {
   if (result.kind === 'perspective') {
     const size = 120 / result.depth;
     add(svg, 'rect', {
@@ -125,7 +122,7 @@ function drawCamera(
   }
 }
 
-export function draw(svg: SVGSVGElement, result: EvaluationResult, locale: Locale = 'en') {
+export function draw(svg: SvgHost, result: EvaluationResult, locale: Locale = 'en') {
   base(svg);
   const french = String(locale).toLowerCase().startsWith('fr');
   if (drawAdvanced(svg, result, french)) return;

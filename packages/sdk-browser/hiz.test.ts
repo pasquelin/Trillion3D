@@ -100,8 +100,10 @@ test('an integer-edge screen max includes that pixel so a hole there cannot hide
 
 test('pages that cross the near plane are not used as Hi-Z occluders', () => {
   const cam = cameraAt(0.5, 0.1);
-  const crossing = quad(new THREE.MeshBasicMaterial(), [-2, -2, -2], [2, 2, 2], 'crossing');
-  const far = quad(new THREE.MeshBasicMaterial(), [-0.2, -0.2, -2], [0.2, 0.2, -2], 'far');
+  const crossingMat = new THREE.MeshBasicMaterial(),
+    farMat = new THREE.MeshBasicMaterial();
+  const crossing = quad(crossingMat, [-2, -2, -2], [2, 2, 2], 'crossing');
+  const far = quad(farMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'far');
   const occluders: HizPage[] = [],
     rest: HizPage[] = [];
   splitOccludersInto([crossing.page, far.page], cameraMoteur(cam), [16, 16], occluders, rest);
@@ -112,8 +114,8 @@ test('pages that cross the near plane are not used as Hi-Z occluders', () => {
   assert.ok(rest.some((page) => page.url === 'crossing'));
   crossing.geometry.dispose();
   far.geometry.dispose();
-  crossing.page.material.dispose();
-  far.page.material.dispose();
+  crossingMat.dispose();
+  farMat.dispose();
 });
 
 test('Hi-Z rejects a fully covered farther page and keeps a page beside a hole', () => {

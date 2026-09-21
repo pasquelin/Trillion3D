@@ -10,7 +10,7 @@ import {
   referenceExactPagesBounds,
   referenceIndexManifestPages,
   referenceIndexManifestBundles,
-} from './bench/oracles/bornes-et-index.mjs';
+} from './bench/oracles/bornes-et-index.ts';
 import type { ClusterManifest, Page, Primitive } from '../sdk-core/index.ts';
 
 const manifest = { primitives: [] } as unknown as ClusterManifest;
@@ -36,7 +36,7 @@ test('loadPreparedScene indexes every glTF texture association and nothing else'
     parser: { associations },
   }));
   const result = await loadPreparedScene(
-    {},
+    { manifestUrl: 'scene.gltf' },
     manifest,
     'scene.gltf',
     'http://localhost/',
@@ -55,7 +55,7 @@ test('loadPreparedScene indexes every glTF texture association and nothing else'
 // Batch F, F17: three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed
 // walk. `indexManifestPages`/`indexManifestBundles` (manifestPageIndex.ts) and `exactPagesBounds`
 // (exactPagesBounds.ts, via `primitiveFinder`) must return exactly what the four `flatMap`s and the
-// `find` returned before batch F. The oracles are copied as-is in `oracles/scene-chargement.mjs`.
+// `find` returned before batch F. The oracles are copied as-is in `oracles/scene-chargement.ts`.
 function pageDe(id: number, url: string, geometryUrl?: string): Page {
   const page = { id, url, sha256: url, bytes: 8, count: 3, min: [0, 0, 0], max: [1, 1, 1] } as Page;
   if (geometryUrl)
@@ -121,8 +121,10 @@ test('exactPagesBounds yields the same box as the reference, a « coarse » page
   ]);
   const manques: THREE.Mesh[] = [],
     manquesRef: THREE.Mesh[] = [];
-  const obtenu = exactPagesBounds(source, associations, metadata, (m) => manques.push(m));
-  const attendu = referenceExactPagesBounds(source, associations, metadata, (m) =>
+  const obtenu = exactPagesBounds(source, associations, metadata, (m: THREE.Mesh) =>
+    manques.push(m),
+  );
+  const attendu = referenceExactPagesBounds(source, associations, metadata, (m: THREE.Mesh) =>
     manquesRef.push(m),
   );
   assert.deepEqual(Array.from(obtenu), [...attendu.min.toArray(), ...attendu.max.toArray()]);
