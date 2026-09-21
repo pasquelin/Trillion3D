@@ -154,8 +154,6 @@ export function clusterMaterialReason(
     return 'texture channel 1 has no UV1 attribute';
   if (standard.isMeshStandardMaterial && !(attributes.normal instanceof THREE.BufferAttribute))
     return 'lit material has no normal attribute';
-  if (descriptor.normalMap && !(attributes.tangent instanceof THREE.BufferAttribute))
-    return 'normal-mapped material has no tangent attribute';
   if (material.vertexColors && !(attributes.color instanceof THREE.BufferAttribute))
     return 'vertex-colour material has no color attribute';
   for (const texture of maps) {
