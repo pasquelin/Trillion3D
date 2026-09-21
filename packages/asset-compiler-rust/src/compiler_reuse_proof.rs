@@ -16,6 +16,11 @@ pub(super) fn prove(
 ) -> Check<Reused> {
     let manifest: Value = serde_json::from_slice(head).map_err(|e| format!("manifest: {e}"))?;
     check_head(&manifest, key, &o.scope)?;
+    // The answer sheet is a product of every compilation, at the cache root: a
+    // host reads "nothing to answer" in its absence, so a folder without it is not whole.
+    if !o.cache.join(cutout::DECISIONS_FILE).is_file() {
+        return Err("cutout answer sheet is missing".into());
+    }
     let binary =
         fs::read(directory.join(MANIFEST_BINARY_FILE)).map_err(|e| format!("sidecar: {e}"))?;
     if manifest["binary"]["sha256"] != json!(hash(&binary)) {
@@ -32,7 +37,7 @@ pub(super) fn prove(
         .collect();
     let object_bytes = check_objects(o, &native, &digests, pool)?;
     let levels = manifest_binary::texture_levels(&binary).map_err(|e| e.message)?;
-    let texture_levels = check_textures(&native, &levels)?;
+    let texture_levels = check_textures(&native, &manifest, &levels)?;
     Ok(Reused {
         report: json!({"files":files,"fileBytes":file_bytes,"objects":digests.len(),"objectBytes":object_bytes,"textureLevels":texture_levels}),
         keep: Keep::named_by(&manifest, &binary).map_err(|e| e.message)?,
@@ -127,22 +132,36 @@ fn check_objects(
 
 /// Every baked level the sidecar names, by presence: the compile path trusts a
 /// level file by its name too — the source-image fingerprint and the atlas say
-/// what it holds. Returns the files found.
-fn check_textures(native: &Path, levels: &[(String, u32, u32)]) -> Check<usize> {
-    let mut found = 0usize;
-    for (sha256, kind, baked) in levels {
-        let kind = texture_preview::AtlasKind::from_word(*kind)
-            .ok_or(format!("sidecar names atlas {kind}"))?;
-        if !is_safe_source_name(sha256) {
-            return Err(format!("sidecar names texture {sha256:?}"));
+/// what it holds. A bake the compile could not finish — a level that failed to
+/// write leaves `baked` under `first`, and the report says so — is not proven: the
+/// compile path would bake it again, the reuse never would. Several textures
+/// read one image, so a level file is counted once. Returns the files found.
+pub(super) fn check_textures(
+    native: &Path,
+    manifest: &Value,
+    levels: &[manifest_binary::BakedLevels],
+) -> Check<usize> {
+    if !manifest["texturePreviews"]["notes"][texture_preview::LEVEL_WRITE_FAILED].is_null() {
+        return Err("a texture level failed to write when the folder was compiled".into());
+    }
+    let mut files = BTreeSet::new();
+    for entry in levels {
+        let kind = texture_preview::AtlasKind::from_word(entry.kind)
+            .ok_or(format!("sidecar names atlas {}", entry.kind))?;
+        if !is_safe_source_name(&entry.sha256) {
+            return Err(format!("sidecar names texture {:?}", entry.sha256));
         }
-        for level in 0..*baked {
-            let path = native.join(texture_preview::level_path(sha256, kind, level));
-            if !path.is_file() {
-                return Err(format!("texture level {} is missing", path.display()));
-            }
-            found += 1;
+        if entry.baked < entry.first {
+            return Err(format!("texture {} was not fully baked", entry.sha256));
+        }
+        for level in 0..entry.baked {
+            files.insert(texture_preview::level_path(&entry.sha256, kind, level));
         }
     }
-    Ok(found)
+    for file in &files {
+        if !native.join(file).is_file() {
+            return Err(format!("texture level {file} is missing"));
+        }
+    }
+    Ok(files.len())
 }

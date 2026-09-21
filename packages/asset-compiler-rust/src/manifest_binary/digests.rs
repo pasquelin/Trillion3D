@@ -17,11 +17,22 @@ pub fn texture_digests(bytes: &[u8]) -> Result<Vec<String>> {
     sha_columns(bytes, &[TEXTURE_PREVIEW_SHA])
 }
 
-/// Baked level files a binary sidecar names, one entry per (texture, atlas) pair: the
-/// source-image digest, the atlas word (`AtlasKind::word`) and how many levels were
-/// written as files under `textures/`. Read back from the same words `encode_previews`
-/// wrote, so what a reuse checks on disk is exactly what a reader will ask for.
-pub fn texture_levels(bytes: &[u8]) -> Result<Vec<(String, u32, u32)>> {
+/// Baked levels a binary sidecar names for one (texture, atlas) pair, read back from
+/// the words `encode_previews` wrote, so what a reuse checks on disk is exactly what
+/// a reader will ask for.
+pub struct BakedLevels {
+    /// Source-image digest: the folder under `textures/`.
+    pub sha256: String,
+    /// Atlas word (`AtlasKind::word`).
+    pub kind: u32,
+    /// Rank of the first level the sidecar carries: a complete bake wrote every level below it.
+    pub first: u32,
+    /// Levels written as files, `0..baked`.
+    pub baked: u32,
+}
+
+/// Baked level files a binary sidecar names, one entry per (texture, atlas) pair.
+pub fn texture_levels(bytes: &[u8]) -> Result<Vec<BakedLevels>> {
     let words = column(bytes, TEXTURE_PREVIEW_U32)?;
     let shas = column(bytes, TEXTURE_PREVIEW_SHA)?;
     let entries = words.len() / (PREVIEW_WORDS * 4);
@@ -36,7 +47,12 @@ pub fn texture_levels(bytes: &[u8]) -> Result<Vec<(String, u32, u32)>> {
         .map(|entry| {
             let sha = std::str::from_utf8(&shas[entry * 64..entry * 64 + 64])
                 .map_err(|_| bad("Digest column is not ASCII"))?;
-            Ok((sha.to_string(), word(entry, 10), word(entry, 11)))
+            Ok(BakedLevels {
+                sha256: sha.to_string(),
+                kind: word(entry, 10),
+                first: word(entry, 6),
+                baked: word(entry, 11),
+            })
         })
         .collect()
 }

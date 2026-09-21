@@ -52,6 +52,7 @@ mod part7;
 mod progression;
 mod psd_golden;
 mod reuse;
+mod reuse_proof;
 mod scene_autonome;
 mod simplification_none;
 mod unity_driver;

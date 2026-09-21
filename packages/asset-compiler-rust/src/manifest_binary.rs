@@ -25,7 +25,7 @@ mod preview_tests;
 mod primitive;
 #[cfg(test)]
 mod tests;
-pub use digests::{digests, texture_digests, texture_levels};
+pub use digests::{digests, texture_digests, texture_levels, BakedLevels};
 use format::*;
 
 /// Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
