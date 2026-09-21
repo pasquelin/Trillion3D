@@ -1,6 +1,5 @@
 import {
   LIGHT_KIND,
-  MAX_SHADOW_SLICES,
   RECTS_PER_SLICE,
   SHADOW_CULL_FLOATS,
   SHADOW_PAGE,
@@ -11,7 +10,7 @@ import {
   writeFace,
   type ShadowViewpoint,
 } from '../sdk-core/index.ts';
-import { MAX_SHADOW_REGIONS, wrapKey } from './gpuShadowAtlas.ts';
+import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import { writeDrawnMasks } from './webgpuShadowDrawnMask.ts';
@@ -36,8 +35,6 @@ const rectScratch = new Float64Array(4);
  */
 export const regionScissor = new Int32Array(MAX_SHADOW_REGIONS * 4);
 export const regionViewport = new Int32Array(MAX_SHADOW_REGIONS * 3);
-/** Slices to push this frame: those redrawn, then those whose drawn-page mask changed. */
-const flushedSlices = new Int32Array(MAX_SHADOW_REGIONS + MAX_SHADOW_SLICES);
 
 /**
  * View the scheduler reads: position, axis, vertical half-fov, aspect, near and far planes. The
@@ -86,12 +83,14 @@ export function planShadowRegions(
   lights.shadowPages = 0;
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
-  if (!shadows || !store.count) return 0;
+  if (!shadows || !store.count) {
+    plan.dropDeferred();
+    return 0;
+  }
   const view = shadowViewpointOf(cam);
   const count = plan.plan(store, view, frame, nowMs);
   const { regions, slices } = plan;
-  let flushes = 0,
-    lastSlice = -1,
+  let lastSlice = -1,
     lastFace = -1;
   for (let region = 0; region < count; region++) {
     const slice = regions.sliceOf(region),
@@ -131,7 +130,6 @@ export function planShadowRegions(
       light.emitterRadius ?? 0,
       (2 * shiftX) / rows,
       (-2 * shiftY) / rows,
-      wrapKey(slices.dirty.wrapXOf(slice, face), slices.dirty.wrapYOf(slice, face)),
     );
     const rect = slice * RECTS_PER_SLICE + face * 3;
     const faceX = slices.rects[rect],
@@ -159,12 +157,11 @@ export function planShadowRegions(
         side,
         planes.near,
       );
-      flushedSlices[flushes++] = slice;
     }
   }
   if (count) shadows.flushRegions(count);
-  flushes = writeDrawnMasks(lights, flushedSlices, flushes);
-  if (flushes) shadows.flushSlices(flushedSlices, flushes);
+  writeDrawnMasks(lights);
+  shadows.flushSlices();
   lights.shadowsUpdated = plan.counts.lights;
   lights.shadowRegions = count;
   lights.shadowPages = regions.pages;

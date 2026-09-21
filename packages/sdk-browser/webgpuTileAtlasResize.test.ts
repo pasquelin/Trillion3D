@@ -119,3 +119,29 @@ test('growing the pool keeps the resident count, and a pool full for the view re
   assert.equal(copies.length, 1);
   assert.equal(atlas.roomFor(11), true, 'a free layer');
 });
+
+test('an evicted tile names its texture, so a cutout shadow that read it can follow', () => {
+  const { gpu } = textureDevice();
+  const layout = tileLayout(4096, 4096);
+  const textures = [
+    { layout, source: { kind: 'bytes' as const, tail: [] } },
+    { layout, source: { kind: 'bytes' as const, tail: [] } },
+  ];
+  const evicted: number[] = [];
+  const atlas = createWebgpuTileAtlas(gpu, {
+    ...options,
+    layers: 1,
+    feedbackOffset: 0,
+    textures,
+    onEvicted: (slot) => evicted.push(slot),
+  });
+  atlas.pinTails({ writeTexture() {} } as never, () => {});
+  // The oldest streamed tile is of texture 1; texture 0 fills the rest of the layer.
+  atlas.place({ slot: 1, level: 0, tx: 0, ty: 0 }, 10);
+  for (let i = 0, placed = 0; placed < TILES_PER_LAYER - 3; i++)
+    if (atlas.place({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) }, 11)) placed++;
+  assert.equal(atlas.pool.resident, TILES_PER_LAYER);
+  assert.deepEqual(evicted, [], 'a full pool evicts nothing until a tile asks for a place');
+  atlas.place({ slot: 0, level: 1, tx: 0, ty: 0 }, 40);
+  assert.deepEqual(evicted, [1], 'the least looked-at tile gave its place: texture 1');
+});

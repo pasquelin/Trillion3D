@@ -1,5 +1,6 @@
 // A colour tile stales only the shadow pages of the masked surfaces that read its texture: a tile
 // of a texture no cutout reads, or a colour change on an opaque material, leaves every map as it is.
+// The textures a pump changed are declared together: one scan of the page table, one box.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -39,23 +40,31 @@ function lightsSpy() {
   return { lights, boxes };
 }
 
+const r = Math.fround(Math.sqrt(3));
+
 test('a tile of a texture read by a cutout stales the box of that cutout, not the opaque surface beside it', () => {
   const { lights, boxes } = lightsSpy();
-  shadowsFollowTextures(lights, table(), 3);
+  shadowsFollowTextures(lights, table(), new Set([3]));
   assert.equal(boxes.length, 1);
   // Row 0 alone: its sphere has radius √3 around the origin, in single precision as the GPU
   // reads it. Row 1, opaque at x = 100, is left out.
-  const r = Math.fround(Math.sqrt(3));
   assert.deepEqual(boxes[0], [-r, -r, -r, r, r, r]);
+});
+
+test('tiles of two textures served by one pump declare one box, the union of their cutouts', () => {
+  const { lights, boxes } = lightsSpy();
+  shadowsFollowTextures(lights, table(), new Set([3, 5]));
+  assert.equal(boxes.length, 1, 'one scan, one change');
+  assert.deepEqual(boxes[0], [-r, -r, -r, 10 + r, r, r]);
 });
 
 test('a tile of a texture no cutout reads stales nothing', () => {
   const { lights, boxes } = lightsSpy();
-  shadowsFollowTextures(lights, table(), 7);
+  shadowsFollowTextures(lights, table(), new Set([7]));
   assert.equal(boxes.length, 0);
 });
 
-test('an unnamed pool change — resize, eviction — still restarts everything', () => {
+test('a resize, which names no texture, still restarts everything', () => {
   const { lights, boxes } = lightsSpy();
   shadowsFollowTextures(lights, table(), -1);
   assert.equal(boxes.length, 1);
