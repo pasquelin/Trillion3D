@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Stage immutable campaign evidence beside the portal; no network publication occurs here.
+// Stage immutable campaign evidence in the site's reports; no network publication occurs here.
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { assertReport } from '../../docs/js/reports/contract.js';
+import { assertReport } from '../../site/reports/contract.ts';
 import { parseArgs } from './options.mjs';
 export function publierRapport(source, dest) {
   const report = assertReport(JSON.parse(readFileSync(join(source, 'report.json'), 'utf8')));
@@ -39,7 +39,7 @@ if (import.meta.filename === process.argv[1]) {
   console.log(
     publierRapport(
       resolve(flags.get('dossier') ?? '.mesure/out/global/report-data'),
-      resolve(flags.get('vers') ?? 'docs'),
+      resolve(flags.get('vers') ?? 'site'),
     ),
   );
 }

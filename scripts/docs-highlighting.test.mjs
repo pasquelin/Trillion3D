@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { highlightLines } from '../docs/js/components/highlightLines.js';
+import { highlightLines } from '../site/app/components/highlightLines.ts';
 
 test('multiline syntax tokens stay balanced and preserve escaped source per row', () => {
   const source = 'const text = `first\n<script>second</script>`;\n/* comment\ncontinued */\n';

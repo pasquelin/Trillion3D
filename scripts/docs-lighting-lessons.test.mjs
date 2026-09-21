@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { lightingLessonDefinitions } from '../docs/js/gallery/lightingLessonDefinitions.js';
+import { lightingLessonDefinitions } from '../site/lessons/lightingLessonDefinitions.ts';
 import {
   applyLightingLesson,
   createLightingLessonSession,
-} from '../docs/js/gallery/lightingLessonRuntime.js';
-import { lightingLessonCode } from '../docs/js/gallery/lightingLessonCode.js';
+} from '../site/lessons/lightingLessonRuntime.ts';
+import { lightingLessonCode } from '../site/lessons/lightingLessonCode.ts';
 
 const initial = (lesson) => Object.fromEntries(lesson.controls.map(({ id, value }) => [id, value]));
 
