@@ -44,6 +44,7 @@
     "test:watch": "node --experimental-strip-types --test --watch packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs test/integration/*.test.mjs",
     "test:native": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "bench:calculs:natif": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs",
+    "mesure:blocs:natif": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture measure_the_loss_of_both_codecs_on_a_texture_folder",
     "bench:calculs:natif-g": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs_g",
     "lint": "eslint . && cargo clippy --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --all-targets -- -D warnings && cargo clippy --release --locked --manifest-path packages/page-codec-wasm/Cargo.toml --all-targets -- -D warnings",
     "format": "prettier --ignore-path .gitignore --ignore-path .prettierignore --write \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml && cargo fmt --all --manifest-path packages/page-codec-wasm/Cargo.toml",

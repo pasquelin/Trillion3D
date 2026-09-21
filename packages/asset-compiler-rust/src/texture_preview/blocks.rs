@@ -15,6 +15,8 @@ mod bc7;
 mod fit;
 mod ise;
 #[cfg(test)]
+mod measure;
+#[cfg(test)]
 mod tests;
 
 /// Bytes of one compressed block, in both formats.

@@ -73,12 +73,15 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   const color = tileCatalogue(maps, previewOf(PREVIEW_ATLAS_COLOR, maps), readLevel);
   const data = tileCatalogue(dataMaps, previewOf(PREVIEW_ATLAS_DATA, dataMaps), readLevel);
   // The block choice settles here, where the textures are known: a host image cannot fill a
-  // block pool, so one texture without a whole baked chain keeps both pools RGBA8, by name.
+  // block pool, so a hosted texture keeps both pools RGBA8, by name — because the host reads
+  // the images itself (`textureSource: 'host'`), or because a chain is not whole in the cache.
   const hosted = [...color, ...data].filter((texture) => texture.source.kind === 'host').length;
   if (hosted && rt.setup.blockChoice.block)
     rt.setup.blockChoice = {
       block: undefined,
-      reason: `${hosted} texture(s) without a whole baked chain`,
+      reason: readLevel
+        ? `${hosted} texture(s) without a whole baked chain`
+        : `${hosted} texture(s) read by the host (textureSource is not 'cache')`,
     };
   const encoding = poolEncoding(rt.setup.blockChoice.block);
   rt.setup.texturePool = rt.setup.texturePoolFor(rt.setup.texturePool.budgetBytes, encoding.block);

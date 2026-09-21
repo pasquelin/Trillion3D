@@ -4,7 +4,7 @@
 use super::*;
 use crate::plugins::image::blocks::to_rgba8;
 
-fn decode(bytes: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8> {
+pub(super) fn decode(bytes: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8> {
     let decoder = match format {
         BlockFormat::Bc7 => texture2ddecoder::decode_bc7,
         BlockFormat::Astc => texture2ddecoder::decode_astc_4_4,
@@ -29,7 +29,7 @@ fn encoded(rgba: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8>
     }
 }
 
-fn psnr(a: &[u8], b: &[u8]) -> f64 {
+pub(super) fn psnr(a: &[u8], b: &[u8]) -> f64 {
     let mse = a
         .iter()
         .zip(b)
