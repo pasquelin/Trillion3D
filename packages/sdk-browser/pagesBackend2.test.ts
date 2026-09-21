@@ -12,6 +12,7 @@ import {
   frontCamera,
   assertSingleCoarseCluster,
 } from './pagesBackendScenes.ts';
+import { submittedDraws } from './clusterBatchMesh.ts';
 
 test('source instance transforms update all three WebGL backends without rebuilding pages', () => {
   for (const factory of [referenceBackend, exactPagesBackend, threeLodBackend]) {
@@ -81,7 +82,7 @@ test('a cut over the resident budget raises the flag and still covers the surfac
   // A DAG cut is a partition: truncating it would punch a hole, so the cover stays whole and only
   // the flag is raised. Both clusters are still drawn, in one batch.
   assert.equal(backend.overBudget, true);
-  assert.equal(backend.clusterDraws!().length, 1);
+  assert.equal(submittedDraws(backend).length, 1);
   assert.equal(backend.metrics().residentPages, 2);
   backend.dispose();
   geometry.dispose();
