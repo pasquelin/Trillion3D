@@ -1,5 +1,6 @@
 import type { RenderBackend } from './backendTypes.ts';
 import type { ClusterDraw } from './clusterBatches.ts';
+import { submittedDraws } from './clusterBatchMesh.ts';
 
 /** Indices one submission draws, in submission order: the ranges of a batch record, the whole
  *  index of a page mesh. */
@@ -17,9 +18,9 @@ export function drawnIndices(draw: ClusterDraw) {
 }
 
 /** Triangles the owner submits for the current cut. */
-export function drawnTriangles(backend: Pick<RenderBackend, 'clusterDraws'>) {
+export function drawnTriangles(backend: RenderBackend) {
   let total = 0;
-  for (const draw of backend.clusterDraws?.() ?? []) total += drawnIndices(draw).length / 3;
+  for (const draw of submittedDraws(backend)) total += drawnIndices(draw).length / 3;
   return total;
 }
 

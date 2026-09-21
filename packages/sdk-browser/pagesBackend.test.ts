@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
 import { drawnIndices, dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
 import { quadCluster, fanScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
+import { submittedDraws } from './clusterBatchMesh.ts';
 
 test('transparent page batches preserve source order across exact and coarse cuts', () => {
   const { geometry, material, mesh, source, indices } = fanScene();
@@ -24,7 +25,7 @@ test('transparent page batches preserve source order across exact and coarse cut
     viewport: [960, 540] as [number, number],
   };
   const backend = exactPagesBackend(context);
-  const draws = () => backend.clusterDraws!();
+  const draws = () => submittedDraws(backend);
   const camera = frontCamera();
   backend.render(camera);
   assert.equal(draws().length, 1);
@@ -50,7 +51,7 @@ test('transparent page batches preserve source order across exact and coarse cut
 test('exact pages report measured residency and submit only the visible set', () => {
   const { geometry, material, context } = quadRootsContext(true, { maxResidentPages: 2 });
   const backend = exactPagesBackend(context);
-  const meshes = () => backend.clusterDraws!();
+  const meshes = () => submittedDraws(backend);
   assert.equal(meshes().length, 0);
   const camera = frontCamera();
   backend.render(camera);
