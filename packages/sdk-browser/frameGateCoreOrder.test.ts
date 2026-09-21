@@ -10,17 +10,16 @@ import { createFrameGateCore } from './frameGateCore.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
 import type { CameraMotion } from './cameraWorld.ts';
 import { cameraMoteur } from './cameraFixture.ts';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.mjs';
+import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
-type Rig = { parent: THREE.Object3D; camera: THREE.PerspectiveCamera };
 const VIEWPORT: [number, number] = [800, 600];
 const DEPLACE_ET_TOURNE = POSES_PARENT[2] as Pose;
 
 test('enterFrame copies the pose before the view fingerprint: a rig moved alone, never walked by the host, replays the frame', () => {
   const gate = createWebglFrameGate();
   const source = new THREE.Object3D();
-  const rig = creeRig() as Rig;
+  const rig = creeRig();
   const motion: CameraMotion = {};
   const image = () => {
     // `hote = false`: nobody walks the rig, as the contract announces for a parent outside the
@@ -43,7 +42,7 @@ test('enterFrame copies the pose before the view fingerprint: a rig moved alone,
 test('enterFrame resolves the pose before the adaptive threshold: the measured speed is that of the world eye', () => {
   const gate = createFrameGateCore(1);
   const source = new THREE.Object3D();
-  const rig = creeRig() as Rig;
+  const rig = creeRig();
   const motion: CameraMotion = {};
   poseRig(rig, DEPLACE_ET_TOURNE, false); // never walked: only `enterFrame` can see it.
   gate.enterFrame({ pixelError: 1, lodAdaptive: true }, rig.camera, motion, VIEWPORT, source, []);

@@ -1,12 +1,12 @@
 // A6: frustumClipBox (sdk-core) rejects in a first pass, then distinguishes crossed from inside
 // in a second that stops at the first crossed plane; the plane's sign picks the vertex by
 // index. Oracle: the one-pass, one-branch-per-vertex version from before batch A, in
-// `bench/oracles/selection.mjs`.
+// `bench/oracles/selection.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumClipBox } from '../sdk-core/index.ts';
-import { referenceBoxClip } from './bench/oracles/selection.mjs';
+import { referenceBoxClip } from './bench/oracles/selection.ts';
 
 const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 100);
 cam.position.z = 6;

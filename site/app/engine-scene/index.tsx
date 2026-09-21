@@ -70,7 +70,7 @@ export function EngineScene({ locale = 'en' }: { locale?: Locale }) {
         </ol>
         <a
           className="link link-primary inline-block mt-6"
-          href="https://github.com/pasquelin/WebGeometry/blob/develop/scripts/docs/garden-source.mjs"
+          href="https://github.com/pasquelin/WebGeometry/blob/develop/scripts/docs/garden-source.ts"
         >
           {copy.source}
         </a>
