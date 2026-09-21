@@ -1,4 +1,5 @@
 import { WRAP_MAP } from './visibilityWrapModes.ts';
+import type { MaterialClassFeature } from './visibilityMaterialClass.ts';
 
 /**
  * What each `WRAP_MAP` map gives its read: its slot in the page record. A rank added to
@@ -21,9 +22,20 @@ export const quartet = (nom: keyof typeof WRAP_MAP) => `wrapOf(page.wrapModes,${
 export const lecture = (fn: string, nom: keyof typeof WRAP_MAP) =>
   `${fn}(page.${CARTE[nom]},uv,${quartet(nom)},ddx,ddy)`;
 
-/** The body runs only if the map exists: slot 0 is the absence of a texture. */
+/** Class override that says the map exists (`visibilityMaterialClass.ts`): slot 0 is the absence
+ *  of a texture, and every page of a class has the same maps, so the test folds at compile time. */
+const PRESENCE = {
+  base: 'HAS_MAP',
+  rough: 'HAS_ROUGH',
+  metal: 'HAS_METAL',
+  normal: 'HAS_NORMAL_MAP',
+  ao: 'HAS_AO',
+  emissive: 'HAS_EMISSIVE',
+} as const satisfies Record<keyof typeof WRAP_MAP, MaterialClassFeature>;
+
+/** The body runs only if the class reads the map. */
 export const siCarte = (nom: keyof typeof WRAP_MAP, corps: string) =>
-  `if(page.${CARTE[nom]}!=0u){${corps}}`;
+  `if(${PRESENCE[nom]}){${corps}}`;
 
 /**
  * Read of a data map that may be the SAME texture as a map already read — a glTF stores

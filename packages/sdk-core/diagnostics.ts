@@ -5,6 +5,7 @@ export type DiagnosticMode =
   | 'clusters'
   | 'lod'
   | 'screen-error'
+  | 'materials'
   | 'visibility'
   | 'pages'
   | 'texture-mip'
@@ -28,6 +29,11 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
   'screen-error': {
     available: true,
     reason: 'Per-cluster screen error projected through the cluster sphere, as the cut uses it',
+  },
+  materials: {
+    available: true,
+    reason:
+      'One colour per material class, the class pass that resolved the pixel; WebGPU visibility path only',
   },
   visibility: {
     available: true,

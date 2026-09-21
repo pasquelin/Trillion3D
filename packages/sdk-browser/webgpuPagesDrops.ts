@@ -71,7 +71,6 @@ function dropGpuPartition(rt: WebgpuPagesRuntime) {
   rt.blendState.occlusionEpoch = -1;
   rt.vis.gpuPartition?.dispose();
   rt.vis.gpuPartition = undefined;
-  rt.run.occluderHistoryEpoch = -1;
 }
 
 export function dropGpuHiz(rt: WebgpuPagesRuntime) {
@@ -127,7 +126,9 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.visPipelineFrontCw = undefined;
   vis.visLayerPipelines.length = 0;
   vis.drawLayerSlots = 1;
-  vis.shadePipeline = undefined;
+  vis.materialDepthPipeline = undefined;
+  vis.shadePipelines.clear();
+  vis.shadePipelineFor = undefined;
   vis.shadeBindGroupLayout = undefined;
   vis.visBindGroupLayout = undefined;
   vis.mapsSampler = undefined;
