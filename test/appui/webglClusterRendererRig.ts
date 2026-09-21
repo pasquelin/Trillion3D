@@ -19,23 +19,22 @@ export const triangle = () => {
     new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3),
   );
   geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
+  const index = geometry.index;
+  if (!index) throw new Error('triangle rig requires an indexed geometry');
   const material = new THREE.MeshBasicMaterial();
   material.color.setRGB(0.18, 0, 0, THREE.LinearSRGBColorSpace);
   return {
     material,
+    geometry,
     mesh: {
-      geometry,
+      geometry: { index, attributes: geometry.attributes },
       material: material as THREE.Material | THREE.Material[],
       renderOrder: 0,
+      polygonOffsetUnits: undefined,
       matrix: drawMatrix(),
       _multiDrawCounts: new Int32Array([3]),
       _multiDrawStarts: new Int32Array([0]),
       _multiDrawCount: 1,
-      _sideSplitMaterials: undefined,
-      _sideSplitBack: undefined,
-      _sideSplitFront: undefined,
-      _sideSplitSource: undefined,
-      _sideSplitPolygonMaterials: undefined,
     },
   };
 };

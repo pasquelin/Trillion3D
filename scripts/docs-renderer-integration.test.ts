@@ -4,11 +4,15 @@ import { readFile } from 'node:fs/promises';
 import { rendererLessons, rendererInitialState } from '../site/lessons/rendererLessons.ts';
 import { rendererCodeFor } from '../site/lessons/rendererLessonCode.ts';
 import { syncRendererState } from '../site/lessons/syncRendererState.ts';
+import type { RendererLessonSession } from '../site/lessons/rendererLessonSessionTypes.ts';
 import { transformSync } from 'esbuild';
 import { loadReactComponents } from './docs/render-react.ts';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-const { Playground } = await loadReactComponents('site/app/gallery/Playground.tsx');
+import type { Playground as PlaygroundComponent } from '../site/app/gallery/Playground.tsx';
+const { Playground } = (await loadReactComponents('site/app/gallery/Playground.tsx')) as {
+  Playground: typeof PlaygroundComponent;
+};
 
 test('every integrated renderer lesson emits complete parseable host code', () => {
   for (const lesson of rendererLessons) {
@@ -22,6 +26,7 @@ test('every integrated renderer lesson emits complete parseable host code', () =
     assert.match(code, /interactive: false/);
     assert.match(code, /explorer\.dispose\(\)/);
     assert.ok(code.indexOf('await explorer.awaitPages()') < code.indexOf('explorer.render()'));
+    assert.ok(lesson.manifest);
     assert.ok(code.includes(lesson.manifest), `${lesson.id} uses its displayed manifest`);
     if (lesson.kind === 'offline') assert.ok(code.includes(lesson.manifest));
     assert.match(code, new RegExp(`importedLights: ${lesson.importedLights}`));
@@ -41,6 +46,7 @@ test('live renderer lessons use diverse original scenes and matching captures', 
     [],
   );
   for (const lesson of live) {
+    assert.ok(lesson.manifest);
     assert.match(
       lesson.manifest,
       /^\.\/assets\/(gallery\/(offline|shadow-theatre|signature-architecture)|kinetic-garden)\//,
@@ -51,6 +57,8 @@ test('live renderer lessons use diverse original scenes and matching captures', 
 
 test('the LOD lesson uses a compiled multi-level cache', async () => {
   const lesson = rendererLessons.find(({ id }) => id === 'runtime-pixel-error');
+  assert.ok(lesson);
+  assert.ok(lesson.manifest);
   const pointer = JSON.parse(
     await readFile(new URL(`../site/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
   );
@@ -65,6 +73,7 @@ test('the LOD lesson uses a compiled multi-level cache', async () => {
   );
   assert.equal(manifest.simplification, true);
   assert.equal(manifest.selectedTriangles, 91_352);
+  assert.ok(lesson.referenceReview);
   assert.deepEqual(lesson.referenceReview.urls, [
     'https://threejs.org/examples/webgl_lod.html',
     'https://threejs.org/examples/webgl_batch_lod_bvh.html',
@@ -107,7 +116,8 @@ test('the LOD lesson uses a compiled multi-level cache', async () => {
 });
 
 test('renderer badges link only to documented API entries', () => {
-  const render = (id) => renderToStaticMarkup(createElement(Playground, { id, locale: 'en' }));
+  const render = (id: string) =>
+    renderToStaticMarkup(createElement(Playground, { id, locale: 'en' }));
   const light = render('point-light-range');
   assert.doesNotMatch(light, /#\/en\/api\/addLight/);
   assert.match(light, />addLight<\/code>/);
@@ -115,8 +125,10 @@ test('renderer badges link only to documented API entries', () => {
 });
 
 test('the shadow switch uses its original theatre and keeps direct light in both states', async () => {
-  const lesson = rendererLessons.find(({ id }) => id === 'shadow-casting-switch'),
-    pointer = JSON.parse(
+  const lesson = rendererLessons.find(({ id }) => id === 'shadow-casting-switch');
+  assert.ok(lesson);
+  assert.ok(lesson.manifest);
+  const pointer = JSON.parse(
       await readFile(new URL(`../site/${lesson.manifest.slice(2)}`, import.meta.url), 'utf8'),
     ),
     manifest = JSON.parse(
@@ -130,6 +142,7 @@ test('the shadow switch uses its original theatre and keeps direct light in both
     );
   assert.equal(manifest.sourceTriangles, 26_313);
   assert.equal(lesson.sceneFill, false);
+  assert.ok(lesson.referenceReview);
   assert.deepEqual(lesson.referenceReview.urls, [
     'https://threejs.org/examples/webgl_shadowmap.html',
   ]);
@@ -165,8 +178,15 @@ test('binary lesson controls render as accessible toggles', () => {
 test('a control change during setup reaches the mounted renderer', async () => {
   const initial = { intensity: 60 },
     latest = { intensity: 80 },
-    updates = [],
-    runtime = { update: async (state) => updates.push(state) };
+    updates: Record<string, number>[] = [],
+    runtime: RendererLessonSession = {
+      update: async (state) => {
+        updates.push(state);
+      },
+      dispose: () => {},
+      setDiagnostic: () => {},
+      camera: { zoomIn: () => {}, zoomOut: () => {}, reset: () => {} },
+    };
   await syncRendererState(runtime, initial, initial);
   await syncRendererState(runtime, initial, latest);
   assert.deepEqual(updates, [latest]);

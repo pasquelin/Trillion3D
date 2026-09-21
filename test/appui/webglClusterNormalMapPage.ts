@@ -42,7 +42,7 @@ export function normalMapFrames(
   pixel: typeof pixelType,
 ) {
   const previous = mesh.material,
-    previousUv = mesh.geometry.getAttribute('uv'),
+    previousUv = mesh.geometry.attributes.uv,
     scene = new THREE.Scene(),
     sun = new THREE.DirectionalLight(0xffffff, 1),
     texel: [number, number, number] = [160, 210, 230],
@@ -61,10 +61,10 @@ export function normalMapFrames(
     normal: [number, number, number],
   ) => {
     mesh.material = material;
-    mesh.geometry.setAttribute('uv', texcoords(vSign));
-    mesh.geometry.setAttribute(
-      'normal',
-      new THREE.BufferAttribute(new Float32Array([...normal, ...normal, ...normal]), 3),
+    mesh.geometry.attributes.uv = texcoords(vSign);
+    mesh.geometry.attributes.normal = new THREE.BufferAttribute(
+      new Float32Array([...normal, ...normal, ...normal]),
+      3,
     );
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     renderer.draw([mesh], scene, drawCamera, false, true);
@@ -77,10 +77,10 @@ export function normalMapFrames(
     mirrored: draw(mapped, -1, flat),
     mirroredWitness: draw(baked, -1, [tilt.x, -tilt.y, tilt.z]),
   };
-  mesh.geometry.setAttribute('uv', previousUv);
-  mesh.geometry.setAttribute(
-    'normal',
-    new THREE.BufferAttribute(new Float32Array([...flat, ...flat, ...flat]), 3),
+  mesh.geometry.attributes.uv = previousUv;
+  mesh.geometry.attributes.normal = new THREE.BufferAttribute(
+    new Float32Array([...flat, ...flat, ...flat]),
+    3,
   );
   mesh.material = previous;
   mapped.normalMap.dispose();

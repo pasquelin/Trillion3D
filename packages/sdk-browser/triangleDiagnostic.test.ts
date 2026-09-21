@@ -60,7 +60,7 @@ test('exact pages wireframe uses non-indexed submitted triangles', () => {
   backend.render(camera);
   const drawn = submittedDraws(backend);
   assert.ok(drawn.length >= 1);
-  assert.ok(drawn.every((item) => item.geometry.getIndex() === null));
+  assert.ok(drawn.every((item) => item.geometry.index === null));
   assert.ok(
     drawn.every(
       (item) =>

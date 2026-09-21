@@ -3,16 +3,35 @@
 //
 //   node --experimental-strip-types test/browser/observation-eclairage-webgl.browser.mjs
 import assert from 'node:assert/strict';
-import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.ts';
+import {
+  preuveDansLaPage,
+  preuveSaine,
+  type ResultatPagePreuve,
+} from '../appui/preuvePageMoteur.ts';
+
+interface Comparaison {
+  max: number;
+  differing: number;
+}
+
+interface Resultat extends ResultatPagePreuve {
+  litPixels: number;
+  againstWitness: Comparaison;
+  composedAgainstEngine: Comparaison;
+  drawCalls?: number;
+  triangles?: number;
+  meshesInHostScene: number;
+  renderer: string;
+}
 
 /** One byte in a hundred may sit on a rounding boundary of the two sRGB exponents. */
 const BOUNDARY_BUDGET = (96 * 96 * 4) / 100;
-const result = await preuveDansLaPage(
+const result = (await preuveDansLaPage(
   'lightingObservationPage.ts',
   'lightingObservationProof',
   'Lighting observation on the engine program',
   'execute',
-);
+)) as Resultat;
 console.log(JSON.stringify(result, null, 2));
 preuveSaine(result);
 assert.ok(result.litPixels > 2000, 'the rectangles and the sphere fill the view');
