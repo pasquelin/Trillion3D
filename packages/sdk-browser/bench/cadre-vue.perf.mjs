@@ -1,6 +1,6 @@
 // what a frame used to rebuild for no reason.
 import * as THREE from 'three';
-import { surfaceColorAttachments } from '../webgpuPagesEncodeVisSetup.ts';
+import { surfaceColorAttachments } from '../webgpuPagesAttachments.ts';
 import { anneauFroid } from '../explorerDraw.ts';
 import { deplaceInstance } from '../autonomousInstances.ts';
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
