@@ -92,7 +92,7 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
   const [selected, setSelected] = useState('engines');
   const [chosenRun, setChosenRun] = useState('');
   const records = report.records.filter((r) => r.scene === scene);
-  const pairs = pairedImages(records) as [ReportRecord, ReportRecord][];
+  const pairs = pairedImages(records);
   const paired = new Set(pairs.flat().map((r) => r.id));
   const singles = records.filter((r) => r.image && !paired.has(r.id));
   const groups = FAMILIES.map(([id, en, fr]) => ({

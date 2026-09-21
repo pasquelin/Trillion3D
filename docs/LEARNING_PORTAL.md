@@ -46,7 +46,7 @@ pnpm docs:serve
 ```
 
 `build:docs` runs `scripts/docs-build.mjs`. It compiles `docs/styles/tailwind.css` with Tailwind
-and DaisyUI into `docs/css/site.css`, scans the handwritten HTML and JavaScript for class names,
+and DaisyUI into `docs/css/site.css`, scans the handwritten HTML, JavaScript and TypeScript for class names,
 and bundles the React portal, browser SDK and workers into generated assets. The CSS and everything under
 `docs/runtime/` are generated artifacts: change their sources and rebuild instead of editing the
 outputs. The React components and the content, gallery, localization and engine-scene modules under
