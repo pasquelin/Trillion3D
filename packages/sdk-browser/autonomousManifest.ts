@@ -27,11 +27,22 @@ export function prepareAutonomousManifest(input: ClusterManifest) {
       }),
     })),
   };
+  // A decoded page may leave its source box by the primitive's declared quantization error.
   const descriptors = new Map(
-    input.primitives
-      .flatMap((primitive) => primitive.pages)
-      .filter((page) => !!page.geometry)
-      .map((page) => [page.geometry!.url, page.geometry!] as const),
+    input.primitives.flatMap((primitive) =>
+      primitive.pages
+        .filter((page) => !!page.geometry)
+        .map(
+          (page) =>
+            [
+              page.geometry!.url,
+              {
+                ...page.geometry!,
+                positionError: primitive.quantization?.maxPositionError ?? 0,
+              },
+            ] as const,
+        ),
+    ),
   );
   return { metadata, descriptors };
 }
