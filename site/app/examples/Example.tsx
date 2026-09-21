@@ -13,7 +13,7 @@ export function Example({ id, locale }: { id: string; locale: Locale }) {
   useEffect(() => {
     const controller = new AbortController();
     fetch(entry.file, { signal: controller.signal })
-      .then((response) => response.text())
+      .then((response) => (response.ok ? response.text() : Promise.reject(response.status)))
       .then(setSource)
       .catch(() => {});
     return () => controller.abort();

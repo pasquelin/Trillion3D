@@ -37,6 +37,8 @@ test('legacy documentation hashes keep their destination in the chosen locale', 
     id: 'engine-scene',
   });
   assert.equal(localizedHref('#guides/quick-start', 'fr'), '#/fr/learn/quick-start');
+  assert.equal(localizedHref('#examples/example-camera', 'en'), '#/en/learn/example-camera');
+  assert.equal(localizedHref('#examples', 'en'), '#/en/lessons');
   assert.equal(entryRoute({ id: 'intro', section: 'guides' }, 'en'), '#/en/learn/intro');
 });
 

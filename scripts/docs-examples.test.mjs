@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
+import { modelScenes } from './docs/examples/models.mjs';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 
 const site = new URL('../site/', import.meta.url);
@@ -28,7 +29,9 @@ test('every example is one standalone HTML file that imports the built engine', 
     const manifest = html.match(/manifestUrl: '\.\.\/(assets\/[^']+)'/)?.[1];
     assert.ok(manifest, entry.id);
     await access(new URL(manifest, site));
-    if (/models\/|CC BY/.test(html)) assert.match(html, /<p>.*CC BY 3\.0.*CREDITS\.md<\/p>/);
+    // A scene built around an imported model credits its author on the page.
+    if (Object.keys(modelScenes).some((scene) => manifest.startsWith(`assets/examples/${scene}/`)))
+      assert.match(html, /<p>[^<]*\b(CC0|CC BY 3\.0)\b[^<]*CREDITS\.md<\/p>/, entry.id);
   }
 });
 
