@@ -61,5 +61,5 @@ test('each texture lives in the pool of its lane, and an empty lane has a stand-
   });
   assert.equal(destroyed(), 1, 'only the lane whose layers changed gets a new pool');
   atlas.destroy();
-  assert.equal(destroyed(), 3);
+  assert.equal(destroyed(), 4, 'both pools and the stand-in');
 });

@@ -88,8 +88,9 @@ export type PoolEncoding = {
    *  block pool, 2 the two-channel pool with Y in its second channel (BC5), 3 the same with Y in
    *  its alpha (the ASTC luminance-alpha block). */
   tapOf(lane: PoolLane): number;
-  /** Where the white fill texel lives: a block lane when the session has one, so a scene whose
-   *  every chain is kept opens no RGBA8 layer for a single texel. */
+  /** The lane the white fill texel prefers: a block lane when the session has one, so a scene
+   *  whose every chain is kept opens no RGBA8 layer for a single texel. The catalogue keeps it
+   *  in the lossless lane instead when that is the only one the textures open. */
   fillLane: PoolLane;
 };
 

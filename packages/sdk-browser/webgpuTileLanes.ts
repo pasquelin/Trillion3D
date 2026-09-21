@@ -48,14 +48,13 @@ export function createTileLanes(
     if (tails > pool.tiles)
       throw new Error(`TEXTURE_POOL_TAILS: ${tails} ${lane} textures, ${pool.tiles} tiles`);
   }
-  const standIn = device
-    .createTexture({
-      label: `WG texture pool ${kind} stand-in`,
-      size: { width: 4, height: 4, depthOrArrayLayers: 1 },
-      format: 'rgba8unorm',
-      usage: GPUTextureUsage.TEXTURE_BINDING,
-    })
-    .createView({ dimension: '2d-array' });
+  const standInTexture = device.createTexture({
+    label: `WG texture pool ${kind} stand-in`,
+    size: { width: 4, height: 4, depthOrArrayLayers: 1 },
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  });
+  const standIn = standInTexture.createView({ dimension: '2d-array' });
   const views = () => POOL_LANES.map((lane) => lanes.get(lane)?.pool.view ?? standIn);
   const pools = () => [...lanes.values()].map((lane) => lane.pool);
   return {
@@ -94,6 +93,7 @@ export function createTileLanes(
     },
     destroy() {
       for (const lane of lanes.values()) lane.pool.destroy();
+      standInTexture.destroy();
     },
   };
 }

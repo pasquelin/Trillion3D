@@ -21,44 +21,44 @@ export function tileCatalogue(
   readLevel: TextureLevelReader | undefined,
   encoding: PoolEncoding,
 ): TileTexture[] {
+  const textures = maps.map((map, index): TileTexture => {
+    const preview = previewFor(index);
+    const chain =
+      preview && previewIsWhole(preview) && (preview.bakedLevels === 0 || readLevel)
+        ? preview
+        : undefined;
+    const rgba = textureRgba(map);
+    if (chain) {
+      const layout = tileLayout(chain.width, chain.height);
+      if (chain.firstLevel !== layout.tail || chain.levels.length !== layout.last - layout.tail + 1)
+        throw new Error('TEXTURE_PREVIEW_GEOMETRY');
+      return {
+        layout,
+        lane: encoding.laneOf(chain),
+        source:
+          layout.tail === 0
+            ? { kind: 'bytes', tail: chain }
+            : { kind: 'baked', sha256: chain.sha256, atlas: chain.atlas, tail: chain },
+      };
+    }
+    const image = map.image as { width?: number; height?: number } | undefined;
+    const width = rgba?.width ?? Math.max(1, image?.width ?? 1),
+      height = rgba?.height ?? Math.max(1, image?.height ?? 1);
+    return {
+      layout: tileLayout(width, height),
+      lane: 'lossless',
+      source: { kind: 'host', map, rgba },
+    };
+  });
+  // The fill takes a lane the textures already open, so its one texel costs no layer of its
+  // own: the block lane when a chain is kept there, the lossless one when only that one is
+  // open — a host-image scene, a cache cooked without this family —, the cheaper block lane
+  // when neither is.
+  const open = new Set(textures.map((texture) => texture.lane));
   const fill: TileTexture = {
     layout: tileLayout(1, 1),
-    lane: encoding.fillLane,
+    lane: open.has(encoding.fillLane) || !open.has('lossless') ? encoding.fillLane : 'lossless',
     source: { kind: 'bytes', tail: WHITE_TAIL },
   };
-  return [
-    fill,
-    ...maps.map((map, index): TileTexture => {
-      const preview = previewFor(index);
-      const chain =
-        preview && previewIsWhole(preview) && (preview.bakedLevels === 0 || readLevel)
-          ? preview
-          : undefined;
-      const rgba = textureRgba(map);
-      if (chain) {
-        const layout = tileLayout(chain.width, chain.height);
-        if (
-          chain.firstLevel !== layout.tail ||
-          chain.levels.length !== layout.last - layout.tail + 1
-        )
-          throw new Error('TEXTURE_PREVIEW_GEOMETRY');
-        return {
-          layout,
-          lane: encoding.laneOf(chain),
-          source:
-            layout.tail === 0
-              ? { kind: 'bytes', tail: chain }
-              : { kind: 'baked', sha256: chain.sha256, atlas: chain.atlas, tail: chain },
-        };
-      }
-      const image = map.image as { width?: number; height?: number } | undefined;
-      const width = rgba?.width ?? Math.max(1, image?.width ?? 1),
-        height = rgba?.height ?? Math.max(1, image?.height ?? 1);
-      return {
-        layout: tileLayout(width, height),
-        lane: 'lossless',
-        source: { kind: 'host', map, rgba },
-      };
-    }),
-  ];
+  return [fill, ...textures];
 }
