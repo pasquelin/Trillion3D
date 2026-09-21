@@ -1,15 +1,19 @@
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
-in vec3 position;in vec3 normal;in vec4 tangent;in vec2 uv;in vec2 uv1;in vec4 color;
+in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;
 uniform mat4 modelViewMatrix,projectionMatrix;uniform mat3 normalMatrix;
-out vec3 viewPosition;out vec3 viewNormal;out vec4 viewTangent;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
+out vec3 viewPosition;out vec3 viewNormal;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
 void main(){vec4 view=modelViewMatrix*vec4(position,1.0);viewPosition=view.xyz;
-viewNormal=normalize(normalMatrix*normal);viewTangent=vec4(normalize(mat3(modelViewMatrix)*tangent.xyz),tangent.w);
+viewNormal=normalize(normalMatrix*normal);
 texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*(modelViewMatrix*vec4(position,1.0));}`;
 
+// `clusterTangent`: the tangent a page no longer stores, rebuilt from the triangle's positions
+// and texture coordinates through their screen derivatives (the WGSL routine's maths): the
+// direction along which u grows, made orthogonal to the normal, the frame's handedness in w,
+// zero when the triangle has no texture area.
 export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;const float PI=3.141592653589793;const int MAX_LIGHTS=64;
-in vec3 viewPosition;in vec3 viewNormal;in vec4 viewTangent;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
+in vec3 viewPosition;in vec3 viewNormal;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
 uniform vec3 emissiveFactor;uniform bool lit,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
@@ -17,6 +21,10 @@ uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform int lightCount;uniform ivec4 mapChannels;uniform ivec2 extraChannels;layout(std140) uniform ClusterLights{vec4 lightData[256];};
 vec2 sourceUv(int channel){return channel==1?texcoord1:texcoord0;}
 vec2 mapUv(mat3 transform,vec2 source){return(transform*vec3(source,1.0)).xy;}
+vec4 clusterTangent(vec3 N,vec2 st){vec3 e1=dFdx(viewPosition),e2=dFdy(viewPosition);vec2 d1=dFdx(st),d2=dFdy(st);
+float det=d1.x*d2.y-d2.x*d1.y;if(det==0.0)return vec4(0.0);
+vec3 tangent=(e1*d2.y-e2*d1.y)/det,bitangent=(e2*d1.x-e1*d2.x)/det,t=normalize(tangent-N*dot(N,tangent));
+return vec4(t,dot(cross(N,t),bitangent)>=0.0?1.0:-1.0);}
 vec3 fresnel(float h,vec3 f0){return f0+(1.0-f0)*pow(max(0.0,1.0-h),5.0);}
 float filteredRoughness(vec3 N,float rough){vec3 du=dFdx(N),dv=dFdy(N);float variance=.25*(dot(du,du)+dot(dv,dv));
 float alpha=rough*rough,filtered=clamp(alpha*alpha+min(variance,.18),7.596914e-6,1.0);return sqrt(sqrt(filtered));}
@@ -33,8 +41,8 @@ vec3 linearToSrgb(vec3 x){bvec3 low=lessThanEqual(x,vec3(0.0031308));return mix(
 void main(){vec4 base=baseFactor;if((mapMask&1)!=0)base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
 float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0),rough=clamp(roughFactor*roughSample,0.0525,1.0);
-vec3 N=normalize(viewNormal);if(hasNormalMap){vec3 n=texture(normalMap,mapUv(normalUv,sourceUv(mapChannels.w))).xyz*2.0-1.0;n.xy*=normalScale;
-vec3 T=normalize(viewTangent.xyz-N*dot(N,viewTangent.xyz)),B=normalize(cross(N,T)*viewTangent.w);N=normalize(mat3(T,B,N)*n);}if(!gl_FrontFacing)N=-N;
+vec3 N=normalize(viewNormal);if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec4 frame=clusterTangent(N,st);if(frame.w!=0.0){vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
+vec3 T=frame.xyz,B=normalize(cross(N,T)*frame.w);N=normalize(mat3(T,B,N)*n);}}if(!gl_FrontFacing)N=-N;
 rough=filteredRoughness(N,rough);
 vec3 rgb=vec3(0.0),V=normalize(-viewPosition);float ao=1.0;if((mapMask&16)!=0)ao+=aoStrength*(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0);if(lit){for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
 vec4 positionRange=lightData[i*4],directionKind=lightData[i*4+1],colorIntensity=lightData[i*4+2],cone=lightData[i*4+3];
