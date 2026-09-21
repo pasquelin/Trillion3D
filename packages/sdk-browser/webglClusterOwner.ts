@@ -26,6 +26,9 @@ export class WebglClusterOwner {
   get backdropPasses() {
     return this.renderer.backdropPasses;
   }
+  get backdropSubmissions() {
+    return this.renderer.backdropSubmissions;
+  }
   draw(
     meshes: readonly ClusterDrawMesh[],
     scene: WebglClusterScene,
