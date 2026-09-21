@@ -1,14 +1,6 @@
 import { rotation } from './gltf-parts.mjs';
 import { brickNormals, checker, leaf, stripes } from './textures.mjs';
-import { TAU, random, slab, workshop } from './workshop.mjs';
-
-const single = (name, shop, materials, images) => ({
-  name,
-  materials,
-  parts: [{ name: 'scene', surfaces: shop.surfaces }],
-  nodes: [{ name: 'scene', part: 'scene' }],
-  images,
-});
+import { TAU, random, sceneOf, slab, workshop } from './workshop.mjs';
 
 /** Three painted solids beside three textured ones, the same shapes twice. */
 function painted() {
@@ -23,7 +15,7 @@ function painted() {
     shop.cylinder(first + 2, [2, 0, row], 0.6, 1.4);
   }
   const map = (index) => ({ pbrMetallicRoughness: { baseColorTexture: { index } } });
-  return single(
+  return sceneOf(
     'Painted and textured',
     shop,
     [
@@ -36,9 +28,11 @@ function painted() {
       ['Tile cloth', [1, 1, 1, 1], 0, 0.7, map(2)],
     ],
     {
-      'checker.png': checker(8, [0.9, 0.88, 0.82, 1], [0.15, 0.15, 0.18, 1]),
-      'stripes.png': stripes(10, [0.85, 0.3, 0.25, 1], [0.95, 0.9, 0.8, 1]),
-      'tiles.png': checker(4, [0.2, 0.45, 0.5, 1], [0.8, 0.8, 0.7, 1]),
+      images: {
+        'checker.png': checker(8, [0.9, 0.88, 0.82, 1], [0.15, 0.15, 0.18, 1]),
+        'stripes.png': stripes(10, [0.85, 0.3, 0.25, 1], [0.95, 0.9, 0.8, 1]),
+        'tiles.png': checker(4, [0.2, 0.45, 0.5, 1], [0.8, 0.8, 0.7, 1]),
+      },
     },
   );
 }
@@ -49,14 +43,14 @@ function bricks() {
   shop.patch(1, 1, 1, (u, v) => [(u - 0.5) * 6, v * 3, 0]);
   shop.box(0, [0, -0.1, 1.5], [7, 0.2, 3]);
   shop.box(0, [0, 1.5, -0.2], [6.4, 3.4, 0.3]);
-  return single(
+  return sceneOf(
     'Brick wall',
     shop,
     [
       ['Concrete', [0.5, 0.5, 0.48, 1], 0, 0.9],
       ['Brick', [0.62, 0.3, 0.22, 1], 0, 0.85, { normalTexture: { index: 0, scale: 1 } }],
     ],
-    { 'bricks-normal.png': brickNormals(12, 8) },
+    { images: { 'bricks-normal.png': brickNormals(12, 8) } },
   );
 }
 
@@ -123,7 +117,7 @@ function neon() {
     const a = u * TAU;
     return [0.3 + v * 2.2, 1.6 + Math.sin(a) * 0.04, Math.cos(a) * 0.04];
   });
-  return single('Neon sign', shop, [
+  return sceneOf('Neon sign', shop, [
     ['Dark render', [0.12, 0.12, 0.14, 1], 0, 0.9],
     [
       'Neon glass',

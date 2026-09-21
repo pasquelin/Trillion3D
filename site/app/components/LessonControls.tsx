@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
-import { ControlActions, ControlLabel, ControlPanel } from './ControlPanel.tsx';
-import { Field, Range, Select, Toggle } from './UI.tsx';
+import { Card, Field, Range, Select, Toggle } from './UI.tsx';
 
 interface Common {
   id: string;
@@ -96,57 +95,60 @@ function Control({ control }: { control: LessonControl }) {
   );
 }
 
-/** Every lesson's controls, on one fixed pattern: the first row carries the experiment picker and
- * the panel's buttons, the second the lesson's own parameters, evenly spread. A page says what it
- * controls, never where it goes. */
-export function LessonControls({
-  title,
-  controls,
-  actions,
-}: {
-  title?: ReactNode;
-  controls: LessonControl[];
-  actions?: ReactNode;
-}) {
-  const picker = controls.find((control) => control.kind === 'select');
-  const parameters = controls.filter((control) => control !== picker);
-  return (
-    <ControlPanel title={title}>
-      <div className="control-panel-row control-panel-pick">
-        {picker && <ControlField control={picker} className="control-panel-wide" />}
-        {actions && <ControlActions>{actions}</ControlActions>}
-      </div>
-      {parameters.length > 0 && (
-        <div className="control-panel-row control-panel-parameters">
-          {parameters.map((control) => (
-            <ControlField key={control.id} control={control} />
-          ))}
-        </div>
-      )}
-    </ControlPanel>
-  );
-}
-
 /** One control with its label and, for a slider, its value beside it. */
 function ControlField({ control, className = '' }: { control: LessonControl; className?: string }) {
   if (control.label === undefined)
     return (
-      <div className={`control-panel-field ${className}`} data-control={control.id}>
+      <div className={className}>
         <Control control={control} />
       </div>
     );
   return (
     <Field
       className={`control-panel-field ${className}`}
-      data-control={control.id}
       label={
-        <ControlLabel
-          label={control.label}
-          value={control.kind === 'range' ? control.display : undefined}
-        />
+        <span className="control-label">
+          <span className="min-w-0">{control.label}</span>
+          {control.kind === 'range' && control.display !== undefined && (
+            <span className="control-value">{control.display}</span>
+          )}
+        </span>
       }
     >
       <Control control={control} />
     </Field>
+  );
+}
+
+/** Every lesson's controls, on one fixed pattern: the first row carries the experiment picker the
+ * page names and the panel's buttons, the second the lesson's own parameters, evenly spread. A
+ * page says what it controls, never where it goes. */
+export function LessonControls({
+  title,
+  picker,
+  controls,
+  actions,
+}: {
+  title?: ReactNode;
+  picker?: LessonControl;
+  controls: LessonControl[];
+  actions?: ReactNode;
+}) {
+  return (
+    <Card title={title} className="control-panel">
+      <div className="control-panel-grid">
+        <div className="control-panel-pick">
+          {picker && <ControlField control={picker} className="control-panel-wide" />}
+          {actions && <div className="control-panel-actions">{actions}</div>}
+        </div>
+        {controls.length > 0 && (
+          <div className="control-panel-parameters">
+            {controls.map((control) => (
+              <ControlField key={control.id} control={control} />
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
