@@ -4,6 +4,10 @@ dist/
 benchmark-runs/
 .idea/
 .mesure/
+# Published docs bundles: built on demand by `pnpm run build:docs`, committed on main alone by the
+# release (docs/LEARNING_PORTAL.md); `check:local` tolerates them tracked.
+/docs/css/site.css
+/docs/runtime/
 # Personal files stay local. Shared checks read these patterns.
 # Local files begin
 .claude/
