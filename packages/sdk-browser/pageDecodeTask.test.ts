@@ -58,13 +58,13 @@ test('decode returns the same buffers as in-place decode, attributes included', 
   const bon = answer as PageDecodeDone;
   const payload = bon.decoded!;
   assert.deepEqual(payload.names, Object.keys(surPlace.attributes));
-  assert.equal(transfer.length, 1 + payload.attributes.length);
-  assert.equal(transfer[0], payload.indices);
-  for (let i = 0; i < payload.attributes.length; i++)
-    assert.equal(transfer[1 + i], payload.attributes[i]);
+  assert.deepEqual(transfer, [payload.block]);
+  assert.equal(payload.block.byteLength, payload.decodedBytes);
+  assert.equal(payload.quantizationError, surPlace.quantizationError);
 
   const restauree = restorePageDecode(payload);
   assert.deepEqual(Array.from(restauree.indices), Array.from(surPlace.indices));
+  assert.equal(restauree.quantizationError, surPlace.quantizationError);
   for (const nom of payload.names) {
     const a = restauree.attributes[nom],
       b = surPlace.attributes[nom];

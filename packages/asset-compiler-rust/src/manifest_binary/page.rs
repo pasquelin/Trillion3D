@@ -1,5 +1,4 @@
 use super::*;
-use crate::compiler_page_object::{GEOMETRY_PAGE_CODEC, GEOMETRY_PAGE_VERSION};
 
 pub(super) fn encode_page(
     page: &Value,
@@ -130,16 +129,6 @@ pub(super) fn encode_page(
                 text(geometry.get("url"), "page.geometry.url")?,
                 digest,
             )?;
-            if integer(geometry.get("formatVersion"), "page.geometry.formatVersion")?
-                != i64::from(GEOMETRY_PAGE_VERSION)
-            {
-                return Err(bad(
-                    "page.geometry.formatVersion is not the quantized page's",
-                ));
-            }
-            if text(geometry.get("codec"), "page.geometry.codec")? != GEOMETRY_PAGE_CODEC {
-                return Err(bad("page.geometry.codec is not quantized"));
-            }
             columns[GEOMETRY_SHA].sha(digest)?;
             for (key, label) in [
                 ("bytes", "page.geometry.bytes"),

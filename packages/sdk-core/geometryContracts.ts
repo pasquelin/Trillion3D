@@ -1,7 +1,11 @@
 import type { DagReport } from './dagContracts.ts';
 import type { AssetScope } from './contractsBase.ts';
 import type { SceneProxyDescriptor } from './proxyContracts.ts';
-import type { GeometryPageDescriptor, PrimitiveQuantization } from './geometryPageContracts.ts';
+import type {
+  GeometryPageDescriptor,
+  GeometryPageFormat,
+  PrimitiveQuantization,
+} from './geometryPageContracts.ts';
 
 export interface Page {
   id: number;
@@ -167,6 +171,8 @@ export interface ClusterManifest {
   formatVersion?: number;
   compilerVersion?: string;
   errorModel?: string;
+  /** The cluster page format of every `pages[].geometry`; absent from a cache without pages. */
+  geometryPages?: GeometryPageFormat;
   simplification?: boolean;
   schema: number;
   status: string;

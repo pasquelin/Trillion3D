@@ -1,5 +1,6 @@
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import { CLUSTER_HEADER_WORDS } from './clusterFormat.ts';
+import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
 
 /**
  * Loader of the SDK WebAssembly module (`packages/page-codec-wasm`) and page decoder that uses it.
@@ -8,22 +9,15 @@ import { CLUSTER_HEADER_WORDS } from './clusterFormat.ts';
  * work in that same memory.
  *
  * The module imports nothing and exports only its linear memory and its functions: the compressed
- * page is written into that memory, the decoder deposits its buffers there and returns their
- * offsets. Nothing is copied between the two. Buffers returned to the caller, though, are copies:
- * they survive `page_release` and can be transferred to another thread.
+ * page is written into that memory on a word boundary, the decoder reads it there and deposits
+ * one block — six words of counts, then the decoded page — whose offset it returns. The block is
+ * copied out once: the copy survives `page_release` and can be transferred to another thread.
  *
  * If `WebAssembly` is missing or instantiation fails, the JavaScript decoder takes over — same
  * buffers, same refusals, only slower. It is loaded then and not before, so that this loader's
  * static graph stays the module alone.
  */
 
-/** Optional attributes, in the order and under the names of the JavaScript decoder. */
-const OPTIONNELS: ReadonlyArray<readonly [string, number]> = [
-  ['normal', 3],
-  ['uv', 2],
-  ['uv2', 2],
-  ['color', 4],
-];
 /** Refusal causes of the Rust decoder, at the index of their code. */
 const CAUSES = [
   '',
@@ -32,7 +26,8 @@ const CAUSES = [
   'GEOMETRY_PAGE_BOUNDS',
   'GEOMETRY_PAGE_INDEX',
 ];
-const MOTS = 11;
+/** Result block: status, vertices, indices, flags, decoded bytes, quantization error bits. */
+const MOTS = 6;
 
 /** Module exports, page decoder and batch compute together. */
 export type SdkWasm = {
@@ -87,28 +82,17 @@ export function prepareSdkWasm(source: SourceWasm = ressource): Promise<SdkWasm 
   return attente;
 }
 
-/** Result-block buffers, copied out of linear memory before it moves. */
+/** The decoded page, copied out of linear memory whole before it moves, and read as the
+ *  JavaScript decoder lays it out: the indices, then each present attribute's floats. */
 function copie(codec: SdkWasm, bloc: number): DecodedGeometryPage {
   const mots = new Uint32Array(codec.memory.buffer, bloc, MOTS);
   if (mots[0]) throw new Error(CAUSES[mots[0]] ?? 'GEOMETRY_PAGE_BOUNDS');
   const vertexCount = mots[1],
-    indexCount = mots[2],
     flags = mots[3],
-    decodedBytes = mots[4];
-  const indices = new Uint32Array(codec.memory.buffer, mots[5], indexCount).slice();
-  const attributes: Record<string, Float32Array> = {
-    position: new Float32Array(codec.memory.buffer, mots[6], vertexCount * 3).slice(),
-  };
-  for (let i = 0; i < OPTIONNELS.length; i++) {
-    const offset = mots[7 + i];
-    if (offset)
-      attributes[OPTIONNELS[i][0]] = new Float32Array(
-        codec.memory.buffer,
-        offset,
-        vertexCount * OPTIONNELS[i][1],
-      ).slice();
-  }
-  return { indices, attributes, vertexCount, flags, decodedBytes };
+    decodedBytes = mots[4],
+    quantizationError = new Float32Array(codec.memory.buffer, bloc + 20, 1)[0];
+  const block = codec.memory.buffer.slice(bloc + MOTS * 4, bloc + MOTS * 4 + decodedBytes);
+  return { ...pageViews(block, pageAttributeNames(flags), vertexCount), vertexCount, flags, decodedBytes, quantizationError };
 }
 
 /** Same signature, same buffers and same refusals as `decodeGeometryPage`. */

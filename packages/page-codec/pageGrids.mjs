@@ -4,7 +4,8 @@
  */
 const MAX_BITS = 24;
 
-export const bitsFor = (range) => (range <= 0 ? 0 : Math.floor(Math.log2(range)) + 1);
+/** Bits that hold every value of `0..=range`, a range below 2^32; none for a constant field. */
+export const bitsFor = (range) => (range <= 0 ? 0 : 32 - Math.clz32(range));
 
 /**
  * Integer cells of `n`-wide vectors on a power-of-two grid, and the record that describes them.
@@ -24,11 +25,19 @@ export function quantize(values, n, exponent) {
       lo[c] = Math.min(lo[c], cell);
       hi[c] = Math.max(hi[c], cell);
     }
-  const bits = lo.map((low, c) => (count ? bitsFor(hi[c] - low) : 0));
-  if (bits.some((b) => b > MAX_BITS)) throw new Error('PAGE_ATTRIBUTE_RANGE');
-  const min = lo.map((low) => (count ? Math.fround(low * step) : 0));
+  const range = lo.map((low, c) => (count ? hi[c] - low : 0));
+  if (range.some((r) => r >= 2 ** MAX_BITS)) throw new Error('PAGE_ATTRIBUTE_RANGE');
+  const bits = range.map(bitsFor),
+    min = lo.map((low) => (count ? Math.fround(low * step) : 0));
   for (let i = 0; i < cells.length; i++) cells[i] -= lo[i % n];
   return { min, exponent, bits, cells };
+}
+
+/** A displacement as the 32-bit float the header carries, rounded up so nothing exceeds it. */
+export function ceil32(value) {
+  const float = new Float32Array([value]);
+  if (float[0] < value) new Uint32Array(float.buffer)[0]++;
+  return float[0];
 }
 
 /** Octahedral bytes of a normal, `x` low and `y` high; a zero normal takes `+z`. */

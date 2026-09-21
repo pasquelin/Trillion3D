@@ -30,7 +30,7 @@ fn the_decoder_refuses_what_the_encoder_never_writes() {
     extreme[23] = 64;
     extreme.extend([0xFFu8; 4]);
     let page = codec::decode(&extreme, 1 << 20).expect("finite");
-    assert!(page.position.iter().all(|v| v.is_finite()));
+    assert!(page.attribute(0).expect("position").iter().all(|v| v.is_finite()));
     assert_eq!(
         codec::decode(&good[..good.len() - 1], 1 << 20).unwrap_err(),
         codec::PageError::Bounds

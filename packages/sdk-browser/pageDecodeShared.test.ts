@@ -54,6 +54,8 @@ function ecartPage(a: DecodedGeometryPage, b: DecodedGeometryPage) {
   if (a.vertexCount !== b.vertexCount) return `vertices ${a.vertexCount} ≠ ${b.vertexCount}`;
   if (a.flags !== b.flags) return `flags ${a.flags} ≠ ${b.flags}`;
   if (a.decodedBytes !== b.decodedBytes) return `bytes ${a.decodedBytes} ≠ ${b.decodedBytes}`;
+  if (!Object.is(a.quantizationError, b.quantizationError))
+    return `error ${a.quantizationError} ≠ ${b.quantizationError}`;
   const noms = Object.keys(a.attributes);
   if (noms.join() !== Object.keys(b.attributes).join()) return `names ${noms.join()}`;
   for (const [nom, gauche] of [
@@ -142,26 +144,25 @@ test('cross-origin isolation alone decides the announced path, and Node without 
 
 test('a page too large, or with too many attributes, is not written: it leaves by transfer', () => {
   const arena = createPageArena(1);
-  const done = (attributs: ArrayBuffer[]): PageDecodeDone => ({
+  const done = (block: ArrayBuffer, attributs: number): PageDecodeDone => ({
     protocol: PAGE_DECODE_PROTOCOL,
     id: 1,
     ok: true,
     sha256: null,
     source: null,
     decoded: {
-      indices: new ArrayBuffer(4),
-      names: attributs.map((_, i) => `a${i}`),
-      attributes: attributs,
+      block,
+      names: Array.from({ length: attributs }, (_, i) => `a${i}`),
       vertexCount: 1,
       flags: 0,
-      decodedBytes: 72,
+      decodedBytes: block.byteLength,
+      quantizationError: 0,
     },
     wasm: false,
     taskMs: 0,
   });
-  assert.equal(writeSharedPage(arena, 0, done([new ArrayBuffer(SHARED_REGION_BYTES)])), false);
-  const trop = Array.from({ length: MAX_SHARED_ATTRS + 1 }, () => new ArrayBuffer(4));
-  assert.equal(writeSharedPage(arena, 0, done(trop)), false);
+  assert.equal(writeSharedPage(arena, 0, done(new ArrayBuffer(SHARED_REGION_BYTES), 1)), false);
+  assert.equal(writeSharedPage(arena, 0, done(new ArrayBuffer(16), MAX_SHARED_ATTRS + 1)), false);
   assert.equal(sharedField(arena, 0, STATE), SHARED_FREE, 'a refusal publishes nothing');
-  assert.equal(writeSharedPage(arena, 0, done([new ArrayBuffer(4)])), true);
+  assert.equal(writeSharedPage(arena, 0, done(new ArrayBuffer(16), 1)), true);
 });

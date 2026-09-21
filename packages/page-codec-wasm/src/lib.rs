@@ -112,7 +112,7 @@ impl Header {
         if data.len() < HEADER_BYTES {
             return Err(PageError::Header);
         }
-        let w: Vec<u32> = words(&data[..HEADER_BYTES]);
+        let w = header_words(&data[..HEADER_BYTES]);
         if w[0] != MAGIC || w[1] != VERSION {
             return Err(PageError::Version);
         }
@@ -152,20 +152,37 @@ impl Header {
     }
 }
 
-/// Little-endian words of a byte slice whose length is a multiple of four.
-fn words(bytes: &[u8]) -> Vec<u32> {
-    bytes
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|b| u32::from_le_bytes(*b))
-        .collect()
+/// The twenty-four little-endian words of a header.
+fn header_words(bytes: &[u8]) -> [u32; HEADER_WORDS] {
+    let mut w = [0u32; HEADER_WORDS];
+    for (word, chunk) in w.iter_mut().zip(bytes.as_chunks::<4>().0) {
+        *word = u32::from_le_bytes(*chunk);
+    }
+    w
 }
 
-/// A complete page, its streams unpacked and dequantized: the same buffers as `decodeGeometryPage`.
+/// A complete page, its streams unpacked and dequantized: the same bytes as `decodeGeometryPage`.
+/// The streams are read in place when the page sits on a word boundary — a `page_alloc`
+/// reservation always does — and from a copy otherwise.
 pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
     let header = Header::parse(data, max_decoded_bytes)?;
-    attributes::split(&words(&data[HEADER_BYTES..]), &header)
+    let body = &data[HEADER_BYTES..];
+    // SAFETY: every bit pattern is a valid `u32`; the byte count is a multiple of four, so an
+    // empty head leaves no tail. Only a little-endian host may read the words as they lie.
+    let (head, aligned, _) = unsafe { body.align_to::<u32>() };
+    let copied: Vec<u32>;
+    let words = if cfg!(target_endian = "little") && head.is_empty() {
+        aligned
+    } else {
+        copied = body
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|b| u32::from_le_bytes(*b))
+            .collect();
+        &copied
+    };
+    attributes::split(words, &header)
 }
 
 #[cfg(test)]

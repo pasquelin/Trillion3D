@@ -117,8 +117,9 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           state.allocationBytes -= attr.array.byteLength;
         rec.geometry.dispose();
       }
+      // A decoded position may leave the source box by the page's own quantization error.
       const positions = data.attributes.position,
-        slack = 1e-5 + (descriptor.positionError ?? 0);
+        slack = 1e-5 + data.quantizationError;
       for (let i = 0; i < positions.length; i++) {
         const axis = i % 3;
         if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)

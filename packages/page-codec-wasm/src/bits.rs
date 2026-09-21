@@ -8,13 +8,13 @@
 pub const MAX_BITS: u32 = 24;
 /// Largest magnitude of a grid exponent: the step stays a normal `f32`.
 pub const MAX_EXPONENT: i32 = 64;
-/// `2 / 255` as the nearest `f32`: an octahedral byte to `[-1, 1]`. Built from its bits, the
-/// very value `clusterFormat.ts` and the WGSL spell out to the digit.
-pub const OCT_SCALE: f32 = f32::from_bits(0x3C00_8081);
+/// `2 / 255` as the nearest `f32`: an octahedral byte to `[-1, 1]`, the value `clusterFormat.ts`
+/// rounds the same way.
+pub const OCT_SCALE: f32 = 2.0 / 255.0;
 
 /// Bits needed to hold every value of `0..=range`; zero for a constant field.
-pub fn bits_for(range: u64) -> u32 {
-    u64::BITS - range.leading_zeros()
+pub fn bits_for(range: u32) -> u32 {
+    u32::BITS - range.leading_zeros()
 }
 
 /// Words a stream of `count` fields of `bits` bits occupies; saturating, so a forged count

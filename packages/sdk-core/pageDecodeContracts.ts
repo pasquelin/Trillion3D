@@ -51,15 +51,17 @@ export interface PageDecodeCancel {
   op: 'cancel';
 }
 
-/** Buffers of a decoded page. `names[i]` names `attributes[i]`, in the decode write
- *  order: that order is what yields a field-for-field identical `Record`. */
+/** A decoded page as one buffer of `decodedBytes`: the 32-bit indices, then the floats of each
+ *  attribute `names` lists, in the decode write order — that order is what yields a
+ *  field-for-field identical `Record`. */
 export interface PageDecodeGeometryPayload {
-  indices: ArrayBuffer;
+  block: ArrayBuffer;
   names: string[];
-  attributes: ArrayBuffer[];
   vertexCount: number;
   flags: number;
   decodedBytes: number;
+  /** The page header's largest position displacement, in object units. */
+  quantizationError: number;
 }
 
 export interface PageDecodeDone {

@@ -7,11 +7,12 @@ use crate::{CompilerError, Result};
 use web_geometry_page_codec::bits::Quant;
 use web_geometry_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
-/// The page's vertices, `width` floats each, gathered from the primitive in local order.
-fn gather(values: &[f32], width: usize, original: &[u32]) -> Result<Vec<f32>> {
+/// The page's vertices, `width` floats each, gathered from the primitive's `source_width`-wide
+/// values in local order; a missing trailing component reads 1, the alpha of a three-wide colour.
+fn gather(values: &[f32], source_width: usize, width: usize, original: &[u32]) -> Result<Vec<f32>> {
     let mut out = Vec::with_capacity(original.len() * width);
     for &source in original {
-        let slice = &values[source as usize * width..(source as usize + 1) * width];
+        let slice = &values[source as usize * source_width..(source as usize + 1) * source_width];
         if slice.iter().any(|v| !v.is_finite()) {
             return Err(CompilerError::new(
                 "INVALID_PAGE_ATTRIBUTE",
@@ -19,6 +20,7 @@ fn gather(values: &[f32], width: usize, original: &[u32]) -> Result<Vec<f32>> {
             ));
         }
         out.extend_from_slice(slice);
+        out.resize(out.len() + width - source_width, 1.0);
     }
     Ok(out)
 }
@@ -38,7 +40,7 @@ pub struct Grids {
     pub position: Quant<3>,
     pub uv: [Quant<2>; 2],
     pub color: Quant<4>,
-    pub quantization_error: f64,
+    pub quantization_error: f32,
 }
 
 /// Every vertex of `original` on its grids: positions on `position_exponent`, texture
@@ -50,10 +52,10 @@ pub fn grids(
     position_exponent: i32,
 ) -> Result<Grids> {
     let by_flag = |flag: u32| attributes.iter().find(|a| a.flag == flag);
-    let page_positions = gather(positions, 3, original)?;
+    let page_positions = gather(positions, 3, 3, original)?;
     let (position, position_cells) = quantize::<3>(&page_positions, position_exponent)?;
     let quantization_error = max_error(&page_positions, &position, &position_cells);
-    if !(quantization_error as f32).is_finite() {
+    if !quantization_error.is_finite() {
         return Err(CompilerError::new(
             "INVALID_PAGE_ATTRIBUTE",
             "Page positions span more than a float can measure",
@@ -64,7 +66,7 @@ pub fn grids(
         cell.position = *p;
     }
     if let Some(a) = by_flag(FLAG_NORMAL) {
-        let normals = gather(&a.values, 3, original)?;
+        let normals = gather(&a.values, 3, 3, original)?;
         for (i, cell) in cells.iter_mut().enumerate() {
             cell.normal = oct_encode([normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]]);
         }
@@ -72,7 +74,7 @@ pub fn grids(
     let mut uv_records = [Quant::<2>::flat(UV_EXPONENT); 2];
     for (set, flag) in [FLAG_UV, FLAG_UV1].into_iter().enumerate() {
         if let Some(a) = by_flag(flag) {
-            let (quant, uv_cells) = quantize::<2>(&gather(&a.values, 2, original)?, UV_EXPONENT)?;
+            let (quant, uv_cells) = quantize::<2>(&gather(&a.values, 2, 2, original)?, UV_EXPONENT)?;
             uv_records[set] = quant;
             for (cell, q) in cells.iter_mut().zip(uv_cells) {
                 cell.uv[set] = q;
@@ -82,17 +84,10 @@ pub fn grids(
     let mut color_record = Quant::<4>::flat(COLOR_EXPONENT);
     if let Some(a) = by_flag(FLAG_COLOR) {
         // Channels clamped to [0, 1]; a three-wide colour takes alpha 1.
-        let colors = gather(&a.values, a.width, original)?;
-        let rgba: Vec<f32> = (0..original.len() * 4)
-            .map(|k| {
-                let (i, c) = (k / 4, k % 4);
-                if c < a.width {
-                    colors[i * a.width + c].clamp(0.0, 1.0)
-                } else {
-                    1.0
-                }
-            })
-            .collect();
+        let mut rgba = gather(&a.values, a.width, 4, original)?;
+        for channel in &mut rgba {
+            *channel = channel.clamp(0.0, 1.0);
+        }
         let (quant, color_cells) = quantize::<4>(&rgba, COLOR_EXPONENT)?;
         color_record = quant;
         for (cell, q) in cells.iter_mut().zip(color_cells) {

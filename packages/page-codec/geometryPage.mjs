@@ -5,7 +5,7 @@
  * It quantizes on the same grids — a primitive position exponent, a fixed texture grid of 2^-14,
  * octahedral normal bytes, colour bytes — and packs the same streams, without sharing a line.
  */
-import { bitsFor, octEncode, Packer, quantize } from './pageGrids.mjs';
+import { bitsFor, ceil32, octEncode, Packer, quantize } from './pageGrids.mjs';
 
 const MAGIC = 0x33504757,
   VERSION = 3,
@@ -77,6 +77,7 @@ export function encodeGeometryPage(sourceIndices, attributes, positionExponent =
         2;
     error = Math.max(error, Math.sqrt(d));
   });
+  error = ceil32(error);
   const uvRecords = [null, null];
   let colorRecord = null;
   for (const [name, size, bit] of ATTRIBUTES) {

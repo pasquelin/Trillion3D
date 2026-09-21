@@ -1,5 +1,6 @@
 import { PAGE_DECODE_PROTOCOL, pageDecodeFailureCode } from '../sdk-core/index.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
+import { pageViews } from './geometryPageBlock.ts';
 import { sha256Hex } from './sha256Hex.ts';
 import type {
   PageDecodeAnswer,
@@ -89,7 +90,7 @@ export async function runPageDecodeTask(
         wasm: choisi.wasm,
         taskMs: performance.now() - started,
       },
-      transfer: [payload.indices, ...payload.attributes],
+      transfer: [payload.block],
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -107,33 +108,29 @@ export async function runPageDecodeTask(
 }
 
 /**
- * Buffers of a decoded page, ready to be transferred. Each typed array the decode just allocated
- * owns its buffer whole, from the first byte to the last: `buffer` is therefore exactly the
- * value, with no offset or remainder, and the transfer loses nothing and copies nothing.
+ * The decoded page, ready to be transferred: its indices and attributes are views on one block
+ * that owns its buffer whole, so `block` is exactly the page, and the transfer loses nothing
+ * and copies nothing.
  */
 function geometryPayload(page: DecodedGeometryPage): PageDecodeGeometryPayload {
-  const names = Object.keys(page.attributes);
   return {
-    indices: page.indices.buffer as ArrayBuffer,
-    names,
-    attributes: names.map((name) => page.attributes[name].buffer as ArrayBuffer),
+    block: page.indices.buffer,
+    names: Object.keys(page.attributes),
     vertexCount: page.vertexCount,
     flags: page.flags,
     decodedBytes: page.decodedBytes,
+    quantizationError: page.quantizationError,
   };
 }
 
-/** The decoded page rebuilt from its buffers. `names` yields the decode's write order, so the
+/** The decoded page rebuilt on its block. `names` yields the decode's write order, so the
  *  attribute `Record` finds its fields in the same order as an in-place decode. */
 export function restorePageDecode(payload: PageDecodeGeometryPayload): DecodedGeometryPage {
-  const attributes: Record<string, Float32Array> = {};
-  for (let i = 0; i < payload.names.length; i++)
-    attributes[payload.names[i]] = new Float32Array(payload.attributes[i]);
   return {
-    indices: new Uint32Array(payload.indices),
-    attributes,
+    ...pageViews(payload.block, payload.names, payload.vertexCount),
     vertexCount: payload.vertexCount,
     flags: payload.flags,
     decodedBytes: payload.decodedBytes,
+    quantizationError: payload.quantizationError,
   };
 }

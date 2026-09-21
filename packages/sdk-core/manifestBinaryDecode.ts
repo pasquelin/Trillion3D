@@ -76,8 +76,6 @@ export function decodeManifestBinary(
           url: geometryPrefix + geometrySha + geometrySuffix,
           sha256: geometrySha,
           bytes: geometryWords[page * 5],
-          formatVersion: format.GEOMETRY_PAGE_FORMAT_VERSION,
-          codec: format.GEOMETRY_PAGE_CODEC,
           vertexCount: geometryWords[page * 5 + 1],
           indexCount: geometryWords[page * 5 + 2],
           flags: geometryWords[page * 5 + 3],

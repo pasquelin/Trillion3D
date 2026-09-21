@@ -1,5 +1,5 @@
-// A decoded page may leave its source box by the primitive's declared quantization error: the
-// autonomous manifest hands that slack to the reader, and a page without a declared grid gets none.
+// The autonomous manifest points every page at its cluster page and keeps the descriptors by
+// URL; the page format is read once, at the top of the manifest, and refused whole otherwise.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prepareAutonomousManifest } from './autonomousManifest.ts';
@@ -9,8 +9,6 @@ const geometry = (url: string) => ({
   url,
   sha256: 'x',
   bytes: 96,
-  formatVersion: 3 as const,
-  codec: 'quantized' as const,
   vertexCount: 3,
   indexCount: 3,
   flags: 0,
@@ -26,24 +24,21 @@ const page = (url: string) => ({
   max: [1, 1, 1],
   geometry: geometry(url),
 });
+const geometryPages = { formatVersion: 3, codec: 'quantized' };
 
-test('the descriptor carries the primitive quantization error as bounds slack, zero without a grid', () => {
+test('the pages point at their cluster pages and the format is checked once, at the top', () => {
   const { descriptors, metadata } = prepareAutonomousManifest({
-    primitives: [
-      { pages: [page('a.bin')], quantization: { maxPositionError: 0.03 } },
-      { pages: [page('b.bin')], quantization: null },
-    ],
+    geometryPages,
+    primitives: [{ pages: [page('a.bin')] }, { pages: [page('b.bin')] }],
   } as unknown as ClusterManifest);
-  assert.equal(descriptors.get('a.bin')?.positionError, 0.03);
-  assert.equal(descriptors.get('b.bin')?.positionError, 0);
+  assert.deepEqual(descriptors.get('b.bin'), geometry('b.bin'));
   assert.equal(metadata.primitives[0].pages[0].url, 'a.bin');
-  assert.throws(
-    () =>
-      prepareAutonomousManifest({
-        primitives: [
-          { pages: [{ ...page('c.bin'), geometry: { ...geometry('c.bin'), formatVersion: 2 } }] },
-        ],
-      } as unknown as ClusterManifest),
-    /AUTONOMOUS_PAGE_MISSING/,
-  );
+  for (const manifest of [
+    { geometryPages: { ...geometryPages, formatVersion: 2 }, primitives: [{ pages: [page('c')] }] },
+    { geometryPages, primitives: [{ pages: [{ ...page('c'), geometry: undefined }] }] },
+  ])
+    assert.throws(
+      () => prepareAutonomousManifest(manifest as unknown as ClusterManifest),
+      /AUTONOMOUS_PAGE_MISSING/,
+    );
 });

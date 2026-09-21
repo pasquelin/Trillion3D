@@ -65,16 +65,16 @@ fn verify(
     indices: &[u32],
     positions: &[f32],
     attrs: &[Attribute],
-    error: f64,
+    error: f32,
 ) {
     let uv_bound = f64::from(pow2(UV_EXPONENT)) * 0.5 * 2f64.sqrt() + 1e-6;
     for (corner, &source) in indices.iter().enumerate() {
-        let local = page.indices[corner] as usize;
+        let local = page.indices()[corner] as usize;
         let source = source as usize;
-        let position = &page.position[local * 3..local * 3 + 3];
-        assert!(distance(position, &positions[source * 3..source * 3 + 3]) <= error + 1e-9);
+        let position = &page.attribute(0).expect("position")[local * 3..local * 3 + 3];
+        assert!(distance(position, &positions[source * 3..source * 3 + 3]) <= f64::from(error));
         for (rank, attribute) in attrs.iter().enumerate() {
-            let decoded = page.optional[rank].as_ref().expect("decoded attribute");
+            let decoded = page.attribute(rank + 1).expect("decoded attribute");
             let width = attribute.width;
             let expected = &attribute.values[source * width..source * width + width];
             match attribute.flag {
@@ -122,29 +122,25 @@ fn round_trip(vertices: usize, seed: u32) {
     let carried: Vec<&Attribute> = attrs.iter().collect();
     let encoded = encode(&indices, &positions, &carried, -9).expect("encode");
     let page = codec::decode(&encoded.bytes, 64 << 20).expect("decode");
-    assert_eq!(page.flags, encoded.flags);
-    assert_eq!(page.vertex_count, encoded.vertex_count);
-    assert_eq!(page.decoded_bytes, encoded.decoded_bytes);
+    let header = &encoded.header;
+    assert_eq!(page.flags, header.flags);
+    assert_eq!(page.vertex_count, header.vertex_count);
+    assert_eq!(page.decoded_bytes(), header.decoded_bytes());
+    assert_eq!(page.quantization_error, header.quantization_error);
     assert_eq!(
-        page.decoded_bytes,
-        encoded.vertex_count * (3 + 3 + 2 + 2 + 4) * 4 + indices.len() * 4
+        page.decoded_bytes(),
+        header.vertex_count * (3 + 3 + 2 + 2 + 4) * 4 + indices.len() * 4
     );
-    assert!(encoded.quantization_error <= f64::from(pow2(-9)) * 3f64.sqrt() * 0.5 + 1e-9);
+    assert!(f64::from(header.quantization_error) <= f64::from(pow2(-9)) * 3f64.sqrt() * 0.5 + 1e-9);
     // Random vertices spend their full widths; a real cluster, tighter, spends fewer.
     if vertices >= 1024 {
         assert!(
-            encoded.bytes.len() < page.decoded_bytes / 2,
+            encoded.bytes.len() < page.decoded_bytes() / 2,
             "{} B packed",
             encoded.bytes.len()
         );
     }
-    verify(
-        &page,
-        &indices,
-        &positions,
-        &attrs,
-        encoded.quantization_error,
-    );
+    verify(&page, &indices, &positions, &attrs, page.quantization_error);
 }
 
 #[test]

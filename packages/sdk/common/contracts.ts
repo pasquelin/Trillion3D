@@ -14,6 +14,7 @@ export { dagWarningsDiagnostic } from '../../sdk-core/dagWarnings.ts';
 export type { PrimitiveDagWarning } from '../../sdk-core/dagWarnings.ts';
 export type {
   GeometryPageDescriptor,
+  GeometryPageFormat,
   PrimitiveQuantization,
 } from '../../sdk-core/geometryPageContracts.ts';
 export type { GpuMemoryFrameMetrics } from '../../sdk-core/gpuMemoryContracts.ts';
