@@ -2,21 +2,16 @@ import * as THREE from 'three';
 import type { CameraPose } from '../sdk-core/index.ts';
 import { devicePixels } from './backendCommon.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { BoundTarget } from './explorerHostState.ts';
 import type { WebglSurface } from './webglSurface.ts';
-import { resizeExplorerWebglHost } from './explorerWebglHost.ts';
 
 type Inputs = {
   check: () => void;
   active: () => RenderBackend;
   setCapturingSurface: (value: boolean) => void;
-  targets: () => {
-    measurement?: THREE.WebGLRenderTarget;
-    left?: THREE.WebGLRenderTarget;
-    right?: THREE.WebGLRenderTarget;
-  };
+  targets: () => (BoundTarget | undefined)[];
   camera: THREE.PerspectiveCamera;
   canvas: HTMLCanvasElement;
-  renderer: THREE.WebGLRenderer;
   /** The engine's surface, which owns the drawing buffer; absent on the direct WebGPU path only,
    *  where the page canvas is sized directly. */
   webglSurface?: WebglSurface;
@@ -35,7 +30,6 @@ export function createExplorerViewportApi(inputs: Inputs) {
     targets,
     camera,
     canvas,
-    renderer,
     webglSurface,
     viewport,
     options,
@@ -68,8 +62,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       check();
       if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
         throw new Error('Invalid viewport size');
-      if (webglSurface)
-        resizeExplorerWebglHost(webglSurface, renderer, width, height, options.pixelRatio ?? 1);
+      if (webglSurface) webglSurface.resize(width, height, options.pixelRatio ?? 1);
       else {
         canvas.width = devicePixels(width, options.pixelRatio);
         canvas.height = devicePixels(height, options.pixelRatio);
@@ -78,10 +71,8 @@ export function createExplorerViewportApi(inputs: Inputs) {
       camera.updateProjectionMatrix();
       viewport[0] = canvas.width;
       viewport[1] = canvas.height;
-      const current = targets();
-      current.measurement?.setSize(width, height);
-      current.left?.setSize(width, height);
-      current.right?.setSize(width, height);
+      // The composition targets follow the drawing buffer, in its pixels.
+      for (const target of targets()) target?.current()?.resize(canvas.width, canvas.height);
     },
   };
 }

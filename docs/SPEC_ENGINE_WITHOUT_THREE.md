@@ -124,10 +124,12 @@ The first stage of #85 measured that remainder before touching it — at most 0.
 frame on `exact-cluster-pages`, 0.1 ms p95 per host segment, no gain to claim (the numbers in
 `docs/API.md`, batch E6) — and
 made the engine surface the session's WebGL2 authority, the Three adapter a detail of the
-composition host alone. The stages that follow replace what that host still needs it for — held
-frame and render targets on engine framebuffers, comparison on an engine program, the witnesses
-drawing themselves through `drawHostGeometry` — then the draw records' `BufferGeometry` and
-`Material` descriptors and the observation meshes.
+composition host alone. The second stage removed that adapter: the composition host holds no
+renderer (`docs/API.md`, batch E7: what each engine object computes, what it replaces, and the
+byte proof — captures identical, two defects of the Three path gone with it). What remains is
+the third stage: the draw records' `BufferGeometry` and `Material` descriptors, the
+non-transmissive blended copies the owner will submit — the scene the exact engine still hands
+the witness adapter — and the observation meshes.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are

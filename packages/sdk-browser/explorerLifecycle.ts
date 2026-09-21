@@ -5,7 +5,6 @@ import { releasePageIntegration } from './pageIntegrationHost.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
 import { retainVisiblePages } from './retainVisiblePages.ts';
 import type { RenderBackend } from './backendTypes.ts';
-import type { createComparisonCompositor } from './comparison.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
@@ -19,13 +18,14 @@ type Inputs = {
   gpuDevice?: GPUDevice;
   profiler: EngineProfiler;
   hostedControls: { dispose(): void }[];
-  compositor?: ReturnType<typeof createComparisonCompositor>;
+  /** The composer and the compositor: programs and copies on the engine's context, released
+   *  before the surface that carries them. */
+  disposeComposition: () => void;
   streamer: ReturnType<typeof createPageStreamer>;
   streaming: ReturnType<typeof createExplorerStreaming>;
   overlays: THREE.Material[];
   backends: RenderBackend[];
   source: THREE.Object3D;
-  renderer?: THREE.WebGLRenderer;
   webglSurface?: WebglSurface;
   camera: THREE.PerspectiveCamera;
   geometryUrls: Set<string>;
@@ -39,13 +39,12 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     gpuDevice,
     profiler,
     hostedControls,
-    compositor,
+    disposeComposition,
     streamer,
     streaming,
     overlays,
     backends,
     source,
-    renderer,
     webglSurface,
     camera,
     geometryUrls,
@@ -68,10 +67,10 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
       }
     });
     state.measurementTarget?.dispose();
-    state.measurementTarget = undefined;
     state.pairTargetA?.dispose();
     state.pairTargetB?.dispose();
-    compositor?.dispose();
+    state.measurementTarget = state.pairTargetA = state.pairTargetB = undefined;
+    disposeComposition();
     streaming.backgroundFetchController?.abort();
     streamer.dispose();
     releasePageDecoders();
@@ -79,7 +78,6 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     overlays.forEach((material) => material.dispose());
     backends.forEach((backend) => backend.dispose());
     disposeSource(source);
-    renderer?.dispose();
     webglSurface?.dispose();
     try {
       gpuDevice?.destroy();
