@@ -1,23 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BOUNDS } from '../docs/js/docsContentBounds.js';
-import { CAMERA, HOST_CAMERA } from '../docs/js/docsContentCamera.js';
-import { ENUMS_IMAGE } from '../docs/js/docsContentEnums.js';
-import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
-import { EXAMPLES } from '../docs/js/docsContentExamples.js';
-import { FORMAT_GUIDES } from '../docs/js/docsContentFormat.js';
-import { GUIDES } from '../docs/js/docsContentGuides.js';
-import { RENDERING_GUIDES } from '../docs/js/docsContentGuidesRendering.js';
-import { ENGINE_GUIDES } from '../docs/js/docsContentGuidesEngine.js';
-import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
-import { MATRICES } from '../docs/js/docsContentMatrix.js';
-import { TREE } from '../docs/js/docsContentTree.js';
-import { BATCHES } from '../docs/js/docsContentBatches.js';
-import { COLORS, VECTORS } from '../docs/js/docsContentVector.js';
-import { localizeEntries, supportedLocales, t } from '../docs/js/i18n/index.js';
-import { rawEntries } from '../docs/js/portal/data.js';
-import { localizeDemoText } from '../docs/js/i18n/demo.fr.js';
-import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
+import { BOUNDS } from '../site/content/entries/bounds.ts';
+import { CAMERA, HOST_CAMERA } from '../site/content/entries/camera.ts';
+import { ENUMS_IMAGE } from '../site/content/entries/enums.ts';
+import { ENUMS_RUNTIME } from '../site/content/entries/enumsRuntime.ts';
+import { EXAMPLES } from '../site/content/entries/examples.ts';
+import { FORMAT_GUIDES } from '../site/content/entries/format.ts';
+import { GUIDES } from '../site/content/entries/guides.ts';
+import { RENDERING_GUIDES } from '../site/content/entries/guidesRendering.ts';
+import { ENGINE_GUIDES } from '../site/content/entries/guidesEngine.ts';
+import { LIFECYCLE } from '../site/content/entries/lifecycle.ts';
+import { MATRICES } from '../site/content/entries/matrix.ts';
+import { TREE } from '../site/content/entries/tree.ts';
+import { BATCHES } from '../site/content/entries/batches.ts';
+import { COLORS, VECTORS } from '../site/content/entries/vector.ts';
+import { localizeEntries, supportedLocales, t } from '../site/content/i18n/index.ts';
+import { rawEntries } from '../site/app/portal/data.ts';
+import { localizeDemoText } from '../site/content/i18n/demo.fr.ts';
+import { localizedHref, parseRoute } from '../site/app/portal/routes.ts';
 
 const entries = [
   ...GUIDES,
@@ -40,7 +40,7 @@ const entries = [
 
 test('French content covers every documentation entry and preserves its technical contract', () => {
   const localized = localizeEntries(entries, 'fr');
-  assert.equal(entries.length, 84);
+  assert.equal(entries.length, 85);
   assert.equal(localized.length, entries.length);
   for (let index = 0; index < entries.length; index += 1) {
     const source = entries[index];
