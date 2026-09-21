@@ -1,3 +1,5 @@
+import { sceneViews } from './views.js';
+
 /** User-facing copy for the complete engine example, separate from its lifecycle. */
 export const sceneCopy = {
   en: {
@@ -12,6 +14,7 @@ export const sceneCopy = {
     unavailable:
       'This browser cannot start WebGPU. You can still use every geometric illustration in the playground. Try this scene in a current browser with WebGPU enabled.',
     failed: 'The scene could not load. Check your connection and try again.',
+    lost: 'The GPU device was lost; the image was withdrawn. Try again to reopen the scene.',
     retry: 'Try again',
     mode: 'View',
     beauty: 'Image',
@@ -20,47 +23,12 @@ export const sceneCopy = {
     wireframe: 'Triangles',
     lod: 'Level of detail',
     'screen-error': 'Screen error',
+    materials: 'Material classes',
     visibility: 'Visibility',
+    views: sceneViews.en,
     guideWhat: 'What',
     guideTry: 'Try',
     guideObserve: 'Observe',
-    views: {
-      beauty: [
-        'The finished lit image.',
-        'Change light intensity and shadows.',
-        'Materials respond while geometry stays identical.',
-      ],
-      clusters: [
-        'One stable colour per selected cluster.',
-        'Orbit and move closer to a ring.',
-        'The cut replaces coarse clusters with finer ones.',
-      ],
-      pages: [
-        'The attached geometry pages.',
-        'Orbit until another side enters view.',
-        'Only resident pages can contribute triangles.',
-      ],
-      wireframe: [
-        'One filled colour per submitted triangle.',
-        'Zoom into a curved silhouette.',
-        'Triangles become finer where the source carries detail.',
-      ],
-      lod: [
-        'Exact leaves against coarser DAG reductions.',
-        'Zoom slowly toward the plinth.',
-        'The selected level follows projected error.',
-      ],
-      'screen-error': [
-        'Projected error used by the DAG cut.',
-        'Move toward and away from the rings.',
-        'The value changes with distance and cluster bounds.',
-      ],
-      visibility: [
-        'Pages selected as visible this frame.',
-        'Orbit behind the sculptures.',
-        'Rejected hierarchy nodes are counted, not drawn.',
-      ],
-    },
     home: 'Reset camera',
     light: 'Light intensity',
     lightValue: '×',
@@ -109,6 +77,7 @@ export const sceneCopy = {
     unavailable:
       'Ce navigateur ne peut pas démarrer WebGPU. Toutes les illustrations géométriques du playground restent disponibles. Essayez cette scène dans un navigateur récent avec WebGPU activé.',
     failed: 'La scène n’a pas pu être chargée. Vérifiez votre connexion puis réessayez.',
+    lost: 'L’appareil GPU a été perdu ; l’image a été retirée. Réessayez pour rouvrir la scène.',
     retry: 'Réessayer',
     mode: 'Vue',
     beauty: 'Image',
@@ -117,47 +86,12 @@ export const sceneCopy = {
     wireframe: 'Triangles',
     lod: 'Niveau de détail',
     'screen-error': 'Erreur écran',
+    materials: 'Classes de matériaux',
     visibility: 'Visibilité',
+    views: sceneViews.fr,
     guideWhat: 'Quoi',
     guideTry: 'À essayer',
     guideObserve: 'À observer',
-    views: {
-      beauty: [
-        'L’image finale éclairée.',
-        'Changez l’intensité et les ombres.',
-        'Les matériaux réagissent sans changer la géométrie.',
-      ],
-      clusters: [
-        'Une couleur stable par grappe sélectionnée.',
-        'Tournez puis approchez-vous d’un anneau.',
-        'La coupe remplace les grappes grossières par des grappes plus fines.',
-      ],
-      pages: [
-        'Les pages de géométrie attachées.',
-        'Tournez jusqu’à faire entrer un autre côté dans le champ.',
-        'Seules les pages résidentes peuvent fournir des triangles.',
-      ],
-      wireframe: [
-        'Une couleur pleine par triangle soumis.',
-        'Zoomez sur une silhouette courbe.',
-        'Les triangles se resserrent là où la source porte du détail.',
-      ],
-      lod: [
-        'Les feuilles exactes face aux réductions du DAG.',
-        'Approchez-vous lentement du socle.',
-        'Le niveau choisi suit l’erreur projetée.',
-      ],
-      'screen-error': [
-        'L’erreur projetée utilisée par la coupe du DAG.',
-        'Avancez et reculez devant les anneaux.',
-        'La valeur varie avec la distance et les bornes des grappes.',
-      ],
-      visibility: [
-        'Les pages déclarées visibles dans cette image.',
-        'Tournez derrière les sculptures.',
-        'Les nœuds hiérarchiques rejetés sont comptés, pas dessinés.',
-      ],
-    },
     home: 'Réinitialiser la caméra',
     light: 'Intensité lumineuse',
     lightValue: '×',

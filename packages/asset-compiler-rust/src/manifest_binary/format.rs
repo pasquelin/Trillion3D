@@ -25,11 +25,7 @@ impl Column {
     /// A digest is stored as its 64 ASCII hexadecimal characters: one decode for the whole column,
     /// then one slice per entry, costs the reader far less than re-encoding 32 raw bytes each time.
     pub(super) fn sha(&mut self, value: &str) -> Result<()> {
-        if value.len() != 64
-            || !value
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-        {
+        if !is_digest(value) {
             return Err(bad(format!(
                 "Object digest is not 64 lowercase hexadecimal characters: {value}"
             )));

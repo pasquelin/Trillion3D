@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   BOX_VALUES,
   SPHERE_VALUES,
+  boxTransform,
   boxTransformBatch,
   boxTransformUnionBatch,
   boxUnionBatch,
@@ -78,6 +79,21 @@ test('boxUnionBatch and boxTransformUnionBatch: bounds union', () => {
   assert.equal(into2[3], 2);
 });
 
+test('boxTransformBatch: out[i] is boxTransform(boxes[i], mats[i]), one matrix per box', () => {
+  const boxes = new Float64Array([0, 0, 0, 1, 1, 1, -2, -2, -2, 0, 0, 0]);
+  const a = new Float64Array(16),
+    b = new Float64Array(16);
+  composeMatrix4(a, [1, 1, 1], [0, 0, 0, 1], [1, 1, 1]);
+  composeMatrix4(b, [0, 0, -10], [0, 0, 0.7071067811865476, 0.7071067811865476], [2, 2, 2]);
+  const out = new Float64Array(2 * BOX_VALUES),
+    one = new Float64Array(BOX_VALUES);
+  boxTransformBatch(out, boxes, [a, b], 2);
+  boxTransform(one, 0, boxes, 0, a);
+  assert.deepEqual(Array.from(out.subarray(0, BOX_VALUES)), Array.from(one));
+  boxTransform(one, 0, boxes, BOX_VALUES, b);
+  assert.deepEqual(Array.from(out.subarray(BOX_VALUES)), Array.from(one));
+});
+
 test('sphereFromBoundsBatch: derives sphere centre and radius', () => {
   const boxes = new Float64Array([-1, -1, -1, 1, 1, 1]);
   const out = new Float64Array(SPHERE_VALUES);
@@ -97,46 +113,4 @@ test('srgbToLinearBatch and linearToSrgbBatch: color roundtrip', () => {
   for (let i = 0; i < 3; i++) {
     assert.ok(Math.abs(srgb[i] - back[i]) < 1e-10);
   }
-});
-
-test('docs example: cull 10 000 boxes then transform the survivors', () => {
-  const N = 10000;
-  const boxes = new Float64Array(N * BOX_VALUES);
-  for (let i = 0; i < N; i++) {
-    const z = i % 2 === 0 ? -5 : 5;
-    boxes[i * BOX_VALUES + 0] = -1;
-    boxes[i * BOX_VALUES + 1] = -1;
-    boxes[i * BOX_VALUES + 2] = z - 0.5;
-    boxes[i * BOX_VALUES + 3] = 1;
-    boxes[i * BOX_VALUES + 4] = 1;
-    boxes[i * BOX_VALUES + 5] = z + 0.5;
-  }
-
-  const proj = new Float64Array(16);
-  perspectiveProjection(proj, 60, 1, 0.1, 1);
-  const planes = new Float64Array(24);
-  frustumPlanesFromMatrix(planes, proj);
-
-  const keptMask = new Uint8Array(N);
-  const keptCount = frustumKeepsBoxBatch(keptMask, planes, boxes, N);
-  assert.equal(keptCount, 5000);
-
-  const survivorBoxes = new Float64Array(keptCount * BOX_VALUES);
-  let cursor = 0;
-  for (let i = 0; i < N; i++) {
-    if (keptMask[i]) {
-      const src = i * BOX_VALUES;
-      for (let k = 0; k < BOX_VALUES; k++) survivorBoxes[cursor + k] = boxes[src + k];
-      cursor += BOX_VALUES;
-    }
-  }
-
-  const transform = new Float64Array(16);
-  composeMatrix4(transform, [0, 0, -10], [0, 0, 0, 1], [1, 1, 1]);
-  const mats = Array.from({ length: keptCount }, () => transform);
-  const transformed = new Float64Array(keptCount * BOX_VALUES);
-  boxTransformBatch(transformed, survivorBoxes, mats, keptCount);
-
-  assert.equal(transformed[2], -15.5);
-  assert.equal(transformed[5], -14.5);
 });

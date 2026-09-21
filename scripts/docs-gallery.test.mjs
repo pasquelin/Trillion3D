@@ -6,10 +6,10 @@ const root = new URL('../docs/js/gallery/', import.meta.url);
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
-const { Gallery, Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
-const { ExampleCard } = await loadReactComponents('docs/react/gallery/ExampleCard.jsx');
-const { Home } = await loadReactComponents('docs/react/portal/Home.jsx');
-const { CodeBlock } = await loadReactComponents('docs/react/components/CodeBlock.jsx');
+const { Gallery, Playground } = await loadReactComponents('docs/react/gallery/index.tsx');
+const { ExampleCard } = await loadReactComponents('docs/react/gallery/ExampleCard.tsx');
+const { Home } = await loadReactComponents('docs/react/portal/Home.tsx');
+const { CodeBlock } = await loadReactComponents('docs/react/components/CodeBlock.tsx');
 const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
 const renderPlayground = (id, locale) =>
   renderToStaticMarkup(createElement(Playground, { id, locale }));

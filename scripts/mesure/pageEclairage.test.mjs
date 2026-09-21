@@ -20,7 +20,8 @@ function canvasMock() {
   return { width: 8, height: 8, addEventListener: () => {}, remove: () => {} };
 }
 
-/** Explorer mock: `render()` returns the reading and records the pose it saw. */
+/** Explorer mock: `render()` returns the reading and records the pose it saw; `cpuSteps()`
+ *  counts the images since the last profile reset, as the engine's window does. */
 function explorerMock(metrics) {
   const seen = [],
     profileResets = [];
@@ -32,6 +33,7 @@ function explorerMock(metrics) {
     setPose: () => {},
     resetStageProfile: () => profileResets.push(seen.length),
     stageProfile: () => null,
+    cpuSteps: () => ({ frames: seen.length - (profileResets.at(-1) ?? 0) }),
     render: (pose) => {
       seen.push(pose);
       return metrics;
@@ -42,7 +44,8 @@ function explorerMock(metrics) {
   };
 }
 
-async function mesurer(metrics, { frames = 1, rafStep = 0 } = {}) {
+/** Runs `measureView` on a mock page; `explorer` replaces the default mock, `options` the rest. */
+async function mesurer(metrics, { frames = 1, rafStep = 0, explorer, ...options } = {}) {
   const originalDocument = globalThis.document;
   const originalFetch = globalThis.fetch;
   const originalRaf = globalThis.requestAnimationFrame;
@@ -50,7 +53,7 @@ async function mesurer(metrics, { frames = 1, rafStep = 0 } = {}) {
   globalThis.fetch = async () => ({ status: 200 });
   let rafTime = 0;
   globalThis.requestAnimationFrame = (callback) => callback((rafTime += rafStep));
-  globalThis.__wgTestExplorer = explorerMock(metrics);
+  globalThis.__wgTestExplorer = explorer ?? explorerMock(metrics);
   try {
     return await measureView({
       sdkUrl: FAKE_SDK_URL,
@@ -65,6 +68,7 @@ async function mesurer(metrics, { frames = 1, rafStep = 0 } = {}) {
       frames,
       pose: { position: [0, 0, 0] },
       captureFile: 'test.png',
+      ...options,
     });
   } finally {
     globalThis.document = originalDocument;
@@ -111,42 +115,27 @@ test('measureView keeps a table of numbers — bytes per label — and filters t
 test('stage profile covers the moving suffix and capture keeps its last pose', async () => {
   const a = { position: [1, 0, 0] },
     b = { position: [2, 0, 0] };
-  const originalDocument = globalThis.document;
-  const originalFetch = globalThis.fetch;
-  const originalRaf = globalThis.requestAnimationFrame;
   const explorer = explorerMock({ drawCalls: 1 });
-  globalThis.document = { createElement: () => canvasMock(), body: { append: () => {} } };
-  globalThis.fetch = async () => ({ status: 200 });
-  globalThis.requestAnimationFrame = (cb) => cb(0);
-  globalThis.__wgTestExplorer = explorer;
-  try {
-    await measureView({
-      sdkUrl: FAKE_SDK_URL,
-      modulesUrl: './',
-      backend: 'creerMoteur',
-      engineId: 'moteur-test',
-      width: 8,
-      height: 8,
-      pixelError: 1,
-      maxPages: 4,
-      warmup: 0,
-      frames: 2,
-      poses: [a, b],
-      pose: a,
-      stageProfile: true,
-      profileFrames: 1,
-      captureFile: 'test.png',
-    });
-  } finally {
-    globalThis.document = originalDocument;
-    globalThis.fetch = originalFetch;
-    globalThis.requestAnimationFrame = originalRaf;
-    delete globalThis.__wgTestExplorer;
-  }
+  await mesurer(null, {
+    explorer,
+    frames: 2,
+    poses: [a, b],
+    pose: a,
+    stageProfile: true,
+    profileFrames: 1,
+  });
   assert.deepEqual(explorer.profileResets, [1], 'profile starts inside the measured path');
   assert.ok(explorer.seen.length > 2, 'capture work follows measured frames');
   const afterMeasured = explorer.seen.slice(2);
   for (const pose of afterMeasured) {
     assert.equal(pose, b, 'capture pose is the last measured pose, not poseAt(0)');
   }
+});
+
+test('the CPU bounds cover the profiled images only: none of the warm-up, none of the capture', async () => {
+  const result = await mesurer(
+    { drawCalls: 1 },
+    { frames: 3, stageProfile: true, profileFrames: 2 },
+  );
+  assert.deepEqual(result.bornesCpu, { frames: 2 });
 });

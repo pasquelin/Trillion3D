@@ -22,7 +22,7 @@ packages/
 test/
   integration/         15 *.test.mjs     — architecture, boundaries, export contracts,
                                         documentation portal
-  browser/             20 *.browser.mjs  — rendering in real Chromium (18 enabled, 2 skipped)
+  browser/             32 *.browser.mjs  — rendering in real Chromium (all launched)
   justesse/            18 GPU probes + 25 support modules
   appui/               27 shared modules: fixtures server, served pages
   fixtures/            scenes and test data
@@ -37,12 +37,12 @@ nature. A benchmark belongs in the package whose code it measures, referenced by
 
 ## 2. The Four Commands
 
-| Command | What it runs |
-|---|---|
-| `pnpm test` | 306 unit tests, 10 integration tests and script tests |
+| Command             | What it runs                                                                  |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `pnpm test`         | 306 unit tests, 10 integration tests and script tests                         |
 | `pnpm run test:gpu` | 18 GPU correctness probes followed by runnable rendering proofs, sequentially |
-| `pnpm run perf:all` | 44 benchmarks, then the aggregated report |
-| `pnpm run validate` | full pre-merge validation gate |
+| `pnpm run perf:all` | 44 benchmarks, then the aggregated report                                     |
+| `pnpm run validate` | full pre-merge validation gate                                                |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
@@ -77,7 +77,9 @@ category and reason, and the command prints it before starting — never in sile
 (`emeraude-webgpu`) reads the compiled cache `emerald-square-derived` under `.mesure/assets/`, off
 git, and a sibling worktree has none of its own: point `WG_ASSETS` at the shared folder. Without it
 the proof exits on an `HTTP 404` naming the manifest it could not fetch, and `pnpm run test:gpu`
-fails with it — loudly, never in silence.
+fails with it — loudly, never in silence. The material proof (`materiaux-temoin`) needs no asset:
+its fixtures are built in the page and served from `test/appui/`, the SDK from `dist/`, so
+`pnpm run build` precedes it.
 
 `test/test-gpu.test.mjs` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
@@ -93,19 +95,40 @@ node test/test-gpu.mjs test/justesse/reflexion-cone.mjs   # run single target
 A benchmark measures a package computation against named cases and **compares it to an oracle**:
 the pre-optimization implementation, copied verbatim under `bench/oracles/`. Each published line
 includes its median, p95, nanoseconds per element, operations per second, baseline difference,
-and the oracle verdict.
+witness difference and the oracle verdict.
+
+A **witness** (`temoin` in `mesure()`) is a second calculation of the same thing — the host
+library, a rejected candidate — timed on the same input with the same settings; the row keeps its
+statistics under `temoin` and the "vs witness" column reads the calculation's median relative to
+it, as "vs baseline" reads it relative to the baseline. The Three.js-versus-engine benches
+(`three-vs-core-*.perf.mjs`) are written on it: one row per calculation family, Three the witness,
+Three's result read untimed as the oracle. A witness is a point of comparison, never a regression
+gate: the column carries no icon, and the `duel` helper's own `node:test` enforces each family's
+declared performance ceiling.
 
 Three verdict types, never silence:
 
 - **✓ / ✗** — bitwise equality (`ecart.mjs`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or declared
   tolerance (`differences` + `tolere`, counted in ULPs by `ulp.mjs`).
-- **published diff** (`ecartPublie`) — the benchmark measures a *rejected* candidate and quantifies
+- **published diff** (`ecartPublie`) — the benchmark measures a _rejected_ candidate and quantifies
   the displacement instead of expecting equality that does not apply. This is the case for C1
   (`raster-tampon`) and C3 (`pages-anneau`).
 - **reason** — no oracle exists, and the line explains why and where correctness is held. A stale
   oracle is explicitly declared, never silently removed.
 
 `mesure()` refuses to run if the file reported as measured by a benchmark does not exist.
+
+**The reference-library duels** (`packages/sdk-core/bench/three-vs-core-*.perf.mjs`,
+`pnpm run perf:core`) put the host library and the engine on the same seeded inputs and refuse an
+engine that differs by a bit or runs slower. The four `three-vs-core-batch-*.perf.mjs` files —
+`volumes` (frustum, spheres, unions, points, directions), `matrices` (invert, normal, compose),
+`instances` (per-instance points, decompose, transformed union) and `colors` (the two curves) — pit
+the reference's `for` loop over 200 000 elements against one batch call. A line reads: the
+reference's median and the batch's, the ratio, then the verdict — bit for bit, or within the
+tolerance the line declares once (the sRGB curves), and under the ceiling the line declares where
+the two sides do not compute the same thing (`Matrix4.invert`, `NormalMatrix3`: the engine keeps
+its singularity policy). `docs/API.md` § "Batch math for hosts" carries the ratios of one
+published run.
 
 ## 3. Baselines and Report
 
@@ -131,11 +154,12 @@ identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
-| Command | Role |
-|---|---|
-| `pnpm run check:lines` | Maximum 200 physical lines per maintained JS/TS/Rust file |
-| `pnpm run check:duplicates` | No duplicated blocks ≥ 12 lines and ≥ 100 tokens |
-| `pnpm run check:structure` | Package boundary isolation, sdk-core typed without DOM |
-| `pnpm run check:unused` | Dead exports and files (`knip`) |
-| `pnpm run check:docs-demo` | The demo bundle committed under `docs/js/` is the current packages |
-| `pnpm run validate` | Complete gate: formatting, linting, tests, builds, structure, links |
+| Command                       | Role                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file               |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 12 lines and ≥ 100 tokens                        |
+| `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                  |
+| `pnpm run check:unused`       | Dead exports and files (`knip`)                                         |
+| `pnpm run check:docs-bundles` | No generated bundle (`scripts/docs/bundles.mjs`) is tracked by git      |
+| `pnpm run check:docs-types`   | The React portal under `docs/react/` type-checks (`tsconfig.docs.json`) |
+| `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links     |
