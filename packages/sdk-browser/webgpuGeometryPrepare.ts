@@ -1,5 +1,4 @@
 import type { HostAttributes } from './hostResources.ts';
-import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 type GeometryBlock = {
   vertexBase: number;
