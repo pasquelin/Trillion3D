@@ -39,7 +39,7 @@ type Quant = { min: number[]; exponent: number; bits: number[] };
 
 const fround = Math.fround;
 /** Bits that hold every value of `0..=range`; none for a constant field. */
-export const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
+const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
 
 /** The `bits`-bit field at bit `at` of `words`; a field spans two words at most. */
 function field(words: Uint32Array, at: number, bits: number) {
