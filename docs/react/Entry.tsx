@@ -53,7 +53,6 @@ function Example({
   );
   if (!scenario) return code;
   const example = examples.find(({ id }) => id === scenario);
-  const cardTitle = example?.title ? (example.title as Record<string, string>)[locale] : '';
   return (
     <ExampleLayout
       left={
@@ -63,7 +62,7 @@ function Example({
         </div>
       }
       right={
-        <Card title={cardTitle}>
+        <Card title={example.title[locale]}>
           <GeometryPreview id={scenario} locale={locale} related />
           <p>
             {locale === 'fr'
@@ -92,7 +91,7 @@ export function Entry({ entry, locale = 'en' }: EntryProps): JSX.Element {
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="badge badge-soft badge-primary">
-            {t(locale, `kind.${entry.kind ?? ''}`)}
+            {t(locale, `kind.${entry.kind}`)}
           </span>
           {entry.module && (
             <a className="link text-sm" href={`${REPOSITORY}/blob/develop/${entry.module}`}>
@@ -105,25 +104,25 @@ export function Entry({ entry, locale = 'en' }: EntryProps): JSX.Element {
           <Inline text={entry.description} />
         </p>
       </header>
-      {Boolean(entry.issue) && (
+      {entry.issue && (
         <Alert tone="warning">
           <span>
             {t(locale, 'common.inDevelopment')}:{' '}
-            <a className="link" href={issueUrl(entry.issue as number)}>
+            <a className="link" href={issueUrl(entry.issue)}>
               #{entry.issue}
             </a>
           </span>
         </Alert>
       )}
-      {Boolean(entry.html) && <Prose html={entry.html as string} />}
+      {entry.html && <Prose html={entry.html} />}
       {entry.signature && (
         <CodeBlock code={entry.signature} locale={locale} label={t(locale, 'entry.signature')} />
       )}
       <Example entry={entry} locale={locale} demo={demo} />
-      {Boolean(entry.values && entry.values.length > 0) && (
+      {(entry.values?.length ?? 0) > 0 && (
         <Card
           title={
-            (entry.valuesTitle as string | undefined) ??
+            entry.valuesTitle ??
             t(locale, entry.kind === 'Type' ? 'entry.values' : 'entry.arguments')
           }
         >
@@ -142,15 +141,15 @@ export function Entry({ entry, locale = 'en' }: EntryProps): JSX.Element {
         </Card>
       )}
       {demo && !embedsDemo && <LiveDemo demo={demo} locale={locale} />}
-      {Boolean(entry.replaces || entry.proof) && (
+      {(entry.replaces || entry.proof) && (
         <Card title={t(locale, 'entry.proof')}>
           {entry.replaces && (
             <p>
               <strong>{t(locale, 'entry.replaces')}: </strong>
-              {String(entry.replaces)}
+              {entry.replaces}
             </p>
           )}
-          {entry.proof && <p>{String(entry.proof)}</p>}
+          {entry.proof && <p>{entry.proof}</p>}
         </Card>
       )}
     </article>

@@ -86,11 +86,9 @@ export function Details({ record, report, locale, label }: DetailsProps): ReactE
       />
       <Cut analysis={record.data.cutAnalysis} locale={locale} />
       <p>{c.detailsNote}</p>
-      {run?.source && (
-        <a className="btn btn-outline btn-sm" href={`reports/${report.id}/${run.source}`} download>
-          {c.source} · {label}
-        </a>
-      )}
+      <a className="btn btn-outline btn-sm" href={`reports/${report.id}/${run?.source}`} download>
+        {c.source} · {label}
+      </a>
     </div>
   );
 }

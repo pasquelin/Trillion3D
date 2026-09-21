@@ -9,7 +9,7 @@ const QUALITY_HELP: Record<string, string> = {
 };
 
 export function EngineGuide({ copy, locale, diagnostic }: EngineGuideProps): ReactElement {
-  const [what, tryThis, observe] = copy.views[diagnostic] ?? ['', '', ''];
+  const [what, tryThis, observe] = copy.views[diagnostic];
   return (
     <Accordion title={copy.details}>
       <p className="text-sm opacity-75 mb-3">{copy.preview}</p>

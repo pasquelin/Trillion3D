@@ -4,7 +4,7 @@ import { Accordion } from '../components/Accordion.tsx';
 import { draw } from '../../js/gallery/draw.js';
 import { evaluate } from '../../js/gallery/evaluate.js';
 
-export function Diagram({ id, state, locale = 'en', label }: DiagramProps): ReactElement {
+export function Diagram({ id, state, locale, label }: DiagramProps): ReactElement {
   const svg = useRef<SVGSVGElement>(null);
   useEffect(() => {
     if (svg.current) {

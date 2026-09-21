@@ -77,14 +77,14 @@ export interface PlaygroundProps {
 export interface DiagramProps {
   id: string;
   state: Record<string, number>;
-  locale?: Locale;
+  locale: Locale;
   label?: string;
 }
 
 export interface WebGPUCanvasProps {
   id: string;
   state: Record<string, number>;
-  locale?: Locale;
+  locale: Locale;
   preview?: boolean;
   interactive?: boolean;
   animating?: boolean;

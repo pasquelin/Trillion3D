@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { ReadingLegend } from './ReadingLegend.tsx';
 import { reportCopy } from '../../js/reports/copy.js';
 import { sceneName } from '../../js/reports/presentation.js';
@@ -21,7 +21,7 @@ export interface ReportProps {
 }
 
 export function Report({ route }: ReportProps): ReactElement {
-  const [campaign, active = 'overview'] = (route.id ?? '').split('/');
+  const [campaign, active = 'overview'] = route.id.split('/');
   const { report, sources, loading, error } = useReports(campaign);
   const locale = route.locale,
     c = reportCopy(locale),
@@ -34,7 +34,7 @@ export function Report({ route }: ReportProps): ReactElement {
     );
   const scenes = [...new Set(report.records.map((r) => r.scene))];
   const props = { report, locale };
-  const content: Record<string, () => ReactElement> = {
+  const content: Record<string, () => ReactNode> = {
     overview: () => (
       <>
         <Findings {...props} />
@@ -59,13 +59,7 @@ export function Report({ route }: ReportProps): ReactElement {
         ))}
       </>
     ),
-    evidence: () => (
-      <>
-        {scenes.map((scene) => (
-          <SceneEvidence key={scene} {...props} scene={scene} />
-        ))}
-      </>
-    ),
+    evidence: () => scenes.map((scene) => <SceneEvidence key={scene} {...props} scene={scene} />),
     experiments: () => (
       <>
         <ReadingLegend locale={locale} />

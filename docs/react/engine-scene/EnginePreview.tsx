@@ -30,7 +30,6 @@ export function EnginePreview({
           data-scene-canvas
           className="absolute inset-0 h-full"
           label={copy.title}
-          loadingLabel={undefined}
           actions={[
             { label: copy.zoomOut, symbol: '−', 'data-scene-zoom-out': '', disabled: true },
             { label: copy.zoomIn, symbol: '+', 'data-scene-zoom-in': '', disabled: true },

@@ -4,9 +4,9 @@ import { Section } from '../components/Section.tsx';
 import { Button, Field, Form, Range, Select, Toggle } from '../components/UI.tsx';
 import { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
 
-export function SceneControls({ copy, diagnostic = 'beauty' }: SceneControlsProps): ReactElement {
+export function SceneControls({ copy, diagnostic }: SceneControlsProps): ReactElement {
   return (
-    <Section title={undefined} aria-label={copy.controls} className="scene-controls mb-4">
+    <Section aria-label={copy.controls} className="scene-controls mb-4">
       <Form className="scene-controls-grid">
         <Button variant="primary" data-scene-start hidden>
           {copy.retry}
