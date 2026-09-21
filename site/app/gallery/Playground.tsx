@@ -3,9 +3,9 @@ import type { Locale } from '../../content/locale.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { CodeEditor } from '../components/CodeEditor.tsx';
 import { formatNumericText } from '../code/formatNumber.ts';
-import { ExampleLayout } from '../components/ExampleLayout.tsx';
+import { LessonTemplate } from '../components/LessonTemplate.tsx';
 import { Button, Field, Range, Select } from '../components/UI.tsx';
-import { ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
+import { ControlActions, ControlLabel, ControlPanel } from '../components/ControlPanel.tsx';
 import { examples, byId } from '../../content/catalog.ts';
 import { codeFor } from '../../lessons/code.ts';
 import { evaluate } from '../../lessons/evaluate.ts';
@@ -54,32 +54,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
     onSelect?.(next);
   };
   const controls = (
-    <ControlPanel
-      className="playground-controls"
-      title={french ? 'Commandes de l’expérience' : 'Experiment controls'}
-      actions={
-        <>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              motion.stop();
-              setState(initialState(example.id));
-            }}
-          >
-            {french ? 'Réinitialiser' : 'Reset'}
-          </Button>
-          <Button size="sm" variant="outline" onClick={motion.applyPreset}>
-            {french ? 'Préréglage' : 'Preset'}
-          </Button>
-          {scenario.animated && (
-            <Button size="sm" variant="primary" onClick={motion.toggle}>
-              {motion.playing ? (french ? 'Pause' : 'Pause') : french ? 'Animer' : 'Animate'}
-            </Button>
-          )}
-        </>
-      }
-    >
+    <ControlPanel title={french ? 'Commandes de l’expérience' : 'Experiment controls'}>
       <Field className="control-panel-wide" label={french ? 'Expérience' : 'Experiment'}>
         <Select
           size="sm"
@@ -94,6 +69,26 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
           ))}
         </Select>
       </Field>
+      <ControlActions>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            motion.stop();
+            setState(initialState(example.id));
+          }}
+        >
+          {french ? 'Réinitialiser' : 'Reset'}
+        </Button>
+        <Button size="sm" variant="outline" onClick={motion.applyPreset}>
+          {french ? 'Préréglage' : 'Preset'}
+        </Button>
+        {scenario.animated && (
+          <Button size="sm" variant="primary" onClick={motion.toggle}>
+            {motion.playing ? (french ? 'Pause' : 'Pause') : french ? 'Animer' : 'Animate'}
+          </Button>
+        )}
+      </ControlActions>
       {scenario.controls.map(([name, min, max, , step]) => (
         <Field
           key={name}
@@ -120,65 +115,54 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
       locale={locale}
     />
   );
-  const left = (
-    <div className="playground-learn grid gap-4">
-      {controls}
-      {cards}
-      <CodeEditor
-        key={example.id}
-        initialCode={initialCode}
-        resetCode={() => codeFor(example.id, state)}
-        locale={locale}
-      />
-    </div>
+  const code = (
+    <CodeEditor
+      key={example.id}
+      initialCode={initialCode}
+      resetCode={() => codeFor(example.id, state)}
+      locale={locale}
+    />
   );
-  const right = (
-    <div className="playground-observe">
-      <WebGPUCanvas
-        id={example.id}
-        state={state}
-        locale={locale}
-        animating={motion.playing}
-        label={`${local(example.title, locale)} — 3D`}
-      />
-      <p className="text-xs opacity-60 mt-2">
+  const viewport = (
+    <WebGPUCanvas
+      id={example.id}
+      state={state}
+      locale={locale}
+      animating={motion.playing}
+      label={`${local(example.title, locale)} — 3D`}
+    />
+  );
+  const note = (
+    <>
+      <p className="text-xs opacity-60">
         {french
           ? 'Illustration mathématique 3D ; la scène moteur montre le streaming réel.'
           : '3D mathematical illustration; the engine scene shows actual streaming.'}
       </p>
-    </div>
+      <Diagram id={example.id} state={state} locale={locale} label={local(example.title, locale)} />
+    </>
   );
+  const badges = (example.functions ?? []).map((name: string) => (
+    <a
+      key={name}
+      className="badge badge-soft badge-secondary font-mono"
+      href={`#/${locale}/api/${name}`}
+    >
+      {name}
+    </a>
+  ));
   return (
-    <section className="lesson-layout grid gap-5" data-playground={example.id}>
-      <header>
-        <h1 className="text-3xl font-bold">{local(example.title, locale)}</h1>
-        <p className="opacity-70 mt-2">{local(example.description, locale)}</p>
-      </header>
-      <ExampleLayout
-        left={left}
-        right={right}
-        footer={
-          <>
-            <Diagram
-              id={example.id}
-              state={state}
-              locale={locale}
-              label={local(example.title, locale)}
-            />
-            <div className="flex flex-wrap gap-2 mt-4">
-              {(example.functions ?? []).map((name: string) => (
-                <a
-                  key={name}
-                  className="badge badge-soft badge-secondary font-mono"
-                  href={`#/${locale}/api/${name}`}
-                >
-                  {name}
-                </a>
-              ))}
-            </div>
-          </>
-        }
+    <div data-playground={example.id}>
+      <LessonTemplate
+        title={local(example.title, locale)}
+        description={local(example.description, locale)}
+        badges={badges}
+        controls={controls}
+        cards={cards}
+        code={code}
+        viewport={viewport}
+        note={note}
       />
-    </section>
+    </div>
   );
 }

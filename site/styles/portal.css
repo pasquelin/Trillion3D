@@ -420,41 +420,6 @@ kbd {
   width: 100%;
   height: clamp(240px, 46dvh, 520px);
 }
-.playground-stage {
-  display: grid;
-  gap: 1.5rem;
-  align-items: start;
-  min-width: 0;
-}
-.playground-learn {
-  display: grid;
-  gap: 1rem;
-  min-width: 0;
-}
-.playground-observe {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
-  min-height: 0;
-}
-.playground-controls,
-.playground-cards,
-.playground-code {
-  min-width: 0;
-}
-.playground-code,
-.playground-code [data-code-block],
-.playground-code .mockup-code,
-.playground-code .code-scroll {
-  width: 100%;
-  max-width: 100%;
-}
-.playground-code .code-scroll {
-  max-height: min(42dvh, 32rem);
-  overflow: auto;
-}
 .geometry-3d {
   position: relative;
   width: 100%;
@@ -488,18 +453,91 @@ kbd {
 .geometry-3d-viewport > .geometry-3d-canvas {
   flex: 1 1 auto;
 }
-.lesson-layout :is(.example-learn, .example-observe) {
-  min-height: 0;
-  max-height: var(--content-height);
+/* The one lesson layout, shared by every lesson: a header, a reading column and an observing
+   column, fitting the content area exactly. Neither the page nor a column scrolls; only the code
+   panel scrolls, inside its own frame, as an example's source does. */
+.lesson-template {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: var(--content-height);
+  min-height: 28rem;
 }
-.lesson-layout .example-learn {
+.lesson-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.lesson-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.lesson-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+}
+.lesson-read,
+.lesson-observe {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  min-height: 0;
+}
+.lesson-code {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1 1 0;
+  min-height: 6rem;
+}
+.lesson-code [data-code-block],
+.lesson-code .mockup-code,
+.lesson-code [data-code-editor] {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.lesson-code .code-scroll {
+  flex: 1;
+  max-height: none;
   overflow: auto;
   scrollbar-width: thin;
 }
+.lesson-observe > :first-child {
+  flex: 1;
+  min-height: 0;
+}
+.lesson-observe [data-geometry-stats],
+.lesson-observe > p {
+  flex: none;
+}
+@media (min-width: 1100px) {
+  .lesson-columns {
+    grid-template-columns: minmax(0, 9fr) minmax(0, 11fr);
+  }
+}
 @media (max-width: 1099px) {
-  .lesson-layout :is(.example-learn, .example-observe) {
-    max-height: none;
-    overflow: visible;
+  .lesson-template {
+    height: auto;
+  }
+  .lesson-read,
+  .lesson-observe {
+    min-height: 0;
+  }
+  .lesson-code {
+    flex: none;
+  }
+  .lesson-code .code-scroll {
+    max-height: min(60dvh, 32rem);
   }
 }
 .geometry-3d-preview .geometry-3d-canvas {
@@ -895,9 +933,6 @@ kbd {
     flex: 1;
     max-height: min(60dvh, 42rem);
   }
-  .playground-stage {
-    grid-template-columns: minmax(0, 9fr) minmax(0, 11fr);
-  }
 }
 @media (max-width: 1099px) {
   .example-observe {
@@ -908,26 +943,6 @@ kbd {
   }
   .example-footer {
     grid-row: 3;
-  }
-  .playground-stage {
-    display: flex;
-    flex-direction: column;
-  }
-  .playground-learn {
-    display: contents;
-  }
-  .playground-controls {
-    order: 1;
-  }
-  .playground-observe {
-    order: 2;
-    width: 100%;
-  }
-  .playground-cards {
-    order: 3;
-  }
-  .playground-code {
-    order: 4;
   }
 }
 @media (max-height: 700px) and (min-width: 901px) {
@@ -1007,11 +1022,15 @@ kbd {
   container-type: inline-size;
 }
 .control-panel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
-  gap: 0.75rem 1.25rem;
-  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem 1.25rem;
   min-width: 0;
+}
+.control-panel-grid > .fieldset {
+  flex: 1 1 10rem;
+  max-width: 100%;
 }
 .control-panel-grid > .fieldset {
   gap: 0.35rem;
@@ -1021,21 +1040,19 @@ kbd {
   width: 100%;
   padding-bottom: 0;
 }
-.control-panel-wide {
-  grid-column: 1 / -1;
+.control-panel-grid > .control-panel-wide {
+  flex: 1 1 20rem;
 }
-@container (min-width: 44rem) {
-  .control-panel-wide {
-    grid-column: span 2;
-  }
+.control-panel-grid .select,
+.control-panel-grid .range {
+  width: 100%;
+  min-width: 0;
 }
 .control-panel-actions {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  justify-content: flex-end;
-  align-items: center;
+  margin-left: auto;
 }
 .control-label {
   display: flex;
@@ -1056,8 +1073,18 @@ kbd {
 .control-legend {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.75rem;
   font-size: 0.75rem;
+}
+.control-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2rem;
+}
+.control-panel-grid > .control-panel-toggle {
+  flex: 1 1 14rem;
 }
 .control-legend li {
   display: flex;
