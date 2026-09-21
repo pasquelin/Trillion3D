@@ -17,12 +17,12 @@ import {
   releasePageDecoders,
   verifyPageBytes,
 } from './pageDecodeHost.ts';
-import { encodeGeometryPage } from '../page-codec/geometryPage.mjs';
+import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import {
   DeadNodeWorker,
   NodeDomWorker,
   withNodeWorkerShim,
-} from './bench/oracles/pageDecodeNodeWorker.mjs';
+} from './bench/oracles/pageDecodeNodeWorker.ts';
 
 async function page() {
   const { data } = encodeGeometryPage([0, 1, 2], {

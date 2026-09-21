@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
 use web_geometry_compiler::{
     compiler_budget::{batch_share, fit_workers},
-    Options,
+    texture_formats, Options, TEXTURE_FORMAT_DEFAULT,
 };
 
 fn number(value: Option<&Value>, default: usize) -> Result<usize, String> {
@@ -122,6 +122,11 @@ pub(super) fn parse_batch(
             threads: field("threads", default_threads)?,
             ram_budget_mb: field("ramBudgetMb", default_ram)?,
             simplification: text(job.get("simplification"), "none").to_string(),
+            texture_formats: texture_formats(text(
+                job.get("texturesFormat"),
+                TEXTURE_FORMAT_DEFAULT,
+            ))
+            .map_err(|e| format!("job {id}: {e}"))?,
             cancelled: cancellation.flag(&id),
         };
         parsed.push((id, options));

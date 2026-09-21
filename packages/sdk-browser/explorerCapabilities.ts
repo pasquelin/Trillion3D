@@ -1,18 +1,18 @@
-import * as THREE from 'three';
 import { directWebgpu } from './explorerInteractiveOptions.ts';
 import { detectCapabilities } from './capabilities.ts';
 import { mathBatchMetrics, prepareMathBatch } from './mathBatchState.ts';
 import { pageDecodeTransport } from './pageDecodeShared.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
-import { meshes as objects } from './sceneMeshes.ts';
+import { materialTextures, meshes as objects } from './sceneMeshes.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import {
   DEFAULT_HEIGHT,
   DEFAULT_PAGE_WORKERS,
   DEFAULT_WIDTH,
-  WEBGPU_REQUIRED_LIMITS,
   devicePixels,
 } from './backendCommon.ts';
+import { requestExplorerDevice } from './explorerGpuDevice.ts';
+import type { BackendContext } from './backendTypes.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 import type { WebglSurface } from './webglSurface.ts';
@@ -23,7 +23,7 @@ type Inputs = {
   metadataUrl: string;
   sceneFile: string;
   base: string;
-  source: THREE.Object3D;
+  source: BackendContext['source'];
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
   resources: {
     webglSurface?: WebglSurface;
@@ -98,20 +98,7 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
           });
         }
         if (gpuCaps.adapter) {
-          const features: GPUFeatureName[] = [];
-          if (gpuCaps.adapter.features.has('indirect-first-instance'))
-            features.push('indirect-first-instance');
-          if (gpuCaps.adapter.features.has('timestamp-query')) features.push('timestamp-query');
-          const adapterLimits = gpuCaps.adapter.limits;
-          const requiredLimits: Record<string, number> = {};
-          for (const name of WEBGPU_REQUIRED_LIMITS) {
-            const value = (adapterLimits as unknown as Record<string, number | undefined>)[name];
-            if (typeof value === 'number' && Number.isFinite(value)) requiredLimits[name] = value;
-          }
-          gpuDevice = await gpuCaps.adapter.requestDevice({
-            requiredFeatures: features,
-            requiredLimits,
-          });
+          gpuDevice = await requestExplorerDevice(gpuCaps.adapter);
           resources.gpuDevice = gpuDevice;
         }
       }
@@ -126,8 +113,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   }
   const directGpu = directWebgpu(options, gpuDevice);
   if (!directGpu) {
-    // The engine's surface is the session's WebGL2 resource: the composition host mounts its
-    // draw adapter on it later, and nothing here knows of one.
+    // The engine's surface is the session's only WebGL2 resource: the composition host builds
+    // its programs and targets on it later.
     resources.webglSurface = prepareExplorerWebglSurface({
       canvas,
       size: options,
@@ -176,11 +163,10 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
     const maximum = maxAnisotropy(resources.webglSurface.context);
     for (const mesh of objects(source))
       for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
-        for (const value of Object.values(material))
-          if (value instanceof THREE.Texture) {
-            value.anisotropy = maximum;
-            value.needsUpdate = true;
-          }
+        for (const texture of materialTextures(material)) {
+          texture.anisotropy = maximum;
+          texture.needsUpdate = true;
+        }
   }
   return { capabilities, gpuDevice, directGpu };
 }

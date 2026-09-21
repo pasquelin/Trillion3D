@@ -34,6 +34,7 @@ fn an_unfinished_bake_is_not_reused() {
         kind: 0,
         first: 1,
         baked: 0,
+        layouts: [0; 2],
     };
     let refused = compiler_reuse_proof::check_textures(
         &options.cache.join("native"),
@@ -92,8 +93,13 @@ fn shared_image_levels_are_counted_once() {
     let entries = manifest_binary::texture_levels(&sidecar).expect("levels");
     assert_eq!(entries.len(), 2, "two textures read the image");
     assert!(entries.iter().all(|e| e.baked == 1), "one level file each");
+    assert!(
+        entries.iter().all(|e| e.layouts == [1, 0]),
+        "kept in the BC family"
+    );
     let (second, _) = compile_with_events(&options);
-    assert_eq!(second["reused"]["textureLevels"], 1, "{}", second["reused"]);
+    // The lossless level and its BC7 twin, each once for both textures.
+    assert_eq!(second["reused"]["textureLevels"], 2, "{}", second["reused"]);
     fs::remove_dir_all(root).expect("cleanup");
 }
 
@@ -120,6 +126,7 @@ fn corrupted_entry_is_rejected_and_rebuilt() {
         &level_sha,
         texture_preview::AtlasKind::from_word(kind).unwrap(),
         0,
+        texture_preview::LOSSLESS,
     ));
     let corruptions: [(&str, PathBuf, Option<&[u8]>); 4] = [
         (

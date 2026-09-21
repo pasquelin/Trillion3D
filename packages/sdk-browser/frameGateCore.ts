@@ -49,8 +49,13 @@ export function createFrameGateCore(holdValues: number) {
     get pixelError() {
       return pixelError;
     },
-    /** The scene moved: matrices, materials, instances, lights, diagnostic view. */
-    sceneChanged: () => bumpScene(revisions),
+    /** The scene moved: matrices, materials, instances, lights, diagnostic view. What the engine
+     *  wrote into the source graph on the way is announced by this revision: the watch does not
+     *  announce it a second time, and the next `readScene` reads the list anew under it. */
+    sceneChanged() {
+      bumpScene(revisions);
+      sceneWatch.settle();
+    },
     /**
      * Resources moved: a page's bytes, residency, replaced geometry, and anything that arrives
      * off the frame thread — a program that finishes compiling, a proxy adopted when a promise
@@ -72,20 +77,27 @@ export function createFrameGateCore(holdValues: number) {
       );
     },
     /**
-     * Rereads the source nodes and declares the scene changed when the host wrote them directly —
-     * a pose, a visibility, a light — without going through the engine. Call BEFORE `held()`:
-     * without that the frame would be held on a stale scene. Nothing is walked here: only local
-     * poses are compared, and the comparison is idempotent.
+     * Declares the scene changed when the host wrote the source nodes directly — a pose, a
+     * visibility, a light — without going through the engine. Call BEFORE `held()`: without
+     * that the frame would be held on a stale scene. Nothing is walked up here: a pose write
+     * incremented the watch's revision itself, and the other fields are a few values per node.
      *
-     * The reread node list is rebuilt after every scene change, never per frame: one more instance
-     * or a light set after the fact goes through here, and nothing else adds it.
+     * The watched node list is rebuilt after a scene change that may have reshaped it — one more
+     * instance, a light set after the fact, a node reparented or a light retargeted by the host
+     * — never per frame, and never after a pose write, which changes no node's membership.
      */
     readScene(source: THREE.Object3D, drawn: FrameGateSources) {
-      if (watchRevision !== revisions.scene) {
+      const observe = () =>
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
-        watchRevision = revisions.scene;
+      if (watchRevision !== revisions.scene) observe();
+      const verdict = sceneWatch.take();
+      if (verdict) {
+        bumpScene(revisions);
+        // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
+        // the host can write it again, so no write falls between the reshape and the rebuild.
+        if (verdict === 'reshaped') observe();
       }
-      if (sceneWatch.changed()) bumpScene(revisions);
+      watchRevision = revisions.scene;
     },
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => hold.stable && hold.same(revisions),
@@ -103,6 +115,8 @@ export function createFrameGateCore(holdValues: number) {
     noteWorldsUpdated() {
       worldsRevision = revisions.scene;
     },
+    /** Lets go of the source graph: its writes no longer reach this gate. */
+    release: () => sceneWatch.release(),
     /**
      * Frame entry, in the order every engine follows, and which carries the hold verdict.
      *

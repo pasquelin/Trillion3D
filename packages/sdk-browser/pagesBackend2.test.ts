@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend, referenceBackend } from './index.ts';
 import { threeLodBackend } from './threeLod.ts';
-import { dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
+import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import {
   quadScene,
   quadPages,
-  quadCluster,
   quadIndices,
   frontCamera,
   assertSingleCoarseCluster,
+  coarseQuadContext,
 } from './pagesBackendScenes.ts';
 import { submittedDraws } from './clusterBatchMesh.ts';
 
@@ -39,6 +39,7 @@ test('source instance transforms update all three WebGL backends without rebuild
       source,
       metadata: {
         ...DAG,
+        ...MANIFEST_IDENTITY,
         primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([page]) }],
       },
       indices: new Map([['0', new Uint32Array([0, 1, 2])]]),
@@ -71,6 +72,7 @@ test('a cut over the resident budget raises the flag and still covers the surfac
     source,
     metadata: {
       ...DAG,
+      ...MANIFEST_IDENTITY,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
     },
     indices: quadIndices(),
@@ -90,21 +92,7 @@ test('a cut over the resident budget raises the flag and still covers the surfac
 });
 
 test('exact pages select coarse LOD when the screen error is under the pixel threshold', () => {
-  const { geometry, material, mesh, source } = quadScene();
-  const cluster = quadCluster;
-  // Two clusters replaced by one coarser cluster whose screen error clears a 10 px budget.
-  const level = dagLevel([cluster(0), cluster(1)], [cluster(2)], 0.001);
-  const backend = exactPagesBackend({
-    source,
-    metadata: { ...DAG, primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level }] },
-    indices: new Map([
-      ['0', new Uint32Array([0, 1, 2])],
-      ['1', new Uint32Array([0, 2, 3])],
-      ['2', new Uint32Array([0, 1, 2])],
-    ]),
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
-    pixelError: 10,
-    viewport: [960, 540],
-  });
+  const { geometry, material, context } = coarseQuadContext(10);
+  const backend = exactPagesBackend(context);
   assertSingleCoarseCluster(backend, { geometry, material });
 });

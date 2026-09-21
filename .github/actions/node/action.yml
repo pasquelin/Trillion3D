@@ -1,0 +1,15 @@
+name: Node and pnpm
+description: pnpm, Node and the installed dependencies, shared by every job that runs a gate.
+
+runs:
+  using: composite
+  steps:
+    # pnpm BEFORE setup-node: `cache: pnpm` asks it where the store is, and it reads the version
+    # from the `packageManager` field of `package.json`.
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '22.18.0'
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+      shell: bash

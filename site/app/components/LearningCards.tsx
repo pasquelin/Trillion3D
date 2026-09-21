@@ -22,7 +22,7 @@ export function LearningCards({
       ? ['Entrée', 'Sortie moteur', 'À essayer', 'Ce qui change']
       : ['Input', 'Engine output', 'What to try', 'What changes'];
   return (
-    <div className="playground-cards grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2">
       {[input, output, attempt, changes].map((content, index) => (
         <Alert key={titles[index]}>
           <div className="min-w-0 break-words">

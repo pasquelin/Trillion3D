@@ -1,6 +1,14 @@
 import type { RendererLessonItem } from './rendererLessonTypes.ts';
 
-const asset = (id: string) => `./assets/gallery/offline/${id}/cache/native/full/manifest.json`;
+/** Scenes compiled outside `assets/gallery/offline/`; every other id is an offline lesson scene. */
+const SCENE_FOLDERS: Record<string, string> = {
+  'kinetic-garden': './assets/kinetic-garden',
+  'shadow-theatre': './assets/gallery/shadow-theatre',
+  'signature-architecture': './assets/gallery/signature-architecture',
+};
+
+const manifestOf = (scene: string) =>
+  `${SCENE_FOLDERS[scene] ?? `./assets/gallery/offline/${scene}`}/cache/native/full/manifest.json`;
 
 const assignments: Record<string, string> = {
   'point-light-range': 'city',
@@ -24,14 +32,7 @@ const assignments: Record<string, string> = {
 
 export const rendererSceneFor = (lesson: RendererLessonItem) => ({
   ...lesson,
-  manifest:
-    assignments[lesson.id] === 'kinetic-garden'
-      ? './assets/kinetic-garden/cache/native/full/manifest.json'
-      : assignments[lesson.id] === 'shadow-theatre'
-        ? './assets/gallery/shadow-theatre/cache/native/full/manifest.json'
-        : assignments[lesson.id] === 'signature-architecture'
-          ? './assets/gallery/signature-architecture/cache/native/full/manifest.json'
-          : asset(assignments[lesson.id]),
+  manifest: manifestOf(assignments[lesson.id]),
   preview: `./assets/gallery/renderer/${lesson.id}.png`,
   importedLights: lesson.id === 'runtime-pixel-error',
   sceneLight: ['lod', 'memory'].includes(lesson.kind ?? '') || lesson.runtime === 'camera-pose',

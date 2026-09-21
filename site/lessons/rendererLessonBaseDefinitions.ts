@@ -1,25 +1,6 @@
 import { LESSON_POINT_INTENSITY } from './lightingLessonDefinitions.ts';
-import type { Localized } from '../content/locale.ts';
-import type { RendererLessonItem, RendererLessonControl } from './rendererLessonTypes.ts';
-
-const title = (en: string, fr: string): Localized => ({ en, fr });
-const control = (
-  id: string,
-  en: string,
-  fr: string,
-  min: number,
-  max: number,
-  value: number,
-  step: number,
-): RendererLessonControl => ({
-  id,
-  label: title(en, fr),
-  type: min === 0 && max === 1 && step === 1 ? 'boolean' : 'range',
-  min,
-  max,
-  value,
-  step,
-});
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
+import { range, text } from './lessonDefinitionHelpers.ts';
 
 /** The renderer's own lighting/streaming lessons, before the definitions authored elsewhere
  *  (lighting, camera, occlusion, offline geometry) are merged in by `rendererLessons.ts`. */
@@ -28,21 +9,21 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
     id: 'point-light-range',
     category: 'lighting',
     functions: ['addLight', 'setLight', 'removeLight'],
-    title: title('A lamp with a boundary', 'Une lampe avec une limite'),
-    description: title(
+    title: text('A lamp with a boundary', 'Une lampe avec une limite'),
+    description: text(
       'Move the exact range where a point light stops contributing.',
       'Déplacez la limite exacte où une lumière ponctuelle cesse d’éclairer.',
     ),
     controls: [
-      control('intensity', 'Intensity', 'Intensité', 5, 160, LESSON_POINT_INTENSITY, 5),
-      control('range', 'Range', 'Portée', 1, 12, 6, 0.1),
+      range('intensity', 'Intensity', 'Intensité', 5, 160, LESSON_POINT_INTENSITY, 5),
+      range('range', 'Range', 'Portée', 1, 12, 6, 0.1),
     ],
     kind: 'point',
-    try: title(
+    try: text(
       'Pull the range inside the farthest buildings.',
       'Ramenez la portée devant les bâtiments les plus éloignés.',
     ),
-    changes: title(
+    changes: text(
       'Pixels beyond the range receive no energy.',
       'Les pixels au-delà de la portée ne reçoivent aucune énergie.',
     ),
@@ -51,21 +32,21 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
     id: 'spot-light-cone',
     category: 'lighting',
     functions: ['addLight', 'setLight'],
-    title: title('Shape a spotlight', 'Façonner un projecteur'),
-    description: title(
+    title: text('Shape a spotlight', 'Façonner un projecteur'),
+    description: text(
       'Open a real spotlight cone while its axis stays on the sculpture.',
       'Ouvrez le cône réel d’un projecteur dirigé vers la sculpture.',
     ),
     controls: [
-      control('intensity', 'Intensity', 'Intensité', 5, 200, 100, 5),
-      control('cone', 'Half-angle', 'Demi-angle', 8, 55, 28, 1),
+      range('intensity', 'Intensity', 'Intensité', 5, 200, 100, 5),
+      range('cone', 'Half-angle', 'Demi-angle', 8, 55, 28, 1),
     ],
     kind: 'spot',
-    try: title(
+    try: text(
       'Close the cone until it isolates one side of the sculpture.',
       'Fermez le cône jusqu’à isoler un côté de la sculpture.',
     ),
-    changes: title(
+    changes: text(
       'The public half-angle moves its soft boundary.',
       'Le demi-angle public déplace la bordure douce du cône.',
     ),
@@ -74,22 +55,22 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
     id: 'directional-shadow',
     category: 'lighting',
     functions: ['addLight', 'setLight', 'lightingCapabilities'],
-    title: title('Turn the shadow sun', 'Tourner le soleil des ombres'),
-    description: title(
+    title: text('Turn the shadow sun', 'Tourner le soleil des ombres'),
+    description: text(
       'Rotate a directional light whose cascaded shadow pages follow the camera and are cached.',
       'Tournez une lumière directionnelle dont les pages d’ombre en cascades suivent la caméra et restent en cache.',
     ),
     controls: [
-      control('intensity', 'Intensity', 'Intensité', 0.2, 6, 2.5, 0.1),
-      control('angle', 'Sun angle', 'Angle du soleil', -180, 180, -35, 1),
+      range('intensity', 'Intensity', 'Intensité', 0.2, 6, 2.5, 0.1),
+      range('angle', 'Sun angle', 'Angle du soleil', -180, 180, -35, 1),
     ],
     kind: 'directional',
     shadowStats: true,
-    try: title(
+    try: text(
       'Turn the sun, then zoom or orbit with the same sun, and read the shadow pages each move redraws.',
       'Tournez le soleil, puis zoomez ou orbitez à soleil fixe, et lisez les pages d’ombre que chaque geste redessine.',
     ),
-    changes: title(
+    changes: text(
       'A new sun direction restarts every page of the four cascades; a camera move slides their extents by whole pages and redraws only the strips that enter; a still camera redraws nothing.',
       'Une nouvelle direction du soleil relance toutes les pages des quatre cascades ; un déplacement de caméra fait glisser leurs fenêtres par pages entières et ne redessine que les bandes qui entrent ; une caméra immobile ne redessine rien.',
     ),
@@ -98,15 +79,15 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
     id: 'camera-exposure',
     category: 'lighting',
     functions: ['setEnvironment', 'addLight'],
-    title: title('Expose the same radiance', 'Exposer la même radiance'),
-    description: title(
+    title: text('Expose the same radiance', 'Exposer la même radiance'),
+    description: text(
       'Change exposure before ACES without changing the light energy.',
       'Changez l’exposition avant ACES sans modifier l’énergie lumineuse.',
     ),
-    controls: [control('exposure', 'Exposure', 'Exposition', 0.2, 4, 1, 0.05)],
+    controls: [range('exposure', 'Exposure', 'Exposition', 0.2, 4, 1, 0.05)],
     kind: 'exposure',
-    try: title('Compare 0.5 and 2 at fixed intensity.', 'Comparez 0,5 et 2 à intensité fixe.'),
-    changes: title(
+    try: text('Compare 0.5 and 2 at fixed intensity.', 'Comparez 0,5 et 2 à intensité fixe.'),
+    changes: text(
       'Tone mapping changes; incident radiance does not.',
       'Le tone mapping change ; la radiance incidente reste fixe.',
     ),
@@ -115,29 +96,21 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
     id: 'runtime-pixel-error',
     category: 'streaming',
     functions: ['setPixelError', 'setDiagnostic'],
-    title: title(
+    title: text(
       'Cross the observatory at any scale',
       'Traverser l’observatoire à toutes les échelles',
     ),
-    description: title(
+    description: text(
       'Move through a detailed architectural scene while its geometry adapts to the view.',
       'Parcourez une scène architecturale détaillée dont la géométrie s’adapte à la vue.',
     ),
     controls: [
-      control('pixelError', 'Detail tolerance', 'Tolérance de détail', 0, 8, 1, 0.25),
+      range('pixelError', 'Detail tolerance', 'Tolérance de détail', 0, 8, 1, 0.25),
       {
-        ...control(
-          'showLevels',
-          'Show detail levels',
-          'Afficher les niveaux de détail',
-          0,
-          1,
-          0,
-          1,
-        ),
+        ...range('showLevels', 'Show detail levels', 'Afficher les niveaux de détail', 0, 1, 0, 1),
         legend: [
-          { color: '#38bdf8', label: title('Exact detail', 'Détail exact') },
-          { color: '#f59e0b', label: title('Coarse fallback', 'Relais simplifié') },
+          { color: '#38bdf8', label: text('Exact detail', 'Détail exact') },
+          { color: '#f59e0b', label: text('Coarse fallback', 'Relais simplifié') },
         ],
       },
     ],
@@ -154,11 +127,11 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
       originalGoal:
         'A navigable original observatory keeps architecture readable in beauty mode, then exposes the continuously selected cluster cut on demand.',
     },
-    try: title(
+    try: text(
       'Orbit from the dome to the colonnade, then raise tolerance and reveal the selected levels.',
       'Tournez autour du dôme et de la colonnade, puis augmentez la tolérance et affichez les niveaux sélectionnés.',
     ),
-    changes: title(
+    changes: text(
       'The triangle count falls as tolerance rises; level colours show where fine details give way.',
       'Le nombre de triangles baisse avec la tolérance ; les couleurs montrent où les détails fins cèdent.',
     ),
@@ -167,15 +140,15 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
     id: 'runtime-memory-budget',
     category: 'streaming',
     functions: ['setMemoryBudgets'],
-    title: title('Resize a geometry pool', 'Redimensionner le pool géométrique'),
-    description: title(
+    title: text('Resize a geometry pool', 'Redimensionner le pool géométrique'),
+    description: text(
       'Apply a bounded runtime geometry budget and read back what the engine accepted.',
       'Appliquez un budget géométrique borné et lisez la valeur acceptée par le moteur.',
     ),
-    controls: [control('geometryMiB', 'Geometry pool', 'Pool géométrique', 4, 64, 16, 4)],
+    controls: [range('geometryMiB', 'Geometry pool', 'Pool géométrique', 4, 64, 16, 4)],
     kind: 'memory',
-    try: title('Shrink the pool, then restore 16 MiB.', 'Réduisez le pool, puis restaurez 16 Mio.'),
-    changes: title(
+    try: text('Shrink the pool, then restore 16 MiB.', 'Réduisez le pool, puis restaurez 16 Mio.'),
+    changes: text(
       'The engine reports the accepted allocation.',
       'Le moteur publie l’allocation acceptée après bornage.',
     ),

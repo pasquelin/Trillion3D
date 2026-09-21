@@ -7,6 +7,8 @@ mod box_reduce;
 mod cancellation;
 mod collect_textures;
 mod decode_failure;
+mod gate;
+mod gate_verdict;
 mod image_source;
 mod levels;
 mod median_alpha;
@@ -35,6 +37,7 @@ pub(super) fn options(source: &Path) -> Options {
         threads: 1,
         ram_budget_mb: 64,
         simplification: "none".into(),
+        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
         cancelled: Arc::new(AtomicBool::new(false)),
     }
 }
@@ -71,10 +74,21 @@ pub(super) fn level_bytes(width: u32, height: u32, pixels: &[u8], index: usize) 
 }
 /// Progress ignored by these tests.
 pub(super) fn silent(_: Value) {}
-/// Step run on source folder and scene, mesh 0 retained, nothing to measure:
-/// shared by end-to-end tests. Returns entries and report.
+/// Step run on source folder and scene, mesh 0 retained, nothing to measure,
+/// the BC family cooked: shared by end-to-end tests. Returns entries and report.
 pub(super) fn stage_scene(dir: &Path, g: &Value) -> (Vec<TexturePreview>, Value) {
-    let o = options(dir);
+    stage_scene_in(dir, g, vec![BlockFormat::Bc7])
+}
+/// The same, cooking `texture_formats`.
+pub(super) fn stage_scene_in(
+    dir: &Path,
+    g: &Value,
+    texture_formats: Vec<BlockFormat>,
+) -> (Vec<TexturePreview>, Value) {
+    let o = Options {
+        texture_formats,
+        ..options(dir)
+    };
     let (meshes, view_map) = (BTreeSet::from([0usize]), BTreeMap::new());
     let (previews, _, report) = stage_texture_previews(
         &PreviewInputs {

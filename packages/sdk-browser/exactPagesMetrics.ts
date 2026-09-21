@@ -3,14 +3,13 @@ import { geometryBytes } from './sceneMeshes.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { ExactPagesRenderState } from './exactPagesRender.ts';
+import type { WebglFrameGate } from './webglFrameGate.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 
 type MetricsContext = {
   batches: ClusterBatches;
   blendCopies: THREE.Mesh[];
-  /** How many of the copies the draw owner submits itself, culled like the host would. */
-  ownedCopies: number;
   metricsSeen: Set<ArrayBufferView>;
   attached: PageRec[];
   counters: { pagesDetached: number };
@@ -18,6 +17,8 @@ type MetricsContext = {
   allPages: PageRec[];
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
+  /** The frame gate, released with the scene: the host graph keeps no hook of this engine. */
+  gate: WebglFrameGate;
   readonly diagnostic: DiagnosticMode;
   /** What the current frame decided, read as-is: the sample does not copy field by field what
    *  the render state already carries. */
@@ -28,7 +29,6 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
   const {
     batches,
     blendCopies,
-    ownedCopies,
     metricsSeen,
     attached,
     counters,
@@ -36,6 +36,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
     allPages,
     disposeGeometry,
     scene,
+    gate,
     state,
   } = ctx;
   return {
@@ -70,8 +71,9 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         totalSubmittedTriangles: batched.submittedTriangles + transparentSubmittedTriangles,
         transparentMeshes: blendCopies.length,
         transparentSubmittedTriangles,
-        transparentDrawCalls: blendCopies.length - ownedCopies + batched.copyDraws,
-        drawCalls: blendCopies.length - ownedCopies + batched.copyDraws + batched.drawCalls,
+        // Every copy is the owner's, submitted when in view, culled like the host would.
+        transparentDrawCalls: batched.copyDraws,
+        drawCalls: batched.copyDraws + batched.drawCalls,
         batchRebuilds: batched.pageRangeWrites,
         batchIndexBytesUpdated: batched.indexBytesWritten,
         pageRangeWrites: batched.pageRangeWrites,
@@ -94,6 +96,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
       for (const copy of blendCopies)
         disposeTriangleGeometry(copy.userData.sourceGeometry as THREE.BufferGeometry);
       scene.clear();
+      gate.release();
     },
   };
 }

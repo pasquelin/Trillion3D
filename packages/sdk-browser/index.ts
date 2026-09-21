@@ -33,6 +33,7 @@ export type {
 } from './diagnosticChannel.ts';
 export type { SurfaceBuffer, SurfaceCapture } from './surfaceBuffer.ts';
 export type { HostDrawCamera } from './cameraWorld.ts';
+export type { HostDrawOutput } from './webglRenderTarget.ts';
 export type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 export type { GeometryPool, PoolClamp, TexturePool } from './webgpuMemoryBudgets.ts';
 export type { ShadowAtlasDigest } from './gpuShadowDigest.ts';
@@ -41,7 +42,12 @@ export type { TransparentOcclusionAudit } from './webgpuTransparentOcclusionAudi
 export type { CpuStepSummary } from './cpuProfile.ts';
 export type { ArrivalPlan } from './pageIntegrationHost.ts';
 export type { DecodedGeometryPage } from './geometryPage.ts';
-export type { TextureLevelReader } from './textureLevelReader.ts';
+export type {
+  TextureLevel,
+  TextureLevelReader,
+  TextureLevelRequest,
+} from './textureLevelReader.ts';
+export type { AtlasLanes, LaneCounts, TextureCompression } from './textureBlockFormats.ts';
 export type { HostRetentionDelta, StreamPage } from './streamingTypes.ts';
 export type { MultiplyLot } from './mathBatchRuntime.ts';
 export type { LightingCapabilities } from '../sdk-core/index.ts';

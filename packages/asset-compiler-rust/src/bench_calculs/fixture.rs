@@ -69,6 +69,7 @@ fn compile_one(name: &str) -> (f64, Value) {
         threads: 1,
         ram_budget_mb: 64,
         simplification: "none".into(),
+        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
         cancelled: Arc::new(AtomicBool::new(false)),
     };
     let started = Instant::now();

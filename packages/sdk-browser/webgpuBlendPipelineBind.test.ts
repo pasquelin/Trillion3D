@@ -64,8 +64,8 @@ function joue(items: ReturnType<typeof item>[]) {
       blendPipelines: [TEXTURED, FRONT, BACK],
       blendBindGroupLayout: {},
       textures: {
-        color: { pool: { view: {} }, pages: { buffer: {} } },
-        data: { pool: { view: {} }, pages: { buffer: {} } },
+        color: { views: [{}, {}, {}], pages: { buffer: {} } },
+        data: { views: [{}, {}, {}], pages: { buffer: {} } },
         feedback: { buffer: {} },
       },
       mapsSampler: {},

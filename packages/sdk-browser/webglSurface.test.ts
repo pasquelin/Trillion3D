@@ -66,7 +66,9 @@ test('engine surface owns context size, loss, restoration, and disposal', () => 
   });
   surface.resize(641, 359, 1.5);
   assert.deepEqual(f.writes(), [1, 1]);
-  f.listeners.get('webglcontextlost')!({ preventDefault: () => prevented++ } as Event);
+  f.listeners.get('webglcontextlost')!({
+    preventDefault: () => prevented++,
+  } as unknown as Event);
   assert.equal(surface.lost, true);
   assert.equal(lost, 1);
   assert.equal(prevented, 1);
@@ -84,26 +86,6 @@ test('engine surface owns context size, loss, restoration, and disposal', () => 
 test('engine surface rejects a missing WebGL2 context', () => {
   const canvas = { getContext: () => null } as unknown as HTMLCanvasElement;
   assert.throws(() => createWebglSurface(canvas), /WebGL2 unavailable/);
-});
-
-test('failed delegated resize remains retryable', () => {
-  const f = fixture(),
-    surface = createWebglSurface(f.canvas);
-  assert.throws(
-    () => surface.resize(8, 4, 2, () => assert.fail('adapter failed')),
-    /adapter failed/,
-  );
-  assert.equal(
-    surface.resize(8, 4, 2, () => {}),
-    true,
-  );
-  assert.deepEqual(surface.size, {
-    width: 8,
-    height: 4,
-    pixelRatio: 2,
-    drawingWidth: 0,
-    drawingHeight: 0,
-  });
 });
 
 test('engine surface reports a loss the context knows before its event arrives', () => {

@@ -8,21 +8,28 @@ import {
 } from './lightingObservationContracts.ts';
 import { createRectangleBvh } from './lightingRectangleBvh.ts';
 
-function createFloatTexture(data: Float32Array, width: number, height: number) {
-  const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.FloatType);
-  texture.minFilter = THREE.NearestFilter;
-  texture.magFilter = THREE.NearestFilter;
-  texture.generateMipmaps = false;
-  texture.flipY = false;
-  texture.colorSpace = THREE.NoColorSpace;
-  return texture;
-}
+/** A float RGBA texture of the engine: its texels, its size, and whether the GPU copy is
+ *  behind them. Uploaded by the draw, nearest-filtered, clamped, never mipmapped. */
+export type ObservationTexture = {
+  data: Float32Array;
+  width: number;
+  height: number;
+  dirty: boolean;
+};
+const floatTexture = (data: Float32Array, width: number, height: number): ObservationTexture => ({
+  data,
+  width,
+  height,
+  dirty: true,
+});
 
 export function createObservationResources(state: LightingExperimentRenderState) {
   const domain = state.scene,
     surfaceCount = domain.surfaces.length;
   if (surfaceCount < 1 || surfaceCount > MAX_SURFACES)
     throw new Error(`Lighting experiment requires 1..${MAX_SURFACES} surfaces`);
+  // The host scene the backend publishes, by contract: empty, black — no mesh ever enters it,
+  // the observation draws on the engine's program.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
   const patchOffsets: number[] = [],
@@ -51,14 +58,11 @@ export function createObservationResources(state: LightingExperimentRenderState)
   if (domain.patches.length !== patchCount)
     throw new Error('Lighting experiment patch grid does not match scene patches');
   const texels = new Float32Array(atlasWidth * atlasHeight * 4);
-  const texture = createFloatTexture(texels, atlasWidth, atlasHeight);
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
+  const texture = floatTexture(texels, atlasWidth, atlasHeight);
   const surfaceTexels = new Float32Array(surfaceCount * 6 * 4);
-  const surfaceTexture = createFloatTexture(surfaceTexels, 6, surfaceCount);
+  const surfaceTexture = floatTexture(surfaceTexels, 6, surfaceCount);
   const bvh = createRectangleBvh(domain.surfaces);
-  const bvhTexture = createFloatTexture(bvh.data, 2, bvh.nodeCount);
-  bvhTexture.needsUpdate = true;
+  const bvhTexture = floatTexture(bvh.data, 2, bvh.nodeCount);
   const rayDiagnostics: LightingExperimentRayDiagnostics = {
     rayTraversal: 'brute',
     bvhNodeCount: bvh.nodeCount,
@@ -66,20 +70,18 @@ export function createObservationResources(state: LightingExperimentRenderState)
     bvhRefitMs: 0,
   };
   state.rayDiagnostics = rayDiagnostics;
+  /** The program's uniforms, plain values the draw uploads each frame. */
   const uniforms = {
-    indirectCache: { value: texture },
-    cacheSize: { value: new THREE.Vector2(atlasWidth, atlasHeight) },
-    surfaceData: { value: surfaceTexture },
-    sphere: { value: new THREE.Vector4() },
-    sphereRoughness: { value: 0 },
-    reflectionSamples: { value: 8 },
-    experimentExposure: { value: 1 },
-    emitterCount: { value: 0 },
-    emitterIndices: { value: new Int32Array(MAX_EMITTERS) },
-    directLightSamples: { value: 16 },
-    directLightGrid: { value: 4 },
-    bvhData: { value: bvhTexture },
-    useBvh: { value: false },
+    cacheSize: [atlasWidth, atlasHeight] as [number, number],
+    sphere: new Float32Array(4),
+    sphereRoughness: 0,
+    reflectionSamples: 8,
+    experimentExposure: 1,
+    emitterCount: 0,
+    emitterIndices: new Int32Array(MAX_EMITTERS),
+    directLightSamples: 16,
+    directLightGrid: 4,
+    useBvh: false,
   };
   return {
     surfaceCount,
@@ -99,11 +101,6 @@ export function createObservationResources(state: LightingExperimentRenderState)
     bvhTexture,
     rayDiagnostics,
     uniforms,
-    dispose() {
-      texture.dispose();
-      surfaceTexture.dispose();
-      bvhTexture.dispose();
-    },
   };
 }
 export type ObservationResources = ReturnType<typeof createObservationResources>;

@@ -15,7 +15,7 @@ test('adaptive error grows with speed and stays at the base when still', () => {
   assert.ok(adaptivePixelError(2, 1e9, 10) <= 2 * 5);
 });
 test('competitor inventory never claims unintegrated libraries as covered', () => {
-  const status = (id) => COMPARISON_LIBRARIES.find((row) => row.id === id)?.status;
+  const status = (id: string) => COMPARISON_LIBRARIES.find((row) => row.id === id)?.status;
   assert.equal(status('three-webgl-reference'), 'integrated');
   assert.equal(status('three-lod'), 'integrated');
   assert.ok(COMPARISON_LIBRARIES.some((row) => row.status === 'not-comparable'));

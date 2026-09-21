@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeGeometryPage } from './geometryPage.ts';
-import { encodeGeometryPage } from '../page-codec/geometryPage.mjs';
+import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 
 const MODULE = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'));
 
@@ -53,7 +53,7 @@ test('bytes that are not a valid WebAssembly module fail instantiation without t
 test('a simulated engine without SIMD — instantiation that throws — falls back to the JavaScript decoder', async () => {
   const { decodeGeometryPageWasm, prepareSdkWasm } = await frais();
   const original = WebAssembly.instantiate;
-  // @ts-expect-error: simulates an engine that refuses to compile the module (SIMD missing, for example).
+  // Simulates an engine that refuses to compile the module (SIMD missing, for example).
   WebAssembly.instantiate = () => {
     throw new WebAssembly.CompileError('simd absent');
   };

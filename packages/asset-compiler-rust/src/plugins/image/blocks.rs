@@ -17,7 +17,7 @@ pub(super) type BlockDecode = fn(&[u8], usize, usize, &mut [u32]) -> Result<(), 
 /// image. Each block decodes on its own, so cutting by row yields exactly the same pixels.
 /// `truncated` is the reason the calling driver gives a level shorter than the announced block
 /// count — a named refusal, never a panic.
-pub(super) fn to_rgba8(
+pub(crate) fn to_rgba8(
     decode: BlockDecode,
     block_bytes: usize,
     level: &[u8],
