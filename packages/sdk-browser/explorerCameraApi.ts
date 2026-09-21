@@ -1,16 +1,16 @@
-import * as THREE from 'three';
 import { FlyControls } from 'three/addons/controls/FlyControls.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { CameraPose } from '../sdk-core/index.ts';
 import type { ExplorerOptions, PointOfInterest, RenderBackend } from './backendTypes.ts';
+import type { HostCamera } from './cameraWorld.ts';
 
 type Inputs = {
   check: () => void;
   options: ExplorerOptions;
-  camera: THREE.PerspectiveCamera;
-  center: THREE.Vector3;
-  homeOffset: THREE.Vector3;
-  lookAtTarget: THREE.Vector3;
+  camera: HostCamera;
+  center: HostCamera['position'];
+  homeOffset: HostCamera['position'];
+  lookAtTarget: HostCamera['position'];
   radius: number;
   canvas: HTMLCanvasElement;
   backends: RenderBackend[];
@@ -64,7 +64,7 @@ export function createExplorerCameraApi(inputs: Inputs) {
       camera.updateMatrixWorld();
     },
     // Every frame binds its own destination: leaving the measurement surface is the flag alone.
-    restoreAfterCampaign(id: string, saved: THREE.PerspectiveCamera) {
+    restoreAfterCampaign(id: string, saved: HostCamera) {
       if (disposed()) return;
       setMeasuring(false);
       setActive(backends.find((backend) => backend.id === id)!);
