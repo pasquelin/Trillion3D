@@ -1,5 +1,8 @@
 import { metricValue } from './metrics.js';
-/** Explicit reading thresholds, never relative engine rankings or inferred FPS. */
+/**
+ * Explicit reading thresholds, never relative engine rankings or inferred FPS.
+ * @returns {{ tone: 'neutral' | 'warning' | 'error' | 'success', code: keyof typeof ASSESSMENT_LABELS }}
+ */
 export function assessment(record, metric) {
   const value = metricValue(record, metric);
   if (value === null) return { tone: 'neutral', code: 'missing' };
