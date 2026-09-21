@@ -38,6 +38,8 @@ const AUTORISES = {
   exactPagesUnlitAlbedo: 'exact witness: its unlit view zeros the host material factors',
   exactPagesMetrics: 'exact witness: the host meshes and geometries it counts and disposes',
   exactPagesRender: 'exact witness: the host camera and scene copies its frame reads',
+  explorerCameraApi:
+    'boundary: the orbit and fly controls of `three/addons` it returns to the host',
   exactPagesRequests: 'exact witness: its requests start from its host graph',
   lightingObservationResources: 'boundary: the empty host scene the experiment publishes',
   referenceBackend: 'reference witness: the host engine, as-is',
@@ -119,7 +121,7 @@ const AUTORISES = {
   webgpuPositions: 'position attribute of the host geometry',
 };
 
-const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three['"]/m;
+const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three(?:\/[^'"]*)?['"]/m;
 
 const sources = async () =>
   (await readdir(browser)).filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'));
