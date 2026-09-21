@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { BUNDLES, buildDocs } from './docs/bundles.mjs';
 
-export const REBUILD_MESSAGE = 'docs(release): rebuild the published bundles';
+const REBUILD_MESSAGE = 'docs(release): rebuild the published bundles';
 const RELEASE_AUTHOR = {
   name: 'github-actions[bot]',
   email: '41898282+github-actions[bot]@users.noreply.github.com',

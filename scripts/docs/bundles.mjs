@@ -1,4 +1,5 @@
 /** The published bundles: everything `build:docs` writes under docs/, tracked on main only. */
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -25,29 +26,46 @@ export async function buildDocs(root, docs = resolve(root, 'docs')) {
   await buildPortal(root, resolve(docs, 'runtime'));
 }
 
-/** The bundles of `docs` that are missing or differ from the freshly built `fresh` tree. */
-export async function staleBundles(fresh, docs) {
+/** The bundles whose content read by `actual` is absent or differs from the fresh tree. */
+export async function staleBundles(fresh, actual) {
   const stale = [];
   for (const bundle of BUNDLES) {
     const expected = await readFile(join(fresh, bundle));
-    const actual = await readFile(join(docs, bundle)).catch(() => null);
-    if (actual === null || !expected.equals(actual)) stale.push(bundle);
+    const found = await actual(bundle);
+    if (found === null || !expected.equals(found)) stale.push(bundle);
   }
   return stale;
 }
 
-/** Builds into a temporary tree and names the bundles of docs/ that are stale or missing. */
+/** Reads a bundle from a docs/-shaped tree; null when it is missing. */
+export const treeReader = (docs) => (bundle) => readFile(join(docs, bundle)).catch(() => null);
+
+/** Reads a bundle as HEAD tracks it, whatever the working tree holds; null when untracked. */
+const headReader = (root) => (bundle) => {
+  try {
+    return execFileSync('git', ['show', `HEAD:docs/${bundle}`], {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch {
+    return null;
+  }
+};
+
+/** Builds into a temporary tree and names the bundles HEAD tracks stale, or does not track. */
 export async function checkBundles(root) {
   const fresh = await mkdtemp(join(tmpdir(), 'wg-docs-build-'));
   try {
     await buildDocs(root, fresh);
-    return await staleBundles(fresh, resolve(root, 'docs'));
+    return await staleBundles(fresh, headReader(root));
   } finally {
     await rm(fresh, { recursive: true, force: true });
   }
 }
 
-/** The bundles git tracks in this tree: none on develop, all of them on main. */
+/** The bundles HEAD tracks: none on develop, all of them on main. */
 export function trackedBundles(root) {
-  return gitPathsSync(['ls-files', '-z', '--', ...BUNDLES.map((bundle) => `docs/${bundle}`)], root);
+  const paths = BUNDLES.map((bundle) => `docs/${bundle}`);
+  return gitPathsSync(['ls-tree', '--name-only', '-z', 'HEAD', '--', ...paths], root);
 }

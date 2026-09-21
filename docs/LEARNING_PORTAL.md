@@ -59,9 +59,9 @@ or fallback route.
 ### Published bundles: built at release, never in a batch
 
 The bundles are ignored by git and absent from `develop`: a batch never commits them, every
-consumer builds them on demand (`docs:serve`, the browser proofs, `scripts/docs-build.test.mjs`),
-and `check:docs-bundles` in `validate` has nothing to compare there. Pages serves `main`, where
-the release commits them:
+consumer builds them on demand (`docs:serve`, the browser proofs under `scripts/` and
+`test/browser/`, `scripts/docs-build.test.mjs`), and `check:docs-bundles` in `validate` has
+nothing to compare there. Pages serves `main`, where the release commits them:
 
 1. Cut the release branch from `main`, merge `develop` into it and open the pull request to
    `main`: `git checkout -b <issue>-release origin/main && git merge origin/develop`. Cut from
@@ -72,9 +72,9 @@ the release commits them:
    commits them (`docs(release): rebuild the published bundles`, the Actions bot as author),
    pushes them on the head branch and dispatches the workflow again on the new head. A head that
    is already that rebuild and still differs stops the release: the build did not reproduce.
-3. On that head, `check:docs-bundles` (`node scripts/docs-build.mjs --check`) compares the tracked
-   bundles with a fresh build and refuses a stale or missing one. The maintainer merges once it is
-   green.
+3. On that head, `check:docs-bundles` (`node scripts/docs-build.mjs --check`) compares the
+   bundles as `HEAD` tracks them, whatever the working tree holds, with a fresh build and refuses
+   a stale or missing one. The maintainer merges once it is green.
 
 `node scripts/release-bundles.mjs <branch> --dry-run` builds and prints the decision without
 committing anything.

@@ -4,7 +4,8 @@
  *   node scripts/docs-build.mjs --check   fails when the tracked bundles differ from a fresh build
  *
  * The bundles are not committed on develop: the release commits them on main (see
- * docs/LEARNING_PORTAL.md), so `--check` has nothing to compare where git tracks none of them.
+ * docs/LEARNING_PORTAL.md), so `--check` compares what HEAD tracks, whatever the working tree
+ * holds, and has nothing to compare where HEAD tracks none of them.
  */
 import { resolve } from 'node:path';
 import { buildDocs, checkBundles, trackedBundles } from './docs/bundles.mjs';
