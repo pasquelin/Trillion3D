@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { compareImages } from '../sdk-core/index.ts';
-import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
+import { rasterVisibilityIds, shadeVisibility, type VisPage } from './visibilityBuffer.ts';
 import {
   HIZ_BOUNDS_VALUES,
   buildHizPyramid,
@@ -26,8 +26,8 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
   const selected = [front.page, back.page];
-  const occluders: HizPage[] = [],
-    rest: HizPage[] = [];
+  const occluders: (VisPage & HizPage)[] = [],
+    rest: (VisPage & HizPage)[] = [];
   splitOccludersInto(selected, cameraMoteur(cam), size, occluders, rest);
   assert.deepEqual(
     occluders.map((page) => page.url),
@@ -114,7 +114,7 @@ test('flat projection and split reproduce the object forms to the bit, including
     seed = (seed * 1103515245 + 12345) >>> 0;
     return seed / 4294967296;
   };
-  const pages: HizPage[] = [];
+  const pages: (HizPage & { matrix: THREE.Matrix4 })[] = [];
   for (let i = 0; i < 300; i++) {
     const centre = [rnd() * 20 - 10, rnd() * 20 - 10, -rnd() * 40],
       half = [rnd() * 2 + 0.01, rnd() * 2 + 0.01, rnd() * 2 + 0.01];

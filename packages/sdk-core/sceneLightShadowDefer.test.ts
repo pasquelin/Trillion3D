@@ -5,24 +5,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from './sceneLightStore.ts';
 import { createShadowPlan } from './sceneLightShadowPlan.ts';
-import type { SceneLight, ShadowViewpoint } from './sceneLightContracts.ts';
+import type { ShadowViewpoint } from './sceneLightContracts.ts';
+import { VIEW, SUN } from './sceneLightShadowFixture.ts';
 
-const VIEW: ShadowViewpoint = {
-  position: [0, 5, 0],
-  forward: [0, 0, -1],
-  halfFovY: 0.6,
-  aspect: 16 / 9,
-  near: 0.1,
-  far: 200,
-};
-const SUN: SceneLight = {
-  id: 'sun',
-  kind: 'directional',
-  direction: [0, -1, 0],
-  color: [1, 1, 1],
-  intensity: 1,
-  castsShadow: true,
-};
 const BOX_MIN = [-1, 0, -1],
   BOX_MAX = [1, 2, 1];
 

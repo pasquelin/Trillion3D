@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import roadmap from '../../content/gallery-roadmap.json';
+import roadmap from '../../content/gallery-roadmap.json' with { type: 'json' };
 import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import { CodeBlock } from '../components/CodeBlock.tsx';

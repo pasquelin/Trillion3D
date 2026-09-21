@@ -7,6 +7,10 @@ import { drawPasses } from './clusterBatchMesh.ts';
 
 const position = new THREE.BufferAttribute(new Float32Array(9), 3);
 const NO_COPIES = { plain: [], blended: [], transmissive: [] };
+// A stand-in image: these tests never rasterize a texture, only its presence is read
+// (`!texture.image`), so a placeholder typed as the DOM's texture-source union is enough.
+const FAKE_IMAGE = {} as TexImageSource;
+const fakeTexture = () => new THREE.Texture(FAKE_IMAGE);
 
 test('an untextured Basic material needs no unused UV or normal attribute', () => {
   assert.equal(clusterMaterialReason(new THREE.MeshBasicMaterial(), { position }), undefined);
@@ -33,12 +37,12 @@ test('unsupported mutations refuse the autonomous draw before it becomes partial
   material.wireframe = true;
   assert.match(clusterMaterialReason(material, { position })!, /unsupported extension/);
   material.wireframe = false;
-  material.alphaMap = new THREE.Texture({});
+  material.alphaMap = fakeTexture();
   assert.match(clusterMaterialReason(material, { position })!, /unsupported extension/);
 });
 
 test('a normal-mapped material needs no tangent attribute: the shader rebuilds the frame', () => {
-  const material = new THREE.MeshStandardMaterial({ normalMap: new THREE.Texture({}) });
+  const material = new THREE.MeshStandardMaterial({ normalMap: fakeTexture() });
   assert.equal(
     clusterMaterialReason(material, {
       position,
@@ -50,7 +54,7 @@ test('a normal-mapped material needs no tangent attribute: the shader rebuilds t
 });
 
 test('a texture selecting UV1 is refused when geometry has only UV0', () => {
-  const material = new THREE.MeshBasicMaterial({ map: new THREE.Texture({}) });
+  const material = new THREE.MeshBasicMaterial({ map: fakeTexture() });
   material.map!.channel = 1;
   assert.match(
     clusterMaterialReason(material, {
@@ -62,7 +66,7 @@ test('a texture selecting UV1 is refused when geometry has only UV0', () => {
 });
 
 test('one material is validated against every distinct geometry attribute set', () => {
-  const material = new THREE.MeshBasicMaterial({ map: new THREE.Texture({}) });
+  const material = new THREE.MeshBasicMaterial({ map: fakeTexture() });
   material.map!.channel = 1;
   const uv = new THREE.BufferAttribute(new Float32Array(6), 2);
   assert.throws(
@@ -123,7 +127,7 @@ test('a transmissive physical material is a scene copy of the transmission pass,
   glass.clearcoat = 0.5;
   assert.match(clusterMaterialReason(glass, { position, normal }, true)!, /clearcoat/);
   glass.clearcoat = 0;
-  glass.thicknessMap = new THREE.Texture({});
+  glass.thicknessMap = fakeTexture();
   assert.match(clusterMaterialReason(glass, { position, normal }, true)!, /thicknessMap/);
 });
 

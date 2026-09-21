@@ -1,13 +1,13 @@
 // A11: requested residency is stored as bits — one word for thirty-two clusters, which
 // is its own mirror — instead of a float per page reread through the cones; `maxStretch`
 // now receives a subarray instead of a recopied array. Oracle: the residency column
-// from before lot A, in `bench/oracles/residence.mjs`.
+// from before lot A, in `bench/oracles/residence.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../sdk-core/index.ts';
 import { updateResidencyBits } from './gpuDagRuntime.ts';
 import { residentWords } from './gpuDagLayout.ts';
-import { referenceUpdateResidency, residencyColumn } from './bench/oracles/residence.mjs';
+import { referenceUpdateResidency, residencyColumn } from './bench/oracles/residence.ts';
 
 const STRIDE = 12,
   FLAG = 11;
