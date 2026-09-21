@@ -4,75 +4,17 @@
 import { ecartRelatif } from './baseline.ts';
 import { ecart } from './ecart.ts';
 import type { Compteur } from './ulp.ts';
+import type {
+  Stats,
+  LigneResultat,
+  Mesure,
+  MesureCas,
+  MesureParams,
+  Reglages,
+  Verdict,
+} from './mesureTypes.ts';
+export type { Stats, LigneResultat, Mesure, MesureCas, MesureParams } from './mesureTypes.ts';
 
-/** Statistics of one timed calculation: median, 95th percentile, best turn, turn count. */
-export interface Stats {
-  medianeMs: number;
-  p95Ms: number;
-  minMs: number;
-  tours: number;
-}
-
-/** One measured or described row of a benchmark. */
-export interface LigneResultat {
-  name: string;
-  size: number | null;
-  medianeMs: number | null;
-  p95Ms: number | null;
-  minMs: number | null;
-  nsParElement: number | null;
-  tours: number;
-  opsParSec: number | null;
-  temoin: Stats | null;
-  ecartTemoin: number | null;
-  correct: boolean | null;
-  difference: string | null;
-  motif: string | null;
-  /** Added by `rapport.ts` against the domain baseline; absent before that. */
-  ecartBaseline?: number | null;
-}
-
-/** A named benchmark's result: the file(s) it measures and its rows, one per case. */
-export interface Mesure {
-  name: string;
-  fichier: string | string[];
-  resultats: LigneResultat[];
-}
-
-/** One named input to measure, or to verify only when `mesure` is `false`. */
-export interface MesureCas<Entree = unknown> {
-  name: string;
-  input: Entree;
-  size?: number | null;
-  mesure?: boolean;
-}
-
-interface Reglages {
-  chauffe: number;
-  tours: number;
-  budgetMs: number;
-}
-
-interface Verdict {
-  correct: boolean | null;
-  difference: string | null;
-  motif: string | null;
-}
-
-/** Parameters of `mesure`: the calculation, its oracle, and the settings it measures under. */
-export interface MesureParams<Entree = unknown, Sortie = unknown> {
-  name: string;
-  fichier: string | string[];
-  cas: MesureCas<Entree>[];
-  options?: Partial<Reglages>;
-  calcul: (input: Entree) => Sortie | Promise<Sortie>;
-  attendu?: (input: Entree) => Sortie | Promise<Sortie>;
-  temoin?: (input: Entree) => unknown;
-  differences?: (ref: Sortie, obt: Sortie, chemin: string) => Compteur;
-  motif?: string | null;
-}
-
-/** Pseudo-random generator with fixed seed (xorshift32): two executions see the same inputs. */
 export function graine(depart: number) {
   let etat = depart >>> 0 || 0x9e3779b9;
   return () => {
@@ -234,43 +176,6 @@ async function chronometre<Entree>(
 }
 
 /** One extreme case a stress check must absorb without throwing. */
-export interface CasExtreme<Entree = unknown> {
-  name: string;
-  input: Entree;
-}
 
-/** Checks that a calculation absorbs its extremes without throwing: no exception is the contract. */
-export async function stress<Entree = unknown>({
-  name,
-  calcul,
-  extremes,
-}: {
-  name: string;
-  calcul: (input: Entree) => unknown;
-  extremes: CasExtreme<Entree>[];
-}): Promise<void> {
-  for (const cas of extremes) {
-    try {
-      await calcul(cas.input);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      throw new Error(`Stress ${name} / ${cas.name} : ${message}`, { cause: e });
-    }
-  }
-}
-
-/** Parameters of `compare`: `mesure` under different names for the reference/optimised split. */
-export interface CompareParams<Entree = unknown, Sortie = unknown> extends Omit<
-  MesureParams<Entree, Sortie>,
-  'calcul' | 'attendu'
-> {
-  reference: (input: Entree) => Sortie | Promise<Sortie>;
-  optimisee: (input: Entree) => Sortie | Promise<Sortie>;
-}
-
-/** Measures package code using the pre-optimisation implementation as the oracle. */
-export const compare = <Entree = unknown, Sortie = unknown>({
-  reference,
-  optimisee,
-  ...reste
-}: CompareParams<Entree, Sortie>) => mesure({ ...reste, calcul: optimisee, attendu: reference });
+export { compare, stress } from './mesureStress.ts';
+export type { CasExtreme, CompareParams } from './mesureStress.ts';

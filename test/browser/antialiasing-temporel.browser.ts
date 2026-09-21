@@ -15,6 +15,7 @@ import {
   type ResultatPagePreuve,
 } from '../appui/preuvePageMoteur.ts';
 import { estRouge } from '../appui/preuveSceneImage.ts';
+import { auBord, ecarts } from './antialiasingEcarts.ts';
 
 interface Etape {
   rendue: number[];
@@ -50,48 +51,6 @@ const resultat = (await preuveDansLaPage(
 )) as Resultat;
 preuveSaine(resultat);
 const [largeur, hauteur] = resultat.viewport;
-
-/** Reach of accumulation around an edge, in pixels: half a jitter and the current image's
- *  3×3 filter cover one and a half pixels, hence two whole pixels. */
-const PORTEE = 2;
-
-/** True when, in `pixels`, a pixel within `PORTEE` of `(x, y)` has another colour: an edge. */
-function auBord(pixels: number[], x: number, y: number) {
-  const i = (y * largeur + x) * 4;
-  for (let dy = -PORTEE; dy <= PORTEE; dy++)
-    for (let dx = -PORTEE; dx <= PORTEE; dx++) {
-      const px = x + dx,
-        py = y + dy;
-      if (px < 0 || py < 0 || px >= largeur || py >= hauteur) continue;
-      const j = (py * largeur + px) * 4;
-      if (
-        pixels[i] !== pixels[j] ||
-        pixels[i + 1] !== pixels[j + 1] ||
-        pixels[i + 2] !== pixels[j + 2]
-      )
-        return true;
-    }
-  return false;
-}
-
-/** Pixels where `a` and `b` differ by more than `tolerance` per channel, classed edge / interior
- *  from `b`, the image without accumulation. */
-function ecarts(a: number[], b: number[], tolerance: number) {
-  let bords = 0,
-    interieur = 0,
-    max = 0;
-  for (let y = 0; y < hauteur; y++)
-    for (let x = 0; x < largeur; x++) {
-      const i = (y * largeur + x) * 4;
-      let d = 0;
-      for (let c = 0; c < 3; c++) d = Math.max(d, Math.abs(a[i + c] - b[i + c]));
-      max = Math.max(max, d);
-      if (d <= tolerance) continue;
-      if (auBord(b, x, y)) bords++;
-      else interieur++;
-    }
-  return { bords, interieur, max };
-}
 
 const { sans, avec, temoin } = resultat;
 console.log(
@@ -147,7 +106,7 @@ for (const [etape, avecEtape, sansEtape] of [
   ['still', avec.arret, sans.arret],
   ['motion', avec.deplacement, sans.deplacement],
 ] as const) {
-  const e = ecarts(avecEtape.tenue, sansEtape.tenue, 2);
+  const e = ecarts(avecEtape.tenue, sansEtape.tenue, 2, largeur, hauteur);
   console.log(`${etape}: ${e.bords} edge pixels changed, ${e.interieur} interior, max ${e.max}`);
   assert.ok(e.bords > 0, `${etape}: accumulation should change edge pixels`);
   assert.equal(e.interieur, 0, `${etape}: ${e.interieur} interior pixels changed by more than 2`);
@@ -194,7 +153,7 @@ for (const [etape, avecEtape, sansEtape] of [
       // freed region is examined; the intermediate-edge count itself is strict.
       const etaitRouge = estRouge(avant, i),
         estFond = !estRouge(apres, i);
-      if (!etaitRouge || !estFond || auBord(apres, x, y)) continue;
+      if (!etaitRouge || !estFond || auBord(apres, x, y, largeur, hauteur)) continue;
       for (let c = 0; c < 3; c++)
         if (Math.abs(accumulee[i + c] - apres[i + c]) > 2) {
           fantomes++;
