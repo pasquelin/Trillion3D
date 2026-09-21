@@ -9,7 +9,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** A runtime reduced to what admission reads: the pool, the sample's threshold, the counts. */
 function mount(slots: number) {
-  const state = { samplePixelError: 0, requested: 0, view: 0, slots };
+  const state = { samplePixelError: 0, requested: 0, kept: 0, view: 0, slots };
   const run = {
     budgetPixelError: 0,
     budgetOverflowError: -1,
@@ -34,16 +34,18 @@ function mount(slots: number) {
           return state.requested;
         },
         get keepCount() {
-          return state.requested;
+          return state.kept;
         },
       },
     },
   } as unknown as WebgpuPagesRuntime;
-  /** One frame: the sample at `sampled` asked for `requested` pages; the frame asks `pixelError`. */
-  const frame = (sampled: number, requested: number, pixelError = 0) => {
+  /** One frame: the sample at `sampled` asked for `requested` pages (and holds `kept` with what is
+   *  still drawn); the frame asks `pixelError`. */
+  const frame = (sampled: number, requested: number, pixelError = 0, kept = requested) => {
     state.samplePixelError = sampled;
     state.requested = requested;
-    admitGpuCut(rt, pixelError, Math.max(pixelError, run.budgetPixelError));
+    state.kept = kept;
+    admitGpuCut(rt, pixelError);
     return run.budgetPixelError;
   };
   return { run, state, frame };
@@ -118,6 +120,28 @@ test('a floor the host threshold has passed is given up, and an overflow doubles
   assert.equal(frame(10, 250, 10), 20);
   assert.equal(frame(10, 250, 10), 20, 'the sample at 10 has been answered');
   assert.equal(frame(20, 250, 10), 40);
+});
+
+test('an adaptive host threshold that moves every frame still gets its verdict', () => {
+  const { run, frame } = mount(100);
+  // No floor rules: the sample cut at 0.8 overflows while the frame already asks 0.9.
+  assert.equal(frame(0.8, 250, 0.9), 1.6, 'coarsened from what the sample was drawn at');
+  assert.equal(run.coverageBudgetLimited, true);
+  // A floor rules: only a sample at that floor answers, whatever the host asks meanwhile.
+  assert.equal(frame(0.9, 250, 1.1), 1.6, 'the sample at 0.9 is not the floor: no step');
+  assert.equal(frame(1.6, 90, 1.2), 1.6);
+  assert.equal(run.coverageBudgetLimited, false);
+});
+
+test('pages still drawn from the previous cut coarsen once more but are not memorised', () => {
+  const { run, frame } = mount(100);
+  frame(0, 250);
+  // The sample at 1 fits (60 pages) but the image still holds the old fine cut: the union overflows.
+  assert.equal(frame(1, 60, 0, 130), 2, 'the transient coarsens once more');
+  assert.equal(run.budgetOverflowError, 0, 'only the requested overflow at 0 is remembered');
+  // The old cut has drained: 1 fits with room, and nothing forbids coming back to it.
+  assert.equal(frame(2, 50), 1);
+  assert.equal(frame(1, 80), 1, 'and it holds there');
 });
 
 test('the relax share is the fraction of the slots under which the floor lowers', () => {

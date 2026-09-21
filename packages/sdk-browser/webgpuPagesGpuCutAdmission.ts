@@ -17,22 +17,29 @@ export const MIN_BUDGET_PIXEL_ERROR = 0.125;
  *
  * Two rules keep the floor from oscillating, since the count the frame reads is the readback of a
  * cut sampled several frames earlier:
- * - the floor moves only on a sample cut at the threshold the frame currently asks for. Between two
- *   samples the verdict is the previous one, and a step is never taken on the count of another
- *   threshold — doubling on a count the last doubling has already answered, or halving five times
- *   before the first halving has been seen;
- * - a threshold that overflowed the pool for this view is not asked for again while the view and
- *   the pool stay: relaxing to it would only reproduce the overflow, then the coarsening, every few
- *   frames. A view change or a pool resize forgets it, since either may fit it.
+ * - while a floor rules, it moves only on a sample cut at that floor. Between two samples the
+ *   verdict is the previous one, and a step is never taken on the count of another threshold —
+ *   doubling on a count the last doubling has already answered, or halving five times before the
+ *   first halving has been seen. The sample carries the threshold it was dispatched at: an adaptive
+ *   host threshold that moves every frame is not what the floor is matched on;
+ * - a threshold whose REQUESTED cut overflowed the pool for this view is not asked for again while
+ *   the view and the pool stay: relaxing to it would only reproduce the overflow, then the
+ *   coarsening, every few frames. A view change or a pool resize forgets it, since either may fit
+ *   it. What the image still draws from the previous cut is held with the requested one, and can
+ *   overflow the slots for a few frames right after a coarsening: that transient coarsens once more
+ *   but is not memorised, or a still camera would settle one rung too coarse.
  */
-export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted: number) {
+export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number) {
   const { run, services } = rt,
     { slots } = rt.setup;
   // A floor the host's own threshold has passed no longer decides anything: it is given up, so
   // what is published is what the cut is drawn at.
   if (run.budgetPixelError > 0 && run.budgetPixelError <= pixelError) run.budgetPixelError = 0;
   const sample = run.gpuSelection?.peek();
-  if (!sample || sample.uniforms.pixelError !== budgeted) return;
+  if (!sample) return;
+  // The threshold the sample was cut at: the floor when one rules, the host's otherwise.
+  const sampled = sample.uniforms.pixelError;
+  if (run.budgetPixelError > 0 && sampled !== run.budgetPixelError) return;
   const view = run.gate.revisions.view;
   if (run.budgetOverflowView !== view || run.budgetOverflowSlots !== slots) {
     run.budgetOverflowView = view;
@@ -49,8 +56,8 @@ export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted
   // The ladder doubles what the image was drawn at — one pixel at least on a first overflow —,
   // and relaxing halves down to the finest rung, below which the floor is given up.
   if (run.coverageBudgetLimited) {
-    run.budgetOverflowError = budgeted;
-    run.budgetPixelError = Math.min(MAX_BUDGET_PIXEL_ERROR, Math.max(1, budgeted * 2));
+    if (requested > slots) run.budgetOverflowError = sampled;
+    run.budgetPixelError = Math.min(MAX_BUDGET_PIXEL_ERROR, Math.max(1, sampled * 2));
   } else if (run.budgetPixelError > 0 && requested < slots * BUDGET_RELAX_RATIO) {
     let next = run.budgetPixelError / 2;
     if (next <= pixelError || next < MIN_BUDGET_PIXEL_ERROR) next = 0;
@@ -63,6 +70,6 @@ export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted
       requiredSlots: requested,
       slots,
       fallbackRetained: rt.services.bootstrapState.ready,
-      pixelError: budgeted,
+      pixelError: sampled,
     };
 }
