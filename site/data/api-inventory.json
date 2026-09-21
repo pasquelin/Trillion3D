@@ -163,6 +163,17 @@
       "bindingIdentity": "\"packages/sdk-core/contractsBase\".AssetScope"
     },
     {
+      "name": "AtlasLanes",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/textureBlockFormats.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/textureBlockFormats\".AtlasLanes"
+    },
+    {
       "name": "autonomousPagesBackend",
       "kind": "value",
       "definingModule": "packages/sdk-browser/autonomousPages.ts",
@@ -2867,6 +2878,17 @@
       "bindingIdentity": "\"packages/sdk-core/llm/types\".JsonSchemaProperty"
     },
     {
+      "name": "LaneCounts",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/textureBlockFormats.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/textureBlockFormats\".LaneCounts"
+    },
+    {
       "name": "lengthSqVector3",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathVector.ts",
@@ -4254,7 +4276,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/textureTiles.ts",
-        "test/fixtures/manifestBinary.ts"
+        "test/fixtures/manifestBinary.ts",
+        "test/fixtures/manifestBinaryPreview.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".previewFirstLevel"
@@ -5695,7 +5718,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["scripts/mesure/optionsCote.ts"],
+      "affectedConsumers": ["scripts/mesure/mesureOptions.ts", "scripts/mesure/optionsCote.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/textureBlockFormats\".TextureCompression"
     },
@@ -5810,7 +5833,8 @@
         "packages/sdk-browser/textureBlockFormats.ts",
         "packages/sdk-browser/webgpuPagesPrepareTextures.ts",
         "packages/sdk-browser/webgpuTileCatalogue.test.ts",
-        "packages/sdk-browser/webgpuTileCatalogue.ts"
+        "packages/sdk-browser/webgpuTileCatalogue.ts",
+        "test/fixtures/manifestBinaryPreview.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/texturePreviewContracts\".TexturePreview"
