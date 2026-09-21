@@ -168,7 +168,7 @@ export const guidesFr: LocaleOverlay = {
 <h3 class="text-lg font-bold mt-4">La barrière, à la cuisson</h3>
 <ul class="list-disc pl-6 space-y-1">
 <li><strong>Relue, jamais crue.</strong> Chaque niveau est décodé à nouveau par un décodeur indépendant et comparé à la chaîne RGBA8 sur les canaux que les matériaux lisent : l’alpha d’une couleur de base opaque n’est pas lu, les trois canaux d’une carte de normales le sont, son Z reconstruit contre le Z qu’elle stocke.</li>
-<li><strong>La barre.</strong> Un PSNR de 48 dB sur toute la chaîne, aucun texel décalé de plus de 8 niveaux sur 255 sur un canal lu, et aucun texel d’une texture masquée qui change de côté de son seuil alpha. Sous la barre, la chaîne reste sans perte dans cette famille : pas de fichier de blocs, pas de queue en blocs, et le mot de disposition de l’annexe le dit.</li>
+<li><strong>La barre.</strong> Un PSNR de 48 dB sur toute la chaîne, aucun texel décalé de plus de 3 niveaux sur 255 sur un canal lu — la barre d’une capture fixe, sous ce qu’un écran 8 bits distingue, portée au texel —, et aucun texel d’une texture masquée qui change de côté de son seuil alpha. Sous la barre, la chaîne reste sans perte dans cette famille : pas de fichier de blocs, pas de queue en blocs, et le mot de disposition de l’annexe le dit.</li>
 <li><strong>Les normales sur deux canaux, jamais en BC7.</strong> Une texture que seul <code>normalTexture</code> lit est ajustée canal par canal — X et Y chacun sur sa propre échelle — et le shader reconstruit Z comme le reste unitaire. Un Z stocké qui n’est pas ce reste échoue à la barrière, et la carte reste sans perte.</li>
 </ul>
 <h3 class="text-lg font-bold mt-4">Ce que le moteur en fait</h3>
