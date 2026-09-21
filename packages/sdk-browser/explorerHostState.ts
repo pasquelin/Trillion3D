@@ -31,8 +31,9 @@ export type ExplorerHostState = {
 /**
  * The draw adapter of the composition host, mounted on the engine's surface: the one place that
  * still builds a `WebGLRenderer`, for the compositor, the held frame, the render targets and the
- * scenes the witness engines hand over. It reads the size the surface already set and leaves with
- * the composition host (#85).
+ * scenes the witness engines hand over. It is told the size the surface already set — no call of
+ * the adapter records a size without rewriting the canvas, so the still undrawn buffer resets
+ * once here — and leaves with the composition host (#85).
  */
 function createHostDrawAdapter(surface: WebglSurface) {
   const renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context });
@@ -109,6 +110,7 @@ export function createExplorerHostState(
   return {
     state,
     baseline,
+    webglSurface,
     renderer,
     beautyMaterials,
     overlays,

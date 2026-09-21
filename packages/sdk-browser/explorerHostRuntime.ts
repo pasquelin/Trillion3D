@@ -15,8 +15,31 @@ type Inputs = {
 };
 
 export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, metadata, scope, signal, diagnose } = session;
+  const { canvas, options, signal } = session;
   const { prepared, resources, backends } = inputs;
+  const host = createExplorerHostState(
+    prepared,
+    options,
+    backends,
+    canvas,
+    resources.webglSurface,
+    signal,
+  );
+  try {
+    return mountExplorerHostRuntime(session, inputs, host);
+  } catch (error) {
+    // The adapter's owner is the lifecycle, which does not exist yet: nothing else disposes it.
+    host.renderer?.dispose();
+    throw error;
+  }
+}
+
+function mountExplorerHostRuntime(
+  session: ExplorerSession,
+  { prepared, resources, backends }: Inputs,
+  host: ReturnType<typeof createExplorerHostState>,
+) {
+  const { canvas, options, metadata, scope, diagnose } = session;
   const {
     source,
     pageSources,
@@ -30,10 +53,10 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     homeOffset,
   } = prepared;
   const { geometryUrls, streamer } = pageSources;
-  const { webglSurface, gpuDevice } = resources;
-  const host = createExplorerHostState(prepared, options, backends, canvas, webglSurface, signal);
+  const { gpuDevice } = resources;
   const {
     state,
+    webglSurface,
     renderer,
     beautyMaterials,
     overlays,
@@ -55,7 +78,6 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
   if (renderer) hostedControls.push({ dispose: drawScene.dispose });
   const { render, profiler, streaming } = createExplorerHostFrame(session, {
     prepared,
-    resources,
     host,
     backends,
     drawScene,
