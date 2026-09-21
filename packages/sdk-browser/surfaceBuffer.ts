@@ -6,7 +6,8 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
   'rgba16float',
   'r32uint',
 ];
-const SURFACE_BYTES_PER_PIXEL = 28;
+/** Bytes of the four surface targets per pixel. */
+export const SURFACE_BYTES_PER_PIXEL = 28;
 /** Virtual-texture feedback target: the tile rank a pixel asks for, written by hardware
  *  resolve then by transparents, reduced to counters for one pixel in sixteen. */
 export const FEEDBACK_FORMAT: GPUTextureFormat = 'r32uint';

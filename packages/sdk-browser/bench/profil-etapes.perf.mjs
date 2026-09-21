@@ -1,6 +1,7 @@
 // per-stage profile breakdown, done every frame: CPU bounds deposited on their
 // stages, and GPU passes read by their label.
-import { addCpuSteps, addGpuPasses, directLightTimings } from '../stageMapping.ts';
+import { addCpuSteps } from '../stageCpuSteps.ts';
+import { addGpuPasses, directLightTimings } from '../stageMapping.ts';
 import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../webgpuPagesCpuSteps.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import {
@@ -25,7 +26,7 @@ const depose = (ventile) => (rows) => {
 
 const mesureCpu = await mesure({
   name: 'CPU bounds per stage',
-  fichier: 'packages/sdk-browser/stageMapping.ts',
+  fichier: 'packages/sdk-browser/stageCpuSteps.ts',
   cas: [
     { name: `${NB_BORNES} bounds × 200 frames`, input: lignes(200), size: 200 * NB_BORNES },
     { name: 'no frames', input: [], size: 0 },

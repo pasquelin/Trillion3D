@@ -14,6 +14,7 @@ import { BLEND_ITEM_WGSL } from './webgpuBlendItems.ts';
 import { BLEND_REQUEST_WGSL } from './webgpuBlendRequestWgsl.ts';
 import { FLAG_PAGED, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
 import { BLEND_SURFACE_WGSL } from './webgpuBlendShaderSurface.ts';
+import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './webgpuWaterSurfaceWgsl.ts';
 
 /**
  * Shader of transparent surfaces.
@@ -60,7 +61,8 @@ ${NORMAL_TRANSFORM_WGSL}
 // What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
 // maps, their factors and the flags. They are constant over the call, therefore FLAT — the
 // fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec4u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec2f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) item:u32,}
+// \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend.
+struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec4u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec2f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
 ${TRIANGLE_PALETTE_WGSL}
 // An instance draws a paged cluster that compaction kept, or a piece of indices of a primitive
 // that is not paged. The list plan expansion wrote says, for each, the item that carries it and
@@ -75,9 +77,9 @@ ${TRIANGLE_PALETTE_WGSL}
  var out:VSOut;
  let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
  let it=items[slot.x];
- out.item=slot.x;
+ out.water=it.flags>>${WATER_RANK_SHIFT}u;
  let local=vertexIndex&((1u<<uni.vertexShift)-1u);
- let flags=it.flags|uni.viewFlags;
+ let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
  out.color=it.color;
  out.ids=vec4u(it.mapIndex,flags,it.emissiveIndex,it.wrapModes);
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
