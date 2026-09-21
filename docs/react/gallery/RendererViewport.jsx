@@ -19,7 +19,7 @@ const errorMessage = (error, locale, action) => {
   return error instanceof Error && error.message ? `${fallback} ${error.message}` : fallback;
 };
 
-export const DIAGNOSTIC_MODES = [
+const DIAGNOSTIC_MODES = [
   { id: 'beauty', en: 'Image', fr: 'Image' },
   { id: 'wireframe', en: 'Triangles', fr: 'Triangles' },
   { id: 'clusters', en: 'Clusters', fr: 'Groupes' },
