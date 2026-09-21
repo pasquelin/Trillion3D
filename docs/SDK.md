@@ -219,18 +219,20 @@ estimate.
 | scene · camera | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs` | `selectionDispatchMs` | CPU frame p50 | rAF p50 | roots | verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Emerald Square · still | null | null | 0.000 / 0.000 (stage) | 0.000 / 0.000 (stage) | 0.2–0.7 ms | 16.7 ms | 2 479, none rebased | held image: no loop runs |
-| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4 | 0.4–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.7–3.3 ms | 16.7 ms | 2 479 rebased every image | world step at the clock's edge; its loops under 0.1 ms (below) |
-| Emerald Square · moving, `rue` | 0.3 / 0.3–0.4 | 0.0–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.5–2.8 ms | 16.7 ms | 2 479 rebased every image | same |
+| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4 | 0.4–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.7–3.3 ms | 16.7 ms | 2 479 (`racines`); rebased on every moved image by construction — the published `racinesRebasees` is the last, held image's 0 | world step at the clock's edge; its loops under 0.1 ms (below) |
+| Emerald Square · moving, `rue` | 0.3 / 0.3–0.4 | 0.0–0.5 / 0.5–0.6 | 0.000 / 0.000 | 0.000 / 0.100 | 2.5–2.8 ms | 16.7 ms | 2 479, as above | same |
 | Whisperwind Village · still | null (CPU cut) | null (CPU cut) | 0.000 (sample) | `selectionMs` 181–245 ms (sample) | 386–420 ms | 383–417 ms | 11 263 | the CPU reference cut over 2 022 678 resident pages, `cpuSelectMs` p50 94–103 ms: the cut's cost, not a loop's |
 | Whisperwind Village · moving | null (CPU cut) | null (CPU cut) | 0.000 (sample) | `selectionMs` 117–272 ms (sample) | 843–856 ms | 850–867 ms | 11 263 | same, `cpuSelectMs` p50 111–115 ms |
 
 The reading, loop by loop (the list of #80): on the GPU-cut path (Emerald Square) `lightsMs` is
 zero by construction — declared lamps live in a store the frame does not walk (`hostSceneWatch.ts`
-only reads the host graph at a scene revision) — and `blendWorldMs` is zero: the frustum × box
-loops of `webgpuBlendOrder.ts` and `webgpuBlendSelection.ts` run on the transparent path only,
-and only where a scene has transparents. `invertMatrix4` (`webgpuPagesTransform.ts`) and
-`boxTransform` + `boxUnion` (`mathBatchBoxes.ts`, `webgpuPagesTransform.ts`) run at a host write
-or at `prepare()`, never per image; `normalMatrix3` (`pageCone.ts`) at prepare, and in the CPU
+only reads the host graph at a scene revision) — and `blendWorldMs` is zero, as are the transparent steps
+(`transparentPrepareMs`, `transparentEncodeMs`) under which the frustum × box loops of
+`webgpuBlendOrder.ts` and `webgpuBlendSelection.ts` run — on the transparent path only, and only
+where a scene has transparents. `invertMatrix4` (`webgpuPagesTransform.ts`,
+`lightingObservationMeshes.ts` at the lighting experiment's creation) and `boxTransform` +
+`boxUnion` (`mathBatchBoxes.ts`, `webgpuPagesTransform.ts`, `pageSelectionCollect.ts` at setup)
+run at a host write or at `prepare()`, never per image; `normalMatrix3` (`pageCone.ts`) at prepare, and in the CPU
 visibility oracle (`visibilityShadingNormal.ts`) that no frame calls; `sphereFromBounds`
 (`threeBounds.ts`) at import; the `frameCostAudit.ts` and `gpuDagOracleMath.ts` loops belong to a
 diagnostic and to the GPU-cut oracle, outside a measured beauty pass. What remains every moving
@@ -240,7 +242,7 @@ nanosecond clock by `packages/sdk-browser/bench/rebase-racines.perf.mjs` (`pnpm 
 perf:browser`) on the same 2 479 roots: **0.031–0.032 ms**, 0.000 ms (a moved first root ends the
 scan; 0.041–0.043 ms when nothing moved, a case the held image never reaches) and
 **0.025–0.026 ms** per image,
-three runs, spread under 2 µs. The rest of `worldMs` is the 158 KB world upload and the pyramid
+three runs, spread under 2 µs on a quiet machine, 6 µs under load. The rest of `worldMs` is the 158 KB world upload and the pyramid
 invalidation, not a math loop. On Whisperwind Village the GPU cut is unavailable
 (visibility-identifier capacity) and the frame runs the CPU reference cut, where
 `frustumExcludesBox` is called per DAG node visited (`pageSelectionCut.ts`) and
