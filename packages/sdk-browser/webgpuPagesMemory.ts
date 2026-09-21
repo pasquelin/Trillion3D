@@ -1,5 +1,4 @@
 import { texturePoolFor, type GeometryPool, type TexturePool } from './webgpuMemoryBudgets.ts';
-import { dropPoolBindGroups } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** What a host can change mid-session; a missing field keeps its value. */
@@ -41,17 +40,16 @@ export async function setWebgpuMemoryBudgets(
   // Tiles first: their copy is synchronous, the pages' waits for in-flight loads.
   if (budgets.texturePoolBytes !== undefined) {
     const pool = texturePoolFor(budgets.texturePoolBytes, setup.gpuDevice);
-    if (pool.layers !== setup.texturePool.layers && vis.textures && !run.lost) {
+    if (pool.layers !== setup.texturePool.layers && vis.textures && !run.lost)
       evictedTiles = vis.textures.resize(pool.layers);
-      // Right away, before an image goes through: the groups name a destroyed pool.
-      dropPoolBindGroups(rt);
-    }
     setup.texturePool = pool;
   }
   if (budgets.geometryPoolBytes !== undefined) {
     const pool = setup.geometryPoolFor(budgets.geometryPoolBytes);
     if (pool.slots !== setup.slots && gpu.cache && !run.lost) {
-      const evicted = await gpu.cache.resize(pool.slots);
+      // The root cover keeps its place before any other page: the pool never goes below it, and a
+      // cut can only be completed from it.
+      const evicted = await gpu.cache.resize(pool.slots, setup.bootstrapUrls);
       // A pinned page that has just been evicted: the pin trace knows, and the pin step puts it back
       // in the queue if the image still keeps it — the path of a host page drop.
       for (const url of evicted) {
@@ -59,7 +57,6 @@ export async function setWebgpuMemoryBudgets(
         if (key !== undefined) setup.tracking.unmarkPinned(key);
       }
       evictedPages = evicted.length;
-      dropPoolBindGroups(rt);
     }
     setup.geometryPool = pool;
   }

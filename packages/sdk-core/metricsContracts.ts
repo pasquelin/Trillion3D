@@ -99,6 +99,10 @@ export interface FrameMetrics
   coverageReady?: boolean | null;
   /** Requested detail cannot coexist with the pinned fallback within the GPU page budget. */
   coverageBudgetLimited?: boolean | null;
+  /** Screen-error floor the GPU page budget imposes on the cut, in pixels: `0` when the requested
+   *  detail fits, otherwise the coarser threshold the image is drawn at. Null on engines without a
+   *  page budget. */
+  budgetPixelError?: number | null;
   /**
    * True when the frame was held: neither the scene, nor the view, nor the resources moved, no
    * asynchronous work was pending, and no CPU stage ran. The displayed

@@ -79,10 +79,8 @@ test('a setting above the session ceiling is brought back to the ceiling, and th
         resize: async (n: number) => (resized.push(n), ['p']),
         stats: () => ({ residentPages: 3 }),
       },
-      bindGroups: new Map(),
     },
-    vis: { visSlotGroups: [], rasterGroups: [] },
-    blendState: { blendGpu: [] },
+    vis: {},
     run: { lost: false, gate: { resourcesChanged: () => resources++ } },
     diag: { engineDiagnostic() {} },
   };

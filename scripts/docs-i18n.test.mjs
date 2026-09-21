@@ -7,7 +7,7 @@ import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
 
 test('French content covers every documentation entry and preserves its technical contract', () => {
   const localized = localizeEntries(rawEntries, 'fr');
-  assert.equal(rawEntries.length, 78);
+  assert.equal(rawEntries.length, 79);
   assert.equal(localized.length, rawEntries.length);
   for (let index = 0; index < rawEntries.length; index += 1) {
     const source = rawEntries[index];
