@@ -71,9 +71,9 @@ the runtime. Criterion: bytes per triangle ≤ 12 — measured 18.3 on Emerald S
 Whisperwind Village (#9), the gap being one vertex per triangle of topology and index bits;
 Emerald general-view fill < 300 ms warm.
 C6. **Textures**: PNG/JPEG decode in the compiler, mip generation, split into tiles or streamable
-levels, atlas table; raw GPU format, lossless, or lossy block-compressed (BC/ASTC, see §7 and
-Textures T5; the bench's 0 px thresholds do not apply to that lot). Criterion: Emerald's first
-frame with no full-resolution texture; mips requested by visibility.
+levels, atlas table; raw GPU format, lossless, or block-compressed (BC/ASTC, see §7 and Textures
+T5) where a quality gate keeps the image still. Criterion: Emerald's first frame with no
+full-resolution texture; mips requested by visibility.
 C7. **Binary manifest**: typed columns (bounds, spheres, errors, levels, groups, material ranges,
 packets, offsets), a JSON of a few hundred KiB (objects, materials, structure), all addressed by
 SHA-256 digest. Criterion: load + decode < 100 ms for Emerald.
@@ -457,8 +457,13 @@ repository measures itself, with no other project on the machine.
   14 September).
 - Lossy texture compression: accepted for textures alone (decision of 17 September 2026, Textures
   T5) — BC on desktop, ASTC on mobile, to ship with before/after images and the measured delta
-  published. The bench's 0 px thresholds do not apply to that lot; they remain intact for geometry
-  and lighting. Lossless streamable mips first.
+  published. Reframed on 21 September 2026 (#218 refused, #45 reworked) under the rule that no
+  optimisation may move the image visibly: a chain is block-compressed only under a per-texture
+  quality gate at cook (48 dB over the chain, no texel more than 8 levels off on a read channel,
+  no mask flip), normal maps go on two channels (BC5 / ASTC luminance-alpha, Z rebuilt in the
+  shader) or stay lossless, never on BC7 mode 6, and the still captures must read 0 px above the
+  declared threshold or name the pixels; on Emerald the BC family reads at most 3 of 255 on any
+  channel of any pixel of the three views. Lossless streamable mips first.
 - FBX: imperfect free reader; glTF remains the pivot, upstream conversion if needed.
 - WebGL2: never the same pipeline as WebGPU (no compute); parity required on the image, not on the
   method.

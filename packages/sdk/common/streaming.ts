@@ -33,7 +33,6 @@ export type {
   Primitive,
   StreamBundle,
   StreamCatalogue,
-  TexturePreview,
 } from '../../sdk-core/geometryContracts.ts';
 export { manifestBinaryRanges } from '../../sdk-core/manifestBinaryLayout.ts';
 export type { Counts } from '../../sdk-core/manifestBinaryLayout.ts';
@@ -53,16 +52,21 @@ export {
   GEOMETRY_PAGE_FORMAT_VERSION,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
-  PREVIEW_ATLAS_COLOR,
-  PREVIEW_ATLAS_DATA,
-  PREVIEW_ATLAS_NAMES,
-  PREVIEW_BLOCK_FORMATS,
-  PREVIEW_LOSSLESS_FORMAT,
-  TEXTURE_PREVIEW_VERSION,
   COLUMN_KIND,
 } from '../../sdk-core/manifestBinaryFormat.ts';
-export type { ColumnKind, TextureBlockFormat } from '../../sdk-core/manifestBinaryFormat.ts';
-export type { TextureLevelFormat } from '../../sdk-core/textureLevelUrl.ts';
+export type { ColumnKind } from '../../sdk-core/manifestBinaryFormat.ts';
+export {
+  levelBlockBytes,
+  PREVIEW_BASE,
+  PREVIEW_MAX_LEVELS,
+  previewBlockBytes,
+  previewFirstLevel,
+  previewIsWhole,
+  previewLastLevel,
+  previewLevelCount,
+  previewLevelSize,
+  previewPixelBytes,
+} from '../../sdk-core/texturePreviewLevels.ts';
 export {
   PAGE_DECODE_FAILURES,
   PAGE_DECODE_PROTOCOL,
@@ -100,14 +104,17 @@ export type {
   PageIntegrationRequest,
 } from '../../sdk-core/pageIntegrationContracts.ts';
 export {
-  PREVIEW_BASE,
-  PREVIEW_MAX_LEVELS,
-  previewFirstLevel,
-  previewIsWhole,
-  previewLastLevel,
-  previewLevelCount,
-  previewLevelSize,
-  previewPixelBytes,
-} from '../../sdk-core/texturePreviewLevels.ts';
+  PREVIEW_ATLAS_COLOR,
+  PREVIEW_ATLAS_DATA,
+  PREVIEW_ATLAS_NAMES,
+  PREVIEW_BLOCK_BYTES,
+  PREVIEW_BLOCK_FORMATS,
+  PREVIEW_LAYOUT_NAMES,
+  PREVIEW_LOSSLESS_FORMAT,
+  TEXTURE_PREVIEW_VERSION,
+} from '../../sdk-core/texturePreviewFormat.ts';
+export type { TextureBlockFormat, TextureLayout } from '../../sdk-core/texturePreviewFormat.ts';
 export type { TextureFrameMetrics } from '../../sdk-core/textureMetricsContracts.ts';
-export { textureLevelUrl } from '../../sdk-core/textureLevelUrl.ts';
+export { textureLevelFormat, textureLevelUrl } from '../../sdk-core/textureLevelUrl.ts';
+export type { TextureLevelFormat } from '../../sdk-core/textureLevelUrl.ts';
+export type { TexturePreview } from '../../sdk-core/texturePreviewContracts.ts';
