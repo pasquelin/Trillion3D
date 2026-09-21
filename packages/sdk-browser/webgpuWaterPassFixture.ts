@@ -14,11 +14,33 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
  *  prepared and planned as `prepareBlendResources` does, and the frame targets of a replay. */
 installGpuGlobals();
 const buffer = () => ({ size: 0 }) as unknown as GPUBuffer;
-export const device = {
-  createBuffer: () => buffer(),
-  createBindGroup: () => ({}),
-  queue: { writeBuffer: () => {} },
-} as unknown as GPUDevice;
+
+/** A device that builds every pipeline, layout and group as a plain record, and counts the
+ *  pipelines by fragment entry and the bind groups. */
+export function mountDevice() {
+  const pipelines: string[] = [],
+    groups = { created: 0 };
+  return {
+    pipelines,
+    groups,
+    device: {
+      createBuffer: () => buffer(),
+      createBindGroupLayout: (descriptor: unknown) => descriptor,
+      createPipelineLayout: () => ({}),
+      createRenderPipeline: (descriptor: { fragment: { entryPoint: string } }) => {
+        pipelines.push(descriptor.fragment.entryPoint);
+        return {};
+      },
+      createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
+      createBindGroup: () => {
+        groups.created++;
+        return {};
+      },
+      queue: { writeBuffer: () => {} },
+    } as unknown as GPUDevice,
+  };
+}
+export const device = mountDevice().device;
 
 /** One triangle per mesh: only the material class distinguishes the three copies. */
 function copy(material: THREE.Material, order: number) {
@@ -72,13 +94,13 @@ export function prepared() {
   // The three copies are at the same place: their keys are equal, and source order splits them.
   orderBlendPasses(blendState, [0, 0, 0]);
   blendState.visibleBlend.push(...blendState.blendGpu);
-  blendState.volumePacked = new Float32Array(blendState.blendGpu.length * VOLUME_WORDS);
+  blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS);
   blendState.argsBuffer = buffer();
   blendState.viewBuffer = buffer();
   return { blendState, gpu };
 }
 
-/** Frame targets of the replay: the HDR image, the opaque depth, and the water pass's own. */
+/** Frame targets of the replay: the HDR image, the opaque depth and surfaces, the backdrop. */
 export function targets(gpu: WebgpuGpuState) {
   const placeholder = () => ({});
   Object.assign(gpu, {
@@ -89,17 +111,10 @@ export function targets(gpu: WebgpuGpuState) {
     hdrTexture: {},
     depthTexture: {},
     feedbackView: {},
-    backdrop: {
-      color: {},
-      depth: {},
-      colorView: {},
-      depthView: {},
-      surfaces: { views: () => [{}, {}, {}, {}] },
-      waterDepth: {},
-      waterDepthView: {},
-      active: true,
-    },
+    surfaces: { views: () => [{}, {}, {}, {}] },
+    backdrop: { color: {}, colorView: {}, waterDepth: {}, waterDepthView: {}, active: true },
     deferred: {
+      uniform: {},
       placeholders: Object.fromEntries(
         ['slices', 'atlasView', 'sampler', 'bounceGrid', 'probes', 'tiles', 'proxy'].map((k) => [
           k,
@@ -126,9 +141,11 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
       return {
         setViewport() {},
         setBindGroup(_slot: number, group: GPUBindGroup) {
-          drawn.push(items.findIndex((item) => item.group === group));
+          const rank = items.findIndex((item) => item.group === group);
+          if (rank >= 0) drawn.push(rank);
         },
         setPipeline() {},
+        draw() {},
         drawIndirect() {},
         end() {},
       };
@@ -136,13 +153,9 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
     copyTextureToTexture: () => counters.copies++,
   } as unknown as GPUCommandEncoder;
   const rt = {
-    vis: {
-      visEnabled: true,
-      pipelineBlendFront: {},
-      pipelineBlendBack: {},
-      pipelineBlendTextured: {},
-    },
+    vis: { visEnabled: true, blendPipelines: [{}, {}, {}] },
     gpu,
+    capture: { secondaryCamera: undefined },
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its resources by default.
@@ -159,8 +172,10 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
     },
   } as unknown as WebgpuPagesRuntime;
   // Groups are already built on these resources: their identity is primed on them, so the pass
-  // need not rebuild them — this test observes draw order, not group construction.
-  voidStaleBlendGroups(rt, blendLightResources(rt));
+  // need not rebuild them — this test observes draw order, not group construction. The lighting
+  // is resolved once, as `encodeBlend` does before any pass.
+  blendState.lighting = blendLightResources(rt);
+  voidStaleBlendGroups(rt, blendState.lighting);
   for (const item of items) item.group = {} as GPUBindGroup;
   // No paged item here, and the shared group is posted ahead for the same reason.
   blendState.pagedGroup = {} as GPUBindGroup;

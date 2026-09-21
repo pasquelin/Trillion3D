@@ -117,8 +117,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   });
   gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0]));
   blendState.transmissive = prepareWebgpuBlend(gpuDevice, blendCopies, gpu, blendState, scene);
-  blendState.volumePacked = new Float32Array(blendState.blendGpu.length * VOLUME_WORDS);
-  gpu.volumeBuffer = createVolumeBuffer(gpuDevice, blendState.blendGpu.length);
+  blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS);
+  gpu.volumeBuffer = createVolumeBuffer(gpuDevice, blendState.transmissive);
   // The transparent draw order is the scene's and is settled here, once: an image only chooses which
   // of its entries survive.
   blendState.table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu);
@@ -145,9 +145,9 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
   }
-  if (blendState.blendGpu.length && !vis.pipelineBlendTextured) dropVis(rt);
+  if (blendState.blendGpu.length && !vis.blendPipelines) dropVis(rt);
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
-  if (context.gpuCanvas && blendState.blendGpu.length && !vis.pipelineBlendTextured)
+  if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
   await prepareDirectLights(rt, gpuDevice);
   prepareCones(rt);

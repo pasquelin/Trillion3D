@@ -1,11 +1,10 @@
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import { feedbackAttachment } from './webgpuPagesAttachments.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
-import { blendLightResources } from './webgpuBlendLighting.ts';
-import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import { createBlendOverdraw } from './webgpuBlendOverdraw.ts';
 import { countsBlendOverdraw } from './diagnosticGpuVariant.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
+import type { BlendPipelines } from './webgpuBlendStagePipelines.ts';
 import { planPipeline } from './webgpuBlendPlan.ts';
 import { RUN_SHARED, RUN_WORDS, runOwner } from './webgpuBlendRuns.ts';
 import { itemKept } from './webgpuBlendExpandCpu.ts';
@@ -45,9 +44,6 @@ function blendBindGroup(
   });
 }
 
-/** The three pipelines a plan entry picks by rank (`webgpuBlendPlan.ts`): none, front, back. */
-export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPURenderPipeline];
-
 /**
  * Encodes the runs of a pass into an open render pass: one `drawIndirect` per RUN, and nothing else.
  *
@@ -77,9 +73,9 @@ export function drawBlendRuns(
     order = blendState.orders[slice],
     runs = blendState.runs[slice],
     count = blendState.runCount[slice],
-    args = blendState.argsBuffer!;
-  const lighting = blendLightResources(rt);
-  voidStaleBlendGroups(rt, lighting);
+    args = blendState.argsBuffer!,
+    // Resolved once per image by `encodeBlend`, with the groups it voided: the same for every pass.
+    lighting = blendState.lighting!;
   blendState.pagedGroup ??= blendBindGroup(rt, device, undefined, lighting);
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
@@ -150,11 +146,7 @@ export function drawBlendPass(
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
-  const encoded = drawBlendRuns(rt, device, pass, slice, [
-    vis.pipelineBlendTextured!,
-    vis.pipelineBlendFront!,
-    vis.pipelineBlendBack!,
-  ]);
+  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!);
   overdraw?.end(pass);
   pass.end();
   overdraw?.after(encoder);
