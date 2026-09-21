@@ -1,4 +1,4 @@
-import { transformAffinePoint } from '../sdk-core/index.ts';
+import { boxEmpty, boxUnion, transformAffinePoint } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -88,19 +88,19 @@ export function uploadClusterSpheres(
   );
 }
 
-const sphereScratch = new Float32Array(CLUSTER_SPHERE_FLOATS),
-  boxMin = [0, 0, 0],
-  boxMax = [0, 0, 0];
+const sphereScratch = new Float32Array(CLUSTER_SPHERE_FLOATS);
 
-/** Grows the box `min..max` to the cluster's world sphere: an overestimate, never an underestimate. */
-export function growClusterBox(rec: PageRec, min: number[], max: number[]) {
+/** Grows the flat box to the cluster's world sphere: an overestimate, never an underestimate. */
+export function growClusterBox(rec: PageRec, box: Float64Array) {
   writeClusterSphere(rec, sphereScratch, 0);
-  const radius = sphereScratch[3];
-  for (let axis = 0; axis < 3; axis++) {
-    min[axis] = Math.min(min[axis], sphereScratch[axis] - radius);
-    max[axis] = Math.max(max[axis], sphereScratch[axis] + radius);
-  }
+  const [x, y, z, r] = sphereScratch;
+  boxUnion(box, 0, x - r, y - r, z - r, x + r, y + r, z + r);
 }
+
+/** One flat world box and its two halves, allocated once: what a change is declared with. */
+export const changeBox = new Float64Array(6),
+  changeMin = changeBox.subarray(0, 3),
+  changeMax = changeBox.subarray(3, 6);
 
 /**
  * A page enters residency or leaves it, or enters or leaves the drawn cut: the scene is drawn
@@ -113,8 +113,7 @@ export function growClusterBox(rec: PageRec, min: number[], max: number[]) {
 export function noteResidenceChange(lights: WebgpuLightState, rec: PageRec) {
   const { store, plan } = lights;
   if (!store.count) return;
-  boxMin.fill(Infinity);
-  boxMax.fill(-Infinity);
-  growClusterBox(rec, boxMin, boxMax);
-  plan.representationChanged(boxMin, boxMax);
+  boxEmpty(changeBox, 0);
+  growClusterBox(rec, changeBox);
+  plan.representationChanged(changeMin, changeMax);
 }

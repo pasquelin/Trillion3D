@@ -1,12 +1,13 @@
 // The cumulative shadow page count the lesson and hosts read: it grows by what each frame drew,
 // nothing when the pass could not be encoded, and the sampled cull counts sum the device's own
 // instance counts. Also the hold: a representation change held until rest keeps the frame
-// rendering only while there is an atlas and a light to plan it.
+// rendering until a plan consumes it, or drops it when no frame will ever plan it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuLightState, noteShadowFrame } from './webgpuPagesStateLights.ts';
 import { createGpuShadowCullCounts, sumKeptClusters } from './gpuShadowCullCounts.ts';
 import { unsettledMask } from './webgpuFrameHold.ts';
+import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { settledRt } from './webgpuFrameHoldFixture.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 
@@ -33,26 +34,24 @@ test('the sampled cull counts sum the instance count of each region command', ()
   assert.equal(sumKeptClusters(words, 3), 972);
 });
 
-test('a deferred representation change keeps the frame from holding only with an atlas and a light', () => {
+test('a deferred representation change keeps the frame from holding until a plan consumes or drops it', () => {
   const rt = settledRt();
-  const lights = rt.lights as unknown as {
-    plan: { counts: { pendingPages: number }; deferredChanges: boolean };
-    shadows: unknown;
-    store: { count: number };
+  const lights = createWebgpuLightState();
+  (rt as unknown as { lights: unknown }).lights = lights;
+  lights.plan.representationChanged([0, 0, 0], [1, 1, 1]);
+  assert.notEqual(unsettledMask(rt), 0, 'a change waits: the next frame must plan it');
+  // No atlas: no frame will ever plan the change, so the plan drops it and the frame holds.
+  const cam = {
+    eye: [0, 0, 0],
+    world: new Float64Array(16),
+    fov: 60,
+    aspect: 1,
+    near: 0.1,
+    far: 100,
   };
-  lights.plan.deferredChanges = true;
-  lights.shadows = undefined;
-  lights.store = { count: 1 };
-  assert.equal(
-    unsettledMask(rt),
-    0,
-    'no atlas: nothing will ever plan the change, the frame holds',
-  );
-  lights.shadows = {};
-  lights.store.count = 0;
-  assert.equal(unsettledMask(rt), 0, 'no light: same');
-  lights.store.count = 1;
-  assert.notEqual(unsettledMask(rt), 0, 'an atlas and a light: the next frame plans the change');
+  planShadowRegions(rt, cam as never, 1, 16);
+  assert.equal(lights.plan.deferredChanges, false);
+  assert.equal(unsettledMask(rt), 0);
 });
 
 /**

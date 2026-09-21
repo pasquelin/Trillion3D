@@ -3,7 +3,7 @@ import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from './sceneLightCont
 /** Side of an atlas page, in texels: the invalidation cell of a face. */
 export const SHADOW_PAGE = LIGHT_SETTINGS.shadowPage;
 /** Page rows of a face at the largest published side: 1024 / 128 = 8, hence 64 pages. */
-const MAX_PAGE_ROWS = Math.max(1, Math.floor(LIGHT_SETTINGS.shadowSliceMax / SHADOW_PAGE));
+export const MAX_PAGE_ROWS = Math.max(1, Math.floor(LIGHT_SETTINGS.shadowSliceMax / SHADOW_PAGE));
 /**
  * A page row fits in a byte — eight pages at most — so a face mask is
  * `MAX_PAGE_ROWS` bytes, one per row. Two identical rows are then recognised by a
@@ -48,6 +48,9 @@ export function countPages(mask: Uint8Array, base: number) {
   return count;
 }
 
+/** Bits of the page columns `[x0, x1]`, bounds included, in a row byte. */
+export const rowSpan = (x0: number, x1: number) => (((1 << (x1 - x0 + 1)) - 1) << x0) & 0xff;
+
 /** Marks or clears the page rectangle `[x0, x1] × [y0, y1]`, bounds included. */
 export function setRect(
   mask: Uint8Array,
@@ -58,7 +61,7 @@ export function setRect(
   y1: number,
   on: boolean,
 ) {
-  const span = (((1 << (x1 - x0 + 1)) - 1) << x0) & 0xff;
+  const span = rowSpan(x0, x1);
   for (let row = y0; row <= y1; row++)
     mask[base + row] = on ? mask[base + row] | span : mask[base + row] & ~span;
 }
@@ -80,10 +83,14 @@ export function markExtentRect(
   y0: number,
   y1: number,
 ) {
-  const span = ((1 << (x1 - x0 + 1)) - 1) << x0;
+  const span = rowSpan(x0, x1);
   const bits = ((span << wx) | (span >> (rows - wx))) & ((1 << rows) - 1);
   for (let row = y0; row <= y1; row++) mask[base + ((row + wy) % rows)] |= bits;
 }
+
+/** First and last page of the strip that enters with a slide by `d` pages on one axis. */
+const lo = (d: number, rows: number) => (d > 0 ? rows - d : 0),
+  hi = (d: number, rows: number) => (d > 0 ? rows - 1 : -d - 1);
 
 /**
  * Marks the strips that enter when the extent slides by `(dx, dy)` pages: the last `dx`
@@ -99,30 +106,8 @@ export function markExtentStrips(
   dx: number,
   dy: number,
 ) {
-  if (dx)
-    markExtentRect(
-      mask,
-      base,
-      rows,
-      wx,
-      wy,
-      dx > 0 ? rows - dx : 0,
-      dx > 0 ? rows - 1 : -dx - 1,
-      0,
-      rows - 1,
-    );
-  if (dy)
-    markExtentRect(
-      mask,
-      base,
-      rows,
-      wx,
-      wy,
-      0,
-      rows - 1,
-      dy > 0 ? rows - dy : 0,
-      dy > 0 ? rows - 1 : -dy - 1,
-    );
+  if (dx) markExtentRect(mask, base, rows, wx, wy, lo(dx, rows), hi(dx, rows), 0, rows - 1);
+  if (dy) markExtentRect(mask, base, rows, wx, wy, 0, rows - 1, lo(dy, rows), hi(dy, rows));
 }
 
 const clip = new Float64Array(3);

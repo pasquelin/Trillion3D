@@ -14,37 +14,50 @@ import {
  * millisecond budget almost always stops first.
  */
 export const MAX_SHADOW_REGIONS = LIGHT_SETTINGS.shadowUpdatesPerFrame * POINT_FACES;
-/**
- * Fourth float of a drawn face's rectangle: `1 + wx + 16·wy`, the physical page of the
- * extent origin, so the read wraps extent coordinates onto the face. Zero says "never
- * drawn"; a point or spot face, whose extent never slides, carries one.
- */
-export const WRAP_BASE = 16;
-export const wrapKey = (wx: number, wy: number) => 1 + wx + WRAP_BASE * wy;
 
 /**
  * Host mirrors of the two shadow buffers — the frame's region matrices, read by dynamic
- * offset, and the slices deferred resolve rereads — and the only writes into them.
+ * offset, and the slices deferred resolve rereads — and the only writes into them. A slice
+ * written by either writer is flagged to push; `flushSlices` visits the flags once and drops
+ * them.
  */
 export function createShadowSlicePack(size: number, faceStride: number) {
   const slicePacked = new Float32Array(MAX_SHADOW_SLICES * SHADOW_SLICE_FLOATS);
   const sliceWords = new Uint32Array(slicePacked.buffer);
   const facePacked = new Float32Array((MAX_SHADOW_REGIONS * faceStride) / 4);
+  const toPush = new Uint8Array(MAX_SHADOW_SLICES);
   return {
     slicePacked,
     facePacked,
     /**
-     * Held-page mask of a face, two words of eight rows: the physical pages that hold a depth
-     * of the face's extent (`sceneLightShadowHeld.ts`), not the complement of the stale mask.
-     * Returns true when the words changed, so the slice is pushed even on a frame that drew
-     * nothing in it — a slide alone unholds a strip.
+     * Held-page mask of a face, two words of eight rows — the physical pages that hold a depth
+     * of the face's extent (`sceneLightShadowHeld.ts`), not the complement of the stale mask —
+     * and the physical page of the extent origin, `(wx, wy)`, the read wraps extent coordinates
+     * with. A change flags the slice to push even on a frame that drew nothing in it: a slide
+     * alone unholds a strip and moves the origin.
      */
-    writeDrawnMask(slice: number, face: number, low: number, high: number) {
+    writeDrawnMask(slice: number, face: number, low: number, high: number, wx: number, wy: number) {
       const at = slice * SHADOW_SLICE_FLOATS + face * SHADOW_FACE_FLOATS + SHADOW_FACE_MASK_WORD;
-      if (sliceWords[at] === low && sliceWords[at + 1] === high) return false;
+      if (
+        sliceWords[at] === low &&
+        sliceWords[at + 1] === high &&
+        sliceWords[at + 2] === wx &&
+        sliceWords[at + 3] === wy
+      )
+        return;
       sliceWords[at] = low;
       sliceWords[at + 1] = high;
-      return true;
+      sliceWords[at + 2] = wx;
+      sliceWords[at + 3] = wy;
+      toPush[slice] = 1;
+    },
+    /** Slices written since the last flush, each once; the flags drop as they are visited. */
+    flushSlices(write: (slice: number) => void) {
+      for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++) {
+        if (!toPush[slice]) continue;
+        toPush[slice] = 0;
+        write(slice);
+      }
     },
     /**
      * Writes a region into both buffers. The matrix is that of the whole extent, never of the
@@ -58,8 +71,8 @@ export function createShadowSlicePack(size: number, faceStride: number) {
      * zero radius, and the comparison then strips nothing.
      *
      * `shiftX`/`shiftY` translate the draw matrix alone, in clip units: whole pages, so the
-     * region's extent pages land on their physical pages. The slice keeps the extent matrix
-     * and `wrap`, the key the read unwraps it with.
+     * region's extent pages land on their physical pages. The slice keeps the extent matrix;
+     * the fourth float of its rectangle says drawn (1) or never (0).
      */
     writeRegion(
       index: number,
@@ -72,7 +85,6 @@ export function createShadowSlicePack(size: number, faceStride: number) {
       radius: number,
       shiftX = 0,
       shiftY = 0,
-      wrap = 1,
     ) {
       const rect = slice * RECTS_PER_SLICE + face * 3,
         x = rects[rect] / size,
@@ -94,7 +106,8 @@ export function createShadowSlicePack(size: number, faceStride: number) {
       slicePacked[entry + 16] = x;
       slicePacked[entry + 17] = y;
       slicePacked[entry + 18] = span;
-      slicePacked[entry + 19] = side > 0 ? wrap : 0;
+      slicePacked[entry + 19] = side > 0 ? 1 : 0;
+      toPush[slice] = 1;
       facePacked[uniform + 20] = center ? center[0] : 0;
       facePacked[uniform + 21] = center ? center[1] : 0;
       facePacked[uniform + 22] = center ? center[2] : 0;

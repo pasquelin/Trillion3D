@@ -1,64 +1,28 @@
-import {
-  MAX_SHADOW_SLICES,
-  SCENE_LIGHT_FLOATS,
-  SCENE_LIGHT_HEADER_FLOATS,
-  LIGHT_FIELD,
-  faceCountOf,
-  pageRowsOf,
-} from '../sdk-core/index.ts';
+import { forEachShadowFace } from '../sdk-core/index.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 
-/** Slices already queued for this frame's push: set once, cleared after each frame. */
-const queued = new Uint8Array(MAX_SHADOW_SLICES);
-
-/** Word of four rows of pages that hold the extent, eight bits each. */
-function drawnWord(
-  dirty: WebgpuLightState['plan']['slices']['dirty'],
-  slice: number,
-  face: number,
-  first: number,
-  rows: number,
-) {
-  let word = 0;
-  for (let row = first; row < first + 4; row++) {
-    // A row past the face's own is never read: it is left "held" so the mask is never a hole.
-    const held = row < rows ? dirty.heldRow(slice, face, row) : 0xff;
-    word |= held << ((row - first) * 8);
-  }
-  return word >>> 0;
-}
-
 /**
- * Drawn-page masks of every shadowed light's faces, into the slice mirror, after the frame's
- * scheduling: the pages that hold a depth of the face's extent, not the complement of the
- * stale mask — a page awaiting a redraw still holds one. A face whose mask changed joins
- * `flushed` even when nothing was drawn in it: an extent that slid has a strip the read must
- * fall through, and only the slice buffer can tell it so. Returns the new count of slices to
- * push.
+ * Held-page masks of the faces whose mask or wrap origin changed since the last frame, into
+ * the slice mirror, after the frame's scheduling: the pages that hold a depth of the face's
+ * extent, not the complement of the stale mask — a page awaiting a redraw still holds one —,
+ * and the physical page of the extent origin. The two words are the held rows read four by
+ * four (`sceneLightShadowHeld.ts`). A face whose words changed flags its slice to push even
+ * when nothing was drawn in it: an extent that slid has a strip the read must fall through,
+ * and only the slice buffer can tell it so.
  */
-export function writeDrawnMasks(lights: WebgpuLightState, flushed: Int32Array, count: number) {
+export function writeDrawnMasks(lights: WebgpuLightState) {
   const { store, plan, shadows } = lights,
-    { slices } = plan,
-    { packed } = store;
-  if (!shadows) return count;
-  for (let i = 0; i < count; i++) queued[flushed[i]] = 1;
-  for (let slot = 0; slot < store.count; slot++) {
-    const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-    const slice = store.sliceOf(slot);
-    if (slice < 0 || packed[base + LIGHT_FIELD.castsShadow] === 0) continue;
-    const faces = faceCountOf(packed[base + LIGHT_FIELD.kind]),
-      rows = pageRowsOf(slices.side[slice]);
-    let changed = false;
-    for (let face = 0; face < faces; face++) {
-      const low = drawnWord(slices.dirty, slice, face, 0, rows),
-        high = drawnWord(slices.dirty, slice, face, 4, rows);
-      if (shadows.writeDrawnMask(slice, face, low, high)) changed = true;
-    }
-    if (changed && !queued[slice]) {
-      queued[slice] = 1;
-      flushed[count++] = slice;
-    }
-  }
-  for (let i = 0; i < count; i++) queued[flushed[i]] = 0;
-  return count;
+    { dirty } = plan.slices;
+  if (!shadows) return;
+  forEachShadowFace(store, (_slot, slice, face) => {
+    if (!dirty.heldChanged(slice, face)) return;
+    shadows.writeDrawnMask(
+      slice,
+      face,
+      dirty.heldWord(slice, face, 0),
+      dirty.heldWord(slice, face, 1),
+      dirty.wrapXOf(slice, face),
+      dirty.wrapYOf(slice, face),
+    );
+  });
 }

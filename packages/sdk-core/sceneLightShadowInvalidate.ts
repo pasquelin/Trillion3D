@@ -2,18 +2,11 @@ import { lightDirection, type SceneLight, type ShadowViewpoint } from './sceneLi
 import type { createShadowChanges } from './sceneLightShadowChanges.ts';
 import { writeFace } from './sceneLightShadowFaces.ts';
 import { pageRowsOf } from './sceneLightShadowPages.ts';
-import {
-  CASCADE_SLIDE,
-  CASCADE_WHOLE,
-  cascadeShift,
-  type createShadowSliceTable,
-} from './sceneLightShadowSlices.ts';
+import type { createShadowSliceTable } from './sceneLightShadowSlices.ts';
 import { sunCascadeOf } from './sceneLightSunCascades.ts';
 
 /** Matrix of a face, the time to project a box: allocated once, never per frame. */
 const matrix = new Float32Array(16);
-/** Non-negative remainder: an extent origin left of the world origin still lands in the face. */
-const mod = (value: number, rows: number) => ((value % rows) + rows) % rows;
 
 /**
  * What stales the pages of a shadow light, and nothing more.
@@ -51,22 +44,14 @@ export function invalidateLightPages(
   for (let face = 0; face < faceCount; face++) {
     let all = whole;
     if (sun) {
-      const cascade = sunCascadeOf(view, lightDirection(light), face, side);
-      const verdict = slices.cascadeSlide(
-        slice,
+      const { originX, originY, anchor, radius } = sunCascadeOf(
+        view,
+        lightDirection(light),
         face,
-        rows,
-        cascade.originX,
-        cascade.originY,
-        cascade.anchor,
-        cascade.radius,
+        side,
       );
-      // The extent is addressed by absolute page modulo the face: its origin's physical page
-      // follows it, whether the pages are kept, slid or restarted whole.
-      dirty.setExtent(slice, face, mod(cascade.originX, rows), mod(cascade.originY, rows));
-      if (verdict === CASCADE_WHOLE) all = true;
-      else if (verdict === CASCADE_SLIDE && !all)
-        dirty.slide(slice, face, rows, cascadeShift.x, cascadeShift.y, nowMs, frame);
+      if (slices.cascadeSlide(slice, face, rows, originX, originY, anchor, radius, nowMs, frame))
+        all = true;
     }
     if (all) {
       dirty.whole(slice, face, rows, nowMs, frame);

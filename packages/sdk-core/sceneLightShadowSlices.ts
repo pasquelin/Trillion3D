@@ -6,12 +6,8 @@ import { createShadowDirty } from './sceneLightShadowDirty.ts';
 export const RECTS_PER_SLICE = POINT_FACES * 3;
 /** Key of a cascade extent: page origin, depth anchor and radius. Four numbers, not one more. */
 const CASCADE_KEY = 4;
-/** Verdicts of `cascadeSlide`: the map is kept, slides by whole pages, or restarts whole. */
-const CASCADE_SAME = 0;
-export const CASCADE_SLIDE = 1,
-  CASCADE_WHOLE = 2;
-/** What a cascade extent slid by, in pages, after a `CASCADE_SLIDE` verdict. */
-export const cascadeShift = { x: 0, y: 0 };
+/** Non-negative remainder: an extent origin left of the world origin still lands in the face. */
+const mod = (value: number, rows: number) => ((value % rows) + rows) % rows;
 
 /**
  * The shadow-slice table: which slice is taken, at which side, which pages of which face
@@ -107,12 +103,13 @@ export function createShadowSliceTable() {
       drawn[slice] = 1;
     },
     /**
-     * Compares a cascade's extent with the one its map describes, and records the new one.
-     * A cascade follows the camera, but its map is addressed by absolute page: as long as
-     * the origin, anchor and radius are the same, every texel is worth what it was; a move by
-     * whole pages keeps the pages that stay inside and only the entering strip restarts
-     * (`cascadeShift` says by how much); a move of an extent side or more, a new anchor along
-     * the axis or a new radius describe another world and the cascade redraws in full.
+     * Compares a cascade's extent with the one its map describes, records the new one and
+     * stales what changed. A cascade follows the camera, but its map is addressed by absolute
+     * page: as long as the origin, anchor and radius are the same, every texel is worth what it
+     * was; a move by whole pages keeps the pages that stay inside and only the entering strip
+     * restarts; a move of an extent side or more, a new anchor along the axis or a new radius
+     * describe another world, and the cascade is to redraw in full: returns true then. The
+     * origin's physical page follows the extent in every case.
      */
     cascadeSlide(
       slice: number,
@@ -122,6 +119,8 @@ export function createShadowSliceTable() {
       originY: number,
       anchor: number,
       radius: number,
+      nowMs: number,
+      frame: number,
     ) {
       const index = slice * POINT_FACES + face,
         base = index * CASCADE_KEY;
@@ -134,11 +133,10 @@ export function createShadowSliceTable() {
       cascade[base + 1] = originY;
       cascade[base + 2] = anchor;
       cascade[base + 3] = radius;
-      if (!seen || !sameDepth || Math.abs(dx) >= rows || Math.abs(dy) >= rows) return CASCADE_WHOLE;
-      if (dx === 0 && dy === 0) return CASCADE_SAME;
-      cascadeShift.x = dx;
-      cascadeShift.y = dy;
-      return CASCADE_SLIDE;
+      dirty.setExtent(slice, face, mod(originX, rows), mod(originY, rows));
+      if (!seen || !sameDepth || Math.abs(dx) >= rows || Math.abs(dy) >= rows) return true;
+      if (dx || dy) dirty.slide(slice, face, rows, dx, dy, nowMs, frame);
+      return false;
     },
     reset() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++) table.free(slice);

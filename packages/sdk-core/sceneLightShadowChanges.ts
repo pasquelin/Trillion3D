@@ -1,13 +1,9 @@
-import type { ShadowViewpoint } from './sceneLightContracts.ts';
+import { boxEmpty, boxUnion } from './mathBox.ts';
+import { keepNumbers } from './mathVector.ts';
+import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from './sceneLightContracts.ts';
 
 /** Motion boxes kept separate before merge: beyond that, two boxes join. */
 const MOVED_BOXES = 8;
-/** The view as it was at the last frame: position, axis, and the four lens numbers. */
-const VIEW_NUMBERS = 10;
-
-/** The four lens numbers of a view, by rank: half-field, aspect, near, far. */
-const viewLens = (view: ShadowViewpoint, rank: number) =>
-  rank === 0 ? view.halfFovY : rank === 1 ? view.aspect : rank === 2 ? view.near : view.far;
 
 /** The tested point, allocated once: `touches` is called per light and per box, every frame. */
 const point = new Float64Array(3);
@@ -39,10 +35,14 @@ export function createShadowChanges() {
   const min = new Float64Array(MOVED_BOXES * 3),
     max = new Float64Array(MOVED_BOXES * 3);
   let count = 0;
-  const deferMin = new Float64Array(3).fill(Infinity),
-    deferMax = new Float64Array(3).fill(-Infinity);
-  let deferred = false;
-  const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN);
+  /** The union of representation changes held until the camera rests: empty when none waits. */
+  const defer = new Float64Array(6),
+    deferMin = defer.subarray(0, 3),
+    deferMax = defer.subarray(3, 6);
+  boxEmpty(defer, 0);
+  /** The view of the last frame, and this frame's the time to compare them. */
+  const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
+    viewNow = new Float64Array(VIEW_NUMBERS);
   const volume = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>) => {
     let product = 1;
     for (let axis = 0; axis < 3; axis++)
@@ -80,17 +80,13 @@ export function createShadowChanges() {
     },
     /** A representation change waits for the camera to rest: the hold must not close before. */
     get deferred() {
-      return deferred;
+      return defer[0] !== Infinity;
     },
     /** A node has moved: its box enters the list, or joins a neighbour. */
     worldChanged,
     /** The same world at another precision: its box joins the union held until the camera rests. */
     representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>) {
-      for (let axis = 0; axis < 3; axis++) {
-        deferMin[axis] = Math.min(deferMin[axis], lo[axis]);
-        deferMax[axis] = Math.max(deferMax[axis], hi[axis]);
-      }
-      deferred = true;
+      boxUnion(defer, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
     },
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what
@@ -98,18 +94,10 @@ export function createShadowChanges() {
      * only grows. Returns true when the camera rests.
      */
     observeView(view: ShadowViewpoint) {
-      let still = true;
-      for (let i = 0; i < VIEW_NUMBERS; i++) {
-        const value =
-          i < 3 ? view.position[i] : i < 6 ? view.forward[i - 3] : viewLens(view, i - 6);
-        if (!Object.is(lastView[i], value)) still = false;
-        lastView[i] = value;
-      }
-      if (still && deferred) {
+      const still = keepNumbers(lastView, writeView(view, viewNow));
+      if (still && defer[0] !== Infinity) {
         worldChanged(deferMin, deferMax);
-        deferMin.fill(Infinity);
-        deferMax.fill(-Infinity);
-        deferred = false;
+        boxEmpty(defer, 0);
       }
       return still;
     },
@@ -143,12 +131,14 @@ export function createShadowChanges() {
     settled() {
       count = 0;
     },
+    /** No map will ever read the held union — no atlas, no light —: it is dropped. */
+    dropDeferred() {
+      boxEmpty(defer, 0);
+    },
     /** Nothing waits anymore, and the next view is a first one. */
     reset() {
       count = 0;
-      deferred = false;
-      deferMin.fill(Infinity);
-      deferMax.fill(-Infinity);
+      boxEmpty(defer, 0);
       lastView.fill(NaN);
     },
   };

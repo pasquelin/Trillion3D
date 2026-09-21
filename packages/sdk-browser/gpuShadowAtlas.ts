@@ -4,7 +4,7 @@ import { MAX_SHADOW_REGIONS, createShadowSlicePack } from './gpuShadowSlicePack.
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 import { DEPTH_COMPARE } from './depthConvention.ts';
 
-export { MAX_SHADOW_REGIONS, wrapKey } from './gpuShadowSlicePack.ts';
+export { MAX_SHADOW_REGIONS } from './gpuShadowSlicePack.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'WG shadow atlas v1';
@@ -112,15 +112,14 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
           device.queue.writeBuffer(faceUniform, 0, facePacked, 0, (count * FACE_STRIDE) / 4);
       },
       /**
-       * Pushes the slices the scheduler just redrew, and them alone: the others already describe
-       * the frame on the GPU. The atlas writes what it is given and does not keep the list of
-       * what it wrote — whoever decides what to redraw already knows it.
+       * Pushes the slices written since the last flush — a region drawn, a held mask or an
+       * origin moved —, and them alone: the others already describe the frame on the GPU.
        */
-      flushSlices(slices: Int32Array, count: number) {
-        for (let i = 0; i < count; i++) {
-          const first = slices[i] * SHADOW_SLICE_FLOATS;
+      flushSlices() {
+        pack.flushSlices((slice) => {
+          const first = slice * SHADOW_SLICE_FLOATS;
           device.queue.writeBuffer(sliceBuffer, first * 4, slicePacked, first, SHADOW_SLICE_FLOATS);
-        }
+        });
       },
       dispose: release,
     };

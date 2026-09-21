@@ -4,13 +4,12 @@ import type { PageRec } from './pageSelection.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from './webgpuPageRow.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
-import { growClusterBox } from './webgpuShadowBounds.ts';
+import { boxEmpty } from '../sdk-core/index.ts';
+import { changeBox, changeMax, changeMin, growClusterBox } from './webgpuShadowBounds.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
-const boxMin = [0, 0, 0],
-  boxMax = [0, 0, 0];
 
 /** The page-table rows the invalidation reads: their words, and the record each row draws. */
 interface ShadowRowTable {
@@ -20,40 +19,40 @@ interface ShadowRowTable {
 }
 
 /**
- * A colour tile of texture `slot` is resident, or has left: the alpha cutout the shadow pass reads
- * has just changed for every masked surface that carries this texture, and a map drawn at the
- * previous level would describe foliage that is no longer the image's. The pages the world box
- * of those surfaces covers go back to waiting once the camera rests, under the ordinary
- * Shadows stage budget — and those alone: a colour tile of a texture no cutout reads changes no depth, and stales nothing.
- * At `slot < 0` the pool changed without naming a texture — a resize, an eviction — and every
+ * Colour tiles of textures `slots` are resident, or have left: the alpha cutout the shadow pass
+ * reads has just changed for every masked surface that carries one of these textures, and a
+ * map drawn at the previous level would describe foliage that is no longer the image's. The
+ * pages the world box of those surfaces covers go back to waiting once the camera rests, under
+ * the ordinary Shadows stage budget — and those alone: a colour tile of a texture no cutout
+ * reads changes no depth, and stales nothing. One scan of the page table per pump, whatever
+ * the tiles served. At `-1` the pool changed without naming a texture — a resize — and every
  * page restarts. Without this signal, two identical runs produced two different shadows,
  * depending on when each page had been drawn.
  */
 export function shadowsFollowTextures(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
-  slot: number,
+  slots: ReadonlySet<number> | -1,
 ) {
   if (!lights.store.count) return;
-  if (slot < 0) {
+  if (slots === -1) {
     lights.plan.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
     return;
   }
   const ints = rows.pageTableInts;
-  if (!ints) return;
-  boxMin.fill(Infinity);
-  boxMax.fill(-Infinity);
+  if (!ints || !slots.size) return;
+  boxEmpty(changeBox, 0);
   let touched = false;
   for (let row = 0; row < rows.rowCount; row++) {
     const base = row * ROW_WORDS;
-    if (!(ints[base + ROW_FLAGS_WORD] & FLAG_MASK) || ints[base + ROW_MAP_LAYER_WORD] !== slot)
+    if (!(ints[base + ROW_FLAGS_WORD] & FLAG_MASK) || !slots.has(ints[base + ROW_MAP_LAYER_WORD]))
       continue;
     const rec = rows.packedRecs[row];
     if (!rec) continue;
-    growClusterBox(rec, boxMin, boxMax);
+    growClusterBox(rec, changeBox);
     touched = true;
   }
-  if (touched) lights.plan.representationChanged(boxMin, boxMax);
+  if (touched) lights.plan.representationChanged(changeMin, changeMax);
 }
 
 /**

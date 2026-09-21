@@ -106,11 +106,13 @@ test('a page awaiting a redraw for a world change still holds the extent; a slid
   dirty.setExtent(0, 0, 1, 0);
   dirty.slide(0, 0, ROWS, 1, 0, 32, 2);
   for (let row = 0; row < ROWS; row++) assert.equal(dirty.heldRow(0, 0, row), 0xfe);
-  // A refused draw gives the pages back what they held before admission: the slid column
-  // stays unheld, a staled column beside it stays held.
-  dirty.snapshotHeld();
+  // A refused draw gives the pages back what they held before the draw — the two face words
+  // the region recorded —: the slid column stays unheld, a staled column beside it stays held.
+  const low = dirty.heldWord(0, 0, 0),
+    high = dirty.heldWord(0, 0, 1);
+  assert.deepEqual([low, high], [0xfefefefe, 0xfefefefe], 'rows four by four, low row first');
   dirty.drew(0, 0, 0, 1, 0, ROWS - 1);
-  dirty.undrew(0, 0, 0, 1, 0, ROWS - 1, 48, 3);
+  dirty.undrew(0, 0, 0, 1, 0, ROWS - 1, low, high, 48, 3);
   assert.equal(dirty.heldRow(0, 0, 3), 0xfe);
   // A landed draw holds it again.
   dirty.drew(0, 0, 0, 0, 0, ROWS - 1);
