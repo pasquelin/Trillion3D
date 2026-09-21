@@ -115,9 +115,9 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.visBindGroupLayout = undefined;
   vis.mapsSampler = undefined;
   vis.blendBindGroupLayout = undefined;
-  vis.pipelineBlendTextured = undefined;
-  vis.pipelineBlendFront = undefined;
-  vis.pipelineBlendBack = undefined;
+  vis.blendPipelines = undefined;
+  rt.blendState.water?.frame.dispose();
+  rt.blendState.water = undefined;
   rt.blendState.overdraw?.dispose();
   rt.blendState.overdraw = undefined;
   vis.gpuRaster?.dispose();

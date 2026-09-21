@@ -4,9 +4,10 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /**
  * Voids the transparent groups — the one every paged item shares and each unpaged item's own — when
  * a resource they name changed identity: the page pool after a resize, an atlas after a layer
- * change, the backdrop after the viewport, the shadow atlas and the probe grid the first frames
- * only hold stand-ins for. Read before any group is served; nothing is dropped by name elsewhere.
- * The fallback pass names no lighting: it leaves those places empty.
+ * change, the shadow atlas and the probe grid the first frames only hold stand-ins for. Read once
+ * per image before any group is served; nothing is dropped by name elsewhere. The fallback pass
+ * names no lighting: it leaves those places empty. The water frame names the backdrop and the
+ * volumes; it keeps its own identity (`webgpuWaterFrame.ts`).
  */
 export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLighting) {
   const { gpu, vis, blendState } = rt,
@@ -33,12 +34,9 @@ export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLig
   next[18] = compaction?.diagnosticBuffer;
   next[19] = compaction?.spanBuffer;
   next[20] = blendState.expandedBuffer;
-  next[21] = gpu.volumeBuffer;
-  next[22] = gpu.backdrop?.colorView;
-  next[23] = gpu.backdrop?.depthView;
-  next[24] = gpu.bindGroupLayout;
-  next[25] = gpu.uniformBuffer;
-  next[26] = gpu.zeroUv;
+  next[21] = gpu.bindGroupLayout;
+  next[22] = gpu.uniformBuffer;
+  next[23] = gpu.zeroUv;
   if (!blendState.identity.moved()) return;
   blendState.pagedGroup = undefined;
   for (const item of blendState.blendGpu) item.group = undefined;
