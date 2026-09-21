@@ -10,7 +10,7 @@ import {
   previewLevelSize,
   previewPixelBytes,
 } from './texturePreviewLevels.ts';
-import { referenceExpectedGeometry } from './bench/oracles/preview-texture.mjs';
+import { referenceExpectedGeometry } from './bench/oracles/preview-texture.ts';
 
 // Behaviour 5: the TypeScript geometry is the exact mirror of
 // `packages/asset-compiler-rust/src/texture_preview/levels.rs`, checked here on the same cases —
@@ -41,7 +41,7 @@ test('previewFirstLevel/Last/Count/Size/PixelBytes match the Rust geometry on th
 // G11: `previewGeometry` computes the first and last level once then derives the
 // three numbers, instead of `manifestBinaryPreview.ts` calling `previewFirstLevel`/`previewLevelCount`/
 // `previewPixelBytes` separately (each recomputing the same bounds). Oracle: this old
-// combination, copied as-is into `bench/oracles/preview-texture.mjs`.
+// combination, copied as-is into `bench/oracles/preview-texture.ts`.
 test('previewGeometry yields exactly what the three separate calls yielded, hostile cases included', () => {
   const cas: [number, number][] = [
     [0, 0],

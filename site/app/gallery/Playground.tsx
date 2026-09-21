@@ -42,7 +42,7 @@ export function Playground({ id, locale = 'en', onSelect }: PlaygroundProps) {
 function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   const example = byId(id),
     scenario = SCENARIOS[example.id],
-    [state, setState] = useState<Record<string, number>>(() => initialState(example.id));
+    [state, setState] = useState(() => initialState(example.id));
   useEffect(() => setState(initialState(example.id)), [example.id]);
   const result = useMemo(() => evaluate(example.id, state, locale), [example.id, state, locale]),
     guidance = guidanceFor(example.id, locale),

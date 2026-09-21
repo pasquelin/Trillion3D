@@ -25,7 +25,7 @@ test('loadPreparedScene refuses a non-finite world matrix (NON_FINITE_TRANSFORM)
   await assert.rejects(
     () =>
       loadPreparedScene(
-        {},
+        { manifestUrl: '' },
         manifest,
         'scene.gltf',
         'http://localhost/',

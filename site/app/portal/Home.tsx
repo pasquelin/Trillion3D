@@ -57,7 +57,7 @@ export function Home({ locale, t }: { locale: Locale; t: TranslateFn }) {
   const steps: [string, RouteArea][] = [
     ['quick-start', 'learn'],
     ['architecture', 'learn'],
-    ['example-diagnostics', 'examples'],
+    ['example-diagnostics', 'learn'],
   ];
   return (
     <>
@@ -82,7 +82,7 @@ export function Home({ locale, t }: { locale: Locale; t: TranslateFn }) {
       </section>
       <section className="featured">
         <SectionHeader
-          eyebrow={`01 — ${t(locale, 'nav.examples')}`}
+          eyebrow={`01 — ${t(locale, 'nav.lessons')}`}
           title={fr ? 'Voir les calculs' : 'See the maths move'}
           description={
             fr

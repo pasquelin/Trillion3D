@@ -36,7 +36,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs",
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
@@ -194,7 +194,13 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "test/appui/preuveSceneCommune.ts",
+        "test/appui/rasterCalculPage.ts",
+        "test/appui/sceneOccultante.ts",
+        "test/appui/webglClusterExplorerMount.ts",
+        "test/justesse/cameraSitesMoteurs.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/backendTypes\".BackendContext"
     },
@@ -205,7 +211,23 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "scripts/mesure/pageMesure.ts",
+        "test/appui/antialiasingTemporelPage.ts",
+        "test/appui/coupeGpuTenuePage.ts",
+        "test/appui/hizDeuxPassesPage.ts",
+        "test/appui/hizRigPage.ts",
+        "test/appui/materialPixelsPage.ts",
+        "test/appui/materialPixelsRendu.ts",
+        "test/appui/partitionConservatricePage.ts",
+        "test/appui/preuveSceneCommune.ts",
+        "test/appui/rasterCalculPage.ts",
+        "test/appui/sceneOccultante.ts",
+        "test/appui/surfaceAppareilPerduPage.ts",
+        "test/appui/waterPassPage.ts",
+        "test/browser/emeraldPageRun.ts",
+        "test/browser/explorer-startup.browser.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/backendTypes\".BackendDiagnostic"
     },
@@ -216,7 +238,12 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "scripts/mesure/pageExplorateur.ts",
+        "test/appui/materialPixelsPage.ts",
+        "test/appui/materialPixelsRendu.ts",
+        "test/appui/preuveSceneCommune.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/backendTypes\".BackendFactory"
     },
@@ -414,7 +441,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/dagCoupe.mjs",
+        "packages/sdk-browser/bench/appui/dagCoupe.ts",
         "packages/sdk-browser/hostWorldBounds.ts",
         "packages/sdk-browser/mathBatchBoxes.ts",
         "packages/sdk-browser/mathBatchRuntime.ts",
@@ -439,7 +466,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasTronc.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasTronc.ts",
         "packages/sdk-browser/pageCone.ts"
       ],
       "disposition": "retained",
@@ -453,7 +480,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/depthConventionCamera.test.ts",
         "packages/sdk-browser/hizCorners.ts"
       ],
@@ -468,9 +495,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/dagCoupe.mjs",
-        "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
-        "packages/sdk-browser/bench/volumes.perf.mjs",
+        "packages/sdk-browser/bench/appui/dagCoupe.ts",
+        "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
+        "packages/sdk-browser/bench/volumes.perf.ts",
         "packages/sdk-browser/hostWorldBounds.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
         "packages/sdk-browser/threeLod.ts",
@@ -489,8 +516,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/dagCoupe.mjs",
-        "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
+        "packages/sdk-browser/bench/appui/dagCoupe.ts",
+        "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/threeLod.ts"
       ],
       "disposition": "retained",
@@ -504,7 +531,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/replicateInstances.ts",
         "packages/sdk-browser/webgpuBlendWorlds.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts"
@@ -520,7 +547,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/mathBatchBoxes.ts",
         "packages/sdk-browser/pageSelectionCollect.ts",
         "packages/sdk-browser/webglClusterCopyCulling.ts",
@@ -562,7 +589,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/mathBatchBoxes.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
@@ -619,6 +646,21 @@
         "packages/sdk-browser/explorerRender.ts",
         "packages/sdk-browser/explorerSceneApi.ts",
         "packages/sdk-browser/explorerViewportApi.ts",
+        "scripts/mesure/mesureOptions.ts",
+        "scripts/mesure/oracle.ts",
+        "scripts/mesure/oracleCompare.ts",
+        "scripts/mesure/oraclePage.ts",
+        "scripts/mesure/oracleView.ts",
+        "scripts/mesure/pageEclairage.test.ts",
+        "scripts/mesure/pageMesure.ts",
+        "scripts/mesure/pageThreeMesure.ts",
+        "scripts/mesure/poses.ts",
+        "scripts/mesure/report/types.ts",
+        "scripts/mesure/serie.ts",
+        "scripts/mesure/serieCalcul.test.ts",
+        "scripts/mesure/seriePage.ts",
+        "scripts/mesure/serieTestFixtures.ts",
+        "test/appui/partitionConservatricePage.ts",
         "test/fixtures/publicBrowser.ts",
         "test/fixtures/publicCommon.ts",
         "test/fixtures/publicTypesOnly.ts"
@@ -656,8 +698,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasTronc.mjs",
-        "packages/sdk-browser/bench/tronc-residence.perf.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasTronc.ts",
+        "packages/sdk-browser/bench/tronc-residence.perf.ts",
         "packages/sdk-browser/pageSelectionCutSelect.ts",
         "packages/sdk-browser/pageSelectionMath.test.ts",
         "packages/sdk-browser/webglClusterCopyCulling.ts"
@@ -685,6 +727,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/cacheFormat.test.ts",
+        "packages/sdk-browser/pagesBackendFixture.ts",
         "test/fixtures/manifestBinary.ts"
       ],
       "disposition": "retained",
@@ -709,13 +752,13 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/oracles/coupe-budget.mjs",
-        "packages/sdk-browser/bench/oracles/socle-math-priorite.mjs",
+        "packages/sdk-browser/bench/oracles/coupe-budget.ts",
+        "packages/sdk-browser/bench/oracles/socle-math-priorite.ts",
         "packages/sdk-browser/gpuDagRequest.test.ts",
         "packages/sdk-browser/gpuDagSelection.test.ts",
         "packages/sdk-browser/pageSelectionCutShared.test.ts",
         "packages/sdk-browser/streamingPriority.ts",
-        "test/justesse/erreur-ecran-borne.mjs"
+        "test/justesse/erreur-ecran-borne.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/projectionOracles\".clusterErrorPixels"
@@ -743,6 +786,10 @@
         "packages/sdk-browser/autonomousManifest.ts",
         "packages/sdk-browser/autonomousPages.test.ts",
         "packages/sdk-browser/backendTypes.ts",
+        "packages/sdk-browser/bench/appui/scenesChargement.ts",
+        "packages/sdk-browser/bench/chargement-scene.perf.ts",
+        "packages/sdk-browser/bench/oracles/bornes-et-index.ts",
+        "packages/sdk-browser/bench/oracles/collecte-pages.ts",
         "packages/sdk-browser/exactPagesBounds.ts",
         "packages/sdk-browser/explorerCamera.test.ts",
         "packages/sdk-browser/explorerCamera.ts",
@@ -766,8 +813,19 @@
         "packages/sdk-browser/telemetry.test.ts",
         "packages/sdk-browser/telemetry.ts",
         "packages/sdk-browser/webgpuMaterialClasses.test.ts",
+        "packages/sdk-browser/webgpuPages.03.test.ts",
+        "packages/sdk-browser/webgpuPages.07.test.ts",
+        "packages/sdk-browser/webgpuPages.08.test.ts",
+        "packages/sdk-browser/webgpuPages.09.test.ts",
+        "packages/sdk-browser/webgpuPages.15.test.ts",
+        "packages/sdk-browser/webgpuPages.16.test.ts",
+        "packages/sdk-browser/webgpuPages.18.test.ts",
         "packages/sdk-browser/webgpuPagesTestScenes.ts",
-        "test/fixtures/manifestBinary.ts"
+        "scripts/mesure/cacheManifest.ts",
+        "scripts/mesure/coupeAnalyse.ts",
+        "test/appui/preuveSceneCommune.ts",
+        "test/fixtures/manifestBinary.ts",
+        "test/justesse/cameraSitesMoteurs.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/geometryContracts\".ClusterManifest"
@@ -793,7 +851,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/pageSelectionHelpers.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/pageSelectionHelpers.ts",
+        "test/appui/preuveSceneCommune.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/geometryContracts\".ClusterStructure"
     },
@@ -823,7 +884,7 @@
         "packages/sdk-browser/webgpuPages.03.test.ts",
         "packages/sdk-browser/webgpuPages.07.test.ts",
         "packages/sdk-browser/webgpuPagesTestOccluder.ts",
-        "scripts/mesure/rapport.mjs"
+        "scripts/mesure/rapport.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/compareImages\".compareImages"
@@ -846,7 +907,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["test/appui/comparisonCompositorPage.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/comparison\".ComparisonLayout"
     },
@@ -968,8 +1029,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEcarts.mjs",
-        "packages/sdk-browser/bench/appui/socleHierarchie.mjs",
+        "packages/sdk-browser/bench/appui/socleEcarts.ts",
+        "packages/sdk-browser/bench/appui/socleHierarchie.ts",
         "packages/sdk-browser/hostWorldMatrices.ts"
       ],
       "disposition": "retained",
@@ -1037,7 +1098,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/oracles/volumes.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/oracles/volumes.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/projectionOracles\".coneRejects"
     },
@@ -1142,7 +1203,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs",
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
         "packages/sdk-browser/engineCamera.ts"
       ],
       "disposition": "retained",
@@ -1232,7 +1293,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "experimental",
-      "affectedConsumers": [],
+      "affectedConsumers": ["test/appui/lightingObservationPage.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/lightingExperimentBackend\".createLightingExperimentBackend"
     },
@@ -1299,13 +1360,13 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/lampes-ombres.perf.mjs",
+        "packages/sdk-browser/bench/lampes-ombres.perf.ts",
         "packages/sdk-browser/exactPagesContractLights.test.ts",
         "packages/sdk-browser/explorerBackends.ts",
         "packages/sdk-browser/explorerLightApi.test.ts",
         "packages/sdk-browser/webgpuPagesLightResources.test.ts",
         "packages/sdk-browser/webgpuPagesStateLights.ts",
-        "test/appui/eclairageEchantillonnePage.mjs"
+        "test/appui/eclairageEchantillonnePage.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".createSceneLightStore"
@@ -1329,7 +1390,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/lampes-ombres.perf.mjs",
+        "packages/sdk-browser/bench/lampes-ombres.perf.ts",
         "packages/sdk-browser/webgpuPagesStateLights.ts"
       ],
       "disposition": "retained",
@@ -1354,7 +1415,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs",
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
@@ -1379,7 +1440,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEquivalence.mjs",
+        "packages/sdk-browser/bench/appui/socleEquivalence.ts",
         "packages/sdk-browser/lightingObservationTransforms.ts",
         "packages/sdk-browser/visibilityShadingNormal.ts"
       ],
@@ -1406,7 +1467,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-node/cutoutSheet.mts",
-        "test/integration/feuille-decoupes.test.mjs"
+        "test/integration/feuille-decoupes.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/contractsBase\".CUTOUT_SHEET_FILE"
@@ -1420,7 +1481,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-node/cutoutSheet.mts",
-        "test/integration/feuille-decoupes.test.mjs"
+        "test/integration/feuille-decoupes.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/contractsBase\".CUTOUT_SHEET_VERSION"
@@ -1466,7 +1527,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/oracles/collecte-pages.mjs",
+        "packages/sdk-browser/bench/oracles/collecte-pages.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts"
       ],
       "disposition": "retained",
@@ -1490,7 +1551,11 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-node/contracts.ts", "packages/sdk-node/progressDag.mts"],
+      "affectedConsumers": [
+        "packages/sdk-node/contracts.ts",
+        "packages/sdk-node/progress.test.ts",
+        "packages/sdk-node/progressDag.mts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/dagContracts\".DagWarning"
     },
@@ -1525,7 +1590,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/manifestLoad.ts",
-        "scripts/mesure/cacheManifest.mjs"
+        "scripts/mesure/cacheManifest.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryDecode\".decodeManifestBinary"
@@ -1560,8 +1625,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEcarts.mjs",
-        "packages/sdk-browser/bench/appui/socleLigne.mjs",
+        "packages/sdk-browser/bench/appui/socleEcarts.ts",
+        "packages/sdk-browser/bench/appui/socleLigne.ts",
         "packages/sdk-browser/cameraWorld.ts",
         "packages/sdk-browser/mathFamiliesThreeParity.test.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts"
@@ -1599,7 +1664,11 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/bench/appui/scenesChargement.ts",
+        "packages/sdk-browser/bench/chargement-scene.perf.ts",
         "packages/sdk-browser/explorerSession.ts",
+        "packages/sdk-browser/webgpuPages.08.test.ts",
+        "packages/sdk-browser/webgpuPages.15.test.ts",
         "packages/sdk-node/cutoutThumb.mts",
         "packages/sdk-node/index.mts"
       ],
@@ -1666,9 +1735,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEcarts.mjs",
-        "packages/sdk-browser/bench/appui/socleEquivalence.mjs",
-        "packages/sdk-browser/bench/appui/socleHierarchie.mjs",
+        "packages/sdk-browser/bench/appui/socleEcarts.ts",
+        "packages/sdk-browser/bench/appui/socleEquivalence.ts",
+        "packages/sdk-browser/bench/appui/socleHierarchie.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
         "packages/sdk-browser/webgpuTransformCisaillement.test.ts"
       ],
@@ -1818,7 +1887,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEquivalence.mjs",
+        "packages/sdk-browser/bench/appui/socleEquivalence.ts",
         "packages/sdk-browser/lightingObservationTransforms.ts"
       ],
       "disposition": "retained",
@@ -1854,7 +1923,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/oracles/collecte-pages.mjs",
+        "packages/sdk-browser/bench/oracles/collecte-pages.ts",
         "packages/sdk-browser/cacheFormat.test.ts",
         "packages/sdk-browser/clusterBatches.ts",
         "packages/sdk-browser/clusterPages.ts",
@@ -1879,7 +1948,9 @@
         "packages/sdk-browser/sceneProxyLoad.ts",
         "packages/sdk-browser/webglClusterRefusal.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
-        "packages/sdk-browser/webgpuTransformFiniteTransform.test.ts"
+        "packages/sdk-browser/webgpuTransformFiniteTransform.test.ts",
+        "test/appui/webglClusterTransmissionExplorerPage.ts",
+        "test/integration/validation-ressources.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/cacheContracts\".EngineError"
@@ -1903,8 +1974,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "test/appui/webglClusterExplorerMount.mjs",
-        "test/justesse/cameraSitesMoteurs.mjs"
+        "test/appui/webglClusterExplorerMount.ts",
+        "test/justesse/cameraSitesMoteurs.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/exactPagesBackend\".exactPagesBackend"
@@ -1928,6 +1999,15 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "scripts/docs-camera-lessons.test.ts",
+        "scripts/docs-canvas.test.ts",
+        "scripts/docs-lighting-lessons.test.ts",
+        "scripts/docs-renderer-lessons.test.ts",
+        "scripts/mesure/pageEclairage.test.ts",
+        "scripts/mesure/pageExplorateur.ts",
+        "scripts/mesure/pageMesure.ts",
+        "scripts/mesure/pageTemoin.ts",
+        "scripts/temoin.test.ts",
         "site/lessons/cameraLessonRuntime.ts",
         "site/lessons/engine-scene/cameraControls.ts",
         "site/lessons/engine-scene/lifecycle.ts",
@@ -1937,6 +2017,10 @@
         "site/lessons/rendererLessonRuntime.ts",
         "site/lessons/rendererLessonSessionTypes.ts",
         "site/lessons/sceneFillLight.ts",
+        "test/browser/explorer-startup.browser.ts",
+        "test/browser/mountain-terrain.browser.ts",
+        "test/browser/observatory.browser.ts",
+        "test/browser/shadow-camera-stop.browser.ts",
         "test/fixtures/publicBrowser.ts",
         "test/fixtures/publicTypesOnly.ts"
       ],
@@ -1961,7 +2045,12 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["test/fixtures/publicBrowser.ts", "test/fixtures/publicTypesOnly.ts"],
+      "affectedConsumers": [
+        "scripts/mesure/pageExplorateur.ts",
+        "test/appui/explorerStartupTargets.ts",
+        "test/fixtures/publicBrowser.ts",
+        "test/fixtures/publicTypesOnly.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/explorerOptions\".ExplorerOptions"
     },
@@ -1972,7 +2061,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["test/appui/explorerStartupTargets.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/explorerTarget\".ExplorerTarget"
     },
@@ -2032,6 +2121,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/backendMetricKeys.ts",
+        "packages/sdk-browser/bench/telemetrie.perf.ts",
         "packages/sdk-browser/cameraPath.ts",
         "packages/sdk-browser/explorerFrameDiagnostic.test.ts",
         "packages/sdk-browser/explorerFrameDiagnostic.ts",
@@ -2043,6 +2133,13 @@
         "packages/sdk-browser/frameCostAudit.ts",
         "packages/sdk-browser/telemetry.test.ts",
         "packages/sdk-browser/telemetry.ts",
+        "scripts/mesure/mesureOptions.ts",
+        "scripts/mesure/pageMesure.ts",
+        "scripts/mesure/rapportCalcul.ts",
+        "scripts/mesure/rapportMemoire.ts",
+        "scripts/mesure/rapportTextures.ts",
+        "scripts/mesure/report/types.ts",
+        "scripts/mesure/serieReservoirs.ts",
         "site/lessons/lessonShadowPages.ts"
       ],
       "disposition": "retained",
@@ -2056,7 +2153,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/telemetrie.perf.mjs",
+        "packages/sdk-browser/bench/telemetrie.perf.ts",
         "packages/sdk-browser/cameraPath.ts",
         "packages/sdk-browser/telemetry.ts"
       ],
@@ -2099,8 +2196,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasTronc.mjs",
-        "packages/sdk-browser/bench/tronc-residence.perf.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasTronc.ts",
+        "packages/sdk-browser/bench/tronc-residence.perf.ts",
         "packages/sdk-browser/pageSelectionCutVisit.ts",
         "packages/sdk-browser/pageSelectionMath.test.ts"
       ],
@@ -2115,9 +2212,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasTronc.mjs",
-        "packages/sdk-browser/bench/formules-ts.perf.mjs",
-        "packages/sdk-browser/bench/oracles/transparents-ordres.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasTronc.ts",
+        "packages/sdk-browser/bench/formules-ts.perf.ts",
+        "packages/sdk-browser/bench/oracles/transparents-ordres.ts",
         "packages/sdk-browser/frameCostAudit.ts",
         "packages/sdk-browser/gpuDagOracleMath.ts",
         "packages/sdk-browser/gpuDagOraclePredicates.ts",
@@ -2125,7 +2222,7 @@
         "packages/sdk-browser/webglClusterCopyCulling.ts",
         "packages/sdk-browser/webgpuBlendOrder.ts",
         "packages/sdk-browser/webgpuBlendSelection.ts",
-        "test/justesse/inverseTransposeCas.mjs"
+        "test/justesse/inverseTransposeCas.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathFrustumBox\".frustumExcludesBox"
@@ -2163,9 +2260,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasTronc.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasTroncPlans.ts",
         "packages/sdk-browser/cameraRenderOrigin.ts",
-        "test/justesse/inverseTransposeCas.mjs"
+        "test/justesse/inverseTransposeCas.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathFrustum\".frustumPlanesFromMatrix"
@@ -2178,9 +2275,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasTronc.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasTronc.ts",
         "packages/sdk-browser/gpuDagOracleMath.ts",
-        "test/justesse/inverseTransposeCas.mjs"
+        "test/justesse/inverseTransposeCas.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathFrustum\".frustumPlanesToLocal"
@@ -2231,6 +2328,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/autonomousGeometry.ts",
         "packages/sdk-browser/autonomousManifest.ts",
+        "packages/sdk-browser/bench/oracles/bornes-et-index.ts",
         "packages/sdk-browser/manifestPageIndex.ts"
       ],
       "disposition": "retained",
@@ -2331,7 +2429,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["scripts/mesure/seriePasses.mjs"],
+      "affectedConsumers": ["scripts/mesure/seriePasses.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/stageMapping\".gpuPassBlockOf"
     },
@@ -2342,7 +2440,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["scripts/mesure/seriePasses.mjs"],
+      "affectedConsumers": ["scripts/mesure/seriePasses.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/gpuPassBlocks\".gpuPassBlockTotals"
     },
@@ -2353,7 +2451,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["scripts/mesure/rapportPasses.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/gpuPassBlocks\".GpuPassBlockTotals"
     },
@@ -2387,12 +2485,18 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/bench/oracles/profil-etapes.ts",
+        "packages/sdk-browser/bench/profil-etapes.perf.ts",
         "packages/sdk-browser/gpuPassBlocks.test.ts",
         "packages/sdk-browser/gpuPassBlocks.ts",
         "packages/sdk-browser/gpuTimingTypes.ts",
         "packages/sdk-browser/stageMapping.test.ts",
         "packages/sdk-browser/stageMapping.ts",
-        "packages/sdk-browser/webgpuPagesStateTiming.ts"
+        "packages/sdk-browser/webgpuPagesStateTiming.ts",
+        "scripts/mesure/mesureOptions.ts",
+        "scripts/mesure/pageEclairage.ts",
+        "scripts/mesure/seriePasses.test.ts",
+        "scripts/mesure/seriePasses.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/metricsContracts\".GpuPassTimings"
@@ -2491,7 +2595,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/hiz-pyramide.perf.mjs",
+        "packages/sdk-browser/bench/hiz-pyramide.perf.ts",
         "packages/sdk-browser/gpuHiz.test.ts",
         "packages/sdk-browser/gpuHizOracle.ts"
       ],
@@ -2538,7 +2642,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/hiz-pyramide.perf.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/hiz-pyramide.perf.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/hizOracles\".hizFootprintFar"
     },
@@ -2561,7 +2665,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/hiz-pyramide.perf.mjs",
+        "packages/sdk-browser/bench/hiz-pyramide.perf.ts",
         "packages/sdk-browser/hizOcclusion.ts"
       ],
       "disposition": "retained",
@@ -2588,9 +2692,25 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "test/appui/webglClusterCoplanarBlend.ts",
+        "test/appui/webglClusterNormalMapPage.ts",
+        "test/appui/webglClusterRestorePage.ts",
+        "test/appui/webglClusterTexturePage.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/cameraWorld\".HostDrawCamera"
+    },
+    {
+      "name": "HostDrawOutput",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/webglRenderTarget.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/webglRenderTarget\".HostDrawOutput"
     },
     {
       "name": "HostRetentionDelta",
@@ -2641,7 +2761,10 @@
         "packages/sdk-browser/taaJitter.test.ts",
         "packages/sdk-browser/taaMotion.test.ts",
         "packages/sdk-browser/taaMotion.ts",
-        "packages/sdk-browser/webgpuCutRepriseFixture.ts"
+        "packages/sdk-browser/webgpuCutRepriseFixture.ts",
+        "test/appui/webglClusterBlendPerfPage.ts",
+        "test/appui/webglClusterPixels.ts",
+        "test/appui/webglClusterRestorePage.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathMatrix4\".IDENTITY_MATRIX4"
@@ -2654,8 +2777,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEquivalence.mjs",
-        "packages/sdk-browser/bench/appui/socleHierarchie.mjs",
+        "packages/sdk-browser/bench/appui/socleEquivalence.ts",
+        "packages/sdk-browser/bench/appui/socleHierarchie.ts",
         "packages/sdk-browser/lightingObservationMeshes.ts",
         "packages/sdk-browser/taaFrame.ts",
         "packages/sdk-browser/taaMotion.ts",
@@ -2804,7 +2927,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/oracles/socle-math-ombres.mjs",
+        "packages/sdk-browser/bench/oracles/socle-math-ombres.ts",
         "packages/sdk-browser/directLightSamplingWgsl.test.ts",
         "packages/sdk-browser/directLightSamplingWgsl.ts",
         "packages/sdk-browser/directLightWgsl.ts",
@@ -2821,7 +2944,7 @@
         "packages/sdk-browser/visibilityShaderRequest.ts",
         "packages/sdk-browser/webgpuPagesPrepareLights.ts",
         "packages/sdk-browser/webgpuPagesPrepareSunFar.ts",
-        "test/browser/eclairage-echantillonne.browser.mjs"
+        "test/browser/eclairage-echantillonne.browser.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".LIGHT_SETTINGS"
@@ -2877,7 +3000,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/socleEcarts.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/socleEcarts.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathMatrix4\".linearPartDeterminant"
     },
@@ -2900,7 +3023,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEcarts.mjs",
+        "packages/sdk-browser/bench/appui/socleEcarts.ts",
+        "packages/sdk-browser/explorerCompose.test.ts",
+        "packages/sdk-browser/explorerCompose.ts",
         "packages/sdk-browser/visibilityMath.ts"
       ],
       "disposition": "retained",
@@ -2968,7 +3093,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeLookAt\".lookAtNode"
     },
@@ -3129,8 +3254,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/oracles/normale-ombrage.mjs",
-        "packages/sdk-browser/bench/oracles/transparents-ordres.mjs",
+        "packages/sdk-browser/bench/oracles/normale-ombrage.ts",
+        "packages/sdk-browser/bench/oracles/transparents-ordres.ts",
         "packages/sdk-browser/visibilityRaster.ts",
         "packages/sdk-browser/visibilityRasterReflexion.test.ts",
         "packages/sdk-browser/visibilityShadingNormal.ts",
@@ -3176,8 +3301,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/oracles/socle-math-priorite.mjs",
-        "packages/sdk-browser/bench/residence.perf.mjs",
+        "packages/sdk-browser/bench/oracles/socle-math-priorite.ts",
+        "packages/sdk-browser/bench/residence.perf.ts",
         "packages/sdk-browser/gpuDagPack.ts",
         "packages/sdk-browser/gpuDagRequest.test.ts",
         "packages/sdk-browser/gpuDagRuntime.test.ts",
@@ -3190,8 +3315,8 @@
         "packages/sdk-browser/pageSelectionDiagnostic.ts",
         "packages/sdk-browser/screenErrorViewport.test.ts",
         "packages/sdk-browser/streamingPriority.ts",
-        "test/justesse/erreur-ecran-borne.mjs",
-        "test/justesse/erreur-ecran-cpu-gpu.mjs"
+        "test/justesse/erreur-ecran-cpu-gpu.ts",
+        "test/justesse/erreurEcranBorneCas.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/projectionOracles\".maxStretch"
@@ -3225,7 +3350,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["test/fixtures/publicBrowser.ts"],
+      "affectedConsumers": ["scripts/mesure/pageMesure.ts", "test/fixtures/publicBrowser.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/webgpuPagesMemory\".MemoryBudgets"
     },
@@ -3236,7 +3361,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["scripts/mesure/report/types.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/webgpuPagesMemory\".MemoryBudgetsReport"
     },
@@ -3259,8 +3384,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEquivalence.mjs",
-        "packages/sdk-browser/bench/appui/socleHierarchie.mjs",
+        "packages/sdk-browser/bench/appui/socleEquivalence.ts",
+        "packages/sdk-browser/bench/appui/socleHierarchie.ts",
         "packages/sdk-browser/cameraRenderOrigin.test.ts",
         "packages/sdk-browser/cameraRenderOrigin.ts",
         "packages/sdk-browser/gpuDagOracleMath.ts",
@@ -3296,7 +3421,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldDirection"
     },
@@ -3307,7 +3432,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldMirrorsFaces"
     },
@@ -3318,7 +3443,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldPosition"
     },
@@ -3329,7 +3454,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldQuaternion"
     },
@@ -3340,7 +3465,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeRead\".nodeWorldScale"
     },
@@ -3377,9 +3502,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEquivalence.mjs",
-        "packages/sdk-browser/bench/appui/socleHierarchie.mjs",
-        "packages/sdk-browser/bench/oracles/normale-ombrage.mjs",
+        "packages/sdk-browser/bench/appui/socleEquivalence.ts",
+        "packages/sdk-browser/bench/appui/socleHierarchie.ts",
+        "packages/sdk-browser/bench/oracles/normale-ombrage.ts",
         "packages/sdk-browser/pageCone.ts",
         "packages/sdk-browser/pageConeNormalMatrixParity.test.ts",
         "packages/sdk-browser/visibilityShadingNormal.ts",
@@ -3406,7 +3531,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "packages/sdk-browser/bench/oracles/socle-math-priorite.ts",
+        "packages/sdk-browser/bench/oracles/socle-math.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathMatrix4\".NumberSink"
     },
@@ -3454,10 +3582,13 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/bench/oracles/bornes-et-index.ts",
         "packages/sdk-browser/explorerScene.test.ts",
         "packages/sdk-browser/manifestPageIndex.ts",
         "packages/sdk-browser/pageSelectionHelpers.ts",
-        "packages/sdk-browser/threeLodHelpers.ts"
+        "packages/sdk-browser/threeLodHelpers.ts",
+        "test/appui/preuveSceneCommune.ts",
+        "test/appui/webglClusterTransmissionScene.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/geometryContracts\".Page"
@@ -3481,7 +3612,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/decodage-worker.perf.mjs",
+        "packages/sdk-browser/bench/decodage-worker.perf.ts",
         "packages/sdk-browser/pageDecodeHost.ts",
         "packages/sdk-browser/pageDecodeIdentity.test.ts",
         "packages/sdk-browser/pageDecodePool.ts",
@@ -3572,6 +3703,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/bench/decodage-worker.perf.ts",
         "packages/sdk-browser/pageDecodeHost.ts",
         "packages/sdk-browser/pageDecodePool.ts",
         "packages/sdk-browser/pageDecodeShared.test.ts",
@@ -3660,7 +3792,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/pageDecodeHost.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/bench/decodage-worker.perf.ts",
+        "packages/sdk-browser/pageDecodeHost.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageDecodeOp"
     },
@@ -3811,7 +3946,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["test/appui/partitionReference.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/webgpuPartitionAudit\".PartitionAudit"
     },
@@ -3845,9 +3980,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs",
-        "packages/sdk-browser/bench/oracles/hiz.mjs",
-        "packages/sdk-browser/bench/oracles/occlusion.mjs",
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
+        "packages/sdk-browser/bench/oracles/hiz.ts",
+        "packages/sdk-browser/bench/oracles/occlusion.ts",
         "packages/sdk-browser/cameraWorld.test.ts",
         "packages/sdk-browser/engineCamera.ts"
       ],
@@ -3872,7 +4007,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/scenesSocleConsommateurs.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/scenesSocleConsommateurs.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".POINT_FACE_AXES"
     },
@@ -4197,7 +4332,10 @@
         "packages/sdk-browser/instancesPartagees.test.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
         "packages/sdk-browser/primitiveLookup.test.ts",
-        "packages/sdk-browser/primitiveLookup.ts"
+        "packages/sdk-browser/primitiveLookup.ts",
+        "packages/sdk-browser/webgpuPages.15.test.ts",
+        "packages/sdk-browser/webgpuPages.18.test.ts",
+        "test/appui/preuveSceneCommune.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/geometryContracts\".Primitive"
@@ -4243,7 +4381,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/oracles/collecte-pages.mjs",
+        "packages/sdk-browser/bench/oracles/collecte-pages.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts"
       ],
       "disposition": "retained",
@@ -4419,7 +4557,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeStructure\".removeTransformNode"
     },
@@ -4430,7 +4568,18 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": [
+        "test/appui/coupeGpuTenuePage.ts",
+        "test/appui/hizDeuxPassesPage.ts",
+        "test/appui/hizRigPage.ts",
+        "test/appui/preuveSceneCommune.ts",
+        "test/appui/preuveSceneImage.ts",
+        "test/appui/rasterCalculPage.ts",
+        "test/appui/sceneOccultante.ts",
+        "test/appui/transparentTransformPage.ts",
+        "test/appui/webglClusterExplorerPage.ts",
+        "test/justesse/cameraSitesMoteurs.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/backendTypes\".RenderBackend"
     },
@@ -4441,7 +4590,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeStructure\".reparentTransformNode"
     },
@@ -4566,6 +4715,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/bench/appui/socleConsommateursCore.ts",
+        "packages/sdk-browser/bench/oracles/socle-math.ts",
         "packages/sdk-browser/lightingObservationContracts.ts",
         "packages/sdk-browser/lightingRectangleBvh.ts",
         "test/fixtures/lightingSceneTestHelpers.ts",
@@ -4687,7 +4838,14 @@
         "packages/sdk-browser/importedLights.ts",
         "packages/sdk-browser/webgpuPagesLightResources.test.ts",
         "packages/sdk-browser/webgpuShadowDrawnMask.test.ts",
-        "packages/sdk-browser/webgpuShadowFrameCounts.test.ts"
+        "packages/sdk-browser/webgpuShadowFrameCounts.test.ts",
+        "scripts/mesure/lampes.ts",
+        "scripts/mesure/mesureOptions.ts",
+        "scripts/mesure/oracleCompare.ts",
+        "scripts/mesure/oraclePage.ts",
+        "scripts/mesure/pageTemoin.ts",
+        "scripts/mesure/pageThreeNuScene.ts",
+        "test/appui/materialFixtures.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SceneLight"
@@ -4715,7 +4873,8 @@
         "packages/sdk-browser/exactPagesContractLights.ts",
         "packages/sdk-browser/explorerLightApi.ts",
         "packages/sdk-browser/importedLights.ts",
-        "packages/sdk-browser/webgpuPagesStateLights.ts"
+        "packages/sdk-browser/webgpuPagesStateLights.ts",
+        "test/appui/eclairageEchantillonnePage.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightStore\".SceneLightStore"
@@ -4837,7 +4996,9 @@
       "classification": "experimental",
       "affectedConsumers": [
         "packages/sdk-browser/explorerOptions.ts",
-        "packages/sdk-browser/gpuDagShaderError.ts"
+        "packages/sdk-browser/gpuDagShaderError.ts",
+        "scripts/mesure/mesureOptions.ts",
+        "scripts/mesure/optionsCote.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/screenErrorVariant\".ScreenErrorVariant"
@@ -4861,7 +5022,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs",
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
@@ -4875,7 +5036,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs",
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
@@ -4888,7 +5049,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodePosition"
     },
@@ -4899,7 +5060,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeQuaternion"
     },
@@ -4910,7 +5071,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeScale"
     },
@@ -5053,6 +5214,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/bench/lampes-ombres.perf.ts",
+        "packages/sdk-browser/bench/oracles/lampes-ombres.ts",
         "packages/sdk-browser/webgpuPagesEncodeShadows.ts",
         "packages/sdk-browser/webgpuShadowDrawnMask.test.ts"
       ],
@@ -5115,7 +5278,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/manifestLoad.ts",
-        "packages/sdk-node/cutoutThumb.mts"
+        "packages/sdk-node/cutoutThumb.mts",
+        "scripts/mesure/cacheManifest.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryTypes\".SlimClusterManifest"
@@ -5253,7 +5417,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
+        "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/explorerCamera.ts",
         "packages/sdk-browser/threeBounds.ts"
       ],
@@ -5279,8 +5443,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleConsommateursBrowser.mjs",
-        "packages/sdk-browser/bench/appui/socleEcarts.mjs",
+        "packages/sdk-browser/bench/appui/socleConsommateursBrowser.ts",
+        "packages/sdk-browser/bench/appui/socleEcarts.ts",
         "packages/sdk-browser/visibilityLighting.ts",
         "packages/sdk-browser/visibilityMath.ts"
       ],
@@ -5344,7 +5508,9 @@
       "affectedConsumers": [
         "packages/sdk-browser/backendTypes.ts",
         "packages/sdk-browser/explorerTelemetryApi.ts",
-        "packages/sdk-browser/stageProfiler.ts"
+        "packages/sdk-browser/stageProfiler.ts",
+        "scripts/mesure/mesureOptions.ts",
+        "scripts/mesure/report/types.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/stageProfile\".StageProfile"
@@ -5422,7 +5588,11 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/cameraPath.ts", "scripts/mesure/rapport.mjs"],
+      "affectedConsumers": [
+        "packages/sdk-browser/cameraPath.ts",
+        "scripts/mesure/rapport.ts",
+        "scripts/mesure/rapportPasses.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/stats\".summarize"
     },
@@ -5433,7 +5603,11 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["test/fixtures/lightingTransportScene.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/bench/appui/socleConsommateursCore.ts",
+        "packages/sdk-browser/bench/oracles/socle-math.ts",
+        "test/fixtures/lightingTransportScene.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/lightingSceneTypes\".Surface"
     },
@@ -5521,7 +5695,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["scripts/mesure/optionsCote.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/textureBlockFormats\".TextureCompression"
     },
@@ -5648,7 +5822,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["test/justesse/cameraSitesMoteurs.mjs"],
+      "affectedConsumers": ["test/justesse/cameraSitesMoteurs.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/threeLod\".threeLodBackend"
     },
@@ -5704,7 +5878,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEquivalence.mjs",
+        "packages/sdk-browser/bench/appui/socleEquivalence.ts",
         "packages/sdk-browser/gpuDagRequest.test.ts",
         "packages/sdk-browser/mathFamiliesThreeParity.test.ts",
         "packages/sdk-browser/streamingPriority.ts",
@@ -5745,7 +5919,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleEquivalence.mjs",
+        "packages/sdk-browser/bench/appui/socleEquivalence.ts",
         "packages/sdk-browser/visibilityProjection.ts"
       ],
       "disposition": "retained",
@@ -5791,7 +5965,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["test/appui/transparentOcclusionReference.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/webgpuTransparentOcclusionAudit\".TransparentOcclusionAudit"
     },
@@ -5869,7 +6043,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs",
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
         "packages/sdk-browser/engineCamera.ts"
       ],
       "disposition": "retained",
@@ -5883,7 +6057,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs",
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
@@ -5896,7 +6070,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.mjs"],
+      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTreeUpdate\".updateNodeWorldMatrix"
     },
@@ -5952,6 +6126,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/bench/appui/socleConsommateursCore.ts",
+        "packages/sdk-browser/bench/oracles/socle-math.ts",
         "test/fixtures/lightingSceneTestHelpers.ts",
         "test/fixtures/lightingTransportScene.ts"
       ],
@@ -6010,19 +6186,19 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "test/appui/antialiasingTemporelPage.mjs",
-        "test/appui/coupeGpuTenuePage.mjs",
-        "test/appui/depthConventionMoteurCompletPage.mjs",
-        "test/appui/eclairageEchantillonnePage.mjs",
-        "test/appui/hizDeuxPassesPage.mjs",
-        "test/appui/hizRigPage.mjs",
-        "test/appui/rasterCalculPage.mjs",
-        "test/appui/sceneOccultante.mjs",
-        "test/appui/setTransformParentPerimePage.mjs",
-        "test/appui/surfaceAppareilPerduPage.mjs",
-        "test/appui/transparentTransformPage.mjs",
-        "test/appui/waterPassPage.mjs",
-        "test/justesse/cameraSitesMoteurs.mjs"
+        "test/appui/antialiasingTemporelPage.ts",
+        "test/appui/coupeGpuTenuePage.ts",
+        "test/appui/depthConventionMoteurCompletPage.ts",
+        "test/appui/eclairageEchantillonnePage.ts",
+        "test/appui/hizDeuxPassesPage.ts",
+        "test/appui/hizRigPage.ts",
+        "test/appui/rasterCalculPage.ts",
+        "test/appui/sceneOccultante.ts",
+        "test/appui/setTransformParentPerimePage.ts",
+        "test/appui/surfaceAppareilPerduPage.ts",
+        "test/appui/transparentTransformPage.ts",
+        "test/appui/waterPassPage.ts",
+        "test/justesse/cameraSitesMoteurs.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/webgpuPages\".webgpuPagesBackend"
@@ -6104,7 +6280,14 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["site/content/entries/camera.ts"],
+      "affectedConsumers": [
+        "site/content/entries/camera.ts",
+        "test/appui/webglClusterExplorerMount.ts",
+        "test/justesse/camera-parentee.ts",
+        "test/justesse/cameraParenteeGpuPage.ts",
+        "test/justesse/cameraSites.ts",
+        "test/justesse/cameraSitesMoteurs.ts"
+      ],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/cameraWorld.ts:HostCamera"
     },
@@ -6149,9 +6332,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleLigne.mjs",
+        "packages/sdk-browser/bench/appui/socleLigne.ts",
         "site/content/entries/matrix.ts",
-        "test/justesse/inverseTransposeF32.mjs"
+        "test/justesse/inverseTransposeF32.ts"
       ],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathSingular.ts:SINGULAR_DETERMINANT"
@@ -6185,7 +6368,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["site/content/entries/camera.ts", "test/justesse/cameraSites.mjs"],
+      "affectedConsumers": ["site/content/entries/camera.ts", "test/justesse/cameraSites.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/engineCamera.ts:createEngineCamera"
     },
@@ -6241,7 +6424,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/appui/socleLigne.mjs",
+        "packages/sdk-browser/bench/appui/socleLigne.ts",
         "site/content/entries/matrix.ts"
       ],
       "disposition": "newly exposed",
@@ -6254,7 +6437,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["site/content/entries/camera.ts", "test/justesse/cameraSites.mjs"],
+      "affectedConsumers": ["site/content/entries/camera.ts", "test/justesse/cameraSites.ts"],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-browser/cameraWorld.ts:readCameraWorld"
     },
