@@ -130,16 +130,7 @@ function sundial() {
     tilt = unit([0, 1, -1]),
     across = [1, 0, 0],
     forward = cross(across, tilt);
-  shop.lathe(
-    0,
-    [0, -0.4, 0],
-    [
-      [0, 0],
-      [0, 3.2],
-      [0.4, 3.2],
-      [0.4, 0],
-    ],
-  );
+  shop.cylinder(0, [0, -0.4, 0], 3.2, 0.4);
   shop.block(1, [0, 0.7, -0.5], [0.08, 2, 0.08], [across, tilt, forward]);
   for (let hour = 0; hour < 12; hour++) {
     const angle = (hour / 12) * TAU;
