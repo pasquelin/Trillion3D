@@ -20,7 +20,6 @@ import {
   creeRig,
   poseRig,
 } from './cameraRig.ts';
-import type { PoseParent } from './cameraRig.ts';
 import { SITES, residuRepereDeRendu } from './cameraSites.ts';
 import type { Site } from './cameraSitesMoteurs.ts';
 import type { HostCamera } from '../../packages/sdk-browser/cameraWorld.ts';
