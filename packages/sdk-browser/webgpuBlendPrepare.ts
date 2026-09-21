@@ -13,6 +13,7 @@ import {
   visMaterial,
 } from './visibilityBuffer.ts';
 import { wrapModes } from './visibilityWrapModes.ts';
+import { WATER_RANK_SHIFT } from './webgpuWaterSurfaceWgsl.ts';
 import { ensureWebgpuPositionBuffer } from './webgpuPositions.ts';
 import {
   ensureBlendIndexBuffer,
@@ -34,9 +35,8 @@ export function prepareWebgpuBlend(
   let transmissive = 0;
   for (const copy of blendCopies) {
     // A transmissive surface goes through the same prepare as the other blends: it differs only
-    // at draw, where it rereads the frozen background instead of blending by alpha.
+    // at draw, where the water pass composes it over the frozen backdrop instead of blending it.
     const transmits = isTransmissive(copy.material);
-    if (transmits) transmissive++;
     const mat = visMaterial(copy.material);
     const attr = copy.geometry.attributes.position,
       idx = copy.geometry.getIndex();
@@ -68,7 +68,9 @@ export function prepareWebgpuBlend(
     if (tangentAttr) flags |= FLAG_HAS_TANGENT;
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
-    if (transmits) flags |= FLAG_TRANSMISSIVE;
+    // Its water rank, one-based and compact over the transmissive items, rides above the flags:
+    // the surface stage writes it and the composite reads the item's volume at that rank.
+    if (transmits) flags |= FLAG_TRANSMISSIVE | (++transmissive << WATER_RANK_SHIFT);
     // No transform is baked here: the item carries the live world matrix of its source mesh, and
     // its box is SET by the same path that will refresh it after a move. The world box stays
     // conservative under rotation, mirror, non-uniform scale and shear — `boxTransform` guarantees

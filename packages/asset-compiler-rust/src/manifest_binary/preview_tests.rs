@@ -48,13 +48,13 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         assert_eq!(word(base + 12), source.height);
         assert_eq!(word(base + 16), source.source.kind());
         assert_eq!(word(base + 20), source.source.buffer_view());
-        assert_eq!(word(base + 24), source.first_level);
+        assert_eq!(word(base + PREVIEW_FIRST_LEVEL * 4), source.first_level);
         assert_eq!(
             word(base + 28),
             preview_level_count(source.width, source.height)
         );
-        assert_eq!(word(base + 40), source.kind.word());
-        assert_eq!(word(base + 44), source.baked_levels);
+        assert_eq!(word(base + PREVIEW_KIND * 4), source.kind.word());
+        assert_eq!(word(base + PREVIEW_BAKED * 4), source.baked_levels);
         let sha = std::str::from_utf8(&bytes[sha_off + entry * 64..sha_off + entry * 64 + 64])
             .expect("ascii");
         assert_eq!(sha, source.sha256);

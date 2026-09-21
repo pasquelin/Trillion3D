@@ -1,37 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { mkdtemp, mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { buildPortal } from './docs/build-portal.mjs';
-import { buildRuntime } from './docs/build-runtime.mjs';
-import { buildStyles } from './docs/build-styles.mjs';
+import { dirname, join, resolve } from 'node:path';
+import { BUNDLES, buildDocs, trackedBundles } from './docs/bundles.mjs';
+
+// No bundle is ever committed: the build runs on demand, here once into a temporary tree.
 const root = resolve(import.meta.dirname, '..');
 
-test('published docs styles, runtime and workers match the maintained sources', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'wg-docs-build-'));
+test('build:docs writes every generated bundle from the maintained sources', async () => {
+  const fresh = await mkdtemp(join(tmpdir(), 'wg-docs-build-'));
   try {
-    await buildRuntime(root, temporary);
-    await buildPortal(root, temporary);
-    await buildStyles(root, { output: join(temporary, 'site.css') });
-    for (const [source, target] of [
-      ['site.css', 'css/site.css'],
-      ...[
-        'engine.js',
-        'highlighter.js',
-        'portal.js',
-        'pageDecodeWorker.js',
-        'pageIntegrationWorker.js',
-        'pageCodec.wasm',
-      ].map((file) => [file, `runtime/${file}`]),
-    ]) {
-      assert.deepEqual(
-        await readFile(join(temporary, source)),
-        await readFile(join(root, 'docs', target)),
-        `${target} is stale: run pnpm build:docs`,
-      );
-    }
+    await buildDocs(root, fresh);
+    for (const bundle of BUNDLES)
+      assert.ok((await stat(join(fresh, bundle))).size > 0, `${bundle} is empty`);
   } finally {
-    await rm(temporary, { recursive: true, force: true });
+    await rm(fresh, { recursive: true, force: true });
+  }
+});
+
+test('the untracked check names a bundle git tracks and nothing in this repository', async () => {
+  assert.deepEqual(trackedBundles(root), []);
+  const scratch = await mkdtemp(join(tmpdir(), 'wg-docs-tracked-'));
+  const git = (...args) => execFileSync('git', args, { cwd: scratch, stdio: 'pipe' });
+  try {
+    git('init', '-q');
+    const file = join(scratch, 'docs', BUNDLES[0]);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, '');
+    assert.deepEqual(trackedBundles(scratch), []);
+    git('add', file);
+    assert.deepEqual(trackedBundles(scratch), [`docs/${BUNDLES[0]}`]);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
   }
 });

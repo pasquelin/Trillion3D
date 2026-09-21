@@ -132,6 +132,136 @@ This first #78 lot is the hierarchy foundation only. `createExplorer` does not a
 `SceneRoot` yet. Engine materials, texture references, frame hooks, and browser-contract migration
 remain later #78 lots; lights continue to use the existing `SceneLight` version 2 contract.
 
+## Batch math for hosts
+
+A host that moves ten thousand instances or culls ten thousand boxes writes the loop itself with a
+per-object library, one `Vector3` or `Matrix4` per call and a temporary per step. The engine's
+**batches** take `n` elements in one call: flat typed arrays, no allocation, the same formula as the
+unit function they repeat — which stays the oracle — and a count as the only return value. They are
+exported by `web-geometry`, `packages/sdk-core` and `packages/sdk-browser` alike, so a host imports
+one entry point, and none of them needs `three`.
+
+**Layout.** One element occupies a fixed number of consecutive values, each declared once:
+`MATRIX_VALUES` 16 (column-major, `[12..14]` the translation), `POSITION_VALUES` 3,
+`QUATERNION_VALUES` 4 (`x, y, z, w`), `SPHERE_VALUES` 4 (centre then radius) and
+`NORMAL_MATRIX_VALUES` 9 in `mathBatchStrides.ts`; `BOX_VALUES` 6 (min x, y, z then max x, y, z)
+in `mathBox.ts`; `FRUSTUM_PLANE_VALUES` 24 (six planes `a, b, c, d`, facing inward, in the order
+of `frustumPlanesFromMatrix`) in `mathFrustum.ts`. Flat inputs are read as `ArrayLike<number>` — a `Float32Array`, a plain
+array or a host buffer enters as-is; outputs are `Float64Array` (or a `Uint8Array` of flags).
+Matrices that are read one at a time — `mats[i]` — travel as **sub-views** of sixteen numbers
+(`buffer.subarray(i * 16, (i + 1) * 16)`), built once at load, never per frame: `multiplyMatrix4`
+reads its operands at constant indices, and a computed offset costs 6 % of the product.
+
+**Allocate once, reuse every frame.** The buffers below are the host's; a call writes into `out`
+and nothing else. Culling ten thousand boxes and bringing the survivors' centres into view space is
+two calls — this is `packages/sdk-core/mathBatchHost.test.ts`, run by `pnpm test`:
+
+```javascript
+import {
+  BOX_VALUES,
+  IDENTITY_MATRIX4,
+  POSITION_VALUES,
+  SPHERE_VALUES,
+  createCameraFrame,
+  perspectiveProjection,
+  updateCameraFrame,
+  frustumKeepsBoxBatch,
+  sphereFromBoundsBatch,
+  transformPointsBatch,
+} from 'web-geometry';
+
+const N = 10_000;
+// Allocated once, at scene load.
+const boxes = new Float64Array(N * BOX_VALUES); // min x, y, z then max x, y, z, per box
+const kept = new Uint8Array(N); // 1 where the frustum keeps the box
+const spheres = new Float64Array(N * SPHERE_VALUES); // centre x, y, z then radius, per box
+const centres = new Float64Array(N * POSITION_VALUES); // survivors' centres, packed
+const viewCentres = new Float64Array(N * POSITION_VALUES); // the same, in view space
+const frame = createCameraFrame();
+const projection = new Float64Array(16);
+const cameraWorld = Float64Array.from(IDENTITY_MATRIX4); // the host's, moved between frames
+
+// Every frame: the frustum, one cull, the survivors packed, one transform.
+perspectiveProjection(projection, 60, 16 / 9, 0.1, 1);
+updateCameraFrame(frame, projection, cameraWorld, 100);
+const visible = frustumKeepsBoxBatch(kept, frame.planes, boxes, N);
+sphereFromBoundsBatch(spheres, boxes, N);
+let m = 0;
+for (let i = 0; i < N; i++) {
+  if (!kept[i]) continue;
+  const at = i * SPHERE_VALUES;
+  centres.set(spheres.subarray(at, at + POSITION_VALUES), m++ * POSITION_VALUES);
+}
+transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
+```
+
+**The batches**, each named after the unit function it repeats, with the reference loop it
+replaces, its measured ratio and the exceptions it declares, are listed once, in
+[`docs/API.md`](API.md#batch-math-for-hosts-104-80).
+
+**Which path ran.** Three of them — `hierarchyUpdateBatch`, `multiplyMatrix4Batch`,
+`boxTransformBatch` — also exist as WebAssembly kernels (`packages/page-codec-wasm/src/math.rs`),
+bit-identical to the JavaScript loop, and the governor (`mathPathGovernor.ts`) plays whichever it
+measured faster, operation by operation. `createExplorer(canvas, { mathPath })` takes `'auto'`
+(the default), `'js'` or `'wasm'` — `'wasm'` falls back on `'js'` where the module is missing and
+says so. `explorer.metrics().mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
+`operations[name].path` is the path the next call plays, `jsNsPerElement` and `wasmNsPerElement`
+the sliding medians in nanoseconds per element (`null` while unmeasured — never zero), `switches`
+how many times the decision changed, `elements` the total processed; `clockCoarse` says the thread
+clock is too coarse to arbitrate, and everything then stays on JavaScript. The other batches have no
+kernel: none of their loops was measured above 0.1 ms in the engine's own frame (below), and a
+kernel for a cost that is not measured is refused by AGENTS.md.
+
+**What the engine's own frame pays for them** (#80 stage 1, `scripts/mesure/banc.mjs --moteur
+webgpu --apres dist --pixelError 1`, WebGPU, 1280×720, DPR 1, Emerald Square `generale` and `rue`
+over 180 measured frames, Whisperwind Village `generale` over 60, each line run three times with
+its A/A witness — six series per line — on commits `805450a2`–`2713f646` of the branch, Apple M2
+Max, the machine shared and its load average kept per series under `charge`: 3 to 25 during these
+runs). The values are the run-to-run range of the p50 / p95; the per-step bounds were read from
+the `cpu-timing` reports the engine published inside the measured loop, on a 0.1 ms clock — a
+step that reads `0.000 / 0.100` is under it, not zero. The bench has since read them from the
+profile window instead (`explorer.cpuSteps()`, `bornesCpu` in the bench README): the same bounds,
+over the profiled images only, so a rerun re-reads them there — and a still image, held, files a
+row of zeros in that window (its tile pump alone unmeasured) where the reports below published
+nothing. `null` is unmeasured,
+never an estimate.
+
+| scene · camera                      | `gateMs` p50 / p95 | `worldMs` p50 / p95 | `lightsMs`            | `selectionDispatchMs`             | CPU frame p50 | rAF p50    | roots                                                                                                                                                                              | verdict                                                                                                        |
+| ----------------------------------- | ------------------ | ------------------- | --------------------- | --------------------------------- | ------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Emerald Square · still              | null               | null                | 0.000 / 0.000 (stage) | 0.000 / 0.000 (stage)             | 0.2–0.7 ms    | 16.7 ms    | 2 479, none rebased                                                                                                                                                                | held image: no loop runs                                                                                       |
+| Emerald Square · moving, `generale` | 0.2–0.3 / 0.3–0.4  | 0.4–0.5 / 0.5–0.6   | 0.000 / 0.000         | 0.000 / 0.100                     | 2.7–3.3 ms    | 16.7 ms    | 2 479 (`racines`); rebased on every moved image by construction — the published `racinesRebasees` is the 0 of the last image that ran the step with neither origin nor scene moved | world step at the clock's edge; its loops under 0.1 ms (below)                                                 |
+| Emerald Square · moving, `rue`      | 0.3 / 0.3–0.4      | 0.0–0.5 / 0.5–0.6   | 0.000 / 0.000         | 0.000 / 0.100                     | 2.5–2.8 ms    | 16.7 ms    | 2 479, as above                                                                                                                                                                    | same                                                                                                           |
+| Whisperwind Village · still         | null (CPU cut)     | null (CPU cut)      | 0.000 (sample)        | `selectionMs` 181–245 ms (sample) | 386–420 ms    | 383–417 ms | 11 263                                                                                                                                                                             | the CPU reference cut over 2 022 678 resident pages, `cpuSelectMs` p50 94–103 ms: the cut's cost, not a loop's |
+| Whisperwind Village · moving        | null (CPU cut)     | null (CPU cut)      | 0.000 (sample)        | `selectionMs` 117–272 ms (sample) | 843–856 ms    | 850–867 ms | 11 263                                                                                                                                                                             | same, `cpuSelectMs` p50 111–115 ms                                                                             |
+
+The reading, loop by loop (the list of #80): on the GPU-cut path (Emerald Square) `lightsMs` is
+zero by construction — declared lamps live in a store the frame does not walk (`hostSceneWatch.ts`
+only reads the host graph at a scene revision) — and `blendWorldMs` is zero, as are the transparent steps
+(`transparentPrepareMs`, `transparentEncodeMs`) under which the frustum × box loops of
+`webgpuBlendOrder.ts` and `webgpuBlendSelection.ts` run — on the transparent path only, and only
+where a scene has transparents. `invertMatrix4` (`webgpuPagesTransform.ts`,
+`lightingObservationMeshes.ts` at the lighting experiment's creation) and `boxTransform` +
+`boxUnion` (`mathBatchBoxes.ts`, `webgpuPagesTransform.ts`, `pageSelectionCollect.ts` at setup)
+run at a host write or at `prepare()`, never per image; `normalMatrix3` (`pageCone.ts`) at prepare, and in the CPU
+visibility oracle (`visibilityShadingNormal.ts`) that no frame calls; `sphereFromBounds`
+(`threeBounds.ts`) at import; the `frameCostAudit.ts` and `gpuDagOracleMath.ts` loops belong to a
+diagnostic and to the GPU-cut oracle, outside a measured beauty pass. What remains every moving
+image is the world step: the root rebase (`rootWorldsToRenderOrigin`, sixteen floats per root),
+the change scan (`worldsChanged`) and the stretch scan (`refreshWorldStretch`) — timed on the
+nanosecond clock by `packages/sdk-browser/bench/rebase-racines.perf.mjs` (`pnpm run
+perf:browser`) on the same 2 479 roots: **0.031–0.032 ms**, 0.000 ms (a moved first root ends the
+scan; 0.041–0.043 ms when nothing moved, a case the held image never reaches) and
+**0.025–0.026 ms** per image,
+three runs, spread under 2 µs on a quiet machine, 6 µs under load. The rest of `worldMs` is the 158 KB world upload and the pyramid
+invalidation, not a math loop. On Whisperwind Village the GPU cut is unavailable
+(visibility-identifier capacity) and the frame runs the CPU reference cut, where
+`frustumExcludesBox` is called per DAG node visited (`pageSelectionCut.ts`) and
+`transformAffinePoint` per sphere (`streamingPriority.ts`); that traversal is not a batch — a node
+is tested only if its parent was kept — and its cost is the cut's, published as `cpuSelectMs`. No
+engine loop was replaced by a batch in this stage, and no WebAssembly kernel was written for the
+host batches: the rule stays that a kernel is written only where a loop's share is measured above
+0.1 ms in the engine's own frame, and no loop above reaches it.
+
 ## Browser explorer
 
 ### Simple browser startup
@@ -217,7 +347,7 @@ The `wireframe` diagnostic is a filled unique color per submitted triangle, not 
 
 ### Separated surfaces and lighting (pipeline version 1)
 
-The opaque/masked path writes visibility, then reconstructs material properties into three `rgba16float` textures and one `r32uint` texture (28 logical bytes per pixel): base color/metalness, world normal/roughness, emission/AO, and surface flags. Depth uses `depth32float`. Lighting consumes these surfaces and reconstructs world position from depth and the inverse view-projection matrix. Transparency is shaded separately into the HDR target. ACES and sRGB conversion occur at final composition. This changes transparent compositing relative to the previous display-encoded blend; its visual validation remains required.
+The opaque/masked path writes visibility, then reconstructs material properties into three `rgba16float` textures and one `r32uint` texture (28 logical bytes per pixel): base color/metalness, world normal/roughness, emission/AO, and surface flags. Depth uses `depth32float`. Lighting consumes these surfaces and reconstructs world position from depth and the inverse view-projection matrix. Transparency is shaded separately into the HDR target; a transmissive material — `KHR_materials_transmission` with its IOR and volume — is composed after it by the water pass, the same surface buffer written again once lighting consumed it and one fullscreen composite on a frozen copy of the lit image, the volume bounded by the opaque depth (`SPEC_ENGINE_WITHOUT_THREE.md` R6d). ACES and sRGB conversion occur at final composition. This changes transparent compositing between drawn surfaces relative to the previous display-encoded blend — a blend surface over the display background is still composed in display space, as the witness does it. The material proof measures the two: to the level over the background, 45 levels against the witness on red at half opacity over an opaque blue, and holds the engine to that declared gap.
 
 The reconstruction runs one pass per **material class**, the published visibility-buffer design, instead of one full-screen program that tests every material feature per pixel. A class is the set of features the resolve shader would otherwise branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and normal maps, vertex normals, double-sidedness, tangents — as a word of eleven bits; every page carries its class in its row, and the scene's classes are known once the atlases are laid out, so their pipelines are compiled at preparation, never on the frame that first draws one (a material the host changes into a new class compiles on its first draw). Each frame, the `WG material depth` pass writes every pixel's class as an exact `depth32float` value (`(class + 1) / 4096`, zero on the background); the `WG material surfaces v1` pass then draws one full-screen triangle per class that has a drawable row, at that class's depth under `depthCompare: 'equal'`, so the hardware depth test keeps the class's pixels and its fragment stage — compiled with the class's feature bits as pipeline overrides — reads only the maps that class has. Lighting is unchanged: the surfaces are the same, and there is no per-class lighting model. The `material-classes-ready` diagnostic publishes the classes found and their keys; the `materials` diagnostic view colours each pixel by the class that resolved it; `stageProfile()` reports both passes under the `materials` block. Not done: classifying screen tiles per class, so a class present anywhere costs one full-screen triangle, rejected pixel by pixel where it is absent.
 
@@ -251,9 +381,9 @@ Measured (Emerald cache, 2496×1404, DPR 1, `pixelError` 1, ground view, `--lamp
 
 The atlas is cut into `shadowPage` (128) texel pages. A light that moves invalidates its whole map; an object that moves — a transform, a page entering or leaving residence — invalidates only the pages of each face its projected box covers, and only those are redrawn. The frame is the whole face's, only the scissor is the region's, so a page redrawn this way carries **exactly the depth a full redraw would write**, bit for bit. `explorer.shadowAtlasDigest()` returns the raw depth hash so a host can check that for itself; `createExplorer({ shadowPageInvalidation: false })` turns the rule off and redraws whole faces, which is how the two are compared.
 
-What a frame redraws is bounded by `shadowBudgetMs` (`createExplorer`, 1.0 ms by default), measured on the shadow pass's own GPU timestamps and smoothed across frames. Pages the budget refuses wait for the next frame, ordered by the light's screen coverage and by how long they have already waited; they are never dropped, and `metrics().shadowPagesPending` / `shadowWaitMs` publish the queue and the oldest page's delay. Without GPU timestamps there is no budget at all, only the region ceiling. The cost of one region — rejection, depth reset, indirect draw — is folded into an averaged per-page cost: a named approximation, published in the `direct-lighting` diagnostic.
+What a frame redraws is bounded by `shadowBudgetMs` (`createExplorer`, 1.0 ms by default), measured on the shadow pass's own GPU timestamps and smoothed across frames. Pages the budget refuses wait for the next frame, ordered by the light's screen coverage and by how long they have already waited; they are never dropped, and the frame's `shadowPagesDrawn`, `shadowPagesTotal` (cumulative, `flush()` drains included), `shadowPagesPending` and `shadowWaitMs` publish the work, the queue and the oldest page's delay; the per-stage profile adds, under Shadows, the clusters the region culls kept (`occludeursGardes`, with `regionsRelevees` and `imageRelevee`), sampled on the device one frame in fifteen and read after submission — the frame it describes is named, never the current one. Without GPU timestamps there is no budget at all, only the region ceiling. The cost of one region — rejection, depth reset, indirect draw — is folded into an averaged per-page cost: a named approximation, published in the `direct-lighting` diagnostic.
 
-A directional light's shadows are `sunCascades` (4) cascades following the camera, stored in the same atlas slice mechanism as a point light's six faces, under the same rules: the map is reused while neither the light nor the world inside its extent has moved, and while the cascade still describes the same world window — a camera that moves less than the cascade's own texel grid changes nothing, and its map is kept. When that window does move, the cascade is redrawn **whole**: the atlas does not address its pages as a ring, so a window that slides leaves nothing to recover; clusters outside a cascade are rejected before drawing; alpha-masked materials keep their real cutout; no resolution or detail reduction. Cascades cover `sunShadowFarFraction` (0.2) of the camera's far plane. Their splits are a geometric series of ratio `sunCascadeRatioMax` (4), so texel density changes by exactly that ratio at every seam; the near end of the series is `shadow distance / ratio^cascades`, not the camera's near plane, while the first cascade still covers from that near plane.
+A directional light's shadows are `sunCascades` (4) cascades following the camera, stored in the same atlas slice mechanism as a point light's six faces, under the same rules: the map is reused while neither the light nor the world inside its extent has moved, and while the cascade still describes the same world extent. That extent is a whole number of `shadowPage` pages on the light plane, addressed by absolute page modulo the face — a ring, as the published virtual shadow maps do —, so a camera that moves less than a page changes nothing, and a camera that moves by whole pages keeps every page still inside and redraws **only the strip that entered**; a move of an extent side or more, or a step of the depth anchor — snapped to a grid of one sphere diameter along the light axis — redraws the cascade whole. Each region drawn rejects, before drawing, the clusters outside the box it cuts in the extent — its page rectangle by the map's depth bounds; alpha-masked materials keep their real cutout; no resolution or detail reduction. Cascades cover `sunShadowFarFraction` (0.2) of the camera's far plane. Their splits are a geometric series of ratio `sunCascadeRatioMax` (4), so texel density changes by exactly that ratio at every seam; the near end of the series is `shadow distance / ratio^cascades`, not the camera's near plane, while the first cascade still covers from that near plane.
 
 Beyond the last cascade the sun's shadow is one ray per pixel against the resident proxy (`proxy.bin`), traced by the same bounded traversal the bounce uses. It is deterministic — the ray direction is the sun's — so nothing is accumulated across frames. The ray starts `sunFarShadowStartCells` (1) proxy cells along its own direction, so a blocker nearer than one proxy cell carries no far shadow; the proxy's certified geometric error moves the shadow edge; a ray that exhausts the published traversal bound reports no blocker, which lights. All of these are published in the `sun-far-shadow` diagnostic, together with the pixels tested and darkened on one sampled image out of fifteen. Without a resident proxy in the cache, the diagnostic says the far shadow is unavailable and the surface stays lit with no cast shadow, as before: the last cascade is never stretched to cover the far plane, which would divide the texel density of every near shadow by five on each axis. The blend pass that lights transparent surfaces binds the same proxy and traces the same ray through the same WGSL, so a distant transparent surface darkens exactly like the opaque one beside it; it binds the proxy read-only, so the two sampled counters come from the deferred pass alone, and the blend fragment stage keeps early depth rejection, which a writable storage binding would cost it. The resident proxy lives in a single storage buffer (a twelve-word header, then the three columns) so that both passes stay within the eight storage buffers guaranteed per shader stage.
 
@@ -412,33 +542,62 @@ The transparent path still uses the authored Three.js light graph and its fixed 
 
 For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. `presentedSurface` is published only while its image is current: a lost or disposed device withdraws it and blanks the canvas, on either path, before the next call raises `WEBGPU_LOST`, and the loss is announced once, after that withdrawal, by the `gpu-device-lost` diagnostic (`code: 'WEBGPU_LOST'`, `reason`: the device's own, `unknown` when its `lost` promise rejected, `uncaptured-error` or `residency`) — no host composes a frame older than the device. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 
-For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before the scene
-renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from logical
-size and DPR, avoids resetting the buffer on an unchanged size, observes context loss/restoration,
-and releases the context once. The current scene renderer is a temporary adapter over that context;
-the surface foundation alone does not replace cluster drawing, composition, held frames, or capture.
+For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before any
+scene renderer exists. It fixes the context attributes, computes drawing-buffer dimensions from
+logical size and DPR, avoids resetting the buffer on an unchanged size, observes context loss and
+restoration, and releases the context once. That surface is the session's only WebGL2 resource;
+the Three scene renderer is a temporary draw adapter the composition host mounts on it and
+disposes with it, for the comparison compositor, the held frame, the render targets and the
+scenes the witness engines hand over — what it costs and what reads the surface instead is in
+[API.md](API.md#batch-e6--the-engine-surface-as-the-sessions-webgl2-authority-85-first-pull-request).
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
-`exact-cluster-pages` uses an engine-owned WebGL2 program for paged opaque and alpha-masked
-`MeshStandardMaterial` and `MeshBasicMaterial` batches when their inputs fit its declared glTF
-contract. The program reads base colour, metallic-roughness, normal, occlusion and emissive maps,
+`exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
+`MeshStandardMaterial` and `MeshBasicMaterial` batches — through an engine-owned WebGL2 program,
+and nothing else draws them. The program reads base colour, metallic-roughness, normal, occlusion and emissive maps,
 including each map's UV set, transform, sampler and colour space, according to the
 [Khronos glTF 2.0 material specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#materials).
 Direct light adds Lambert diffuse to a Cook-Torrance GGX distribution, correlated Smith visibility
 and Schlick Fresnel, the published model described in Brian Karis's
 [Real Shading course notes](https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
 This is not glTF Appendix B's Fresnel mixture: its diffuse term does not multiply by `(1 - F)`.
-The host then returns the context to the temporary scene adapter for non-cluster objects and composition.
-`autonomousClusterDrawsTotal` is the session counter that proves these draws came from the owned
-program. It is cumulative and therefore is not a per-frame draw-call measurement.
+The host then returns the context to the temporary scene adapter for the remaining blended
+non-cluster copies and composition. `autonomousClusterDrawsTotal` is the session counter that
+proves the cluster draws came from the owned program. It is cumulative and therefore is not a
+per-frame draw-call measurement.
 
-This stage deliberately retains the complete scene-renderer path when a scene uses clustered blend,
-material arrays, transmission, physical extensions, environment/light/bump/displacement/alpha maps,
-flat shading, custom shader hooks, non-image textures, unsupported UV channels or lights, or later
-mutates a material into one of those states. The `cluster-webgl-fallback` diagnostic names the reason
-before activation. A runtime mutation raises a named backend error; an ordinary beauty frame then
-switches to the complete baseline, while measured and diagnostic frames fail explicitly.
-Clustered blend and diagnostics are tracked by #119, transmission composition by #120. No
+A transmissive source mesh (`KHR_materials_transmission`, with `KHR_materials_ior` and
+`KHR_materials_volume` factors) is not paged: the engine keeps it as a scene copy of its own and
+composes it after the clusters, through the same program. What the glass lets through is the
+engine's own image: the frame is first drawn into a frozen backdrop — linear half-float colour and
+depth, cleared to the scene background colour, black for a background that is not a colour — then
+drawn to the display target, and the copy reads the backdrop at the refracted, thickness-advanced
+position, falls back to the unbent sample when the copied depth would put an object in front of
+the glass, and attenuates by the volume colour. The composition is the glTF one and the engine's
+WebGPU one (`webgpuTransmissionWgsl.ts`): the transmitted share replaces alpha blending,
+`a = alpha + t (1 - alpha)`, the specular of the declared lights stays on a null albedo, no light
+of the pass's own. A two-sided transparent copy draws its back faces then its front faces, as
+the batches do. The copy shares the frame's depth buffer, target encoding and tone mapping, and
+reaches captures, comparison targets and held frames through the same owner;
+`autonomousCopyDraws` counts the copies' submissions per frame and `transmissionBackdropBytes`
+publishes the two copies' cost, kept until a resize, zero before the first transmissive copy in
+view. The second cluster pass is the cost of the backdrop, paid only by a frame with a transmissive
+copy in view — copies are frustum-tested like the host renderer tests them — and counted in
+`drawCalls` and `submittedTriangles`, not in the session counter `autonomousClusterDrawsTotal`,
+as the reference renderer pays its transmission target. A material that declares an IOR without
+transmission is refused by name: the cluster BRDF keeps its dielectric F0.
+A copy a diagnostic mode paints, or whose material stops transmitting, draws as a whole mesh
+through the same program. The copies draw in source order after the clusters and before the
+host's own blended copies: no back-to-front sort. The backdrop is a plain copy: roughness does
+not blur what comes through, and one transmissive surface does not see through another.
+
+There is no other renderer for paged clusters. A scene whose material, light or texture the
+program cannot preserve — material arrays, blend states other than normal alpha, physical
+extensions beyond the transmission volume, environment/light/bump/displacement/alpha maps, flat
+shading, custom shader hooks, non-image textures, unsupported UV channels or lights, a context
+without a half-float backdrop — fails its preparation with `EngineError`
+`CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the input; a later mutation into one of
+those states raises the same named error before any draw, never a partial image. No
 bit-identical Cook-Torrance result is claimed: the owned implementation follows the published
 Lambert and GGX/Smith/Schlick model rather than another renderer's shader. Image comparisons publish
 the resulting delta. Geometric roughness filtering uses the less-conservative variance from equation
@@ -471,15 +630,15 @@ it is reported separately and never added to the frame interval. Every repeat ke
 had zero A/A pixels. This establishes better whole-frame cadence for this path, not a general speed
 claim; GPU timestamps remained unavailable.
 
-**Memory budgets are fixed reservoirs, as in the reference, never read from the machine.** Free memory changes every second — another application, another tab —, so a budget measured at start-up would be wrong five minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both defaulting to 512 MiB like `r.Nanite.Streaming.StreamingPoolSize`: `geometryPoolBytes` (cluster page slots: `floor(bytes / pageBytes)` slots, the root cover always resident) and `texturePoolBytes` (virtual-texture tiles, split between the colour and data atlases in 63.5 MiB layers, every texture's tail always resident). What a view asks beyond a pool is shown coarser — the cut raises its screen error until the cover fits (`coverageBudgetLimited`), a tile shows its coarser level — and nothing is refused, nothing stops. A value that cannot be held as given is brought to what can be and the reason is published: `geometryPoolClamp` / `texturePoolClamp` read `root-cover` (raised to the root cover), `scene` (the scene is smaller), `page-cap` (`maxResidentPages`, the page-count cap tests and benches use), `minimum` (one layer per atlas), `device-limit`, `ceiling`, or `null`. `geometryPoolSaturated` counts the pages the image holds — root cover, cut and drawn ancestors — beyond the pool's slots; zero is normal, a lasting count says the pool is too small for that view, and the cut coarsens until it fits. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the device cannot hold even the root cover.
+**Memory budgets are fixed reservoirs, as in the reference, never read from the machine.** Free memory changes every second — another application, another tab —, so a budget measured at start-up would be wrong five minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both defaulting to 512 MiB like `r.Nanite.Streaming.StreamingPoolSize`: `geometryPoolBytes` (cluster page slots: `floor(bytes / pageBytes)` slots, the root cover always resident) and `texturePoolBytes` (virtual-texture tiles, split between the colour and data atlases in 63.5 MiB layers, every texture's tail always resident). What a view asks beyond a pool is shown coarser — the cut raises its screen error until the cover fits (`coverageBudgetLimited`), a tile shows its coarser level — and nothing is refused, nothing stops. The cut's screen error climbs a ladder that doubles what the image was drawn at (1 px at least on a first overflow, up to 4096) and comes back down rung by rung to 0.125 px once the requested cut fits under 70 % of the slots; `budgetPixelError` publishes the rung the image is drawn at, `0` when the requested detail fits. The ladder moves only on a cut sampled at the rung currently in force — the GPU cut's readback lags the frame by a few images, and an adaptive host threshold is not what it is matched on — and a rung whose requested cut overflowed for the current view and pool is not asked again until the view or the pool changes: a still camera settles in a few samples and holds its frame instead of alternating between two cuts. A value that cannot be held as given is brought to what can be and the reason is published: `geometryPoolClamp` / `texturePoolClamp` read `root-cover` (raised to the root cover), `scene` (the scene is smaller), `page-cap` (`maxResidentPages`, the page-count cap tests and benches use), `minimum` (one layer per atlas), `device-limit`, `ceiling`, or `null`. `geometryPoolSaturated` counts the pages the image holds — root cover, cut and drawn ancestors — beyond the pool's slots; zero is normal, a lasting count says the pool is too small for that view, and the cut coarsens until it fits. The only true refusal is `GEOMETRY_POOL_DEVICE_LIMIT`: the device cannot hold even the root cover.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the temporal history and a surface capture follow the resolution, as the reference's do, and `gpuFrameTargetBytes` says what they cost. Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`). The previous 288 MiB frame cap refused 4K on machines that held it; it is gone.
 
-**Budgets change during the session** — the call an application's memory slider makes — through `explorer.setMemoryBudgets({ geometryPoolBytes?, texturePoolBytes? })`, which resolves to what the engine holds afterwards (`geometryPool`, `texturePool` with their `clamp`, `evictedPages`, `evictedTiles`, `durationMs`). Unlike the reference, which flushes its pools when their size changes, the engine keeps what fits: surviving pages and tiles are copied on the GPU into the new pool, only what no longer fits is evicted, and the image stays complete throughout. The geometry pool can grow up to `geometryPoolCeilingBytes` (the slider's maximum; the initial budget when absent), because the per-drawable-row tables are sized once, at that ceiling; a request above it is clamped `ceiling`. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+**Budgets change during the session** — the call an application's memory slider makes — through `explorer.setMemoryBudgets({ geometryPoolBytes?, texturePoolBytes? })`, which resolves to what the engine holds afterwards (`geometryPool`, `texturePool` with their `clamp`, `evictedPages`, `evictedTiles`, `durationMs`). Unlike the reference, which flushes its pools when their size changes, the engine keeps what fits: pages and tiles are copied on the GPU into the new pool, the root cover keeping its place before any other page, then the pinned pages, then the most recent; only what no longer fits is evicted, and the image stays complete throughout. Every bind group that named the old pool is rebuilt on the next image from the identity of what it names, in every pass. The geometry pool can grow up to `geometryPoolCeilingBytes` (the slider's maximum; the initial budget when absent), because the per-drawable-row tables are sized once, at that ceiling; a request above it is clamped `ceiling`. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 WebGPU pins the root cover for the lifetime of the backend, including its CPU index bytes. A region keeps a complete resident representation until all replacement pages have been uploaded; queue writes precede subsequent draws on the same GPU queue. If old and new detail cannot coexist, the renderer returns to the root cover before reclaiming old slots. Shared URLs occupy one slot across instances. The pool always holds the pinned cover: a budget under it is raised to it (`geometryPoolClamp: 'root-cover'`), never refused. If requested detail plus the cover cannot fit, rendering retains a complete available cut and reports `coverageBudgetLimited: true`; it may therefore be coarser than the requested pixel error. This does not bound total scene memory or certify the compiler's simplification quality. Standalone backends must supply validated `readPage(url)` or preload the root bytes; otherwise they submit no image until the complete initial cover is available.
 
-`FrameMetrics.coverageReady` reports initial GPU coverage, `coverageBudgetLimited` reports blocked detail admission, and `streamingError` preserves the latest page-loading failure (`null` when absent). Other backends report coverage as `null`.
+`FrameMetrics.coverageReady` reports initial GPU coverage, `coverageBudgetLimited` reports blocked detail admission, `budgetPixelError` the coarser threshold the page budget imposes (`0` when none), and `streamingError` preserves the latest page-loading failure (`null` when absent). Other backends report coverage as `null`.
 
 Two counters say different things about pages, and a host that confuses them reads thrashing where there is none:
 
@@ -516,20 +675,21 @@ WebGPU filters transparent meshes against the current camera frustum before uplo
 
 For image checks, call `setPose()`, `awaitPages()`, `render()`, then `await flush()` and `capture()`. The WebGPU `flush()` performs an explicit asynchronous image readback outside the beauty loop; `capture()` returns bottom-left RGBA bytes for that submitted frame. If a browser host renders again and immediately calls the existing synchronous `capture()` API, an isolated WebGL2 canvas copies the current GPU canvas with the same engine-owned program and reads its pixels on demand; `capture-synchronous` identifies this expensive compatibility path. It is never used by normal `render()`. A texture-only backend rejects unavailable/stale captures. Serialize `flush()` with explicit host rendering; a frame changed by a host render during readback is rejected rather than returned as current. Streaming completion during readback retains the accepted page bytes and defers its automatic redraw to the next render, preserving the captured frame. The first such deferral emits `capture-streaming-deferred`. The WebGL backends continue reading their rendered default framebuffer so pinned Three r174 tone mapping matches the displayed image.
 
-`pnpm run test:gpu` runs every hardware proof (`test/justesse/`, `test/browser/`) with the repository's own Playwright and esbuild, the machine's Chrome and its actual WebGPU device, and the assets under `.mesure/assets/` (see `scripts/mesure/README.md` § Assets). Nothing outside this repository is read. The Emerald visual proof runs standalone on the test harness server:
+`pnpm run test:gpu` runs every hardware proof (`test/justesse/`, `test/browser/`) with the repository's own Playwright and esbuild, the machine's Chrome and its actual WebGPU device, and the assets under `.mesure/assets/` (see `scripts/mesure/README.md` § Assets). Nothing outside this repository is read. The material and Emerald visual proofs run standalone on the test harness server:
 
 ```sh
+node test/browser/materiaux-temoin.browser.mjs
 node test/browser/emeraude-webgpu.browser.mjs
 ```
 
-The Emerald check replays ten bench poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. The runner measures no performance and proves no memory stability.
+The material check renders twelve fixtures (`test/appui/materialFixtures.mjs`) with `three-webgl-reference` and `webgpu-page-raster`, both from `dist/`, and compares four or five pixels of each — base colour and its map, alpha MASK at the two 8-bit alphas around its cutoff, BLEND over the background and over an opaque surface, single- and double-sided back faces, rough dielectric, polished metal, emissive and normal map under one declared sun — within one level per channel, except the blend over an opaque surface, where the engine blends in linear radiance and the witness in display space: the fixture declares the 45-level gap of that pair, one level either side, and the proof holds the engine inside it. It fails on a gap outside a fixture's window, on a missing render diagnostic, on a GPU failure and on an engine image that never holds — the blend over the background excepted, since a view with no opaque cluster publishes no held frame (#198) — and writes both images and the readings under `benchmark-runs/material-pixels/`. The Emerald check replays ten bench poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/emeraldProvenance.mjs` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. The runner measures no performance and proves no memory stability.
 
-The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps, shadows and the full material contract. Padded texture-array boundaries, transparent compositing and full-scene pixel differences still need dedicated parity checks. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
+The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps, shadows and the full material contract. Padded texture-array boundaries and full-scene pixel differences still need dedicated parity checks; transparent compositing has its material fixtures. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
 
-The separated pipeline has completed real render paths and A/A checks; full material parity and a controlled performance verdict remain unvalidated. Start with material fixtures, then Emerald with fixed camera, resolution, lights, pixel error and warmup. Verify actual direct-presentation logs, independent A/A captures, foreground coverage, transparent compositing and second-view restoration before timing. Preserve raw source hashes and results; old reports do not validate this code. Node tests validate orchestration/CPU contracts with GPU doubles and do not execute WGSL.
+The separated pipeline has completed real render paths, A/A checks and the material fixtures above; full-scene parity and a controlled performance verdict remain unvalidated. Next is Emerald with fixed camera, resolution, lights, pixel error and warmup. Verify actual direct-presentation logs, independent A/A captures, foreground coverage, transparent compositing and second-view restoration before timing. Preserve raw source hashes and results; old reports do not validate this code. Node tests validate orchestration/CPU contracts with GPU doubles and do not execute WGSL.
 
 For prepared WebGPU scenes, material textures are virtual: every texture is cut into 128×128 tiles (plus a 4-texel border) that live in two fixed-size physical pools (sRGB colour, linear data), one page table per texture says which pool tile serves each tile of each mip level, and only the tiles the image reads are resident. `texturePoolBytes` (512 MiB by default, split evenly between the two pools, in 63.5 MiB layers of 30×30 tiles) is the texture memory of the session whatever the scene; a budget under one layer per pool is raised to one layer, named `texturePoolClamp: 'minimum'`, never refused. Residency is driven by the rendered image itself: the material resolution counts, for one pixel in sixteen (a rotating phase, every pixel during `flush()`), the tile each map needs at the mip level the pixel's derivatives select; transparents write their request into their own `r32uint` target, reduced to the same counters by a compute pass, so the blend fragment stage writes no memory and keeps early depth rejection. The counters come back one frame late through `mapAsync`. `maxTextureTransferBytesPerFrame` (16 MiB by default) bounds the tile bytes copied per frame, most-requested tiles first; when a pool is full, the least recently read tile gives its place, and a tile nothing can accommodate is counted in `textureTilesRefused`, never silently dropped. A tile that is not yet resident is served by its finest resident ancestor, down to the texture's tail (every level of 64 texels or less, pinned from the sidecar at `prepare()`): a missing tile shows a coarser level, never a fill texel. `flush()` renders the pose until nothing it reads is missing, redraws the pending shadow pages, and alternates the two until a drain redraws nothing, replaying the temporal accumulation identically; nothing is released there — a tile stays until a full pool evicts the least recently read one, as in the reference — so a flushed pose is deterministic and the held image returns once the pose is quiet (`pose-settle` diagnostic: rounds, tiles served, shadow frames, what still moves). Frame metrics expose the sixteen `texture*` counters of `TextureFrameMetrics` (pool bytes and layers, resident tiles and bytes, tiles requested / served at level / missing levels / pending, served / evicted / refused, level reads and decodes, host level cache bytes, scratch builds).
 
 `textureSource` (`'host'` by default, `'cache'` to opt in) says where material texels come from. With `'host'` the glTF loader fetches and decodes every source image, as it always did — what a backend that draws the host scene (the Three witness) requires — and the WebGPU backend builds, for a texture without a whole baked chain, a scratch texture with its mip chain (mean colour, median alpha) each time one of its tiles is requested, copying the tiles out of it: the resident memory stays that of the pool, the price is paid in transfers and measured. With `'cache'` an image whose mip chain is baked in the compiled cache is neither fetched nor decoded by the loader: the WebGPU backend reads each baked level on demand (decoded by the browser, held in a 192 MiB host cache to cut further tiles from it) and cuts the requested tiles from it. Ask for `'cache'` only when every backend of the session reads the pools, not the host scene.
 
-When colour tiles arrive or leave, every shadow page is invalidated: a shadow map drawn with the previous alpha would describe foliage the image no longer shows. Pages are redrawn under the ordinary shadow budget, and `flush()` drains the pending ones — up to sixty-four frames per round, replaying the temporal accumulation so the number of frames does not change the image — so a flushed pose is settled, shadows included; what remains pending is published by the `pose-settle` diagnostic and `shadowPagesPending`, never assumed zero. A masked material's cut-out is read at the mip level the reading texel's footprint selects — the camera's derivatives in the visibility raster, the shadow texel's in the shadow depth pass — exactly as the material resolution reads its colour, and the material resolution requests, for every masked pixel of its phase, the tiles each sun cascade that draws that point will read, projected into the cascade with the same affine derivative the shadow pass computes. Known limit: a caster the camera never sees has no one to request its tiles; the shadow pass then reads the finest tile resident under that texel, which is whatever the trajectory left in the pool.
+When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are invalidated — a shadow map drawn with the previous alpha would describe foliage the image no longer shows —, and those alone: a tile of a texture no cut-out reads, or a colour change on an opaque material, leaves the depth maps as they are. A pool resize or an eviction, which names no texture, invalidates every page. Pages are redrawn under the ordinary shadow budget, and `flush()` drains the pending ones — up to sixty-four frames per round, replaying the temporal accumulation so the number of frames does not change the image — so a flushed pose is settled, shadows included; what remains pending is published by the `pose-settle` diagnostic and `shadowPagesPending`, never assumed zero. A masked material's cut-out is read at the mip level the reading texel's footprint selects — the camera's derivatives in the visibility raster, the shadow texel's in the shadow depth pass — exactly as the material resolution reads its colour, and the material resolution requests, for every masked pixel of its phase, the tiles each sun cascade that draws that point will read, projected into the cascade with the same affine derivative the shadow pass computes. Known limit: a caster the camera never sees has no one to request its tiles; the shadow pass then reads the finest tile resident under that texel, which is whatever the trajectory left in the pool.

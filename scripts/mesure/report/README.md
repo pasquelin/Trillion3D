@@ -12,7 +12,7 @@ separate operations; rebuilding the interface never launches Chrome or benchmark
 3. Stage with `node scripts/mesure/publierRapport.mjs --dossier .mesure/out/<campaign>-report`.
    Campaign IDs are immutable. The script writes `docs/reports/<id>/`, updates the catalogue,
    and keeps `report.html` as an entry to the portal. It does not deploy or push anything.
-4. Run `pnpm build:docs`, validate, and preview with `pnpm docs:serve`.
+4. Validate, then preview with `pnpm docs:serve` (it builds the bundles first).
    Publishing follows the normal issue/PR and maintainer release workflow.
 
 `formatVersion: 1` contains runs and individual readings, original PNG evidence, and public
