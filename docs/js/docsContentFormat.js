@@ -15,6 +15,7 @@ export const FORMAT_GUIDES = [
 <li><strong>Texture coordinates.</strong> A fixed grid of <code>2^-14</code>: a quarter of a texel on a 4096-wide map.</li>
 <li><strong>Normals.</strong> Two octahedral bytes, within 1° of the source. <strong>Colours.</strong> A grid of <code>2^-8</code> per channel, with per-page minima: a constant channel — alpha, most often — costs no bits.</li>
 <li><strong>Shared vertices.</strong> Two source vertices that land on the same cells are kept once: a source that repeats a vertex per corner comes down to its distinct vertices without changing a triangle.</li>
+<li><strong>What is not written.</strong> Tangents, rebuilt by the shader from the triangle; and a texture coordinate set that no texture of the material names in <code>texCoord</code>.</li>
 </ul>
 <p>The cost is declared, never hidden. Each page carries its worst position displacement in its header; each primitive publishes <code>quantization</code> — <code>positionExponent</code>, <code>positionStep</code>, <code>uvExponent</code>, <code>maxPositionError</code> — in the manifest, and each page descriptor names its resident bytes (<code>geometry.bytes</code>) beside what its float decode occupies (<code>geometry.uncompressedBytes</code>). The cut does not yet add the quantization error to a cluster's error band; the specification's C4 keeps that open.</p>
 <h3 class="text-lg font-bold mt-4">How to observe it</h3>

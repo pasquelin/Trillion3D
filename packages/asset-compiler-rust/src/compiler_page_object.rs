@@ -14,7 +14,7 @@ pub(super) fn store_page(
     o: &Options,
     slice: &[u32],
     pos: &[f32],
-    page_attributes: &[geometry_page::Attribute],
+    page_attributes: &[&geometry_page::Attribute],
     position_exponent: i32,
 ) -> Result<(Value, bool)> {
     let page = geometry_page::encode(slice, pos, page_attributes, position_exponent)?;

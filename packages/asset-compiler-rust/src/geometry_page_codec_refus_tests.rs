@@ -50,12 +50,12 @@ fn the_encoder_refuses_nonfinite_and_ill_shaped_attributes() {
     };
     let nan = normal(vec![0.0, 0.0, f32::NAN, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]);
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[nan], -8).unwrap_err().code,
+        encode(&[0, 1, 2], &TRIANGLE, &[&nan], -8).unwrap_err().code,
         "INVALID_PAGE_ATTRIBUTE"
     );
     let short = normal(vec![0.0; 6]);
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[short], -8)
+        encode(&[0, 1, 2], &TRIANGLE, &[&short], -8)
             .unwrap_err()
             .code,
         "INVALID_PAGE_ATTRIBUTE"
@@ -66,7 +66,9 @@ fn the_encoder_refuses_nonfinite_and_ill_shaped_attributes() {
         values: vec![0.0; 9],
     };
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[wide], -8).unwrap_err().code,
+        encode(&[0, 1, 2], &TRIANGLE, &[&wide], -8)
+            .unwrap_err()
+            .code,
         "INVALID_PAGE_ATTRIBUTE"
     );
     assert_eq!(

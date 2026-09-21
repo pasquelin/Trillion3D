@@ -12,6 +12,43 @@ pub(super) fn unsplit_material(material: Option<&Value>) -> bool {
         .map(|v| v > 0.0)
         .unwrap_or(false)
 }
+/// Whether a material reads texture coordinate set `set`: every `textureInfo` it holds — base
+/// colour, metal-roughness, normal, occlusion, emissive, or one an extension adds — names its set
+/// in `texCoord`, 0 when absent. A page carries only the sets a material reads, as residency is
+/// driven by what the frame reads; a material without a texture reads none.
+pub(super) fn material_reads_texcoord(material: Option<&Value>, set: u64) -> bool {
+    fn scan(value: &Value, set: u64) -> bool {
+        match value {
+            Value::Object(map) => {
+                let texture = map.get("index").is_some_and(Value::is_number)
+                    && map.get("texCoord").map_or(0, |t| t.as_u64().unwrap_or(0)) == set;
+                texture || map.values().any(|v| scan(v, set))
+            }
+            Value::Array(items) => items.iter().any(|v| scan(v, set)),
+            _ => false,
+        }
+    }
+    material.is_some_and(|m| scan(m, set))
+}
+
+/// The attributes a page carries. Tangents are never read: a page carries none, the shader
+/// rebuilds them. A texture coordinate set no texture of the material reads stays out of the
+/// pages too, while the DAG still welds along it, so clusters do not depend on what a
+/// material samples.
+pub(super) fn carried_attributes<'a>(
+    attributes: &'a [geometry_page::Attribute],
+    material: Option<&Value>,
+) -> Vec<&'a geometry_page::Attribute> {
+    attributes
+        .iter()
+        .filter(|a| match a.flag {
+            geometry_page::FLAG_UV => material_reads_texcoord(material, 0),
+            geometry_page::FLAG_UV1 => material_reads_texcoord(material, 1),
+            _ => true,
+        })
+        .collect()
+}
+
 pub(super) fn relative_image_uri(uri: &str) -> bool {
     !uri.is_empty() && !uri.starts_with("data:") && !uri.starts_with('/') && !uri.contains("://")
 }
@@ -84,4 +121,24 @@ pub(super) fn verify_sidecar(declared: Option<&Value>, uri: &str, actual: &str) 
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod texcoord_tests {
+    use super::material_reads_texcoord;
+    use serde_json::json;
+
+    #[test]
+    fn a_material_reads_the_sets_its_textures_name_and_none_without_a_texture() {
+        let lit = json!({"pbrMetallicRoughness":{"baseColorTexture":{"index":0}},
+            "occlusionTexture":{"index":1,"texCoord":1}});
+        assert!(material_reads_texcoord(Some(&lit), 0));
+        assert!(material_reads_texcoord(Some(&lit), 1));
+        assert!(!material_reads_texcoord(Some(&lit), 2));
+        let bare = json!({"pbrMetallicRoughness":{"baseColorFactor":[1.0,0.0,0.0,1.0]}});
+        assert!(!material_reads_texcoord(Some(&bare), 0));
+        assert!(!material_reads_texcoord(None, 0));
+        let extended = json!({"extensions":{"KHR_materials_clearcoat":{"clearcoatTexture":{"index":2,"texCoord":1}}}});
+        assert!(material_reads_texcoord(Some(&extended), 1));
+    }
 }

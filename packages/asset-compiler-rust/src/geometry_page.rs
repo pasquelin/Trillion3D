@@ -82,7 +82,7 @@ mod tests_grid;
 pub fn encode(
     indices: &[u32],
     positions: &[f32],
-    attributes: &[Attribute],
+    attributes: &[&Attribute],
     position_exponent: i32,
 ) -> Result<Encoded> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
