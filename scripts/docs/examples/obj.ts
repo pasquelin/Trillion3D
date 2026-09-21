@@ -1,8 +1,17 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 
+type Triple = readonly [number, number, number];
+
+/** One axis-aligned box, `[center, size, material]`. */
+export type BoxRow = readonly [center: Triple, size: Triple, material: string];
+
 /** Copies an OBJ with its vertices scaled then moved: `v` lines change, nothing else does. */
-export async function placeObj(input, output, { scale = 1, offset = [0, 0, 0] } = {}) {
+export async function placeObj(
+  input: string,
+  output: string,
+  { scale = 1, offset = [0, 0, 0] }: { scale?: number; offset?: Triple } = {},
+) {
   const text = await readFile(input, 'utf8');
   const placed = text.replaceAll(/^v (\S+) (\S+) (\S+)/gm, (_, x, y, z) =>
     ['v', ...[x, y, z].map((value, axis) => Number(value) * scale + offset[axis])].join(' '),
@@ -12,7 +21,11 @@ export async function placeObj(input, output, { scale = 1, offset = [0, 0, 0] } 
 
 /** Writes axis-aligned boxes, `[center, size, material]` each, as one OBJ with its material
  * library beside it: `materials` maps a name to `[r, g, b]`. */
-export async function writeBoxesObj(file, boxes, materials) {
+export async function writeBoxesObj(
+  file: string,
+  boxes: readonly BoxRow[],
+  materials: Readonly<Record<string, Triple>>,
+) {
   const lines = [`mtllib ${basename(file, '.obj')}.mtl`],
     normals = [
       [1, 0, 0],

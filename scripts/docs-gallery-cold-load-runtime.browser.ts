@@ -97,7 +97,9 @@ test('disposing rejects overlapping public updates by name', async () => {
         const first = runtime.update({ ...state, pixelError: 0 }),
           second = runtime.update({ ...state, pixelError: 2 });
         runtime.dispose();
-        return (await Promise.allSettled([first, second])).map((result) => result.reason?.name);
+        return (await Promise.allSettled([first, second])).map((result) =>
+          result.status === 'rejected' ? result.reason?.name : undefined,
+        );
       },
       {
         runtimeUrl: `http://127.0.0.1:${port}/js/gallery/rendererLessonRuntime.js`,
@@ -135,10 +137,12 @@ test('a never-ending binary response exhausts one global startup deadline', asyn
           nativeCancelFrame(id);
         };
         globalThis.fetch = (input, init) => {
-          const url = typeof input === 'string' ? input : input.url;
+          const url =
+            typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
           if (!new URL(url, location.href).pathname.endsWith('.bin'))
             return nativeFetch(input, init);
-          const signal = init?.signal ?? input.signal;
+          const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+          if (!signal) throw new Error('Expected an abort signal on the .bin fetch');
           pendingBinaries++;
           return new Promise((_, reject) => {
             const cancel = () => {
@@ -157,11 +161,11 @@ test('a never-ending binary response exhausts one global startup deadline', asyn
           started = performance.now();
         canvas.style.cssText = 'width:800px;height:450px;display:block';
         document.body.replaceChildren(canvas);
-        let name;
+        let name: string | undefined;
         try {
           await createRendererLessonRuntime({ canvas, lesson, state, report() {} });
         } catch (error) {
-          name = error.name;
+          name = error instanceof Error ? error.name : undefined;
         }
         await new Promise((resolve) => setTimeout(resolve));
         return { name, elapsed: performance.now() - started, pendingBinaries, frames: frames.size };

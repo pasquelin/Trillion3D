@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createExplorerRender } from './explorerRender.ts';
+import { createDiagnosticChannel } from './diagnosticChannel.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { FrameMetrics } from '../sdk-core/index.ts';
 
@@ -14,8 +15,8 @@ function harness(options: { directGpu: boolean; counted?: number | null }) {
   const active = { id: 'test-backend' } as unknown as RenderBackend;
   const metricsScratch = { drawCalls: 0, totalSubmittedTriangles: null } as unknown as FrameMetrics;
   const session = {
-    scope: 'default' as never,
-    diagnosticChannel: { enabled: false } as never,
+    scope: 'full' as const,
+    diagnosticChannel: createDiagnosticChannel(undefined, { enabled: false }),
     emit: () => {},
     diagnose: () => {},
   };

@@ -28,6 +28,8 @@ test('every example file renders an image on its own, and the portal page frames
     const frame = page.locator('iframe.example-frame');
     assert.equal(await frame.getAttribute('src'), entry.file);
     const [code, view] = await Promise.all([source.boundingBox(), frame.boundingBox()]);
+    assert.ok(code);
+    assert.ok(view);
     assert.ok(code.x + code.width <= view.x, 'source left, render right');
     await page.getByRole('button', { name: 'Copy code' }).click();
     await page.getByRole('status').getByText('Copied').waitFor();

@@ -79,18 +79,14 @@ export function curvedComparison(size = 64, offset = 0, details = false) {
   rawRenderer.draw(
     [
       {
-        geometry: input.geometry,
+        geometry: { index: input.geometry.index, attributes: input.geometry.attributes },
         material: input.material as THREE.Material | THREE.Material[],
         renderOrder: 0,
+        polygonOffsetUnits: undefined,
         matrix,
         _multiDrawCounts: new Int32Array([count]),
         _multiDrawStarts: new Int32Array([0]),
         _multiDrawCount: 1,
-        _sideSplitMaterials: undefined,
-        _sideSplitBack: undefined,
-        _sideSplitFront: undefined,
-        _sideSplitSource: undefined,
-        _sideSplitPolygonMaterials: undefined,
       },
     ],
     input.scene,

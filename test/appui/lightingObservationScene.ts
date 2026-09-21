@@ -44,11 +44,15 @@ export function experimentScene() {
       rows: 1,
     },
   ]);
-  return { ...scene, sphere: { center: [0.8, 0.4, -3], radius: 0.5, roughness: 0.3 } };
+  return {
+    ...scene,
+    sphere: { center: [0.8, 0.4, -3] as [number, number, number], radius: 0.5, roughness: 0.3 },
+  };
 }
+export type ExperimentScene = ReturnType<typeof experimentScene>;
 
 /** The host source graph: one quad per rectangle, named after it, and the sphere. */
-export function hostSource(scene) {
+export function hostSource(scene: ExperimentScene) {
   const source = new THREE.Group();
   for (const surface of scene.surfaces) {
     const [ox, oy, oz] = surface.origin,
@@ -89,7 +93,7 @@ export function hostSource(scene) {
   return source;
 }
 
-export function renderState(scene) {
+export function renderState(scene: ExperimentScene) {
   const patches = scene.patches.length,
     indirectIrradiance = new Float64Array(patches * 3),
     radiance = new Float64Array(patches * 3);

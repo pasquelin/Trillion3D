@@ -19,7 +19,7 @@ export async function execute() {
     scene = new THREE.Scene(),
     camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
     drawCamera = host.readHostDrawCamera(host.createHostDrawCamera(), camera),
-    { mesh, material: basic } = triangle();
+    { mesh, material: basic, geometry: triangleGeometry } = triangle();
   gl.viewport(0, 0, 32, 32);
   gl.clearColor(0, 0, 1, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -135,7 +135,7 @@ export async function execute() {
     decayRejected = true;
   }
   renderer.dispose();
-  mesh.geometry.dispose();
+  triangleGeometry.dispose();
   standard.dispose();
   const curvedMotion = [-0.02, -0.01, 0, 0.01, 0.02].map((offset) => curvedComparison(128, offset));
   return {

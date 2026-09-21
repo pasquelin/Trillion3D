@@ -16,9 +16,12 @@ interface CasCouleur {
   eclairee: boolean;
   complete: number[][];
   tenues: number[][][];
+  dessins: number;
+  dessinsTenus: number;
 }
 
 interface Resultat extends ResultatPagePreuve {
+  alpha?: boolean;
   cas?: CasCouleur[];
 }
 
