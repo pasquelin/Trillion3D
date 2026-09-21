@@ -17,6 +17,7 @@ type Inputs = {
   camera: THREE.PerspectiveCamera;
   canvas: HTMLCanvasElement;
   renderer: THREE.WebGLRenderer;
+  /** The engine's surface, which owns the drawing buffer; absent on the direct WebGPU path only. */
   webglSurface?: WebglSurface;
   viewport: [number, number];
   directGpu: boolean;
@@ -71,14 +72,8 @@ export function createExplorerViewportApi(inputs: Inputs) {
       if (directGpu) {
         canvas.width = devicePixels(width, options.pixelRatio);
         canvas.height = devicePixels(height, options.pixelRatio);
-      } else {
-        if (webglSurface)
-          resizeExplorerWebglHost(webglSurface, renderer, width, height, options.pixelRatio ?? 1);
-        else {
-          renderer.setPixelRatio(options.pixelRatio ?? 1);
-          renderer.setSize(width, height, false);
-        }
-      }
+      } else
+        resizeExplorerWebglHost(webglSurface!, renderer, width, height, options.pixelRatio ?? 1);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       viewport[0] = canvas.width;

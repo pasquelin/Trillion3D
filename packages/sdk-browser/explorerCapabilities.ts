@@ -17,7 +17,7 @@ import {
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 import type { WebglSurface } from './webglSurface.ts';
-import { prepareExplorerWebglSurface, resizeExplorerWebglHost } from './explorerWebglHost.ts';
+import { prepareExplorerWebglSurface } from './explorerWebglHost.ts';
 type Inputs = {
   autonomous: boolean;
   manifestUrl: string;
@@ -27,18 +27,21 @@ type Inputs = {
   source: THREE.Object3D;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
   resources: {
-    renderer?: THREE.WebGLRenderer;
     webglSurface?: WebglSurface;
     gpuDevice?: GPUDevice;
   };
 };
+/** The anisotropy the context allows, read where the reference renderer reads it. */
+function maxAnisotropy(gl: WebGL2RenderingContext) {
+  const extension = gl.getExtension('EXT_texture_filter_anisotropic');
+  return extension ? (gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT) as number) : 0;
+}
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, scope, metadata, diagnosticChannel, emit, diagnose } = session;
   const { autonomous, manifestUrl, metadataUrl, sceneFile, base, source, pageSources, resources } =
     inputs;
   const { pages, geometryPages, cacheCap } = pageSources;
   let gpuDevice: GPUDevice | undefined;
-  let renderer: THREE.WebGLRenderer | undefined;
   const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
   const capabilities = await detectCapabilities('webgl', canvas);
   if (!capabilities.renderer) {
@@ -124,6 +127,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   }
   const directGpu = directWebgpu(options, gpuDevice);
   if (!directGpu) {
+    // The engine's surface is the session's WebGL2 resource: the composition host mounts its
+    // draw adapter on it later, and nothing here knows of one.
     const surface = prepareExplorerWebglSurface({
       canvas,
       onLifecycle: (state) =>
@@ -133,24 +138,11 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
         }),
     });
     resources.webglSurface = surface;
-    try {
-      renderer = new THREE.WebGLRenderer({ canvas, context: surface.context });
-      resizeExplorerWebglHost(
-        surface,
-        renderer,
-        options.width ?? DEFAULT_WIDTH,
-        options.height ?? DEFAULT_HEIGHT,
-        options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
-      );
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1;
-      resources.renderer = renderer;
-    } catch (error) {
-      renderer?.dispose();
-      surface.dispose();
-      throw error;
-    }
+    surface.resize(
+      options.width ?? DEFAULT_WIDTH,
+      options.height ?? DEFAULT_HEIGHT,
+      options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
+    );
   } else {
     canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio);
     canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio);
@@ -186,8 +178,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       sourceGltfUrl: new URL(sceneFile, base).href,
     },
   });
-  if (options.detail === 'maximum' && renderer) {
-    const maximum = renderer.capabilities.getMaxAnisotropy();
+  if (options.detail === 'maximum' && resources.webglSurface) {
+    const maximum = maxAnisotropy(resources.webglSurface.context);
     for (const mesh of objects(source))
       for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
         for (const value of Object.values(material))
@@ -196,5 +188,5 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
             value.needsUpdate = true;
           }
   }
-  return { capabilities, gpuDevice, renderer, directGpu };
+  return { capabilities, gpuDevice, directGpu };
 }
