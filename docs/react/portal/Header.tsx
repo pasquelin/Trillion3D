@@ -1,17 +1,15 @@
 import type { JSX } from 'react';
-import { routeHref } from '../../js/portal/routes.js';
+import { AREAS, routeHref } from '../../js/portal/routes.js';
 import { Button } from '../components/UI.tsx';
 import type {
   HeaderProps,
   Locale,
+  PortalRoute,
   PrimaryNavigationProps,
   RouteArea,
-  RouteTarget,
 } from '../types/portal.ts';
 
-const NAV_ITEMS: RouteArea[] = ['learn', 'examples', 'playground', 'api', 'reports'];
-
-function navRoute(locale: Locale, area: RouteArea): RouteTarget {
+function navRoute(locale: Locale, area: RouteArea): PortalRoute {
   return {
     locale,
     area,
@@ -31,7 +29,7 @@ export function PrimaryNavigation({
       className={mobile ? 'mobile-primary' : 'top-nav'}
       aria-label={locale === 'fr' ? 'Navigation principale' : 'Primary navigation'}
     >
-      {NAV_ITEMS.map((area) => (
+      {AREAS.map((area) => (
         <a
           key={area}
           data-nav={area}

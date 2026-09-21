@@ -1,37 +1,39 @@
 import type { ReactNode } from 'react';
 import type { Locale } from './portal.ts';
+import type { METRICS } from '../../js/reports/metrics.js';
+import type { REPORT_VERSION, RUN_STATUSES } from '../../js/reports/contract.js';
 
-export type RunStatus = 'complete' | 'failed' | 'missing';
+/** The report file is the boundary: `assertReport` checks it, these shapes describe what it holds. */
+export type RunStatus = (typeof RUN_STATUSES)[number];
 
-interface ReportRun {
+export type MetricKey = keyof typeof METRICS;
+
+export interface ReportRun {
   id: string;
   name: string;
-  scene?: string | null;
-  source?: string | null;
+  scene: string | null;
+  source: string | null;
   status: RunStatus;
-  startedAt?: string | null;
-  finishedAt?: string | null;
-  commit?: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  commit: string | null;
 }
 
 interface ReportMachineProvenance {
   id?: string;
   cpu?: string;
-  [key: string]: unknown;
 }
 
 interface ReportProvenance {
   machine?: ReportMachineProvenance;
   browser?: string;
   displayCapHz?: number;
-  [key: string]: unknown;
 }
 
 interface ReportCanvas {
-  width?: number;
-  height?: number;
+  width: number;
+  height: number;
   dpr?: number;
-  [key: string]: unknown;
 }
 
 export interface CutRow {
@@ -47,95 +49,102 @@ export interface CutAnalysis {
 }
 
 export interface TimingStat {
-  p50?: number;
-  p95?: number;
-  [key: string]: unknown;
+  p50: number;
+  p95: number;
+  mean?: number;
+  p99?: number;
+  max?: number;
 }
 
 interface StageTiming {
   stage: string;
-  cpuMs?: TimingStat;
+  label?: string;
+  cpuMs: TimingStat | null;
+  gpuMs: TimingStat | null;
   counts?: Record<string, number>;
-  [key: string]: unknown;
 }
 
 interface GpuPassTiming {
   name: string;
-  gpuMs?: TimingStat;
-  [key: string]: unknown;
+  bloc?: string;
+  gpuMs: TimingStat | null;
 }
 
 interface ReportRecordData {
-  gpuFrameMs?: number | TimingStat;
+  gpuFrameMs?: TimingStat;
   cpuFrameMs?: TimingStat;
   imageTenue?: boolean;
   profilParEtape?: {
     gpuMethod?: string;
     gpuImageMs?: TimingStat;
     stages?: StageTiming[];
-    [key: string]: unknown;
   };
-  passesGpu?: { passes?: GpuPassTiming[]; [key: string]: unknown };
-  cheminCalcul?: { clockCoarse?: boolean; [key: string]: unknown };
+  passesGpu?: { passes?: GpuPassTiming[] };
+  cheminCalcul?: { clockCoarse?: boolean };
   cutAnalysis?: CutAnalysis;
-  [key: string]: unknown;
 }
 
 export interface ReportRecord {
   id: string;
   runId: string;
   scene: string;
-  sceneNote?: string | null;
+  sceneNote: string | null;
   view: string;
   quality: number;
   engine: string;
-  commit?: string | null;
-  pathVersion?: string | number | null;
-  assetKey?: string | null;
-  buildHash?: string | null;
-  variant?: string | Record<string, unknown> | null;
-  provenance?: ReportProvenance | null;
-  pose?: unknown;
-  canvas?: ReportCanvas | null;
-  settings?: Record<string, unknown>;
-  errors?: boolean;
-  gpuMethod?: string | null;
-  witness?: { pixels?: number; total?: number; [key: string]: unknown } | null;
-  difference?: { pixels?: number; [key: string]: unknown } | null;
-  differencePair?: string | null;
-  identicalCut?: unknown;
+  commit: string | null;
+  pathVersion: number | null;
+  assetKey: string | null;
+  buildHash: string | null;
+  variant: string | null;
+  provenance: ReportProvenance | null;
+  pose: unknown;
+  canvas: ReportCanvas | null;
+  settings: Record<string, unknown>;
+  errors: boolean;
+  gpuMethod: string | null;
+  witness: { pixels: number; total: number } | null;
+  difference: { pixels: number; total: number } | null;
+  differencePair: string | null;
+  identicalCut: boolean | null;
   data: ReportRecordData;
-  image?: string | null;
-  [key: string]: unknown;
+  image: string | null;
 }
 
 export interface Report {
-  formatVersion: number;
+  formatVersion: typeof REPORT_VERSION;
   id: string;
   runs: ReportRun[];
   records: ReportRecord[];
-  [key: string]: unknown;
 }
 
 export interface ReportSource {
-  run: Record<string, unknown>;
+  run: ReportRun;
   data: unknown;
 }
 
 export interface CampaignIndexItem {
   id: string;
-  title?: string;
+  records?: number;
   date?: string;
-  [key: string]: unknown;
 }
 
-export interface ReportsState {
-  loading: boolean;
-  error?: boolean;
-  index?: CampaignIndexItem[];
-  report?: Report;
-  sources?: ReportSource[];
-}
+/** Loading, failed or listed without a campaign; a loaded report always carries its sources. */
+export type ReportsState =
+  | {
+      loading: boolean;
+      error?: boolean;
+      index?: CampaignIndexItem[];
+      report?: undefined;
+      sources?: undefined;
+    }
+  | {
+      loading: false;
+      error?: undefined;
+      index: CampaignIndexItem[];
+      report: Report;
+      sources: ReportSource[];
+    };
 
 export interface SourceReadingRecord {
   id: string;

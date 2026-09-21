@@ -138,7 +138,7 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }): JSX
       </div>
     );
   } else {
-    body = <Drawing view={view as DrawingView} locale={locale} />;
+    body = <Drawing view={view} locale={locale} />;
   }
   return (
     <Card className="min-w-0" title={view.title ? text(view.title, locale) : undefined}>

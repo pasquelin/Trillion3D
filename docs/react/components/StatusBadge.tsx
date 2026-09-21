@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { ChartTone } from '../types/components.ts';
 
-const TONES: Record<string, string> = {
+const TONES: Record<ChartTone, string> = {
   primary: 'badge-primary',
   secondary: 'badge-secondary',
   accent: 'badge-accent',
@@ -12,13 +12,11 @@ const TONES: Record<string, string> = {
   neutral: 'badge-neutral',
 };
 
-type StatusBadgeTone = ChartTone;
-
 export interface StatusBadgeProps {
-  tone?: StatusBadgeTone | string;
+  tone?: ChartTone;
   children: ReactNode;
 }
 
 export function StatusBadge({ tone = 'neutral', children }: StatusBadgeProps) {
-  return <span className={`badge badge-sm ${TONES[tone] ?? TONES.neutral}`}>{children}</span>;
+  return <span className={`badge badge-sm ${TONES[tone]}`}>{children}</span>;
 }

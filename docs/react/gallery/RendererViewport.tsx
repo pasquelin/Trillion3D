@@ -148,9 +148,7 @@ export function RendererViewport({
           {metrics.idle ? (french ? 'Pause' : 'Paused') : value(metrics.fps, '')}
         </Stat>
         <Stat title={french ? 'Image CPU' : 'CPU frame'}>{value(metrics.cpu, ' ms', 2)}</Stat>
-        <Stat title={french ? 'Pool alloué' : 'Allocated pool'}>
-          {poolSize(metrics.memory)}
-        </Stat>
+        <Stat title={french ? 'Pool alloué' : 'Allocated pool'}>{poolSize(metrics.memory)}</Stat>
         <Stat title={french ? 'Triangles dessinés' : 'Drawn triangles'}>
           {value(metrics.triangles, '')}
         </Stat>

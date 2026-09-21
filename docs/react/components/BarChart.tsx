@@ -1,8 +1,8 @@
-import type { BarChartProps } from '../types/components.ts';
+import type { BarChartProps, ChartTone } from '../types/components.ts';
 import { Card } from './UI.tsx';
 import { StatusBadge } from './StatusBadge.tsx';
 
-const TONES: Record<string, string> = {
+const TONES: Record<ChartTone, string> = {
   primary: 'progress-primary',
   secondary: 'progress-secondary',
   accent: 'progress-accent',
@@ -30,7 +30,7 @@ export function BarChart({ title, note, rows, format, missingLabel }: BarChartPr
             </div>
             {
               <progress
-                className={`progress h-3 w-full ${row.value === null ? 'progress-neutral bg-base-content/20' : ((row.tone && TONES[row.tone]) ?? TONES.neutral)}`}
+                className={`progress h-3 w-full ${row.value === null ? 'progress-neutral bg-base-content/20' : TONES[row.tone ?? 'neutral']}`}
                 value={row.value ?? 0}
                 aria-disabled={row.value === null || undefined}
                 aria-valuetext={row.value === null ? missingLabel : undefined}

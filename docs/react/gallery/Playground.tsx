@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import type { Locale } from '../types/portal.ts';
-import type { LocalizedString, PlaygroundProps } from '../types/gallery.ts';
+import type { PlaygroundProps } from '../types/gallery.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { CodeEditor } from '../components/CodeEditor.tsx';
 import { formatNumericText } from '../../js/code/formatNumber.js';
@@ -18,12 +17,7 @@ import { controlLabel } from './controlLabels.ts';
 import { usePlaygroundMotion } from './usePlaygroundMotion.ts';
 import { rendererLessonById } from '../../js/gallery/rendererLessons.js';
 import { RendererLesson } from './RendererLesson.tsx';
-
-const local = (value: LocalizedString | string | undefined, locale: Locale): string => {
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  return (locale === 'fr' ? value.fr : value.en) ?? value.en ?? '';
-};
+import { local } from './localized.ts';
 
 export function Playground({ id, locale = 'en', onSelect }: PlaygroundProps): ReactElement {
   const rendererLesson = rendererLessonById(id);
@@ -41,7 +35,7 @@ export function Playground({ id, locale = 'en', onSelect }: PlaygroundProps): Re
 
 function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps): ReactElement {
   const example = byId(id),
-    scenario = (SCENARIOS as Record<string, Parameters<typeof usePlaygroundMotion>[0]>)[example.id],
+    scenario = SCENARIOS[example.id],
     [state, setState] = useState<Record<string, number>>(() => initialState(example.id));
   useEffect(() => setState(initialState(example.id)), [example.id]);
   const result = useMemo(() => evaluate(example.id, state, locale), [example.id, state, locale]),
@@ -74,20 +68,18 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps): React
           </Select>
         </Field>
         <div className="flex flex-wrap gap-4">
-          {(scenario.controls as unknown as [string, number, number, unknown?, number?][]).map(
-            ([name, min, max, , step]) => (
-              <Field key={name} label={controlLabel(name, locale)} className="grow">
-                <Range
-                  aria-label={controlLabel(name, locale)}
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={state[name]}
-                  onChange={(event) => setState({ ...state, [name]: Number(event.target.value) })}
-                />
-              </Field>
-            ),
-          )}
+          {scenario.controls.map(([name, min, max, , step]) => (
+            <Field key={name} label={controlLabel(name, locale)} className="grow">
+              <Range
+                aria-label={controlLabel(name, locale)}
+                min={min}
+                max={max}
+                step={step}
+                value={state[name]}
+                onChange={(event) => setState({ ...state, [name]: Number(event.target.value) })}
+              />
+            </Field>
+          ))}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -102,7 +94,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps): React
           <Button size="sm" onClick={motion.applyPreset}>
             {french ? 'Préréglage' : 'Preset'}
           </Button>
-          {Boolean(scenario.animated) && (
+          {scenario.animated && (
             <Button size="sm" variant="primary" onClick={motion.toggle}>
               {motion.playing ? (french ? 'Pause' : 'Pause') : french ? 'Animer' : 'Animate'}
             </Button>

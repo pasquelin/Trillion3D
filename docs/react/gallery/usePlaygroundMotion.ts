@@ -6,15 +6,10 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-
-interface ScenarioControlMotion {
-  controls: (readonly (string | number)[] | (string | number)[])[];
-  presets: (readonly number[] | number[])[];
-  [key: string]: unknown;
-}
+import type { Scenario } from '../types/gallery.ts';
 
 export function usePlaygroundMotion(
-  scenario: ScenarioControlMotion,
+  scenario: Scenario,
   setValues: Dispatch<SetStateAction<Record<string, number>>>,
   { autoPlay = false }: { autoPlay?: boolean } = {},
 ) {
@@ -44,7 +39,7 @@ export function usePlaygroundMotion(
 
   const start = useCallback(() => {
     if (motion.current?.matches || document.hidden) return;
-    const [name, min, max] = scenario.controls[0] as [string, number, number];
+    const [name, min, max] = scenario.controls[0];
     const animate = (time: number) => {
       setValues((values) => ({
         ...values,

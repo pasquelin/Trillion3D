@@ -1,4 +1,5 @@
 import type { Locale } from '../types/portal.ts';
+import type { GalleryExample } from '../types/gallery.ts';
 
 export const themes: [string, string, string][] = [
   ['transforms', 'Transforms', 'Transformations'],
@@ -83,13 +84,7 @@ const groups: Record<string, string[]> = {
   tests: ['test', 'furnace', 'read'],
 };
 
-interface ThemeEntryInput {
-  category?: string;
-  subject?: string;
-  [key: string]: unknown;
-}
-
-export function themeOf(entry: ThemeEntryInput): string {
+export function themeOf(entry: Pick<GalleryExample, 'category' | 'subject'>): string {
   const ready: Record<string, string> = {
     transforms: 'transforms',
     vectors: 'geometry',
@@ -100,7 +95,7 @@ export function themeOf(entry: ThemeEntryInput): string {
     streaming: 'performance',
     lighting: 'lighting',
   };
-  if (entry.category && ready[entry.category]) return ready[entry.category];
+  if (ready[entry.category]) return ready[entry.category];
   return (
     Object.entries(groups).find(
       ([, subjects]) => entry.subject && subjects.includes(entry.subject),

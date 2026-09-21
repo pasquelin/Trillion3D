@@ -2,6 +2,7 @@ import { useState, type ReactElement } from 'react';
 import type { GalleryShowcaseProps, ShowcaseScene } from '../types/gallery.ts';
 import { routeHref } from '../../js/portal/routes.js';
 import { Card } from '../components/UI.tsx';
+import { local } from './localized.ts';
 
 const scenes: ShowcaseScene[] = [
   {
@@ -34,9 +35,6 @@ const scenes: ShowcaseScene[] = [
   },
 ];
 
-const local = (value: { en: string; fr: string }, french: boolean): string =>
-  value[french ? 'fr' : 'en'];
-
 export function GalleryShowcase({ locale }: GalleryShowcaseProps): ReactElement {
   const french = locale === 'fr',
     [selectedId, setSelectedId] = useState<string>(scenes[0].id),
@@ -62,7 +60,7 @@ export function GalleryShowcase({ locale }: GalleryShowcaseProps): ReactElement 
                   src={scene.preview}
                   alt=""
                 />
-                <span className="font-semibold">{local(scene.title, french)}</span>
+                <span className="font-semibold">{local(scene.title, locale)}</span>
               </button>
             </div>
           ))}
@@ -76,16 +74,16 @@ export function GalleryShowcase({ locale }: GalleryShowcaseProps): ReactElement 
               <p className="text-xs font-bold uppercase tracking-widest text-primary">
                 {french ? 'Scène à la une' : 'Featured scene'}
               </p>
-              <h2 className="mt-1 text-2xl font-bold">{local(selected.title, french)}</h2>
-              <p className="mt-2 max-w-3xl opacity-75">{local(selected.description, french)}</p>
+              <h2 className="mt-1 text-2xl font-bold">{local(selected.title, locale)}</h2>
+              <p className="mt-2 max-w-3xl opacity-75">{local(selected.description, locale)}</p>
             </div>
-            <span className="btn btn-primary">{local(selected.action, french)}</span>
+            <span className="btn btn-primary">{local(selected.action, locale)}</span>
           </div>
           <div className="overflow-hidden rounded-box bg-base-300">
             <img
               className="aspect-video max-h-[32rem] w-full object-cover"
               src={selected.preview}
-              alt={local(selected.alt, french)}
+              alt={local(selected.alt, locale)}
             />
           </div>
         </a>

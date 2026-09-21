@@ -1,9 +1,8 @@
 import { useRef } from 'react';
-import type { ReactNode } from 'react';
-import type { TabsMenuProps } from '../types/components.ts';
+import type { TabsMenuOption, TabsMenuProps } from '../types/components.ts';
 
 interface TabItemProps {
-  option: { value: string; label: ReactNode };
+  option: TabsMenuOption;
   active: boolean;
   onSelect: (value: string) => void;
   className?: string;

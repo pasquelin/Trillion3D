@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactElement } from 'react';
-import type { EngineCopy, EngineExampleProps, EngineSceneProps } from '../types/engine-scene.ts';
+import type { EngineExampleProps, EngineSceneProps } from '../types/engine-scene.ts';
 import { CodeBlock } from '../components/CodeBlock.tsx';
 import { ExampleLayout } from '../components/ExampleLayout.tsx';
 import { Alert } from '../components/UI.tsx';
@@ -44,7 +44,7 @@ export function EngineExample({
 }
 
 export function EngineScene({ locale = 'en' }: EngineSceneProps): ReactElement {
-  const copy = (sceneCopy[locale] ?? sceneCopy.en) as unknown as EngineCopy;
+  const copy = engineCopy(locale);
   return (
     <section>
       <span className="badge badge-soft badge-success">{copy.label}</span>
@@ -57,7 +57,7 @@ export function EngineScene({ locale = 'en' }: EngineSceneProps): ReactElement {
       <section className="mt-8">
         <h2 className="text-2xl font-semibold">{copy.learn}</h2>
         <ol className="list-decimal pl-6 mt-4 space-y-3">
-          {copy.steps.map((step: string) => (
+          {copy.steps.map((step) => (
             <li key={step}>{step}</li>
           ))}
         </ol>

@@ -1,9 +1,10 @@
 import type { ReactElement } from 'react';
 import type { EngineGuideProps } from '../types/engine-scene.ts';
+import type { Locale } from '../types/portal.ts';
 import { Accordion } from '../components/Accordion.tsx';
 import { Alert } from '../components/UI.tsx';
 
-const QUALITY_HELP: Record<string, string> = {
+const QUALITY_HELP: Record<Locale, string> = {
   en: 'Pixel error 0 keeps exact leaves; raising it permits a coarser bounded DAG cut.',
   fr: 'Une erreur de 0 px conserve les feuilles exactes ; l’augmenter autorise une coupe du DAG plus grossière et bornée.',
 };
@@ -29,7 +30,7 @@ export function EngineGuide({ copy, locale, diagnostic }: EngineGuideProps): Rea
       </dl>
       <Alert className="my-3">
         <ul className="list-disc pl-5">
-          <li>{QUALITY_HELP[locale] ?? QUALITY_HELP.en}</li>
+          <li>{QUALITY_HELP[locale]}</li>
           <li>{copy.taa}</li>
         </ul>
       </Alert>

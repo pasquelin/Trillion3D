@@ -16,7 +16,7 @@ export function SceneControls({ copy, diagnostic }: SceneControlsProps): ReactEl
             <Select data-scene-mode defaultValue={diagnostic} disabled>
               {DIAGNOSTIC_MODES.map((mode) => (
                 <option value={mode} key={mode}>
-                  {copy[mode] as string}
+                  {copy[mode]}
                 </option>
               ))}
             </Select>

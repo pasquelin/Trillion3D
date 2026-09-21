@@ -8,11 +8,10 @@ import { SceneControls } from './SceneControls.tsx';
 import { Loading } from '../components/Loading.tsx';
 import { SCENE_BACKGROUND } from '../../js/scenePalette.js';
 
-export const engineCopy = (locale: Locale): EngineCopy =>
-  ({
-    ...(sceneCopy[locale] ?? sceneCopy.en),
-    ...(sceneControlsCopy[locale] ?? sceneControlsCopy.en),
-  }) as unknown as EngineCopy;
+export const engineCopy = (locale: Locale): EngineCopy => ({
+  ...(sceneCopy[locale] ?? sceneCopy.en),
+  ...(sceneControlsCopy[locale] ?? sceneControlsCopy.en),
+});
 
 export function EnginePreview({
   locale = 'en',

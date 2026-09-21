@@ -20,7 +20,7 @@ export function useReports(campaign?: string): ReportsState {
       if (!index.length) return { index, loading: false };
       const id = campaign || index[0].id;
       if (!index.some((item) => item.id === id)) throw new Error('Unknown campaign');
-      const report = assertReport(await json(`reports/${id}/report.json`)) as Report;
+      const report: Report = assertReport(await json(`reports/${id}/report.json`));
       if (report.id !== id) throw new Error('Campaign ID mismatch');
       const sources: ReportSource[] = [];
       // Bound file requests so opening the full report does not flood the browser.
@@ -28,7 +28,7 @@ export function useReports(campaign?: string): ReportsState {
       for (let start = 0; start < runs.length; start += 4) {
         const batch = await Promise.all(
           runs.slice(start, start + 4).map(async (run) => ({
-            run: run as unknown as Record<string, unknown>,
+            run,
             data: await json(`reports/${id}/${run.source}`),
           })),
         );

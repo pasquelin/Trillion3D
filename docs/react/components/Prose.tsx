@@ -24,11 +24,7 @@ export function Prose({ html }: ProseProps) {
   return <div className="wg-prose" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-export interface TableProps {
-  children: ReactNode;
-}
-
-export function Table({ children }: TableProps) {
+export function Table({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-x-auto">
       <table className="table table-zebra">{children}</table>

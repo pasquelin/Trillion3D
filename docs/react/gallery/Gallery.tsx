@@ -27,9 +27,7 @@ const READY: GalleryExample[] = [engineExample, ...examples].map((entry) => ({
   ...entry,
   status: 'ready',
 }));
-const ROADMAP: GalleryExample[] = (
-  roadmap.entries as unknown as Array<Parameters<typeof galleryRoadmapEntry>[0]>
-).map(galleryRoadmapEntry);
+const ROADMAP = roadmap.entries.map(galleryRoadmapEntry);
 
 const normalized = (value: string): string =>
   value
@@ -39,7 +37,7 @@ const normalized = (value: string): string =>
 
 const searchable = (entry: GalleryExample): string =>
   normalized(
-    `${entry.id} ${typeof entry.title === 'string' ? entry.title : `${entry.title.en} ${entry.title.fr}`} ${entry.description ? (typeof entry.description === 'string' ? entry.description : `${entry.description.en ?? ''} ${entry.description.fr ?? ''}`) : ''} ${entry.subject ?? ''} ${entry.supplementaryTopic ?? ''} ${(entry.functions ?? []).join(' ')}`,
+    `${entry.id} ${entry.title.en} ${entry.title.fr} ${entry.description?.en ?? ''} ${entry.description?.fr ?? ''} ${entry.subject ?? ''} ${entry.supplementaryTopic ?? ''} ${(entry.functions ?? []).join(' ')}`,
   );
 
 export function Gallery({ locale = 'en' }: { locale?: Locale }): ReactElement {

@@ -17,7 +17,7 @@ export interface DetailsProps {
 
 interface TimingsProps {
   title: string;
-  rows?: [string, TimingStat | undefined][];
+  rows?: [string, TimingStat | null][];
   locale: Locale;
 }
 

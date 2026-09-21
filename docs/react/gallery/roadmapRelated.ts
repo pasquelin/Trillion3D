@@ -1,17 +1,7 @@
 import { rendererLessons } from '../../js/gallery/rendererLessons.js';
+import type { GalleryExample, RoadmapExample } from '../types/gallery.ts';
 
-interface RoadmapEntryInput {
-  id: string;
-  subject?: string;
-  supplementaryTopic?: string;
-  title: { en: string; fr?: string };
-  [key: string]: unknown;
-}
-
-interface LessonRef {
-  lesson: (typeof rendererLessons)[number];
-  coverage: unknown;
-}
+type RoadmapReference = Pick<GalleryExample, 'id' | 'subject' | 'supplementaryTopic' | 'title'>;
 
 const matches: [RegExp, string][] = [
   [/quaternion/, 'quaternion-turn'],
@@ -31,22 +21,20 @@ const matches: [RegExp, string][] = [
   [/(lod|level.?of.?detail|performance)/, 'lod-budget'],
 ];
 
-export function relatedReadyLesson(entry: RoadmapEntryInput): string | undefined {
+export function relatedReadyLesson(entry: RoadmapReference): string | undefined {
   const reference = lessonReference(entry);
   if (reference) return reference.lesson.id;
   const searchable = `${entry.id} ${entry.subject} ${entry.supplementaryTopic} ${entry.title.en}`;
   return matches.find(([pattern]) => pattern.test(searchable))?.[1];
 }
 
-function lessonReference(entry: RoadmapEntryInput): LessonRef | undefined {
+function lessonReference(entry: RoadmapReference) {
   const lesson = rendererLessons.find((candidate) => candidate.referenceCoverage?.[entry.id]);
   if (!lesson) return undefined;
   return { lesson, coverage: lesson.referenceCoverage[entry.id] };
 }
 
-export function galleryRoadmapEntry<T extends RoadmapEntryInput>(
-  entry: T,
-): T & Record<string, unknown> {
+export function galleryRoadmapEntry(entry: RoadmapExample): GalleryExample {
   const reference = lessonReference(entry);
   if (reference?.coverage !== 'full') return entry;
   return {
