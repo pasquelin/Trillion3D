@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  levelBlockBytes,
+  previewBlockBytes,
   previewFirstLevel,
   previewGeometry,
   previewLastLevel,
@@ -55,10 +57,20 @@ test('previewGeometry yields exactly what the three separate calls yielded, host
     [-1, -1],
     [-7, 20],
   ];
-  for (const [width, height] of cas)
-    assert.deepEqual(
-      previewGeometry(width, height),
-      referenceExpectedGeometry(width, height),
-      `${width}x${height}`,
-    );
+  for (const [width, height] of cas) {
+    const { blockBytes: _blocks, sizes: _sizes, ...geometry } = previewGeometry(width, height);
+    assert.deepEqual(geometry, referenceExpectedGeometry(width, height), `${width}x${height}`);
+  }
+});
+
+// Behaviour: a block-compressed tail is whole 4×4 blocks of sixteen bytes per level — a 1×1
+// level costs one block —, the same count in both formats, mirror of `levels.rs`.
+test('previewBlockBytes counts whole blocks per carried level', () => {
+  // 4×4: one block at 4×4, one at 2×2, one at 1×1.
+  assert.equal(previewBlockBytes(4, 4), 3 * 16);
+  assert.equal(levelBlockBytes(17, 9), 5 * 3 * 16);
+  // 17×9 → 17×9, 8×4, 4×2, 2×1, 1×1: 15 + 2 + 1 + 1 + 1 blocks.
+  assert.equal(previewBlockBytes(17, 9), 20 * 16);
+  // 128×64 tail starts at 64×32: 128 + 32 + 8 + 2 + 1 + 1 + 1 blocks.
+  assert.equal(previewBlockBytes(128, 64), 173 * 16);
 });
