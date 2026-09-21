@@ -64,10 +64,11 @@ The bundles are ignored by git and tracked on no branch: every consumer builds t
 unit-test runners `scripts/test-unit.mjs` and `scripts/check-changed.mjs` build `js/engine.js`,
 which the handwritten modules under `docs/js/` import, before any test loads; the portal build
 resolves that import to its entry and needs no file), and `check:docs-bundles` in `validate`
-(`node scripts/docs-build.mjs --untracked`) fails when git tracks any of them. The repository's Pages source is "GitHub Actions":
-`.github/workflows/pages.yml` runs on every push to `main`, installs the dependencies, runs
-`build:docs` and deploys the `docs/` tree as the Pages artifact. A release (`develop` → `main`)
-therefore publishes the bundles built from the merged sources, without committing them.
+(`node scripts/docs-build.mjs --untracked`) fails when git tracks any of them. The repository's
+Pages source is "GitHub Actions": `.github/workflows/pages.yml` runs on every push to `main`,
+installs the dependencies, runs `build:docs` and deploys the `docs/` tree as the Pages artifact.
+A release (`develop` → `main`) therefore publishes the bundles built from the merged sources,
+without committing them.
 
 The browser SDK keeps `three` and `three/*` external during the documentation build. The scene
 loads the repository's current Three.js peer dependency from one pinned CDN URL at runtime. Do not
