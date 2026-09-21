@@ -1,48 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exactPagesBackend } from './index.ts';
-import { CLUSTERED_BLEND_FORMAT_VERSION } from '../sdk-core/index.ts';
-import { clusterSphere, dagLevel, DAG } from './pagesBackendFixture.ts';
+import { clusterSphere, DAG, MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import {
   quadScene,
   quadCluster,
   frontCamera,
   assertSingleCoarseCluster,
+  coarseQuadContext,
 } from './pagesBackendScenes.ts';
 
-/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-const MANIFEST_IDENTITY = {
-  schema: CLUSTERED_BLEND_FORMAT_VERSION,
-  status: 'ready' as const,
-  key: 'k',
-  scope: 'full' as const,
-  sourceTriangles: 0,
-  selectedTriangles: 0,
-  selectedNodes: [] as number[],
-  totalNodes: 0,
-};
-
 test('pixelError is read from the context each frame', () => {
-  const { geometry, material, mesh, source } = quadScene();
-  const cluster = quadCluster;
-  // Two clusters replaced by one coarser cluster whose screen error clears a 10 px budget.
-  const level = dagLevel([cluster(0), cluster(1)], [cluster(2)], 0.001);
-  const context = {
-    source,
-    metadata: {
-      ...DAG,
-      ...MANIFEST_IDENTITY,
-      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level }],
-    },
-    indices: new Map([
-      ['0', new Uint32Array([0, 1, 2])],
-      ['1', new Uint32Array([0, 2, 3])],
-      ['2', new Uint32Array([0, 1, 2])],
-    ]),
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
-    pixelError: 0,
-    viewport: [960, 540] as [number, number],
-  };
+  const { geometry, material, context } = coarseQuadContext(0);
   const backend = exactPagesBackend(context);
   const camera = frontCamera();
   backend.render(camera);
