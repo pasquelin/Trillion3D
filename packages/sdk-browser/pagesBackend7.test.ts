@@ -24,7 +24,18 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
   ];
   const collected = collectClusterPages(
     source,
-    { ...DAG, primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }] },
+    {
+      ...DAG,
+      schema: 1,
+      status: 'ready',
+      key: 'k',
+      scope: 'full',
+      sourceTriangles: 0,
+      selectedTriangles: 0,
+      selectedNodes: [],
+      totalNodes: 0,
+      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
+    },
     new Map([['0', new Uint32Array([0, 1, 2])]]),
     new Map([[mesh, { meshes: 0, primitives: 0 }]]),
   );

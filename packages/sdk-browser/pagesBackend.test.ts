@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
-import { drawnIndices, dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
+import { drawnIndices, dagRoots, dagLevel, DAG, MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import { quadCluster, fanScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
-import { submittedDraws } from './clusterBatchMesh.ts';
+import { drawPasses, submittedDraws } from './clusterBatchMesh.ts';
 
 test('transparent page batches preserve source order across exact and coarse cuts', () => {
   const { geometry, material, mesh, source, indices } = fanScene();
@@ -17,6 +17,7 @@ test('transparent page batches preserve source order across exact and coarse cut
     source,
     metadata: {
       ...DAG,
+      ...MANIFEST_IDENTITY,
       primitives: [{ mesh: 0, primitive: 0, pass: 'clustered-blend', ...level }],
     },
     indices,
@@ -29,15 +30,10 @@ test('transparent page batches preserve source order across exact and coarse cut
   const camera = frontCamera();
   backend.render(camera);
   assert.equal(draws().length, 1);
-  // Double-sided transparent: the two passes the reference renderer would improvise each frame
-  // are frozen as two back/front materials from the source material, submitted in that order.
-  const split = draws()[0].material as THREE.Material[];
-  assert.ok(Array.isArray(split));
-  assert.deepEqual([split[0].side, split[1].side], [THREE.BackSide, THREE.FrontSide]);
-  assert.deepEqual(
-    split.map((one) => (one as THREE.MeshBasicMaterial).color.getHex()),
-    [material.color.getHex(), material.color.getHex()],
-  );
+  // Double-sided transparent: the record carries the source material itself, and draws the two
+  // passes the reference renderer orders — back faces then front faces — read at the draw.
+  assert.equal(draws()[0].material, material);
+  assert.deepEqual(drawPasses(draws()[0].material), ['back', 'front']);
   assert.deepEqual(drawnIndices(draws()[0]), [0, 1, 2, 0, 2, 3, 0, 3, 4]);
   context.pixelError = 10;
   backend.render(camera);
@@ -101,6 +97,7 @@ test('cpuSelectMs measures selection time, finite and non-negative', () => {
     source,
     metadata: {
       ...DAG,
+      ...MANIFEST_IDENTITY,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([cluster(0, 0)]) }],
     },
     indices: new Map([['0', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
@@ -113,13 +110,13 @@ test('cpuSelectMs measures selection time, finite and non-negative', () => {
   camera.lookAt(0, 0, 0);
   backend.render(camera);
   const metrics1 = backend.metrics();
-  if (metrics1.cpuSelectMs !== null) {
+  if (typeof metrics1.cpuSelectMs === 'number') {
     assert.ok(Number.isFinite(metrics1.cpuSelectMs), 'cpuSelectMs is finite when measured');
     assert.ok(metrics1.cpuSelectMs >= 0, 'cpuSelectMs is non-negative');
   }
   backend.render(camera);
   const metrics2 = backend.metrics();
-  if (metrics2.cpuSelectMs !== null) {
+  if (typeof metrics2.cpuSelectMs === 'number') {
     assert.ok(Number.isFinite(metrics2.cpuSelectMs), 'cpuSelectMs stays finite across renders');
     assert.ok(metrics2.cpuSelectMs >= 0, 'cpuSelectMs stays non-negative');
   }

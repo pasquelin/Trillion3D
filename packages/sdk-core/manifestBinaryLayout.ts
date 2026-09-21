@@ -5,9 +5,11 @@ import {
   COLUMN_NAMES,
   COLUMN_STRIDE,
   MANIFEST_BINARY_HEADER_WORDS,
+  PREVIEW_BLOCK_FORMATS,
   type ColumnName,
+  type TextureBlockFormat,
 } from './manifestBinaryFormat.ts';
-import { previewPixelBytes } from './texturePreviewLevels.ts';
+import { previewBlockBytes, previewPixelBytes } from './texturePreviewLevels.ts';
 
 const digestRefuse = (sha: string) =>
   new EngineError(
@@ -58,6 +60,9 @@ export interface Counts {
   previews: number;
   /** Bytes of the pixel column, every level of every entry concatenated. */
   previewBytes: number;
+  /** Bytes of each block column: the kept chains' tails compressed, whole blocks, entries
+   *  contiguous, nothing for a chain the family left lossless. */
+  previewBlockBytes: Record<TextureBlockFormat, number>;
 }
 export function countManifest(manifest: ClusterManifest): Counts {
   const previews = manifest.texturePreviews ?? [];
@@ -74,7 +79,12 @@ export function countManifest(manifest: ClusterManifest): Counts {
       (bytes, preview) => bytes + previewPixelBytes(preview.width, preview.height),
       0,
     ),
+    previewBlockBytes: { bc7: 0, astc: 0 },
   };
+  for (const preview of previews)
+    for (const name of PREVIEW_BLOCK_FORMATS)
+      if (preview.layouts[name] !== 'lossless')
+        counts.previewBlockBytes[name] += previewBlockBytes(preview.width, preview.height);
   for (const primitive of manifest.primitives) {
     counts.pages += primitive.pages.length;
     counts.cullingNodes += primitive.culling?.count ?? 0;
@@ -123,6 +133,10 @@ export function columnElements(name: ColumnName, counts: Counts) {
       return counts.previews;
     case 'texturePreviewPixels':
       return counts.previewBytes;
+    case 'texturePreviewBc7':
+      return counts.previewBlockBytes.bc7;
+    case 'texturePreviewAstc':
+      return counts.previewBlockBytes.astc;
   }
 }
 function columnBytes(name: ColumnName, counts: Counts) {

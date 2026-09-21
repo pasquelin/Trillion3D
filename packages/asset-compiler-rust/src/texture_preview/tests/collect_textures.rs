@@ -31,10 +31,59 @@ fn every_binding_goes_to_its_atlas() {
         (7, AtlasKind::Data),
         (9, AtlasKind::Data),
     ];
+    let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
+    assert_eq!(keys, expected);
+}
+
+// Behaviour: what the gate measures of an entry follows the roles that read it —
+// an opaque base colour's alpha is not read, a normal map alone is two channels,
+// a texture a normal map and an occlusion share reads every channel of both —
+// and a masked material hands its cutoff to the base colour it reads, once.
+#[test]
+fn an_entry_reads_the_channels_and_cutoffs_of_its_roles() {
+    let g = json!({
+        "materials": [
+            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}, "normalTexture": {"index": 1}},
+            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}, "alphaMode": "MASK", "alphaCutoff": 0.3,
+             "normalTexture": {"index": 2}, "occlusionTexture": {"index": 2}},
+            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}, "alphaMode": "MASK"},
+            {"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}, "alphaMode": "MASK"},
+        ],
+        "meshes": meshes_using(&[0, 1, 2, 3]),
+    });
+    let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
     assert_eq!(
         found,
-        expected.map(|(texture, kind)| AtlasTexture { texture, kind })
+        vec![
+            AtlasTexture {
+                texture: 0,
+                kind: AtlasKind::Color,
+                channels: [true; 4],
+                normal_only: false,
+                cutoffs: vec![0.3, 0.5],
+            },
+            AtlasTexture {
+                texture: 1,
+                kind: AtlasKind::Data,
+                channels: [true, true, true, false],
+                normal_only: true,
+                cutoffs: vec![],
+            },
+            AtlasTexture {
+                texture: 2,
+                kind: AtlasKind::Data,
+                channels: [true, true, true, false],
+                normal_only: false,
+                cutoffs: vec![],
+            },
+        ]
     );
+    let opaque = json!({
+        "materials": [{"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}],
+        "meshes": meshes_using(&[0]),
+    });
+    let found = atlas_textures(&opaque, &BTreeSet::from([0])).expect("collect");
+    assert_eq!(found[0].channels, [true, true, true, false]);
 }
 
 // Behavior 5 (b): texture read by both atlases — same image as base color
@@ -50,19 +99,8 @@ fn a_texture_read_by_both_atlases_has_one_entry_per_atlas() {
         "meshes": meshes_using(&[0, 1]),
     });
     let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
-    assert_eq!(
-        found,
-        vec![
-            AtlasTexture {
-                texture: 4,
-                kind: AtlasKind::Color
-            },
-            AtlasTexture {
-                texture: 4,
-                kind: AtlasKind::Data
-            },
-        ]
-    );
+    let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
+    assert_eq!(keys, [(4, AtlasKind::Color), (4, AtlasKind::Data)]);
 }
 
 // Behavior 5 (c): only materials of retained meshes count.
@@ -79,11 +117,6 @@ fn only_materials_of_selected_meshes_are_collected() {
         ],
     });
     let found = atlas_textures(&g, &BTreeSet::from([1])).expect("collect");
-    assert_eq!(
-        found,
-        vec![AtlasTexture {
-            texture: 1,
-            kind: AtlasKind::Color
-        }]
-    );
+    let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
+    assert_eq!(keys, [(1, AtlasKind::Color)]);
 }

@@ -1,11 +1,11 @@
 // G1: `autonomousGeometry.ts` detaches by the set of pages actually attached (`attachees`,
 // a `Set` held by `attach`/`detach`) instead of scanning `allPages` — the whole DAG — at each frame.
-// Oracle: the version before batch G, copied as is in `bench/oracles/backend-autonome.mjs`.
+// Oracle: the version before batch G, copied as is in `bench/oracles/backend-autonome.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createAutonomousGeometry } from './autonomousGeometry.ts';
-import { referenceAutonomousSync } from './bench/oracles/backend-autonome.mjs';
+import { referenceAutonomousSync } from './bench/oracles/backend-autonome.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 function fakeScene() {
@@ -19,7 +19,7 @@ function fakeScene() {
   };
 }
 
-function makeRec(id: number, triangles: number): PageRec {
+function makeRec(id: number, triangles: number): PageRec & { mesh: THREE.Mesh } {
   return {
     id,
     url: `u${id}`,
@@ -40,7 +40,11 @@ function makeRec(id: number, triangles: number): PageRec {
   };
 }
 
-function environnement(scene: THREE.Scene, allPages: PageRec[], shown: PageRec[]) {
+function environnement(
+  scene: THREE.Scene,
+  allPages: PageRec[],
+  shown: PageRec[],
+): Parameters<typeof createAutonomousGeometry>[0] {
   return {
     scene,
     allPages,

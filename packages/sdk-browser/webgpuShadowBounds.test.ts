@@ -2,12 +2,13 @@
 // that formula never had a sum initialised to zero (see the note in `mathMatrix4.ts`), so no signed-
 // zero regression is expected here, unlike matrix × matrix products. This test checks it on matrices
 // and boxes hostile to signed zeros, against the previous code copied into
-// `bench/oracles/socle-math.mjs`.
+// `bench/oracles/socle-math.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { noteResidenceChange } from './webgpuShadowBounds.ts';
-import { referenceClusterSphere } from './bench/oracles/socle-math.mjs';
+import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
+import { referenceClusterSphere } from './bench/oracles/socle-math.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 function record(matrice: number[], min: number[], max: number[]) {
@@ -32,15 +33,20 @@ test('noteResidenceChange: matrices and boxes hostile to signed zeros — the bo
       sphereAttendue[2] + sphereAttendue[3],
     ];
     let recu: number[] | undefined;
-    noteResidenceChange(
-      {
-        store: { count: 1 },
-        plan: {
-          representationChanged: (min: number[], max: number[]) => (recu = [...min, ...max]),
-        },
-      } as Parameters<typeof noteResidenceChange>[0],
-      rec,
-    );
+    const lumieres = createWebgpuLightState();
+    lumieres.store.add({
+      id: 'l0',
+      kind: 'point',
+      position: [0, 0, 0],
+      color: [1, 1, 1],
+      intensity: 100,
+      range: 20,
+      castsShadow: true,
+    });
+    lumieres.plan.representationChanged = (min, max) => {
+      recu = [...Array.from(min), ...Array.from(max)];
+    };
+    noteResidenceChange(lumieres, rec);
     assert.ok(recu, 'representationChanged must be called');
     for (let i = 0; i < 6; i++)
       assert.ok(Object.is(attendu[i], recu![i]), `composante ${i} : ${attendu[i]} ≠ ${recu![i]}`);

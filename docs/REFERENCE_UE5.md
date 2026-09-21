@@ -6,7 +6,7 @@ What the reference publishes, compared to what this repository maintains. A sing
 Three categories, each compared differently:
 
 1. **Structural constants** compare directly: they are format numbers, not measurements.
-   `test/integration/reference-ue5.test.mjs` verifies them in code on every `pnpm test` and fails
+   `test/integration/reference-ue5.test.ts` verifies them in code on every `pnpm test` and fails
    when any of them diverges from this table.
 2. **Bytes per triangle** compare per triangle, never per scene: the reference scene is not ours.
 3. **Milliseconds do not compare directly**: their profile was recorded on a console demo, ours
@@ -73,8 +73,13 @@ How they achieve it, and where we stand:
 50 bytes — a ~6× factor on geometry. The repository target (≤ 12 B/tri, `docs/SPEC_ENGINE_WITHOUT_THREE.md` C5)
 is the right order of magnitude; the work to achieve it remains open.
 
-Outside geometry, the gap is wider: 7.56 GB of raw RGBA for Emerald textures, where the reference
-maintains a fixed physical pool, compressed at cook time **(3)**.
+Outside geometry, the gap has narrowed in kind: Emerald's textures, 7.56 GB of raw RGBA, are baked
+block-compressed at cook time — BC7 and BC5 on desktop, ASTC 4×4 on mobile, one byte per texel —
+and served from fixed physical pools, one per format lane as the reference's virtual-texture
+physical spaces are understood to be **(3)**; unlike the reference, a chain is kept in blocks only
+under a quality gate (48 dB, 3 levels of 255 on a texel, no mask flip), so on Emerald 100 of 336
+chains (30 %) are in BC blocks — none of the colour atlas's texels, a third of the data atlas's — and the rest stays lossless — the reference's whole-catalogue compression is
+not reached, by the rule that the image must not move.
 
 ## 3. Milliseconds — Profile Shape, Not Verdict
 
@@ -126,7 +131,7 @@ What can be concluded rigorously:
 | --- | --- |
 | DAG and page structure | **Yes**, with the three nuances in §1 |
 | Bytes per triangle | **No**: ~6× higher |
-| Fixed memory budget | **Yes**: 512 MiB pages and 512 MiB tiles, in bytes, adjustable; textures not yet cook-compressed |
+| Fixed memory budget | **Yes**: 512 MiB pages and 512 MiB tiles, in bytes, adjustable; textures cook-compressed under a quality gate (BC7/BC5, ASTC 4×4, #45) |
 | CPU cost per frame | **No**: 0.5–2.8 ms vs ~0 |
 | GPU milliseconds | **Unknown**, pending identical-hardware benchmark campaign |
 
@@ -143,5 +148,5 @@ What can be concluded rigorously:
   pool, excluding root pages: `r.Nanite.Streaming.StreamingPoolSize`, Unreal Directive —
   <https://unrealdirective.com/resources/console-variables/r-nanite-streaming-streamingpoolsize/>.
 - **(3)** **Unsourced.** The talk describes geometry, not the texture streaming system. The statement in §2
-  regarding a cook-compressed fixed texture pool is unsourced here, and `test/integration/reference-ue5.test.mjs`
+  regarding a cook-compressed fixed texture pool is unsourced here, and `test/integration/reference-ue5.test.ts`
   does not assert texture pool constants. Pending source validation.

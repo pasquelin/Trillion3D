@@ -3,10 +3,13 @@ import type { Locale } from '../../content/locale.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { CodeEditor } from '../components/CodeEditor.tsx';
 import { formatNumericText } from '../code/formatNumber.ts';
-import { ExampleLayout } from '../components/ExampleLayout.tsx';
-import { Section } from '../components/Section.tsx';
-import { Button, Field, Form, Range, Select } from '../components/UI.tsx';
-import { examples, byId } from '../../content/catalog.ts';
+import { LessonTemplate } from '../components/LessonTemplate.tsx';
+import { Button } from '../components/UI.tsx';
+import type { LessonControl } from '../components/LessonControls.tsx';
+import { LessonControls } from '../components/LessonControls.tsx';
+import { experimentPicker } from './experimentPicker.ts';
+import { ApiBadges } from '../components/ApiBadges.tsx';
+import { byId } from '../../content/catalog.ts';
 import { codeFor } from '../../lessons/code.ts';
 import { evaluate } from '../../lessons/evaluate.ts';
 import { guidanceFor } from '../../lessons/guidance.ts';
@@ -42,7 +45,7 @@ export function Playground({ id, locale = 'en', onSelect }: PlaygroundProps) {
 function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   const example = byId(id),
     scenario = SCENARIOS[example.id],
-    [state, setState] = useState<Record<string, number>>(() => initialState(example.id));
+    [state, setState] = useState(() => initialState(example.id));
   useEffect(() => setState(initialState(example.id)), [example.id]);
   const result = useMemo(() => evaluate(example.id, state, locale), [example.id, state, locale]),
     guidance = guidanceFor(example.id, locale),
@@ -54,42 +57,25 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
     onSelect?.(next);
   };
   const controls = (
-    <Section
-      className="playground-controls"
+    <LessonControls
       title={french ? 'Commandes de l’expérience' : 'Experiment controls'}
-    >
-      <Form>
-        <Field label={french ? 'Expérience' : 'Experiment'}>
-          <Select
-            size="sm"
-            value={example.id}
-            onChange={(event) => choose(event.target.value)}
-            aria-label={french ? 'Choisir une expérience' : 'Choose an experiment'}
-          >
-            {examples.map((item) => (
-              <option key={item.id} value={item.id}>
-                {local(item.title, locale)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <div className="flex flex-wrap gap-4">
-          {scenario.controls.map(([name, min, max, , step]) => (
-            <Field key={name} label={controlLabel(name, locale)} className="grow">
-              <Range
-                aria-label={controlLabel(name, locale)}
-                min={min}
-                max={max}
-                step={step}
-                value={state[name]}
-                onChange={(event) => setState({ ...state, [name]: Number(event.target.value) })}
-              />
-            </Field>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
+      picker={experimentPicker(example.id, locale, choose)}
+      controls={scenario.controls.map(([name, min, max, , step]): LessonControl => ({
+        kind: 'range',
+        id: name,
+        label: controlLabel(name, locale),
+        display: state[name],
+        min,
+        max,
+        step,
+        value: state[name],
+        onChange: (value) => setState({ ...state, [name]: value }),
+      }))}
+      actions={
+        <>
           <Button
             size="sm"
+            variant="outline"
             onClick={() => {
               motion.stop();
               setState(initialState(example.id));
@@ -97,7 +83,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
           >
             {french ? 'Réinitialiser' : 'Reset'}
           </Button>
-          <Button size="sm" onClick={motion.applyPreset}>
+          <Button size="sm" variant="outline" onClick={motion.applyPreset}>
             {french ? 'Préréglage' : 'Preset'}
           </Button>
           {scenario.animated && (
@@ -105,9 +91,9 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
               {motion.playing ? (french ? 'Pause' : 'Pause') : french ? 'Animer' : 'Animate'}
             </Button>
           )}
-        </div>
-      </Form>
-    </Section>
+        </>
+      }
+    />
   );
   const cards = (
     <LearningCards
@@ -118,65 +104,45 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
       locale={locale}
     />
   );
-  const left = (
-    <div className="playground-learn grid gap-4">
-      {controls}
-      {cards}
-      <CodeEditor
-        key={example.id}
-        initialCode={initialCode}
-        resetCode={() => codeFor(example.id, state)}
-        locale={locale}
-      />
-    </div>
+  const code = (
+    <CodeEditor
+      key={example.id}
+      initialCode={initialCode}
+      resetCode={() => codeFor(example.id, state)}
+      locale={locale}
+    />
   );
-  const right = (
-    <div className="playground-observe">
-      <WebGPUCanvas
-        id={example.id}
-        state={state}
-        locale={locale}
-        animating={motion.playing}
-        label={`${local(example.title, locale)} — 3D`}
-      />
-      <p className="text-xs opacity-60 mt-2">
+  const viewport = (
+    <WebGPUCanvas
+      id={example.id}
+      state={state}
+      locale={locale}
+      animating={motion.playing}
+      label={`${local(example.title, locale)} — 3D`}
+    />
+  );
+  const note = (
+    <>
+      <p className="text-xs opacity-60">
         {french
           ? 'Illustration mathématique 3D ; la scène moteur montre le streaming réel.'
           : '3D mathematical illustration; the engine scene shows actual streaming.'}
       </p>
-    </div>
+      <Diagram id={example.id} state={state} locale={locale} label={local(example.title, locale)} />
+    </>
   );
+  const badges = <ApiBadges names={example.functions ?? []} locale={locale} />;
   return (
-    <section className="grid gap-5" data-playground={example.id}>
-      <header>
-        <h1 className="text-3xl font-bold">{local(example.title, locale)}</h1>
-        <p className="opacity-70 mt-2">{local(example.description, locale)}</p>
-      </header>
-      <ExampleLayout
-        left={left}
-        right={right}
-        footer={
-          <>
-            <Diagram
-              id={example.id}
-              state={state}
-              locale={locale}
-              label={local(example.title, locale)}
-            />
-            <div className="flex flex-wrap gap-2 mt-4">
-              {(example.functions ?? []).map((name: string) => (
-                <a
-                  key={name}
-                  className="badge badge-soft badge-secondary font-mono"
-                  href={`#/${locale}/api/${name}`}
-                >
-                  {name}
-                </a>
-              ))}
-            </div>
-          </>
-        }
-      />
-    </section>
+    <LessonTemplate
+      id={example.id}
+      title={local(example.title, locale)}
+      description={local(example.description, locale)}
+      badges={badges}
+      controls={controls}
+      cards={cards}
+      code={code}
+      viewport={viewport}
+      note={note}
+    />
   );
 }
