@@ -21,7 +21,7 @@ const drawing = (page) =>
   );
 
 test('the viewport select drives the runtime mode and follows the mode the lesson sets', async () => {
-  const server = createDocsServer();
+  const server = await createDocsServer();
   await new Promise((ready, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', ready);
@@ -65,7 +65,7 @@ test('the viewport select drives the runtime mode and follows the mode the lesso
 });
 
 test('setDiagnostic on the lesson runtime draws a frame that reports the new mode', async () => {
-  const server = createDocsServer();
+  const server = await createDocsServer();
   await new Promise((ready, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', ready);
