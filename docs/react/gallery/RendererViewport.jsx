@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Canvas } from '../components/Canvas.jsx';
-import { Alert } from '../components/UI.jsx';
+import { Alert, Select } from '../components/UI.jsx';
 import { Stat, StatGroup } from '../components/Stats.jsx';
 import { createRendererLessonRuntime } from '../../js/gallery/rendererLessonRuntime.js';
 import { syncRendererState } from '../../js/gallery/syncRendererState.js';
+import { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
+import { sceneCopy } from '../../js/engine-scene/content.js';
 
 const value = (number, suffix, digits = 0) =>
   Number.isFinite(number) ? `${number.toFixed(digits)}${suffix}` : '—';
@@ -67,7 +69,19 @@ export function RendererViewport({ lesson, state, locale, label }) {
       ?.update(state)
       .catch((error) => setError(errorMessage(error, locale, 'update')));
   }, [state, locale]);
-  const french = locale === 'fr';
+  const french = locale === 'fr',
+    copy = sceneCopy[locale] ?? sceneCopy.en;
+  // The runtime reports the mode it draws (a lesson may set it from its own state); the select
+  // shows that report, updated at once on a pick so the control never lags its own change.
+  const onSelectMode = (mode) => {
+    if (!runtime.current) return;
+    try {
+      runtime.current.setDiagnostic(mode);
+      setMetrics((current) => ({ ...current, diagnostic: mode }));
+    } catch (err) {
+      setError(errorMessage(err, locale, 'update'));
+    }
+  };
   return (
     <div className="geometry-3d grid gap-4" data-renderer-lesson={lesson.id}>
       <Canvas
@@ -76,6 +90,23 @@ export function RendererViewport({ lesson, state, locale, label }) {
         label={label}
         pending={pending}
         loadingLabel={locale === 'fr' ? 'Préparation de la scène…' : 'Preparing the scene…'}
+        overlay={
+          <Select
+            size="sm"
+            className="bg-base-100/90 shadow-sm text-xs font-medium rounded-box"
+            aria-label={copy.mode}
+            data-renderer-diagnostic
+            value={metrics.diagnostic ?? 'beauty'}
+            disabled={pending}
+            onChange={(event) => onSelectMode(event.target.value)}
+          >
+            {DIAGNOSTIC_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {copy[mode]}
+              </option>
+            ))}
+          </Select>
+        }
         actions={[
           {
             label: french ? 'Zoom arrière' : 'Zoom out',

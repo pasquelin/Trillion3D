@@ -20,14 +20,8 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     (['lod', 'memory', 'offline'].includes(lesson.kind) || lesson.runtime === 'camera-pose');
   let explorer;
   try {
-    explorer = await startup.wait(
-      createLessonExplorer({
-        canvas,
-        signal: startup.signal,
-        manifest: lesson.manifest,
-        importedLights,
-      }),
-    );
+    const opts = { canvas, signal: startup.signal, manifest: lesson.manifest, importedLights };
+    explorer = await startup.wait(createLessonExplorer(opts));
   } catch (error) {
     startup.finish();
     throw error;
@@ -56,18 +50,15 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     ready.catch(() => {});
     return ready;
   };
-  /** The pending `ready` is answered once: resolved, or rejected with `error`. */
-  const answerReady = (error) => {
-    if (error) readyReject?.(error);
-    else readyResolve?.();
-    readyResolve = undefined;
-    readyReject = undefined;
+  const settle = (outcome, value) => {
+    outcome?.(value);
+    readyResolve = readyReject = undefined;
   };
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     startup.cancel();
-    answerReady(new DOMException('Cancelled', 'AbortError'));
+    settle(readyReject, new DOMException('Cancelled', 'AbortError'));
     cancelAnimationFrame(frame);
     resize?.disconnect();
     controls?.dispose();
@@ -98,16 +89,17 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         shadowPending: metrics.shadowPagesPending,
         occluded: metrics.hizRejectedClusters ?? null,
         tested: metrics.hizTestedClusters ?? null,
+        diagnostic: explorer.diagnostic,
         idle,
       });
-      if (!coldStart) answerReady();
+      if (!coldStart) settle(readyResolve);
       previous = now;
       frame = 0;
-      if (idle) answerReady();
+      if (idle) settle(readyResolve);
       else frame = requestAnimationFrame(draw);
     } catch (error) {
       frame = 0;
-      answerReady(error);
+      settle(readyReject, error);
       dispose();
     }
   };
@@ -188,7 +180,17 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         return updateChain;
       },
       dispose,
-      camera: { zoomIn: camera.zoomIn, zoomOut: camera.zoomOut, reset },
+      setDiagnostic(mode) {
+        if (!disposed) {
+          explorer.setDiagnostic(mode);
+          invalidate();
+        }
+      },
+      camera: {
+        zoomIn: camera.zoomIn,
+        zoomOut: camera.zoomOut,
+        reset,
+      },
     };
   } catch (error) {
     dispose();
