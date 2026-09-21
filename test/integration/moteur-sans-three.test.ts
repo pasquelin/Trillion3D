@@ -106,27 +106,26 @@ const TRAVERSE = /\basHostLibrary\s*[<(]/;
 const sources = async () =>
   (await readdir(browser)).filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'));
 
-test('only declared files import the host library', async () => {
-  const fichiers = await sources();
-  assert.ok(fichiers.length > 100, 'the browser package must be found');
+/** Files outside the closed list where a pattern appears; `exclu` is the file that declares it. */
+async function horsListe(motif: RegExp, exclu = ''): Promise<string[]> {
   const fuites: string[] = [];
-  for (const file of fichiers) {
-    if (AUTORISES[file.slice(0, -3)]) continue;
-    const texte = await readFile(new URL(file, browser), 'utf8');
-    if (IMPORTE_HOTE.test(texte)) fuites.push(file);
+  for (const file of await sources()) {
+    if (file === exclu || AUTORISES[file.slice(0, -3)]) continue;
+    if (motif.test(await readFile(new URL(file, browser), 'utf8'))) fuites.push(file);
   }
+  return fuites;
+}
+
+test('only declared files import the host library', async () => {
+  assert.ok((await sources()).length > 100, 'the browser package must be found');
+  const fuites = await horsListe(IMPORTE_HOTE);
   assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`);
 });
 
 // `hostResources.ts` declares the crossing; the same closed list says who may call it, so the
 // doc of `asHostLibrary` stays a rule and not a hope.
 test('only the declared boundary files cross back through `asHostLibrary`', async () => {
-  const fichiers = await sources();
-  const fuites: string[] = [];
-  for (const file of fichiers) {
-    if (file === 'hostResources.ts' || AUTORISES[file.slice(0, -3)]) continue;
-    if (TRAVERSE.test(await readFile(new URL(file, browser), 'utf8'))) fuites.push(file);
-  }
+  const fuites = await horsListe(TRAVERSE, 'hostResources.ts');
   assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`);
 });
 
