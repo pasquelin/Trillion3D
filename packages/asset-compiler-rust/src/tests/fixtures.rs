@@ -23,7 +23,11 @@ pub(super) fn cube_fixture() -> (PathBuf, Options) {
     fs::write(source.join("cube.gltf"), &gltf_bytes).expect("gltf write");
     fs::write(source.join("cube.bin"), &bin).expect("bin write");
     fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":"cube.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"cube.bin","sha256":hash(&bin)}],"trianglesAcrossNodes":12,"meshNodes":1}})).expect("manifest")).expect("manifest write");
-    let options = Options {
+    (root, simplified_options(source, cache))
+}
+/// The options both fixtures compile with: simplification on, the BC family cooked.
+fn simplified_options(source: PathBuf, cache: PathBuf) -> Options {
+    Options {
         source,
         cache,
         resource_base: "/assets/".into(),
@@ -34,8 +38,7 @@ pub(super) fn cube_fixture() -> (PathBuf, Options) {
         simplification: "qem-endpoints".into(),
         texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
         cancelled: Arc::new(AtomicBool::new(false)),
-    };
-    (root, options)
+    }
 }
 const HALF_PI: f32 = std::f32::consts::FRAC_PI_2;
 
@@ -91,19 +94,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
     fs::write(source.join("grid.gltf"), &gltf_bytes).expect("gltf");
     fs::write(source.join("grid.bin"), &bin).expect("bin");
     fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":"grid.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"grid.bin","sha256":hash(&bin)}],"trianglesAcrossNodes":indices.len()/3,"meshNodes":1}})).expect("manifest")).expect("manifest write");
-    let options = Options {
-        source,
-        cache,
-        resource_base: "/assets/".into(),
-        scope: "full".into(),
-        triangle_budget: 150000,
-        threads: 1,
-        ram_budget_mb: 64,
-        simplification: "qem-endpoints".into(),
-        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
-        cancelled: Arc::new(AtomicBool::new(false)),
-    };
-    (root, options)
+    (root, simplified_options(source, cache))
 }
 pub(super) fn encode_glb(gltf: &Value, bin: &[u8]) -> Vec<u8> {
     let mut json = serde_json::to_vec(gltf).expect("json");

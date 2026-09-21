@@ -20,7 +20,9 @@ import {
   texturePoolFor,
   textureTransferBytesFor,
   textureUploadMsFor,
+  type AtlasDemand,
 } from './webgpuMemoryBudgets.ts';
+import { chooseBlockFormat, poolEncoding } from './textureBlockFormats.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -120,10 +122,16 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const cap = poolFor(
     Math.max(geometryPool.budgetBytes, context.geometryPoolCeilingBytes ?? 0),
   ).slots;
-  const texturePool = texturePoolFor(
-    context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET,
-    gpuDevice,
+  // The block family the device samples, under the host's choice — what each lane's pool is
+  // sized by, a block texel costing a quarter of an RGBA8 one. The lanes' demand is prepare's to
+  // set, once the catalogue says which lane each texture takes; until then the pool has no layer.
+  const blockChoice = chooseBlockFormat(
+    gpuDevice?.features ?? { has: () => false },
+    context.textureCompression,
   );
+  const encoding = poolEncoding(blockChoice.block);
+  const texturePoolBudget = context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
+  const noDemand = { lossless: 0, rgba: 0, 'two-channel': 0 };
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   // The tile pass's two budgets: bytes, and the reference's fixed upload cadence in the frame's
   // own unit.
@@ -166,7 +174,19 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     geometryPool,
     // The same pool for another budget, under the session ceiling.
     geometryPoolFor: (budgetBytes: number) => poolFor(budgetBytes, cap),
-    texturePool,
+    blockChoice,
+    encoding,
+    textureDemand: { color: noDemand, data: noDemand } as AtlasDemand,
+    texturePool: texturePoolFor(
+      texturePoolBudget,
+      gpuDevice,
+      { color: noDemand, data: noDemand },
+      encoding.texelBytes,
+    ),
+    /** The texture pool for a budget, on the lanes' demand: what prepare and the memory setting draw. */
+    texturePoolFor(budgetBytes: number) {
+      return texturePoolFor(budgetBytes, gpuDevice, this.textureDemand, encoding.texelBytes);
+    },
     get slots() {
       return this.geometryPool.slots;
     },

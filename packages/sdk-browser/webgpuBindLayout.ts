@@ -4,20 +4,22 @@
  * them here. A binding added to an atlas therefore shifts the numbers on all three sides at
  * once, never on one alone — the defect merging lots 1 and 2 cost.
  */
-/** Two bindings of a virtual-texture atlas: its pool and its page table. */
-const atlas = (pool: number) => ({ pool, pages: pool + 1 });
+/** Four bindings of a virtual-texture atlas: its three lane pools — RGBA blocks, two-channel
+ *  blocks, raw RGBA8 — and its page table. */
+const atlas = (pool: number) => ({ pool, two: pool + 1, raw: pool + 2, pages: pool + 3 });
+export type AtlasBindings = ReturnType<typeof atlas>;
 
 /** Two binding shapes the layouts repeat, written once and for all. */
 export const readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' };
 export const atlasLayoutEntries = (
-  bindings: { pool: number; pages: number },
+  bindings: AtlasBindings,
   visibility = GPUShaderStage.FRAGMENT,
 ): GPUBindGroupLayoutEntry[] => [
-  {
-    binding: bindings.pool,
+  ...[bindings.pool, bindings.two, bindings.raw].map((binding) => ({
+    binding,
     visibility,
-    texture: { sampleType: 'float', viewDimension: '2d-array' },
-  },
+    texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,
+  })),
   { binding: bindings.pages, visibility, buffer: readOnly },
 ];
 export const VIS_BINDINGS = {
@@ -28,9 +30,9 @@ export const VIS_BINDINGS = {
   uniform: 4,
   uv: 5,
   color: atlas(6),
-  sampler: 8,
-  instances: 9,
-  slotOffsets: 10,
+  sampler: 10,
+  instances: 11,
+  slotOffsets: 12,
 };
 
 export const SHADE_BINDINGS = {
@@ -41,9 +43,9 @@ export const SHADE_BINDINGS = {
   normal: 4,
   pageTable: 5,
   color: atlas(6),
-  sampler: 8,
-  uniform: 9,
-  data: atlas(10),
+  sampler: 10,
+  uniform: 11,
+  data: atlas(12),
 };
 
 export const BLEND_BINDINGS = {
@@ -52,33 +54,33 @@ export const BLEND_BINDINGS = {
   uvs: 2,
   uniform: 3,
   color: atlas(4),
-  sampler: 6,
-  data: atlas(7),
-  normals: 9,
+  sampler: 8,
+  data: atlas(9),
+  normals: 13,
   /** Declared contract lights, the very ones the opaque resolve rereads (P6). */
-  directLights: 10,
-  clusterDiagnostic: 11,
+  directLights: 14,
+  clusterDiagnostic: 15,
   /** Instance list the plan expansion wrote: two words per instance, the item that carries it
    *  and what it draws (`webgpuBlendExpandWgsl.ts`). */
-  planInstances: 12,
-  clusterSpans: 13,
+  planInstances: 16,
+  clusterSpans: 17,
   /** Shadow slices, their atlas and the comparison sampler that reads them. */
-  shadowSlices: 14,
-  shadowAtlas: 15,
-  shadowSampler: 16,
+  shadowSlices: 18,
+  shadowAtlas: 19,
+  shadowSampler: 20,
   /** Probe grid and their coefficients: the opaque irradiance, with no extra pass. */
-  bounceGrid: 17,
-  probes: 18,
+  bounceGrid: 21,
+  probes: 22,
   /** Per-tile light lists, the very ones the opaque resolve reads: the blend pass reads its own
    *  depth slice there, from the near plane to the opaque background. */
-  tileLights: 19,
+  tileLights: 23,
   /** Resident proxy, the very one the opaque resolve traces: the sun shadow beyond the last
    *  cascade is taken here by the same ray, on a single binding. */
-  proxy: 20,
+  proxy: 24,
   /** Parameters of each transparent item, indexed by its rank in the scene: world matrix, colour,
    *  the six maps and their factors. They do not depend on the frame, so a draw no longer has a
    *  dynamic offset or a bind group of its own. */
-  items: 21,
+  items: 25,
 };
 
 /**
@@ -94,7 +96,7 @@ export const SMALL_BINDINGS = {
   uniform: 4,
   uvs: 5,
   color: atlas(6),
-  sampler: 8,
-  work: 9,
-  selectionMask: 10,
+  sampler: 10,
+  work: 11,
+  selectionMask: 12,
 };

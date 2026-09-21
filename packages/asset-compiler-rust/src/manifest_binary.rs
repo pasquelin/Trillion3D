@@ -35,10 +35,9 @@ use format::*;
 /// Version 5 widens an entry from ten to twelve words — the atlas it serves and the number of
 /// levels baked as files under `textures/` — and its pixels follow the graphics card's mip rule.
 /// A reader of version 4 would stride through the entries wrongly, so it refuses this file.
-/// Version 6 names the quantized cluster page (`WGP3`) as the only geometry page a sidecar
-/// carries. Version 7 adds two columns: the same tails block-compressed, BC7 then ASTC 4 × 4,
-/// each entry's range following from its dimensions. A reader of version 6 would not know them,
-/// so it refuses.
+/// Version 6 names the quantized cluster page (`WGP3`) as the only geometry page. Version 7 adds
+/// a layout word per block family to the entry and two columns of block-compressed tails, the
+/// BC family then ASTC; a reader of version 6 would not know them, so it refuses.
 pub const MANIFEST_BINARY_VERSION: u32 = 7;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
