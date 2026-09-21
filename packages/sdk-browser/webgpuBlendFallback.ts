@@ -1,5 +1,6 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
+import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -54,6 +55,7 @@ export function drawFallbackBlendPass(
     items = blendState.visibleBlend,
     indirect = blendState.compaction?.indirectBuffer;
   let unpaged = 0;
+  voidStaleBlendGroups(rt);
   const pass = encoder.beginRenderPass({
     label: 'WG transparents',
     colorAttachments: [{ view: gpu.colorView!, loadOp: 'load', storeOp: 'store' }],
