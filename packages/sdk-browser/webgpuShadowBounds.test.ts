@@ -35,11 +35,13 @@ test('noteResidenceChange: matrices and boxes hostile to signed zeros — the bo
     noteResidenceChange(
       {
         store: { count: 1 },
-        plan: { worldChanged: (min: number[], max: number[]) => (recu = [...min, ...max]) },
+        plan: {
+          representationChanged: (min: number[], max: number[]) => (recu = [...min, ...max]),
+        },
       } as Parameters<typeof noteResidenceChange>[0],
       rec,
     );
-    assert.ok(recu, 'worldChanged must be called');
+    assert.ok(recu, 'representationChanged must be called');
     for (let i = 0; i < 6; i++)
       assert.ok(Object.is(attendu[i], recu![i]), `composante ${i} : ${attendu[i]} ≠ ${recu![i]}`);
   }

@@ -140,13 +140,13 @@ test('ClusterBatches.dispose releases the biased materials it created for layere
     batches.acceptPage([rec], array);
   }
   batches.update(pages);
-  const biasedMesh = scene.children.find((child) => (child as THREE.Mesh).material !== original) as
-    THREE.Mesh | undefined;
-  assert.ok(biasedMesh, 'the layered cluster draws through a distinct, biased material');
-  const biased = biasedMesh!.material as THREE.Material;
+  const biasedDraw = batches.drawList.find((draw) => draw.material !== original);
+  assert.ok(biasedDraw, 'the layered cluster draws through a distinct, biased material');
+  const biased = biasedDraw!.material as THREE.Material;
   let disposed = 0;
   biased.addEventListener('dispose', () => disposed++);
   batches.dispose();
   assert.equal(disposed, 1, 'dispose() released the biased material exactly once');
-  assert.equal(scene.children.length, 0);
+  assert.equal(batches.drawList.length, 0);
+  assert.equal(scene.children.length, 0, 'no draw record ever entered the host scene');
 });

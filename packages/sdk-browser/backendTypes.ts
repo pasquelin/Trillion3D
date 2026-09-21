@@ -8,6 +8,7 @@ import type {
   StageProfile,
 } from '../sdk-core/index.ts';
 import type { BackendMetrics } from './backendMetricKeys.ts';
+import type { CpuStepSummary } from './cpuProfile.ts';
 export type { BackendCapabilities };
 
 export interface RenderBackend {
@@ -33,8 +34,8 @@ export interface RenderBackend {
   ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
-  /** Draws engine-owned opaque geometry into the framebuffer currently bound by the host.
-   *  The host clears first and draws its remaining Three scene afterwards without clearing. */
+  /** Draws engine-owned geometry (clusters, diagnostic pages, transmissive copies) into the
+   *  host's bound framebuffer; the host clears first and draws its remaining scene after. */
   drawHostGeometry?(
     camera: import('./cameraWorld.ts').HostDrawCamera,
     output: { encodeSrgb: boolean; toneMapped: boolean },
@@ -54,7 +55,6 @@ export interface RenderBackend {
     drawCalls?: number;
     batchRebuilds?: number;
     batchIndexBytesUpdated?: number;
-    displayDetachments?: number;
     pageRangeWrites?: number;
     subDraws?: number;
   };
@@ -63,13 +63,15 @@ export interface RenderBackend {
   stageProfile?(): StageProfile;
   /** Forgets the profile window: warmup and the first frames no longer weigh on its quantiles. */
   resetStageProfile?(): void;
+  /** CPU bounds of the images since that reset, read once then forgotten; `null` with no row. */
+  cpuSteps?(): CpuStepSummary | null;
   /** Shadow-atlas fingerprint, bit for bit: the proof of drawing by pages, never an image. */
   shadowAtlasDigest?(): Promise<import('./gpuShadowDigest.ts').ShadowAtlasDigest | null>;
-  /** What the GPU partition of the last frame wrote, and the inputs it drew it from: the
-   *  proof, cluster by cluster, that its rectangles and depths are conservative. */
+  /** What the GPU partition of the last frame wrote, and the inputs it drew it from: the proof,
+   *  cluster by cluster, that its rectangles and depths are conservative. */
   partitionAudit?(): Promise<import('./webgpuPartitionAudit.ts').PartitionAudit | null>;
-  /** What the transparent occlusion test rejected, and the depth it rejected against:
-   *  the proof that no removed cluster would have written a pixel. */
+  /** What the transparent occlusion test rejected, and the depth it rejected against: the proof
+   *  that no removed cluster would have written a pixel. */
   transparentOcclusionAudit?(): Promise<
     import('./webgpuTransparentOcclusionAudit.ts').TransparentOcclusionAudit | null
   >;
@@ -136,7 +138,7 @@ export interface BackendContext {
   /** What host-memory engines keep resident without a host ceiling; the WebGPU pool is in bytes. */
   residentPagesDefault?: number;
   maxCachedPages?: number;
-  /** Resident page/bundle bytes kept by the streamer. Defaults to DEFAULT_CACHED_BYTES. */
+  /** Resident page/bundle bytes kept by the streamer; `DEFAULT_CACHED_BYTES` by default. */
   maxCachedBytes?: number;
   pixelError?: number;
   lodAdaptive?: boolean;
@@ -148,8 +150,7 @@ export interface BackendContext {
   diagnosticDetail?: DiagnosticDetail;
   viewport?: [number, number];
   gpuDevice?: GPUDevice;
-  /** A host canvas dedicated to this WebGPU backend. */
-  gpuCanvas?: HTMLCanvasElement;
+  gpuCanvas?: HTMLCanvasElement; // a host canvas dedicated to this WebGPU backend
   /** Engine-owned host context. WebGL backends may allocate resources on it but never replace it. */
   webglContext?: WebGL2RenderingContext;
   /** Texture-tile bytes admitted per frame. */
@@ -174,8 +175,7 @@ export interface BackendContext {
   /** Identifiers of the lights the source file carried, in cache order. The host rereads
    *  them via `explorer.importedLights()` to set or remove them one by one. */
   importedLightIds?: string[];
-  /** Bounced light. Off by default: its step stays above the one-millisecond bar measured
-   *  on the three views; `true` turns it on for the whole session. */
+  /** Bounced light, off by default: its step stays above the measured one-millisecond bar. */
   bounce?: boolean;
   /** Target duration of the "Bounce" step on the GPU, per frame, in milliseconds.
    *  Default `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target, not a promise. */
@@ -185,9 +185,9 @@ export interface BackendContext {
   /** DIAGNOSTIC variant kept by the host, already checked (`diagnosticGpuVariant.ts`).
    *  Absent in production: an engine without it encodes exactly what it used to encode. */
   diagnosticGpuVariant?: DiagnosticGpuVariant;
-  /** Shadows-step budget, in GPU milliseconds per frame. See `LIGHT_SETTINGS`. */
+  /** Shadows-step budget, in GPU milliseconds per frame (`LIGHT_SETTINGS`); page-by-page
+   *  shadow-map invalidation, on by default. */
   shadowBudgetMs?: number;
-  /** Page-by-page shadow-map invalidation. On by default. */
   shadowPageInvalidation?: boolean;
   /** Reads the resident-proxy cache object. Absent when the cache does not carry one;
    *  called at most once, on the first frame that carries a declared light. */

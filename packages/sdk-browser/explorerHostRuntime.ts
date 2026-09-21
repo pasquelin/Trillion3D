@@ -15,8 +15,31 @@ type Inputs = {
 };
 
 export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, metadata, scope, signal, diagnose } = session;
+  const { canvas, options, signal } = session;
   const { prepared, resources, backends } = inputs;
+  const host = createExplorerHostState(
+    prepared,
+    options,
+    backends,
+    canvas,
+    resources.webglSurface,
+    signal,
+  );
+  try {
+    return mountExplorerHostRuntime(session, inputs, host);
+  } catch (error) {
+    // The adapter's owner is the lifecycle, which does not exist yet: nothing else disposes it.
+    host.renderer?.dispose();
+    throw error;
+  }
+}
+
+function mountExplorerHostRuntime(
+  session: ExplorerSession,
+  { prepared, resources, backends }: Inputs,
+  host: ReturnType<typeof createExplorerHostState>,
+) {
+  const { canvas, options, metadata, scope, diagnose } = session;
   const {
     source,
     pageSources,
@@ -30,11 +53,11 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     homeOffset,
   } = prepared;
   const { geometryUrls, streamer } = pageSources;
-  const renderer = resources.renderer;
-  const gpuDevice = resources.gpuDevice;
-  const host = createExplorerHostState(prepared, options, backends, canvas, renderer, signal);
+  const { gpuDevice } = resources;
   const {
     state,
+    webglSurface,
+    renderer,
     beautyMaterials,
     overlays,
     hostedControls,
@@ -55,7 +78,6 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
   if (renderer) hostedControls.push({ dispose: drawScene.dispose });
   const { render, profiler, streaming } = createExplorerHostFrame(session, {
     prepared,
-    resources,
     host,
     backends,
     drawScene,
@@ -64,6 +86,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     canvas,
     camera,
     renderer: renderer!,
+    context: webglSurface?.context,
     options,
     directGpu,
     presentBackend,
@@ -85,7 +108,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     source,
     renderer,
-    webglSurface: resources.webglSurface,
+    webglSurface,
     camera,
     geometryUrls,
   });
@@ -114,7 +137,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     scope,
     directGpu,
     renderer: renderer!,
-    webglSurface: resources.webglSurface,
+    webglSurface,
     viewport,
     context,
     homeOffset,

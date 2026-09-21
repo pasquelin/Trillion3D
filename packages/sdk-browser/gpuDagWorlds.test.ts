@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../sdk-core/index.ts';
 import { FRAME_VEC4 } from './gpuDagTypes.ts';
-import { refreshWorldStretch } from './gpuDagWorlds.ts';
+import { refreshWorldStretch, worldsChanged } from './gpuDagWorlds.ts';
 
 const WORLDS = 4;
 
@@ -65,4 +65,12 @@ test('a single resized primitive is the only one recomputed, to the float', () =
   assert.equal(refreshWorldStretch(previous, next, packed, frameData), 1);
   assert.deepEqual([...packed.worldStretch], [...reference(next)]);
   assert.equal(frameData[(2 * FRAME_VEC4 + 6) * 4], reference(next)[2]);
+});
+
+test('worldsChanged is false on identical buffers and true on one moved translation', () => {
+  const previous = scene(),
+    next = Float32Array.from(previous);
+  assert.equal(worldsChanged(previous, next), false);
+  next[2 * 16 + 14] += 1;
+  assert.equal(worldsChanged(previous, next), true);
 });

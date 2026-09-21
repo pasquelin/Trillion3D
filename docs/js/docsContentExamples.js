@@ -1,5 +1,5 @@
 import { engineExampleCode } from './engine-scene/code.js';
-/** Examples: code in `example`, prose in `html` when a lesson needs one; rendered like the guides. */
+/** Application examples: code in `example`, rendered by the React Entry component. */
 const EXAMPLE = { section: 'examples', kind: 'Example' };
 
 export const EXAMPLES = [

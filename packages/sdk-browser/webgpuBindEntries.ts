@@ -73,12 +73,6 @@ export type BlendBindResources = AtlasResources &
     /** Instance list expanded for the image, and each cluster's span in the cache. */
     planInstances: GPUBuffer;
     clusterSpans: GPUBuffer;
-    /** Material volume, at a dynamic offset like the main uniform. */
-    volume: GPUBuffer;
-    volumeSize: number;
-    /** Frozen backdrop of the transmission pass: colour and depth already drawn. */
-    backdrop: GPUTextureView;
-    backdropDepth: GPUTextureView;
   };
 
 /** Resources of the software raster of small triangles: it only reads the alpha cutout. */
@@ -165,9 +159,6 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.probes, resource: { buffer: r.probes } },
     { binding: b.tileLights, resource: { buffer: r.tileLights } },
     { binding: b.proxy, resource: { buffer: r.proxy } },
-    { binding: b.volume, resource: { buffer: r.volume, size: r.volumeSize } },
-    { binding: b.backdrop, resource: r.backdrop },
-    { binding: b.backdropDepth, resource: r.backdropDepth },
   ];
 }
 

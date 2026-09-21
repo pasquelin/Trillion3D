@@ -11,6 +11,7 @@ import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerSession } from './explorerSession.ts';
+import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
   camera: THREE.PerspectiveCamera;
@@ -19,6 +20,7 @@ type Inputs = {
   streaming: ReturnType<typeof createExplorerStreaming>;
   directGpu: boolean;
   renderer: THREE.WebGLRenderer;
+  webglSurface?: WebglSurface;
   presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
@@ -56,12 +58,12 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, presentBackend, baseline, state, drawScene } =
     inputs;
-  const { directGpu, renderer: ownedRenderer } = inputs;
-  // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit, and is only
-  // mounted if the host asked for the per-step profile.
+  const { directGpu, renderer: ownedRenderer, webglSurface } = inputs;
+  // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit on the engine's
+  // context, and is only mounted if the host asked for the per-step profile.
   const gpuTimer =
-    session.options.stageProfile === true && !directGpu && ownedRenderer
-      ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
+    session.options.stageProfile === true && webglSurface
+      ? createWebglFrameTimer(webglSurface.context)
       : null;
   /** A host render target is sRGB encoded, the page canvas is not: the copy must know which. */
   const srgb = (t: THREE.WebGLRenderTarget | null) =>

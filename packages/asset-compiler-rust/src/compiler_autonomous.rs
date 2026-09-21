@@ -32,19 +32,20 @@ fn deformed(source: &Value) -> bool {
 /// same materials, same images, but every primitive reduced to a single degenerate triangle. The
 /// geometry itself comes from the cluster pages. `Value::Null` when the cache is not eligible, with
 /// the named reason when it is the source's own movement that puts it out of reach.
+/// The products written, `scene.bin` then `scene.gltf`, come with it.
 pub(super) fn write_autonomous_scene(
     directory: &Path,
     source: &Value,
     primitives: &[Value],
     output_views: &[Value],
-) -> Result<(Value, Option<&'static str>)> {
+) -> Result<(Value, Option<&'static str>, Vec<Product>)> {
     if !primitives.is_empty()
         && primitives
             .iter()
             .all(|primitive| primitive["pass"] == "exact-clusters")
     {
         if deformed(source) {
-            return Ok((Value::Null, Some(ANIMATED)));
+            return Ok((Value::Null, Some(ANIMATED), Vec::new()));
         }
         let mut scene = source.clone();
         let mut scene_bytes = vec![0u8; 44];
@@ -95,9 +96,11 @@ pub(super) fn write_autonomous_scene(
                 }
             }
         }
-        atomic(&directory.join("scene.bin"), &scene_bytes)?;
-        atomic(&directory.join("scene.gltf"), &serde_json::to_vec(&scene)?)?;
-        return Ok((json!("scene.gltf"), None));
+        let products = vec![
+            product(directory, "scene.bin", &scene_bytes)?,
+            product(directory, "scene.gltf", &serde_json::to_vec(&scene)?)?,
+        ];
+        return Ok((json!("scene.gltf"), None, products));
     }
-    Ok((Value::Null, None))
+    Ok((Value::Null, None, Vec::new()))
 }

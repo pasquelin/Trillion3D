@@ -10,6 +10,8 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   canvas: HTMLCanvasElement;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
+  /** The engine's context, where the pixels are read; absent on the direct WebGPU path. */
+  context?: WebGL2RenderingContext;
   options: ExplorerOptions;
   directGpu: boolean;
   presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
@@ -23,6 +25,7 @@ export function createExplorerCapture(inputs: Inputs) {
     canvas,
     camera,
     renderer: ownedRenderer,
+    context: gl,
     options,
     directGpu,
     presentBackend,
@@ -31,6 +34,10 @@ export function createExplorerCapture(inputs: Inputs) {
     diagnose,
     drawScene,
   } = inputs;
+  const readPixels = (width: number, height: number, into: Uint8Array) => {
+    if (!gl) throw new Error('The direct GPU path has no host surface to read');
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, into);
+  };
   const capturePool = [new Uint8Array(0), new Uint8Array(0), new Uint8Array(0)];
   let captureSlot = 0;
   const presentationDiagnostics = new Set<string>(),
@@ -42,8 +49,7 @@ export function createExplorerCapture(inputs: Inputs) {
     visiblePresentationDiagnostics.add(active.id);
     const pixel = new Uint8Array(4);
     try {
-      const gl = ownedRenderer.getContext();
-      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+      readPixels(1, 1, pixel);
       diagnose('visible-presentation', 'First sample of the visible WebGL framebuffer', {
         kind: 'presentation',
         engine: active.id,
@@ -83,8 +89,7 @@ export function createExplorerCapture(inputs: Inputs) {
       captureSlot = (captureSlot + 1) % 3;
       if (capturePool[captureSlot].length !== size) capturePool[captureSlot] = new Uint8Array(size);
       const pixels = capturePool[captureSlot];
-      const gl = ownedRenderer.getContext();
-      gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      readPixels(canvas.width, canvas.height, pixels);
       if (!presentationDiagnostics.has(active.id)) {
         presentationDiagnostics.add(active.id);
         diagnose('presentation-capture', 'First sample of the final WebGL composition', {

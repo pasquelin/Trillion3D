@@ -4,9 +4,10 @@ import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './web
 import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
-/** The pass's three pipelines, named by a rank: a plan entry picks them without a test. */
-const PIPELINE_NONE = 0;
-export const PIPELINE_FRONT = 1,
+/** The pass's three pipelines, named by a rank: a plan entry picks them without a test, and the
+ *  rank indexes the pipeline tuple of the pass (`BlendPipelines`, `webgpuBlendDraw.ts`). */
+const PIPELINE_NONE = 0,
+  PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 /**
  * A plan entry: the item rank in the high bits, then the bit that says whether the item can
