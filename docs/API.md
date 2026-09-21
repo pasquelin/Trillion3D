@@ -133,16 +133,32 @@ cumulative evidence of routing, not a frame-time or draw-call metric.
 
 The supported input is unextended `MeshStandardMaterial` and `MeshBasicMaterial`, including glTF base
 colour, metallic-roughness, normal, occlusion and emissive textures and their samplers, transforms and
-UV sets. Unsupported blend, transmission, physical extensions, shader hooks, material arrays and light
-types select the complete scene-renderer fallback explicitly; #119 and #120 track their removal.
+UV sets. At this stage, unsupported blend, transmission, physical extensions, shader hooks, material
+arrays and light types selected a complete scene-renderer fallback; #119 then #120 removed it.
 
 | Function or contract                                  | Computes                                                                                                              | Replaces                                            | Proof                                                                                      |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `WebglClusterRenderer.draw(meshes, scene, camera, …)` | validated opaque/MASK batches, multi-draw submission, bounded light blocks and published geometric specular filtering | host-renderer submission of those cluster meshes    | analytic planar/curved/moving browser fixtures; real Emerald `autonomousClusterDrawsTotal` |
-| `RenderBackend.drawHostGeometry(camera, output)`      | one raw geometry hook with explicit colour encoding and tone-mapping destination state                                | cluster meshes attached to the temporary scene      | canvas and sRGB FBO cases in `rendu-clusters-webgl.browser.mjs`                            |
-| `createSceneDrawer(renderer, camera)`                 | shared display, render-target, capture, held-frame and restoration order                                              | independent host-renderer calls in each output path | context loss/restore and FBO scissor cases in the browser proof                            |
-| `autonomousClusterDrawsTotal`                         | cumulative count of visible cluster batches whose owned submission completed                                          | inference from host-renderer counters               | real Emerald counter; invisible and rejected browser cases count zero                      |
+| `RenderBackend.drawHostGeometry(camera, output)`      | one raw geometry hook with explicit colour encoding and tone-mapping destination state               | cluster meshes attached to the temporary scene      | canvas and sRGB FBO cases in `rendu-clusters-webgl.browser.mjs`                |
+| `createSceneDrawer(renderer, camera)`                 | shared display, render-target, capture, held-frame and restoration order                             | independent host-renderer calls in each output path | context loss/restore and FBO scissor cases in the browser proof                |
+| `autonomousClusterDrawsTotal`                         | cumulative count of visible cluster batches whose owned submission completed                         | inference from host-renderer counters               | real Emerald counter; invisible and rejected browser cases count zero          |
 
+## Batch E5 — transmission over autonomous clusters, fallback removed (#120)
+
+A transmissive source mesh is a scene copy the engine draws itself, after the paged clusters,
+over a frozen backdrop of the frame in linear light — the glTF transmission model the WebGPU
+pass already implements. With every supported material path owned, the temporary complete-scene
+fallback is gone: paged clusters have one renderer, and a scene it cannot draw in full fails its
+preparation by name.
+
+| Function or contract                                          | Computes                                                                                               | Replaces                                                        | Proof                                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `WebglClusterRenderer.draw(meshes, scene, camera, …, copies)` | the frame into the backdrop, then to the target, then the transmissive copies reading the backdrop     | `WebGLRenderer.renderTransmissionPass` and the physical shader  | `transmission-clusters-webgl.browser.mjs`: through, occluded, blended, attenuated, lit |
+| `WebglClusterBackdrop`                                        | half-float colour and 24-bit depth copies sized to the viewport, bound and restored around the frame   | `WebGLRenderer._transmissionRenderTarget`                       | sub-viewport, target and viewport restoration in the same proof                        |
+| `clusterMaterialReason(material, attributes, transmissive)`   | the named reason a material cannot be preserved; the transmission volume is the one physical extension | silent selection of the scene-renderer fallback                 | `webglClusterCompatibility.test.ts`                                                    |
+| `submittedDraws(backend)`                                     | the batch records or diagnostic page meshes the owner submits for the cut; oracle and test access only | reading `ClusterDrawMesh` objects off the host scene            | `pagesBackend*.test.ts`, `pageRaster.ts` oracle                                        |
+| `EngineError('CLUSTER_MATERIAL_UNSUPPORTED')`                 | preparation and draw refusal, `details.reason` naming the input                                        | `cluster-webgl-fallback` diagnostic and the complete Three path | `transmission-explorateur-webgl.browser.mjs`                                           |
+| `autonomousCopyDraws`, `transmissionBackdropBytes`            | submissions of the owned scene copies this frame, both passes; bytes the backdrop holds since the first glass | inference from host-renderer counters                           | explorer proof: one copy, 64 × 64 × 12 bytes, none in `WebGLRenderer.render`           |
 ## Batch math for hosts (#104, #80)
 
 `packages/sdk-core/mathBatch.ts` and the `mathBatch*.ts` beside it: `n` elements per call, flat
@@ -176,3 +192,4 @@ exceptions are declared on their line.
 What the engine's own frame pays for the loops these batches would replace is measured in the SDK
 guide, same section: no engine loop was replaced by a batch in #80's third stage, each verdict
 resting on a published share.
+

@@ -26,7 +26,16 @@ export const setClusterSamplers = (
   gl: WebGL2RenderingContext,
   location: (name: string) => WebGLUniformLocation | null,
 ) => {
-  const names = ['baseMap', 'roughMap', 'metalMap', 'normalMap', 'aoMap', 'emissiveMap'];
+  const names = [
+    'baseMap',
+    'roughMap',
+    'metalMap',
+    'normalMap',
+    'aoMap',
+    'emissiveMap',
+    'backdrop',
+    'backdropDepth',
+  ];
   for (let unit = 0; unit < names.length; unit++) gl.uniform1i(location(names[unit]), unit);
 };
 

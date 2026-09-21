@@ -34,8 +34,8 @@ export interface RenderBackend {
   ): Promise<import('./webgpuPagesMemory.ts').MemoryBudgetsReport>;
   prepare(): Promise<void>;
   render(camera: HostCamera): void;
-  /** Draws engine-owned opaque geometry into the framebuffer currently bound by the host.
-   *  The host clears first and draws its remaining Three scene afterwards without clearing. */
+  /** Draws engine-owned geometry (clusters, diagnostic pages, transmissive copies) into the
+   *  host's bound framebuffer; the host clears first and draws its remaining scene after. */
   drawHostGeometry?(
     camera: import('./cameraWorld.ts').HostDrawCamera,
     output: { encodeSrgb: boolean; toneMapped: boolean },
@@ -54,7 +54,6 @@ export interface RenderBackend {
     drawCalls?: number;
     batchRebuilds?: number;
     batchIndexBytesUpdated?: number;
-    displayDetachments?: number;
     pageRangeWrites?: number;
     subDraws?: number;
   };

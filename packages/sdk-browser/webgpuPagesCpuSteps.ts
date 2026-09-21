@@ -71,6 +71,9 @@ function recordStages(rt: WebgpuPagesRuntime) {
   // this image, `pagesRedessinees` what the kept regions cover, `pagesEnAttente` what the budget
   // left for later, and `retardMaxMs` the wait of the oldest page in that queue.
   const { counts } = lights.plan;
+  // What the region culls kept, sampled on the device one frame in fifteen: the frame it
+  // describes is named, and until a sample has returned there is no count at all.
+  const culled = lights.cull?.counts.counts();
   stages.setCounts('shadows', {
     lampesRedessinees: lights.shadowsUpdated,
     cartesReutilisees: counts.reused,
@@ -84,6 +87,13 @@ function recordStages(rt: WebgpuPagesRuntime) {
     pagesEnAttente: counts.pendingPages,
     retardMaxMs: counts.waitedMs,
     retardMaxImages: counts.waitedFrames,
+    ...(culled
+      ? {
+          occludeursGardes: culled.kept,
+          regionsRelevees: culled.regions,
+          imageRelevee: culled.frame,
+        }
+      : {}),
   });
   stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
   // The sun's far shadow: counts sampled one image in fifteen, never a duration. Its ray is traced

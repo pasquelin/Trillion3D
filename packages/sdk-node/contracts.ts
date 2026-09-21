@@ -83,19 +83,30 @@ export interface CompilationSummary {
   unsupported?: unknown;
 }
 
+/** What a job proved before keeping an existing folder instead of writing it (`null` when it compiled; `clusterHierarchyPagesMs` is then `null` too). */
+export interface ReusedFolder {
+  files: number;
+  fileBytes: number;
+  objects: number;
+  objectBytes: number;
+  textureLevels: number;
+  validateMs: number;
+}
+
 export interface CompilationPointer extends CompilationSummary {
   formatVersion: number;
   selectedNodes: number;
   primitives: number;
   metrics: {
     importMs: number;
-    clusterHierarchyPagesMs: number;
+    clusterHierarchyPagesMs: number | null;
     wallMs: number;
     pruneMs: number;
     outputGeometryBytes: number;
     threads: number;
     ramBudgetMb: number;
   };
+  reused: ReusedFolder | null;
 }
 
 export interface CompilationResult extends CompilationSummary {
@@ -103,6 +114,7 @@ export interface CompilationResult extends CompilationSummary {
   formatVersion?: number;
   selectedNodes: number[];
   primitives: unknown[];
+  reused?: ReusedFolder | null;
   [key: string]: unknown;
 }
 
