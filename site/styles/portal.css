@@ -1082,6 +1082,22 @@ kbd {
   gap: 0.75rem;
   font-size: 0.75rem;
 }
+/* A switch that explains its colours needs the whole row to read on one line. */
+.control-panel-parameters > .control-panel-span {
+  grid-column: 1 / -1;
+}
+/* A switch reads on one line: its name, then the switch, then what its colours mean. */
+.control-toggle-field {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  min-width: 0;
+}
+.control-toggle-field > .control-label {
+  width: auto;
+  flex: none;
+}
 .control-toggle {
   display: flex;
   align-items: center;
