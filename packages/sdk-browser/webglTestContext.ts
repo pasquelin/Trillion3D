@@ -3,7 +3,7 @@
  * constant answers itself by name, every call is recorded with its arguments, GPU objects are
  * numbered so a test can tell one from another, and the context can be declared lost.
  */
-export type RecordedCall = { name: string; args: unknown[] };
+type RecordedCall = { name: string; args: unknown[] };
 
 export function createTestContext(options: { lost?: boolean } = {}) {
   const calls: RecordedCall[] = [];
