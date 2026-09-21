@@ -15,19 +15,17 @@ test('ignored personal content stays outside shared checks and force-addition is
   const git = (...args) => execFileSync('git', args, { cwd: root, stdio: 'pipe' });
   try {
     git('init', '-q');
-    writeFileSync(join(root, '.gitignore'), 'personal/\nPRIVATE.md\ndocs/runtime/\n');
+    writeFileSync(join(root, '.gitignore'), 'personal/\nPRIVATE.md\n');
     mkdirSync(join(root, 'personal'));
-    mkdirSync(join(root, 'docs/runtime'), { recursive: true });
+    mkdirSync(join(root, 'docs'));
     writeFileSync(join(root, 'personal/session.test.mjs'), 'throw Error("private");');
     writeFileSync(join(root, 'docs/PRIVATE.md'), '[private](missing.md)');
     writeFileSync(join(root, 'docs/guide.md'), '[broken](missing.md)');
-    writeFileSync(join(root, 'docs/runtime/portal.js'), 'export {};');
     git('add', '.');
     assert.deepEqual(trackedIgnoredFiles(root), []);
     assert.deepEqual(repositoryFiles(root).sort(), ['.gitignore', 'docs/guide.md']);
     assert.equal(checkLinks(root).errors.length, 1);
-    // A published bundle is ignored yet tracked on main by design: only the personal file counts.
-    git('add', '--force', 'docs/PRIVATE.md', 'docs/runtime/portal.js');
+    git('add', '--force', 'docs/PRIVATE.md');
     assert.deepEqual(trackedIgnoredFiles(root), ['docs/PRIVATE.md']);
     git('rm', '--cached', 'docs/PRIVATE.md');
     const changed = new Set(['docs/PRIVATE.md', 'docs/guide.md']);

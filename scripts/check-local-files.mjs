@@ -1,10 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { BUNDLES } from './docs/bundles.mjs';
-
-/** Ignored everywhere, tracked on main alone: the release commits them there by design. */
-const RELEASE_BUNDLES = new Set(BUNDLES.map((bundle) => `docs/${bundle}`));
 
 /** Check the index too: force-adding an ignored file must not bypass the policy. */
 export function trackedIgnoredFiles(root) {
@@ -14,7 +10,7 @@ export function trackedIgnoredFiles(root) {
     { cwd: root, encoding: 'utf8' },
   )
     .split('\0')
-    .filter((file) => file && !RELEASE_BUNDLES.has(file));
+    .filter(Boolean);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

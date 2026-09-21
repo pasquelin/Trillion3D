@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const root = new URL('../docs/js/gallery/', import.meta.url);
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { temporaryDemoBundle } from './docs/bundles.mjs';
 import { loadReactComponents } from './docs/render-react.mjs';
 const { Gallery, Playground } = await loadReactComponents('docs/react/gallery/index.tsx');
 const { ExampleCard } = await loadReactComponents('docs/react/gallery/ExampleCard.tsx');
@@ -150,11 +152,12 @@ test('all scenarios produce real 3D triangle geometry from SDK results', () => {
   }
 });
 
-test('every displayed snippet runs and matches its playground result', async () => {
-  const engine = new URL('../docs/js/engine.js', import.meta.url).href;
+test('every displayed snippet runs and matches its playground result', async (t) => {
+  const demo = await temporaryDemoBundle(fileURLToPath(new URL('..', import.meta.url)));
+  t.after(demo.remove);
   for (const example of mathExamples) {
     const state = initialState(example.id);
-    const source = codeFor(example.id, state).replace("'./js/engine.js'", JSON.stringify(engine));
+    const source = codeFor(example.id, state).replace("'./js/engine.js'", JSON.stringify(demo.url));
     const actual = (await import(`data:text/javascript,${encodeURIComponent(source)}`)).default;
     const result = evaluate(example.id, state);
     const expected = {

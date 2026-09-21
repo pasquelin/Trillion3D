@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
+import { resolve } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { resolveSdkImports } from '../docs/js/code/resolveSdkImports.js';
 import { runModule } from '../docs/js/code/execute.js';
 import { formatNumericText } from '../docs/js/code/formatNumber.js';
+import { temporaryDemoBundle } from './docs/bundles.mjs';
 
 function createWorker(source) {
   const script = `import { parentPort } from 'node:worker_threads';
@@ -15,8 +17,9 @@ function createWorker(source) {
   worker.on('error', (error) => adapter.onerror?.({ message: error.message }));
   return adapter;
 }
-const sdk = new URL('../docs/js/engine.js', import.meta.url).href;
-const execute = (code, options) => runModule(code, sdk, { createWorker, ...options });
+const demo = await temporaryDemoBundle(resolve(import.meta.dirname, '..'));
+after(demo.remove);
+const execute = (code, options) => runModule(code, demo.url, { createWorker, ...options });
 
 test('edited source executes a real public SDK calculation and returns its value', async () => {
   const response = await execute(`import { dotVector3 } from './js/engine.js';
@@ -55,7 +58,7 @@ test('SDK resolution preserves ordinary strings, comments and similarly named me
     const ordinary = "'./js/engine.js'";
     const object = { import: value => value };
     export default [ordinary, object.import('./js/engine.js')];`;
-  assert.equal(resolveSdkImports(code, sdk), code);
+  assert.equal(resolveSdkImports(code, demo.url), code);
   const result = await execute(code).promise;
   assert.deepEqual(JSON.parse(result.text), ["'./js/engine.js'", './js/engine.js']);
 });
@@ -73,7 +76,7 @@ test('SDK resolution handles dynamic imports and re-exported bindings', async ()
 test('default string exports remain values rather than module specifiers', async () => {
   for (const expression of ["'./js/engine.js'", "('./js/engine.js')", '`./js/engine.js`']) {
     const code = `export default ${expression};`;
-    assert.equal(resolveSdkImports(code, sdk), code);
+    assert.equal(resolveSdkImports(code, demo.url), code);
     assert.deepEqual(await execute(code).promise, { ok: true, text: '"./js/engine.js"' });
   }
 });
@@ -91,8 +94,8 @@ test('only source positions in supported import and re-export syntax are rewritt
     const suffix = prefix === 'import(' ? ')' : ';';
     const code = `${prefix} /* source */ './js/engine.js'${suffix}`;
     assert.equal(
-      resolveSdkImports(code, sdk),
-      `${prefix} /* source */ ${JSON.stringify(sdk)}${suffix}`,
+      resolveSdkImports(code, demo.url),
+      `${prefix} /* source */ ${JSON.stringify(demo.url)}${suffix}`,
     );
   }
 });

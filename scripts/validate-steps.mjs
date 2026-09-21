@@ -16,7 +16,6 @@ export const VALIDATE_STEPS = [
   'build:native',
   'check:structure',
   'check:dts',
-  'check:docs-demo',
   'check:docs-bundles',
   'check:docs-types',
   'check:links',

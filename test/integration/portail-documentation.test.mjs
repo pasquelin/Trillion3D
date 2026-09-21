@@ -2,13 +2,17 @@
 // carried by an open issue declares the symbols it documents, each must be exported by the file
 // it names, and a documented signature must take the arguments the function really takes. An
 // entry that is marked must name an issue the portal lists. Every demo must belong to an entry.
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { temporaryDemoBundle } from '../../scripts/docs/bundles.mjs';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const DOCS = join(ROOT, 'docs/js');
+// The demo bundle is generated, never committed: built here from the packages.
+const demo = await temporaryDemoBundle(ROOT);
+after(demo.remove);
 
 const modules = await Promise.all(
   readdirSync(DOCS)
@@ -71,7 +75,7 @@ function signatureArguments(signature, name) {
 }
 
 test('a documented signature takes the arguments the function really takes', async () => {
-  const engine = await import(join(ROOT, 'docs/js/engine.js'));
+  const engine = await import(demo.url);
   for (const entry of ENTRIES) {
     if (entry.issue || !entry.signature || !entry.exports) continue;
     for (const symbol of entry.exports) {
