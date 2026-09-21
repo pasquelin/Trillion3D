@@ -41,6 +41,18 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../sdk-browser/stageMapping.ts';
 export type { GpuPassBlock } from '../sdk-browser/stageMapping.ts';
 export { gpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
 export type { GpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
+export type {
+  HostAttribute,
+  HostAttributes,
+  HostGeometry,
+  HostMaterial,
+  HostMaterials,
+  HostMesh,
+  HostNode,
+  HostPoint,
+  HostScene,
+  HostTexture,
+} from '../sdk-browser/hostResources.ts';
 export { enginePose, readCameraWorld } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawCamera, HostCamera } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawOutput } from '../sdk-browser/webglRenderTarget.ts';
@@ -76,4 +88,3 @@ export {
 } from '../sdk-browser/engineCamera.ts';
 export type { CameraOptics, EngineCamera } from '../sdk-browser/engineCamera.ts';
 export { materialSide, sideOf } from '../sdk-browser/materialSide.ts';
-export type { Side } from '../sdk-browser/materialSide.ts';

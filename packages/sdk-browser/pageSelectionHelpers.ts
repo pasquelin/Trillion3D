@@ -1,3 +1,4 @@
+import type { HostMaterials } from './hostResources.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import {
@@ -8,7 +9,6 @@ import {
   type ClusterStructure,
   type StreamCatalogue,
 } from '../sdk-core/index.ts';
-import type * as THREE from 'three';
 import { sideOf } from './materialSide.ts';
 import {
   OPEN_CONE,
@@ -19,7 +19,7 @@ import {
 } from './pageCone.ts';
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
-function pageIsDoubleSided(material: THREE.Material | THREE.Material[] | undefined) {
+function pageIsDoubleSided(material: HostMaterials | undefined) {
   return !!material && sideOf(material) === 'double';
 }
 
@@ -29,7 +29,7 @@ export function coneSkipsPage(
     cone?: NormalCone;
     min?: number[];
     max?: number[];
-    material?: THREE.Material | THREE.Material[];
+    material?: HostMaterials;
   },
   ctx: ConeContext,
   world: MatrixElements,

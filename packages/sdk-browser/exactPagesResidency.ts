@@ -1,4 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
+import { asHostLibrary } from './hostResources.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 import type { WholeMesh } from './clusterBatchMesh.ts';
@@ -30,7 +31,7 @@ export function createExactPagesResidency(
       attached.push(rec);
       if (diagnostic !== 'beauty') {
         attach(rec);
-        if (rec.mesh) diagnosticMeshes.push(rec.mesh);
+        if (rec.mesh) diagnosticMeshes.push(asHostLibrary<WholeMesh>(rec.mesh));
       }
     }
     if (diagnostic === 'beauty') batches.update(display);

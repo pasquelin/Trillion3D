@@ -1,8 +1,10 @@
 import type * as THREE from 'three';
+import { asHostLibrary, type HostNode } from './hostResources.ts';
 
 /** Meshes of a subtree, in preorder. Nothing is lifted here: the world matrices the
  *  engine needs are its own (`hostWorldPlacements.ts`), and the host scene stays as it left it. */
-export function meshes(source: THREE.Object3D) {
+export function meshes(node: HostNode) {
+  const source = asHostLibrary<THREE.Object3D>(node);
   const found: THREE.Mesh[] = [];
   source.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) found.push(o as THREE.Mesh);

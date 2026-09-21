@@ -1,3 +1,4 @@
+import type { HostTexture } from './hostResources.ts';
 import type * as THREE from 'three';
 import type { TextureRgba } from './visibilityTypes.ts';
 import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
@@ -19,7 +20,7 @@ export type TileScratch = { texture: GPUTexture; destroy(): void };
 export function createTileScratch(
   device: GPUDevice,
   options: {
-    map: THREE.Texture;
+    map: HostTexture;
     rgba: TextureRgba | null;
     width: number;
     height: number;

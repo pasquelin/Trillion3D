@@ -1,6 +1,11 @@
-import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
-import type { AssetScope, CameraPose, FrameMetrics, StablePreview } from '../sdk-core/index.ts';
+import type {
+  AssetScope,
+  CameraPose,
+  FrameMetrics,
+  Material,
+  StablePreview,
+} from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { MemoryBudgets } from './webgpuPagesMemory.ts';
@@ -34,7 +39,7 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       return active.setMemoryBudgets(budgets);
     },
-    addInstance(id: string, transform: THREE.Matrix4) {
+    addInstance(id: string, transform: Float64Array) {
       check();
       const active = getActive();
       if (!active.addInstance)
@@ -44,7 +49,7 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       active.addInstance(id, transform);
     },
-    updateInstance(id: string, transform: THREE.Matrix4) {
+    updateInstance(id: string, transform: Float64Array) {
       check();
       const active = getActive();
       if (!active.updateInstance)
@@ -64,7 +69,7 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       active.removeInstance(id);
     },
-    updateMaterial(primitive: string, material: THREE.Material) {
+    updateMaterial(primitive: string, material: Material) {
       check();
       const active = getActive();
       if (!active.updateMaterial)
