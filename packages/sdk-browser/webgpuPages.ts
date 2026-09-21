@@ -41,10 +41,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
   // An uncaptured error abandons the device: what follows would draw on a state no one knows.
-  const onGpuError = (event: GPUUncapturedErrorEvent) => {
+  // It is reported once, as the loss it is, with the error's text.
+  const onGpuError = (event: GPUUncapturedErrorEvent) =>
     markWebgpuLost(rt, { reason: 'uncaptured-error', message: String(event.error.message) });
-    diag.diagnosticFailure('gpu-uncaptured-error', event.error);
-  };
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,

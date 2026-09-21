@@ -1,8 +1,5 @@
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Why the device is gone, as the `gpu-device-lost` diagnostic publishes it. */
-export type LossCause = { reason: string; message: string };
-
 /**
  * The one place that declares the device lost, whatever reported it — the device's own `lost`
  * promise, an uncaptured error, a residency read that failed on it, or `dispose`.
@@ -15,8 +12,7 @@ export type LossCause = { reason: string; message: string };
  *   a transparent black image, and the presenter is dropped so `presentedSurface` no longer
  *   publishes the canvas — a host composing from it draws as for an engine without one, and a
  *   host canvas the engine presented into goes blank rather than keeping a stale frame;
- * - the held frame: `frameHeld` is cleared and the resource revision moves, so the witness no
- *   longer matches and nothing redisplays the target as this frame.
+ * - the held frame: `frameHeld` is cleared, so nothing redisplays the target as this frame.
  *
  * Then, given a cause, the loss is announced once under `gpu-device-lost` with
  * `code: 'WEBGPU_LOST'`: a host that reacts to it by drawing already finds nothing stale. A
@@ -25,13 +21,12 @@ export type LossCause = { reason: string; message: string };
  */
 export function markWebgpuLost(
   rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | 'diag'>,
-  cause?: LossCause,
+  cause?: { reason: string; message: string },
 ) {
   const { run, gpu, diag } = rt;
   if (run.lost) return false;
   run.lost = true;
   run.frameHeld = false;
-  run.gate.resourcesChanged();
   gpu.presenter?.dispose();
   gpu.presenter = undefined;
   if (cause)

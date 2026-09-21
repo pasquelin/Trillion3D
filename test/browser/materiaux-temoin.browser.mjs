@@ -82,7 +82,7 @@ for (const fixture of result.results) {
   for (const phase of ['material-textures', 'render-capabilities', 'first-readback'])
     assert.ok(phases.includes(phase), `${fixture.name}: missing render diagnostic ${phase}`);
   assert.ok(
-    !phases.some((phase) => /failed|uncaptured-error/.test(phase)),
+    !phases.some((phase) => /failed|gpu-device-lost/.test(phase)),
     `${fixture.name}: GPU failure diagnostic — inspect ${out}/result.json`,
   );
   assert.ok(
