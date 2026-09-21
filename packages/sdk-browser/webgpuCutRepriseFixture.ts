@@ -5,6 +5,7 @@ import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { mountCutAdopter } from './webgpuCutAdopterFixture.ts';
 import { cameraSelectionUniforms, createSelectionUniforms } from './gpuSelection.ts';
 import { createEngineCamera, writeEngineCamera } from './engineCamera.ts';
+import { createWebgpuBudgetState } from './webgpuBudgetState.ts';
 import type { GpuCut, GpuSelection } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -92,11 +93,10 @@ export function banc(panne?: 'debordement' | 'envoi') {
     run: {
       gpuSelection: selection,
       selectionUniforms: uniforms,
-      budgetPixelError: 0,
-      coverageBudgetLimited: false,
+      ...createWebgpuBudgetState(),
       gpuMetricsReady: false,
       desired,
-      gate: { resourcesChanged: () => {} },
+      gate: { resourcesChanged: () => {}, revisions: { view: 0 } },
       frame: 0,
       imageRevision: 1,
     },

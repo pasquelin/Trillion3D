@@ -37,7 +37,7 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
     {} as GPUShaderModule,
     [],
   );
-  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
+  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device);
   const layouts: Array<[string, unknown]> = [
     ['visibility', visBindGroupLayout],
     ['hardware resolve', shadeBindGroupLayout],
