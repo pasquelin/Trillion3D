@@ -69,4 +69,5 @@ test('a deferred remainder is offered again until fresh feedback replaces it', (
     [9],
     'fresh feedback wins over the backlog',
   );
+  assert.equal(queue.deferred, 0, 'the backlog fresh feedback replaced is gone at once');
 });

@@ -18,15 +18,15 @@ export function createTileCounters() {
     missingAverage: 0,
     bytesLastFrame: 0,
     scratches: 0,
-    /** True when the last pass had tiles to serve, and what it cost — the one clock of the pass,
-     *  the same the budget is read on; the `tilesPumpMs` CPU step files it, never a second bracket. */
+    /** True when the last pass had tiles to serve. */
     worked: false,
-    lastMs: 0,
-    /** Worst bounded pass of the session, `null` until one ran: a barrier lifts the budget and is
-     *  not a frame's cost. */
+    /** What the last pass cost, on the one clock its budget is read on — the `tilesPumpMs` CPU
+     *  step files it, never a second bracket — and the worst bounded pass of the session. Both are
+     *  `null` for a barrier pass: it lifts the budget and is not a frame's cost. */
+    lastMs: null as number | null,
     peakMs: null as number | null,
     pass(ms: number, unbounded: boolean) {
-      this.lastMs = ms;
+      this.lastMs = unbounded ? null : ms;
       if (!unbounded && ms > (this.peakMs ?? -1)) this.peakMs = ms;
     },
     metrics(atlases: readonly WebgpuTileAtlas[], levels: WebgpuTileLevels | undefined) {

@@ -52,6 +52,7 @@ export function createTileRequests(options: {
     take(frame: number): TileRequest[] {
       const counts = feedback.take();
       if (!counts) return backlog;
+      backlog = [];
       named = frame;
       return fromFeedback(counts, frame);
     },
@@ -61,7 +62,7 @@ export function createTileRequests(options: {
     },
     /** What the pass did not reach: offered again to the next pass. */
     defer(wanted: TileRequest[], from: number) {
-      backlog = from < wanted.length ? wanted.slice(from) : [];
+      backlog = wanted.slice(from);
     },
     /** Tiles waiting for a next pass, deferred by the budget. */
     get deferred() {
