@@ -5,7 +5,7 @@ import { externalEngine } from './external-engine.mjs';
 export async function buildPortal(root, outdir) {
   await build({
     absWorkingDir: root,
-    entryPoints: ['docs/react/main.jsx'],
+    entryPoints: ['docs/react/main.tsx'],
     outfile: resolve(outdir, 'portal.js'),
     bundle: true,
     minify: true,
