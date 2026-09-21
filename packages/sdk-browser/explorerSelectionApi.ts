@@ -33,6 +33,10 @@ export function createExplorerSelectionApi(inputs: Inputs) {
         id !== 'webgpu-page-raster'
       )
         throw new Error('Reference has no clusters; switch to beauty first');
+      if (diagnostic() === 'materials' && id !== 'webgpu-page-raster')
+        throw new Error(
+          'Only the WebGPU visibility path resolves by material class; switch to beauty first',
+        );
       const selected = backends.find((backend) => backend.id === id);
       if (!selected) throw new Error(`Unknown backend: ${id}`);
       selectBackend(selected);
