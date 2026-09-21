@@ -30,14 +30,22 @@ export {
   previewLevelSize,
   previewPixelBytes,
 } from './manifestBinary.ts';
-export { textureLevelUrl } from './textureLevelUrl.ts';
+export { textureLevelFormat, textureLevelUrl, type TextureLevelFormat } from './textureLevelUrl.ts';
 export {
   GEOMETRY_PAGE_CODEC,
   GEOMETRY_PAGE_FORMAT_VERSION,
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_DATA,
   PREVIEW_ATLAS_NAMES,
+  PREVIEW_BLOCK_BYTES,
+  PREVIEW_BLOCK_FORMATS,
+  PREVIEW_BLOCK_SIDE,
+  PREVIEW_LAYOUT_NAMES,
+  PREVIEW_LOSSLESS_FORMAT,
+  type TextureBlockFormat,
+  type TextureLayout,
 } from './manifestBinaryFormat.ts';
+export { blocksAcross, levelBlockBytes, previewBlockBytes } from './texturePreviewLevels.ts';
 export type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,

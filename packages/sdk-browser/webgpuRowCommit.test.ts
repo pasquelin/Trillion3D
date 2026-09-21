@@ -1,7 +1,7 @@
 // Lot F, F4 and F5: F4 (webgpuRowCommit.ts) no longer rewrites the page, offset, epoch and inverse
 // rank of a row that `sourceRowOf` made exact; F5 (webgpuRowState.ts) makes a catalogue page's rank
 // travel on the page itself (`packedIndex`) instead of a hash table. The oracles are the
-// implementations from before lot F, copied as-is into `oracles/lignes-dessinables.mjs`. The comparison
+// implementations from before lot F, copied as-is into `oracles/lignes-dessinables.ts`. The comparison
 // is on the full array state after a sequence of images, not on a single image: that is where reused
 // rows show.
 //
@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuRowState } from './webgpuRowState.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
-import { referenceRowCommit, referenceRowState } from './bench/oracles/lignes-dessinables.mjs';
+import { referenceRowCommit, referenceRowState } from './bench/oracles/lignes-dessinables.ts';
 import type { PageRec } from './pageSelection.ts';
 import {
   catalogue,

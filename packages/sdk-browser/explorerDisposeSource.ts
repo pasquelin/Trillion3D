@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { meshes as objects } from './sceneMeshes.ts';
+import { materialTextures, meshes as objects } from './sceneMeshes.ts';
 
 export function disposeSource(source: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(),
@@ -9,8 +9,7 @@ export function disposeSource(source: THREE.Object3D) {
     geometries.add(mesh.geometry);
     for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
       materials.add(material);
-      for (const value of Object.values(material))
-        if (value instanceof THREE.Texture) textures.add(value);
+      for (const texture of materialTextures(material)) textures.add(texture);
     }
   }
   geometries.forEach((g) => g.dispose());

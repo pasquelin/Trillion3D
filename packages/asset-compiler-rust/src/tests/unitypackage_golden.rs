@@ -80,3 +80,11 @@ fn chain_report(run: &GoldenRun) -> Value {
         .map(|report| report["chain"].clone())
         .expect("the container publishes the driver chain")
 }
+
+#[test]
+#[ignore = "writes into fixtures/; rerun by hand, and its diff is re-read"]
+fn regenerate_the_unitypackage_fixture() {
+    let dir = golden_dir("unitypackage");
+    let inside = compile_golden_source(&dir.join("test.unitypackage"), "unitypackage-paquet");
+    write_expected(&dir, package_digest(&dir, &inside), "", "");
+}

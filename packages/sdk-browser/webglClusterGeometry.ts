@@ -1,11 +1,11 @@
-import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import type { GpuBuffer, VertexAttribute, WholeMesh } from './clusterBatchMesh.ts';
 
-type Geometry = ClusterDrawMesh['geometry'];
-type Attribute = NonNullable<Geometry['index']>;
+/** What the cache binds: a batch record's geometry, or that of a host mesh drawn whole. */
+type Geometry = WholeMesh['geometry'];
 
 type CachedAttribute = {
   buffer: WebGLBuffer;
-  source: Attribute;
+  source: GpuBuffer;
   version: number;
   bytes: number;
 };
@@ -29,7 +29,7 @@ const glType = (gl: WebGL2RenderingContext, array: ArrayBufferView) => {
 const upload = (
   gl: WebGL2RenderingContext,
   target: number,
-  attribute: Attribute,
+  attribute: GpuBuffer,
   known?: CachedAttribute,
 ) => {
   const current = known ?? { buffer: gl.createBuffer()!, source: attribute, version: -1, bytes: 0 };
@@ -83,7 +83,7 @@ export class WebglClusterGeometry {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
     }
     for (const name of ['position', 'normal', 'uv', 'uv1', 'color']) {
-      const attribute = geometry.getAttribute(name),
+      const attribute = geometry.attributes[name] as VertexAttribute | undefined,
         location = this.locations[name];
       if (location < 0) continue;
       if (!attribute || 'isInterleavedBufferAttribute' in attribute) {
@@ -92,20 +92,15 @@ export class WebglClusterGeometry {
         else gl.vertexAttrib2f(location, 0, 0);
         continue;
       }
-      const entry = upload(
-        gl,
-        gl.ARRAY_BUFFER,
-        attribute as Attribute,
-        cached.attributes.get(name),
-      );
+      const entry = upload(gl, gl.ARRAY_BUFFER, attribute, cached.attributes.get(name));
       cached.attributes.set(name, entry);
       gl.bindBuffer(gl.ARRAY_BUFFER, entry.buffer);
       gl.enableVertexAttribArray(location);
       gl.vertexAttribPointer(
         location,
         attribute.itemSize,
-        glType(gl, (attribute as Attribute).array),
-        (attribute as Attribute).normalized,
+        glType(gl, attribute.array),
+        attribute.normalized,
         0,
         0,
       );

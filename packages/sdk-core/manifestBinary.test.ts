@@ -11,6 +11,12 @@ import {
 import { assertCacheIdentity, EngineError, type ClusterManifest } from './contracts.ts';
 import { MAX_DEPTH_LAYER } from './depthLayer.ts';
 
+/** The bytes a `Uint8Array` view owns, as a plain `ArrayBuffer`: `encodeManifestBinary` always
+ *  backs its view with one, but `.buffer` types as the wider `ArrayBufferLike`. */
+function ownBuffer(view: Uint8Array): ArrayBuffer {
+  return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength) as ArrayBuffer;
+}
+
 test('a manifest survives the binary columns unchanged, field by field', () => {
   const source = manifest();
   const { manifest: slim, binary } = encodeManifestBinary(source, TEMPLATES);
@@ -31,10 +37,7 @@ test('a manifest survives the binary columns unchanged, field by field', () => {
     structure: null,
     streams: null,
   });
-  const decoded = decodeManifestBinary(
-    JSON.parse(text),
-    binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength),
-  );
+  const decoded = decodeManifestBinary(JSON.parse(text), ownBuffer(binary));
   assert.deepEqual(decoded, source);
   // Identity is a property of the decoded pages, so it holds after decoding and not before.
   assertCacheIdentity(decoded);
@@ -47,7 +50,7 @@ test('a manifest survives the binary columns unchanged, field by field', () => {
 test('a binary from another version, or shorter than it claims, is refused', () => {
   const { manifest: slim, binary } = encodeManifestBinary(manifest(), TEMPLATES);
   slim.binary.sha256 = sha('f');
-  const buffer = binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength);
+  const buffer = ownBuffer(binary);
   const bumped = buffer.slice(0);
   new Uint32Array(bumped, 4, 1)[0] = MANIFEST_BINARY_VERSION + 1;
   assert.throws(
@@ -108,10 +111,7 @@ test('depthLayer round-trips through the binary columns, and layer 0 leaves the 
   source.primitives[0].pages[0].depthLayer = 7;
   const { manifest: slim, binary } = encodeManifestBinary(source, TEMPLATES);
   slim.binary.sha256 = sha('f');
-  const decoded = decodeManifestBinary(
-    JSON.parse(JSON.stringify(slim)),
-    binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength),
-  );
+  const decoded = decodeManifestBinary(JSON.parse(JSON.stringify(slim)), ownBuffer(binary));
   assert.equal(decoded.primitives[0].pages[0].depthLayer, 7);
   assert.equal(
     'depthLayer' in decoded.primitives[0].pages[1],
@@ -137,6 +137,8 @@ test('assertManifestBinary accepts this version and refuses every other one', ()
     bundleUrl: '../../objects/{sha}.bin',
     texturePreviews: 0,
     texturePreviewBytes: 0,
+    texturePreviewBc7Bytes: 0,
+    texturePreviewAstcBytes: 0,
   };
   assert.doesNotThrow(() => assertManifestBinary(descriptor));
   for (const version of [0, 1, 2, 3, 999])
@@ -172,9 +174,6 @@ test('encodeManifestBinary and decodeManifestBinary round-trip the texture previ
   const { manifest: slim, binary } = encodeManifestBinary(source, TEMPLATES);
   slim.binary.sha256 = sha('f');
   assert.equal(slim.binary.texturePreviews, 1);
-  const decoded = decodeManifestBinary(
-    JSON.parse(JSON.stringify(slim)),
-    binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength),
-  );
+  const decoded = decodeManifestBinary(JSON.parse(JSON.stringify(slim)), ownBuffer(binary));
   assert.deepEqual(decoded.texturePreviews, source.texturePreviews);
 });

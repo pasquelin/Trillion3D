@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { sampleLinear, sampleMap, wrapTexel } from './visibilityMath.ts';
 import { textureRgba } from './visibilityTypes.ts';
-import { referenceTextureRgba } from './bench/oracles/texture-echantillonnee.mjs';
+import { referenceTextureRgba } from './bench/oracles/texture-echantillonnee.ts';
 
 /** `visibilityMath.ts` before lot C: a power per component, without a table. */
 function referenceSrgbToLinear(c: number) {
@@ -113,7 +113,7 @@ test('a non-finite uv that yields a NaN texel index yields NaN on both sides, ne
 // Lot F, F15: `textureRgba` (visibilityTypes.ts) keeps a texture's bytes as long as its source
 // (buffer, offset, length, width, height) does not change, instead of allocating a view and an
 // object at every sampled texel. The oracle is the unconditional allocation from before lot F,
-// copied as-is into `oracles/texture-echantillonnee.mjs`.
+// copied as-is into `oracles/texture-echantillonnee.ts`.
 test('a texture without an image or without data yields null on both sides', () => {
   const sansImage = new THREE.Texture();
   assert.equal(textureRgba(sansImage), referenceTextureRgba(sansImage));

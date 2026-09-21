@@ -1,7 +1,7 @@
 # Tests and Performance Benchmarks
 
 One command per intent, one location per nature of test. Everything below is verified:
-counts reflect the repository tree, and `test/test-gpu.test.mjs` tracks the probe list.
+counts reflect the repository tree, and `test/test-gpu.test.ts` tracks the probe list.
 
 ## 1. Directory Tree
 
@@ -9,27 +9,27 @@ counts reflect the repository tree, and `test/test-gpu.test.mjs` tracks the prob
 packages/
   sdk-core/            57 *.test.ts      — unit tests, placed alongside source
     bench/
-      *.perf.mjs          6 performance benchmarks
-      socle.mjs           single entry point for benchmarks
-      socle/              mesure.mjs, rapport.mjs, ecart.mjs, ulp.mjs, baseline.mjs
+      *.perf.ts          6 performance benchmarks
+      socle.ts           single entry point for benchmarks
+      socle/              mesure.ts, rapport.ts, ecart.ts, ulp.ts, baseline.ts
       oracles/            reference implementations, copied verbatim
   sdk-browser/        244 *.test.ts
     bench/
-      *.perf.mjs         38 performance benchmarks
+      *.perf.ts         38 performance benchmarks
       oracles/            package oracles
       appui/              28 support modules: scenes, replays, test cases
-  sdk-node/             5 *.test.mjs
+  sdk-node/             5 *.test.ts
 test/
-  integration/         15 *.test.mjs     — architecture, boundaries, export contracts,
+  integration/         15 *.test.ts     — architecture, boundaries, export contracts,
                                         documentation portal
-  browser/             32 *.browser.mjs  — rendering in real Chromium (all launched)
+  browser/             32 *.browser.ts  — rendering in real Chromium (all launched)
   justesse/            18 GPU probes + 25 support modules
   appui/               27 shared modules: fixtures server, served pages
   fixtures/            scenes and test data
   assets/              corpus of source formats, off-git (66 MB, ignored by git)
-  test-gpu.mjs         hardware test runner, with its own test
+  test-gpu.ts         hardware test runner, with its own test
 scripts/
-  mesure/perf/          agrege.mjs (report), baseline-save.mjs (baselines)
+  mesure/perf/          agrege.ts (report), baseline-save.ts (baselines)
 ```
 
 One rule: **unit tests live next to their source**, everything else lives under `test/`, organized by
@@ -60,10 +60,10 @@ contains a hyphen; other files in the folder are its support modules, never run 
 `test/browser/` renders frames in real Chromium and compares them.
 
 Both folders are discovered **by rule, never by a hand-curated list**: every
-`test/browser/*.browser.mjs` is executed, and names follow the same convention as probes and
+`test/browser/*.browser.ts` is executed, and names follow the same convention as probes and
 benchmarks — explicit kebab-case, e.g. `coupe-gpu-tenue`, `normale-eclairage-petite-echelle`.
 
-Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`test/test-gpu.mjs`) with its
+Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`test/test-gpu.ts`) with its
 category and reason, and the command prints it before starting — never in silence:
 
 - **montage** (setup) — the proof is valid, but the machine is not ready: assets in `.mesure/assets/`
@@ -76,13 +76,13 @@ category and reason, and the command prints it before starting — never in sile
 ### Site proofs
 
 The learning portal under `site/` has its own proofs, run on demand in system Chrome. The four
-`scripts/docs-*.browser.mjs` and `test/browser/explorer-startup.browser.mjs` build the site into
+`scripts/docs-*.browser.ts` and `test/browser/explorer-startup.browser.ts` build the site into
 `dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
-site is proved by `node scripts/site-diff.browser.mjs <beforeDir> <afterDir>`: every portal route
+site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
 (entries and examples in both locales, gallery, API index, reports, engine scene, not found),
 served from two built trees, settled, its DOM compared after normalising what is dynamic by
 nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame metrics).
-`node scripts/site-first-load.mjs <siteDir> [route ...]` measures a route's first load
+`node scripts/site-first-load.ts <siteDir> [route ...]` measures a route's first load
 (DOMContentLoaded, settled, requests, bytes) over cold contexts: a measurement, not a proof.
 
 `BROWSER_ECARTES` is empty: every render proof runs. The Emerald proof
@@ -93,13 +93,13 @@ fails with it — loudly, never in silence. The material proof (`materiaux-temoi
 its fixtures are built in the page and served from `test/appui/`, the SDK from `dist/`, so
 `pnpm run build` precedes it.
 
-`test/test-gpu.test.mjs` enforces symmetric guarding across both directories: **executed ∪ excluded ==
+`test/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
 never execute without notice.
 
 ```bash
 pnpm run test:gpu                                  # run all
-node test/test-gpu.mjs test/justesse/reflexion-cone.mjs   # run single target
+node test/test-gpu.ts test/justesse/reflexion-cone.ts   # run single target
 ```
 
 ### Performance Benchmarks
@@ -113,15 +113,15 @@ A **witness** (`temoin` in `mesure()`) is a second calculation of the same thing
 library, a rejected candidate — timed on the same input with the same settings; the row keeps its
 statistics under `temoin` and the "vs witness" column reads the calculation's median relative to
 it, as "vs baseline" reads it relative to the baseline. The Three.js-versus-engine benches
-(`three-vs-core-*.perf.mjs`) are written on it: one row per calculation family, Three the witness,
+(`three-vs-core-*.perf.ts`) are written on it: one row per calculation family, Three the witness,
 Three's result read untimed as the oracle. A witness is a point of comparison, never a regression
 gate: the column carries no icon, and the `duel` helper's own `node:test` enforces each family's
 declared performance ceiling.
 
 Three verdict types, never silence:
 
-- **✓ / ✗** — bitwise equality (`ecart.mjs`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or declared
-  tolerance (`differences` + `tolere`, counted in ULPs by `ulp.mjs`).
+- **✓ / ✗** — bitwise equality (`ecart.ts`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or declared
+  tolerance (`differences` + `tolere`, counted in ULPs by `ulp.ts`).
 - **published diff** (`ecartPublie`) — the benchmark measures a _rejected_ candidate and quantifies
   the displacement instead of expecting equality that does not apply. This is the case for C1
   (`raster-tampon`) and C3 (`pages-anneau`).
@@ -130,9 +130,9 @@ Three verdict types, never silence:
 
 `mesure()` refuses to run if the file reported as measured by a benchmark does not exist.
 
-**The reference-library duels** (`packages/sdk-core/bench/three-vs-core-*.perf.mjs`,
+**The reference-library duels** (`packages/sdk-core/bench/three-vs-core-*.perf.ts`,
 `pnpm run perf:core`) put the host library and the engine on the same seeded inputs and refuse an
-engine that differs by a bit or runs slower. The four `three-vs-core-batch-*.perf.mjs` files —
+engine that differs by a bit or runs slower. The four `three-vs-core-batch-*.perf.ts` files —
 `volumes` (frustum, spheres, unions, points, directions), `matrices` (invert, normal, compose),
 `instances` (per-instance points, decompose, transformed union) and `colors` (the two curves) — pit
 the reference's `for` loop over 200 000 elements against one batch call. A line reads: the
@@ -145,7 +145,7 @@ published run.
 ## 3. Baselines and Report
 
 `pnpm run perf:all` outputs a fragment per domain into `.mesure/perf/`, then
-`scripts/mesure/perf/agrege.mjs` aggregates them into a single table under
+`scripts/mesure/perf/agrege.ts` aggregates them into a single table under
 `.mesure/out/perf/perf-<date>.md` and `.json`.
 
 `pnpm run perf:baseline` converts fragments into baselines under `.mesure/baselines/`, one per domain,

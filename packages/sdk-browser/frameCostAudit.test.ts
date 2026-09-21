@@ -18,7 +18,7 @@ test('opt-in audit: bounded snapshot, deferred, without changing the selection o
     });
   try {
     setSearch('');
-    createHostFrameCostAudit()('test', 1, {} as FrameMetrics, null);
+    createHostFrameCostAudit()('test', 1, {} as FrameMetrics);
     assert.equal(gpuFrameCostSnapshot({} as WebgpuPagesRuntime), undefined);
     await Promise.resolve();
     assert.equal(output.length, 0);
@@ -46,8 +46,8 @@ test('opt-in audit: bounded snapshot, deferred, without changing the selection o
     assert.equal(items[0], item);
     const audit = createHostFrameCostAudit();
     const metrics = { cpuFrameMs: 42, drawCalls: 2 } as FrameMetrics;
-    audit('test', 1, metrics, null);
-    audit('test', 2, metrics, null);
+    audit('test', 1, metrics);
+    audit('test', 2, metrics);
     assert.equal(output.length, 0, 'no console during the measured render call');
     metrics.cpuFrameMs = 99;
     await Promise.resolve();

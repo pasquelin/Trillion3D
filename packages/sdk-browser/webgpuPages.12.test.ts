@@ -12,7 +12,7 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   installGpuGlobals();
   const fixture = quadScene(),
     blend = quadScene();
-  const mesh = blend.source.children[0] as THREE.Mesh;
+  const mesh = blend.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
   fixture.source.add(mesh);
   blend.material.transparent = true;
   blend.material.side = THREE.DoubleSide;
@@ -52,9 +52,9 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
     assert.equal(backend.metrics().coverageReady, false);
     assert.deepEqual(backend.pendingUrls?.().sort(), ['0', '1', 'blend-0', 'blend-1']);
     for (const [url, array] of fixture.indices) backend.acceptPage!(url, array);
-    await backend.flush();
+    await backend.flush?.();
     backend.render(camera());
-    await backend.flush();
+    await backend.flush?.();
     assert.equal(backend.metrics().coverageReady, true);
     // The interactive barrier adopts the complete GPU cut before the frame that measures it. A
     // plain image flush only settles the work submitted by the preceding render.
@@ -80,8 +80,8 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.material.transparent = true;
   fixture.material.side = THREE.DoubleSide;
   fixture.metadata.primitives[0].pass = 'clustered-blend';
-  const mesh = fixture.source.children[0] as THREE.Mesh,
-    legacyMesh = legacy.source.children[0] as THREE.Mesh;
+  const mesh = fixture.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>,
+    legacyMesh = legacy.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
   legacy.material.transparent = true;
   legacy.material.side = THREE.DoubleSide;
   legacy.metadata.primitives[0].mesh = 1;
@@ -89,7 +89,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.source.add(legacyMesh);
   fixture.metadata.primitives.push(legacy.metadata.primitives[0]);
   fixture.associations.set(legacyMesh, { meshes: 1, primitives: 0 });
-  const otherMesh = other.source.children[0] as THREE.Mesh;
+  const otherMesh = other.source.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
   other.material.transparent = true;
   other.material.side = THREE.DoubleSide;
   const otherPrimitive = other.metadata.primitives[0];

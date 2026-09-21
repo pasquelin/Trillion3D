@@ -2,11 +2,11 @@
 // descriptors while `surfaces.views()` returns the same array, instead of allocating five objects
 // every image. `views()` is still called every image; only reconstruction is conditional.
 // The oracle is the unconditional reconstruction from before lot F, copied as-is into
-// `oracles/cadre-vue.mjs`.
+// `oracles/cadre-vue.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { surfaceColorAttachments } from './webgpuPagesAttachments.ts';
-import { referenceAttachments } from './bench/oracles/cadre-vue.mjs';
+import { referenceAttachments } from './bench/oracles/cadre-vue.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 
 const surfacesWith = (views: GPUTextureView[]) =>

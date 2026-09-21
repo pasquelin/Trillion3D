@@ -48,14 +48,14 @@ export function updateObservation(
   const rayTraversal = state.rayTraversal ?? 'brute';
   if (rayTraversal !== 'brute' && rayTraversal !== 'bvh')
     throw new Error('Lighting experiment rayTraversal must be brute or bvh');
-  uniforms.reflectionSamples.value = samples;
-  uniforms.experimentExposure.value = exposure;
-  uniforms.directLightSamples.value = directSamples;
-  uniforms.directLightGrid.value = directSamples === 16 ? 4 : 8;
-  uniforms.useBvh.value = rayTraversal === 'bvh';
+  uniforms.reflectionSamples = samples;
+  uniforms.experimentExposure = exposure;
+  uniforms.directLightSamples = directSamples;
+  uniforms.directLightGrid = directSamples === 16 ? 4 : 8;
+  uniforms.useBvh = rayTraversal === 'bvh';
   rayDiagnostics.rayTraversal = rayTraversal;
   rayDiagnostics.bvhRefitMs = 0;
-  uniforms.emitterCount.value = 0;
+  uniforms.emitterCount = 0;
   for (let i = 0; i < surfaceCount; i++) {
     const surface = current.surfaces[i];
     if (
@@ -72,9 +72,9 @@ export function updateObservation(
     surfaceTexels.set(surface.albedo, record + 12);
     surfaceTexels.set(surface.emission, record + 16);
     if (surface.emission.some((value) => value > 0)) {
-      if (uniforms.emitterCount.value >= MAX_EMITTERS)
+      if (uniforms.emitterCount >= MAX_EMITTERS)
         throw new Error(`Lighting experiment supports at most ${MAX_EMITTERS} area emitters`);
-      uniforms.emitterIndices.value[uniforms.emitterCount.value++] = i;
+      uniforms.emitterIndices[uniforms.emitterCount++] = i;
     }
     surfaceTexels[record + 20] = 0;
     surfaceTexels[record + 21] = tileOffsets[i];
@@ -99,15 +99,16 @@ export function updateObservation(
   if (!sphere) throw new Error('Lighting experiment observation requires the declared sphere');
   if (!Number.isFinite(sphere.roughness) || sphere.roughness < 0 || sphere.roughness > 1)
     throw new Error('Lighting experiment sphere roughness must lie in [0, 1]');
-  uniforms.sphere.value.set(sphere.center[0], sphere.center[1], sphere.center[2], sphere.radius);
-  uniforms.sphereRoughness.value = sphere.roughness;
+  uniforms.sphere.set(sphere.center);
+  uniforms.sphere[3] = sphere.radius;
+  uniforms.sphereRoughness = sphere.roughness;
   meshes.updateTransforms();
-  if (uniforms.useBvh.value) {
+  if (uniforms.useBvh) {
     const refitStart = performance.now();
     bvh.refit(surfaceTexels);
     rayDiagnostics.bvhRefitMs = performance.now() - refitStart;
-    bvhTexture.needsUpdate = true;
+    bvhTexture.dirty = true;
   }
-  texture.needsUpdate = true;
-  surfaceTexture.needsUpdate = true;
+  texture.dirty = true;
+  surfaceTexture.dirty = true;
 }

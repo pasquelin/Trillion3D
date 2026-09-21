@@ -5,10 +5,15 @@ import * as THREE from 'three';
  *  everywhere downstream. */
 export type Side = 'front' | 'back' | 'double';
 
+/** The material that decides for a mesh: the one declared, or the first of an array — an
+ *  empty array declaring nothing (`undefined`). */
+export const firstMaterial = (material: THREE.Material | THREE.Material[]) =>
+  Array.isArray(material) ? material[0] : material;
+
 /** The host side constant a material declares, the first of an array deciding; an empty
  *  array declares nothing and gets the host default, front, instead of a crash. */
 export function materialSide(material: THREE.Material | THREE.Material[]): THREE.Side {
-  return Array.isArray(material) ? (material[0]?.side ?? THREE.FrontSide) : material.side;
+  return firstMaterial(material)?.side ?? THREE.FrontSide;
 }
 
 /**

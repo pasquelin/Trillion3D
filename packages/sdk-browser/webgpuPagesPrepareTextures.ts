@@ -3,7 +3,8 @@ import { prepareWebgpuGeometry } from './webgpuGeometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
 import { tileCatalogue } from './webgpuTileCatalogue.ts';
 import { createWebgpuTileStreamer } from './webgpuTileStreamer.ts';
-import { POOL_LAYER_BYTES, TILE_BYTES } from './textureTiles.ts';
+import { chooseBlockFormat, laneCounts, POOL_LANES, poolEncoding } from './textureBlockFormats.ts';
+import { texturePoolFor } from './webgpuMemoryBudgets.ts';
 import { shadowsFollowTextures } from './webgpuPagesLightResources.ts';
 import {
   PREVIEW_ATLAS_COLOR,
@@ -15,19 +16,31 @@ import {
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { TileTexture } from './webgpuTileAtlas.ts';
 
-/** What a diagnostic says of a catalogue: how many textures per source, and their tiles. */
+/** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
+const laneDemand = (textures: TileTexture[]) => {
+  const demand = laneCounts();
+  for (const texture of textures) demand[texture.lane] += 1 + texture.layout.entries;
+  return demand;
+};
+
+/** What a diagnostic says of a catalogue: how many textures per source and per lane, their tiles. */
 const catalogueReport = (textures: TileTexture[]) => ({
   count: textures.length - 1,
   baked: textures.filter((texture) => texture.source.kind === 'baked').length,
   tailOnly: textures.filter((texture) => texture.source.kind === 'bytes').length - 1,
   host: textures.filter((texture) => texture.source.kind === 'host').length,
+  lanes: Object.fromEntries(
+    POOL_LANES.map((lane) => [lane, textures.filter((texture) => texture.lane === lane).length]),
+  ),
   streamedTiles: textures.reduce((total, texture) => total + texture.layout.entries, 0),
 });
 
 /**
- * Concatenates page geometry, inventories material textures and builds virtual textures: two tile
- * pools at the size the host budget sets, their page tables, each texture's queue pinned from the
- * start, and the sampler the passes read.
+ * Concatenates page geometry, inventories material textures and builds virtual textures: for
+ * each atlas one tile pool per lane its textures take — the block family the session chose for
+ * the chains the gate kept in it, RGBA8 for the others and for a host image —, sized together by
+ * the host budget, their page tables, each texture's queue pinned from the start, and the
+ * sampler the passes read.
  */
 export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { vis, diag, run } = rt,
@@ -60,21 +73,37 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   const textureStarted = performance.now();
   // Sidecar levels, filed by the scene texture they cover and by atlas: the same texture can have
   // an entry for each, reduced by that atlas's curve.
+  const previews = rt.context.metadata.texturePreviews ?? [];
   const byTexture = new Map<string, TexturePreview>();
-  for (const preview of rt.context.metadata.texturePreviews ?? [])
-    byTexture.set(`${preview.texture}/${preview.atlas}`, preview);
+  for (const preview of previews) byTexture.set(`${preview.texture}/${preview.atlas}`, preview);
+  // The family is settled here, the chains in hand: the one the device samples AND the cache
+  // holds kept chains in — a device with both features takes the family the cook wrote.
+  const choice = chooseBlockFormat(gpuDevice.features, previews, rt.context.textureCompression);
+  const encoding = poolEncoding(choice.block);
   const previewOf = (atlas: number, list: typeof maps) => (index: number) => {
     const source = rt.context.textureIndices?.get(list[index]);
     return source === undefined ? undefined : byTexture.get(`${source}/${atlas}`);
   };
   const readLevel = rt.context.readTextureLevel;
-  const color = tileCatalogue(maps, previewOf(PREVIEW_ATLAS_COLOR, maps), readLevel);
-  const data = tileCatalogue(dataMaps, previewOf(PREVIEW_ATLAS_DATA, dataMaps), readLevel);
+  const color = tileCatalogue(maps, previewOf(PREVIEW_ATLAS_COLOR, maps), readLevel, encoding);
+  const data = tileCatalogue(
+    dataMaps,
+    previewOf(PREVIEW_ATLAS_DATA, dataMaps),
+    readLevel,
+    encoding,
+  );
+  // The lanes settle here, where the textures are known: each pool is sized by what its lane holds.
+  const demand = { color: laneDemand(color), data: laneDemand(data) };
+  const poolFor = (budgetBytes: number) =>
+    texturePoolFor(budgetBytes, gpuDevice, demand, encoding.texelBytes);
+  const pools = { choice, encoding, pool: poolFor(rt.setup.texturePoolBudget), poolFor };
+  rt.setup.texturePools = pools;
   const textures = createWebgpuTileStreamer({
     device: gpuDevice,
     color,
     data,
-    layersPerAtlas: rt.setup.texturePool.layers,
+    layers: pools.pool.layers,
+    encoding,
     budgetBytes: rt.setup.textureBudget,
     budgetMs: rt.setup.textureUploadMs,
     readLevel,
@@ -92,12 +121,18 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     color: catalogueReport(color),
     data: catalogueReport(data),
     pool: {
-      layersPerAtlas: rt.setup.texturePool.layers,
-      bytes: textures.color.pool.bytes + textures.data.pool.bytes,
-      layerBytes: POOL_LAYER_BYTES,
-      tileBytes: TILE_BYTES,
-      tilesPerAtlas: textures.color.pool.tiles,
-      pinnedTails: textures.color.pool.resident + textures.data.pool.resident,
+      layers: pools.pool.layers,
+      bytes: pools.pool.allocatedBytes,
+      clamp: pools.pool.clamp,
+      compression: choice,
+      pools: [...textures.color.pools, ...textures.data.pools].map((pool) => ({
+        label: pool.texture.label,
+        format: pool.texture.format,
+        layers: pool.layers,
+        tiles: pool.tiles,
+        tileBytes: pool.tileBytes,
+        pinnedTails: pool.resident,
+      })),
       requestReduce: textures.requestReduce,
     },
     progressiveLevels: { version: TEXTURE_PREVIEW_VERSION, base: PREVIEW_BASE },
