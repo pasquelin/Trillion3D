@@ -12,7 +12,6 @@ import { buildStyles } from './build-styles.mjs';
 export const BUNDLES = [
   'css/site.css',
   'runtime/engine.js',
-  'runtime/highlighter.js',
   'runtime/pageCodec.wasm',
   'runtime/pageDecodeWorker.js',
   'runtime/pageIntegrationWorker.js',
