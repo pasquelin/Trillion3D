@@ -15,8 +15,7 @@ import { canonicalEntryId } from './portal/entryLinks.ts';
 import type { PortalEntry, PortalRoute, ResolvedPage } from './types/portal.ts';
 
 function currentRoute(): PortalRoute {
-  const fallback = document.documentElement.lang === 'fr' ? 'fr' : 'en';
-  return parseRoute(location.hash, fallback) as PortalRoute;
+  return parseRoute(location.hash, document.documentElement.lang === 'fr' ? 'fr' : 'en');
 }
 
 function Page({
@@ -64,8 +63,8 @@ export function App(): JSX.Element {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [theme, setTheme] = useState(readTheme);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const entries = useMemo(
-    () => localizeEntries(rawEntries, route.locale) as PortalEntry[],
+  const entries: PortalEntry[] = useMemo(
+    () => localizeEntries(rawEntries satisfies PortalEntry[], route.locale),
     [route.locale],
   );
   const resolvedRoute = useMemo(
@@ -109,7 +108,7 @@ export function App(): JSX.Element {
     const sidebar = document.getElementById('sidebar');
     const focusable = (): HTMLElement[] =>
       sidebar
-        ? ([...sidebar.querySelectorAll('a, input, button, summary')] as HTMLElement[]).filter(
+        ? [...sidebar.querySelectorAll<HTMLElement>('a, input, button, summary')].filter(
             (element) => element.getClientRects().length && !(element as HTMLInputElement).disabled,
           )
         : [];

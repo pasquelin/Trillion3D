@@ -1,10 +1,8 @@
 import type { ReactElement } from 'react';
-import type { Locale } from '../types/portal.ts';
 import type {
   CardSummaryProps,
   ExampleCardProps,
   GalleryExample,
-  LocalizedString,
   PlannedDetailsProps,
   PreviewProps,
 } from '../types/gallery.ts';
@@ -15,12 +13,7 @@ import { GeometryPreview } from './WebGPUCanvas.tsx';
 import { planCode } from './roadmapPlan.ts';
 import { relatedReadyLesson } from './roadmapRelated.ts';
 import { themeLabel, themeOf } from './roadmapThemes.ts';
-
-const local = (value: LocalizedString | string | undefined, locale: Locale): string => {
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  return (locale === 'fr' ? value.fr : value.en) ?? value.en ?? '';
-};
+import { local } from './localized.ts';
 
 export const engineExample: GalleryExample = {
   id: 'engine-scene',
@@ -117,11 +110,7 @@ function PlannedDetails({ example, locale }: PlannedDetailsProps): ReactElement 
       <CodeBlock
         locale={locale}
         label={french ? 'Plan non exécutable' : 'Non-runnable plan'}
-        code={planCode({
-          category: example.category ?? '',
-          subject: example.subject ?? '',
-          title: typeof example.title === 'string' ? { en: example.title } : example.title,
-        })}
+        code={planCode(example)}
       />
       {related && (
         <a className="link link-primary text-sm" href={`#/${locale}/playground/${related}`}>
@@ -139,7 +128,9 @@ export function ExampleCard({
   onOpen,
 }: ExampleCardProps): ReactElement {
   const title = local(example.title, locale),
-    description = local(example.description ?? example.concept, locale);
+    description = example.description
+      ? local(example.description, locale)
+      : local(example.concept, locale);
   if (example.status === 'planned')
     return (
       <Card className="h-full shadow-sm overflow-hidden">
@@ -157,7 +148,7 @@ export function ExampleCard({
   const href = routeHref({
     locale,
     area: example.engine ? 'examples' : 'playground',
-    id: (example.readyLessonId as string | undefined) ?? example.id,
+    id: example.readyLessonId ?? example.id,
   });
   return (
     <a

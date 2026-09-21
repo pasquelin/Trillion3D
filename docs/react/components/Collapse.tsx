@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import type { SyntheticEvent, ReactNode } from 'react';
+import type { CardProps } from '../types/components.ts';
 import { surfaceClass } from './UI.tsx';
 
 export interface CollapseProps {
   title: ReactNode;
   children: ReactNode | (() => ReactNode);
   open?: boolean;
-  surface?: 'default' | 'nested' | 'inset';
+  surface?: CardProps['surface'];
 }
 
 /** Shared DaisyUI disclosure, closed by default for supporting technical details. */

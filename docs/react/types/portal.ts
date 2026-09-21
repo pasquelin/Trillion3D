@@ -1,18 +1,13 @@
 import type { ReactNode, RefObject } from 'react';
+import type { AREAS } from '../../js/portal/routes.js';
 
 export type Locale = 'en' | 'fr';
 
-export type RouteArea = 'learn' | 'examples' | 'playground' | 'api' | 'reports';
-
-export interface RouteTarget {
-  locale: Locale;
-  area: RouteArea | string;
-  id?: string;
-}
+export type RouteArea = (typeof AREAS)[number];
 
 export interface PortalRoute {
   locale: Locale;
-  area: RouteArea | string;
+  area: RouteArea;
   id: string;
 }
 
@@ -23,24 +18,23 @@ export interface PortalEntryValue {
   desc: string;
 }
 
+/** One documented item, as the content files declare it (see `docsModel.js`). */
 export interface PortalEntry {
   id: string;
-  kind?: string;
+  section: string;
+  kind: string;
+  description: string;
   title?: string;
-  section?: string;
   module?: string;
   signature?: string;
-  description?: string;
-  guide?: string;
-  example?: string;
-  issue?: number;
   exports?: string[];
+  example?: string;
   html?: string;
+  issue?: number;
   values?: PortalEntryValue[];
   valuesTitle?: string;
   replaces?: string;
   proof?: string;
-  [key: string]: unknown;
 }
 
 export interface EntryLinkItem {
@@ -61,11 +55,6 @@ export type ResolvedPage =
   | { kind: 'api-index' }
   | { kind: 'not-found' };
 
-export interface SectionItem {
-  id: string;
-  title: string;
-}
-
 export interface ApiIndexProps {
   locale: Locale;
   entries: PortalEntry[];
@@ -74,7 +63,7 @@ export interface ApiIndexProps {
 
 export interface PrimaryNavigationProps {
   locale: Locale;
-  activeArea?: string;
+  activeArea?: RouteArea;
   t: TranslateFn;
   mobile?: boolean;
   onNavigate?: () => void;

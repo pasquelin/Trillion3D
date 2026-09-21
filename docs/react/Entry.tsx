@@ -90,9 +90,7 @@ export function Entry({ entry, locale = 'en' }: EntryProps): JSX.Element {
     <article className="space-y-6">
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="badge badge-soft badge-primary">
-            {t(locale, `kind.${entry.kind}`)}
-          </span>
+          <span className="badge badge-soft badge-primary">{t(locale, `kind.${entry.kind}`)}</span>
           {entry.module && (
             <a className="link text-sm" href={`${REPOSITORY}/blob/develop/${entry.module}`}>
               {entry.module}

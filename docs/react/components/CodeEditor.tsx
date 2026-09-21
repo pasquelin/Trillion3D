@@ -28,10 +28,10 @@ export function CodeEditor({ initialCode, resetCode, locale = 'en' }: CodeEditor
     task.current?.cancel();
     setRunning(true);
     setResult(null);
-    const current = runModule(
+    const current: ModuleExecutionTask = runModule(
       code,
       new URL('js/engine.js', document.baseURI).href,
-    ) as ModuleExecutionTask;
+    );
     task.current = current;
     const response = await current.promise;
     if (task.current !== current) return;

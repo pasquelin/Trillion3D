@@ -5,12 +5,12 @@ import { flattenFields } from '../../js/reports/availability.js';
 import { recordLabel, sceneName } from '../../js/reports/presentation.js';
 import { viewName } from '../../js/reports/names.js';
 import { Collapse } from '../components/Collapse.tsx';
-import type { Report, ReportRecord, ReportSource, SourceReadingRecord } from '../types/reports.ts';
+import type { Report, ReportSource, SourceReadingRecord } from '../types/reports.ts';
 import type { Locale } from '../types/portal.ts';
 
 export interface AllReadingsProps {
   report: Report;
-  sources?: ReportSource[];
+  sources: ReportSource[];
   locale: Locale;
 }
 
@@ -24,8 +24,8 @@ function cell(value: unknown, locale: Locale): string {
   return String(value);
 }
 
-export function AllReadings({ report, sources = [], locale }: AllReadingsProps): ReactElement {
-  const groups = readingGroups(sources) as Map<string, SourceReadingRecord[]>;
+export function AllReadings({ report, sources, locale }: AllReadingsProps): ReactElement {
+  const groups: Map<string, SourceReadingRecord[]> = readingGroups(sources);
   return (
     <section className="grid min-w-0 gap-4" id="report-all-values">
       <h2>
@@ -37,14 +37,12 @@ export function AllReadings({ report, sources = [], locale }: AllReadingsProps):
           : 'One column per reading, one row per source field. Settings, provenance, full distributions and every counter are available in the details. Scroll horizontally to compare runs. Technical names match the source files exactly; bytes remain bytes.'}
       </p>
       {[...groups].map(([key, records]) => {
-        const maps = records.map((r) => flattenFields(r.complete) as Map<string, unknown>);
+        const maps: Map<string, unknown>[] = records.map((r) => flattenFields(r.complete));
         const fields = [...new Set(maps.flatMap((m) => [...m.keys()]))];
-        const first = records[0];
-        const runNameValue = report.runs.find((run) => run.id === first?.runId)?.name ?? '';
         return (
           <Collapse
             key={key}
-            title={`${sceneName(first?.scene)} · ${viewName(first?.view ?? '—', locale)} · ${first?.quality ?? '—'} px · ${runNameValue}`}
+            title={`${sceneName(records[0].scene)} · ${viewName(records[0].view ?? '—', locale)} · ${records[0].quality ?? '—'} px · ${report.runs.find((run) => run.id === records[0].runId)?.name}`}
           >
             {() => (
               <Table label={key} wide>
@@ -53,7 +51,7 @@ export function AllReadings({ report, sources = [], locale }: AllReadingsProps):
                     <th scope="col">{locale === 'fr' ? 'Champ source' : 'Source field'}</th>
                     {records.map((r) => (
                       <th scope="col" key={r.id}>
-                        {recordLabel(report, r as unknown as ReportRecord, locale)} ·{' '}
+                        {recordLabel(report, r, locale)} ·{' '}
                         {r.side.endsWith('-aa')
                           ? locale === 'fr'
                             ? 'capture répétée'
