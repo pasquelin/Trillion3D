@@ -112,9 +112,6 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
   node.matrix.fromArray(local);
   node.matrixAutoUpdate = false;
-  // The reference's announcement of a hand-set matrix: the engine follows the rule it asks of
-  // the host, and the scene revision it declares below settles that announcement.
-  node.matrixWorldNeedsUpdate = true;
   // The pose is set: the engine index takes it, and every matrix it holds — page records,
   // selection roots, transparent copies — carries the new place at that instant, with no snapshot
   // to retake. The host scene, itself, is not climbed: the engine no longer reads its world

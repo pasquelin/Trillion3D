@@ -1,8 +1,8 @@
 // GEO-03: the host is allowed to write the source graph directly — `mesh.position.x = 100`,
 // a lamp's intensity and pose — without calling any engine API. No revision
-// announced it, and the frame was held on a stale scene. The write itself is what announces
-// it now (#6): the hooked field increments the watch's revision, the frame compares one
-// integer, and a still scene rereads no node.
+// announced it, and the frame was held on a stale scene. A pose write is what announces
+// itself now (#6): the hooked field increments the watch's revision and the frame compares one
+// integer; the other fields are a few values per node, taken by the same read.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -33,27 +33,30 @@ function veille(source: THREE.Object3D, ...meshes: THREE.Object3D[]) {
 test('the first read announces a change, the next one announces nothing', () => {
   const { source } = graphe();
   const watch = veille(source);
-  assert.equal(watch.changed(), true, 'nothing is known of this graph yet');
-  assert.equal(watch.changed(), false, 'a reread with no write must be silent');
-  assert.equal(watch.changed(), false, 'and stay so');
+  assert.equal(watch.take(), 'moved', 'nothing is known of this graph yet');
+  assert.equal(watch.take(), 0, 'a reread with no write must be silent');
+  assert.equal(watch.take(), 0, 'and stay so');
 });
 
 test('a pose written directly by the host is seen, once only', () => {
   const { source, mesh } = graphe();
   const watch = veille(source, mesh);
-  watch.changed();
+  watch.take();
   mesh.position.x = 100;
-  assert.equal(watch.changed(), true, 'the direct move must be seen');
-  assert.equal(watch.changed(), false, 'and must not be announced twice');
+  assert.equal(watch.take(), 'moved', 'the direct move must be seen');
+  assert.equal(watch.take(), 0, 'and must not be announced twice');
 });
 
-test('visibility written directly by the host is seen', () => {
+test('visibility written directly by the host is seen; a reparent reshapes', () => {
   const { source, mesh } = graphe();
   const watch = veille(source, mesh);
-  watch.changed();
+  watch.take();
   mesh.visible = false;
-  assert.equal(watch.changed(), true);
-  assert.equal(watch.changed(), false);
+  assert.equal(watch.take(), 'moved');
+  assert.equal(watch.take(), 0);
+  new THREE.Group().add(mesh);
+  assert.equal(watch.take(), 'reshaped', 'the ancestor chain changed');
+  assert.equal(watch.take(), 0);
 });
 
 test("a lamp's intensity, colour, range and pose are seen", () => {
@@ -66,20 +69,20 @@ test("a lamp's intensity, colour, range and pose are seen", () => {
     () => (lampe.distance = 42),
     () => (lampe.decay = 3),
   ]) {
-    watch.changed();
+    watch.take();
     ecriture();
-    assert.equal(watch.changed(), true, `write not seen: ${ecriture}`);
-    assert.equal(watch.changed(), false, 'announced twice');
+    assert.equal(watch.take(), 'moved', `write not seen: ${ecriture}`);
+    assert.equal(watch.take(), 0, 'announced twice');
   }
 });
 
 test("a directional lamp's target, outside the source graph, is seen", () => {
   const { source, soleil } = graphe();
   const watch = veille(source);
-  watch.changed();
+  watch.take();
   soleil.target.position.set(0, -5, 0);
-  assert.equal(watch.changed(), true, 'the sun direction has changed');
-  assert.equal(watch.changed(), false);
+  assert.equal(watch.take(), 'moved', 'the sun direction has changed');
+  assert.equal(watch.take(), 0);
 });
 
 test('the frame gate no longer holds a frame when the host has written the scene', () => {
