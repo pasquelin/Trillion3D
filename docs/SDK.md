@@ -381,9 +381,9 @@ Measured (Emerald cache, 2496×1404, DPR 1, `pixelError` 1, ground view, `--lamp
 
 The atlas is cut into `shadowPage` (128) texel pages. A light that moves invalidates its whole map; an object that moves — a transform, a page entering or leaving residence — invalidates only the pages of each face its projected box covers, and only those are redrawn. The frame is the whole face's, only the scissor is the region's, so a page redrawn this way carries **exactly the depth a full redraw would write**, bit for bit. `explorer.shadowAtlasDigest()` returns the raw depth hash so a host can check that for itself; `createExplorer({ shadowPageInvalidation: false })` turns the rule off and redraws whole faces, which is how the two are compared.
 
-What a frame redraws is bounded by `shadowBudgetMs` (`createExplorer`, 1.0 ms by default), measured on the shadow pass's own GPU timestamps and smoothed across frames. Pages the budget refuses wait for the next frame, ordered by the light's screen coverage and by how long they have already waited; they are never dropped, and `metrics().shadowPagesPending` / `shadowWaitMs` publish the queue and the oldest page's delay. Without GPU timestamps there is no budget at all, only the region ceiling. The cost of one region — rejection, depth reset, indirect draw — is folded into an averaged per-page cost: a named approximation, published in the `direct-lighting` diagnostic.
+What a frame redraws is bounded by `shadowBudgetMs` (`createExplorer`, 1.0 ms by default), measured on the shadow pass's own GPU timestamps and smoothed across frames. Pages the budget refuses wait for the next frame, ordered by the light's screen coverage and by how long they have already waited; they are never dropped, and the frame's `shadowPagesDrawn`, `shadowPagesTotal` (cumulative, `flush()` drains included), `shadowPagesPending` and `shadowWaitMs` publish the work, the queue and the oldest page's delay; the per-stage profile adds, under Shadows, the clusters the region culls kept (`occludeursGardes`, with `regionsRelevees` and `imageRelevee`), sampled on the device one frame in fifteen and read after submission — the frame it describes is named, never the current one. Without GPU timestamps there is no budget at all, only the region ceiling. The cost of one region — rejection, depth reset, indirect draw — is folded into an averaged per-page cost: a named approximation, published in the `direct-lighting` diagnostic.
 
-A directional light's shadows are `sunCascades` (4) cascades following the camera, stored in the same atlas slice mechanism as a point light's six faces, under the same rules: the map is reused while neither the light nor the world inside its extent has moved, and while the cascade still describes the same world window — a camera that moves less than the cascade's own texel grid changes nothing, and its map is kept. When that window does move, the cascade is redrawn **whole**: the atlas does not address its pages as a ring, so a window that slides leaves nothing to recover; clusters outside a cascade are rejected before drawing; alpha-masked materials keep their real cutout; no resolution or detail reduction. Cascades cover `sunShadowFarFraction` (0.2) of the camera's far plane. Their splits are a geometric series of ratio `sunCascadeRatioMax` (4), so texel density changes by exactly that ratio at every seam; the near end of the series is `shadow distance / ratio^cascades`, not the camera's near plane, while the first cascade still covers from that near plane.
+A directional light's shadows are `sunCascades` (4) cascades following the camera, stored in the same atlas slice mechanism as a point light's six faces, under the same rules: the map is reused while neither the light nor the world inside its extent has moved, and while the cascade still describes the same world extent. That extent is a whole number of `shadowPage` pages on the light plane, addressed by absolute page modulo the face — a ring, as the published virtual shadow maps do —, so a camera that moves less than a page changes nothing, and a camera that moves by whole pages keeps every page still inside and redraws **only the strip that entered**; a move of an extent side or more, or a step of the depth anchor — snapped to a grid of one sphere diameter along the light axis — redraws the cascade whole. Each region drawn rejects, before drawing, the clusters outside the box it cuts in the extent — its page rectangle by the map's depth bounds; alpha-masked materials keep their real cutout; no resolution or detail reduction. Cascades cover `sunShadowFarFraction` (0.2) of the camera's far plane. Their splits are a geometric series of ratio `sunCascadeRatioMax` (4), so texel density changes by exactly that ratio at every seam; the near end of the series is `shadow distance / ratio^cascades`, not the camera's near plane, while the first cascade still covers from that near plane.
 
 Beyond the last cascade the sun's shadow is one ray per pixel against the resident proxy (`proxy.bin`), traced by the same bounded traversal the bounce uses. It is deterministic — the ray direction is the sun's — so nothing is accumulated across frames. The ray starts `sunFarShadowStartCells` (1) proxy cells along its own direction, so a blocker nearer than one proxy cell carries no far shadow; the proxy's certified geometric error moves the shadow edge; a ray that exhausts the published traversal bound reports no blocker, which lights. All of these are published in the `sun-far-shadow` diagnostic, together with the pixels tested and darkened on one sampled image out of fifteen. Without a resident proxy in the cache, the diagnostic says the far shadow is unavailable and the surface stays lit with no cast shadow, as before: the last cascade is never stretched to cover the far plane, which would divide the texel density of every near shadow by five on each axis. The blend pass that lights transparent surfaces binds the same proxy and traces the same ray through the same WGSL, so a distant transparent surface darkens exactly like the opaque one beside it; it binds the proxy read-only, so the two sampled counters come from the deferred pass alone, and the blend fragment stage keeps early depth rejection, which a writable storage binding would cost it. The resident proxy lives in a single storage buffer (a twelve-word header, then the three columns) so that both passes stay within the eight storage buffers guaranteed per shader stage.
 
@@ -549,26 +549,52 @@ and releases the context once. The current scene renderer is a temporary adapter
 the surface foundation alone does not replace cluster drawing, composition, held frames, or capture.
 Pure direct-WebGPU sessions never bind the host canvas to a WebGL context.
 
-`exact-cluster-pages` uses an engine-owned WebGL2 program for paged opaque and alpha-masked
-`MeshStandardMaterial` and `MeshBasicMaterial` batches when their inputs fit its declared glTF
-contract. The program reads base colour, metallic-roughness, normal, occlusion and emissive maps,
+`exact-cluster-pages` draws every paged cluster — opaque, alpha-masked and blended
+`MeshStandardMaterial` and `MeshBasicMaterial` batches — through an engine-owned WebGL2 program,
+and nothing else draws them. The program reads base colour, metallic-roughness, normal, occlusion and emissive maps,
 including each map's UV set, transform, sampler and colour space, according to the
 [Khronos glTF 2.0 material specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#materials).
 Direct light adds Lambert diffuse to a Cook-Torrance GGX distribution, correlated Smith visibility
 and Schlick Fresnel, the published model described in Brian Karis's
 [Real Shading course notes](https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
 This is not glTF Appendix B's Fresnel mixture: its diffuse term does not multiply by `(1 - F)`.
-The host then returns the context to the temporary scene adapter for non-cluster objects and composition.
-`autonomousClusterDrawsTotal` is the session counter that proves these draws came from the owned
-program. It is cumulative and therefore is not a per-frame draw-call measurement.
+The host then returns the context to the temporary scene adapter for the remaining blended
+non-cluster copies and composition. `autonomousClusterDrawsTotal` is the session counter that
+proves the cluster draws came from the owned program. It is cumulative and therefore is not a
+per-frame draw-call measurement.
 
-This stage deliberately retains the complete scene-renderer path when a scene uses clustered blend,
-material arrays, transmission, physical extensions, environment/light/bump/displacement/alpha maps,
-flat shading, custom shader hooks, non-image textures, unsupported UV channels or lights, or later
-mutates a material into one of those states. The `cluster-webgl-fallback` diagnostic names the reason
-before activation. A runtime mutation raises a named backend error; an ordinary beauty frame then
-switches to the complete baseline, while measured and diagnostic frames fail explicitly.
-Clustered blend and diagnostics are tracked by #119, transmission composition by #120. No
+A transmissive source mesh (`KHR_materials_transmission`, with `KHR_materials_ior` and
+`KHR_materials_volume` factors) is not paged: the engine keeps it as a scene copy of its own and
+composes it after the clusters, through the same program. What the glass lets through is the
+engine's own image: the frame is first drawn into a frozen backdrop — linear half-float colour and
+depth, cleared to the scene background colour, black for a background that is not a colour — then
+drawn to the display target, and the copy reads the backdrop at the refracted, thickness-advanced
+position, falls back to the unbent sample when the copied depth would put an object in front of
+the glass, and attenuates by the volume colour. The composition is the glTF one and the engine's
+WebGPU one (`webgpuTransmissionWgsl.ts`): the transmitted share replaces alpha blending,
+`a = alpha + t (1 - alpha)`, the specular of the declared lights stays on a null albedo, no light
+of the pass's own. A two-sided transparent copy draws its back faces then its front faces, as
+the batches do. The copy shares the frame's depth buffer, target encoding and tone mapping, and
+reaches captures, comparison targets and held frames through the same owner;
+`autonomousCopyDraws` counts the copies' submissions per frame and `transmissionBackdropBytes`
+publishes the two copies' cost, kept until a resize, zero before the first transmissive copy in
+view. The second cluster pass is the cost of the backdrop, paid only by a frame with a transmissive
+copy in view — copies are frustum-tested like the host renderer tests them — and counted in
+`drawCalls` and `submittedTriangles`, not in the session counter `autonomousClusterDrawsTotal`,
+as the reference renderer pays its transmission target. A material that declares an IOR without
+transmission is refused by name: the cluster BRDF keeps its dielectric F0.
+A copy a diagnostic mode paints, or whose material stops transmitting, draws as a whole mesh
+through the same program. The copies draw in source order after the clusters and before the
+host's own blended copies: no back-to-front sort. The backdrop is a plain copy: roughness does
+not blur what comes through, and one transmissive surface does not see through another.
+
+There is no other renderer for paged clusters. A scene whose material, light or texture the
+program cannot preserve — material arrays, blend states other than normal alpha, physical
+extensions beyond the transmission volume, environment/light/bump/displacement/alpha maps, flat
+shading, custom shader hooks, non-image textures, unsupported UV channels or lights, a context
+without a half-float backdrop — fails its preparation with `EngineError`
+`CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the input; a later mutation into one of
+those states raises the same named error before any draw, never a partial image. No
 bit-identical Cook-Torrance result is claimed: the owned implementation follows the published
 Lambert and GGX/Smith/Schlick model rather than another renderer's shader. Image comparisons publish
 the resulting delta. Geometric roughness filtering uses the less-conservative variance from equation
@@ -663,4 +689,4 @@ For prepared WebGPU scenes, material textures are virtual: every texture is cut 
 
 `textureSource` (`'host'` by default, `'cache'` to opt in) says where material texels come from. With `'host'` the glTF loader fetches and decodes every source image, as it always did — what a backend that draws the host scene (the Three witness) requires — and the WebGPU backend builds, for a texture without a whole baked chain, a scratch texture with its mip chain (mean colour, median alpha) each time one of its tiles is requested, copying the tiles out of it: the resident memory stays that of the pool, the price is paid in transfers and measured. With `'cache'` an image whose mip chain is baked in the compiled cache is neither fetched nor decoded by the loader: the WebGPU backend reads each baked level on demand (decoded by the browser, held in a 192 MiB host cache to cut further tiles from it) and cuts the requested tiles from it. Ask for `'cache'` only when every backend of the session reads the pools, not the host scene.
 
-When colour tiles arrive or leave, every shadow page is invalidated: a shadow map drawn with the previous alpha would describe foliage the image no longer shows. Pages are redrawn under the ordinary shadow budget, and `flush()` drains the pending ones — up to sixty-four frames per round, replaying the temporal accumulation so the number of frames does not change the image — so a flushed pose is settled, shadows included; what remains pending is published by the `pose-settle` diagnostic and `shadowPagesPending`, never assumed zero. A masked material's cut-out is read at the mip level the reading texel's footprint selects — the camera's derivatives in the visibility raster, the shadow texel's in the shadow depth pass — exactly as the material resolution reads its colour, and the material resolution requests, for every masked pixel of its phase, the tiles each sun cascade that draws that point will read, projected into the cascade with the same affine derivative the shadow pass computes. Known limit: a caster the camera never sees has no one to request its tiles; the shadow pass then reads the finest tile resident under that texel, which is whatever the trajectory left in the pool.
+When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are invalidated — a shadow map drawn with the previous alpha would describe foliage the image no longer shows —, and those alone: a tile of a texture no cut-out reads, or a colour change on an opaque material, leaves the depth maps as they are. A pool resize or an eviction, which names no texture, invalidates every page. Pages are redrawn under the ordinary shadow budget, and `flush()` drains the pending ones — up to sixty-four frames per round, replaying the temporal accumulation so the number of frames does not change the image — so a flushed pose is settled, shadows included; what remains pending is published by the `pose-settle` diagnostic and `shadowPagesPending`, never assumed zero. A masked material's cut-out is read at the mip level the reading texel's footprint selects — the camera's derivatives in the visibility raster, the shadow texel's in the shadow depth pass — exactly as the material resolution reads its colour, and the material resolution requests, for every masked pixel of its phase, the tiles each sun cascade that draws that point will read, projected into the cascade with the same affine derivative the shadow pass computes. Known limit: a caster the camera never sees has no one to request its tiles; the shadow pass then reads the finest tile resident under that texel, which is whatever the trajectory left in the pool.

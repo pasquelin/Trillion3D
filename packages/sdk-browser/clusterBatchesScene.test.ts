@@ -19,9 +19,9 @@ test('instances of one primitive share a single resident index buffer written on
   );
 
   batches.update(data.pages);
-  const first = drawOf(scene, 0)!,
-    second = drawOf(scene, 1)!,
-    third = drawOf(scene, 2)!;
+  const first = drawOf(batches, 0)!,
+    second = drawOf(batches, 1)!,
+    third = drawOf(batches, 2)!;
   assert.equal(
     first.geometry,
     second.geometry,
@@ -35,9 +35,9 @@ test('instances of one primitive share a single resident index buffer written on
   assert.deepEqual(third.counts, [12]);
   assert.equal(batches.metrics.drawCalls, 3);
   assert.equal(batches.metrics.submittedTriangles, (2 + 3 + 1) * 2 + 4);
-  assert.equal(scene.children.length, 3);
+  assert.equal(scene.children.length, 0, 'the host scene never receives a draw record');
 });
-test('a cut that changes every frame rewrites no index and detaches the groups it drops', () => {
+test('a cut that changes every frame rewrites no index and drops the groups it no longer draws', () => {
   const scene = new THREE.Scene(),
     data = fixture();
   const batches = new ClusterBatches(scene, data.pages);
@@ -53,17 +53,17 @@ test('a cut that changes every frame rewrites no index and detaches the groups i
   batches.update(cut);
   assert.equal(batches.metrics.pageRangeWrites, writes, 'no range rewritten');
   assert.equal(batches.metrics.indexBytesWritten, bytes, 'no index byte re-uploaded');
-  assert.equal(drawOf(scene, 1), undefined, 'the group with no visible page is detached');
-  const first = drawOf(scene, 0)!;
+  assert.equal(drawOf(batches, 1), undefined, 'the group with no visible page is not drawn');
+  const first = drawOf(batches, 0)!;
   assert.equal(first.count, 2, 'a and c are not adjacent: two sub-draws');
   assert.deepEqual(first.starts, [0, 15 * 4]);
   assert.deepEqual(first.counts, [6, 3]);
   assert.equal(batches.metrics.drawCalls, 2);
 
-  // Back to the full cut: the group is re-attached, still with no index write.
+  // Back to the full cut: the group draws again, still with no index write.
   batches.update(data.pages);
   assert.equal(batches.metrics.pageRangeWrites, writes);
-  assert.equal(drawOf(scene, 1)!.counts[0], 18);
+  assert.equal(drawOf(batches, 1)!.counts[0], 18);
   assert.equal(batches.metrics.drawCalls, 3);
 });
 test('an evicted page frees its range and the next residency reuses it', () => {
@@ -72,18 +72,18 @@ test('an evicted page frees its range and the next residency reuses it', () => {
   const batches = new ClusterBatches(scene, data.pages);
   resident(batches, data, ['a', 'b', 'c']);
   batches.update(data.pages);
-  assert.deepEqual(drawOf(scene, 0)!.counts, [18]);
+  assert.deepEqual(drawOf(batches, 0)!.counts, [18]);
 
   for (const page of data.byUrl.get('b')!) page.array = undefined;
   batches.dropPage(data.byUrl.get('b')!);
   batches.update(data.pages);
-  const partial = drawOf(scene, 0)!;
+  const partial = drawOf(batches, 0)!;
   assert.deepEqual(partial.starts, [0, 15 * 4]);
   assert.deepEqual(partial.counts, [6, 3], 'a and c stay in place, the hole of b is skipped');
 
   resident(batches, data, ['b']);
   batches.update(data.pages);
-  const back = drawOf(scene, 0)!;
+  const back = drawOf(batches, 0)!;
   assert.equal(back.count, 1, 'b takes back exactly its hole: everything becomes contiguous again');
   assert.deepEqual(back.counts, [18]);
 });
@@ -112,9 +112,9 @@ test('a transparent group draws its pages in source order whatever the order of 
     batches.acceptPage([page], array);
   }
   batches.update([pages[0], pages[1], pages[2]]);
-  const forward = drawOf(scene, 0)!;
+  const forward = drawOf(batches, 0)!;
   batches.update([pages[2], pages[0], pages[1]]);
-  const shuffled = drawOf(scene, 0)!;
+  const shuffled = drawOf(batches, 0)!;
   assert.deepEqual(shuffled.starts, forward.starts, 'stable draw order');
   assert.deepEqual(shuffled.counts, forward.counts);
   // sourceOrder = [2,0,1] -> page 1 (range 3), page 2 (range 6), page 0 (range 0);
@@ -189,12 +189,12 @@ test('page urls of a cut are listed once per page, instances included, and diagn
   assert.equal(again.length, 4, 'a new stamp gives back the full list');
 
   batches.update(data.pages);
-  assert.equal(scene.children.length, 3);
-  batches.hideAll();
-  assert.equal(scene.children.length, 0);
+  assert.equal(batches.drawList.length, 3);
+  batches.showPages([]);
+  assert.equal(batches.drawList.length, 0);
   assert.equal(batches.metrics.drawCalls, 0);
   batches.update(data.pages);
-  assert.equal(scene.children.length, 3, 'beauty mode reattaches the same batches');
+  assert.equal(batches.drawList.length, 3, 'beauty mode draws the same batches again');
   batches.dispose();
-  assert.equal(scene.children.length, 0);
+  assert.equal(batches.drawList.length, 0);
 });
