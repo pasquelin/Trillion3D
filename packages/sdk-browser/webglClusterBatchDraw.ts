@@ -1,10 +1,7 @@
 import type * as THREE from 'three';
 import type { HostDrawCamera } from './cameraWorld.ts';
-import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import { wholeMeshTriangles, type ClusterDrawMesh } from './clusterBatchMesh.ts';
 import type { ClusterBatchStats, ClusterDrawOwner } from './clusterBatches.ts';
-
-const wholeMeshTriangles = (mesh: THREE.Mesh) =>
-  (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
 
 export function drawClusterBatches(
   owner: ClusterDrawOwner,

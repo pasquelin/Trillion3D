@@ -1,13 +1,10 @@
 import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
-import { clusterMaterialReason, ownedSceneCopy } from './webglClusterCompatibility.ts';
+import { clusterMaterialReason } from './webglClusterCompatibility.ts';
+import { refuseCluster as refuse } from './webglClusterRefusal.ts';
+import type { Material } from './webglClusterMaterialBinding.ts';
 import type * as THREE from 'three';
 
-type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 type Attributes = ClusterDrawMesh['geometry']['attributes'];
-
-function refuse(reason: string): never {
-  throw new Error(`Unsupported autonomous cluster material: ${reason}`);
-}
 
 const validateMaterial = (
   material: Material,
@@ -22,16 +19,24 @@ const validateMaterial = (
   if (!previous) seen.set(material, attributes);
 };
 
-const validateWholeMesh = (mesh: THREE.Mesh, seen: Map<Material, Attributes>) => {
+const validateWholeMesh = (
+  mesh: THREE.Mesh,
+  seen: Map<Material, Attributes>,
+  transmissive: boolean,
+) => {
   if (Array.isArray(mesh.material)) refuse('material arrays are unsupported');
-  else validateMaterial(mesh.material, mesh.geometry.attributes, seen, ownedSceneCopy(mesh));
+  else validateMaterial(mesh.material, mesh.geometry.attributes, seen, transmissive);
 };
 
-/** Refuses every mesh of the frame before any of them is submitted: no partial image. */
+/**
+ * Refuses every mesh of the frame before any of them is submitted: no partial image. The
+ * copies are the transmission pass's by contract: one that no longer transmits is refused
+ * by name rather than blended as if it were a page.
+ */
 export function validateClusterMeshes(
   meshes: readonly ClusterDrawMesh[],
   wholeMeshes: readonly THREE.Mesh[],
-  copies: readonly THREE.Mesh[],
+  transmissiveCopies: readonly THREE.Mesh[],
   seen: Map<Material, Attributes>,
 ) {
   seen.clear();
@@ -59,6 +64,6 @@ export function validateClusterMeshes(
         validateMaterial(material, mesh.geometry.attributes, seen);
     } else validateMaterial(mesh.material, mesh.geometry.attributes, seen);
   }
-  for (const mesh of wholeMeshes) validateWholeMesh(mesh, seen);
-  for (const mesh of copies) validateWholeMesh(mesh, seen);
+  for (const mesh of wholeMeshes) validateWholeMesh(mesh, seen, false);
+  for (const mesh of transmissiveCopies) validateWholeMesh(mesh, seen, true);
 }
