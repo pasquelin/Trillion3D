@@ -1,7 +1,7 @@
 import { engineTone } from '../../reports/assessment.ts';
 import { engineName } from '../../reports/names.ts';
 import { StatusBadge } from '../components/StatusBadge.tsx';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface ReadingLegendProps {
   locale: Locale;

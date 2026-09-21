@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Alert } from './UI.tsx';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface LearningCardsProps {
   input: ReactNode;

@@ -1,4 +1,4 @@
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { CatalogExample, GalleryExample, RoadmapExample } from '../types/gallery.ts';
 import { Alert, Card } from '../components/UI.tsx';
 import { CodeBlock } from '../components/CodeBlock.tsx';
@@ -7,7 +7,7 @@ import { GeometryPreview } from './WebGPUCanvas.tsx';
 import { planCode } from './roadmapPlan.ts';
 import { relatedReadyLesson } from './roadmapRelated.ts';
 import { themeLabel, themeOf } from './roadmapThemes.ts';
-import { local } from './localized.ts';
+import { local } from '../../content/locale.ts';
 
 export const engineExample: CatalogExample = {
   id: 'engine-scene',

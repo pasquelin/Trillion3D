@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { RendererLessonControl, RendererLessonItem } from '../types/gallery.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { Section } from '../components/Section.tsx';
@@ -12,7 +12,7 @@ import { rendererInitialState } from '../../lessons/rendererLessons.ts';
 import { rendererCodeFor } from '../../lessons/rendererLessonCode.ts';
 import { RendererViewport } from './RendererViewport.tsx';
 import { rawEntries } from '../portal/data.ts';
-import { local } from './localized.ts';
+import { local } from '../../content/locale.ts';
 
 const documentedApi = new Set(rawEntries.map(({ id }) => id));
 

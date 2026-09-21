@@ -4,7 +4,7 @@ import { SectionHeader } from '../components/SectionHeader.tsx';
 import { engineName, viewName } from '../../reports/names.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import type { ReportRecord } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface EvidenceProps {
   a: ReportRecord;
