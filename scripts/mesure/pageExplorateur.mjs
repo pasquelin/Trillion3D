@@ -52,6 +52,10 @@ export function explorerOptions(options, factory, lighting) {
     ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
     // Texture levels read from the cache rather than decoded source images.
     ...(options.textureSource === 'cache' ? { textureSource: 'cache' } : {}),
+    // The tile pass's millisecond budget: without the option, the engine keeps its own default.
+    ...(typeof options.textureUploadMs === 'number'
+      ? { maxTextureUploadMsPerFrame: options.textureUploadMs }
+      : {}),
     // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
     ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
   };

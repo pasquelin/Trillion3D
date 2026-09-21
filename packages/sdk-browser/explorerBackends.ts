@@ -96,6 +96,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     webglContext,
     gpuCanvas: directGpu ? canvas : undefined,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
+    maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing ?? true,
     geometryPoolBytes: options.geometryPoolBytes,
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
