@@ -95,7 +95,7 @@ export function maxStretch(elements: ArrayLike<number>): number {
  * more. Along the ray (C → k·C, k > 1, centre depth C_d > 0), (kℓ + ρ)/(k·C_d − ρ) and
  * 1/(k·C_d − ρ − δ) decrease: the announced error decreases with distance. The two bounds of
  * step 2 come from two different points of the ball: E is tight for a small sphere,
- * loose when the ball grazes the near plane far from the axis (`test/justesse/erreur-ecran-borne.mjs`).
+ * loose when the ball grazes the near plane far from the axis (`test/justesse/erreur-ecran-borne.ts`).
  *
  * No guard here: the caller has already handled a null, infinite or invalid error. A non-finite
  * depth or distance to the axis yields infinity. Operation order, (δ·f)/m then a factor

@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createSelectionResult, selectVisiblePages } from './pageSelection.ts';
-import { dag, racine } from './bench/appui/dagCoupe.mjs';
+import { dag, racine, type DagPage } from './bench/appui/dagCoupe.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 function camera() {
@@ -26,8 +26,8 @@ function ask(pixelError: number, pageBudget: number) {
     viewport: [1280, 720] as [number, number],
     holdResident: true,
     pageBudget,
-    wanted: [] as unknown[],
-    result: createSelectionResult(),
+    wanted: [] as DagPage[],
+    result: createSelectionResult<DagPage>(),
   };
 }
 

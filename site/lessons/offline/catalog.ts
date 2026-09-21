@@ -57,7 +57,7 @@ export const offlineExamples = geometryRecipes.map((recipe) => {
       "import { extrude, polygon, subdivide, voxelDifference } from './site/lessons/offline/operations.ts';",
       "import { lettering, paintedTerrain, splitEdges, uvTiles } from './site/lessons/offline/attributes.ts';",
       "import { implicitShell, verticalHit } from './site/lessons/offline/implicit.ts';",
-      "import { writeGeometry } from './scripts/docs/gallery-geometry/write-gltf.mjs';",
+      "import { writeGeometry } from './scripts/docs/gallery-geometry/write-gltf.ts';",
       `const geometry = ${recipe.expression};`,
       `await writeGeometry('site/assets/gallery/offline/${recipe.id}/source', geometry);`,
       `// Compile using: node scripts/docs/gallery-geometry/build.mjs ${recipe.id}`,

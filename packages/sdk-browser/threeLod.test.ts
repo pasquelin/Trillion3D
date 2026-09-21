@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { threeLodBackend } from './threeLod.ts';
-import { DAG, dagLevel } from './pagesBackendFixture.ts';
-import { quadCluster, fanScene } from './pagesBackendScenes.ts';
+import { dagLevel } from './pagesBackendFixture.ts';
+import { quadCluster, fanScene, QUAD_MANIFEST } from './pagesBackendScenes.ts';
 
 test('THREE.LOD includes transparent simplification and merges its mixed cover in source order', () => {
   const { geometry, material, mesh, source, indices } = fanScene();
@@ -13,7 +13,7 @@ test('THREE.LOD includes transparent simplification and merges its mixed cover i
   const backend = threeLodBackend({
     source,
     metadata: {
-      ...DAG,
+      ...QUAD_MANIFEST,
       primitives: [{ mesh: 0, primitive: 0, pass: 'clustered-blend', ...primitive }],
     },
     indices,
@@ -44,7 +44,7 @@ test('THREE.LOD keeps one exact level for source-ordered transparent pages', () 
   const backend = threeLodBackend({
     source,
     metadata: {
-      ...DAG,
+      ...QUAD_MANIFEST,
       primitives: [{ mesh: 0, primitive: 0, pass: 'clustered-blend', ...primitive }],
     },
     indices: new Map([['0', new Uint32Array([0, 1, 2])]]),

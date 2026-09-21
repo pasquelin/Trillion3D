@@ -3,14 +3,14 @@
 // (`Math.hypot(...v)`) to three positional arguments. The F20 item on `multiply4`
 // (sceneLightShadowFaces.ts) has no object: the shadow batch, on develop, rewrote that file and
 // dropped the function before this worktree rebased onto it. The oracle is the implementation from
-// before batch F, copied as-is into `oracles/vecteurs-transport.mjs`.
+// before batch F, copied as-is into `oracles/vecteurs-transport.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cross, length } from './lightingSceneMath.ts';
 import { validateScene } from './lightingTransportValidation.ts';
 import { sceneWithBlocker } from '../../test/fixtures/lightingTransportScene.ts';
-import { referenceLength } from './bench/oracles/vecteurs-transport.mjs';
-import { referenceCross } from '../sdk-browser/bench/oracles/socle-math.mjs';
+import { referenceLength } from './bench/oracles/vecteurs-transport.ts';
+import { referenceCross } from '../sdk-browser/bench/oracles/socle-math.ts';
 import type { Vec3 } from './lightingSceneTypes.ts';
 
 test('length returns exactly Math.hypot(...v) on hostile vectors', () => {

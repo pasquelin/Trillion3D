@@ -2,9 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../sdk-core/index.ts';
 import { drawnIndices, dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
 import { quadCluster, fanScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 import { submittedDraws } from './clusterBatchMesh.ts';
+
+/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
+const MANIFEST_IDENTITY = {
+  schema: CLUSTERED_BLEND_FORMAT_VERSION,
+  status: 'ready' as const,
+  key: 'k',
+  scope: 'full' as const,
+  sourceTriangles: 0,
+  selectedTriangles: 0,
+  selectedNodes: [] as number[],
+  totalNodes: 0,
+};
 
 test('transparent page batches preserve source order across exact and coarse cuts', () => {
   const { geometry, material, mesh, source, indices } = fanScene();
@@ -17,6 +30,7 @@ test('transparent page batches preserve source order across exact and coarse cut
     source,
     metadata: {
       ...DAG,
+      ...MANIFEST_IDENTITY,
       primitives: [{ mesh: 0, primitive: 0, pass: 'clustered-blend', ...level }],
     },
     indices,
@@ -101,6 +115,7 @@ test('cpuSelectMs measures selection time, finite and non-negative', () => {
     source,
     metadata: {
       ...DAG,
+      ...MANIFEST_IDENTITY,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([cluster(0, 0)]) }],
     },
     indices: new Map([['0', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
@@ -113,13 +128,13 @@ test('cpuSelectMs measures selection time, finite and non-negative', () => {
   camera.lookAt(0, 0, 0);
   backend.render(camera);
   const metrics1 = backend.metrics();
-  if (metrics1.cpuSelectMs !== null) {
+  if (typeof metrics1.cpuSelectMs === 'number') {
     assert.ok(Number.isFinite(metrics1.cpuSelectMs), 'cpuSelectMs is finite when measured');
     assert.ok(metrics1.cpuSelectMs >= 0, 'cpuSelectMs is non-negative');
   }
   backend.render(camera);
   const metrics2 = backend.metrics();
-  if (metrics2.cpuSelectMs !== null) {
+  if (typeof metrics2.cpuSelectMs === 'number') {
     assert.ok(Number.isFinite(metrics2.cpuSelectMs), 'cpuSelectMs stays finite across renders');
     assert.ok(metrics2.cpuSelectMs >= 0, 'cpuSelectMs stays non-negative');
   }

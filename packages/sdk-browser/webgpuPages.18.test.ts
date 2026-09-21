@@ -8,10 +8,48 @@ import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { camera } from './webgpuPagesTestScenes.ts';
 import { twoCoarseQuadsScene } from './webgpuPagesTestOccluder.ts';
+import {
+  CLUSTERED_BLEND_FORMAT_VERSION,
+  type ClusterManifest,
+  type Primitive,
+} from '../sdk-core/index.ts';
+
+/** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
+ *  general `RenderBackend` contract leaves optional or omits. */
+type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
+  flush(): Promise<void>;
+  selectedPageIds(): string[];
+};
+
+/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
+const MANIFEST_IDENTITY = {
+  schema: CLUSTERED_BLEND_FORMAT_VERSION,
+  status: 'ready' as const,
+  key: 'k',
+  scope: 'full' as const,
+  sourceTriangles: 0,
+  selectedTriangles: 0,
+  selectedNodes: [] as number[],
+  totalNodes: 0,
+};
+
+/** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
+ *  omits — unread by the backends under test. Its second primitive's `pages` carry every `Page`
+ *  field at runtime (`...page` spread in the fixture); only the inline callback annotation
+ *  there narrows the static type to `{ url: string }`, which this cast corrects. */
+function scene() {
+  const raw = twoCoarseQuadsScene();
+  const metadata: ClusterManifest = {
+    ...raw.metadata,
+    ...MANIFEST_IDENTITY,
+    primitives: raw.metadata.primitives as Primitive[],
+  };
+  return { ...raw, metadata };
+}
 
 test('GPU camera jumps reclaim detail slots while preserving pinned coarse coverage', async () => {
   installGpuGlobals();
-  const fixture = twoCoarseQuadsScene();
+  const fixture = scene();
   const collected = collectClusterPages(
     fixture.source,
     fixture.metadata,
@@ -25,7 +63,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
     gpuDevice: device,
     maxResidentPages: 4,
     viewport: [32, 32],
-  });
+  }) as PagesBackend;
   const cam = camera();
   try {
     await backend.prepare();
@@ -61,14 +99,14 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
 test('a recycled page-table row describes its new cluster and reaches the GPU before the image reads it', async () => {
   installGpuGlobals();
   const { device, writes, buffers, submits } = mockGpu(),
-    fixture = twoCoarseQuadsScene();
+    fixture = scene();
   // Six clusters share four rows, so every jump between the two primitives recycles rows on eviction.
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
     viewport: [32, 32],
-  });
+  }) as PagesBackend;
   const view = camera(),
     words = PAGE_INFO_STRIDE / 4;
   const look = (x: number) => {
