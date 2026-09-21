@@ -19,14 +19,8 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     (['lod', 'memory', 'offline'].includes(lesson.kind) || lesson.runtime === 'camera-pose');
   let explorer;
   try {
-    explorer = await startup.wait(
-      createLessonExplorer({
-        canvas,
-        signal: startup.signal,
-        manifest: lesson.manifest,
-        importedLights,
-      }),
-    );
+    const opts = { canvas, signal: startup.signal, manifest: lesson.manifest, importedLights };
+    explorer = await startup.wait(createLessonExplorer(opts));
   } catch (error) {
     startup.finish();
     throw error;
@@ -59,8 +53,7 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
     disposed = true;
     startup.cancel();
     readyReject?.(new DOMException('Cancelled', 'AbortError'));
-    readyResolve = undefined;
-    readyReject = undefined;
+    readyResolve = readyReject = undefined;
     cancelAnimationFrame(frame);
     resize?.disconnect();
     controls?.dispose();
@@ -91,21 +84,18 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
       });
       if (!coldStart) {
         readyResolve?.();
-        readyResolve = undefined;
-        readyReject = undefined;
+        readyResolve = readyReject = undefined;
       }
       previous = now;
       frame = 0;
       if (idle) {
         readyResolve?.();
-        readyResolve = undefined;
-        readyReject = undefined;
+        readyResolve = readyReject = undefined;
       } else frame = requestAnimationFrame(draw);
     } catch (error) {
       frame = 0;
       readyReject?.(error);
-      readyResolve = undefined;
-      readyReject = undefined;
+      readyResolve = readyReject = undefined;
       dispose();
     }
   };
@@ -186,6 +176,12 @@ export async function createRendererLessonRuntime({ canvas, lesson, state, repor
         return updateChain;
       },
       dispose,
+      setDiagnostic(mode) {
+        if (!disposed) {
+          explorer.setDiagnostic(mode);
+          invalidate();
+        }
+      },
       camera: {
         zoomIn: camera.zoomIn,
         zoomOut: camera.zoomOut,
