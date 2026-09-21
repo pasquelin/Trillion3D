@@ -1,116 +1,145 @@
 {
-  "asset": {
-    "version": "2.0"
+ "asset": {
+  "version": "2.0"
+ },
+ "buffers": [
+  {
+   "uri": "partial-overlap.bin",
+   "byteLength": 612
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 108
   },
-  "buffers": [
+  {
+   "buffer": 0,
+   "byteOffset": 108,
+   "byteLength": 96
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 204,
+   "byteLength": 192
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 396,
+   "byteLength": 216
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "type": "VEC3",
+   "count": 9,
+   "min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "max": [
+    4.0,
+    4.0,
+    0.0
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5125,
+   "type": "SCALAR",
+   "count": 24
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "type": "VEC3",
+   "count": 16,
+   "min": [
+    2.0,
+    2.0,
+    0.0
+   ],
+   "max": [
+    6.0,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "type": "SCALAR",
+   "count": 54
+  }
+ ],
+ "materials": [
+  {
+   "name": "concrete",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ]
+   }
+  },
+  {
+   "name": "checker",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.1,
+     0.1,
+     0.12,
+     1
+    ]
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "primitives": [
     {
-      "uri": "partial-overlap.bin",
-      "byteLength": 612
+     "attributes": {
+      "POSITION": 0
+     },
+     "indices": 1,
+     "material": 0
     }
-  ],
-  "bufferViews": [
+   ]
+  },
+  {
+   "primitives": [
     {
-      "buffer": 0,
-      "byteOffset": 0,
-      "byteLength": 108
-    },
-    {
-      "buffer": 0,
-      "byteOffset": 108,
-      "byteLength": 96
-    },
-    {
-      "buffer": 0,
-      "byteOffset": 204,
-      "byteLength": 192
-    },
-    {
-      "buffer": 0,
-      "byteOffset": 396,
-      "byteLength": 216
+     "attributes": {
+      "POSITION": 2
+     },
+     "indices": 3,
+     "material": 1
     }
-  ],
-  "accessors": [
-    {
-      "bufferView": 0,
-      "componentType": 5126,
-      "type": "VEC3",
-      "count": 9,
-      "min": [0.0, 0.0, 0.0],
-      "max": [4.0, 4.0, 0.0]
-    },
-    {
-      "bufferView": 1,
-      "componentType": 5125,
-      "type": "SCALAR",
-      "count": 24
-    },
-    {
-      "bufferView": 2,
-      "componentType": 5126,
-      "type": "VEC3",
-      "count": 16,
-      "min": [2.0, 2.0, 0.0],
-      "max": [6.0, 6.0, 0.0]
-    },
-    {
-      "bufferView": 3,
-      "componentType": 5125,
-      "type": "SCALAR",
-      "count": 54
-    }
-  ],
-  "materials": [
-    {
-      "name": "concrete",
-      "pbrMetallicRoughness": {
-        "baseColorFactor": [0.8, 0.8, 0.8, 1]
-      }
-    },
-    {
-      "name": "checker",
-      "pbrMetallicRoughness": {
-        "baseColorFactor": [0.1, 0.1, 0.12, 1]
-      }
-    }
-  ],
-  "meshes": [
-    {
-      "primitives": [
-        {
-          "attributes": {
-            "POSITION": 0
-          },
-          "indices": 1,
-          "material": 0
-        }
-      ]
-    },
-    {
-      "primitives": [
-        {
-          "attributes": {
-            "POSITION": 2
-          },
-          "indices": 3,
-          "material": 1
-        }
-      ]
-    }
-  ],
-  "nodes": [
-    {
-      "mesh": 0
-    },
-    {
-      "mesh": 1
-    }
-  ],
-  "scenes": [
-    {
-      "nodes": [0, 1]
-    }
-  ],
-  "scene": 0,
-  "images": []
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0
+  },
+  {
+   "mesh": 1
+  }
+ ],
+ "scenes": [
+  {
+   "nodes": [
+    0,
+    1
+   ]
+  }
+ ],
+ "scene": 0,
+ "images": []
 }

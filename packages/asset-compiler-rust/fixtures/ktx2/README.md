@@ -5,13 +5,13 @@ that `src/plugins/tests/ktx2/bytes.rs` writes field by field from the Khronos sp
 
 ## 1. The five files
 
-| file             | what it carries                                                         | what it proves                                                                                                            |
-| ---------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `base.ktx2`      | 4 × 4, `VK_FORMAT_R8G8B8A8_SRGB`, `supercompressionScheme` 0            | an uncompressed level comes out byte for byte; its sixteen texels are written in the clear in `src/plugins/tests/ktx2.rs` |
-| `base-zstd.ktx2` | the same level under `KTX_SS_ZSTD`                                      | supercompression is only a wrapper: undone, it yields exactly the same texels                                             |
-| `uastc.ktx2`     | 16 × 16, `VK_FORMAT_UNDEFINED`, UASTC LDR 4 × 4 payload                 | the Basis Universal path without supercompression, sixteen blocks of sixteen bytes                                        |
-| `basis.ktx2`     | 256 × 256, `VK_FORMAT_UNDEFINED`, ETC1S payload under `KTX_SS_BASIS_LZ` | the supercompressed Basis Universal path, codebooks included, as a third-party encoder writes it                          |
-| `tronque.ktx2`   | forty bytes of `basis.ktx2`                                             | the identifier is there, the header is not, and the rejection is named                                                    |
+| file             | what it carries                                                       | what it proves                                                                                                            |
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `base.ktx2`      | 4 × 4, `VK_FORMAT_R8G8B8A8_SRGB`, `supercompressionScheme` 0          | an uncompressed level comes out byte for byte; its sixteen texels are written in the clear in `src/plugins/tests/ktx2.rs` |
+| `base-zstd.ktx2` | the same level under `KTX_SS_ZSTD`                                    | supercompression is only a wrapper: undone, it yields exactly the same texels                                             |
+| `uastc.ktx2`     | 16 × 16, `VK_FORMAT_UNDEFINED`, UASTC LDR 4 × 4 payload               | the Basis Universal path without supercompression, sixteen blocks of sixteen bytes                                        |
+| `basis.ktx2`     | 256 × 256, `VK_FORMAT_UNDEFINED`, ETC1S payload under `KTX_SS_BASIS_LZ` | the supercompressed Basis Universal path, codebooks included, as a third-party encoder writes it                        |
+| `tronque.ktx2`   | forty bytes of `basis.ktx2`                                           | the identifier is there, the header is not, and the rejection is named                                                    |
 
 ## 2. The test containers
 

@@ -6,13 +6,13 @@ compiles both through the shared harness, compares the second against the first 
 which proves that the two compilations are one — then compares the first against
 `expected.json`.
 
-| file                    | what it pins                                                                                           |
-| ----------------------- | ------------------------------------------------------------------------------------------------------ |
-| `scene.zip`             | the archive: a single root folder `scene/`, a `.gltf`, its `.bin` and a texture in a subfolder         |
-| `hors-archive/`         | the contents of `scene.zip`, extracted once and for all: the same scene without a container            |
-| `sortie-de-dossier.zip` | an entry `../escape.gltf`: escape from the extraction folder, refused `ARCHIVE_PATH_ESCAPE`            |
-| `tronquee.zip`          | 31 of the 4,406 bytes of `scene.zip`: the central directory is missing, rejection `ARCHIVE_UNREADABLE` |
-| `vide.zip`              | the 22 bytes of an archive with no entry: rejection `ARCHIVE_EMPTY`                                    |
+| file                       | what it pins                                                             |
+| -------------------------- | ------------------------------------------------------------------------ |
+| `scene.zip`                | the archive: a single root folder `scene/`, a `.gltf`, its `.bin` and a texture in a subfolder |
+| `hors-archive/`            | the contents of `scene.zip`, extracted once and for all: the same scene without a container |
+| `sortie-de-dossier.zip`    | an entry `../escape.gltf`: escape from the extraction folder, refused `ARCHIVE_PATH_ESCAPE` |
+| `tronquee.zip`             | 31 of the 4,406 bytes of `scene.zip`: the central directory is missing, rejection `ARCHIVE_UNREADABLE` |
+| `vide.zip`                 | the 22 bytes of an archive with no entry: rejection `ARCHIVE_EMPTY`      |
 
 What each choice puts under watch:
 

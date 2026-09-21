@@ -10,11 +10,11 @@ pins the bytes of its previews in `expected.json`.
 
 ## What the driver reads
 
-| file                  | colour table      | what it puts under watch                                                                        |
-| --------------------- | ----------------- | ----------------------------------------------------------------------------------------------- |
-| `palette-globale.gif` | global, 8 entries | the table colours rendered as-is — the format is indexed, nothing is rounded                    |
-| `palette-locale.gif`  | local, 8 entries  | a table carried by the image descriptor, with no global table in the file at all                |
-| `transparence.gif`    | global, 8 entries | the index declared transparent becomes a zero alpha, **and its colour stays that of the table** |
+| file                  | colour table       | what it puts under watch                                                             |
+| --------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `palette-globale.gif` | global, 8 entries  | the table colours rendered as-is — the format is indexed, nothing is rounded         |
+| `palette-locale.gif`  | local, 8 entries   | a table carried by the image descriptor, with no global table in the file at all     |
+| `transparence.gif`    | global, 8 entries  | the index declared transparent becomes a zero alpha, **and its colour stays that of the table** |
 
 The three carry the same image; only `transparence.gif` changes the alpha, and only it. The golden
 checks this explicitly: where the table comes from does not change a pixel, and transparency does not
@@ -22,10 +22,10 @@ touch the colour — nothing is erased, filled with white, or premultiplied.
 
 ## What the driver refuses, and under which name
 
-| file          | rejection                     | why                                                                                                                                                                                                                                               |
-| ------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `anime.gif`   | `image-animation-unsupported` | two image descriptors: an animation is not a texture, and choosing one image by default would be arbitrary. That is the `webp` driver's reason, shared on purpose — an animation rejection is an animation rejection, whichever format carries it |
-| `tronque.gif` | `image-decode-failed`         | 31 bytes out of 17,976: the signature is recognised, the decode refused                                                                                                                                                                           |
+| file          | rejection                     | why                                                                                                                                                                                                                                                      |
+| ------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `anime.gif`   | `image-animation-unsupported` | two image descriptors: an animation is not a texture, and choosing one image by default would be arbitrary. That is the `webp` driver's reason, shared on purpose — an animation rejection is an animation rejection, whichever format carries it        |
+| `tronque.gif` | `image-decode-failed`         | 31 bytes out of 17,976: the signature is recognised, the decode refused                                                                                                                                                                                  |
 
 The golden adds three cases that need no extra file, taken from the previous two:
 the `GIF87a` signature rewritten onto `palette-globale.gif` — the version without extensions, which the

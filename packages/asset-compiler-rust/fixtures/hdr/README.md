@@ -3,16 +3,16 @@
 Seven tiny files and a scene. Four carry the same image written four ways; three
 are there to be refused, each by name.
 
-| file                      | what it carries                        | what it puts under watch                                                              |
-| ------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------- |
-| `plat.hdr`                | 4 × 2, raw scanlines                   | four bytes per pixel, with no marker at all                                           |
-| `rle-ancienne.hdr`        | 4 × 2, `1,1,1,n` markers               | the “Real Pixels” compression: same pixels as `plat.hdr`                              |
-| `signature-rgbe.hdr`      | 4 × 2, `#?RGBE` signature              | the format's second signature, which old files carry                                  |
-| `rle-nouvelle.hdr`        | 8 × 1, `2, 2, width` header            | per-component compression, its runs **and** its raw packets in the same scanline      |
-| `xyze.hdr`                | `FORMAT=32-bit_rle_xyze`               | another colour space: rejection `hdr-format-unsupported`                              |
-| `bas-en-haut.hdr`         | resolution `+Y 2 +X 4`                 | an orientation that would have to be flipped: rejection `hdr-orientation-unsupported` |
-| `tronque.hdr`             | 7 of the 32 pixel bytes                | rejection `hdr-data-truncated`, never a half scanline                                 |
-| `scene.gltf`, `scene.bin` | a quad whose base colour is `plat.hdr` | the full path through to the preview report, where the float texture is named         |
+| file                      | what it carries                                | what it puts under watch                                                        |
+| ------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| `plat.hdr`                | 4 × 2, raw scanlines                           | four bytes per pixel, with no marker at all                                     |
+| `rle-ancienne.hdr`        | 4 × 2, `1,1,1,n` markers                       | the “Real Pixels” compression: same pixels as `plat.hdr`                        |
+| `signature-rgbe.hdr`      | 4 × 2, `#?RGBE` signature                      | the format's second signature, which old files carry                            |
+| `rle-nouvelle.hdr`        | 8 × 1, `2, 2, width` header                    | per-component compression, its runs **and** its raw packets in the same scanline |
+| `xyze.hdr`                | `FORMAT=32-bit_rle_xyze`                       | another colour space: rejection `hdr-format-unsupported`                        |
+| `bas-en-haut.hdr`         | resolution `+Y 2 +X 4`                         | an orientation that would have to be flipped: rejection `hdr-orientation-unsupported` |
+| `tronque.hdr`             | 7 of the 32 pixel bytes                        | rejection `hdr-data-truncated`, never a half scanline                           |
+| `scene.gltf`, `scene.bin` | a quad whose base colour is `plat.hdr`         | the full path through to the preview report, where the float texture is named   |
 
 `src/plugins/tests/hdr.rs` compares the values **one by one** against a reference written in the clear in
 the test. The four RGBE quadruplets used have exponents readable by eye — `2^-8`, `2^-7`,

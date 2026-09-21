@@ -7,18 +7,18 @@ writings of the same stream **byte for byte** and checks five texels written in 
 
 ## What the driver reads
 
-| file                     | container                | what it puts under watch                                                                                 |
-| ------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `sans-perte.webp`        | `VP8L` alone             | 256 × 256 RGBA8, zero alpha and opaque alpha mixed: nothing is filled by default nor premultiplied       |
+| file                     | container                | what it puts under watch                                       |
+| ------------------------ | ------------------------ | -------------------------------------------------------------- |
+| `sans-perte.webp`        | `VP8L` alone             | 256 × 256 RGBA8, zero alpha and opaque alpha mixed: nothing is filled by default nor premultiplied |
 | `etendu-sans-perte.webp` | `VP8X` + `ICCP` + `VP8L` | the metadata chunks are walked without touching a pixel: the yielded bytes are those of the `VP8L` alone |
 
 ## What the driver refuses, and under which name
 
-| file              | rejection                     | why                                                                                                                                        |
-| ----------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `avec-perte.webp` | `image-lossy-unsupported`     | `VP8X` + `ALPH` + `VP8 `: the lossy stream is _behind_ optional chunks, the driver must walk the container and not look at the first chunk |
-| `anime.webp`      | `image-animation-unsupported` | `VP8X` + `ANIM` + `ANMF`: flattening an animation onto a frame chosen by default would be arbitrary, not a faithful read                   |
-| `tronque.webp`    | `image-decode-failed`         | 40 of 192 bytes: the size announced by `RIFF` exceeds what the file carries, an amputated stream is not handed to the decoder              |
+| file               | rejection                      | why                                                           |
+| ------------------ | ------------------------------ | ------------------------------------------------------------- |
+| `avec-perte.webp`  | `image-lossy-unsupported`      | `VP8X` + `ALPH` + `VP8 `: the lossy stream is *behind* optional chunks, the driver must walk the container and not look at the first chunk |
+| `anime.webp`       | `image-animation-unsupported`  | `VP8X` + `ANIM` + `ANMF`: flattening an animation onto a frame chosen by default would be arbitrary, not a faithful read |
+| `tronque.webp`     | `image-decode-failed`          | 40 of 192 bytes: the size announced by `RIFF` exceeds what the file carries, an amputated stream is not handed to the decoder |
 
 The test adds two cases that need no file: a `VP8L` whose chunk name is rewritten
 to `VP8 ` — the lossy stream without an extended container, refused by the same path — and a RIFF

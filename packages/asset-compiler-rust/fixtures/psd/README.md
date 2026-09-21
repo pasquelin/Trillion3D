@@ -11,14 +11,14 @@ not contain.
 
 ## What the driver reads
 
-| file                 | what it carries                              | what it puts under watch                                                                                                                |
-| -------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `rgb-brut.psd`       | 4 × 2, 8-bit RGB, compression 0              | the three planes as-is, one whole channel after another                                                                                 |
-| `rgb-rle.psd`        | 4 × 2, 8-bit RGB, compression 1              | PackBits: same pixels as `rgb-brut.psd`, a run and a raw packet in the same scanline                                                    |
+| file                 | what it carries                              | what it puts under watch                                                                                                               |
+| -------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `rgb-brut.psd`       | 4 × 2, 8-bit RGB, compression 0              | the three planes as-is, one whole channel after another                                                                                |
+| `rgb-rle.psd`        | 4 × 2, 8-bit RGB, compression 1              | PackBits: same pixels as `rgb-brut.psd`, a run and a raw packet in the same scanline                                                   |
 | `rgba-rle.psd`       | 4 × 2, RGB + one extra plane, compression 1  | nothing declares transparency: the fourth plane is a saved alpha channel, read, written nowhere and counted `psd-alpha-channel-ignored` |
-| `gris-brut.psd`      | 4 × 2, 8-bit grayscale, compression 0        | the single colour channel carries the three components, with no profile and no matrix                                                   |
-| `gris-alpha-rle.psd` | 4 × 2, grey + one extra plane, compression 1 | the same case in a mode with a single colour channel                                                                                    |
-| `grand-format.psb`   | 4 × 2, 8-bit RGB, PSB, compression 1         | version 2 of the format: layer-section length on eight bytes, per-scanline byte count on four                                           |
+| `gris-brut.psd`      | 4 × 2, 8-bit grayscale, compression 0        | the single colour channel carries the three components, with no profile and no matrix                                                  |
+| `gris-alpha-rle.psd` | 4 × 2, grey + one extra plane, compression 1 | the same case in a mode with a single colour channel                                                                                   |
+| `grand-format.psb`   | 4 × 2, 8-bit RGB, PSB, compression 1         | version 2 of the format: layer-section length on eight bytes, per-scanline byte count on four                                          |
 
 The five 4 × 2 files carry the same composite — three identical pixels, one isolated pixel, then
 a vivid colour and a grey run. That is the proof that compression, colour mode and format
@@ -49,14 +49,14 @@ to write a whole layer record, they fault exactly the field that decides.
 
 ## What the driver refuses, and under which name
 
-| file                 | rejection                     | why                                                                                              |
-| -------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------ |
-| `seize-bits.psd`     | `psd-depth-unsupported`       | sixteen bits per channel: bringing them down to eight would be a loss the source did not have    |
-| `cmjn.psd`           | `psd-color-mode-unsupported`  | CMYK mode: converting it would require a profile the driver would choose in place of the source  |
-| `canaux-en-trop.psd` | `psd-channels-unsupported`    | two planes more than the colour channels: nothing in the header says which one is a transparency |
-| `zip.psd`            | `psd-compression-unsupported` | composite compressed by ZIP, outside the raw and PackBits subset                                 |
-| `sans-composite.psd` | `psd-composite-missing`       | the file stops after the layer section: no flattened image to read, and it is not recomposed     |
-| `tronque.psd`        | `psd-data-truncated`          | 7 of the 24 pixel bytes: never a half plane                                                      |
+| file                 | rejection                     | why                                                                                                  |
+| -------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `seize-bits.psd`     | `psd-depth-unsupported`       | sixteen bits per channel: bringing them down to eight would be a loss the source did not have        |
+| `cmjn.psd`           | `psd-color-mode-unsupported`  | CMYK mode: converting it would require a profile the driver would choose in place of the source      |
+| `canaux-en-trop.psd` | `psd-channels-unsupported`    | two planes more than the colour channels: nothing in the header says which one is a transparency     |
+| `zip.psd`            | `psd-compression-unsupported` | composite compressed by ZIP, outside the raw and PackBits subset                                     |
+| `sans-composite.psd` | `psd-composite-missing`       | the file stops after the layer section: no flattened image to read, and it is not recomposed         |
+| `tronque.psd`        | `psd-data-truncated`          | 7 of the 24 pixel bytes: never a half plane                                                          |
 
 The test adds a case that needs no file: `rgb-brut.psd` whose width is set to
 zero, refused as `psd-header-invalid`, and a signature whose version number is unknown, which the

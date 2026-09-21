@@ -8,28 +8,28 @@ pixel image whose eight values are known.
 
 ## What the driver reads
 
-| file                 | profile    | compression      | what it puts under watch                                                                   |
-| -------------------- | ---------- | ---------------- | ------------------------------------------------------------------------------------------ |
-| `rgb8-brut-ii.tiff`  | 8-bit RGB  | none (1)         | little-endian IFD, `BitsPerSample` array off-field, alpha filled to 255                    |
-| `rgb8-brut-mm.tiff`  | 8-bit RGB  | none (1)         | the same file big-endian: byte order does not change a pixel                               |
-| `rgb8-lzw.tiff`      | 8-bit RGB  | LZW (5)          | variable-length codes, same pixels as the raw                                              |
-| `rgb8-deflate.tiff`  | 8-bit RGB  | Deflate (8)      | the other tag of the same codec                                                            |
-| `rgb8-packbits.tiff` | 8-bit RGB  | PackBits (32773) | repeated packets and raw packets                                                           |
-| `rgba8-brut.tiff`    | 8-bit RGBA | none (1)         | `ExtraSamples = 2` (unassociated alpha): the four bytes pass as-is, including a zero alpha |
-| `gris8-brut.tiff`    | 8-bit grey | none (1)         | black at zero, value copied onto the three channels, alpha 255                             |
+| file                     | profile       | compression | what it puts under watch                       |
+| ------------------------ | ------------- | ----------- | ---------------------------------------------- |
+| `rgb8-brut-ii.tiff`      | 8-bit RGB     | none (1)    | little-endian IFD, `BitsPerSample` array off-field, alpha filled to 255 |
+| `rgb8-brut-mm.tiff`      | 8-bit RGB     | none (1)    | the same file big-endian: byte order does not change a pixel |
+| `rgb8-lzw.tiff`          | 8-bit RGB     | LZW (5)     | variable-length codes, same pixels as the raw  |
+| `rgb8-deflate.tiff`      | 8-bit RGB     | Deflate (8) | the other tag of the same codec                |
+| `rgb8-packbits.tiff`     | 8-bit RGB     | PackBits (32773) | repeated packets and raw packets          |
+| `rgba8-brut.tiff`        | 8-bit RGBA    | none (1)    | `ExtraSamples = 2` (unassociated alpha): the four bytes pass as-is, including a zero alpha |
+| `gris8-brut.tiff`        | 8-bit grey    | none (1)    | black at zero, value copied onto the three channels, alpha 255 |
 
 ## What the driver refuses, and under which name
 
-| file                       | rejection                   | why                                                                                       |
-| -------------------------- | --------------------------- | ----------------------------------------------------------------------------------------- |
-| `gris16.tiff`              | `image-depth-unsupported`   | 16 bits per component: `DecodedImage` has only `Rgba8`, silently narrowing would add loss |
-| `palette8.tiff`            | `image-profile-unsupported` | `Photometric = 3`; the reading library does not expand TIFF palettes                      |
-| `rgb8-jpeg.tiff`           | `image-profile-unsupported` | JPEG-in-TIFF (compression 7)                                                              |
-| `ccitt-g4.tiff`            | `image-profile-unsupported` | CCITT Group 4 (compression 4), bilevel                                                    |
-| `deux-pages.tiff`          | `image-profile-unsupported` | two IFDs: a single page would be rendered, the other would vanish with no report          |
-| `rgb8-plans-separes.tiff`  | `image-profile-unsupported` | `PlanarConfiguration = 2`: one strip per component                                        |
-| `rgba8-alpha-associe.tiff` | `image-profile-unsupported` | `ExtraSamples = 1`, premultiplied alpha: rendering it as-is would change the colours      |
-| `tronque.tif`              | `image-decode-failed`       | 31 bytes out of 196,748: the header is a TIFF header, it is the read that fails           |
+| file                         | rejection                  | why                                              |
+| ---------------------------- | -------------------------- | ------------------------------------------------ |
+| `gris16.tiff`                | `image-depth-unsupported`  | 16 bits per component: `DecodedImage` has only `Rgba8`, silently narrowing would add loss |
+| `palette8.tiff`              | `image-profile-unsupported`| `Photometric = 3`; the reading library does not expand TIFF palettes |
+| `rgb8-jpeg.tiff`             | `image-profile-unsupported`| JPEG-in-TIFF (compression 7)                     |
+| `ccitt-g4.tiff`              | `image-profile-unsupported`| CCITT Group 4 (compression 4), bilevel           |
+| `deux-pages.tiff`            | `image-profile-unsupported`| two IFDs: a single page would be rendered, the other would vanish with no report |
+| `rgb8-plans-separes.tiff`    | `image-profile-unsupported`| `PlanarConfiguration = 2`: one strip per component |
+| `rgba8-alpha-associe.tiff`   | `image-profile-unsupported`| `ExtraSamples = 1`, premultiplied alpha: rendering it as-is would change the colours |
+| `tronque.tif`                | `image-decode-failed`      | 31 bytes out of 196,748: the header is a TIFF header, it is the read that fails |
 
 BigTIFF has no file: its first four bytes (`II+\0`, `MM\0+`) suffice and are written
 in the golden. The driver claims them so the rejection is named rather than letting the file come out

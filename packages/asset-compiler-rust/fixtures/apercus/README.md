@@ -11,18 +11,18 @@ included.
 Four two-triangle quads, spaced three units apart so no pair is coplanar —
 the scene speaks only of textures.
 
-| primitive | material | class                          | colour texture                                         |
-| --------- | -------- | ------------------------------ | ------------------------------------------------------ |
-| 0         | `beton`  | opaque                         | `baseColorTexture` → texture 0                         |
-| 1         | `grille` | `MASK`, `alphaCutoff` **0.25** | `baseColorTexture` → texture 1                         |
-| 2         | `vitre`  | `BLEND`                        | `baseColorTexture` → texture 2                         |
-| 3         | `lampe`  | opaque, emissive               | `emissiveTexture` → **texture 2**, shared with `vitre` |
+| primitive | material | class | colour texture |
+| --- | --- | --- | --- |
+| 0 | `beton` | opaque | `baseColorTexture` → texture 0 |
+| 1 | `grille` | `MASK`, `alphaCutoff` **0.25** | `baseColorTexture` → texture 1 |
+| 2 | `vitre` | `BLEND` | `baseColorTexture` → texture 2 |
+| 3 | `lampe` | opaque, emissive | `emissiveTexture` → **texture 2**, shared with `vitre` |
 
-| image | file               | provenance                            | dimensions | first carried level | levels |
-| ----- | ------------------ | ------------------------------------- | ---------- | ------------------- | ------ |
-| 0     | `base-degrade.png` | `uri`                                 | 40 × 24    | 0                   | 6      |
-| 1     | —                  | `bufferView` 6 of `atlas-couleur.bin` | 24 × 16    | 0                   | 5      |
-| 2     | `lueur.jpg`        | `uri`                                 | 80 × 48    | **1**               | 6      |
+| image | file | provenance | dimensions | first carried level | levels |
+| --- | --- | --- | --- | --- | --- |
+| 0 | `base-degrade.png` | `uri` | 40 × 24 | 0 | 6 |
+| 1 | — | `bufferView` 6 of `atlas-couleur.bin` | 24 × 16 | 0 | 5 |
+| 2 | `lueur.jpg` | `uri` | 80 × 48 | **1** | 6 |
 
 What each choice puts under watch:
 
@@ -44,7 +44,7 @@ What each choice puts under watch:
 For each sidecar entry: the ten numbers it declares, the digest of its source image,
 then each level with its dimensions, the **sha256 of all its bytes**, five texels (four corners
 and centre) and its coverage at the `MASK` material cutoff. The sha256 trips the golden as soon as a
-preview byte changes; the texels and the coverage say _where_ the computation moved. `case` and `rule`
+preview byte changes; the texels and the coverage say *where* the computation moved. `case` and `rule`
 are prose only, the test strips them before comparing.
 
 ## Regenerating

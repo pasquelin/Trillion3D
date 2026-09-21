@@ -7,21 +7,21 @@ class is read from the material alone, and each scene stays two readable files.
 
 ## `classes-materiaux` — opaque, cutout, blend
 
-| mesh         | material                                         | class  | compiler packing  |
-| ------------ | ------------------------------------------------ | ------ | ----------------- |
-| `opaque0..2` | `beton`                                          | opaque | `exact-clusters`  |
-| `grille`     | `grillage`, `alphaMode: MASK`, `alphaCutoff 0.5` | cutout | `exact-clusters`  |
-| `vitre`      | `vitre`, `alphaMode: BLEND`                      | blend  | `clustered-blend` |
+| mesh | material | class | compiler packing |
+|---|---|---|---|
+| `opaque0..2` | `beton` | opaque | `exact-clusters` |
+| `grille` | `grillage`, `alphaMode: MASK`, `alphaCutoff 0.5` | cutout | `exact-clusters` |
+| `vitre` | `vitre`, `alphaMode: BLEND` | blend | `clustered-blend` |
 
 4,516 triangles. This is the scene the harness measures.
 
 ## `transmission` — the fourth class, and something to see it with
 
-| mesh       | material                                                                                                                                     | class        | compiler packing |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------- |
-| `fond`     | `fond`, opaque                                                                                                                               | opaque       | `exact-clusters` |
-| `bloc0..2` | `beton`, opaque                                                                                                                              | opaque       | `exact-clusters` |
-| `eau`      | `eau`, `KHR_materials_transmission` 1.0, `KHR_materials_ior` 1.33, `KHR_materials_volume` (thickness 2.5, distance 6, colour 0.35/0.72/0.68) | transmission | `shared-blend`   |
+| mesh | material | class | compiler packing |
+|---|---|---|---|
+| `fond` | `fond`, opaque | opaque | `exact-clusters` |
+| `bloc0..2` | `beton`, opaque | opaque | `exact-clusters` |
+| `eau` | `eau`, `KHR_materials_transmission` 1.0, `KHR_materials_ior` 1.33, `KHR_materials_volume` (thickness 2.5, distance 6, colour 0.35/0.72/0.68) | transmission | `shared-blend` |
 
 2,880 triangles. A water plane at `y = 0` above a ground at `y = -2.5` and three blocks, of which two
 pierce the surface: what is looked at is the deviation of the ground under the water against the straight line of
@@ -35,12 +35,12 @@ would still carry pages remains refused.
 
 ## `emetteur-sphere` — the emitter's spherical exclusion
 
-| mesh                  | material                               | role                                                                                         |
-| --------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `sol`                 | `sol`, opaque                          | receives the shadow                                                                          |
-| `occultant-diagonale` | `occultant`, opaque                    | 0.3121 m from the lamp centre (0.19, 0.18, 0.17 relative) — outside the 0.20 m radius sphere |
-| `occultant-proche`    | `occultant`, opaque                    | 0.15 m from the lamp centre — inside the sphere                                              |
-| `enveloppe-lampe`     | `enveloppe`, non-zero `emissiveFactor` | the luminaire around the lamp: six vertices at 0.20 m from its centre                        |
+| mesh | material | role |
+|---|---|---|
+| `sol` | `sol`, opaque | receives the shadow |
+| `occultant-diagonale` | `occultant`, opaque | 0.3121 m from the lamp centre (0.19, 0.18, 0.17 relative) — outside the 0.20 m radius sphere |
+| `occultant-proche` | `occultant`, opaque | 0.15 m from the lamp centre — inside the sphere |
+| `enveloppe-lampe` | `enveloppe`, non-zero `emissiveFactor` | the luminaire around the lamp: six vertices at 0.20 m from its centre |
 
 34 triangles, one point lamp (`lampe`, `KHR_lights_punctual`, range 3 m). The glTF declares
 no radius: `KHR_lights_punctual` carries none (`docs/SDK.md`). It is the compiler that writes

@@ -6,8 +6,8 @@ two textures. It reproduces as short as possible the exact shape opacity takes i
 
 - `ShadingModel: "phong"` — so `ufbx` classifies the material as `FbxPhong`, `features.pbr` stays
   off and **`pbr.opacity` has neither a value nor a texture**;
-- `TransparentColor` carries the transparency _and_ the opacity map (`C: "OP",5000,3000,
-"TransparentColor"`), `TransparencyFactor` the factor.
+- `TransparentColor` carries the transparency *and* the opacity map (`C: "OP",5000,3000,
+  "TransparentColor"`), `TransparencyFactor` the factor.
 
 The two images (`albedo.png`, `opacite.png`) are not versioned: the test writes them beside the
 throwaway copy of the FBX, like the OBJ fixtures. The only thing that counts here is the path
