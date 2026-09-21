@@ -1,15 +1,31 @@
 {
   "binary": {
+    "texturePreviewAstcBytes": 0,
+    "texturePreviewBc7Bytes": 0,
     "texturePreviewBytes": 44,
     "texturePreviews": 1
   },
   "case": "A quad whose base colour is rgb-brut.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 6,
+  "manifestBinaryVersion": 7,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
+      "blocks": [
+        {
+          "bytes": 0,
+          "format": "bc7",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "bytes": 0,
+          "format": "astc",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
       "firstLevel": 0,
       "height": 2,
       "image": 0,
@@ -67,17 +83,44 @@
   "report": {
     "bakedLevels": 0,
     "base": 64,
+    "blockBytes": 0,
+    "blockFormats": ["bc7"],
     "colorTextures": 1,
     "dataTextures": 0,
+    "encoded": {
+      "bc7": {
+        "keptPsnrDb": null,
+        "lossless": 1,
+        "rgba": 0,
+        "twoChannel": 0
+      }
+    },
+    "lossless": [
+      {
+        "atlas": "srgb",
+        "format": "bc7",
+        "layout": "rgba",
+        "maskFlips": 0,
+        "maxDelta": 122,
+        "psnrDb": 14.37,
+        "sha256": "758e5b8ad8b931bc70210938d42fc70a6424f0c7098a70c19ba041c15eff5de9"
+      }
+    ],
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 44,
     "previews": 1,
+    "qualityGate": {
+      "decoder": "texture2ddecoder",
+      "maskFlips": 0,
+      "maxDelta": 3,
+      "psnrDb": 48.0
+    },
     "skipped": {},
-    "version": 3
+    "version": 4
   },
   "rule": "A flattened composite of eight bits per channel enters progressive previews like any other RGBA8 source: the lossless tail of its mip chain is produced, no reason is carried in the report, and the pixels are those the file already carried — never recomposed layers.",
   "textures": {
-    "url": "../../textures/v3/{sha}/{kind}-{level}.png"
+    "url": "../../textures/v4/{sha}/{kind}-{level}.{format}"
   }
 }

@@ -45,6 +45,10 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     bundles: 0,
     previews: slim.binary.texturePreviews,
     previewBytes: slim.binary.texturePreviewBytes,
+    previewBlockBytes: {
+      bc7: slim.binary.texturePreviewBc7Bytes,
+      astc: slim.binary.texturePreviewAstcBytes,
+    },
   };
   for (const primitive of slim.primitives) {
     const binary = primitive.binary;
@@ -127,7 +131,9 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
   const previewShaText = decoder.decode(
     column('texturePreviewSha', (b, o, n) => new Uint8Array(b, o, n)),
   );
-  const previewPixels = column('texturePreviewPixels', (b, o, n) => new Uint8Array(b, o, n));
+  const bytes = (name: ColumnName) => column(name, (b, o, n) => new Uint8Array(b, o, n));
+  const previewPixels = bytes('texturePreviewPixels');
+  const previewBlocks = { bc7: bytes('texturePreviewBc7'), astc: bytes('texturePreviewAstc') };
   const [pagePrefix, pageSuffix] = slim.binary.pageUrl.split('{sha}');
   const [geometryPrefix, geometrySuffix] = slim.binary.geometryUrl.split('{sha}');
   const [bundlePrefix, bundleSuffix] = slim.binary.bundleUrl.split('{sha}');
@@ -155,7 +161,13 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
       structureRoot,
     },
     bundles: { bundleWords, bundleShaText },
-    previews: { count: counts.previews, previewWords, previewShaText, previewPixels },
+    previews: {
+      count: counts.previews,
+      previewWords,
+      previewShaText,
+      previewPixels,
+      previewBlocks,
+    },
     cullingNodes,
     urls: { pagePrefix, pageSuffix, geometryPrefix, geometrySuffix, bundlePrefix, bundleSuffix },
   };

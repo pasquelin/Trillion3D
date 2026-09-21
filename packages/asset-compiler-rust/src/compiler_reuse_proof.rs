@@ -170,8 +170,23 @@ pub(super) fn check_textures(
         if entry.baked < entry.first {
             return Err(format!("texture {} was not fully baked", entry.sha256));
         }
+        let mut formats = vec![texture_preview::LOSSLESS];
+        for (family, word) in texture_preview::BlockFormat::ALL.iter().zip(entry.layouts) {
+            match texture_preview::Layout::from_word(word) {
+                Some(Some(layout)) => formats.push(family.file_name(layout)),
+                Some(None) => {}
+                None => return Err(format!("sidecar names layout {word}")),
+            }
+        }
         for level in 0..entry.baked {
-            files.insert(texture_preview::level_path(&entry.sha256, kind, level));
+            for format in &formats {
+                files.insert(texture_preview::level_path(
+                    &entry.sha256,
+                    kind,
+                    level,
+                    format,
+                ));
+            }
         }
     }
     for file in &files {

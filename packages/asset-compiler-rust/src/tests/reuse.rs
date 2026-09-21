@@ -47,8 +47,8 @@ fn identical_fingerprint_reuses_the_folder_without_rebuilding() {
         "objects proven: {report}"
     );
     assert_eq!(
-        report["textureLevels"], 1,
-        "one baked level proven: {report}"
+        report["textureLevels"], 2,
+        "one baked level proven, lossless and in blocks: {report}"
     );
     // source.gltf, source.bin, proxy.bin, lights.json, scene.gltf, scene.bin.
     assert_eq!(report["files"], 6, "every product recorded: {report}");

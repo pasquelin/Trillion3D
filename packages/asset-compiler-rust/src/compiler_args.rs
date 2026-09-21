@@ -1,9 +1,33 @@
 use super::*;
+use crate::texture_preview::BlockFormat;
+
+/// `--textures-format=` values: one family, both, or none — the cook cost is
+/// bounded by cooking one family per target platform, and a measurement's
+/// "before" cooks none.
+pub const TEXTURE_FORMAT_OPTION: &str = "--textures-format=";
+pub const TEXTURE_FORMAT_DEFAULT: &str = "bc7";
+
+pub fn texture_formats(value: &str) -> std::result::Result<Vec<BlockFormat>, String> {
+    match value {
+        "both" => Ok(BlockFormat::ALL.to_vec()),
+        "none" => Ok(Vec::new()),
+        name => BlockFormat::named(name)
+            .map(|format| vec![format])
+            .ok_or_else(|| "textures-format must be bc7, astc, both or none".to_string()),
+    }
+}
 
 pub fn parse_compiler_args(
     args: &[String],
     cancelled: Arc<AtomicBool>,
 ) -> std::result::Result<Options, String> {
+    let (options, args): (Vec<String>, Vec<String>) = args
+        .iter()
+        .cloned()
+        .partition(|arg| arg.starts_with(TEXTURE_FORMAT_OPTION));
+    let texture_formats = texture_formats(options.last().map_or(TEXTURE_FORMAT_DEFAULT, |arg| {
+        &arg[TEXTURE_FORMAT_OPTION.len()..]
+    }))?;
     fn number(
         value: Option<&String>,
         default: usize,
@@ -22,7 +46,7 @@ pub fn parse_compiler_args(
   5=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,2,256,args[4].clone(),"none".into()),
   7=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),"none".into()),
   8=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),args[7].clone()),
-  _=>return Err("Usage: web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL\n       web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints]\n       SOURCE is a directory or a file in one of the formats --version lists".into()),
+  _=>return Err("Usage: web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL\n       web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=bc7|astc|both|none]\n       SOURCE is a directory or a file in one of the formats --version lists".into()),
  };
     if !["none", "qem-endpoints"].contains(&simplification.as_str()) {
         return Err("simplification must be none or qem-endpoints".into());
@@ -36,6 +60,7 @@ pub fn parse_compiler_args(
         threads,
         ram_budget_mb,
         simplification,
+        texture_formats,
         cancelled,
     })
 }

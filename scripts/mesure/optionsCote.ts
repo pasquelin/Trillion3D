@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { SideBase } from './dists.ts';
 import type { ScreenErrorVariant } from '../../packages/sdk-core/index.ts';
+import type { TextureCompression } from '../../packages/sdk-browser/textureBlockFormats.ts';
 
 // Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
 const BASE_FLAGS = [
@@ -32,6 +33,7 @@ export interface EngineDescriptor {
 export interface Side extends SideBase {
   engine: EngineDescriptor;
   variant: string | null;
+  compression: TextureCompression | null;
   errorMetric: ScreenErrorVariant | null;
 }
 
@@ -82,7 +84,7 @@ export const ENGINES: Record<string, EngineDescriptor> = {
   },
 };
 
-/** Cache, engine, diagnostic variant, and error metric for one side. */
+/** Cache, engine, diagnostic variant, texture compression and error metric for one side. */
 export function equipSide(
   side: SideBase,
   flags: Map<string, string>,
@@ -92,33 +94,45 @@ export function equipSide(
   equipped.cache = resolveCache(flags.get(`cache-${side.name}`));
   equipped.engine = engineOf(flags, side.name, settings.engine);
   equipped.variant = variantOf(flags, side.name);
-  equipped.errorMetric = screenErrorOf(flags, side.name);
+  // Block format of the texture pools: two sides on one cache and two formats measure the
+  // format alone — same poses, same tiles, same server. `null` leaves the engine's choice.
+  equipped.compression = sideChoice(flags, side.name, 'compression', [
+    'auto',
+    'bc7',
+    'astc',
+    'none',
+  ]) as TextureCompression | null;
+  // Screen error metric (EXPERIMENT): `certifiee` is our bound, `reference` the standard
+  // external projection; `null` leaves ours.
+  equipped.errorMetric = sideChoice(flags, side.name, 'erreur', [
+    'certifiee',
+    'reference',
+  ]) as ScreenErrorVariant | null;
   return equipped;
 }
 
-/**
- * Screen error metric for one side: `--erreur-<side>`, otherwise `--erreur`, otherwise ours.
- * `certifiee` is our bound, `reference` is standard external projection.
- */
-function screenErrorOf(flags: Map<string, string>, name: string) {
-  const value = flags.get(`erreur-${name}`) ?? flags.get('erreur') ?? null;
-  if (value !== null && value !== 'certifiee' && value !== 'reference')
-    throw new Error(`--erreur-${name} must be certifiee or reference`);
+/** A side's choice among `allowed`: `--<key>-<side>`, otherwise `--<key>`, otherwise `null`. */
+function sideChoice(flags: Map<string, string>, name: string, key: string, allowed: string[]) {
+  const value = flags.get(`${key}-${name}`) ?? flags.get(key) ?? null;
+  if (value !== null && !allowed.includes(value))
+    throw new Error(`--${key}-${name} must be ${allowed.join(', ')}`);
   return value;
 }
 
 /** What a side publishes about itself in the report: dist, cache, engine, variant. */
-export const sideReport = (side: Side) => [
-  side.name,
-  {
-    dist: side.dist,
-    from: side.from,
-    cache: side.cache ?? null,
-    moteur: side.engine.id,
-    variante: side.variant,
-    erreur: side.errorMetric ?? 'certifiee',
-  },
-];
+export const sideReport = (side: Side) =>
+  [
+    side.name,
+    {
+      dist: side.dist,
+      from: side.from,
+      cache: side.cache ?? null,
+      moteur: side.engine.id,
+      variante: side.variant,
+      compression: side.compression,
+      erreur: side.errorMetric ?? 'certifiee',
+    },
+  ] as const;
 
 /** Diagnostic variant of a side: `--variante-<side>`, otherwise campaign variant. */
 function variantOf(flags: Map<string, string>, name: string) {
