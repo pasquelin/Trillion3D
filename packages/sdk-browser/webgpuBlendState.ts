@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../sdk-core/index.ts';
 import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
-import { BLEND_IDENTITY_SIZE } from './webgpuBlendIdentity.ts';
 import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentOcclusion } from './gpuTransparentOcclusion.ts';
@@ -80,7 +79,7 @@ export function createWebgpuBlendState() {
     /** Instances each item drew this image; only a CPU cut counts them, a GPU cut does not. */
     cpuItemCounts: new Uint32Array(0),
     /** What the transparent groups currently name: a moved identity voids them. */
-    identity: createWebgpuBindIdentity(BLEND_IDENTITY_SIZE),
+    identity: createWebgpuBindIdentity(),
     /** How many transparent items transmit: zero means no background copy is allocated or encoded,
      *  and the transmission pass does not exist of the frame. */
     transmissive: 0,
