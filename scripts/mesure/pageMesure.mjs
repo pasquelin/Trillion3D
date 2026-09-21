@@ -71,9 +71,9 @@ export function collecteDiagnostics(lost) {
       if (event.phase === 'pose-settle')
         lost.push(`${event.phase} ${JSON.stringify(event.context)}`);
       if (event.phase === 'dag-warnings') diagnostics.avertissements = event.context;
-      if (event.phase !== 'gpu-uncaptured-error' && event.phase !== 'gpu-device-lost') return;
+      if (event.phase !== 'gpu-device-lost') return;
       const cause = event.context ?? {};
-      lost.push(`${event.phase} : ${cause.error ?? cause.message ?? cause.reason ?? ''}`);
+      lost.push(`${event.phase} : ${cause.reason ?? ''} ${cause.message ?? ''}`);
     },
   };
   return diagnostics;
