@@ -62,3 +62,20 @@ fn the_decoded_budget_is_refused_before_any_stream_is_read() {
     bytes.extend(octets(&[0]));
     assert_eq!(decode(&bytes, 8).unwrap_err(), PageError::Bounds);
 }
+
+#[test]
+fn a_forged_index_count_is_refused_by_the_budget_before_any_allocation() {
+    // One vertex, so indices cost zero bits and the layout matches an empty stream; three
+    // times 2^30 indices, whose byte count wraps a 32-bit `usize` to zero without saturation.
+    let mut header = page();
+    header.vertex_count = 1;
+    header.index_count = 3 << 30;
+    assert_eq!(
+        decode(&octets(&header.words()), 1 << 24).unwrap_err(),
+        PageError::Bounds
+    );
+    assert_eq!(
+        header.decoded_bytes(),
+        (3usize << 30).saturating_mul(4) + 12
+    );
+}

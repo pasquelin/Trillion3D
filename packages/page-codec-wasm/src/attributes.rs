@@ -90,7 +90,7 @@ impl Layout {
 
     /// Length of the whole page file: the header and every stream.
     pub fn bytes(&self) -> usize {
-        HEADER_BYTES + self.words * 4
+        HEADER_BYTES.saturating_add(self.words.saturating_mul(4))
     }
 }
 
