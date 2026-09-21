@@ -40,7 +40,7 @@ const searchable = (entry: GalleryExample): string =>
   );
 
 export function Gallery({ locale = 'en' }: { locale?: Locale }) {
-  const restored = useRef<GalleryViewState | undefined>(viewState.get(locale));
+  const restored = useRef(viewState.get(locale));
   const [query, setQuery] = useState(restored.current?.query ?? '');
   const [category, setCategory] = useState(restored.current?.category ?? 'all');
   const [expanded, setExpanded] = useState('');

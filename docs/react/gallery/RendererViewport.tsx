@@ -17,10 +17,12 @@ import { sceneCopy } from '../../js/engine-scene/content.js';
 const value = (num: number | null | undefined, suffix: string, digits = 0): string =>
   typeof num === 'number' && Number.isFinite(num) ? `${num.toFixed(digits)}${suffix}` : '—';
 
-const poolSize = (bytes: number | undefined): string =>
-  bytes !== undefined && bytes < 1048576
-    ? value(bytes / 1024, ' KiB', 1)
-    : value(bytes === undefined ? bytes : bytes / 1048576, ' MiB', 1);
+const poolSize = (bytes?: number): string =>
+  bytes === undefined
+    ? '—'
+    : bytes < 1048576
+      ? value(bytes / 1024, ' KiB', 1)
+      : value(bytes / 1048576, ' MiB', 1);
 
 const errorMessage = (error: unknown, locale: Locale, action: 'update' | 'rendering'): string => {
   const fallback =
