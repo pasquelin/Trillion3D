@@ -1,8 +1,11 @@
 import { resolve } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { writeFile } from 'node:fs/promises';
 import { scenes } from './docs/examples/scenes.mjs';
+import { geometryScenes } from './docs/examples/scenes-geometry.mjs';
 import { writeSurfacesGltf } from './docs/examples/gltf.mjs';
+import { writePartsGltf } from './docs/examples/gltf-parts.mjs';
 import { modelScenes, writeModelScenes } from './docs/examples/models.mjs';
 
 /**
@@ -18,15 +21,22 @@ const root = resolve(import.meta.dirname, '..'),
     process.env.WG_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
 
-const names = [...Object.keys(scenes), ...Object.keys(modelScenes)].filter(
+const procedural = { ...scenes, ...geometryScenes };
+const names = [...Object.keys(procedural), ...Object.keys(modelScenes)].filter(
   (name) => !only || name === only,
 );
 if (!names.length) throw new Error(`Unknown example scene: ${only}`);
 
-for (const [name, scene] of Object.entries(scenes)) {
+for (const [name, scene] of Object.entries(procedural)) {
   if (!names.includes(name)) continue;
-  const { name: label, materials, surfaces } = scene();
-  await writeSurfacesGltf(resolve(examples, name, 'source'), label, materials, surfaces);
+  const { name: label, materials, surfaces, parts, nodes, images = {} } = scene(),
+    source = resolve(examples, name, 'source');
+  // A scene is either one mesh of surfaces, or named parts placed by nodes, with the images its
+  // materials read written beside the glTF.
+  if (parts)
+    await writePartsGltf(source, label, materials, parts, nodes, { images: Object.keys(images) });
+  else await writeSurfacesGltf(source, label, materials, surfaces);
+  for (const [file, bytes] of Object.entries(images)) await writeFile(resolve(source, file), bytes);
 }
 await writeModelScenes(examples, resolve(examples, 'models'), names);
 if (process.argv.includes('--source-only')) process.exit(0);
