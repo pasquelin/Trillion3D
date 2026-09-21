@@ -280,8 +280,10 @@ difference sits inside the after-side spread. **No gain is claimed**: the batch 
 
 ## Batch C, lot 1 — the public contract stops naming the host library (#269, #78)
 
-The engine's signatures no longer carry a type of the rendering library the host draws with. Two
-contracts replace them, and the closed list of `test/integration/moteur-sans-three.test.ts` lost
+The engine's signatures no longer carry a type of the rendering library the host draws with, with
+one declared exception: `render(camera: HostCamera)` of `backendTypes.ts`, where `HostCamera` is
+still the host's perspective camera (`cameraWorld.ts`) — the engine-owned camera is a following lot
+of #78. Two contracts replace the resource types, and the closed list of `test/integration/moteur-sans-three.test.ts` lost
 the fifteen files that named it: `backendTypes.ts`, `explorerOptions.ts`, `explorerSceneApi.ts`,
 `gpuDagTypes.ts`, `gpuSelection.ts`, `materialSide.ts`, `pageCone.ts`, `pageSelectionCutState.ts`,
 `pageSelectionHelpers.ts`, `pageSelectionTypes.ts`, `visibilityTypes.ts`, `webgpuBlendState.ts`,

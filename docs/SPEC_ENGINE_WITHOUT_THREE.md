@@ -136,8 +136,10 @@ renderer, program, render target or material clone of the host's rendering libra
 what the engine draws or composes — a scene copy stays a host mesh read by shape — and the
 witness adapter serves the Three witnesses alone. What the WebGL2 path still reads of the host library is
 its data model — geometry attributes, materials, textures, the host camera and source graph.
-Lot 1 of batch C (#269) closed the naming of it: no signature of the engine carries a type of
-the host library any more. `packages/sdk-browser/hostResources.ts` names each resource by the
+Lot 1 of batch C (#269) closed the naming of it for the resources, with one signature left over:
+apart from `render(camera: HostCamera)` of `backendTypes.ts`, whose `HostCamera` is still the
+host's perspective camera (`cameraWorld.ts`), no signature of the engine carries a type of the
+host library. `packages/sdk-browser/hostResources.ts` names each resource by the
 shape the engine reads (`HostMaterial`, `HostTexture`, `HostAttributes`, `HostGeometry`,
 `HostMesh`, `HostNode`, `HostScene`), `packages/sdk-core/materialContract.ts` carries the
 engine's own `Material` for `updateMaterial`, a placement crosses as sixteen floats, and the
