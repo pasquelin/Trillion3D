@@ -56,15 +56,8 @@ export function createShadowDirty() {
     sinceFrame[index] = 0;
   };
   /** Pages have just entered the queue: they are counted, and the face starts waiting. */
-  const entered = (
-    slice: number,
-    face: number,
-    base: number,
-    before: number,
-    nowMs: number,
-    frame: number,
-  ) => {
-    added += countPages(mask, base) - before;
+  const entered = (slice: number, face: number, before: number, nowMs: number, frame: number) => {
+    added += countPages(mask, maskBase(slice, face)) - before;
     waitFrom(slice, face, nowMs, frame);
   };
   return {
@@ -90,14 +83,19 @@ export function createShadowDirty() {
     row: (slice: number, face: number, row: number) => mask[maskBase(slice, face) + row],
     /** Physical pages of the face that hold a depth of its current extent, eight per row. */
     heldRow: held.row,
-    /** Before the frame admits regions: what a refused draw gives back to its pages. */
-    snapshotHeld: held.snapshot,
+    /** The same, four rows a word: what the slice buffer carries, and what a region records. */
+    heldWord: held.word,
+    /** True once after the held mask or the wrap origin of the face changed. */
+    heldChanged: held.take,
     wrapXOf: (slice: number, face: number) => wrapX[indexOf(slice, face)],
     wrapYOf: (slice: number, face: number) => wrapY[indexOf(slice, face)],
     /** Physical page of the extent origin: where extent page `(0, 0)` lives in the face. */
     setExtent(slice: number, face: number, wx: number, wy: number) {
-      wrapX[indexOf(slice, face)] = wx;
-      wrapY[indexOf(slice, face)] = wy;
+      const index = indexOf(slice, face);
+      if (wrapX[index] === wx && wrapY[index] === wy) return;
+      wrapX[index] = wx;
+      wrapY[index] = wy;
+      held.touch(slice, face);
     },
     /**
      * The extent slid by `(dx, dy)` pages: the strip that entered on the far side is to
@@ -117,7 +115,7 @@ export function createShadowDirty() {
         before = countPages(mask, base);
       markExtentStrips(mask, base, rows, wrapX[index], wrapY[index], dx, dy);
       held.clearStrips(slice, face, rows, wrapX[index], wrapY[index], dx, dy);
-      entered(slice, face, base, before, nowMs, frame);
+      entered(slice, face, before, nowMs, frame);
     },
     /** The whole face is to remake: moved light, reallocated slice, moved cascade, first frame. */
     whole(slice: number, face: number, rows: number, nowMs: number, frame: number) {
@@ -125,7 +123,7 @@ export function createShadowDirty() {
       const before = countPages(mask, base);
       markWholeFace(mask, base, rows);
       held.clearFace(slice, face);
-      entered(slice, face, base, before, nowMs, frame);
+      entered(slice, face, before, nowMs, frame);
     },
     /** The pages the world box covers in this face, and those alone. */
     box(
@@ -144,7 +142,7 @@ export function createShadowDirty() {
       const before = countPages(mask, base);
       if (!markBoxPages(mask, base, rows, matrix, matrixBase, min, max, wrapX[index], wrapY[index]))
         return false;
-      entered(slice, face, base, before, nowMs, frame);
+      entered(slice, face, before, nowMs, frame);
       return true;
     },
     /** A region has just been redrawn: its pages are no longer waiting. */
@@ -156,8 +154,9 @@ export function createShadowDirty() {
     },
     /**
      * The region was not drawn after all — the pass could not be encoded —: its pages
-     * return to the queue. Without that, a map would keep a stale depth without anything
-     * saying so.
+     * return to the queue, and hold what they held before the draw (`low`, `high`: the face
+     * words the region recorded). Without that, a map would keep a stale depth without
+     * anything saying so.
      */
     undrew(
       slice: number,
@@ -166,11 +165,13 @@ export function createShadowDirty() {
       x1: number,
       y0: number,
       y1: number,
+      low: number,
+      high: number,
       nowMs: number,
       frame: number,
     ) {
       setRect(mask, maskBase(slice, face), x0, x1, y0, y1, true);
-      held.restoreRect(slice, face, x0, x1, y0, y1);
+      held.restoreRect(slice, face, x0, x1, y0, y1, low, high);
       // These pages had already been counted at their queue entry: they come back, without
       // going through `added` again, which counts entries and not round-trips.
       waitFrom(slice, face, nowMs, frame);

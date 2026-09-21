@@ -23,11 +23,13 @@ export const POINT_FACE_AXES: ReadonlyArray<readonly [number, number, number]> =
   [0, 0, -1],
 ];
 /**
- * Floats of a face in the slice buffer: the matrix, the atlas rectangle, then the four words
- * of its held-page mask — one bit per physical page that holds a depth of the current extent,
- * rows of eight, the third and fourth words spare. An extent page that entered but is not yet
- * drawn still holds what the far side left there: the read must know it and fall back to the
- * next cascade, never sample it. A page merely awaiting a redraw is still held, and read.
+ * Floats of a face in the slice buffer: the matrix, the atlas rectangle — its fourth float 1
+ * once drawn, 0 never —, then four words: the held-page mask, one bit per physical page that
+ * holds a depth of the current extent, rows of eight in two words, and the physical page of
+ * the extent origin, `x` then `y`, the read wraps extent coordinates with. An extent page
+ * that entered but is not yet drawn still holds what the far side left there: the read must
+ * know it and fall back to the next cascade, never sample it. A page merely awaiting a redraw
+ * is still held, and read.
  */
 export const SHADOW_FACE_FLOATS = 24;
 export const SHADOW_FACE_MASK_WORD = 20;

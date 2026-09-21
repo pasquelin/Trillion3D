@@ -186,3 +186,14 @@ export interface ShadowViewpoint {
   near: number;
   far: number;
 }
+/** The ten numbers of a view, in order: position, axis, half-field, aspect, near, far. */
+export const VIEW_NUMBERS = 10;
+export function writeView(view: ShadowViewpoint, out: Float64Array) {
+  out.set(view.position);
+  out.set(view.forward, 3);
+  out[6] = view.halfFovY;
+  out[7] = view.aspect;
+  out[8] = view.near;
+  out[9] = view.far;
+  return out;
+}

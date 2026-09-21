@@ -1,8 +1,9 @@
 import type { ShadowDirty } from './sceneLightShadowDirty.ts';
 
-/** Fields of a region: light, slice, face, its physical page rectangle, bounds included, then
- *  the page translation from extent to physical, `x` and `y`. */
-const FIELDS = 9;
+/** Fields of a region: light, slice, face, its physical page rectangle, bounds included, the
+ *  page translation from extent to physical, `x` and `y`, then the two held words of the face
+ *  before the draw — what a refused draw gives its pages back. */
+const FIELDS = 11;
 
 /**
  * Regions of the frame: rectangles of contiguous physical pages to redraw, one indirect call
@@ -44,6 +45,8 @@ export function createShadowRegions(capacity: number) {
     y1Of: (region: number) => field(region, 6),
     shiftXOf: (region: number) => field(region, 7),
     shiftYOf: (region: number) => field(region, 8),
+    heldLowOf: (region: number) => field(region, 9) >>> 0,
+    heldHighOf: (region: number) => field(region, 10) >>> 0,
     reset() {
       count = 0;
       pages = 0;
@@ -63,6 +66,27 @@ export function createShadowRegions(capacity: number) {
     ) {
       const wx = dirty.wrapXOf(slice, face),
         wy = dirty.wrapYOf(slice, face);
+      /** Keeps the rectangle, records what its pages held, and takes them out of the queue. */
+      const push = (x0: number, x1: number, y0: number, y1: number) => {
+        const area = (x1 - x0 + 1) * (y1 - y0 + 1);
+        if (count >= capacity || !admit(area)) return false;
+        const base = count * FIELDS;
+        data[base] = light;
+        data[base + 1] = slice;
+        data[base + 2] = face;
+        data[base + 3] = x0;
+        data[base + 4] = x1;
+        data[base + 5] = y0;
+        data[base + 6] = y1;
+        data[base + 7] = shiftOf(rows, wx, x0);
+        data[base + 8] = shiftOf(rows, wy, y0);
+        data[base + 9] = dirty.heldWord(slice, face, 0);
+        data[base + 10] = dirty.heldWord(slice, face, 1);
+        count++;
+        pages += area;
+        dirty.drew(slice, face, x0, x1, y0, y1);
+        return true;
+      };
       let row = 0;
       while (row < rows) {
         const bits = dirty.row(slice, face, row);
@@ -80,21 +104,7 @@ export function createShadowRegions(capacity: number) {
           const yEnd = seamEnd(wy, y, last);
           for (let x = x0; x <= x1;) {
             const xEnd = seamEnd(wx, x, x1);
-            const area = (xEnd - x + 1) * (yEnd - y + 1);
-            if (count >= capacity || !admit(area)) return false;
-            const base = count * FIELDS;
-            data[base] = light;
-            data[base + 1] = slice;
-            data[base + 2] = face;
-            data[base + 3] = x;
-            data[base + 4] = xEnd;
-            data[base + 5] = y;
-            data[base + 6] = yEnd;
-            data[base + 7] = shiftOf(rows, wx, x);
-            data[base + 8] = shiftOf(rows, wy, y);
-            count++;
-            pages += area;
-            dirty.drew(slice, face, x, xEnd, y, yEnd);
+            if (!push(x, xEnd, y, yEnd)) return false;
             x = xEnd + 1;
           }
           y = yEnd + 1;

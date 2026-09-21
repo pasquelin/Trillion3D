@@ -17,6 +17,7 @@ import { pageRowsOf } from './sceneLightShadowPages.ts';
 import { createShadowCounts, screenCoverage } from './sceneLightShadowCounts.ts';
 import { createShadowAdmission } from './sceneLightShadowAdmit.ts';
 import { createShadowRelease } from './sceneLightShadowRelease.ts';
+import { castsShadow, countShadowCasters } from './sceneLightShadowCasters.ts';
 
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
@@ -52,10 +53,14 @@ export function createShadowPlan(capacity: number) {
     /** The same world at another precision — level of detail, residency, colour tile —: its box
      *  waits for the camera to rest, then enters the list (`sceneLightShadowChanges.ts`). */
     representationChanged: changes.representationChanged,
-    /** True while a representation change waits for the camera to rest. */
+    /** True while a representation change waits for the camera to rest: the frame must not
+     *  hold before a plan consumes it. */
     get deferredChanges() {
       return changes.deferred;
     },
+    /** The frame plans no shadow — no atlas, no light, unlit view —: nothing will consume the
+     *  held union, so it is dropped rather than left to keep the frame from holding. */
+    dropDeferred: changes.dropDeferred,
     /** Timer of a frame's Shadows pass, reported to the pages it had redrawn. */
     observeCost: budget.observe,
     setBudgetMs: budget.setBudgetMs,
@@ -80,15 +85,12 @@ export function createShadowPlan(capacity: number) {
       // go back to the common pot. This is the only place a slice is released.
       release(slices, store);
       changes.observeView(view);
-      let casters = 0;
-      for (let slot = 0; slot < store.count; slot++)
-        if (packed[SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS + LIGHT_FIELD.castsShadow])
-          casters++;
+      const casters = countShadowCasters(store);
       for (let slot = 0; slot < store.count; slot++) {
         const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
         coverage[slot] = 0;
         // Its slice has already been released by `release`: the light skips its turn, with no other effect.
-        if (packed[base + LIGHT_FIELD.castsShadow] === 0) continue;
+        if (!castsShadow(store, slot)) continue;
         let slice = store.sliceOf(slot);
         const kind = packed[base + LIGHT_FIELD.kind];
         const sun = kind === LIGHT_KIND.directional;
@@ -149,7 +151,6 @@ export function createShadowPlan(capacity: number) {
       }
       // The boxes are consumed: it is the pages that now carry the remaining work.
       changes.settled();
-      slices.dirty.snapshotHeld();
       queue.run(slices, store, frame);
       counts.endFrame(slices, store, frame, nowMs);
       return regions.count;
@@ -168,6 +169,8 @@ export function createShadowPlan(capacity: number) {
           regions.x1Of(region),
           regions.y0Of(region),
           regions.y1Of(region),
+          regions.heldLowOf(region),
+          regions.heldHighOf(region),
           nowMs,
           frame,
         );
