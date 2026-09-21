@@ -1,6 +1,5 @@
 import type * as THREE from 'three';
-import { asHostLibrary } from './hostResources.ts';
-import type { HostNode } from './hostResources.ts';
+import { asHostLibrary, type HostNode } from './hostResources.ts';
 import { BOX_VALUES, boxEmpty } from '../sdk-core/index.ts';
 import { boxUnionCollector } from './mathBatchBoxes.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
