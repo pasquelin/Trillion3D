@@ -29,5 +29,7 @@ test('material constants cross the GL boundary only when their value changes', (
     ['normalMap', 3],
     ['aoMap', 4],
     ['emissiveMap', 5],
+    ['backdrop', 6],
+    ['backdropDepth', 7],
   ]);
 });
