@@ -33,10 +33,12 @@ test('legacy documentation hashes keep their destination in the chosen locale', 
   });
   assert.deepEqual(parseRoute('#demo/webgpu-demo', 'fr'), {
     locale: 'fr',
-    area: 'examples',
+    area: 'lessons',
     id: 'engine-scene',
   });
   assert.equal(localizedHref('#guides/quick-start', 'fr'), '#/fr/learn/quick-start');
+  assert.equal(localizedHref('#examples/example-camera', 'en'), '#/en/learn/example-camera');
+  assert.equal(localizedHref('#examples', 'en'), '#/en/lessons');
   assert.equal(entryRoute({ id: 'intro', section: 'guides' }, 'en'), '#/en/learn/intro');
 });
 
@@ -70,10 +72,21 @@ test('page resolution distinguishes entries, playgrounds, and unknown addresses'
   ];
   assert.equal(resolvePage({ area: 'learn', id: 'quick-start' }, entries).kind, 'entry');
   assert.equal(
-    resolvePage({ area: 'examples', id: 'rotate' }, entries, ['rotate']).kind,
+    resolvePage({ area: 'lessons', id: 'rotate' }, entries, ['rotate']).kind,
     'playground',
   );
-  assert.equal(resolvePage({ area: 'examples', id: 'example-camera' }, entries).kind, 'entry');
+  assert.equal(resolvePage({ area: 'learn', id: 'example-camera' }, entries).kind, 'entry');
+  assert.equal(resolvePage({ area: 'examples', id: 'example-camera' }, entries).kind, 'not-found');
+  assert.equal(
+    entryRoute({ id: 'example-camera', section: 'examples' }, 'en'),
+    '#/en/learn/example-camera',
+  );
+  assert.equal(resolvePage({ area: 'examples', id: '' }, entries).kind, 'examples');
+  assert.equal(
+    resolvePage({ area: 'examples', id: 'cube' }, entries, [], ['cube']).kind,
+    'example',
+  );
+  assert.equal(resolvePage({ area: 'examples', id: 'cube' }, entries, ['cube']).kind, 'not-found');
   assert.equal(resolvePage({ area: 'api', id: 'missing' }, entries).kind, 'not-found');
   assert.equal(resolvePage({ area: 'api', id: '' }, entries).kind, 'api-index');
   assert.equal(
