@@ -2,22 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
-import { CLUSTERED_BLEND_FORMAT_VERSION } from '../sdk-core/index.ts';
-import { drawnIndices, dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
+import { drawnIndices, dagRoots, dagLevel, DAG, MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import { quadCluster, fanScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 import { submittedDraws } from './clusterBatchMesh.ts';
 
 /** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
-const MANIFEST_IDENTITY = {
-  schema: CLUSTERED_BLEND_FORMAT_VERSION,
-  status: 'ready' as const,
-  key: 'k',
-  scope: 'full' as const,
-  sourceTriangles: 0,
-  selectedTriangles: 0,
-  selectedNodes: [] as number[],
-  totalNodes: 0,
-};
 
 test('transparent page batches preserve source order across exact and coarse cuts', () => {
   const { geometry, material, mesh, source, indices } = fanScene();
