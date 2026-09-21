@@ -86,8 +86,9 @@ export function encodeBlend(
   timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
   // Water comes after blends, on a frozen backdrop: the copy splits the two, so no transmissive
-  // surface reads a half-composed image. Without the pass — a diagnostic variant measuring the
-  // blend stage, or a frame with no inverse projection — the slice draws as one more blend.
+  // surface reads a half-composed image. Without the pass — a diagnostic view, which colours the
+  // surface instead of lighting it, a diagnostic variant measuring the blend stage, or a frame
+  // with no inverse projection — the slice draws as one more blend.
   const composed =
     !!inverseViewProjection && encodeWaterPass(rt, device, encoder, inverseViewProjection);
   if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true);

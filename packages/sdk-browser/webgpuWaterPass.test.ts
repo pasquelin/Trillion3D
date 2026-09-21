@@ -87,3 +87,13 @@ test('dropping the visibility path disposes the water pass with the blend pipeli
   assert.equal(disposed, 1, 'the composite released its view buffer');
   assert.equal(blendState.water, undefined, 'and the frame no longer has a pass to encode');
 });
+
+test('a diagnostic view keeps the pass out of the frame: the slice draws as a coloured blend', () => {
+  const { blendState, gpu } = prepared();
+  targets(gpu);
+  const { rt, encoder, counters } = replay(blendState, gpu);
+  blendState.water = { surfaces: [{}, {}, {}] as never, composite: {} as never };
+  rt.run.diagnostic = 'wireframe';
+  assert.equal(encodeWaterPass(rt, device, encoder, new Float64Array(16)), false);
+  assert.equal(counters.copies, 0, 'the backdrop is not even frozen');
+});
