@@ -14,6 +14,8 @@ use image::{ExtendedColorType, ImageEncoder};
 /// rewritten: without it, a rule that changes would keep serving levels computed
 /// by the old one.
 pub const TEXTURE_DIR: &str = "textures";
+/// Report note of a level file that could not be written; the entry then carries no baked level.
+pub const LEVEL_WRITE_FAILED: &str = "texture-level-write-failed";
 pub fn texture_version_dir() -> String {
     format!("{TEXTURE_DIR}/v{TEXTURE_PREVIEW_VERSION}")
 }
@@ -85,9 +87,8 @@ pub(super) fn one_image(
         let baked_levels = match write_levels(inputs.o, &sha256, kind, &levels, (width, height)) {
             Ok(written) => written,
             Err(_) => {
-                const NOTE: &str = "texture-level-write-failed";
-                if !notes.contains(&NOTE) {
-                    notes.push(NOTE);
+                if !notes.contains(&LEVEL_WRITE_FAILED) {
+                    notes.push(LEVEL_WRITE_FAILED);
                 }
                 0
             }

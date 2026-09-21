@@ -1,12 +1,7 @@
 import * as THREE from 'three';
-import { WebglClusterRenderer } from '../../packages/sdk-browser/webglClusterRenderer.ts';
-import {
-  createHostDrawCamera,
-  readHostDrawCamera,
-} from '../../packages/sdk-browser/cameraWorld.ts';
 import { triangleGeometry } from '../../packages/sdk-browser/triangleDiagnostic.ts';
 import { drawCoplanarBlend } from './webglClusterCoplanarBlend.mjs';
-import { clear, pixel } from './webglClusterPixels.mjs';
+import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.mjs';
 
 const geometry = (reverseFirst = false) => {
   const result = new THREE.BufferGeometry();
@@ -33,32 +28,17 @@ const geometry = (reverseFirst = false) => {
   return result;
 };
 
-const mesh = (geometry, material, starts = [0], counts = [6]) => ({
-  geometry,
-  material,
-  matrix: new THREE.Matrix4(),
-  _multiDrawStarts: new Int32Array(starts.map((start) => start * 4)),
-  _multiDrawCounts: new Int32Array(counts),
-  _multiDrawCount: starts.length,
-});
-
 export function execute() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 32;
-  const gl = canvas.getContext('webgl2');
-  if (!gl) return { unavailable: 'WebGL2 unavailable' };
-  gl.viewport(0, 0, 32, 32);
-  const renderer = new WebglClusterRenderer(gl),
-    scene = new THREE.Scene(),
-    camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10),
-    drawCamera = readHostDrawCamera(createHostDrawCamera(), camera),
-    blend = new THREE.MeshBasicMaterial({
+  const mounted = mountClusterRenderer();
+  if (!mounted) return { unavailable: 'WebGL2 unavailable' };
+  const { gl, renderer, scene, drawCamera } = mounted;
+  const blend = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.5,
       vertexColors: true,
       depthWrite: false,
     }),
-    ordered = mesh(geometry(), blend, [0, 3], [3, 3]);
+    ordered = clusterRecord(geometry(), blend, [0, 3], [3, 3]);
   clear(gl);
   renderer.draw([ordered], scene, drawCamera, false, false);
   const sourceOrder = pixel(gl);
@@ -78,7 +58,7 @@ export function execute() {
   back.side = THREE.BackSide;
   front.side = THREE.FrontSide;
   const pair = [back, front],
-    split = mesh(geometry(true), pair);
+    split = clusterRecord(geometry(true), pair);
   split._sideSplitMaterials = pair;
   split._sideSplitBack = back;
   split._sideSplitFront = front;
@@ -95,7 +75,7 @@ export function execute() {
   const singleSubmissions = renderer.draw([split], scene, drawCamera, false, false);
 
   const mask = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.5, alphaTest: 0.4 });
-  const single = mesh(geometry(), mask, [0], [3]);
+  const single = clusterRecord(geometry(), mask, [0], [3]);
   clear(gl);
   renderer.draw([single], scene, drawCamera, false, false);
   const maskPixel = pixel(gl);
@@ -114,7 +94,7 @@ export function execute() {
     });
   clear(gl);
   renderer.draw(
-    [mesh(geometry(), lower, [0], [3]), mesh(geometry(), raised, [0], [3])],
+    [clusterRecord(geometry(), lower, [0], [3]), clusterRecord(geometry(), raised, [0], [3])],
     scene,
     drawCamera,
     false,
@@ -128,13 +108,13 @@ export function execute() {
     scene,
     drawCamera,
     geometry,
-    mesh,
+    clusterRecord,
     lower,
     false,
   );
   const coplanarBlendWithoutBias = pixel(gl);
   clear(gl);
-  drawCoplanarBlend(renderer, scene, drawCamera, geometry, mesh, lower, true);
+  drawCoplanarBlend(renderer, scene, drawCamera, geometry, clusterRecord, lower, true);
   const coplanarBlendPixel = pixel(gl);
 
   const diagnosticGeometry = triangleGeometry(geometry()),

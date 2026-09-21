@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 import type { BatchPage } from './clusterBatchRange.ts';
 import { BatchGroup } from './clusterBatchPrimitive.ts';
 import { ClusterDrawMesh } from './clusterBatchMesh.ts';
@@ -13,18 +13,14 @@ const byDrawOrder = (a: BatchGroup, b: BatchGroup) =>
   a.layer - b.layer;
 
 type BatchUpdateState = {
-  scene: THREE.Scene;
   groups: Array<BatchGroup | undefined>;
   /** Twin batches of coplanar layers, by `renderOrder` then by layer. */
   layerGroups: Array<Map<number, BatchGroup> | undefined>;
   active: BatchGroup[];
   touched: BatchGroup[];
-  matrices: THREE.DataTexture;
-  indirect: THREE.DataTexture;
   stats: ClusterBatchStats;
   indexCapacityBytes: number;
   attributeBytes: number;
-  attachMeshes: boolean;
 };
 
 function setMaterial(
@@ -47,7 +43,7 @@ function setMaterial(
   mesh._sideSplitPolygonMaterials = biased ? mesh._sideSplitMaterials : undefined;
 }
 
-/** Updates the sub-draws and the scene objects without copying the indices. */
+/** Updates the sub-draws and the draw records without copying the indices. */
 export function updateClusterBatches(state: BatchUpdateState, display: readonly BatchPage[]) {
   const touched = state.touched;
   touched.length = 0;
@@ -95,14 +91,6 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
       group.triangles += rec.triangles;
     }
   }
-  const active = state.active;
-  for (let i = 0; i < active.length; i++) {
-    const group = active[i];
-    if (group.touched || !group.attached || !group.mesh) continue;
-    state.scene.remove(group.mesh);
-    group.attached = false;
-    state.stats.detachments++;
-  }
   let draws = 0,
     subDraws = 0,
     triangles = 0;
@@ -117,12 +105,8 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
         group.primitive.geometry,
         material,
         group.ranges,
-        state.matrices,
-        state.indirect,
+        sample.renderOrder,
       );
-      mesh.renderOrder = sample.renderOrder;
-      mesh.userData.clusterId = String(sample.renderOrder);
-      mesh.userData.lodRole = 'exact';
       group.mesh = mesh;
       setMaterial(mesh, material, sample.material, group.biased === material);
     } else if (
@@ -130,22 +114,18 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
       (Array.isArray(material) && mesh._sideSplitSource !== sample.material)
     )
       setMaterial(mesh, material, sample.material, group.biased === material);
-    mesh.matrix.copy(sample.matrix);
+    mesh.matrix.elements.set(sample.matrix.elements);
     // Arrays are reused; their identity changes only when they had to grow.
     mesh._multiDrawStarts = group.ranges.starts;
     mesh._multiDrawCounts = group.ranges.counts;
     mesh._multiDrawCount = group.ranges.count;
-    if (state.attachMeshes && !group.attached) {
-      state.scene.add(mesh);
-      group.attached = true;
-    }
     group.primitive.flush();
     draws++;
     subDraws += group.ranges.count;
     triangles += group.triangles;
   }
   touched.sort(byDrawOrder);
-  state.touched = active;
+  state.touched = state.active;
   state.active = touched;
   state.stats.drawCalls = draws;
   state.stats.subDraws = subDraws;
