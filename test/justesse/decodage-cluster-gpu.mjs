@@ -12,10 +12,19 @@ import { decodageClusterGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodageClus
 function page(triangles, exponent) {
   const { encoded, indices } = anneau(triangles, exponent);
   const decoded = decodeGeometryPage(encoded.data);
-  return { octets: encoded.data, vertexCount: decoded.vertexCount, indexCount: indices.length, decoded };
+  return {
+    octets: encoded.data,
+    vertexCount: decoded.vertexCount,
+    indexCount: indices.length,
+    decoded,
+  };
 }
 
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const cross = (a, b) => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+];
 const sub = (a, b) => a.map((v, i) => v - b[i]);
 /** The frame of a triangle, as the shader computes it: `p * du1 + q * du2`, the longer unit. */
 function cotangentFrame(N, e1, e2, duv1, duv2) {
@@ -75,7 +84,9 @@ for (const [k, { decoded, vertexCount, indexCount }] of pages.entries()) {
       pireRepere = Math.max(pireRepere, Math.abs(values[base + 3 + c] - expected[c]));
   }
 }
-console.log(JSON.stringify({ adaptateur: gpu.adaptateur, pages: pages.length, pireNormale, pireRepere }));
+console.log(
+  JSON.stringify({ adaptateur: gpu.adaptateur, pages: pages.length, pireNormale, pireRepere }),
+);
 // `normalize` and the frame's `inverseSqrt` are granted a few ULP by WGSL; bit-exact normals are
 // not what the format promises.
 assert.ok(pireNormale < 1e-6, `normal off by ${pireNormale}`);

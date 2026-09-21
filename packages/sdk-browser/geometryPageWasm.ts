@@ -92,7 +92,13 @@ function copie(codec: SdkWasm, bloc: number): DecodedGeometryPage {
     decodedBytes = mots[4],
     quantizationError = new Float32Array(codec.memory.buffer, bloc + 20, 1)[0];
   const block = codec.memory.buffer.slice(bloc + MOTS * 4, bloc + MOTS * 4 + decodedBytes);
-  return { ...pageViews(block, pageAttributeNames(flags), vertexCount), vertexCount, flags, decodedBytes, quantizationError };
+  return {
+    ...pageViews(block, pageAttributeNames(flags), vertexCount),
+    vertexCount,
+    flags,
+    decodedBytes,
+    quantizationError,
+  };
 }
 
 /** Same signature, same buffers and same refusals as `decodeGeometryPage`. */

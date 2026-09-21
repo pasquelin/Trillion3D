@@ -170,5 +170,12 @@ export function decodeGeometryPage(
   if (flags & FLAG_UV) vector(attributes.uv, words, uvs, uv);
   if (flags & FLAG_UV1) vector(attributes.uv2, words, uv2s, uv2);
   if (flags & FLAG_COLOR) vector(attributes.color, words, colors, color);
-  return { indices: decodedIndices, attributes, vertexCount, flags, decodedBytes, quantizationError };
+  return {
+    indices: decodedIndices,
+    attributes,
+    vertexCount,
+    flags,
+    decodedBytes,
+    quantizationError,
+  };
 }

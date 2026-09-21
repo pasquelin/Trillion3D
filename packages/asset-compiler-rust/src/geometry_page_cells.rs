@@ -74,7 +74,8 @@ pub fn grids(
     let mut uv_records = [Quant::<2>::flat(UV_EXPONENT); 2];
     for (set, flag) in [FLAG_UV, FLAG_UV1].into_iter().enumerate() {
         if let Some(a) = by_flag(flag) {
-            let (quant, uv_cells) = quantize::<2>(&gather(&a.values, 2, 2, original)?, UV_EXPONENT)?;
+            let (quant, uv_cells) =
+                quantize::<2>(&gather(&a.values, 2, 2, original)?, UV_EXPONENT)?;
             uv_records[set] = quant;
             for (cell, q) in cells.iter_mut().zip(uv_cells) {
                 cell.uv[set] = q;

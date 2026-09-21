@@ -99,9 +99,17 @@ impl Layout {
         let indices = stream(true, h.index_count, index_bits);
         let position = h.position.bits.map(|b| stream(true, h.vertex_count, b));
         let normal = stream(h.flags & FLAG_NORMAL != 0, h.vertex_count, 16);
-        let uv = h.uv.bits.map(|b| stream(h.flags & FLAG_UV != 0, h.vertex_count, b));
-        let uv1 = h.uv1.bits.map(|b| stream(h.flags & FLAG_UV1 != 0, h.vertex_count, b));
-        let color = h.color.bits.map(|b| stream(h.flags & FLAG_COLOR != 0, h.vertex_count, b));
+        let uv =
+            h.uv.bits
+                .map(|b| stream(h.flags & FLAG_UV != 0, h.vertex_count, b));
+        let uv1 = h
+            .uv1
+            .bits
+            .map(|b| stream(h.flags & FLAG_UV1 != 0, h.vertex_count, b));
+        let color = h
+            .color
+            .bits
+            .map(|b| stream(h.flags & FLAG_COLOR != 0, h.vertex_count, b));
         Self {
             index_bits,
             indices,
@@ -143,7 +151,11 @@ pub fn split(words: &[u32], h: &Header) -> Result<DecodedPage, PageError> {
     let mut out = vec![0u32; h.decoded_bytes() / 4];
     let (indices, mut rest) = out.split_at_mut(h.index_count);
     for (i, index) in indices.iter_mut().enumerate() {
-        *index = field(words, layout.indices * 32 + i * layout.index_bits as usize, layout.index_bits);
+        *index = field(
+            words,
+            layout.indices * 32 + i * layout.index_bits as usize,
+            layout.index_bits,
+        );
         if *index as usize >= n {
             return Err(PageError::Index);
         }

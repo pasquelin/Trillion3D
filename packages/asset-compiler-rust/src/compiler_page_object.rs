@@ -19,8 +19,10 @@ pub(super) fn store_page(
     page_attributes: &[&geometry_page::Attribute],
     position_exponent: i32,
 ) -> Result<(Value, bool)> {
-    let geometry_page::Encoded { bytes: data, header } =
-        geometry_page::encode(slice, pos, page_attributes, position_exponent)?;
+    let geometry_page::Encoded {
+        bytes: data,
+        header,
+    } = geometry_page::encode(slice, pos, page_attributes, position_exponent)?;
     let digest = hash(&data);
     let name = format!("../../objects/{}.bin", digest);
     let target = o
