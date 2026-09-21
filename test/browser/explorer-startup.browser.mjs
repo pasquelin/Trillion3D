@@ -8,6 +8,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { startServer } from '../../scripts/mesure/serveur.mjs';
 import { launchChrome } from '../../scripts/mesure/chrome.mjs';
+import { buildSite, SITE_OUTPUT } from '../../scripts/docs/site.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const out = resolve(root, 'benchmark-runs/explorer-startup');
@@ -19,6 +20,7 @@ const compiler =
 execFileSync(compiler, [fixture, resolve(out, 'cache'), 'full', '150000', '/fixture/'], {
   stdio: 'pipe',
 });
+await buildSite();
 const server = await startServer({
   port: 0,
   captures: new Map(),
@@ -29,7 +31,7 @@ const server = await startServer({
     { prefix: '/cache/city/', dir: resolve(out, 'cache/native/full') },
     { prefix: '/fixture/', dir: fixture },
     { prefix: '/cache/objects/', dir: resolve(out, 'cache/native/objects') },
-    { prefix: '/docs/', dir: resolve(root, 'docs') },
+    { prefix: '/site/', dir: SITE_OUTPUT },
   ],
 });
 const browser = await launchChrome({ headless: true });

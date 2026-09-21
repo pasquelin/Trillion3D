@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { rendererLessons } from '../docs/js/gallery/rendererLessons.js';
-import { rendererCodeFor } from '../docs/js/gallery/rendererLessonCode.js';
+import { rendererLessons } from '../site/lessons/rendererLessons.ts';
+import { rendererCodeFor } from '../site/lessons/rendererLessonCode.ts';
 import { loadReactComponents } from './docs/render-react.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-const { Playground } = await loadReactComponents('docs/react/gallery/index.tsx');
+const { Playground } = await loadReactComponents('site/app/gallery/index.tsx');
 
 test('the occlusion lesson lowers the eye on the garden and its proof counts what the pyramid hid', async () => {
   const lesson = rendererLessons.find(({ id }) => id === 'occlusion-two-phase');
@@ -18,7 +18,7 @@ test('the occlusion lesson lowers the eye on the garden and its proof counts wha
   assert.match(high, /Math\.sin\(angle\) \* radius, 6, /);
   const proof = JSON.parse(
     await readFile(
-      new URL('../docs/assets/gallery/proofs/occlusion-two-phase-proof.json', import.meta.url),
+      new URL('../site/assets/gallery/proofs/occlusion-two-phase-proof.json', import.meta.url),
       'utf8',
     ),
   );
