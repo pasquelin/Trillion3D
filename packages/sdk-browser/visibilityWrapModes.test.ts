@@ -2,7 +2,7 @@
 // Defect 8: each material map addresses its texture in its own wrap. The page record therefore
 // carries one nibble per map, and each shader read receives the nibble of the map it samples —
 // not the material flags, which carried only one for all of them.
-// Proof on a real GPU is the `test/justesse/adressage-cartes-gpu.mjs` bench.
+// Proof on a real GPU is the `test/justesse/adressage-cartes-gpu.ts` bench.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -25,7 +25,7 @@ import {
   CARTES,
   ligneDePageMelangee,
   materielMelange,
-} from '../../test/justesse/adressageCartes.mjs';
+} from '../../test/justesse/adressageCartes.ts';
 
 const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) => ({ wrapS, wrapT }) as THREE.Texture;
 /** Expected nibble of a fixture entry, recomputed from its two declared wrap modes. */

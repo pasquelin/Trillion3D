@@ -2,8 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../sdk-core/index.ts';
 import { dagRoots, DAG } from './pagesBackendFixture.ts';
 import { submittedDraws } from './clusterBatchMesh.ts';
+
+/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
+const MANIFEST_IDENTITY = {
+  schema: CLUSTERED_BLEND_FORMAT_VERSION,
+  status: 'ready' as const,
+  key: 'k',
+  scope: 'full' as const,
+  sourceTriangles: 0,
+  selectedTriangles: 0,
+  selectedNodes: [] as number[],
+  totalNodes: 0,
+};
 
 test('page bounding sphere uses the page AABB, not the shared source mesh', () => {
   const positions = new Float32Array(300);
@@ -23,6 +36,7 @@ test('page bounding sphere uses the page AABB, not the shared source mesh', () =
     source,
     metadata: {
       ...DAG,
+      ...MANIFEST_IDENTITY,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
     },
     indices: new Map([['0', new Uint32Array([3, 4, 5])]]),
@@ -83,6 +97,7 @@ test('exact pages batch clusters of the same primitive in beauty mode and unbatc
   }));
   const metadata = {
     ...DAG,
+    ...MANIFEST_IDENTITY,
     primitives: [
       { mesh: 0, primitive: 0, pass: 'exact-clusters' as const, ...dagRoots(p1) },
       { mesh: 1, primitive: 0, pass: 'exact-clusters' as const, ...dagRoots(p2) },

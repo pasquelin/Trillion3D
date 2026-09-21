@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createExplorerCamera } from './explorerCamera.ts';
 import type { ClusterManifest } from '../sdk-core/index.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
 
 const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement;
 

@@ -57,6 +57,14 @@ test('the initial cover also protects regions first discovered after a camera ju
   const metadata = {
     errorModel: 'dag-group-qem-v1',
     clusterStrategy: 'dag-groups',
+    schema: 1,
+    status: 'ready',
+    key: 'k',
+    scope: 'full' as const,
+    sourceTriangles: 0,
+    selectedTriangles: 0,
+    selectedNodes: [],
+    totalNodes: 0,
     primitives: [
       {
         mesh: 0,

@@ -7,6 +7,7 @@ import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {
   installGpuGlobals();
@@ -22,12 +23,11 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
     gpuDevice: device,
     maxResidentPages: 4,
     viewport,
-  });
+  }) as WebgpuPagesBackend;
   const cam = camera();
   const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport,
-    frame: 1,
   });
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
@@ -60,7 +60,7 @@ test('a visbuffer encode failure restores occlusion culling as unsupported', asy
     maxResidentPages: 2,
     viewport: [32, 32],
     onDiagnostic: (event) => events.push(event),
-  });
+  }) as WebgpuPagesBackend;
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
   const cam = camera();
@@ -81,7 +81,8 @@ test('a visbuffer encode failure restores occlusion culling as unsupported', asy
 test('a missing r32uint vis target keeps the page raster and lists visibility buffer as unsupported', async () => {
   installGpuGlobals();
   const { device, draws } = mockGpu(undefined, undefined, false, true);
-  const { fixture, backend } = quadBackend(device);
+  const { fixture, backend: created } = quadBackend(device);
+  const backend = created as WebgpuPagesBackend;
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true);
   assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), true);

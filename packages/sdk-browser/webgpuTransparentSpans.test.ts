@@ -9,6 +9,18 @@ import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mixedBinScene } from './webgpuPagesTestScenes.ts';
 
+/** Filler for `ClusterManifest`'s required cache-identity fields: unread by the code under test. */
+const MANIFEST_IDENTITY = {
+  schema: 1,
+  status: 'ready' as const,
+  key: 'k',
+  scope: 'full' as const,
+  sourceTriangles: 0,
+  selectedTriangles: 0,
+  selectedNodes: [] as number[],
+  totalNodes: 0,
+};
+
 test('transparent spans follow only changed resident pages through arrival, eviction and slot reuse', async () => {
   installGpuGlobals();
   const scene = mixedBinScene(),
@@ -17,6 +29,7 @@ test('transparent spans follow only changed resident pages through arrival, evic
   scene.both.transparent = true;
   const rt = createWebgpuPagesRuntime({
     ...scene,
+    metadata: { ...scene.metadata, ...MANIFEST_IDENTITY },
     gpuDevice: mock.device,
     maxResidentPages: 4,
     viewport: [32, 32],
