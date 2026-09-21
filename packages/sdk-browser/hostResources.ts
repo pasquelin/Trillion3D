@@ -66,7 +66,7 @@ export type HostPoint = { readonly x: number; readonly y: number; readonly z: nu
 /** A host geometry: its attributes, and the local box the host computed over them. */
 export type HostGeometry = {
   readonly attributes: HostAttributes;
-  readonly boundingBox?: { readonly min: HostPoint; readonly max: HostPoint } | null;
+  boundingBox?: { readonly min: HostPoint; readonly max: HostPoint } | null;
 };
 
 /**
@@ -109,10 +109,11 @@ export type HostMesh = { readonly name: string };
 /** A node of the host scene graph, held by identity and by the two fields a walk needs. */
 export type HostNode = { readonly name: string; readonly visible: boolean };
 
-/** The host display graph an engine draws into, and the clear colour the composition reads.
- *  Traversal belongs to the host boundaries; the engine only asks it for those two. */
+/** The host display graph an engine draws into: what it holds, how it is walked, and the clear
+ *  colour the composition reads. Building and drawing it belongs to the host boundaries. */
 export type HostScene = HostNode & {
   readonly background: unknown;
+  readonly children: readonly HostNode[];
   traverse(visit: (node: HostNode) => void): void;
 };
 

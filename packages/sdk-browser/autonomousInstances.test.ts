@@ -6,6 +6,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { deplaceInstance } from './autonomousInstances.ts';
+import { asHostLibrary } from './hostResources.ts';
+import type { MatrixElements } from './matrixElements.ts';
+
+/** The records carry the contract pose; the oracle and the assertions read a host matrix. */
+const pose = (matrix: MatrixElements) => asHostLibrary<THREE.Matrix4>(matrix);
 import { referenceUpdateInstance } from './bench/oracles/cadre-vue.ts';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
 
@@ -23,8 +28,8 @@ function instanceEtBase(n: number, roots: number) {
   const baseRoots = Array.from({ length: roots }, (_, i) =>
     root(new THREE.Matrix4().makeTranslation(0, i, 0)),
   );
-  const pages = basePages.map((base) => page(base.matrix.clone()));
-  const instRoots = baseRoots.map((r) => root(r.world.clone()));
+  const pages = basePages.map((base) => page(pose(base.matrix).clone()));
+  const instRoots = baseRoots.map((r) => root(pose(r.world).clone()));
   return { basePages, baseRoots, pages, instRoots };
 }
 
@@ -43,13 +48,20 @@ function memeResultat(transform: THREE.Matrix4, n: number, rootsCount: number, a
     transform.toArray(new Float64Array(16)),
   );
   referenceUpdateInstance(
-    { pages: b.pages, roots: b.instRoots },
-    b.basePages,
-    b.baseRoots,
+    asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>({
+      pages: b.pages,
+      roots: b.instRoots,
+    }),
+    asHostLibrary<Parameters<typeof referenceUpdateInstance>[1]>(b.basePages),
+    asHostLibrary<Parameters<typeof referenceUpdateInstance>[2]>(b.baseRoots),
     transform,
   );
   for (let i = 0; i < n; i++) {
-    assert.deepEqual(a.pages[i].matrix.toArray(), b.pages[i].matrix.toArray(), `page ${i}`);
+    assert.deepEqual(
+      pose(a.pages[i].matrix).toArray(),
+      pose(b.pages[i].matrix).toArray(),
+      `page ${i}`,
+    );
     if (avecMesh)
       assert.deepEqual(
         (a.pages[i].mesh as unknown as { matrix: THREE.Matrix4 }).matrix.toArray(),
@@ -58,7 +70,11 @@ function memeResultat(transform: THREE.Matrix4, n: number, rootsCount: number, a
       );
   }
   for (let i = 0; i < rootsCount; i++)
-    assert.deepEqual(a.instRoots[i].world.toArray(), b.instRoots[i].world.toArray(), `root ${i}`);
+    assert.deepEqual(
+      pose(a.instRoots[i].world).toArray(),
+      pose(b.instRoots[i].world).toArray(),
+      `root ${i}`,
+    );
 }
 
 test('no page and no root: nothing to move, neither side touches anything', () => {
