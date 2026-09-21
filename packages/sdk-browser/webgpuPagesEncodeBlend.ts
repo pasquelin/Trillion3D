@@ -6,7 +6,9 @@ import { selectWebgpuBlend } from './webgpuBlendSelection.ts';
 import { orderBlendPasses, orderVisibleBlend } from './webgpuBlendOrder.ts';
 import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './webgpuBlendFallback.ts';
 import { encodeTransparentInstances } from './webgpuTransparentDraw.ts';
-import { copyBackdrop } from './webgpuTransmission.ts';
+import { encodeWaterPass } from './webgpuWaterPass.ts';
+import { blendLightResources } from './webgpuBlendLighting.ts';
+import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
@@ -37,7 +39,7 @@ export function encodeBlend(
     return;
   const textured = !!(
     vis.blendBindGroupLayout &&
-    vis.pipelineBlendTextured &&
+    vis.blendPipelines &&
     vis.textures &&
     vis.mapsSampler &&
     vis.concatPos &&
@@ -78,15 +80,22 @@ export function encodeBlend(
   // where it drops the draw.
   run.blendFrustumRejected = orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
+  // The lighting resources of the image, resolved once for the blends and the water pass: the
+  // shadow atlas and the probe grid do not exist from the first frame, and a group built on the
+  // placeholders is voided the day the real resources arrive.
+  blendState.lighting = blendLightResources(rt);
+  voidStaleBlendGroups(rt, blendState.lighting);
   // The GPU then expands the sorted plan: an instance list, one indirect argument per slice, and
   // nothing more per item. With no compute stage, the CPU writes the same words.
   encodeBlendExpansion(rt, device, encoder);
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
-  // Transmission comes after blends, on a frozen backdrop: the two copies split the two passes, so
-  // no transmissive surface reads a half-composed image.
-  if (blendState.transmissive && copyBackdrop(rt, encoder))
+  // Water comes after blends, on a frozen backdrop: the copy splits the two, so no transmissive
+  // surface reads a half-composed image. Without the pass — a diagnostic view, which colours the
+  // surface instead of lighting it, a diagnostic variant measuring the blend stage, a capture from
+  // a second camera — the slice draws as one more blend.
+  if (blendState.transmissive && !encodeWaterPass(rt, encoder))
     drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;

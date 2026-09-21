@@ -1,10 +1,9 @@
-/** The transform tree: the engine's scene graph, data-oriented, and its batches. */
+/** The transform tree: the engine's scene graph, data-oriented. */
 const T = {
   section: 'tree',
   kind: 'Function',
   module: 'packages/sdk-core/mathTransformTree.ts',
 };
-const BATCH = { section: 'batches', kind: 'Function', module: 'packages/sdk-core/mathBatch.ts' };
 
 export const TREE = [
   {
@@ -86,66 +85,5 @@ export const TREE = [
     description:
       "Turns `node` toward the world point `(x, y, z)`. `viewer` is true for a camera or a light, which look toward their `−z`, false for an object, which presents its `+z`. `up` is the node's up, `(0, 1, 0)` in the reference. Ancestors and the node are updated first.",
     replaces: 'Object3D.lookAt',
-  },
-];
-
-export const BATCHES = [
-  {
-    ...BATCH,
-    id: 'multiplyMatrix4Batch',
-    exports: ['multiplyMatrix4Batch'],
-    title: 'multiplyMatrix4Batch()',
-    signature: 'multiplyMatrix4Batch(out: Float64Array[], a: Float64Array[], b: Float64Array[], n)',
-    description:
-      '`n` products `out[i] = a[i] · b[i]`, all three sides given as sub-views of sixteen numbers. The sub-views are built once, never per frame; a WebAssembly kernel repeats the same formula term by term and the governor picks whichever path is measured faster.',
-    replaces: 'a loop of Matrix4.multiplyMatrices',
-  },
-  {
-    ...BATCH,
-    id: 'boxTransformBatch',
-    exports: ['boxTransformBatch'],
-    title: 'boxTransformBatch()',
-    signature: 'boxTransformBatch(out: Float64Array, boxes, mats: ArrayLike<number>[], n)',
-    description:
-      '`n` boxes transformed by `n` matrices: `out[i] = boxTransform(boxes[i], mats[i])`. `out` and `boxes` carry six numbers per element, `mats` a sub-view of sixteen.',
-    replaces: 'a loop of Box3.applyMatrix4',
-  },
-  {
-    ...BATCH,
-    id: 'hierarchyUpdateBatch',
-    exports: [
-      'hierarchyUpdateBatch',
-      'HIERARCHY_ROOT',
-      'MATRIX_VALUES',
-      'POSITION_VALUES',
-      'QUATERNION_VALUES',
-    ],
-    title: 'hierarchyUpdateBatch()',
-    signature:
-      'hierarchyUpdateBatch(worldViews, positions, rotations, scales, parents: Uint32Array, n, local)\nHIERARCHY_ROOT = 0xffffffff · MATRIX_VALUES = 16 · POSITION_VALUES = 3 · QUATERNION_VALUES = 4',
-    description:
-      "A full hierarchy updated in one pass: `n` nodes ordered parents before children, each composing its local matrix then multiplying it by its parent's world matrix — the traversal of `mathTransformTreeUpdate.ts`, the same two formulas in the same order, on flat buffers. `parents[i]` **must** index an already updated node, hence strictly less than `i`; any other value — the `HIERARCHY_ROOT` sentinel included — makes the node a root whose world matrix is its local matrix. The rule is identical on both paths: no input, however hostile, can make them diverge. `local` is one scratch matrix, reused by every element.",
-    replaces: 'Object3D.updateMatrixWorld over a whole scene',
-  },
-  {
-    ...BATCH,
-    id: 'createPathGovernor',
-    exports: ['createPathGovernor', 'PATH_MIN_SAMPLES', 'PATH_SWITCH_RUNS', 'PATH_EXPLORE_EVERY'],
-    title: 'createPathGovernor()',
-    module: 'packages/sdk-core/mathPathGovernor.ts',
-    signature:
-      "createPathGovernor(now: () => number, mode: MathPathMode = 'auto'): PathGovernor\nPATH_MIN_SAMPLES = 5 · PATH_SWITCH_RUNS = 5 · PATH_EXPLORE_EVERY = 50",
-    description:
-      'What arbitrates JS against WebAssembly, per named operation: sliding medians of nanoseconds per element, a switch only after five consecutive executions at that lead, and one execution in fifty replaying the other path to refresh its median. Under five samples nothing is decided — a single value would make the median. `metrics()` publishes, per operation, `path`, `jsNsPerElement`, `wasmNsPerElement`, the switch count, and the clock resolution the measurement rests on.',
-  },
-  {
-    ...BATCH,
-    id: 'batch-api',
-    title: 'The batch API for hosts',
-    issue: 80,
-    signature:
-      'frustumKeepsBoxBatch · invertMatrix4Batch · normalMatrix3Batch · composeMatrix4Batch · decomposeMatrix4Batch\ntransformPointsBatch · transformPointsByMatricesBatch · transformDirectionsBatch\nboxUnionBatch · boxTransformUnionBatch · sphereFromBoundsBatch\nsrgbToLinearBatch · linearToSrgbBatch · nodeWorldFramesBatch',
-    description:
-      'The batches a host asks for — `n` elements, one call, flat typed arrays, zero allocation — are the work of issue #80, and the three above are the foundation they extend. The order is fixed: the CPU shares of the per-element loops are measured first, and **a batch is only implemented if its loop\'s share is measured**; a loop below the run-to-run spread is recorded as "not worth a batch" and left alone. A WebAssembly kernel follows for every batch whose JS path measures above 0.1 ms per frame, JS staying the reference and the fallback. `hierarchySubtreeUpdate`, the targeted subtree update, is issue #60.',
   },
 ];
