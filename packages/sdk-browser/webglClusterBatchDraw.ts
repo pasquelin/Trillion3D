@@ -47,10 +47,11 @@ export function drawClusterBatches(
     stats.subDraws += frames;
     stats.submittedTriangles += wholeMeshTriangles(mesh) * frames;
   }
-  // Copies are not paged clusters: the cluster counters leave them out.
+  // Copies are not paged clusters: the cluster counters leave them out. The session counter
+  // stays a count of display submissions; the frame's draw calls include the backdrop pass.
   stats.copyDraws = owner.copySubmissions;
-  stats.drawCalls = submitted - stats.copyDraws;
+  stats.drawCalls = submitted + owner.backdropSubmissions;
   stats.cpuSubmitMs = performance.now() - start;
-  stats.autonomousClusterDrawsTotal += stats.drawCalls;
+  stats.autonomousClusterDrawsTotal += submitted;
   stats.backdropBytes = owner.backdropBytes;
 }

@@ -446,11 +446,13 @@ WebGPU one (`webgpuTransmissionWgsl.ts`): the transmitted share replaces alpha b
 of the pass's own. A two-sided transparent copy draws its back faces then its front faces, as
 the batches do. The copy shares the frame's depth buffer, target encoding and tone mapping, and
 reaches captures, comparison targets and held frames through the same owner;
-`autonomousCopyDraws` counts the copies submitted per frame and `transmissionBackdropBytes`
+`autonomousCopyDraws` counts the copies' submissions per frame and `transmissionBackdropBytes`
 publishes the two copies' cost, kept until a resize, zero before the first transmissive copy in
 view. The second cluster pass is the cost of the backdrop, paid only by a frame with a transmissive
 copy in view — copies are frustum-tested like the host renderer tests them — and counted in
-`drawCalls` and `submittedTriangles`, as the reference renderer pays its transmission target.
+`drawCalls` and `submittedTriangles`, not in the session counter `autonomousClusterDrawsTotal`,
+as the reference renderer pays its transmission target. A material that declares an IOR without
+transmission is refused by name: the cluster BRDF keeps its dielectric F0.
 A copy a diagnostic mode paints, or whose material stops transmitting, draws as a whole mesh
 through the same program. The copies draw in source order after the clusters and before the
 host's own blended copies: no back-to-front sort. The backdrop is a plain copy: roughness does

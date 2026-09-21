@@ -138,6 +138,10 @@ test('a transmissive physical material is a scene copy of the transmission pass,
   const plain = new THREE.MeshPhysicalMaterial();
   assert.equal(clusterMaterialReason(plain, { position, normal }), undefined);
   assert.equal(clusterMaterialReason(plain, { position, normal }, true), undefined);
+  plain.ior = 1.3;
+  assert.match(clusterMaterialReason(plain, { position, normal })!, /ior without transmission/);
+  glass.ior = 1.3;
+  assert.equal(clusterMaterialReason(glass, { position, normal }, true), undefined);
   glass.clearcoat = 0.5;
   assert.match(clusterMaterialReason(glass, { position, normal }, true)!, /clearcoat/);
   glass.clearcoat = 0;
