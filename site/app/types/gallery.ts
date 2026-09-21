@@ -1,7 +1,7 @@
-import type { Locale } from './portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { DiagnosticMode } from './engine-scene.ts';
 import type { ProgressiveListState } from './components.ts';
-import type { Localized } from '../gallery/localized.ts';
+import type { Localized } from '../../content/locale.ts';
 import type { SCENARIOS } from '../../lessons/scenarios.ts';
 
 interface ExampleBase {

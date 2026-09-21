@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { highlightLines } from './highlightLines.ts';
 import { CodeSurface } from './CodeSurface.tsx';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface CodeBlockProps {
   code: string;

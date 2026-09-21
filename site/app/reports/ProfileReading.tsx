@@ -10,7 +10,7 @@ import { Details } from './Details.tsx';
 import { Conditions } from './Conditions.tsx';
 import { Diagnostics } from './Diagnostics.tsx';
 import type { Report, ReportRecord } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { BarChartRow } from '../types/components.ts';
 
 interface ProfileReadingProps {

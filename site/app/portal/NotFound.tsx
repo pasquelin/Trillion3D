@@ -5,7 +5,7 @@ import { WebGPUCanvas } from '../gallery/WebGPUCanvas.tsx';
 import { usePlaygroundMotion } from '../gallery/usePlaygroundMotion.ts';
 import { SectionHeader } from '../components/SectionHeader.tsx';
 import { Section } from '../components/Section.tsx';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 export function NotFound({ locale }: { locale: Locale }) {
   const fr = locale === 'fr';

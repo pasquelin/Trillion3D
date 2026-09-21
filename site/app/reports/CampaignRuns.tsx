@@ -2,7 +2,7 @@ import { Table } from '../components/Table.tsx';
 import { reportCopy } from '../../reports/copy.ts';
 import { runName } from '../../reports/names.ts';
 import type { Report, RunStatus } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface CampaignRunsProps {
   report: Report;
