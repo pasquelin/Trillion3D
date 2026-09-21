@@ -39,6 +39,11 @@ jobs:
         with:
           components: clippy, rustfmt
       - run: pnpm install --frozen-lockfile
+      - name: Batch — no published bundle committed on develop
+        if: github.base_ref == 'develop' || github.ref == 'refs/heads/develop'
+        run: |
+          tracked=$(git ls-tree --name-only HEAD -- docs/css/site.css docs/runtime)
+          [ -z "$tracked" ] || { printf 'Published bundles belong to main only:\n%s\n' "$tracked" >&2; exit 1; }
       - name: Release — publish the docs bundles built from the merged sources
         if: github.event_name == 'pull_request' && github.base_ref == 'main'
         env:
