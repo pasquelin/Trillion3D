@@ -1,5 +1,5 @@
 /** Guides: prose in `html`, rendered by the React Entry component. */
-const GUIDE = { section: 'guides', kind: 'Guide' };
+export const GUIDE = { section: 'guides', kind: 'Guide' };
 
 export const GUIDES = [
   {
