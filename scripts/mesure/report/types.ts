@@ -26,7 +26,7 @@ export interface Coupe {
 }
 
 /** Contract occlusion counters, under their own names; `image` names the frame they describe. */
-export interface HiZCounters {
+interface HiZCounters {
   tested: number | null;
   rejected: number | null;
   beyond16Texels: number | null;
@@ -64,7 +64,7 @@ export type MovingNode =
   { noeud: string; rayon: number; images: number } | { noeud: string; erreur: string } | null;
 
 /** One reported page error: an uncaught page error, an HTTP failure, or a console error. */
-export type ErreurPage =
+type ErreurPage =
   | { kind: 'pageerror'; message: string }
   | { kind: 'http'; status: number; url: string }
   | { kind: 'console'; message: string }
@@ -146,7 +146,7 @@ export interface Serie {
 }
 
 /** What a side publishes about itself in the report: dist, cache, engine, variant. */
-export interface SideIdentity {
+interface SideIdentity {
   dist: string;
   from: string;
   cache: string | null;

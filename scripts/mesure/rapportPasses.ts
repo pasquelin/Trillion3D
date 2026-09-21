@@ -14,7 +14,7 @@ const BLOCS: [keyof GpuPassBlockTotals, string][] = [
 ];
 
 /** One GPU pass and its block, summarised over the readings of a series. */
-export interface PasseGpu {
+interface PasseGpu {
   name: string;
   bloc: string | null;
   gpuMs: Distribution;
