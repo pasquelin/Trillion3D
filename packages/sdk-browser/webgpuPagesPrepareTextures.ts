@@ -76,13 +76,14 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     data,
     layersPerAtlas: rt.setup.texturePool.layers,
     budgetBytes: rt.setup.textureBudget,
+    budgetMs: rt.setup.textureUploadMs,
     readLevel,
     onFailure: diag.diagnosticFailure,
-    onColorChanged: () => {
-      // Origin of the resource change: a colour tile has just reached the pool or left it, and the
-      // shadow of cutout foliage follows it.
+    onColorChanged: (slots) => {
+      // Origin of the resource change: colour tiles have just reached the pool or left it, and
+      // the shadow of the cutout foliage that reads them follows — once per pump.
       run.gate.resourcesChanged();
-      shadowsFollowTextures(rt.lights);
+      shadowsFollowTextures(rt.lights, rt.layout.rows, slots);
     },
   });
   textures.prepare();

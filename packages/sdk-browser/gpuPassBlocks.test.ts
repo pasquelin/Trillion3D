@@ -19,6 +19,7 @@ test('each pass falls in the block its label names, and an unknown one stays out
   assert.equal(gpuPassBlockOf('WG visibility primary'), 'visibility');
   assert.equal(gpuPassBlockOf('WG HiZ pyramid'), 'visibility');
   assert.equal(gpuPassBlockOf('WG material surfaces v1'), 'materials');
+  assert.equal(gpuPassBlockOf('WG material depth'), 'materials');
   assert.equal(gpuPassBlockOf('WG empty surfaces'), 'materials');
   assert.equal(gpuPassBlockOf('WG deferred lighting'), 'other');
   assert.equal(gpuPassBlockOf('WG shadow atlas v1'), 'other');

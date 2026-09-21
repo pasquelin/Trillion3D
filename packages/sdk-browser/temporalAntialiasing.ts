@@ -50,7 +50,9 @@ function createTaaLayout(device: GPUDevice) {
 export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
   const layout = createTaaLayout(device);
   const module = await createCheckedShaderModule(device, TAA_SHADER, 'TAA_RESOLVE');
-  const pipeline = await makeFullscreenPipeline(device, module, layout, 'resolve', ['rgba16float']);
+  const pipeline = await makeFullscreenPipeline(device, module, layout, 'resolve', [
+    { format: 'rgba16float' },
+  ]);
   const motion = createPlacementMotion(device, roots);
   const uniform = device.createBuffer({
     label: 'WG TAA view v1',
@@ -103,6 +105,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       saved.hasHistory = frame.hasHistory;
       saved.sceneSeen = frame.sceneSeen;
       saved.quiet = quiet;
+      saved.sampledRank = frame.sampledRank;
       saved.previousViewProjection.set(frame.previousViewProjection);
     },
     /** Returns the stillness of the replayed frame: its own, not the one arrived tiles disturbed. */
@@ -113,6 +116,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       frame.stillFrames = saved.stillFrames;
       frame.hasHistory = saved.hasHistory;
       frame.sceneSeen = saved.sceneSeen;
+      frame.sampledRank = saved.sampledRank;
       frame.previousViewProjection.set(saved.previousViewProjection);
       return saved.quiet;
     },

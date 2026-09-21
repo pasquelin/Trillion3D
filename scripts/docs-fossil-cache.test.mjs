@@ -9,7 +9,7 @@ import { canonicalizeFossilCache } from './docs/fossil-excavation/canonical.mjs'
 
 const root = resolve(import.meta.dirname, '..');
 const compiler = join(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
-const asset = join(root, 'docs/assets/gallery/fossil-excavation');
+const asset = join(root, 'site/assets/gallery/fossil-excavation');
 function compile(output) {
   execFileSync(
     compiler,

@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { canalCity } from './docs/canal-city/model.mjs';
 import { writeCanalCity } from './docs/canal-city/write.mjs';
 const root = resolve(import.meta.dirname, '..'),
-  directory = resolve(root, 'docs/assets/gallery/offline/city'),
+  directory = resolve(root, 'site/assets/gallery/offline/city'),
   compiler =
     process.env.WG_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');

@@ -22,23 +22,30 @@ export interface TextureFrameMetrics {
    * distinct named tiles; `textureTilesAtLevel`: those served at the very level the pixel
    * calls; `textureMissingLevels`: lag levels on average over the requested tiles — zero
    * when the image is the best the pool can give; `textureTilesPending`: requested
-   * and not yet served at the end of the pass.
+   * and not yet served at the end of the pass; `textureTilesDeferred`: the share of them the
+   * pass's budget pushed to the next pass, their coarser level shown meanwhile.
    */
   textureTilesRequested?: number | null;
   textureTilesAtLevel?: number | null;
   textureMissingLevels?: number | null;
   textureTilesPending?: number | null;
+  textureTilesDeferred?: number | null;
   /**
    * The streamer, since the start of the session. `textureTilesServed`: tiles copied into the pool.
    * `textureTilesEvicted`: slots taken back from a less-watched tile. `textureTilesRefused`:
    * tiles that no slot could take, everything the pool holds having been watched in
    * the frame — the pool is too small for the view, and that is published, never compensated.
-   * `textureBytesLastFrame`: tile bytes admitted by the last pass.
+   * `textureBytesLastFrame`: tile bytes admitted by the last pass. `textureUploadMs`: CPU
+   * milliseconds of the last pass, `null` when it had nothing to serve or when a barrier lifted
+   * its budget; `textureUploadPeakMs`: the worst budgeted pass since the start — a stutter is a
+   * peak, never a median.
    */
   textureTilesServed?: number | null;
   textureTilesEvicted?: number | null;
   textureTilesRefused?: number | null;
   textureBytesLastFrame?: number | null;
+  textureUploadMs?: number | null;
+  textureUploadPeakMs?: number | null;
   /**
    * The sources. `textureLevelReads`: baked levels being read in the cache. `textureLevelsDecoded`:
    * baked levels decoded since the start. `textureLevelCacheBytes`: host bytes of decoded

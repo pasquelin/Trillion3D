@@ -17,10 +17,15 @@ export type {
   PrepareOptions,
   ProgressPointer,
   ProgressStream,
+  ReusedFolder,
   TerminalProgress,
   TerminalProgressOptions,
 } from '../sdk-node/contracts.ts';
-export { CANCEL_GRACE_MS, COMPILER_LINE_LIMIT } from '../sdk-node/compilerProcess.mts';
+export {
+  CANCEL_GRACE_MS,
+  COMPILER_LINE_LIMIT,
+  resolveCompilerExecutable,
+} from '../sdk-node/compilerProcess.mts';
 export { createBatchProgress, createTerminalProgress } from '../sdk-node/progress.mts';
 export { createCompilationJob, prepare, prepareMany } from '../sdk-node/index.mts';
 export { getSdkProvenance } from '../sdk-node/provenance.mts';

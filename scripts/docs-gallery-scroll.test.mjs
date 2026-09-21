@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 
-const { ProgressiveList } = await loadReactComponents('docs/react/components/ProgressiveList.jsx');
+const { ProgressiveList } = await loadReactComponents('site/app/components/ProgressiveList.tsx');
 const labels = {
   previous: 'Load previous results',
   next: 'Load more results',

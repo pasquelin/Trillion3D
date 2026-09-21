@@ -155,14 +155,14 @@ See [scripts/mesure/README.md](scripts/mesure/README.md) and [docs/TESTS.md](doc
 
 ## Quality bar
 
-| Gate                        | What it enforces                                                                                                                                                                                 |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm run check:changed`    | format, lint, line limit, duplicates and the unit tests reached by imports from the changed files                                                                                                |
-| `pnpm run check:lines`      | **200 physical lines per source file**, JS/TS/Rust, no legacy exception                                                                                                                          |
-| `pnpm run check:duplicates` | no repeated block ≥ 12 lines and ≥ 100 tokens across JS/TS/Rust                                                                                                                                  |
-| `pnpm run check:structure`  | core/adapter boundaries; `sdk-core` type-checks without DOM                                                                                                                                      |
-| `pnpm run validate`         | everything above plus Clippy, unused code/files/dependencies, TS and native builds, declarations, links, and all JS/TS/Rust tests — the CI gate ([`quality.yml`](.github/workflows/quality.yml)) |
-| `pnpm run test:gpu`         | browser proofs on a real GPU                                                                                                                                                                     |
+| Gate                        | What it enforces                                                                                                                                                                                                                                                              |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run check:changed`    | format, lint, line limit, duplicates and the unit tests reached by imports from the changed files                                                                                                                                                                             |
+| `pnpm run check:lines`      | **200 physical lines per source file**, JS/TS/Rust, no legacy exception                                                                                                                                                                                                       |
+| `pnpm run check:duplicates` | no repeated block ≥ 12 lines and ≥ 100 tokens across JS/TS/Rust                                                                                                                                                                                                               |
+| `pnpm run check:structure`  | core/adapter boundaries; `sdk-core` type-checks without DOM                                                                                                                                                                                                                   |
+| `pnpm run validate`         | everything above plus Clippy, unused code/files/dependencies, TS and native builds, declarations, links, and all JS/TS/Rust tests — the CI gate ([`quality.yml`](.github/workflows/quality.yml)), which skips the Rust steps when the sources are unchanged since a green run |
+| `pnpm run test:gpu`         | browser proofs on a real GPU                                                                                                                                                                                                                                                  |
 
 The engine stays generic: no scene names, no hardcoded lights or cameras, no object-type special
 cases. Not one line of any other engine's code, shaders or assets enters this
@@ -170,17 +170,17 @@ repository; everything is reimplemented from papers, talks, documentation and ob
 
 ## Documentation
 
-| Document                                                              | Role                                                                                                          |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [Native compiler](docs/COMPILER.md)                                   | Arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                             |
-| [Cache format](docs/FORMAT.md)                                        | Pointer, `clusters.json` and its binary annex, cluster DAG, culling hierarchy, streaming bundles, SHA objects |
-| [SDK guide](docs/SDK.md)                                              | Lifecycle, compatibility and fallback contracts                                                               |
-| [Architecture](packages/README.md)                                    | Package contracts and remaining work                                                                          |
-| [Product principles](docs/architecture/PRODUCT_PRINCIPLES.md)         | Portable core, capabilities, source ownership, fallback                                                       |
-| [Web / Electron / Node integration](docs/architecture/INTEGRATION.md) | Who owns the canvas, the loop, the preparation and the fallback                                               |
-| [Tests and benches](docs/TESTS.md)                                    | Unit tests, GPU correctness probes, performance benches                                                       |
-| [The reference in numbers](docs/REFERENCE_UE5.md)                     | The reference's published constants, bytes per triangle and profile, against ours                             |
-| [Engine target](docs/SPEC_ENGINE_WITHOUT_THREE.md)                    | Editor, final cook, exit from Three.js, requirements, exit criteria, lighting strategy                        |
+| Document                                                 | Role                                                                                                          |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [Native compiler](docs/COMPILER.md)                      | Arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                             |
+| [Cache format](docs/FORMAT.md)                           | Pointer, `clusters.json` and its binary annex, cluster DAG, culling hierarchy, streaming bundles, SHA objects |
+| [SDK guide](docs/SDK.md)                                 | Lifecycle, compatibility and fallback contracts                                                               |
+| [Architecture](packages/README.md)                       | Package contracts and remaining work                                                                          |
+| [Product principles](docs/PRODUCT_PRINCIPLES.md)         | Portable core, capabilities, source ownership, fallback                                                       |
+| [Web / Electron / Node integration](docs/INTEGRATION.md) | Who owns the canvas, the loop, the preparation and the fallback                                               |
+| [Tests and benches](docs/TESTS.md)                       | Unit tests, GPU correctness probes, performance benches                                                       |
+| [The reference in numbers](docs/REFERENCE_UE5.md)        | The reference's published constants, bytes per triangle and profile, against ours                             |
+| [Engine target](docs/SPEC_ENGINE_WITHOUT_THREE.md)       | Editor, final cook, exit from Three.js, requirements, exit criteria, lighting strategy                        |
 
 The documentation, the code, its identifiers and this page are in English.
 

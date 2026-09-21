@@ -67,6 +67,13 @@ export const LIGHT_SETTINGS = {
   /** Side in pixels of a screen tile of the light list. */
   tileSize: 16,
   /**
+   * Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the
+   * others are weighed without their shadow, and the shaded ones are drawn in proportion, so
+   * the estimate is unbiased and temporal antialiasing averages it. A still image shades
+   * every light of its tile and converges to the exact sum; there, this number plays no part.
+   */
+  samplesPerPixel: 4,
+  /**
    * Shadow regions at most per frame: the buffer ceiling, never a quality setting. The
    * millisecond budget almost always stops first; this ceiling is only an ultimate bound,
    * and the only limit on a device without a GPU clock.
@@ -129,7 +136,9 @@ export const LIGHT_SETTINGS = {
   sunFarShadowStartCells: 1,
   /**
    * Pull-back of a cascade's near plane, in radii of its sphere: what sits above the
-   * cascade, between it and the sun, must enter the map to cast its shadow there.
+   * cascade, between it and the sun, must enter the map to cast its shadow there. The extent
+   * adds two radii on either side, the play its depth anchor leaves the sphere
+   * (`sceneLightSunFaces.ts`).
    */
   sunCascadeDepthScale: 4,
   /**
@@ -176,4 +185,15 @@ export interface ShadowViewpoint {
   aspect: number;
   near: number;
   far: number;
+}
+/** The ten numbers of a view, in order: position, axis, half-field, aspect, near, far. */
+export const VIEW_NUMBERS = 10;
+export function writeView(view: ShadowViewpoint, out: Float64Array) {
+  out.set(view.position);
+  out.set(view.forward, 3);
+  out[6] = view.halfFovY;
+  out[7] = view.aspect;
+  out[8] = view.near;
+  out[9] = view.far;
+  return out;
 }

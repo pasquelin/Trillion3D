@@ -4,8 +4,8 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 
-const { Gallery } = await loadReactComponents('docs/react/gallery/index.jsx');
-const { GalleryShowcase } = await loadReactComponents('docs/react/gallery/GalleryShowcase.jsx');
+const { Gallery } = await loadReactComponents('site/app/gallery/Gallery.tsx');
+const { GalleryShowcase } = await loadReactComponents('site/app/gallery/GalleryShowcase.tsx');
 const render = (component, locale) => renderToStaticMarkup(createElement(component, { locale }));
 
 test('showcase leads with a large observatory and exposes both live pilots', () => {
@@ -26,5 +26,5 @@ test('showcase remains above the unchanged searchable catalogue', () => {
   assert.ok(showcase >= 0);
   assert.ok(catalogueTabs > showcase);
   assert.match(html, /91 352 triangles originaux/);
-  assert.match(html, /Rechercher 663 sujets/);
+  assert.match(html, /Rechercher 665 sujets/);
 });
