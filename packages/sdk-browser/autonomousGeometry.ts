@@ -31,6 +31,24 @@ export function releaseGeometry(state: { allocationBytes: number }, rec: PageRec
   geometry.dispose();
 }
 
+/**
+ * The vertex-coloured twin of a host material: cloned once, then read from the shared cache.
+ * The only place a twin is built — a page that decodes a colour attribute and a primitive the
+ * host repaints ask the same cache, so one surface never holds two of them.
+ */
+export function colouredTwin(
+  cache: Map<THREE.Material, THREE.Material>,
+  original: THREE.Material,
+): THREE.Material {
+  let twin = cache.get(original);
+  if (!twin) {
+    twin = original.clone();
+    (twin as THREE.MeshStandardMaterial).vertexColors = true;
+    cache.set(original, twin);
+  }
+  return twin;
+}
+
 export function createAutonomousGeometry(env: GeometryEnvironment) {
   const {
     scene,
@@ -151,27 +169,11 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
         );
       setGeometryBounds(geometry, rec.min, rec.max);
       const original = asHostLibrary<THREE.Material | THREE.Material[]>(baseMaterials.get(rec)!);
-      rec.material = data.attributes.color
-        ? Array.isArray(original)
-          ? original.map((material) => {
-              let clone = colorMaterials.get(material);
-              if (!clone) {
-                clone = material.clone();
-                (clone as THREE.MeshStandardMaterial).vertexColors = true;
-                colorMaterials.set(material, clone);
-              }
-              return clone;
-            })
-          : (() => {
-              let clone = colorMaterials.get(original);
-              if (!clone) {
-                clone = original.clone();
-                (clone as THREE.MeshStandardMaterial).vertexColors = true;
-                colorMaterials.set(original, clone);
-              }
-              return clone;
-            })()
-        : original;
+      rec.material = !data.attributes.color
+        ? original
+        : Array.isArray(original)
+          ? original.map((material) => colouredTwin(colorMaterials, material))
+          : colouredTwin(colorMaterials, original);
       rec.array = data.indices;
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;

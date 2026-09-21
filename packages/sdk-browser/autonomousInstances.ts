@@ -3,7 +3,7 @@ import type { Material } from '../sdk-core/index.ts';
 import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
-import type { createAutonomousGeometry } from './autonomousGeometry.ts';
+import { colouredTwin, type createAutonomousGeometry } from './autonomousGeometry.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];
@@ -14,6 +14,8 @@ type InstanceEnvironment = {
   baseBootstrap: PageRec[];
   byUrl: Map<string, PageRec[]>;
   baseMaterials: Map<PageRec, HostMaterials>;
+  /** The one vertex-coloured-twin cache of the backend, shared with the geometry store. */
+  colorMaterials: Map<THREE.Material, THREE.Material>;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   cap: number;
   /** Notified by every entry point that writes the scene: that is where the origin is. */
@@ -74,6 +76,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     baseBootstrap,
     byUrl,
     baseMaterials,
+    colorMaterials,
     geometryStore,
     cap,
     sceneChanged,
@@ -85,12 +88,22 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bases: PageRec[]; bootstrap: PageRec[] }
   >();
   const { geometryBytes, removeRecords, sync } = geometryStore;
-  /** Materials this engine built from the contract, and therefore frees itself. */
-  const owned: THREE.Material[] = [];
+  /** The material this engine built from the contract for a primitive, and therefore frees
+   *  itself: one entry per repainted primitive, replaced — not stacked — by the next paint. */
+  const owned = new Map<string, THREE.Material>();
+  /** Frees a paint and the twin the shared cache holds for it: repainting n times keeps one. */
+  const releasePaint = (painted: THREE.Material) => {
+    const twin = colorMaterials.get(painted);
+    if (twin) {
+      colorMaterials.delete(painted);
+      twin.dispose();
+    }
+    painted.dispose();
+  };
   return {
     disposeOwnedMaterials() {
-      for (const material of owned) material.dispose();
-      owned.length = 0;
+      for (const painted of owned.values()) releasePaint(painted);
+      owned.clear();
     },
     addInstance(id: string, transform: Float64Array) {
       sceneChanged();
@@ -159,12 +172,14 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       );
       if (!records.length) throw new Error('AUTONOMOUS_PRIMITIVE_MISSING');
       // Two host materials at most, built once for the whole primitive: the plain one, and the
-      // vertex-coloured twin a page with a colour attribute draws with.
+      // vertex-coloured twin a page with a colour attribute draws with, taken from the shared
+      // cache the decoded pages read. The paint this one replaces is freed below.
+      const previous = owned.get(primitive);
       const painted = hostMaterialOf(material, false);
+      owned.set(primitive, painted);
       const coloured = records.some((rec) => rec.attributes.color)
-        ? hostMaterialOf(material, true)
+        ? colouredTwin(colorMaterials, painted)
         : painted;
-      owned.push(painted, ...(coloured === painted ? [] : [coloured]));
       for (const rec of records) {
         baseMaterials.set(rec, painted);
         rec.material = rec.attributes.color ? coloured : painted;
@@ -173,6 +188,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
             rec.material,
           );
       }
+      if (previous) releasePaint(previous);
     },
   };
 }

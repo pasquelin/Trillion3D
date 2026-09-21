@@ -5,9 +5,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { deplaceInstance } from './autonomousInstances.ts';
+import { createAutonomousInstances, deplaceInstance } from './autonomousInstances.ts';
 import { asHostLibrary } from './hostResources.ts';
 import type { MatrixElements } from './matrixElements.ts';
+import type { Material } from '../sdk-core/index.ts';
 
 /** The records carry the contract pose; the oracle and the assertions read a host matrix. */
 const pose = (matrix: MatrixElements) => asHostLibrary<THREE.Matrix4>(matrix);
@@ -100,4 +101,53 @@ test('a mesh attached to the page also receives the same matrix as the reference
 test('a degenerate transform (zero scale) yields the same matrix on both sides', () => {
   const transform = new THREE.Matrix4().makeScale(0, 0, 0);
   memeResultat(transform, 3, 2);
+});
+
+// Repainting a primitive replaces the pair the engine owns instead of stacking it: the host may
+// call `updateMaterial` as often as it likes without the session growing by two materials a call.
+const CONTRACT_MATERIAL: Material = {
+  baseColor: [1, 0, 0],
+  opacity: 1,
+  metalness: 0,
+  roughness: 1,
+  emissive: [0, 0, 0],
+  side: 'front',
+  alphaMode: 'opaque',
+  alphaCutoff: 0.5,
+};
+
+function primitivePeinte() {
+  const plain = { clusterId: 'prim/0', attributes: {} } as unknown as PageRec;
+  const coloured = { clusterId: 'prim/1', attributes: { color: {} } } as unknown as PageRec;
+  const colorMaterials = new Map<THREE.Material, THREE.Material>();
+  const instances = createAutonomousInstances({
+    roots: [],
+    baseRoots: [],
+    allPages: [plain, coloured],
+    basePages: [],
+    bootstrap: [],
+    baseBootstrap: [],
+    byUrl: new Map(),
+    baseMaterials: new Map(),
+    colorMaterials,
+    geometryStore: {} as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
+    cap: 0,
+    sceneChanged: () => {},
+  });
+  return { plain, coloured, colorMaterials, instances };
+}
+
+test('repainting a primitive frees the pair the previous paint owned', () => {
+  const { plain, coloured, colorMaterials, instances } = primitivePeinte();
+  instances.updateMaterial('prim', CONTRACT_MATERIAL);
+  const first = [plain.material, coloured.material] as THREE.Material[];
+  assert.notEqual(first[0], first[1], 'a colour attribute draws with its own twin');
+  let disposed = 0;
+  for (const material of first) material.addEventListener('dispose', () => disposed++);
+  instances.updateMaterial('prim', { ...CONTRACT_MATERIAL, baseColor: [0, 1, 0] });
+  assert.equal(disposed, 2, 'the plain material and its twin are freed at the replacement');
+  assert.equal(colorMaterials.size, 1, 'the shared cache keeps one twin per live material');
+  assert.equal(colorMaterials.get(plain.material as THREE.Material), coloured.material);
+  instances.disposeOwnedMaterials();
+  assert.equal(colorMaterials.size, 0, 'disposal frees the last paint and its twin');
 });
