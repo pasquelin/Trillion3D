@@ -25,7 +25,7 @@ export function EnginePreview({
     <section data-engine-scene className="engine-preview min-w-0">
       <SceneControls copy={copy} diagnostic={diagnostic} />
       <div
-        className="engine-canvas-frame relative aspect-video max-h-[28rem] rounded-2xl overflow-hidden border border-base-300 max-w-5xl mx-auto"
+        className="scene-frame relative aspect-video max-h-[28rem] rounded-2xl overflow-hidden border border-base-300 max-w-5xl mx-auto"
         style={{ backgroundColor: SCENE_BACKGROUND.css }}
       >
         <Canvas
