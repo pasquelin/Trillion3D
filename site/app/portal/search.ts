@@ -1,11 +1,13 @@
-function normalized(value) {
+import type { PortalEntry } from '../../content/model.ts';
+
+function normalized(value: string | undefined) {
   return String(value ?? '')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
 }
 
-export function searchDocument(entry) {
+export function searchDocument(entry: PortalEntry) {
   return normalized(
     [entry.title, entry.id, entry.signature, entry.description, entry.module, entry.kind]
       .filter(Boolean)
@@ -13,7 +15,7 @@ export function searchDocument(entry) {
   );
 }
 
-export function searchEntries(entries, query) {
+export function searchEntries(entries: PortalEntry[], query: string) {
   const words = normalized(query).trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return entries;
   return entries
@@ -27,7 +29,7 @@ export function searchEntries(entries, query) {
       );
       return { entry, order, score };
     })
-    .filter(Boolean)
+    .filter((match) => match !== null)
     .sort((a, b) => b.score - a.score || a.order - b.order)
     .map(({ entry }) => entry);
 }

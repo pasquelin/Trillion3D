@@ -1,14 +1,42 @@
-function decodeId(value) {
+import type { Locale } from '../../content/locale.ts';
+import type { PortalEntry } from '../../content/model.ts';
+
+function decodeId(value: string) {
   try {
     return decodeURIComponent(value);
   } catch {
     return value;
   }
 }
-export const DEFAULT_ROUTE = Object.freeze({ locale: 'en', area: 'learn', id: 'home' });
 /** The portal areas, in navigation order. */
-export const AREAS = /** @type {const} */ (['learn', 'examples', 'playground', 'api', 'reports']);
-const AREA_SET = new Set(AREAS);
+export const AREAS = ['learn', 'examples', 'playground', 'api', 'reports'] as const;
+export type RouteArea = (typeof AREAS)[number];
+
+export interface PortalRoute {
+  locale: Locale;
+  area: RouteArea;
+  id: string;
+}
+
+/** What a route resolves to, once the entries and examples are known. */
+export type ResolvedPage =
+  | { kind: 'report' }
+  | { kind: 'home' }
+  | { kind: 'entry'; entry: PortalEntry }
+  | { kind: 'gallery' }
+  | { kind: 'engine-scene' }
+  | { kind: 'playground'; id: string }
+  | { kind: 'api-index' }
+  | { kind: 'not-found' };
+
+export const DEFAULT_ROUTE: PortalRoute = Object.freeze({
+  locale: 'en',
+  area: 'learn',
+  id: 'home',
+});
+const AREA_SET: ReadonlySet<string> = new Set(AREAS);
+const isArea = (value: string | undefined): value is RouteArea =>
+  value !== undefined && AREA_SET.has(value);
 const LEGACY_SECTIONS = new Set([
   'guides',
   'demo',
@@ -24,12 +52,11 @@ const LEGACY_SECTIONS = new Set([
   'batches',
 ]);
 
-/** @returns {{ locale: 'en' | 'fr', area: (typeof AREAS)[number], id: string }} */
-export function parseRoute(hash, fallbackLocale = 'en') {
+export function parseRoute(hash: string, fallbackLocale: Locale = 'en'): PortalRoute {
   const parts = String(hash).replace(/^#\/?/, '').split('/').filter(Boolean);
   if (parts[0] === 'en' || parts[0] === 'fr') {
     const locale = parts[0];
-    const area = AREA_SET.has(parts[1]) ? parts[1] : 'learn';
+    const area = isArea(parts[1]) ? parts[1] : 'learn';
     return {
       locale,
       area,
@@ -46,23 +73,27 @@ export function parseRoute(hash, fallbackLocale = 'en') {
   return { ...DEFAULT_ROUTE, locale: fallbackLocale };
 }
 
-export function routeHref(route) {
+export function routeHref(route: PortalRoute) {
   const id = route.id ? `/${encodeURIComponent(route.id)}` : '';
   return `#/${route.locale}/${route.area}${id}`;
 }
 
-export function localizedHref(hash, locale) {
+export function localizedHref(hash: string, locale: Locale) {
   return routeHref({ ...parseRoute(hash, locale), locale });
 }
 
-export function entryRoute(entry, locale) {
+export function entryRoute(entry: PortalEntry, locale: Locale) {
   if (entry.section === 'guides') return routeHref({ locale, area: 'learn', id: entry.id });
   if (entry.section === 'examples') return routeHref({ locale, area: 'examples', id: entry.id });
   if (entry.section === 'demo') return routeHref({ locale, area: 'playground', id: entry.id });
   return routeHref({ locale, area: 'api', id: entry.id });
 }
 
-export function resolvePage(route, entries, exampleIds = []) {
+export function resolvePage(
+  route: PortalRoute,
+  entries: PortalEntry[],
+  exampleIds: string[] = [],
+): ResolvedPage {
   if (route.area === 'reports') return { kind: 'report' };
   const entry = entries.find((candidate) => candidate.id === route.id);
   const isExample = exampleIds.includes(route.id);

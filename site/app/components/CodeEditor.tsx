@@ -1,22 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '../../content/locale.ts';
 import { runModule } from '../code/execute.ts';
+import type { ModuleExecutionResult, ModuleExecutionTask } from '../code/execute.ts';
 import { CodeSurface } from './CodeSurface.tsx';
 import { CodeInput } from './CodeInput.tsx';
 import { Alert, Button } from './UI.tsx';
 
 /** Initial source is a snapshot: an animation cannot replace an edited document. */
-interface ModuleExecutionResult {
-  ok: boolean;
-  kind?: 'cancelled' | 'timeout';
-  text?: string;
-}
-
-interface ModuleExecutionTask {
-  promise: Promise<ModuleExecutionResult>;
-  cancel: () => void;
-}
-
 interface CodeEditorProps {
   initialCode: string;
   resetCode: () => string;
@@ -41,10 +31,7 @@ export function CodeEditor({ initialCode, resetCode, locale = 'en' }: CodeEditor
     task.current?.cancel();
     setRunning(true);
     setResult(null);
-    const current: ModuleExecutionTask = runModule(
-      code,
-      new URL('js/engine.js', document.baseURI).href,
-    );
+    const current = runModule(code, new URL('js/engine.js', document.baseURI).href);
     task.current = current;
     const response = await current.promise;
     if (task.current !== current) return;

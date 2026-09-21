@@ -1,3 +1,4 @@
+import type { PortalEntry } from '../../content/model.ts';
 import { EXAMPLES } from '../../content/entries/examples.ts';
 import { GUIDES } from '../../content/entries/guides.ts';
 import { RENDERING_GUIDES } from '../../content/entries/guidesRendering.ts';
@@ -12,7 +13,7 @@ import { BOUNDS } from '../../content/entries/bounds.ts';
 import { TREE } from '../../content/entries/tree.ts';
 import { BATCHES } from '../../content/entries/batches.ts';
 
-export const rawEntries = [
+export const rawEntries: PortalEntry[] = [
   ...GUIDES,
   ...RENDERING_GUIDES,
   ...ENGINE_GUIDES,
