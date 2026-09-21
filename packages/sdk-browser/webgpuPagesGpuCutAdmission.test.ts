@@ -6,17 +6,13 @@ import {
   MIN_BUDGET_PIXEL_ERROR,
 } from './webgpuPagesGpuCutAdmission.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { createWebgpuBudgetState } from './webgpuBudgetState.ts';
 
 /** A runtime reduced to what admission reads: the pool, the sample's threshold, the counts. */
 function mount(slots: number) {
   const state = { samplePixelError: 0, requested: 0, kept: 0, view: 0, slots };
   const run = {
-    budgetPixelError: 0,
-    budgetOverflowError: -1,
-    budgetOverflowView: -1,
-    budgetOverflowSlots: -1,
-    coverageBudgetLimited: false,
-    coverageBudgetEvent: undefined as Record<string, unknown> | undefined,
+    ...createWebgpuBudgetState(),
     gpuSelection: { peek: () => ({ uniforms: { pixelError: state.samplePixelError } }) },
     gate: { revisions: state },
   };
