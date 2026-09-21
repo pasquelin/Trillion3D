@@ -19,8 +19,8 @@ interface RendererLessonProps {
 }
 
 export function RendererLesson({ lesson, locale = 'en', onSelect }: RendererLessonProps) {
-  const initial: Record<string, number> = useMemo(() => rendererInitialState(lesson), [lesson]);
-  const [state, setState] = useState<Record<string, number>>(initial);
+  const initial = useMemo(() => rendererInitialState(lesson), [lesson]);
+  const [state, setState] = useState(initial);
   const french = locale === 'fr';
   const title = local(lesson.title, locale);
   useEffect(() => setState(initial), [initial]);

@@ -73,7 +73,7 @@ export function composeMatrix4<T extends NumberSink>(
  * Composes `n` matrices. Two forms, and only two: everything flat, or everything as `n` sub-views
  * — `mathBatch.ts` explains why a matrix travels as a sub-view. The form is settled BEFORE the
  * loop, never inside it: a ternary per element costs 6% on two hundred thousand compositions,
- * measured against Three's own loop by `three-vs-core-batch-matrices.perf.mjs`.
+ * measured against Three's own loop by `three-vs-core-batch-matrices.perf.ts`.
  *
  * Repeats `composeMatrix4`; replaces Three's `for … m.compose(p, q, s)`.
  */

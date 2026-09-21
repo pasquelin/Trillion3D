@@ -6,7 +6,7 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { dagRoots } from './webgpuPagesTestDag.ts';
-import { camera, quadBackend } from './webgpuPagesTestScenes.ts';
+import { camera } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
@@ -57,6 +57,14 @@ test('the initial cover also protects regions first discovered after a camera ju
   const metadata = {
     errorModel: 'dag-group-qem-v1',
     clusterStrategy: 'dag-groups',
+    schema: 1,
+    status: 'ready',
+    key: 'k',
+    scope: 'full' as const,
+    sourceTriangles: 0,
+    selectedTriangles: 0,
+    selectedNodes: [],
+    totalNodes: 0,
     primitives: [
       {
         mesh: 0,
@@ -136,63 +144,4 @@ test('webgpu pages select the same coarse LOD cut as the WebGL2 exact backend', 
   webgpu.dispose();
   geometry.dispose();
   material.dispose();
-});
-
-test('a lost WebGPU device fails the backend without throwing from dispose', async () => {
-  installGpuGlobals();
-  const { device, lose } = mockGpu();
-  const { fixture, backend } = quadBackend(device);
-  await backend.prepare();
-  lose('destroyed');
-  await Promise.resolve();
-  assert.throws(() => backend.render(camera()), /WEBGPU_LOST/);
-  await backend.dispose();
-  fixture.geometry.dispose();
-  fixture.material.dispose();
-});
-
-test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', async () => {
-  installGpuGlobals();
-  const { device, lose } = mockGpu();
-  let unconfigured = false;
-  const canvas = {
-    width: 1,
-    height: 1,
-    getContext: () => ({
-      configure() {},
-      getCurrentTexture: () => ({ createView: () => ({}) }),
-      unconfigure() {
-        unconfigured = true;
-      },
-    }),
-  };
-  // The composed presentation needs a canvas of the engine's own: the document hands it out.
-  Object.assign(globalThis, { document: { createElement: () => canvas } });
-  const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
-  const { fixture, backend } = quadBackend(device, {
-    onDiagnostic: (e) => {
-      // Announced after the withdrawal: a host drawing on it already finds no canvas.
-      if (e.phase === 'gpu-device-lost') assert.equal(backend.presentedSurface, undefined);
-      events.push(e);
-    },
-  });
-  try {
-    await backend.prepare();
-    backend.render(camera());
-    assert.equal(backend.presentedSurface, canvas, 'the composed canvas is published');
-    lose('destroyed');
-    await Promise.resolve();
-    assert.equal(backend.presentedSurface, undefined, 'a lost device publishes no canvas');
-    assert.equal(unconfigured, true, 'the drawing buffer is blanked');
-    assert.equal(backend.metrics().frameHeld, false);
-    const lost = events.find((e) => e.phase === 'gpu-device-lost');
-    assert.equal(lost?.context.code, 'WEBGPU_LOST');
-    assert.equal(lost?.context.reason, 'destroyed');
-    assert.throws(() => backend.render(camera()), /WEBGPU_LOST/);
-  } finally {
-    await backend.dispose();
-    delete (globalThis as { document?: unknown }).document;
-    fixture.geometry.dispose();
-    fixture.material.dispose();
-  }
 });

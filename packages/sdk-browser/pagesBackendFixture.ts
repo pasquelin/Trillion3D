@@ -1,6 +1,7 @@
 import type { RenderBackend } from './backendTypes.ts';
 import type { ClusterDraw } from './clusterBatches.ts';
 import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../sdk-core/index.ts';
 
 /** Indices one submission draws, in submission order: the ranges of a batch record, the whole
  *  index of a page mesh. */
@@ -112,3 +113,15 @@ export function dagLevel(
 }
 
 export const DAG = { errorModel: 'dag-group-qem-v1', clusterStrategy: 'dag-groups' as const };
+
+/** The identity fields a cluster manifest carries, filled once for every backend test. */
+export const MANIFEST_IDENTITY = {
+  schema: CLUSTERED_BLEND_FORMAT_VERSION,
+  status: 'ready' as const,
+  key: 'k',
+  scope: 'full' as const,
+  sourceTriangles: 0,
+  selectedTriangles: 0,
+  selectedNodes: [] as number[],
+  totalNodes: 0,
+};

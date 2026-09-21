@@ -53,7 +53,7 @@ export const clusterLevel = (flags: number) => flags >>> CLUSTER_LEVEL_SHIFT;
  * The readout buffer was sized on `pageCount` — the worst case, a cut that would keep
  * the whole catalogue — and the frame copy took all of it: 15.2 MiB per frame at
  * 1,992,187 clusters, for a cut that keeps about a hundredth. Measured on apple metal-3
- * (`test/justesse/releve-coupe-gpu.mjs`): 1.17 ms per frame for the full readout vs
+ * (`test/justesse/releve-coupe-gpu.ts`): 1.17 ms per frame for the full readout vs
  * 0.52 ms for a capped readout, when the kernels themselves cost 0.99.
  *
  * The cap is WIDE next to a real cut: the same bench keeps 7,812 ranks of 1,992,187 at

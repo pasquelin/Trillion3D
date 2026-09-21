@@ -39,6 +39,7 @@ function api(backend: RenderBackend) {
     store: undefined,
     imported: [],
     backends: [backend],
+    active: () => backend,
   });
 }
 
