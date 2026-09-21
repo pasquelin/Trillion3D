@@ -65,8 +65,11 @@ export function parseRoute(hash: string, fallbackLocale: Locale = 'en'): PortalR
       id: decodeId(parts.slice(2).join('/')) || (area === 'learn' ? 'home' : ''),
     };
   }
+  // The pre-portal docs listed the SDK examples under `#examples/<id>`; they live in Learn now.
   if (parts[0] === 'examples')
-    return { locale: fallbackLocale, area: 'lessons', id: parts[1] || '' };
+    return parts[1]
+      ? { locale: fallbackLocale, area: 'learn', id: parts[1] }
+      : { locale: fallbackLocale, area: 'lessons', id: '' };
   if (parts[0] === 'demo') return { locale: fallbackLocale, area: 'lessons', id: 'engine-scene' };
   if (LEGACY_SECTIONS.has(parts[0])) {
     const area = parts[0] === 'guides' ? 'learn' : parts[0] === 'demo' ? 'playground' : 'api';

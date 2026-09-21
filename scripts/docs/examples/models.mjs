@@ -75,9 +75,10 @@ async function crates(models, directory) {
 
 export const modelScenes = { bust, 'street-corner': streetCorner, crates };
 
-/** Assembles the source folder of every model scene under `examples` from `models`. */
-export async function writeModelScenes(examples, models) {
+/** Assembles the source folder of the model scenes `names` under `examples` from `models`. */
+export async function writeModelScenes(examples, models, names = Object.keys(modelScenes)) {
   for (const [name, write] of Object.entries(modelScenes)) {
+    if (!names.includes(name)) continue;
     const directory = resolve(examples, name, 'source');
     await mkdir(directory, { recursive: true });
     await write(models, directory);

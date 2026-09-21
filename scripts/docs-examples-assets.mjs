@@ -18,16 +18,20 @@ const root = resolve(import.meta.dirname, '..'),
     process.env.WG_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
 
+const names = [...Object.keys(scenes), ...Object.keys(modelScenes)].filter(
+  (name) => !only || name === only,
+);
+if (!names.length) throw new Error(`Unknown example scene: ${only}`);
+
 for (const [name, scene] of Object.entries(scenes)) {
-  if (only && name !== only) continue;
+  if (!names.includes(name)) continue;
   const { name: label, materials, surfaces } = scene();
   await writeSurfacesGltf(resolve(examples, name, 'source'), label, materials, surfaces);
 }
-await writeModelScenes(examples, resolve(examples, 'models'));
+await writeModelScenes(examples, resolve(examples, 'models'), names);
 if (process.argv.includes('--source-only')) process.exit(0);
 
-for (const name of [...Object.keys(scenes), ...Object.keys(modelScenes)]) {
-  if (only && name !== only) continue;
+for (const name of names) {
   const directory = resolve(examples, name);
   await rm(resolve(directory, 'cache'), { recursive: true, force: true });
   // The source folder holds one glTF or the OBJ files to merge; relative paths, from the scene
