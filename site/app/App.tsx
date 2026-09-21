@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Report } from './reports/Report.tsx';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Entry } from './Entry.tsx';
 import { EngineScene } from './engine-scene/index.tsx';
-import { Gallery, Playground } from './gallery/index.tsx';
 import { examples } from '../content/catalog.ts';
 import { rawEntries } from './portal/data.ts';
 import { parseRoute, resolvePage, routeHref } from './portal/routes.ts';
@@ -14,6 +12,14 @@ import { Layout } from './portal/Layout.tsx';
 import { canonicalEntryId } from './portal/entryLinks.ts';
 import type { PortalEntry } from '../content/model.ts';
 import type { PortalRoute, ResolvedPage } from './portal/routes.ts';
+
+// The areas a route may never visit load on demand: the gallery carries the roadmap, the
+// playground the code editor, the reports their presentation — none of them on the home page.
+const Gallery = lazy(() => import('./gallery/Gallery.tsx').then((m) => ({ default: m.Gallery })));
+const Playground = lazy(() =>
+  import('./gallery/Playground.tsx').then((m) => ({ default: m.Playground })),
+);
+const Report = lazy(() => import('./reports/Report.tsx').then((m) => ({ default: m.Report })));
 
 function currentRoute() {
   return parseRoute(location.hash, document.documentElement.lang === 'fr' ? 'fr' : 'en');
@@ -170,12 +176,14 @@ export function App() {
       onQuery={setQuery}
       onTheme={() => setTheme((value) => (value === 'dim' ? 'light' : 'dim'))}
     >
-      <Page
-        key={`${route.locale}/${route.area}/${route.id}`}
-        page={page}
-        route={route}
-        entries={entries}
-      />
+      <Suspense fallback={<span className="loading loading-spinner loading-md" role="status" />}>
+        <Page
+          key={`${route.locale}/${route.area}/${route.id}`}
+          page={page}
+          route={route}
+          entries={entries}
+        />
+      </Suspense>
     </Layout>
   );
 }

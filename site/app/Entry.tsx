@@ -5,7 +5,7 @@ import { apiScenario } from '../lessons/apiScenario.ts';
 import { engineDiagnosticsCode, engineExampleCode } from '../lessons/engine-scene/code.ts';
 import { examples } from '../content/catalog.ts';
 import { EngineExample } from './engine-scene/index.tsx';
-import { GeometryPreview } from './gallery/index.tsx';
+import { GeometryPreview } from './gallery/WebGPUCanvas.tsx';
 import { ApiDemo } from './ApiDemo.tsx';
 import { CodeBlock } from './components/CodeBlock.tsx';
 import { ExampleLayout } from './components/ExampleLayout.tsx';
