@@ -128,6 +128,9 @@ export function readOptions(argv, root) {
     profileFrames: number('images-profil', 120),
     // `--textures cache`: the engine reads baked texture levels from cache; loader does not open source images.
     textureSource: flags.get('textures') === 'cache' ? 'cache' : 'host',
+    // `--budget-textures <ms>`: CPU milliseconds a frame may spend copying texture tiles; without
+    // the option, the engine keeps its default (1.0 ms).
+    textureUploadMs: flags.has('budget-textures') ? number('budget-textures', 1) : null,
     // `--antialiasing off`: WebGPU engine renders without jitter or history.
     temporalAntialiasing: flags.get('antialiasing') !== 'off',
     // Headless mode caps display to 60 Hz on this machine: `--visible` opens a real window when frame rate matters.
