@@ -1,8 +1,13 @@
 import { type BatchPage, DrawRanges, IndexRangeAllocator } from './clusterBatchRange.ts';
-import type { ClusterDrawMesh, ClusterGeometry, HostAttributes } from './clusterBatchMesh.ts';
+import type {
+  ClusterDrawMesh,
+  ClusterGeometry,
+  GpuBuffer,
+  HostAttributes,
+} from './clusterBatchMesh.ts';
 
 type PageSlot = { offset: number; length: number };
-type UpdateRange = { start: number; count: number };
+type UpdateRange = GpuBuffer['updateRanges'][number];
 
 /**
  * Resident index buffer of a primitive: unique geometry shared by all its instances, owned by

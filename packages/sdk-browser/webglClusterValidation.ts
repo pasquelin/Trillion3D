@@ -3,17 +3,17 @@ import { clusterMaterialReason } from './webglClusterCompatibility.ts';
 import { refuseCluster as refuse } from './webglClusterRefusal.ts';
 import type { Material } from './webglClusterMaterialBinding.ts';
 
-const validateMesh = (
-  mesh: ClusterDrawMesh | WholeMesh,
+const validateMeshes = (
+  meshes: readonly (ClusterDrawMesh | WholeMesh)[],
   seen: Map<Material, HostAttributes>,
   transmissive: boolean,
 ) => {
-  const { material } = mesh,
-    attributes = mesh.geometry.attributes;
-  if (Array.isArray(material)) refuse('material arrays are unsupported');
-  else {
+  for (const mesh of meshes) {
+    const { material } = mesh,
+      attributes = mesh.geometry.attributes;
+    if (Array.isArray(material)) refuse('material arrays are unsupported');
     const previous = seen.get(material);
-    if (previous === attributes) return;
+    if (previous === attributes) continue;
     const reason = clusterMaterialReason(material, attributes, transmissive);
     if (reason) refuse(reason);
     if (!previous) seen.set(material, attributes);
@@ -35,7 +35,9 @@ export function validateClusterMeshes(
   seen: Map<Material, HostAttributes>,
 ) {
   seen.clear();
-  for (const list of [meshes, wholeMeshes, copies.plain, copies.blended])
-    for (const mesh of list) validateMesh(mesh, seen, false);
-  for (const mesh of copies.transmissive) validateMesh(mesh, seen, true);
+  validateMeshes(meshes, seen, false);
+  validateMeshes(wholeMeshes, seen, false);
+  validateMeshes(copies.plain, seen, false);
+  validateMeshes(copies.blended, seen, false);
+  validateMeshes(copies.transmissive, seen, true);
 }

@@ -6,6 +6,7 @@ import {
   type WholeMesh,
 } from './clusterBatchMesh.ts';
 import type { ClusterBatchStats, ClusterDrawOwner } from './clusterBatches.ts';
+import { firstMaterial } from './materialSide.ts';
 import type { SceneCopy } from './webglClusterCopyCulling.ts';
 import type { WebglClusterScene } from './webglClusterLights.ts';
 
@@ -14,10 +15,8 @@ import type { WebglClusterScene } from './webglClusterLights.ts';
 export type ClusterDrawScene = WebglClusterScene & { updateMatrixWorld(): void };
 
 /** Submissions a material asks for this frame: none while hidden, otherwise its passes. */
-const passCount = (material: WholeMesh['material']) => {
-  const single = Array.isArray(material) ? material[0] : material;
-  return single?.visible ? drawPasses(material).length : 0;
-};
+const passCount = (material: WholeMesh['material']) =>
+  firstMaterial(material)?.visible ? drawPasses(material).length : 0;
 
 export function drawClusterBatches(
   owner: ClusterDrawOwner,

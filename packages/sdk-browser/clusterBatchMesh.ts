@@ -1,7 +1,7 @@
 import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
 import type { BatchPage, DrawRanges } from './clusterBatchRange.ts';
 import type { ClusterDraw } from './clusterBatches.ts';
-import { sideOf, type Side } from './materialSide.ts';
+import { firstMaterial, sideOf, type Side } from './materialSide.ts';
 
 /** Vertex attributes of a host geometry, as the page records carry them. */
 export type HostAttributes = BatchPage['attributes'];
@@ -65,7 +65,7 @@ const DECLARED_SIDE: readonly undefined[] = [undefined];
  * surface draws once, on the faces its material declares (`undefined`).
  */
 export function drawPasses(material: HostMaterial): readonly (Side | undefined)[] {
-  const single = Array.isArray(material) ? material[0] : material;
+  const single = firstMaterial(material);
   return single?.transparent && sideOf(single) === 'double' && !single.forceSinglePass
     ? BACK_THEN_FRONT
     : DECLARED_SIDE;

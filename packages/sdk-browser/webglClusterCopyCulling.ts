@@ -8,6 +8,7 @@ import {
 import { multiplyMatrix4 } from './webglClusterMatrices.ts';
 import { readThreeBox } from './threeBounds.ts';
 import { isTransmissive } from './visibilityMaterial.ts';
+import { firstMaterial } from './materialSide.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 import type { WholeMesh } from './clusterBatchMesh.ts';
 
@@ -44,8 +45,7 @@ class WebglClusterCopyCulling {
   }
 }
 
-const isBlended = (material: WholeMesh['material']) =>
-  !!(Array.isArray(material) ? material[0] : material)?.transparent;
+const isBlended = (material: WholeMesh['material']) => !!firstMaterial(material)?.transparent;
 
 /**
  * The scene copies of one frame, in view, by pass, the classification the reference applies to

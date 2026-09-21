@@ -9,7 +9,6 @@ import type { WholeMesh } from './clusterBatchMesh.ts';
 /** What the engine draws for one observed surface: the host geometry, read where the host
  *  holds it, and an owned placement — no host mesh, no clone. */
 export type ObservationMesh = {
-  name: string;
   geometry: WholeMesh['geometry'];
   matrix: { elements: Float64Array };
   /** Rank of the observed rectangle; -1 for the glossy sphere. */
@@ -52,7 +51,6 @@ export function createObservationMeshes(
     invertMatrix4(restTransform, surface >= 0 ? surfaceBasis(surface, basis) : sphereBasis(basis));
     multiplyMatrix4(restTransform, restTransform, worlds.world(original));
     copies.push({
-      name: original.name,
       geometry,
       matrix: { elements: new Float64Array(16) },
       surface,
