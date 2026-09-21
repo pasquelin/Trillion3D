@@ -8,7 +8,7 @@ import { fossilExcavation } from './docs/fossil-excavation/scene.mjs';
 import { writeFossilExcavation } from './docs/fossil-excavation/write.mjs';
 
 const root = resolve(import.meta.dirname, '..'),
-  published = resolve(root, 'docs/assets/gallery/fossil-excavation');
+  published = resolve(root, 'site/assets/gallery/fossil-excavation');
 
 test('fossil excavation is deterministic and keeps recognizable material groups', () => {
   const first = fossilExcavation(),

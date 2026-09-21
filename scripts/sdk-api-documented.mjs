@@ -10,9 +10,9 @@ function gap(name, kind, module, entry, consumer) {
   };
 }
 
-const CAMERA = 'docs/js/docsContentCamera.js';
-const ENUMS = 'docs/js/docsContentEnumsRuntime.js';
-const MATRIX = 'docs/js/docsContentMatrix.js';
+const CAMERA = 'site/content/entries/camera.ts';
+const ENUMS = 'site/content/entries/enumsRuntime.ts';
+const MATRIX = 'site/content/entries/matrix.ts';
 
 export const DOCUMENTED_GAPS = [
   gap('CameraOptics', 'type', 'packages/sdk-browser/engineCamera.ts', 'browser', CAMERA),

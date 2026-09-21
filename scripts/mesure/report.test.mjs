@@ -4,9 +4,9 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { exportReport } from './report/export.mjs';
-import { assertReport } from '../../docs/js/reports/contract.js';
-import { comparison } from '../../docs/js/reports/compare.js';
-import { metricValue } from '../../docs/js/reports/metrics.js';
+import { assertReport } from '../../site/reports/contract.ts';
+import { comparison } from '../../site/reports/compare.ts';
+import { metricValue } from '../../site/reports/metrics.ts';
 import { canResume } from './report/provenance.mjs';
 const reading = () => ({
   id: 'a',

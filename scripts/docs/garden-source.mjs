@@ -132,4 +132,4 @@ export async function writeGarden(directory) {
   await writeFile(resolve(directory, 'garden.gltf'), JSON.stringify(gltf));
 }
 if (process.argv[1] === import.meta.filename)
-  await writeGarden(resolve(process.argv[2] ?? 'docs/assets/kinetic-garden/source'));
+  await writeGarden(resolve(process.argv[2] ?? 'site/assets/kinetic-garden/source'));

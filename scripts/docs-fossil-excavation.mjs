@@ -6,7 +6,7 @@ import { fossilExcavation } from './docs/fossil-excavation/scene.mjs';
 import { writeFossilExcavation } from './docs/fossil-excavation/write.mjs';
 
 const root = resolve(import.meta.dirname, '..'),
-  directory = resolve(root, 'docs/assets/gallery/fossil-excavation'),
+  directory = resolve(root, 'site/assets/gallery/fossil-excavation'),
   compiler =
     process.env.WG_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');

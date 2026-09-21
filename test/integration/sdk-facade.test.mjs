@@ -80,7 +80,7 @@ test('the five-import hierarchy example composes parents before children', () =>
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory = JSON.parse(
-    await readFile(new URL('../../docs/api-inventory.json', import.meta.url)),
+    await readFile(new URL('../../site/data/api-inventory.json', import.meta.url)),
   );
   assert.equal(inventory.exports.length, 485);
   assert.deepEqual(inventory.collisions, []);
