@@ -96,3 +96,29 @@ test('a setting above the session ceiling is brought back to the ceiling, and th
   await setWebgpuMemoryBudgets(rt as never, { geometryPoolBytes: 800 });
   assert.deepEqual(resized, [4]);
 });
+
+// Behaviour: a texture budget set before prepare is kept, not drawn — the lane pools need the
+// catalogue —, the report says so with `null`, and prepare draws the pools at that budget.
+test('a texture budget set before prepare is kept and drawn by prepare, the report saying null', async () => {
+  installGpuGlobals();
+  const { device } = mockGpu();
+  const { fixture, backend } = quadBackend(device, { maxResidentPages: undefined });
+  try {
+    const early = await backend.setMemoryBudgets!({ texturePoolBytes: 1 });
+    assert.equal(early.texturePool, null);
+    assert.equal(backend.metrics().texturePoolClamp, null);
+    await backend.prepare();
+    backend.render(camera());
+    assert.equal(backend.metrics().texturePoolClamp, 'minimum', 'drawn at the one-byte budget');
+    const after = await backend.setMemoryBudgets!({});
+    assert.equal(after.texturePool?.budgetBytes, 1);
+    await assert.rejects(
+      backend.setMemoryBudgets!({ texturePoolBytes: 0 }),
+      /INVALID_TEXTURE_POOL_BUDGET/,
+    );
+  } finally {
+    backend.dispose();
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
+});

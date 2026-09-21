@@ -39,7 +39,7 @@ export type BlockChoice = { block: TextureBlockFormat | undefined; reason: strin
  */
 export function chooseBlockFormat(
   features: { has(name: GPUFeatureName): boolean },
-  previews: Iterable<Pick<TexturePreview, 'layouts'>>,
+  previews: readonly Pick<TexturePreview, 'layouts'>[],
   wanted: TextureCompression = 'auto',
 ): BlockChoice {
   if (wanted === 'none') return { block: undefined, reason: 'host asked for rgba8' };
