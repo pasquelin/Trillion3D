@@ -32,6 +32,7 @@ pub(super) fn cube_fixture() -> (PathBuf, Options) {
         threads: 1,
         ram_budget_mb: 64,
         simplification: "qem-endpoints".into(),
+        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
         cancelled: Arc::new(AtomicBool::new(false)),
     };
     (root, options)
@@ -99,6 +100,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
         threads: 1,
         ram_budget_mb: 64,
         simplification: "qem-endpoints".into(),
+        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
         cancelled: Arc::new(AtomicBool::new(false)),
     };
     (root, options)
