@@ -32,7 +32,6 @@ numbers. Conventions shared by every entry:
 - Details, defaults and teardown: [SDK guide](SDK.md#simple-browser-startup). Proof:
   `explorerTarget.test.ts`, `explorerFrameScheduler.test.ts` and the browser startup proof.
 
-
 ## Batch A — maths and side enum (#76)
 
 ### Matrices — `packages/sdk-core/mathMatrix4.ts`, `mathMatrix4Inverse.ts`, `mathMatrix4Trs.ts`
@@ -134,12 +133,63 @@ cumulative evidence of routing, not a frame-time or draw-call metric.
 
 The supported input is unextended `MeshStandardMaterial` and `MeshBasicMaterial`, including glTF base
 colour, metallic-roughness, normal, occlusion and emissive textures and their samplers, transforms and
-UV sets. Unsupported blend, transmission, physical extensions, shader hooks, material arrays and light
-types select the complete scene-renderer fallback explicitly; #119 and #120 track their removal.
+UV sets. At this stage, unsupported blend, transmission, physical extensions, shader hooks, material
+arrays and light types selected a complete scene-renderer fallback; #119 then #120 removed it.
 
-| Function or contract                                  | Computes                                                                                             | Replaces                                            | Proof                                                                          |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Function or contract                                  | Computes                                                                                                              | Replaces                                            | Proof                                                                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `WebglClusterRenderer.draw(meshes, scene, camera, …)` | validated opaque/MASK batches, multi-draw submission, bounded light blocks and published geometric specular filtering | host-renderer submission of those cluster meshes    | analytic planar/curved/moving browser fixtures; real Emerald `autonomousClusterDrawsTotal` |
 | `RenderBackend.drawHostGeometry(camera, output)`      | one raw geometry hook with explicit colour encoding and tone-mapping destination state               | cluster meshes attached to the temporary scene      | canvas and sRGB FBO cases in `rendu-clusters-webgl.browser.mjs`                |
 | `createSceneDrawer(renderer, camera)`                 | shared display, render-target, capture, held-frame and restoration order                             | independent host-renderer calls in each output path | context loss/restore and FBO scissor cases in the browser proof                |
 | `autonomousClusterDrawsTotal`                         | cumulative count of visible cluster batches whose owned submission completed                         | inference from host-renderer counters               | real Emerald counter; invisible and rejected browser cases count zero          |
+
+## Batch E5 — transmission over autonomous clusters, fallback removed (#120)
+
+A transmissive source mesh is a scene copy the engine draws itself, after the paged clusters,
+over a frozen backdrop of the frame in linear light — the glTF transmission model the WebGPU
+pass already implements. With every supported material path owned, the temporary complete-scene
+fallback is gone: paged clusters have one renderer, and a scene it cannot draw in full fails its
+preparation by name.
+
+| Function or contract                                          | Computes                                                                                               | Replaces                                                        | Proof                                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `WebglClusterRenderer.draw(meshes, scene, camera, …, copies)` | the frame into the backdrop, then to the target, then the transmissive copies reading the backdrop     | `WebGLRenderer.renderTransmissionPass` and the physical shader  | `transmission-clusters-webgl.browser.mjs`: through, occluded, blended, attenuated, lit |
+| `WebglClusterBackdrop`                                        | half-float colour and 24-bit depth copies sized to the viewport, bound and restored around the frame   | `WebGLRenderer._transmissionRenderTarget`                       | sub-viewport, target and viewport restoration in the same proof                        |
+| `clusterMaterialReason(material, attributes, transmissive)`   | the named reason a material cannot be preserved; the transmission volume is the one physical extension | silent selection of the scene-renderer fallback                 | `webglClusterCompatibility.test.ts`                                                    |
+| `submittedDraws(backend)`                                     | the batch records or diagnostic page meshes the owner submits for the cut; oracle and test access only | reading `ClusterDrawMesh` objects off the host scene            | `pagesBackend*.test.ts`, `pageRaster.ts` oracle                                        |
+| `EngineError('CLUSTER_MATERIAL_UNSUPPORTED')`                 | preparation and draw refusal, `details.reason` naming the input                                        | `cluster-webgl-fallback` diagnostic and the complete Three path | `transmission-explorateur-webgl.browser.mjs`                                           |
+| `autonomousCopyDraws`, `transmissionBackdropBytes`            | submissions of the owned scene copies this frame, both passes; bytes the backdrop holds since the first glass | inference from host-renderer counters                           | explorer proof: one copy, 64 × 64 × 12 bytes, none in `WebGLRenderer.render`           |
+## Batch math for hosts (#104, #80)
+
+`packages/sdk-core/mathBatch.ts` and the `mathBatch*.ts` beside it: `n` elements per call, flat
+typed arrays or sub-views of a fixed stride (`mathBatchStrides.ts`, `BOX_VALUES`,
+`FRUSTUM_PLANE_VALUES`), output first, no allocation, a count as the only return value. Each batch
+repeats its unit function, which stays the oracle; how to lay out and reuse the buffers is in the
+[SDK guide](SDK.md#batch-math-for-hosts). The proof is `pnpm run perf:core`
+(`three-vs-core-batch-*.perf.mjs`; how a line reads: [TESTS.md](TESTS.md)). Ratios are the batch's
+speed-up over the reference's loop, rounded from the range of the per-run medians over three runs
+(PR #105, 20 Sept. 2026, Apple M2 Max, Node 26.8.2, the ranges in that pull request); the three
+exceptions are declared on their line.
+
+| Function                                                                                    | Computes                                                                            | Replaces the loop                         | Proof                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `frustumKeepsBoxBatch(kept, planes, boxes, n)`                                              | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept                     | `for … frustum.intersectsBox(box)`        | bench `Frustum.intersectsBox batch` (×1.1)                                                                                                                         |
+| `sphereFromBoundsBatch(out, boxes, n)`                                                      | four values per box, `sphereFromBounds`                                             | `for … box.getBoundingSphere(s)`          | bench `Box3.getBoundingSphere batch` (×2.2)                                                                                                                        |
+| `boxUnionBatch(into, boxes, n)`                                                             | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion`                                    | `for … box.union(b)`                      | bench `Box3.union batch` (×1.9)                                                                                                                                    |
+| `boxTransformBatch(out, boxes, mats[], n)`                                                  | `out[i] = boxTransform(boxes[i], mats[i])`                                          | `for … box.applyMatrix4(m)`               | `mathBatch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `mathBatchRuntime.test.ts`)                                               |
+| `boxTransformUnionBatch(into, boxes, mats[], n)`                                            | transform then union, one pass, one scratch box                                     | `Box3.setFromObject`                      | bench `Box3 transform and union batch` (×1.8)                                                                                                                      |
+| `multiplyMatrix4Batch(out[], a[], b[], n)`                                                  | `out[i] = a[i] · b[i]`, sub-views                                                   | `for … m.multiplyMatrices(a, b)`          | `mathBatchTransforms.test.ts`; WebAssembly kernel bit-identical (`math.rs`, `mathBatchRuntime.test.ts`)                                                            |
+| `invertMatrix4Batch(out[], mats[], n, singular?)`                                           | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]` | `for … m.invert()`                        | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the reference does less; ceiling 1.2            |
+| `normalMatrix3Batch(out, mats[], n)`                                                        | nine values per matrix, `normalMatrix3`                                             | `for … n.getNormalMatrix(m)`              | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`mathSingular.ts`) is kept; ceiling 2.2                              |
+| `composeMatrix4Batch(out, positions, quaternions, scales, n)`                               | `T · R · S` per element, all flat or all sub-views                                  | `for … m.compose(p, q, s)`                | bench `Matrix4.compose batch` (×1.5)                                                                                                                               |
+| `decomposeMatrix4Batch(positions[], quaternions[], scales[], mats[], n)`                    | the reverse, `decomposeMatrix4`                                                     | `for … m.decompose(p, q, s)`              | bench `Matrix4.decompose batch` (×1.1)                                                                                                                             |
+| `transformPointsBatch(out, m, points, n)`                                                   | `n` points by one affine matrix, `transformAffinePoint`                             | `for … v.applyMatrix4(m)`                 | bench `Vector3.applyMatrix4 batch` (×1.4)                                                                                                                          |
+| `transformPointsByMatricesBatch(out, mats[], points, n)`                                    | `n` points, one matrix each                                                         | `for … v[i].applyMatrix4(mats[i])`        | bench `Vector3.applyMatrix4 per-instance batch` (×1.9)                                                                                                             |
+| `transformDirectionsBatch(out, m, dirs, n)`                                                 | upper 3×3 then normalize, `transformDirectionVector3`                               | `for … v.transformDirection(m)`           | bench `Vector3.transformDirection batch` (×1.3)                                                                                                                    |
+| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)`                    | one channel per element, the exact curves of `mathColor.ts`                         | `for … color.convertSRGBToLinear()`       | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
+| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | `mathBatchHierarchy.test.ts`: JavaScript, WebAssembly (`math_hierarchy.rs`) and `three`'s `updateMatrixWorld`, same bits                                           |
+
+What the engine's own frame pays for the loops these batches would replace is measured in the SDK
+guide, same section: no engine loop was replaced by a batch in #80's third stage, each verdict
+resting on a published share.
+

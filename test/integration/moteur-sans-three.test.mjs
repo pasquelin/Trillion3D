@@ -32,7 +32,7 @@ const AUTORISES = {
   clusterBatches: 'batch witness: it groups host geometries',
   clusterBatchesFixture: 'batch-witness mount',
   clusterBatchLayers: 'batch witness: host mesh layers',
-  clusterBatchMesh: 'batch witness: it derives a host mesh',
+  clusterBatchMesh: 'batch draw record: host geometry and materials of one submission',
   clusterBatchPrimitive: 'batch witness: one host primitive per material',
   clusterBatchRange: 'batch witness: index ranges of a host geometry',
   clusterBatchSetup: 'batch witness: mount of its primitives',
@@ -92,13 +92,13 @@ const AUTORISES = {
   pageRaster: 'raster oracle: it reads meshes, materials and colours of the host graph',
   pageSelectionBlendFixture: 'test-scene mount: it sets the camera and materials',
   pageSelectionDagFixture: 'test-scene mount: it sets the camera and materials',
-  pagesBackendFixture: 'test mount: it counts what host meshes draw',
   pagesBackendScenes: 'test-scene mount: it sets the camera',
   visibilityBufferFixture: 'test-scene mount: it sets the camera and pages',
   webgpuPagesTestOccluder: 'test-scene mount: the occluder and its camera',
   webgpuPagesTestScenes: 'test-scene mounts: meshes and materials',
   webgpuTransformCisaillementFixture:
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
+  webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
 
   // 3. Host resources: materials, textures, geometries, colours, face constants.
   backendTypes: 'contract: host resources an engine receives',

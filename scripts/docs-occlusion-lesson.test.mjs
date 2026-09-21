@@ -6,7 +6,7 @@ import { rendererCodeFor } from '../docs/js/gallery/rendererLessonCode.js';
 import { loadReactComponents } from './docs/render-react.mjs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-const { Playground } = await loadReactComponents('docs/react/gallery/index.jsx');
+const { Playground } = await loadReactComponents('docs/react/gallery/index.tsx');
 
 test('the occlusion lesson lowers the eye on the garden and its proof counts what the pyramid hid', async () => {
   const lesson = rendererLessons.find(({ id }) => id === 'occlusion-two-phase');

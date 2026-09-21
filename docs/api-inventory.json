@@ -410,6 +410,7 @@
         "packages/sdk-browser/pageSelectionCollect.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
         "packages/sdk-browser/threeLod.ts",
+        "packages/sdk-browser/webglClusterCopyCulling.ts",
         "packages/sdk-browser/webgpuBlendPrepare.ts",
         "packages/sdk-browser/webgpuBlendWorlds.test.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
@@ -462,7 +463,9 @@
         "packages/sdk-browser/hostWorldBounds.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
         "packages/sdk-browser/threeLod.ts",
-        "packages/sdk-browser/webgpuPagesTransform.ts"
+        "packages/sdk-browser/webgpuPagesLightResources.ts",
+        "packages/sdk-browser/webgpuPagesTransform.ts",
+        "packages/sdk-browser/webgpuShadowBounds.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathBox\".boxEmpty"
@@ -509,6 +512,7 @@
         "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
         "packages/sdk-browser/mathBatchBoxes.ts",
         "packages/sdk-browser/pageSelectionCollect.ts",
+        "packages/sdk-browser/webglClusterCopyCulling.ts",
         "packages/sdk-browser/webgpuBlendWorlds.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
         "packages/sdk-browser/webgpuTransformCisaillement.test.ts",
@@ -550,7 +554,8 @@
         "packages/sdk-browser/bench/appui/volumesCasBoites.mjs",
         "packages/sdk-browser/mathBatchBoxes.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
-        "packages/sdk-browser/webgpuPagesTransform.ts"
+        "packages/sdk-browser/webgpuPagesTransform.ts",
+        "packages/sdk-browser/webgpuShadowBounds.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathBox\".boxUnion"
@@ -643,7 +648,8 @@
         "packages/sdk-browser/bench/appui/volumesCasTronc.mjs",
         "packages/sdk-browser/bench/tronc-residence.perf.mjs",
         "packages/sdk-browser/pageSelectionCutSelect.ts",
-        "packages/sdk-browser/pageSelectionMath.test.ts"
+        "packages/sdk-browser/pageSelectionMath.test.ts",
+        "packages/sdk-browser/webglClusterCopyCulling.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathFrustum\".clipPlanesFromMatrix"
@@ -1060,6 +1066,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryLayout\".Counts"
+    },
+    {
+      "name": "CpuStepSummary",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cpuProfile.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cpuProfile\".CpuStepSummary"
     },
     {
       "name": "createBatchProgress",
@@ -1824,6 +1841,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/bench/oracles/collecte-pages.mjs",
         "packages/sdk-browser/cacheFormat.test.ts",
+        "packages/sdk-browser/clusterBatches.ts",
         "packages/sdk-browser/clusterPages.ts",
         "packages/sdk-browser/explorer.ts",
         "packages/sdk-browser/explorerDraw.ts",
@@ -1844,6 +1862,7 @@
         "packages/sdk-browser/pageSelection5.test.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
         "packages/sdk-browser/sceneProxyLoad.ts",
+        "packages/sdk-browser/webglClusterRefusal.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
         "packages/sdk-browser/webgpuTransformFiniteTransform.test.ts"
       ],
@@ -1869,7 +1888,7 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "test/appui/webglClusterExplorerPage.mjs",
+        "test/appui/webglClusterExplorerMount.mjs",
         "test/justesse/cameraSitesMoteurs.mjs"
       ],
       "disposition": "retained",
@@ -1953,6 +1972,17 @@
       "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".faceCountOf"
     },
     {
+      "name": "forEachShadowFace",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneLightShadowCasters.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/webgpuShadowDrawnMask.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowCasters\".forEachShadowFace"
+    },
+    {
       "name": "FORMAT_VERSION",
       "kind": "value",
       "definingModule": "packages/sdk-core/contractsBase.ts",
@@ -2027,6 +2057,7 @@
         "packages/sdk-browser/cameraRenderOrigin.ts",
         "packages/sdk-browser/gpuSelection.ts",
         "packages/sdk-browser/pageSelectionCutState.ts",
+        "packages/sdk-browser/webglClusterCopyCulling.ts",
         "packages/sdk-browser/webgpuBlendState.ts"
       ],
       "disposition": "retained",
@@ -2063,6 +2094,7 @@
         "packages/sdk-browser/gpuDagOracleMath.ts",
         "packages/sdk-browser/gpuDagOraclePredicates.ts",
         "packages/sdk-browser/pageSelectionCut.ts",
+        "packages/sdk-browser/webglClusterCopyCulling.ts",
         "packages/sdk-browser/webgpuBlendOrder.ts",
         "packages/sdk-browser/webgpuBlendSelection.ts",
         "test/justesse/inverseTransposeCas.mjs"
@@ -2705,6 +2737,7 @@
         "packages/sdk-browser/gpuLightTilesRankEquivalence.test.ts",
         "packages/sdk-browser/gpuLightTilesShader.ts",
         "packages/sdk-browser/gpuShadowAtlas.ts",
+        "packages/sdk-browser/gpuShadowSlicePack.ts",
         "packages/sdk-browser/gpuSunFarShadow.ts",
         "packages/sdk-browser/visibilityShaderRequest.ts",
         "packages/sdk-browser/webgpuPagesPrepareLights.ts",
@@ -3050,7 +3083,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/gpuShadowAtlas.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/gpuShadowAtlas.ts",
+        "packages/sdk-browser/gpuShadowSlicePack.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".MAX_SHADOW_SLICES"
     },
@@ -3772,7 +3808,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/directLightWgsl.ts",
         "packages/sdk-browser/directShadowWgsl.ts",
-        "packages/sdk-browser/gpuShadowAtlas.ts"
+        "packages/sdk-browser/gpuShadowSlicePack.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".POINT_FACES"
@@ -4182,7 +4218,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/gpuShadowAtlas.test.ts",
-        "packages/sdk-browser/gpuShadowAtlas.ts",
+        "packages/sdk-browser/gpuShadowSlicePack.test.ts",
+        "packages/sdk-browser/gpuShadowSlicePack.ts",
         "packages/sdk-browser/webgpuPagesEncodeShadows.ts"
       ],
       "disposition": "retained",
@@ -4286,6 +4323,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/compilerProcess\".resolveCompilerExecutable"
+    },
+    {
+      "name": "ReusedFolder",
+      "kind": "type",
+      "definingModule": "packages/sdk-node/contracts.ts",
+      "currentEntryPoints": ["web-geometry (node condition)"],
+      "proposedEnvironments": "node",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-node/contracts\".ReusedFolder"
     },
     {
       "name": "reviewCutouts",
@@ -4483,7 +4531,9 @@
         "packages/sdk-browser/explorerLightApi.test.ts",
         "packages/sdk-browser/explorerLightApi.ts",
         "packages/sdk-browser/importedLights.ts",
-        "packages/sdk-browser/webgpuPagesLightResources.test.ts"
+        "packages/sdk-browser/webgpuPagesLightResources.test.ts",
+        "packages/sdk-browser/webgpuShadowDrawnMask.test.ts",
+        "packages/sdk-browser/webgpuShadowFrameCounts.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".SceneLight"
@@ -4742,9 +4792,28 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/gpuShadowAtlas.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/gpuShadowSlicePack.test.ts",
+        "packages/sdk-browser/gpuShadowSlicePack.ts",
+        "packages/sdk-browser/webgpuShadowDrawnMask.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".SHADOW_FACE_FLOATS"
+    },
+    {
+      "name": "SHADOW_FACE_MASK_WORD",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneLightShadowFaces.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/gpuShadowSlicePack.test.ts",
+        "packages/sdk-browser/gpuShadowSlicePack.ts",
+        "packages/sdk-browser/webgpuShadowDrawnMask.test.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".SHADOW_FACE_MASK_WORD"
     },
     {
       "name": "SHADOW_FACE_SIDES",
@@ -4764,7 +4833,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/webgpuPagesEncodeShadows.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/directShadowWgsl.ts",
+        "packages/sdk-browser/webgpuPagesEncodeShadows.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightShadowPages\".SHADOW_PAGE"
     },
@@ -4778,7 +4850,10 @@
       "affectedConsumers": [
         "packages/sdk-browser/deferredLightingSetup.ts",
         "packages/sdk-browser/gpuShadowAtlas.ts",
-        "packages/sdk-browser/visibilityShaderRequest.ts"
+        "packages/sdk-browser/gpuShadowSlicePack.test.ts",
+        "packages/sdk-browser/gpuShadowSlicePack.ts",
+        "packages/sdk-browser/visibilityShaderRequest.ts",
+        "packages/sdk-browser/webgpuShadowDrawnMask.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".SHADOW_SLICE_FLOATS"
@@ -4823,7 +4898,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/webgpuPagesEncodeShadows.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/webgpuPagesEncodeShadows.ts",
+        "packages/sdk-browser/webgpuShadowDrawnMask.test.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".ShadowViewpoint"
     },
@@ -5709,6 +5787,7 @@
         "test/appui/sceneOccultante.mjs",
         "test/appui/setTransformParentPerimePage.mjs",
         "test/appui/transparentTransformPage.mjs",
+        "test/appui/waterPassPage.mjs",
         "test/justesse/cameraSitesMoteurs.mjs"
       ],
       "disposition": "retained",

@@ -1,40 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BOUNDS } from '../docs/js/docsContentBounds.js';
-import { CAMERA, HOST_CAMERA } from '../docs/js/docsContentCamera.js';
-import { ENUMS_IMAGE } from '../docs/js/docsContentEnums.js';
-import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
-import { EXAMPLES, GUIDES } from '../docs/js/docsContentGuides.js';
-import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
-import { MATRICES } from '../docs/js/docsContentMatrix.js';
-import { BATCHES, TREE } from '../docs/js/docsContentTree.js';
-import { COLORS, VECTORS } from '../docs/js/docsContentVector.js';
 import { localizeEntries, supportedLocales, t } from '../docs/js/i18n/index.js';
+import { rawEntries } from '../docs/js/portal/data.js';
 import { localizeDemoText } from '../docs/js/i18n/demo.fr.js';
 import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
 
-const entries = [
-  ...GUIDES,
-  ...EXAMPLES,
-  ...ENUMS_IMAGE,
-  ...ENUMS_RUNTIME,
-  ...LIFECYCLE,
-  ...CAMERA,
-  ...HOST_CAMERA,
-  ...MATRICES,
-  ...VECTORS,
-  ...COLORS,
-  ...BOUNDS,
-  ...TREE,
-  ...BATCHES,
-];
-
 test('French content covers every documentation entry and preserves its technical contract', () => {
-  const localized = localizeEntries(entries, 'fr');
-  assert.equal(entries.length, 77);
-  assert.equal(localized.length, entries.length);
-  for (let index = 0; index < entries.length; index += 1) {
-    const source = entries[index];
+  const localized = localizeEntries(rawEntries, 'fr');
+  assert.equal(rawEntries.length, 84);
+  assert.equal(localized.length, rawEntries.length);
+  for (let index = 0; index < rawEntries.length; index += 1) {
+    const source = rawEntries[index];
     const french = localized[index];
     assert.equal(french.id, source.id);
     assert.equal(french.signature, source.signature);
@@ -55,9 +31,9 @@ test('French content covers every documentation entry and preserves its technica
 
 test('English and unsupported locales preserve source content without sharing entry objects', () => {
   for (const locale of ['en', 'de']) {
-    const localized = localizeEntries(entries, locale);
-    assert.deepEqual(localized, entries);
-    assert.notEqual(localized[0], entries[0]);
+    const localized = localizeEntries(rawEntries, locale);
+    assert.deepEqual(localized, rawEntries);
+    assert.notEqual(localized[0], rawEntries[0]);
   }
 });
 
@@ -101,7 +77,7 @@ test('legacy documentation hashes retain the active locale', () => {
 
 test('both locales describe interactive startup and align every method description', () => {
   for (const locale of supportedLocales) {
-    const localized = localizeEntries(entries, locale);
+    const localized = localizeEntries(rawEntries, locale);
     const explorer = localized.find(({ id }) => id === 'createExplorer');
     assert.match(explorer.description, /interactive: true/);
     assert.match(explorer.description, /ExplorerTarget/);
