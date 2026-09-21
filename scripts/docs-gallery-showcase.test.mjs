@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
 
-const { Gallery } = await loadReactComponents('site/app/gallery/index.tsx');
+const { Gallery } = await loadReactComponents('site/app/gallery/Gallery.tsx');
 const { GalleryShowcase } = await loadReactComponents('site/app/gallery/GalleryShowcase.tsx');
 const render = (component, locale) => renderToStaticMarkup(createElement(component, { locale }));
 
