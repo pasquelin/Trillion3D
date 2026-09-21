@@ -6,13 +6,16 @@ import { parseDagOutput } from '../gpuDagUniforms.ts';
 import { residentBase, residentWords } from '../gpuDagLayout.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { referenceUpdateResidency, residencyColumn } from './oracles/residence.ts';
+import { pageRecFixture } from './appui/pageRecFixture.ts';
+import type { PageRec } from '../pageSelectionTypes.ts';
 
 const CONE_FLOATS = 12,
   FLAG = 11;
 const alea = graine(53);
 const PAGES = 20000;
-const pages = [];
-for (let i = 0; i < PAGES * 2; i++) pages.push({ array: i % 3 ? new Uint32Array(3) : undefined });
+const paginette = (array?: Uint32Array): PageRec => pageRecFixture({ array });
+const pages: PageRec[] = [];
+for (let i = 0; i < PAGES * 2; i++) pages.push(paginette(i % 3 ? new Uint32Array(3) : undefined));
 
 const images = [];
 for (let image = 0; image < 8; image++) {
@@ -30,7 +33,7 @@ const base = residentBase(PAGES),
 for (let j = 0; j < PAGES; j++)
   if (conesReference[j * CONE_FLOATS + FLAG] >= 0.5) bits[base + (j >>> 5)] |= 1 << (j & 31);
 
-const colonne = (cones) => {
+const colonne = (cones: Float32Array) => {
   const output = new Float32Array(PAGES);
   for (let j = 0; j < PAGES; j++) output[j] = cones[j * CONE_FLOATS + FLAG];
   return output;
@@ -85,14 +88,14 @@ const resParseDag = await mesure({
   // The oracle from before batch A took a per-page flag mask; the engine now receives a
   // already-compacted list and a word offset. The two no longer describe the same output:
   // correctness of `parseDagOutput` is held by `gpuDagUniforms.test.ts`, not by this bench.
-  attendu: null,
+  attendu: undefined,
   motif: 'oracle from before batch A is stale — correctness in gpuDagUniforms.test.ts',
   options: { tours: 100, budgetMs: 1000 },
 });
 
 // `maxStretch` now reads the world-buffer view without copying it: the oracle is the same
 // computation on a copy, and the line fails if the in-place read changes a single bit.
-const etirements = (lecture) => () => {
+const etirements = (lecture: (w: number) => ArrayLike<number>) => () => {
   const output = new Float64Array(64);
   for (let w = 0; w < 64; w++) output[w] = maxStretch(lecture(w));
   return output;
@@ -112,7 +115,7 @@ await stress({
   calcul: comptePagesResidentes,
   extremes: [
     { name: 'empty', input: [] },
-    { name: 'without array', input: [{ array: undefined }] },
+    { name: 'without array', input: [paginette(undefined)] },
   ],
 });
 

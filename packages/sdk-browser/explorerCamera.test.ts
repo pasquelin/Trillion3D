@@ -46,9 +46,9 @@ test('createExplorerCamera (non-autonomous) yields the same bounds, centre and r
     hostileScene(),
     false,
     new Map(),
-    { primitives: [] },
+    { primitives: [] } as unknown as ClusterManifest,
     canvas,
-    {},
+    { manifestUrl: '' },
   );
   assertBits(
     [rendu.bounds.min.x, rendu.bounds.min.y, rendu.bounds.min.z],
@@ -74,7 +74,9 @@ test('createExplorerCamera (autonomous) yields the same bounds, centre and radiu
   const associations = new Map<THREE.Mesh, { meshes: number; primitives: number }>([
     [mesh, { meshes: 0, primitives: 0 }],
   ]);
-  const rendu = createExplorerCamera(source, true, associations, metadata, canvas, {});
+  const rendu = createExplorerCamera(source, true, associations, metadata, canvas, {
+    manifestUrl: '',
+  });
   // Reference: the same page transformed by the mesh world matrix, via Box3.applyMatrix4.
   // The witness resolves the graph itself: since batch 8, the engine no longer composes the host's.
   source.updateMatrixWorld(true);
@@ -92,7 +94,15 @@ test('createExplorerCamera throws on a scene with no geometry, empty bounds', ()
   const source = new THREE.Group();
   source.add(new THREE.Group());
   assert.throws(
-    () => createExplorerCamera(source, false, new Map(), { primitives: [] }, canvas, {}),
+    () =>
+      createExplorerCamera(
+        source,
+        false,
+        new Map(),
+        { primitives: [] } as unknown as ClusterManifest,
+        canvas,
+        { manifestUrl: '' },
+      ),
     /Empty scene bounds/,
   );
 });

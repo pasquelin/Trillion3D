@@ -1,20 +1,29 @@
 import * as THREE from 'three';
+import type { PageRec } from '../../pageSelection.ts';
 
 /**
  * `autonomousGeometry.ts` before batch G: `attach` and `detach` held no set, and
  * `sync` swept all of `allPages` — the whole DAG — to find the few pages the new
  * cut drops. The three functions are copied as-is: that is the oracle.
  */
-export function referenceAutonomousSync({ scene, allPages, shown }) {
+export function referenceAutonomousSync({
+  scene,
+  allPages,
+  shown,
+}: {
+  scene: THREE.Scene;
+  allPages: PageRec[];
+  shown: PageRec[];
+}) {
   const state = { submittedTriangles: 0 };
-  const affichees = new Set();
-  const detach = (rec) => {
+  const affichees = new Set<PageRec>();
+  const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
       scene.remove(rec.mesh);
       rec.attached = false;
     }
   };
-  const attach = (rec) => {
+  const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
     if (!rec.mesh) {
       const mesh = new THREE.Mesh(rec.geometry, rec.material);

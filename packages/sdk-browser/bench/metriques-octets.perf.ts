@@ -12,13 +12,15 @@ Object.assign(globalThis, {
   GPUBufferUsage: { STORAGE: 128, COPY_DST: 8, COPY_SRC: 4, UNIFORM: 64, INDIRECT: 256 },
 });
 
+// A device fixture standing in for the real WebGPU one: only the three members the measured
+// functions read are implemented, as the rest of this codebase's own GPUDevice fixtures do.
 const appareil = {
   limits: { maxBufferSize: 2 ** 31, maxStorageBufferBindingSize: 2 ** 31 },
-  createBuffer: ({ size }) => ({ size, destroy() {} }),
+  createBuffer: ({ size }: { size: number }) => ({ size, destroy() {} }),
   queue: { writeBuffer() {} },
-};
+} as unknown as GPUDevice;
 
-function geometrie(sommets, alea) {
+function geometrie(sommets: number, alea: () => number) {
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(sommets * 3);
   for (let i = 0; i < pos.length; i++) pos[i] = alea() * 2 - 1;
@@ -32,7 +34,7 @@ function geometrie(sommets, alea) {
   return geo;
 }
 
-function etat(pages, transparents, concats, depart) {
+function etat(pages: number, transparents: number, concats: boolean, depart: number) {
   const alea = graine(depart);
   const gpu = createWebgpuGpuState([1, 1]),
     blendState = createWebgpuBlendState(),
@@ -54,9 +56,10 @@ function etat(pages, transparents, concats, depart) {
     scene.add(mesh);
     copies.push(mesh);
   }
-  prepareWebgpuBlend(appareil, copies, gpu, blendState, scene, false);
+  prepareWebgpuBlend(appareil, copies, gpu, blendState, scene);
+  const tamponDe = (size: number) => appareil.createBuffer({ size, usage: 0 });
   const vis = concats
-    ? { concatPos: { size: 0 }, concatUv: { size: 2 ** 31 }, concatNrm: { size: 4096 } }
+    ? { concatPos: tamponDe(0), concatUv: tamponDe(2 ** 31), concatNrm: tamponDe(4096) }
     : { concatPos: undefined, concatUv: undefined, concatNrm: undefined };
   return { gpu, vis, blendState };
 }
@@ -71,14 +74,19 @@ const resOctets = await mesure({
     { name: '400 pages, 200 transparents', input: grand, size: 600 },
     { name: '2 pages, 1 transparent', input: petit, size: 3 },
   ],
-  calcul: ({ gpu, vis, blendState }) => vertexBytesOf(gpu, vis, blendState),
+  calcul: ({ gpu, vis }) => vertexBytesOf(gpu, vis),
   attendu: ({ gpu, vis, blendState }) => referenceVertexBytes(gpu, vis, blendState),
   options: { tours: 100, budgetMs: 1500 },
 });
 
 await stress({
   name: 'vertexBytesOf extremes',
-  calcul: () => vertexBytesOf(createWebgpuGpuState([1, 1]), {}, createWebgpuBlendState()),
+  calcul: () =>
+    vertexBytesOf(createWebgpuGpuState([1, 1]), {
+      concatPos: undefined,
+      concatUv: undefined,
+      concatNrm: undefined,
+    }),
   extremes: [{ name: 'empty', input: null }],
 });
 

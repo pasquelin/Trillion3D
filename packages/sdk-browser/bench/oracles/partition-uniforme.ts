@@ -12,13 +12,14 @@ import {
   UNI_VIEW,
   UNI_VIEW_PROJ,
 } from '../../gpuPartitionContract.ts';
+import type { ForgottenRows, PartitionFrame } from '../../gpuPartitionUniform.ts';
 
-export function referenceSplitDouble(out, haut, bas, value) {
+export function referenceSplitDouble(out: Float32Array, haut: number, bas: number, value: number) {
   out[haut] = value;
   out[bas] = value - out[haut];
 }
 
-function ancree(elements, anchor) {
+function ancree(elements: ArrayLike<number>, anchor: readonly number[]) {
   const out = new Float32Array(16);
   for (let i = 0; i < 12; i++) out[i] = elements[i];
   for (let row = 0; row < 4; row++)
@@ -30,7 +31,11 @@ function ancree(elements, anchor) {
   return out;
 }
 
-export function referencePartitionUniform(frame, rows, forget) {
+export function referencePartitionUniform(
+  frame: PartitionFrame,
+  rows: number,
+  forget: ForgottenRows,
+) {
   const f32 = new Float32Array(UNIFORM_U32),
     u32 = new Uint32Array(f32.buffer);
   f32.set(ancree(frame.view, frame.anchor), UNI_VIEW);

@@ -7,7 +7,7 @@ import { coneRejects } from '../../../sdk-core/index.ts';
 /** Plane order of the old `extractPlanes`: left, right, bottom, top, near, far. */
 const ANCIEN_ORDRE = [1, 0, 2, 3, 5, 4];
 /** Planes ordered as Three.js, put back in the order from before batch M2. */
-export const reordonne = (planes) => {
+export const reordonne = (planes: Float64Array | Float32Array) => {
   const sortie = new Float64Array(24);
   ANCIEN_ORDRE.forEach((k, i) => sortie.set(planes.subarray(k * 4, k * 4 + 4), i * 4));
   return sortie;
@@ -16,7 +16,7 @@ export const reordonne = (planes) => {
 const plan = new THREE.Vector4(),
   transposee = new THREE.Matrix4();
 
-export function referencePlanesToLocal(planes, elements) {
+export function referencePlanesToLocal(planes: Float32Array, elements: number[]) {
   transposee.fromArray(elements).transpose();
   const sortie = [];
   for (let i = 0; i < 24; i += 4) {
@@ -30,7 +30,15 @@ const axis = new THREE.Vector3(),
   center = new THREE.Vector3();
 
 /** `pageCone.ts` before batch M2, after its material, conformal and angle guards. */
-export function referenceConeRejects(cone, world, min, max, normal, scale, cam) {
+export function referenceConeRejects(
+  cone: { axis: number[]; angle: number },
+  world: THREE.Matrix4,
+  min: number[],
+  max: number[],
+  normal: THREE.Matrix3,
+  scale: number,
+  cam: number[],
+) {
   center
     .set((min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5)
     .applyMatrix4(world);

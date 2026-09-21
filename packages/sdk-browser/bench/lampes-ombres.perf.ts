@@ -1,25 +1,33 @@
 // what lamp shadows cost on the CPU: world-space cluster spheres packed for the shadow
 // pass, the screen coverage that ranks lamps, and the plan of faces to redraw when the
 // scene moves.
+import * as THREE from 'three';
 import { screenCoverage } from '../../sdk-core/sceneLightShadowCounts.ts';
 import { createSceneLightStore } from '../../sdk-core/sceneLightStore.ts';
 import { createShadowPlan } from '../../sdk-core/sceneLightShadowPlan.ts';
 import { packClusterSpheres } from '../webgpuShadowBounds.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { referenceClusterSphere, referenceScreenCoverage } from './oracles/lampes-ombres.ts';
+import { pageRecFixture } from './appui/pageRecFixture.ts';
+import type { PageRec } from '../pageSelectionTypes.ts';
+import type { ShadowViewpoint } from '../../sdk-core/index.ts';
 
 const alea = graine(83);
 
 // One record in ten is empty: the pass must write a zero radius there, never read a missing card.
 // The output buffer belongs to the case, allocated once, as the engine holds its own.
-function clusters(nombre) {
-  const recs = [];
+function clusters(nombre: number) {
+  const recs: (PageRec | undefined)[] = [];
   for (let i = 0; i < nombre; i++) {
     const elements = new Float64Array(16);
     for (let j = 0; j < 16; j++) elements[j] = (alea() - 0.5) * 10;
     const min = [(alea() - 0.5) * 5, (alea() - 0.5) * 5, (alea() - 0.5) * 5];
     const max = [min[0] + alea() * 5, min[1] + alea() * 5, min[2] + alea() * 5];
-    recs.push(i % 10 === 9 ? undefined : { matrix: { elements }, min, max });
+    recs.push(
+      i % 10 === 9
+        ? undefined
+        : pageRecFixture({ matrix: new THREE.Matrix4().fromArray(elements), min, max }),
+    );
   }
   return { recs, packed: new Float32Array(nombre * 4) };
 }
@@ -40,10 +48,24 @@ const mesSpheres = await mesure({
   },
 });
 
-const vue = { position: [0, 0, 0], forward: [0, 0, -1], far: 1000, halfFovY: Math.PI / 4 };
+const vue: ShadowViewpoint = {
+  position: [0, 0, 0],
+  forward: [0, 0, -1],
+  aspect: 1,
+  near: 0.1,
+  far: 1000,
+  halfFovY: Math.PI / 4,
+};
 
-const lampes = (nombre) => ({
-  liste: Array.from({ length: nombre }, () => ({
+interface Lampe {
+  x: number;
+  y: number;
+  z: number;
+  range: number;
+}
+
+const lampes = (nombre: number) => ({
+  liste: Array.from({ length: nombre }, (): Lampe => ({
     x: (alea() - 0.5) * 100,
     y: (alea() - 0.5) * 100,
     z: (alea() - 0.5) * 100,
@@ -53,8 +75,8 @@ const lampes = (nombre) => ({
 });
 
 const couverture =
-  (calcule) =>
-  ({ liste, output }) => {
+  (calcule: (view: ShadowViewpoint, x: number, y: number, z: number, range: number) => number) =>
+  ({ liste, output }: { liste: Lampe[]; output: Float64Array }) => {
     for (let i = 0; i < liste.length; i++) {
       const l = liste[i];
       output[i] = calcule(vue, l.x, l.y, l.z, l.range);
@@ -73,7 +95,7 @@ const mesCouverture = await mesure({
   attendu: couverture(referenceScreenCoverage),
 });
 
-function scene(nombre) {
+function scene(nombre: number) {
   const store = createSceneLightStore();
   for (let i = 0; i < nombre; i++)
     store.add({

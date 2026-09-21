@@ -15,6 +15,7 @@ import type { MesureCas } from '../../../sdk-core/bench/socle.ts';
 import { boitesHierarchiques } from './scenesHierarchies.ts';
 import { boites, matrices } from './scenesVolumes.ts';
 import { aPlat, boite3 } from '../../../sdk-core/bench/oracles/volumes.ts';
+import { casVolume, type CasVolume } from './casVolume.ts';
 
 const un = <Entree>(name: string, input: Entree[]): MesureCas<Entree[]>[] => [
   { name, input, size: input.length },
@@ -35,8 +36,8 @@ const transformations: [number[], number[]][] = boites.flatMap((b, i) =>
 );
 
 /** Equivalence lines of boxes and spheres, without timer options. */
-export const casBoites = [
-  {
+export const casBoites: CasVolume[] = [
+  casVolume({
     calcul: 'empty box and emptiness test',
     fichier: 'packages/sdk-core/mathBox.ts',
     cas: un('hostile boxes', boites),
@@ -49,8 +50,8 @@ export const casBoites = [
       boxEmpty(vide, 0);
       return [vide, liste.map((b) => boxIsEmpty(b, 0))];
     },
-  },
-  {
+  }),
+  casVolume({
     calcul: 'union of two boxes',
     fichier: 'packages/sdk-core/mathBox.ts',
     cas: un('hostile box pairs', paires),
@@ -62,8 +63,8 @@ export const casBoites = [
         boxUnion(output, 0, b[0], b[1], b[2], b[3], b[4], b[5]);
         return output;
       }),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'extension of a box by two points',
     fichier: 'packages/sdk-core/mathBox.ts',
     cas: un('hostile box pairs', paires),
@@ -80,8 +81,8 @@ export const casBoites = [
         boxExpandByPoint(output, 0, b[3], b[4], b[5]);
         return output;
       }),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'transform of a box by a matrix',
     fichier: 'packages/sdk-core/mathBox.ts',
     cas: etHierarchies('boxes × hostile matrices', transformations),
@@ -97,8 +98,8 @@ export const casBoites = [
           if (!Object.is(output[i], surPlace[i])) throw new Error('BOX_TRANSFORM_ALIAS');
         return output;
       }),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'eight transformed corners of a box',
     fichier: 'packages/sdk-core/mathBox.ts',
     cas: etHierarchies('boxes × hostile matrices', transformations),
@@ -119,8 +120,8 @@ export const casBoites = [
         boxCornersInto(output, 0, b[0], b[1], b[2], b[3], b[4], b[5], m);
         return output;
       }),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'bounding sphere of a transformed box',
     fichier: 'packages/sdk-core/mathSphere.ts',
     cas: etHierarchies('boxes × hostile matrices', transformations),
@@ -138,8 +139,8 @@ export const casBoites = [
         sphereFromBounds(output, 0, box[0], box[1], box[2], box[3], box[4], box[5]);
         return output;
       }),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'bounding sphere of a box',
     fichier: 'packages/sdk-core/mathSphere.ts',
     cas: un('hostile boxes', boites),
@@ -154,5 +155,5 @@ export const casBoites = [
         sphereFromBounds(output, 0, b[0], b[1], b[2], b[3], b[4], b[5]);
         return output;
       }),
-  },
+  }),
 ];

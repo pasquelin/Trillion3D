@@ -3,11 +3,12 @@ import { HIZ_BOUNDS_VALUES, createBoxCorners, projectBoxesFlat } from '../hiz.ts
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
 import { boites, camera } from './appui/scenes.ts';
 import { cameraMoteur } from '../cameraFixture.ts';
+import type { HizPage } from '../hizTypes.ts';
 
 const LARGEUR = 640,
   HAUTEUR = 360;
 const cam = camera(6, 0.1, LARGEUR / HAUTEUR),
-  viewport = [LARGEUR, HAUTEUR];
+  viewport: [number, number] = [LARGEUR, HAUTEUR];
 
 const grande = boites({ count: 20000 });
 const hostiles = grande.slice(0, 9).map((page, i) => ({
@@ -16,7 +17,7 @@ const hostiles = grande.slice(0, 9).map((page, i) => ({
   max: [[0, NaN, -Infinity][i % 3], 0, 1.7976931348623157e308],
 }));
 
-function cas(pages, name) {
+function cas(pages: HizPage[], name: string) {
   const pageIndex = new Int32Array(pages.length).map((_, i) => i);
   return {
     name,

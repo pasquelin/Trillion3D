@@ -2,7 +2,15 @@
 // import them as reference.
 
 /** `pageSelectionMath.ts:110-134` before batch A: one branch per plane and per vertex. */
-export function referenceBoxClip(planes, minX, minY, minZ, maxX, maxY, maxZ) {
+export function referenceBoxClip(
+  planes: Float64Array,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
   let inside = 2;
   for (let p = 0; p < 24; p += 4) {
     const a = planes[p],
@@ -21,7 +29,9 @@ export function referenceBoxClip(planes, minX, minY, minZ, maxX, maxY, maxZ) {
 }
 
 /** `pageSelectionRequests.ts:77-96` before batch A: a `Set` allocated per call without stamps. */
-export function referenceCollectPendingUrls(shown, into) {
+export function referenceCollectPendingUrls<
+  T extends { array?: Uint32Array; url: string; streamUrl?: string },
+>(shown: readonly T[], into: string[]) {
   into.length = 0;
   const seen = new Set();
   for (let i = 0; i < shown.length; i++) {
@@ -35,8 +45,17 @@ export function referenceCollectPendingUrls(shown, into) {
   return into;
 }
 
+interface ResidencyOracleEnv {
+  bootstrapUrls: Set<string>;
+  modifiedPages: Set<string>;
+  shown: { url: string; array?: Uint32Array }[];
+  desired: { url: string; array?: Uint32Array }[];
+  pending: string[];
+  retained: string[];
+}
+
 /** `autonomousResidency.ts:24-37` before batch A: `includes` in a loop, `Set` and three spreads. */
-export function referenceResidency(env) {
+export function referenceResidency(env: ResidencyOracleEnv) {
   const { bootstrapUrls, modifiedPages, shown, desired, pending, retained } = env;
   return {
     pendingUrls() {

@@ -17,7 +17,7 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
     fixture.indices,
     fixture.associations,
   );
-  const table = roots[0].table,
+  const table = roots[0].culling,
     shown: PageRec[] = [],
     wanted: PageRec[] = [];
   const result: SelectionResult<PageRec> = {
@@ -47,7 +47,7 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
   assert.equal(second.shown, shown);
   assert.equal(second.wanted, wanted);
   assert.equal(
-    roots[0].table,
+    roots[0].culling,
     table,
     'the flat table is built with the primitive, never per frame',
   );

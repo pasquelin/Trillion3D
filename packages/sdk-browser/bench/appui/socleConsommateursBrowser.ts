@@ -8,19 +8,39 @@ import { linearToSrgb8 } from '../../visibilityMath.ts';
 import { projectVisibilityVertex } from '../../visibilityProjection.ts';
 import { setWindingEpoch, windingCw } from '../../webgpuPagesWinding.ts';
 import { noteResidenceChange } from '../../webgpuShadowBounds.ts';
+import { createWebgpuLightState } from '../../webgpuPagesStateLights.ts';
+import { pageRecFixture } from './pageRecFixture.ts';
 import * as ancien from '../oracles/socle-math.ts';
 import { referenceOrder } from '../oracles/socle-math-priorite.ts';
 import { affines, matrices, points } from './scenesSocle.ts';
 import { enregistrements, octets } from './scenesSocleConsommateurs.ts';
 import { essaie, ligne } from './socleLigne.ts';
 import { createEngineCamera, readCameraWorld } from '../../cameraWorld.ts';
+import type { PageRec } from '../../pageSelectionTypes.ts';
+
+// One light, so `store.count` holds and `noteResidenceChange` actually notes a change; its
+// scheduler's `representationChanged` is replaced per case below to capture the bounds it is
+// called with, instead of applying them.
+const lumieres = createWebgpuLightState();
+lumieres.store.add({
+  id: 'l0',
+  kind: 'point',
+  position: [0, 0, 0],
+  color: [1, 1, 1],
+  intensity: 100,
+  range: 20,
+  castsShadow: true,
+});
 
 export async function lignesConsommateursBrowser() {
   const { liste, camera, echelle } = enregistrements;
   // The engine order reads the camera it owns; the oracle keeps that of the host library.
   const vue = readCameraWorld(createEngineCamera(), camera);
-  const paquets = [];
+  const paquets: PageRec[][] = [];
   for (let i = 0; i < liste.length; i += 30) paquets.push(liste.slice(i, i + 30));
+  // Built once, outside the timed closure below: the compared subject is `windingCw`, not a
+  // `Matrix4` allocation per hostile matrix.
+  const matricesTHREE = matrices.map((e) => new THREE.Matrix4().fromArray(e));
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3);
   // The compared subject is the projection of a vertex, not the read of a convention: the
   // view-projection/convention pairs are built once, outside the measured loops.
@@ -47,15 +67,12 @@ export async function lignesConsommateursBrowser() {
         }),
       (l) =>
         l.map((r) => {
-          let boite;
-          noteResidenceChange(
-            {
-              store: { count: 1 },
-              plan: { worldChanged: (min, max) => (boite = [...min, ...max]) },
-            },
-            r,
-          );
-          return boite;
+          let boite: number[] | undefined;
+          lumieres.plan.representationChanged = (min, max) => {
+            boite = [...Array.from(min), ...Array.from(max)];
+          };
+          noteResidenceChange(lumieres, r);
+          return boite ?? [];
         }),
     ),
     await ligne(
@@ -67,7 +84,7 @@ export async function lignesConsommateursBrowser() {
       (l) =>
         l.map((e, i) => {
           setWindingEpoch(i + 1);
-          return windingCw({ matrix: { elements: e } });
+          return windingCw(pageRecFixture({ matrix: matricesTHREE[i] }));
         }),
     ),
     await ligne(

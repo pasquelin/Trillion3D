@@ -2,6 +2,7 @@
 // split-double anchor, and the sixteen Hi-Z pyramid levels, bit-exact against the oracle.
 import { UNIFORM_U32, writeSplitDouble } from '../gpuPartitionContract.ts';
 import { packPartitionUniform } from '../gpuPartitionUniform.ts';
+import type { PartitionFrame } from '../gpuPartitionUniform.ts';
 import { graine, mesure, rapport } from '../../sdk-core/bench/socle.ts';
 import { referencePartitionUniform, referenceSplitDouble } from './oracles/partition-uniforme.ts';
 
@@ -26,10 +27,13 @@ const HOSTILES = [
 ];
 
 // The output belongs to the case: the timer only frames the writes.
-const doubles = (valeurs) => ({ valeurs, output: new Float32Array(valeurs.length * 2) });
+const doubles = (valeurs: ArrayLike<number>) => ({
+  valeurs,
+  output: new Float32Array(valeurs.length * 2),
+});
 const decompose =
-  (ecrit) =>
-  ({ valeurs, output }) => {
+  (ecrit: (out: Float32Array, haut: number, bas: number, value: number) => void) =>
+  ({ valeurs, output }: { valeurs: ArrayLike<number>; output: Float32Array }) => {
     for (let i = 0; i < valeurs.length; i++) ecrit(output, i * 2, i * 2 + 1, valeurs[i]);
     return output;
   };
@@ -50,7 +54,7 @@ const mesureSplit = await mesure({
   options: { tours: 100 },
 });
 
-const image = (niveaux) => ({
+const image = (niveaux: number): PartitionFrame => ({
   view: matrice(),
   viewProj: matrice(),
   anchor: [double(), double(), double()],

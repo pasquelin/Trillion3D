@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { createExplorerRender } from './explorerRender.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { FrameMetrics } from '../sdk-core/index.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
  *  off (no `wgFrameAudit` in the test URL). Only `directGpu` and the renderer vary. */
@@ -22,11 +23,11 @@ function harness(options: {
   } as unknown as RenderBackend;
   const metricsScratch = { drawCalls: 0, totalSubmittedTriangles: null } as unknown as FrameMetrics;
   const session = {
-    scope: 'default' as never,
-    diagnosticChannel: { enabled: false } as never,
+    scope: 'default',
+    diagnosticChannel: { enabled: false },
     emit: () => {},
     diagnose: () => {},
-  };
+  } as unknown as ExplorerSession;
   const ownedRenderer = options.renderer
     ? ({
         info: { render: { triangles: options.renderer.triangles, calls: 0 } },
@@ -43,23 +44,23 @@ function harness(options: {
       toggle: 0,
       hostFrame: 0,
       active,
-    } as never,
+    },
     camera,
     lookAtTarget: new THREE.Vector3(),
     setPose: () => {},
-    streaming: { arrivals: { drain: () => {} } } as never,
+    streaming: { arrivals: { drain: () => {} } },
     drawBackend: () => {},
-    ensureTarget: ((target?: THREE.WebGLRenderTarget) => target) as never,
+    ensureTarget: (target?: THREE.WebGLRenderTarget) => target,
     directGpu: options.directGpu,
     renderer: ownedRenderer,
     backends: [active],
     baseline: active,
     fillMetrics: () => {},
     metricsScratch,
-    profiler: { record: () => {} } as never,
+    profiler: { record: () => {} },
     pageIdByUrl: new Map(),
-    streamer: { stats: () => ({ resident: 0, evictions: 0 }) } as never,
-  });
+    streamer: { stats: () => ({ resident: 0, evictions: 0 }) },
+  } as unknown as Parameters<typeof createExplorerRender>[1]);
   return { render, metricsScratch };
 }
 

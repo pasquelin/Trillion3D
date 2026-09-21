@@ -2,14 +2,19 @@
 // reference scene: what a moving camera pays every image in JavaScript, timed on a nanosecond
 // clock where the engine's own `worldMs` bound reads on a 0.1 ms one. This is the measurement
 // #80 gates a WebAssembly kernel on: a loop under 0.1 ms per image keeps its JavaScript form.
+import * as THREE from 'three';
 import { mesure, rapport } from '../../sdk-core/bench/socle.ts';
 import { rootWorldsToRenderOrigin } from '../gpuDagPack.ts';
 import { refreshWorldStretch, worldsChanged } from '../gpuDagWorlds.ts';
+import type { DagRoot } from '../gpuDagTypes.ts';
 
 /** Emerald Square, `--scene emerald-square`: 2 479 selection roots (campaign `l-80b`, #80). */
 const ROOTS = 2479;
-const roots = Array.from({ length: ROOTS }, (_, i) => ({
-  world: { elements: Float64Array.of(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, i, i * 2, i * 3, 1) },
+// Only `.world.elements` is read here: a fresh, empty-page root, built once outside the timed
+// loops below.
+const roots: DagRoot[] = Array.from({ length: ROOTS }, (_, i) => ({
+  world: new THREE.Matrix4().fromArray([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, i, i * 2, i * 3, 1]),
+  pages: [],
 }));
 const worlds = new Float32Array(ROOTS * 16);
 const origin = [12345.5, 6.25, -700.125];

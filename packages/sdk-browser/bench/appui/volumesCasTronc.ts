@@ -7,7 +7,6 @@ import {
   clipPlanesFromMatrix,
   frustumClipBox,
   frustumExcludesBox,
-  frustumPlanesFromMatrix,
   frustumPlanesToLocal,
 } from '../../../sdk-core/index.ts';
 import type { MesureCas } from '../../../sdk-core/bench/socle.ts';
@@ -28,6 +27,8 @@ import {
 } from './scenesHierarchies.ts';
 import { referenceBoxClip } from '../oracles/selection.ts';
 import { referenceConeRejects, referencePlanesToLocal, reordonne } from '../oracles/volumes.ts';
+import { casVolume, type CasVolume } from './casVolume.ts';
+import { plans } from './volumesCasTroncPlans.ts';
 
 const un = <Entree>(name: string, input: Entree[]): MesureCas<Entree[]>[] => [
   { name, input, size: input.length },
@@ -38,11 +39,6 @@ const deux = <Entree>(
   nomH: string,
   entreeH: Entree[],
 ): MesureCas<Entree[]>[] => [...un(name, input), ...un(nomH, entreeH)];
-const plans = (vp: number[], webgpu: boolean, Type: Float64ArrayConstructor | Float32ArrayConstructor = Float64Array) => {
-  const output = new Type(24);
-  frustumPlanesFromMatrix(output, vp);
-  return output;
-};
 
 interface LocalPlaneCase {
   planes: Float32Array;
@@ -68,8 +64,8 @@ const locaux = (
 // line publishes it.
 const Z_INVERSE = 'Three oracle from before reversed Z — correctness in mathFrustum.test.ts';
 
-export const casTronc = [
-  {
+export const casTronc: CasVolume[] = [
+  casVolume({
     calcul: 'normalized frustum planes of a view-projection',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustum.ts',
@@ -81,8 +77,8 @@ export const casTronc = [
     ),
     optimisee: (liste: ViewProjectionCase[]) =>
       liste.flatMap(({ vp, webgpu }) => [plans(vp, webgpu), plans(vp, webgpu, Float32Array)]),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'raw planes of a clip matrix',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustum.ts',
@@ -98,8 +94,8 @@ export const casTronc = [
         clipPlanesFromMatrix(output, vp);
         return output;
       }),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'box outside the frustum',
     motif: Z_INVERSE,
     fichier: 'packages/sdk-core/mathFrustumBox.ts',
@@ -113,8 +109,8 @@ export const casTronc = [
       liste.map(({ vp, webgpu, boite: b }) =>
         frustumExcludesBox(plans(vp, webgpu), b[0], b[1], b[2], b[3], b[4], b[5]),
       ),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'box against the frustum in three states',
     fichier: 'packages/sdk-core/mathFrustumBox.ts',
     cas: deux(
@@ -141,8 +137,8 @@ export const casTronc = [
           frustumClipBox(plans(vp, webgpu), b[0], b[1], b[2], b[3], b[4], b[5]),
         ];
       }),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'frustum planes in local space',
     fichier: 'packages/sdk-core/mathFrustum.ts',
     cas: deux(
@@ -159,8 +155,8 @@ export const casTronc = [
         frustumPlanesToLocal(output, planes, m);
         return output;
       }),
-  },
-  {
+  }),
+  casVolume({
     calcul: 'rejection of a box by its normal cone',
     fichier: 'packages/sdk-core/mathCone.ts',
     cas: deux(
@@ -196,5 +192,5 @@ export const casTronc = [
           c.oeil[2],
         ),
       ),
-  },
+  }),
 ];

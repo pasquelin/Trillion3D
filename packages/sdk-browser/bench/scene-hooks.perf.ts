@@ -48,7 +48,7 @@ function instanceAccessors() {
   const scene = graph();
   scene.root.traverse((node) => {
     for (const vector of [node.position, node.scale])
-      for (const key of ['x', 'y', 'z']) {
+      for (const key of ['x', 'y', 'z'] as const) {
         let held = vector[key];
         Object.defineProperty(vector, key, {
           configurable: true,
@@ -73,7 +73,7 @@ function instanceAccessors() {
 }
 
 /** The world matrices of one mesh in two hundred, after a forced walk of the whole graph. */
-function walk({ root, meshes }) {
+function walk({ root, meshes }: { root: THREE.Group; meshes: THREE.Mesh[] }) {
   root.updateMatrixWorld(true);
   const sample = new Float64Array((meshes.length / 200) * 16);
   for (let i = 0; i < meshes.length; i += 200)

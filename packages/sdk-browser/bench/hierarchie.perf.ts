@@ -3,16 +3,22 @@
 // hostile frozen chains, non-finite values, a live scene that moves frame after frame, `lookAt`
 // and degenerate projections. A single bit of delta and the bench fails.
 import { compare, rapport } from '../../sdk-core/bench/socle.ts';
+import type { MesureCas } from '../../sdk-core/bench/socle.ts';
 import { joueNous } from './appui/hierarchieRejeuNous.ts';
 import { joueThree } from './appui/hierarchieRejeuThree.ts';
 import { chainesFigees } from './appui/hierarchieScenarios.ts';
+import type { HierarchyOp } from './appui/hierarchieScenarios.ts';
 import { objectifs, visees } from './appui/hierarchieScenariosCamera.ts';
 import { marquages, liveScenario } from './appui/hierarchieScenariosVivants.ts';
 
 const options = { chauffe: 1, tours: 3, budgetMs: 500 };
 /** One case: a scenario whose size is the number of replayed operations. */
-const cas = (name, scenario) => ({ name, input: scenario, size: scenario.length });
-const ligne = (name, fichier, liste) => ({
+const cas = (name: string, scenario: HierarchyOp[]): MesureCas<HierarchyOp[]> => ({
+  name,
+  input: scenario,
+  size: scenario.length,
+});
+const ligne = (name: string, fichier: string, liste: MesureCas<HierarchyOp[]>[]) => ({
   name,
   fichier,
   cas: liste,

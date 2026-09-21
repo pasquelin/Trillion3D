@@ -56,7 +56,7 @@ lines.push(
 // Composition: positions, quaternions and scales drawn once, flat on the engine's side.
 const position = points(N),
   scale = points(N, 0.2, 3);
-const rotation = [],
+const rotation: THREE.Quaternion[] = [],
   q = new Float64Array(N * 4);
 for (let i = 0; i < N; i++) {
   rotation.push(quaternion());

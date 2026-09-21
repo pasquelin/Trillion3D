@@ -1,14 +1,34 @@
 // preloading the ring around the cut.
 import { createSelectionResult, selectVisiblePages } from '../pageSelection.ts';
+import type { ClusterRoot, SelectionResult } from '../pageSelection.ts';
 import { compteur, mesure, parcours, rapport, stress } from '../../sdk-core/bench/socle.ts';
 import { camera } from './appui/scenes.ts';
-import { dag, racine } from './appui/dagCoupe.ts';
+import { dag, racine, type DagPage } from './appui/dagCoupe.ts';
 import { cameraMoteur } from '../cameraFixture.ts';
 
-const cam = camera(9, 0.1, 16 / 9);
-const image = [1280, 720];
+interface Scene {
+  roots: ClusterRoot<DagPage>[];
+  pixelError: number;
+  anneau: DagPage[];
+  coupe: DagPage[];
+  wantedAnneau: DagPage[];
+  wantedCoupe: DagPage[];
+  resultatAnneau: SelectionResult<DagPage>;
+  resultatCoupe: SelectionResult<DagPage>;
+}
 
-function scene({ feuilles, seed, pixelError }) {
+const cam = camera(9, 0.1, 16 / 9);
+const image: [number, number] = [1280, 720];
+
+function scene({
+  feuilles,
+  seed,
+  pixelError,
+}: {
+  feuilles: number;
+  seed: number;
+  pixelError: number;
+}): Scene {
   const pages = dag({ feuilles, seed, residentes: 0.8 });
   return {
     roots: [racine(pages)],
@@ -23,7 +43,7 @@ function scene({ feuilles, seed, pixelError }) {
 }
 
 /** `exactPagesRequests.ts`: the ring is a second cut, at half the threshold. */
-function anneauParSeconde(input) {
+function anneauParSeconde(input: Scene) {
   const ring = selectVisiblePages(
     input.roots,
     cameraMoteur(cam),
@@ -40,7 +60,7 @@ function anneauParSeconde(input) {
 }
 
 /** What the already-computed cut can give: its own pages, nothing finer. */
-function anneauParLaCoupe(input) {
+function anneauParLaCoupe(input: Scene) {
   const cut = selectVisiblePages(
     input.roots,
     cameraMoteur(cam),
@@ -57,7 +77,7 @@ function anneauParLaCoupe(input) {
 }
 
 /** The delta states both reasons at once: the ring is not the cut, and it is not per frame. */
-function differencesAnneau(attendu, obtenu, name) {
+function differencesAnneau(attendu: string[], obtenu: string[], name: string) {
   const c = parcours(compteur(), attendu, obtenu, name);
   if (c.nombre)
     c.premier =

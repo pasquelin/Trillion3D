@@ -4,7 +4,11 @@ import * as THREE from 'three';
 import { createHostDrawCamera, readHostDrawCamera } from './cameraWorld.ts';
 import { WebglClusterCopies } from './webglClusterCopyCulling.ts';
 
-const copyAt = (x: number, frustumCulled = true, material = new THREE.MeshBasicMaterial()) => {
+const copyAt = (
+  x: number,
+  frustumCulled = true,
+  material: THREE.Material = new THREE.MeshBasicMaterial(),
+) => {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
     'position',

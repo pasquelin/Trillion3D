@@ -28,7 +28,12 @@ export function referenceShadowOrthographic(proj: Float32Array, halfExtent: numb
 
 /** `sceneLightShadowMath.ts:48-138` from before: basis, view and product in a loop from zero. */
 export const referenceFaceBasis = new Float64Array(9);
-function shadowView(out: Float32Array, base: number, eye: number[], forward: number[]) {
+function shadowView(
+  out: Float32Array,
+  base: number,
+  eye: readonly number[],
+  forward: readonly number[],
+) {
   const fx = forward[0],
     fy = forward[1],
     fz = forward[2];
@@ -92,8 +97,8 @@ const viewScratch = new Float32Array(16),
 export function referenceComposeFace(
   out: Float32Array,
   base: number,
-  eye: number[],
-  forward: number[],
+  eye: readonly number[],
+  forward: readonly number[],
   proj: Float32Array,
 ) {
   shadowView(viewScratch, 0, eye, forward);

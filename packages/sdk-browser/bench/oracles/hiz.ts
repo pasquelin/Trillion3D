@@ -67,7 +67,7 @@ export function referenceHizTestRect(
   width: number,
   height: number,
   levels: number,
-  into: Float64Array,
+  into: Int32Array,
 ) {
   if (
     clipsNear ||

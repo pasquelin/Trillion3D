@@ -18,8 +18,9 @@ const p = tree.position;
 // the previous pose and the oracle can replay the pose of the call it checks. Each line starts
 // from the same base pose on both sides.
 let round = 0;
-const moveThree = (i, r) => (objects[i].position.x = i + (r & 1));
-const moveCore = (i, r) => setNodePosition(tree, i, i + (r & 1), p[i * 3 + 1], p[i * 3 + 2]);
+const moveThree = (i: number, r: number) => (objects[i].position.x = i + (r & 1));
+const moveCore = (i: number, r: number) =>
+  setNodePosition(tree, i, i + (r & 1), p[i * 3 + 1], p[i * 3 + 2]);
 const basePose = () => {
   round = 0;
   for (let i = 0; i <= N; i++) {
@@ -30,13 +31,13 @@ const basePose = () => {
   updateNodeMatrixWorld(tree, rootNode, true);
 };
 /** Three's answer for the pose the engine's next call will take. */
-const oracleAfter = (move) => () => {
+const oracleAfter = (move: (r: number) => void) => () => {
   move(round + 1);
   root.updateMatrixWorld();
   return oracle();
 };
 /** Every node moved, or every node but the root. */
-const moved = (rootToo) => (r) => {
+const moved = (rootToo: boolean) => (r: number) => {
   for (let i = rootToo ? 0 : 1; i <= N; i++) moveThree(i, r);
 };
 
@@ -69,7 +70,7 @@ lines.push(
       moveThree(0, ++round);
       root.updateMatrixWorld();
     },
-    oracle: oracleAfter((r) => moveThree(0, r)),
+    oracle: oracleAfter((r: number) => moveThree(0, r)),
     core: () => {
       moveCore(0, ++round);
       updateNodeMatrixWorld(tree, rootNode);

@@ -2,7 +2,8 @@
 // lighting constants — sun direction, length, ground colour, sky colour — are recomputed
 // and reallocated every pixel, and channels go through temporary arrays.
 import * as THREE from 'three';
-import { attr2, sampleLinear, sampleMap } from '../../visibilityMath.ts';
+import { attr2, sampleLinear, sampleMap, triangleAt } from '../../visibilityMath.ts';
+import type { VisMaterial, VisPage } from '../../visibilityTypes.ts';
 
 const normalScratch = new THREE.Matrix3();
 const frameNormals = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
@@ -14,16 +15,16 @@ const frameN = new THREE.Vector3(),
   frameQ = new THREE.Vector3();
 
 export function referenceShadeLit(
-  page,
-  tri,
-  affine,
-  bary,
-  uv,
-  mat,
-  rgb,
-  metalness,
-  roughness,
-  camera,
+  page: VisPage,
+  tri: NonNullable<ReturnType<typeof triangleAt>>,
+  affine: { area: number },
+  bary: { w0: number; w1: number; w2: number },
+  uv: [number, number],
+  mat: VisMaterial,
+  rgb: [number, number, number],
+  metalness: number,
+  roughness: number,
+  camera: THREE.Camera,
 ) {
   const world = [
     tri.a.worldX * bary.w0 + tri.b.worldX * bary.w1 + tri.c.worldX * bary.w2,
@@ -144,7 +145,7 @@ export function referenceShadeLit(
     up = Ny * 0.5 + 0.5;
   // Ground `#495061` brought to linear by the exact curve, as the engine does since #76 — the
   // host library's rounded constants gave a value 1e-11 off; the formula is written here, not shared.
-  const linear = (v) => Math.pow((v / 255 + 0.055) / 1.055, 2.4);
+  const linear = (v: number) => Math.pow((v / 255 + 0.055) / 1.055, 2.4);
   const sky = [2, 2, 2],
     ground = [linear(0x49) * 2, linear(0x50) * 2, linear(0x61) * 2];
   const hemi = [
@@ -176,7 +177,7 @@ export function referenceShadeLit(
   const F = [f0[0] + (1 - f0[0]) * fTerm, f0[1] + (1 - f0[1]) * fTerm, f0[2] + (1 - f0[2]) * fTerm];
   const spec = [D * Vis * F[0], D * Vis * F[1], D * Vis * F[2]];
   const direct = 2.5 * NdotL;
-  const diffuse = rgb.map((c) => (c * (1 - metalness)) / Math.PI);
+  const diffuse = rgb.map((c: number) => (c * (1 - metalness)) / Math.PI);
   const ao = mat.aoMap ? 1 + mat.aoIntensity * (sampleLinear(mat.aoMap, uv[0], uv[1])[0] - 1) : 1;
   const emissiveSample = mat.emissiveMap ? sampleMap(mat.emissiveMap, uv[0], uv[1]) : [1, 1, 1];
   return [0, 1, 2].map(

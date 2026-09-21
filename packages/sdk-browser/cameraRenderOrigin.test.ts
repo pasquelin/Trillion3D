@@ -83,7 +83,11 @@ test('camera at the world origin: nothing changes by a bit', () => {
 
 test('relative view × relative world yields the absolute composition, where f32 gives up', () => {
   const loin = envoi(DECALAGE);
-  const attendu = multiplyMatrix4(new Float64Array(16), loin.cam.view, loin.world.elements);
+  const attendu = multiplyMatrix4(
+    new Float64Array(16),
+    loin.cam.view,
+    Float64Array.from(loin.world.elements),
+  );
   const relatif = worldToRenderOrigin(new Float64Array(16), loin.world.elements, loin.cam.eye);
   const obtenu = multiplyMatrix4(new Float64Array(16), loin.cam.viewRelative, relatif);
   for (let i = 0; i < 16; i++)

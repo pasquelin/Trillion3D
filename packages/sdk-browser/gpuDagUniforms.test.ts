@@ -154,7 +154,9 @@ test('a normal readback without a mask matches the reference field for field', (
 test('the incomplete flag (bit 1 of word 3) is reported the same way by both sides', () => {
   const { neuf, oracle } = paire([1, 0, 0, 2], [7]);
   assert.equal(lire(neuf)!.complete, false);
-  assert.equal(lireOracle(oracle).complete, false);
+  const attendu = lireOracle(oracle);
+  assert.ok(attendu);
+  assert.equal(attendu.complete, false);
 });
 
 test('a page count larger than the buffer holds is clamped identically, with and without a mask', () => {

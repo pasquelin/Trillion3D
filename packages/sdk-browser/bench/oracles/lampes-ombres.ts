@@ -1,7 +1,14 @@
 // Lamp-shadow oracles, rewritten from the contracts: the world-space sphere of a cluster —
 // transformed box centre, radius inflated term by term, written in f32 at its place as the
 // pass does — and a lamp's screen coverage, square of its apparent angle over the half-field.
-export function referenceClusterSphere({ matrix: { elements: e }, min, max }, out, base) {
+import type { ShadowViewpoint } from '../../../sdk-core/index.ts';
+import type { PageRec } from '../../pageSelectionTypes.ts';
+
+export function referenceClusterSphere(
+  { matrix: { elements: e }, min, max }: Pick<PageRec, 'matrix' | 'min' | 'max'>,
+  out: Float32Array,
+  base: number,
+) {
   const mx = (min[0] + max[0]) / 2,
     my = (min[1] + max[1]) / 2,
     mz = (min[2] + max[2]) / 2;
@@ -18,7 +25,13 @@ export function referenceClusterSphere({ matrix: { elements: e }, min, max }, ou
   );
 }
 
-export function referenceScreenCoverage(view, x, y, z, range) {
+export function referenceScreenCoverage(
+  view: ShadowViewpoint,
+  x: number,
+  y: number,
+  z: number,
+  range: number,
+) {
   const dx = x - view.position[0],
     dy = y - view.position[1],
     dz = z - view.position[2];
