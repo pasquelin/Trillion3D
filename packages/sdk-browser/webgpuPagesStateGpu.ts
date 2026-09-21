@@ -25,9 +25,9 @@ export interface WebgpuGpuState {
    *  stage write, which would cost early-z reject. */
   feedbackTexture: GPUTexture | undefined;
   feedbackView: GPUTextureView | undefined;
-  /** Frozen backdrop the transmission pass rereads: a copy of the HDR target and of depth, taken
-   *  after opaques and blends. A 1×1 texel while the scene carries no transmissive surface — the
-   *  binding then exists without costing anything. */
+  /** Frozen backdrop the water pass rereads: a copy of the HDR target taken after opaques and
+   *  blends, and the depth its surfaces write. A 1×1 texel while the scene carries no transmissive
+   *  surface — the binding then exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined;
   surfaces: SurfaceBuffer | undefined;
   /** The last adopted sample declared a wanted page not yet arrived: the image waits for that page,
@@ -55,7 +55,7 @@ export interface WebgpuGpuState {
   nextPositionId: number;
   uniformBuffer: GPUBuffer | undefined;
   uniformPacked: Float32Array<ArrayBuffer>;
-  /** glTF volume of a transparent item per entry, read at a dynamic offset like the uniform. */
+  /** glTF volume of each transmissive item, read by water rank in the composite. */
   volumeBuffer: GPUBuffer | undefined;
   bindGroups: Map<number, GPUBindGroup>;
   /** What those groups currently name besides their position buffer: a moved identity voids them. */
@@ -70,12 +70,13 @@ export interface WebgpuGpuState {
   temporal: TemporalAntialiasing | undefined;
 }
 
-/** The two copies the transmission pass reads, and their views. */
+/** The frozen colour the water composite rereads, and the depth its surface stage tests and
+ *  writes, with their views (`webgpuTransmission.ts`). */
 export interface TransmissionBackdrop {
   color: GPUTexture;
   colorView: GPUTextureView;
-  depth: GPUTexture;
-  depthView: GPUTextureView;
+  waterDepth: GPUTexture;
+  waterDepthView: GPUTextureView;
   /** True when the copies are at the target size and the copy is worth it. */
   active: boolean;
 }
