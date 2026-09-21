@@ -10,23 +10,7 @@ export { createBounceCascades } from '../../sdk-core/bounceCascades.ts';
 export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/bounceCascades.ts';
 export { createBounceOccupancy } from '../../sdk-core/bounceOccupancy.ts';
 export type { BounceOccupancy } from '../../sdk-core/bounceOccupancy.ts';
-export {
-  cloneSceneLight,
-  LIGHT_KIND,
-  LIGHT_SETTINGS,
-  MAX_SHADOW_SLICES,
-  POINT_FACES,
-  SCENE_LIGHT_BUFFER_FLOATS,
-  SCENE_LIGHT_FLOATS,
-  SCENE_LIGHT_HEADER_FLOATS,
-  SCENE_LIGHT_VERSION,
-} from '../../sdk-core/sceneLightContracts.ts';
-export type {
-  SceneEnvironment,
-  SceneLight,
-  SceneLightingView,
-  ShadowViewpoint,
-} from '../../sdk-core/sceneLightContracts.ts';
+export { cloneSceneLight } from '../../sdk-core/sceneLightClone.ts';
 export { createDefaultLightingSceneLights } from '../../sdk-core/lightingSceneControls.ts';
 export { createLightingScene } from '../../sdk-core/lightingExperimentScene.ts';
 export { createSceneLightStore, LIGHT_FIELD } from '../../sdk-core/sceneLightStore.ts';
@@ -46,6 +30,22 @@ export {
   writeFace,
 } from '../../sdk-core/sceneLightShadowFaces.ts';
 export { forEachShadowFace } from '../../sdk-core/sceneLightShadowCasters.ts';
+export {
+  LIGHT_KIND,
+  LIGHT_SETTINGS,
+  MAX_SHADOW_SLICES,
+  POINT_FACES,
+  SCENE_LIGHT_BUFFER_FLOATS,
+  SCENE_LIGHT_FLOATS,
+  SCENE_LIGHT_HEADER_FLOATS,
+  SCENE_LIGHT_VERSION,
+} from '../../sdk-core/sceneLightContracts.ts';
+export type {
+  SceneEnvironment,
+  SceneLight,
+  SceneLightingView,
+  ShadowViewpoint,
+} from '../../sdk-core/sceneLightContracts.ts';
 export type { LightingCapabilities } from '../../sdk-core/sceneLightCapabilities.ts';
 export type {
   LightingSceneLight,

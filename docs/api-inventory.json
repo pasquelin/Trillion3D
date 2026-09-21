@@ -657,13 +657,13 @@
     {
       "name": "cloneSceneLight",
       "kind": "value",
-      "definingModule": "packages/sdk-core/sceneLightContracts.ts",
+      "definingModule": "packages/sdk-core/sceneLightClone.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/explorerLightApi.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".cloneSceneLight"
+      "bindingIdentity": "\"packages/sdk-core/sceneLightClone\".cloneSceneLight"
     },
     {
       "name": "CLUSTERED_BLEND_FORMAT_VERSION",
