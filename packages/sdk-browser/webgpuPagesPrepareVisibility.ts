@@ -22,7 +22,7 @@ import { VIS_FEATURES, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
  *  pyramid and the indirect draw; leaves `visEnabled` telling whether the image can use them. */
 export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { vis, capabilities, diag, blendState } = rt,
+  const { vis, capabilities, diag } = rt,
     { drawSlots } = rt.layout,
     [width, height] = rt.setup.viewport;
   try {
@@ -31,13 +31,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       pipelineBlendTextured: vis.pipelineBlendTextured,
       pipelineBlendFront: vis.pipelineBlendFront,
       pipelineBlendBack: vis.pipelineBlendBack,
-    } = await createWebgpuBlendPipelines(
-      gpuDevice,
-      blendState.blendGpu,
-      rt.context.diagnosticGpuVariant,
-    ));
-    // A new layout voids the shared group of paged items like the others'.
-    blendState.pagedGroup = undefined;
+    } = await createWebgpuBlendPipelines(gpuDevice, rt.context.diagnosticGpuVariant));
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;

@@ -73,9 +73,6 @@ export function ensureTargets(
   vis.visView = undefined;
   vis.materialDepthTexture = undefined;
   vis.materialDepthView = undefined;
-  vis.shadeBindGroup = undefined;
-  vis.visBindGroup = undefined;
-  vis.visHizBindGroup = undefined;
   vis.gpuRaster?.dispose();
   vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;
@@ -115,10 +112,6 @@ export function ensureTargets(
   // Temporal history follows the image size, like the other targets.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, width, height);
   gpu.targetBytes = allocationBytes;
-  // Bind groups of a transparent item name the backdrop views: they have just changed, so they are
-  // rebuilt at the first image that follows.
-  for (const item of blendState.blendGpu) item.group = undefined;
-  blendState.pagedGroup = undefined;
   gpu.targetSize = [width, height];
   try {
     vis.visTexture = device.createTexture({

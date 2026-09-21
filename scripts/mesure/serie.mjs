@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { encodePng } from '../../packages/sdk-node/png.mts';
 import { distribution, machineLoad } from './rapport.mjs';
 import { passesGpu } from './seriePasses.mjs';
-import { poolGeometrie, reservoirs } from './serieReservoirs.mjs';
+import { budgetPages, poolGeometrie, reservoirs } from './serieReservoirs.mjs';
 
 /** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
 export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
@@ -134,11 +134,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     // Geometry memory published by the engine: bytes held by the page cache and the
     // vertex buffers. `null` when the engine does not publish it, never inferred.
     geometrieOctets: metrics.geometryAllocationBytes ?? null,
-    budgetPages: {
-      demande: settings.maxPages ?? null,
-      residentes: metrics.residentPages ?? null,
-      couvertureLimiteeParBudget: metrics.coverageBudgetLimited ?? null,
-    },
+    budgetPages: budgetPages(metrics, settings.maxPages),
     // The geometry pool as the engine held it: requested bytes, slots, what bounded it,
     // and pages the last frame wanted that it could not take. `null` = unpublished.
     poolGeometrie: poolGeometrie(metrics),

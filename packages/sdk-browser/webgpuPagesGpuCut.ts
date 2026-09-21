@@ -75,7 +75,7 @@ export function renderGpuCut(
   // One cut covers both passes: the image sweeps no DAG of its own for the transparents any more.
   marks.transparentSelectEnd = marks.adoptEnd;
   if (run.gpuMetricsReady) run.visible = run.desired.length;
-  admitGpuCut(rt, pixelError, budgeted);
+  admitGpuCut(rt, pixelError);
   if (!services.bootstrapState.ready || gpu.cutIncomplete) {
     // The image is not complete: nothing can be held on it. Origin of the resource change: bootstrap
     // does not yet have all its pages — or a wanted page has not arrived yet, which puts the image
