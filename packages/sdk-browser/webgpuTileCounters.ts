@@ -17,9 +17,8 @@ export function createTileCounters() {
     missingAverage: 0,
     bytesLastFrame: 0,
     scratches: 0,
-    /** True when the last pass had image feedback to serve, and what it cost. */
+    /** True when the last pass had image feedback to serve. */
     worked: false,
-    lastMs: 0,
     metrics(atlases: readonly WebgpuTileAtlas[], levels: WebgpuTileLevels | undefined) {
       const sum = (of: (atlas: WebgpuTileAtlas) => number) =>
         atlases.reduce((total, atlas) => total + of(atlas), 0);

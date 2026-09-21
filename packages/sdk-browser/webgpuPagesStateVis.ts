@@ -7,14 +7,10 @@ import type { GpuDraw } from './gpuDraw.ts';
 import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { WebgpuTileStreamer } from './webgpuTileStreamer.ts';
-
-type GeometryBlock = {
-  vertexBase: number;
-  count: number;
-  hasUv: boolean;
-  hasNormal: boolean;
-  hasTangent: boolean;
-};
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from './webgpuBindIdentity.ts';
+import { createPresentClasses, type PresentClasses } from './webgpuMaterialPasses.ts';
+import type { GeometryBlock } from './webgpuPageRowMaterial.ts';
+import type { BlendPipelines } from './webgpuBlendStagePipelines.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
@@ -27,7 +23,16 @@ export interface WebgpuVisState {
   visPipelineNone: GPURenderPipeline | undefined;
   visPipelineFront: GPURenderPipeline | undefined;
   visPipelineFrontCw: GPURenderPipeline | undefined;
-  shadePipeline: GPURenderPipeline | undefined;
+  /** Material depth: each pixel's class, written once per image and tested by every class pass. */
+  materialDepthTexture: GPUTexture | undefined;
+  materialDepthView: GPUTextureView | undefined;
+  materialDepthPipeline: GPURenderPipeline | undefined;
+  /** One resolve pipeline per class, by class key (`visibilityMaterialClass.ts`): the scene's
+   *  classes at preparation, and any class a material changed into since, made on first draw. */
+  shadePipelines: Map<number, GPURenderPipeline>;
+  shadePipelineFor: ((key: number) => GPURenderPipeline) | undefined;
+  /** Classes the image being encoded has rows of (`webgpuMaterialPasses.ts`). */
+  presentClasses: PresentClasses;
   gpuHiz: GpuHiz | undefined;
   gpuRaster: GpuRaster | undefined;
   visHizRestBack: GPURenderPipeline | undefined;
@@ -50,9 +55,7 @@ export interface WebgpuVisState {
   zeroFlags: GPUBuffer | undefined;
   // The textured forward pipelines share the visibility path's atlases and fall with it.
   blendBindGroupLayout: GPUBindGroupLayout | undefined;
-  pipelineBlendTextured: GPURenderPipeline | undefined;
-  pipelineBlendFront: GPURenderPipeline | undefined;
-  pipelineBlendBack: GPURenderPipeline | undefined;
+  blendPipelines: BlendPipelines | undefined;
   gpuDraw: GpuDraw | undefined;
   /** Compaction of the tested half, between the occlusion test and the second pass. */
   gpuRestCompact: GpuRestCompact | undefined;
@@ -62,6 +65,9 @@ export interface WebgpuVisState {
   // sets are built from buffers that outlive the frame, so a frame never rebuilds a bind group.
   visSlotGroups: Array<GPUBindGroup | undefined>;
   rasterGroups: Array<unknown>;
+  /** What those groups, and the resolve's, currently name: a moved identity voids them. */
+  visIdentity: WebgpuBindIdentity;
+  shadeIdentity: WebgpuBindIdentity;
   concatPos: GPUBuffer | undefined;
   concatUv: GPUBuffer | undefined;
   concatNrm: GPUBuffer | undefined;
@@ -87,7 +93,12 @@ export function createWebgpuVisState(): WebgpuVisState {
     visPipelineNone: undefined,
     visPipelineFront: undefined,
     visPipelineFrontCw: undefined,
-    shadePipeline: undefined,
+    materialDepthTexture: undefined,
+    materialDepthView: undefined,
+    materialDepthPipeline: undefined,
+    shadePipelines: new Map(),
+    shadePipelineFor: undefined,
+    presentClasses: createPresentClasses(),
     gpuHiz: undefined,
     gpuRaster: undefined,
     visHizRestBack: undefined,
@@ -102,15 +113,15 @@ export function createWebgpuVisState(): WebgpuVisState {
     visUniform: undefined,
     zeroFlags: undefined,
     blendBindGroupLayout: undefined,
-    pipelineBlendTextured: undefined,
-    pipelineBlendFront: undefined,
-    pipelineBlendBack: undefined,
+    blendPipelines: undefined,
     gpuDraw: undefined,
     gpuRestCompact: undefined,
     shadeBindGroupLayout: undefined,
     shadeBindGroup: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
     rasterGroups: new Array(8).fill(undefined),
+    visIdentity: createWebgpuBindIdentity(),
+    shadeIdentity: createWebgpuBindIdentity(),
     concatPos: undefined,
     concatUv: undefined,
     concatNrm: undefined,

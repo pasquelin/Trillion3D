@@ -89,6 +89,8 @@ fn compile_leaves_transmission_unsplit() {
         .as_array()
         .expect("pages")
         .is_empty());
+    // No page, no grid: the primitive claims no quantization.
+    assert!(result["primitives"][0]["quantization"].is_null());
     fs::remove_dir_all(root).expect("cleanup");
 }
 /// The four material classes and how each is ranked. Transmission enters through

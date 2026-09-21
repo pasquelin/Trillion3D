@@ -24,7 +24,7 @@ export const guidesFr = {
   'example-diagnostics': {
     title: 'Diagnostics et qualité',
     description:
-      'Changez ce que dessine l’image et la finesse de la coupe sur un explorateur actif.',
+      'Changez ce que dessine l’image et la finesse de la coupe sur un explorateur actif ; et ce qu’un appareil GPU perdu laisse à l’écran — rien de périmé.',
   },
   'quick-start': {
     title: 'Démarrage rapide',
@@ -57,11 +57,31 @@ export const guidesFr = {
 </ul>
 <p>La leçon <a class="link link-primary" href="#/fr/examples/occlusion-two-phase">Cacher un anneau derrière un anneau</a> montre les compteurs bouger sur le jardin quand l’œil descend à hauteur d’anneau.</p>`,
   },
+  'water-pass': {
+    title: 'Eau et verre : la passe d’eau plein écran',
+    description:
+      'Comment un matériau transmissif est composé sur le chemin WebGPU — un tampon de surface, une composition plein écran sur l’arrière-plan figé — et ce que le matériau importé décide.',
+    html: `<p>Un matériau qui transmet — glTF <code>KHR_materials_transmission</code>, avec <code>KHR_materials_ior</code> et <code>KHR_materials_volume</code> ; l’eau, le verre épais — n’est pas mélangé par son opacité : il relit ce que l’image a déjà dessiné derrière lui. Sur le chemin WebGPU, cette lecture est une passe à part, après les mélanges ordinaires, et il n’y a rien à régler : la classe se lit sur le matériau importé, jamais sur un nom.</p>
+<ol class="list-decimal pl-6 space-y-1">
+<li><strong>Arrière-plan figé.</strong> L’image éclairée est copiée une fois, et la profondeur opaque une fois dans la profondeur que l’étape de surface teste. Chaque surface transmissive lit la même image figée, si bien que l’ordre entre deux d’entre elles ne change rien — et aucune ne voit à travers une autre, la même limite déclarée que la visionneuse de référence glTF.</li>
+<li><strong>Étape de surface</strong> (<code>WG water surfaces</code>). Les éléments transmissifs se dessinent avec l’étage de sommets du mélange et sa lecture du matériau, dans le tampon de surface de la résolution opaque elle-même, libre une fois cette résolution consommée — couleur de base, normale, rugosité, émission, occlusion — plus le rang d’eau de l’élément et l’opacité, avec la profondeur matérielle testée contre la copie opaque et écrite : la surface la plus proche d’un pixel est celle qui reste, quel que soit le nombre de surfaces empilées, et une surface derrière un opaque n’atteint jamais la composition.</li>
+<li><strong>Composition</strong> (<code>WG water composite</code>). Un triangle plein écran éclaire chaque pixel d’eau une fois, avec la seule formule d’éclairage du moteur : l’arrière-plan réfracté par l’indice et atténué par la couleur du volume, le reflet des sondes pondéré par Fresnel, le spéculaire des lumières déclarées, et la couleur éclairée de la surface pour la part que le matériau ne transmet pas. Un pixel sans eau est rejeté, et l’image garde ce qu’elle tenait.</li>
+</ol>
+<p><strong>Le volume s’arrête où la scène opaque commence.</strong> Le rayon parcourt l’épaisseur déclarée, ou la distance à l’arrière-plan sous le pixel quand elle est plus courte ; la sortie où il est relu et l’atténuation suivent cette distance. Un bassin déclaré plus profond que son fond rend le même pixel qu’un bassin déclaré exactement aussi profond ; un bloc juste sous la surface est déplacé et teinté par sa propre profondeur, non par celle du bassin. Devant rien, la part transmise laisse passer le fond d’affichage au lieu d’une radiance noire.</p>
+<h3 class="text-lg font-bold mt-4">Le lire</h3>
+<ul class="list-disc pl-6 space-y-1">
+<li><code>stageProfile()</code> dépose les deux passes sur l’étape <em>transparents</em>, par étiquette ; une scène sans matériau transmissif ne les encode jamais et n’alloue qu’un texel à leurs cibles. Une image dont toutes les surfaces transmissives sont hors champ n’en encode rien non plus.</li>
+<li>Le budget des cibles d’image compte la couleur figée (8 octets par pixel) et la profondeur d’eau (4) seulement quand la scène transmet : <code>gpuFrameTargetBytes</code> le dit. Les surfaces elles-mêmes sont celles de la résolution opaque, déjà payées.</li>
+<li>Une vue de diagnostic — grappes, fil de fer, erreur écran —, une variante GPU de diagnostic, ou une capture depuis une seconde caméra, qui lit le tampon de surface comme opaque, dessine la tranche de transmission comme un mélange de plus, si bien que la variante mesure le même étage de fragments sur tous les transparents.</li>
+</ul>`,
+  },
   architecture: {
     title: 'Architecture et règles',
     description:
       'Les promesses du moteur et les conventions suivies par chaque fonction ci-dessous.',
     html: `<p>La mission décrite dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/architecture/PRODUCT_PRINCIPLES.md">Principes du produit</a> est une géométrie virtualisée pour le web : grappes diffusées, une coupe du DAG par image, tampon de visibilité, anticrénelage temporel, budgets mémoire et de diffusion fixes. Les étapes d’éclairage figurent dans <code>docs/SPEC_ENGINE_WITHOUT_THREE.md</code> §8.</p>
+<h3 class="text-lg font-bold mt-4">Une image, sur le chemin WebGPU</h3>
+<p>Le GPU coupe le DAG et compacte les grappes à dessiner ; la rastérisation matérielle écrit un <strong>tampon de visibilité</strong> (un identifiant par pixel) derrière un test d’occultation Hi-Z ; la <strong>résolution des matériaux</strong> reconstruit ensuite la surface de chaque pixel — couleur de base, normale, rugosité, émission — <em>une classe de matériau par passe</em> : une passe écrit la classe de chaque pixel comme une profondeur exacte, puis chaque classe trace un triangle plein écran à sa propre profondeur sous le test matériel <code>equal</code>, avec un pipeline compilé pour ses seuls traits (cartes, découpe, normales de sommet, tangentes). Suivent l’éclairage différé, les transparents, l’anticrénelage temporel et la présentation. Observez-le en direct avec <code>setDiagnostic('materials')</code> (une couleur par classe), le diagnostic <code>material-classes-ready</code> (les classes de la scène) et <code>stageProfile()</code> (le bloc <code>materials</code> : <code>WG material depth</code> et <code>WG material surfaces v1</code>).</p>
 <h3 class="text-lg font-bold mt-4">Conventions de l’API mathématique</h3>
 <ul class="list-disc pl-6 space-y-1">
 <li><strong>Matrices 4×4 en ordre colonne</strong>, seize nombres consécutifs, translation en <code>[12..14]</code>.</li>
@@ -69,6 +89,7 @@ export const guidesFr = {
 <li><strong><code>Float64Array</code> pour les calculs</strong>, <code>ArrayLike&lt;number&gt;</code> pour la lecture. La simple précision intervient lors de l’envoi vers le GPU.</li>
 <li><strong>Mêmes bits que la référence</strong>, vérifiés par <code>pnpm run perf:core</code>, sauf les deux écarts déclarés : courbe sRGB et termes de profondeur de la projection inversée infinie.</li>
 <li><strong>Mesurer avant d’optimiser.</strong> Les profils CPU et GPU localisent le coût d’une image ; aucune optimisation ne part d’une supposition.</li>
+<li><strong>Matériaux prouvés à l’écran.</strong> <code>pnpm run test:gpu</code> rend douze matériaux témoins — couleur de base et sa carte, masque alpha à son seuil, mélange, faces arrière, métal-rugosité, émissif, carte de normales — avec le moteur et avec le témoin Three, tous deux depuis <code>dist/</code>, et tient chaque pixel lu à un niveau près du témoin ; le seul écart déclaré, un mélange sur une surface opaque, est mesuré à 45 niveaux et tenu là (<code>docs/SDK.md</code> § Separated surfaces and lighting).</li>
 </ul>
 <h3 class="text-lg font-bold mt-4">Lire ce portail</h3>
 <p>Chaque entrée nomme le fichier qui la contient. Le badge <span class="badge badge-warning badge-sm">en développement</span> désigne une fonction absente de <code>develop</code> et renvoie vers l’issue qui porte son contrat. Toutes les autres entrées sont livrées aujourd’hui.</p>`,
@@ -91,6 +112,43 @@ export const guidesFr = {
 <tr><td><code>THREE.LOD</code></td><td>—</td><td>la coupe du DAG choisit le détail par image selon l’erreur écran</td></tr>
 </tbody></table></div>
 <p>Les fonctions livrées et leurs preuves figurent dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/API.md">docs/API.md</a>.</p>
+<h3 class="text-lg font-bold mt-4">Ce que le chemin WebGL2 dessine lui-même</h3>
+<p>Sur une session WebGL2, le moteur possède le contexte et dessine chaque cluster paginé avec son propre programme — lots opaques, masqués et fondus, pages de diagnostic — et, depuis #120, les surfaces transmissives de la scène : un maillage <code>KHR_materials_transmission</code> reste une copie de scène, composée après les clusters sur un fond figé de l’image en lumière linéaire, le même modèle que la passe WebGPU. Il n’y a pas d’autre rendu pour les clusters : un matériau, une lumière ou une texture que le programme ne peut préserver fait échouer la préparation avec l’<code>EngineError</code> <code>CLUSTER_MATERIAL_UNSUPPORTED</code>, dont <code>details.reason</code> nomme l’entrée, jamais une image partielle. Le rendu hôte compose encore les copies fondues restantes, le compositeur de comparaison, les captures et les images tenues (#85).</p>
+<div class="overflow-x-auto my-4"><table class="table table-zebra table-sm"><thead><tr><th>Three.js</th><th>Moteur</th><th>Différence déclarée</th></tr></thead><tbody>
+<tr><td><code>WebGLRenderer.renderTransmissionPass</code></td><td>passe de transmission de <code>WebglClusterRenderer</code></td><td>le fond est une copie brute : la rugosité ne le floute pas, un verre ne voit pas à travers un autre</td></tr>
+<tr><td>extensions de <code>MeshPhysicalMaterial</code></td><td>facteurs de transmission, d’IOR et de volume seulement</td><td>clearcoat, sheen, iridescence, anisotropie, dispersion, spéculaire et leurs cartes sont refusés par leur nom</td></tr>
+</tbody></table></div>
 <p>Parcours en deux temps : garder Three.js pour charger et construire la scène tout en dessinant avec le moteur, puis passer au cache compilé et retirer <code>three</code> des dépendances.</p>`,
+  },
+  'cluster-format': {
+    title: 'Pages de grappes quantifiées',
+    description:
+      'Ce qu’une page de grappe compilée garde par triangle, sur quelles grilles, et où lire ce que la quantification a coûté.',
+    html: `<p>Chaque grappe de 128 triangles au plus est écrite une fois, par le compilateur natif, comme une page décodable seule (<code>docs/FORMAT.md</code>, format <code>WGP3</code>) : indices locaux compactés bit à bit, positions sur une grille objet, normales octaédriques sur deux octets, coordonnées de texture entières, couleurs sur un octet — et aucune tangente, qu’un nuanceur reconstruit depuis le triangle. L’en-tête porte les comptes, les drapeaux et un enregistrement de quantification par attribut vectoriel ; chaque décalage de flux s’en déduit, si bien qu’un nuanceur lit n’importe quel sommet d’une page résidente sur place, en O(1), et que le décodeur JavaScript ou WebAssembly déplie les mêmes octets en flottants pour le moteur autonome.</p>
+<h3 class="text-lg font-bold mt-4">Les grilles, et ce qu’elles coûtent</h3>
+<ul class="list-disc pl-6 space-y-1">
+<li><strong>Positions.</strong> Une grille par primitive, la plus fine de deux règles : <code>2^(floor(log2(plus grande étendue)) − 16)</code>, soit environ 65 536 pas sur l’objet, et un huitième de la plus fine erreur de groupe publiée par son DAG, pour qu’un déplacement de grappe se projette sous un huitième du seuil partout où la coupe la retient — bornée pour que l’objet tienne en 2^23 pas au plus, car chaque page de la primitive garde ce seul exposant (deux grappes qui partagent un sommet le posent sur la même cellule ; une page trop large pour la grille est refusée, <code>PAGE_ATTRIBUTE_RANGE</code>, jamais regrillée). Une grappe ne dépense que les bits que sa propre boîte réclame — 10 à 13 par axe sur une ville, pas 32 —, et sa valeur décodée vaut <code>min + q × pas</code>, produit exact et une seule somme arrondie : le même flottant 32 bits sur chaque décodeur.</li>
+<li><strong>Coordonnées de texture.</strong> Une grille fixe de <code>2^-14</code> : un quart de texel sur une carte de 4096 de large.</li>
+<li><strong>Normales.</strong> Deux octets octaédriques, à 1° de la source. <strong>Couleurs.</strong> Une grille de <code>2^-8</code> par canal, avec des minima par page : un canal constant — l’alpha, le plus souvent — ne coûte aucun bit.</li>
+<li><strong>Sommets partagés.</strong> Deux sommets source qui tombent sur les mêmes cellules ne sont gardés qu’une fois : une source qui répète un sommet par coin retombe à ses sommets distincts sans changer un triangle.</li>
+<li><strong>Ce qui n’est pas écrit.</strong> Les tangentes : chaque passe d’éclairage reconstruit un seul repère cotangent depuis le triangle (<code>cotangentFrame</code>, WGSL et GLSL) ; et un jeu de coordonnées de texture qu’aucune texture du matériau ne nomme dans <code>texCoord</code>.</li>
+</ul>
+<p>Le coût est déclaré, jamais caché. Chaque page porte dans son en-tête son pire déplacement de position, et chaque décodeur le renvoie — le moteur autonome élargit la boîte d’une page d’exactement cela ; chaque primitive publie <code>quantization</code> — <code>positionExponent</code>, <code>uvExponent</code>, <code>maxPositionError</code> — dans le manifeste, pour le rapport, et chaque descripteur de page nomme ses octets résidents (<code>geometry.bytes</code>) à côté de ce que son décodage flottant occupe (<code>geometry.uncompressedBytes</code>). La coupe n’ajoute pas encore l’erreur de quantification à la bande d’erreur d’une grappe ; le C4 de la spécification reste ouvert.</p>
+<h3 class="text-lg font-bold mt-4">Comment l’observer</h3>
+<p>Sur un explorateur actif, <code>explorer.metadata.primitives</code> est le manifeste ouvert : additionnez <code>pages[].geometry.bytes</code> sur <code>pages[].count / 3</code> triangles pour le chiffre compact, <code>uncompressedBytes</code> pour le chiffre flottant, et lisez le plus grand <code>quantization.maxPositionError</code>. Dans le dépôt, <code>node --experimental-strip-types scripts/mesure/octetsParTriangle.mjs &lt;cache&gt;/native/full</code> imprime ces chiffres pour n’importe quel cache compilé. Ce sont les chiffres du cache : le moteur de dessin WebGPU téléverse encore les sommets flottants de la source et les pages d’indices, et son pool de géométrie le dit.</p>
+<h3 class="text-lg font-bold mt-4">Contrat et refus</h3>
+<p>Le manifeste déclare son format de page une fois, en tête : <code>geometryPages.formatVersion</code> vaut 3 et <code>codec</code> vaut <code>quantized</code> ; le sidecar binaire qui les nomme est en version 6, chaque en-tête de page s’ouvre sur la même version, et un lecteur refuse un autre format en bloc plutôt que page par page. Une page dont l’en-tête sort du format — une largeur au-delà de 24 bits, un exposant au-delà de ±64, un drapeau inconnu, une longueur qui ne correspond pas à ses flux — est refusée avant toute lecture de flux ; un indice au-delà du nombre de sommets est refusé avant qu’un flottant ne soit produit. Les routines WGSL sont prouvées sur la carte graphique contre le décodeur JavaScript, bit à bit sur les positions, les coordonnées de texture et les couleurs (<code>test/justesse/decodage-cluster-gpu.mjs</code>).</p>`,
+  },
+  'memory-pools': {
+    title: 'Pools mémoire et admission de la coupe',
+    description:
+      'Deux pools fixes réglés par l’hôte, ce qu’une vue demande au-delà, et comment lire le verdict.',
+    html: `<p>Le moteur tient deux pools fixes, en octets, jamais lus sur la machine : <code>geometryPoolBytes</code> pour les pages de grappes (512 Mio par défaut, <code>floor(octets / pageBytes)</code> fentes) et <code>texturePoolBytes</code> pour les tuiles de texture virtuelle. Un budget qui ne peut être tenu tel quel est ramené à ce qui peut l’être, et la raison est publiée : <code>geometryPoolClamp</code> vaut <code>root-cover</code> (relevé à la couverture racine, toujours résidente), <code>scene</code> (la scène est plus petite), <code>ceiling</code> (au-dessus de <code>geometryPoolCeilingBytes</code>, le plus haut qu’une session puisse monter), <code>page-cap</code>, <code>device-limit</code> ou <code>null</code>.</p>
+<h3 class="text-lg font-bold mt-4">Ce qu’une vue demande au-delà du pool</h3>
+<p>Rien n’est refusé et rien ne s’arrête : la coupe est <strong>rendue plus grossière, jamais tronquée</strong>. Quand les pages demandées par la coupe — couverture racine comprise — dépassent les fentes, l’admission double l’erreur écran à laquelle l’image était dessinée (1 px au moins au premier débordement, puis 2, 4…), et la redescend cran par cran jusqu’à 0,125 px dès que la coupe tient avec de la marge. Deux règles la tiennent immobile : un cran ne bouge que sur une coupe échantillonnée au cran en vigueur, et un cran dont la coupe demandée a débordé pour cette vue n’est plus redemandé tant que ni la vue ni le pool ne changent. Une caméra immobile se pose donc en quelques échantillons et tient son image.</p>
+<h3 class="text-lg font-bold mt-4">Changer un pool en cours de session</h3>
+<p><code>explorer.setMemoryBudgets({ geometryPoolBytes, texturePoolBytes })</code> redimensionne sans vider : la couverture racine garde sa place avant toute autre page, puis les pages épinglées, puis les plus récentes ; seul ce qui ne tient plus part, et le rapport dit combien (<code>evictedPages</code>, <code>evictedTiles</code>, <code>durationMs</code>). Les groupes de liaison qui nommaient l’ancien pool sont rebâtis à l’image suivante, par l’identité de ce qu’ils nomment.</p>
+<h3 class="text-lg font-bold mt-4">Lire le verdict</h3>
+<p>À chaque image, <code>render()</code> renvoie <code>coverageBudgetLimited</code> (la coupe demandée ne tient pas encore) et <code>budgetPixelError</code> (0 tant que le détail demandé tient, sinon le cran auquel l’image est dessinée), ainsi que <code>geometryPoolSaturated</code>. Le diagnostic <code>coverage-budget</code>, livré pendant <code>flush()</code>, nomme chaque changement de verdict avec les fentes demandées et tenues.</p>`,
   },
 };

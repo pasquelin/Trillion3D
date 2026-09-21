@@ -12,6 +12,7 @@ import type { createPageStreamer } from './streamingPages.ts';
 import type { EngineProfiler } from './telemetry.ts';
 import type { ComparisonLayout } from './comparison.ts';
 import type { createSceneDrawer } from './explorerDrawScene.ts';
+import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
   check: () => void;
@@ -24,6 +25,7 @@ type Inputs = {
   ensureTarget: (target?: THREE.WebGLRenderTarget) => THREE.WebGLRenderTarget;
   directGpu: boolean;
   renderer: THREE.WebGLRenderer;
+  webglSurface?: WebglSurface;
   backends: RenderBackend[];
   baseline: RenderBackend;
   compositor?: {
@@ -56,6 +58,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     ensureTarget,
     directGpu,
     renderer: ownedRenderer,
+    webglSurface,
     backends,
     baseline,
     compositor,
@@ -101,7 +104,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
       handleExplorerRenderError(error, {
         measuring,
         diagnostic,
-        renderer: ownedRenderer,
+        webglSurface,
         camera,
         baseline,
         state,

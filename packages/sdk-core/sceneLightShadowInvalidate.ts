@@ -13,9 +13,10 @@ const matrix = new Float32Array(16);
  *
  * - **The light has moved, changed range or slice**: all its maps are wrong, all
  *   their pages go back to waiting.
- * - **A sun cascade describes another world extent**: that cascade restarts in full.
- *   As long as the extent is the same — still camera, or a move smaller than a texel of the
- *   alignment grid —, the map is kept as-is, even if the camera has moved.
+ * - **A sun cascade extent has slid by whole pages**: only the strip that entered restarts;
+ *   the pages that stayed inside still describe the same world. As long as the extent is the
+ *   same — still camera, or a move smaller than a page —, the map is kept as-is. A slide of a
+ *   extent side or more, a new depth anchor or a new radius restart the cascade in full.
  * - **An object has moved in the light's range**: only the pages its projected box covers
  *   restart. The rest of the face still describes the scene, since nothing else has changed.
  */
@@ -43,8 +44,14 @@ export function invalidateLightPages(
   for (let face = 0; face < faceCount; face++) {
     let all = whole;
     if (sun) {
-      const cascade = sunCascadeOf(view, lightDirection(light), face, side);
-      if (slices.cascadeChanged(slice, face, cascade.center, cascade.radius)) all = true;
+      const { originX, originY, anchor, radius } = sunCascadeOf(
+        view,
+        lightDirection(light),
+        face,
+        side,
+      );
+      if (slices.cascadeSlide(slice, face, rows, originX, originY, anchor, radius, nowMs, frame))
+        all = true;
     }
     if (all) {
       dirty.whole(slice, face, rows, nowMs, frame);

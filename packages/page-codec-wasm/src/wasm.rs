@@ -1,13 +1,13 @@
 //! Raw WebAssembly ABI: no `wasm-bindgen`, only integers and offsets in linear memory. The
 //! JavaScript loader writes the page at the offset returned by `page_alloc`, calls `page_decode`,
-//! reads the result block, then releases everything with `page_release`.
+//! reads the result block, then releases it with `page_release`.
 
-use crate::{decode, OPTIONAL};
+use crate::decode;
 
-/// Result block, in 32-bit words:
-/// 0 status (0 = decoded), 1 vertices, 2 indices, 3 flags, 4 decompressed bytes,
-/// 5 index offset, 6 position offset, 7 to 11 optional-attribute offsets (0 = absent).
-const RESULT_WORDS: usize = 12;
+/// Result block, in 32-bit words: 0 status (0 = decoded), 1 vertices, 2 indices, 3 flags,
+/// 4 decoded bytes, 5 quantization error as its `f32` bits, then the decoded page itself —
+/// `decoded bytes / 4` words: the indices, the position, each present attribute in stream order.
+const RESULT_WORDS: usize = 6;
 
 pub(crate) fn fuite<T>(valeurs: Vec<T>) -> u32 {
     let boite = valeurs.into_boxed_slice();
@@ -21,13 +21,14 @@ pub(crate) unsafe fn rends<T>(offset: u32, len: usize) {
     }
 }
 
-/// Reserves `len` bytes for the compressed page. Returns 0 if the size is absurd.
+/// Reserves `len` bytes for the packed page, on a word boundary so the decoder reads the
+/// streams in place. Returns 0 if the size is absurd.
 #[no_mangle]
 pub extern "C" fn page_alloc(len: usize) -> u32 {
     if len == 0 || len > 1 << 30 {
         return 0;
     }
-    fuite(vec![0u8; len])
+    fuite(vec![0u32; len.div_ceil(4)])
 }
 
 /// Releases a `page_alloc` reservation.
@@ -36,7 +37,7 @@ pub extern "C" fn page_alloc(len: usize) -> u32 {
 /// `offset` must come from `page_alloc` with this same `len`, and must not already have been released.
 #[no_mangle]
 pub unsafe extern "C" fn page_free(offset: u32, len: usize) {
-    rends::<u8>(offset, len);
+    rends::<u32>(offset, len.div_ceil(4));
 }
 
 /// Decodes the page written at `offset` and returns the result-block offset, or 0 if memory is short.
@@ -46,25 +47,26 @@ pub unsafe extern "C" fn page_free(offset: u32, len: usize) {
 #[no_mangle]
 pub unsafe extern "C" fn page_decode(offset: u32, len: usize, max_decoded_bytes: usize) -> u32 {
     let data = core::slice::from_raw_parts(offset as *const u8, len);
-    let mut bloc = vec![0u32; RESULT_WORDS];
-    match decode(data, max_decoded_bytes) {
-        Err(cause) => bloc[0] = cause as u32,
+    let bloc = match decode(data, max_decoded_bytes) {
+        Err(cause) => vec![cause as u32, 0, 0, 0, 0, 0],
         Ok(page) => {
-            bloc[1] = page.vertex_count as u32;
-            bloc[2] = page.indices.len() as u32;
-            bloc[3] = page.flags;
-            bloc[4] = page.decoded_bytes as u32;
-            bloc[5] = fuite(page.indices);
-            bloc[6] = fuite(page.position);
-            for (rang, valeurs) in page.optional.into_iter().enumerate() {
-                bloc[7 + rang] = valeurs.map_or(0, fuite);
-            }
+            let mut bloc = Vec::with_capacity(RESULT_WORDS + page.words.len());
+            bloc.extend_from_slice(&[
+                0,
+                page.vertex_count as u32,
+                page.index_count as u32,
+                page.flags,
+                page.decoded_bytes() as u32,
+                page.quantization_error.to_bits(),
+            ]);
+            bloc.extend_from_slice(&page.words);
+            bloc
         }
-    }
+    };
     fuite(bloc)
 }
 
-/// Releases the result block and every buffer it names.
+/// Releases the result block, page included.
 ///
 /// # Safety
 /// `offset` must come from `page_decode` and must not already have been released.
@@ -74,11 +76,5 @@ pub unsafe extern "C" fn page_release(offset: u32) {
         return;
     }
     let bloc = core::slice::from_raw_parts(offset as *const u32, RESULT_WORDS);
-    let vertex_count = bloc[1] as usize;
-    rends::<u32>(bloc[5], bloc[2] as usize);
-    rends::<f32>(bloc[6], vertex_count * 3);
-    for (rang, &(_, size)) in OPTIONAL.iter().enumerate() {
-        rends::<f32>(bloc[7 + rang], vertex_count * size);
-    }
-    rends::<u32>(offset, RESULT_WORDS);
+    rends::<u32>(offset, RESULT_WORDS + bloc[4] as usize / 4);
 }

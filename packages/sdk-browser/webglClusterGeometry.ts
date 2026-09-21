@@ -82,14 +82,13 @@ export class WebglClusterGeometry {
       cached.index = upload(gl, gl.ELEMENT_ARRAY_BUFFER, geometry.index, cached.index);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
     }
-    for (const name of ['position', 'normal', 'tangent', 'uv', 'uv1', 'color']) {
+    for (const name of ['position', 'normal', 'uv', 'uv1', 'color']) {
       const attribute = geometry.getAttribute(name),
         location = this.locations[name];
       if (location < 0) continue;
       if (!attribute || 'isInterleavedBufferAttribute' in attribute) {
         gl.disableVertexAttribArray(location);
         if (name === 'color') gl.vertexAttrib4f(location, 1, 1, 1, 1);
-        else if (name === 'tangent') gl.vertexAttrib4f(location, 1, 0, 0, 1);
         else gl.vertexAttrib2f(location, 0, 0);
         continue;
       }

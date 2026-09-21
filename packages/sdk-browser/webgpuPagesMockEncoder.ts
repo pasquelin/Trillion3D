@@ -10,6 +10,7 @@ export type MockDraw = {
   slotOffsetsBuffer?: unknown;
   indirect?: boolean;
   entryPoint?: string;
+  fragment?: string;
 };
 export type MockPass = {
   label?: string;
@@ -29,7 +30,8 @@ export function createMockCommandEncoderFactory(inputs: {
   failVisPass: boolean;
 }) {
   const { draws, passes, computes, imageCopies, packed, failVisPass } = inputs;
-  let currentRenderEntry = '';
+  let currentRenderEntry = '',
+    currentFragment = '';
   let currentBind: unknown,
     computeBind: ComputeBind | undefined,
     computeOffsets: readonly number[] | undefined,
@@ -59,8 +61,9 @@ export function createMockCommandEncoderFactory(inputs: {
         formats: colors.map((color) => color.view?.format ?? ''),
       });
       return {
-        setPipeline(pipeline: { entryPoint?: string }) {
+        setPipeline(pipeline: { entryPoint?: string; fragment?: string }) {
           currentRenderEntry = pipeline.entryPoint ?? '';
+          currentFragment = pipeline.fragment ?? '';
         },
         setBindGroup(_i: number, group: unknown) {
           currentBind = group;
@@ -72,6 +75,7 @@ export function createMockCommandEncoderFactory(inputs: {
             instanceCount,
             firstInstance,
             entryPoint: currentRenderEntry,
+            fragment: currentFragment,
           });
           void currentBind;
         },

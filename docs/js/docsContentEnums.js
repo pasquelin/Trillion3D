@@ -25,7 +25,7 @@ copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
     exports: ['DiagnosticMode', 'DIAGNOSTICS'],
     module: 'packages/sdk-core/diagnostics.ts',
     signature:
-      "type DiagnosticMode = 'beauty' | 'wireframe' | 'clusters' | 'lod' | 'screen-error' | 'visibility' | 'pages' | 'texture-mip' | 'overdraw'",
+      "type DiagnosticMode = 'beauty' | 'wireframe' | 'clusters' | 'lod' | 'screen-error' | 'materials' | 'visibility' | 'pages' | 'texture-mip' | 'overdraw'",
     description:
       'What a frame draws. Availability describes real pipeline outputs, never synthetic overlays: `DIAGNOSTICS` gives, per mode, whether the backend can produce it and why not.',
     values: [
@@ -45,6 +45,10 @@ copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
       {
         name: "'screen-error'",
         desc: 'The per-cluster error projected through the cluster sphere, as the cut uses it.',
+      },
+      {
+        name: "'materials'",
+        desc: 'One colour per material class: the class pass that resolved the pixel. WebGPU visibility path only.',
       },
       {
         name: "'visibility'",

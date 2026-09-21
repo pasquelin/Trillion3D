@@ -44,6 +44,12 @@ export function submitDiagnosticMesh(gl: WebGL2RenderingContext, mesh: THREE.Mes
     gl.drawArrays(gl.TRIANGLES, 0, mesh.geometry.attributes.position.count);
     return;
   }
-  const type = index.array instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+  const array = index.array,
+    type =
+      array instanceof Uint32Array
+        ? gl.UNSIGNED_INT
+        : array instanceof Uint8Array
+          ? gl.UNSIGNED_BYTE
+          : gl.UNSIGNED_SHORT;
   gl.drawElements(gl.TRIANGLES, index.count, type, 0);
 }

@@ -26,7 +26,10 @@ class is read from the material alone, and each scene stays two readable files.
 2,880 triangles. A water plane at `y = 0` above a ground at `y = -2.5` and three blocks, of which two
 pierce the surface: what is looked at is the deviation of the ground under the water against the straight line of
 the block above it, and the tint the attenuation distance gives it. A scene with nothing
-behind the water would have proved nothing at all.
+behind the water would have proved nothing at all. Every triangle winds outward — the ground and
+the water face `+y`, the blocks face away from their centre — so that a single-sided material
+shows the faces the camera sees; the first form of the file wound them all inward and rendered
+the blocks as their far faces.
 
 The compiler packs the water as `shared-blend`: outside the DAG, one primitive = one whole mesh,
 source order kept. That primitive therefore has no cluster, hence no error band, and

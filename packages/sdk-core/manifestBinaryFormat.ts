@@ -21,8 +21,15 @@
  *  refused whole: a reader that sliced the wrong range would show one texture's levels on another.
  *  Version 5 widens a preview entry from ten to twelve words — the atlas it serves and how many
  *  levels are baked as files under `textures/` — and its pixels follow the graphics card's mip rule;
- *  a version-4 reader would stride through the entries wrongly, so it refuses this file. */
-export const MANIFEST_BINARY_VERSION = 5;
+ *  a version-4 reader would stride through the entries wrongly, so it refuses this file.
+ *  Version 6 keeps every column and names another geometry page in the geometry descriptor: the
+ *  quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a
+ *  version-6 reader would refuse one by one at decode; refusing the file says it once. */
+export const MANIFEST_BINARY_VERSION = 6;
+/** The geometry-page format a version-6 sidecar names, as the manifest's `geometryPages` declares
+ *  it once and every page header opens with. */
+export const GEOMETRY_PAGE_FORMAT_VERSION = 3;
+export const GEOMETRY_PAGE_CODEC = 'quantized';
 /** 'W','G','M','B' read as a little-endian u32. */
 export const MANIFEST_BINARY_MAGIC = 0x424d4757;
 export const MANIFEST_BINARY_HEADER_WORDS = 4;

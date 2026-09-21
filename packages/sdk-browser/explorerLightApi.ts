@@ -6,6 +6,7 @@ import {
   type SceneLight,
   type SceneLightStore,
   type SceneLightingView,
+  cloneSceneLight,
 } from '../sdk-core/index.ts';
 import type { BackendDiagnostic, RenderBackend } from './backendTypes.ts';
 import { lightingCapabilitiesOf } from './lightingCapabilities.ts';
@@ -67,23 +68,28 @@ export function createExplorerLightApi(inputs: Inputs) {
     lightSettings: LIGHT_SETTINGS,
     /** Published bounds of bounced light: proxy threshold, grid, ray budget. */
     bounceSettings: BOUNCE_SETTINGS,
-    /** Contract lights, in add order; a read copy, never the buffer. */
+    /**
+     * Contract lights, in add order. Each one is a detached copy, arrays included: writing into
+     * it changes nothing in the engine, and the next call reads the store again. The copy is
+     * paid per call, by the host that calls; no frame reads this function.
+     */
     lights(): SceneLight[] {
       check();
       const lights = required();
-      return lights.ids.map((id) => ({ ...lights.light(id)! }));
+      return lights.ids.map((id) => cloneSceneLight(lights.light(id)!));
     },
     /**
-     * Lights the scene file carried, declared at open. The host reads them to set (`setLight`)
-     * or remove (`removeLight`) them; those it has already removed are no longer there. A
-     * scene with no imported light yields an empty list, and nothing has changed for it.
+     * Lights the scene file carried, declared at open, as the same detached copies. The host
+     * reads them to set (`setLight`) or remove (`removeLight`) them; those it has already
+     * removed are no longer there. A scene with no imported light yields an empty list, and
+     * nothing has changed for it.
      */
     importedLights(): SceneLight[] {
       check();
       const lights = required();
       return imported.flatMap((id) => {
         const light = lights.light(id);
-        return light ? [{ ...light }] : [];
+        return light ? [cloneSceneLight(light)] : [];
       });
     },
     get environment(): SceneEnvironment | undefined {

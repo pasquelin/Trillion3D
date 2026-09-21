@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { chargeBaseline, cleDeLigne } from './baseline.mjs';
+import { chargeBaseline, cleDeLigne, ecartRelatif } from './baseline.mjs';
 import { FRAGMENTS, RACINE, cheminFragment } from './chemins.mjs';
 import { ligneMd } from './tableau.mjs';
 
@@ -28,11 +28,7 @@ function confronteBaseline(domaine, mesures) {
     ...m,
     resultats: m.resultats.map((r) => {
       const base = connus.get(cleDeLigne(m.name, r.name));
-      const comparable = base?.medianeMs && r.medianeMs !== null;
-      return {
-        ...r,
-        ecartBaseline: comparable ? (r.medianeMs - base.medianeMs) / base.medianeMs : null,
-      };
+      return { ...r, ecartBaseline: ecartRelatif(r.medianeMs, base?.medianeMs) };
     }),
   }));
 }

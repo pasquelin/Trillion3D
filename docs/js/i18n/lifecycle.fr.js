@@ -1,7 +1,7 @@
 export const lifecycleFr = {
   prepare: {
     description:
-      'Compile une scène source vers le cache lu par le navigateur. Lance le compilateur natif puis renvoie le manifeste avec ses mesures. `resourceBaseUrl` est obligatoire : c’est l’URL depuis laquelle le navigateur chargera pages et textures.',
+      'Compile une scène source vers le cache lu par le navigateur. Lance le compilateur natif puis renvoie le manifeste avec ses mesures. Une source dont le produit est déjà dans le cache n’est pas recompilée : le dossier est vérifié fichier par fichier puis conservé, et `reused` dit ce qui a été contrôlé (`null` quand la tâche a compilé). `resourceBaseUrl` est obligatoire : c’est l’URL depuis laquelle le navigateur chargera pages et textures. Ce que chaque lecteur fait de sa source — faces polygonales coupées en éventail si convexes, en oreilles sinon — est dans `docs/COMPILER.md`.',
     values: [
       {
         desc: 'Dossier avec `manifest.json`, dossier contenant un seul glTF/GLB, ou fichier `.gltf`, `.glb`, `.fbx` ou `.obj`.',
@@ -45,7 +45,12 @@ export const lifecycleFr = {
       { desc: 'Modifie le seuil d’erreur écran de la coupe.' },
       { desc: 'Lit la surface dessinée ou redimensionne les cibles.' },
       { desc: 'Quantiles CPU/GPU par étape et rapport de télémétrie.' },
-      { desc: 'Éclairage de scène, déclaré avant la préparation du premier backend.' },
+      {
+        desc: 'Éclairage de scène, déclaré avant la préparation du premier backend. Le moteur valide sa propre copie de ce qu’il reçoit : une lumière modifiée après envoi ne change rien tant qu’elle n’est pas renvoyée.',
+      },
+      {
+        desc: 'Lisent les lumières et l’exposition tenues sous forme de copies détachées, tableaux compris : y écrire ne change rien dans le moteur, et chaque appel relit le magasin. La copie est payée par l’appel, jamais par l’image.',
+      },
       {
         desc: 'Une pose, une visibilité ou une lampe écrite sur un nœud source sans aucun appel — `mesh.position.x = 100` — est vue : l’écriture elle-même incrémente la révision de scène, l’image compare un entier et une scène immobile ne relit aucun nœud. Une matrice posée à la main (`matrixAutoUpdate = false`) s’annonce comme Three l’exige, par `matrixWorldNeedsUpdate = true` ; une lampe ajoutée au graphe ou retirée s’annonce par `refreshSceneLighting()`.',
       },

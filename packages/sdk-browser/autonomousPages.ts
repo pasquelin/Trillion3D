@@ -103,7 +103,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     capabilities: {
       renderer: 'WebGL2 autonomous prepared pages',
       materials:
-        'glTF opaque and alpha-mask materials; independent positions, normals, UVs, tangents and colors',
+        'glTF opaque and alpha-mask materials; independent positions, normals, UVs and colors; tangents rebuilt per triangle',
       hierarchy: true,
       gpuDriven: false,
       simplification: !!context.metadata.simplification,
