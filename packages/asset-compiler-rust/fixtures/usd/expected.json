@@ -4,16 +4,8 @@
       "bufferView": 0,
       "componentType": 5126,
       "count": 4,
-      "max": [
-        1.0,
-        2.0,
-        0.0
-      ],
-      "min": [
-        0.0,
-        1.0,
-        0.0
-      ],
+      "max": [1.0, 2.0, 0.0],
+      "min": [0.0, 1.0, 0.0],
       "type": "VEC3"
     },
     {
@@ -38,16 +30,8 @@
       "bufferView": 4,
       "componentType": 5126,
       "count": 4,
-      "max": [
-        1.0,
-        1.0,
-        0.0
-      ],
-      "min": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "max": [1.0, 1.0, 0.0],
+      "min": [0.0, 0.0, 0.0],
       "type": "VEC3"
     },
     {
@@ -89,12 +73,7 @@
       "alphaMode": "BLEND",
       "name": "Texture",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          0.5
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 0.5],
         "baseColorTexture": {
           "index": 0
         },
@@ -106,12 +85,7 @@
       "alphaMode": "OPAQUE",
       "name": "Uni",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          0.800000011920929,
-          0.10000000149011612,
-          0.10000000149011612,
-          1.0
-        ],
+        "baseColorFactor": [0.800000011920929, 0.10000000149011612, 0.10000000149011612, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.4000000059604645
       }
@@ -150,57 +124,17 @@
       "name": "Quad"
     },
     {
-      "children": [
-        0
-      ],
-      "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        1.0
-      ],
+      "children": [0],
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0],
       "name": "Plaque"
     },
     {
-      "children": [
-        1
-      ],
+      "children": [1],
       "name": "Root"
     },
     {
-      "children": [
-        2
-      ],
-      "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
+      "children": [2],
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
       "name": "usd-root"
     }
   ],
@@ -223,9 +157,7 @@
     "name": "usd",
     "version": "usd-openusd-0.7.0-gltf-8"
   },
-  "selectedNodes": [
-    0
-  ],
+  "selectedNodes": [0],
   "selectedTriangles": 4,
   "sidecarSha256": "15eb718a7768dc9c810706441120916376fd47ca4fc67a65665b1a407346249d",
   "sourceTriangles": 4,

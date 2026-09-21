@@ -11,88 +11,17 @@
     "xforms": 4
   },
   "firstPrimitive": {
-    "indices": [
-      0,
-      1,
-      2,
-      0,
-      2,
-      3,
-      4,
-      5,
-      6,
-      4,
-      6,
-      7
-    ],
+    "indices": [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7],
     "normals": [
-      1.0,
-      0.0,
-      -0.0,
-      1.0,
-      0.0,
-      -0.0,
-      1.0,
-      0.0,
-      -0.0,
-      1.0,
-      0.0,
-      -0.0,
-      0.0,
-      1.0,
-      -0.0,
-      0.0,
-      1.0,
-      -0.0,
-      0.0,
-      1.0,
-      -0.0,
-      0.0,
-      1.0,
-      -0.0
+      1.0, 0.0, -0.0, 1.0, 0.0, -0.0, 1.0, 0.0, -0.0, 1.0, 0.0, -0.0, 0.0, 1.0, -0.0, 0.0, 1.0,
+      -0.0, 0.0, 1.0, -0.0, 0.0, 1.0, -0.0
     ],
     "positions": [
-      1.0,
-      -1.0,
-      -1.0,
-      1.0,
-      1.0,
-      -1.0,
-      1.0,
-      1.0,
-      1.0,
-      1.0,
-      -1.0,
-      1.0,
-      1.0,
-      1.0,
-      -1.0,
-      -1.0,
-      1.0,
-      -1.0,
-      -1.0,
-      1.0,
-      1.0,
-      1.0,
-      1.0,
-      1.0
+      1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0,
+      -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0
     ],
     "texcoords": [
-      0.375,
-      0.5,
-      0.625,
-      0.5,
-      0.625,
-      0.25,
-      0.375,
-      0.25,
-      0.625,
-      0.5,
-      0.875,
-      0.5,
-      0.875,
-      0.25,
-      0.625,
+      0.375, 0.5, 0.625, 0.5, 0.625, 0.25, 0.375, 0.25, 0.625, 0.5, 0.875, 0.5, 0.875, 0.25, 0.625,
       0.25
     ]
   },
@@ -101,12 +30,7 @@
     {
       "name": "Emissive",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 1.0
       }
@@ -114,12 +38,7 @@
     {
       "name": "Opaque",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 1.0
       }
@@ -127,20 +46,13 @@
     {
       "name": "Transparent",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 1.0
       }
     }
   ],
-  "meshNames": [
-    "Cube"
-  ],
+  "meshNames": ["Cube"],
   "meshNodes": 3,
   "nodes": [
     {
@@ -148,27 +60,8 @@
       "name": "Cube"
     },
     {
-      "children": [
-        0
-      ],
-      "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        3.0,
-        0.0,
-        0.0,
-        1.0
-      ],
+      "children": [0],
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 3.0, 0.0, 0.0, 1.0],
       "name": "SharedMesh_1"
     },
     {
@@ -176,27 +69,8 @@
       "name": "Cube"
     },
     {
-      "children": [
-        2
-      ],
-      "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        6.0,
-        0.0,
-        0.0,
-        1.0
-      ],
+      "children": [2],
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 6.0, 0.0, 0.0, 1.0],
       "name": "SharedMesh_2"
     },
     {
@@ -204,17 +78,11 @@
       "name": "Cube"
     },
     {
-      "children": [
-        4
-      ],
+      "children": [4],
       "name": "SharedMesh_0"
     },
     {
-      "children": [
-        1,
-        3,
-        5
-      ],
+      "children": [1, 3, 5],
       "name": "HierarchyRoot"
     }
   ],
@@ -227,55 +95,29 @@
     {
       "hasNormals": true,
       "material": 0,
-      "max": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "min": [
-        -1.0,
-        -1.0,
-        -1.0
-      ],
+      "max": [1.0, 1.0, 1.0],
+      "min": [-1.0, -1.0, -1.0],
       "triangles": 4,
       "vertices": 8
     },
     {
       "hasNormals": true,
       "material": 1,
-      "max": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "min": [
-        -1.0,
-        -1.0,
-        -1.0
-      ],
+      "max": [1.0, 1.0, 1.0],
+      "min": [-1.0, -1.0, -1.0],
       "triangles": 4,
       "vertices": 8
     },
     {
       "hasNormals": true,
       "material": 2,
-      "max": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "min": [
-        -1.0,
-        -1.0,
-        -1.0
-      ],
+      "max": [1.0, 1.0, 1.0],
+      "min": [-1.0, -1.0, -1.0],
       "triangles": 4,
       "vertices": 8
     }
   ],
-  "roots": [
-    6
-  ],
+  "roots": [6],
   "rule": "An Alembic face is wound clockwise, a glTF face counter-clockwise: each face is read backwards, fan-triangulated, and its distinct corners become distinct vertices. A face set gives its name to a neutral material and splits a primitive. Three objects with the same bytes are one mesh and three nodes.",
   "trianglesAcrossNodes": 36,
   "unsupported": {}
