@@ -4,8 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { equipSide, sideReport } from './optionsCote.mjs';
 
-const equip = (name, flags) => {
-  const side = { name };
+const equip = (name: string, flags: Record<string, string>) => {
+  const side: { name: string; compression?: string | null } = { name };
   equipSide(side, new Map(Object.entries(flags)), { engine: 'webgpu' });
   return side;
 };
