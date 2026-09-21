@@ -38,7 +38,7 @@ test('the blend layout declares no writable storage buffer', async () => {
     createRenderPipeline: () => ({}),
     createShaderModule: () => ({}),
   } as unknown as GPUDevice;
-  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device);
+  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
   const entries = (blendBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] })
     .entries;
   const inscriptibles = entries.filter(
