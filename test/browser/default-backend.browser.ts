@@ -14,16 +14,15 @@ import {
   runDefaultBackendCase,
   type DefaultBackendCase,
 } from '../appui/defaultBackendCase.ts';
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
 
 declare global {
   var sdk: typeof import('../../packages/sdk-browser/index.ts');
   var proof: { images: Record<string, number[]> } | undefined;
-  var explorer: Explorer;
 }
 
 type CaseResult = Awaited<ReturnType<typeof runDefaultBackendCase>>;
-type MachineResult = { cases: Record<string, CaseResult>; image: unknown };
+type ImageDelta = ReturnType<typeof compareDefaultBackendCaptures> | null;
+type MachineResult = { cases: Record<string, CaseResult>; image: ImageDelta };
 
 const root = resolve(import.meta.dirname, '../..');
 const out = resolve(root, 'benchmark-runs/default-backend');
