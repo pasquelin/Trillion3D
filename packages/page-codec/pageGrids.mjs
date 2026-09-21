@@ -6,31 +6,29 @@ const MAX_BITS = 24;
 
 export const bitsFor = (range) => (range <= 0 ? 0 : Math.floor(Math.log2(range)) + 1);
 
-/** Integer cells of `n`-wide vectors on a power-of-two grid, and the record that describes them. */
+/**
+ * Integer cells of `n`-wide vectors on a power-of-two grid, and the record that describes them.
+ * The exponent is the caller's, never widened: a page that needs more than 24 bits on it is
+ * refused, as the format says (`PAGE_ATTRIBUTE_RANGE`).
+ */
 export function quantize(values, n, exponent) {
-  const count = values.length / n;
-  for (;;) {
-    const step = 2 ** exponent,
-      lo = new Array(n).fill(Infinity),
-      hi = new Array(n).fill(-Infinity),
-      cells = [];
-    for (let i = 0; i < count; i++)
-      for (let c = 0; c < n; c++) {
-        const cell = Math.round(values[i * n + c] / step);
-        cells.push(cell);
-        lo[c] = Math.min(lo[c], cell);
-        hi[c] = Math.max(hi[c], cell);
-      }
-    const bits = lo.map((low, c) => (count ? bitsFor(hi[c] - low) : 0));
-    if (bits.some((b) => b > MAX_BITS)) {
-      if (exponent >= 64) throw new Error('PAGE_ATTRIBUTE_RANGE');
-      exponent++;
-      continue;
+  const count = values.length / n,
+    step = 2 ** exponent,
+    lo = new Array(n).fill(Infinity),
+    hi = new Array(n).fill(-Infinity),
+    cells = [];
+  for (let i = 0; i < count; i++)
+    for (let c = 0; c < n; c++) {
+      const cell = Math.round(values[i * n + c] / step);
+      cells.push(cell);
+      lo[c] = Math.min(lo[c], cell);
+      hi[c] = Math.max(hi[c], cell);
     }
-    const min = lo.map((low) => (count ? Math.fround(low * step) : 0));
-    for (let i = 0; i < cells.length; i++) cells[i] -= lo[i % n];
-    return { min, exponent, bits, cells };
-  }
+  const bits = lo.map((low, c) => (count ? bitsFor(hi[c] - low) : 0));
+  if (bits.some((b) => b > MAX_BITS)) throw new Error('PAGE_ATTRIBUTE_RANGE');
+  const min = lo.map((low) => (count ? Math.fround(low * step) : 0));
+  for (let i = 0; i < cells.length; i++) cells[i] -= lo[i % n];
+  return { min, exponent, bits, cells };
 }
 
 /** Octahedral bytes of a normal, `x` low and `y` high; a zero normal takes `+z`. */
