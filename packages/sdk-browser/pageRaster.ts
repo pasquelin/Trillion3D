@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 import type { RenderBackend } from './backendTypes.ts';
-import type { ClusterDraw } from './clusterBatches.ts';
 import type { PageRec } from './pageSelection.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
-import { submittedDraws } from './clusterBatchMesh.ts';
+import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
 
 export const RASTER_BACKGROUND = 0x171d28;
 const BACKGROUND = RASTER_BACKGROUND;
@@ -35,19 +34,6 @@ function colorOf(material: THREE.Material | THREE.Material[]) {
       ? first.color
       : new THREE.Color(0xffffff);
   return [(color.r * 255) | 0, (color.g * 255) | 0, (color.b * 255) | 0];
-}
-
-/** Index ranges a submission draws: those of a batch record, the whole index of a page mesh. */
-function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {
-  if (!('_multiDrawCount' in draw)) {
-    yield [0, draw.geometry.getIndex()!.count];
-    return;
-  }
-  for (let range = 0; range < draw._multiDrawCount; range++)
-    yield [
-      draw._multiDrawStarts[range] / Uint32Array.BYTES_PER_ELEMENT,
-      draw._multiDrawCounts[range],
-    ];
 }
 
 /** CPU raster of what a backend draws: its owned draw records, then the plain meshes of its

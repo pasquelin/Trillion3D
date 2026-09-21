@@ -30,4 +30,4 @@ assert.deepEqual(result.refusal, {
   code: 'CLUSTER_MATERIAL_UNSUPPORTED',
   reason: 'physical sheen is unsupported',
 });
-assert.equal(result.drawRefused, true);
+assert.deepEqual(result.drawRefusal, result.refusal, 'the draw refuses by the same name');

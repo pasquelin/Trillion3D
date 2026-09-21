@@ -1,18 +1,19 @@
-import { boxTransform, clipPlanesFromMatrix, frustumExcludesBox } from '../sdk-core/index.ts';
+import {
+  BOX_VALUES,
+  boxTransform,
+  clipPlanesFromMatrix,
+  FRUSTUM_PLANE_VALUES,
+  frustumExcludesBox,
+} from '../sdk-core/index.ts';
 import { multiplyMatrix4 } from './webglClusterMatrices.ts';
+import { readThreeBox } from './threeBounds.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 
 /** What the cull reads of a scene copy: its declared culling, its local bounds, its placement. */
 type CulledCopy = {
   frustumCulled: boolean;
   matrix: { elements: ArrayLike<number> };
-  geometry: {
-    boundingBox: {
-      min: { x: number; y: number; z: number };
-      max: { x: number; y: number; z: number };
-    } | null;
-    computeBoundingBox(): void;
-  };
+  geometry: { boundingBox: Parameters<typeof readThreeBox>[1] | null; computeBoundingBox(): void };
 };
 
 /**
@@ -22,9 +23,8 @@ type CulledCopy = {
  */
 export class WebglClusterCopyCulling {
   private viewProjection = new Float32Array(16);
-  private planes = new Float64Array(24);
-  private local = new Float64Array(6);
-  private world = new Float64Array(6);
+  private planes = new Float64Array(FRUSTUM_PLANE_VALUES);
+  private box = new Float64Array(BOX_VALUES);
   /** Reads the frame's frustum once; the copies are then tested against it. */
   begin(camera: HostDrawCamera) {
     multiplyMatrix4(this.viewProjection, camera.projection, camera.view);
@@ -33,24 +33,9 @@ export class WebglClusterCopyCulling {
   visible(copy: CulledCopy) {
     if (!copy.frustumCulled) return true;
     if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
-    const box = copy.geometry.boundingBox!,
-      local = this.local,
-      world = this.world;
-    local[0] = box.min.x;
-    local[1] = box.min.y;
-    local[2] = box.min.z;
-    local[3] = box.max.x;
-    local[4] = box.max.y;
-    local[5] = box.max.z;
-    boxTransform(world, 0, local, 0, copy.matrix.elements);
-    return !frustumExcludesBox(
-      this.planes,
-      world[0],
-      world[1],
-      world[2],
-      world[3],
-      world[4],
-      world[5],
-    );
+    const box = this.box;
+    readThreeBox(box, copy.geometry.boundingBox!);
+    boxTransform(box, 0, box, 0, copy.matrix.elements);
+    return !frustumExcludesBox(this.planes, box[0], box[1], box[2], box[3], box[4], box[5]);
   }
 }
