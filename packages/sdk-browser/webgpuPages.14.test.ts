@@ -17,14 +17,14 @@ test('detail replaces the complete GPU fallback only after every replacement is 
     gpuDevice: device,
     maxResidentPages: 3,
     viewport: [32, 32],
-  });
+  }) as ReturnType<typeof webgpuPagesBackend> & { selectedPageIds(): string[] };
   try {
     await backend.prepare();
     backend.render(camera());
     assert.deepEqual(backend.selectedPageIds(), ['2']);
     backend.acceptPage!('0', fixture.indices.get('0')!);
     backend.syncResident!();
-    await backend.flush();
+    await backend.flush?.();
     backend.render(camera());
     assert.deepEqual(
       backend.selectedPageIds(),
@@ -36,7 +36,7 @@ test('detail replaces the complete GPU fallback only after every replacement is 
     backend.acceptPage!('1', fixture.indices.get('1')!);
     backend.syncResident!();
     assert.deepEqual(backend.selectedPageIds(), ['2'], 'CPU arrival is not GPU residency');
-    await backend.flush();
+    await backend.flush?.();
     backend.render(camera());
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
     assert.equal(backend.metrics().submittedTriangles, 2);
@@ -56,12 +56,12 @@ test('a refinement exceeding the GPU budget retains the complete fallback and re
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  }) as ReturnType<typeof webgpuPagesBackend> & { selectedPageIds(): string[] };
   try {
     await backend.prepare();
     for (let i = 0; i < 4; i++) {
       backend.render(camera());
-      await backend.flush();
+      await backend.flush?.();
       assert.deepEqual(backend.selectedPageIds(), ['2']);
       assert.equal(backend.metrics().submittedTriangles, 2);
       assert.equal(backend.metrics().coverageBudgetLimited, true);
@@ -131,7 +131,7 @@ test('streaming completion during image readback preserves the captured frame an
   try {
     await backend.prepare();
     backend.render(camera());
-    const flushing = backend.flush();
+    const flushing = backend.flush?.();
     await mapping;
     const before = passes.length;
     assert.deepEqual(backend.pendingUrls?.().sort(), ['0', '1']);
@@ -145,7 +145,7 @@ test('streaming completion during image readback preserves the captured frame an
     assert.deepEqual(backend.pendingUrls?.(), [], 'pages arriving during capture remain accepted');
     assert.equal(imageCopies.length, 1, 'the capture must not spin on streaming updates');
     backend.render(camera());
-    await backend.flush();
+    await backend.flush?.();
     backend.render(camera());
     assert.equal(
       backend.metrics().submittedTriangles,

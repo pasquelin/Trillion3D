@@ -20,8 +20,8 @@ export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLig
   next[4] = vis.concatNrm;
   next[5] = blendState.viewBuffer;
   next[6] = blendState.itemBuffer;
-  next[7] = vis.textures?.color.pool.view;
-  next[8] = vis.textures?.data.pool.view;
+  next[7] = vis.textures?.color.views;
+  next[8] = vis.textures?.data.views;
   next[9] = vis.mapsSampler;
   next[10] = lighting?.directLights;
   next[11] = lighting?.shadowSlices;

@@ -1,8 +1,8 @@
 import type { Locale } from '../../content/locale.ts';
 import { TabsMenu } from '../components/TabsMenu.tsx';
-import { themeLabel } from './roadmapThemes.ts';
+import { themeLabel } from './lessonThemes.ts';
 
-const primary = ['transforms', 'camera', 'geometry', 'animation'];
+const primary = ['transforms', 'camera', 'geometry', 'lighting'];
 
 interface ThemeTabsProps {
   active: string;

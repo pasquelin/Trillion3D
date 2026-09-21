@@ -1,6 +1,7 @@
 import { visMaterial } from './visibilityMaterial.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import type { Side } from './materialSide.ts';
 import type { WebglClusterTextures } from './webglClusterTextures.ts';
 import type { WebglClusterState } from './webglClusterState.ts';
 import type { Matrix3UniformCache } from './webglClusterUniforms.ts';
@@ -20,13 +21,15 @@ type Binding = {
   state: WebglClusterState;
 };
 
-/** Uploads one material's factors, maps and raster state; cached values are skipped. */
+/** Uploads one material's factors, maps and raster state; cached values are skipped. `side`
+ *  names the faces of one pass of a two-sided transparent surface; undefined, the material's
+ *  own faces draw. */
 export function bindClusterMaterial(
   binding: Binding,
   material: Material,
   toneMapped: boolean,
-  side?: number,
-  bias?: Material,
+  side?: Side,
+  polygonOffsetUnits?: number,
 ) {
   const { uniforms, matrices, textures, state } = binding;
   const source = material as { opacity: number },
@@ -87,6 +90,6 @@ export function bindClusterMaterial(
   uniforms.f4(26, 'volume', mat.transmission, mat.ior, mat.thickness, mat.attenuationDistance);
   uniforms.f3(30, 'attenuationColor', mat.attenuationColor);
   const doubleSided = side === undefined ? mat.doubleSided : false,
-    backSide = side === undefined ? mat.backSide : side === 1;
-  state.apply(material, doubleSided, backSide, bias);
+    backSide = side === undefined ? mat.backSide : side === 'back';
+  state.apply(material, doubleSided, backSide, polygonOffsetUnits);
 }

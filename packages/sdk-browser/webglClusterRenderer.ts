@@ -1,4 +1,10 @@
-import { isClusterDrawMesh, type ClusterDrawMesh } from './clusterBatchMesh.ts';
+import {
+  drawPasses,
+  isClusterDrawMesh,
+  type ClusterDrawMesh,
+  type HostAttributes,
+  type WholeMesh,
+} from './clusterBatchMesh.ts';
 import { WebglClusterGeometry } from './webglClusterGeometry.ts';
 import { WebglClusterTextures } from './webglClusterTextures.ts';
 import {
@@ -21,8 +27,7 @@ import {
   type Material,
 } from './webglClusterMaterialBinding.ts';
 import { refuseCluster } from './webglClusterRefusal.ts';
-import { WebglClusterCopies } from './webglClusterCopyCulling.ts';
-import type * as THREE from 'three';
+import { WebglClusterCopies, type SceneCopy } from './webglClusterCopyCulling.ts';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './webglClusterSubmit.ts';
 
 export class WebglClusterRenderer {
@@ -36,11 +41,11 @@ export class WebglClusterRenderer {
   private materialMatrices: Matrix3UniformCache;
   private lights: WebglClusterLights;
   private state: WebglClusterState;
-  private validatedMaterials = new Map<Material, ClusterDrawMesh['geometry']['attributes']>();
+  private validatedMaterials = new Map<Material, HostAttributes>();
   private materialUniforms: WebglClusterMaterialUniforms;
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
-  private copies = new WebglClusterCopies<THREE.Mesh>();
+  private copies = new WebglClusterCopies<SceneCopy>();
   /** Submissions of the scene copies in view, over both passes of the last frame. */
   copySubmissions = 0;
   /** Cluster submissions of the last frame's backdrop pass; zero without a transmissive copy. */
@@ -80,23 +85,12 @@ export class WebglClusterRenderer {
       this.uniforms.set(name, this.gl.getUniformLocation(this.program, name));
     return this.uniforms.get(name)!;
   }
-  private pass(
-    mesh: ClusterDrawMesh | THREE.Mesh,
-    material: THREE.Material,
-    toneMapped: boolean,
-    whole: boolean,
-    passSide?: number,
-    polygonMaterial?: THREE.Material,
-  ) {
-    if (!material.visible) return 0;
-    bindClusterMaterial(this.binding, material as Material, toneMapped, passSide, polygonMaterial);
-    if (whole) submitDiagnosticMesh(this.gl, mesh as THREE.Mesh);
-    else submitClusterMesh(this.gl, this.multiDraw, mesh as ClusterDrawMesh);
-    return 1;
-  }
-  private mesh(mesh: ClusterDrawMesh | THREE.Mesh, camera: HostDrawCamera, toneMapped: boolean) {
+  /** One mesh, every pass its material asks for; a hidden material submits nothing. Arrays
+   *  were refused by the validation: the material is single here. */
+  private mesh(mesh: ClusterDrawMesh | WholeMesh, camera: HostDrawCamera, toneMapped: boolean) {
     const gl = this.gl,
-      whole = !isClusterDrawMesh(mesh);
+      material = mesh.material as Material;
+    if (!material.visible) return 0;
     this.geometry.bind(mesh.geometry);
     const model = mesh.matrix.elements;
     multiplyMatrix4(this.modelView, camera.view, model);
@@ -104,36 +98,32 @@ export class WebglClusterRenderer {
     gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelView);
     normalMatrix3(this.normal, this.modelView);
     setMatrix3(gl, this.at('normalMatrix'), this.normal);
-    let submitted = 0;
-    const material = mesh.material;
-    if (Array.isArray(material)) {
-      const source = (mesh as ClusterDrawMesh)._sideSplitSource!;
-      const polygon = (mesh as ClusterDrawMesh)._sideSplitPolygonMaterials;
-      submitted += this.pass(mesh, source, toneMapped, whole, 1, polygon?.[0]);
-      submitted += this.pass(mesh, source, toneMapped, whole, 0, polygon?.[1]);
-    } else if (material.transparent && material.side === 2 && !material.forceSinglePass) {
-      // A two-sided transparent whole mesh draws back faces then front faces, as the batches do.
-      submitted += this.pass(mesh, material, toneMapped, whole, 1);
-      submitted += this.pass(mesh, material, toneMapped, whole, 0);
-    } else submitted = this.pass(mesh, material, toneMapped, whole);
-    return submitted;
+    const passes = drawPasses(material),
+      record = isClusterDrawMesh(mesh) ? mesh : undefined;
+    for (const side of passes) {
+      bindClusterMaterial(this.binding, material, toneMapped, side, record?.polygonOffsetUnits);
+      if (record) submitClusterMesh(gl, this.multiDraw, record);
+      else submitDiagnosticMesh(gl, mesh);
+    }
+    return passes.length;
   }
-  /** The paged clusters and the whole page meshes, in draw order; the copies come after. */
-  private submitClusters(
-    meshes: readonly ClusterDrawMesh[],
-    wholeMeshes: readonly THREE.Mesh[],
+  private submit(
+    meshes: readonly (ClusterDrawMesh | WholeMesh)[],
     camera: HostDrawCamera,
     toneMapped: boolean,
   ) {
     let submitted = 0;
     for (const mesh of meshes) submitted += this.mesh(mesh, camera, toneMapped);
-    for (const mesh of wholeMeshes) submitted += this.mesh(mesh, camera, toneMapped);
     return submitted;
   }
-  private submitPlainCopies(camera: HostDrawCamera, toneMapped: boolean) {
-    let submitted = 0;
-    for (const mesh of this.copies.plain) submitted += this.mesh(mesh, camera, toneMapped);
-    return submitted;
+  /** The paged clusters and the whole page meshes, in draw order; the copies come after. */
+  private submitClusters(
+    meshes: readonly ClusterDrawMesh[],
+    wholeMeshes: readonly WholeMesh[],
+    camera: HostDrawCamera,
+    toneMapped: boolean,
+  ) {
+    return this.submit(meshes, camera, toneMapped) + this.submit(wholeMeshes, camera, toneMapped);
   }
   /** The pass's destination; the raster state is re-applied, the backdrop having written masks. */
   private setOutput(srgbDestination: boolean) {
@@ -141,9 +131,10 @@ export class WebglClusterRenderer {
     this.state.invalidate();
   }
   /**
-   * One frame: the batches, then whole host meshes — diagnostic pages, painted copies — then the
-   * transmissive scene copies the owner draws itself. Those read the frozen backdrop, so the
-   * frame is first drawn into it, in linear light, before the display pass draws it again.
+   * One frame: the batches, then whole host meshes — diagnostic pages, plain copies — then the
+   * transmissive scene copies, then the blended ones, the order the reference draws a scene.
+   * The transmissive copies read the frozen backdrop, so the frame is first drawn into it, in
+   * linear light, before the display pass draws it again.
    */
   draw(
     meshes: readonly ClusterDrawMesh[],
@@ -151,15 +142,15 @@ export class WebglClusterRenderer {
     camera: HostDrawCamera,
     toneMapped: boolean,
     srgbDestination: boolean,
-    diagnosticMeshes: readonly THREE.Mesh[] = [],
-    copies: readonly THREE.Mesh[] = [],
+    diagnosticMeshes: readonly WholeMesh[] = [],
+    copies: readonly SceneCopy[] = [],
   ) {
     const gl = this.gl;
     const lightReason = unsupportedClusterLight(scene);
     if (lightReason) refuseCluster(lightReason);
     this.copies.cull(copies, camera);
-    const { plain, transmissive } = this.copies;
-    validateClusterMeshes(meshes, diagnosticMeshes, plain, transmissive, this.validatedMaterials);
+    const { plain, blended, transmissive } = this.copies;
+    validateClusterMeshes(meshes, diagnosticMeshes, this.copies, this.validatedMaterials);
     gl.useProgram(this.program);
     gl.disable(gl.STENCIL_TEST);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
@@ -172,19 +163,20 @@ export class WebglClusterRenderer {
       this.backdrop.begin(scene.background);
       this.setOutput(false);
       backdropSubmissions = this.submitClusters(meshes, diagnosticMeshes, camera, false);
-      copySubmissions = this.submitPlainCopies(camera, false);
+      copySubmissions = this.submit(plain, camera, false);
       this.backdrop.end();
     }
     this.backdropPasses = transmissive.length ? 1 : 0;
     this.backdropSubmissions = backdropSubmissions;
     this.setOutput(srgbDestination);
     const submitted = this.submitClusters(meshes, diagnosticMeshes, camera, toneMapped);
-    copySubmissions += this.submitPlainCopies(camera, toneMapped);
+    copySubmissions += this.submit(plain, camera, toneMapped);
     if (transmissive.length) {
       this.backdrop.bind();
       gl.uniform2f(this.at('backdropOrigin'), this.backdrop.originX, this.backdrop.originY);
-      for (const mesh of transmissive) copySubmissions += this.mesh(mesh, camera, toneMapped);
+      copySubmissions += this.submit(transmissive, camera, toneMapped);
     }
+    copySubmissions += this.submit(blended, camera, toneMapped);
     this.copySubmissions = copySubmissions;
     return submitted;
   }

@@ -1,8 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import { createWebgpuPageTracking } from './webgpuPageTracking.ts';
 import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import type { PageRec } from './pageSelection.ts';
+
+/** Fields the residency ensurer never reads: shared across every fixture page. */
+const DUMMY_MATRIX = new THREE.Matrix4();
+const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
+const DUMMY_BOUNDS: number[] = [0, 0, 0];
+const pageOf = (url: string): PageRec => ({
+  id: 0,
+  url,
+  clusterId: url,
+  array: new Uint32Array(1),
+  triangles: 0,
+  indexBytes: 0,
+  min: DUMMY_BOUNDS,
+  max: DUMMY_BOUNDS,
+  depthLayer: 0,
+  attributes: DUMMY_ATTRIBUTES,
+  material: [],
+  matrix: DUMMY_MATRIX,
+  renderOrder: 0,
+  attached: true,
+});
 
 /** A cache of three slots all pinned: the fourth page cannot enter. */
 function saturatedCache(resident: string[], error = 'ALL_PAGES_PINNED') {
@@ -29,10 +51,7 @@ const ensurer = (tracking: ReturnType<typeof createWebgpuPageTracking>, cache: u
   });
 
 test('a full pool stops the burst without dropping the image; any other error bubbles up', async () => {
-  const pages = ['a', 'b', 'c', 'd', 'e'].map((url) => ({
-    url,
-    array: new Uint8Array(4),
-  })) as PageRec[];
+  const pages = ['a', 'b', 'c', 'd', 'e'].map(pageOf);
   const tracking = createWebgpuPageTracking(pages);
   for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page);
   const cache = saturatedCache(['a', 'b']);

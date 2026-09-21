@@ -1,0 +1,27 @@
+name: Pull request body
+
+# Its own workflow, and its own required check: editing a body re-reads the body, and never replays
+# the code gates of `quality.yml`. `synchronize` is listed because a required check is recorded per
+# commit: a new head with no run of this workflow would never become mergeable.
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr-body:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Issue linked, local review filled
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n' "$BODY" | scripts/check-pr-body.sh

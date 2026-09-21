@@ -1,11 +1,12 @@
-import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
 import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
 import { PRIORITY_PREFETCH } from './streamingPriority.ts';
 import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
-import type { createSceneDrawer } from './explorerDrawScene.ts';
+import type { createFrameComposer } from './explorerCompose.ts';
+import type { HostCamera } from './cameraWorld.ts';
+import type { WebglRenderTarget } from './webglRenderTarget.ts';
 import { retainVisiblePages } from './retainVisiblePages.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
@@ -14,17 +15,15 @@ import type { ExplorerSession } from './explorerSession.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
-  camera: THREE.PerspectiveCamera;
+  camera: HostCamera;
   geometryUrls: Set<string>;
   streamer: ReturnType<typeof createPageStreamer>;
   streaming: ReturnType<typeof createExplorerStreaming>;
   directGpu: boolean;
-  renderer: THREE.WebGLRenderer;
   webglSurface?: WebglSurface;
-  presentBackend: (backend: RenderBackend, srgbDestination?: boolean) => boolean;
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
-  drawScene: ReturnType<typeof createSceneDrawer>;
+  compose: ReturnType<typeof createFrameComposer>;
 };
 
 /**
@@ -56,19 +55,15 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
 
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
-  const { camera, geometryUrls, streamer, streaming, presentBackend, baseline, state, drawScene } =
-    inputs;
-  const { directGpu, renderer: ownedRenderer, webglSurface } = inputs;
+  const { camera, geometryUrls, streamer, streaming, baseline, state, compose } = inputs;
+  const { directGpu, webglSurface } = inputs;
   // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit on the engine's
   // context, and is only mounted if the host asked for the per-step profile.
   const gpuTimer =
     session.options.stageProfile === true && webglSurface
       ? createWebglFrameTimer(webglSurface.context)
       : null;
-  /** A host render target is sRGB encoded, the page canvas is not: the copy must know which. */
-  const srgb = (t: THREE.WebGLRenderTarget | null) =>
-    t?.texture.colorSpace === THREE.SRGBColorSpace;
-  const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
+  const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
     const { measuring } = state;
     const steps = backend as HostCpuProfile;
     backend.render(camera);
@@ -132,7 +127,6 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
       return;
     }
-    ownedRenderer.setRenderTarget(target);
     if (backend.overBudget && backend !== baseline) {
       if (measuring)
         throw new EngineError(
@@ -143,7 +137,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       state.fallbackReason = fallbackReason;
       state.active = baseline;
       baseline.render(camera);
-      if (!presentBackend(baseline, srgb(target))) drawScene(baseline, target, false);
+      compose(baseline, target, false);
       emit({
         eventVersion: 1,
         type: 'fallback',
@@ -162,9 +156,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       return;
     }
     gpuTimer?.begin();
-    // An engine that presented its own surface is copied from it; the others hand their scene
-    // over to the host renderer, the only case the held frame belongs to.
-    if (!presentBackend(backend, srgb(target))) drawScene(backend, target);
+    compose(backend, target);
     gpuTimer?.end();
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {

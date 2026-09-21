@@ -13,9 +13,15 @@ const HEADER_WORDS: usize = 4;
 const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
+/// The tails block-compressed, the BC family then ASTC 4 × 4: no offset written,
+/// one contiguous range per entry the family kept, whose length follows from its
+/// dimensions; nothing for an entry whose layout word says lossless.
+const TEXTURE_PREVIEW_BLOCKS: [(&str, usize); 2] = [("bc7", 24), ("astc", 25)];
 /// Numbers per entry: texture, image, width, height, kind and provenance view,
-/// first level, level count, pixel start and length, atlas, levels baked to files.
-const PREVIEW_WORDS: usize = 12;
+/// first level, level count, pixel start and length, atlas, levels baked to
+/// files, then the layout word of each family.
+const PREVIEW_WORDS: usize = 14;
+const PREVIEW_LAYOUTS: usize = 12;
 /// `alphaCutoff` of the fixture's MASK material, as a byte: 0.25 × 255 rounded.
 /// Counting texels that reach it at each level says at a glance whether mask
 /// coverage was preserved, and whether the alpha of the two unmasked textures
@@ -48,17 +54,32 @@ pub(super) fn previews_digest(run: &GoldenRun) -> Value {
     let (words_at, words_len) = column(TEXTURE_PREVIEW_U32);
     let (sha_at, _) = column(TEXTURE_PREVIEW_SHA);
     let (pixels_at, _) = column(TEXTURE_PREVIEW_PIXELS);
+    let mut blocks_at = TEXTURE_PREVIEW_BLOCKS.map(|(_, index)| column(index).0);
     let previews: Vec<Value> = (0..words_len / (PREVIEW_WORDS * 4))
         .map(|entry| {
             let base = words_at + entry * PREVIEW_WORDS * 4;
             let sha = &bytes[sha_at + entry * 64..sha_at + entry * 64 + 64];
-            entry_digest(
+            let mut digest = entry_digest(
                 bytes,
                 base,
                 pixels_at,
                 std::str::from_utf8(sha).expect("sha"),
                 word,
-            )
+            );
+            let kept = texture_preview::preview_block_bytes(word(base + 8), word(base + 12));
+            digest["blocks"] = TEXTURE_PREVIEW_BLOCKS
+                .iter()
+                .zip(blocks_at.iter_mut())
+                .enumerate()
+                .map(|(family, ((format, _), at))| {
+                    let layout = word(base + (PREVIEW_LAYOUTS + family) * 4);
+                    let length = if layout == 0 { 0 } else { kept };
+                    let tail = &bytes[*at..*at + length];
+                    *at += length;
+                    json!({"format": format, "layout": layout, "bytes": length, "sha256": hash(tail)})
+                })
+                .collect();
+            digest
         })
         .collect();
     json!({
@@ -69,6 +90,8 @@ pub(super) fn previews_digest(run: &GoldenRun) -> Value {
       "binary": {
         "texturePreviews": run.slim["binary"]["texturePreviews"],
         "texturePreviewBytes": run.slim["binary"]["texturePreviewBytes"],
+        "texturePreviewBc7Bytes": run.slim["binary"]["texturePreviewBc7Bytes"],
+        "texturePreviewAstcBytes": run.slim["binary"]["texturePreviewAstcBytes"],
       },
       "previews": previews,
     })

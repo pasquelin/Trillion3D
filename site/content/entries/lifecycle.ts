@@ -101,6 +101,10 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
         name: 'lights() / importedLights() / environment',
         desc: 'Read the held lights and exposure as detached copies, arrays included: writing into them changes nothing in the engine, and each call rereads the store. The copy is paid by the call, never by the frame.',
       },
+      {
+        name: 'Direct writes on the source graph',
+        desc: 'A pose, a visibility or a light written on a source node without any call — `mesh.position.x = 100` — is seen: a pose write increments the scene revision itself, so a frame compares one integer; the other fields, a matrix set by hand (`matrixAutoUpdate = false`) included, are compared per frame, a few values per node. A light added to or removed from the graph is announced by `refreshSceneLighting()`.',
+      },
       { name: 'dispose()', desc: 'Releases backends, GPU device and sources. Mandatory.' },
     ],
     example: `// HTML: <canvas id="viewer" style="width:100%;height:70vh"></canvas>

@@ -10,7 +10,7 @@ import { EngineError } from '../sdk-core/index.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import { blendFixture } from './pageSelectionBlendFixture.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
 
 /** A host scene that NOBODY has walked up: rotated root, parent with negative and non-uniform
  *  scale, leaf sheared by that scale, plus a node whose matrix is set. */

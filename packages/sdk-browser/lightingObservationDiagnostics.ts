@@ -5,7 +5,7 @@ import type { ObservationMeshes } from './lightingObservationMeshes.ts';
 
 export function createObservationCapabilities(): BackendCapabilities {
   return {
-    renderer: 'Three.js WebGL2 analytic transport experiment',
+    renderer: 'Engine WebGL2 analytic transport experiment',
     materials:
       'Indirect irradiance cache plus per-pixel area-light visibility (16 or 64 stratified samples) and emission; mirror reflectance 0.92; metal GGX F0 0.92; full source meshes',
     hierarchy: false,
@@ -45,7 +45,7 @@ export function observationDiagnostic(
       surfaceDataBytes: surfaceTexels.byteLength,
       cacheFiltering: 'manual bilinear indirect irradiance at patch centers',
       diffuse: 'emission + albedo * (indirect cache + per-pixel direct irradiance) / pi',
-      directLightSamples: uniforms.directLightSamples.value,
+      directLightSamples: uniforms.directLightSamples,
       directLightSampling:
         'stratified jitter from pixel, receiver, stable emitter index and sample; no temporal seed',
       shadowTraversal: 'opaque any-hit; exhaustive reference or refitted rectangle AABB BVH',
@@ -55,7 +55,7 @@ export function observationDiagnostic(
       directReferenceConverged: false,
       maxEmitters: MAX_EMITTERS,
       maxSpecularInteractions: 3,
-      reflectionSamples: uniforms.reflectionSamples.value,
+      reflectionSamples: uniforms.reflectionSamples,
       specularF0: 0.92,
       primarySphereHit: 'analytic camera ray; normal-offset secondary origin',
       fullSourceGeometry: true,

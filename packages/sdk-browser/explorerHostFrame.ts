@@ -5,7 +5,6 @@ import { createExplorerMetrics } from './explorerMetrics.ts';
 import type { prepareExplorer } from './explorerPrepare.ts';
 import { createExplorerRender } from './explorerRender.ts';
 import type { ExplorerSession } from './explorerSession.ts';
-import type { createSceneDrawer } from './explorerDrawScene.ts';
 import { createExplorerStreaming } from './explorerStreaming.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
@@ -13,22 +12,20 @@ type Inputs = {
   prepared: Prepared;
   host: ReturnType<typeof createExplorerHostState>;
   backends: RenderBackend[];
-  drawScene: ReturnType<typeof createSceneDrawer>;
 };
 
 export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs) {
   const { options, metadata } = session;
-  const { prepared, host, backends, drawScene } = inputs;
+  const { prepared, host, backends } = inputs;
   const { camera, directGpu, pageSources } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
   const {
     state,
     baseline,
     webglSurface,
-    renderer,
     lookAtTarget,
+    compose,
     compositor,
-    presentBackend,
     ensureTarget,
     check,
     setPose,
@@ -52,12 +49,10 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     streamer,
     streaming,
     directGpu,
-    renderer: renderer!,
     webglSurface,
-    presentBackend,
     baseline,
     state,
-    drawScene,
+    compose,
   });
   const render = createExplorerRender(session, {
     check,
@@ -69,7 +64,6 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     drawBackend,
     ensureTarget,
     directGpu,
-    renderer: renderer!,
     webglSurface,
     backends,
     baseline,
@@ -79,7 +73,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     profiler,
     pageIdByUrl,
     streamer,
-    drawScene,
+    compose,
   });
   return { render, profiler, streaming };
 }

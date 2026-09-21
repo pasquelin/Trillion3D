@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A field of ten thousand pebbles</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0e1621; }
+      canvas { display: block; width: 100%; height: 100%; }
+      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+    </style>
+    <script type="importmap">
+      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p id="count"></p>
+    <script type="module">
+      import { createExplorer } from '../runtime/engine.js';
+
+      const explorer = await createExplorer('view', {
+        manifestUrl: '../assets/examples/pebbles/cache/native/full/manifest.json',
+        scope: 'full',
+        interactive: true,
+      });
+      // One pebble mesh, placed ten thousand times by the scene file: the compiler cut it once,
+      // and the engine draws every placement from the same pages.
+      explorer.addLight({
+        id: 'sun',
+        kind: 'directional',
+        direction: [-0.6, -0.45, -0.65],
+        color: [1, 0.93, 0.82],
+        intensity: 3,
+        castsShadow: true,
+      });
+      explorer.setPose({ ...explorer.homePose(), position: [4, 1.1, 6], target: [-3, 0, -4] });
+      explorer.invalidate();
+      const { totalNodes } = explorer.metadata;
+      document.getElementById('count').textContent = `${totalNodes - 1} pebbles and their bed`;
+    </script>
+  </body>
+</html>

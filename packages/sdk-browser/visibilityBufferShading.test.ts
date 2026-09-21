@@ -9,6 +9,7 @@ import {
   shadeVisibility,
   visibilityUvDerivatives,
   VIS_INVALID,
+  type VisPage,
 } from './visibilityBuffer.ts';
 import { camera, quadPages, centerId } from './visibilityBufferFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
@@ -22,18 +23,20 @@ test('the closer triangle wins the visibility id when two pages overlap', () => 
       3,
     ),
   );
+  const farMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+    nearMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
   const far: VisPage = {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometry.attributes,
     matrix: new THREE.Matrix4(),
-    material: new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+    material: farMat,
     clusterId: 'far',
   };
   const near: VisPage = {
     array: new Uint32Array([3, 4, 5]),
     attributes: geometry.attributes,
     matrix: new THREE.Matrix4(),
-    material: new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+    material: nearMat,
     clusterId: 'near',
   };
   const cam = camera(),
@@ -41,8 +44,8 @@ test('the closer triangle wins the visibility id when two pages overlap', () => 
   const unpacked = unpackVisibilityId(centerId(ids, 32, 32));
   assert.deepEqual(unpacked, { pageIndex: 1, triangleIndex: 0 });
   geometry.dispose();
-  far.material.dispose();
-  near.material.dispose();
+  farMat.dispose();
+  nearMat.dispose();
 });
 
 test('visbuffer beauty for untextured MeshBasicMaterial matches the documented rasterPages reference', () => {

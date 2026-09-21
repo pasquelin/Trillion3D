@@ -71,9 +71,9 @@ the runtime. Criterion: bytes per triangle ≤ 12 — measured 18.3 on Emerald S
 Whisperwind Village (#9), the gap being one vertex per triangle of topology and index bits;
 Emerald general-view fill < 300 ms warm.
 C6. **Textures**: PNG/JPEG decode in the compiler, mip generation, split into tiles or streamable
-levels, atlas table; raw GPU format, lossless, or lossy block-compressed (BC/ASTC, see §7 and
-Textures T5; the bench's 0 px thresholds do not apply to that lot). Criterion: Emerald's first
-frame with no full-resolution texture; mips requested by visibility.
+levels, atlas table; raw GPU format, lossless, or block-compressed (BC/ASTC, see §7 and Textures
+T5) where a quality gate keeps the image still. Criterion: Emerald's first frame with no
+full-resolution texture; mips requested by visibility.
 C7. **Binary manifest**: typed columns (bounds, spheres, errors, levels, groups, material ranges,
 packets, offsets), a JSON of a few hundred KiB (objects, materials, structure), all addressed by
 SHA-256 digest. Criterion: load + decode < 100 ms for Emerald.
@@ -124,16 +124,26 @@ The first stage of #85 measured that remainder before touching it — at most 0.
 frame on `exact-cluster-pages`, 0.1 ms p95 per host segment, no gain to claim (the numbers in
 `docs/API.md`, batch E6) — and
 made the engine surface the session's WebGL2 authority, the Three adapter a detail of the
-composition host alone. The stages that follow replace what that host still needs it for — held
-frame and render targets on engine framebuffers, comparison on an engine program, the witnesses
-drawing themselves through `drawHostGeometry` — then the draw records' `BufferGeometry` and
-`Material` descriptors and the observation meshes.
+composition host alone. The second stage removed that adapter: the composition host holds no
+renderer (`docs/API.md`, batch E7: what each engine object computes, what it replaces, and the
+byte proof — captures identical, two defects of the Three path gone with it). The third stage
+closed the output path (`docs/API.md`, batch E8): the draw records name the engine's resident
+index and the host material with the layer's depth offset as a number, the passes of a two-sided
+transparent surface are read at the draw and no host material is cloned; every scene copy is the
+owner's, in the order the reference draws a scene; the transport experiment's observation draws
+on an engine program from engine records and float textures. With it, group E is done: no
+renderer, program, render target or material clone of the host's rendering library takes part in
+what the engine draws or composes — a scene copy stays a host mesh read by shape — and the
+witness adapter serves the Three witnesses alone. What the WebGL2 path still reads of the host library is
+its data model — geometry attributes, materials, textures, the host camera and source graph —
+named through the contract types and replaced by batch C (#78); `explorerCameraApi.ts` keeps the
+host's orbit and fly controls it returns to the host.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are
 reread from `git log` rather than copied here. The rule in force is the closed list held by
-`test/integration/moteur-sans-three.test.mjs` and
-`test/integration/moteur-sans-three-math.test.mjs`: any engine file that imports `three` outside
+`test/integration/moteur-sans-three.test.ts` and
+`test/integration/moteur-sans-three-math.test.ts`: any engine file that imports `three` outside
 that list fails the test, and the list never grows. On the per-frame WebGPU path: cluster cut
 (`pageSelectionCut.ts`), selection uniforms (`gpuSelection.ts`), encode of draws, blending and
 shadows (`webgpuPagesEncode*.ts`), face winding (`webgpuBlendDraw.ts`), Hi-Z (`hizDepth.ts`,
@@ -184,8 +194,8 @@ cases (negative scales, non-uniform, singular matrices, NaN, ±0, infinities): b
 where the formula is the same, otherwise a bounded difference explained before merge; common-bench
 campaign at 0 pixels (three still views and a moving camera, two thresholds, A/A witness),
 `tri = selected`, per-frame allocation counter at zero; structure tests
-(`test/integration/moteur-sans-three.test.mjs`,
-`test/integration/moteur-sans-three-math.test.mjs`) forbidding `three` in WebGPU-path files then
+(`test/integration/moteur-sans-three.test.ts`,
+`test/integration/moteur-sans-three-math.test.ts`) forbidding `three` in WebGPU-path files then
 in all of `sdk-browser` outside the witness adapter. A speed gain is not a goal of these lots: it
 is measured, it is not assumed.
 
@@ -379,7 +389,7 @@ object before its exit does not see it; no transmissive surface sees through ano
 0 px A/A on the repository fixture (`fixtures/classes-materiaux/transmission.gltf`, the only asset
 in the repository with a transmissive surface — neither bench scene carries one) and on the bench
 scene, whose image the batch does not move; the browser proof
-`test/browser/water-pass-webgpu.browser.mjs` predicts the composed pixel from the material numbers
+`test/browser/water-pass-webgpu.browser.ts` predicts the composed pixel from the material numbers
 alone, paged and unpaged, and holds the still image.
 
 R7. **WebGL2 rendering**: the same lighting formulas in GLSL generated from the same source as the
@@ -448,7 +458,7 @@ turn it off (`temporalAntialiasing: false`).
 B3. **Campaigns**: visible 120 Hz window, idle machine, measure mode without a trace, ABBA,
 DPR/pixelError/resolution/commit recorded, four engines, 1 and 9 instances, every scene; verdict
 per scene and engine (presented FPS, p95, p99, frames > 8.33 ms, different pixels, first frame).
-B4. **Repository bench** (`scripts/mesure/banc.mjs`) for the fast proofs of each merge: the
+B4. **Repository bench** (`scripts/mesure/banc.ts`) for the fast proofs of each merge: the
 repository measures itself, with no other project on the machine.
 
 ## 7. Risks and decisions taken
@@ -457,8 +467,13 @@ repository measures itself, with no other project on the machine.
   14 September).
 - Lossy texture compression: accepted for textures alone (decision of 17 September 2026, Textures
   T5) — BC on desktop, ASTC on mobile, to ship with before/after images and the measured delta
-  published. The bench's 0 px thresholds do not apply to that lot; they remain intact for geometry
-  and lighting. Lossless streamable mips first.
+  published. Reframed on 21 September 2026 (#218 refused, #45 reworked) under the rule that no
+  optimisation may move the image visibly: a chain is block-compressed only under a per-texture
+  quality gate at cook (48 dB over the chain, no texel more than 3 levels off on a read channel,
+  no mask flip), normal maps go on two channels (BC5 / ASTC luminance-alpha, Z rebuilt in the
+  shader) or stay lossless, never on BC7 mode 6, and the still captures must read 0 px above the
+  declared threshold or name the pixels; on Emerald the BC family reads at most 3 of 255 on any
+  channel of any pixel of the three views. Lossless streamable mips first.
 - FBX: imperfect free reader; glTF remains the pivot, upstream conversion if needed.
 - WebGL2: never the same pipeline as WebGPU (no compute); parity required on the image, not on the
   method.

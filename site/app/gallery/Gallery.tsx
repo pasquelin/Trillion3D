@@ -9,15 +9,13 @@ import {
 } from 'react';
 import type { Locale } from '../../content/locale.ts';
 import type { ProgressiveListState } from '../components/ProgressiveList.tsx';
-import type { GalleryExample } from './roadmapPlan.ts';
-import roadmap from '../../content/gallery-roadmap.json';
+import type { CatalogExample } from '../../content/catalog.ts';
 import { Alert, Field } from '../components/UI.tsx';
 import { examples } from '../../content/catalog.ts';
 import { engineExample, ExampleCard } from './ExampleCard.tsx';
-import { themeOf, themes } from './roadmapThemes.ts';
+import { themeOf, themes } from './lessonThemes.ts';
 import { ProgressiveList } from '../components/ProgressiveList.tsx';
 import { ThemeTabs } from './ThemeTabs.tsx';
-import { galleryRoadmapEntry } from './roadmapRelated.ts';
 import { GalleryShowcase } from './GalleryShowcase.tsx';
 
 /** A visitor's restored gallery state: search, category and scroll position, kept per locale. */
@@ -30,11 +28,7 @@ interface GalleryViewState {
 
 const PAGE_SIZE = 24;
 const viewState = new Map<Locale, GalleryViewState>();
-const READY: GalleryExample[] = [engineExample, ...examples].map((entry) => ({
-  ...entry,
-  status: 'ready' as const,
-}));
-const ROADMAP = roadmap.entries.map(galleryRoadmapEntry);
+const LESSONS: CatalogExample[] = [engineExample, ...examples];
 
 const normalized = (value: string): string =>
   value
@@ -42,23 +36,22 @@ const normalized = (value: string): string =>
     .replaceAll(/\p{Diacritic}/gu, '')
     .toLowerCase();
 
-const searchable = (entry: GalleryExample): string =>
+const searchable = (entry: CatalogExample): string =>
   normalized(
-    `${entry.id} ${entry.title.en} ${entry.title.fr} ${entry.description?.en ?? ''} ${entry.description?.fr ?? ''} ${entry.subject ?? ''} ${entry.supplementaryTopic ?? ''} ${(entry.functions ?? []).join(' ')}`,
+    `${entry.id} ${entry.title.en} ${entry.title.fr} ${entry.description.en} ${entry.description.fr} ${(entry.functions ?? []).join(' ')}`,
   );
 
 export function Gallery({ locale = 'en' }: { locale?: Locale }) {
   const restored = useRef(viewState.get(locale));
   const [query, setQuery] = useState(restored.current?.query ?? '');
   const [category, setCategory] = useState(restored.current?.category ?? 'all');
-  const [expanded, setExpanded] = useState('');
   const progressive = useRef<ProgressiveListState | undefined>(restored.current?.progressive);
   const scrollY = useRef(restored.current?.scrollY ?? 0);
   const currentView = useRef<{ query: string; category: string }>({ query, category });
   currentView.current = { query, category };
   const entries = useMemo(
     () =>
-      [...READY, ...ROADMAP].filter(
+      LESSONS.filter(
         (entry) =>
           (category === 'all' || themeOf(entry) === category) &&
           searchable(entry).includes(normalized(query)),
@@ -67,13 +60,12 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
   );
   const categories = themes
     .map(([value]) => value)
-    .filter((value) => [...READY, ...ROADMAP].some((entry) => themeOf(entry) === value));
+    .filter((value) => LESSONS.some((entry) => themeOf(entry) === value));
   const french = locale === 'fr';
   const filter =
     (setter: Dispatch<SetStateAction<string>>) => (event: ChangeEvent<HTMLInputElement>) => {
       setter(event.target.value);
       progressive.current = undefined;
-      setExpanded('');
     };
   useEffect(() => {
     const rememberScroll = () => {
@@ -98,13 +90,11 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
             {french ? 'Apprendre par l’image' : 'Learn by seeing'}
           </p>
-          <h1 className="text-3xl font-bold mt-2">
-            {french ? 'Galerie complète' : 'Complete gallery'}
-          </h1>
+          <h1 className="text-3xl font-bold mt-2">{french ? 'Leçons' : 'Lessons'}</h1>
         </header>
         <Field
           className="w-full lg:max-w-sm"
-          label={`${french ? 'Rechercher' : 'Search'} ${READY.length + roadmap.entries.length} ${french ? 'sujets' : 'topics'}`}
+          label={`${french ? 'Rechercher' : 'Search'} ${LESSONS.length} ${french ? 'leçons' : 'lessons'}`}
         >
           <input
             className="input input-bordered w-full"
@@ -124,13 +114,11 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
           onSelect={(item) => {
             setCategory(item);
             progressive.current = undefined;
-            setExpanded('');
           }}
         />
       </div>
       <p className="text-sm opacity-70 mb-4" role="status">
-        {entries.length} {french ? 'résultats affichés' : 'results shown'} · {READY.length}{' '}
-        {french ? 'leçons prêtes dans toute la galerie' : 'ready lessons in the full gallery'}
+        {entries.length} {french ? 'leçons affichées' : 'lessons shown'}
       </p>
       {!!entries.length && (
         <ProgressiveList
@@ -148,19 +136,11 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
             loading: french ? 'Chargement…' : 'Loading…',
             end: french ? 'Fin des résultats' : 'End of results',
           }}
-          renderItem={(entry) => (
-            <ExampleCard
-              key={entry.id}
-              example={entry}
-              locale={locale}
-              expanded={expanded === entry.id}
-              onOpen={(id) => setExpanded((value) => (value === id ? '' : id))}
-            />
-          )}
+          renderItem={(entry) => <ExampleCard key={entry.id} example={entry} locale={locale} />}
         />
       )}
       {!entries.length && (
-        <Alert tone="info">{french ? 'Aucun sujet trouvé.' : 'No topics found.'}</Alert>
+        <Alert tone="info">{french ? 'Aucune leçon trouvée.' : 'No lessons found.'}</Alert>
       )}
     </section>
   );

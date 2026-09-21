@@ -135,10 +135,10 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 Nothing is optimised before it is measured, and no claim outlives its measurement.
 
 ```sh
-node scripts/mesure/banc.mjs --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
+node scripts/mesure/banc.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
      --vues generale,sol,rue --images 60 --pixelError 0,1
-node scripts/mesure/campagne.mjs        # the whole campaign
-node scripts/mesure/rapportGlobal.mjs   # one HTML report
+node scripts/mesure/campagne.ts        # the whole campaign
+node scripts/mesure/rapportGlobal.ts   # one HTML report
 ```
 
 - One harness for every lot: Playwright drives the machine's Chrome, nothing else is needed on

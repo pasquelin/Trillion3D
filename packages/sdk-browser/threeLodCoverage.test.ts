@@ -2,8 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { threeLodBackend } from './threeLod.ts';
-import { DAG, dagLevel } from './pagesBackendFixture.ts';
-import { quadScene, quadCluster, quadIndices, frontCamera } from './pagesBackendScenes.ts';
+import { dagLevel } from './pagesBackendFixture.ts';
+import {
+  quadScene,
+  quadCluster,
+  quadIndices,
+  frontCamera,
+  QUAD_MANIFEST,
+} from './pagesBackendScenes.ts';
 
 test('THREE.LOD backend exposes one level without coarse pages and two with them', () => {
   const { geometry, material, mesh, source } = quadScene();
@@ -11,7 +17,7 @@ test('THREE.LOD backend exposes one level without coarse pages and two with them
   const none = threeLodBackend({
     source,
     metadata: {
-      ...DAG,
+      ...QUAD_MANIFEST,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', pages: [] }],
     },
     indices: new Map(),
@@ -26,7 +32,7 @@ test('THREE.LOD backend exposes one level without coarse pages and two with them
   const withLod = threeLodBackend({
     source,
     metadata: {
-      ...DAG,
+      ...QUAD_MANIFEST,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...reduced }],
     },
     indices: quadIndices(),
@@ -47,7 +53,7 @@ test('a far THREE.LOD level keeps the clusters that nothing replaces', () => {
   const backend = threeLodBackend({
     source,
     metadata: {
-      ...DAG,
+      ...QUAD_MANIFEST,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...primitive }],
     },
     indices: new Map([

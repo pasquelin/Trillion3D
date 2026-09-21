@@ -99,6 +99,7 @@ fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
         threads: 1,
         ram_budget_mb: 64,
         simplification: "none".into(),
+        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
         cancelled: Arc::new(AtomicBool::new(false)),
     };
     (options, root)

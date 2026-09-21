@@ -80,7 +80,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     geometryPoolAllocatedBytes: geometryPool.allocatedBytes,
     geometryPoolClamp: geometryPool.clamp,
     geometryPoolSaturated: Math.max(0, services.residencySets.keepCount - geometryPool.slots),
-    texturePoolClamp: rt.setup.texturePool.clamp,
+    texturePoolClamp: rt.setup.texturePools?.pool.clamp ?? null,
     drawCalls: run.gpuDrawCalls,
     hizTestedClusters: hiz?.tested ?? null,
     hizRejectedClusters: hiz?.rejected ?? null,
@@ -114,6 +114,7 @@ export function disposeWebgpuPages(
   gpuDevice?.removeEventListener?.('uncapturederror', onGpuError);
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
+  rt.run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
   dropGpuSelection(rt);

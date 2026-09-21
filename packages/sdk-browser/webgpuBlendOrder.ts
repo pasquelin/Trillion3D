@@ -54,7 +54,7 @@ function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
  *
  * A SECOND walk of the same items, not one more line in the key walk: the work is the same, but
  * the fused loop slowed the sort that follows by four to nine percent on a camera jump, measured
- * by `transparents-ordres.bench.mjs` and reproduced over five runs. The mechanism is not proven;
+ * by `transparents-ordres.bench.ts` and reproduced over five runs. The mechanism is not proven;
  * the remedy is measured.
  */
 function rejectByFrustum(blendState: BlendState) {

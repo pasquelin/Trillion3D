@@ -1,5 +1,7 @@
 import { levelSize, type TilePlace } from './textureTiles.ts';
 import type { TextureLevelReader } from './textureLevelReader.ts';
+import type { PoolEncoding } from './textureBlockFormats.ts';
+import { writeTileFromBlocks } from './webgpuTileWriteBlocks.ts';
 import type { WebgpuTileAtlas } from './webgpuTileAtlas.ts';
 import { createWebgpuTileLevels, type LevelKey } from './webgpuTileLevels.ts';
 import { createTileScratch, type TileScratch } from './webgpuTileScratch.ts';
@@ -22,8 +24,9 @@ const MAX_SCRATCHES = 2;
 const LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
 
 /**
- * Where a tile's texels come from, and how they reach the pool: a cooked level decoded by the
- * browser and held in the level cache, or a working texture built from the host image. A tile whose
+ * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level —
+ * decoded by the browser, or block-compressed as the file holds it — held in the level cache, or a
+ * working texture built from the host image, which only the lossless lane receives. A tile whose
  * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
  * queue goes through here too, at prepare: its working texture, the queue copied, submitted, then
  * returned — one whole source at a time, never all together.
@@ -31,10 +34,12 @@ const LEVEL_CACHE_BYTES = 192 * 1024 * 1024;
 export function createTileSources(options: {
   device: GPUDevice;
   readLevel?: TextureLevelReader;
+  /** Which level file each lane samples: a family's blocks, or the lossless one. */
+  encoding: PoolEncoding;
   counters: TileCounters;
   onFailure: (phase: string, error: unknown) => void;
 }) {
-  const { device, counters } = options;
+  const { device, counters, encoding } = options;
   const levels = options.readLevel
     ? createWebgpuTileLevels({
         read: options.readLevel,
@@ -59,7 +64,7 @@ export function createTileSources(options: {
       rgba: source.rgba,
       width: layout.width,
       height: layout.height,
-      format: atlas.pool.texture.format,
+      format: atlas.poolOf(slot).texture.format,
       errorCode:
         atlas.kind === 'color'
           ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
@@ -85,20 +90,29 @@ export function createTileSources(options: {
       frame: number,
       encoder: () => GPUCommandEncoder,
     ): 'served' | 'waiting' | 'refused' {
-      const { layout, source } = atlas.textures[key.slot];
+      const { layout, source, lane } = atlas.textures[key.slot];
+      const pool = atlas.poolOf(key.slot).texture;
       const [width, height] = levelSize(layout.width, layout.height, key.level);
       const region = tileRegion(width, height, key.tx, key.ty);
       if (source.kind === 'baked') {
-        const levelKey = { sha256: source.sha256, atlas: source.atlas, level: key.level };
-        const bitmap = levels?.get(levelKey, frame);
-        if (!bitmap) {
-          if (!atlas.roomFor(frame)) return 'refused';
-          if (levels && levels.inFlight < MAX_LEVEL_READS) levels.request(levelKey, frame);
+        const levelKey = {
+          sha256: source.sha256,
+          atlas: source.atlas,
+          level: key.level,
+          format: encoding.levelFormat(lane),
+        };
+        const held = levels?.get(levelKey, frame);
+        if (!held) {
+          if (!atlas.roomFor(key.slot, frame)) return 'refused';
+          if (levels && levels.inFlight < MAX_LEVEL_READS)
+            levels.request(levelKey, frame, [width, height]);
           return 'waiting';
         }
         const place = atlas.place(key, frame);
         if (!place) return 'refused';
-        writeTileFromBitmap(device.queue, atlas.pool.texture, place, bitmap, region);
+        if (held instanceof Uint8Array)
+          writeTileFromBlocks(device.queue, pool, place, held, [width, height], region);
+        else writeTileFromBitmap(device.queue, pool, place, held, region);
         return 'served';
       }
       if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE');
@@ -106,7 +120,7 @@ export function createTileSources(options: {
       if (!scratch) return 'waiting';
       const place = atlas.place(key, frame);
       if (!place) return 'refused';
-      copyTileFromTexture(encoder(), atlas.pool.texture, place, scratch.texture, key.level, region);
+      copyTileFromTexture(encoder(), pool, place, scratch.texture, key.level, region);
       return 'served';
     },
     /** Queue of a host texture, copied from its working texture and submitted. */
@@ -116,7 +130,7 @@ export function createTileSources(options: {
       const encoder = device.createCommandEncoder({ label: 'WG texture tail' });
       copyTailFromTexture(
         encoder,
-        atlas.pool.texture,
+        atlas.poolOf(slot).texture,
         place,
         scratch.texture,
         [layout.width, layout.height],

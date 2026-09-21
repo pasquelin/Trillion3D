@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TEMPLATES, sha } from '../../test/fixtures/manifestBinary.ts';
+import { preview } from '../../test/fixtures/manifestBinaryPreview.ts';
 import {
   encodeManifestBinary,
   decodeManifestBinary,
@@ -12,35 +13,13 @@ import {
   type ClusterManifest,
   type TexturePreview,
 } from './contracts.ts';
-import { previewFirstLevel, previewLevelCount, previewLevelSize } from './texturePreviewLevels.ts';
+import { previewBlockBytes } from './texturePreviewLevels.ts';
 import {
   COLUMN_NAMES,
   MANIFEST_BINARY_HEADER_WORDS,
   PREVIEW_WORDS,
 } from './manifestBinaryFormat.ts';
 
-function levels(width: number, height: number, seed: number) {
-  const first = previewFirstLevel(width, height);
-  return Array.from({ length: previewLevelCount(width, height) }, (_, index) => {
-    const [w, h] = previewLevelSize(width, height, first + index);
-    return new Uint8Array(w * h * 4).map((_b, i) => (i + seed) % 256) as Uint8Array<ArrayBuffer>;
-  });
-}
-function preview(texture: number, width: number, height: number, seed: number): TexturePreview {
-  return {
-    texture,
-    image: texture,
-    width,
-    height,
-    sourceKind: 0,
-    sourceBufferView: -1,
-    atlas: 0,
-    bakedLevels: 0,
-    sha256: sha(String(texture)),
-    firstLevel: previewFirstLevel(width, height),
-    levels: levels(width, height, seed),
-  };
-}
 function manifestWith(previews: TexturePreview[]): ClusterManifest {
   return {
     schema: CLUSTERED_BLEND_FORMAT_VERSION,
@@ -58,7 +37,12 @@ function manifestWith(previews: TexturePreview[]): ClusterManifest {
 function encode(previews: TexturePreview[]) {
   const { manifest: slim, binary } = encodeManifestBinary(manifestWith(previews), TEMPLATES);
   slim.binary.sha256 = sha('f');
-  const buffer = binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength);
+  // `encodeManifestBinary` always backs the view with a plain `ArrayBuffer`; `.buffer` types as
+  // the wider `ArrayBufferLike`.
+  const buffer = binary.buffer.slice(
+    binary.byteOffset,
+    binary.byteOffset + binary.byteLength,
+  ) as ArrayBuffer;
   return { slim, buffer };
 }
 /** The `texturePreviewU32` words of entry `entry`, on the finished buffer: the only way to
@@ -75,7 +59,8 @@ const PREVIEW_FIRST_LEVEL = 6,
   PREVIEW_PIXEL_OFFSET = 8,
   PREVIEW_PIXEL_BYTES = 9,
   PREVIEW_ATLAS = 10,
-  PREVIEW_BAKED_LEVELS = 11;
+  PREVIEW_BAKED_LEVELS = 11,
+  PREVIEW_LAYOUTS = 12;
 function refused(buffer: ArrayBuffer, slim: SlimClusterManifest) {
   assert.throws(
     () => decodeManifestBinary(slim, buffer),
@@ -156,4 +141,47 @@ test('an unknown atlas, or more baked levels than lie above the tail, is refused
   const { slim, buffer } = encode([preview(0, 256, 256, 1)]);
   previewWord(buffer, 0, PREVIEW_ATLAS)[0] = 7;
   refused(buffer, slim);
+});
+
+// Behaviour: the block tails travel in their own columns with no written range — each kept
+// entry's follows the previous at the length its dimensions imply, a lossless entry has none,
+// its layout word says so — and a column that is short or long against those lengths is refused
+// whole, never sliced wrongly; a lossless entry that carries blocks, or a layout word no layout
+// owns, is refused too.
+test('block tails round-trip by layout and dimension, and a column of the wrong length is refused', () => {
+  const lossless = {
+    ...preview(1, 16, 16, 3),
+    layouts: { bc7: 'lossless', astc: 'rgba' } as const,
+  };
+  lossless.blocks = { bc7: [], astc: lossless.blocks.astc };
+  const previews = [preview(0, 40, 24, 1), lossless, preview(2, 8, 8, 5)];
+  const { slim, buffer } = encode(previews);
+  assert.equal(
+    slim.binary.texturePreviewBc7Bytes,
+    previewBlockBytes(40, 24) + previewBlockBytes(8, 8),
+  );
+  assert.equal(
+    slim.binary.texturePreviewAstcBytes,
+    previewBlockBytes(40, 24) + previewBlockBytes(16, 16) + previewBlockBytes(8, 8),
+  );
+  const decoded = decodeManifestBinary(slim, buffer).texturePreviews!;
+  decoded.forEach((entry, index) => {
+    assert.deepEqual(entry.layouts, previews[index].layouts);
+    assert.deepEqual(entry.blocks, previews[index].blocks);
+  });
+  for (const delta of [-16, 16]) {
+    const lying = { ...slim, binary: { ...slim.binary } };
+    lying.binary.texturePreviewBc7Bytes += delta;
+    refused(buffer, lying);
+  }
+  previewWord(buffer, 1, PREVIEW_LAYOUTS)[0] = 3;
+  refused(buffer, slim);
+  assert.throws(
+    () => encode([{ ...preview(0, 8, 8, 1), blocks: { bc7: [], astc: [] } }]),
+    /wrong length/,
+  );
+  assert.throws(
+    () => encode([{ ...preview(0, 8, 8, 1), layouts: { bc7: 'lossless', astc: 'rgba' } }]),
+    /lossless texture preview carries blocks/,
+  );
 });

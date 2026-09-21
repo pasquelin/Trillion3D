@@ -12,7 +12,7 @@
 // hide the unwalked rig the contract exists to catch. A host therefore enters through
 // `cameraMoteur(…)`, as frame entry does.
 //
-// `test:gpu` had failed on four hosts of `test/*.browser.mjs` that stayed on the raw camera;
+// `test:gpu` had failed on four hosts of `test/*.browser.ts` that stayed on the raw camera;
 // they moved to `cameraMoteur` (in-repo fixtures, not third-party hosts). `pnpm test` had not
 // seen it: they are scripts outside `pnpm test`, that only `pnpm run test:gpu` runs —
 // these tests therefore reproduce both calls without a browser, the faulty one and the right one.
@@ -22,7 +22,7 @@ import * as THREE from 'three';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { rasterVisibility } from './visibilityRaster.ts';
 import type { VisPage } from './visibilityTypes.ts';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.mjs';
+import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 type Pose = (typeof POSES_PARENT)[number];

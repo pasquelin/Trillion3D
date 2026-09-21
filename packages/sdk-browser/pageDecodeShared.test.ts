@@ -20,12 +20,12 @@ import {
   sharedPagesAllowed,
 } from './pageDecodeShared.ts';
 import { writeSharedPage } from './pageDecodeSharedPage.ts';
-import { encodeGeometryPage } from '../page-codec/geometryPage.mjs';
+import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import {
   FlakyNodeWorker,
   NodeDomWorker,
   withNodeWorkerShim,
-} from './bench/oracles/pageDecodeNodeWorker.mjs';
+} from './bench/oracles/pageDecodeNodeWorker.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { PageDecodeAnswer, PageDecodeDone } from '../sdk-core/index.ts';
 

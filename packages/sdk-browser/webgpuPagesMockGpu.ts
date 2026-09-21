@@ -23,6 +23,8 @@ export function mockGpu(
   let seq = 0;
   const textures: Array<{
     label?: string;
+    width: number;
+    height: number;
     format?: string;
     usage?: number;
     depthOrArrayLayers: number;
@@ -47,6 +49,8 @@ export function mockGpu(
   });
   const device: { [key: string]: unknown } = {
     limits,
+    // No block family: every lane pool is RGBA8, as on a software adapter.
+    features: new Set<string>(),
     lost,
     createBuffer: ({ size, usage, label }: { size: number; usage: number; label?: string }) => {
       const data = new Uint8Array(size);

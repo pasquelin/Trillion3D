@@ -3,7 +3,7 @@
  * (thresholds 0.04045 and 0.0031308, slope 12.92, exponent 2.4), identical to
  * Rust compiler and WGSL composition. Reference 3D library rounds its
  * constants (`c · 0.0773993808`, `c · 0.9478672986 + 0.0521327014`): deviation is benchmarked in
- * `sdk-browser/bench/socle-math.bench.mjs`, and it is not the decision maker here.
+ * `sdk-browser/bench/socle-math.bench.ts`, and it is not the decision maker here.
  */
 
 import type { NumberSink } from './mathMatrix4.ts';

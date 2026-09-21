@@ -1,10 +1,5 @@
 {
   "case": "A glTF with an external buffer and a texture in a subdirectory, read through its ZIP: extraction under the cache, a single root directory walked through, content routed to the glTF driver.",
-  "rule": "A container changes nothing about the scene it wraps. The test first compares the compilation from the archive with that of the same glTF outside the archive, cache key included; booby-trapped archives are refused by their code and never half extracted.",
-  "scenePlugin": {
-    "name": "zip",
-    "version": "zip-appnote-6.3.10-zip-8.6.0-extract-1"
-  },
   "chain": [
     {
       "name": "zip",
@@ -20,14 +15,19 @@
     "tronquee": "ARCHIVE_UNREADABLE",
     "vide": "ARCHIVE_EMPTY"
   },
+  "rule": "A container changes nothing about the scene it wraps. The test first compares the compilation from the archive with that of the same glTF outside the archive, cache key included; booby-trapped archives are refused by their code and never half extracted.",
   "scene": {
     "formatVersion": 3,
-    "manifestBinaryVersion": 6,
-    "sidecarSha256": "75a071270a9f8d7b8e74118668ae1d0aeebe84481e6b549edf1ae43125d4acb8",
+    "manifestBinaryVersion": 7,
     "primitives": 2,
     "selectedNodes": [0],
-    "totalNodes": 1,
     "selectedTriangles": 8,
-    "sourceTriangles": 8
+    "sidecarSha256": "c89dfe6c19b94a05fcc27d8b3eea325c4c139070aa4399c4455373952a82240d",
+    "sourceTriangles": 8,
+    "totalNodes": 1
+  },
+  "scenePlugin": {
+    "name": "zip",
+    "version": "zip-appnote-6.3.10-zip-8.6.0-extract-1"
   }
 }
