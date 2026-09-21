@@ -129,12 +129,11 @@ pub(super) fn compile_primitive(
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
     let mut attributes = Vec::<geometry_page::Attribute>::new();
     if !unsplit {
-        for (name, width, offset, flag) in [
-            ("NORMAL", 3, 12, geometry_page::FLAG_NORMAL),
-            ("TEXCOORD_0", 2, 24, geometry_page::FLAG_UV),
-            ("TANGENT", 4, 32, geometry_page::FLAG_TANGENT),
-            ("TEXCOORD_1", 2, 48, geometry_page::FLAG_UV1),
-            ("COLOR_0", 4, 56, geometry_page::FLAG_COLOR),
+        for (name, width, flag) in [
+            ("NORMAL", 3, geometry_page::FLAG_NORMAL),
+            ("TEXCOORD_0", 2, geometry_page::FLAG_UV),
+            ("TEXCOORD_1", 2, geometry_page::FLAG_UV1),
+            ("COLOR_0", 4, geometry_page::FLAG_COLOR),
         ] {
             if let Some(id) = p
                 .get("attributes")
@@ -151,17 +150,16 @@ pub(super) fn compile_primitive(
                     ));
                 }
                 attributes.push(geometry_page::Attribute {
-                    offset,
-                    width,
-                    source_width: a.width,
                     flag,
+                    width: a.width,
                     values: a.collect_f32()?,
                 });
             }
         }
     }
-    let store_packed = |slice: &[u32]| -> Result<(Value, bool)> {
-        compiler_page_object::store_page(o, slice, &pos, &attributes)
+    let carried = carried_attributes(&attributes, material);
+    let store_packed = |slice: &[u32], position_exponent: i32| -> Result<(Value, bool)> {
+        compiler_page_object::store_page(o, slice, &pos, &carried, position_exponent)
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.
@@ -184,17 +182,19 @@ pub(super) fn compile_primitive(
         culling_report,
         structure_report,
         stream_report,
+        position_exponent,
     } = if dag_primitive {
         build_dag_primitive(o, &pos, &attributes, &index_values, demand, &store_packed)?
     } else {
         DagResult::default()
     };
     progress(primitive_event(mesh, *primitive, pages.len(), &warnings));
+    let quantization = compiler_page_object::quantization_report(&pages, position_exponent);
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,
         // The threshold is back in object space: it goes out in metres for the report.
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
-        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
+        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }
