@@ -20,8 +20,8 @@ import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFron
 import { selectionGpu } from './noyauSelectionGpu.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
-const VIEWPORT = [1280, 720];
-const POSES = [
+const VIEWPORT: [number, number] = [1280, 720];
+const POSES: Array<[string, number, number, number]> = [
   ['pose immobile', 0, 16, 1],
   ['de biais', 9, 14, 1],
   ['de loin', 0, 60, 1],
@@ -64,10 +64,15 @@ for (const gpu of [avec, sans]) {
   assert.equal(gpu.indisponible ?? null, null);
   assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
 }
-const part = (retire, de) => Number(((100 * retire) / Math.max(1, de)).toFixed(1));
+const part = (retire: number, de: number): number =>
+  Number(((100 * retire) / Math.max(1, de)).toFixed(1));
+assert.ok(avec.resultats && sans.resultats, 'no result');
+const resultatsAvec = avec.resultats,
+  resultatsSans = sans.resultats;
 const lignes = cas.map(({ name }) => {
-  const a = avec.resultats.find((r) => r.name === name),
-    s = sans.resultats.find((r) => r.name === name);
+  const a = resultatsAvec.find((r) => r.name === name),
+    s = resultatsSans.find((r) => r.name === name);
+  assert.ok(a && s, `${name}: missing GPU result`);
   return {
     pose: name,
     retenues: a.pages.length,

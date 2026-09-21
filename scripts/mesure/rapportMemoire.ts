@@ -1,6 +1,8 @@
 import { go, mo } from './rapportTextures.ts';
+import type { FrameMetrics } from '../../packages/sdk-core/index.ts';
+import type { Report } from './report/types.ts';
 
-const num = (v) => (typeof v === 'number' ? v : null);
+const num = (v: number | null | undefined) => (typeof v === 'number' ? v : null);
 /** Labels published in the summary: beyond them, the full reading is in `mesure.json`. */
 const PLUS_LOURDES = 8;
 
@@ -12,12 +14,12 @@ const PLUS_LOURDES = 8;
  * the rest is the difference. A side without a registry is "unmeasured", never zero. A reservoir
  * the engine could not hold as requested says why, in parentheses.
  */
-export function memoire(report) {
+export function memoire(report: Report) {
   const lines = [
     '| view | threshold | side | total allocated | texture pool | geometry / pool | frame targets | rest |',
     '|---|---|---|---|---|---|---|---|',
   ];
-  const details = [];
+  const details: string[] = [];
   for (const serie of report.series)
     for (const [side, resultat] of Object.entries(serie.sides)) {
       const m = resultat.metrics ?? {};
@@ -35,10 +37,11 @@ export function memoire(report) {
   return [...lines, '', ...details];
 }
 
-const borne = (m) => (m.geometryPoolClamp ? ` (${m.geometryPoolClamp})` : '');
+const borne = (m: Partial<FrameMetrics>) =>
+  m.geometryPoolClamp ? ` (${m.geometryPoolClamp})` : '';
 
 /** The heaviest allocations of a side, by label, and the admission of an unknown format. */
-function plusLourdes(serie, side, m) {
+function plusLourdes(serie: Report['series'][number], side: string, m: Partial<FrameMetrics>) {
   if (typeof m.gpuAllocatedBytes !== 'number') return [];
   const inconnues = num(m.gpuAllocationsUnknownFormat);
   const parEtiquette = Object.entries(m.gpuAllocatedByLabel ?? {})

@@ -2,10 +2,24 @@
 // Unit tests import them to check that the zero-threshold paths yield the exact same
 // decision, and that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../sdk-core/index.ts';
+import type { ClusterCut } from '../../pageSelectionMath.ts';
+
+/** Bound-array offsets read at fixed slots, as `pageSelectionCutBounds.ts` lays them out. */
+interface BoundSlots {
+  ownFloor: number;
+  ownCeil: number;
+  parentFloor: number;
+  ownSphere: number;
+  parentSphere: number;
+}
 
 /** `pageSelectionMath.ts` before batch 4c: the centre projected into a shared buffer. */
 const centre = new Float64Array(3);
-export function referenceProjectCentre(sphere, offset, e) {
+export function referenceProjectCentre(
+  sphere: ArrayLike<number>,
+  offset: number,
+  e: ArrayLike<number>,
+) {
   const cx = sphere[offset],
     cy = sphere[offset + 1],
     cz = sphere[offset + 2];
@@ -16,7 +30,15 @@ export function referenceProjectCentre(sphere, offset, e) {
 }
 
 /** `projectedClusterError` from before batch 4c: one square root per bound, in `clusterErrorPixels`. */
-export function referenceProjectedClusterError(error, sphere, offset, e, stretch, focal, near) {
+export function referenceProjectedClusterError(
+  error: number | null | undefined,
+  sphere: ArrayLike<number> | null | undefined,
+  offset: number,
+  e: ArrayLike<number>,
+  stretch: number,
+  focal: number,
+  near: number,
+) {
   if (error === 0) return 0;
   if (error == null || error === Infinity) return Infinity;
   if (!sphere) return Infinity;
@@ -27,8 +49,15 @@ export function referenceProjectedClusterError(error, sphere, offset, e, stretch
 /** `errorFloorPixels` from before batch 4c, on the depth that defect-3's corrected bound
  *  uses (`−vue(C).z`) where the old one took the distance to the eye: the floor stays the
  *  lower bound of a subtree; the proof is at the `errorFloorAt` site. */
-export function referenceErrorFloorPixels(error, stretch, c, radius, focal) {
+export function referenceErrorFloorPixels(
+  error: number | null | undefined,
+  stretch: number,
+  c: ArrayLike<number>,
+  radius: number,
+  focal: number,
+) {
   if (error === 0) return 0;
+  if (error == null) return 0;
   if (error === Infinity) return Infinity;
   if (!(error > 0) || !(radius >= 0)) return 0;
   const far = -c[2] + radius * stretch;
@@ -37,7 +66,14 @@ export function referenceErrorFloorPixels(error, stretch, c, radius, focal) {
 }
 
 /** `cutSelects` from before batch 4c: two projections, whatever the threshold. */
-export function referenceCutSelects(rec, e, stretch, focal, near, pixelError) {
+export function referenceCutSelects(
+  rec: ClusterCut,
+  e: ArrayLike<number>,
+  stretch: number,
+  focal: number,
+  near: number,
+  pixelError: number,
+) {
   if (
     referenceProjectedClusterError(rec.lodError ?? 0, rec.sphere, 0, e, stretch, focal, near) >
     pixelError
@@ -57,7 +93,16 @@ export function referenceCutSelects(rec, e, stretch, focal, near, pixelError) {
 }
 
 /** `nodeDecision` from before batch 4c, bounds read at the same offsets. */
-export function referenceNodeDecision(values, at, slots, e, stretch, focal, near, limit) {
+export function referenceNodeDecision(
+  values: ArrayLike<number>,
+  at: number,
+  slots: BoundSlots,
+  e: ArrayLike<number>,
+  stretch: number,
+  focal: number,
+  near: number,
+  limit: number,
+) {
   const { ownFloor, ownCeil, parentFloor, ownSphere, parentSphere } = slots;
   const own = referenceProjectCentre(values, at + ownSphere, e),
     radius = values[at + ownSphere + 3];

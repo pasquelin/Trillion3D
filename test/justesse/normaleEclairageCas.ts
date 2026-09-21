@@ -3,11 +3,44 @@
 // (`Matrix3.getNormalMatrix`, inverse-transpose with no threshold). Split from the orchestration
 // to hold `check:lines`.
 import * as THREE from 'three';
+import type { Vec3 } from './vecTypes.ts';
+
+/** Parameters of the `scale ∘ rotation` family `poseMonde` and `construireCas` both take. */
+export interface PoseParams {
+  s: number;
+  kind: string;
+  axis: Vec3;
+  angleDeg: number;
+}
+/** What `eclairageGpu` reads of any case, campaign or singular: geometry, light, material. Singular
+ *  cases (`normalTransformCas.ts`) also carry `degenere`/`effondree`, absent from a campaign case. */
+export interface CasEclairage {
+  nom: string;
+  world: number[];
+  normale: Vec3;
+  vraie: Vec3;
+  lumiere: number[];
+  metal: number;
+  rugosite: number;
+  degenere?: boolean;
+  effondree?: boolean;
+}
+/** A campaign case, as `construireCas` builds it and `ecart` reads it. */
+export interface CasNormale extends CasEclairage {
+  s: number;
+  kind: string;
+}
+/** One GPU readout: the rendered normal and the two lit colours (rendered, true). */
+export interface LigneGpu {
+  rendue: number[];
+  litRendu: number[];
+  litVrai: number[];
+}
 
 /** Rec. 709 luminance: a lit colour is compared by a single number. */
-export const luminance = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+export const luminance = ([r, g, b]: number[]): number => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
-const unitaire = (v) => {
+const unitaire = (v: number[]): number[] => {
   const n = Math.hypot(...v);
   return n > 0 ? v.map((x) => x / n) : v;
 };
@@ -19,7 +52,7 @@ const unitaire = (v) => {
  * second checks that a non-trivial inverse-transpose stays correct. Translation is left null: it
  * changes neither a normal nor a recentre.
  */
-export function poseMonde({ s, kind, axis, angleDeg }) {
+export function poseMonde({ s, kind, axis, angleDeg }: PoseParams): THREE.Matrix4 {
   const echelle = kind === 'uniforme' ? [s, s, s] : [s, s * 1.7, s * 0.6];
   const quaternion = new THREE.Quaternion().setFromAxisAngle(
     new THREE.Vector3(...axis).normalize(),
@@ -32,8 +65,25 @@ export function poseMonde({ s, kind, axis, angleDeg }) {
   );
 }
 
+/** Input of `construireCas`: a pose plus the local normal, light and material it is lit with. */
+export interface CasEntree extends PoseParams {
+  normale: Vec3;
+  lumiere: number[];
+  metal: number;
+  rugosite: number;
+}
+
 /** World transform, local normal `normale`, and true world normal in f64 (Three). */
-export function construireCas({ s, kind, axis, angleDeg, normale, lumiere, metal, rugosite }) {
+export function construireCas({
+  s,
+  kind,
+  axis,
+  angleDeg,
+  normale,
+  lumiere,
+  metal,
+  rugosite,
+}: CasEntree): CasNormale {
   const world = poseMonde({ s, kind, axis, angleDeg });
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(world);
   const vraie = new THREE.Vector3(...normale).applyMatrix3(normalMatrix).normalize();
@@ -54,7 +104,7 @@ export function construireCas({ s, kind, axis, angleDeg, normale, lumiere, metal
  * Discrepancy between the normal the GPU rendered and the true normal: angle in degrees, and
  * relative luminance discrepancy between the two colours lit by the same BRDF on the same GPU.
  */
-export function ecart(cas, ligne) {
+export function ecart(cas: CasNormale, ligne: LigneGpu) {
   const rendue = unitaire(ligne.rendue);
   const produit = rendue.reduce((acc, x, i) => acc + x * cas.vraie[i], 0);
   const angleDeg = (Math.acos(Math.min(1, Math.max(-1, produit))) * 180) / Math.PI;
@@ -90,8 +140,8 @@ const LUMIERES = [
 ];
 
 /** The full campaign: every scale crossed with orientations, normals and lights. */
-export function campagne() {
-  const cas = [];
+export function campagne(): CasNormale[] {
+  const cas: CasNormale[] = [];
   for (const s of ECHELLES)
     for (const kind of ['uniforme', 'anisotrope'])
       for (const axis of AXES)

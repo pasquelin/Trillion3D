@@ -26,7 +26,7 @@ test('publication keeps immutable campaigns and portal entry, and validates evid
     assert.equal(publierRapport(source, dest), join(dest, 'reports/test'));
     assert.equal(readFileSync(join(dest, 'index.html'), 'utf8'), 'portal');
     assert.match(readFileSync(join(dest, 'report.html'), 'utf8'), /#\/fr\/reports/);
-    assert.equal(JSON.parse(readFileSync(join(dest, 'reports/index.json')))[0].id, 'test');
+    assert.equal(JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8'))[0].id, 'test');
     assert.throws(() => publierRapport(source, dest), /already published/);
   } finally {
     rmSync(root, { recursive: true, force: true });

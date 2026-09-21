@@ -8,9 +8,13 @@ import { assertReport } from '../../site/reports/contract.ts';
 import { comparison } from '../../site/reports/compare.ts';
 import { metricValue } from '../../site/reports/metrics.ts';
 import { canResume } from './report/provenance.ts';
-const reading = () => ({
+import type { ReportRecord } from '../../site/reports/types.ts';
+import type { Report as MesureReport } from './report/types.ts';
+const reading = (): ReportRecord => ({
   id: 'a',
+  runId: 'run-a',
   scene: 'scene',
+  sceneNote: null,
   view: 'street',
   quality: 1,
   pose: { position: [1, 2, 3] },
@@ -19,11 +23,18 @@ const reading = () => ({
   assetKey: 'asset',
   buildHash: 'build',
   engine: 'webgpu',
+  commit: null,
   variant: null,
   provenance: { machine: { id: 'machine' }, browser: 'Chrome 1' },
   settings: { lightShadows: true },
+  errors: false,
   gpuMethod: 'timestamp-query',
-  data: { erreur: 'certifiee', cpuFrameMs: { p50: 4 }, gpuFrameMs: { p50: 8 } },
+  witness: null,
+  difference: null,
+  differencePair: null,
+  identicalCut: null,
+  image: null,
+  data: { erreur: 'certifiee', cpuFrameMs: { p50: 4, p95: 4 }, gpuFrameMs: { p50: 8, p95: 8 } },
 });
 
 test('export preserves source numbers and original pixels without inventing provenance', () => {
@@ -58,6 +69,7 @@ test('export preserves source numbers and original pixels without inventing prov
     assert.equal(metricValue(r, 'gpu'), null);
     assert.equal(metricValue(r, 'sync'), 9);
     assert.equal(r.provenance, null);
+    if (!r.image) throw new Error('expected an image');
     assert.equal(readFileSync(join(out, r.image), 'utf8'), 'original-pixels');
     assert.throws(() => exportReport(source, out, 'campaign'), /already exists/);
     assert.throws(() => assertReport({ ...report, formatVersion: 2 }), /Unsupported/);
@@ -70,9 +82,12 @@ test('export preserves source numbers and original pixels without inventing prov
   }
 });
 
+/** A `TimingStat`, `p95` defaulting to `p50` when the test does not care about it. */
+const ms = (p50: number, p95 = p50) => ({ p50, p95 });
+
 test('comparison admits only its declared variable and separates GPU and synchronized clocks', () => {
   const a = reading(),
-    b = { ...reading(), id: 'b', data: { erreur: 'certifiee', cpuFrameMs: { p50: 3 } } };
+    b: ReportRecord = { ...reading(), id: 'b', data: { erreur: 'certifiee', cpuFrameMs: ms(3) } };
   assert.deepEqual(comparison(a, b, 'cpu'), {
     status: 'descriptive',
     reasons: [],
@@ -86,33 +101,39 @@ test('comparison admits only its declared variable and separates GPU and synchro
     comparison(a, { ...b, settings: { lightShadows: false } }, 'cpu', 'lightShadows').delta,
     -1,
   );
-  assert.equal(comparison(a, { ...b, data: { imageSyncMs: { p50: 3 } } }, 'gpu').delta, null);
+  assert.equal(comparison(a, { ...b, data: { imageSyncMs: ms(3) } }, 'gpu').delta, null);
   assert.equal(comparison(a, { ...b, buildHash: 'other' }, 'cpu').delta, null);
   assert.equal(comparison(a, { ...b, buildHash: 'other' }, 'cpu', 'version').delta, -1);
   assert.equal(
-    comparison({ ...a, data: { ...a.data, cpuFrameMs: { p50: 0 } } }, b, 'cpu').percent,
+    comparison({ ...a, data: { ...a.data, cpuFrameMs: ms(0) } }, b, 'cpu').percent,
     null,
   );
 });
 
 test('resume requires identical campaign identity and completed error-free measurements', () => {
-  const raw = { campaignIdentity: 'a', finishedAt: 'date', series: [{}], errors: [] };
+  const raw: Partial<MesureReport> = {
+    campaignIdentity: 'a',
+    finishedAt: 'date',
+    series: [{} as MesureReport['series'][number]],
+    errors: [],
+  };
   assert.equal(canResume(raw, 'a'), true);
   for (const changed of [
     { campaignIdentity: 'b' },
-    { finishedAt: null },
+    { finishedAt: undefined },
     { series: [] },
-    { errors: ['failed'] },
+    { errors: [{ kind: 'pageerror' as const, message: 'failed' }] },
   ])
     assert.equal(canResume({ ...raw, ...changed }, 'a'), false);
 });
 
 test('comparison rejects different or missing geometric error definitions', () => {
   const a = reading();
-  for (const erreur of ['reference', null, undefined]) {
-    const b = { ...reading(), id: 'b', data: { ...a.data, erreur } };
+  const erreurs: ('reference' | null | undefined)[] = ['reference', null, undefined];
+  for (const erreur of erreurs) {
+    const b: ReportRecord = { ...reading(), id: 'b', data: { ...a.data, erreur } };
     const result = comparison(a, b, 'cpu');
     assert.equal(result.delta, null);
-    assert.ok(result.reasons.includes('errorMetric'));
+    assert.ok(result.reasons?.includes('errorMetric'));
   }
 });

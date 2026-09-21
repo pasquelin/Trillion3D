@@ -3,6 +3,7 @@
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { SideBase } from './dists.ts';
+import type { ScreenErrorVariant } from '../../packages/sdk-core/index.ts';
 
 // Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
 const BASE_FLAGS = [
@@ -31,7 +32,7 @@ export interface EngineDescriptor {
 export interface Side extends SideBase {
   engine: EngineDescriptor;
   variant: string | null;
-  errorMetric: string | null;
+  errorMetric: ScreenErrorVariant | null;
 }
 
 // Standalone WebGL2 engine is the only one of the three decoding geometry pages itself.
@@ -86,12 +87,13 @@ export function equipSide(
   side: SideBase,
   flags: Map<string, string>,
   settings: { engine: string },
-) {
+): Side {
   const equipped = side as Side;
   equipped.cache = resolveCache(flags.get(`cache-${side.name}`));
   equipped.engine = engineOf(flags, side.name, settings.engine);
   equipped.variant = variantOf(flags, side.name);
   equipped.errorMetric = screenErrorOf(flags, side.name);
+  return equipped;
 }
 
 /**

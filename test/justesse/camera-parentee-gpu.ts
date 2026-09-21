@@ -10,19 +10,26 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import type { executer } from './cameraParenteeGpuPage.ts';
+
+declare global {
+  // eslint-disable-next-line no-var
+  var cameraParentee: { executer: typeof executer };
+}
 
 const ici = dirname(fileURLToPath(import.meta.url));
 
 const script = await empaquetePage(resolve(ici, 'cameraParenteeGpuPage.ts'), 'cameraParentee');
-const erreursPage = [];
+const erreursPage: string[] = [];
 const resultat = await dansPageWebgpu(
-  (pixelErrors) => globalThis.cameraParentee.executer(pixelErrors),
+  (pixelErrors: number[]) => globalThis.cameraParentee.executer(pixelErrors),
   [0, 3.5],
   { titre: 'Parented camera', script, erreursPage },
 );
 resultat.erreurs = [...(resultat.erreurs ?? []), ...erreursPage];
 
 if (resultat.indisponible) throw new Error(resultat.indisponible);
+if (!resultat.cas) throw new Error('GPU_RESULT_MISSING_CAS');
 console.log(`adaptateur : ${resultat.adaptateur}`);
 let ecarts = 0;
 for (const { pixelError, avecParent, sansParent } of resultat.cas) {

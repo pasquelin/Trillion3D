@@ -1,9 +1,14 @@
 // Oracles of the "cut by delta" batch: the previous code, copied as-is. The four cut
 // readers rewalked the list published by the sample every frame; the bench compares them
 // to those that now read only a delta. The copies are wanted duplicates: that is the oracle.
+import type { PageRec, RequestStamps } from '../../pageSelection.ts';
 
 /** `webgpuPagesHelpers.ts:shownFromGpu` before the batch: four totals of one pass over the whole cut. */
-export function referenceCutCounts(pages, ids, residentOffsetWords) {
+export function referenceCutCounts(
+  pages: readonly (PageRec | undefined)[],
+  ids: readonly number[],
+  residentOffsetWords: Int32Array,
+) {
   let selected = 0,
     uncovered = 0,
     transparent = 0;
@@ -24,13 +29,17 @@ export function referenceCutCounts(pages, ids, residentOffsetWords) {
 }
 
 /** `webgpuFrameHold.ts:cutComplete` before the batch: the whole cut reread for a single verdict. */
-export function referenceCutComplete(desired) {
+export function referenceCutComplete(desired: readonly PageRec[]) {
   for (let i = 0; i < desired.length; i++) if (!desired[i].array) return false;
   return true;
 }
 
 /** `webgpuPagesHostApi.ts:pendingUrls` before the batch: `collectPendingUrls` on the whole cut. */
-export function referencePendingUrls(desired, stamps, into) {
+export function referencePendingUrls(
+  desired: readonly PageRec[],
+  stamps: RequestStamps,
+  into: string[],
+) {
   into.length = 0;
   stamps.begin();
   return stamps.mark(desired, into, true);
@@ -41,20 +50,28 @@ export function referencePendingUrls(desired, stamps, into) {
  * held by `add`/`remove`; only the prefix was written by walking the whole cut, one
  * stamp per key for dedup. Only that walk changes, and it is what the bench weighs.
  */
-export function createReferenceRanking({ keyCount, bootstrapKey, keyOf }) {
-  const levelOf = (page) => page.level ?? 0;
+export function createReferenceRanking({
+  keyCount,
+  bootstrapKey,
+  keyOf,
+}: {
+  keyCount: number;
+  bootstrapKey: Uint8Array;
+  keyOf: (page: PageRec) => number;
+}) {
+  const levelOf = (page: PageRec) => page.level ?? 0;
   let held = new Int32Array(8),
     counts = new Int32Array(8),
     cursors = new Int32Array(8);
   const refs = new Int32Array(Math.max(1, keyCount));
   const heldKeys = new Uint8Array(Math.max(1, keyCount));
   let heldCount = 0;
-  const ranked = [];
+  const ranked: PageRec[] = [];
   let keys = new Int32Array(0);
   const seen = new Int32Array(Math.max(1, keyCount)).fill(-1);
   let epoch = 0,
     length = 0;
-  const grow = (level) => {
+  const grow = (level: number) => {
     if (level < held.length) return;
     const size = 1 << (32 - Math.clz32(level));
     const nextHeld = new Int32Array(size),
@@ -73,7 +90,7 @@ export function createReferenceRanking({ keyCount, bootstrapKey, keyOf }) {
     get length() {
       return length;
     },
-    add(page) {
+    add(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs[key]++ > 0) return;
       const level = levelOf(page);
@@ -82,14 +99,14 @@ export function createReferenceRanking({ keyCount, bootstrapKey, keyOf }) {
       heldKeys[key] = 1;
       heldCount++;
     },
-    remove(page) {
+    remove(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs[key] <= 0 || --refs[key] > 0) return;
       held[levelOf(page)]--;
       heldKeys[key] = 0;
       heldCount--;
     },
-    rank(room, cut) {
+    rank(room: number, cut: readonly PageRec[] = []) {
       const records = heldCount;
       counts.set(held);
       if (records <= room) return records;
@@ -138,8 +155,8 @@ export function createReferenceRanking({ keyCount, bootstrapKey, keyOf }) {
 
 /** The prefix summarized by what both versions must yield identically: as many pages taken
  *  at each level. A level's internal order is no longer a promise. */
-export function levelHistogram(keys, length, levelOfKey) {
-  const levels = [];
+export function levelHistogram(keys: Int32Array, length: number, levelOfKey: Int32Array) {
+  const levels: number[] = [];
   for (let i = 0; i < length; i++) {
     const level = levelOfKey[keys[i]];
     levels[level] = (levels[level] ?? 0) + 1;

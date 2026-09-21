@@ -77,7 +77,7 @@ const CALCULS = [
 ];
 
 /** File -> exact line -> why this line is a host boundary and not a computation. */
-const FRONTIERE = {
+const FRONTIERE: Record<string, Record<string, string>> = {
   'hostWorldPlacements.ts': {
     'const matrix = new THREE.Matrix4();': 'the container a page carries, filled by the foundation',
   },
@@ -112,7 +112,7 @@ const FRONTIERE = {
 };
 
 /** Lines triggering a pattern, comments excluded. */
-const lignesFautives = (texte) =>
+const lignesFautives = (texte: string): string[] =>
   texte
     .split('\n')
     .filter((ligne) => !/^\s*(?:\/\/|\*|\/\*)/.test(ligne))
@@ -120,12 +120,12 @@ const lignesFautives = (texte) =>
     .filter((ligne) => CALCULS.some((motif) => ligne.includes(motif)));
 
 test('loading and explorer no longer compute using the host library', async () => {
-  const fuites = [],
-    inutiles = [];
+  const fuites: string[] = [],
+    inutiles: string[] = [];
   for (const file of M4A) {
     const texte = await readFile(new URL(file, browser), 'utf8');
     const permis = FRONTIERE[file] ?? {},
-      vues = new Set();
+      vues = new Set<string>();
     for (const ligne of lignesFautives(texte)) {
       if (permis[ligne]) vues.add(ligne);
       else fuites.push(`${file} computes through the host library: ${ligne}`);
@@ -158,7 +158,7 @@ const TEMOINS =
   /^(?:referenceBackend|threeLod|threeBounds|exactPages|autonomous|clusterBatch|blendCopyMesh|comparison|lightingObservation)/;
 
 /** File -> exact line -> why it SETS a host matrix instead of computing one. */
-const ECRIT_L_HOTE = {
+const ECRIT_L_HOTE: Record<string, Record<string, string>> = {
   'cameraWorld.ts': {
     'into.matrix.copy(camera.matrixWorld);':
       'detached copy of a host camera: it SETS the world pose, it does not compute it',
@@ -171,12 +171,12 @@ test('engine reads the host matrix, it does not compute with it', async () => {
     (nom) => nom.endsWith('.ts') && !nom.endsWith('.test.ts'),
   );
   assert.ok(fichiers.length > 100, 'the browser package must be found');
-  const fuites = [],
-    inutiles = [];
+  const fuites: string[] = [],
+    inutiles: string[] = [];
   for (const file of fichiers) {
     if (TEMOINS.test(file)) continue;
     const permis = ECRIT_L_HOTE[file] ?? {},
-      vues = new Set();
+      vues = new Set<string>();
     const texte = await readFile(new URL(file, browser), 'utf8');
     for (const ligne of texte
       .split('\n')

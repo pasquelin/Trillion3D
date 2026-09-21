@@ -19,16 +19,41 @@ import {
   referenceWeights,
 } from './oracles/formules-ts.ts';
 import { casPlans, durees, emprises, rangs, tailles, triangles } from './appui/scenesFormules.ts';
+import type { MesureCas } from '../../sdk-core/bench/socle.ts';
 
-const un = (name, input, size) => [{ name, input, size }];
+const un = <Entree>(name: string, input: Entree, size: number): MesureCas<Entree>[] => [
+  { name, input, size },
+];
 const options = { chauffe: 2, tours: 12, budgetMs: 500 };
 
 const resPlanes = await mesure({
   name: 'box outside the six planes',
   fichier: 'packages/sdk-core/mathFrustumBox.ts',
   cas: un('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
-  calcul: (liste) => liste.map((c) => frustumExcludesBox(c.planes, ...c.boite)),
-  attendu: (liste) => liste.map((c) => referenceOutsidePlanes(c.planes, ...c.boite)),
+  calcul: (liste) =>
+    liste.map((c) =>
+      frustumExcludesBox(
+        c.planes,
+        c.boite[0],
+        c.boite[1],
+        c.boite[2],
+        c.boite[3],
+        c.boite[4],
+        c.boite[5],
+      ),
+    ),
+  attendu: (liste) =>
+    liste.map((c) =>
+      referenceOutsidePlanes(
+        c.planes,
+        c.boite[0],
+        c.boite[1],
+        c.boite[2],
+        c.boite[3],
+        c.boite[4],
+        c.boite[5],
+      ),
+    ),
   options,
 });
 

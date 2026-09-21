@@ -28,7 +28,7 @@ export const DOUBLE_PERIME = 'stale duplicate';
  * Render proofs that `pnpm run test:gpu` does not launch, and why. A `REGRESSION` entry is an
  * open debt, not a waiver: it is removed by fixing the engine.
  */
-export const BROWSER_ECARTES = new Map();
+export const BROWSER_ECARTES = new Map<string, [string, string]>();
 
 /**
  * Executable probes of `test/justesse/`: those whose name carries a hyphen. The other files in
@@ -61,7 +61,7 @@ export function ecartsRapportes() {
 }
 
 /** `node` arguments: the flags, then the requested target or the full list. */
-export function buildTestGpuArgs(cliArgs = []) {
+export function buildTestGpuArgs(cliArgs: string[] = []): string[] {
   const flags = ['--experimental-strip-types', '--test', '--test-concurrency=1'];
   if (cliArgs.length > 0) return [...flags, ...cliArgs];
   return [...flags, ...listJustesseTests(), ...listBrowserTests()];

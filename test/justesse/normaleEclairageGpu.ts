@@ -10,6 +10,7 @@ import {
   STANDARD_LIGHTING_WGSL,
 } from '../../packages/sdk-browser/standardLighting.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
+import type { CasEclairage, LigneGpu } from './normaleEclairageCas.ts';
 
 export const GROUPE = 64;
 
@@ -54,15 +55,34 @@ fn eprouve(N:vec3f)->vec3f{return ${substitution};}
  out[i*3u+2u]=vec4f(vrai,0.0);
 }`;
 
+interface ExecutionEntree {
+  shader: string;
+  entree: number[];
+  nombre: number;
+  groupe: number;
+}
+interface ExecutionResultat {
+  indisponible?: string;
+  compilation?: string[];
+  adaptateur?: string;
+  valeurs?: number[];
+  erreurs?: string[];
+}
+
 /** Run in the page: one pipeline, every case at once, the output read back. */
-async function executer({ shader, entree, nombre, groupe }) {
+async function executer({
+  shader,
+  entree,
+  nombre,
+  groupe,
+}: ExecutionEntree): Promise<ExecutionResultat> {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);
   if (compilation.length) return { compilation, erreurs };
   const layout = device.createBindGroupLayout({
-    entries: ['read-only-storage', 'storage'].map((type, binding) => ({
+    entries: (['read-only-storage', 'storage'] as const).map((type, binding) => ({
       binding,
       visibility: GPUShaderStage.COMPUTE,
       buffer: { type },
@@ -111,10 +131,13 @@ async function executer({ shader, entree, nombre, groupe }) {
  * be called once in it — a substitution that does not take would yield a green campaign that
  * exercised nothing.
  */
-export async function eclairageGpu(cas, options = {}) {
+export async function eclairageGpu(
+  cas: CasEclairage[],
+  options: { transform?: string; substitution?: string } = {},
+): Promise<ExecutionResultat & { lignes: Array<LigneGpu & { nom: string }> }> {
   const { transform = NORMAL_TRANSFORM_WGSL, substitution = SUBSTITUTIONS.aucune } = options;
   const shader = SHADER_ECLAIRAGE(transform, substitution);
-  const compte = (motif) => shader.split(motif).length - 1;
+  const compte = (motif: string): number => shader.split(motif).length - 1;
   assert.equal(compte(`return ${substitution};`), 1, `substitution "${substitution}" not applied`);
   assert.equal(compte('eprouve(xformNormal('), 1, 'xformNormal is no longer the probed output');
   const entree = new Float32Array(cas.length * 32);
@@ -132,11 +155,12 @@ export async function eclairageGpu(cas, options = {}) {
     groupe: GROUPE,
   });
   if (!brut.valeurs) return { ...brut, lignes: [] };
+  const valeurs = brut.valeurs;
   const lignes = cas.map((c, i) => ({
     nom: c.nom,
-    rendue: brut.valeurs.slice(i * 12, i * 12 + 3),
-    litRendu: brut.valeurs.slice(i * 12 + 4, i * 12 + 7),
-    litVrai: brut.valeurs.slice(i * 12 + 8, i * 12 + 11),
+    rendue: valeurs.slice(i * 12, i * 12 + 3),
+    litRendu: valeurs.slice(i * 12 + 4, i * 12 + 7),
+    litVrai: valeurs.slice(i * 12 + 8, i * 12 + 11),
   }));
   return { ...brut, lignes };
 }

@@ -1,23 +1,41 @@
+import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type { MeasureViewOptions, MeasureViewResult } from './mesureOptions.ts';
+import type * as PageCoupe from './pageCoupe.ts';
+import type * as PageTemoin from './pageTemoin.ts';
+import type * as PageExplorateur from './pageExplorateur.ts';
+import type * as PageMesure from './pageMesure.ts';
+import type { GpuPassTimings } from '../../packages/sdk-core/index.ts';
+import type { MovingNode } from './report/types.ts';
+
 /** One view, one side, one threshold: durations of each frame, the selected cut, the capture. */
-export async function measureView(options) {
-  const sdk = await import(options.sdkUrl);
-  const coupe = await import(`${options.modulesUrl}pageCoupe.ts`);
+// Named by its backend export at build time (`exactPagesBackend`, `webgpuPagesBackend`,
+// `autonomousPagesBackend`), by whatever name a test double exports otherwise: the lookup below
+// is a plain dynamic index by design, so the namespace type carries the same index signature.
+type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.BackendFactory | undefined>;
+
+export async function measureView(options: MeasureViewOptions): Promise<MeasureViewResult> {
+  const sdk = (await import(options.sdkUrl)) as SdkNamespace;
+  const coupe = (await import(`${options.modulesUrl}pageCoupe.ts`)) as typeof PageCoupe;
   // The Three witness does not read the contract's light store: the harness, a host like any
   // other, itself places in Three the lights that store declares (`pageTemoin.ts`).
   const lighting = options.witness
-    ? (await import(`${options.modulesUrl}pageTemoin.ts`)).creerEclairageTemoin()
+    ? (
+        (await import(`${options.modulesUrl}pageTemoin.ts`)) as typeof PageTemoin
+      ).creerEclairageTemoin()
     : null;
-  const factory = sdk[options.backend];
+  const factory = options.backend ? sdk[options.backend] : undefined;
   if (!factory) return { erreur: `engine missing from dist: ${options.backend}` };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   // What the GPU reported — lost WebGL context, uncaptured error, lost device — published on
   // the page as it happens: a failing frame carries its call stack, never the cause, and the
   // bench comes looking for it there.
-  const lost = (globalThis.incidentsGpu = []);
+  const lost: string[] = (globalThis.incidentsGpu = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
-  const reglages = await import(`${options.modulesUrl}pageExplorateur.ts`);
-  const mesure = await import(`${options.modulesUrl}pageMesure.ts`);
+  const reglages = (await import(
+    `${options.modulesUrl}pageExplorateur.ts`
+  )) as typeof PageExplorateur;
+  const mesure = (await import(`${options.modulesUrl}pageMesure.ts`)) as typeof PageMesure;
   // Preparation, timed from the call to the return, and what it transferred on the network:
   // resources the page already loaded are not counted, only those after.
   const preparationStart = performance.now();
@@ -44,7 +62,7 @@ export async function measureView(options) {
   const witnessLights = lighting ? lighting.suivre(explorer) : null;
   const moving = options.moving;
   // A moving light: a small circle, applied before each measured frame.
-  const moveLight = (frame) => {
+  const moveLight = (frame: number) => {
     if (!moving) return;
     explorer.setLight(moving.id, { position: mesure.positionLampeMobile(moving, frame) });
     lighting?.suivre(explorer);
@@ -54,9 +72,9 @@ export async function measureView(options) {
   // it at the world origin — one large jump, once — then later steps are small, the very
   // case page invalidation handles. A missing name is recorded, never dropped.
   const node = options.movingNode;
-  let movingNode = null;
-  const moveNode = (frame) => {
-    if (!node || movingNode?.erreur) return;
+  let movingNode: MovingNode = null;
+  const moveNode = (frame: number) => {
+    if (!node || (movingNode && 'erreur' in movingNode)) return;
     const angle = (frame / 30) * Math.PI * 2,
       r = options.movingNodeRadius ?? 1;
     const matrix = new Float32Array(16);
@@ -65,7 +83,8 @@ export async function measureView(options) {
     matrix[14] = Math.sin(angle) * r;
     try {
       explorer.setTransform(node, matrix);
-      movingNode = { noeud: node, rayon: r, images: (movingNode?.images ?? 0) + 1 };
+      const previousImages = movingNode && 'images' in movingNode ? movingNode.images : 0;
+      movingNode = { noeud: node, rayon: r, images: previousImages + 1 };
     } catch (error) {
       movingNode = { noeud: node, erreur: String(error) };
     }
@@ -74,7 +93,7 @@ export async function measureView(options) {
   // The last rendered pose, the one the shadow-queue drain replays: the capture that follows
   // is then exactly that of previous batches. One pose per frame when the camera moves.
   let current = pose;
-  const poseAt = (frame) => {
+  const poseAt = (frame: number) => {
     current = poses ? poses[frame % poses.length] : pose;
     return current;
   };
@@ -87,17 +106,17 @@ export async function measureView(options) {
   }
   // In-session reservoir tuning, if requested, is measured on the already-resident cut.
   const reglageVivant = await mesure.reglerReservoirs(explorer, pose, options.poolVivant);
-  const cpuFrameMs = [],
-    cpuSelectMs = [],
-    gpuFrameMs = [],
-    rafIntervalMs = [];
-  const gpuPassSamples = [];
+  const cpuFrameMs: number[] = [],
+    cpuSelectMs: number[] = [],
+    gpuFrameMs: number[] = [],
+    rafIntervalMs: number[] = [];
+  const gpuPassSamples: GpuPassTimings[] = [];
   const profileStart = Math.max(0, options.frames - options.profileFrames);
-  let last = null,
-    previousRaf = null;
+  let last: ReturnType<typeof explorer.render> | null = null,
+    previousRaf: number | null = null;
   for (let i = 0; i < options.frames; i++) {
     if (options.stageProfile && i === profileStart) explorer.resetStageProfile();
-    const now = await new Promise((done) => requestAnimationFrame(done));
+    const now = await new Promise<number>((done) => requestAnimationFrame(done));
     if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf);
     previousRaf = now;
     moveLight(i);
@@ -119,22 +138,10 @@ export async function measureView(options) {
   // drain and the calm below file images of their own. A dist older than #80 has no such function.
   const bornesCpu =
     options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null;
-  // The shadow-page queue is drained before any atlas read: a pending page still holds the
-  // previous depth, and the fingerprint would prove nothing. The loop is bounded, and the
-  // remaining count is published as-is, never assumed zero.
-  let shadowAtlas = null;
-  if (options.shadowDigest && typeof explorer.shadowAtlasDigest === 'function') {
-    let pending = null,
-      drains = 0;
-    for (; drains < 600; drains++) {
-      const frame = explorer.render(capturePose);
-      await explorer.flush();
-      pending = typeof frame.shadowPagesPending === 'number' ? frame.shadowPagesPending : null;
-      if (pending === null || pending === 0) break;
-    }
-    const digest = await explorer.shadowAtlasDigest();
-    shadowAtlas = digest ? { ...digest, pagesEnAttente: pending, images: drains } : null;
-  }
+  // The shadow-page queue is drained before any atlas read: see `drainShadowAtlas`.
+  const shadowAtlas = options.shadowDigest
+    ? await mesure.drainShadowAtlas(explorer, capturePose)
+    : null;
   // The capture is that of a HELD pose (`pageMesure.ts`): `imagesCalme` says how many frames
   // it took for the engine to hold it, `null` if it holds no image.
   const imagesCalme = await mesure.poseCalme(explorer, capturePose);
@@ -145,18 +152,7 @@ export async function measureView(options) {
     canvas.height,
   );
   const selection = coupe.lireCoupe(explorer, options.engineId);
-  // Measurements from the last reading, `null` included: a dropped measurement would be
-  // indistinguishable from an absent one, which a reader would replace with zero — which the
-  // contract forbids. A bytes-per-label reading is a table of numbers: it passes too.
-  const scalaire = (v) => v === null || ['number', 'boolean', 'string'].includes(typeof v);
-  const table = (v) =>
-    typeof v === 'object' &&
-    v !== null &&
-    !Array.isArray(v) &&
-    Object.values(v).every((x) => typeof x === 'number');
-  const metrics = Object.fromEntries(
-    Object.entries(last ?? {}).filter(([, v]) => scalaire(v) || table(v)),
-  );
+  const metrics = mesure.filtrerMetriques(last);
   // Bytes transferred on the network since preparation, by file kind: what loading and the
   // series actually cost the server, images and texture levels included.
   const network = mesure.reseauDepuis(resourcesBefore);

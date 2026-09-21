@@ -2,10 +2,19 @@
 // foundation, copied as-is from `develop` at commit d016f88. These copies are wanted
 // duplicates — it is against them that attached consumers are opposed, value by value, by `Object.is`.
 import * as THREE from 'three';
+import type { NumberSink } from '../../../sdk-core/index.ts';
+import type { Scene, Surface, Vec3 } from '../../../sdk-core/lightingExperimentScene.ts';
 import { EPSILON } from '../../../sdk-core/lightingTransportIntersections.ts';
 
+/** A cluster record as the world-sphere oracle reads it: matrix, then local box corners. */
+interface ClusterSphereRecord {
+  matrix: { elements: NumberSink };
+  min: NumberSink;
+  max: NumberSink;
+}
+
 /** `streamingPriority.ts:27-45` from before: product in a loop from zero, then view centre. */
-export function referenceComposeView(view, camera, world) {
+export function referenceComposeView(view: NumberSink, camera: NumberSink, world: NumberSink) {
   for (let column = 0; column < 4; column++)
     for (let row = 0; row < 4; row++) {
       let sum = 0;
@@ -13,7 +22,7 @@ export function referenceComposeView(view, camera, world) {
       view[column * 4 + row] = sum;
     }
 }
-export function referenceProject(view, sphere, out) {
+export function referenceProject(view: NumberSink, sphere: NumberSink, out: NumberSink) {
   const cx = sphere[0],
     cy = sphere[1],
     cz = sphere[2];
@@ -24,7 +33,7 @@ export function referenceProject(view, sphere, out) {
 }
 
 /** `webgpuShadowBounds.ts:13-28` from before: the world-space sphere of a cluster. */
-export function referenceClusterSphere(rec, out, base) {
+export function referenceClusterSphere(rec: ClusterSphereRecord, out: NumberSink, base: number) {
   const e = rec.matrix.elements;
   const cx = (rec.min[0] + rec.max[0]) / 2,
     cy = (rec.min[1] + rec.max[1]) / 2,
@@ -43,7 +52,7 @@ export function referenceClusterSphere(rec, out, base) {
 }
 
 /** `webgpuPagesWinding.ts:23-28` from before: winding, determinant expanded inline. */
-export function referenceWindingCw(e) {
+export function referenceWindingCw(e: NumberSink) {
   return (
     e[0] * (e[5] * e[10] - e[6] * e[9]) -
       e[1] * (e[4] * e[10] - e[6] * e[8]) +
@@ -54,7 +63,20 @@ export function referenceWindingCw(e) {
 
 /** `visibilityProjection.ts:5-34` from before: clip space written inline. */
 const projectScratch = new THREE.Vector3();
-export function referenceProjectVisibilityVertex(matrix, position, vi, viewProj, width, height) {
+/** The three coordinates of a vertex, as a host geometry attribute yields them. */
+interface VertexReader {
+  getX(index: number): number;
+  getY(index: number): number;
+  getZ(index: number): number;
+}
+export function referenceProjectVisibilityVertex(
+  matrix: THREE.Matrix4,
+  position: VertexReader,
+  vi: number,
+  viewProj: THREE.Matrix4,
+  width: number,
+  height: number,
+) {
   const v = projectScratch
     .set(position.getX(vi), position.getY(vi), position.getZ(vi))
     .applyMatrix4(matrix);
@@ -79,24 +101,24 @@ export function referenceProjectVisibilityVertex(matrix, position, vi, viewProj,
 }
 
 /** `visibilityMath.ts:97-106` from before: the sRGB table and 8-bit encoding written inline. */
-export function referenceSrgb8Linear(octet) {
+export function referenceSrgb8Linear(octet: number) {
   const c = octet / 255;
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
-export function referenceLinearToSrgb8(c) {
+export function referenceLinearToSrgb8(c: number) {
   const s = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
   return Math.max(0, Math.min(255, Math.round(s * 255)));
 }
 
 /** `lightingSceneMath.ts:9-13` from before. */
-export const referenceCross = (a, b) => [
+export const referenceCross = (a: Vec3, b: Vec3): Vec3 => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
 
 /** `lightingTransportIntersections.ts:7-31` from before, without the raise: the guard is unchanged. */
-export function referencePackedSurface(surface) {
+export function referencePackedSurface(surface: Surface) {
   const u = surface.u,
     v = surface.v;
   const uu = u[0] * u[0] + u[1] * u[1] + u[2] * u[2];
@@ -118,7 +140,7 @@ export function referencePackedSurface(surface) {
 }
 
 /** `lightingTransportRays.ts:6-50` from before, degenerate-tangent guard included. */
-function radicalInverse(value) {
+function radicalInverse(value: number) {
   let inverse = 0,
     place = 0.5;
   while (value > 0) {
@@ -128,7 +150,12 @@ function radicalInverse(value) {
   }
   return inverse;
 }
-export function referenceFillPatchRays(scene, patchIndex, count, rays) {
+export function referenceFillPatchRays(
+  scene: Scene,
+  patchIndex: number,
+  count: number,
+  rays: NumberSink,
+) {
   const patch = scene.patches[patchIndex];
   const n = patch.normal;
   const length = Math.hypot(...patch.u);

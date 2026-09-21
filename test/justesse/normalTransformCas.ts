@@ -37,7 +37,18 @@ export const CAS = ECHELLES.flatMap((s) =>
 );
 
 /** A column-major 4×4, built from three 3D columns and a null translation. */
-const pose = (colonnes) => [...colonnes[0], 0, ...colonnes[1], 0, ...colonnes[2], 0, 0, 0, 0, 1];
+const pose = (colonnes: number[][]): number[] => [
+  ...colonnes[0],
+  0,
+  ...colonnes[1],
+  0,
+  ...colonnes[2],
+  0,
+  0,
+  0,
+  0,
+  1,
+];
 const ROTATION_MINUSCULE = [
   [1e-8, 0, 0],
   [0, -1e-8, 0],
@@ -47,7 +58,7 @@ const ZERO = [0, 0, 0];
 const NORMALE_GARDE = [0.6, -0.8, 0];
 
 /** A singular case: its pose, its local normal, and the world normal the convention requires. */
-const garde = (nom, colonnes, normale, vraie) => ({
+const garde = (nom: string, colonnes: number[][], normale: number[], vraie: number[]) => ({
   nom,
   world: pose(colonnes),
   normale,

@@ -4,14 +4,14 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { join, resolve } from 'node:path';
 import { assertReport } from '../../site/reports/contract.ts';
 import { parseArgs } from './options.ts';
-export function publierRapport(source, dest) {
+export function publierRapport(source: string, dest: string): string {
   const report = assertReport(JSON.parse(readFileSync(join(source, 'report.json'), 'utf8')));
   const folder = join(dest, 'reports', report.id);
   if (existsSync(folder)) throw new Error('Campaign already published; use a new campaign ID');
   for (const path of [
     ...report.runs.map((run) => run.source),
     ...report.records.map((r) => r.image),
-  ].filter(Boolean))
+  ].filter((p): p is string => Boolean(p)))
     if (!existsSync(join(source, path))) throw new Error(`Missing evidence: ${path}`);
   mkdirSync(join(dest, 'reports'), { recursive: true });
   cpSync(source, folder, { recursive: true });

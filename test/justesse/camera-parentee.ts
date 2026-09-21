@@ -20,13 +20,20 @@ import {
   creeRig,
   poseRig,
 } from './cameraRig.ts';
+import type { PoseParent } from './cameraRig.ts';
 import { SITES, residuRepereDeRendu } from './cameraSites.ts';
+import type { Site } from './cameraSitesMoteurs.ts';
+import type { HostCamera } from '../../packages/sdk-browser/cameraWorld.ts';
 
-const texte = (valeur) => JSON.stringify(valeur);
+const texte = (valeur: unknown): string => JSON.stringify(valeur);
 
-async function sequence(site, cameras) {
-  const etat = await site.cree?.();
-  const valeurs = [];
+/** A site's state, when it happens to carry a disposable backend or its own `dispose`: neither
+ *  is part of the `Site` contract, both are read defensively as this campaign always has. */
+type Disposable = { backend?: { dispose?: () => void }; dispose?: () => void };
+
+async function sequence(site: Site, cameras: () => Generator<HostCamera>): Promise<string[]> {
+  const etat = (await site.cree?.()) as Disposable | undefined;
+  const valeurs: string[] = [];
   for (const camera of cameras()) valeurs.push(texte(await site.mesure(etat, camera)));
   etat?.backend?.dispose?.();
   etat?.dispose?.();
@@ -34,7 +41,7 @@ async function sequence(site, cameras) {
 }
 
 /** `hote`: does the host update its rig before each frame? The engine must be correct in both cases. */
-async function parentee(hote) {
+async function parentee(hote: boolean): Promise<void> {
   console.log(`\n— rig ${hote ? 'updated by the host' : 'left as-is by the host'} —`);
   const rigResidu = creeRig();
   const residus = POSES_PARENT.map((pose) => residuRepereDeRendu(poseRig(rigResidu, pose, hote)));
@@ -63,10 +70,10 @@ async function parentee(hote) {
   if (fautifs || residus.some((r) => r > 1e-4)) process.exitCode = 1;
 }
 
-async function empreinte(fichier) {
-  const releve = {};
+async function empreinte(fichier: string): Promise<void> {
+  const releve: Record<string, string[]> = {};
   for (const site of SITES)
-    releve[site.nom] = await sequence(site, function* () {
+    releve[String(site.nom)] = await sequence(site, function* () {
       for (const pose of POSES_SANS_PARENT) yield cameraSansParent(pose);
     });
   if (!existsSync(fichier)) {
@@ -74,12 +81,12 @@ async function empreinte(fichier) {
     console.log(`fingerprint written: ${SITES.length} sites × ${POSES_SANS_PARENT.length} poses`);
     return;
   }
-  const reference = JSON.parse(await readFile(fichier, 'utf8'));
+  const reference: Record<string, string[]> = JSON.parse(await readFile(fichier, 'utf8'));
   let identiques = 0,
     comparees = 0;
   for (const site of SITES) {
-    const avant = reference[site.nom] ?? [],
-      apres = releve[site.nom];
+    const avant = reference[String(site.nom)] ?? [],
+      apres = releve[String(site.nom)];
     const differentes = apres.filter((valeur, i) => valeur !== avant[i]).length;
     comparees += apres.length;
     identiques += apres.length - differentes;

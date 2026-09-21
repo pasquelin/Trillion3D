@@ -27,7 +27,7 @@
 import assert from 'node:assert/strict';
 
 /** Number of occurrences of `bloc` in `texte`, without overlap. */
-function occurrences(texte, bloc) {
+function occurrences(texte: string, bloc: string): number {
   let compte = 0;
   for (let i = texte.indexOf(bloc); i >= 0; i = texte.indexOf(bloc, i + bloc.length)) compte++;
   return compte;
@@ -39,7 +39,21 @@ function occurrences(texte, bloc) {
  * so the message says where to go when the kernel has moved. `marqueur` is the fragment
  * that distinguishes the previous form from the shipped one.
  */
-export function substitueFormeAvant({ texte, livre, before, name, origine, marqueur }) {
+export function substitueFormeAvant({
+  texte,
+  livre,
+  before,
+  name,
+  origine,
+  marqueur,
+}: {
+  texte: string;
+  livre: string;
+  before: string;
+  name: string;
+  origine: string;
+  marqueur: string;
+}): string {
   const ou = `${name}: both forms come from ${origine}`;
   assert.notEqual(
     livre,

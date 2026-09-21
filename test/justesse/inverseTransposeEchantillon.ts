@@ -4,6 +4,7 @@
 // size object, and a reflection (negative determinant) on half the cases.
 import assert from 'node:assert/strict';
 import { construireCas } from './inverseTransposeCas.ts';
+import type { Cas } from './inverseTransposeCas.ts';
 
 // --- The deterministic counter-example --------------------------------------------------------
 // 180° rotation around X: the local axis (0,0,1) becomes (0,0,-1), exactly the camera direction
@@ -45,7 +46,7 @@ export const TEMOIN_NON_CONFORME = construireCas({
   angleDeg: 180,
 });
 
-export const DETERMINISTES = [
+export const DETERMINISTES: Array<[string, Cas]> = [
   ['contreExemple', CONTRE_EXEMPLE],
   ['temoinGrandeEchelle', TEMOIN_GRANDE_ECHELLE],
   ['temoinSansRotation', TEMOIN_SANS_ROTATION],
@@ -73,7 +74,7 @@ const AXES = [
 ];
 const ANGLES = Array.from({ length: 12 }, (_, i) => 10 + (i * 160) / 11);
 
-export const echantillon = [];
+export const echantillon: Cas[] = [];
 for (const s of SCALES)
   for (const kind of KINDS)
     for (const worldSize of WORLD_SIZES)

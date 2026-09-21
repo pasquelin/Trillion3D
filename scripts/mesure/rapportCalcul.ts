@@ -1,10 +1,15 @@
 // The batch calculation path, as the governor published it, for `resume.md`.
+import type { FrameMetrics } from '../../packages/sdk-core/index.ts';
+import type { Report } from './report/types.ts';
+
+export type MathBatch = NonNullable<FrameMetrics['mathBatch']>;
+export type MathOperation = MathBatch['operations'][string];
 
 /** A median, or "unmeasured": a dash would not be distinct from a measured zero. */
-const ns = (value) => (value == null ? 'unmeasured' : value.toFixed(1));
+const ns = (value: number | null | undefined) => (value == null ? 'unmeasured' : value.toFixed(1));
 
 /** WebAssembly module state of a side, with the cause when it is not playable. */
-function module(releve) {
+function module(releve: MathBatch) {
   if (!releve.wasmAvailable) return releve.unavailableReason ?? 'unavailable';
   return (
     `loaded${releve.wasmSimd ? ', simd128' : ''}` +
@@ -18,7 +23,7 @@ function module(releve) {
  * `auto` rereads the arbitration. Nothing is inferred: a side without a reading says so, a side
  * that ran no batch says so too.
  */
-export function cheminsCalcul(report) {
+export function cheminsCalcul(report: Report) {
   const lines = [
     '| view | pixelError | side | mode | module | operation | path | js ns/elt | wasm ns/elt | switches | elements |',
     '|---|---|---|---|---|---|---|---|---|---|---|',

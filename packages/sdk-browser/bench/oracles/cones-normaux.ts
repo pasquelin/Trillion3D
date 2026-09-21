@@ -1,7 +1,14 @@
 // Batch F oracles, WebGPU engine-prepare side: `webgpuPagesPrepare.ts:23-44`,
 // `webgpuPagesSetup.ts:94-105` and `webgpuPagesPrepareTextures.ts:37-42` from before batch F.
+import type * as THREE from 'three';
 import { OPEN_CONE, triangleCone } from '../../pageCone.ts';
 import { visMaterial } from '../../visibilityBuffer.ts';
+import type { PageRec } from '../../pageSelectionTypes.ts';
+
+interface ConesRoot {
+  cones?: boolean;
+  pages: PageRec[];
+}
 
 /**
  * The input of `prepareCones`, written here once for the bench as for the test.
@@ -12,13 +19,13 @@ import { visMaterial } from '../../visibilityBuffer.ts';
  * hand would have no type to reread it — that is how the bench broke when the function
  * moved from the catalogue to the roots.
  */
-export function entreeCones(pages, roots = [{ cones: false, pages }]) {
+export function entreeCones(pages: PageRec[], roots: ConesRoot[] = [{ cones: false, pages }]) {
   return { setup: { allPages: pages, roots } };
 }
 
 /** `prepareCones` before batch F: per-vertex accessors and the material read twice. */
-export function referencePrepareCones(rt) {
-  const xyzCache = new WeakMap();
+export function referencePrepareCones(rt: { setup: { allPages: PageRec[] } }) {
+  const xyzCache = new WeakMap<THREE.BufferGeometry['attributes'], Float32Array>();
   for (const rec of rt.setup.allPages) {
     const array = rec.array,
       attr = rec.attributes.position;
@@ -41,7 +48,7 @@ export function referencePrepareCones(rt) {
 }
 
 /** Source-byte table before batch F: one `flatMap` of a pair per page. */
-export function referenceIndexSourceBytes(allPages) {
+export function referenceIndexSourceBytes(allPages: PageRec[]) {
   return new Map(
     allPages.flatMap((page) =>
       page.array
@@ -57,7 +64,10 @@ export function referenceIndexSourceBytes(allPages) {
 }
 
 /** Diagnostic counters before batch F: a full `map` and two copies of the table. */
-export function referenceCompteMateriauxEtTangentes(allPages, geometryBlocks) {
+export function referenceCompteMateriauxEtTangentes(
+  allPages: readonly PageRec[],
+  geometryBlocks: ReadonlyMap<unknown, { hasTangent: boolean }>,
+) {
   return {
     materials: new Set(allPages.map((page) => page.material)).size,
     geometryWithTangents: [...geometryBlocks.values()].filter((block) => block.hasTangent).length,

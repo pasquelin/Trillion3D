@@ -8,6 +8,7 @@
 // does not render, named: no cascades, no temporal antialiasing, no bounce, no instances, no
 // level of detail. The measurement loop and what it records are in `pageThreeMesure.ts`.
 import { mesurerThree } from './pageThreeMesure.ts';
+import type { MeasureViewOptions } from './mesureOptions.ts';
 
 /** One view, one threshold (ignored: Three has none), the capture. Same contract as `measureView`. */
-export const measureView = (options) => mesurerThree(options);
+export const measureView = (options: MeasureViewOptions) => mesurerThree(options);

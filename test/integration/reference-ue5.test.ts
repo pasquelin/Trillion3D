@@ -15,9 +15,9 @@ const racine = new URL('../../', import.meta.url);
 const doc = new URL('docs/REFERENCE_UE5.md', racine);
 const sources = new URL('packages/asset-compiler-rust/src/', racine);
 
-const UNITES = { KiB: 1024, MiB: 1024 * 1024 };
+const UNITES: Record<string, number> = { KiB: 1024, MiB: 1024 * 1024 };
 
-const nombre = (cellule) => {
+const nombre = (cellule: string): number | null => {
   const trouve = /^([\d\u202f\u00a0 ]+)(?:\s+(KiB|MiB))?$/u.exec(cellule.trim());
   if (!trouve) return null;
   const brut = Number(trouve[1].replaceAll(/[\u202f\u00a0 ]/gu, ''));
@@ -25,8 +25,15 @@ const nombre = (cellule) => {
   return brut * (trouve[2] ? UNITES[trouve[2]] : 1);
 };
 
+interface LigneVerifiable {
+  grandeur: string;
+  attendu: number | null;
+  fichier: string;
+  constante: string;
+}
+
 // Verifiable table rows: those whose "proof" column names `file:CONSTANT`.
-const lignesVerifiables = (texte) =>
+const lignesVerifiables = (texte: string): LigneVerifiable[] =>
   texte
     .split('\n')
     .filter((ligne) => ligne.startsWith('|'))
@@ -36,10 +43,10 @@ const lignesVerifiables = (texte) =>
       const cible = /^`([\w/.]+\.rs):([A-Z][A-Z\d_]*)`$/u.exec(preuve);
       return cible && { grandeur, attendu: nombre(notre), fichier: cible[1], constante: cible[2] };
     })
-    .filter(Boolean);
+    .filter((ligne): ligne is LigneVerifiable => Boolean(ligne));
 
 // `pub const NAME: usize = 128 * 1024;` — integer products only, nothing else to evaluate.
-const valeurConstante = (texte, constante) => {
+const valeurConstante = (texte: string, constante: string): number | null => {
   const trouve = new RegExp(String.raw`pub const ${constante}:\s*\w+\s*=\s*([^;]+);`, 'u').exec(
     texte,
   );
@@ -60,12 +67,17 @@ test('each structural constant in the parity table matches the code', async () =
     lignes.length >= 5,
     `docs/REFERENCE_UE5.md: ${lignes.length} verifiable line(s), the table used to carry six`,
   );
-  const textes = new Map();
+  const textes = new Map<string, string>();
+  const texteDe = async (fichier: string): Promise<string> => {
+    const connu = textes.get(fichier);
+    if (connu !== undefined) return connu;
+    const lu = await readFile(new URL(fichier, sources), 'utf8');
+    textes.set(fichier, lu);
+    return lu;
+  };
   for (const { grandeur, attendu, fichier, constante } of lignes) {
     assert.notEqual(attendu, null, `${grandeur}: the "us" column is not a number`);
-    if (!textes.has(fichier))
-      textes.set(fichier, await readFile(new URL(fichier, sources), 'utf8'));
-    const valeur = valeurConstante(textes.get(fichier), constante);
+    const valeur = valeurConstante(await texteDe(fichier), constante);
     assert.notEqual(valeur, null, `${fichier}: ${constante} missing or not a literal`);
     assert.equal(
       valeur,

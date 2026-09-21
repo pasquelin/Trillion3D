@@ -23,9 +23,19 @@ import { selectionGpu } from './noyauSelectionGpu.ts';
 import { lois, xorshift32 } from './tirage.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
+interface Page {
+  url: string;
+  lodError: number;
+  parentError: number;
+  sphere?: number[];
+  parentSphere?: number[];
+  min?: number[];
+  max?: number[];
+}
+
 const N = Number(process.argv[2] ?? 20000);
 const SEUIL = 0.75;
-const VIEWPORT = [1600, 900];
+const VIEWPORT: [number, number] = [1600, 900];
 const { hasard, entre, log } = lois(xorshift32(0x2545f491));
 
 const camera = new THREE.PerspectiveCamera(75, VIEWPORT[0] / VIEWPORT[1], 0.05, 2000);
@@ -46,7 +56,7 @@ const p00 = camera.projectionMatrix.elements[0],
   p11 = camera.projectionMatrix.elements[5];
 
 const GRAND = 1e5;
-const pages = [];
+const pages: Page[] = [];
 for (let i = 0; i < N; i++) {
   const radius = log(1e-3, 2);
   const proche = hasard() < 0.25;
@@ -71,7 +81,7 @@ const packed = packDagSelection([{ world, pages }]);
 // The kernel works in the render frame: packed world matrices are brought to the eye, exactly as
 // the engine carries them, otherwise relative view and absolute world would mix in the same
 // formula.
-packedWorldsToRenderOrigin(packed, [{ world }], uniforms.cameraWorld);
+packedWorldsToRenderOrigin(packed, [{ world, pages: [] }], uniforms.cameraWorld);
 const gpu = await selectionGpu([{ name: 'echantillon', packed, uniforms }]);
 assert.equal(gpu.indisponible ?? null, null);
 assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
@@ -79,16 +89,17 @@ assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
 const cpu = pages.map((rec) => cutSelects(rec, view, stretch, focal, camera.near, SEUIL));
 const auGpu = new Uint8Array(N),
   aLOracle = new Uint8Array(N);
+assert.ok(gpu.resultats, 'no result');
 for (const i of gpu.resultats[0].pages) auGpu[i] = 1;
 for (const i of evaluateDagSelectionKernel(packed, uniforms).pageIds) aLOracle[i] = 1;
-const marge = (rec) => {
+const marge = (rec: Page): number => {
   const bande = [
     projectedClusterError(rec.lodError, rec.sphere, 0, view, stretch, focal, camera.near),
     projectedClusterError(rec.parentError, rec.parentSphere, 0, view, stretch, focal, camera.near),
   ];
   return Math.min(...bande.map((p) => Math.abs(p - SEUIL) / SEUIL));
 };
-const ecarts = (autre) =>
+const ecarts = (autre: Uint8Array) =>
   pages
     .map((rec, i) => ({ i, cpu: cpu[i], autre: !!autre[i] }))
     .filter((e) => e.cpu !== e.autre)
@@ -96,7 +107,8 @@ const ecarts = (autre) =>
 const cpuGpu = ecarts(auGpu),
   cpuOracle = ecarts(aLOracle);
 const oracleGpu = pages.filter((_, i) => aLOracle[i] !== auGpu[i]).length;
-const pireMarge = (liste) => Math.max(0, ...liste.map((e) => e.margeRelative));
+const pireMarge = (liste: Array<{ margeRelative: number }>): number =>
+  Math.max(0, ...liste.map((e) => e.margeRelative));
 console.log(
   JSON.stringify(
     {

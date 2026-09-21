@@ -8,7 +8,7 @@ import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 
-function diagnostics(file, options) {
+function diagnostics(file: string, options: ts.CompilerOptions): string[] {
   const program = ts.createProgram([isAbsolute(file) ? file : resolve(ROOT, file)], {
     target: ts.ScriptTarget.ES2022,
     strict: true,
@@ -22,7 +22,7 @@ function diagnostics(file, options) {
 }
 
 test('package metadata exposes one environment-aware root', async () => {
-  const packageJson = JSON.parse(await readFile(resolve(ROOT, 'package.json')));
+  const packageJson = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8'));
   assert.equal(packageJson.name, 'web-geometry');
   assert.equal(packageJson.version, '0.2.0');
   assert.equal(packageJson.private, true);

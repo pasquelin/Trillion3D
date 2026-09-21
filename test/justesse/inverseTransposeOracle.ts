@@ -13,16 +13,18 @@
 import assert from 'node:assert/strict';
 import { rasterGpu } from './noyauRasterGpu.ts';
 import { chargeRaster } from './reflexionCas.ts';
+import type { Cas, veriteTerrain } from './inverseTransposeCas.ts';
 
 /** For each case: does the engine draw at least one fragment of it? Plus the adapter used. */
-export async function dessineParLeMoteur(cas) {
+export async function dessineParLeMoteur(cas: Cas[]) {
   const gpu = await rasterGpu(chargeRaster(cas));
   assert.equal(gpu.indisponible ?? null, null, `GPU unavailable: ${gpu.indisponible}`);
   assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], [], 'WGSL');
+  const fragments = gpu.fragments ?? [];
   return {
     adaptateur: gpu.adaptateur,
-    fragments: gpu.fragments,
-    dessine: cas.map((_, i) => gpu.fragments[i] > 0),
+    fragments,
+    dessine: cas.map((_, i) => fragments[i] > 0),
   };
 }
 
@@ -39,13 +41,22 @@ export async function dessineParLeMoteur(cas) {
  * Invariants : `brutes = brutesDessinees + brutesNonDessinees` et
  * `fausses = brutesDessinees + manqueesParLaVeriteBrute`.
  */
-export function classement({ cas, verites, moteur }) {
+export function classement({
+  cas,
+  verites,
+  moteur,
+}: {
+  cas: Cas[];
+  verites: ReturnType<typeof veriteTerrain>[];
+  moteur: Awaited<ReturnType<typeof dessineParLeMoteur>>;
+}) {
   const index = cas.map((_, i) => i);
-  const brute = (i) => verites[i].avantVisible;
-  const dessine = (i) => moteur.dessine[i];
-  const fausses = (rejets) => index.filter((i) => rejets[i] && dessine(i));
-  const compte = (rejets, predicat) => index.filter((i) => rejets[i] && predicat(i)).length;
-  const population = (rejets) => ({
+  const brute = (i: number): boolean => verites[i].avantVisible;
+  const dessine = (i: number): boolean => moteur.dessine[i];
+  const fausses = (rejets: boolean[]) => index.filter((i) => rejets[i] && dessine(i));
+  const compte = (rejets: boolean[], predicat: (i: number) => boolean): number =>
+    index.filter((i) => rejets[i] && predicat(i)).length;
+  const population = (rejets: boolean[]) => ({
     brutes: compte(rejets, brute),
     fausses: fausses(rejets).length,
     brutesDessinees: compte(rejets, (i) => brute(i) && dessine(i)),

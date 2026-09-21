@@ -23,7 +23,7 @@ const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 // second test fails on a dead line. The camera pose contract lives in `cameraWorld.ts`
 // and `test/integration/structure-moteur.test.ts`; the loading computation boundary, in
 // `test/integration/moteur-sans-three-math.test.ts`.
-const AUTORISES = {
+const AUTORISES: Record<string, string> = {
   // 1. Witness engines.
   autonomousGeometry: 'autonomous witness: it mounts its meshes with the host library',
   autonomousInstances: 'autonomous witness: its instances carry host matrices',
@@ -150,7 +150,7 @@ const sources = async () =>
 test('only declared files import the host library', async () => {
   const fichiers = await sources();
   assert.ok(fichiers.length > 100, 'the browser package must be found');
-  const fuites = [];
+  const fuites: string[] = [];
   for (const file of fichiers) {
     if (AUTORISES[file.slice(0, -3)]) continue;
     const texte = await readFile(new URL(file, browser), 'utf8');

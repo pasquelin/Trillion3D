@@ -22,7 +22,8 @@ assert.deepEqual(gpu.compilation ?? [], []);
 assert.deepEqual(gpu.erreurs ?? [], []);
 
 const index = tousLesCas.map((_: unknown, i: number) => i);
-const dessineGpu = index.map((i: number) => gpu.fragments[i] > 0);
+const fragments = gpu.fragments ?? [];
+const dessineGpu = index.map((i: number) => fragments[i] > 0);
 const dessineCpu = index.map((i: number) => {
   const { ids } = rasterVisibility([pageVisible(tousLesCas[i])], vue, VUE);
   return ids.some((identifiant) => identifiant !== 0);

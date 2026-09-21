@@ -6,14 +6,22 @@ import { DEPTH_CLEAR } from '../../depthConvention.ts';
 import { HIZ_KERNEL_TEXELS } from '../../hizCounts.ts';
 import { projectVisibilityVertex } from '../../visibilityProjection.ts';
 import { unpackVisibilityId } from '../../visibilityTypes.ts';
+import type { VisPage } from '../../visibilityBuffer.ts';
 
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();
 /** The oracle's view-projection: the engine has only one depth convention, so there is
- *  nothing left to travel with it. Rewritten per call, never reallocated. */
-const depthCam = { viewProjection: viewProjScratch.elements };
+ *  nothing left to travel with it. Rewritten per call, never reallocated. `DepthCamera` reads a
+ *  `Float64Array` specifically, so the matrix elements are copied into one rather than shared. */
+const viewProjFlat = new Float64Array(16);
+const depthCam = { viewProjection: viewProjFlat };
 /** `hizDepth.ts:25-84` before batch A: three projections per pixel. */
-export function referenceVisibilityDepth(ids, pages, cam, viewport) {
+export function referenceVisibilityDepth(
+  ids: Uint32Array,
+  pages: readonly (VisPage | undefined)[],
+  cam: THREE.PerspectiveCamera,
+  viewport: [number, number],
+) {
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
   depth.fill(DEPTH_CLEAR);
@@ -21,6 +29,7 @@ export function referenceVisibilityDepth(ids, pages, cam, viewport) {
   // The engine projection, not the host's: reversed depth, infinite far plane.
   perspectiveProjection(projScratch.elements, cam.fov, cam.aspect, cam.near, cam.zoom);
   viewProjScratch.multiplyMatrices(projScratch, cam.matrixWorldInverse);
+  viewProjFlat.set(viewProjScratch.elements);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const unpacked = unpackVisibilityId(ids[y * width + x]);
@@ -50,15 +59,15 @@ export function referenceVisibilityDepth(ids, pages, cam, viewport) {
 
 /** `hizOcclusion.ts:37-81` before batch A: linear search of the level, from mip 0 to the last. */
 export function referenceHizTestRect(
-  minX,
-  minY,
-  maxX,
-  maxY,
-  clipsNear,
-  width,
-  height,
-  levels,
-  into,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  clipsNear: boolean,
+  width: number,
+  height: number,
+  levels: number,
+  into: Float64Array,
 ) {
   if (
     clipsNear ||

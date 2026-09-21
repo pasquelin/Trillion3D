@@ -17,6 +17,7 @@ import {
   INVERSE_TRANSPOSE_WGSL,
 } from '../../packages/sdk-browser/inverseTransposeWgsl.ts';
 import { campagne, construireCas, ecart, luminance } from './normaleEclairageCas.ts';
+import type { CasNormale } from './normaleEclairageCas.ts';
 import { eclairageGpu } from './normaleEclairageGpu.ts';
 import { substitueFormeAvant } from './substitutionAvant.ts';
 
@@ -50,7 +51,7 @@ const BALAYAGE = [3e-7, 2.5e-7, 2.2e-7, 2.16e-7, 2.155e-7, 2.154e-7, 2.15e-7, 2.
     }),
 );
 
-async function mesure(transform, liste = cas) {
+async function mesure(transform: string, liste: CasNormale[] = cas) {
   const gpu = await eclairageGpu(liste, { transform });
   assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
   assert.deepEqual(gpu.compilation ?? [], [], 'compilation WGSL');
@@ -66,7 +67,12 @@ const before = await mesure(AVANT);
 const after = await mesure(NORMAL_TRANSFORM_WGSL);
 const seuil = await mesure(AVANT, BALAYAGE);
 
-const parEchelle = new Map();
+type Resultat = Awaited<ReturnType<typeof mesure>>;
+
+const parEchelle = new Map<
+  number,
+  { s: number; before: number; after: number; pireAvant: number }
+>();
 for (let i = 0; i < cas.length; i++) {
   const ligne = parEchelle.get(cas[i].s) ?? { s: cas[i].s, before: 0, after: 0, pireAvant: 0 };
   if (before.ecarts[i].angleDeg > DECROCHE_DEG) ligne.before++;
@@ -74,14 +80,15 @@ for (let i = 0; i < cas.length; i++) {
   ligne.pireAvant = Math.max(ligne.pireAvant, before.ecarts[i].angleDeg);
   parEchelle.set(cas[i].s, ligne);
 }
-const pire = (m, cle = 'angleDeg') => m.ecarts.reduce((x, e) => Math.max(x, e[cle]), 0);
-const compte = (m) => m.ecarts.filter((e) => e.angleDeg > DECROCHE_DEG).length;
+const pire = (m: Resultat, cle: 'angleDeg' | 'ecartLuminance' = 'angleDeg'): number =>
+  m.ecarts.reduce((x, e) => Math.max(x, e[cle]), 0);
+const compte = (m: Resultat): number => m.ecarts.filter((e) => e.angleDeg > DECROCHE_DEG).length;
 
 // Non-regression: outside the threshold band (s ≥ 1e-6), the pre-batch lit colour and that of
 // the shipped text are compared case by case. The arithmetic touches every shaded pixel.
 const ordinaire = cas.map((c, i) => i).filter((i) => cas[i].s >= 1e-6);
-const angleEntre = (a, b) => {
-  const u = (v) => v.map((x) => x / Math.hypot(...v));
+const angleEntre = (a: number[], b: number[]): number => {
+  const u = (v: number[]): number[] => v.map((x) => x / Math.hypot(...v));
   const [p, q] = [u(a), u(b)];
   const d = p.reduce((acc, x, k) => acc + x * q[k], 0);
   return (Math.acos(Math.min(1, Math.max(-1, d))) * 180) / Math.PI;

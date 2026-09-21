@@ -5,7 +5,10 @@ import {
   DAG_ERROR_MODEL,
   EngineError,
   primitiveUsesClusterErrors,
+  type ClusterManifest,
 } from '../../../sdk-core/index.ts';
+import type { BackendContext } from '../../backendTypes.ts';
+import type { PageRec, ClusterRoot } from '../../pageSelectionTypes.ts';
 import { isTransmissive } from '../../visibilityBuffer.ts';
 import {
   objects,
@@ -17,20 +20,31 @@ import {
 import { cullingBounds } from '../../pageSelectionCutBounds.ts';
 import { indexPageRequests } from '../../pageSelectionRequests.ts';
 
+type Primitive = ClusterManifest['primitives'][number];
+
+/** A cluster root before batch F: the world and local box are `THREE.Box3` instances, where the
+ *  attached version now keeps them flat (`Float64Array`) — the difference `boiteVersTableau`
+ *  reads in the bench. Everything else matches `ClusterRoot<PageRec>`. */
+type ReferenceRoot = Omit<ClusterRoot<PageRec>, 'worldBox' | 'localBox'> & {
+  worldBox: THREE.Box3;
+  localBox: THREE.Box3;
+  forcedList: number[] | undefined;
+};
+
 /** `collectClusterPages` before batch F: `find` per mesh, `flatMap` of a spread, three
  *  Three.js objects per page for the box union. */
 export function referenceCollectClusterPages(
-  source,
-  metadata,
-  indices,
-  associations,
-  options = {},
+  source: THREE.Object3D,
+  metadata: ClusterManifest,
+  indices: Map<string, Uint32Array>,
+  associations: BackendContext['associations'],
+  options: { allowMissing?: boolean } = {},
 ) {
-  const roots = [],
-    allPages = [],
-    blendCopies = [],
-    bootstrap = [];
-  const structures = new Map();
+  const roots: ReferenceRoot[] = [],
+    allPages: PageRec[] = [],
+    blendCopies: THREE.Mesh[] = [],
+    bootstrap: PageRec[] = [];
+  const structures = new Map<Primitive, ReturnType<typeof structureIndex>>();
   let order = 0;
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it
   // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
@@ -115,15 +129,15 @@ export function referenceCollectClusterPages(
     if (complete && sourceOffset !== sourceIndices.count)
       throw new Error('Incomplete cluster coverage');
     if (complete) {
-      const count = (arr) => {
-        const map = new Map();
+      const count = (arr: ArrayLike<number>) => {
+        const map = new Map<string, number>();
         for (let i = 0; i < arr.length; i += 3) {
           const key = `${arr[i]},${arr[i + 1]},${arr[i + 2]}`;
           map.set(key, (map.get(key) ?? 0) + 1);
         }
         return map;
       };
-      const fromPages = count(exactPages.flatMap((page) => [...indices.get(page.url)]));
+      const fromPages = count(exactPages.flatMap((page) => [...(indices.get(page.url) ?? [])]));
       const fromSource = count(src);
       if (fromPages.size !== fromSource.size) throw new Error('Incomplete cluster coverage');
       for (const [key, n] of fromSource)

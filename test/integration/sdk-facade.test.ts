@@ -53,7 +53,7 @@ test('the five-import hierarchy example composes parents before children', () =>
     hierarchyUpdateBatch,
   } = common;
   const count = 3;
-  const views = (buffer, stride) =>
+  const views = (buffer: Float64Array, stride: number): Float64Array[] =>
     Array.from({ length: count }, (_, index) =>
       buffer.subarray(index * stride, (index + 1) * stride),
     );
@@ -78,9 +78,21 @@ test('the five-import hierarchy example composes parents before children', () =>
   assert.deepEqual([world[12], world[28], world[44]], [2, 5, 10]);
 });
 
+interface InventoryEntry {
+  name: string;
+  kind: string;
+  disposition?: string;
+  bindingIdentity: string;
+  currentEntryPoints: string[];
+}
+interface Inventory {
+  exports: InventoryEntry[];
+  collisions: unknown[];
+}
+
 test('generated inventory and explicit facade files are current', async () => {
-  const inventory = JSON.parse(
-    await readFile(new URL('../../site/data/api-inventory.json', import.meta.url)),
+  const inventory: Inventory = JSON.parse(
+    await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
   assert.equal(inventory.exports.length, 485);
   assert.deepEqual(inventory.collisions, []);
@@ -102,7 +114,8 @@ test('generated inventory and explicit facade files are current', async () => {
     ['PrepareOptions', 'web-geometry (node condition)'],
   ]) {
     const entry = entries.get(name);
-    assert.equal(entry?.kind, 'type', `${name} must remain a named public type`);
+    assert.ok(entry, `${name} is missing from the inventory`);
+    assert.equal(entry.kind, 'type', `${name} must remain a named public type`);
     assert.ok(
       entry.currentEntryPoints.includes(entryPoint),
       `${name} must remain reachable from ${entryPoint}`,
@@ -111,7 +124,7 @@ test('generated inventory and explicit facade files are current', async () => {
 });
 
 test('a maths-only bundle keeps baseline bytes and excludes platform modules', async () => {
-  const bundle = (entry) =>
+  const bundle = (entry: string) =>
     build({
       stdin: {
         contents: `import { hierarchyUpdateBatch } from '${entry}'; console.log(hierarchyUpdateBatch);`,

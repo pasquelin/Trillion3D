@@ -110,7 +110,7 @@ test('indexSourceBytes yields the same table as the reference flatMap, last page
   const attendu = referenceIndexSourceBytes(pages);
   assert.deepEqual([...obtenu.keys()], [...attendu.keys()]);
   for (const [url, bytes] of obtenu)
-    assert.deepEqual(Array.from(bytes), Array.from(attendu.get(url)));
+    assert.deepEqual(Array.from(bytes), Array.from(attendu.get(url) ?? new Uint8Array(0)));
 });
 
 test('indexSourceBytes on an empty catalogue yields an empty table', () => {

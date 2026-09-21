@@ -1,68 +1,41 @@
 import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { Page } from 'playwright';
+import type { CameraPose } from '../../packages/sdk-core/index.ts';
 import { encodePng } from '../../packages/sdk-node/png.mts';
 import { distribution, machineLoad } from './rapport.ts';
 import { passesGpu } from './seriePasses.ts';
-import { budgetPages, poolGeometrie, reservoirs } from './serieReservoirs.ts';
+import { budgetPages, poolGeometrie } from './serieReservoirs.ts';
+import { measurePayload, runInPage } from './seriePage.ts';
+import type { Side } from './optionsCote.ts';
+import type { Capture } from './serveur.ts';
+import type { Row, RunContext } from './report/types.ts';
 
 /** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
-export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
+export async function runSerie(
+  ctx: RunContext,
+  page: Page,
+  side: Side,
+  view: string,
+  pixelError: number,
+  pose: CameraPose,
+  captures: Map<string, Capture>,
+  suffix = '',
+): Promise<{ row: Row; captureFile: string }> {
   const { MANIFEST, OUT, settings, lights, poses } = ctx;
   // The side's engine: `--moteur-<side>` distinguishes it from the campaign's, and that is how
   // the engine and the Three witness are measured in the same run.
   const ENGINE = side.engine;
   const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`;
   const debut = machineLoad();
-  const result = await runInPage(page, {
-    sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
-    manifestUrl: side.manifestUrl ?? MANIFEST,
-    backend: ENGINE.backend,
-    engineId: ENGINE.id,
-    autonomous: ENGINE.autonomous === true,
-    // Modules the page imports by URL, and the witness: an engine that draws through Three does
-    // not read the light store, so the host places the same lights in Three.
-    modulesUrl: '/mesure/',
-    witness: ENGINE.three === true,
-    // The engine measurement page, and the source it loads when it is not the cache.
-    page: ENGINE.page,
-    gltfUrl: side.sourceUrl ?? null,
-    pose,
-    poses,
-    captureFile,
-    pixelError,
-    frames: settings.frames,
-    warmup: settings.warmup,
-    // Memory reservoirs requested of the engine, and their in-session tuning; `null` = default.
-    ...reservoirs(settings),
-    instances: settings.instances,
-    width: settings.width,
-    height: settings.height,
-    stageProfile: settings.stageProfile,
-    // This side's diagnostic variant: it is what makes two sides two variants.
-    variant: side.variant ?? null,
-    // This side's screen-error metric (EXPERIMENT): `null` leaves ours.
-    errorMetric: side.errorMetric ?? null,
-    trace: settings.trace === true,
-    bounce: settings.bounce,
-    importedLights: settings.importedLights,
-    profileFrames: settings.profileFrames,
-    lights: lights ? lights.lights : [],
-    moving: lights ? lights.moving : null,
-    shadowBudgetMs: settings.shadowBudgetMs,
-    shadowPages: settings.shadowPages,
-    shadowDigest: settings.shadowDigest,
-    // Textures read from the cache: only for an engine that reads the atlas, never the witness.
-    textureSource: settings.textureSource,
-    textureUploadMs: settings.textureUploadMs,
-    temporalAntialiasing: settings.temporalAntialiasing,
-    mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
-    movingNode: settings.movingNode,
-    movingNodeRadius: settings.movingNodeRadius,
-  });
+  const result = await runInPage(
+    page,
+    measurePayload(side, view, pixelError, pose, poses, captureFile, settings, lights, MANIFEST),
+  );
   const fin = machineLoad();
-  if (result.erreur) throw new Error(`${side.name} ${view} e${pixelError} : ${result.erreur}`);
-  const metrics = result.metrics ?? {};
+  if ('erreur' in result) throw new Error(`${side.name} ${view} e${pixelError} : ${result.erreur}`);
+  const metrics = result.metrics;
   const capture = captures.get(captureFile);
   if (capture)
     await writeFile(join(OUT, captureFile), encodePng(capture.w, capture.h, capture.body, true));
@@ -171,26 +144,4 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
       `coupe=${ids.length} (${row.selection.source}) png=${capture ? 'yes' : 'no'}\n`,
   );
   return { row, captureFile };
-}
-
-/**
- * The measurement run in the page, and what the GPU reported when it fails.
- *
- * A lost frame comes up here with its call stack and nothing else: the cause — validation
- * error, lost device — was only seen in the page. The harness therefore rereads it on the page
- * before rethrowing, so the bench names the cause instead of leaving it to guess.
- */
-async function runInPage(page, payload) {
-  try {
-    return await page.evaluate(async (o) => {
-      const result = await (await import(`${o.modulesUrl}${o.page}`)).measureView(o);
-      return { ...result, size: { ...result.size, dpr: devicePixelRatio } };
-    }, payload);
-  } catch (error) {
-    const incidents = await page.evaluate(() => globalThis.incidentsGpu ?? []).catch(() => []);
-    if (!incidents.length) throw error;
-    throw new Error(`${error.message}\nGPU incidents:\n${incidents.join('\n')}`, {
-      cause: error,
-    });
-  }
 }

@@ -24,12 +24,17 @@ for (let i = 0; i < 400; i++) {
   casPlans.push({ planes, boite });
 }
 
-/** Screen triangles: ordinary, off-screen, degenerate, and some with non-finite vertex. */
+/** Screen triangles: ordinary, off-screen, degenerate, and some with non-finite vertex. The
+ *  world coordinates are never read by the formulas under test; they are carried only to match
+ *  `Projected`, the real functions' parameter type. */
 const point = (i: number) => ({
   x: i % 19 === 0 ? nombre() : alea() * 2000 - 500,
   y: i % 23 === 0 ? nombre() : alea() * 2000 - 500,
   z: alea(),
   invW: alea(),
+  worldX: 0,
+  worldY: 0,
+  worldZ: 0,
 });
 type PointFormule = ReturnType<typeof point>;
 export const triangles: {

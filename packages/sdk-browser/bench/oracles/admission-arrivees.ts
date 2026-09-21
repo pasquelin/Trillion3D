@@ -3,9 +3,20 @@
 const LIMITE = 6,
   BUDGET_TRANSFERT = 2 * 1024 * 1024;
 
+/** A queued job, as `streamingQueueOrderFixture.ts` and the bench build it. */
+interface AdmissionJob {
+  url: string;
+  priority: number;
+  order: number;
+  consumers: number;
+}
+
 /** `streamingQueue.ts:22-59` before batch A: a full sort on every `while` lap, then findIndex. */
-export function referenceAdmission(queue, octetsDe) {
-  const admis = [];
+export function referenceAdmission(
+  queue: AdmissionJob[],
+  octetsDe: (url: string) => number | undefined,
+) {
+  const admis: string[] = [];
   let active = 0,
     activeBytes = 0;
   while (active < LIMITE && queue.length) {
@@ -23,14 +34,26 @@ export function referenceAdmission(queue, octetsDe) {
   return admis;
 }
 
+/** A delivery target as the arrival queue read it before batch A: `syncResident` was still
+ *  called from the drain, later moved to the caller. */
+interface ReferenceTarget {
+  acceptPage?(url: string, array: Uint32Array): void;
+  syncResident?(): void;
+}
+interface ReferenceArrival {
+  target: ReferenceTarget;
+  url: string;
+  array: Uint32Array;
+}
+
 /** `arrivalQueue.ts:15-65` before batch A: `touched.includes` on every delivered page. */
-export function referenceArrivalQueue(byteBudget, countBudget) {
-  const items = [],
-    waiting = new Map(),
-    touched = [];
+export function referenceArrivalQueue(byteBudget: number, countBudget: number) {
+  const items: ReferenceArrival[] = [],
+    waiting = new Map<ReferenceTarget, Set<string>>(),
+    touched: ReferenceTarget[] = [];
   let head = 0;
   return {
-    queue(target, url, array) {
+    queue(target: ReferenceTarget, url: string, array: Uint32Array) {
       if (!target.acceptPage) return false;
       let urls = waiting.get(target);
       if (!urls) waiting.set(target, (urls = new Set()));

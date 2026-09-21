@@ -2,7 +2,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
-import { benchSide, FACES, glisse, ITEMS, pose, regimes } from './appui/scenesTransparents.ts';
+import {
+  benchSide,
+  FACES,
+  glisse,
+  ITEMS,
+  pose,
+  regimes,
+  type Frame,
+} from './appui/scenesTransparents.ts';
 import { appelsEncodes, tours } from './appui/toursTransparents.ts';
 import {
   argumentsReference,
@@ -15,8 +23,11 @@ const scenes = FACES.map(([name, side]) => {
     after = benchSide(side);
   return { name, before, after, ...tours(before, after) };
 });
+type Scene = (typeof scenes)[number];
 
-const casDe = (images) => [{ name: `8 frames of ${ITEMS} items`, input: images, size: ITEMS * 8 }];
+const casDe = (images: Frame[]) => [
+  { name: `8 frames of ${ITEMS} items`, input: images, size: ITEMS * 8 },
+];
 const resultats = [];
 for (const scene of scenes) {
   for (const [regime, images] of regimes) {
@@ -43,7 +54,7 @@ for (const scene of scenes) {
   }
 }
 
-function appelsDe(scene) {
+function appelsDe(scene: Scene) {
   const image = glisse[0],
     etat = scene.before;
   pose(etat, image);

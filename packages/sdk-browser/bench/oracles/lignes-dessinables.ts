@@ -3,11 +3,34 @@
 import { PAGE_INFO_STRIDE, VIS_TRIANGLE_BITS } from '../../visibilityBuffer.ts';
 import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD } from '../../webgpuPageRow.ts';
 import { createWebgpuRowJournal } from '../../webgpuRowJournal.ts';
+import type { PageRec } from '../../pageSelectionTypes.ts';
+
+/** A row writer exactly as `webgpuPageRow.ts` types it: `createWebgpuRowCommit`'s own signature
+ *  in the fixture that mounts both sides requires this exact shape. A caller whose catalogue can
+ *  hold a page without an array passes a writer that itself accepts `Uint32Array | undefined` —
+ *  still assignable here, since a writer that reads less is always safe to use as one that reads
+ *  a plain `Uint32Array`. */
+type RowWriter = (
+  rec: PageRec,
+  pageIndex: number,
+  row: number,
+  offsetWords: number,
+  index: Uint32Array,
+  floats: Float32Array,
+  ints: Uint32Array,
+) => void;
 
 /** Row state before batch F: a page's rank lived in a hash table. */
-export function referenceRowState(packedPages, drawSlots) {
-  const pageIndexByRec = new Map();
-  for (let i = 0; i < packedPages.length; i++) pageIndexByRec.set(packedPages[i], i);
+export function referenceRowState(packedPages: readonly PageRec[], drawSlots: number) {
+  const pageIndexByRec = new Map<PageRec, number>();
+  const pageIndicesByUrl = new Map<string, number[]>();
+  for (let i = 0; i < packedPages.length; i++) {
+    pageIndexByRec.set(packedPages[i], i);
+    const url = packedPages[i].url,
+      indices = pageIndicesByUrl.get(url);
+    if (indices) indices.push(i);
+    else pageIndicesByUrl.set(url, [i]);
+  }
   // The journal of named pages and residencies that moved during the pass: later than
   // batch F, it is not the optimisation this oracle splits, and it is taken as-is so
   // the shared rank sync runs identically on both sides.
@@ -15,6 +38,7 @@ export function referenceRowState(packedPages, drawSlots) {
   const etat = {
     ...journal,
     residentFlags: new Uint32Array(packedPages.length),
+    pageIndicesByUrl,
     residentOffsetWords: new Int32Array(packedPages.length).fill(-1),
     rowPageIndex: new Int32Array(drawSlots).fill(-1),
     rowOffsetWords: new Int32Array(drawSlots).fill(-1),
@@ -24,9 +48,9 @@ export function referenceRowState(packedPages, drawSlots) {
     newRowSource: new Int32Array(drawSlots),
     rowOfPage: new Int32Array(packedPages.length).fill(-1),
     rowRewrites: new Int32Array(drawSlots),
-    packedRecs: new Array(drawSlots).fill(undefined),
-    packedPositions: new Array(drawSlots).fill(undefined),
-    pagePositions: new Array(packedPages.length).fill(undefined),
+    packedRecs: new Array<PageRec | undefined>(drawSlots).fill(undefined),
+    packedPositions: new Array<GPUBuffer | undefined>(drawSlots).fill(undefined),
+    pagePositions: new Array<GPUBuffer | undefined>(packedPages.length).fill(undefined),
     rowCount: 0,
     tableEpoch: 1,
     rowsEpoch: 0,
@@ -38,10 +62,10 @@ export function referenceRowState(packedPages, drawSlots) {
     rowsChanged: true,
     // Age of the rank allocator, also later than batch F.
     rowsRevision: 0,
-    pageTableFloats: undefined,
-    pageTableInts: undefined,
-    pageIndexOf: (rec) => pageIndexByRec.get(rec),
-    markRowDirty(row) {
+    pageTableFloats: undefined as Float32Array | undefined,
+    pageTableInts: undefined as Uint32Array | undefined,
+    pageIndexOf: (rec: PageRec) => pageIndexByRec.get(rec),
+    markRowDirty(row: number) {
       if (row < etat.dirtyFrom) etat.dirtyFrom = row;
       if (row > etat.dirtyTo) etat.dirtyTo = row;
     },
@@ -49,15 +73,19 @@ export function referenceRowState(packedPages, drawSlots) {
   return etat;
 }
 
+type ReferenceRows = ReturnType<typeof referenceRowState>;
+
 /** `webgpuRowCommit.ts` before batch F: the queue rewrote the four arrays row by row. */
-export function referenceRowCommit(rows, writePageRow) {
-  const commitRows = (count, monotone) => {
+export function referenceRowCommit(rows: ReferenceRows, writePageRow: RowWriter) {
+  const commitRows = (count: number, monotone: boolean) => {
     const floats = rows.pageTableFloats,
       ints = rows.pageTableInts,
       rowWords = PAGE_INFO_STRIDE / 4;
+    // Always bound before a commit: the mount that builds `rows` sets both before syncing.
+    if (!floats || !ints) return;
     let rewrites = 0,
       moved = 0;
-    const move = (start, end, delta) => {
+    const move = (start: number, end: number, delta: number) => {
       floats.copyWithin(start * rowWords, (start + delta) * rowWords, (end + delta + 1) * rowWords);
       for (let row = start; row <= end; row++) {
         const base = row * rowWords;
@@ -103,14 +131,15 @@ export function referenceRowCommit(rows, writePageRow) {
       const row = rows.rowRewrites[r],
         pageIndex = rows.newRowPage[row],
         rec = rows.packedRecs[row];
+      if (!rec) continue;
       writePageRow(
         rec,
         pageIndex,
         row,
         rows.residentOffsetWords[pageIndex],
-        rec.array,
-        rows.pageTableFloats,
-        rows.pageTableInts,
+        rec.array ?? new Uint32Array(0),
+        floats,
+        ints,
       );
     }
     if (rewrites || moved) rows.rowsChanged = true;
@@ -129,7 +158,7 @@ export function referenceRowCommit(rows, writePageRow) {
     // advance together.
     rows.rowsRevision++;
   };
-  const sourceRowOf = (pageIndex, offsetWords) => {
+  const sourceRowOf = (pageIndex: number, offsetWords: number) => {
     const source = rows.rowOfPage[pageIndex];
     if (source < 0 || source >= rows.rowCount || rows.rowPageIndex[source] !== pageIndex) return -1;
     return rows.rowOffsetWords[source] === offsetWords && rows.rowEpoch[source] === rows.tableEpoch

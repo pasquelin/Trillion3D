@@ -5,6 +5,8 @@ import { VIEWS } from './poses.ts';
 import { ASSETS } from './scene.ts';
 import { lightingSettings } from './optionsEclairage.ts';
 import type { SideBase } from './dists.ts';
+import type { BenchSettings } from './benchSettings.ts';
+export type { BenchSettings } from './benchSettings.ts';
 
 export { PATH_VERSION, VIEWS, poseAt } from './poses.ts';
 export { applySceneFlag, assetsManifest, sceneGltf, sceneOf, scenesOf } from './scene.ts';
@@ -93,8 +95,10 @@ export function readOptions(argv: string[], root: string) {
   };
   const engine = flags.get('moteur') ?? 'webgl';
   if (!ENGINES[engine]) throw new Error(`--moteur must be ${Object.keys(ENGINES).join(', ')}`);
-  const views = (flags.get('vues') ?? 'generale,sol,rue').split(',').filter(Boolean);
-  for (const view of views) if (!VIEWS[view as keyof typeof VIEWS]) throw new Error(`unknown view: ${view}`);
+  const views = (flags.get('vues') ?? 'generale,sol,rue')
+    .split(',')
+    .filter(Boolean) as (keyof typeof VIEWS)[];
+  for (const view of views) if (!VIEWS[view]) throw new Error(`unknown view: ${view}`);
   const pixelErrors = String(flags.get('pixelError') ?? '0')
     .split(',')
     .filter(Boolean)
@@ -103,7 +107,7 @@ export function readOptions(argv: string[], root: string) {
       if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`--pixelError invalid: ${value}`);
       return parsed;
     });
-  const settings = {
+  const settings: BenchSettings = {
     engine,
     frames: number('images', 60),
     warmup: number('chauffe', 8),

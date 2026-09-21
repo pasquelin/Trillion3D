@@ -2,19 +2,23 @@
 // The calculations are the SDK's: same quantiles, same image comparison everywhere.
 import { loadavg } from 'node:os';
 import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
+import type { Capture } from './serveur.ts';
 import { cheminsCalcul } from './rapportCalcul.ts';
 import { p50p95, passes } from './rapportPasses.ts';
 import { textures } from './rapportTextures.ts';
 import { memoire } from './rapportMemoire.ts';
+import type { Distribution } from './rapportPasses.ts';
+import type { ImageDiff, Report, Row } from './report/types.ts';
 
 /** p50/p95/p99 of a series, or `null` if it is empty: nothing is inferred from an absent series. */
-export const distribution = (values) => summarize(values ?? []);
+export const distribution = (values?: readonly number[] | null): Distribution =>
+  summarize(values ?? []);
 
 /** The three system load averages, read as-is. */
 export const machineLoad = () => loadavg();
 
 /** Delta between two RGBA captures: different pixels and maximum error on a channel. */
-export function imageDiff(a, b) {
+export function imageDiff(a: Capture | undefined, b: Capture | undefined): ImageDiff {
   if (!a || !b) return null;
   if (a.w !== b.w || a.h !== b.h)
     return { erreur: `different sizes ${a.w}×${a.h} / ${b.w}×${b.h}` };
@@ -22,15 +26,17 @@ export function imageDiff(a, b) {
   return { pixels: diff.differentPixels, maxCanal: diff.maxChannelError, total: a.w * a.h };
 }
 
-const ms = (d, key) => (d ? d[key].toFixed(3) : '—');
-const num = (value) => (value == null ? '—' : String(value));
+const ms = (d: Distribution, key: 'p50' | 'p95') => (d ? d[key].toFixed(3) : '—');
+const num = (value: number | string | null | undefined) => (value == null ? '—' : String(value));
 /** Bytes in megabytes, or a dash: a zero would not be distinct from an absent reading. */
-const mo = (value) => (value == null ? '—' : (value / (1024 * 1024)).toFixed(1));
+const mo = (value: number | null | undefined) =>
+  value == null ? '—' : (value / (1024 * 1024)).toFixed(1);
 /** A three-state witness: `yes`, `no`, or a dash when this engine does not publish it. */
-const oui = (value) => (value == null ? '—' : value ? 'yes' : 'no');
+const oui = (value: boolean | null | undefined) => (value == null ? '—' : value ? 'yes' : 'no');
 /** Reservoirs requested of the engine: in MiB when the bench gave them, otherwise its defaults. */
-const pool = (bytes) => (bytes == null ? 'engine default' : `${mo(bytes)} MiB`);
-const budgets = (settings) => {
+const pool = (bytes: number | null | undefined) =>
+  bytes == null ? 'engine default' : `${mo(bytes)} MiB`;
+const budgets = (settings: Report['settings']) => {
   const parts = [
     `geometry pool ${pool(settings.geometryPoolBytes)}`,
     `texture pool ${pool(settings.texturePoolBytes)}`,
@@ -38,20 +44,20 @@ const budgets = (settings) => {
   if (settings.maxPages != null) parts.push(`ceiling ${settings.maxPages} pages`);
   return parts.join(', ');
 };
-const diffText = (d) =>
-  !d ? '—' : d.erreur ? d.erreur : `${d.pixels} px, max channel ${d.maxCanal}`;
+const diffText = (d: ImageDiff | undefined) =>
+  !d ? '—' : 'erreur' in d ? d.erreur : `${d.pixels} px, max channel ${d.maxCanal}`;
 /**
  * Coverage relation of a reading: `selected − drawn − uncovered`. Zero says every triangle
  * of the cut is either submitted to draw or counted as a hole; anything else says one of
  * the three counters describes another image. A dash when one of the three is missing — nothing is inferred.
  */
-const couverture = (r) =>
+const couverture = (r: Row) =>
   r.selectedTriangles == null || r.drawnTriangles == null || r.uncoveredTriangles == null
     ? '—'
     : String(r.selectedTriangles - r.drawnTriangles - r.uncoveredTriangles);
 
 /** The series table: one row per view, per threshold and per side. */
-function rows(report) {
+function rows(report: Report) {
   const lines = [
     '| view | pixelError | side | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | drawnTriangles | coverage | submitted triangles opaque/total | held image | uncoveredTriangles | GPU selection fallback | Hi-Z tested/rejected/>16 (image) | cut hash | page budget | geometry (MB) |',
     '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
@@ -77,14 +83,14 @@ function rows(report) {
 }
 
 /** Counters of a stage, on a single line; empty when the stage carries none. */
-const compteurs = (counts) =>
+const compteurs = (counts: Readonly<Record<string, number>> | undefined) =>
   Object.entries(counts ?? {})
     .map(([nom, valeur]) => `${nom} ${valeur}`)
     .join(', ');
 
 /** Per-stage breakdown of a series: one line per stage, CPU and GPU separated. */
-function etapes(report) {
-  const lines = [];
+function etapes(report: Report) {
+  const lines: string[] = [];
   for (const serie of report.series)
     for (const [side, resultat] of Object.entries(serie.sides)) {
       const titre = `### ${serie.view} · e${serie.pixelError} · ${side}`;
@@ -121,7 +127,7 @@ function etapes(report) {
 }
 
 /** `resume.md`: what the series recorded, and nothing else. A dash is an absence, not a zero. */
-export function resume(report) {
+export function resume(report: Report) {
   const lines = [
     `# Measurement ${report.engine} — ${report.scene}`,
     '',
@@ -185,7 +191,9 @@ export function resume(report) {
   if (report.errors.length) {
     lines.push('## Page errors', '');
     for (const error of report.errors.slice(0, 40))
-      lines.push(`- ${error.kind} : ${error.message ?? error.status + ' ' + error.url}`);
+      lines.push(
+        `- ${error.kind} : ${'message' in error ? error.message : error.status + ' ' + error.url}`,
+      );
     lines.push('');
   }
   return lines.join('\n');

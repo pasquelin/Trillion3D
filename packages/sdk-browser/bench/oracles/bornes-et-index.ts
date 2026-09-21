@@ -1,14 +1,20 @@
 // Batch F oracles, scene and page-source side: `explorerScene.ts:18-36` and
 // `explorerPageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
+import type { ClusterManifest, GeometryPageDescriptor, Page } from '../../../sdk-core/index.ts';
+import type { BackendContext } from '../../backendTypes.ts';
 import { meshes as objects } from '../../sceneMeshes.ts';
+
+/** A manifest page whose optional `geometry` descriptor is present. */
+type PageWithGeometry = Page & { geometry: GeometryPageDescriptor };
+const hasGeometry = (page: Page): page is PageWithGeometry => !!page.geometry;
 
 /** `exactPagesBounds` before batch F: one `find` per mesh, three objects per exact page. */
 export function referenceExactPagesBounds(
-  source,
-  associations,
-  metadata,
-  onMissing,
+  source: THREE.Object3D,
+  associations: BackendContext['associations'],
+  metadata: ClusterManifest,
+  onMissing: (mesh: THREE.Mesh) => void,
   into = new THREE.Box3(),
 ) {
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it
@@ -37,7 +43,7 @@ export function referenceExactPagesBounds(
 }
 
 /** `createExplorerPageSources` before batch F: four `flatMap` over every page of the manifest. */
-export function referenceIndexManifestPages(metadata) {
+export function referenceIndexManifestPages(metadata: ClusterManifest) {
   const pages = [
     ...new Map(metadata.primitives.flatMap((p) => p.pages).map((p) => [p.url, p])).values(),
   ];
@@ -45,23 +51,23 @@ export function referenceIndexManifestPages(metadata) {
     ...new Map(
       metadata.primitives
         .flatMap((p) => p.pages)
-        .filter((page) => !!page.geometry)
+        .filter(hasGeometry)
         .map((page) => [page.geometry.url, page.geometry]),
     ).values(),
   ];
   const geometryUrls = new Set(geometryPages.map((page) => page.url));
-  const pageIdByUrl = new Map([
-    ...pages.map((page) => [page.url, page.id]),
+  const pageIdByUrl = new Map<string, number>([
+    ...pages.map((page): [string, number] => [page.url, page.id]),
     ...metadata.primitives
       .flatMap((p) => p.pages)
-      .filter((page) => !!page.geometry)
-      .map((page) => [page.geometry.url, page.id]),
+      .filter(hasGeometry)
+      .map((page): [string, number] => [page.geometry.url, page.id]),
   ]);
   return { pages, geometryPages, geometryUrls, pageIdByUrl };
 }
 
 /** Streaming bundles before batch F: one more `flatMap`. */
-export function referenceIndexManifestBundles(metadata) {
+export function referenceIndexManifestBundles(metadata: ClusterManifest) {
   return [
     ...new Map(
       metadata.primitives

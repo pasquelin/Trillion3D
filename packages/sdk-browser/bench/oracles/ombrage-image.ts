@@ -13,15 +13,26 @@ import {
   triangleAt,
 } from '../../visibilityMath.ts';
 import { shadeLit } from '../../visibilityLighting.ts';
-import { unpackVisibilityId, visMaterial } from '../../visibilityTypes.ts';
-import { createEngineCamera, readCameraWorld } from '../../cameraWorld.ts';
+import { unpackVisibilityId, visMaterial, type VisPage } from '../../visibilityTypes.ts';
+import { createEngineCamera, readCameraWorld, type EngineCamera } from '../../cameraWorld.ts';
+import type { DepthCamera } from '../../depthConvention.ts';
 
 /** The oracle compares per-frame caching, not the camera read: it copies the host
  *  camera as the frame input does, and shading reads the same. */
 const engineScratch = createEngineCamera();
 
 /** `visibilityShadePixel.ts:15-63` before batch A: `visMaterial` and the triangle per pixel. */
-function referenceShadePixel(id, pages, cam, depthCam, width, height, x, y, background) {
+function referenceShadePixel(
+  id: number,
+  pages: readonly (VisPage | undefined)[],
+  cam: EngineCamera,
+  depthCam: DepthCamera,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  background: number,
+) {
   const unpacked = unpackVisibilityId(id);
   if (!unpacked) return backgroundRgb(background);
   const page = pages[unpacked.pageIndex];
@@ -33,7 +44,7 @@ function referenceShadePixel(id, pages, cam, depthCam, width, height, x, y, back
   const bary = perspectiveBary(tri.a, tri.b, tri.c, affine);
   const uv = attr2(page.attributes.uv, tri.i0, tri.i1, tri.i2, bary.w0, bary.w1, bary.w2);
   const mat = visMaterial(page.material);
-  let rgb = [mat.baseColor[0], mat.baseColor[1], mat.baseColor[2]];
+  let rgb: [number, number, number] = [mat.baseColor[0], mat.baseColor[1], mat.baseColor[2]];
   if (mat.map) {
     const sample = sampleMap(mat.map, uv[0], uv[1]);
     rgb = [rgb[0] * sample[0], rgb[1] * sample[1], rgb[2] * sample[2]];
@@ -50,7 +61,7 @@ function referenceShadePixel(id, pages, cam, depthCam, width, height, x, y, back
       1,
       Math.max(0, roughness * sampleLinear(mat.roughnessMap, uv[0], uv[1])[1]),
     );
-  const encode = (c) =>
+  const encode = (c: [number, number, number]) =>
     mat.map || mat.lit
       ? [linearToSrgb8(c[0]), linearToSrgb8(c[1]), linearToSrgb8(c[2])]
       : [
@@ -64,10 +75,10 @@ function referenceShadePixel(id, pages, cam, depthCam, width, height, x, y, back
 
 /** `visibilityShade.ts:8-34` before batch A. */
 export function referenceShadeVisibility(
-  ids,
-  pages,
-  cam,
-  viewport,
+  ids: Uint32Array,
+  pages: readonly (VisPage | undefined)[],
+  cam: THREE.PerspectiveCamera,
+  viewport: [number, number],
   background = RASTER_BACKGROUND,
 ) {
   const [width, height] = viewport,
@@ -78,8 +89,11 @@ export function referenceShadeVisibility(
     cam.matrixWorldInverse,
   );
   // The oracle keeps its view-projection from the host library; the depth convention
-  // comes from the engine camera, which read it on the host camera.
-  const depthCam = { viewProjection: viewProj.elements };
+  // comes from the engine camera, which read it on the host camera. `DepthCamera` reads a
+  // `Float64Array` specifically, so the matrix elements are copied rather than shared.
+  const viewProjFlat = new Float64Array(16);
+  viewProjFlat.set(viewProj.elements);
+  const depthCam: DepthCamera = { viewProjection: viewProjFlat };
   const bg = backgroundRgb(background);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {

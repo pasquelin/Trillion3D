@@ -8,11 +8,26 @@ import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 import type { WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
+import { DEFAULT_SCOPE, type ClusterManifest } from '../sdk-core/index.ts';
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = occluderScene();
+  const scene = occluderScene();
+  const { source, indices, associations, geometry, material } = scene;
+  // `occluderScene` builds `metadata` with only `errorModel`/`clusterStrategy`/`primitives`: the
+  // rest of `ClusterManifest` is never read past `primitives`, so it is filled with placeholders.
+  const metadata: ClusterManifest = {
+    schema: 0,
+    status: 'ready',
+    key: 'test-occluder',
+    scope: DEFAULT_SCOPE,
+    sourceTriangles: 0,
+    selectedTriangles: 0,
+    selectedNodes: [],
+    totalNodes: 0,
+    ...scene.metadata,
+  };
   const viewport: [number, number] = [32, 32];
   const collected = collectClusterPages(source, metadata, indices, associations);
   const backend = webgpuPagesBackend({

@@ -9,16 +9,26 @@
 // output to that of the imported package path.
 import * as THREE from 'three';
 import { frustumExcludesBox, matrixWindingCw } from '../../../sdk-core/index.ts';
+import type { BlendGpuItem } from '../../webgpuBlendState.ts';
 
-const UNPAGED = 0xffffffff;
+/** The scene shape both the previous ranking and encode loop read. */
+export interface ReferenceScene {
+  items: readonly BlendGpuItem[];
+  draws: Uint32Array;
+  planes: Float64Array;
+  spans: Uint32Array;
+  itemCounts: Uint32Array | undefined;
+  instances: Uint32Array | undefined;
+}
+
 /** The previous plan: the item rank, the pipeline in the two low bits, and nothing more. */
-const planItem = (entry) => entry >>> 2;
+const planItem = (entry: number) => entry >>> 2;
 const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 
 /** `webgpuBlendPlan.ts` from before: the two entries of a double-sided item, back then front. */
-function sidesOf(item) {
+function sidesOf(item: BlendGpuItem) {
   const material = Array.isArray(item.material) ? item.material[0] : item.material;
   const renverse = matrixWindingCw(item.matrix.elements);
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
@@ -30,15 +40,15 @@ function sidesOf(item) {
 }
 
 /** The previous blend plan, seeded in source order. */
-export function planReference(items) {
-  const blend = [];
+export function planReference(items: readonly BlendGpuItem[]) {
+  const blend: number[] = [];
   for (let i = 0; i < items.length; i++)
     for (const side of sidesOf(items[i])) blend.push((i << 2) | side);
   return Uint32Array.from(blend);
 }
 
 /** `webgpuBlendOrder.ts` from before: an item's key, the square of the eye-to-centre distance. */
-function eyeKey(item, ex, ey, ez) {
+function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
   const box = item.bounds,
     m = item.matrix.elements;
   const x = box ? (box[0] - ex + (box[3] - ex)) / 2 : m[12] - ex,
@@ -47,10 +57,11 @@ function eyeKey(item, ex, ey, ez) {
   return x * x + y * y + z * z;
 }
 
-const precedes = (keyA, rankA, keyB, rankB) => keyA < keyB || (keyA === keyB && rankA > rankB);
+const precedes = (keyA: number, rankA: number, keyB: number, rankB: number) =>
+  keyA < keyB || (keyA === keyB && rankA > rankB);
 
 /** Insertion sort of the plan, on the buffer the previous frame left. */
-function sortPlanFarToNear(order, items) {
+function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
   for (let i = 1; i < order.length; i++) {
     const entry = order[i],
       moved = items[planItem(entry)];
@@ -74,7 +85,7 @@ function sortPlanFarToNear(order, items) {
 }
 
 /** The previous ranking: keys, a source rank, and nothing else. */
-export function classementReference(scene, order, eye) {
+export function classementReference(scene: ReferenceScene, order: Uint32Array, eye: number[]) {
   const items = scene.items;
   for (let i = 0; i < items.length; i++) {
     items[i].orderRank = i;
@@ -84,14 +95,20 @@ export function classementReference(scene, order, eye) {
 }
 
 /** Previous indirect arguments: four words per item, rewritten as integers every frame. */
-export function argumentsReference(scene, args) {
+export function argumentsReference(scene: ReferenceScene, args: Uint32Array) {
   const { items, planes, draws, itemCounts } = scene;
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       box = item.bounds;
     const out = !!box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5]);
     args[i * 4] = draws[i * 4 + 1];
-    args[i * 4 + 1] = out ? 0 : item.paged ? (itemCounts[item.pagedIndex] ?? 0) : 1;
+    args[i * 4 + 1] = out
+      ? 0
+      : item.paged && itemCounts && item.pagedIndex !== undefined
+        ? (itemCounts[item.pagedIndex] ?? 0)
+        : item.paged
+          ? 0
+          : 1;
     args[i * 4 + 2] = draws[i * 4 + 2];
     args[i * 4 + 3] = 0;
   }
@@ -102,7 +119,12 @@ export function argumentsReference(scene, args) {
  * precision, and an item fully off-field is not encoded. Yields encoded calls, rejected
  * items, and the sequence of index ranges the rasterizer would have seen.
  */
-export function encodeReference(scene, order, args, sortie) {
+export function encodeReference(
+  scene: ReferenceScene,
+  order: Uint32Array,
+  args: Uint32Array,
+  sortie: Uint32Array,
+) {
   const { items, planes, spans, instances } = scene;
   let encoded = 0,
     rejete = -1,
@@ -120,10 +142,16 @@ export function encodeReference(scene, order, args, sortie) {
     encoded++;
     const held = args[index * 4 + 1];
     for (let j = 0; j < held; j++) {
-      const entry = item.paged ? instances[item.tableBase + j] : UNPAGED;
-      sortie[at++] = index;
-      sortie[at++] = item.paged ? spans[entry * 2] : 0;
-      sortie[at++] = item.paged ? spans[entry * 2 + 1] : item.count;
+      if (item.paged && instances && item.tableBase !== undefined) {
+        const entry = instances[item.tableBase + j];
+        sortie[at++] = index;
+        sortie[at++] = spans[entry * 2];
+        sortie[at++] = spans[entry * 2 + 1];
+      } else {
+        sortie[at++] = index;
+        sortie[at++] = 0;
+        sortie[at++] = item.count;
+      }
     }
   }
   return { encoded, rejected, length: at };
