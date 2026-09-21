@@ -47,7 +47,7 @@ export function blendExpandDispatch(out: number[], entries: number, runs: number
  * the running sum over packets, at two levels; each entry's absolute place followed by writing
  * its instances; then each run's argument. No thread recounts what another has just computed.
  * The reference semantics is that of `webgpuBlendExpandCpu.ts`, which the CPU fallback follows,
- * and the `transparents-ordres.bench.mjs` bench compares both outputs word for word.
+ * and the `transparents-ordres.bench.ts` bench compares both outputs word for word.
  *
  * `scratch` holds each entry's place then each packet's, in that order. The two passes — blend
  * then transmission — chain in the same compute pass and hand it back to each other, since their

@@ -11,7 +11,7 @@ import {
   boxTransform,
   boxUnion,
 } from './index.ts';
-import { aPlat, assertBits, boite3 } from './bench/oracles/volumes.mjs';
+import { aPlat, assertBits, boite3 } from './bench/oracles/volumes.ts';
 
 test('boxEmpty sets inverted bounds at infinity, like Box3.makeEmpty', () => {
   const out = new Float64Array(6);

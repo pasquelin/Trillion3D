@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import assert from 'node:assert/strict';
 import { createWebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { prepareWebgpuPages } from './webgpuPagesPrepare.ts';
@@ -17,6 +18,7 @@ test('transparent spans follow only changed resident pages through arrival, evic
   scene.both.transparent = true;
   const rt = createWebgpuPagesRuntime({
     ...scene,
+    metadata: { ...scene.metadata, ...MANIFEST_IDENTITY },
     gpuDevice: mock.device,
     maxResidentPages: 4,
     viewport: [32, 32],

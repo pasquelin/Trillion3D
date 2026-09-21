@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node", "@webgpu/types"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowJs": false,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "baseUrl": ".",
+    "paths": {
+      "/mesure/*": ["scripts/mesure/*"]
+    }
+  },
+  "include": [
+    "scripts/**/*.ts",
+    "test/**/*.ts",
+    "packages/*/bench/**/*.ts",
+    "packages/**/*.test.ts",
+    "packages/page-codec/**/*.ts",
+    "packages/sdk-node/**/*.ts",
+    "knip.config.ts",
+    "eslint.config.ts"
+  ],
+  "exclude": ["**/node_modules/**", "**/target/**", "test/fixtures/**"]
+}

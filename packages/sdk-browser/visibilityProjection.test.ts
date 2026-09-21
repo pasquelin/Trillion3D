@@ -1,5 +1,5 @@
 // Shared-formula batch: signedArea and barycentricAt, factored out of 5 and 3 copies. Nominal
-// and edge behaviours, distinct from the bit-exact equivalence bench (`bench/formules-ts.bench.mjs`).
+// and edge behaviours, distinct from the bit-exact equivalence bench (`bench/formules-ts.bench.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { signedArea, barycentricAt } from './visibilityProjection.ts';
