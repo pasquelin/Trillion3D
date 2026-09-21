@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import { runModule } from '../code/execute.ts';
 import { CodeSurface } from './CodeSurface.tsx';
 import { CodeInput } from './CodeInput.tsx';

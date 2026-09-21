@@ -5,7 +5,7 @@ import { recordLabel, sceneName } from '../../reports/presentation.ts';
 import { viewName } from '../../reports/names.ts';
 import { Collapse } from '../components/Collapse.tsx';
 import type { Report, ReportSource, SourceReadingRecord } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface AllReadingsProps {
   report: Report;

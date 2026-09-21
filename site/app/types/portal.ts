@@ -1,6 +1,6 @@
+import type { Locale } from '../../content/locale.ts';
 import type { AREAS } from '../portal/routes.ts';
 
-export type Locale = 'en' | 'fr';
 
 export type RouteArea = (typeof AREAS)[number];
 

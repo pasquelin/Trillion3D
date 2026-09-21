@@ -4,7 +4,8 @@ import { routeHref } from './routes.ts';
 import { searchEntries } from './search.ts';
 import { Card } from '../components/UI.tsx';
 import { expandEntryLinks } from './entryLinks.ts';
-import type { Locale, PortalEntry, TranslateFn } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
+import type { PortalEntry, TranslateFn } from '../types/portal.ts';
 
 interface ApiIndexProps {
   locale: Locale;

@@ -6,7 +6,7 @@ import { Section } from '../components/Section.tsx';
 import { sceneName, runOf } from '../../reports/presentation.ts';
 import { MetricCharts } from './MetricCharts.tsx';
 import type { MetricKey, Report } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface ExperimentsProps {
   report: Report;

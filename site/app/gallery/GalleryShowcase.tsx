@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import { routeHref } from '../portal/routes.ts';
 import { Card } from '../components/UI.tsx';
-import { local, type Localized } from './localized.ts';
+import { local, type Localized } from '../../content/locale.ts';
 
 interface ShowcaseScene {
   id: string;

@@ -5,7 +5,7 @@ import { missingMetric } from '../../reports/availability.ts';
 import { readingName } from '../../reports/presentation.ts';
 import { comparison } from '../../reports/compare.ts';
 import type { ReportRecord } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface ComparisonProps {
   a: ReportRecord;

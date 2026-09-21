@@ -1,5 +1,5 @@
 import type { DiagnosticMode, EngineCopy } from '../types/engine-scene.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import { Accordion } from '../components/Accordion.tsx';
 import { Alert } from '../components/UI.tsx';
 

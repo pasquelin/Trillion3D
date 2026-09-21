@@ -1,4 +1,4 @@
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { GalleryExample } from '../types/gallery.ts';
 
 export const themes: [string, string, string][] = [

@@ -1,4 +1,4 @@
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { DiagnosticMode, EngineCopy } from '../types/engine-scene.ts';
 import { sceneCopy } from '../../lessons/engine-scene/content.ts';
 import { sceneControlsCopy } from '../../lessons/engine-scene/controlsCopy.ts';

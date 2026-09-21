@@ -2,7 +2,8 @@ import { routeHref } from './routes.ts';
 import { examples } from '../../content/catalog.ts';
 import { SectionHeader } from '../components/SectionHeader.tsx';
 import { ExampleCard } from '../gallery/ExampleCard.tsx';
-import type { Locale, RouteArea, TranslateFn } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
+import type { RouteArea, TranslateFn } from '../types/portal.ts';
 
 const FEATURED = ['compose-transform', 'perspective', 'lod-budget'].map((id) =>
   examples.find((example: { id: string }) => example.id === id),

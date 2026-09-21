@@ -1,7 +1,7 @@
 import { Table } from '../components/Table.tsx';
 import { Section } from '../components/Section.tsx';
 import { reportCopy } from '../../reports/copy.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface ReferencesProps {
   locale: Locale;

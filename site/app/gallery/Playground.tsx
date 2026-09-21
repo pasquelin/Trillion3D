@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import { LearningCards } from '../components/LearningCards.tsx';
 import { CodeEditor } from '../components/CodeEditor.tsx';
 import { formatNumericText } from '../code/formatNumber.ts';
@@ -17,7 +17,7 @@ import { controlLabel } from './controlLabels.ts';
 import { usePlaygroundMotion } from './usePlaygroundMotion.ts';
 import { rendererLessonById } from '../../lessons/rendererLessons.ts';
 import { RendererLesson } from './RendererLesson.tsx';
-import { local } from './localized.ts';
+import { local } from '../../content/locale.ts';
 
 interface PlaygroundProps {
   id: string;

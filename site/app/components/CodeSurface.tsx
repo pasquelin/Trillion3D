@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import { Button } from './UI.tsx';
 
 /** Shared code chrome for both read-only snippets and the editable code primitive. */

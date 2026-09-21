@@ -1,4 +1,4 @@
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 const labels: Record<Locale, Record<string, string>> = {
   en: {

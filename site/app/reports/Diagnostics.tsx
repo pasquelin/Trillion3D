@@ -3,7 +3,7 @@ import { readingName } from '../../reports/presentation.ts';
 import { DIAGNOSTICS, diagnosticValue } from '../../reports/diagnostics.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import type { ReportRecord } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface DiagnosticsProps {
   a: ReportRecord;

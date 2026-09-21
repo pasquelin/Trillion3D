@@ -8,7 +8,7 @@ import { viewName } from '../../reports/names.ts';
 import { MetricCharts } from './MetricCharts.tsx';
 import { Comparison } from './Comparison.tsx';
 import type { Report, ReportRecord } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface SceneReportProps {
   scene: string;

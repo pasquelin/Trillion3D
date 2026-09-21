@@ -7,7 +7,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { ProgressiveListState } from '../types/components.ts';
 import type { GalleryExample, GalleryViewState } from '../types/gallery.ts';
 import roadmap from '../../content/gallery-roadmap.json';

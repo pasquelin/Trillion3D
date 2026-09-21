@@ -1,7 +1,7 @@
 import { Table } from '../components/Table.tsx';
 import { formatValue } from '../../reports/metrics.ts';
 import type { CutAnalysis, CutRow } from '../types/reports.ts';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 
 interface CutProps {
   analysis?: CutAnalysis;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { DiagnosticMode } from '../types/engine-scene.ts';
 import type {
   RendererLessonItem,

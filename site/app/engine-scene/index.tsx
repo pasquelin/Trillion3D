@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { Locale } from '../types/portal.ts';
+import type { Locale } from '../../content/locale.ts';
 import type { DiagnosticMode } from '../types/engine-scene.ts';
 import { CodeBlock } from '../components/CodeBlock.tsx';
 import { ExampleLayout } from '../components/ExampleLayout.tsx';
