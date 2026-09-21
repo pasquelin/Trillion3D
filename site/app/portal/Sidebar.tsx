@@ -20,11 +20,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ entries, route, query, t, inputRef, onQuery, onClose }: SidebarProps) {
+  const matches = searchEntries(entries, query);
   const groups = SECTIONS.map((section) => ({
     section,
-    items: expandEntryLinks(
-      searchEntries(entries, query).filter((entry: PortalEntry) => entry.section === section.id),
-    ),
+    items: expandEntryLinks(matches.filter((entry) => entry.section === section.id)),
   })).filter(({ items }) => items.length);
 
   return (

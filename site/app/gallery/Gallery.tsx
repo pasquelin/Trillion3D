@@ -35,6 +35,10 @@ const READY: GalleryExample[] = [engineExample, ...examples].map((entry) => ({
   status: 'ready' as const,
 }));
 const ROADMAP = roadmap.entries.map(galleryRoadmapEntry);
+const ALL = [...READY, ...ROADMAP];
+const CATEGORIES = themes
+  .map(([value]) => value)
+  .filter((value) => ALL.some((entry) => themeOf(entry) === value));
 
 const normalized = (value: string): string =>
   value
@@ -58,16 +62,13 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
   currentView.current = { query, category };
   const entries = useMemo(
     () =>
-      [...READY, ...ROADMAP].filter(
+      ALL.filter(
         (entry) =>
           (category === 'all' || themeOf(entry) === category) &&
           searchable(entry).includes(normalized(query)),
       ),
     [query, category],
   );
-  const categories = themes
-    .map(([value]) => value)
-    .filter((value) => [...READY, ...ROADMAP].some((entry) => themeOf(entry) === value));
   const french = locale === 'fr';
   const filter =
     (setter: Dispatch<SetStateAction<string>>) => (event: ChangeEvent<HTMLInputElement>) => {
@@ -119,7 +120,7 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
       <div className="mb-4">
         <ThemeTabs
           active={category}
-          available={categories}
+          available={CATEGORIES}
           locale={locale}
           onSelect={(item) => {
             setCategory(item);
