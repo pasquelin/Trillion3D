@@ -80,7 +80,7 @@ export interface EngineGuideProps {
 
 export interface SceneControlsProps {
   copy: EngineCopy;
-  diagnostic?: DiagnosticMode;
+  diagnostic: DiagnosticMode;
 }
 
 export interface EngineStatsProps {

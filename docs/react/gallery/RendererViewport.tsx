@@ -14,8 +14,13 @@ import { syncRendererState } from '../../js/gallery/syncRendererState.js';
 import { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
 import { sceneCopy } from '../../js/engine-scene/content.js';
 
-const value = (num: number | undefined, suffix: string, digits = 0): string =>
-  num !== undefined && Number.isFinite(num) ? `${num.toFixed(digits)}${suffix}` : '—';
+const value = (num: number | null | undefined, suffix: string, digits = 0): string =>
+  typeof num === 'number' && Number.isFinite(num) ? `${num.toFixed(digits)}${suffix}` : '—';
+
+const poolSize = (bytes: number | undefined): string =>
+  bytes !== undefined && bytes < 1048576
+    ? value(bytes / 1024, ' KiB', 1)
+    : value(bytes === undefined ? bytes : bytes / 1048576, ' MiB', 1);
 
 const errorMessage = (error: unknown, locale: Locale, action: 'update' | 'rendering'): string => {
   const fallback =
@@ -83,7 +88,6 @@ export function RendererViewport({
       .catch((err: unknown) => setError(errorMessage(err, locale, 'update')));
   }, [state, locale]);
   const french = locale === 'fr';
-  const mem = metrics.memory ?? 0;
   const copy = sceneCopy[locale] ?? sceneCopy.en;
   // The runtime reports the mode it draws (a lesson may set it from its own state); the select
   // shows that report, updated at once on a pick so the control never lags its own change.
@@ -145,13 +149,13 @@ export function RendererViewport({
         </Stat>
         <Stat title={french ? 'Image CPU' : 'CPU frame'}>{value(metrics.cpu, ' ms', 2)}</Stat>
         <Stat title={french ? 'Pool alloué' : 'Allocated pool'}>
-          {mem < 1048576 ? value(mem / 1024, ' KiB', 1) : value(mem / 1048576, ' MiB', 1)}
+          {poolSize(metrics.memory)}
         </Stat>
         <Stat title={french ? 'Triangles dessinés' : 'Drawn triangles'}>
           {value(metrics.triangles, '')}
         </Stat>
         <Stat title={french ? 'Grappes occultées' : 'Occluded clusters'}>
-          {metrics.occluded !== undefined && Number.isFinite(metrics.occluded)
+          {typeof metrics.occluded === 'number' && Number.isFinite(metrics.occluded)
             ? `${metrics.occluded} / ${value(metrics.tested, '')}`
             : '—'}
         </Stat>

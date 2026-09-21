@@ -34,7 +34,7 @@ export function GeometryPreview({
 export function WebGPUCanvas({
   id,
   state,
-  locale = 'en',
+  locale,
   preview = false,
   interactive = !preview,
   animating = false,
@@ -100,7 +100,6 @@ export function WebGPUCanvas({
         canvasRef={canvas}
         className="geometry-3d-canvas rounded-box"
         label={label}
-        loadingLabel={undefined}
       />
       {!preview && (
         <StatGroup data-geometry-stats>

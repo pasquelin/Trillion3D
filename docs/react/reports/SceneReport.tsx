@@ -39,7 +39,6 @@ export function SceneReport({ scene, report, locale }: SceneReportProps): ReactE
         label={fr ? 'Point de vue' : 'Viewpoint'}
         value={selected}
         onChange={setSelected}
-        accessory={undefined}
         items={views.map((view) => ({
           id: view,
           label: viewName(view, locale),

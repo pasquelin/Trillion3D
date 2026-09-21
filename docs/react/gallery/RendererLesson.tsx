@@ -48,7 +48,7 @@ export function RendererLesson({
   useEffect(() => setState(initial), [initial]);
   const left = (
     <div className="playground-learn grid gap-4">
-      <Section title={undefined}>
+      <Section>
         <Form>
           <Field label={french ? 'Expérience' : 'Experiment'}>
             <Select
