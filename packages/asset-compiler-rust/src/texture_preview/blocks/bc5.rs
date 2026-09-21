@@ -5,7 +5,8 @@
 //! their own, and one RGBA segment (BC7 mode 6) cannot hold both. The
 //! eight-point ladder needs the first endpoint above the second, so the pair is
 //! written high to low and the ranks mirrored — the same block either way.
-use super::fit::{assign, fit, segment, Endpoints, Texels};
+use super::channel::fit_channel;
+use super::fit::Texels;
 
 /// Rank `r` of eight weighs `r / 7`, over 64 to share `ladder_of`'s unit.
 const LADDER: [f32; 8] = [
@@ -32,18 +33,7 @@ fn index_of(rank: u8) -> u64 {
 /// One BC4 block of `channel`: the endpoints rounded to bytes, the ranks
 /// reassigned on what decodes.
 fn channel_block(texels: &Texels, channel: usize) -> [u8; 8] {
-    let alone: Texels = texels.map(|t| [t[channel], 0.0, 0.0, 0.0]);
-    let fitted: Endpoints = fit(&alone, &LADDER, segment(&alone));
-    let (mut e0, mut e1) = (
-        fitted.0[0].round().clamp(0.0, 255.0) as u8,
-        fitted.1[0].round().clamp(0.0, 255.0) as u8,
-    );
-    let mut rank = assign(
-        &alone,
-        &LADDER,
-        [f32::from(e0), 0.0, 0.0, 0.0],
-        [f32::from(e1), 0.0, 0.0, 0.0],
-    );
+    let (mut e0, mut e1, mut rank) = fit_channel(texels, channel, &LADDER);
     if e0 < e1 {
         std::mem::swap(&mut e0, &mut e1);
         rank = rank.map(|r| 7 - r);

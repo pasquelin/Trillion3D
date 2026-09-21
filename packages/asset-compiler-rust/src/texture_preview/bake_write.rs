@@ -9,6 +9,7 @@ use super::reduce::AtlasKind;
 use super::*;
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{ExtendedColorType, ImageEncoder};
+use std::borrow::Cow;
 
 /// Where an image's levels live in the cache, relative to `native/`: one folder
 /// per reduction-rule version, then one per fingerprint, one file per atlas, per
@@ -45,15 +46,15 @@ fn png(pixels: &[u8], (w, h): (u32, u32)) -> Result<Vec<u8>> {
 }
 
 /// Writes the files of the levels above the sidecar tail, `encode` giving each
-/// level's bytes only when its file is missing; returns how many levels exist at
-/// the end. The path is the level's, in `format`.
-pub(super) fn write_levels(
+/// level's bytes — owned or borrowed — only when its file is missing; returns
+/// how many levels exist at the end. The path is the level's, in `format`.
+pub(super) fn write_levels<'a>(
     o: &Options,
     sha256: &str,
     kind: AtlasKind,
     (width, height): (u32, u32),
     format: &str,
-    encode: impl Fn(usize, (u32, u32)) -> Result<Vec<u8>>,
+    encode: impl Fn(usize, (u32, u32)) -> Result<Cow<'a, [u8]>>,
 ) -> Result<u32> {
     let native = o.cache.join("native");
     let first = preview_first_level(width, height);
@@ -80,6 +81,6 @@ pub(super) fn write_lossless(
     size: (u32, u32),
 ) -> Result<u32> {
     write_levels(o, sha256, kind, size, LOSSLESS, |level, dims| {
-        png(&levels[level], dims)
+        png(&levels[level], dims).map(Cow::Owned)
     })
 }

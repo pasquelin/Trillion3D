@@ -36,22 +36,25 @@ fn trits_of(byte: u8) -> [u8; 5] {
     [t0, t1, t2, t3, t4]
 }
 
+/// Rank of a tuple of values in `base`, the first value least significant.
+fn rank(values: &[u8], base: usize) -> usize {
+    values
+        .iter()
+        .rev()
+        .fold(0usize, |acc, &v| acc * base + v as usize)
+}
+
 /// Packed byte of five trits, by their base-3 rank.
 fn packed_trits(trits: [u8; 5]) -> u8 {
     static TABLE: OnceLock<[u8; 243]> = OnceLock::new();
     let table = TABLE.get_or_init(|| {
         let mut table = [u8::MAX; 243];
         for byte in (0..=255u8).rev() {
-            let t = trits_of(byte);
-            let rank = t.iter().rev().fold(0usize, |acc, &v| acc * 3 + v as usize);
-            table[rank] = byte;
+            table[rank(&trits_of(byte), 3)] = byte;
         }
         table
     });
-    table[trits
-        .iter()
-        .rev()
-        .fold(0usize, |acc, &v| acc * 3 + v as usize)]
+    table[rank(&trits, 3)]
 }
 
 /// The three quints a packed seven-bit value carries — the decode the specification gives.
@@ -83,15 +86,11 @@ pub fn packed_quints(quints: [u8; 3]) -> u8 {
     let table = TABLE.get_or_init(|| {
         let mut table = [u8::MAX; 125];
         for packed in (0..128u8).rev() {
-            let q = quints_of(packed);
-            table[q.iter().rev().fold(0usize, |acc, &v| acc * 5 + v as usize)] = packed;
+            table[rank(&quints_of(packed), 5)] = packed;
         }
         table
     });
-    table[quints
-        .iter()
-        .rev()
-        .fold(0usize, |acc, &v| acc * 5 + v as usize)]
+    table[rank(&quints, 5)]
 }
 
 /// The byte a level decodes to. `level` is `trit · 64 + m`.

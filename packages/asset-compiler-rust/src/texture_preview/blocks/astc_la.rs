@@ -7,7 +7,8 @@
 //! seventy-five bits, the four eight-bit endpoints thirty-two, the plane
 //! selector two, the mode, partition and endpoint-mode fields seventeen —
 //! one hundred and twenty-six of the block's hundred and twenty-eight.
-use super::fit::{assign, fit, segment, Texels};
+use super::channel::fit_channel;
+use super::fit::Texels;
 use super::ise;
 
 /// Block mode: 4 × 4 weights, quints, dual plane.
@@ -24,25 +25,10 @@ const WEIGHT_BITS: u32 = 75;
 /// The five rungs a quint decodes to, over 64.
 const LADDER: [f32; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
 
-/// One channel's fit: byte endpoints and the sixteen ranks on what decodes.
-fn plane(texels: &Texels, channel: usize) -> (u8, u8, [u8; 16]) {
-    let alone: Texels = texels.map(|t| [t[channel], 0.0, 0.0, 0.0]);
-    let fitted = fit(&alone, &LADDER, segment(&alone));
-    let e0 = fitted.0[0].round().clamp(0.0, 255.0) as u8;
-    let e1 = fitted.1[0].round().clamp(0.0, 255.0) as u8;
-    let rank = assign(
-        &alone,
-        &LADDER,
-        [f32::from(e0), 0.0, 0.0, 0.0],
-        [f32::from(e1), 0.0, 0.0, 0.0],
-    );
-    (e0, e1, rank)
-}
-
 /// Writes the block: X on the luminance plane, Y on the alpha plane.
 pub fn encode(texels: &Texels) -> [u8; 16] {
-    let (l0, l1, x) = plane(texels, 0);
-    let (a0, a1, y) = plane(texels, 1);
+    let (l0, l1, x) = fit_channel(texels, 0, &LADDER);
+    let (a0, a1, y) = fit_channel(texels, 1, &LADDER);
     let mut bits = BLOCK_MODE | CEM << 13;
     let mut at = ENDPOINT_BIT;
     // Mode 4 reads v0..v3 as e0 = (v0, v0, v0, v2), e1 = (v1, v1, v1, v3).

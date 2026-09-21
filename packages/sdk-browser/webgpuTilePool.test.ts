@@ -35,7 +35,6 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
   assert.equal(created[0].format, 'rgba8unorm-srgb');
   assert.equal(pool.tiles, 2 * TILES_PER_LAYER);
   assert.equal(pool.bytes, 2 * poolLayerBytes(4));
-  assert.equal(pool.layerBytes, poolLayerBytes(4));
   assert.ok((created[0].usage & GPUTextureUsage.RENDER_ATTACHMENT) !== 0);
   assert.equal(pool.resident, 0);
   assert.throws(() => createWebgpuTilePool(device, { ...rgba, layers: 0 }), /TEXTURE_POOL_LAYERS/);

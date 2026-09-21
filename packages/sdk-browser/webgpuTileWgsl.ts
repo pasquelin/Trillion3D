@@ -1,4 +1,5 @@
 import { WRAP_COORD_WGSL } from './visibilityWrapModes.ts';
+import type { AtlasBindings } from './webgpuBindLayout.ts';
 import { MAX_LEVELS, POOL_LAYER_SIDE, TILE_BORDER, TILE_PITCH, TILE_SIZE } from './textureTiles.ts';
 import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './webgpuTilePageTable.ts';
 
@@ -35,8 +36,9 @@ import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './webgpuTilePageTable.ts';
  * unit-length remainder —, so what the material receives is the three-channel map it would have
  * read from a lossless lane.
  *
- * The host shader declares `colorPool`, `colorPoolTwo`, `colorPoolRaw`, the same three for `data`,
- * `mapsSampler`, `colorPages` and `dataPages`, at the bindings `webgpuBindEntries.ts` publishes.
+ * The host shader declares one `${k}Pool<lane>` per lane in `POOL_LANES` order — `colorPool0`,
+ * `colorPool1`, `colorPool2`, the same for `data` —, `mapsSampler`, `colorPages` and `dataPages`,
+ * at the bindings `webgpuBindEntries.ts` publishes.
  */
 export const TILE_POOL_WGSL = `${WRAP_COORD_WGSL}
 const TEXEL_TILE:f32=${TILE_SIZE}.0;
@@ -80,16 +82,16 @@ const kind = (k: string) => `fn ${k}Slot(slot:u32)->TileSlot{
  let tail=${k}Pages[h+3u];
  return TileSlot(sizeOf(${k}Pages[h]),${k}Pages[h+1u],${k}Pages[h+2u],${k}Pages[3]+slot*PAGE_LEVELS,tail&0xffffffu,tail>>24u);
 }
-/** The tap read in the pool of the texture's lane: raw, RGBA blocks, or two channels with Y in
- *  the second channel (tap 2) or in the alpha (tap 3). */
+/** The tap read in the pool of the texture's lane: lossless (0), RGBA blocks (1), or two
+ *  channels with Y in the second channel (2) or in the alpha (3). */
 fn ${k}Tap(tap:u32,t:TileTap)->vec4f{
- if(tap==0u){return textureSampleLevel(${k}PoolRaw,mapsSampler,t.uv,t.layer,0.0);}
+ if(tap==0u){return textureSampleLevel(${k}Pool0,mapsSampler,t.uv,t.layer,0.0);}
  if(tap>=2u){
-  let v=textureSampleLevel(${k}PoolTwo,mapsSampler,t.uv,t.layer,0.0);
+  let v=textureSampleLevel(${k}Pool2,mapsSampler,t.uv,t.layer,0.0);
   let xy=vec2f(v.x,select(v.y,v.w,tap==3u));
   return vec4f(xy,rebuiltZ(xy),1.0);
  }
- return textureSampleLevel(${k}Pool,mapsSampler,t.uv,t.layer,0.0);
+ return textureSampleLevel(${k}Pool1,mapsSampler,t.uv,t.layer,0.0);
 }
 /** Table word that holds the tile of a texel at a streamed level. */
 fn ${k}Entry(s:TileSlot,uv:vec2f,level:u32)->u32{
@@ -168,12 +170,12 @@ ${wrapped('maskAlpha', 'color', 'f32')}`;
 export const DATA_SAMPLE_WGSL = `${kind('data')}
 ${wrapped('dataSample', 'data', 'vec4f')}`;
 
-/** Atlas declarations: its three lane pools and page table, at the bindings the layout gives. */
-export const tileDeclarations = (
-  bindings: { pool: number; two: number; raw: number; pages: number },
-  name: string,
-) =>
-  `@group(0) @binding(${bindings.pool}) var ${name}Pool:texture_2d_array<f32>;
-@group(0) @binding(${bindings.two}) var ${name}PoolTwo:texture_2d_array<f32>;
-@group(0) @binding(${bindings.raw}) var ${name}PoolRaw:texture_2d_array<f32>;
+/** Atlas declarations: one pool per lane and the page table, at the bindings the layout gives. */
+export const tileDeclarations = (bindings: AtlasBindings, name: string) =>
+  `${bindings.lanes
+    .map(
+      (binding, lane) =>
+        `@group(0) @binding(${binding}) var ${name}Pool${lane}:texture_2d_array<f32>;`,
+    )
+    .join('\n')}
 @group(0) @binding(${bindings.pages}) var<storage,read> ${name}Pages:array<u32>;`;

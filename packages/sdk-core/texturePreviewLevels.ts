@@ -8,7 +8,7 @@
  * these functions re-derive an entry's geometry from its source dimensions alone, so the
  * reader can reject an entry whose written numbers disagree with them.
  */
-import { PREVIEW_BLOCK_BYTES } from './manifestBinaryFormat.ts';
+import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from './manifestBinaryFormat.ts';
 
 /** Largest side a level carried by the sidecar may have. */
 export const PREVIEW_BASE = 64;
@@ -42,10 +42,13 @@ export function previewLevelCount(width: number, height: number) {
   return previewLastLevel(width, height) - previewFirstLevel(width, height) + 1;
 }
 
+/** Blocks along `texels`, the last one padded by the edge when the side is not a multiple. */
+export const blocksAcross = (texels: number) => Math.ceil(texels / PREVIEW_BLOCK_SIDE);
+
 /** Bytes of a `width`×`height` level once block-compressed: whole 4×4 blocks of sixteen bytes,
  *  a side that is not a multiple of four padded by its edge — the same in both block formats. */
 export function levelBlockBytes(width: number, height: number) {
-  return Math.ceil(width / 4) * Math.ceil(height / 4) * PREVIEW_BLOCK_BYTES;
+  return blocksAcross(width) * blocksAcross(height) * PREVIEW_BLOCK_BYTES;
 }
 
 /**

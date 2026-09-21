@@ -68,7 +68,7 @@ test('shrinking the pool keeps surviving layers in one copy, slot for slot, and 
     if (atlas.place({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) }, 10 + i)) placed++;
   assert.equal(atlas.pools[0].resident, TILES_PER_LAYER + 5);
   const views = atlas.views;
-  const evicted = atlas.resize(gpu, lossless(1));
+  const { evicted } = atlas.resize(gpu, lossless(1));
   assert.equal(atlas.pools[0].layers, 1);
   assert.notEqual(atlas.views, views, 'a new view tuple: the bind groups keyed on it rebuild');
   assert.equal(destroyed(), 1, 'the old pool is destroyed');
@@ -138,7 +138,7 @@ test('growing the pool keeps the resident count, and a pool full for the view re
   assert.equal(atlas.refused, 1);
   // On image 12, what dates from image 10 is yieldable.
   assert.equal(atlas.roomFor(0, 12), true);
-  assert.equal(atlas.resize(gpu, lossless(2)), 0, 'growing evicts nothing');
+  assert.equal(atlas.resize(gpu, lossless(2)).evicted, 0, 'growing evicts nothing');
   assert.equal(atlas.pools[0].resident, TILES_PER_LAYER, 'the count survives adoption');
   assert.equal(copies.length, 1);
   assert.equal(atlas.roomFor(0, 11), true, 'a free layer');

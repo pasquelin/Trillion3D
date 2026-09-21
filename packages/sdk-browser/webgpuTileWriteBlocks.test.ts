@@ -54,21 +54,11 @@ test('tail levels are written block by block at their aligned offsets', () => {
   );
   assert.deepEqual(writes[6].size, { width: 4, height: 4 });
   assert.deepEqual(writes[0].size, { width: 64, height: 64 });
+  // A tail level of the wrong length is refused here; a tile's level is refused before its slot
+  // is taken, in `webgpuTileSources.ts`.
   assert.throws(
     () =>
       writeTailFromBlocks(queue, pool, place, [64, 64], 0, [new Uint8Array(15), ...tail.slice(1)]),
-    /TEXTURE_LEVEL_BYTES/,
-  );
-  assert.throws(
-    () =>
-      writeTileFromBlocks(
-        queue,
-        pool,
-        place,
-        new Uint8Array(800),
-        [130, 20],
-        tileRegion(130, 20, 0, 0),
-      ),
     /TEXTURE_LEVEL_BYTES/,
   );
 });

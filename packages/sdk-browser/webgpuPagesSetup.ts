@@ -20,9 +20,13 @@ import {
   texturePoolFor,
   textureTransferBytesFor,
   textureUploadMsFor,
-  type AtlasDemand,
 } from './webgpuMemoryBudgets.ts';
-import { chooseBlockFormat, poolEncoding } from './textureBlockFormats.ts';
+import {
+  chooseBlockFormat,
+  laneCounts,
+  poolEncoding,
+  type AtlasLanes,
+} from './textureBlockFormats.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -131,7 +135,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   );
   const encoding = poolEncoding(blockChoice.block);
   const texturePoolBudget = context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
-  const noDemand = { lossless: 0, rgba: 0, 'two-channel': 0 };
+  const noDemand: AtlasLanes = { color: laneCounts(), data: laneCounts() };
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   // The tile pass's two budgets: bytes, and the reference's fixed upload cadence in the frame's
   // own unit.
@@ -176,13 +180,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     geometryPoolFor: (budgetBytes: number) => poolFor(budgetBytes, cap),
     blockChoice,
     encoding,
-    textureDemand: { color: noDemand, data: noDemand } as AtlasDemand,
-    texturePool: texturePoolFor(
-      texturePoolBudget,
-      gpuDevice,
-      { color: noDemand, data: noDemand },
-      encoding.texelBytes,
-    ),
+    textureDemand: noDemand,
+    texturePool: texturePoolFor(texturePoolBudget, gpuDevice, noDemand, encoding.texelBytes),
     /** The texture pool for a budget, on the lanes' demand: what prepare and the memory setting draw. */
     texturePoolFor(budgetBytes: number) {
       return texturePoolFor(budgetBytes, gpuDevice, this.textureDemand, encoding.texelBytes);

@@ -1,12 +1,18 @@
+import { POOL_LANES } from './textureBlockFormats.ts';
+
 /**
  * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
  * itself, the WGSL that declares its variables and the entry list of its constructor all read
  * them here. A binding added to an atlas therefore shifts the numbers on all three sides at
  * once, never on one alone — the defect merging lots 1 and 2 cost.
  */
-/** Four bindings of a virtual-texture atlas: its three lane pools — RGBA blocks, two-channel
- *  blocks, raw RGBA8 — and its page table. */
-const atlas = (pool: number) => ({ pool, two: pool + 1, raw: pool + 2, pages: pool + 3 });
+
+/** Four bindings of a virtual-texture atlas: one pool per lane, in `POOL_LANES` order, then its
+ *  page table. */
+const atlas = (base: number) => ({
+  lanes: POOL_LANES.map((_, index) => base + index),
+  pages: base + POOL_LANES.length,
+});
 export type AtlasBindings = ReturnType<typeof atlas>;
 
 /** Two binding shapes the layouts repeat, written once and for all. */
@@ -15,7 +21,7 @@ export const atlasLayoutEntries = (
   bindings: AtlasBindings,
   visibility = GPUShaderStage.FRAGMENT,
 ): GPUBindGroupLayoutEntry[] => [
-  ...[bindings.pool, bindings.two, bindings.raw].map((binding) => ({
+  ...bindings.lanes.map((binding) => ({
     binding,
     visibility,
     texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,

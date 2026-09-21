@@ -50,24 +50,15 @@ pub(super) fn report(
     let baked: u32 = previews.iter().map(|entry| entry.baked_levels).sum();
     let mut encoded = serde_json::Map::new();
     for format in &o.texture_formats {
-        let of = |layout: Layout| {
-            gates
-                .iter()
-                .filter(|g| g.format == *format && g.measure.passes() && g.layout == layout)
-                .count()
-        };
-        let kept: Vec<&Gate> = gates
+        let (kept, lossless): (Vec<&Gate>, Vec<&Gate>) = gates
             .iter()
-            .filter(|g| g.format == *format && g.measure.passes())
-            .collect();
-        let lossless = gates
-            .iter()
-            .filter(|g| g.format == *format && !g.measure.passes())
-            .count();
+            .filter(|g| g.format == *format)
+            .partition(|g| g.measure.passes());
+        let of = |layout: Layout| kept.iter().filter(|g| g.layout == layout).count();
         encoded.insert(
             format.name().to_string(),
             json!({"rgba":of(Layout::Rgba),"twoChannel":of(Layout::TwoChannel),
-                "lossless":lossless,"keptPsnrDb":kept_db(&kept)}),
+                "lossless":lossless.len(),"keptPsnrDb":kept_db(&kept)}),
         );
     }
     let lossless: Vec<Value> = gates

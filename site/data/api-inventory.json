@@ -298,6 +298,17 @@
       "bindingIdentity": "\"packages/sdk-core/depthLayer\".biasedDepthBits"
     },
     {
+      "name": "blocksAcross",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/texturePreviewLevels.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/webgpuTileWriteBlocks.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewLevels\".blocksAcross"
+    },
+    {
       "name": "BOUNCE_PROBES_PER_FRAME",
       "kind": "value",
       "definingModule": "packages/sdk-core/bounceContracts.ts",
@@ -4045,6 +4056,17 @@
       "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_BLOCK_FORMATS"
     },
     {
+      "name": "PREVIEW_BLOCK_SIDE",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/webgpuTileWriteBlocks.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_BLOCK_SIDE"
+    },
+    {
       "name": "PREVIEW_LAYOUT_NAMES",
       "kind": "value",
       "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
@@ -4062,7 +4084,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/textureLevelReader.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".PREVIEW_LOSSLESS_FORMAT"
     },

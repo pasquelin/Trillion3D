@@ -57,5 +57,6 @@ export const PREVIEW_LAYOUT_FILES: Record<
   bc7: { rgba: 'bc7', 'two-channel': 'bc5' },
   astc: { rgba: 'astc', 'two-channel': 'astc-la' },
 };
-/** Bytes of one 4×4 block, in every format. */
+/** Texels along a block's side, and bytes of one block, in every format. */
+export const PREVIEW_BLOCK_SIDE = 4;
 export const PREVIEW_BLOCK_BYTES = 16;

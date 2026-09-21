@@ -9,8 +9,8 @@ import {
 } from './webgpuTilePageTable.ts';
 import { writeTailFromBytes } from './webgpuTileWrite.ts';
 import { writeTailFromBlocks } from './webgpuTileWriteBlocks.ts';
-import type { PoolEncoding, PoolLane, TailBytes } from './textureBlockFormats.ts';
-import { createTileLanes, type Lane, type LaneLayers } from './webgpuTileLanes.ts';
+import type { LaneCounts, PoolEncoding, PoolLane, TailBytes } from './textureBlockFormats.ts';
+import { createTileLanes, type Lane } from './webgpuTileLanes.ts';
 import { tailId, tileId, tileKeyOf } from './webgpuTileIds.ts';
 
 /**
@@ -59,11 +59,12 @@ export type WebgpuTileAtlas = {
   /** Level that serves a tile today: its own, an ancestor, or the tail. */
   servedLevel(key: TileKey): number;
   flush(device: Pick<GPUDevice, 'queue'>): void;
-  /** Changes each lane's layers while keeping its tiles; returns the count of evicted tiles. */
+  /** Changes each lane's layers while keeping its tiles; returns the evicted tiles and how many
+   *  pools were replaced. */
   resize(
     device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
-    layers: LaneLayers,
-  ): number;
+    layers: LaneCounts,
+  ): { evicted: number; replaced: number };
   destroy(): void;
 };
 
@@ -72,7 +73,7 @@ export function createWebgpuTileAtlas(
   options: {
     kind: 'color' | 'data';
     encoding: PoolEncoding;
-    layers: LaneLayers;
+    layers: LaneCounts;
     feedbackOffset: number;
     textures: TileTexture[];
     /** A tile gave its place up: the texture it belonged to, for whoever reads it to follow. */
@@ -81,7 +82,8 @@ export function createWebgpuTileAtlas(
 ): WebgpuTileAtlas {
   const { kind, textures, encoding } = options;
   const lanes = createTileLanes(device, options);
-  let views = lanes.views();
+  let views = lanes.views(),
+    pools = lanes.pools();
   const pages = createWebgpuTilePageTable(
     device,
     textures.map((texture) => texture.layout),
@@ -113,7 +115,7 @@ export function createWebgpuTileAtlas(
   return {
     kind,
     get pools() {
-      return [...lanes.lanes.values()].map((lane) => lane.pool);
+      return pools;
     },
     get views() {
       return views;
@@ -180,11 +182,14 @@ export function createWebgpuTileAtlas(
     },
     flush: (target) => pages.flush(target),
     resize(target, layers) {
-      const evicted = lanes.resize(target, layers, pages);
-      views = lanes.views();
-      evictions += evicted;
+      const result = lanes.resize(target, layers, pages);
+      if (result.replaced) {
+        views = lanes.views();
+        pools = lanes.pools();
+      }
+      evictions += result.evicted;
       candidatesFrame = -1;
-      return evicted;
+      return result;
     },
     destroy() {
       pages.destroy();
