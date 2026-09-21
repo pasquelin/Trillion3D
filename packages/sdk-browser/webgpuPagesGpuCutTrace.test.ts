@@ -1,6 +1,6 @@
 // The image's first three bounds partition what precedes the transparents: the gate, the tile
-// pump, the world step. `worldMs` therefore measures the world step alone — the streamer's pass
-// is bounded on its own and deposits into no stage, so the textures stage never counts it twice.
+// pump, the world step. `worldMs` therefore measures the world step alone, and the pump's bound is
+// the only one the textures stage reads — an image with no tile to serve files none.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTimingState } from './webgpuPagesStateTiming.ts';
@@ -8,7 +8,7 @@ import { CPU_STEP, CPU_STEP_STAGES } from './webgpuPagesCpuSteps.ts';
 import { recordGpuCutTiming } from './webgpuPagesGpuCutTrace.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-function image() {
+function image(worked: boolean) {
   const timing = createWebgpuTimingState();
   Object.assign(timing.marks, {
     preStart: 10,
@@ -27,12 +27,16 @@ function image() {
     encodeStart: 15,
     cpuEnd: 16,
   });
-  const rt = { timing, run: { frame: 3, imageRevision: 1 } } as unknown as WebgpuPagesRuntime;
+  const rt = {
+    timing,
+    run: { frame: 3, imageRevision: 1 },
+    vis: { textures: { counters: { worked } } },
+  } as unknown as WebgpuPagesRuntime;
   return { rt, timing };
 }
 
 test('the gate, the tile pump and the world step each own their bound', () => {
-  const { rt, timing } = image();
+  const { rt, timing } = image(true);
   recordGpuCutTiming(rt);
   const row = timing.cpuProfile.row;
   assert.equal(row[CPU_STEP.gateMs], 0.5);
@@ -43,8 +47,11 @@ test('the gate, the tile pump and the world step each own their bound', () => {
   assert.equal(timing.rowFilled, true);
 });
 
-test('the tile pump deposits into no stage, the two others into the transforms stage', () => {
-  assert.equal(CPU_STEP_STAGES[CPU_STEP.tilesPumpMs], null);
+test('a pump with nothing to serve files no bound, so the textures stage stays unmeasured', () => {
+  const { rt, timing } = image(false);
+  recordGpuCutTiming(rt);
+  assert.ok(Number.isNaN(timing.cpuProfile.row[CPU_STEP.tilesPumpMs]));
+  assert.equal(CPU_STEP_STAGES[CPU_STEP.tilesPumpMs], 'textures');
   assert.equal(CPU_STEP_STAGES[CPU_STEP.gateMs], 'animations');
   assert.equal(CPU_STEP_STAGES[CPU_STEP.worldMs], 'animations');
 });

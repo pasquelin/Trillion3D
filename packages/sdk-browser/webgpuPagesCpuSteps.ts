@@ -12,12 +12,12 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
  * CPU bounds of an image, in order: for each, its public name and the profile stage it deposits
  * into. Name, stage and write index all come from this one table. The first four cover what the
  * image does before opening its own timer; the four after encode are sampled by the host, which
- * deposits them by name. `tilesPumpMs` deposits into no stage: the streamer measures its own pass
- * and files it under `textures` only when it served something, so a stage here would count it twice.
+ * deposits them by name. `tilesPumpMs` is the streamer's pass: an image whose feedback named no
+ * tile writes `NaN` there, which the profiler drops, so the stage stays unmeasured rather than zero.
  */
 const CPU = cpuStepTable([
   ['gateMs', 'animations'],
-  ['tilesPumpMs', null],
+  ['tilesPumpMs', 'textures'],
   ['worldMs', 'animations'],
   ['blendWorldMs', 'transparents'],
   ['lightsMs', 'lights'],
@@ -51,14 +51,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights, bounce } = rt,
     stages = timing.stages;
   if (!stages) return;
-  stages.frameCpu((add) => {
-    addCpuSteps(CPU.stages, timing.cpuProfile.row, add);
-    // Tile streamer pass, outside the CPU-bound row: it deposits here, and only when image feedback
-    // gave it work. With no feedback it did not cost zero, it did nothing at all — the stage stays
-    // "unmeasured".
-    const tiles = rt.vis.textures?.counters;
-    if (tiles?.worked) add('textures', tiles.lastMs);
-  });
+  stages.frameCpu((add) => addCpuSteps(CPU.stages, timing.cpuProfile.row, add));
   const tiles = rt.vis.textures?.counters;
   if (tiles)
     stages.setCounts('textures', {
@@ -179,7 +172,9 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt;
   if (!timing.rowFilled) return;
   timing.rowFilled = false;
-  timing.cpuProfile.record(run.frame, timing.cpuProfile.row[CPU.at.totalMs]);
+  const total = timing.cpuProfile.row[CPU.at.totalMs];
+  timing.cpuProfile.record(run.frame, total);
+  timing.cpuWindow.record(run.frame, total);
   recordStages(rt);
   publishCpuProfile(rt);
 }
