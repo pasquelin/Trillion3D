@@ -76,6 +76,6 @@ fn a_forged_index_count_is_refused_by_the_budget_before_any_allocation() {
     );
     assert_eq!(
         header.decoded_bytes(),
-        (3usize << 30).saturating_mul(4) + 12
+        (3usize << 30).saturating_mul(4).saturating_add(12)
     );
 }
