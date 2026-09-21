@@ -1,4 +1,5 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
+import type { HostNode } from './hostResources.ts';
 import * as THREE from 'three';
 import { isTransmissive } from './visibilityBuffer.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
@@ -10,10 +11,10 @@ import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 
 export function collectClusterPages(
-  source: THREE.Object3D,
+  source: HostNode,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
-  associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>,
+  associations: Map<HostNode, { meshes?: number; primitives?: number }>,
   options: { allowMissing?: boolean } = {},
 ) {
   // World matrices of pages and roots are the ENGINE's, computed from the host's local poses:

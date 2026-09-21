@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import type { PageRec } from './pageSelection.ts';
 import { clusterHue } from './backendCommon.ts';
 
@@ -38,7 +39,8 @@ export function lighting(scene: THREE.Scene, clearColor: number) {
   light.position.set(1, 3, 2);
   scene.add(light);
 }
-export function linearColor(material: THREE.Material | THREE.Material[]): [number, number, number] {
+export function linearColor(declared: HostMaterials): [number, number, number] {
+  const material = asHostLibrary<THREE.Material | THREE.Material[]>(declared);
   const first = Array.isArray(material) ? material[0] : material;
   const color = (first as THREE.MeshBasicMaterial).color;
   if (!color) return [1, 1, 1];

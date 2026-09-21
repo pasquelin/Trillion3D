@@ -135,8 +135,16 @@ on an engine program from engine records and float textures. With it, group E is
 renderer, program, render target or material clone of the host's rendering library takes part in
 what the engine draws or composes — a scene copy stays a host mesh read by shape — and the
 witness adapter serves the Three witnesses alone. What the WebGL2 path still reads of the host library is
-its data model — geometry attributes, materials, textures, the host camera and source graph —
-named through the contract types and replaced by batch C (#78); `explorerCameraApi.ts` keeps the
+its data model — geometry attributes, materials, textures, the host camera and source graph.
+Lot 1 of batch C (#269) closed the naming of it: no signature of the engine carries a type of
+the host library any more. `packages/sdk-browser/hostResources.ts` names each resource by the
+shape the engine reads (`HostMaterial`, `HostTexture`, `HostAttributes`, `HostGeometry`,
+`HostMesh`, `HostNode`, `HostScene`), `packages/sdk-core/materialContract.ts` carries the
+engine's own `Material` for `updateMaterial`, a placement crosses as sixteen floats, and the
+declared witnesses and host adapters are the only callers of `asHostLibrary`, the single
+crossing back. What remains for the following lots is the per-frame walk, the host resources
+themselves and the source loading — until those land, `scene`, `source` and `sceneLighting`
+still point at the host's graphs and are not `SceneRoot` / `SceneNode`; `explorerCameraApi.ts` keeps the
 host's orbit and fly controls it returns to the host.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed

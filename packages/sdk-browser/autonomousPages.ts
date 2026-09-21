@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary } from './hostResources.ts';
 import { collectClusterPages, indexPagesByUrl, type PageRec } from './pageSelection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './autonomousRender.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
@@ -35,7 +36,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     scene = new THREE.Scene();
   const lighting = installSceneLighting(
     scene,
-    context.sceneLighting ?? context.source,
+    asHostLibrary<THREE.Object3D>(context.sceneLighting ?? context.source),
     context.clearColor ?? 0x171d28,
   );
   const shown: PageRec[] = [],
@@ -71,7 +72,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     baseBootstrap,
     byUrl,
     baseMaterials,
-    colorMaterials,
     geometryStore,
     cap,
     sceneChanged: gate.sceneChanged,
@@ -186,11 +186,12 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       hostDraw.dispose();
       for (const rec of allPages) {
         detach(rec);
-        rec.geometry?.dispose();
+        asHostLibrary<THREE.BufferGeometry | undefined>(rec.geometry)?.dispose();
         rec.geometry = undefined;
         rec.mesh = undefined;
         rec.array = undefined;
       }
+      instances.disposeOwnedMaterials();
       for (const material of colorMaterials.values()) material.dispose();
       scene.clear();
       gate.release();

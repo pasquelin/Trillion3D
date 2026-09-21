@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary, type HostNode } from './hostResources.ts';
 
 /** Browser adapter: world-space light data, independent of material evaluation. */
 function sceneLights(source: THREE.Object3D): THREE.Light[] {
@@ -23,11 +24,8 @@ function visible(light: THREE.Light) {
  * a light, not an invented hemisphere and sun. Same rule as the contract path,
  * on the adapters that render through Three.
  */
-export function installSceneLighting(
-  scene: THREE.Scene,
-  source: THREE.Object3D,
-  clearColor: number,
-) {
+export function installSceneLighting(scene: THREE.Scene, node: HostNode, clearColor: number) {
+  const source = asHostLibrary<THREE.Object3D>(node);
   scene.background = new THREE.Color(clearColor);
   let pairs: Array<{ original: THREE.Light; copy: THREE.Light; target?: THREE.Object3D }> = [];
   // Source-graph lights are cleared when another lighting contract takes over: two

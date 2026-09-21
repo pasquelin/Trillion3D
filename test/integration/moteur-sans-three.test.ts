@@ -85,22 +85,14 @@ const AUTORISES: Record<string, string> = {
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
   webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
 
-  // 3. Host resources: materials, textures, geometries, colours, face constants.
-  backendTypes: 'contract: host resources an engine receives',
-  explorerOptions: 'contract: host resources the host declares',
+  // 3. Host resources: materials, textures, geometries, colours, face constants. The contract
+//    types no longer name them (#269): materials, textures, attributes, meshes and scene nodes
+//    cross the engine as `hostResources.ts` shapes, and only the files below turn one back into
+//    the host library's own type, through `asHostLibrary`.
   explorerDiagnosticApi: 'it replaces host materials and geometries with diagnostic ones',
-  explorerSceneApi: 'contract: materials and poses the host rewrites on its scene',
-  gpuDagTypes: 'contract: materials and matrices the host writes',
-  gpuSelection: 'host material type carried by a page',
-  materialSide: 'host-material face constants, read once into the engine `Side`',
-  pageCone: 'host material type carried by a page',
-  pageSelectionCutState: 'host material carried by a page',
-  pageSelectionHelpers: 'host material type carried by a page',
-  pageSelectionTypes: 'contract: geometries, materials and matrices the host writes',
   triangleDiagnostic: 'it colours a host geometry in a host material',
   visibilityMath: 'host attributes, textures and wrap modes',
   visibilityMaterial: 'host material properties converted to engine material',
-  visibilityTypes: 'contract: host materials, textures and colours',
   visibilityWrapModes: 'host-texture wrap modes',
   webgpuTileAtlas: 'host texture as a tile source',
   webgpuTileCatalogue: 'host textures in the pool catalogue',
@@ -108,16 +100,12 @@ const AUTORISES: Record<string, string> = {
   webgpuBlendBuffers: 'host geometry attributes',
   webgpuBlendItems: 'contract: host textures stored by an item record',
   webgpuBlendPrepare: 'host meshes and materials to prepare',
-  webgpuBlendState: 'contract: geometries, materials and matrices the host writes',
   webgpuGeometryPrepare: 'host geometries to prepare',
   webgpuMaterialTextures: 'host-material textures',
   webgpuPageRow: 'host geometry and textures of a row',
-  webgpuPageRowMaterial: 'contract: host textures a row material addresses by atlas slot',
   webgpuPagesHelpers: 'host colours and colour management',
   webgpuPagesPrepare: 'host geometry attributes',
   webgpuPagesSetup: 'meshes of the host scene',
-  webgpuPagesStateGpu: 'contract: host geometries and textures',
-  webgpuPagesStateVis: 'contract: host geometries and textures',
   webgpuPositions: 'position attribute of the host geometry',
 };
 

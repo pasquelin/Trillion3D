@@ -36,10 +36,11 @@ function memeResultat(transform: THREE.Matrix4, n: number, rootsCount: number, a
       a.pages[i].mesh = { matrix: new THREE.Matrix4() } as unknown as PageRec['mesh'];
       b.pages[i].mesh = { matrix: new THREE.Matrix4() } as unknown as PageRec['mesh'];
     }
+  // The contract carries sixteen floats; the frozen oracle keeps the host matrix it was written with.
   deplaceInstance(
     { pages: a.pages, bases: a.basePages, roots: a.instRoots },
     a.baseRoots,
-    transform,
+    transform.toArray(new Float64Array(16)),
   );
   referenceUpdateInstance(
     { pages: b.pages, roots: b.instRoots },

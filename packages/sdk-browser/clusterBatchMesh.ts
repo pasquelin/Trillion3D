@@ -1,12 +1,10 @@
-import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
+import { IDENTITY_MATRIX4, type Side } from '../sdk-core/index.ts';
+import type { HostAttributes, HostMaterials } from './hostResources.ts';
 import type { BatchPage, DrawRanges } from './clusterBatchRange.ts';
 import type { ClusterDraw } from './clusterBatches.ts';
-import { firstMaterial, sideOf, type Side } from './materialSide.ts';
+import { firstMaterial, sideOf } from './materialSide.ts';
 
-/** Vertex attributes of a host geometry, as the page records carry them. */
-export type HostAttributes = BatchPage['attributes'];
-/** A host material, or the array a multi-material mesh declares — refused before any draw. */
-export type HostMaterial = BatchPage['material'];
+export type { HostAttributes, HostMaterials };
 /** Bytes the engine uploads to one GPU buffer: `version` names the state last uploaded, and
  *  `updateRanges` what changed within the same bytes since — sent alone, then cleared. */
 export type GpuBuffer = {
@@ -23,7 +21,7 @@ export type ClusterGeometry = { index: IndexBuffer; attributes: HostAttributes }
  *  shape: its geometry, its material and the placement the engine wrote for it. */
 export type WholeMesh = {
   geometry: { index: IndexBuffer | null; attributes: HostAttributes };
-  material: HostMaterial;
+  material: HostMaterials;
   matrix: { elements: ArrayLike<number> };
 };
 
@@ -64,7 +62,7 @@ const DECLARED_SIDE: readonly undefined[] = [undefined];
  * transparent surface draws its back faces then its front faces, in that order; any other
  * surface draws once, on the faces its material declares (`undefined`).
  */
-export function drawPasses(material: HostMaterial): readonly (Side | undefined)[] {
+export function drawPasses(material: HostMaterials): readonly (Side | undefined)[] {
   const single = firstMaterial(material);
   return single?.transparent && sideOf(single) === 'double' && !single.forceSinglePass
     ? BACK_THEN_FRONT
@@ -79,7 +77,7 @@ export function drawPasses(material: HostMaterial): readonly (Side | undefined)[
  */
 export class ClusterDrawMesh {
   geometry: ClusterGeometry;
-  material: HostMaterial;
+  material: HostMaterials;
   /** Source rank of the instance this record draws. */
   renderOrder: number;
   /** World placement of the instance, in double precision like the host matrices it copies. */
@@ -93,7 +91,7 @@ export class ClusterDrawMesh {
   _multiDrawCount = 0;
   constructor(
     geometry: ClusterGeometry,
-    material: HostMaterial,
+    material: HostMaterials,
     ranges: DrawRanges,
     renderOrder: number,
     polygonOffsetUnits?: number,

@@ -1,3 +1,4 @@
+import type { HostMaterials } from './hostResources.ts';
 /**
  * The contract every GPU selection kernel honours, and the camera state it reads.
  *
@@ -6,7 +7,6 @@
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../sdk-core/index.ts';
-import type * as THREE from 'three';
 import { sideOf } from './materialSide.ts';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
 import { sameElements } from './matrixElements.ts';
@@ -140,7 +140,7 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
 
 export function leafCone(page: {
   cone?: NormalCone;
-  material?: THREE.Material | THREE.Material[];
+  material?: HostMaterials;
 }): NormalCone {
   if (page.material && sideOf(page.material) !== 'front') return OPEN_CONE;
   return page.cone ?? OPEN_CONE;

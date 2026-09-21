@@ -1,4 +1,6 @@
 import type * as THREE from 'three';
+import { asHostLibrary } from './hostResources.ts';
+import type { HostNode } from './hostResources.ts';
 import { BOX_VALUES, boxEmpty } from '../sdk-core/index.ts';
 import { boxUnionCollector } from './mathBatchBoxes.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
@@ -70,14 +72,15 @@ export async function hostBoundsLot(source: THREE.Object3D) {
  * goes alone, by the same `boxTransform` and on the same inputs.
  */
 export function hostWorldBounds(
-  source: THREE.Object3D,
+  source: HostNode,
   into = emptyWorldBox(),
   lot?: BoxTransformLot | null,
   worlds?: HierarchyLot | null,
 ) {
   const mondes = hostWorldTree(source, worlds);
-  const union = boxUnionCollector(into, lot, bornes(source));
-  source.traverse((object) => {
+  const racine = asHostLibrary<THREE.Object3D>(source);
+  const union = boxUnionCollector(into, lot, bornes(racine));
+  racine.traverse((object) => {
     const box = localBoxOf(object as Bounded);
     if (!box) return;
     const out = union.boxes,

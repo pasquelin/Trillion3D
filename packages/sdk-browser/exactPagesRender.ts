@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { HostNode } from './hostResources.ts';
 import {
   createSelectionResult,
   selectVisiblePages,
@@ -57,7 +58,7 @@ const EXACT_CPU_STEPS = Object.values(EXACT_CPU_STEP);
 export function createExactPagesRender(options: {
   state: ExactPagesRenderState;
   context: BackendContext;
-  source: THREE.Object3D;
+  source: HostNode;
   blendCopies: THREE.Mesh[];
   sceneLights: ReturnType<typeof lighting>;
   motion: CameraMotion;

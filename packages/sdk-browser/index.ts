@@ -23,6 +23,20 @@ export type {
   PointOfInterest,
 } from './backendTypes.ts';
 export type { DiagnosticDetail } from './backendTypes.ts';
+/** Host resources the engine reads and never builds (`hostResources.ts`): a host declares them
+ *  with whatever library it draws with, the contract names only their shape. */
+export type {
+  HostAttribute,
+  HostAttributes,
+  HostGeometry,
+  HostMaterial,
+  HostMaterials,
+  HostMesh,
+  HostNode,
+  HostPoint,
+  HostScene,
+  HostTexture,
+} from './hostResources.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpuPassBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpuPassBlocks.ts';
 export { createDiagnosticChannel } from './diagnosticChannel.ts';

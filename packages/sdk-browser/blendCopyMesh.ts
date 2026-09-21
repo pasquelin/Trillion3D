@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { asHostLibrary } from './hostResources.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 /**
  * The draw copy of a transparent surface.
@@ -15,10 +17,10 @@ import * as THREE from 'three';
  * `matrixAutoUpdate` stays false, so Three never recomposes this matrix from the copy's
  * local pose — which it does not have.
  */
-export function createBlendCopy(mesh: THREE.Mesh, renderOrder: number, world: THREE.Matrix4) {
+export function createBlendCopy(mesh: THREE.Mesh, renderOrder: number, world: MatrixElements) {
   const copy = new THREE.Mesh(mesh.geometry, mesh.material);
   copy.matrixAutoUpdate = false;
-  copy.matrix = world;
+  copy.matrix = asHostLibrary<THREE.Matrix4>(world);
   copy.frustumCulled = mesh.frustumCulled;
   copy.renderOrder = renderOrder;
   copy.userData.sourceMesh = mesh;
