@@ -1,13 +1,20 @@
-// The gates of `pnpm run validate`, in three groups that depend on nothing of each other. The CI
-// runs one job per group, in parallel, and reports their outcome under a single `validate` check
-// (`.github/workflows/quality.yml`); `pnpm run validate` runs the same groups in order, so the
-// local gate and the CI cannot drift apart.
+// The gates of `pnpm run validate`, in three groups. The CI runs one job per group, in parallel,
+// and reports their outcome under a single `validate` check (`.github/workflows/quality.yml`);
+// `pnpm run validate` runs the same gates in order, so the local gate and the CI cannot drift.
 //
-// `quick` holds every gate that reads the sources alone: it answers in well under a minute, which
-// is when a formatting or lint mistake should be reported. `typescript` builds before the gates
-// that read the build products. `native` compiles the Rust crates; the CI skips it when it has
-// restored the binaries built from these exact sources by an earlier green run, a decision Cargo
-// cannot make on a fresh clone where every source file is newer than any cached artefact.
+// The groups follow what each gate needs, not what it looks at:
+//   quick      the sources alone — it answers in well under a minute, which is when a formatting
+//              or a lint mistake should be reported, not after the Rust suite;
+//   typescript the `tsc` build and the gates that read its products;
+//   native     the Rust crates, and the unit suite, which needs both the compiled compiler
+//              (`scripts/docs-fossil-cache.test.mjs` skips itself without it) and `dist/`
+//              (`test/integration/extensions-dts.test.mjs`). `build` is seven seconds and is
+//              repeated here rather than making the job wait on another one.
+//
+// The CI skips the `*:native` gates when it has restored the binaries built from these exact
+// sources by an earlier green run — a decision Cargo cannot make on a fresh clone, where every
+// source file is newer than any cached artefact. `build` and `test` stay: the binary is there,
+// restored, and the suite that drives it must run.
 export const VALIDATE_GROUPS = {
   quick: [
     'check:local',
@@ -19,22 +26,15 @@ export const VALIDATE_GROUPS = {
     'check:no-js',
     'check:links',
   ],
-  typescript: [
-    'build',
-    'check:dts',
-    'check:structure',
-    'check:docs-bundles',
-    'check:site-types',
-    'test',
-  ],
-  native: ['lint:native', 'build:native', 'test:native'],
+  typescript: ['build', 'check:dts', 'check:structure', 'check:docs-bundles', 'check:site-types'],
+  native: ['lint:native', 'build:native', 'test:native', 'build', 'test'],
 };
 
-/** The ordered gates of a full `validate`. */
-export const VALIDATE_STEPS = Object.values(VALIDATE_GROUPS).flat();
+/** The ordered gates of a full `validate`: every group's, each one run once. */
+export const VALIDATE_STEPS = [...new Set(Object.values(VALIDATE_GROUPS).flat())];
 
 /** The steps that compile the Rust crates. */
-export const NATIVE_STEPS = VALIDATE_GROUPS.native;
+export const NATIVE_STEPS = VALIDATE_GROUPS.native.filter((step) => step.endsWith(':native'));
 
 /** Whether `env` asks `validate` to skip the native steps. */
 export function skipsNative(env) {
@@ -42,7 +42,7 @@ export function skipsNative(env) {
 }
 
 /**
- * The steps `validate` runs: the named group, or every group, minus the native ones when they are
+ * The steps `validate` runs: the named group, or every group, minus the Rust ones when they are
  * skipped. An unknown group name is a caller mistake, and stops the run.
  */
 export function stepsToRun(env, group) {

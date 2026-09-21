@@ -32,17 +32,18 @@ jobs:
           components: rustfmt
       - run: pnpm run validate --group quick
 
-  # The TypeScript build and everything that reads its products, unit tests included.
+  # The TypeScript build and the gates that read its products.
   typescript:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/node
       - run: pnpm run validate --group typescript
 
-  # Clippy, the release build and the Rust tests: the longest group, and the one a cache hit skips
-  # outright.
+  # Clippy, the release build, the Rust tests, and the unit suite — which drives the compiled
+  # compiler and reads `dist/`, so it runs where both exist (`scripts/validate-steps.mjs`). The
+  # longest group, and the one a cache hit empties down to the unit suite.
   native:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
