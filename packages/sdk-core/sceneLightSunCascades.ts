@@ -6,7 +6,7 @@ import { pageRowsOf } from './sceneLightShadowPages.ts';
  * Sphere a cascade covers and the extent its map draws, both in metres. The extent is a
  * whole number of pages on the light plane: `originX` and `originY` are the absolute page
  * column and row (draw frame, `y` down) of its top-left page, `anchor` its depth coordinate
- * along the light axis, snapped to a grid of one extent side.
+ * along the light axis, snapped to a grid of one sphere diameter, `2r`.
  */
 interface SunCascade {
   /** World centre of the extent: page-snapped in the light plane, `anchor` along the axis. */

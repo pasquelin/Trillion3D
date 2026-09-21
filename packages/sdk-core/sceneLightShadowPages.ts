@@ -85,6 +85,46 @@ export function markExtentRect(
   for (let row = y0; row <= y1; row++) mask[base + ((row + wy) % rows)] |= bits;
 }
 
+/**
+ * Marks the strips that enter when the extent slides by `(dx, dy)` pages: the last `dx`
+ * columns for a slide to the right, the first `−dx` for one to the left, and likewise the
+ * rows. Nothing is allocated: the bounds are four scalars.
+ */
+export function markExtentStrips(
+  mask: Uint8Array,
+  base: number,
+  rows: number,
+  wx: number,
+  wy: number,
+  dx: number,
+  dy: number,
+) {
+  if (dx)
+    markExtentRect(
+      mask,
+      base,
+      rows,
+      wx,
+      wy,
+      dx > 0 ? rows - dx : 0,
+      dx > 0 ? rows - 1 : -dx - 1,
+      0,
+      rows - 1,
+    );
+  if (dy)
+    markExtentRect(
+      mask,
+      base,
+      rows,
+      wx,
+      wy,
+      0,
+      rows - 1,
+      dy > 0 ? rows - dy : 0,
+      dy > 0 ? rows - 1 : -dy - 1,
+    );
+}
+
 const clip = new Float64Array(3);
 
 /** `x`, `y` and `w` of a world point in the face clip space, column-major matrix. */
