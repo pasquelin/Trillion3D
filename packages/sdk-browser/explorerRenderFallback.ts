@@ -1,15 +1,17 @@
-import * as THREE from 'three';
 import type { AssetScope, DiagnosticMode } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
+import type { HostCamera } from './cameraWorld.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
 import type { createSceneDrawer } from './explorerDrawScene.ts';
+import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = ExplorerEmitters & {
   measuring: boolean;
   diagnostic: DiagnosticMode;
-  renderer?: THREE.WebGLRenderer;
-  camera: THREE.PerspectiveCamera;
+  /** The engine's surface, absent on the direct WebGPU path: a lost one is a fatal, not a fallback. */
+  webglSurface?: Pick<WebglSurface, 'lost'>;
+  camera: HostCamera;
   baseline: RenderBackend;
   state: Pick<ExplorerHostState, 'active' | 'fallbackReason'>;
   scope: AssetScope;
@@ -20,7 +22,7 @@ export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
   const {
     measuring,
     diagnostic,
-    renderer,
+    webglSurface,
     camera,
     baseline,
     state,
@@ -30,7 +32,7 @@ export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
     drawScene,
   } = inputs;
   if (measuring || diagnostic !== 'beauty') throw error;
-  if (renderer?.getContext().isContextLost()) {
+  if (webglSurface?.lost) {
     const reason = 'Context lost: host must retain a stable preview and recreate the renderer';
     state.fallbackReason = reason;
     emit({

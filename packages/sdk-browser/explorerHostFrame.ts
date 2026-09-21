@@ -22,10 +22,11 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
   const { prepared, resources, host, backends, drawScene } = inputs;
   const { camera, directGpu, pageSources } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
-  const renderer = resources.renderer;
+  const { webglSurface } = resources;
   const {
     state,
     baseline,
+    renderer,
     lookAtTarget,
     compositor,
     presentBackend,
@@ -53,6 +54,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     streaming,
     directGpu,
     renderer: renderer!,
+    webglSurface,
     presentBackend,
     baseline,
     state,
@@ -69,6 +71,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     ensureTarget,
     directGpu,
     renderer: renderer!,
+    webglSurface,
     backends,
     baseline,
     compositor,
