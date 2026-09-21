@@ -144,7 +144,7 @@ test('home and gallery reuse the same linked example card', () => {
 test('all scenarios produce real 3D triangle geometry from SDK results', () => {
   for (const example of mathExamples) {
     const state = initialState(example.id);
-    const geometry = geometryFor(example.id, evaluate(example.id, state));
+    const geometry = geometryFor(evaluate(example.id, state));
     assert.ok(geometry instanceof Float32Array && geometry.length >= 27, example.id);
     assert.equal(geometry.length % 27, 0, example.id);
   }

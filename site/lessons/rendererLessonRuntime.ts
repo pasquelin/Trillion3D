@@ -8,10 +8,9 @@ import { createRendererLessonDeadline } from './rendererLessonDeadline.ts';
 import { createReadyGate } from './rendererLessonReadyGate.ts';
 import { createShadowPageCounter } from './lessonShadowPages.ts';
 import type { Explorer } from '../../packages/sdk-browser/index.ts';
-import type { RendererLessonItem } from './rendererLessonTypes.ts';
 export type { RendererMetrics, RendererLessonSession } from './rendererLessonSessionTypes.ts';
 import type {
-  RendererMetrics,
+  RendererLessonRuntimeOptions,
   RendererLessonSession,
   Controls,
 } from './rendererLessonSessionTypes.ts';
@@ -28,13 +27,7 @@ export async function createRendererLessonRuntime({
   state,
   report,
   signal,
-}: {
-  canvas: HTMLCanvasElement;
-  lesson: RendererLessonItem;
-  state: Record<string, number>;
-  report: (metrics: RendererMetrics) => void;
-  signal?: AbortSignal;
-}): Promise<RendererLessonSession> {
+}: RendererLessonRuntimeOptions): Promise<RendererLessonSession> {
   const startup = createRendererLessonDeadline(signal, SETTLE_TIME_LIMIT_MS);
   const importedLights =
     lesson.importedLights ??

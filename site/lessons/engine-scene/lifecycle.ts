@@ -5,7 +5,7 @@ import { createLightingControls } from './lightingControls.ts';
 import { addSceneFillLight } from '../sceneFillLight.ts';
 import type { Explorer } from '../../../packages/sdk-browser/index.ts';
 import type { FrameMetrics } from '../../../packages/sdk/index.ts';
-import type { DiagnosticMode } from './diagnosticModes.ts';
+import { isDiagnosticMode } from './diagnosticModes.ts';
 import type { EngineCopy } from './content.ts';
 import type { Locale } from '../../content/locale.ts';
 
@@ -39,8 +39,9 @@ export function mountScene(host: ParentNode, copy: EngineCopy, locale: Locale) {
   const invalidate = () => {
     if (!disposed) explorer?.invalidate();
   };
+  const selectedMode = () => (isDiagnosticMode(mode.value) ? mode.value : 'beauty');
   const updateGuide = () => {
-    const [what, tryThis, observe] = copy.views[mode.value as DiagnosticMode];
+    const [what, tryThis, observe] = copy.views[selectedMode()];
     required<HTMLElement>(host, '[data-scene-what]').textContent = what;
     required<HTMLElement>(host, '[data-scene-try]').textContent = tryThis;
     required<HTMLElement>(host, '[data-scene-observe]').textContent = observe;
@@ -87,8 +88,9 @@ export function mountScene(host: ParentNode, copy: EngineCopy, locale: Locale) {
       explorer = created;
       addSceneFillLight(explorer);
       for (const option of mode.options)
-        option.disabled = explorer.diagnostics[option.value as DiagnosticMode]?.available === false;
-      if (mode.value !== 'beauty') explorer.setDiagnostic(mode.value as DiagnosticMode);
+        option.disabled =
+          isDiagnosticMode(option.value) && explorer.diagnostics[option.value]?.available === false;
+      if (mode.value !== 'beauty') explorer.setDiagnostic(selectedMode());
       lighting = createLightingControls(explorer, light, lightValue, shadows, copy, invalidate);
       const controls = explorer.controls();
       camera = configureSceneCamera(explorer, controls);
@@ -125,7 +127,7 @@ export function mountScene(host: ParentNode, copy: EngineCopy, locale: Locale) {
     () => {
       updateGuide();
       try {
-        explorer?.setDiagnostic(mode.value as DiagnosticMode);
+        explorer?.setDiagnostic(selectedMode());
         invalidate();
       } catch (error) {
         status.textContent = `${copy.failed} (${errorMessage(error)})`;
