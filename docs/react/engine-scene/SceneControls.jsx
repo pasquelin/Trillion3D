@@ -1,7 +1,16 @@
 import { Section } from '../components/Section.jsx';
 import { Button, Field, Form, Range, Select, Toggle } from '../components/UI.jsx';
 
-const MODES = ['beauty', 'clusters', 'pages', 'wireframe', 'lod', 'screen-error', 'visibility'];
+const MODES = [
+  'beauty',
+  'clusters',
+  'pages',
+  'wireframe',
+  'lod',
+  'screen-error',
+  'materials',
+  'visibility',
+];
 
 export function SceneControls({ copy, diagnostic }) {
   return (
