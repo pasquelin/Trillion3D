@@ -10,7 +10,6 @@ import type { WebglSurface } from './webglSurface.ts';
 
 export type ExplorerResources = {
   source?: THREE.Object3D;
-  renderer?: THREE.WebGLRenderer;
   webglSurface?: WebglSurface;
   gpuDevice?: GPUDevice;
 };
@@ -71,7 +70,6 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     pageSources,
     resources,
   });
-  resources.renderer = configured.renderer;
   resources.gpuDevice = configured.gpuDevice;
   const { viewport, context } = await prepareExplorerBackends(session, {
     source,

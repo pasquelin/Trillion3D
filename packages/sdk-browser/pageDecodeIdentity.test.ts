@@ -1,6 +1,7 @@
 // Batch H2: the three decode paths — WebAssembly, JavaScript, and the contract task run in
 // place — must return exactly the same bytes, or refuse for the same cause. Hostile inputs:
-// 65 535 vertices (the high bound), NaN/Infinity slipped in afterwards, a truncated page.
+// 65 535 vertices (the high bound), every attribute with signed zeros, a forged index, a
+// truncated page.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -28,7 +29,7 @@ function ecart(nom: string, a: Float32Array | Uint32Array, b: Float32Array | Uin
 }
 
 async function trioIdentique(donnees: Uint8Array) {
-  const enPlace = await decodeGeometryPage(donnees.slice(), MAX);
+  const enPlace = decodeGeometryPage(donnees.slice(), MAX);
   const parWasm = await decodeGeometryPageWasm(donnees.slice(), MAX);
   const { answer } = await runPageDecodeTask({
     protocol: PAGE_DECODE_PROTOCOL,
@@ -53,45 +54,42 @@ test('65 535 vertices — the high bound — decode identically on the three pat
   const triangles = Math.floor(sommets / 3) * 3,
     indices = new Uint32Array(triangles);
   for (let i = 0; i < triangles; i++) indices[i] = (i * 7919) % sommets;
-  const { data } = await encodeGeometryPage(indices, {
+  const { data } = encodeGeometryPage(indices, {
     POSITION: { itemSize: 3, array: position },
   });
   const enPlace = await trioIdentique(data as Uint8Array);
   assert.equal(enPlace.vertexCount, sommets);
 });
 
-test('a NaN, an Infinity and a -0 slipped into the page decode or refuse identically', async () => {
+test('every attribute, signed zeros included, decodes identically; a forged index refuses identically', async () => {
   const position = new Float32Array([1, 2, 3, -0, 5, 6, 7, 8, 9]);
-  const original = Number.isFinite;
-  // The reference codec refuses any non-finite attribute: it is bypassed to build a hostile but
-  // structurally valid page, the only way to get NaN through the compressor.
-  Object.defineProperty(Number, 'isFinite', { value: () => true, configurable: true });
-  let data: Uint8Array;
-  try {
-    const avecNaN = new Float32Array([1, 2, 3, Number.NaN, 5, 6, Number.POSITIVE_INFINITY, 8, 9]);
-    ({ data } = (await encodeGeometryPage([0, 1, 2], {
-      POSITION: { itemSize: 3, array: avecNaN },
-    })) as { data: Uint8Array });
-  } finally {
-    Object.defineProperty(Number, 'isFinite', { value: original, configurable: true });
-  }
-  await assert.rejects(() => decodeGeometryPage(data.slice(), MAX), /GEOMETRY_PAGE_NONFINITE/);
-  await assert.rejects(() => decodeGeometryPageWasm(data.slice(), MAX), /GEOMETRY_PAGE_NONFINITE/);
-
-  // -0 alone, for its part, is finite: it goes through the encoder normally and must stay -0, not 0, everywhere.
-  const { data: propre } = await encodeGeometryPage([0, 1, 2], {
+  const { data } = encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: position },
+    NORMAL: { itemSize: 3, array: new Float32Array([0, 0, 1, 0, -1, 0, -0, 0, -1]) },
+    TEXCOORD_0: { itemSize: 2, array: new Float32Array([0, 0, 0.5, -0, 1, 1]) },
+    TEXCOORD_1: { itemSize: 2, array: new Float32Array([2, 2, 2.5, 2, 3, 3]) },
+    COLOR_0: { itemSize: 4, array: new Float32Array([1, 0, 0, 1, 0, 1, 0, 0.5, 0, 0, 1, 1]) },
   });
-  const enPlace = await trioIdentique(propre as Uint8Array);
-  assert.ok(Object.is(enPlace.attributes.position[3], -0));
+  const enPlace = await trioIdentique(data as Uint8Array);
+  // The grid has no signed zero: `-0` lands on the cell of `0` and comes back as `+0`.
+  assert.ok(Object.is(enPlace.attributes.position[3], 0));
+  assert.deepEqual(Object.keys(enPlace.attributes), ['position', 'normal', 'uv', 'uv2', 'color']);
+  // An index past the vertex count, forged in the index stream (two bits per index).
+  const forged = (data as Uint8Array).slice();
+  forged[96] = 0b11_01_00;
+  await assert.rejects(async () => decodeGeometryPage(forged.slice(), MAX), /GEOMETRY_PAGE_INDEX/);
+  await assert.rejects(() => decodeGeometryPageWasm(forged.slice(), MAX), /GEOMETRY_PAGE_INDEX/);
 });
 
 test('a page truncated after its header refuses GEOMETRY_PAGE_BOUNDS on the three paths', async () => {
-  const { data } = await encodeGeometryPage([0, 1, 2], {
+  const { data } = encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]) },
   });
-  const tronquee = (data as Uint8Array).slice(0, 32 + 4); // accepted header, body cut.
-  await assert.rejects(() => decodeGeometryPage(tronquee.slice(), MAX), /GEOMETRY_PAGE_BOUNDS/);
+  const tronquee = (data as Uint8Array).slice(0, 96 + 4); // accepted header, body cut.
+  await assert.rejects(
+    async () => decodeGeometryPage(tronquee.slice(), MAX),
+    /GEOMETRY_PAGE_BOUNDS/,
+  );
   await assert.rejects(() => decodeGeometryPageWasm(tronquee.slice(), MAX), /GEOMETRY_PAGE_BOUNDS/);
   const { answer } = await runPageDecodeTask({
     protocol: PAGE_DECODE_PROTOCOL,

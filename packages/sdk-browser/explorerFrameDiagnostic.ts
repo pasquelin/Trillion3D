@@ -94,8 +94,8 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
         geometryAllocationBytes: metricsScratch.geometryAllocationBytes,
         batchRebuilds: backendReport.batchRebuilds ?? null,
         batchIndexBytesUpdated: backendReport.batchIndexBytesUpdated ?? null,
-        displayDetachments: backendReport.displayDetachments ?? null,
         autonomousClusterDrawsTotal: metricsScratch.autonomousClusterDrawsTotal ?? null,
+        autonomousCopyDraws: metricsScratch.autonomousCopyDraws ?? null,
       },
     });
   }

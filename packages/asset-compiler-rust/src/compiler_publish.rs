@@ -12,8 +12,14 @@ pub(super) struct Publication<'a> {
     pub directory: &'a Path,
     pub cache_format: u32,
     pub proxy_bytes: &'a [u8],
+    pub proxy_sha: &'a str,
+    /// Every product already on disk in the folder, as its writer recorded it.
+    pub products: &'a [Product],
     pub previews: &'a [TexturePreview],
 }
+
+/// Name under which the manifest records the other products of its folder.
+pub(super) const FILES_FIELD: &str = "files";
 
 /// The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
 /// columns instead of tokenizing tens of megabytes before its first frame. The
@@ -35,14 +41,40 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
     let directory = inputs.directory;
     atomic(&directory.join(MANIFEST_BINARY_FILE), &binary)?;
     atomic(&directory.join(proxy::SCENE_PROXY_FILE), inputs.proxy_bytes)?;
+    let proxy = Product {
+        name: proxy::SCENE_PROXY_FILE.to_string(),
+        sha256: inputs.proxy_sha.to_string(),
+        bytes: inputs.proxy_bytes.len() as u64,
+    };
+    slim[FILES_FIELD] = files_record(inputs.products.iter().chain([&proxy]));
     atomic(
         &directory.join("clusters.json"),
         &serde_json::to_vec(&slim)?,
     )?;
-    let (o, key) = (inputs.o, inputs.key);
-    let pointer = json!({"status":"ready","formatVersion":inputs.cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{key}/clusters.json")});
+    write_pointer(inputs.o, inputs.key, inputs.cache_format)
+}
+
+/// The `files` record: fingerprint and size, by name, of every product of the
+/// key folder other than the manifest and its sidecar — the sidecar is named by
+/// `binary.sha256`, and the manifest cannot carry its own fingerprint. `proxy.bin`
+/// is in it under the digest `proxy.sha256` already carries, so that a later job
+/// proves the folder whole from this one record before reusing it
+/// (`compiler_reuse_proof.rs`). Each entry is what its writer had in hand: no
+/// product is read back from disk to record it.
+fn files_record<'a>(products: impl Iterator<Item = &'a Product>) -> Value {
+    Value::Object(
+        products
+            .map(|p| (p.name.clone(), json!({"sha256":p.sha256,"bytes":p.bytes})))
+            .collect(),
+    )
+}
+
+/// The scope pointer: the only stable entry of a cache, written once the key
+/// folder it names is complete — whether this job wrote it or proved it.
+pub(super) fn write_pointer(o: &Options, key: &str, cache_format: u32) -> Result<()> {
+    let pointer = json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{key}/clusters.json")});
     atomic(
-        &o.cache.join("native").join(&o.scope).join("manifest.json"),
+        &o.scope_directory().join("manifest.json"),
         &serde_json::to_vec(&pointer)?,
     )
 }

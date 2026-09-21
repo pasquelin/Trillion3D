@@ -3,6 +3,7 @@ import type { RenderBackend } from './backendTypes.ts';
 import type { PageRec } from './pageSelection.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
+import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
 
 export const RASTER_BACKGROUND = 0x171d28;
 const BACKGROUND = RASTER_BACKGROUND;
@@ -35,7 +36,8 @@ function colorOf(material: THREE.Material | THREE.Material[]) {
   return [(color.r * 255) | 0, (color.g * 255) | 0, (color.b * 255) | 0];
 }
 
-/** CPU raster of the meshes currently in a backend scene. Used as an oracle; not a GPU timestamp. */
+/** CPU raster of what a backend draws: its owned draw records, then the plain meshes of its
+ *  scene. Used as an oracle; not a GPU timestamp. */
 export function rasterPageRecords(
   backend: Pick<RenderBackend, 'scene'>,
   camera: THREE.PerspectiveCamera,
@@ -49,6 +51,22 @@ export function rasterPageRecords(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
   );
+  const world = new THREE.Matrix4();
+  // A batch record submits only its ranges: the oracle follows the same cut, not the whole buffer.
+  for (const draw of submittedDraws(backend)) {
+    const index = draw.geometry.getIndex(),
+      position = draw.geometry.getAttribute('position'),
+      rgb = colorOf(draw.material),
+      vertex = (i: number) => (index ? index.getX(i) : i);
+    world.fromArray(draw.matrix.elements);
+    for (const [first, length] of drawnRanges(draw))
+      for (let i = first; i < first + length; i += 3) {
+        projectAttribute(world, position, vertex(i), viewProj, width, height, pa);
+        projectAttribute(world, position, vertex(i + 1), viewProj, width, height, pb);
+        projectAttribute(world, position, vertex(i + 2), viewProj, width, height, pc);
+        fillTriangle(pixels, width, height, pa, pb, pc, rgb);
+      }
+  }
   const meshes: THREE.Mesh[] = [];
   backend.scene.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
@@ -59,30 +77,6 @@ export function rasterPageRecords(
       position = geometry.getAttribute('position');
     if (!position) continue;
     const rgb = colorOf(mesh.material);
-    // A multi-draw batch draws only its ranges: the oracle must follow the same cut, not the whole buffer.
-    const batch = mesh as THREE.Mesh & {
-      isBatchedMesh?: boolean;
-      _multiDrawStarts?: Int32Array;
-      _multiDrawCounts?: Int32Array;
-      _multiDrawCount?: number;
-    };
-    const draws =
-      batch.isBatchedMesh && batch._multiDrawStarts && batch._multiDrawCounts
-        ? (batch._multiDrawCount ?? 0)
-        : -1;
-    if (draws >= 0) {
-      for (let draw = 0; draw < draws; draw++) {
-        const first = batch._multiDrawStarts![draw] / Uint32Array.BYTES_PER_ELEMENT,
-          length = batch._multiDrawCounts![draw];
-        for (let i = first; i < first + length; i += 3) {
-          project(mesh, position, index, i, viewProj, width, height, pa);
-          project(mesh, position, index, i + 1, viewProj, width, height, pb);
-          project(mesh, position, index, i + 2, viewProj, width, height, pc);
-          fillTriangle(pixels, width, height, pa, pb, pc, rgb);
-        }
-      }
-      continue;
-    }
     const count = index ? index.count : position.count;
     for (let i = 0; i < count; i += 3) {
       project(mesh, position, index, i, viewProj, width, height, pa);
