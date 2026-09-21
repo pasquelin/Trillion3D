@@ -1,16 +1,6 @@
 import { Section } from '../components/Section.jsx';
 import { Button, Field, Form, Range, Select, Toggle } from '../components/UI.jsx';
-
-const MODES = [
-  'beauty',
-  'clusters',
-  'pages',
-  'wireframe',
-  'lod',
-  'screen-error',
-  'materials',
-  'visibility',
-];
+import { DIAGNOSTIC_MODES } from '../../js/engine-scene/diagnosticModes.js';
 
 export function SceneControls({ copy, diagnostic }) {
   return (
@@ -22,7 +12,7 @@ export function SceneControls({ copy, diagnostic }) {
         <Field label={copy.mode}>
           <div className="scene-control-slot">
             <Select data-scene-mode defaultValue={diagnostic} disabled>
-              {MODES.map((mode) => (
+              {DIAGNOSTIC_MODES.map((mode) => (
                 <option value={mode} key={mode}>
                   {copy[mode]}
                 </option>
