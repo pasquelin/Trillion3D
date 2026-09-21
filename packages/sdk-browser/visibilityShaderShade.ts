@@ -115,12 +115,9 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
     T=normalize(t0*bary.x+t1*bary.y+t2*bary.z);
     B=normalize(normalize(cross(n0,t0)*ta.w)*bary.x+normalize(cross(n1,t1)*tb.w)*bary.y+normalize(cross(n2,t2)*tc.w)*bary.z);
    }else{
-    let e1=(w1-w0).xyz;let e2=(w2-w0).xyz;
-    let uva=vertUv(page.vertexBase,i0);let uvb=vertUv(page.vertexBase,i1);let uvc=vertUv(page.vertexBase,i2);
-    let duv1=uvb-uva;let duv2=uvc-uva;
-    T=(cross(e2,N)*duv1.x+cross(N,e1)*duv2.x)*screenFace;
-    B=(cross(e2,N)*duv1.y+cross(N,e1)*duv2.y)*screenFace;
-    let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));T*=scale;B*=scale;
+    let uva=vertUv(page.vertexBase,i0);
+    let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,vertUv(page.vertexBase,i1)-uva,vertUv(page.vertexBase,i2)-uva);
+    T=frame.T*screenFace;B=frame.B*screenFace;
    }
    if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
    N=uniteOuZero(T*mapN.x+B*mapN.y+N*mapN.z);

@@ -1,18 +1,12 @@
 import type { DagReport } from './dagContracts.ts';
 import type { AssetScope } from './contractsBase.ts';
 import type { SceneProxyDescriptor } from './proxyContracts.ts';
+import type {
+  GeometryPageDescriptor,
+  GeometryPageFormat,
+  PrimitiveQuantization,
+} from './geometryPageContracts.ts';
 
-export interface GeometryPageDescriptor {
-  url: string;
-  sha256: string;
-  bytes: number;
-  formatVersion: 2;
-  codec: 'meshopt';
-  vertexCount: number;
-  indexCount: number;
-  flags: number;
-  uncompressedBytes: number;
-}
 export interface Page {
   id: number;
   url: string;
@@ -133,6 +127,8 @@ export interface Primitive {
   culling?: CullingHierarchy | null;
   structure?: ClusterStructure | null;
   streams?: StreamCatalogue | null;
+  /** Null on a primitive without pages, which was quantized on no grid. */
+  quantization?: PrimitiveQuantization | null;
   topology?: {
     triangles: number;
     edges: { boundary: number; manifold: number; nonManifold: number };
@@ -175,6 +171,8 @@ export interface ClusterManifest {
   formatVersion?: number;
   compilerVersion?: string;
   errorModel?: string;
+  /** The cluster page format of every `pages[].geometry`; absent from a cache without pages. */
+  geometryPages?: GeometryPageFormat;
   simplification?: boolean;
   schema: number;
   status: string;

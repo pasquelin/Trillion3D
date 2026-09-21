@@ -1,4 +1,5 @@
 import { EXAMPLES } from '../docsContentExamples.js';
+import { FORMAT_GUIDES } from '../docsContentFormat.js';
 import { GUIDES } from '../docsContentGuides.js';
 import { RENDERING_GUIDES } from '../docsContentGuidesRendering.js';
 import { ENGINE_GUIDES } from '../docsContentGuidesEngine.js';
@@ -15,6 +16,7 @@ import { BATCHES } from '../docsContentBatches.js';
 
 export const rawEntries = [
   ...GUIDES,
+  ...FORMAT_GUIDES,
   ...RENDERING_GUIDES,
   ...ENGINE_GUIDES,
   ...LIGHTING_GUIDES,

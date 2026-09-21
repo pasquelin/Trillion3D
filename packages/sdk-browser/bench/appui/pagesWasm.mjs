@@ -1,15 +1,14 @@
-// Pages of the H2b bench. They come out of the reference encoder `packages/page-codec`, the
-// same one that serves as oracle to the JavaScript decoder: what the bench compares is thus
-// two reads of a real page, not two reads of a buffer made for the occasion.
-import * as meshoptimizer from 'meshoptimizer';
+// Pages of the H2b bench, of the decoder tests and of the GPU proof. They come out of the
+// reference encoder `packages/page-codec`, the same one that serves as oracle to the JavaScript
+// decoder: what is compared is thus two reads of a real page, not of a buffer made for the
+// occasion.
 import { encodeGeometryPage } from '../../../page-codec/geometryPage.mjs';
 import { graine } from '../../../sdk-core/bench/socle.mjs';
 
-const STRIDE = 72;
 const alea = graine(20260915);
 
-/** Finite but hostile floats: signed zero, denormals, extremes, and noise in between. */
-function hostiles(n) {
+/** Finite but hostile floats: signed zero, denormals, and noise within `±amplitude / 2`. */
+function hostiles(n, amplitude) {
   const output = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const tirage = Math.floor(alea() * 8);
@@ -17,66 +16,75 @@ function hostiles(n) {
     else if (tirage === 1) output[i] = -0;
     else if (tirage === 2) output[i] = 1.175494e-38;
     else if (tirage === 3) output[i] = -7e-45;
-    else if (tirage === 4) output[i] = 3.4028234e38;
-    else if (tirage === 5) output[i] = -3.4028234e38;
-    else output[i] = (alea() - 0.5) * 2048;
+    else output[i] = (alea() - 0.5) * amplitude;
   }
   return output;
 }
 
+/** Width and amplitude of each optional attribute: texture coordinates stay within the 2^24
+ *  cells the format grants a page on its 2^-14 grid, as positions do on the 2^-6 grid below. */
 const LARGEURS = [
-  ['NORMAL', 3],
-  ['TEXCOORD_0', 2],
-  ['TANGENT', 4],
-  ['TEXCOORD_1', 2],
-  ['COLOR_0', 3],
+  ['NORMAL', 3, 2],
+  ['TEXCOORD_0', 2, 512],
+  ['TEXCOORD_1', 2, 512],
+  ['COLOR_0', 3, 2],
 ];
 
-/** A page of `sommets` vertices, with or without its five optional attributes. */
-export async function page(sommets, tousLesAttributs) {
-  const attributes = { POSITION: { itemSize: 3, array: hostiles(sommets * 3) } };
+/** A page of `sommets` vertices, with or without its four optional attributes. */
+export function page(sommets, tousLesAttributs) {
+  const attributes = { POSITION: { itemSize: 3, array: hostiles(sommets * 3, 2048) } };
   if (tousLesAttributs)
-    for (const [name, largeur] of LARGEURS)
-      attributes[name] = { itemSize: largeur, array: hostiles(sommets * largeur) };
+    for (const [name, largeur, amplitude] of LARGEURS)
+      attributes[name] = { itemSize: largeur, array: hostiles(sommets * largeur, amplitude) };
   const indices = new Uint32Array(sommets * 3);
   for (let i = 0; i < sommets; i++) {
     indices[i * 3] = i;
     indices[i * 3 + 1] = (i + 1) % sommets;
     indices[i * 3 + 2] = (i + 2) % sommets;
   }
-  const { data } = await encodeGeometryPage(indices, attributes);
-  return data;
+  return encodeGeometryPage(indices, attributes, -6).data;
 }
 
 /**
- * A hand-assembled page, to slip in what the encoder refuses to write: an out-of-bounds
- * index, a non-finite float. Both decoders must reject it for the same reason.
+ * A ring of `triangles` triangles sharing their vertices, every attribute carried, positions off
+ * the grid of `exponent`; the colour `colorWidth` wide, three for a source without alpha.
+ * Returns the encoded page with the source indices and attributes it came from.
  */
-export async function pageBrute(sommets, locaux, declare, flags) {
-  await meshoptimizer.MeshoptEncoder.ready;
-  const locale = new Uint16Array(locaux);
-  const index = meshoptimizer.MeshoptEncoder.encodeIndexBuffer(
-    new Uint8Array(locale.buffer),
-    locale.length,
-    2,
-  );
-  const vertex = meshoptimizer.MeshoptEncoder.encodeVertexBuffer(
-    sommets,
-    sommets.length / STRIDE,
-    STRIDE,
-  );
-  const data = new Uint8Array(32 + index.length + vertex.length),
-    head = new DataView(data.buffer);
-  const mots = [0x32504757, 2, declare, locale.length, flags, STRIDE, index.length, vertex.length];
-  for (let i = 0; i < mots.length; i++) head.setUint32(i * 4, mots[i], true);
-  data.set(index, 32);
-  data.set(vertex, 32 + index.length);
-  return data;
+export function anneau(triangles, exponent, colorWidth = 4) {
+  const count = triangles + 2,
+    position = new Float32Array(count * 3),
+    normal = new Float32Array(count * 3),
+    uv = new Float32Array(count * 2),
+    uv2 = new Float32Array(count * 2),
+    color = new Float32Array(count * colorWidth);
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    position.set([Math.cos(angle) * 2.3 + 100.7, Math.sin(angle) * 2.3 - 40.1, i * 0.0173], i * 3);
+    normal.set([Math.cos(angle) * 0.6, Math.sin(angle) * 0.6, i % 2 ? 0.8 : -0.8], i * 3);
+    uv.set([i / count, 0.5 + Math.sin(angle) * 0.25], i * 2);
+    uv2.set([3 + i * 0.01, 7 - i * 0.02], i * 2);
+    color.set([i / count, 1 - i / count, 0.5, 1].slice(0, colorWidth), i * colorWidth);
+  }
+  const indices = [];
+  for (let t = 0; t < triangles; t++) indices.push(t, t + 1, t + 2);
+  const attributes = {
+    POSITION: { itemSize: 3, array: position },
+    NORMAL: { itemSize: 3, array: normal },
+    TEXCOORD_0: { itemSize: 2, array: uv },
+    TEXCOORD_1: { itemSize: 2, array: uv2 },
+    COLOR_0: { itemSize: colorWidth, array: color },
+  };
+  return { encoded: encodeGeometryPage(indices, attributes, exponent), indices, attributes };
 }
 
-/** Three zero vertices, one of which carries `valeur` in the second float if asked. */
-export function sommetsPlats(valeur) {
-  const sommets = new Uint8Array(3 * STRIDE);
-  if (valeur !== undefined) new DataView(sommets.buffer).setFloat32(STRIDE + 4, valeur, true);
-  return sommets;
+/**
+ * A page the encoder would never write: a triangle of three distinct vertices whose index
+ * stream is overwritten with `locaux` (two bits per index), to slip in an index out of bounds.
+ * Both decoders must reject it for the same reason.
+ */
+export function pageForgee(locaux) {
+  const position = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+  const data = encodeGeometryPage([0, 1, 2], { POSITION: { itemSize: 3, array: position } }).data;
+  new DataView(data.buffer).setUint32(96, locaux[0] | (locaux[1] << 2) | (locaux[2] << 4), true);
+  return data;
 }

@@ -1,5 +1,6 @@
 /**
- * Off-main-thread page-decode contract, version 3.
+ * Off-main-thread page-decode contract, version 4: the decoded geometry travels as one block
+ * with its quantization error, and the arena slot records that error in word 8.
  *
  * The calling thread sends a `PageDecodeRequest`, the executor returns a `PageDecodeAnswer` carrying
  * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser
@@ -12,7 +13,7 @@
  * returns exactly the same values: the contract does not say how the work travels, only what it
  * returns.
  */
-export const PAGE_DECODE_PROTOCOL = 3;
+export const PAGE_DECODE_PROTOCOL = 4;
 
 /** `verify`: a page's SHA-256 digest. `decode`: its indices and per-vertex attributes. */
 export type PageDecodeOp = 'verify' | 'decode';
@@ -51,15 +52,17 @@ export interface PageDecodeCancel {
   op: 'cancel';
 }
 
-/** Buffers of a decoded page. `names[i]` names `attributes[i]`, in the decode write
- *  order: that order is what yields a field-for-field identical `Record`. */
+/** A decoded page as one buffer of `decodedBytes`: the 32-bit indices, then the floats of each
+ *  attribute `names` lists, in the decode write order — that order is what yields a
+ *  field-for-field identical `Record`. */
 export interface PageDecodeGeometryPayload {
-  indices: ArrayBuffer;
+  block: ArrayBuffer;
   names: string[];
-  attributes: ArrayBuffer[];
   vertexCount: number;
   flags: number;
   decodedBytes: number;
+  /** The page header's largest position displacement, in object units. */
+  quantizationError: number;
 }
 
 export interface PageDecodeDone {

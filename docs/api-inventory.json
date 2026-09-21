@@ -728,6 +728,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/autonomousManifest.test.ts",
         "packages/sdk-browser/autonomousManifest.ts",
         "packages/sdk-browser/autonomousPages.test.ts",
         "packages/sdk-browser/backendTypes.ts",
@@ -1511,7 +1512,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/manifestLoad.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/manifestLoad.ts",
+        "scripts/mesure/cacheManifest.mjs"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryDecode\".decodeManifestBinary"
     },
@@ -2028,7 +2032,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/bench/attributs-telemetrie.perf.mjs",
+        "packages/sdk-browser/bench/telemetrie.perf.mjs",
         "packages/sdk-browser/cameraPath.ts",
         "packages/sdk-browser/telemetry.ts"
       ],
@@ -2169,18 +2173,55 @@
       "bindingIdentity": "\"packages/sdk-core/llm/types\".GeminiFunctionDeclaration"
     },
     {
+      "name": "GEOMETRY_PAGE_CODEC",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/manifestBinaryFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/autonomousManifest.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".GEOMETRY_PAGE_CODEC"
+    },
+    {
+      "name": "GEOMETRY_PAGE_FORMAT_VERSION",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/manifestBinaryFormat.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/autonomousManifest.ts",
+        "packages/sdk-browser/geometryPage.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/manifestBinaryFormat\".GEOMETRY_PAGE_FORMAT_VERSION"
+    },
+    {
       "name": "GeometryPageDescriptor",
       "kind": "type",
-      "definingModule": "packages/sdk-core/geometryContracts.ts",
+      "definingModule": "packages/sdk-core/geometryPageContracts.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/autonomousGeometry.ts",
+        "packages/sdk-browser/autonomousManifest.ts",
         "packages/sdk-browser/manifestPageIndex.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/geometryContracts\".GeometryPageDescriptor"
+      "bindingIdentity": "\"packages/sdk-core/geometryPageContracts\".GeometryPageDescriptor"
+    },
+    {
+      "name": "GeometryPageFormat",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/geometryPageContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/geometryPageContracts\".GeometryPageFormat"
     },
     {
       "name": "GeometryPool",
@@ -4080,6 +4121,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/geometryContracts\".primitiveIsDrawable"
+    },
+    {
+      "name": "PrimitiveQuantization",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/geometryPageContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/geometryPageContracts\".PrimitiveQuantization"
     },
     {
       "name": "primitiveUsesClusterErrors",
