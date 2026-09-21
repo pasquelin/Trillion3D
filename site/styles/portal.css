@@ -1038,15 +1038,24 @@ kbd {
 }
 .control-panel-grid .fieldset-legend {
   width: 100%;
-  padding-bottom: 0;
+  padding: 0 0 0.15rem;
+  line-height: 1.35;
+  overflow: visible;
 }
 .control-panel-grid > .control-panel-wide {
   flex: 1 1 20rem;
+  min-width: 0;
+  align-self: center;
 }
 .control-panel-grid .select,
 .control-panel-grid .range {
   width: 100%;
   min-width: 0;
+}
+/* A slimmer slider: the thumb sets the track's height, so one variable thins both. */
+.control-panel-grid .range {
+  --range-thumb-size: 1rem;
+  --range-p: 0.15rem;
 }
 .control-panel-actions {
   display: flex;

@@ -40,11 +40,7 @@ export function RendererControls({
   const french = locale === 'fr';
   return (
     <ControlPanel>
-      <Field
-        className="control-panel-wide"
-        label={french ? 'Expérience' : 'Experiment'}
-        data-control="experiment"
-      >
+      <div className="control-panel-wide" data-control="experiment">
         <Select
           size="sm"
           value={lesson.id}
@@ -57,7 +53,7 @@ export function RendererControls({
             </option>
           ))}
         </Select>
-      </Field>
+      </div>
       {lesson.controls.length > 0 && (
         <ControlActions>
           <Button size="sm" variant="outline" onClick={onReset}>

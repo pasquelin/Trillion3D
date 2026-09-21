@@ -55,7 +55,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   };
   const controls = (
     <ControlPanel title={french ? 'Commandes de l’expérience' : 'Experiment controls'}>
-      <Field className="control-panel-wide" label={french ? 'Expérience' : 'Experiment'}>
+      <div className="control-panel-wide">
         <Select
           size="sm"
           value={example.id}
@@ -68,7 +68,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
             </option>
           ))}
         </Select>
-      </Field>
+      </div>
       <ControlActions>
         <Button
           size="sm"
