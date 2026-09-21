@@ -6,11 +6,11 @@ import {
   parseRoute,
   resolvePage,
   routeHref,
-} from '../docs/js/portal/routes.js';
-import { searchEntries } from '../docs/js/portal/search.js';
-import { rawEntries } from '../docs/js/portal/data.js';
-import { localizeEntries } from '../docs/js/i18n/index.js';
-import { canonicalEntryId, expandEntryLinks } from '../docs/react/portal/entryLinks.ts';
+} from '../site/app/portal/routes.ts';
+import { searchEntries } from '../site/app/portal/search.ts';
+import { rawEntries } from '../site/app/portal/data.ts';
+import { localizeEntries } from '../site/content/i18n/index.ts';
+import { canonicalEntryId, expandEntryLinks } from '../site/app/portal/entryLinks.ts';
 
 test('canonical routes preserve locale, area, and multi-part identifier', () => {
   assert.deepEqual(parseRoute('#/fr/playground/matrix-compose'), {

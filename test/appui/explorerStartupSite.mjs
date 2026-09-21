@@ -14,7 +14,7 @@ export async function startupSite(page, base, out) {
   for (const locale of ['en', 'fr']) {
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto(`${base}/docs/index.html#/${locale}/learn/quick-start`);
+      await page.goto(`${base}/site/index.html#/${locale}/learn/quick-start`);
       const code = page.locator('main [data-code-block]').last();
       await code.waitFor();
       assert.equal(
@@ -38,12 +38,12 @@ export async function startupSite(page, base, out) {
         animations: 'disabled',
       });
     }
-    await page.goto(`${base}/docs/index.html#/${locale}/api/createExplorerJob`);
+    await page.goto(`${base}/site/index.html#/${locale}/api/createExplorerJob`);
     await page.locator('main [data-code-block]').last().waitFor();
     const text = await page.locator('main').textContent();
     assert.match(text, /target: ExplorerTarget/);
     assert.match(text, /await createExplorerJob/);
-    await page.goto(`${base}/docs/index.html#/${locale}/api/createExplorer`);
+    await page.goto(`${base}/site/index.html#/${locale}/api/createExplorer`);
     await page.locator('main [data-code-block]').last().waitFor();
     const row = page.locator('main tr').filter({ hasText: 'invalidate()' });
     assert.match(await row.textContent(), /camera|caméra/);

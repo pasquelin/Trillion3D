@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { rendererInitialState, rendererLessons } from '../docs/js/gallery/rendererLessons.js';
-import { applyRendererLesson } from '../docs/js/gallery/rendererLessonRuntime.js';
+import { rendererInitialState, rendererLessons } from '../site/lessons/rendererLessons.ts';
+import { applyRendererLesson } from '../site/lessons/rendererLessonRuntime.ts';
 
 function recorder() {
   const calls = [];

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { rendererCodeFor } from '../docs/js/gallery/rendererLessonCode.js';
-import { rendererInitialState, rendererLessons } from '../docs/js/gallery/rendererLessons.js';
+import { rendererCodeFor } from '../site/lessons/rendererLessonCode.ts';
+import { rendererInitialState, rendererLessons } from '../site/lessons/rendererLessons.ts';
 import { launchChrome } from './mesure/chrome.mjs';
 import { createDocsServer } from './docs-serve.mjs';
 

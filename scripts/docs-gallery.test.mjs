@@ -2,24 +2,24 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const root = new URL('../docs/js/gallery/', import.meta.url);
+const root = new URL('../site/lessons/', import.meta.url);
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.mjs';
-const { Gallery, Playground } = await loadReactComponents('docs/react/gallery/index.tsx');
-const { ExampleCard } = await loadReactComponents('docs/react/gallery/ExampleCard.tsx');
-const { Home } = await loadReactComponents('docs/react/portal/Home.tsx');
-const { CodeBlock } = await loadReactComponents('docs/react/components/CodeBlock.tsx');
+const { Gallery, Playground } = await loadReactComponents('site/app/gallery/index.tsx');
+const { ExampleCard } = await loadReactComponents('site/app/gallery/ExampleCard.tsx');
+const { Home } = await loadReactComponents('site/app/portal/Home.tsx');
+const { CodeBlock } = await loadReactComponents('site/app/components/CodeBlock.tsx');
 const renderGallery = (locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
 const renderPlayground = (id, locale) =>
   renderToStaticMarkup(createElement(Playground, { id, locale }));
-const { codeFor } = await import(new URL('code.js', root));
-const { evaluate } = await import(new URL('evaluate.js', root));
-const { geometryFor } = await import(new URL('sceneGeometry.js', root));
-const { draw, legendAnchors } = await import(new URL('draw.js', root));
-const { initialState } = await import(new URL('scenarios.js', root));
-const { examples } = await import(new URL('catalog.js', root));
-const { rendererLessons } = await import(new URL('rendererLessons.js', root));
+const { codeFor } = await import(new URL('code.ts', root));
+const { evaluate } = await import(new URL('evaluate.ts', root));
+const { geometryFor } = await import(new URL('sceneGeometry.ts', root));
+const { draw, legendAnchors } = await import(new URL('draw.ts', root));
+const { initialState } = await import(new URL('scenarios.ts', root));
+const { examples } = await import('../site/content/catalog.ts');
+const { rendererLessons } = await import(new URL('rendererLessons.ts', root));
 const mathExamples = examples.filter(({ renderer }) => !renderer);
 
 test('gallery exposes bilingual math and public renderer lessons', () => {
@@ -114,7 +114,7 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
 
 test('planned lessons stay honest, specific, and link to related ready material', async () => {
   const roadmap = JSON.parse(
-    await readFile(new URL('../docs/data/gallery-roadmap.json', import.meta.url), 'utf8'),
+    await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
   );
   assert.equal(roadmap.entries.length, 607);
   for (const locale of ['en', 'fr'])
@@ -151,7 +151,7 @@ test('all scenarios produce real 3D triangle geometry from SDK results', () => {
 });
 
 test('every displayed snippet runs and matches its playground result', async () => {
-  const engine = new URL('../docs/js/engine.js', import.meta.url).href;
+  const engine = new URL('../site/demos/engine.ts', import.meta.url).href;
   for (const example of mathExamples) {
     const state = initialState(example.id);
     const source = codeFor(example.id, state).replace("'./js/engine.js'", JSON.stringify(engine));
@@ -180,10 +180,10 @@ test('every displayed snippet runs and matches its playground result', async () 
   }
 });
 
-test('every scenario calls the generated engine module', async () => {
+test('every scenario calls the engine module', async () => {
   const source = (
     await Promise.all(
-      ['evaluate.js', 'evaluateDetail.js', 'evaluateAdvanced.js'].map((file) =>
+      ['evaluate.ts', 'evaluateDetail.ts', 'evaluateAdvanced.ts'].map((file) =>
         readFile(new URL(file, root), 'utf8'),
       ),
     )
