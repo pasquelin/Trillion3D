@@ -18,6 +18,7 @@ const EXACT = {
   clusters: 'grappes',
   lod: 'LOD',
   'screen-error': 'erreur écran',
+  materials: 'classes de matériaux',
   visibility: 'visibilité',
   pages: 'pages',
   'texture-mip': 'mip de texture',
