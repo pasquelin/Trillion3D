@@ -40,7 +40,7 @@ export class WebglClusterRenderer {
     this.gl = gl;
     const program = (this.program = createClusterProgram(gl));
     const locations: Record<string, number> = {};
-    for (const name of ['position', 'normal', 'tangent', 'uv', 'uv1', 'color'])
+    for (const name of ['position', 'normal', 'uv', 'uv1', 'color'])
       locations[name] = gl.getAttribLocation(program, name);
     this.geometry = new WebglClusterGeometry(gl, locations);
     this.textures = new WebglClusterTextures(gl);

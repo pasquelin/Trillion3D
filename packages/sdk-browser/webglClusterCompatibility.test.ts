@@ -35,6 +35,18 @@ test('unsupported mutations refuse the autonomous draw before it becomes partial
   assert.match(clusterMaterialReason(material, { position })!, /unsupported extension/);
 });
 
+test('a normal-mapped material needs no tangent attribute: the shader rebuilds the frame', () => {
+  const material = new THREE.MeshStandardMaterial({ normalMap: new THREE.Texture({}) });
+  assert.equal(
+    clusterMaterialReason(material, {
+      position,
+      normal: new THREE.BufferAttribute(new Float32Array(9), 3),
+      uv: new THREE.BufferAttribute(new Float32Array(6), 2),
+    }),
+    undefined,
+  );
+});
+
 test('a texture selecting UV1 is refused when geometry has only UV0', () => {
   const material = new THREE.MeshBasicMaterial({ map: new THREE.Texture({}) });
   material.map!.channel = 1;
