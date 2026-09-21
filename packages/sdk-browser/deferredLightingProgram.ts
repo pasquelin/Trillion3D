@@ -3,23 +3,26 @@ import { createDeferredLayouts } from './deferredLightingSetup.ts';
 import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Builds a fullscreen pipeline, asynchronously when the device offers it. */
+/** Builds a render pipeline, asynchronously when the device offers it. */
+export const buildRenderPipeline = (device: GPUDevice, descriptor: GPURenderPipelineDescriptor) =>
+  device.createRenderPipelineAsync
+    ? device.createRenderPipelineAsync(descriptor)
+    : Promise.resolve(device.createRenderPipeline(descriptor));
+
+/** A fullscreen-triangle pipeline on one bind group layout, at the colour targets given. */
 export function makeFullscreenPipeline(
   device: GPUDevice,
   module: GPUShaderModule,
   bind: GPUBindGroupLayout,
   entryPoint: string,
-  formats: GPUTextureFormat[],
+  targets: GPUColorTargetState[],
 ) {
-  const descriptor: GPURenderPipelineDescriptor = {
+  return buildRenderPipeline(device, {
     layout: device.createPipelineLayout({ bindGroupLayouts: [bind] }),
     vertex: { module, entryPoint: 'fullscreen' },
-    fragment: { module, entryPoint, targets: formats.map((format) => ({ format })) },
+    fragment: { module, entryPoint, targets },
     primitive: { topology: 'triangle-list' },
-  };
-  return device.createRenderPipelineAsync
-    ? device.createRenderPipelineAsync(descriptor)
-    : Promise.resolve(device.createRenderPipeline(descriptor));
+  });
 }
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. */
@@ -70,12 +73,14 @@ export async function createDeferredProgram(
     await createCheckedShaderModule(device, sources.compose, `${sources.label}_COMPOSE`),
   ];
   const layouts = createDeferredLayouts(device, sources.direct, sources.bounce);
-  const make = makeFullscreenPipeline;
-  const light = await make(device, modules[0], layouts.lighting, 'lightSurface', ['rgba16float']);
-  const compose = await make(device, modules[1], layouts.composition, 'compose', ['rgba8unorm']);
+  const make = makeFullscreenPipeline,
+    hdr = { format: 'rgba16float' as const },
+    display = { format: 'rgba8unorm' as const };
+  const light = await make(device, modules[0], layouts.lighting, 'lightSurface', [hdr]);
+  const compose = await make(device, modules[1], layouts.composition, 'compose', [display]);
   const composePresent = await make(device, modules[1], layouts.composition, 'composePresent', [
-    'rgba8unorm',
-    'bgra8unorm',
+    display,
+    { format: 'bgra8unorm' },
   ]);
   let boundSurface: SurfaceBuffer | undefined,
     boundTiles: GPUBuffer | undefined,
