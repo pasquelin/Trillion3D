@@ -9,10 +9,28 @@ import type { ClusterDraw } from './clusterBatches.ts';
 interface ClusterDrawSource {
   clusterDraws(): readonly ClusterDraw[];
 }
-/** The draw records `backend` submits for the cut; none from a backend that owns no cluster. */
+/** The draw records a backend submits for the cut; none from one that owns no cluster. */
 export function submittedDraws(backend: object): readonly ClusterDraw[] {
-  return 'clusterDraws' in backend ? (backend as ClusterDrawSource).clusterDraws() : [];
+  return (backend as Partial<ClusterDrawSource>).clusterDraws?.() ?? [];
 }
+/** A batch record, as opposed to the whole page mesh of a diagnostic mode. */
+export const isClusterDrawMesh = (draw: ClusterDraw): draw is ClusterDrawMesh =>
+  '_multiDrawCount' in draw;
+/** Index ranges a submission draws: those of a batch record, the whole index of a page mesh. */
+export function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {
+  if (!isClusterDrawMesh(draw)) {
+    yield [0, draw.geometry.getIndex()!.count];
+    return;
+  }
+  for (let range = 0; range < draw._multiDrawCount; range++)
+    yield [
+      draw._multiDrawStarts[range] / Uint32Array.BYTES_PER_ELEMENT,
+      draw._multiDrawCounts[range],
+    ];
+}
+/** Triangles a whole page mesh submits, indexed or not. */
+export const wholeMeshTriangles = (mesh: THREE.Mesh) =>
+  (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
 
 /**
  * Draw record of a group: the primitive's shared geometry, the material of its pass, the

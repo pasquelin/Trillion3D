@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 
 import type { BatchPage } from './clusterBatchRange.ts';
 import { PrimitiveIndex, BatchGroup } from './clusterBatchPrimitive.ts';
-import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import { wholeMeshTriangles, type ClusterDrawMesh } from './clusterBatchMesh.ts';
 import { setupClusterBatches } from './clusterBatchSetup.ts';
 import { everyGroup } from './clusterBatchLayers.ts';
 import { updateClusterBatches } from './clusterBatchUpdate.ts';
@@ -28,6 +28,7 @@ export type ClusterBatchStats = {
   cpuSubmitMs: number | null;
 };
 
+const NO_MESHES: THREE.Mesh[] = [];
 /** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
 export type ClusterDraw = ClusterDrawMesh | THREE.Mesh;
 /** What draws: the engine-owned WebGL2 program, or nothing at all. */
@@ -48,7 +49,7 @@ export class ClusterBatches {
   private attributeBytes = 0;
   private indexCapacityBytes = 0;
   private owner: ClusterDrawOwner | undefined;
-  private diagnosticMeshes: THREE.Mesh[] = [];
+  private diagnosticMeshes: readonly THREE.Mesh[] = NO_MESHES;
   private copies: readonly THREE.Mesh[];
   private stats: ClusterBatchStats = {
     drawCalls: 0,
@@ -142,7 +143,7 @@ export class ClusterBatches {
   }
   update(display: readonly BatchPage[]) {
     this.stats.cpuSubmitMs = null;
-    this.diagnosticMeshes = [];
+    this.diagnosticMeshes = NO_MESHES;
     const state = {
       groups: this.groups,
       active: this.active,
@@ -162,9 +163,7 @@ export class ClusterBatches {
     this.active.length = 0;
     this.stats.drawCalls = this.stats.subDraws = meshes.length;
     this.stats.submittedTriangles = 0;
-    for (const mesh of meshes)
-      this.stats.submittedTriangles +=
-        (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
+    for (const mesh of meshes) this.stats.submittedTriangles += wholeMeshTriangles(mesh);
   }
   draw(camera: HostDrawCamera, toneMapped: boolean, srgbDestination: boolean) {
     if (!this.owner)

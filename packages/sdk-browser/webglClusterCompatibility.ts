@@ -25,11 +25,11 @@ export function clusterWebglCompatibility(
 ) {
   const lightReason = unsupportedClusterLight(scene);
   if (lightReason) return lightReason;
-  for (const copy of copies) {
-    if (!ownedSceneCopy(copy)) continue;
-    const reason =
-      backdropFormatReason(gl) ??
-      clusterMaterialReason(copy.material, copy.geometry.attributes, true);
+  const owned = copies.filter(ownedSceneCopy);
+  const formatReason = owned.length ? backdropFormatReason(gl) : undefined;
+  if (formatReason) return formatReason;
+  for (const copy of owned) {
+    const reason = clusterMaterialReason(copy.material, copy.geometry.attributes, true);
     if (reason) return reason;
   }
   for (const page of pages) {

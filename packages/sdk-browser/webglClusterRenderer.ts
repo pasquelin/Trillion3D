@@ -1,4 +1,4 @@
-import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import { isClusterDrawMesh, type ClusterDrawMesh } from './clusterBatchMesh.ts';
 import { WebglClusterGeometry } from './webglClusterGeometry.ts';
 import { WebglClusterTextures } from './webglClusterTextures.ts';
 import {
@@ -20,7 +20,7 @@ import {
   bindClusterMaterial,
   type Material,
 } from './webglClusterMaterialBinding.ts';
-import { ownedSceneCopy } from './webglClusterCompatibility.ts';
+import { refuseCluster } from './webglClusterRefusal.ts';
 import { WebglClusterCopyCulling } from './webglClusterCopyCulling.ts';
 import type * as THREE from 'three';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './webglClusterSubmit.ts';
@@ -41,10 +41,9 @@ export class WebglClusterRenderer {
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
   private culling = new WebglClusterCopyCulling();
-  /** Copies of the frame being drawn, in view, split by pass; reused frame to frame. */
-  private plainCopies: THREE.Mesh[] = [];
+  /** Transmissive copies of the frame being drawn that are in view; reused frame to frame. */
   private transmissive: THREE.Mesh[] = [];
-  /** Scene copies the last frame submitted: in view, visible, whatever their pass. */
+  /** Scene copies the last frame submitted: in view and visible. */
   copySubmissions = 0;
   private binding: Parameters<typeof bindClusterMaterial>[0];
   constructor(gl: WebGL2RenderingContext) {
@@ -57,7 +56,7 @@ export class WebglClusterRenderer {
     this.textures = new WebglClusterTextures(gl);
     this.lights = new WebglClusterLights(gl, this.program);
     this.state = new WebglClusterState(gl);
-    this.backdrop = new WebglClusterBackdrop(gl);
+    this.backdrop = new WebglClusterBackdrop(gl, BACKDROP_UNITS);
     this.multiDraw = gl.getExtension('WEBGL_multi_draw') as typeof this.multiDraw;
     this.materialMatrices = new Matrix3UniformCache(gl, (name) => this.at(name));
     this.materialUniforms = new WebglClusterMaterialUniforms(gl, (name) => this.at(name));
@@ -95,7 +94,7 @@ export class WebglClusterRenderer {
   }
   private mesh(mesh: ClusterDrawMesh | THREE.Mesh, camera: HostDrawCamera, toneMapped: boolean) {
     const gl = this.gl,
-      whole = !('_multiDrawCount' in mesh);
+      whole = !isClusterDrawMesh(mesh);
     this.geometry.bind(mesh.geometry);
     const model = mesh.matrix.elements;
     multiplyMatrix4(this.modelView, camera.view, model);
@@ -122,28 +121,23 @@ export class WebglClusterRenderer {
     let submitted = 0;
     for (const mesh of meshes) submitted += this.mesh(mesh, camera, toneMapped);
     for (const mesh of wholeMeshes) submitted += this.mesh(mesh, camera, toneMapped);
-    for (const mesh of this.plainCopies) submitted += this.mesh(mesh, camera, toneMapped);
     return submitted;
   }
+  /** The pass's destination; the raster state is re-applied, the backdrop having written masks. */
   private setOutput(srgbDestination: boolean) {
     this.gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     this.state.invalidate();
-    this.textures.invalidateBindings();
   }
-  /** The copies in view, by pass: the host renderer would cull them the same way. */
-  private sortCopies(copies: readonly THREE.Mesh[], camera: HostDrawCamera) {
-    this.plainCopies.length = this.transmissive.length = 0;
+  /** The transmissive copies in view: the host renderer would cull them the same way. */
+  private cullCopies(copies: readonly THREE.Mesh[], camera: HostDrawCamera) {
+    this.transmissive.length = 0;
     if (!copies.length) return;
     this.culling.begin(camera);
-    for (const copy of copies) {
-      if (!this.culling.visible(copy)) continue;
-      if (ownedSceneCopy(copy)) this.transmissive.push(copy);
-      else this.plainCopies.push(copy);
-    }
+    for (const copy of copies) if (this.culling.visible(copy)) this.transmissive.push(copy);
   }
   /**
    * One frame: the batches, then whole host meshes — diagnostic pages, painted copies — then the
-   * scene copies the owner draws itself. A transmissive copy reads the frozen backdrop, so the
+   * transmissive scene copies the owner draws itself. Those read the frozen backdrop, so the
    * frame is first drawn into it, in linear light, before the display pass draws it again.
    */
   draw(
@@ -153,20 +147,22 @@ export class WebglClusterRenderer {
     toneMapped: boolean,
     srgbDestination: boolean,
     diagnosticMeshes: readonly THREE.Mesh[] = [],
-    copies: readonly THREE.Mesh[] = [],
+    transmissiveCopies: readonly THREE.Mesh[] = [],
   ) {
     const gl = this.gl;
     const lightReason = unsupportedClusterLight(scene);
-    if (lightReason) throw new Error(`Unsupported autonomous cluster light: ${lightReason}`);
-    validateClusterMeshes(meshes, diagnosticMeshes, copies, this.validatedMaterials);
+    if (lightReason) refuseCluster(lightReason);
+    validateClusterMeshes(meshes, diagnosticMeshes, transmissiveCopies, this.validatedMaterials);
     gl.useProgram(this.program);
     gl.disable(gl.STENCIL_TEST);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
-    this.sortCopies(copies, camera);
+    // The host's texture units are unknown at frame start; the backdrop pass touches only its own.
+    this.textures.invalidateBindings();
+    this.cullCopies(transmissiveCopies, camera);
     const transmissive = this.transmissive;
     if (transmissive.length) {
-      this.backdrop.begin(scene.background, BACKDROP_UNITS[0], BACKDROP_UNITS[1]);
+      this.backdrop.begin(scene.background);
       this.setOutput(false);
       this.submitOpaque(meshes, diagnosticMeshes, camera, false);
       this.backdrop.end();
@@ -174,10 +170,8 @@ export class WebglClusterRenderer {
     this.setOutput(srgbDestination);
     const submitted = this.submitOpaque(meshes, diagnosticMeshes, camera, toneMapped);
     let copySubmissions = 0;
-    for (const mesh of this.plainCopies)
-      if (!Array.isArray(mesh.material) && mesh.material.visible) copySubmissions++;
     if (transmissive.length) {
-      this.backdrop.bind(BACKDROP_UNITS[0], BACKDROP_UNITS[1]);
+      this.backdrop.bind();
       gl.uniform2f(this.at('backdropOrigin'), this.backdrop.originX, this.backdrop.originY);
       for (const mesh of transmissive) copySubmissions += this.mesh(mesh, camera, toneMapped);
     }

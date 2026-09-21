@@ -6,9 +6,10 @@
  * and without tone mapping, exactly as the reference renderer fills its transmission target.
  * The cost is the second opaque pass, paid only by a frame that carries a transmissive copy.
  */
+import { refuseCluster } from './webglClusterRefusal.ts';
+import type { WebglClusterScene } from './webglClusterLights.ts';
+
 const BACKDROP_EXTENSIONS = ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'];
-/** The host background as `WebglClusterScene` carries it: a colour clears the backdrop. */
-type Background = { isColor?: boolean; r?: number; g?: number; b?: number } | object | null;
 
 /** Names the missing capability when the context cannot render a half-float backdrop. */
 export function backdropFormatReason(gl: WebGL2RenderingContext) {
@@ -26,8 +27,12 @@ export class WebglClusterBackdrop {
   private savedFramebuffer: WebGLFramebuffer | null = null;
   private savedViewport = new Int32Array(4);
   private savedScissor = false;
-  constructor(gl: WebGL2RenderingContext) {
+  /** Texture units of the colour and depth copies, the ones the program's samplers name. */
+  private colorUnit: number;
+  private depthUnit: number;
+  constructor(gl: WebGL2RenderingContext, units: readonly [number, number]) {
     this.gl = gl;
+    [this.colorUnit, this.depthUnit] = units;
   }
   /** Bytes the two copies hold: half-float colour (8) and 24-bit depth (4) per pixel. */
   get bytes() {
@@ -54,9 +59,9 @@ export class WebglClusterBackdrop {
   private resize(width: number, height: number) {
     if (this.framebuffer && this.width === width && this.height === height) return;
     const gl = this.gl;
-    this.release();
+    this.dispose();
     const reason = backdropFormatReason(gl);
-    if (reason) throw new Error(`Unsupported autonomous transmission: ${reason}`);
+    if (reason) refuseCluster(reason);
     this.color = this.texture(gl.RGBA16F, width, height);
     this.depth = this.texture(gl.DEPTH_COMPONENT24, width, height);
     this.framebuffer = gl.createFramebuffer();
@@ -71,8 +76,10 @@ export class WebglClusterBackdrop {
    * colour (black for any other background), remembering the frame's own target, viewport and
    * scissor. Draw, then `end()`.
    */
-  begin(background: Background | undefined, colorUnit: number, depthUnit: number) {
+  begin(background: WebglClusterScene['background']) {
     const gl = this.gl,
+      { colorUnit, depthUnit } = this,
+      // A texture background carries no colour: the union says `object` for it.
       colour = background as { isColor?: boolean; r: number; g: number; b: number } | null;
     this.savedViewport.set(gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.savedFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
@@ -107,22 +114,19 @@ export class WebglClusterBackdrop {
     this.savedFramebuffer = null;
   }
   /** Binds the two copies on the units the transmission samplers read. */
-  bind(colorUnit: number, depthUnit: number) {
+  bind() {
     const gl = this.gl;
-    gl.activeTexture(gl.TEXTURE0 + colorUnit);
+    gl.activeTexture(gl.TEXTURE0 + this.colorUnit);
     gl.bindTexture(gl.TEXTURE_2D, this.color);
-    gl.activeTexture(gl.TEXTURE0 + depthUnit);
+    gl.activeTexture(gl.TEXTURE0 + this.depthUnit);
     gl.bindTexture(gl.TEXTURE_2D, this.depth);
   }
-  private release() {
+  dispose() {
     const gl = this.gl;
     if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);
     if (this.color) gl.deleteTexture(this.color);
     if (this.depth) gl.deleteTexture(this.depth);
     this.framebuffer = this.color = this.depth = null;
     this.width = this.height = 0;
-  }
-  dispose() {
-    this.release();
   }
 }

@@ -80,9 +80,12 @@ export function visMaterial(material: THREE.Material | THREE.Material[]): VisMat
   };
 }
 
-/** Transmission/volume cannot be reconstructed from a visbuffer ID; keep the source mesh on the forward path. */
+/** Transmission/volume cannot be reconstructed from a visbuffer ID; keep the source mesh on the
+ *  forward path. Read on the material itself: this runs per copy and per frame. */
 export function isTransmissive(material: THREE.Material | THREE.Material[]) {
-  return visMaterial(material).transmission > 0;
+  const physical = (Array.isArray(material) ? material[0] : material) as
+    THREE.MeshPhysicalMaterial | undefined;
+  return !!physical?.isMeshPhysicalMaterial && physical.transmission > 0;
 }
 
 const textureReason = (texture: THREE.Texture | undefined) => {

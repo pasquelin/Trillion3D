@@ -1,35 +1,7 @@
 // Standalone proof of the autonomous transmission pass: what a transmissive scene copy lets
 // through is the engine's own cluster image, opaque and blended, depth-tested both ways.
 import * as THREE from 'three';
-import { clear, mountClusterRenderer, pixel } from './webglClusterPixels.mjs';
-
-/** A quad facing the camera at depth `z`, with the normal the lit glass needs. */
-const quad = (z, half = 1) => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.BufferAttribute(
-      new Float32Array([-half, -half, z, half, -half, z, half, half, z, -half, half, z]),
-      3,
-    ),
-  );
-  geometry.setAttribute(
-    'normal',
-    new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]), 3),
-  );
-  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2, 0, 2, 3]), 1));
-  return geometry;
-};
-
-const cluster = (geometry, material) => ({
-  geometry,
-  material,
-  renderOrder: 0,
-  matrix: new THREE.Matrix4(),
-  _multiDrawStarts: new Int32Array([0]),
-  _multiDrawCounts: new Int32Array([6]),
-  _multiDrawCount: 1,
-});
+import { clear, clusterRecord, mountClusterRenderer, pixel, quad } from './webglClusterPixels.mjs';
 
 const glassMesh = (options = {}) => {
   const mesh = new THREE.Mesh(
@@ -44,7 +16,7 @@ export function execute() {
   const mounted = mountClusterRenderer();
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { gl, renderer, scene, drawCamera } = mounted;
-  const red = cluster(quad(-3), new THREE.MeshBasicMaterial({ color: 0xff0000 })),
+  const red = clusterRecord(quad(-3), new THREE.MeshBasicMaterial({ color: 0xff0000 })),
     glass = glassMesh();
   scene.background = new THREE.Color(0x0000ff);
   const draw = (clusters, copies, srgb = false) =>
@@ -71,13 +43,13 @@ export function execute() {
   const backgroundThrough = pixel(gl);
 
   // A cluster in front of the glass hides it: shared depth, tested the usual way.
-  const yellow = cluster(quad(-0.5), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+  const yellow = clusterRecord(quad(-0.5), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
   clear(gl);
   draw([red, yellow], [glass]);
   const occluded = pixel(gl);
 
   // A blended cluster behind the glass is part of what it lets through.
-  const blue = cluster(
+  const blue = clusterRecord(
     quad(-2),
     new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.5 }),
   );
@@ -111,7 +83,7 @@ export function execute() {
   gl.viewport(8, 8, 16, 16);
   draw([red], [glass]);
   gl.viewport(0, 0, 32, 32);
-  const subViewport = { inside: pixel(gl), outside: readPixel(gl, 2, 2) };
+  const subViewport = { inside: pixel(gl), outside: pixel(gl, 2, 2) };
 
   // A glass outside the view costs nothing: no copy submitted, no backdrop pass.
   const away = glassMesh();
@@ -123,11 +95,11 @@ export function execute() {
   // Another physical extension is refused before anything is drawn.
   const coated = glassMesh({ clearcoat: 0.5 });
   clear(gl);
-  let refused = false;
+  let refused = null;
   try {
     draw([red], [coated]);
   } catch (error) {
-    refused = /clearcoat/.test(String(error));
+    refused = { code: error.code ?? null, reason: error.details?.reason ?? null };
   }
   const refusedPixel = pixel(gl);
   const drawError = gl.getError();
@@ -150,10 +122,4 @@ export function execute() {
     refusedPixel,
     drawError,
   };
-}
-
-function readPixel(gl, x, y) {
-  const value = new Uint8Array(4);
-  gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
-  return [...value];
 }

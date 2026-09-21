@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
-import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import { isClusterDrawMesh, type ClusterDrawMesh } from './clusterBatchMesh.ts';
 
 export function attributes(count: number) {
   const geometry = new THREE.BufferGeometry();
@@ -75,8 +75,7 @@ export function resident(batches: ClusterBatches, data: Fixture, urls: string[])
 /** The draw record of an instance, as the owner receives it. */
 export function drawOf(batches: ClusterBatches, renderOrder: number) {
   const mesh = batches.drawList.find(
-    (draw): draw is ClusterDrawMesh =>
-      '_multiDrawCount' in draw && draw.renderOrder === renderOrder,
+    (draw): draw is ClusterDrawMesh => isClusterDrawMesh(draw) && draw.renderOrder === renderOrder,
   );
   if (!mesh) return undefined;
   return {

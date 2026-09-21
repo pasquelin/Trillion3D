@@ -43,6 +43,9 @@ assert.ok(
 assert.ok(near(result.subViewport.inside, [245, 0, 0, 255]), JSON.stringify(result.subViewport));
 assert.deepEqual(result.subViewport.outside, [0, 0, 255, 255]);
 assert.deepEqual(result.offscreen, { submissions: 1, pixel: [255, 0, 0, 255] });
-assert.equal(result.refused, true);
+assert.deepEqual(result.refused, {
+  code: 'CLUSTER_MATERIAL_UNSUPPORTED',
+  reason: 'physical clearcoat is unsupported',
+});
 assert.deepEqual(result.refusedPixel, [0, 0, 255, 255], 'refused before any draw');
 assert.equal(result.drawError, 0);

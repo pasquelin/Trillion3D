@@ -1,23 +1,7 @@
 // A prepared scene of two meshes for the public exact-pages path: one paged opaque quad and,
 // in front of it, one transmissive quad the engine keeps as a scene copy of its own.
 import * as THREE from 'three';
-
-const quad = (z, half) => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(
-      [-half, -half, z, half, -half, z, half, half, z, -half, half, z],
-      3,
-    ),
-  );
-  geometry.setAttribute(
-    'normal',
-    new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  return geometry;
-};
+import { quad } from './webglClusterPixels.mjs';
 
 const page = {
   id: 0,

@@ -1,19 +1,15 @@
 import type { RenderBackend } from './backendTypes.ts';
 import type { ClusterDraw } from './clusterBatches.ts';
-import { submittedDraws } from './clusterBatchMesh.ts';
+import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
 
 /** Indices one submission draws, in submission order: the ranges of a batch record, the whole
  *  index of a page mesh. */
 export function drawnIndices(draw: ClusterDraw) {
   const index = draw.geometry.getIndex();
   if (!index) return [];
-  if (!('_multiDrawCount' in draw)) return Array.from(index.array);
   const out: number[] = [];
-  for (let range = 0; range < draw._multiDrawCount; range++) {
-    const first = draw._multiDrawStarts[range] / Uint32Array.BYTES_PER_ELEMENT,
-      length = draw._multiDrawCounts[range];
+  for (const [first, length] of drawnRanges(draw))
     for (let i = first; i < first + length; i++) out.push(index.getX(i));
-  }
   return out;
 }
 
