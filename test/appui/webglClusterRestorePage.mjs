@@ -47,7 +47,11 @@ export async function heldRestore() {
   canvas.width = canvas.height = 8;
   document.body.append(canvas);
   const events = [],
-    surface = prepareExplorerWebglSurface({ canvas, onLifecycle: (state) => events.push(state) }),
+    surface = prepareExplorerWebglSurface({
+      canvas,
+      size: { width: 8, height: 8 },
+      onLifecycle: (state) => events.push(state),
+    }),
     renderer = new THREE.WebGLRenderer({ canvas, context: surface.context }),
     gl = surface.context,
     camera = new THREE.PerspectiveCamera(),

@@ -17,6 +17,8 @@ pub(super) struct DagResult {
     pub culling_report: Value,
     pub structure_report: Value,
     pub stream_report: Value,
+    /// Grid the primitive's pages were quantized on.
+    pub position_exponent: i32,
 }
 
 /// Minimum, median and maximum of a DAG level's errors. Three order statistics
@@ -48,7 +50,7 @@ pub(super) fn build_dag_primitive(
     attributes: &[geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
-    store_packed: &(impl Fn(&[u32]) -> Result<(Value, bool)> + Sync),
+    store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     // UVs, when the primitive carries them: fallback DAG weld does not cross a texture seam.
@@ -116,8 +118,14 @@ pub(super) fn build_dag_primitive(
     for (rank, &slot) in order.iter().enumerate() {
         page_of[slot] = base_id + rank;
     }
+    let position_exponent = crate::geometry_page_quant::primitive_exponent(
+        pos,
+        dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
+    );
     let (pages, reused, stream_report) =
-        bundle_dag_pages(o, &dag, &order, base_id, pos, store_packed)?;
+        bundle_dag_pages(o, &dag, &order, base_id, pos, &|slice: &[u32]| {
+            store_packed(slice, position_exponent)
+        })?;
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.
     let cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>> = order
@@ -183,5 +191,6 @@ pub(super) fn build_dag_primitive(
         culling_report,
         structure_report,
         stream_report,
+        position_exponent,
     })
 }

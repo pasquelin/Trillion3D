@@ -26,7 +26,7 @@ export const guidesFr: LocaleOverlay = {
   'example-diagnostics': {
     title: 'Diagnostics et qualité',
     description:
-      'Changez ce que dessine l’image et la finesse de la coupe sur un explorateur actif.',
+      'Changez ce que dessine l’image et la finesse de la coupe sur un explorateur actif ; et ce qu’un appareil GPU perdu laisse à l’écran — rien de périmé.',
   },
   'quick-start': {
     title: 'Démarrage rapide',
@@ -121,6 +121,25 @@ export const guidesFr: LocaleOverlay = {
 <tr><td>extensions de <code>MeshPhysicalMaterial</code></td><td>facteurs de transmission, d’IOR et de volume seulement</td><td>clearcoat, sheen, iridescence, anisotropie, dispersion, spéculaire et leurs cartes sont refusés par leur nom</td></tr>
 </tbody></table></div>
 <p>Parcours en deux temps : garder Three.js pour charger et construire la scène tout en dessinant avec le moteur, puis passer au cache compilé et retirer <code>three</code> des dépendances.</p>`,
+  },
+  'cluster-format': {
+    title: 'Pages de grappes quantifiées',
+    description:
+      'Ce qu’une page de grappe compilée garde par triangle, sur quelles grilles, et où lire ce que la quantification a coûté.',
+    html: `<p>Chaque grappe de 128 triangles au plus est écrite une fois, par le compilateur natif, comme une page décodable seule (<code>docs/FORMAT.md</code>, format <code>WGP3</code>) : indices locaux compactés bit à bit, positions sur une grille objet, normales octaédriques sur deux octets, coordonnées de texture entières, couleurs sur un octet — et aucune tangente, qu’un nuanceur reconstruit depuis le triangle. L’en-tête porte les comptes, les drapeaux et un enregistrement de quantification par attribut vectoriel ; chaque décalage de flux s’en déduit, si bien qu’un nuanceur lit n’importe quel sommet d’une page résidente sur place, en O(1), et que le décodeur JavaScript ou WebAssembly déplie les mêmes octets en flottants pour le moteur autonome.</p>
+<h3 class="text-lg font-bold mt-4">Les grilles, et ce qu’elles coûtent</h3>
+<ul class="list-disc pl-6 space-y-1">
+<li><strong>Positions.</strong> Une grille par primitive, la plus fine de deux règles : <code>2^(floor(log2(plus grande étendue)) − 16)</code>, soit environ 65 536 pas sur l’objet, et un huitième de la plus fine erreur de groupe publiée par son DAG, pour qu’un déplacement de grappe se projette sous un huitième du seuil partout où la coupe la retient — bornée pour que l’objet tienne en 2^23 pas au plus, car chaque page de la primitive garde ce seul exposant (deux grappes qui partagent un sommet le posent sur la même cellule ; une page trop large pour la grille est refusée, <code>PAGE_ATTRIBUTE_RANGE</code>, jamais regrillée). Une grappe ne dépense que les bits que sa propre boîte réclame — 10 à 13 par axe sur une ville, pas 32 —, et sa valeur décodée vaut <code>min + q × pas</code>, produit exact et une seule somme arrondie : le même flottant 32 bits sur chaque décodeur.</li>
+<li><strong>Coordonnées de texture.</strong> Une grille fixe de <code>2^-14</code> : un quart de texel sur une carte de 4096 de large.</li>
+<li><strong>Normales.</strong> Deux octets octaédriques, à 1° de la source. <strong>Couleurs.</strong> Une grille de <code>2^-8</code> par canal, avec des minima par page : un canal constant — l’alpha, le plus souvent — ne coûte aucun bit.</li>
+<li><strong>Sommets partagés.</strong> Deux sommets source qui tombent sur les mêmes cellules ne sont gardés qu’une fois : une source qui répète un sommet par coin retombe à ses sommets distincts sans changer un triangle.</li>
+<li><strong>Ce qui n’est pas écrit.</strong> Les tangentes : chaque passe d’éclairage reconstruit un seul repère cotangent depuis le triangle (<code>cotangentFrame</code>, WGSL et GLSL) ; et un jeu de coordonnées de texture qu’aucune texture du matériau ne nomme dans <code>texCoord</code>.</li>
+</ul>
+<p>Le coût est déclaré, jamais caché. Chaque page porte dans son en-tête son pire déplacement de position, et chaque décodeur le renvoie — le moteur autonome élargit la boîte d’une page d’exactement cela ; chaque primitive publie <code>quantization</code> — <code>positionExponent</code>, <code>uvExponent</code>, <code>maxPositionError</code> — dans le manifeste, pour le rapport, et chaque descripteur de page nomme ses octets résidents (<code>geometry.bytes</code>) à côté de ce que son décodage flottant occupe (<code>geometry.uncompressedBytes</code>). La coupe n’ajoute pas encore l’erreur de quantification à la bande d’erreur d’une grappe ; le C4 de la spécification reste ouvert.</p>
+<h3 class="text-lg font-bold mt-4">Comment l’observer</h3>
+<p>Sur un explorateur actif, <code>explorer.metadata.primitives</code> est le manifeste ouvert : additionnez <code>pages[].geometry.bytes</code> sur <code>pages[].count / 3</code> triangles pour le chiffre compact, <code>uncompressedBytes</code> pour le chiffre flottant, et lisez le plus grand <code>quantization.maxPositionError</code>. Dans le dépôt, <code>node --experimental-strip-types scripts/mesure/octetsParTriangle.mjs &lt;cache&gt;/native/full</code> imprime ces chiffres pour n’importe quel cache compilé. Ce sont les chiffres du cache : le moteur de dessin WebGPU téléverse encore les sommets flottants de la source et les pages d’indices, et son pool de géométrie le dit.</p>
+<h3 class="text-lg font-bold mt-4">Contrat et refus</h3>
+<p>Le manifeste déclare son format de page une fois, en tête : <code>geometryPages.formatVersion</code> vaut 3 et <code>codec</code> vaut <code>quantized</code> ; le sidecar binaire qui les nomme est en version 6, chaque en-tête de page s’ouvre sur la même version, et un lecteur refuse un autre format en bloc plutôt que page par page. Une page dont l’en-tête sort du format — une largeur au-delà de 24 bits, un exposant au-delà de ±64, un drapeau inconnu, une longueur qui ne correspond pas à ses flux — est refusée avant toute lecture de flux ; un indice au-delà du nombre de sommets est refusé avant qu’un flottant ne soit produit. Les routines WGSL sont prouvées sur la carte graphique contre le décodeur JavaScript, bit à bit sur les positions, les coordonnées de texture et les couleurs (<code>test/justesse/decodage-cluster-gpu.mjs</code>).</p>`,
   },
   'memory-pools': {
     title: 'Pools mémoire et admission de la coupe',
