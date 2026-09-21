@@ -73,9 +73,6 @@ export function ensureTargets(
   vis.visView = undefined;
   vis.materialDepthTexture = undefined;
   vis.materialDepthView = undefined;
-  vis.shadeBindGroup = undefined;
-  vis.visBindGroup = undefined;
-  vis.visHizBindGroup = undefined;
   vis.gpuRaster?.dispose();
   vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;

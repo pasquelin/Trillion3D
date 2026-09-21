@@ -7,6 +7,7 @@ import { ENUMS_RUNTIME } from '../docs/js/docsContentEnumsRuntime.js';
 import { EXAMPLES } from '../docs/js/docsContentExamples.js';
 import { GUIDES } from '../docs/js/docsContentGuides.js';
 import { RENDERING_GUIDES } from '../docs/js/docsContentGuidesRendering.js';
+import { ENGINE_GUIDES } from '../docs/js/docsContentGuidesEngine.js';
 import { LIFECYCLE } from '../docs/js/docsContentLifecycle.js';
 import { MATRICES } from '../docs/js/docsContentMatrix.js';
 import { BATCHES, TREE } from '../docs/js/docsContentTree.js';
@@ -18,6 +19,7 @@ import { localizedHref, parseRoute } from '../docs/js/portal/routes.js';
 const entries = [
   ...GUIDES,
   ...RENDERING_GUIDES,
+  ...ENGINE_GUIDES,
   ...EXAMPLES,
   ...ENUMS_IMAGE,
   ...ENUMS_RUNTIME,

@@ -1,7 +1,8 @@
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import { feedbackAttachment } from './webgpuPagesAttachments.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
-import { blendLightResources, sameLighting } from './webgpuBlendLighting.ts';
+import { blendLightResources } from './webgpuBlendLighting.ts';
+import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import { createBlendOverdraw } from './webgpuBlendOverdraw.ts';
 import { countsBlendOverdraw } from './diagnosticGpuVariant.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
@@ -77,14 +78,8 @@ export function drawBlendRuns(
     runs = blendState.runs[slice],
     count = blendState.runCount[slice],
     args = blendState.argsBuffer!;
-  // The shadow atlas and the probe grid do not exist from the first frame: a group built on the
-  // placeholders must be rebuilt the day the real resources arrive.
   const lighting = blendLightResources(rt);
-  if (!sameLighting(blendState.lighting, lighting)) {
-    blendState.lighting = lighting;
-    blendState.pagedGroup = undefined;
-    for (const item of items) item.group = undefined;
-  }
+  voidStaleBlendGroups(rt, lighting);
   blendState.pagedGroup ??= blendBindGroup(rt, device, undefined, lighting);
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,

@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
+import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
+import { blendLightResources } from './webgpuBlendLighting.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { VOLUME_WORDS } from './webgpuTransmission.ts';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
@@ -116,7 +118,6 @@ export function targets(gpu: WebgpuGpuState) {
 export function replay(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
   const passes: { label: string; drawn: number[] }[] = [];
   const items = blendState.blendGpu;
-  for (const item of items) item.group = {} as GPUBindGroup;
   const counters = { copies: 0 };
   const encoder = {
     beginRenderPass: ({ label }: { label: string }) => {
@@ -157,17 +158,10 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
       feedbackWritten: true,
     },
   } as unknown as WebgpuPagesRuntime;
-  const p = gpu.deferred!.placeholders;
-  blendState.lighting = {
-    directLights: rt.lights.buffer!,
-    shadowSlices: p.slices,
-    shadowAtlas: p.atlasView,
-    shadowSampler: p.sampler,
-    bounceGrid: p.bounceGrid,
-    probes: p.probes,
-    tileLights: p.tiles,
-    proxy: p.proxy,
-  };
+  // Groups are already built on these resources: their identity is primed on them, so the pass
+  // need not rebuild them — this test observes draw order, not group construction.
+  voidStaleBlendGroups(rt, blendLightResources(rt));
+  for (const item of items) item.group = {} as GPUBindGroup;
   // No paged item here, and the shared group is posted ahead for the same reason.
   blendState.pagedGroup = {} as GPUBindGroup;
   return { rt, encoder, passes, counters };

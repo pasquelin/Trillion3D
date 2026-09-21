@@ -108,7 +108,6 @@ export async function createWebgpuBlendPipelines(
       ? device.createRenderPipelineAsync(descriptor)
       : Promise.resolve(device.createRenderPipeline(descriptor));
   };
-  for (const item of items) item.group = undefined;
   const pipelineBlendTextured = await makeBlend('none'),
     pipelineBlendFront = await makeBlend('front'),
     pipelineBlendBack = await makeBlend('back');
