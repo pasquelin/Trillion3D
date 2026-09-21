@@ -3,6 +3,7 @@ import type { LightingExperimentRenderState } from './lightingObservationContrac
 import { createObservationResources } from './lightingObservationResources.ts';
 import { createObservationMeshes } from './lightingObservationMeshes.ts';
 import { updateObservation } from './lightingObservationUpdate.ts';
+import { createThreeSceneDraw } from './threeSceneAdapter.ts';
 import {
   createObservationCapabilities,
   observationDiagnostic,
@@ -20,11 +21,12 @@ export type {
 export function createLightingExperimentBackend(
   state: LightingExperimentRenderState,
 ): BackendFactory {
-  return ({ source, signal, onDiagnostic }) => {
+  return ({ source, signal, onDiagnostic, webglContext }) => {
     const resources = createObservationResources(state);
     const meshes = createObservationMeshes(state, resources, source);
     const { triangles, geometryAllocationBytes, copies } = meshes;
     const { scene } = resources;
+    const hostDraw = createThreeSceneDraw(webglContext, scene);
     let disposed = false;
     const update = () => {
       if (disposed) throw new Error('Lighting experiment backend is disposed');
@@ -40,9 +42,11 @@ export function createLightingExperimentBackend(
         update();
         onDiagnostic?.(observationDiagnostic(resources, meshes));
       },
-      render() {
+      render(camera) {
+        hostDraw.render(camera);
         update();
       },
+      drawHostGeometry: hostDraw.drawHostGeometry,
       metrics: () => ({
         clusters: null,
         selectedTriangles: triangles,
@@ -63,6 +67,7 @@ export function createLightingExperimentBackend(
       dispose() {
         if (disposed) return;
         disposed = true;
+        hostDraw.dispose();
         meshes.dispose();
         resources.dispose();
         scene.clear();

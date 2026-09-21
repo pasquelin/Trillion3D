@@ -38,6 +38,7 @@ export { gpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
 export type { GpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
 export { enginePose, readCameraWorld } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawCamera, HostCamera } from '../sdk-browser/cameraWorld.ts';
+export type { HostDrawOutput } from '../sdk-browser/webglRenderTarget.ts';
 export type { HostRetentionDelta, StreamPage } from '../sdk-browser/streamingTypes.ts';
 export type {
   LightingExperimentRayDiagnostics,

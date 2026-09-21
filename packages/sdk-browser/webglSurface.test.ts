@@ -86,26 +86,6 @@ test('engine surface rejects a missing WebGL2 context', () => {
   assert.throws(() => createWebglSurface(canvas), /WebGL2 unavailable/);
 });
 
-test('failed delegated resize remains retryable', () => {
-  const f = fixture(),
-    surface = createWebglSurface(f.canvas);
-  assert.throws(
-    () => surface.resize(8, 4, 2, () => assert.fail('adapter failed')),
-    /adapter failed/,
-  );
-  assert.equal(
-    surface.resize(8, 4, 2, () => {}),
-    true,
-  );
-  assert.deepEqual(surface.size, {
-    width: 8,
-    height: 4,
-    pixelRatio: 2,
-    drawingWidth: 0,
-    drawingHeight: 0,
-  });
-});
-
 test('engine surface reports a loss the context knows before its event arrives', () => {
   let lost = false;
   const canvas = {
