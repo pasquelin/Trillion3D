@@ -1,3 +1,5 @@
+import type { RoadmapExample } from '../types/gallery.ts';
+
 const plans: Record<string, string[]> = {
   animation: [
     'Define original bones, weights, and deterministic motion samples.',
@@ -26,13 +28,7 @@ const plans: Record<string, string[]> = {
   ],
 };
 
-interface RoadmapPlanEntry {
-  category: string;
-  subject: string;
-  title: { en: string; fr?: string };
-}
-
-export function planCode(entry: RoadmapPlanEntry): string {
+export function planCode(entry: Pick<RoadmapExample, 'category' | 'subject' | 'title'>): string {
   const key = entry.category.includes('postprocessing')
     ? 'postprocessing'
     : entry.category === 'physics'

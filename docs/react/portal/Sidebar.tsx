@@ -5,7 +5,7 @@ import { entryRoute, routeHref } from '../../js/portal/routes.js';
 import { searchEntries } from '../../js/portal/search.js';
 import { PrimaryNavigation } from './Header.tsx';
 import { expandEntryLinks } from './entryLinks.ts';
-import type { EntryLinkItem, PortalEntry, SectionItem, SidebarProps } from '../types/portal.ts';
+import type { EntryLinkItem, PortalEntry, SidebarProps } from '../types/portal.ts';
 
 export function Sidebar({
   entries,
@@ -16,14 +16,12 @@ export function Sidebar({
   onQuery,
   onClose,
 }: SidebarProps): JSX.Element {
-  const groups = (SECTIONS as SectionItem[])
-    .map((section) => ({
-      section,
-      items: expandEntryLinks(
-        searchEntries(entries, query).filter((entry: PortalEntry) => entry.section === section.id),
-      ),
-    }))
-    .filter(({ items }) => items.length);
+  const groups = SECTIONS.map((section) => ({
+    section,
+    items: expandEntryLinks(
+      searchEntries(entries, query).filter((entry: PortalEntry) => entry.section === section.id),
+    ),
+  })).filter(({ items }) => items.length);
 
   return (
     <>
