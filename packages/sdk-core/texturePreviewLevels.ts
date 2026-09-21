@@ -8,6 +8,8 @@
  * these functions re-derive an entry's geometry from its source dimensions alone, so the
  * reader can reject an entry whose written numbers disagree with them.
  */
+import { PREVIEW_BLOCK_BYTES } from './manifestBinaryFormat.ts';
+
 /** Largest side a level carried by the sidecar may have. */
 export const PREVIEW_BASE = 64;
 /** Levels an entry carries at most: 64, 32, 16, 8, 4, 2, 1. */
@@ -40,26 +42,42 @@ export function previewLevelCount(width: number, height: number) {
   return previewLastLevel(width, height) - previewFirstLevel(width, height) + 1;
 }
 
+/** Bytes of a `width`×`height` level once block-compressed: whole 4×4 blocks of sixteen bytes,
+ *  a side that is not a multiple of four padded by its edge — the same in both block formats. */
+export function levelBlockBytes(width: number, height: number) {
+  return Math.ceil(width / 4) * Math.ceil(height / 4) * PREVIEW_BLOCK_BYTES;
+}
+
 /**
- * Full geometry of an entry: its first carried level, their count and their RGBA8 bytes.
- * All three are deduced from the same two bounds. Asking for them one by one used to recompute
- * `previewFirstLevel` three times and `previewLastLevel` twice for the same dimensions, and
- * `previewFirstLevel` loops up to thirty-one times.
+ * Full geometry of an entry: its first carried level, their count, the dimensions of each,
+ * their RGBA8 bytes and their block-compressed bytes. All of it is deduced from the same two
+ * bounds in one walk. Asking for them one by one used to recompute `previewFirstLevel` three
+ * times and `previewLastLevel` twice for the same dimensions, and `previewFirstLevel` loops up
+ * to thirty-one times.
  */
 export function previewGeometry(width: number, height: number) {
   const firstLevel = previewFirstLevel(width, height),
     lastLevel = previewLastLevel(width, height);
-  let pixelBytes = 0;
+  const sizes: [number, number][] = [];
+  let pixelBytes = 0,
+    blockBytes = 0;
   for (let level = firstLevel; level <= lastLevel; level++) {
-    const [w, h] = previewLevelSize(width, height, level);
-    pixelBytes += w * h * 4;
+    const size = previewLevelSize(width, height, level);
+    sizes.push(size);
+    pixelBytes += size[0] * size[1] * 4;
+    blockBytes += levelBlockBytes(...size);
   }
-  return { firstLevel, levelCount: lastLevel - firstLevel + 1, pixelBytes };
+  return { firstLevel, levelCount: lastLevel - firstLevel + 1, sizes, pixelBytes, blockBytes };
 }
 
 /** RGBA8 bytes of every carried level, concatenated from finest to coarsest. */
 export function previewPixelBytes(width: number, height: number) {
   return previewGeometry(width, height).pixelBytes;
+}
+
+/** Block-compressed bytes of every carried level, concatenated from finest to coarsest. */
+export function previewBlockBytes(width: number, height: number) {
+  return previewGeometry(width, height).blockBytes;
 }
 
 /**

@@ -24,9 +24,13 @@
  *  a version-4 reader would stride through the entries wrongly, so it refuses this file.
  *  Version 6 keeps every column and names another geometry page in the geometry descriptor: the
  *  quantized `WGP3` page (`geometryPage.ts`) in place of the float `WGP2` page, whose bytes a
- *  version-6 reader would refuse one by one at decode; refusing the file says it once. */
-export const MANIFEST_BINARY_VERSION = 6;
-/** The geometry-page format a version-6 sidecar names, as the manifest's `geometryPages` declares
+ *  version-6 reader would refuse one by one at decode; refusing the file says it once.
+ *  Version 7 widens a preview entry to fourteen words — the layout each block family holds the
+ *  chain in, or none — and adds two columns: the tails block-compressed, BC family then ASTC,
+ *  each kept entry's range following from its dimensions; a version-6 reader would not know
+ *  them, so it refuses. */
+export const MANIFEST_BINARY_VERSION = 7;
+/** The geometry-page format a version-7 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */
 export const GEOMETRY_PAGE_FORMAT_VERSION = 3;
 export const GEOMETRY_PAGE_CODEC = 'quantized';
@@ -40,8 +44,12 @@ export const MANIFEST_BINARY_HEADER_WORDS = 4;
  *  PNG per level in the cache, `bakedLevels` of them from level 0 up. Every level follows the mip
  *  rule the card applied when it regenerated the chain itself (`textureMips.ts`): linear mean of
  *  the colours, median alpha, level `k` from the quantized level `k - 1`. Their sizes are not
- *  written down: they follow from the source dimensions, which `texturePreviewLevels.ts` recomputes. */
-export const TEXTURE_PREVIEW_VERSION = 3;
+ *  written down: they follow from the source dimensions, which `texturePreviewLevels.ts` recomputes.
+ *  Version 4 bakes every level above the tail, and the tail itself, in the block families the cook
+ *  asked for beside the lossless files — the BC family for desktop cards, ASTC 4×4 for mobile ones,
+ *  one byte per texel — for the chains a quality gate kept; a chain under the bar stays lossless
+ *  in that family, and its entry's layout word says so. */
+export const TEXTURE_PREVIEW_VERSION = 4;
 /** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
   PREVIEW_IMAGE = 1,
@@ -54,8 +62,10 @@ export const PREVIEW_TEXTURE = 0,
   PREVIEW_PIXEL_OFFSET = 8,
   PREVIEW_PIXEL_BYTES = 9,
   PREVIEW_ATLAS = 10,
-  PREVIEW_BAKED_LEVELS = 11;
-export const PREVIEW_WORDS = 12;
+  PREVIEW_BAKED_LEVELS = 11,
+  /** One layout word per block family, `PREVIEW_BLOCK_FORMATS` order. */
+  PREVIEW_LAYOUTS = 12;
+export const PREVIEW_WORDS = 14;
 /** A preview whose bytes came from an image `uri`; anything else names a glTF buffer view. */
 export const PREVIEW_SOURCE_URI = 0;
 /** The atlas a preview serves: colour (`rgba8unorm-srgb`, base colour and emissive) or data
@@ -64,6 +74,26 @@ export const PREVIEW_ATLAS_COLOR = 0,
   PREVIEW_ATLAS_DATA = 1;
 /** The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them. */
 export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear'] as const;
+/** The block families a chain may be baked in, in the order of their sidecar columns and of an
+ *  entry's layout words, each named by its RGBA codec; `png` is the lossless file beside them. */
+export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc'] as const;
+export type TextureBlockFormat = (typeof PREVIEW_BLOCK_FORMATS)[number];
+export const PREVIEW_LOSSLESS_FORMAT = 'png';
+/** What a family holds of a chain, by layout word: nothing — the chain stays lossless there —,
+ *  RGBA blocks (BC7 mode 6, ASTC colour endpoint mode 12), or two-channel blocks for a normal map
+ *  (BC5, ASTC luminance + alpha on two planes: X in R, Y in G or A, Z rebuilt by the shader). */
+export const PREVIEW_LAYOUT_NAMES = ['lossless', 'rgba', 'two-channel'] as const;
+export type TextureLayout = (typeof PREVIEW_LAYOUT_NAMES)[number];
+/** The `{format}` of a level file in each family and block layout, as `blocks.rs` names them. */
+export const PREVIEW_LAYOUT_FILES: Record<
+  TextureBlockFormat,
+  Record<Exclude<TextureLayout, 'lossless'>, string>
+> = {
+  bc7: { rgba: 'bc7', 'two-channel': 'bc5' },
+  astc: { rgba: 'astc', 'two-channel': 'astc-la' },
+};
+/** Bytes of one 4×4 block, in every format. */
+export const PREVIEW_BLOCK_BYTES = 16;
 
 export const COLUMN_NAMES = [
   'pageBounds',
@@ -90,6 +120,8 @@ export const COLUMN_NAMES = [
   'texturePreviewU32',
   'texturePreviewSha',
   'texturePreviewPixels',
+  'texturePreviewBc7',
+  'texturePreviewAstc',
 ] as const;
 export type ColumnName = (typeof COLUMN_NAMES)[number];
 export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8';
@@ -118,6 +150,8 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   texturePreviewU32: 'u32',
   texturePreviewSha: 'u8',
   texturePreviewPixels: 'u8',
+  texturePreviewBc7: 'u8',
+  texturePreviewAstc: 'u8',
 };
 /** Numbers per element. A sha is 64 ASCII hexadecimal characters: one `TextDecoder` for the whole
  *  column, then one `substring` per entry, is far cheaper than re-encoding 32 raw bytes each time. */
@@ -145,9 +179,12 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   pageDepthLayer: 1,
   texturePreviewU32: PREVIEW_WORDS,
   texturePreviewSha: 64,
-  // Only column without a fixed stride: its element is the byte, and its count is the total the
-  // small JSON declares, each entry naming its own range inside it.
+  // Columns without a fixed stride: their element is the byte, and their count is the total the
+  // small JSON declares — each entry naming its own pixel range, and its block range following
+  // from its dimensions, entry after entry.
   texturePreviewPixels: 1,
+  texturePreviewBc7: 1,
+  texturePreviewAstc: 1,
 };
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 };
 
