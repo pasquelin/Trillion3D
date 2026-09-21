@@ -10,8 +10,8 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "allowJs": true,
-    "checkJs": false
+    "allowJs": true
   },
-  "include": ["docs/react/**/*", "docs/js/**/*", "types/**/*.d.ts"]
+  "include": ["docs/react/**/*", "docs/js/**/*"],
+  "exclude": ["docs/js/engine.js"]
 }
