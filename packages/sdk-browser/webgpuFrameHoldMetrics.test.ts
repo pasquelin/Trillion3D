@@ -122,8 +122,10 @@ test('step durations of a held frame describe only the present', () => {
     CPU_STEP.submitMs,
     CPU_STEP.totalMs,
   ]);
+  assert.ok(Number.isNaN(row[CPU_STEP.tilesPumpMs]), 'no pump: the textures bound is unmeasured');
   for (let i = 0; i < row.length; i++)
-    if (!presentation.has(i)) assert.equal(row[i], 0, `step ${CPU_STEP_NAMES[i]} not executed`);
+    if (!presentation.has(i) && i !== CPU_STEP.tilesPumpMs)
+      assert.equal(row[i], 0, `step ${CPU_STEP_NAMES[i]} not executed`);
   assert.equal(timing.rowFilled, true, 'the held-frame row is deposited');
   assert.equal(timing.cpuSample, undefined, 'the detailed sample of another frame is dropped');
 });
