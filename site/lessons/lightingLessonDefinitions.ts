@@ -1,24 +1,6 @@
-import type { Localized } from '../content/locale.ts';
-import type { RendererLessonControl, RendererLessonItem } from './rendererLessonTypes.ts';
+import type { RendererLessonItem } from './rendererLessonTypes.ts';
+import { range, text } from './lessonDefinitionHelpers.ts';
 
-const text = (en: string, fr: string): Localized => ({ en, fr });
-const range = (
-  id: string,
-  en: string,
-  fr: string,
-  min: number,
-  max: number,
-  value: number,
-  step: number,
-): RendererLessonControl => ({
-  id,
-  label: text(en, fr),
-  type: min === 0 && max === 1 && step === 1 ? 'boolean' : 'range',
-  min,
-  max,
-  value,
-  step,
-});
 export const LESSON_POINT_INTENSITY = 80;
 const LESSON_COLORED_INTENSITY = 60;
 /** Lamps of the ring lesson, above the watershed's peaks: two colours in turn, so a drawn
