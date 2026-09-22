@@ -13,6 +13,7 @@ import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { VOLUME_WORDS, createVolumeBuffer } from './webgpuTransmission.ts';
 import { createGpuDagSelection, packDagSelection } from './gpuDagSelection.ts';
 import { OPEN_CONE, triangleCone } from './pageCone.ts';
+import { surfaceFrontOnly } from './pageSurface.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { dropVis, grantCapability } from './webgpuPagesDrops.ts';
@@ -61,8 +62,10 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
           }
         xyzCache.set(rec.attributes, xyz);
       }
-      const material = rec.material;
-      rec.cone = material.doubleSided || material.backSide ? OPEN_CONE : triangleCone(xyz, array);
+      // Front-only alone gets a closed cone, and the side is read from the declaration at this
+      // very moment: a surface the host later opens in place reopens its cone at the cut
+      // (`pageSurface.ts`, `gpuSelection.leafCone`).
+      rec.cone = surfaceFrontOnly(rec.material) ? triangleCone(xyz, array) : OPEN_CONE;
     }
 }
 
