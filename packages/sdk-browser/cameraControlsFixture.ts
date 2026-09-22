@@ -5,7 +5,7 @@ import type { ControlCamera, ControlVector } from './cameraControlTypes.ts';
  * plain Node runtime: the fixture counts the listeners installed and removed, and replays
  * pointer, wheel and key events by hand. It is the fixture of `cameraControls*.test.ts`.
  */
-export function fixtureVector(x = 0, y = 0, z = 0): ControlVector {
+function fixtureVector(x = 0, y = 0, z = 0): ControlVector {
   const v: ControlVector = {
     x,
     y,
