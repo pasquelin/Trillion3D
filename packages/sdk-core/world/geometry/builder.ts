@@ -93,26 +93,6 @@ export function fromArrays(
   return builder.build();
 }
 
-/** The four points where a turn crosses an axis, exactly: cosine and sine of 0, ¼, ½, ¾ turn. */
-const AXES: readonly (readonly [number, number])[] = [
-  [1, 0],
-  [0, 1],
-  [-1, 0],
-  [0, -1],
-];
-
-/**
- * Cosine and sine at `fraction` of the arc `length` from `start` — a whole turn from 0 unless
- * said: the point a circular primitive places. On a whole turn, a fraction that lands on an axis
- * is exactly there, where the trigonometric functions would leave 6e-17 for the maths' 0.
- */
-export function turnPoint(fraction: number, start = 0, length = Math.PI * 2) {
-  if (start === 0 && length === Math.PI * 2 && Number.isInteger(4 * fraction))
-    return AXES[(((4 * fraction) % 4) + 4) % 4];
-  const angle = start + fraction * length;
-  return [Math.cos(angle), Math.sin(angle)] as const;
-}
-
 export const normalize = (x: number, y: number, z: number): [number, number, number] => {
   const out: [number, number, number] = [x, y, z];
   normalizeVector3(out);

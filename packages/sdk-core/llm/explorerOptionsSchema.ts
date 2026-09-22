@@ -7,7 +7,7 @@ import type { JsonSchemaObject } from './types.ts';
 export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
   type: 'object',
   description:
-    'Initialization options for the WebGeometry rendering engine (openMeasuredWorld). Configures virtualized geometry (cluster), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting (reference-GI), and virtual shadow maps.',
+    'Initialization options for the WebGeometry rendering engine (openMeasuredWorld). Configures virtualized geometry (clusters streamed through a DAG), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting, and virtual shadow maps.',
   properties: {
     interactive: {
       type: 'boolean',
@@ -88,7 +88,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       type: 'boolean',
       default: false,
       description:
-        'Dynamic global illumination (GI) via radiance probe bounce (reference-GI-style). Incompatible with very tight GPU time budgets.',
+        'Dynamic global illumination (GI) via radiance probe bounce. Incompatible with very tight GPU time budgets.',
     },
     bounceBudgetMs: {
       type: 'number',
