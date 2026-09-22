@@ -8,21 +8,21 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
-import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
+import { startServer } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { runDefaultBackendCase, type DefaultBackendCase } from '../appui/defaultBackendCase.ts';
+import {
+  chosenBackend,
+  machineLabel,
+  openMachine,
+  type CaseResult,
+} from '../appui/defaultBackendMachine.ts';
 import {
   compareDefaultBackendCaptures,
   countDrawnPixels,
   defaultBackendCapturePng,
 } from '../appui/defaultBackendImages.ts';
 
-declare global {
-  var sdk: typeof import('../../packages/sdk-browser/index.ts');
-  var proof: { images: Record<string, number[]> } | undefined;
-}
-
-type CaseResult = Awaited<ReturnType<typeof runDefaultBackendCase>>;
 type ImageDelta = ReturnType<typeof compareDefaultBackendCaptures> | null;
 type Drawn = ReturnType<typeof countDrawnPixels> | null;
 type MachineResult = {
@@ -60,9 +60,6 @@ function cadence(result: CaseResult) {
 }
 /** The engine's own CPU frame cost over the same frames; never added to a GPU duration. */
 const cpuFrame = (result: CaseResult) => spread(result.cpuRuns);
-const chosen = (result: CaseResult) =>
-  result.diagnostics.find((event) => event.phase === 'backend-choice')?.context ?? null;
-
 const server = await startServer({
   port: 0,
   captures: new Map(),
@@ -77,22 +74,7 @@ const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
 try {
   const machine = async (webgpu: boolean, requests: DefaultBackendCase['request'][]) => {
-    const context = await browser.newContext({
-      viewport: { width: 640, height: 480 },
-      deviceScaleFactor: 1,
-    });
-    if (!webgpu)
-      // A WebGL2-only machine, simulated at the only place the engine reads the capability:
-      // `navigator.gpu` is absent, so no adapter and no device can be obtained.
-      await context.addInitScript(() => {
-        Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined });
-      });
-    const page = await context.newPage();
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(`http://127.0.0.1:${serverPort(server)}`);
-    await page.evaluate(async (url) => {
-      window.sdk = await import(url);
-    }, '/sdk/sdk-browser/index.js');
+    const { context, page } = await openMachine({ browser, server, webgpu, errors });
     const cases: Record<string, CaseResult> = {};
     for (const request of requests)
       cases[request] = (await page.evaluate(runDefaultBackendCase, {
@@ -117,7 +99,7 @@ try {
       if (!cases[key].backend) continue;
       const url = await page.evaluate(defaultBackendCapturePng, key);
       const role = key === 'witness' ? 'before' : key === 'autonomous' ? 'autonomous' : 'after';
-      const name = `${webgpu ? 'webgpu' : 'webgl2-only'}-${role}`;
+      const name = `${machineLabel(webgpu)}-${role}`;
       await writeFile(resolve(out, `${name}.png`), Buffer.from(url.split(',')[1], 'base64'));
       captures.push(`${name}.png`);
     }
@@ -142,7 +124,7 @@ try {
   assert.deepEqual(withoutGpu.cases.default.mounted, ['autonomous-pages-webgl']);
   assert.equal(withGpu.cases.autonomous?.error, null);
   assert.equal(withGpu.cases.autonomous?.backend, 'autonomous-pages-webgl');
-  assert.deepEqual(chosen(withoutGpu.cases.default), {
+  assert.deepEqual(chosenBackend(withoutGpu.cases.default), {
     kind: 'configuration',
     scope: 'full',
     origin: 'default',
@@ -165,7 +147,7 @@ try {
     {
       defaultBackend: run.cases.default.backend,
       defaultError: run.cases.default.error,
-      defaultChoice: chosen(run.cases.default),
+      defaultChoice: chosenBackend(run.cases.default),
       previousDefaultBackend: run.cases.witness.backend,
       explicitAutonomousError: run.cases.autonomous?.error ?? null,
       defaultMounted: run.cases.default.mounted,
