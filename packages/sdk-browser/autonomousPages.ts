@@ -8,7 +8,7 @@ import { createAutonomousGeometry } from './autonomousGeometry.ts';
 import { createAutonomousInstances } from './autonomousInstances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './autonomousManifest.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
-import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
+import { createContractLighting } from './contractLightingApi.ts';
 import { createThreeSceneDraw } from './threeSceneAdapter.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
@@ -27,18 +27,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     basePages = allPages.slice();
   const bootstrap = autonomousBootstrap(roots);
   const baseBootstrap = bootstrap.slice();
-  const byUrl = indexPagesByUrl(allPages),
+  const byUrl = indexPagesByUrl(allPages, (rec) => rec.url), // by page, not by stream bundle
     bootstrapUrls = new Set(bootstrap.map((page) => page.url));
   const cap =
       context.maxResidentPages ??
       context.residentPagesDefault ??
       Math.max(1024, bootstrapUrls.size),
     scene = new THREE.Scene();
-  const lighting = installSceneLighting(
-    scene,
-    asHostLibrary<THREE.Object3D>(context.sceneLighting ?? context.source),
-    context.clearColor ?? 0x171d28,
-  );
   const shown: PageRec[] = [],
     desired: PageRec[] = [],
     pending: string[] = [],
@@ -49,6 +44,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     hostDraw = createThreeSceneDraw(context.webglContext, scene);
+  // The engine's own lighting: the cache's radiometric light table where it declares one, the
+  // source graph's lights otherwise (`contractLightingApi.ts`).
+  const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
     scene,
@@ -144,7 +142,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
-    ...sceneLightingApi(lighting, gate.sceneChanged),
+    ...lightingApi,
     ...residency,
     dropPage(url: string) {
       gate.resourcesChanged();

@@ -34,22 +34,15 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   resources.gpuDevice = gpuDevice;
   const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer);
   const autonomous = choice.autonomous;
-  diagnose(
-    'backend-choice',
-    choice.degraded
-      ? 'Degraded backend chosen for this session'
-      : 'Backend chosen for this session',
-    {
-      kind: 'configuration',
-      scope,
-      origin: choice.origin,
-      reason: choice.reason,
-      renderer: choice.renderer,
-      degraded: choice.degraded,
-      autonomous,
-      webgpuDevice: !!gpuDevice,
-    },
-  );
+  diagnose('backend-choice', 'Backend chosen for this session', {
+    kind: 'configuration',
+    scope,
+    origin: choice.origin,
+    reason: choice.reason,
+    renderer: choice.renderer,
+    autonomous,
+    webgpuDevice: !!gpuDevice,
+  });
   const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf';
   progress(
     'scene',

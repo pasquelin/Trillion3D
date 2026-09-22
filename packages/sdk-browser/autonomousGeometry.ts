@@ -87,9 +87,11 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
     if (!rec.mesh) {
+      // The host declaration, not the engine's surface record: the record has no `visible`
+      // flag, and the host library silently drops every mesh whose material lacks one.
       const mesh = new THREE.Mesh(
         asHostLibrary<THREE.BufferGeometry>(rec.geometry),
-        asHostLibrary<THREE.Material | THREE.Material[]>(rec.material),
+        asHostLibrary<THREE.Material | THREE.Material[]>(rec.declaration),
       );
       mesh.matrixAutoUpdate = false;
       mesh.frustumCulled = false;
