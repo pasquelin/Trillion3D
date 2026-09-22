@@ -2,7 +2,7 @@ import type { HostMesh } from './hostResources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopyRecord } from './blendCopyRecord.ts';
 import { indexSourceBytes } from './webgpuPagesCatalogue.ts';
-import { describePageSlots } from './webgpuPageSlots.ts';
+import { describePageSlots, pageAddress } from './webgpuPageSlots.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuPageTracking } from './webgpuPageTracking.ts';
@@ -85,8 +85,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     count: tracking.pageCatalog.length,
     urls: tracking.pageCatalog,
   });
-  const bootstrap = rootCoverage(roots),
-    bootstrapUrls = new Set(bootstrap.map((page) => page.url));
+  const bootstrap = rootCoverage(roots, pageAddress),
+    bootstrapUrls = new Set(bootstrap.map(pageAddress));
   const bootstrapKeys = new Int32Array(bootstrap.length),
     bootstrapKey = new Uint8Array(tracking.keyCount);
   for (let i = 0; i < bootstrap.length; i++) {
@@ -95,9 +95,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   }
   // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
   // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
-  // cache stays keyed by cluster (`rec.url`), because that is the granularity it uploads and pins.
+  // cache stays keyed by pool address (`pageAddress`), the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(allPages);
-  const uniquePages = Math.max(1, new Set(allPages.map((page) => page.url)).size);
+  const uniquePages = Math.max(1, new Set(allPages.map(pageAddress)).size);
   const scene = createBlendScene(clearColor, blendCopies);
   // What a pool slot holds, how wide it is, and the corner count every page draw is bounded by.
   const { geometryUrls, pageBytes, maxCorners, ...clusterSides } = describePageSlots(allPages);

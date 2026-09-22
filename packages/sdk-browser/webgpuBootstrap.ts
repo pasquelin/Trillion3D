@@ -1,4 +1,5 @@
 import { pageRequestUrl, type PageRec } from './pageSelection.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 import type { createGpuPageCache } from './gpuPages.ts';
 import type { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import type { createWebgpuPageTracking } from './webgpuPageTracking.ts';
@@ -57,7 +58,7 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
       traceDiagnostic('coverage-bootstrap-start', 'Loading the full emergency cover', () => ({
         frame: getFrame(),
         pages: pages.length,
-        pageIds: tracking.pageRefs(pages.map((page) => page.url)),
+        pageIds: tracking.pageRefs(pages.map(pageAddress)),
         slots,
         queueWaitMs: 0,
       }));
@@ -83,7 +84,7 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
       // must still read starts that read immediately instead of waiting for the previous page's
       // round trip, and the cache's own queue keeps the uploads in order and bounded.
       const loads = pages.map((page) => {
-        const job = getCache()!.load(page.url, signal);
+        const job = getCache()!.load(pageAddress(page), signal);
         job.catch(() => {});
         return job;
       });
@@ -91,7 +92,7 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
         signal?.throwIfAborted();
         if (isLost()) throw new Error('WEBGPU_LOST');
         await loads[i];
-        getCache()!.pin(pages[i].url);
+        getCache()!.pin(pageAddress(pages[i]));
         tracking.markPinned(tracking.keyOf(pages[i]));
       }
       ready = true;
@@ -106,14 +107,8 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
         bootstrap: tracking.traceSet('bootstrap', [...urls]),
         slots,
         durationMs: performance.now() - started,
-        loaded: tracking.traceSet(
-          'bootstrap.loaded',
-          pages.map((page) => page.url),
-        ),
-        wanted: tracking.traceSet(
-          'bootstrap.wanted',
-          pages.map((page) => page.url),
-        ),
+        loaded: tracking.traceSet('bootstrap.loaded', pages.map(pageAddress)),
+        wanted: tracking.traceSet('bootstrap.wanted', pages.map(pageAddress)),
       }));
     })()
       .catch((error) => {

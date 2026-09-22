@@ -14,17 +14,24 @@ export type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 export { createSelectionResult } from './pageSelectionCutState.ts';
 export type { SelectionResult } from './pageSelectionCutState.ts';
 
-/** Camera-independent minimal complete cover. Shared page URLs may serve multiple instances.
- *  The cover is the set of clusters no other cluster replaces. */
+/**
+ * Camera-independent minimal complete cover: the clusters no other cluster replaces.
+ *
+ * One cluster serves every instance that places it, so the cover holds it once. `keyOf` says what
+ * "once" means for the caller — the page url by default, the pool address for an engine whose
+ * slots are addressed by it (`webgpuPageSlots.ts`), because two different clusters may well share
+ * one content-addressed index page and deduplicating them would drop one out of the cover.
+ */
 export function rootCoverage<T extends { url: string; parentError?: number | null }>(
   roots: ReadonlyArray<{ pages: T[] }>,
+  keyOf: (page: T) => string = (page) => page.url,
 ): T[] {
   const unique = new Map<string, T>();
   for (const root of roots) {
     let found = 0;
     for (const page of root.pages)
       if (page.parentError == null) {
-        unique.set(page.url, page);
+        unique.set(keyOf(page), page);
         found++;
       }
     if (!found) throw new Error('INVALID_ROOT_COVERAGE');

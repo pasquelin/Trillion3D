@@ -1,6 +1,23 @@
 import type { PageRec } from './pageSelection.ts';
 
 /**
+ * The address one pool slot is held, pinned and read under, for one cluster record.
+ *
+ * Index pages are CONTENT-addressed: two primitives whose clusters carry the same index bytes
+ * share one index-page url while each keeps a quantized geometry page of its own. The address is
+ * therefore the geometry page's url wherever the record carries one, and the index page's url
+ * otherwise — two such clusters take two slots and each decodes its own page, where one address
+ * would have had one of them decode the other's bytes.
+ *
+ * A transparent placement carries no geometry page (`pageSelectionCollect.ts`) and its forward draw
+ * reads INDEX words out of its slot (`webgpuTransparentSpans.ts`, then `indices[base+local]` in
+ * `webgpuBlendShader.ts`): it sits at the index address and is served the index page, while the
+ * opaque record of the same primitive keeps its page at that page's own address. Neither gives
+ * anything up for the two to coexist.
+ */
+export const pageAddress = (rec: PageRec) => rec.geometryPage?.url ?? rec.url;
+
+/**
  * What the geometry pool holds for the scene, walked once from the catalogue.
  *
  * A slot holds a cluster's quantized geometry page where the cache carries one, its index page
@@ -12,13 +29,11 @@ import type { PageRec } from './pageSelection.ts';
  *
  * The slot's content is chosen per cluster ADDRESS (`geometryUrls`), while the row's
  * `FLAG_CLUSTER_PAGE` is decided per RECORD (`webgpuPageRowMaterial.ts`, from `rec.geometryPage`).
- * Two records at one address that disagreed would make one row decode index words as a page. This
- * walk is the only place both sides are read, so it is where the two are brought to one decision:
- * `settleBlendAddresses` first, then the refusal of what no placement explains — two records of the
- * same kind at one address declaring different geometry pages, which is a broken catalogue.
+ * Two records at one address that disagreed would make one row decode index words as a page, and
+ * `pageAddress` makes that impossible: a record's page is part of its address. The refusal below is
+ * that invariant said out loud, on the one walk where both sides are read together.
  */
 export function describePageSlots(allPages: readonly PageRec[]) {
-  const sharedIndexPages = settleBlendAddresses(allPages);
   const geometryUrls = new Map<string, string>(),
     seenUrls = new Set<string>();
   let pageBytes = 4,
@@ -27,12 +42,13 @@ export function describePageSlots(allPages: readonly PageRec[]) {
     fromSourceGeometry = 0,
     transparentClusters = 0;
   for (const page of allPages) {
-    const geometry = page.geometryPage;
-    if (seenUrls.has(page.url) && geometryUrls.get(page.url) !== geometry?.url)
-      throw new Error(`CLUSTER_PAGE_DISAGREEMENT: ${page.url}`);
-    seenUrls.add(page.url);
+    const geometry = page.geometryPage,
+      address = pageAddress(page);
+    if (seenUrls.has(address) && geometryUrls.get(address) !== geometry?.url)
+      throw new Error(`CLUSTER_PAGE_DISAGREEMENT: ${address}`);
+    seenUrls.add(address);
     if (geometry) {
-      geometryUrls.set(page.url, geometry.url);
+      geometryUrls.set(address, geometry.url);
       fromGeometryPage++;
     } else if (page.transparent) transparentClusters++;
     else fromSourceGeometry++;
@@ -49,34 +65,7 @@ export function describePageSlots(allPages: readonly PageRec[]) {
     fromGeometryPage,
     fromSourceGeometry,
     transparentClusters,
-    sharedIndexPages,
   };
-}
-
-/**
- * Addresses where a transparent placement meets an opaque one, brought back to one decision.
- *
- * A primitive placed twice — once opaque, once `clustered-blend` — gives two records at one cluster
- * url, and only the opaque one carries a geometry page: transparency is a property of the placement
- * (`pageSelectionCollect.ts`), the page a property of the address. The pool holds ONE slot per
- * address, and the transparent placement's forward draw reads INDEX words out of that same slot
- * (`webgpuTransparentSpans.ts`, then `indices[base+local]` in `webgpuBlendShader.ts`), so the
- * address keeps its index page and the opaque record gives its page up. The record's own field is
- * cleared, and every later reader — the row's `FLAG_CLUSTER_PAGE`, the bytes a cluster still awaits
- * (`awaitsPageBytes`), the source buffers packed for it (`webgpuGeometryPrepare.ts`) and the slot's
- * content — reads that one decision from it. Returns how many records gave a page up.
- */
-function settleBlendAddresses(allPages: readonly PageRec[]) {
-  const blendUrls = new Set<string>();
-  for (const page of allPages) if (page.transparent) blendUrls.add(page.url);
-  if (!blendUrls.size) return 0;
-  let sharedIndexPages = 0;
-  for (const page of allPages)
-    if (page.geometryPage && blendUrls.has(page.url)) {
-      page.geometryPage = undefined;
-      sharedIndexPages++;
-    }
-  return sharedIndexPages;
 }
 
 /**
