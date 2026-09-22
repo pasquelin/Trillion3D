@@ -12,7 +12,7 @@ function valueKey(value: unknown): string {
 }
 
 /** Everything a material draws with, as one string: its kind and each parameter, by name. */
-export function materialKey(material: Material) {
+function materialKey(material: Material) {
   const fields = Object.keys(material)
     .filter((name) => !MATERIAL_BOOKKEEPING.has(name))
     .sort()

@@ -13,26 +13,13 @@ import type { MeasuredWorldOptions } from './backendTypes.ts';
 export { openMeasuredWorld } from './explorer.ts';
 export type { MeasuredWorld } from './explorer.ts';
 export type { MeasuredWorldTarget } from './explorerTarget.ts';
-export type {
-  RenderBackend,
-  BackendContext,
-  BackendFactory,
-  MeasuredWorldOptions,
-} from './backendTypes.ts';
+export type { RenderBackend, BackendFactory, MeasuredWorldOptions } from './backendTypes.ts';
 export { replicateInstances } from './replicateInstances.ts';
-export { runCameraPath } from './cameraPath.ts';
 export { autonomousPagesBackend } from './autonomousPages.ts';
 export { referenceBackend } from './referenceBackend.ts';
 export { exactPagesBackend } from './exactPagesBackend.ts';
 export { threeLodBackend } from './threeLod.ts';
 export { webgpuPagesBackend } from './webgpuPages.ts';
-export { autonomousCacheReady, chooseBackends } from './defaultBackends.ts';
-export type { BackendChoice } from './defaultBackends.ts';
-export { createLightingExperimentBackend } from './lightingExperimentBackend.ts';
-export type {
-  LightingExperimentRenderState,
-  LightingExperimentRayDiagnostics,
-} from './lightingExperimentBackend.ts';
 
 /** Browser job adapter. A completed session is owned by the caller; cancel/fail after construct disposes it. */
 export async function createMeasuredWorldJob(

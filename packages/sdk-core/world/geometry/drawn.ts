@@ -151,7 +151,7 @@ function solids(b: GeometryBuilder): DrawnTriangles | null {
 }
 
 /** Every triangle its own corners, each carrying the face's normal: flat shading. */
-export function flatten(d: Omit<DrawnTriangles, 'normals'>): DrawnTriangles {
+function flatten(d: Omit<DrawnTriangles, 'normals'>): DrawnTriangles {
   const pick = (from: Float32Array | null, width: number) => {
     if (!from) return null;
     const out = new Float32Array(d.indices.length * width);
