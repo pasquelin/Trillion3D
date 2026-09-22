@@ -1,6 +1,7 @@
 import { hslToLinearRgb, srgbToLinear } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import { clusterHue } from './diagnosticColors.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /** View-projection of the image as the GPU reads it, flattened: sixteen floats rewritten each
@@ -100,5 +101,5 @@ export function mirrorDrawnFromShown(run: DrawnMirror) {
 export function appendAll<T>(target: T[], ...sources: readonly (readonly T[])[]) {
   for (const source of sources) for (let i = 0; i < source.length; i++) target.push(source[i]);
 }
-/** The request keys of a cut, for the trace sets. */
-export const urlsOf = (pages: readonly PageRec[]) => pages.map((page) => page.url);
+/** The pool addresses of a cut — each one a page url — for the trace sets. */
+export const urlsOf = (pages: readonly PageRec[]) => pages.map(pageAddress);
