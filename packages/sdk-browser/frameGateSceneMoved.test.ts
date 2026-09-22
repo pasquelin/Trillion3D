@@ -77,3 +77,15 @@ test('a host write of its own is still taken after a move: the watch keeps liste
   gate.readScene(source, drawn);
   assert.notEqual(gate.revisions.scene, revision, 'the host write is still seen');
 });
+
+test('a move announced before the first image still has the watched set built', () => {
+  const { source, drawn } = scene();
+  const mesh = (drawn[0] as { sourceMesh: THREE.Mesh }).sourceMesh;
+  const gate = createFrameGateCore(1);
+  gate.sceneMoved();
+  gate.readScene(source, drawn);
+  const revision = gate.revisions.scene;
+  mesh.visible = false;
+  gate.readScene(source, drawn);
+  assert.notEqual(gate.revisions.scene, revision, 'the host write reaches a watch that exists');
+});
