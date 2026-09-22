@@ -113,6 +113,9 @@ export function resolveCameraWorld<T extends HostResolvable>(camera: T): T {
   return camera;
 }
 
+/** Optics of the camera being read, rewritten in place: a frame allocates nothing here. */
+const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 };
+
 /**
  * Copies the host camera into the engine camera, ancestors resolved. The POSE comes from
  * the host, the PROJECTION does not: the engine composes it from the declared optics
@@ -139,9 +142,6 @@ export function readCameraWorld(
   optics.zoom = camera.zoom;
   return writeEngineCamera(into, optics);
 }
-
-/** Optics of the camera being read, rewritten in place: a frame allocates nothing here. */
-const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 };
 
 /** Flat camera matrices for a draw that retains the host renderer's finite-depth projection. */
 export function readHostDrawCamera(into: HostDrawCamera, camera: HostCamera) {
