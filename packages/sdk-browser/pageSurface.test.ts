@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { refreshSurface, surfaceOf, surfaceSide } from './pageSurface.ts';
+import { refreshSurface, surfaceFrontOnly, surfaceOf, surfaceSide } from './pageSurface.ts';
 
 test('one record per declaration, shared by every page and placement that wears it', () => {
   const material = new THREE.MeshStandardMaterial({ color: 0x336699, metalness: 0.25 });
@@ -28,6 +28,23 @@ test('the raster facts are reread on a side the host writes in place, which bump
   assert.equal(surfaceSide(refreshSurface(surface)), 'double', 'the plan sees the switch');
   material.side = THREE.BackSide;
   assert.equal(surfaceSide(refreshSurface(surface)), 'back');
+  material.dispose();
+});
+
+test('the side answers what the host declares now, with no refresh call in between', () => {
+  // The opaque path — the pipelines, the face bins, the cut's normal cones — never calls
+  // `refreshSurface`; it asks for the side. A record left as it was last filled would give a
+  // front-only answer for a surface the host has just opened, and a front-only page carries a
+  // closed cone: the page is rejected and its faces leave the image.
+  const material = new THREE.MeshBasicMaterial({ side: THREE.FrontSide });
+  const surface = surfaceOf(material);
+  assert.equal(surfaceFrontOnly(surface), true);
+  material.side = THREE.DoubleSide;
+  assert.equal(surfaceSide(surface), 'double', 'the side is reread, not remembered');
+  assert.equal(surfaceFrontOnly(surface), false);
+  material.side = THREE.BackSide;
+  assert.equal(surfaceSide(surface), 'back');
+  assert.equal(surfaceFrontOnly(surface), false);
   material.dispose();
 });
 
