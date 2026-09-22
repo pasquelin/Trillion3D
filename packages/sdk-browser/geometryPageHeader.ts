@@ -16,7 +16,7 @@ import {
 export type Quant = { min: number[]; exponent: number; bits: number[] };
 
 /** Bits that hold every value of `0..=range`; none for a constant field. */
-export const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
+const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
 
 /** A quantization record from its packed word (six bits per width, the exponent in the top byte). */
 function record(word: number, min: number[]): Quant | null {
