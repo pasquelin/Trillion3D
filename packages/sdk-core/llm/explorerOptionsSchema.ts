@@ -123,7 +123,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       enum: ['host', 'cache'],
       default: 'cache',
       description:
-        "Whether the glTF loader opens the source images: 'cache' (skipped, the engine reads the baked levels) or 'host' (decoded too, for a backend that draws the host scene). The engine reads the baked levels either way.",
+        "Whether the glTF loader opens the source images: 'cache' (skipped, the engine reads the baked levels) or 'host' (decoded too, for a backend that draws the host scene). The engine reads the baked levels either way, and falls back to 'host' by itself where a mounted backend samples the host images.",
     },
     preload: {
       type: 'string',
