@@ -4,24 +4,6 @@ export type { LodQualityId } from '../../sdk-core/lodPolicy.ts';
 export type { AlphaMode, LinearRgb, Material, Side } from '../../sdk-core/materialContract.ts';
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/sceneProxy.ts';
 export {
-  assertSceneTables,
-  MATERIAL_TABLE_VERSION,
-  NODE_TABLE_VERSION,
-  SCENE_TABLES_FILE,
-  SCENE_TABLES_VERSION,
-  TABLE_FLAGS,
-  TABLE_NUMBERS,
-  TABLE_SLOTS,
-  TABLE_TRIPLETS,
-} from '../../sdk-core/sceneTableContracts.ts';
-export type {
-  PreparedSceneTables,
-  TableMaterial,
-  TableNode,
-  TableTexture,
-  TableTextureSlot,
-} from '../../sdk-core/sceneTableContracts.ts';
-export {
   biasedDepthBits,
   DEPTH_LAYER_BIAS_UNITS,
   depthLayerUnits,
