@@ -100,6 +100,21 @@ export function defaultBackendCapturePng(key: string) {
   return canvas.toDataURL('image/png');
 }
 
+/** Pixels of a stored capture that differ from its corner pixel, the cleared background: a
+ *  capture where the scene appears has many of them, an empty canvas has none (#298). */
+export function countDrawnPixels(key: string) {
+  const bytes = window.proof?.images[key];
+  if (!bytes) throw new Error('unknown capture');
+  let drawn = 0;
+  for (let index = 0; index < bytes.length; index += 4)
+    for (let channel = 0; channel < 4; channel += 1)
+      if (bytes[index + channel] !== bytes[channel]) {
+        drawn += 1;
+        break;
+      }
+  return { drawn, totalPixels: bytes.length / 4 };
+}
+
 /** Pixels that differ between two stored captures, and the largest channel gap among them. */
 export function compareDefaultBackendCaptures(pair: [string, string]) {
   const store = window.proof;

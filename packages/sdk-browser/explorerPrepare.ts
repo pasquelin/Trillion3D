@@ -32,16 +32,22 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   // session loads — the cache's prepared scene for the autonomous path, `source.gltf` otherwise.
   const { capabilities, gpuDevice } = await probeExplorerCapabilities(session);
   resources.gpuDevice = gpuDevice;
-  const choice = chooseBackends(options, metadata, gpuDevice);
+  const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer);
   const autonomous = choice.autonomous;
-  diagnose('backend-choice', 'Backend chosen for this session', {
-    kind: 'configuration',
-    scope,
-    origin: choice.origin,
-    reason: choice.reason,
-    autonomous,
-    webgpuDevice: !!gpuDevice,
-  });
+  diagnose(
+    'backend-choice',
+    choice.degraded ? 'Degraded backend chosen for this session' : 'Backend chosen for this session',
+    {
+      kind: 'configuration',
+      scope,
+      origin: choice.origin,
+      reason: choice.reason,
+      renderer: choice.renderer,
+      degraded: choice.degraded,
+      autonomous,
+      webgpuDevice: !!gpuDevice,
+    },
+  );
   const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf';
   progress(
     'scene',

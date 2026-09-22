@@ -361,31 +361,35 @@ The host camera declares its own clip-depth convention through `camera.coordinat
 
 ### Which backend renders by default
 
-`createExplorer({ manifestUrl })` with no `backends` option renders through the engine's own path,
-never through a Three witness. The choice is made once, before the scene is read, from what the
-machine and the cache offer, and is reported by the `backend-choice` diagnostic with its `origin`
-(`default` or `host`) and the `reason` that decided it.
+`createExplorer({ manifestUrl })` with no `backends` option renders an image wherever one can be
+drawn at all. The choice is made once, before the scene is read, from what the machine offers, and
+is reported by the `backend-choice` diagnostic: `origin` (`default` or `host`), `renderer` (the
+backend id that draws), `degraded` (true when the renderer is not the engine's own path) and the
+`reason` that decided it.
 
-| Machine / cache                                                  | Backend that renders  | Scene file read       |
-| ---------------------------------------------------------------- | --------------------- | --------------------- |
-| A WebGPU device was granted                                        | `webgpu-page-raster`  | `source.gltf`         |
-| WebGL2 only, cache carries `autonomousScene`                       | `autonomous-pages-webgl` chosen — it does not render yet, see below | the cache's `scene.gltf` |
-| WebGL2 only, cache carries no `autonomousScene`                    | none — `EngineError('NO_ENGINE_BACKEND')` | — |
-| No WebGL2 at all                                                   | none — `EngineError('NO_WEBGL2')` | — |
+| Machine                    | Backend that renders  | Scene file read | Degraded |
+| -------------------------- | --------------------- | --------------- | -------- |
+| A WebGPU device was granted | `webgpu-page-raster`  | `source.gltf`   | no       |
+| WebGL2 only                 | `exact-cluster-pages`, a host-library witness | `source.gltf` | **yes** |
+| Neither WebGPU nor WebGL2   | none — `EngineError('NO_ENGINE_BACKEND')`, and `EngineError('NO_WEBGL2')` from the capability probe before it | — | — |
 
-Known limit on a WebGL2-only machine: the chosen `autonomous-pages-webgl` path does not produce
-an image today. On `site/assets/kinetic-garden`, the repository's only cache in the current
-format, its preparation stops with `EngineError('AUTONOMOUS_COVERAGE_MISSING')` — the prepared
-scene does not cover every page the cut requires. Such a machine therefore gets a named failure
-rather than a picture. The gap is in that WebGL2 path itself, not in the selection above, and it
-is lifted by #78. A host that must draw on such a machine names a backend itself —
-`backends: [exactPagesBackend]`, which is what the comparison views and the bench do.
+The WebGL2-only row is temporary and disappears with #297. The engine's own WebGL2 path,
+`autonomous-pages-webgl`, produces no image today: on `site/assets/kinetic-garden`, the
+repository's only cache in the current format, its preparation stops with
+`EngineError('AUTONOMOUS_COVERAGE_MISSING')` — the prepared scene does not cover every page the
+cut requires. Rather than leave such a machine with an empty canvas, the session draws through the
+`exact-cluster-pages` witness and says in `backend-choice` that it is degraded and why. #297
+finishes that renderer, and the batch that lands it removes this fallback in the same breath, so a
+WebGL2-only machine takes `autonomous-pages-webgl` again. A host that wants the degraded path
+under its own name asks for it, as the comparison views and the bench do:
+`backends: [exactPagesBackend]`.
 
 `referenceBackend`, `exactPagesBackend` and `threeLodBackend` are the Three witnesses of the
-comparison views and the bench: they are opt-in, reached only through `options.backends`, and a
-host that asked for nothing never gets one. `chooseBackends(options, metadata, gpuDevice)` is
-exported so a host can read the same decision before opening a session, and
-`autonomousCacheReady(metadata)` answers whether a cache carries the prepared autonomous scene.
+comparison views and the bench: they are opt-in through `options.backends`, and the degraded
+default above is the one case where the engine reaches for one on its own.
+`chooseBackends(options, metadata, gpuDevice, webgl2)` is exported so a host can read the same
+decision before opening a session, and `autonomousCacheReady(metadata)` answers whether a cache
+carries the prepared autonomous scene.
 
 `runCameraPath` is a campaign helper: exact A/A image gate, then timed blocks. It is not a general performance verdict. Hosts that already switch backends in the UI should replay the same pose list per backend; do not mix engines inside one timed block.
 

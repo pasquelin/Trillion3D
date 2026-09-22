@@ -1,7 +1,8 @@
-// Standalone proof of #274: with no `backends` option the active backend is the engine's own
-// path — the WebGPU page raster where a device exists, the autonomous WebGL2 path where none
-// does — and never a Three witness. On the WebGPU machine it also records, on the same scene,
-// camera, size and commit, the image and the rAF cadence of the new default against the old.
+// Standalone proof of #274 and #298: with no `backends` option the active backend is the WebGPU
+// page raster where a device exists, and where none does the session still draws the scene — in
+// the degraded mode #298 declares, until #297 finishes the engine's own WebGL2 renderer. On both
+// machines it records, on the same scene, camera, size and commit, the image and the rAF cadence
+// of the default against the pre-#274 witness list, and how many pixels the default actually drew.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -10,6 +11,7 @@ import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import {
   compareDefaultBackendCaptures,
+  countDrawnPixels,
   defaultBackendCapturePng,
   runDefaultBackendCase,
   type DefaultBackendCase,
@@ -22,7 +24,13 @@ declare global {
 
 type CaseResult = Awaited<ReturnType<typeof runDefaultBackendCase>>;
 type ImageDelta = ReturnType<typeof compareDefaultBackendCaptures> | null;
-type MachineResult = { cases: Record<string, CaseResult>; image: ImageDelta; captures: string[] };
+type Drawn = ReturnType<typeof countDrawnPixels> | null;
+type MachineResult = {
+  cases: Record<string, CaseResult>;
+  image: ImageDelta;
+  captures: string[];
+  drawn: Drawn;
+};
 
 const root = resolve(import.meta.dirname, '../..');
 const out = resolve(root, 'benchmark-runs/default-backend');
@@ -95,6 +103,9 @@ try {
             string,
           ])
         : null;
+    const drawn = cases.default?.backend
+      ? ((await page.evaluate(countDrawnPixels, 'default')) as Drawn)
+      : null;
     const captures: string[] = [];
     for (const key of Object.keys(cases)) {
       if (!cases[key].backend) continue;
@@ -104,7 +115,7 @@ try {
       captures.push(`${name}.png`);
     }
     await context.close();
-    return { cases, image, captures } as MachineResult;
+    return { cases, image, captures, drawn } as MachineResult;
   };
   const withGpu = await machine(true, ['default', 'witness', 'autonomous']);
   const withoutGpu = await machine(false, ['default', 'witness']);
@@ -112,15 +123,25 @@ try {
   assert.equal(withGpu.cases.default.backend, 'webgpu-page-raster');
   assert.equal(withGpu.cases.witness.backend, 'exact-cluster-pages');
   assert.equal(withoutGpu.cases.default.webgpu, false);
-  // No device: the autonomous WebGL2 path is what the engine chooses, never a Three witness.
+  // No device: the scene still appears, drawn by the declared degraded renderer (#298).
+  assert.equal(withoutGpu.cases.default.error, null);
+  assert.equal(withoutGpu.cases.default.backend, 'exact-cluster-pages');
   assert.deepEqual(chosen(withoutGpu.cases.default), {
     kind: 'configuration',
     scope: 'full',
     origin: 'default',
-    reason: 'no WebGPU device; the cache carries a prepared autonomous scene',
-    autonomous: true,
+    reason:
+      "no WebGPU device, and the engine's own WebGL2 path cannot draw yet " +
+      '(AUTONOMOUS_COVERAGE_MISSING, #297), so this session runs in a degraded mode where a ' +
+      'host-library witness draws the scene',
+    renderer: 'exact-cluster-pages',
+    degraded: true,
+    autonomous: false,
     webgpuDevice: false,
   });
+  // The canvas is not empty: a twentieth of it at least differs from the cleared background.
+  for (const run of [withGpu, withoutGpu])
+    assert.ok(run.drawn && run.drawn.drawn > run.drawn.totalPixels / 20, JSON.stringify(run.drawn));
   assert.deepEqual(errors, []);
   const side = (name: string, run: MachineResult) => [
     name,
@@ -131,6 +152,7 @@ try {
       previousDefaultBackend: run.cases.witness.backend,
       explicitAutonomousError: run.cases.autonomous?.error ?? null,
       imageAgainstPreviousDefault: run.image,
+      defaultDrawnPixels: run.drawn,
       captures: run.captures,
       cadence: { default: cadence(run.cases.default), previous: cadence(run.cases.witness) },
     },
