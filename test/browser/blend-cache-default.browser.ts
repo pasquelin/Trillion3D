@@ -95,7 +95,7 @@ try {
         against[scene.page] = (await page.evaluate(compareDefaultBackendCaptures, [
           scene.page,
           carriedKey(scene.page),
-        ])) as Delta;
+        ] as [string, string])) as Delta;
       else
         carry.push([
           carriedKey(scene.page),

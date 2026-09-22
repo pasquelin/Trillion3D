@@ -156,7 +156,7 @@ test('an attached page wears the host declaration, not the engine surface record
   const declaration = new THREE.MeshStandardMaterial();
   const rec: PageRec = {
     ...makeRec(0, 1),
-    geometry: new THREE.BufferGeometry(),
+    geometry: new THREE.BufferGeometry() as PageRec['geometry'],
     mesh: undefined,
     declaration,
     material: surfaceOf(declaration),
