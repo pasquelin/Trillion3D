@@ -23,7 +23,7 @@ mod g7_etiquettes;
 mod g9_accessor;
 mod h3_proxy;
 mod harness;
-mod inputs;
+pub(crate) mod inputs;
 mod rapport;
 
 use harness::Row;
