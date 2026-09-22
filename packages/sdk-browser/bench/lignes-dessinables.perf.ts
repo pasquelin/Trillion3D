@@ -1,5 +1,6 @@
 // the drawable-row table.
 import * as THREE from 'three';
+import { surfaceOf } from '../pageSurface.ts';
 import { createWebgpuRowState } from '../webgpuRowState.ts';
 import { createWebgpuRowCommit } from '../webgpuRowCommit.ts';
 import { createWebgpuRowSync } from '../webgpuRowSync.ts';
@@ -33,7 +34,8 @@ const catalogue = (): PageRec[] => {
       transparent: i % 11 === 0,
       depthLayer: 0,
       attributes: DUMMY_ATTRIBUTES,
-      material: [],
+      material: surfaceOf([]),
+      declaration: [],
       matrix: DUMMY_MATRIX,
       renderOrder: 0,
       attached: true,

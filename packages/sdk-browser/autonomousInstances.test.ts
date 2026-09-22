@@ -141,14 +141,14 @@ function primitivePeinte() {
 test('repainting a primitive frees the pair the previous paint owned', () => {
   const { plain, coloured, colorMaterials, instances } = primitivePeinte();
   instances.updateMaterial('prim', CONTRACT_MATERIAL);
-  const first = [plain.material, coloured.material] as THREE.Material[];
+  const first = [plain.declaration, coloured.declaration] as THREE.Material[];
   assert.notEqual(first[0], first[1], 'a colour attribute draws with its own twin');
   let disposed = 0;
   for (const material of first) material.addEventListener('dispose', () => disposed++);
   instances.updateMaterial('prim', { ...CONTRACT_MATERIAL, baseColor: [0, 1, 0] });
   assert.equal(disposed, 2, 'the plain material and its twin are freed at the replacement');
   assert.equal(colorMaterials.size, 1, 'the shared cache keeps one twin per live material');
-  assert.equal(colorMaterials.get(plain.material as THREE.Material), coloured.material);
+  assert.equal(colorMaterials.get(plain.declaration as THREE.Material), coloured.declaration);
   instances.disposeOwnedMaterials();
   assert.equal(colorMaterials.size, 0, 'disposal frees the last paint and its twin');
 });

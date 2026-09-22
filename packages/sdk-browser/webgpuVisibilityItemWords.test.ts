@@ -14,13 +14,20 @@ import {
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { pageRecFixture } from './bench/appui/pageRecFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 /** A minimal runtime of `n` rows: each carries a coplanar layer and a page index. */
 function runtime(n: number, drawLayerSlots: number) {
   const material = new THREE.MeshBasicMaterial();
   const packedRecs: PageRec[] = [];
   for (let i = 0; i < n; i++)
-    packedRecs.push(pageRecFixture({ depthLayer: i % 3, material, matrix: new THREE.Matrix4() }));
+    packedRecs.push(
+      pageRecFixture({
+        depthLayer: i % 3,
+        material: surfaceOf(material),
+        matrix: new THREE.Matrix4(),
+      }),
+    );
   const layout = {
     rows: {
       packedCount: n,

@@ -3,6 +3,7 @@
 // read by the timed loop, so filling them costs nothing the bench's own numbers could move.
 import * as THREE from 'three';
 import type { PageRec } from '../../pageSelectionTypes.ts';
+import { surfaceOf } from '../../pageSurface.ts';
 
 const DUMMY_ATTRIBUTES: THREE.BufferGeometry['attributes'] = {};
 const IDENTITY_MATRIX = new THREE.Matrix4();
@@ -19,7 +20,8 @@ export function pageRecFixture(fields: Partial<PageRec> = {}): PageRec {
     max: DUMMY_BOUNDS,
     depthLayer: 0,
     attributes: DUMMY_ATTRIBUTES,
-    material: [],
+    material: surfaceOf([]),
+    declaration: [],
     matrix: IDENTITY_MATRIX,
     renderOrder: 0,
     attached: false,

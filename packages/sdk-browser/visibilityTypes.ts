@@ -1,4 +1,5 @@
-import type { HostAttributes, HostMaterials } from './hostResources.ts';
+import type { HostAttributes } from './hostResources.ts';
+import type { PageSurface } from './pageSurface.ts';
 import type { Texture } from '../sdk-core/index.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
@@ -52,7 +53,8 @@ export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
   matrix: MatrixElements;
-  material: HostMaterials;
+  /** The engine's surface record, read once at the boundary (`pageSurface.ts`). */
+  material: PageSurface;
   clusterId?: string;
 };
 

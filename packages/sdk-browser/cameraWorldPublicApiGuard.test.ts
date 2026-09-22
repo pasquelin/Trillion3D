@@ -24,6 +24,7 @@ import { rasterVisibility } from './visibilityRaster.ts';
 import type { VisPage } from './visibilityTypes.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
 const POSE = POSES_PARENT[2] as Pose; // moved AND rotated: neither translation nor rotation can be guessed.
@@ -38,7 +39,7 @@ function pageTriangle(matrix: THREE.Matrix4): VisPage {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometrie.attributes,
     matrix,
-    material: new THREE.MeshBasicMaterial({ side: THREE.FrontSide }),
+    material: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.FrontSide })),
   };
 }
 
