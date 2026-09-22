@@ -47,7 +47,7 @@ test('A bound map uploads the imported record transform, under its own uniform',
   assert.equal(uploaded.length, 1, 'the five maps the material does not declare upload nothing');
   assert.equal(uploaded[0].name, 'baseUv');
   assert.equal(uploaded[0].value, importHostTexture(map).transform, 'the record own elements');
-  assert.deepEqual([...uploaded[0].value], [...map.matrix.elements]);
+  assert.deepEqual(Array.from(uploaded[0].value), [...map.matrix.elements]);
 });
 
 test('A host recomposition of the UV transform reaches the next bind', () => {
@@ -58,6 +58,6 @@ test('A host recomposition of the UV transform reaches the next bind', () => {
   const { binding, uploaded } = recorder();
   bindClusterMaterial(binding, material, true);
   assert.equal(uploaded[0].name, 'normalUv');
-  assert.deepEqual([...uploaded[0].value], [...map.matrix.elements]);
+  assert.deepEqual(Array.from(uploaded[0].value), [...map.matrix.elements]);
   assert.equal(uploaded[0].value[6], 0.25, 'the offset the host composed is what the shader reads');
 });
