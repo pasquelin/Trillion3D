@@ -44,19 +44,24 @@ function scene(quantization: PrimitiveQuantization | null) {
   return { collected, level };
 }
 
-test('a cluster certifies its LOD error plus what the grid displaced', () => {
+test('a produced cluster certifies its LOD error plus what the grid displaced', () => {
   const plain = scene(null).collected.allPages;
   const quantized = scene(QUANTIZATION).collected.allPages;
   for (const [i, rec] of quantized.entries()) {
-    assert.equal(rec.lodError, plain[i].lodError! + ERROR);
+    // The two leaves no group produced keep the floor of the ladder; the coarse cluster the
+    // group produced, and every replacement band, grow by the displacement.
+    const produced = plain[i].source !== null ? ERROR : 0;
+    assert.equal(rec.lodError, plain[i].lodError! + produced);
     if (plain[i].parentError === null) assert.equal(rec.parentError, null);
     else assert.equal(rec.parentError, plain[i].parentError! + ERROR);
   }
-  // The group that replaces a cluster grows by the same length: which cluster replaces which
-  // does not move, only the distance both are certified to.
+  // A replacement therefore swaps at the same threshold on both sides of the trade: the band of
+  // the group equals the band its output cluster certifies.
   const { level } = scene(QUANTIZATION);
   const groups = structureIndex(level.structure, 3, ERROR)!;
   assert.deepEqual([...groups.error], [level.structure.groups[0].error + ERROR]);
+  assert.equal(quantized[2].lodError, groups.error[0]);
+  assert.equal(quantized[0].parentError, groups.error[0]);
 });
 
 test('a cluster box grows by the same length, and so does the node that encloses it', () => {
