@@ -1,6 +1,6 @@
 import { hslToLinearRgb, srgbToLinear } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
-import { clusterHue } from './backendCommon.ts';
+import { clusterHue } from './diagnosticColors.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /** View-projection of the image as the GPU reads it, flattened: sixteen floats rewritten each
