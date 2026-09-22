@@ -61,7 +61,7 @@ Every case is built on two seeds, and on each the corpus asserts the same set:
 - level 0 is the source partition — the same triangles, each exactly once;
 - every index of a coarse cluster names a vertex the source itself uses;
 - every LOD error is finite, and a cluster's error never exceeds its parent's;
-- no coarse triangle spans two texture islands of any set the mesh carries, so no texture slides across a seam;
+- no coarse triangle spans two texture islands of any set the mesh carries, so no texture slides between two islands; a seam whose two sides stay connected elsewhere, such as a wrap column, is one island and is not covered;
 - either the primitive reaches a single root, or the stall is named by a tally key (`noCollapse`, `tooSmall`, `borderLost`, `unusableError`) — a silent stall is a failure;
 - every cluster's page encodes and decodes back to its positions and attributes, within the error the page declares;
 - the compiled cache agrees with the DAG built in memory, root for root, and its `source.bin` is the source buffer byte for byte, view by view.
