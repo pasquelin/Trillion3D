@@ -69,7 +69,7 @@
       "sha256": "6ced376eef428e96d67723159586a4623238f71179babd8c8e6dee0745427ddd"
     }
   ],
-  "formatVersion": 4,
+  "formatVersion": 6,
   "images": [
     {
       "mimeType": "image/png",
