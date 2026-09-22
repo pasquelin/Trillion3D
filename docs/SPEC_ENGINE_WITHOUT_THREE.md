@@ -166,7 +166,18 @@ library — it BUILDS host-library objects rather than reading them: the framing
 and the centre the explorer publishes, the point a capture aims at, and the group and mesh copies
 a replication hangs. Three engine callers still go through it — `explorerCamera.ts`,
 `explorerViewportApi.ts` and `replicateInstances.ts` — so the construction is gathered in one
-file, not yet removed from the engine's own path.
+file, not yet removed from the engine's own path. Lot 3 (#78) took the autonomous WebGL2 path
+off the library: `autonomousPages.ts`, `autonomousGeometry.ts` and `autonomousInstances.ts` hold
+their scene, meshes, geometries, poses and surfaces through the shapes of `hostResources.ts` and
+`hostGraphNodes.ts`, compose an instance pose with the core product instead of a host matrix, and
+build every host object through one boundary, `hostPageObjects.ts`. That path is NOT a witness —
+`chooseBackends` picks it on any machine that grants no WebGPU device — and the closed list said
+otherwise until this lot; its image is nonetheless drawn by the host renderer, so the adapter,
+the contract lights and the bounds it shares with the witnesses are declared there as the
+boundary of a host-drawn image rather than as witness files. Bundling `autonomousPages.ts` still
+pulls the whole host library, through those five boundary files instead of seven: on this path
+the dependency moved, it did not go, and removing it means writing the renderer this engine does
+not have yet.
 What remains for the following lots is the source loading — until
 it lands, `scene`, `source` and `sceneLighting`
 still point at the host's graphs and are not `SceneRoot` / `SceneNode`. The camera controllers are
@@ -183,8 +194,9 @@ that list fails the test, and the list never grows. On the per-frame WebGPU path
 shadows (`webgpuPagesEncode*.ts`), face winding (`webgpuBlendDraw.ts`), Hi-Z (`hizDepth.ts`,
 `hizProjection*.ts`, `hizTemporal.ts`); the view-projection matrix is recomposed there nine times
 by independent copies. At load: page boxes and spheres (four copies of `Box3.getBoundingSphere`),
-node world matrices. The rest serves only the Three witness engines (`referenceBackend.ts`,
-`threeLod.ts` with `LOD.update`, `exactPages*.ts`) and diagnostics. Homegrown calculations already
+node world matrices. The rest serves the engines whose image the host
+renderer draws — the witnesses (`referenceBackend.ts`, `threeLod.ts` with `LOD.update`,
+`exactPages*.ts`) and the shipping WebGL2 page path, through its boundary — and diagnostics. Homegrown calculations already
 exist and are the base: `extractPlanes`/`boxClip` (`pageSelectionMath.ts`), box-corner transform
 (`hizCorners.ts`), `maxStretch`/`clusterErrorPixels` (`projectionOracles.ts`),
 `shadowProjection`/`shadowOrthographic`/`composeFace` (`sceneLightShadowMath.ts`), and the shared

@@ -1,5 +1,4 @@
-import * as THREE from 'three';
-import { asHostLibrary } from './hostResources.ts';
+import { hostPageScene, releaseHostGeometry, releaseHostSurface } from './hostPageObjects.ts';
 import { collectClusterPages, indexPagesByUrl, type PageRec } from './pageSelection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './autonomousRender.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
@@ -11,6 +10,7 @@ import { comptePagesResidentes, createAutonomousResidency } from './autonomousRe
 import { createContractLighting } from './contractLightingApi.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 import type { BackendFactory } from './backendTypes.ts';
+import type { HostMaterial } from './hostResources.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
@@ -33,13 +33,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       context.maxResidentPages ??
       context.residentPagesDefault ??
       Math.max(1024, bootstrapUrls.size),
-    scene = new THREE.Scene();
+    scene = hostPageScene();
   const shown: PageRec[] = [],
     desired: PageRec[] = [],
     pending: string[] = [],
     retained: string[] = [];
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
-    colorMaterials = new Map<THREE.Material, THREE.Material>();
+    colorMaterials = new Map<HostMaterial, HostMaterial>();
   const modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
@@ -185,13 +185,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       hostDraw.dispose();
       for (const rec of allPages) {
         detach(rec);
-        asHostLibrary<THREE.BufferGeometry | undefined>(rec.geometry)?.dispose();
+        if (rec.geometry) releaseHostGeometry(rec.geometry);
         rec.geometry = undefined;
         rec.mesh = undefined;
         rec.array = undefined;
       }
       disposeOwnedMaterials();
-      for (const material of colorMaterials.values()) material.dispose();
+      for (const material of colorMaterials.values()) releaseHostSurface(material);
       scene.clear();
       gate.release();
     },
