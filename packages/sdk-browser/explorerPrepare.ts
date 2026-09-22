@@ -36,7 +36,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   const autonomous = choice.autonomous;
   diagnose(
     'backend-choice',
-    choice.degraded ? 'Degraded backend chosen for this session' : 'Backend chosen for this session',
+    choice.degraded
+      ? 'Degraded backend chosen for this session'
+      : 'Backend chosen for this session',
     {
       kind: 'configuration',
       scope,
