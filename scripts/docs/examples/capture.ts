@@ -30,6 +30,9 @@ async function drawnShare(page: Page): Promise<number> {
  * Opens one example file in a new page of `browser` and waits until its canvas shows an image,
  * `share` of it drawn at least (an engine that failed leaves the canvas blank); resolves with
  * the page and the errors it raised, which the caller closes and judges.
+ *
+ * `gpu: false` hides `navigator.gpu` from the page, the machine an example must render on too:
+ * naming no backend, it reaches `chooseBackends`, which takes the engine's own WebGL2 path.
  */
 export async function openExample(
   browser: Browser,
@@ -37,10 +40,15 @@ export async function openExample(
   entry: GalleryEntry,
   viewport: { width: number; height: number },
   share = 0.1,
+  gpu = true,
 ) {
   const page = await browser.newPage({ viewport });
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  if (!gpu)
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'gpu', { get: () => undefined, configurable: true });
+    });
   await page.goto(`http://127.0.0.1:${port}/${entry.file}`);
   let drawn = 0;
   for (let attempt = 0; attempt < 30 && drawn < share; attempt++) {
