@@ -1,10 +1,13 @@
 //! The texture islands of a case, and the invariant they carry: a coarse triangle never spans two
-//! of them, so no texture slides across a seam.
+//! of them, so no texture slides between two islands of a set.
 use super::invariants::Built;
 use super::*;
 use std::collections::HashMap;
 
-/// No coarse triangle spans two islands of a texture set: no texture slides across a seam.
+/// No coarse triangle spans two islands of a texture set. The limit: an island is a connected
+/// component of the surface once the seams are cut, so a seam whose two sides stay connected
+/// elsewhere — a sphere's or a cylinder's wrap column — is one island and a triangle across it
+/// passes. What is caught is a coarse triangle whose corners lie in different islands.
 pub(super) fn check_islands(case: &Case, indices: &[u32], built: &Built, label: &str) {
     for (name, uvs) in [("TEXCOORD_0", &case.uv0), ("TEXCOORD_1", &case.uv1)] {
         let Some(uvs) = uvs else { continue };
