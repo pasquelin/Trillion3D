@@ -4,6 +4,15 @@ use std::collections::HashMap;
 use web_geometry_page_codec::{Header, Layout};
 pub use web_geometry_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
+/// The glTF attributes a page may carry, in the order the page writes them: the name the
+/// document gives each, its width (a colour may also be three-wide) and its presence bit.
+pub(crate) const PAGE_ATTRIBUTES: [(&str, usize, u32); 4] = [
+    ("NORMAL", 3, FLAG_NORMAL),
+    ("TEXCOORD_0", 2, FLAG_UV),
+    ("TEXCOORD_1", 2, FLAG_UV1),
+    ("COLOR_0", 4, FLAG_COLOR),
+];
+
 /// One optional attribute of a primitive: its presence bit, its source width (a colour may be
 /// three-wide) and its values, `width` per vertex.
 pub struct Attribute {
