@@ -14,6 +14,7 @@ import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
 import { checked } from './clusterPages.ts';
 import { bakedImageUrls, PLACEHOLDER_IMAGE } from './sceneTextureSkip.ts';
+import { checkPreparedScene, loadPreparedSceneTables } from './preparedSceneTables.ts';
 
 /** World matrix of a mesh at load, reused from mesh to mesh. */
 const monde = new Float64Array(MATRIX_VALUES);
@@ -108,6 +109,15 @@ export async function loadPreparedScene(
   for (const [object, reference] of gltf.parser.associations as Map<object, { textures?: number }>)
     if (object instanceof THREE.Texture && typeof reference?.textures === 'number')
       textureIndices.set(object, reference.textures);
+  // What the cache says this scene is, checked against the scene just built — before any
+  // replication, which is the host's own copy of it. This batch draws nothing from the tables:
+  // it proves them, and a divergence refuses the session by name rather than passing silently.
+  const tables = await loadPreparedSceneTables(base, signal);
+  diagnose('prepared-scene', 'Cache tables checked against the loaded scene', {
+    kind: 'preparation',
+    scope,
+    ...checkPreparedScene({ tables, source, associations, textureIndices }),
+  });
   await calculEnLot;
   const replicas = options.replicaCount ?? 1;
   // Load buffers, reserved before they are written and returned as soon as they are read:

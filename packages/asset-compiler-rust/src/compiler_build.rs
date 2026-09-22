@@ -169,7 +169,10 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, scene) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
-    let mut products = vec![source_bin, source_gltf, lights];
+    // Node and material tables of the published scene: what the prepared scene is made of, read
+    // from the very glTF written above.
+    let tables = stage_scene_tables(&source, &directory, &progress)?;
+    let mut products = vec![source_bin, source_gltf, lights, tables];
     products.extend(scene);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);

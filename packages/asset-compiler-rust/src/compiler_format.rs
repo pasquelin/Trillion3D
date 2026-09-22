@@ -2,12 +2,12 @@
 //! different formats and move on their own schedules; nothing may conflate them.
 use serde_json::Value;
 
-/// Cache format this compiler writes. Format 3 adds the per-cluster coplanar depth layer, which a
-/// reader must understand before it draws a single cluster: formats 1 and 2 carry no such column
-/// and are refused, never half-read.
-pub const FORMAT_VERSION: u32 = 3;
+/// Cache format this compiler writes. Format 5 adds `scene-tables.json`, the node and material
+/// tables the prepared scene is described by: a reader checks the scene it builds against them, so
+/// a cache written before them carries no answer and is refused by its number, never half-read.
+pub const FORMAT_VERSION: u32 = 5;
 /// Outer cache format required for clustered BLEND.
-pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = 4;
+pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = 6;
 /// Format of a prepared source manifest the compiler reads. An input format, not an output one.
 pub const SOURCE_FORMAT_VERSION: u32 = 1;
 
