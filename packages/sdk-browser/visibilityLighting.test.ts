@@ -11,6 +11,7 @@ import { referenceShadeLit } from './bench/oracles/eclairage-pixel.ts';
 import type { VisPage, VisMaterial } from './visibilityTypes.ts';
 import type { Projected } from './visibilityProjection.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 function vertex(worldX: number, worldY: number, worldZ: number, invW = 1): Projected {
   return { x: 0, y: 0, z: 0, invW, worldX, worldY, worldZ };
@@ -51,7 +52,7 @@ function pageOf(overrides: Partial<VisPage> = {}): VisPage {
     array: new Uint32Array([0, 1, 2]),
     attributes: {},
     matrix: new THREE.Matrix4(),
-    material: new THREE.MeshBasicMaterial(),
+    material: surfaceOf(new THREE.MeshBasicMaterial()),
     ...overrides,
   };
 }

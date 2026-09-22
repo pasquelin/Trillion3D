@@ -8,7 +8,9 @@ import { ClusterBatches } from './clusterBatches.ts';
 import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
 import { attributes } from './clusterBatchesFixture.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
+import { surfaceOf } from './pageSurface.ts';
 
+const BASE_MATERIAL = new THREE.MeshBasicMaterial();
 const page = (extra: Partial<BatchPage>): BatchPage => ({
   id: 0,
   url: 'u',
@@ -16,7 +18,8 @@ const page = (extra: Partial<BatchPage>): BatchPage => ({
   min: [0, 0, 0],
   max: [1, 1, 1],
   attributes: attributes(3),
-  material: new THREE.MeshBasicMaterial(),
+  material: surfaceOf(BASE_MATERIAL),
+  declaration: BASE_MATERIAL,
   matrix: new THREE.Matrix4(),
   renderOrder: 0,
   ...extra,
@@ -99,7 +102,8 @@ test('a layered cluster draws the source material on a record that carries the l
       id: 0,
       url: 'a',
       attributes: shared,
-      material: original,
+      material: surfaceOf(original),
+      declaration: original,
     }),
     page({
       renderOrder: 0,
@@ -107,7 +111,8 @@ test('a layered cluster draws the source material on a record that carries the l
       id: 1,
       url: 'b',
       attributes: shared,
-      material: original,
+      material: surfaceOf(original),
+      declaration: original,
     }),
   ];
   const batches = new ClusterBatches(scene, pages);

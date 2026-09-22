@@ -19,6 +19,7 @@ import {
 } from '../../pageSelectionHelpers.ts';
 import { cullingBounds } from '../../pageSelectionCutBounds.ts';
 import { indexPageRequests } from '../../pageSelectionRequests.ts';
+import { surfaceOf } from '../../pageSurface.ts';
 
 type Primitive = ClusterManifest['primitives'][number];
 
@@ -107,7 +108,8 @@ export function referenceCollectClusterPages(
         streamOffset: placed?.offset,
         depthLayer: page.depthLayer ?? 0,
         attributes: mesh.geometry.attributes,
-        material: mesh.material,
+        material: surfaceOf(mesh.material),
+        declaration: mesh.material,
         transparent,
         sourceMesh: mesh,
         sourceOrder: sourceOrder?.[pageIndex] ?? pageIndex,

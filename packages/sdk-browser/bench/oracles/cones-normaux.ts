@@ -2,7 +2,6 @@
 // `webgpuPagesSetup.ts:94-105` and `webgpuPagesPrepareTextures.ts:37-42` from before batch F.
 import type { HostAttributes } from '../../hostResources.ts';
 import { OPEN_CONE, triangleCone } from '../../pageCone.ts';
-import { visMaterial } from '../../visibilityBuffer.ts';
 import type { PageRec } from '../../pageSelectionTypes.ts';
 
 interface ConesRoot {
@@ -41,9 +40,7 @@ export function referencePrepareCones(rt: { setup: { allPages: PageRec[] } }) {
       xyzCache.set(rec.attributes, xyz);
     }
     rec.cone =
-      visMaterial(rec.material).doubleSided || visMaterial(rec.material).backSide
-        ? OPEN_CONE
-        : triangleCone(xyz, array);
+      rec.material.doubleSided || rec.material.backSide ? OPEN_CONE : triangleCone(xyz, array);
   }
 }
 
