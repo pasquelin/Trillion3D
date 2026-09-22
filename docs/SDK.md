@@ -315,7 +315,7 @@ each disposed with the session.
 | `flyControls()` | six degrees of freedom | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look |
 | `firstPersonControls()` | pointer-locked walk, horizon level | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift` |
 | `trackballControls()` | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms |
-| `panZoomControls()` | planar view, no rotation | drag slides, wheel, pinch and arrow keys zoom |
+| `panZoomControls()` | planar view, no rotation | drag slides, wheel and pinch zoom, arrow keys pan |
 
 All five publish `object.position`, `addEventListener('change')`, `removeEventListener` and
 `dispose()`; the three that keep a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
