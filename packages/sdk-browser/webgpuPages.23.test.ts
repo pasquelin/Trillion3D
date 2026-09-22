@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { frontCamera } from './pagesBackendScenes.ts';
 import { CLUSTER_PAGE_MAGIC } from './clusterFormat.ts';
 import {
   disposePagedQuad,
@@ -79,5 +80,32 @@ test('a page whose header is forged is refused instead of poured into the pool',
     } finally {
       await disposePagedQuad(backend, fixture);
     }
+  }
+});
+
+// A cluster drawn from its quantized page needs nothing of its index page: the corner count the
+// row writes is the one the geometry page declares, so the index page is never fetched and never
+// held on the CPU.
+test('a paged cluster is admitted and drawn without its index page', async () => {
+  installGpuGlobals();
+  const events: BackendDiagnostic[] = [];
+  const fixture = pagedQuad([{ corners: FIRST }, { corners: SECOND }]);
+  // No index array, and no reader that could go and get one: only the page reader answers.
+  const { gpu, backend } = pagedQuadBackend({ ...fixture, indices: new Map() }, events);
+  try {
+    await backend.prepare();
+    backend.render(frontCamera());
+    await backend.flush?.();
+    assert.equal(geometryPages(events).context.fromGeometryPage, 2);
+    assert.deepEqual(backend.pendingUrls?.(), [], 'nothing is awaited any more');
+    const pool = gpu.buffers.find((buffer) => buffer.label === 'WG geometry page cache')!;
+    const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
+    const slot = Number(geometryPages(events).context.slotBytes);
+    const held = fixture.encoded.map((page, at) =>
+      hex(pool.data.subarray(at * slot, at * slot + page.data.byteLength)),
+    );
+    assert.deepEqual(held.sort(), fixture.encoded.map((page) => hex(page.data)).sort());
+  } finally {
+    await disposePagedQuad(backend, fixture);
   }
 });
