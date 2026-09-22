@@ -67,10 +67,13 @@ export type HostAttributes = { [name: string]: HostAttribute };
 /** One corner of a local bound, as the host writes it. */
 export type HostPoint = { readonly x: number; readonly y: number; readonly z: number };
 
+/** A local or world box of the host, read by its two corners (`hostBoxBounds.ts`). */
+export type HostBox = { readonly min: HostPoint; readonly max: HostPoint };
+
 /** A host geometry: its attributes, and the local box the host computed over them. */
 export type HostGeometry = {
   readonly attributes: HostAttributes;
-  boundingBox?: { readonly min: HostPoint; readonly max: HostPoint } | null;
+  boundingBox?: HostBox | null;
 };
 
 /**

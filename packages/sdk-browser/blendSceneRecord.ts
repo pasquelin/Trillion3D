@@ -11,6 +11,7 @@
  */
 
 import { srgbToLinear } from '../sdk-core/index.ts';
+import { clearValueOf } from './clearColour.ts';
 import type { HostNode, HostScene } from './hostResources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 
@@ -18,14 +19,13 @@ import type { BlendCopy } from './blendCopyContract.ts';
  *  prepare has its GPU item, and emptying it when the backend is disposed. */
 export type BlendHostScene = HostScene & { remove(node: unknown): void; clear(): void };
 
-/** The clear colour in the linear components a host reads off a scene background, from the
- *  packed sRGB byte triple every engine receives it as. */
-const linearBackground = (clearColor: number) => ({
-  isColor: true,
-  r: srgbToLinear(((clearColor >> 16) & 0xff) / 0xff),
-  g: srgbToLinear(((clearColor >> 8) & 0xff) / 0xff),
-  b: srgbToLinear((clearColor & 0xff) / 0xff),
-});
+/** The clear colour in the linear components a host reads off a scene background. The packed
+ *  triple is taken apart where every other reader of it takes it apart (`clearColour.ts`); what
+ *  is proper to a background is the conversion out of sRGB, which a clear value does not make. */
+const linearBackground = (clearColor: number) => {
+  const { r, g, b } = clearValueOf(clearColor);
+  return { isColor: true, r: srgbToLinear(r), g: srgbToLinear(g), b: srgbToLinear(b) };
+};
 
 export function createBlendScene(clearColor: number, copies: readonly BlendCopy[]): BlendHostScene {
   const children = [...copies] as unknown as HostNode[];

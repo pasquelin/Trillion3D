@@ -6,10 +6,7 @@
  * `mathSphere.ts`. Writing a box back INTO a host geometry is the opposite crossing and belongs
  * to the boundary that owns the library, `threeBounds.ts`.
  */
-import type { HostPoint } from './hostResources.ts';
-
-/** A local or world box of the host, read by its two corners. */
-export type HostBox = { readonly min: HostPoint; readonly max: HostPoint };
+import type { HostBox } from './hostResources.ts';
 
 /** Copy the six bounds of a host box into a flat array. */
 export function readHostBox(out: Float64Array, box: HostBox) {
