@@ -130,3 +130,8 @@ export function updateCameraFrame(
   frustumFarPlane(frame.planes, 16, frame.view, far, true);
   return frame;
 }
+
+/** The clip w of a point at view depth `depth`: `perspective·depth + (1 − perspective)` — its
+ *  depth under a perspective projection, 1 under an orthographic one (`EngineCamera.perspective`). */
+export const clipWeight = (perspective: number, depth: number) =>
+  perspective * depth + (1 - perspective);

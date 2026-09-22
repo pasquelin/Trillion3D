@@ -8,7 +8,7 @@ export const camera = {
   perspective: (p?: CameraParameters) => new Camera('perspective', p),
   orthographic: (p?: CameraParameters) => new Camera('orthographic', p),
   /** Six eyes of 90° on the axes, children of one node. */
-  cube(p: { near?: number; far?: number; resolution?: number } = {}) {
+  cube(p: { near?: number; far?: number } = {}) {
     const rig = new Camera('perspective', { fov: 90, near: p.near, far: p.far });
     for (const [x, y, z] of [
       [1, 0, 0],

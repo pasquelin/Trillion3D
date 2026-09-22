@@ -1,6 +1,7 @@
 import { SceneNode } from '../../sceneNode.ts';
 import { createSceneRoot } from '../../sceneRoot.ts';
 import { lookAtNode } from '../../mathTransformTreeLookAt.ts';
+import * as read from '../../mathTransformTreeRead.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Euler } from '../math/euler.ts';
 import { Quaternion } from '../math/quaternion.ts';
@@ -18,7 +19,12 @@ export interface SceneLink {
 /** The one transform hierarchy every scene object is a node of (`sceneNode.ts`): a node made
  *  on its own is a detached root of it, and `add` reparents it there. */
 const space = createSceneRoot({ id: 'world-objects' });
-const aim = new Vector3();
+/** Scratch values of the pose methods below — the world reads too: none of them allocates. */
+const aim = new Vector3(),
+  turn = new Quaternion(),
+  along = new Vector3(),
+  inverse = new Matrix4(),
+  at = new Float64Array(4);
 
 /**
  * A node of the scene, as a page writes it: `position`, `rotation`, `quaternion` and `scale` are
@@ -145,7 +151,7 @@ export class Object3D extends SceneNode {
     this.quaternion.fromArray(tree.quaternion, this.index * 4);
   }
   rotateOnAxis(axis: { x: number; y: number; z: number }, angle: number) {
-    this.quaternion.multiply(new Quaternion().setFromAxisAngle(axis, angle));
+    this.quaternion.multiply(turn.setFromAxisAngle(axis, angle));
     return this;
   }
   rotateX(angle: number) {
@@ -158,22 +164,19 @@ export class Object3D extends SceneNode {
     return this.rotateOnAxis({ x: 0, y: 0, z: 1 }, angle);
   }
   translateOnAxis(axis: { x: number; y: number; z: number }, distance: number) {
-    const along = new Vector3(axis.x, axis.y, axis.z).applyQuaternion(this.quaternion);
+    along.set(axis.x, axis.y, axis.z).applyQuaternion(this.quaternion);
     this.position.addScaledVector(along, distance);
     return this;
   }
   getWorldPosition(out = new Vector3()) {
-    this.updateWorldMatrix(true, false);
-    return out.setFromMatrixPosition(this.matrixWorld);
+    return out.fromArray(read.nodeWorldPosition(at, this.state.tree, this.index));
   }
   getWorldQuaternion(out = new Quaternion()) {
-    this.updateWorldMatrix(true, false);
-    this.matrixWorld.decompose(new Vector3(), out, new Vector3());
-    return out;
+    return out.fromArray(read.nodeWorldQuaternion(at, this.state.tree, this.index));
   }
   getWorldDirection(out = new Vector3()) {
-    const q = this.getWorldQuaternion();
-    return out.set(0, 0, this.looksDownNegativeZ ? -1 : 1).applyQuaternion(q);
+    const d = read.nodeWorldDirection(at, this.state.tree, this.index, this.looksDownNegativeZ);
+    return out.set(d[0], d[1], d[2]);
   }
   localToWorld(v: Vector3) {
     this.updateWorldMatrix(true, false);
@@ -181,7 +184,7 @@ export class Object3D extends SceneNode {
   }
   worldToLocal(v: Vector3) {
     this.updateWorldMatrix(true, false);
-    return v.applyMatrix4(this.matrixWorld.clone().invert());
+    return v.applyMatrix4(inverse.copy(this.matrixWorld).invert());
   }
   /** The box of this node's own content, local frame; a plain node holds none. */
   localBounds(): Box3 | null {

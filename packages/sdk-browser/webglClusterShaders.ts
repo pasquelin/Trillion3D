@@ -1,6 +1,7 @@
 import { TRANSMISSION_GLSL } from './webglClusterTransmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from './webglOutputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './webglClusterRectGlsl.ts';
+import { PI } from './shaderConstants.ts';
 
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
@@ -18,7 +19,7 @@ texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*(model
 // position and texture coordinate — the WGSL routine of `clusterDecodeWgsl.ts`, operation for
 // operation, so the three lighting passes bend a normal map in one frame.
 export const CLUSTER_FRAGMENT = `#version 300 es
-precision highp float;const float PI=3.141592653589793;const int MAX_LIGHTS=64;
+precision highp float;const float PI=${PI};const int MAX_LIGHTS=64;
 in vec3 viewPosition;in vec3 viewNormal;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
 uniform vec3 emissiveFactor;uniform bool lit,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask;
@@ -38,7 +39,8 @@ vec3 brdf(vec3 N,vec3 V,vec3 L,vec3 base,float metal,float rough){float nl=max(d
 vec3 H=normalize(V+L);float nh=max(dot(N,H),0.0),vh=max(dot(V,H),0.0);float a=max(0.0525,rough);a*=a;float a2=a*a;
 float d0=nh*nh*(a2-1.0)+1.0,D=a2/(PI*d0*d0);float gv=nl*sqrt(nv*nv*(1.0-a2)+a2),gl=nv*sqrt(nl*nl*(1.0-a2)+a2);
 float Vis=0.5/(gv+gl+1e-7);vec3 F=fresnel(vh,mix(vec3(0.04),base,metal));return(base*(1.0-metal)/PI+D*Vis*F)*nl;}
-float attenuation(float distance,float range){float a=1.0/max(distance*distance,0.01);if(range>0.0){float r=distance/range;a*=pow(clamp(1.0-r*r*r*r,0.0,1.0),2.0);}return a;}
+float rangeWindow(float distance,float range){if(range<=0.0)return 1.0;float r=distance/range;return pow(clamp(1.0-r*r*r*r,0.0,1.0),2.0);}
+float attenuation(float distance,float range){return 1.0/max(distance*distance,0.01)*rangeWindow(distance,range);}
 float spotFactor(float cosine,float inner,float outer){return inner<=outer?(cosine>=outer?1.0:0.0):smoothstep(outer,inner,cosine);}
 ${OUTPUT_TRANSFER_GLSL}
 ${RECT_LIGHT_GLSL}

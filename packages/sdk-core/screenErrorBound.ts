@@ -1,3 +1,4 @@
+import { clipWeight } from './mathCamera.ts';
 import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts';
 
 /**
@@ -52,9 +53,8 @@ export function screenErrorBound(
   if (screenErrorVariant() !== 'certifiee')
     return referenceScreenError(error, stretch, depth, focal, near, perspective);
   const reach = radius * stretch,
-    shift = error * stretch,
-    flat = 1 - perspective;
-  const nearest = perspective * (depth - reach) + flat,
+    shift = error * stretch;
+  const nearest = clipWeight(perspective, depth - reach),
     closest = nearest - perspective * shift,
     side = perspective * (lateral + reach);
   // The near plane first: the hypotenuse root used to be taken then discarded when it is reached.

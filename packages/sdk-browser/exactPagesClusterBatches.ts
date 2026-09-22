@@ -1,4 +1,4 @@
-import { TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
+import { DEFAULT_TONE_MAPPING, TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
 import type { BackendContext, HostDrawOutput } from './backendTypes.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
@@ -39,7 +39,7 @@ export function createExactPagesClusterBatches(
   const batches = new ClusterBatches(scene, pages, owner, blendCopies);
   const drawHostGeometry = (camera: HostDrawCamera, output: HostDrawOutput) => {
     if (refusal) throw refusal;
-    if (owner) owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? 'aces'];
+    if (owner) owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
     batches.draw(camera, output.toneMapped, true);
   };
   return { batches, refusal, drawHostGeometry };

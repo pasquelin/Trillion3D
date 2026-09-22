@@ -26,8 +26,6 @@ export async function createRendererLessonRuntime({
   signal,
 }: RendererLessonRuntimeOptions): Promise<RendererLessonSession> {
   const startup = createRendererLessonDeadline(signal, SETTLE_TIME_LIMIT_MS);
-  // A static value import of the engine here would pull it into every route that reaches a
-  // lesson, even one whose world never mounts (a server-rendered component pass, for one).
   const engine: Engine = await import('../../packages/sdk-browser/index.ts');
   let world: World, bounds: Awaited<ReturnType<typeof createLessonWorld>>['bounds'];
   try {
@@ -120,14 +118,12 @@ export async function createRendererLessonRuntime({
         world.camera.position.set(...lesson.initialPose.position);
         world.camera.lookAt(...lesson.initialPose.target);
       } else camera.zoomOut();
-      world.invalidate();
     };
     camera.reset();
     await startup.wait(update(state));
     const resizeCanvas = () => {
       if (disposed) return;
       world.resize();
-      world.invalidate();
     };
     resize = new ResizeObserver(resizeCanvas);
     resize.observe(canvas);

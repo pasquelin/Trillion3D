@@ -1,4 +1,4 @@
-import { hslToLinearRgb, linearToSrgb, srgbToLinear } from '../../mathColor.ts';
+import { hslToLinearRgb, linearToSrgb8, srgbToLinear } from '../../mathColor.ts';
 import { Observed } from './observed.ts';
 import { namedColor } from './colorNames.ts';
 import { clearValueOf, rgbHex } from './packedColour.ts';
@@ -83,8 +83,7 @@ export class Color extends Observed {
   }
   /** 0xRRGGBB, sRGB-encoded and rounded to bytes. */
   getHex() {
-    const byte = (v: number) => Math.round(Math.min(1, Math.max(0, linearToSrgb(v))) * 255);
-    return (byte(this.r) << 16) | (byte(this.g) << 8) | byte(this.b);
+    return (linearToSrgb8(this.r) << 16) | (linearToSrgb8(this.g) << 8) | linearToSrgb8(this.b);
   }
   getHexString() {
     return this.getStyle().slice(1);

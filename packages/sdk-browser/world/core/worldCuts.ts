@@ -4,6 +4,7 @@ import type { Material } from '../../../sdk-core/world/material/material.ts';
 import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
 import { sha256Hex } from '../../sha256Hex.ts';
 import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts';
+import { packDrawn } from '../page/runtimeCut.ts';
 
 /**
  * A geometry resource: triangles cut into pages once, whatever number of geometry objects carry
@@ -37,24 +38,16 @@ function readingOf(mesh: Mesh) {
   return { key, options };
 }
 
-/** The content key of drawn triangles: the digest of every array they carry, lengths first. */
-async function contentKey(drawn: DrawnTriangles) {
-  const parts = [drawn.positions, drawn.normals, drawn.uvs, drawn.colors, drawn.indices];
-  const header = new Uint32Array(parts.map((part) => part?.length ?? 0));
-  const joined = new Uint8Array(
-    parts.reduce((bytes, part) => bytes + (part?.byteLength ?? 0), header.byteLength),
-  );
-  joined.set(new Uint8Array(header.buffer));
-  let at = header.byteLength;
-  for (const part of parts)
-    if (part) {
-      joined.set(new Uint8Array(part.buffer, part.byteOffset, part.byteLength), at);
-      at += part.byteLength;
-    }
-  return sha256Hex(joined.buffer);
+/** Drawn triangles, packed once (`packDrawn`): the digest of that buffer is their content key,
+ *  and the buffer itself is what the cut is handed — then yielded, and dropped here. */
+type Content = { key: string; drawn: DrawnTriangles; packed: ArrayBuffer | null };
+
+async function readContent(drawn: DrawnTriangles): Promise<Content> {
+  const packed = packDrawn(drawn);
+  return { key: await sha256Hex(packed), drawn, packed };
 }
 
-type Reading = { version: number; read: Promise<{ key: string; drawn: DrawnTriangles } | null> };
+type Reading = { version: number; read: Promise<Content | null> };
 
 /**
  * The geometry table of a world. A mesh's triangles are read (`drawnTriangles`) once per geometry
@@ -81,13 +74,17 @@ export function createWorldCuts() {
   };
   /** The resource of a content, cut when the table holds none; a geometry object that is not
    *  the first to bring this content is counted as folded. */
-  const resourceOf = (key: string, drawn: DrawnTriangles, fresh: boolean) => {
+  const resourceOf = (content: Content, fresh: boolean) => {
+    const { key, drawn } = content,
+      packed = content.packed;
+    content.packed = null;
     let pending = byKey.get(key);
     if (pending) {
       if (fresh) counts.duplicates++;
       return pending;
     }
-    pending = cutRuntimePrimitive(drawn).then(
+    // A content read again after its resource was released packs its triangles again.
+    pending = cutRuntimePrimitive(packed ?? packDrawn(drawn)).then(
       (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
       () => null,
     );
@@ -108,12 +105,12 @@ export function createWorldCuts() {
         const drawn = drawnTriangles(mesh.geometry, mesh.primitive, options);
         reading = {
           version: mesh.geometry.version,
-          read: drawn ? contentKey(drawn).then((key) => ({ key, drawn })) : Promise.resolve(null),
+          read: drawn ? readContent(drawn) : Promise.resolve(null),
         };
         ways.set(way, reading);
       }
       const content = await reading!.read;
-      const cut = content ? await resourceOf(content.key, content.drawn, fresh) : null;
+      const cut = content ? await resourceOf(content, fresh) : null;
       if (drawnBy.get(mesh) !== cut) leave(mesh);
       if (cut) {
         cut.users.add(mesh);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { HostDrawOutput } from './backendTypes.ts';
-import type { SceneToneMapping } from '../sdk-core/sceneEnvironment.ts';
+import { DEFAULT_TONE_MAPPING, type SceneToneMapping } from '../sdk-core/sceneEnvironment.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import { clusterColor } from './hostSceneObjects.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';
@@ -101,7 +101,7 @@ export function createThreeSceneDraw(
       const { renderer, wrapper } = entry;
       renderer.resetState();
       const tone = output.toneMapped
-        ? HOST_CURVE[output.toneMapping ?? 'aces']
+        ? HOST_CURVE[output.toneMapping ?? DEFAULT_TONE_MAPPING]
         : THREE.NoToneMapping;
       if (renderer.toneMapping !== tone) renderer.toneMapping = tone;
       if (output.framebuffer) {

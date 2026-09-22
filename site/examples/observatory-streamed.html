@@ -28,7 +28,8 @@
       // fully resident, at which point the counter below stops moving.
       const status = document.getElementById('status');
       world.onFrame(({ metrics }) => {
-        status.textContent = `${model.metadata.sourceTriangles?.toLocaleString('en') ?? '?'} source triangles compiled into ${model.metadata.clusters ?? '?'} clusters — ${metrics.residentPages ?? '?'} pages resident`;
+        const text = `${model.metadata.sourceTriangles?.toLocaleString('en') ?? '?'} source triangles compiled into ${model.metadata.clusters ?? '?'} clusters — ${metrics.residentPages ?? '?'} pages resident`;
+        if (status.textContent !== text) status.textContent = text;
       });
       await world.awaitPages();
     </script>

@@ -1,5 +1,5 @@
 import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
-import { createPlacementRows, type PlacementRows } from '../../placement/placementRows.ts';
+import { growPlacementRows, type PlacementRows } from '../../placement/placementRows.ts';
 import type { Cut } from './worldCuts.ts';
 import type { MaterialEntry } from './worldMaterials.ts';
 
@@ -70,12 +70,8 @@ export function createWorldBatches() {
     const held = before?.capacity ?? 0,
       needed = batch.wearers.size;
     if (needed > held) {
-      const capacity = held ? Math.max(needed, held * 2) : needed;
-      const rows = createPlacementRows(capacity);
-      if (before) {
-        rows.matrices.set(before.matrices);
-        rows.live.set(before.live);
-      }
+      const rows = growPlacementRows(before, needed);
+      const { capacity } = rows;
       for (let row = capacity - 1; row >= held; row--) batch.free.push(row);
       batch.owners.length = capacity;
       batch.owners.fill(null, held);

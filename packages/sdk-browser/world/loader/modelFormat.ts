@@ -60,7 +60,7 @@ export type ModelLoader<T, O> = (url: string, options: O) => Promise<T>;
 /**
  * The one door every model goes through: its format is detected (`detectModelFormat`) and the
  * loader registered for it reads it. A format no loader is registered for is refused by name —
- * the source formats wait for the runtime compiler (#252), which will register them.
+ * the source formats wait for the runtime compiler, which will register them.
  */
 export async function loadModelOfAnyFormat<T, O extends { signal?: AbortSignal }>(
   url: string,
@@ -72,7 +72,7 @@ export async function loadModelOfAnyFormat<T, O extends { signal?: AbortSignal }
   if (!load)
     throw new EngineError(
       'UNSUPPORTED_MODEL_FORMAT',
-      `${url}: ${format} models cannot be loaded yet; the runtime compiler (#252) will read them`,
+      `${url}: ${format} models cannot be loaded yet; the runtime compiler will read them`,
       { url, format },
     );
   return load(url, options);

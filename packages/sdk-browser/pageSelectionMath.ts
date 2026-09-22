@@ -55,11 +55,20 @@ export function cutSelects(
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),
       radius = sphere[3];
-    const lens = [stretch, focal, near, perspective] as const;
-    if (projectedErrorAt(own, lateral, depth, radius, ...lens) > pixelError) return false;
-    return projectedErrorAt(parent, lateral, depth, radius, ...lens) > pixelError;
+    if (
+      projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective) > pixelError
+    )
+      return false;
+    return (
+      projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near, perspective) >
+      pixelError
+    );
   }
-  const lens = [e, stretch, focal, near, perspective] as const;
-  if (projectedClusterError(own, sphere, 0, ...lens) > pixelError) return false;
-  return projectedClusterError(parent, rec.parentSphere ?? sphere, 0, ...lens) > pixelError;
+  if (projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective) > pixelError)
+    return false;
+  const parentSphere = rec.parentSphere ?? sphere;
+  return (
+    projectedClusterError(parent, parentSphere, 0, e, stretch, focal, near, perspective) >
+    pixelError
+  );
 }

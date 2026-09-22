@@ -14,8 +14,8 @@ type Resolved = { cut: Cut; entry: MaterialEntry } | null;
 /**
  * What a world's scene draws, held as tables: each mesh resolved to its geometry resource and
  * its material entry (`resolve`, asynchronous — a resource is cut off the frame), then seated on
- * a row of its batch (`seat`, synchronous, before a frame). `opened` is what the session in place
- * was built from; `reopenNeeded` says the scene now asks for something it does not hold — full
+ * a row of its batch (`seat`, synchronous, before a frame). `openedModels` is what the session in
+ * place was built from; `reopenNeeded` says the scene now asks for something it does not hold — full
  * rows excepted, which `growHeld` grows in place on a session that can.
  */
 export function createWorldContents(scene: Object3D, notices: WorldNotices) {
@@ -27,7 +27,7 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   const resolved = new Map<Mesh, Resolved>();
   const stale = new Set<Mesh>(),
     unseated = new Set<Mesh>();
-  const opened = { models: new Set<LoadedModel>() };
+  let openedModels = new Set<LoadedModel>();
   const forget = (mesh: Mesh) => {
     resolved.delete(mesh);
     unseated.delete(mesh);
@@ -39,17 +39,16 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   async function resolve() {
     const { added, removed, lights } = members.take();
     removed.forEach(forget);
-    const reading = new Set([...added, ...stale]);
+    const reading = [...new Set([...added, ...stale])].filter((mesh) => members.meshes.has(mesh));
     stale.clear();
-    for (const mesh of reading) {
-      if (!members.meshes.has(mesh)) continue;
-      const cut = await cuts.of(mesh);
-      if (!members.meshes.has(mesh)) forget(mesh);
-      else {
-        resolved.set(mesh, cut && { cut, entry: materials.entryOf(firstMaterial(mesh.material)) });
-        unseated.add(mesh);
-      }
-    }
+    // Every resource is read at once; the meshes are then seated in the order they came.
+    const read = await Promise.all(reading.map((mesh) => cuts.of(mesh)));
+    reading.forEach((mesh, i) => {
+      const cut = read[i];
+      if (!members.meshes.has(mesh)) return forget(mesh);
+      resolved.set(mesh, cut && { cut, entry: materials.entryOf(firstMaterial(mesh.material)) });
+      unseated.add(mesh);
+    });
     // What the tables folded is said once, with the count of the burst that folded it.
     const folded = { geometries: cuts.counts.duplicates, materials: materials.counts.duplicates };
     noticeFolds(notices, folded);
@@ -100,8 +99,8 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   };
   return {
     cuts,
-    materials,
-    batches,
+    /** The row each seated mesh holds. */
+    seats: batches.seats,
     poses,
     resolve,
     seat,
@@ -112,7 +111,7 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     },
     /** `parent`'s children changed: read at the next resolve. */
     changed: members.changed,
-    reopenNeeded: () => batches.waiting() || !same(opened.models, members.models),
+    reopenNeeded: () => batches.waiting() || !same(openedModels, members.models),
     /** Sizes the batches and gathers what the next session opens on; marks it opened. */
     plan() {
       const kept = batches.reopen();
@@ -122,16 +121,12 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
           (mesh, row) => mesh && poses.writeSeat(mesh, { batch, row }, shownUnder(mesh, scene)),
         );
       poses.settle();
-      opened.models = new Set(members.models);
+      openedModels = new Set(members.models);
       const used = new Set<MaterialEntry>(
         [...resolved.values()].flatMap((r) => (r ? [r.entry] : [])),
       );
       materials.keep(used);
       return { batches: kept, models: [...members.models] };
-    },
-    /** The cuts a plan reads: held while its session is open. */
-    cutsOf(plan: { batches: { cut: Cut }[] }) {
-      return new Set(plan.batches.map((item) => item.cut));
     },
     shown: (node: Object3D) => shownUnder(node, scene),
   };

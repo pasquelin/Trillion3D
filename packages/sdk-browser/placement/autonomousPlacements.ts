@@ -1,10 +1,10 @@
 import type { PageRec, ClusterRoot } from '../pageSelectionTypes.ts';
 import type { WebglFrameGate } from '../webglFrameGate.ts';
 import { followPlacementRows } from './placementUpdate.ts';
-import { placedBy, type PlacementRows } from './placementRows.ts';
+import type { PlacementRows } from './placementRows.ts';
 import { growRowRoots } from './placementGrowth.ts';
 import type { BlendCopy } from '../blendCopyContract.ts';
-import { growBlendCopies } from '../blendCopyMesh.ts';
+import { followBlendCopies, growBlendCopies } from '../blendCopyMesh.ts';
 import { autonomousBootstrap } from '../autonomousManifest.ts';
 import type { HostMaterials } from '../hostResources.ts';
 import type { HostDrawScene } from '../hostGraphNodes.ts';
@@ -43,23 +43,27 @@ type Placements = {
   blendCopies: BlendCopy[];
   scene: HostDrawScene;
   gate: WebglFrameGate;
+  /** Tells the instanced pages their rows were written (`webglPageBatches.ts`). */
+  rowsWritten: () => void;
 };
 
 /** The instance-buffer updates of the WebGL2 path. */
 export function autonomousPlacements(env: Placements) {
   const { roots, allPages, bootstrap, byUrl, baseMaterials, blendCopies, scene, gate } = env;
+  const { rowsWritten } = env;
   return {
     /** The roots follow their rows, and a frame that moved something is not held. The instanced
      *  pages read the rows at the next frame's sync; the blended copies posed by rows read them in
-     *  place, flag included (`blendCopyMesh.ts`). */
+     *  place and take their flag here (`blendCopyMesh.ts`). */
     updatePlacements(rows: PlacementRows, from: number, to: number) {
-      if (followPlacementRows(roots, rows, from, to) || placedBy(blendCopies, rows))
-        gate.sceneMoved();
+      rowsWritten();
+      const moved = followPlacementRows(roots, rows, from, to);
+      if (followBlendCopies(blendCopies, rows, from, to) || moved) gate.sceneMoved();
     },
     /** The growth contract (`placementGrowth.ts`): every table of this path is a list, so the
      *  new rows' roots and pages are appended to them, indexed like the ones collected. */
     growPlacements(from: PlacementRows, to: PlacementRows) {
-      for (const { root, template } of growRowRoots(roots, from, to)) {
+      for (const { item: root, template } of growRowRoots(roots, from, to)) {
         roots.push(root);
         root.pages.forEach((rec, rank) => {
           allPages.push(rec);
@@ -69,6 +73,7 @@ export function autonomousPlacements(env: Placements) {
         bootstrap.push(...autonomousBootstrap([root]));
       }
       growBlendCopies(blendCopies, from, to, (copy) => scene.add(copy));
+      rowsWritten();
       gate.sceneChanged();
     },
   };

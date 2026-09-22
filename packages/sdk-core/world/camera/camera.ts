@@ -21,14 +21,14 @@ export interface CameraParameters {
   bottom?: number;
 }
 
-/**
- * The eye a world draws from: a node of the scene, looking down its `-z`, and the optics the
- * engine composes its own projection from (`engineCamera.ts`). A write reaches the world's frame.
- */
 /** The optics a camera declares; a write redraws the frame, nothing more to call. */
 const OPTICS = ['fov', 'near', 'far', 'aspect', 'zoom', 'left', 'right', 'top', 'bottom'] as const;
 type Optic = (typeof OPTICS)[number];
 
+/**
+ * The eye a world draws from: a node of the scene, looking down its `-z`, and the optics the
+ * engine composes its own projection from (`engineCamera.ts`). A write reaches the world's frame.
+ */
 export class Camera extends Object3D {
   readonly isCamera = true as const;
   /** The optics' values, behind the properties of the same names. */
