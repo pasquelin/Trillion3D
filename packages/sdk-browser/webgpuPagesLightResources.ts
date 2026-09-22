@@ -97,7 +97,7 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.atlas = active ? lights.shadows?.view : undefined;
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
   // contract program alone, exactly the one from before the bounce lot.
-  const bounce = active ? rt.bounce.probes : undefined;
+  const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined;
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
   // Far-shadow proxy: bound only if it exists, otherwise the zero replacements leave the far surface

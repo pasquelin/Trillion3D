@@ -1,4 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
+import { TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
 import { PAGES_RING, noteShadowFrame, uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
@@ -6,8 +7,8 @@ import { ensureBounce } from './webgpuPagesPrepareBounce.ts';
 import { ensureSunFarShadow } from './webgpuPagesPrepareSunFar.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** The four floats the deferred pass rereads: lights, tiles in X and Y, exposure. */
-const directParams = new Float32Array(4);
+/** The floats the deferred pass rereads: lights, tiles in X and Y, exposure, display curve. */
+const directParams = new Float32Array(8);
 /** Camera world position, reused from one image to the next: bounce allocates nothing. */
 const viewpoint = new Float64Array(3);
 
@@ -34,11 +35,14 @@ export function encodeDirectLights(
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
   // the declared lights do not already light.
   directParams[3] = environment ? environment.exposure : 1;
+  directParams[4] = TONE_MAPPING_RANK[environment?.toneMapping ?? 'aces'];
   // The unlit view reads neither light lists nor an atlas: it therefore encodes none of them.
   // The slices survive it, so a representation change held for the camera to rest is released
   // to the list now: the plan of the first lit frame stales its pages, whatever the camera does.
   if (!active || store.unlit) {
     lights.plan.releaseDeferred();
+    // A lit view with no lamp may still hold an environment: its irradiance goes to the GPU.
+    if (!store.unlit) uploadSceneLights(device, lights);
     return directParams;
   }
   const frame = rt.run.frame,
@@ -94,7 +98,7 @@ function encodeBounce(
   const { bounce, lights } = rt;
   // A light exists: that is the signal that triggers the resident-proxy read, once.
   ensureBounce(rt, device);
-  const probes = bounce.probes;
+  const probes = bounce.wanted ? bounce.probes : undefined;
   bounce.probesUpdated = 0;
   bounce.raysLaunched = 0;
   bounce.encoded = false;

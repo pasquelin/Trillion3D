@@ -21,7 +21,13 @@ export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCame
   const heldFrame = createHeldFrame(gl);
   const present = createBackendPresenter(gl);
   const drawCamera = createHostDrawCamera();
-  const output: HostDrawOutput = { toneMapped: true, framebuffer: null, width: 0, height: 0 };
+  const output: HostDrawOutput = {
+    toneMapped: true,
+    toneMapping: 'aces',
+    framebuffer: null,
+    width: 0,
+    height: 0,
+  };
   /** The engine's background, sRGB-encoded like everything the destinations store; depth and
    *  stencil cleared with it, the whole viewport. */
   const clear = (background: SceneColour) => {
@@ -52,6 +58,7 @@ export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCame
     // (P6); as soon as a light exists, exposure and the filmic curve come back, last links of
     // the chain (P4). A target thus holds what the page would show.
     output.toneMapped = backend.sceneLit?.() !== false;
+    output.toneMapping = backend.sceneToneMapping?.() ?? 'aces';
     output.framebuffer = target?.framebuffer ?? null;
     output.width = width;
     output.height = height;

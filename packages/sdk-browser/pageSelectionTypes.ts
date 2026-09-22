@@ -4,6 +4,7 @@ import type { PageSurface } from './pageSurface.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import type { NormalCone } from './pageCone.ts';
 import type { CullingLinks } from './pageSelectionCutForced.ts';
+import type { PlacementOf } from './placement/placementRows.ts';
 
 export type PageRec = {
   id: number;
@@ -70,6 +71,9 @@ export type PageRec = {
   /** Rank of the root — the placement — in a WebGPU engine's selection roots, set once by its
    *  layout: that is what the record carries to look up the placement's motion. */
   placementIndex?: number;
+  /** The instance-buffer row this record is placed by, as its root: an engine drawn by the host
+   *  renderer draws such records instanced, one mesh per page and surface. */
+  placement?: PlacementOf;
 };
 /**
  * Group links of a primitive, flattened once and shared by every instance of it.
@@ -128,6 +132,11 @@ export type ClusterRoot<T> = {
    *  builds a page without a box declares nothing: that is the only contract that makes the
    *  omission visible. */
   boxes?: boolean;
+  /** True while the row this root was collected from is parked: every cut skips the root, and
+   *  its tables stay as they are, ready for the row to be taken back (`placementRows.ts`). */
+  parked?: boolean;
+  /** The instance-buffer row this root reads its world from, when it was collected from one. */
+  placement?: PlacementOf;
 };
 
 /**

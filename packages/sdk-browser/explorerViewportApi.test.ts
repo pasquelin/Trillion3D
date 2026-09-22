@@ -3,7 +3,7 @@ import test from 'node:test';
 import * as THREE from 'three';
 import { createExplorerViewportApi } from './explorerViewportApi.ts';
 import { createWebglSurface } from './webglSurface.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
 
 test('public resize sizes the owned surface once, and the composition targets in its pixels', () => {
@@ -113,7 +113,7 @@ test('captureSurfaceView hands the backend a finite view aimed at the pose targe
     camera,
     canvas: { width: 8, height: 8 } as HTMLCanvasElement,
     viewport: [8, 8],
-    options: {} as ExplorerOptions,
+    options: {} as MeasuredWorldOptions,
   });
   await assert.rejects(
     api.captureSurfaceView(

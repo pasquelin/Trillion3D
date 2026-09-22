@@ -6,7 +6,7 @@
 // from. The reference is recomputed on those same inputs and the two are compared
 // cluster by cluster (`partitionReference.ts`).
 
-import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type * as SdkBrowser from '../../packages/sdk-browser/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/index.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
 import { compareAudit, emptyTotals } from './partitionReference.ts';
@@ -31,7 +31,7 @@ export async function auditPoses(options: AuditPosesOptions) {
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   const evenements: BackendDiagnostic[] = [];
-  const explorer = await sdk.createExplorer(canvas, {
+  const explorer = await sdk.openMeasuredWorld(canvas, {
     manifestUrl: options.manifestUrl,
     scope: 'full',
     width: options.width,

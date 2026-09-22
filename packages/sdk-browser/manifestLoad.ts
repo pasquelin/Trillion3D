@@ -6,6 +6,7 @@ import {
   decodeManifestBinary,
   EngineError,
   isBinaryManifest,
+  DEFAULT_SCOPE,
   type AssetScope,
   type ClusterManifest,
   type SlimClusterManifest,
@@ -92,7 +93,9 @@ export interface LoadedManifest {
 }
 
 /**
- * Reads the preparation pointer, then the cache it names.
+ * Reads the preparation pointer, then the cache it names. The `requested` scope is enforced when
+ * the host names one — a pointer or a cache of another scope is refused by name —; left
+ * undefined, the scope the pointer declares is the one read, and the cache is held to it.
  *
  * A cache compiled with a binary sidecar hands over a small JSON and a column file: the columns are
  * mapped, never parsed, so the cost of reading a manifest stops growing with the cluster count. A
@@ -100,20 +103,26 @@ export interface LoadedManifest {
  */
 export async function loadClusterManifest(
   manifestUrl: string,
-  scope: AssetScope,
+  requested: AssetScope | undefined,
   signal?: AbortSignal,
 ): Promise<LoadedManifest> {
   const started = performance.now();
   const pointerResource = await jsonResource(manifestUrl, signal),
     pointer = pointerResource.value;
   const pointerMs = performance.now() - started;
-  const pointerTarget = located(() => assertCachePointer(pointer, scope), pointerResource.details);
+  const declared = requested ?? (pointer as { scope?: AssetScope } | null)?.scope;
+  const pointerTarget = located(
+    () => assertCachePointer(pointer, declared ?? DEFAULT_SCOPE),
+    pointerResource.details,
+  );
   const metadataUrl = new URL(pointerTarget, new URL(manifestUrl, location.href)).href;
   const jsonStart = performance.now();
   const metadataResource = await jsonResource(metadataUrl, signal),
     value = metadataResource.value;
   const jsonMs = performance.now() - jsonStart;
-  // Readiness, scope and format are settled before the columns are worth a request.
+  // Readiness, scope and format are settled before the columns are worth a request. A pointer
+  // that declares no scope leaves the cache's own to be read.
+  const scope = declared ?? (value.scope as AssetScope);
   located(() => assertCacheReady(value, scope), metadataResource.details);
   let metadata: ClusterManifest,
     binaryBytes = 0,

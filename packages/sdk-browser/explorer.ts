@@ -1,15 +1,21 @@
-import { resolveExplorerTarget, type ExplorerTarget } from './explorerTarget.ts';
+import { resolveExplorerTarget, type MeasuredWorldTarget } from './explorerTarget.ts';
 import { interactiveOptions } from './explorerInteractiveOptions.ts';
 import { startInteractiveExplorer } from './explorerInteractive.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
 import { loadExplorerManifest } from './explorerManifest.ts';
-import type { RenderBackend, ExplorerOptions } from './backendTypes.ts';
+import type { RenderBackend, MeasuredWorldOptions } from './backendTypes.ts';
 import { createExplorerSession, type ExplorerSession } from './explorerSession.ts';
-import { prepareExplorer, type ExplorerResources } from './explorerPrepare.ts';
+import { prepareExplorer, type ExplorerResources, type ExplorerSource } from './explorerPrepare.ts';
 import { createExplorerHostRuntime } from './explorerHostRuntime.ts';
 import { createExplorerApi } from './explorerApi.ts';
 
-export async function createExplorer(target: ExplorerTarget, original: ExplorerOptions) {
+/** Opens a session on `target`. `source` hands in a scene the caller already holds — manifest and
+ *  graph — in place of the one `manifestUrl` names: what a world built in code is drawn from. */
+export async function openMeasuredWorld(
+  target: MeasuredWorldTarget,
+  original: MeasuredWorldOptions,
+  source?: ExplorerSource,
+) {
   const canvas = resolveExplorerTarget(target);
   const options = interactiveOptions(canvas, original);
   options.signal?.throwIfAborted();
@@ -21,15 +27,14 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
   const { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress } =
     createExplorerSession(options);
   progress('manifest', 0, 1, 'Reading the cache');
-  const { manifestUrl } = options;
-  const { metadata, metadataUrl, loadedBase } = await loadExplorerManifest(
-    manifestUrl,
-    scope,
-    signal,
-    diagnose,
-    diagnosticChannel,
-  );
-  const base = loadedBase;
+  const manifestUrl = source?.manifestUrl ?? options.manifestUrl;
+  const {
+    metadata,
+    metadataUrl,
+    loadedBase: base,
+  } = source
+    ? { ...source, loadedBase: source.base }
+    : await loadExplorerManifest(manifestUrl, scope, signal, diagnose, diagnosticChannel);
   const resources: ExplorerResources = {};
   const backends: RenderBackend[] = [];
   const session: ExplorerSession = {
@@ -41,6 +46,7 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
     diagnosticChannel,
     emit,
     diagnose,
+    callerOwned: source?.callerOwned,
   };
   let disposeRuntime: (() => void) | undefined;
   try {
@@ -51,12 +57,13 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
       backends,
       resources,
       progress,
+      scene: source?.scene,
     });
     const runtime = createExplorerHostRuntime(session, { prepared, resources, backends });
     disposeRuntime = runtime.dispose;
     if (lifetime) runtime.hostedControls.push({ dispose: () => lifetime.abort() });
     const { profiler } = runtime;
-    progress('ready', 1, 1, 'Explorer ready');
+    progress('ready', 1, 1, 'MeasuredWorld ready');
     if (typeof window !== 'undefined') {
       (window as unknown as { __webGeometry: unknown }).__webGeometry = {
         profiler,
@@ -78,7 +85,7 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
         };
     return Object.assign(explorer, { invalidate });
   } catch (error) {
-    diagnose('error', 'Explorer preparation failed', {
+    diagnose('error', 'MeasuredWorld preparation failed', {
       kind: 'error',
       error: String(error),
       scope,
@@ -89,10 +96,10 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
       throw error;
     }
     backends.forEach((b) => b.dispose());
-    if (resources.source) disposeSource(resources.source);
-    resources.webglSurface?.dispose();
+    if (resources.source && !source?.callerOwned) disposeSource(resources.source);
+    resources.webglSurface?.dispose(source?.callerOwned);
     try {
-      resources.gpuDevice?.destroy();
+      if (resources.gpuDevice !== options.gpuDevice) resources.gpuDevice?.destroy();
     } catch {
       /* Device may already be lost. */
     }
@@ -101,4 +108,4 @@ export async function createExplorer(target: ExplorerTarget, original: ExplorerO
     throw error;
   }
 }
-export type Explorer = Awaited<ReturnType<typeof createExplorer>>;
+export type MeasuredWorld = Awaited<ReturnType<typeof openMeasuredWorld>>;

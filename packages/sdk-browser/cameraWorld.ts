@@ -1,6 +1,11 @@
 import { decomposeMatrix4, invertMatrix4 } from '../sdk-core/index.ts';
 import { copyElements, type HostNodeMatrix, type MatrixElements } from './matrixElements.ts';
-import { writeEngineCamera, type CameraOptics, type EngineCamera } from './engineCamera.ts';
+import {
+  writeEngineCamera,
+  type CameraOptics,
+  type EngineCamera,
+  type OrthographicBox,
+} from './engineCamera.ts';
 import type { ControlVector } from './cameraControlTypes.ts';
 import type { HostRotation } from './hostGraphNodes.ts';
 
@@ -84,6 +89,8 @@ export type HostCamera = {
   near: number;
   far: number;
   zoom: number;
+  /** The box an orthographic camera sees; absent or null for a perspective one. */
+  orthographic?: OrthographicBox | null;
   /** False when the host poses the camera by matrix: `matrix` IS the pose and nothing
    *  recomposes it from the three local fields. */
   matrixAutoUpdate: boolean;
@@ -148,6 +155,7 @@ export function readCameraWorld(
   optics.near = camera.near;
   optics.far = camera.far;
   optics.zoom = camera.zoom;
+  optics.orthographic = camera.orthographic;
   return writeEngineCamera(into, optics);
 }
 

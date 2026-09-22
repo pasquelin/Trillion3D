@@ -1,5 +1,6 @@
 import { mesh, triangle, box, combine, type Mesh } from './mesh.ts';
 import { terrain } from './surfaces.ts';
+import { math } from '../../../packages/sdk-browser/index.ts';
 export function paintedTerrain(lookup = false) {
   const out = terrain(24, 0.8);
   out.colors = out.positions.flatMap((v, i) => {
@@ -11,7 +12,9 @@ export function paintedTerrain(lookup = false) {
   });
   return out;
 }
-/** Separate corners and attach one face normal per triangle. */
+/** Separate corners and attach one face normal per triangle — a deliberately flat shading, over
+ *  duplicated corners, that `Geometry.computeVertexNormals` does not produce: that one is smooth
+ *  and area-weighted over an indexed mesh's shared vertices, the opposite of what this wants. */
 export function splitEdges(source: Mesh) {
   const out = mesh();
   out.normals = [];
@@ -19,12 +22,12 @@ export function splitEdges(source: Mesh) {
     const [a, b, c] = source.indices
       .slice(i, i + 3)
       .map((j) => source.positions.slice(j * 3, j * 3 + 3));
-    const u = b.map((x, k) => x - a[k]),
-      v = c.map((x, k) => x - a[k]);
-    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-    const length = Math.hypot(...n) || 1;
+    const normal = math
+      .vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2])
+      .cross(math.vector3(c[0] - a[0], c[1] - a[1], c[2] - a[2]))
+      .normalize();
     triangle(out, a, b, c);
-    for (let j = 0; j < 3; j++) out.normals.push(...n.map((x) => x / length));
+    for (let j = 0; j < 3; j++) out.normals.push(normal.x, normal.y, normal.z);
   }
   return out;
 }

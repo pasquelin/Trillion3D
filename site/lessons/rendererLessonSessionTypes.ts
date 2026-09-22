@@ -1,7 +1,5 @@
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
 import type { DiagnosticMode } from './engine-scene/diagnosticModes.ts';
 import type { RendererLessonItem } from './rendererLessonTypes.ts';
-import type { DiagnosticMode as EngineDiagnosticMode } from '../../packages/sdk/index.ts';
 
 /** What the lesson runtime reports each frame; `null` is a count the device did not give. */
 export interface RendererMetrics {
@@ -14,7 +12,7 @@ export interface RendererMetrics {
   shadowPending?: number | null;
   occluded?: number | null;
   tested?: number | null;
-  diagnostic?: EngineDiagnosticMode;
+  diagnostic?: DiagnosticMode;
 }
 
 /** What mounts a lesson: its canvas, definition, first state, metrics sink and cancellation. */
@@ -37,5 +35,4 @@ export interface RendererLessonSession {
   };
 }
 
-export type Controls = ReturnType<Explorer['controls']>;
 export type Settle = (value?: unknown) => void;

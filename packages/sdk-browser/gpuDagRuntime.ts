@@ -8,6 +8,8 @@ import {
 import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from './webgpuResidencyRanges.ts';
 import { refreshWorldStretch, worldsChanged } from './gpuDagWorlds.ts';
 import { residentBase, residentWords } from './gpuDagLayout.ts';
+import { FRAME_VEC4 } from './gpuDagTypes.ts';
+import { SELECTION_NONE as NONE } from './gpuSelection.ts';
 import { createDagDispatch } from './gpuDagDispatch.ts';
 import type { createDagResources } from './gpuDagResources.ts';
 
@@ -78,7 +80,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     state.lastSubmitted = undefined;
     state.lastReadback = undefined;
   };
-  const previousWorlds = packed.worlds.slice();
+  const previousWorlds = packed.worlds.slice(),
+    frameInts = new Uint32Array(frameData.buffer);
   // Residency bits extend the cold records, in the same buffer: the same view serves as
   // comparison mirror and write source, with no parallel array.
   const residentWord = residentBase(pageCount),
@@ -120,6 +123,21 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       state.lastSubmitted = undefined;
       state.lastReadback = undefined;
       return true;
+    },
+    parkWorld(w, parked) {
+      if (state.disposed || state.dead) return;
+      const node = parked ? NONE : packed.rootBases[w];
+      if (packed.rootNodes[w] === node) return;
+      packed.rootNodes[w] = node;
+      // The root travels behind the stretch in the frame buffer (`gpuDagResources.ts`): one word.
+      const at = (w * FRAME_VEC4 + 6) * 4 + 1;
+      frameInts[at] = node;
+      device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
+      // The cut is another one from here: computed again and read back, as after a move.
+      state.worldRevision++;
+      state.last = null;
+      state.lastSubmitted = undefined;
+      state.lastReadback = undefined;
     },
     updateResidency(next, changes) {
       if (state.disposed || state.dead || !residentCut) return false;

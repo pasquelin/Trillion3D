@@ -11,7 +11,7 @@ import * as browserLegacy from '../../packages/sdk-browser/index.ts';
 test('the facade keeps canonical binding identity across environments', () => {
   assert.equal(common.LOD_QUALITY, core.LOD_QUALITY);
   assert.equal(browser.LOD_QUALITY, core.LOD_QUALITY);
-  assert.equal(browser.createExplorer, browserLegacy.createExplorer);
+  assert.equal(browser.createWorld, browserLegacy.createWorld);
 });
 
 test('importing each facade starts no browser resource or native process', () => {
@@ -88,14 +88,21 @@ interface InventoryEntry {
 interface Inventory {
   exports: InventoryEntry[];
   collisions: unknown[];
+  shadowed: { name: string }[];
 }
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
-  assert.equal(inventory.exports.length, 518);
+  assert.equal(inventory.exports.length, 655);
   assert.deepEqual(inventory.collisions, []);
+  // The page words of the world families shadow the engine contracts of the same name in the
+  // browser condition; the inventory names every such pair.
+  assert.deepEqual(
+    inventory.shadowed.map((entry) => entry.name),
+    ['CameraPose', 'Material', 'Primitive', 'Scene', 'Side', 'Texture'],
+  );
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes(process.cwd())));
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes('file://')));
   assert.ok(
@@ -103,17 +110,24 @@ test('generated inventory and explicit facade files are current', async () => {
       (entry) => entry.name === 'sideOf' && entry.disposition === 'newly exposed',
     ),
   );
-  const entries = new Map(inventory.exports.map((entry) => [entry.name, entry]));
+  for (const name of ['openMeasuredWorld', 'MeasuredWorld', 'MeasuredWorldOptions'])
+    assert.ok(
+      !inventory.exports.some((row) => row.name === name),
+      `${name} belongs to the measurement entry, not the package`,
+    );
   for (const [name, entryPoint] of [
     ['CameraPose', 'web-geometry (common)'],
+    ['CameraPose', 'web-geometry (browser condition)'],
     ['JobSnapshot', 'web-geometry (common)'],
-    ['Explorer', 'web-geometry (browser condition)'],
-    ['ExplorerOptions', 'web-geometry (browser condition)'],
+    ['World', 'web-geometry (browser condition)'],
+    ['WorldOptions', 'web-geometry (browser condition)'],
     ['CompilationJob', 'web-geometry (node condition)'],
     ['CompilationResult', 'web-geometry (node condition)'],
     ['PrepareOptions', 'web-geometry (node condition)'],
   ]) {
-    const entry = entries.get(name);
+    const entry = inventory.exports.find(
+      (row) => row.name === name && row.currentEntryPoints.includes(entryPoint),
+    );
     assert.ok(entry, `${name} is missing from the inventory`);
     assert.equal(entry.kind, 'type', `${name} must remain a named public type`);
     assert.ok(
@@ -146,7 +160,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')));
   assert.equal(baseline.outputFiles[0].contents.length, 5_510);
   assert.equal(proposed.outputFiles[0].contents.length, 1_780);
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_292);
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_326);
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   );
