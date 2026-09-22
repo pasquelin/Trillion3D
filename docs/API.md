@@ -307,8 +307,10 @@ Reading a host graph no longer names the library that built it. `packages/sdk-br
 declares what a walk sees of a node — its identity, its local pose, the world matrix its host
 resolved, its chain, its `userData`, and the light, mesh and bounded faces a scan, a replication
 and a bounds union read — and `cameraWorld.ts` declares `HostCamera` the same way: the local pose
-the host's controls write, the optics it declares, the world matrix and its inverse, the
-projection its own renderer composed. Sixteen files left the closed list of
+the host's controls write — its three fields and the matrix that is their other face — the optics
+it declares, the world matrix its own resolution fills, and the projection its own renderer
+composed. The engine reads no inverse off it: the view a host draw needs is inverted into the
+buffer the engine owns (`invertMatrix4`), so nothing of a frame writes on the host's camera. Sixteen files left the closed list of
 `test/integration/moteur-sans-three.test.ts` with that: `cameraWorld.ts`, `exactPagesBounds.ts`,
 `explorerBackends.ts`, `explorerCamera.ts`, `explorerDisposeSource.ts`, `hostSceneHooks.ts`,
 `hostSceneScan.ts`, `hostSceneWatch.ts`, `hostWorldBounds.ts`, `hostWorldChain.ts`,

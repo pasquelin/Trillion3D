@@ -1,8 +1,7 @@
-import { decomposeMatrix4 } from '../sdk-core/index.ts';
-import { copyElements, type MatrixElements } from './matrixElements.ts';
+import { decomposeMatrix4, invertMatrix4 } from '../sdk-core/index.ts';
+import { copyElements, type HostNodeMatrix, type MatrixElements } from './matrixElements.ts';
 import { writeEngineCamera, type CameraOptics, type EngineCamera } from './engineCamera.ts';
 import type { ControlVector } from './cameraControlTypes.ts';
-import type { HostPoint } from './hostResources.ts';
 import type { HostRotation } from './hostGraphNodes.ts';
 
 export {
@@ -60,12 +59,20 @@ export type CameraMotion = { last?: Float64Array; lastMs?: number };
  * THE CAMERA THE HOST HANDS TO THE ENGINE, named by shape and by this file alone.
  *
  * What the engine READS of it: the world pose its own graph resolves, and the optics it
- * declares. What the engine WRITES on it: nothing. The pose setters and `lookAt` below are
- * there for the host's own gestures — framing, home, controls — which the explorer performs on
- * the host's behalf at the boundary; a frame never touches them.
+ * declares. What the engine WRITES on it: nothing a FRAME writes. The pose setters, `lookAt`
+ * and the matrix a campaign restore puts back are the host's own gestures — framing, home,
+ * controls, the view a measurement came from — which the explorer performs on the host's behalf
+ * at the boundary; a frame never touches them.
  *
  * `updateWorldMatrix` is asked to make the world matrix current, ancestors included. Any host
  * object of this shape satisfies the contract, whatever library it comes from.
+ *
+ * WHY `lookAt` TAKES A `ControlVector` AND NOT THREE READ-ONLY NUMBERS. A host library aims a
+ * camera through a vector of its own and tells it apart from a triple of numbers by a flag of
+ * its own; handed a plain `{ x, y, z }` literal it reads the object as the first number and
+ * composes a world matrix of `NaN`. Asking for the whole vector vocabulary — which no literal
+ * satisfies and every host point of this package already offers (`hostGraphObjects.hostPoint`) —
+ * puts that back under the compiler without naming any library.
  */
 export type HostCamera = {
   /** LOCAL pose, as the host stores it: what its controls write, never what a frame reads. */
@@ -77,18 +84,19 @@ export type HostCamera = {
   near: number;
   far: number;
   zoom: number;
+  /** False when the host poses the camera by matrix: `matrix` IS the pose and nothing
+   *  recomposes it from the three local fields. */
+  matrixAutoUpdate: boolean;
+  /** LOCAL matrix, the other face of the pose: what a restore puts back beside the three fields. */
+  readonly matrix: HostNodeMatrix;
   readonly matrixWorld: MatrixElements;
-  /** Inverse of the world matrix, which the host resolves with it and a draw recomputes. */
-  readonly matrixWorldInverse: MatrixElements & {
-    copy(from: MatrixElements): { invert(): unknown };
-  };
   /** Projection in the HOST's depth convention, finite far plane included. The engine composes
    *  its own (`engineCamera.ts`) and reads this one only for a draw the host renderer owns. */
   readonly projectionMatrix: MatrixElements;
   updateWorldMatrix(ancestors: boolean, descendants: boolean): void;
   updateMatrixWorld(force?: boolean): void;
   updateProjectionMatrix(): void;
-  lookAt(target: HostPoint): void;
+  lookAt(target: ControlVector): void;
   /** A view of its own the host keeps — the pose a measurement campaign comes back to. */
   clone(): HostCamera;
 };
@@ -143,13 +151,17 @@ export function readCameraWorld(
   return writeEngineCamera(into, optics);
 }
 
-/** Flat camera matrices for a draw that retains the host renderer's finite-depth projection. */
+/**
+ * Flat camera matrices for a draw that retains the host renderer's finite-depth projection.
+ * The view is the inverse of the world matrix, inverted into the buffer the engine owns
+ * (`invertMatrix4`, `sdk-core`): the host's own inverse is its business, and nothing here
+ * writes on the camera it was handed.
+ */
 export function readHostDrawCamera(into: HostDrawCamera, camera: HostCamera) {
   resolveCameraWorld(camera);
-  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
   into.projection.set(camera.projectionMatrix.elements);
   into.world.set(camera.matrixWorld.elements);
-  into.view.set(camera.matrixWorldInverse.elements);
+  invertMatrix4(into.view, into.world);
   into.eye.set(into.world.subarray(12, 15));
   return into;
 }

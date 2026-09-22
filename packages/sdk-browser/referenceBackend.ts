@@ -1,5 +1,6 @@
 import { meshes as objects, geometryBytes } from './sceneMeshes.ts';
 import { asHostLibrary } from './hostResources.ts';
+import { copyElements } from './matrixElements.ts';
 import { hostMeshCopy } from './hostGraphObjects.ts';
 import { baseCapabilities, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { lighting } from './hostSceneObjects.ts';
@@ -29,7 +30,7 @@ export const referenceBackend: BackendFactory = ({
   for (const mesh of objects(source)) {
     const copy = asHostLibrary<THREE.Mesh>(hostMeshCopy(mesh));
     copy.matrixAutoUpdate = false;
-    copy.matrix.fromArray(mesh.matrixWorld.elements);
+    copyElements(copy.matrix.elements, mesh.matrixWorld.elements);
     copy.renderOrder = order++;
     copy.userData.sourceMesh = mesh;
     copy.userData.sourceGeometry = mesh.geometry;
