@@ -131,7 +131,7 @@ function primitivePeinte() {
     baseMaterials: new Map(),
     geometryStore: {
       colorMaterials,
-    } as unknown as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
+    } as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
     cap: 0,
     sceneChanged: () => {},
   });

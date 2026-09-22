@@ -35,7 +35,14 @@ const model = new Float64Array(16),
   product = new Float64Array(16);
 
 /** `pose = transform · model`, sixteen floats in and sixteen floats out: no host library
- *  composes anything here, and the result is the one the reference computes, bit for bit. */
+ *  composes anything here, and the result is the one the reference computes, bit for bit.
+ *
+ *  `pose` is the mutable shape, `from` the read-only one, and the callers pass fields their own
+ *  records declare as `MatrixElements`. TypeScript does not weigh `readonly` when it checks
+ *  assignability, so that declaration is a statement of intent the compiler will not enforce:
+ *  this function is the ONE writer of those sixteen floats, which is why the rest of the page
+ *  path can read them as constants. Widening the records themselves would carry a mutable
+ *  matrix through the cut, the rows and the raster, to serve one writer. */
 function placeInto(pose: HostNodeMatrix, transform: Float64Array, from: MatrixElements) {
   copyElements(model, from.elements);
   multiplyMatrix4(product, transform, model);
