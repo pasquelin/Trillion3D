@@ -144,7 +144,7 @@ fn build_honours_cancellation() {
     let (positions, indices) = grid(32);
     let error = build_dag_tallied(
         &positions,
-        None,
+        &[],
         &indices,
         DagStrategy::QemEndpoints,
         &|| Err(invalid("cancelled")),
