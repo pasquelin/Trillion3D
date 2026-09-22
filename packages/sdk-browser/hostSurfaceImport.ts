@@ -38,11 +38,11 @@ const imported = new WeakMap<HostTexture, Editable>();
 
 /** The engine record of a host texture, built once and refilled when the host bumps its version. */
 export function importHostTexture(host: HostTexture): Texture {
-  // The host composes `KHR_texture_transform` lazily; the record aliases the composed elements,
-  // so a later recomposition is read without a second import.
-  if (host.matrixAutoUpdate) host.updateMatrix();
   const held = imported.get(host);
   if (held && held.version === host.version && held.image === host.image) return held;
+  // `KHR_texture_transform` is composed lazily by its owner: the import asks for it once, then
+  // ALIASES the composed elements, so a recomposition the host makes later is read as it stands.
+  if (host.matrixAutoUpdate) host.updateMatrix();
   const record = held ?? ({} as Editable);
   record.id = host.uuid;
   record.name = host.name;
