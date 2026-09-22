@@ -37,7 +37,11 @@ test('the transparent copy reads the world matrix the engine holds, it keeps no 
   mesh.position.set(1, 2, 3);
   const worlds = hostWorldPlacements(mesh);
   const copy = createBlendCopy(mesh, 7, worlds.of(mesh));
-  assert.equal(copy.matrix, worlds.of(mesh), 'the matrix IS the one the engine holds');
+  assert.equal(
+    copy.matrix.elements,
+    worlds.of(mesh).elements,
+    'the sixteen numbers ARE the ones the engine holds: the container borrows them, it copies none',
+  );
   assert.equal(copy.matrixAutoUpdate, false, 'Three must never recompose it');
   assert.equal(copy.userData.sourceMesh, mesh);
   assert.equal(copy.renderOrder, 7);

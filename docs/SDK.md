@@ -132,6 +132,14 @@ This first #78 lot is the hierarchy foundation only. `createExplorer` does not a
 `SceneRoot` yet. Engine materials, texture references, frame hooks, and browser-contract migration
 remain later #78 lots; lights continue to use the existing `SceneLight` version 2 contract.
 
+The same transform tree already carries the frame. A prepared host subtree is mirrored into one
+engine tree when the scene index is built; every later pass enters only the pose numbers the host
+moved — each compared bit for bit against what the tree holds — and then runs the world update
+without `force`, so a node moved out of two thousand costs the chain under it instead of the
+scene. The pose a page record, a cluster root or a transparent copy carries is a sixteen-number
+view on that tree's world buffer: a pass rewrites it in place, nothing is copied and nothing can
+go stale.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes writes the loop itself with a

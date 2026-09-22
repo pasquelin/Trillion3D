@@ -42,6 +42,7 @@ const M4A = [
   'hostWorldChain',
   'hostWorldMatrices',
   'hostWorldPlacements',
+  'hostWorldPose',
   'hostWorldTree',
   'pageSelectionCollect',
   'pageSelectionHelpers',
@@ -78,9 +79,6 @@ const CALCULS = [
 
 /** File -> exact line -> why this line is a host boundary and not a computation. */
 const FRONTIERE: Record<string, Record<string, string>> = {
-  'hostWorldPlacements.ts': {
-    'const matrix = new THREE.Matrix4();': 'the container a page carries, filled by the foundation',
-  },
   'hostWorldMatrices.ts': {
     'node.updateMatrixWorld(true);':
       'the scene belongs to the host: it stays up to date FOR IT, and the engine no longer reads it',
