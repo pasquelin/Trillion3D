@@ -1,6 +1,6 @@
+import type { HostAttributes, HostTexture } from './hostResources.ts';
 import type { GpuPartition } from './gpuPartitionTypes.ts';
 import { SHADE_UNIFORM_WORDS } from './visibilityShaderRequest.ts';
-import type * as THREE from 'three';
 import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuRaster } from './gpuRaster.ts';
 import type { GpuDraw } from './gpuDraw.ts';
@@ -78,9 +78,9 @@ export interface WebgpuVisState {
   mapsSampler: GPUSampler | undefined;
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
-  geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
-  mapLayer: Map<THREE.Texture, number>;
-  dataLayer: Map<THREE.Texture, number>;
+  geometryBlocks: Map<HostAttributes, GeometryBlock>;
+  mapLayer: Map<HostTexture, number>;
+  dataLayer: Map<HostTexture, number>;
 }
 
 export function createWebgpuVisState(): WebgpuVisState {

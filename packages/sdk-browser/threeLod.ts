@@ -1,4 +1,5 @@
 import { meshes, geometryBytes } from './sceneMeshes.ts';
+import { asHostLibrary } from './hostResources.ts';
 import { collectCover, buildIndex } from './threeLodHelpers.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
 import * as THREE from 'three';
@@ -125,7 +126,7 @@ export const threeLodBackend: BackendFactory = (context) => {
     ...sceneLightingApi(sceneLights, () => {}),
     render(camera) {
       hostDraw.render(camera);
-      context.source.updateMatrixWorld(true);
+      asHostLibrary<THREE.Object3D>(context.source).updateMatrixWorld(true);
       sceneLights.update();
       // Frame entry: the world pose, ancestors included, before any read (`cameraWorld.ts`).
       resolveCameraWorld(camera);

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { HostNode } from './hostResources.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../sdk-core/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
@@ -11,7 +12,7 @@ import type { ExplorerSession } from './explorerSession.ts';
 
 type Inputs = {
   source: THREE.Object3D;
-  sceneLightingSource?: THREE.Object3D;
+  sceneLightingSource?: HostNode;
   associations: BackendContext['associations'];
   textureIndices: Map<THREE.Texture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;

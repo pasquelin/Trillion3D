@@ -1,7 +1,7 @@
 import { visMaterial } from './visibilityMaterial.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
-import type { Side } from './materialSide.ts';
+import type { Side } from '../sdk-core/index.ts';
 import type { WebglClusterTextures } from './webglClusterTextures.ts';
 import type { WebglClusterState } from './webglClusterState.ts';
 import type { Matrix3UniformCache } from './webglClusterUniforms.ts';

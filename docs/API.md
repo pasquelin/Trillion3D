@@ -283,6 +283,34 @@ difference sits inside the after-side spread. **No gain is claimed**: the batch 
 | `OUTPUT_TRANSFER_GLSL`                                                           | the filmic curve and the sRGB transfer, one text for the cluster program and the observation program                                                                                                                                                               | the same two functions inlined in the cluster fragment                                                                                                         | `check:duplicates`; the cluster fragment text is unchanged                                                                                                                      |
 | `materialTextures(material)`                                                     | the textures a host material carries, whatever their slot — what its renderer would sample — for the anisotropy setting and the disposal                                                                                                                           | `value instanceof THREE.Texture` in two files                                                                                                                  | `explorerDisposeSource` and `explorerCapabilities` share it; `check:duplicates`                                                                                                 |
 
+## Batch C, lot 1 — the public contract stops naming the host library (#269, #78)
+
+The engine's signatures no longer carry a type of the rendering library the host draws with, with
+one declared exception: `render(camera: HostCamera)` of `backendTypes.ts`, where `HostCamera` is
+still the host's perspective camera (`cameraWorld.ts`) — the engine-owned camera is a following lot
+of #78. Two contracts replace the resource types, and the closed list of `test/integration/moteur-sans-three.test.ts` lost
+the fifteen files that named it: `backendTypes.ts`, `explorerOptions.ts`, `explorerSceneApi.ts`,
+`gpuDagTypes.ts`, `gpuSelection.ts`, `materialSide.ts`, `pageCone.ts`, `pageSelectionCutState.ts`,
+`pageSelectionHelpers.ts`, `pageSelectionTypes.ts`, `visibilityTypes.ts`, `webgpuBlendState.ts`,
+`webgpuPageRowMaterial.ts`, `webgpuPagesStateGpu.ts`, `webgpuPagesStateVis.ts`. Ten readers
+downstream of them stopped needing the library at all once their parameters became contract
+types, and left the list with them: `clusterBatchRange.ts`, `frameGateCore.ts`,
+`webgpuBlendBuffers.ts`, `webgpuBlendItems.ts`, `webgpuGeometryPrepare.ts`, `webgpuPageRow.ts`,
+`webgpuPositions.ts`, `webgpuTileAtlas.ts`, `webgpuTileCatalogue.ts`, `webgpuTileScratch.ts` —
+twenty-five files in all, and the list never grows.
+
+| Contract                                                                                                                   | What it names                                                                                                                                                         | Replaces                                                                     | Proof                                        |
+| -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| `Material`, `Side`, `AlphaMode`, `LinearRgb` — `packages/sdk-core/materialContract.ts`                                     | the surface parameters the compiler imported from the source file: linear base colour and emissive, opacity, metalness, roughness, side, alpha mode and cutoff        | `THREE.Material` in `RenderBackend.updateMaterial` and `explorer.updateMaterial` | `autonomousPages.test.ts`                    |
+| `HostMaterial`, `HostMaterials`, `HostTexture`, `HostAttribute`, `HostAttributes`, `HostGeometry`, `HostMesh`, `HostNode`, `HostScene`, `HostPoint` — `packages/sdk-browser/hostResources.ts` | what the engine reads of a resource the host owns and the engine never builds: surface and raster state, sampler state, attribute layout, a box, an identity          | `THREE.Material`, `THREE.Texture`, `THREE.BufferGeometry['attributes']`, `THREE.Mesh`, `THREE.Object3D`, `THREE.Scene` in the contract files | `moteur-sans-three.test.ts` (closed list) |
+| `asHostLibrary<T>(resource)` — `packages/sdk-browser/hostResources.ts`                                                     | the single crossing back: a boundary file gives a host resource to the library its owner wrote it with. Only the declared witnesses and host adapters call it          | scattered `as THREE.X` casts                                                  | `moteur-sans-three.test.ts` (closed list)    |
+| `addInstance(id, transform)`, `updateInstance(id, transform)`                                                              | a placement as sixteen column-major floats, `Float64Array(16)`; the engine copies them, the host keeps its array                                                      | `THREE.Matrix4`                                                              | `autonomousPages.test.ts`, `autonomousInstances.test.ts` |
+
+`scene`, `source` and `sceneLighting` keep pointing at the host's own display and source graphs:
+they are the host's, not the engine's, so they are named `HostScene` and `HostNode` and not
+`SceneRoot` / `SceneNode`. Substituting the engine hierarchy there is the per-frame-walk and
+source-loading work of the following lots, not a type change.
+
 ## Batch math for hosts (#104, #80)
 
 `packages/sdk-core/mathBatch.ts` and the `mathBatch*.ts` beside it: `n` elements per call, flat

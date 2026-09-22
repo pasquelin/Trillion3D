@@ -1,3 +1,4 @@
+import type { HostAttributes } from './hostResources.ts';
 import * as THREE from 'three';
 import { createDeferredLighting } from './deferredLighting.ts';
 import { prepareTemporalAntialiasing } from './taaPrepare.ts';
@@ -28,7 +29,7 @@ import { type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
  *  no cone and would no longer read `cone`. Pages are walked by root: the `allPages` catalogue is the
  *  concatenation of their pages, in the same order. */
 export function prepareCones(rt: WebgpuPagesRuntime) {
-  const xyzCache = new WeakMap<THREE.BufferGeometry['attributes'], Float32Array>();
+  const xyzCache = new WeakMap<HostAttributes, Float32Array>();
   for (const root of rt.setup.roots)
     for (const rec of root.pages) {
       const array = rec.array,

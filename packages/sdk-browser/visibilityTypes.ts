@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+import type { HostAttributes, HostMaterials, HostTexture } from './hostResources.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 export const VIS_INVALID = 0;
 /**
@@ -48,9 +49,9 @@ export const FLAG_LIT = 1,
 // `visibilityWrapModes.ts` now stores per map, in a word of its own.
 export type VisPage = {
   array: Uint32Array;
-  attributes: THREE.BufferGeometry['attributes'];
-  matrix: THREE.Matrix4;
-  material: THREE.Material | THREE.Material[];
+  attributes: HostAttributes;
+  matrix: MatrixElements;
+  material: HostMaterials;
   clusterId?: string;
 };
 
@@ -62,16 +63,16 @@ export type VisMaterial = {
   doubleSided: boolean;
   backSide: boolean;
   alphaTest: number;
-  map?: THREE.Texture;
-  metalnessMap?: THREE.Texture;
-  roughnessMap?: THREE.Texture;
-  normalMap?: THREE.Texture;
+  map?: HostTexture;
+  metalnessMap?: HostTexture;
+  roughnessMap?: HostTexture;
+  normalMap?: HostTexture;
   normalScale: number;
   normalScaleY: number;
-  aoMap?: THREE.Texture;
+  aoMap?: HostTexture;
   aoIntensity: number;
   emissive: [number, number, number];
-  emissiveMap?: THREE.Texture;
+  emissiveMap?: HostTexture;
   /** `KHR_materials_transmission.transmissionFactor`: the share of the background the surface lets through. */
   transmission: number;
   /** `KHR_materials_ior.ior`, and the volume of `KHR_materials_volume`. `attenuationDistance` is 0
@@ -117,9 +118,9 @@ export type TextureRgba = { data: Uint8Array; width: number; height: number };
  * object. The source is rechecked every call — buffer, offset, length, width, height — so a
  * replaced image does yield the new bytes.
  */
-const rgbaCache = new WeakMap<THREE.Texture, { source: ArrayBufferView; rgba: TextureRgba }>();
+const rgbaCache = new WeakMap<HostTexture, { source: ArrayBufferView; rgba: TextureRgba }>();
 
-export function textureRgba(texture: THREE.Texture): TextureRgba | null {
+export function textureRgba(texture: HostTexture): TextureRgba | null {
   const image = texture.image as
     { data?: ArrayBufferView; width?: number; height?: number } | undefined;
   if (!image?.data || !image.width || !image.height) return null;
