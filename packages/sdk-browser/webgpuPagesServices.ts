@@ -12,6 +12,7 @@ import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutPublication } from './webgpuCutPublication.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import { readGeometryPageHeader } from './geometryPageHeader.ts';
 import { markWebgpuLost } from './webgpuPagesLost.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
@@ -69,7 +70,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     if (geometryUrl === undefined)
       return sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
     if (!context.readGeometryPage) throw new Error('Missing geometry page reader');
-    return context.readGeometryPage(geometryUrl);
+    const bytes = await context.readGeometryPage(geometryUrl);
+    // The pool uploads these words as they are and the shaders decode them in place, so nothing
+    // downstream would ever notice a forged or truncated page. The format's own gate is read
+    // here, once per admission: magic, version, grids, and counts that measure exactly this many
+    // bytes. A page that fails it is refused through the loader's error path, never uploaded.
+    readGeometryPageHeader(bytes);
+    return bytes;
   };
   const pageSource = { read };
   const hasBytes = (rec: PageRec) => !!(rec.array || sourceBytes.has(rec.url));
