@@ -99,8 +99,8 @@ fn a_group_and_its_replacement_cover_the_same_triangles_once() {
 }
 
 #[test]
-fn a_planar_sheet_keeps_its_exact_level_and_coarsens_without_error() {
-    // A plane simplifies losslessly, so every level shares error zero; level 0 must still be emitted.
+fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_its_step() {
+    // A plane simplifies without displacing its surface; level 0 must still be emitted.
     let w = 65usize;
     let positions: Vec<f32> = (0..w)
         .flat_map(|y| (0..w).flat_map(move |x| [x as f32, y as f32, 0.0]))

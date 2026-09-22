@@ -52,5 +52,5 @@ fn simplification_qem_endpoints_garde_son_dag() {
     let (depth, racines, niveau_zero) = dag_of("qem-endpoints");
     assert_eq!(depth, 6, "depth unchanged");
     assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
-    assert_eq!(racines, 125, "root unchanged");
+    assert_eq!(racines, 125, "root count under meshoptimizer 0.25");
 }

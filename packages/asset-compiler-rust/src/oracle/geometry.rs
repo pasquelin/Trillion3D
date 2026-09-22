@@ -3,10 +3,7 @@ use super::scene::World;
 use super::trace::Hit;
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
 
-pub use crate::shared_math::{cross, dot, sub};
-pub fn scale(a: [f64; 3], k: f64) -> [f64; 3] {
-    [a[0] * k, a[1] * k, a[2] * k]
-}
+pub use crate::shared_math::{cross, dot, scale, sub};
 pub fn normalise(a: [f64; 3]) -> [f64; 3] {
     let length = dot(a, a).sqrt();
     if length <= 0.0 {
