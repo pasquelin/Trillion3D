@@ -1,4 +1,5 @@
 import { LTC_SIZE } from '../sdk-core/ltcTable.ts';
+import { INVERSE_TWO_PI } from './shaderConstants.ts';
 
 /** The WebGL2 program's rank of a rectangle in `lightData`, after its ambient (3). */
 export const WEBGL_RECT_KIND = 4;
@@ -20,7 +21,7 @@ export const RECT_LIGHT_GLSL = `
 const int LTC_SIZE=${LTC_SIZE};uniform highp sampler2D ltcTable;
 vec3 rectEdge(vec3 a,vec3 b){vec3 c=cross(a,b);float s=length(c);float theta=acos(clamp(dot(a,b),-1.0,1.0));return c*(s>1e-7?theta/s:1.0);}
 vec4 polygonFormFactor(vec3 a,vec3 b,vec3 c,vec3 d,vec3 up){vec3 na=normalize(a),nb=normalize(b),nc=normalize(c),nd=normalize(d);
-vec3 F=(rectEdge(na,nb)+rectEdge(nb,nc)+rectEdge(nc,nd)+rectEdge(nd,na))*0.15915494309189535;if(dot(F,a+c)<0.0)F=-F;
+vec3 F=(rectEdge(na,nb)+rectEdge(nb,nc)+rectEdge(nc,nd)+rectEdge(nd,na))*${INVERSE_TWO_PI};if(dot(F,a+c)<0.0)F=-F;
 float l=length(F);if(!(l>0.0))return vec4(0.0);return vec4(F/l,max((l*l+dot(F,up))/(l+1.0),0.0));}
 vec4 ltcTexel(int x,int y,int k){return texelFetch(ltcTable,ivec2(x*2+k,y),0);}
 vec4 ltcLookup(float rough,float NdotV,int k){vec2 at=vec2(clamp(rough,0.0,1.0),sqrt(clamp(1.0-NdotV,0.0,1.0)))*float(LTC_SIZE-1);
@@ -29,7 +30,7 @@ return mix(low,mix(ltcTexel(i.x,i.y+1,k),ltcTexel(i.x+1,i.y+1,k),f.x),f.y);}
 vec3 ltcCorner(vec3 q,vec3 T1,vec3 T2,vec3 N,vec4 m){float x=dot(q,T1),z=dot(q,N);return vec3(m.x*x+m.y*z,dot(q,T2),m.z*x+m.w*z);}
 vec3 rectLight(vec4 positionRange,vec3 n,vec4 axis,vec4 colorIntensity,vec3 N,vec3 V,vec3 P,vec3 base,float metal,float rough){
 vec3 C=positionRange.xyz,U=axis.xyz,W=normalize(cross(U,n))*axis.w;if(dot(P-C,n)<=0.0)return vec3(0.0);
-float window=1.0;if(positionRange.w>0.0){float r=length(C-P)/positionRange.w;window=pow(clamp(1.0-r*r*r*r,0.0,1.0),2.0);}
+float window=rangeWindow(length(C-P),positionRange.w);
 vec3 a=C-U-W-P,b=C+U-W-P,c=C+U+W-P,d=C-U+W-P;float E=colorIntensity.w*PI*polygonFormFactor(a,b,c,d,N).w*window;if(E<=0.0)return vec3(0.0);
 float NdotV=clamp(dot(N,V),1e-4,1.0);vec3 side=V-N*dot(N,V),other=cross(N,abs(N.x)>0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0));
 vec3 T1=normalize(dot(side,side)<1e-10?other:side),T2=cross(N,T1);vec4 m=ltcLookup(rough,NdotV,0),t=ltcLookup(rough,NdotV,1);

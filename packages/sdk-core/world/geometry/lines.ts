@@ -1,8 +1,9 @@
+import { crossVector3, normalizeVector3 } from '../../mathVector.ts';
 import { BufferAttribute } from '../buffer/index.ts';
 import { Geometry } from './geometry.ts';
 
 /** Every triangle edge of `geometry` once, as `[a, b]` corner pairs and the faces it borders. */
-function edgesOf(geometry: Geometry) {
+export function edgesOf(geometry: Geometry) {
   const position = geometry.attributes.position;
   const count = position?.count ?? 0;
   const corners = geometry.index
@@ -16,17 +17,13 @@ function edgesOf(geometry: Geometry) {
     const p = tri.map((v) => [position.getX(v), position.getY(v), position.getZ(v)]);
     const e1 = p[1].map((x, i) => x - p[0][i]),
       e2 = p[2].map((x, i) => x - p[0][i]);
-    const n = [
-      e1[1] * e2[2] - e1[2] * e2[1],
-      e1[2] * e2[0] - e1[0] * e2[2],
-      e1[0] * e2[1] - e1[1] * e2[0],
-    ];
-    const l = Math.hypot(n[0], n[1], n[2]) || 1;
+    const n = crossVector3([0, 0, 0], e1, e2);
+    normalizeVector3(n);
     for (let k = 0; k < 3; k++) {
       const [a, b] = [tri[k], tri[(k + 1) % 3]];
       const id = [key(a), key(b)].sort().join('|');
       const edge = edges.get(id) ?? { a, b, normals: [] };
-      edge.normals.push(n.map((x) => x / l));
+      edge.normals.push(n);
       edges.set(id, edge);
     }
   }

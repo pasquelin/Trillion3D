@@ -1,14 +1,12 @@
-import type { Texture as TextureRecord } from '../../textureContract.ts';
 import { Vector2 } from '../math/vector2.ts';
 import { listen } from '../math/observed.ts';
-import { filterRule, type ColorSpace, type Filter, type Wrap } from '../constants/index.ts';
+import type { ColorSpace, Filter, Wrap } from '../constants/index.ts';
 
 let nextTexture = 1;
 
 /**
- * An image and how it is sampled. The fields are a page's words (`wrap`, `filter`,
- * `colorSpace`); `record()` is the engine's texture (`textureContract.ts`) they describe. Any
- * write reaches the materials that sample it.
+ * An image and how it is sampled, in a page's words (`wrap`, `filter`, `colorSpace`). Any write
+ * reaches the materials that sample it.
  */
 export class Texture {
   readonly isTexture = true as const;
@@ -73,30 +71,6 @@ export class Texture {
   private touch() {
     this.version++;
     for (const listener of this._listeners) listener();
-  }
-  /** The engine texture these words describe, its UV transform composed as glTF declares it. */
-  record(): TextureRecord {
-    const c = Math.cos(this.rotation),
-      s = Math.sin(this.rotation);
-    const [sx, sy] = [this.repeat.x, this.repeat.y],
-      [ox, oy] = [this.offset.x, this.offset.y];
-    return {
-      id: this.id,
-      name: this.name,
-      version: this.version,
-      image: this.image,
-      channel: this.channel,
-      wrapS: this.wrapS,
-      wrapT: this.wrapT,
-      magFilter: filterRule(this.magFilter),
-      minFilter: filterRule(this.minFilter),
-      anisotropy: this.anisotropy,
-      flipY: this.flipY,
-      premultiplyAlpha: false,
-      generateMipmaps: this.layout !== 'compressed',
-      colorSpace: this.colorSpace === 'srgb' ? 'srgb' : 'linear',
-      transform: [sx * c, sx * s, 0, -sy * s, sy * c, 0, ox, oy, 1],
-    };
   }
   clone() {
     const copy = new Texture(this.image, this.layout, this.format);

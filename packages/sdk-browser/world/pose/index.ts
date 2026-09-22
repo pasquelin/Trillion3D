@@ -6,9 +6,8 @@ import { Vector3, readVec3, type Vec3Input } from '../../../sdk-core/world/math/
 import type { CameraPose } from '../../../sdk-core/world/camera/camera.ts';
 import { sessionOf } from '../core/worldSession.ts';
 
-/** What a path is replayed through: a world's canvas and camera. */
+/** What a path is replayed through: a world and its camera. */
 export type PosedWorld = {
-  canvas: HTMLCanvasElement;
   camera: { fov: number; near: number; far: number };
 };
 
@@ -19,8 +18,10 @@ export const pose = {
     box: Box3,
     p: { fov?: number; direction?: Vec3Input; aspect?: number } = {},
   ): CameraPose {
-    const centre = box.getCenter(new Vector3()),
-      radius = box.getSize(new Vector3()).length() / 2;
+    // An empty box frames its origin at no distance, not at the empty sphere's radius of −1.
+    const sphere = box.getBoundingSphere({ center: new Vector3(), radius: 0 });
+    const centre = sphere.center,
+      radius = Math.max(0, sphere.radius);
     const framing = framingFromBounds(radius, p.aspect ?? 1);
     const along = p.direction
       ? new Vector3(...readVec3(p.direction))

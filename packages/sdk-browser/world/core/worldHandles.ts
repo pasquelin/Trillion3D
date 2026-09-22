@@ -93,7 +93,12 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
   };
 }
 
-type Controller = NonNullable<ReturnType<typeof worldControls>>;
+/** A controller as the world drives it: a pivot one carries a `target`, a steered one integrates
+ *  over a delta in `update`. */
+type Controller = NonNullable<ReturnType<typeof worldControls>> & {
+  target?: Vector3;
+  update?: (delta?: number) => boolean;
+};
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
@@ -110,14 +115,12 @@ export function worldControlsHandle(
     current: Controller | null = null;
   const standingTarget = new Vector3();
   const rebuild = () => {
-    const target = (current as { target?: Vector3 } | null)?.target ?? standingTarget;
-    standingTarget.copy(target);
+    standingTarget.copy(current?.target ?? standingTarget);
     current?.dispose();
-    current = enabled ? worldControls(kind, camera(), surface) : null;
-    const pivot = current as { target?: Vector3; update?: () => boolean } | null;
-    if (pivot?.target) {
-      pivot.target.copy(standingTarget);
-      pivot.update?.();
+    current = enabled ? (worldControls(kind, camera(), surface) as Controller | null) : null;
+    if (current?.target) {
+      current.target.copy(standingTarget);
+      current.update?.();
     }
     current?.addEventListener('change', invalidate);
   };
@@ -139,11 +142,11 @@ export function worldControlsHandle(
     },
     /** The point a pivot controller turns around. */
     get target(): Vector3 {
-      return (current as { target?: Vector3 } | null)?.target ?? standingTarget;
+      return current?.target ?? standingTarget;
     },
     /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
     update(delta = 0) {
-      (current as { update?: (d: number) => boolean } | null)?.update?.(delta);
+      current?.update?.(delta);
     },
     /** The world's camera changed: the controller follows it. */
     follow: rebuild,

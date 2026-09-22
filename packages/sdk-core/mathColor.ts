@@ -18,6 +18,11 @@ export function linearToSrgb(c: number) {
   return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
 }
 
+/** Linear value to its encoded sRGB byte, rounded and held to `[0, 255]`. */
+export function linearToSrgb8(c: number) {
+  return Math.max(0, Math.min(255, Math.round(linearToSrgb(c) * 255)));
+}
+
 /** `t` wrapped into `[0, 1[` via reference Euclidean modulo: `((t % 1) + 1) % 1`. */
 const wrapUnit = (t: number) => ((t % 1) + 1) % 1;
 

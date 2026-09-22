@@ -143,7 +143,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
-    ...autonomousPlacements({ ...tables, blendCopies, scene, gate }),
+    ...autonomousPlacements({
+      ...tables,
+      blendCopies,
+      scene,
+      gate,
+      rowsWritten: geometryStore.rowsWritten,
+    }),
     ...lightingApi,
     ...residency,
     dropPage(url: string) {

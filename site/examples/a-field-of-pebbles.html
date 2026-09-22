@@ -52,7 +52,8 @@
       const count = document.getElementById('count');
       world.onFrame(() => {
         const { drawCalls } = metric.frame(world);
-        count.textContent = `${COUNT} pebbles and their bed — ${drawCalls ?? '?'} draw calls`;
+        const text = `${COUNT} pebbles and their bed — ${drawCalls ?? '?'} draw calls`;
+        if (count.textContent !== text) count.textContent = text;
       });
       world.invalidate();
     </script>

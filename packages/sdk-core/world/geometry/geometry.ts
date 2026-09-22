@@ -1,7 +1,10 @@
 import { BufferAttribute } from '../buffer/index.ts';
 import { Box3 } from '../math/box3.ts';
 import { Sphere } from '../math/volumes.ts';
-import { Matrix3, Matrix4 } from '../math/matrix4.ts';
+import { Matrix4 } from '../math/matrix4.ts';
+import { transformPointsBatch } from '../../mathBatchPoints.ts';
+import { normalMatrix3 } from '../../mathMatrix3.ts';
+import { applyMatrix3Vector3, normalizeVector3 } from '../../mathVector.ts';
 import { computeNormals } from './normals.ts';
 
 /** The shape alone: named per-vertex attributes, an optional triangle index, material groups. */
@@ -83,26 +86,17 @@ export class Geometry {
   applyMatrix4(m: Matrix4) {
     const position = this.attributes.position,
       normal = this.attributes.normal;
-    const e = m.elements;
-    if (position)
-      for (let i = 0; i < position.count; i++) {
-        const [x, y, z] = [position.getX(i), position.getY(i), position.getZ(i)];
-        position.setXYZ(
-          i,
-          e[0] * x + e[4] * y + e[8] * z + e[12],
-          e[1] * x + e[5] * y + e[9] * z + e[13],
-          e[2] * x + e[6] * y + e[10] * z + e[14],
-        );
-      }
+    if (position) {
+      const points = position.array as Float32Array;
+      transformPointsBatch(points, m.elements, points, position.count);
+    }
     if (normal) {
-      const n = new Matrix3().getNormalMatrix(m).elements;
+      const n = normalMatrix3(new Float64Array(9), m.elements),
+        v = new Float64Array(3);
       for (let i = 0; i < normal.count; i++) {
-        const [x, y, z] = [normal.getX(i), normal.getY(i), normal.getZ(i)];
-        const nx = n[0] * x + n[3] * y + n[6] * z,
-          ny = n[1] * x + n[4] * y + n[7] * z,
-          nz = n[2] * x + n[5] * y + n[8] * z;
-        const l = Math.hypot(nx, ny, nz) || 1;
-        normal.setXYZ(i, nx / l, ny / l, nz / l);
+        applyMatrix3Vector3(v, n, normal.getX(i), normal.getY(i), normal.getZ(i));
+        normalizeVector3(v);
+        normal.setXYZ(i, v[0], v[1], v[2]);
       }
     }
     return this._changed();

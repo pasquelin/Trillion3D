@@ -6,6 +6,7 @@ import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from './surfaceModel.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL } from './directLightSamplingWgsl.ts';
 import { DIRECT_SHADOW_WGSL } from './directShadowWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
+import { INVERSE_PI } from './shaderConstants.ts';
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -33,7 +34,7 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  if(shade<=0.0){return vec3f(0.0);}
  let energy=light.colorIntensity.w*incidence.w*shade;
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return modelLight(rgb,metal,N,incidence.xyz,energy,ao)*light.colorIntensity.rgb;}
- return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy),vec3f(0.0),vec3f(0.0),ao)*light.colorIntensity.rgb;
+ return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))*light.colorIntensity.rgb;
 }
 /** The environment's irradiance at the normal N (\`sceneEnvironment.ts\`), on the diffuse lobe:
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
@@ -42,7 +43,7 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  var E=e[0].rgb*${IRRADIANCE_BAND.constant}+(e[1].rgb*N.y+e[2].rgb*N.z+e[3].rgb*N.x)*${IRRADIANCE_BAND.linear};
  E+=(e[4].rgb*N.x*N.y+e[5].rgb*N.y*N.z+e[7].rgb*N.x*N.z)*${IRRADIANCE_BAND.quadraticCross};
  E+=e[6].rgb*(${IRRADIANCE_BAND.quadraticZ}*N.z*N.z-${IRRADIANCE_BAND.quadraticZOffset})+e[8].rgb*${IRRADIANCE_BAND.quadraticDifference}*(N.x*N.x-N.y*N.y);
- return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*0.3183098861837907;
+ return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
 fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
 /** Lights of a slice of a tile's list: its count at countSlot, its indices from firstSlot. */

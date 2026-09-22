@@ -1,4 +1,5 @@
 import { linearToSrgb } from '../sdk-core/index.ts';
+import { DEFAULT_TONE_MAPPING } from '../sdk-core/sceneEnvironment.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import { createHostDrawCamera, readHostDrawCamera, type HostCamera } from './cameraWorld.ts';
 import { createBackendPresenter } from './explorerComposeSurface.ts';
@@ -23,7 +24,7 @@ export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCame
   const drawCamera = createHostDrawCamera();
   const output: HostDrawOutput = {
     toneMapped: true,
-    toneMapping: 'aces',
+    toneMapping: DEFAULT_TONE_MAPPING,
     framebuffer: null,
     width: 0,
     height: 0,
@@ -58,7 +59,7 @@ export function createFrameComposer(gl: WebGL2RenderingContext, camera: HostCame
     // (P6); as soon as a light exists, exposure and the filmic curve come back, last links of
     // the chain (P4). A target thus holds what the page would show.
     output.toneMapped = backend.sceneLit?.() !== false;
-    output.toneMapping = backend.sceneToneMapping?.() ?? 'aces';
+    output.toneMapping = backend.sceneToneMapping?.() ?? DEFAULT_TONE_MAPPING;
     output.framebuffer = target?.framebuffer ?? null;
     output.width = width;
     output.height = height;

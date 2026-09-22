@@ -1,6 +1,7 @@
 import { LIGHT_KIND } from '../sdk-core/index.ts';
 import { MODEL_FLAG } from './surfaceModel.ts';
 import { LTC_SIZE } from '../sdk-core/ltcTable.ts';
+import { INVERSE_PI, INVERSE_TWO_PI, PI } from './shaderConstants.ts';
 
 /**
  * A RECTANGULAR LIGHT, one-sided: a Lambertian rectangle of uniform radiance L, centred on
@@ -17,7 +18,7 @@ import { LTC_SIZE } from '../sdk-core/ltcTable.ts';
  * polygonal lights"): (|F|² + F·z) / (|F| + 1), exactly F·z when it is whole above.
  * - Diffuse: the cosine itself — the rectangle as it is, around the normal: exact.
  * - Specular: the engine's GGX lobe, Fresnel apart, is the cosine seen through the matrix M
- *   fitted for its roughness and view angle (`ltcFit.ts`, `ltcTable.ts`); the rectangle, in the
+ *   fitted for its roughness and view angle (`scripts/ltc-fit.ts`, `ltcTable.ts`); the rectangle, in the
  *   frame of the normal and the view, is moved by M⁻¹ and integrated the same way, then weighed
  *   by the lobe's magnitude and its Schlick share: F0·norm + (1 − F0)·share.
  *
@@ -37,7 +38,7 @@ fn rectEdge(a:vec3f,b:vec3f)->vec3f{
  *  unit, and its form factor clipped by the horizon of \`up\`. */
 fn polygonFormFactor(a:vec3f,b:vec3f,c:vec3f,d:vec3f,up:vec3f)->vec4f{
  let na=normalize(a);let nb=normalize(b);let nc=normalize(c);let nd=normalize(d);
- var F=(rectEdge(na,nb)+rectEdge(nb,nc)+rectEdge(nc,nd)+rectEdge(nd,na))*0.15915494309189535;
+ var F=(rectEdge(na,nb)+rectEdge(nb,nc)+rectEdge(nc,nd)+rectEdge(nd,na))*${INVERSE_TWO_PI};
  if(dot(F,a+c)<0.0){F=-F;}
  let l=length(F);
  if(!(l>0.0)){return vec4f(0.0);}
@@ -49,8 +50,7 @@ struct RectView{a:vec3f,b:vec3f,c:vec3f,d:vec3f,window:f32,}
 fn rectView(light:DirectLight,P:vec3f)->RectView{
  let C=light.positionRange.xyz;let n=light.directionCone.xyz;
  let U=light.shape.xyz;let W=normalize(cross(U,n))*light.shape.w;
- let ratio=length(C-P)/light.positionRange.w;
- let window=select(pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0),0.0,dot(P-C,n)<=0.0);
+ let window=select(rangeWindow(length(C-P),light.positionRange.w),0.0,dot(P-C,n)<=0.0);
  return RectView(C-U-W-P,C+U-W-P,C+U+W-P,C-U+W-P,window);
 }
 /** Direction of the vector form factor and the rectangle's irradiance per unit radiance at P
@@ -59,7 +59,7 @@ fn rectIrradiance(light:DirectLight,P:vec3f,N:vec3f)->vec4f{
  let r=rectView(light,P);
  if(r.window<=0.0){return vec4f(0.0);}
  let f=polygonFormFactor(r.a,r.b,r.c,r.d,N);
- return vec4f(f.xyz,3.141592653589793*f.w*r.window);
+ return vec4f(f.xyz,${PI}*f.w*r.window);
 }`;
 
 /** The rectangle's fitted lobe at (roughness, cos θ_v): bilinear over the table's cells, texel
@@ -100,5 +100,5 @@ fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:v
  let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
  let f0=mix(vec3f(0.04),rgb,metal);
  let specular=(f0*t.x+(vec3f(1.0)-f0)*t.y)*lobe*light.colorIntensity.w*r.window;
- return (rgb*(1.0-metal)*0.3183098861837907*E+specular)*tint;
+ return (rgb*(1.0-metal)*${INVERSE_PI}*E+specular)*tint;
 }`;

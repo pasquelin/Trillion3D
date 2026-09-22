@@ -26,7 +26,6 @@ export type ExplorerSource = {
   base: string;
   metadata: import('../sdk-core/index.ts').ClusterManifest;
   scene: ExplorerScene;
-  callerOwned?: boolean;
 };
 
 type Inputs = {
