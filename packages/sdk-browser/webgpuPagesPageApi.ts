@@ -1,6 +1,7 @@
 import { acceptPageArray } from './pageSelection.ts';
 import { applyArrivalPlan } from './pageArrivalSpecs.ts';
 import { pageSourceBytes } from './webgpuPagesCatalogue.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 import type { ArrivalPlan } from './pageIntegrationHost.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
@@ -31,7 +32,7 @@ export function acceptPage(
   // address is what yields them, whichever placement just received them.
   for (let i = 0; i < recs.length; i++) {
     const bytes = pageSourceBytes(recs[i]);
-    if (bytes) sourceBytes.set(recs[i].url, bytes);
+    if (bytes) sourceBytes.set(pageAddress(recs[i]), bytes);
   }
   // Bytes have arrived: the list of pages still waited for is no longer the previous one.
   run.pageArrayEpoch++;
@@ -50,7 +51,7 @@ export function acceptPage(
     url,
     bytes: array.byteLength,
     clusters: recs.length,
-    bootstrap: recs.some((rec) => bootstrapUrls.has(rec.url)),
+    bootstrap: recs.some((rec) => bootstrapUrls.has(pageAddress(rec))),
     wanted: recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec))),
     pinned: recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
   }));
@@ -65,7 +66,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
   if (!recs) return;
   // A request is kept whole: dropping it would take away every cluster it carries, so one pinned
   // cluster is enough to refuse or defer the drop.
-  if (recs.some((rec) => bootstrapUrls.has(rec.url))) {
+  if (recs.some((rec) => bootstrapUrls.has(pageAddress(rec)))) {
     diag.traceDiagnostic(
       'page-drop-deferred',
       'Bootstrap page drop ignored to preserve coverage',
@@ -102,8 +103,9 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     // A cluster's bytes are what make it drawable the same way as its cache slot: the page is named
     // AFTER the drop, so what rereads it does read the page without bytes.
     if (page !== undefined) rows.touchPage(page);
-    sourceBytes.delete(rec.url);
-    gpu.cache?.unload?.(rec.url);
+    const address = pageAddress(rec);
+    sourceBytes.delete(address);
+    gpu.cache?.unload?.(address);
     tracking.unmarkPinned(tracking.keyOf(rec));
   }
   diag.traceDiagnostic('page-dropped', 'CPU/GPU page released', () => ({
