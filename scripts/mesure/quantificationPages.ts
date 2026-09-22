@@ -12,55 +12,54 @@
  * Prints JSON: pages read, corners compared, largest and mean position gap in scene units, and
  * largest and mean angle between the decoded normal and the source one.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeManifestBinary, type ClusterManifest } from '../../packages/sdk-core/index.ts';
+import { pathToFileURL } from 'node:url';
+import { readCacheManifest } from './cacheManifest.ts';
 import { decodeGeometryPage } from '../../packages/sdk-browser/geometryPage.ts';
 
 const ITEMS: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
 
-/** Manifest of a `native/full` cache, binary columns read back in. */
-function readManifest(full: string) {
-  const key = readdirSync(full).find((name) => name.length === 64);
-  if (!key) throw new Error(`no cache key under ${full}`);
-  const dir = join(full, key);
-  const slim = JSON.parse(readFileSync(join(dir, 'clusters.json'), 'utf8'));
-  const bytes = readFileSync(join(dir, 'clusters.bin'));
-  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  return { dir, metadata: decodeManifestBinary(slim, buffer as ArrayBuffer) as ClusterManifest };
-}
-
-/** A float accessor of the source glTF, read straight out of `source.bin`. */
+/** Float accessors of the source glTF, read out of `source.bin` and held by accessor index. */
 function accessorReader(dir: string) {
   const gltf = JSON.parse(readFileSync(join(dir, 'source.gltf'), 'utf8'));
   const bin = readFileSync(join(dir, 'source.bin'));
+  const held = new Map<number, Float32Array>();
   return {
     gltf,
     read(index: number) {
+      let floats = held.get(index);
+      if (floats) return floats;
       const accessor = gltf.accessors[index],
         view = gltf.bufferViews[accessor.bufferView];
       const start = bin.byteOffset + (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
-      const floats = accessor.count * ITEMS[accessor.type as string];
-      return new Float32Array(bin.buffer.slice(start, start + floats * 4));
+      const count = accessor.count * ITEMS[accessor.type as string];
+      floats = new Float32Array(bin.buffer.slice(start, start + count * 4));
+      held.set(index, floats);
+      return floats;
     },
   };
 }
 
-export function measureCache(full: string) {
-  const { dir, metadata } = readManifest(full);
+/** Largest angle, in degrees, between two unit normals read off their own arrays. */
+function normalAngle(a: Float32Array, at: number, b: Float32Array, bt: number) {
+  let dot = 0;
+  for (let axis = 0; axis < 3; axis += 1) dot += a[at + axis] * b[bt + axis];
+  return (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
+}
+
+function measureCache(full: string) {
+  const { dir, manifest } = readCacheManifest(full);
   const { gltf, read } = accessorReader(dir);
-  const objects = join(dir, '..', '..', 'objects');
-  const file = (url: string) => {
-    const bytes = readFileSync(join(objects, url.split('/').pop()!));
-    return new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
-  };
+  // A page URL is relative to the manifest's own directory; nothing else knows the layout.
+  const file = (url: string) => new Uint8Array(readFileSync(join(dir, url)));
   let pages = 0,
     corners = 0,
     maxPosition = 0,
     sumPosition = 0,
     maxAngle = 0,
     sumAngle = 0;
-  for (const primitive of metadata.primitives) {
+  for (const primitive of manifest.primitives) {
     const attributes = gltf.meshes[primitive.mesh].primitives[primitive.primitive].attributes;
     const position = read(attributes.POSITION);
     const normal = attributes.NORMAL === undefined ? undefined : read(attributes.NORMAL);
@@ -73,21 +72,18 @@ export function measureCache(full: string) {
       const indices = new Uint32Array(packed.buffer, packed.byteOffset, packed.byteLength / 4);
       const decoded = decodeGeometryPage(file(page.geometry.url));
       for (let i = 0; i < indices.length; i += 1) {
-        const source = indices[i],
-          vertex = decoded.indices[i];
+        const source = indices[i] * 3,
+          vertex = decoded.indices[i] * 3;
         let gap = 0;
         for (let axis = 0; axis < 3; axis += 1)
           gap = Math.max(
             gap,
-            Math.abs(decoded.attributes.position[vertex * 3 + axis] - position[source * 3 + axis]),
+            Math.abs(decoded.attributes.position[vertex + axis] - position[source + axis]),
           );
         maxPosition = Math.max(maxPosition, gap);
         sumPosition += gap;
         if (normal && decoded.attributes.normal) {
-          let dot = 0;
-          for (let axis = 0; axis < 3; axis += 1)
-            dot += decoded.attributes.normal[vertex * 3 + axis] * normal[source * 3 + axis];
-          const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
+          const angle = normalAngle(decoded.attributes.normal, vertex, normal, source);
           maxAngle = Math.max(maxAngle, angle);
           sumAngle += angle;
         }
@@ -106,7 +102,7 @@ export function measureCache(full: string) {
   };
 }
 
-if (process.argv[1]?.endsWith('quantificationPages.ts')) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const full = process.argv[2];
   if (!full) throw new Error('usage: quantificationPages.ts <cache>/native/full');
   console.log(JSON.stringify(measureCache(full), null, 2));

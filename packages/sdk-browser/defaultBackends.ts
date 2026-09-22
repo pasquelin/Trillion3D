@@ -68,26 +68,23 @@ export function chooseBackends(
       reason: 'a WebGPU device was granted',
       renderer: 'webgpu-page-raster',
     });
-  // The engine's own WebGL2 path draws on either cache; only the scene file differs. Where the
-  // compiler wrote a prepared scene the session reads nothing but the cache. Where it refused
-  // one — a single `clustered-blend` primitive is enough — the same path decodes the same
-  // geometry pages and takes its materials and placements from `source.gltf`: not autonomy, but
-  // an image. `NO_ENGINE_BACKEND` is left to the machine with neither API, as #297 asks.
-  if (webgl2) {
-    const prepared = autonomousCacheReady(metadata);
-    return choice({
-      factories: [autonomousPagesBackend],
-      autonomous: prepared,
-      origin: 'default',
-      reason: prepared
-        ? 'no WebGPU device; the cache carries a prepared autonomous scene'
-        : 'no WebGPU device and no prepared autonomous scene; the same path reads source.gltf',
-      renderer: 'autonomous-pages-webgl',
-    });
-  }
-  throw new EngineError(
-    'NO_ENGINE_BACKEND',
-    'No engine path is available: this machine granted neither a WebGPU device nor a WebGL2 ' +
-      'context. Name a backend in options.backends to render anyway.',
-  );
+  if (!webgl2)
+    throw new EngineError(
+      'NO_ENGINE_BACKEND',
+      'No engine path is available: this machine granted neither a WebGPU device nor a WebGL2 ' +
+        'context. Name a backend in options.backends to render anyway.',
+    );
+  // Until the compiler writes a prepared scene for a cache that blends, it writes none at all:
+  // one `clustered-blend` primitive is enough for it to refuse. The same page path draws either
+  // cache — only the file it reads its materials and placements from changes.
+  const prepared = autonomousCacheReady(metadata);
+  return choice({
+    factories: [autonomousPagesBackend],
+    autonomous: prepared,
+    origin: 'default',
+    reason: prepared
+      ? 'no WebGPU device; the cache carries a prepared autonomous scene'
+      : 'no WebGPU device and no prepared autonomous scene; the same path reads source.gltf',
+    renderer: 'autonomous-pages-webgl',
+  });
 }
