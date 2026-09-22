@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { asHostLibrary } from './hostResources.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend, referenceBackend } from './index.ts';
@@ -53,7 +54,7 @@ test('source instance transforms update all three WebGL backends without rebuild
     backend.render(camera);
     if (backend.id === 'exact-cluster-pages') assert.equal(backend.metrics().selectedTriangles, 0);
     else {
-      const object = backend.scene.children.find(
+      const object = asHostLibrary<THREE.Object3D[]>(backend.scene.children).find(
         (child) => child.type === 'Mesh' || child.type === 'LOD',
       );
       assert.ok(object);

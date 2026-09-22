@@ -23,6 +23,20 @@ export type {
   PointOfInterest,
 } from './backendTypes.ts';
 export type { DiagnosticDetail } from './backendTypes.ts';
+/** Host resources the engine reads and never builds (`hostResources.ts`): a host declares them
+ *  with whatever library it draws with, the contract names only their shape. */
+export type {
+  HostAttribute,
+  HostAttributes,
+  HostGeometry,
+  HostMaterial,
+  HostMaterials,
+  HostMesh,
+  HostNode,
+  HostPoint,
+  HostScene,
+  HostTexture,
+} from './hostResources.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpuPassBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpuPassBlocks.ts';
 export { createDiagnosticChannel } from './diagnosticChannel.ts';
@@ -55,7 +69,8 @@ export { framingFromBounds } from './framing.ts';
 export { presentationColorDiagnostic } from './presentationDiagnostic.ts';
 export { referenceBackend } from './referenceBackend.ts';
 export { exactPagesBackend } from './exactPagesBackend.ts';
-export { DEFAULT_BACKENDS } from './defaultBackends.ts';
+export { autonomousCacheReady, chooseBackends } from './defaultBackends.ts';
+export type { BackendChoice } from './defaultBackends.ts';
 export { createExplorer } from './explorer.ts';
 export type { Explorer } from './explorer.ts';
 export { runCameraPath } from './cameraPath.ts';

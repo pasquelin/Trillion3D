@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import type { HostAttributes } from './hostResources.ts';
 import { createDeferredLighting } from './deferredLighting.ts';
 import { prepareTemporalAntialiasing } from './taaPrepare.ts';
 import { createSceneLightContractBuffer } from './webgpuPagesStateLights.ts';
@@ -28,7 +28,7 @@ import { type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
  *  no cone and would no longer read `cone`. Pages are walked by root: the `allPages` catalogue is the
  *  concatenation of their pages, in the same order. */
 export function prepareCones(rt: WebgpuPagesRuntime) {
-  const xyzCache = new WeakMap<THREE.BufferGeometry['attributes'], Float32Array>();
+  const xyzCache = new WeakMap<HostAttributes, Float32Array>();
   for (const root of rt.setup.roots)
     for (const rec of root.pages) {
       const array = rec.array,
@@ -42,14 +42,18 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
         // yield `array[i * 3 + c]`, and the block copy writes the same values, rounded to the same 32-bit
         // float. Any other attribute — interleaved, normalized, another stride — goes back through the
         // accessors, the only ones able to say what it holds.
-        const plat = attr as THREE.BufferAttribute;
+        const flat = attr.array as ArrayLike<number> & {
+          subarray?(begin: number, end: number): ArrayLike<number>;
+          isInterleavedBufferAttribute?: boolean;
+        };
         if (
-          plat.itemSize === 3 &&
-          !plat.normalized &&
+          attr.itemSize === 3 &&
+          !attr.normalized &&
           !(attr as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute &&
-          plat.array.length >= attr.count * 3
+          flat.subarray &&
+          flat.length >= attr.count * 3
         )
-          xyz.set(plat.array.subarray(0, attr.count * 3) as ArrayLike<number>);
+          xyz.set(flat.subarray(0, attr.count * 3));
         else
           for (let i = 0; i < attr.count; i++) {
             xyz[i * 3] = attr.getX(i);

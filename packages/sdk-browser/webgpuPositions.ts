@@ -1,10 +1,10 @@
-import type * as THREE from 'three';
+import type { HostAttributes } from './hostResources.ts';
 
 /** Uploads shared source positions once for opaque and transparent draws. */
 export function ensureWebgpuPositionBuffer(
   device: GPUDevice,
-  attributes: THREE.BufferGeometry['attributes'],
-  buffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>,
+  attributes: HostAttributes,
+  buffers: Map<HostAttributes, GPUBuffer>,
   tally: { vertexBytes: number },
 ) {
   const existing = buffers.get(attributes);

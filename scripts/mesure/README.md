@@ -88,8 +88,11 @@ Harness serves `.mesure/assets/` (gitignored; `WG_ASSETS` points to alternative 
 
     pnpm run build && pnpm run build:native
     WEB_GEOMETRY_COMPILER_BIN=packages/asset-compiler-rust/target/release/web-geometry-compiler \
-    node dist/sdk-node/cli.ts .mesure/assets/emerald-square/emerald-day.gltf \
-         .mesure/assets/emerald-square-derived full 150000 /benchmark-assets/emerald-square/
+    node dist/sdk-node/cli.mjs .mesure/assets/emerald-square/emerald-day.gltf \
+         .mesure/assets/emerald-square-derived full 150000 /benchmark-assets/emerald-square/ 8 16384
+
+The two trailing numbers are the worker count and the RAM admission budget in MiB. The reference
+scene does not fit the 256 MiB default: omitted, the run stops on `RAM_ADMISSION_BUDGET_EXCEEDED`.
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
 

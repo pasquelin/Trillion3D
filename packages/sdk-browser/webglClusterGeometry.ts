@@ -83,7 +83,7 @@ export class WebglClusterGeometry {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cached.index.buffer);
     }
     for (const name of ['position', 'normal', 'uv', 'uv1', 'color']) {
-      const attribute = geometry.attributes[name] as VertexAttribute | undefined,
+      const attribute = geometry.attributes[name] as unknown as VertexAttribute | undefined,
         location = this.locations[name];
       if (location < 0) continue;
       if (!attribute || 'isInterleavedBufferAttribute' in attribute) {

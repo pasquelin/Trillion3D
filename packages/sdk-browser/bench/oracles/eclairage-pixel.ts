@@ -2,6 +2,7 @@
 // lighting constants — sun direction, length, ground colour, sky colour — are recomputed
 // and reallocated every pixel, and channels go through temporary arrays.
 import * as THREE from 'three';
+import { asHostLibrary } from '../../hostResources.ts';
 import { attr2, sampleLinear, sampleMap, triangleAt } from '../../visibilityMath.ts';
 import type { VisMaterial, VisPage } from '../../visibilityTypes.ts';
 
@@ -41,11 +42,12 @@ export function referenceShadeLit(
     Ny = nz * cx - nx * cz,
     Nz = nx * cy - ny * cx;
   const screenFace = affine.area * tri.a.invW * tri.b.invW * tri.c.invW < 0 ? 1 : -1;
-  const face = screenFace * (page.matrix.determinant() < 0 ? -1 : 1),
+  const pose = asHostLibrary<THREE.Matrix4>(page.matrix);
+  const face = screenFace * (pose.determinant() < 0 ? -1 : 1),
     side = mat.backSide ? -1 : 1;
-  const normalAttr = page.attributes.normal,
-    tangentAttr = page.attributes.tangent;
-  normalScratch.getNormalMatrix(page.matrix);
+  const normalAttr = asHostLibrary<THREE.BufferAttribute | undefined>(page.attributes.normal),
+    tangentAttr = asHostLibrary<THREE.BufferAttribute | undefined>(page.attributes.tangent);
+  normalScratch.getNormalMatrix(pose);
   const vertexNormals = normalAttr ? frameNormals : null;
   if (normalAttr)
     for (let j = 0; j < 3; j++)
@@ -86,7 +88,7 @@ export function referenceShadeLit(
         const i = j === 0 ? tri.i0 : j === 1 ? tri.i1 : tri.i2;
         tangents[j]
           .fromBufferAttribute(tangentAttr, i)
-          .transformDirection(page.matrix)
+          .transformDirection(pose)
           .multiplyScalar(side);
         bitangents[j]
           .crossVectors(vertexNormals[j], tangents[j])

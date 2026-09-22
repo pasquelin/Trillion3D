@@ -5,6 +5,7 @@
 // batches already moved out of host — `matrixWindingCw`, `normalMatrix3` — remains as is on both
 // sides: this benchmark only proves vector algebra moved in this batch.
 import * as THREE from 'three';
+import { asHostLibrary } from '../../hostResources.ts';
 import { matrixWindingCw, normalMatrix3 } from '../../../sdk-core/index.ts';
 import { attr2, sampleLinear, triangleAt } from '../../visibilityMath.ts';
 import type { VisMaterial, VisPage } from '../../visibilityTypes.ts';
@@ -38,8 +39,9 @@ export function referenceShadingNormal(
     Nz = nx * cy - ny * cx;
   const face = screenFace * (matrixWindingCw(page.matrix.elements) ? -1 : 1),
     side = mat.backSide ? -1 : 1;
-  const normalAttr = page.attributes.normal,
-    tangentAttr = page.attributes.tangent;
+  const world = asHostLibrary<THREE.Matrix4>(page.matrix);
+  const normalAttr = asHostLibrary<THREE.BufferAttribute | undefined>(page.attributes.normal),
+    tangentAttr = asHostLibrary<THREE.BufferAttribute | undefined>(page.attributes.tangent);
   normalMatrix3(normalScratch.elements, page.matrix.elements);
   const vertexNormals = normalAttr ? frameNormals : null;
   if (normalAttr)
@@ -81,7 +83,7 @@ export function referenceShadingNormal(
         const i = j === 0 ? tri.i0 : j === 1 ? tri.i1 : tri.i2;
         tangents[j]
           .fromBufferAttribute(tangentAttr, i)
-          .transformDirection(page.matrix)
+          .transformDirection(world)
           .multiplyScalar(side);
         bitangents[j]
           .crossVectors(vertexNormals[j], tangents[j])

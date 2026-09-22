@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { PageRec } from './pageSelection.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';
@@ -27,7 +28,8 @@ export function opaqueBackgroundRgba(
   return pixels;
 }
 
-function colorOf(material: THREE.Material | THREE.Material[]) {
+function colorOf(declared: HostMaterials) {
+  const material = asHostLibrary<THREE.Material | THREE.Material[]>(declared);
   const first = Array.isArray(material) ? material[0] : material;
   const color =
     'color' in first && first.color instanceof THREE.Color
@@ -55,7 +57,7 @@ export function rasterPageRecords(
   // A batch record submits only its ranges: the oracle follows the same cut, not the whole buffer.
   for (const draw of submittedDraws(backend)) {
     const index = draw.geometry.index,
-      position = draw.geometry.attributes.position,
+      position = asHostLibrary<THREE.BufferAttribute>(draw.geometry.attributes.position),
       rgb = colorOf(draw.material),
       vertex = (i: number) => (index ? index.array[i] : i);
     world.fromArray(draw.matrix.elements);
@@ -103,15 +105,18 @@ export function rasterPages(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
   );
+  const world = new THREE.Matrix4();
   for (const page of pages) {
     const position = page.attributes.position,
       index = page.array;
     if (!position || !index) continue;
     const rgb = colorOf(page.material);
+    const attribute = asHostLibrary<THREE.BufferAttribute>(position);
+    world.fromArray(page.matrix.elements);
     for (let i = 0; i < index.length; i += 3) {
-      projectAttribute(page.matrix, position, index[i], viewProj, width, height, pa);
-      projectAttribute(page.matrix, position, index[i + 1], viewProj, width, height, pb);
-      projectAttribute(page.matrix, position, index[i + 2], viewProj, width, height, pc);
+      projectAttribute(world, attribute, index[i], viewProj, width, height, pa);
+      projectAttribute(world, attribute, index[i + 1], viewProj, width, height, pb);
+      projectAttribute(world, attribute, index[i + 2], viewProj, width, height, pc);
       fillTriangle(pixels, width, height, pa, pb, pc, rgb);
     }
   }

@@ -2,6 +2,8 @@
 // 256-entry table (visibilityMath.ts). An 8-bit sRGB component has only 256 possible antecedents,
 // so the table carries exactly the same floats as the pre-lot-C formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
+import type { Texture } from '../sdk-core/index.ts';
+import { importHostTexture } from './hostSurfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -14,7 +16,7 @@ function referenceSrgbToLinear(c: number) {
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
-function texelIndex(map: THREE.Texture, u: number, v: number) {
+function texelIndex(map: Texture, u: number, v: number) {
   const image = textureRgba(map);
   if (!image) return null;
   const x = wrapTexel(u, image.width, map.wrapS),
@@ -22,7 +24,7 @@ function texelIndex(map: THREE.Texture, u: number, v: number) {
   return { data: image.data, i: (y * image.width + x) * 4 };
 }
 
-function referenceSampleMap(map: THREE.Texture, u: number, v: number): [number, number, number] {
+function referenceSampleMap(map: Texture, u: number, v: number): [number, number, number] {
   const texel = texelIndex(map, u, v);
   if (!texel) return [1, 1, 1];
   const { data: d, i } = texel;
@@ -40,7 +42,7 @@ function texture(width: number, height: number, fill: (i: number) => number, wra
   map.image = { data, width, height };
   map.wrapS = wrap;
   map.wrapT = wrap;
-  return map;
+  return importHostTexture(map);
 }
 
 function bitExact(a: readonly number[], b: readonly number[], message: string) {
@@ -65,7 +67,7 @@ test('the 0 and 255 bounds land exactly on the table bounds', () => {
 });
 
 test('a texture without an image yields white on both sides, even with non-finite uvs', () => {
-  const sansImage = new THREE.Texture();
+  const sansImage = importHostTexture(new THREE.Texture());
   for (const [u, v] of [
     [NaN, 0.5],
     [Infinity, -Infinity],
@@ -115,11 +117,12 @@ test('a non-finite uv that yields a NaN texel index yields NaN on both sides, ne
 // object at every sampled texel. The oracle is the unconditional allocation from before lot F,
 // copied as-is into `oracles/texture-echantillonnee.ts`.
 test('a texture without an image or without data yields null on both sides', () => {
-  const sansImage = new THREE.Texture();
+  const sansImage = importHostTexture(new THREE.Texture());
   assert.equal(textureRgba(sansImage), referenceTextureRgba(sansImage));
   const largeurNulle = new THREE.Texture();
   largeurNulle.image = { data: new Uint8Array(4), width: 0, height: 1 };
-  assert.equal(textureRgba(largeurNulle), referenceTextureRgba(largeurNulle));
+  const vide = importHostTexture(largeurNulle);
+  assert.equal(textureRgba(vide), referenceTextureRgba(vide));
 });
 
 test('two calls on the same image yield the same bytes as the reference, and the same memoised object', () => {
@@ -134,32 +137,36 @@ test('two calls on the same image yield the same bytes as the reference, and the
 });
 
 test('an image replaced by a new buffer yields new bytes, identical to the reference', () => {
-  const map = texture(2, 2, (i) => i & 255, THREE.ClampToEdgeWrapping);
-  const premier = textureRgba(map);
-  map.image = { data: new Uint8Array(16).fill(7), width: 2, height: 2 };
-  const second = textureRgba(map);
+  const host = new THREE.Texture();
+  host.image = { data: new Uint8Array(16).map((_, i) => i & 255), width: 2, height: 2 };
+  const premier = textureRgba(importHostTexture(host));
+  host.image = { data: new Uint8Array(16).fill(7), width: 2, height: 2 };
+  const imported = importHostTexture(host);
+  const second = textureRgba(imported);
   assert.notEqual(second, premier, 'a new source buffer invalidates the cache');
-  assert.deepEqual(Array.from(second!.data), Array.from(referenceTextureRgba(map)!.data));
+  assert.deepEqual(Array.from(second!.data), Array.from(referenceTextureRgba(imported)!.data));
 });
 
 test('a subview of the same buffer (different offset or length) is never confused with the original view', () => {
   const buffer = new Uint8Array(32).map((_, i) => i);
   const map = new THREE.Texture();
   map.image = { data: buffer.subarray(0, 16), width: 2, height: 2 };
-  const premier = textureRgba(map);
+  const premier = textureRgba(importHostTexture(map));
   map.image = { data: buffer.subarray(4, 20), width: 2, height: 2 }; // same buffer, other offset
-  const second = textureRgba(map);
+  const imported = importHostTexture(map);
+  const second = textureRgba(imported);
   assert.notEqual(second, premier, 'a different offset on the same buffer invalidates the cache');
-  assert.deepEqual(Array.from(second!.data), Array.from(referenceTextureRgba(map)!.data));
+  assert.deepEqual(Array.from(second!.data), Array.from(referenceTextureRgba(imported)!.data));
 });
 
 test('the same width/height but an image resized without changing buffer also invalidates the cache', () => {
   const buffer = new Uint8Array(64).fill(9);
   const map = new THREE.Texture();
   map.image = { data: buffer, width: 4, height: 4 };
-  const premier = textureRgba(map);
+  const premier = textureRgba(importHostTexture(map));
   map.image = { data: buffer, width: 8, height: 2 }; // same buffer, different dimensions
-  const second = textureRgba(map);
+  const imported = importHostTexture(map);
+  const second = textureRgba(imported);
   assert.notEqual(second, premier);
-  assert.deepEqual(second, referenceTextureRgba(map));
+  assert.deepEqual(second, referenceTextureRgba(imported));
 });

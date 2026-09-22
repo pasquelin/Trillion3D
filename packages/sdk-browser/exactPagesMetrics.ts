@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary } from './hostResources.ts';
 import { geometryBytes } from './sceneMeshes.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { PageRec } from './pageSelection.ts';
@@ -49,7 +50,8 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         metricsSeen.clear();
         bytes = 0;
         for (const rec of attached)
-          if (rec.geometry) bytes += geometryBytes(rec.geometry, metricsSeen);
+          if (rec.geometry)
+            bytes += geometryBytes(asHostLibrary<THREE.BufferGeometry>(rec.geometry), metricsSeen);
       }
       const transparentSubmittedTriangles = blendCopies.reduce(
         (sum, copy) =>
@@ -89,7 +91,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
       materials.disposeMaterials();
       batches.dispose();
       for (const rec of allPages) {
-        if (rec.geometry) disposeGeometry(rec.geometry);
+        if (rec.geometry) disposeGeometry(asHostLibrary<THREE.BufferGeometry>(rec.geometry));
         rec.geometry = undefined;
         rec.mesh = undefined;
       }

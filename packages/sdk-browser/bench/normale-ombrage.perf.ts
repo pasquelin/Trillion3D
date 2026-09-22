@@ -1,4 +1,5 @@
 // Benchmark for batch 4: shading normal.
+import { importHostTexture } from '../hostSurfaceImport.ts';
 import * as THREE from 'three';
 import { shadingNormal } from '../visibilityShadingNormal.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
@@ -17,7 +18,7 @@ function carteNormales(depart: number) {
   map.image = { data, width: 8, height: 8 };
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.ClampToEdgeWrapping;
-  return map;
+  return importHostTexture(map);
 }
 
 const CARTE = carteNormales(0x51);

@@ -11,6 +11,7 @@
 // two copies would be two chances for the probed read to drift from production.
 //
 //   node --experimental-strip-types test/browser/enroulement-texture-gpu.browser.ts
+import { importHostTexture } from '../../packages/sdk-browser/hostSurfaceImport.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { wrapNibble } from '../../packages/sdk-browser/visibilityWrapModes.ts';
@@ -51,10 +52,11 @@ const COUTURES = [0, 0.02, 0.999, -0.01, -3, 1000.04, 2.98].flatMap((t) => [
 const lots = [UV, COUTURES].flatMap((uv) =>
   MODES_GPU.map(({ wrap, adresse }) => {
     assert.ok(adresse, `no WebGPU address mode for wrap ${wrap}`);
-    // A real Texture, not a `{ wrapS, wrapT }` stub: `wrapNibble` takes `THREE.Texture`.
-    const map = new THREE.Texture();
-    map.wrapS = wrap;
-    map.wrapT = wrap;
+    // A real host texture, imported: `wrapNibble` reads the engine's own record.
+    const host = new THREE.Texture();
+    host.wrapS = wrap;
+    host.wrapT = wrap;
+    const map = importHostTexture(host);
     return {
       filtre: 'linear' as const,
       texture: 0,

@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostAttributes } from './hostResources.ts';
 import type { PageRec } from './pageSelection.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
@@ -32,7 +32,7 @@ export const ROW_INDEX_WORDS = 25;
  */
 export const packedRowBase = (row: number) => ((row + 1) << VIS_TRIANGLE_BITS) >>> 0;
 type PageRowResources = MaterialLayers & {
-  geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
+  geometryBlocks: Map<HostAttributes, GeometryBlock>;
   markRowDirty: (row: number) => void;
 };
 

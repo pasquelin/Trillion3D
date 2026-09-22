@@ -3,7 +3,7 @@ import { wrapModes } from './visibilityWrapModes.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /** Material as the row receives it from the host: the type `visMaterial` already accepts. */
-type HostMaterial = Parameters<typeof visMaterial>[0];
+type HostMaterials = Parameters<typeof visMaterial>[0];
 
 /** What a material brings to a page row: its read fields, and its wrap word. */
 type MaterialRow = { version: number; mat: VisMaterial; wrap: number };
@@ -19,11 +19,11 @@ type MaterialRow = { version: number; mat: VisMaterial; wrap: number };
  * applies to it.
  */
 export function createPageRowConstants() {
-  const materials = new Map<HostMaterial, MaterialRow>();
+  const materials = new Map<HostMaterials, MaterialRow>();
   const hashes = new Map<string, number>();
   return {
     /** Fields and wrap word of a material, computed at its first row. */
-    materialOf(material: HostMaterial) {
+    materialOf(material: HostMaterials) {
       const version = (Array.isArray(material) ? material[0] : material).version;
       const held = materials.get(material);
       if (held && held.version === version) return held;

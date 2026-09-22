@@ -91,7 +91,7 @@ function banc() {
 
 /** What the frame would draw of this node: the world matrix THE ENGINE holds for it. */
 const image = (b: { node: THREE.Object3D; worlds: HostWorldPlacements }) =>
-  b.worlds.of(b.node).elements.join(',');
+  Array.from(b.worlds.of(b.node).elements).join(',');
 
 test('a pose changes the held frame: the gate refuses to serve the previous one again', () => {
   const b = banc();

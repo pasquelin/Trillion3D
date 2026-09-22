@@ -3,6 +3,7 @@
 // is handed — the scene the witness adapter draws after the owner, where what the engine owns
 // must never appear.
 import type * as THREE from 'three';
+import { asHostLibrary } from '../../packages/sdk-browser/hostResources.ts';
 import { exactPagesBackend } from '../../packages/sdk-browser/exactPagesBackend.ts';
 import { createFrameComposer } from '../../packages/sdk-browser/explorerCompose.ts';
 import {
@@ -46,7 +47,7 @@ export function mountExplorerProof(
     drawHostGeometry(drawCamera, output);
     let counted = 0;
     backend.scene.traverse((object) => {
-      if (inHostPass(object)) counted++;
+      if (inHostPass(asHostLibrary<THREE.Object3D>(object))) counted++;
     });
     calls.push({ counted, children: backend.scene.children.length });
   };

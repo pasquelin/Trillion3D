@@ -6,6 +6,8 @@ export type {
   LaneCounts,
   TextureCompression,
 } from '../sdk-browser/textureBlockFormats.ts';
+export { autonomousCacheReady, chooseBackends } from '../sdk-browser/defaultBackends.ts';
+export type { BackendChoice } from '../sdk-browser/defaultBackends.ts';
 export { autonomousPagesBackend } from '../sdk-browser/autonomousPages.ts';
 export type {
   BackendContext,
@@ -29,7 +31,6 @@ export { createGpuPageCache, httpPageSource } from '../sdk-browser/gpuPages.ts';
 export { createLightingExperimentBackend } from '../sdk-browser/lightingExperimentBackend.ts';
 export { createPageStreamer } from '../sdk-browser/streamingPages.ts';
 export type { DecodedGeometryPage } from '../sdk-browser/geometryPage.ts';
-export { DEFAULT_BACKENDS } from '../sdk-browser/defaultBackends.ts';
 export { detectCapabilities } from '../sdk-browser/capabilities.ts';
 export { EngineProfiler } from '../sdk-browser/telemetry.ts';
 export { exactPagesBackend } from '../sdk-browser/exactPagesBackend.ts';
@@ -41,6 +42,18 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../sdk-browser/stageMapping.ts';
 export type { GpuPassBlock } from '../sdk-browser/stageMapping.ts';
 export { gpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
 export type { GpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
+export type {
+  HostAttribute,
+  HostAttributes,
+  HostGeometry,
+  HostMaterial,
+  HostMaterials,
+  HostMesh,
+  HostNode,
+  HostPoint,
+  HostScene,
+  HostTexture,
+} from '../sdk-browser/hostResources.ts';
 export { enginePose, readCameraWorld } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawCamera, HostCamera } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawOutput } from '../sdk-browser/webglRenderTarget.ts';
@@ -76,4 +89,3 @@ export {
 } from '../sdk-browser/engineCamera.ts';
 export type { CameraOptics, EngineCamera } from '../sdk-browser/engineCamera.ts';
 export { materialSide, sideOf } from '../sdk-browser/materialSide.ts';
-export type { Side } from '../sdk-browser/materialSide.ts';

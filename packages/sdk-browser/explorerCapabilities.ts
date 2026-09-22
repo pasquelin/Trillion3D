@@ -1,8 +1,5 @@
-import { directWebgpu } from './explorerInteractiveOptions.ts';
-import { detectCapabilities } from './capabilities.ts';
 import { mathBatchMetrics, prepareMathBatch } from './mathBatchState.ts';
 import { pageDecodeTransport } from './pageDecodeShared.ts';
-import { webgpuPagesBackend } from './webgpuPages.ts';
 import { materialTextures, meshes as objects } from './sceneMeshes.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import {
@@ -11,14 +8,16 @@ import {
   DEFAULT_WIDTH,
   devicePixels,
 } from './backendCommon.ts';
-import { requestExplorerDevice } from './explorerGpuDevice.ts';
+import type { BackendChoice } from './defaultBackends.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 import type { WebglSurface } from './webglSurface.ts';
 import { prepareExplorerWebglSurface } from './explorerWebglHost.ts';
 type Inputs = {
-  autonomous: boolean;
+  choice: BackendChoice;
+  /** The chosen engine presents its own surface: the host composes nothing (`directWebgpu`). */
+  directGpu: boolean;
   manifestUrl: string;
   metadataUrl: string;
   sceneFile: string;
@@ -36,82 +35,12 @@ function maxAnisotropy(gl: WebGL2RenderingContext) {
   return extension ? (gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT) as number) : 0;
 }
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, scope, metadata, diagnosticChannel, emit, diagnose } = session;
-  const { autonomous, manifestUrl, metadataUrl, sceneFile, base, source, pageSources, resources } =
-    inputs;
+  const { canvas, options, scope, metadata, diagnosticChannel, diagnose } = session;
+  const { choice, directGpu, manifestUrl, metadataUrl, sceneFile, base } = inputs;
+  const { source, pageSources, resources } = inputs;
+  const { autonomous } = choice;
   const { pages, geometryPages, cacheCap } = pageSources;
-  let gpuDevice: GPUDevice | undefined;
   const calculEnLot = prepareMathBatch(options.mathPath ?? 'auto');
-  const capabilities = await detectCapabilities('webgl', canvas);
-  if (!capabilities.renderer) {
-    emit({
-      eventVersion: 1,
-      type: 'fatal',
-      audience: 'blocking',
-      recovered: false,
-      code: 'NO_WEBGL2',
-      detail: capabilities.reason,
-    });
-    diagnose('error', 'WebGL2 capability check failed', {
-      kind: 'error',
-      code: 'NO_WEBGL2',
-      reason: capabilities.reason,
-      scope,
-    });
-    throw new Error(capabilities.reason);
-  }
-  emit({
-    eventVersion: 1,
-    type: 'capability',
-    audience: 'diagnostic',
-    recovered: true,
-    code: 'WEBGL2_BASELINE',
-    detail: capabilities.reason,
-  });
-  diagnose('capability', 'WebGL2 capability detected', {
-    kind: 'capability',
-    backend: 'webgl',
-    reason: capabilities.reason,
-    scope,
-  });
-  const wantsWebgpu =
-    !autonomous && (!options.backends || options.backends.includes(webgpuPagesBackend));
-  try {
-    if (wantsWebgpu) {
-      const gpu = options.gpu ?? (typeof navigator === 'undefined' ? undefined : navigator.gpu);
-      if (gpu) {
-        const gpuCaps = await detectCapabilities('webgpu', canvas, { gpu });
-        if (gpuCaps.renderer) {
-          emit({
-            eventVersion: 1,
-            type: 'capability',
-            audience: 'diagnostic',
-            recovered: true,
-            code: 'WEBGPU_AVAILABLE',
-            detail: gpuCaps.reason,
-          });
-          diagnose('capability', 'WebGPU capability detected', {
-            kind: 'capability',
-            backend: 'webgpu',
-            reason: gpuCaps.reason,
-            scope,
-          });
-        }
-        if (gpuCaps.adapter) {
-          gpuDevice = await requestExplorerDevice(gpuCaps.adapter);
-          resources.gpuDevice = gpuDevice;
-        }
-      }
-    }
-  } catch (error) {
-    diagnose('fallback', 'WebGPU setup unavailable; WebGL path retained', {
-      kind: 'fallback',
-      backend: 'webgpu',
-      error: String(error),
-      scope,
-    }); /* WebGPU stays optional; the WebGL2 backends remain the default path. */
-  }
-  const directGpu = directWebgpu(options, gpuDevice);
   if (!directGpu) {
     // The engine's surface is the session's only WebGL2 resource: the composition host builds
     // its programs and targets on it later.
@@ -168,5 +97,4 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
           texture.needsUpdate = true;
         }
   }
-  return { capabilities, gpuDevice, directGpu };
 }

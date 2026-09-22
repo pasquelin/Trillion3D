@@ -1,4 +1,5 @@
 import { meshes as objects, geometryBytes } from './sceneMeshes.ts';
+import { asHostLibrary } from './hostResources.ts';
 import { baseCapabilities, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { sceneLightingApi } from './sceneLighting.ts';
 import { createThreeSceneDraw } from './threeSceneAdapter.ts';
@@ -50,7 +51,7 @@ export const referenceBackend: BackendFactory = ({
     ...sceneLightingApi(sceneLights, () => {}),
     render(camera) {
       hostDraw.render(camera);
-      source.updateMatrixWorld(true);
+      asHostLibrary<THREE.Object3D>(source).updateMatrixWorld(true);
       sceneLights.update();
       selectedTriangles = 0;
       for (const mesh of copies) {
