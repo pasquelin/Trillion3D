@@ -167,7 +167,7 @@ export function encodeSurfaceLighting(
   // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
   // pass stays the same, one colour target aside — that is what isolates presentation.
   const presentation =
-    capture.secondaryCamera || composesOffscreen(rt.context.diagnosticGpuVariant)
+    capture.capturing || composesOffscreen(rt.context.diagnosticGpuVariant)
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;

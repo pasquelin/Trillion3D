@@ -124,7 +124,7 @@ export interface RenderBackend {
   dispose(): void;
 }
 export interface BackendContext {
-  source: HostTraversable;
+  source: import('./hostGraphNodes.ts').HostGraphNode;
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
   associations: Map<HostNode, { meshes?: number; primitives?: number }>;

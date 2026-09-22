@@ -1,24 +1,28 @@
-import type * as THREE from 'three';
-import { asHostLibrary, type HostNode } from './hostResources.ts';
+import type {
+  HostGraphGeometry,
+  HostGraphMaterial,
+  HostGraphMesh,
+  HostGraphNode,
+  HostGraphTexture,
+} from './hostGraphNodes.ts';
 
 /** Meshes of a subtree, in preorder. Nothing is lifted here: the world matrices the
  *  engine needs are its own (`hostWorldPlacements.ts`), and the host scene stays as it left it. */
-export function meshes(node: HostNode) {
-  const source = asHostLibrary<THREE.Object3D>(node);
-  const found: THREE.Mesh[] = [];
-  source.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) found.push(o as THREE.Mesh);
+export function meshes(node: HostGraphNode) {
+  const found: HostGraphMesh[] = [];
+  node.traverse((object) => {
+    if ((object as HostGraphMesh).isMesh) found.push(object as HostGraphMesh);
   });
   return found;
 }
 /** The textures a host material carries, whatever their slot: what its renderer would sample. */
-export function* materialTextures(material: THREE.Material): Generator<THREE.Texture> {
-  for (const value of Object.values(material))
-    if ((value as THREE.Texture | null)?.isTexture) yield value as THREE.Texture;
+export function* materialTextures(material: HostGraphMaterial): Generator<HostGraphTexture> {
+  for (const value of Object.values(material) as unknown[])
+    if ((value as HostGraphTexture | null)?.isTexture) yield value as HostGraphTexture;
 }
-export function geometryBytes(geometry: THREE.BufferGeometry, seen: Set<ArrayBufferView>) {
+export function geometryBytes(geometry: HostGraphGeometry, seen: Set<ArrayBufferView>) {
   let bytes = 0;
-  const index = geometry.getIndex();
+  const index = geometry.index;
   if (index && !seen.has(index.array)) {
     seen.add(index.array);
     bytes += index.array.byteLength;

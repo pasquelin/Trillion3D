@@ -6,7 +6,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
   'lost',
-  'secondaryCamera',
+  'capturing',
   'capturePending',
   'frameEncoder',
   'visDisabled',
@@ -43,7 +43,7 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
     { rows } = rt.layout;
   let mask = 0;
   if (run.lost) mask |= BIT.lost;
-  if (capture.secondaryCamera) mask |= BIT.secondaryCamera;
+  if (capture.capturing) mask |= BIT.capturing;
   if (capture.capturePending) mask |= BIT.capturePending;
   if (timing.frameEncoder) mask |= BIT.frameEncoder;
   if (!vis.visEnabled || !vis.gpuDraw) mask |= BIT.visDisabled;

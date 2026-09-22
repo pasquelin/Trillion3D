@@ -1,5 +1,6 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
 import type { HostNode } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import { meshSurface } from './pageSurface.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopyRecord } from './blendCopyRecord.ts';
@@ -11,7 +12,7 @@ import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 
 export function collectClusterPages(
-  source: HostNode,
+  source: HostGraphNode,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
   associations: Map<HostNode, { meshes?: number; primitives?: number }>,

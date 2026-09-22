@@ -25,7 +25,7 @@ function runtime() {
       reserveHiz: true,
     },
     gpu: { temporal },
-    capture: { secondaryCamera: undefined },
+    capture: { capturing: false },
     capabilities: { unsupported: [] as string[] },
     diag: { diagnosticFailure: (phase: string) => failures.push(phase) },
   } as unknown as WebgpuPagesRuntime;
@@ -59,7 +59,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
 
 test("a surface capture does not touch the view's history targets", () => {
   const { rt, resized } = runtime();
-  rt.capture.secondaryCamera = {} as never;
+  rt.capture.capturing = true;
   assert.equal(ensureTaaTargets(rt, 64, 64), 0, 'the capture reserve already carries the history');
   assert.deepEqual(resized, []);
 });

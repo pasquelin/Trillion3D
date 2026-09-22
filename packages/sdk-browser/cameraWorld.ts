@@ -1,7 +1,9 @@
-import * as THREE from 'three';
 import { decomposeMatrix4 } from '../sdk-core/index.ts';
-import { copyElements } from './matrixElements.ts';
-import { writeEngineCamera, type EngineCamera } from './engineCamera.ts';
+import { copyElements, type MatrixElements } from './matrixElements.ts';
+import { writeEngineCamera, type CameraOptics, type EngineCamera } from './engineCamera.ts';
+import type { ControlVector } from './cameraControlTypes.ts';
+import type { HostPoint } from './hostResources.ts';
+import type { HostRotation } from './hostGraphNodes.ts';
 
 export {
   createEngineCamera,
@@ -14,8 +16,8 @@ export {
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
  * `test/integration/structure-moteur.test.ts` forbids any other module from resolving it or
  * reading a camera's local pose, and names the consumers allowed to read the resolved pose.
- * It is also the only file on the per-frame path that names a host-library type:
- * `test/integration/moteur-sans-three.test.ts` forbids `three` everywhere else on that path.
+ * It is also where the host camera is named BY SHAPE, once: `test/integration/moteur-sans-three.test.ts`
+ * holds that nobody else turns one into an engine camera.
  *
  * THE FACT. The engine does not own the camera: the host hands it over every frame, and it
  * may be the child of a rig that belongs to no prepared scene. `updateWorlds` only walks
@@ -27,7 +29,7 @@ export {
  *  1. RESOLVE. `resolveCameraWorld` is the only way to make the world pose current, ancestors
  *     included. Frame entry reads it ONCE, before anything else. A function callable on its
  *     own — oracle, bench, diagnostic, test host — also reads it first: it cannot know who
- *     calls it. The operation is idempotent and has no side effect outside Three: it only
+ *     calls it. The operation is idempotent and has no side effect outside the host graph: it only
  *     reads local matrices the engine does not write, so calling it again downstream changes
  *     no number. That is what lets the two uses coexist without contradicting each other.
  *  2. COPY. `readCameraWorld` resolves then copies, once per frame, the host camera's world
@@ -54,8 +56,42 @@ export {
 /** Last eye position, kept from frame to frame to derive a velocity. */
 export type CameraMotion = { last?: Float64Array; lastMs?: number };
 
-/** The camera the host hands to the engine. Only this file names it. */
-export type HostCamera = THREE.PerspectiveCamera;
+/**
+ * THE CAMERA THE HOST HANDS TO THE ENGINE, named by shape and by this file alone.
+ *
+ * What the engine READS of it: the world pose its own graph resolves, and the optics it
+ * declares. What the engine WRITES on it: nothing. The pose setters and `lookAt` below are
+ * there for the host's own gestures — framing, home, controls — which the explorer performs on
+ * the host's behalf at the boundary; a frame never touches them.
+ *
+ * `updateWorldMatrix` is asked to make the world matrix current, ancestors included. Any host
+ * object of this shape satisfies the contract, whatever library it comes from.
+ */
+export type HostCamera = {
+  /** LOCAL pose, as the host stores it: what its controls write, never what a frame reads. */
+  readonly position: ControlVector;
+  readonly quaternion: HostRotation;
+  /** Optics the host declares; the engine composes its own projection from them. */
+  fov: number;
+  aspect: number;
+  near: number;
+  far: number;
+  zoom: number;
+  readonly matrixWorld: MatrixElements;
+  /** Inverse of the world matrix, which the host resolves with it and a draw recomputes. */
+  readonly matrixWorldInverse: MatrixElements & {
+    copy(from: MatrixElements): { invert(): unknown };
+  };
+  /** Projection in the HOST's depth convention, finite far plane included. The engine composes
+   *  its own (`engineCamera.ts`) and reads this one only for a draw the host renderer owns. */
+  readonly projectionMatrix: MatrixElements;
+  updateWorldMatrix(ancestors: boolean, descendants: boolean): void;
+  updateMatrixWorld(force?: boolean): void;
+  updateProjectionMatrix(): void;
+  lookAt(target: HostPoint): void;
+  /** A view of its own the host keeps — the pose a measurement campaign comes back to. */
+  clone(): HostCamera;
+};
 export type HostDrawCamera = {
   projection: Float32Array;
   world: Float64Array;
@@ -69,7 +105,10 @@ export const createHostDrawCamera = (): HostDrawCamera => ({
   eye: new Float32Array(3),
 });
 
-export function resolveCameraWorld<T extends THREE.Camera>(camera: T): T {
+/** What resolving a world pose asks of a host object, and nothing more: a camera, a rig, a node. */
+export type HostResolvable = { updateWorldMatrix(ancestors: boolean, descendants: boolean): void };
+
+export function resolveCameraWorld<T extends HostResolvable>(camera: T): T {
   camera.updateWorldMatrix(true, false);
   return camera;
 }
@@ -84,11 +123,25 @@ export function resolveCameraWorld<T extends THREE.Camera>(camera: T): T {
  * then rebuilds the view by inverting the world matrix, the view-projection and the six
  * frustum planes, once for the whole frame.
  */
-export function readCameraWorld(into: EngineCamera, camera: HostCamera): EngineCamera {
+export function readCameraWorld(
+  into: EngineCamera,
+  camera: HostCamera,
+  /** Aspect ratio the view is drawn at, when it is not the one the camera declares: a capture
+   *  renders the SAME camera aside, at the shape of the surface it writes into. */
+  aspect = camera.aspect,
+): EngineCamera {
   resolveCameraWorld(camera);
   copyElements(into.world, camera.matrixWorld.elements);
-  return writeEngineCamera(into, camera);
+  optics.fov = camera.fov;
+  optics.aspect = aspect;
+  optics.near = camera.near;
+  optics.far = camera.far;
+  optics.zoom = camera.zoom;
+  return writeEngineCamera(into, optics);
 }
+
+/** Optics of the camera being read, rewritten in place: a frame allocates nothing here. */
+const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 };
 
 /** Flat camera matrices for a draw that retains the host renderer's finite-depth projection. */
 export function readHostDrawCamera(into: HostDrawCamera, camera: HostCamera) {
@@ -117,28 +170,4 @@ export function enginePose(cam: EngineCamera) {
     position: [cam.eye[0], cam.eye[1], cam.eye[2]],
     quaternion: [poseRotation[0], poseRotation[1], poseRotation[2], poseRotation[3]],
   };
-}
-
-/**
- * A SECOND VIEW, detached from the host camera it starts from.
- *
- * A capture renders aside, at its own aspect ratio, from the view the frame is drawn from. What
- * `readCameraWorld` reads of a camera is exactly this: the resolved world matrix and the declared
- * optics. So the second view is those numbers and nothing else — a record the engine owns, with
- * the world pose already resolved and no parent left to resolve it against. It describes the
- * view actually drawn even when the source is the child of a rig, and building it needs no
- * object of the host's rendering library.
- */
-export function detachedHostView(camera: HostCamera, aspect: number): HostCamera {
-  resolveCameraWorld(camera);
-  const elements = [...camera.matrixWorld.elements];
-  return {
-    fov: camera.fov,
-    near: camera.near,
-    far: camera.far,
-    zoom: camera.zoom,
-    aspect,
-    matrixWorld: { elements },
-    updateWorldMatrix: () => {},
-  } as unknown as HostCamera;
 }

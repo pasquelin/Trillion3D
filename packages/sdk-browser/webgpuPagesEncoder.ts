@@ -6,7 +6,7 @@ import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 
 const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
-  rt.timing.gpuTiming && !rt.capture.secondaryCamera
+  rt.timing.gpuTiming && !rt.capture.capturing
     ? rt.timing.gpuTiming.createEncoder(rt.run.frame)
     : device.createCommandEncoder();
 
@@ -40,14 +40,14 @@ export function submitColorCopy(
   // The off-screen variant does not touch the swap chain in any way: neither a composition target
   // nor a separate presentation pass. That is what isolates what Presentation actually contains.
   const offscreen = composesOffscreen(context.diagnosticGpuVariant);
-  if (!presented && !offscreen && gpu.presenter && gpu.colorTexture && !capture.secondaryCamera) {
+  if (!presented && !offscreen && gpu.presenter && gpu.colorTexture && !capture.capturing) {
     gpu.presenter.present(encoder, gpu.colorTexture, width, height);
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;
   // Texture image feedback leaves with the image: the target where pixels posted their requests is
   // reduced to counts, copied to their readback then zeroed.
-  if (!capture.secondaryCamera && gpu.feedbackView)
+  if (!capture.capturing && gpu.feedbackView)
     rt.vis.textures?.publishRequests(
       encoder,
       run.feedbackWritten ? gpu.feedbackView : undefined,
@@ -61,7 +61,7 @@ export function submitColorCopy(
   timing.lastQueueSubmitMs = performance.now() - submitStart;
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
   rt.vis.gpuPartition?.countsSubmitted();
-  if (!capture.secondaryCamera) rt.vis.textures?.feedback.submitted();
+  if (!capture.capturing) rt.vis.textures?.feedback.submitted();
   // Same for the far-shadow counts: their copy is mapped only once submitted.
   rt.sunFar.gpu?.submitted();
   rt.lights.cull?.counts.submitted();
@@ -83,11 +83,7 @@ export function submitColorCopy(
     // so the guard that hid it covered nothing.
     drawnTriangles: run.drawnTriangles,
     transparent: { drawCalls: run.blendDrawCalls, submittedTriangles: run.blendSubmittedTriangles },
-    presentation: capture.secondaryCamera
-      ? 'surface-capture'
-      : context.gpuCanvas
-        ? 'direct'
-        : 'composed',
+    presentation: capture.capturing ? 'surface-capture' : context.gpuCanvas ? 'direct' : 'composed',
   }));
   if (timing.gpuTiming?.isSampled(encoder))
     timing.gpuTiming.submitted(encoder, {

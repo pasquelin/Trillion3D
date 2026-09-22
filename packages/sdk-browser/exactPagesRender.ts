@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { HostNode } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import {
   createSelectionResult,
   selectVisiblePages,
@@ -11,7 +11,7 @@ import { lighting } from './hostSceneObjects.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { EXACT_CPU_STEP } from './exactPagesCpu.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
-import type { CameraMotion, EngineCamera } from './cameraWorld.ts';
+import type { CameraMotion, EngineCamera, HostCamera } from './cameraWorld.ts';
 import type { HostWorldPlacements } from './hostWorldPlacements.ts';
 
 export type ExactPagesRenderState = {
@@ -21,7 +21,7 @@ export type ExactPagesRenderState = {
   overBudget: boolean;
   frustumRejected: number;
   lodLevel: number;
-  lastCamera: THREE.PerspectiveCamera | undefined;
+  lastCamera: HostCamera | undefined;
   /** Engine camera, absent as long as no frame has been rendered. */
   cam: EngineCamera | undefined;
   lastPixelError: number;
@@ -58,7 +58,7 @@ const EXACT_CPU_STEPS = Object.values(EXACT_CPU_STEP);
 export function createExactPagesRender(options: {
   state: ExactPagesRenderState;
   context: BackendContext;
-  source: HostNode;
+  source: HostGraphNode;
   blendCopies: THREE.Mesh[];
   sceneLights: ReturnType<typeof lighting>;
   motion: CameraMotion;
@@ -118,7 +118,7 @@ export function createExactPagesRender(options: {
     state.cpuSelectMs = 0;
     state.cpuSelectNodesTested = 0;
   };
-  return (camera: THREE.PerspectiveCamera) => {
+  return (camera: HostCamera) => {
     state.frame++;
     state.lastCamera = camera;
     // Frame entry: the order and its guarantees live in `frameGateCore.ts`, which also copies

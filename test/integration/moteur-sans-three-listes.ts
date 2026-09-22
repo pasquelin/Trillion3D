@@ -22,6 +22,11 @@
 //     admission gate and the transparent display graph name no library either, and bundling
 //     `webgpuPages.ts` pulls no module of one.
 //
+// THE HOST SCENE GRAPH AND ITS CAMERA left the list in their turn: the walk, the bounds, the
+// poses, the watch and the camera-pose contract are written against the shapes of
+// `hostGraphNodes.ts` and the `HostCamera` of `cameraWorld.ts`. What remains of them here is
+// the one file that BUILDS a host object instead of reading one, `hostGraphObjects.ts`.
+//
 // Adding a line is a decision, not an oversight; removing an unused line as well — the
 // second test fails on a dead line. The camera pose contract lives in `cameraWorld.ts`
 // and `test/integration/structure-moteur.test.ts`; the loading computation boundary, in
@@ -48,25 +53,11 @@ export const AUTORISES: Record<string, string> = {
     'witness adapter: the host renderer the witnesses share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
-  cameraWorld: 'camera-pose contract: the only one that maps a host camera to an engine camera',
-  explorerBackends: 'boundary: it mounts engines on the host renderer',
-  explorerCamera: 'boundary: the host SETS its camera, and rereads `bounds` and `center`',
-  explorerDisposeSource: 'boundary: it frees host-graph resources',
-  exactPagesBounds: 'boundary: it walks the host source graph to bound its pages',
   explorerScene: 'boundary: it builds the host’s prepared scene',
-  hostSceneHooks: 'boundary: it hooks the fields the host writes on its nodes',
+  hostGraphObjects:
+    'boundary: the host camera, framing points and instance copies the explorer builds for its host',
   hostSceneObjects:
     'boundary: the host colours, lights and nodes a witness hangs on the display graph it publishes',
-  hostSceneScan: 'boundary: it compares the fields the host writes that no hook may touch',
-  hostSceneWatch: 'boundary: it names the host nodes whose writes are listened to',
-  hostWorldBounds: 'boundary: host-graph bounds, returned flat',
-  hostWorldChain: 'boundary: it reads the ancestor chain of a host node',
-  hostWorldMatrices: 'boundary: the local pose of a host node, read flat',
-  hostWorldPose: 'boundary: it reads the local pose of a host node into the engine tree',
-  hostWorldTree: 'boundary: it reads local poses of a host subtree',
-  replicateInstances: 'boundary: it replicates nodes of the host graph',
-  sceneMeshes: 'boundary: it enumerates meshes of the host graph',
-  webgpuPagesTransform: 'boundary: the host moves a subtree of its scene',
 
   // 2 bis. Test-scene mounts that walk the host graph.
   pageSelectionBlendFixture: 'test-scene mount: it sets the camera and materials',

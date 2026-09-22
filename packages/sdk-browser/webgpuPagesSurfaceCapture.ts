@@ -4,7 +4,7 @@ import { collectPendingUrls } from './pageSelection.ts';
 import { awaitedPages } from './webgpuPageSlots.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
-import { detachedHostView, type HostCamera } from './cameraWorld.ts';
+import type { HostCamera } from './cameraWorld.ts';
 import {
   drawResidentCut,
   renderForCapture,
@@ -15,7 +15,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 type CaptureOptions = { width: number; height: number; signal?: AbortSignal };
 
-/** Copies the surfaces of the secondary view into buffers the host owns until it disposes them. */
+/** Copies the surfaces of the second view into buffers the host owns until it disposes them. */
 function copySurfaces(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
@@ -45,7 +45,7 @@ function copySurfaces(
     allocationBytes: reserve,
     depth,
     inverseViewProjection: [...invertMatrix4(new Float64Array(16), viewProj)],
-    // The secondary view has just entered through the contract: its world eye is the one the engine
+    // The second view has just entered through the contract: its world eye is the one the engine
     // camera carries, without rereading the host camera or recomputing anything.
     cameraWorld: [eye[0], eye[1], eye[2]],
     selectedTriangles: rt.run.selectedTriangles,
@@ -89,7 +89,7 @@ export async function captureSurfaceView(
     { gpuDevice, viewport } = rt.setup;
   context.signal?.throwIfAborted();
   options.signal?.throwIfAborted();
-  if (capture.secondaryCamera || capture.surfaceCapture)
+  if (capture.capturing || capture.surfaceCapture)
     throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first');
   if (run.lost || !gpuDevice || !rt.vis.visEnabled || !run.lastCamera)
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
@@ -103,16 +103,17 @@ export async function captureSurfaceView(
     diagnostic: run.diagnostic,
     motion: { ...run.motion },
   };
-  // Capture entry: the camera comes from the host like an image's. The detached view keeps the
-  // world pose; a clone would bring it back to its local pose under a rig.
-  const view = detachedHostView(camera, options.width / options.height);
+  // Capture entry: the camera comes from the host like an image's, and the engine reads it as
+  // it reads any other — resolved pose, declared optics — at the aspect ratio of the surface
+  // written into rather than the one the camera declares for the host's own canvas.
+  const aspect = options.width / options.height;
   const started = performance.now();
   const throwIfAborted = () => {
     options.signal?.throwIfAborted();
     context.signal?.throwIfAborted();
   };
   let result: SurfaceCapture | undefined;
-  capture.secondaryCamera = view;
+  capture.capturing = true;
   capture.captureAllocationBytes = reserve;
   diag.engineDiagnostic('surface-capture-start', 'GPU capture from a second camera', {
     width: options.width,
@@ -130,7 +131,7 @@ export async function captureSurfaceView(
     resetHizHistory(run);
     run.motion.last = undefined;
     run.motion.lastMs = undefined;
-    renderForCapture(rt, view);
+    renderForCapture(rt, camera, aspect);
     await drawResidentCut(rt, gpuDevice, {
       admitted: () => {
         const missing = collectPendingUrls(awaitedPages(run.desired, run.awaitedScratch), []);

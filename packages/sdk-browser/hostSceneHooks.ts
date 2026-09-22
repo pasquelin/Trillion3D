@@ -1,5 +1,5 @@
-import type * as THREE from 'three';
 import { bump, hookVector, type Hook, type WriteRevision } from './hostSceneHookCore.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 
 const hooks = new WeakMap<object, Hook>();
 
@@ -10,7 +10,7 @@ const hooks = new WeakMap<object, Hook>();
  * announcing there, so both faces are listened to, and both compare the quaternion: a write
  * that leaves the four numbers as they were bumps nothing.
  */
-function hookRotation(node: THREE.Object3D, hook: Hook) {
+function hookRotation(node: HostGraphNode, hook: Hook) {
   const q = node.quaternion;
   let x = q.x,
     y = q.y,
@@ -40,7 +40,7 @@ function hookRotation(node: THREE.Object3D, hook: Hook) {
  * fields the contract lets the host write are the node's own data fields, which no hook may
  * touch without slowing the reference's walk: `hostSceneScan.ts` compares them per frame.
  */
-export function hookHostNode(node: THREE.Object3D, revision: WriteRevision) {
+export function hookHostNode(node: HostGraphNode, revision: WriteRevision) {
   const known = hooks.get(node);
   if (known) {
     if (!known.revisions.includes(revision)) known.revisions.push(revision);
@@ -55,7 +55,7 @@ export function hookHostNode(node: THREE.Object3D, revision: WriteRevision) {
 
 /** Forgets `revision` on `node`: its writes no longer bump it. The hooks stay, bumping nothing
  *  once the last watch has left: an object the host keeps a reference to is never swapped back. */
-export function unhookHostNode(node: THREE.Object3D, revision: WriteRevision) {
+export function unhookHostNode(node: HostGraphNode, revision: WriteRevision) {
   const hook = hooks.get(node);
   const at = hook ? hook.revisions.indexOf(revision) : -1;
   if (hook && at >= 0) hook.revisions.splice(at, 1);

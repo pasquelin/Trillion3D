@@ -48,8 +48,8 @@ export function createExplorerCameraApi(inputs: Inputs) {
     return controls;
   };
   const homePose = (): CameraPose => ({
-    position: camera.position.toArray() as CameraPose['position'],
-    target: center.toArray() as CameraPose['target'],
+    position: [camera.position.x, camera.position.y, camera.position.z],
+    target: [center.x, center.y, center.z],
     fov: camera.fov,
     near: camera.near,
     far: camera.far,
@@ -79,7 +79,19 @@ export function createExplorerCameraApi(inputs: Inputs) {
       if (disposed()) return;
       setMeasuring(false);
       setActive(backends.find((backend) => backend.id === id)!);
-      camera.copy(saved);
+      // The saved view goes back on the live camera number by number — local pose and declared
+      // optics — then its matrices are recomposed from them: what a host camera holds besides
+      // these is derived from them.
+      const { x, y, z, w } = saved.quaternion;
+      camera.position.copy(saved.position);
+      camera.quaternion.set(x, y, z, w);
+      camera.fov = saved.fov;
+      camera.aspect = saved.aspect;
+      camera.near = saved.near;
+      camera.far = saved.far;
+      camera.zoom = saved.zoom;
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld();
       lookAtTarget.copy(center);
     },
     setMeasurementSurface(enabled: boolean) {

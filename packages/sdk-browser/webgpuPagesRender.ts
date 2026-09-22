@@ -18,12 +18,11 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
-export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
+export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, aspect?: number) {
   const { run, gpu, vis, capture, context, blendState } = rt,
     { gpuDevice, source } = rt.setup,
     { selectionRoots, worldUpdates, rows } = rt.layout;
-  if (capture.secondaryCamera && !capture.surfaceRenderAllowed)
-    throw new Error('SURFACE_CAPTURE_BUSY');
+  if (capture.capturing && !capture.surfaceRenderAllowed) throw new Error('SURFACE_CAPTURE_BUSY');
   if (context.signal?.aborted) context.signal.throwIfAborted();
   if (run.lost) throw new Error('WEBGPU_LOST');
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
@@ -34,10 +33,15 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // camera into the engine's — everything that follows only reads the latter. The list of nodes
   // the host can write is only built at a scene change, never per image — twelve instances of the
   // same model re-read that model once.
-  run.gate.enterFrame(context, camera, run.motion, rt.setup.viewport, source, () => [
-    ...selectionRoots.map((root) => root.pages[0]),
-    ...blendState.blendGpu,
-  ]);
+  run.gate.enterFrame(
+    context,
+    camera,
+    run.motion,
+    rt.setup.viewport,
+    source,
+    () => [...selectionRoots.map((root) => root.pages[0]), ...blendState.blendGpu],
+    aspect,
+  );
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam;
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
@@ -116,7 +120,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   run.hizPyramidFresh = false;
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed');
-  if (!capture.secondaryCamera && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
+  if (!capture.capturing && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
     if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
   } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);
 }

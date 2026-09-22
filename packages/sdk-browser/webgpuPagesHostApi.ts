@@ -32,7 +32,7 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
 /** Re-renders the last camera once new pages arrived, unless a readback is holding the image. */
 export function syncResident(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture } = rt;
-  if (capture.secondaryCamera) return;
+  if (capture.capturing) return;
   if (run.lost || !rt.setup.gpuDevice || !gpu.cache || !run.lastCamera) return;
   // Page bytes are already accepted. Keep the submitted image stable until its
   // explicit readback completes; the next render selects/uploads those bytes.
@@ -54,7 +54,7 @@ export function captureImage(rt: WebgpuPagesRuntime) {
   if (run.lost) throw new Error('WEBGPU_LOST');
   if (capture.capturedPixels && capture.capturedRevision === run.imageRevision)
     return capture.capturedPixels;
-  if (!gpu.presenter || !gpuDevice || !gpu.colorTexture || capture.secondaryCamera)
+  if (!gpu.presenter || !gpuDevice || !gpu.colorTexture || capture.capturing)
     throw new Error('CAPTURE_NOT_READY: render then await flush before capture');
   const encoder = gpuDevice.createCommandEncoder();
   gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);

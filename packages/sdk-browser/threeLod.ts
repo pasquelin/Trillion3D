@@ -1,5 +1,6 @@
 import { meshes, geometryBytes } from './sceneMeshes.ts';
 import { asHostLibrary } from './hostResources.ts';
+import { hostMeshCopy } from './hostGraphObjects.ts';
 import { collectCover, buildIndex } from './threeLodHelpers.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
 import { hostAimNode } from './hostSceneObjects.ts';
@@ -43,9 +44,9 @@ export const threeLodBackend: BackendFactory = (context) => {
     );
     const lod = new THREE.LOD();
     lod.matrixAutoUpdate = false;
-    lod.matrix.copy(mesh.matrixWorld);
+    lod.matrix.fromArray(mesh.matrixWorld.elements);
     lod.userData.sourceMesh = mesh;
-    const fine = new THREE.Mesh(mesh.geometry, mesh.material);
+    const fine = asHostLibrary<THREE.Mesh>(hostMeshCopy(mesh));
     fine.matrixAutoUpdate = false;
     fine.matrix.identity();
     fine.renderOrder = order;
@@ -71,7 +72,9 @@ export const threeLodBackend: BackendFactory = (context) => {
         : null;
       if (index && index.length >= 3) {
         const geometry = new THREE.BufferGeometry();
-        geometry.attributes = { ...mesh.geometry.attributes };
+        geometry.attributes = asHostLibrary<THREE.NormalBufferAttributes>({
+          ...mesh.geometry.attributes,
+        });
         geometry.setIndex(new THREE.BufferAttribute(index, 1));
         const box = new Float64Array(BOX_VALUES);
         boxEmpty(box, 0);
@@ -81,14 +84,17 @@ export const threeLodBackend: BackendFactory = (context) => {
           boxExpandByPoint(box, 0, max[0], max[1], max[2]);
         }
         setGeometryBounds(geometry, box.subarray(0, 3), box.subarray(3, BOX_VALUES));
-        const coarse = new THREE.Mesh(geometry, mesh.material);
+        const coarse = new THREE.Mesh(geometry, asHostLibrary<THREE.Material>(mesh.material));
         coarse.matrixAutoUpdate = false;
         coarse.matrix.identity();
         coarse.renderOrder = order;
         coarse.userData.lodLevel = 1;
         coarse.userData.sourceGeometry = geometry;
         coarse.userData.sourceMaterial = mesh.material;
-        const radius = geometry.boundingSphere?.radius || mesh.geometry.boundingSphere?.radius || 1;
+        const radius =
+          geometry.boundingSphere?.radius ||
+          asHostLibrary<THREE.BufferGeometry>(mesh.geometry).boundingSphere?.radius ||
+          1;
         lod.addLevel(coarse, Math.max(radius * 2, 1));
         levels = Math.max(levels, 2);
         allocationBytes += index.byteLength;
@@ -135,7 +141,7 @@ export const threeLodBackend: BackendFactory = (context) => {
       for (const lod of lods) {
         lod.matrix.copy((lod.userData.sourceMesh as THREE.Mesh).matrixWorld);
         lod.updateMatrixWorld(true);
-        lod.update(camera);
+        lod.update(asHostLibrary<THREE.Camera>(camera));
         const current = lod.getCurrentLevel();
         lodLevel = Math.max(lodLevel, current);
         const object = lod.levels[current]?.object as THREE.Mesh | undefined;
