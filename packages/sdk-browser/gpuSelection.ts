@@ -7,7 +7,7 @@
  */
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../sdk-core/index.ts';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
-import type { PageSurface } from './pageSurface.ts';
+import { surfaceFrontOnly, type PageSurface } from './pageSurface.ts';
 import { sameElements } from './matrixElements.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
 import type { EngineCamera } from './cameraWorld.ts';
@@ -138,7 +138,7 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
 }
 
 export function leafCone(page: { cone?: NormalCone; material?: PageSurface }): NormalCone {
-  if (page.material && (page.material.doubleSided || page.material.backSide)) return OPEN_CONE;
+  if (page.material && !surfaceFrontOnly(page.material)) return OPEN_CONE;
   return page.cone ?? OPEN_CONE;
 }
 

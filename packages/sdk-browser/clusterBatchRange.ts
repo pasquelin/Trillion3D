@@ -11,9 +11,9 @@ export type BatchPage = {
   min: number[];
   max: number[];
   attributes: HostAttributes;
-  /** The engine's surface record; the host declaration the WebGL2 draw hands back is
-   *  `declaration` (`pageSelectionTypes.ts`). */
+  /** The engine's surface record, what everything on the way to the image reads. */
   material: PageSurface;
+  /** The host declaration the WebGL2 draw record hands back to the renderer that owns it. */
   declaration: HostMaterials;
   transparent?: boolean;
   sourceOrder?: number;
