@@ -60,7 +60,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     if (rec.transparent && rec.sourceMesh) {
       const mesh = rec.sourceMesh;
       if (pagedBlendCopies.has(mesh)) continue;
-      const copy = createBlendCopy(mesh, rec.renderOrder, rec.matrix);
+      const copy = createBlendCopy(mesh, rec.renderOrder, rec.matrix, rec.material);
       copy.userData.pagedBlend = true;
       pagedBlendCopies.set(mesh, copy);
       blendCopies.push(copy);

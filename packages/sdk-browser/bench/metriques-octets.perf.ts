@@ -1,5 +1,6 @@
 // Vertex bytes published by metrics().
 import * as THREE from 'three';
+import { surfaceOf } from '../pageSurface.ts';
 import { createWebgpuGpuState } from '../webgpuPagesStateGpu.ts';
 import { createWebgpuBlendState } from '../webgpuBlendState.ts';
 import { ensureWebgpuPositionBuffer } from '../webgpuPositions.ts';
@@ -48,13 +49,11 @@ function etat(pages: number, transparents: number, concats: boolean, depart: num
     );
   const copies = [];
   for (let i = 0; i < transparents; i++) {
-    const mesh = new THREE.Mesh(
-      geometrie(6 + (i % 23), alea),
-      new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.5 }),
-    );
+    const paint = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.5 });
+    const mesh = new THREE.Mesh(geometrie(6 + (i % 23), alea), paint);
     mesh.updateMatrix();
     scene.add(mesh);
-    copies.push(mesh);
+    copies.push(Object.assign(mesh, { surface: surfaceOf(paint) }));
   }
   prepareWebgpuBlend(appareil, copies, gpu, blendState, scene);
   const tamponDe = (size: number) => appareil.createBuffer({ size, usage: 0 });

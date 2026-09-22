@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import { setGeometryBounds } from './threeBounds.ts';
+import { surfaceOf } from './pageSurface.ts';
 import { EngineError, type GeometryPageDescriptor } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
@@ -41,6 +42,9 @@ export function releaseGeometry(state: { allocationBytes: number }, rec: PageRec
  * The only place a twin is built — a page that decodes a colour attribute and a primitive the
  * host repaints ask the same cache, so one surface never holds two of them.
  */
+/** Components of a decoded attribute, by name; anything else is a UV pair. */
+const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
+
 export function colouredTwin(
   cache: Map<THREE.Material, THREE.Material>,
   original: THREE.Material,
@@ -161,20 +165,14 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       const geometry = new THREE.BufferGeometry();
       geometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
       for (const [name, array] of Object.entries(data.attributes))
-        geometry.setAttribute(
-          name,
-          new THREE.BufferAttribute(
-            array,
-            name === 'position' || name === 'normal' ? 3 : name === 'color' ? 4 : 2,
-          ),
-        );
+        geometry.setAttribute(name, new THREE.BufferAttribute(array, ITEM_SIZE[name] ?? 2));
       setGeometryBounds(geometry, rec.min, rec.max);
-      const original = asHostLibrary<THREE.Material | THREE.Material[]>(baseMaterials.get(rec)!);
-      rec.material = !data.attributes.color
-        ? original
-        : Array.isArray(original)
-          ? original.map((material) => colouredTwin(colorMaterials, material))
-          : colouredTwin(colorMaterials, original);
+      const base = asHostLibrary<THREE.Material | THREE.Material[]>(baseMaterials.get(rec)!);
+      // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
+      const twin = (one: THREE.Material) => colouredTwin(colorMaterials, one);
+      const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
+      rec.declaration = data.attributes.color ? paint() : base;
+      rec.material = surfaceOf(rec.declaration);
       rec.array = data.indices;
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;

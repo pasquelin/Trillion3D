@@ -43,7 +43,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     desired: PageRec[] = [],
     pending: string[] = [],
     retained: string[] = [];
-  const baseMaterials = new Map(allPages.map((rec) => [rec, rec.material] as const)),
+  const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<THREE.Material, THREE.Material>();
   const modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),

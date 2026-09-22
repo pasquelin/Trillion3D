@@ -21,6 +21,7 @@ import type { NormalCone } from '../../packages/sdk-browser/pageCone.ts';
 import type { DagRoot } from '../../packages/sdk-browser/gpuDagTypes.ts';
 import { poseMonde } from './normaleEclairageCas.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 
 type Vec3T = [number, number, number];
 interface Boite {
@@ -180,7 +181,7 @@ export function decisionCpu(cas: Cas) {
     id: '0',
     triangles: 2,
     matrix: cas.world,
-    material: new THREE.MeshBasicMaterial({ side: THREE.FrontSide }),
+    material: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.FrontSide })),
   };
   const root = {
     world: cas.world,

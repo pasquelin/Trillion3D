@@ -10,6 +10,7 @@ import {
 } from './visibilityBuffer.ts';
 import { camera, quadPages, centerId } from './visibilityBufferFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 test('MeshStandardMaterial pure metal retains the punctual specular highlight', () => {
   const metalMat = new THREE.MeshStandardMaterial({
@@ -77,14 +78,14 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
     matrix: new THREE.Matrix4(),
-    material: solid,
+    material: surfaceOf(solid),
     clusterId: 'far',
   };
   const near: VisPage = {
     array: new Uint32Array([4, 5, 6, 4, 6, 7]),
     attributes: geometry.attributes,
     matrix: new THREE.Matrix4(),
-    material: mask,
+    material: surfaceOf(mask),
     clusterId: 'near',
   };
   const cam = camera(),

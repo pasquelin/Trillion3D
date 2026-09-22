@@ -3,11 +3,9 @@
 // primitives, thousands of pages, and the exact coverage the collector checks.
 import * as THREE from 'three';
 import { graine } from '../../../sdk-core/bench/socle.ts';
+import { materiau, porte } from './scenesCoupe.ts';
 import type { PageRec } from '../../pageSelectionTypes.ts';
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../sdk-core/index.ts';
-
-const materiau = (index: number) =>
-  new THREE.MeshStandardMaterial({ color: 0x808080 + index * 7, roughness: 0.5 });
 
 /** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers,
  *  plus `sha256`, which `ClusterManifest['primitives'][number]['pages']` requires but nothing in
@@ -183,7 +181,7 @@ export function catalogueDePages({
       clusterId: `p/${i % (pages - 7)}`,
       array,
       attributes: attributs[i % materiaux],
-      material: materiau(i % materiaux),
+      ...porte(materiau(i % materiaux)),
       triangles: 1,
       indexBytes: 0,
       min: DUMMY_BOUNDS,

@@ -1,5 +1,4 @@
 import type { Texture } from '../sdk-core/index.ts';
-import { visMaterial } from './visibilityBuffer.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /**
@@ -28,7 +27,7 @@ export function writeBlendItemRecord(
   tables: BlendAtlasTables,
 ) {
   const base = index * BLEND_ITEM_WORDS,
-    mat = visMaterial(item.material);
+    mat = item.surface;
   const layer = item.map && tables.mapLayer.has(item.map) ? tables.mapLayer.get(item.map)! : 0;
   floats.set(item.matrix.elements, base);
   floats[base + 16] = item.rgba[0];
