@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import {
   NODE_AUTO_UPDATE,
   markNodeWorldNeedsUpdate,
@@ -37,7 +37,7 @@ function sameMatrixBits(held: Float64Array, now: ArrayLike<number>) {
  * Local pose of the host `node` into the tree node of rank `rank`. Returns true when something
  * was written, hence when the subtree under that node will be recomputed by the next pass.
  */
-export function pushHostPose(tree: TransformTree, rank: number, node: THREE.Object3D) {
+export function pushHostPose(tree: TransformTree, rank: number, node: HostGraphNode) {
   const auto = node.matrixAutoUpdate;
   let moved = false;
   if (auto !== ((tree.flags[rank] & NODE_AUTO_UPDATE) !== 0)) {

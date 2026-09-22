@@ -47,7 +47,7 @@ function runtime() {
     gpu: { temporal, targetSize: [64, 32], depthView: { depth: true }, hdrView: { hdr: true } },
     vis: { visView: { ids: true }, pageTable: { pages: true } },
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
-    capture: { secondaryCamera: undefined },
+    capture: { capturing: false },
   } as unknown as WebgpuPagesRuntime;
   const device = {
     queue: {
@@ -71,11 +71,11 @@ function runtime() {
 
 test("without accumulation this frame, the render matrix is the camera's and composition reads the lit image", () => {
   const { rt, cam, encoded, frame } = runtime();
-  rt.capture.secondaryCamera = {} as never;
+  rt.capture.capturing = true;
   assert.equal(frame(false), null);
   assert.equal(taaRenderMatrix(rt, cam), cam.viewProjection);
   assert.equal(encoded.length, 0);
-  rt.capture.secondaryCamera = undefined;
+  rt.capture.capturing = false;
   rt.run.diagnostic = 'screen-error' as never;
   assert.equal(frame(false), null);
   assert.equal(taaRenderMatrix(rt, cam), cam.viewProjection);
@@ -194,7 +194,7 @@ test('the sampled rank: moving accumulated frames only, another each frame, repl
   frame(false);
   assert.equal(taaSampledRank(rt), second, 'a replayed frame draws the same lights');
   rt.run.textureConverging = false;
-  rt.capture.secondaryCamera = {} as never;
+  rt.capture.capturing = true;
   frame(false);
   assert.equal(taaSampledRank(rt), 0, 'a capture does not accumulate: nothing is sampled');
 });

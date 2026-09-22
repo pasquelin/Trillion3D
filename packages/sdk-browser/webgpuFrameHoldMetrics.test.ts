@@ -68,7 +68,7 @@ function tenue() {
       positionBuffers: new Map(),
     },
     vis: { visEnabled: true, gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
-    capture: { secondaryCamera: undefined, capturePending: undefined },
+    capture: { capturing: false, capturePending: undefined },
     setup: { geometryPool: { slots: 0 }, texturePool: {} },
     services: {
       bootstrapState: { ready: true },

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBounds } from './exactPagesBounds.ts';
 import { emptyWorldBox } from './hostWorldBounds.ts';
+import { asHostLibrary } from './hostResources.ts';
 import { indexManifestPages, indexManifestBundles } from './manifestPageIndex.ts';
 import {
   referenceExactPagesBounds,
@@ -80,8 +81,8 @@ test('exactPagesBounds yields the same box as the reference, a « coarse » page
   ]);
   const manques: THREE.Mesh[] = [],
     manquesRef: THREE.Mesh[] = [];
-  const obtenu = exactPagesBounds(source, associations, metadata, (m: THREE.Mesh) =>
-    manques.push(m),
+  const obtenu = exactPagesBounds(source, associations, metadata, (m) =>
+    manques.push(asHostLibrary<THREE.Mesh>(m)),
   );
   const attendu = referenceExactPagesBounds(source, associations, metadata, (m: THREE.Mesh) =>
     manquesRef.push(m),
