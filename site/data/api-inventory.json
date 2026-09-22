@@ -270,7 +270,7 @@
         "test/appui/sceneOccultante.ts",
         "test/appui/surfaceAppareilPerduPage.ts",
         "test/appui/waterPassPage.ts",
-        "test/browser/emeraldPageRun.ts",
+        "test/browser/scenePageRun.ts",
         "test/browser/explorer-startup.browser.ts"
       ],
       "disposition": "retained",

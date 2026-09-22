@@ -85,13 +85,22 @@ nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame
 `node scripts/site-first-load.ts <siteDir> [route ...]` measures a route's first load
 (DOMContentLoaded, settled, requests, bytes) over cold contexts: a measurement, not a proof.
 
-`BROWSER_ECARTES` is empty: every render proof runs. The Emerald proof
-(`emeraude-webgpu`) reads the compiled cache `emerald-square-derived` under `.mesure/assets/`, off
-git, and a sibling worktree has none of its own: point `WG_ASSETS` at the shared folder. Without it
-the proof exits on an `HTTP 404` naming the manifest it could not fetch, and `pnpm run test:gpu`
-fails with it — loudly, never in silence. The material proof (`materiaux-temoin`) needs no asset:
+`BROWSER_ECARTES` is empty: every render proof runs. The reference-scene proof
+(`scene-webgpu`) reads the compiled cache of `DEFAULT_SCENE` (`sponza-derived`) under
+`.mesure/assets/`, off git, and a sibling worktree has none of its own: point `WG_ASSETS` at the
+shared folder. Without it the proof stops by name on the cache it could not find, and
+`pnpm run test:gpu` fails with it — loudly, never in silence. `node scripts/mesure/assets.ts`
+fetches and compiles every scene the proofs read (`scripts/mesure/README.md` § Assets). The material proof (`materiaux-temoin`) needs no asset:
 its fixtures are built in the page and served from `test/appui/`, the SDK from `dist/`, so
 `pnpm run build` precedes it.
+
+`test/justesse/scenes-publiques.ts` needs no GPU and no browser: it opens the compiled caches of
+the public scenes and asserts what each one guarantees — a DAG that climbs above level 0 wherever a
+primitive holds more than one cluster, a mirrored mapping that locks no vertex — in a tenth of a
+second. It reads the caches, never builds them: without
+`node scripts/mesure/assets.ts` and a facade (`node scripts/mesure/scenes/facade.ts --seed 7`,
+then `node scripts/mesure/assets.ts --only facade-7`) it fails by name on the cache it could not
+find.
 
 `test/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
@@ -108,7 +117,8 @@ node test/test-gpu.ts test/justesse/reflexion-cone.ts   # run single target
 inherited rather than the ones it caused, and the baseline lives here so the next batch compares
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
 `WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-22: **7 fail**, and always these
-seven files — `emeraude-webgpu`, `explorer-startup`, `materiaux-temoin`, `observatory`,
+seven files — `scene-webgpu` (then named after the private scene it read), `explorer-startup`,
+`materiaux-temoin`, `observatory`,
 `partition-gpu-conservatrice`, `rendu-clusters-webgl`, `shadow-camera-stop`. Seven, not the six
 an older note quoted. Two readings, one commit apart: `origin/develop` at `005b5c445`, 52 pass /
 7 fail; the head of #297, which adds one proof file, 53 pass / 7 fail. A batch that leaves exactly

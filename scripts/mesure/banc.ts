@@ -99,7 +99,7 @@ async function main() {
   if (!address || typeof address === 'string') throw new Error('server did not bind a TCP port');
   const port = address.port;
   report.settings = { ...settings, port };
-  // Fresh browser per series, closed immediately after. Emerald scene leaves several hundred MB
+  // Fresh browser per series, closed immediately after. A large scene leaves several hundred MB
   // in Chromium GPU process; closing page does not release them, causing 3rd series to fail
   // ("WebGL2 unavailable"). Relaunching browser frees GPU process between series.
   const onFreshPage = async <T>(run: (page: Page) => Promise<T>): Promise<T> => {

@@ -1,4 +1,4 @@
-// Run IN THE PAGE by `page.evaluate` (emeraude-webgpu.browser.ts): serialised via `toString()`,
+// Run IN THE PAGE by `page.evaluate` (scene-webgpu.browser.ts): serialised via `toString()`,
 // so nothing here may close over an outer Node import — only its own parameters and browser
 // globals (`window`, `document`, `navigator`). Kept as a named, explicitly typed function so its
 // return type is a real structural type instead of collapsing to `any` through `import(sdkUrl)`.
@@ -14,7 +14,7 @@ declare global {
 
 /** One trajectory point read on one backend: the engine's own render metrics, the readback
  * against a live capture, and (for the second backend) the pixel difference against the first. */
-export interface EmeraldReading {
+export interface SceneReading {
   id: string;
   segment: number;
   pose: unknown;
@@ -35,11 +35,13 @@ export interface EmeraldReading {
 export async function runOnPage({
   sdkUrl,
   posesUrl,
+  manifestUrl,
   temporalAntialiasing,
   ...viewport
 }: {
   sdkUrl: string;
   posesUrl: string;
+  manifestUrl: string;
   temporalAntialiasing: boolean;
   width: number;
   height: number;
@@ -50,7 +52,7 @@ export async function runOnPage({
     'three-webgl-reference': referenceBackend,
     'webgpu-page-raster': webgpuPagesBackend,
   };
-  const results: EmeraldReading[] = [],
+  const results: SceneReading[] = [],
     images: Uint8Array[] = [],
     events: (BackendDiagnostic & { id: string })[] = [];
   const adapter = await navigator.gpu.requestAdapter();
@@ -86,7 +88,7 @@ export async function runOnPage({
     const canvas = document.createElement('canvas');
     document.body.append(canvas);
     const e = await createExplorer(canvas, {
-      manifestUrl: '/benchmark-assets/emerald-square-derived/native/full/manifest.json',
+      manifestUrl,
       scope: 'full',
       ...viewport,
       pixelError: 1,

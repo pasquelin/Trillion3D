@@ -28,7 +28,7 @@ export interface Provenance {
   baselineOverrides: { file: string; sha256: string }[];
 }
 
-export async function emeraldProvenance(harnessUrl: string): Promise<Provenance> {
+export async function sceneProvenance(harnessUrl: string): Promise<Provenance> {
   const sourceFiles = [
     'index.ts',
     'webgpuPages.ts',
