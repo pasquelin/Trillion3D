@@ -12,8 +12,8 @@
   reflections and shadows, at that same performance, rebuilt for the web's constraints (no hardware
   ray tracing, bounded and unreadable GPU memory, one browser frame).** The geometry, the temporal
   antialiasing and the memory budgets are the foundation; the lighting is what they are for. It is
-  reached by stages, each measured, and the strategy lives in `docs/SPEC_ENGINE_WITHOUT_THREE.md`
-  §8. A stage that is out of order is not out of scope.
+  reached by stages, each measured, and the strategy lives in `docs/LIGHTING_STRATEGY.md`.
+  A stage that is out of order is not out of scope.
 - **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
   Commercial engines are not open source and their sources are licence-covered; reimplement from
   public material only — papers, talks, documentation, observed behaviour. Third-party engines and
