@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { PageRec } from './pageSelection.ts';
+import type { PageSurface } from './pageSurface.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
 import { drawnRanges, submittedDraws } from './clusterBatchMesh.ts';
@@ -35,8 +36,16 @@ function colorOf(declared: HostMaterials) {
     'color' in first && first.color instanceof THREE.Color
       ? first.color
       : new THREE.Color(0xffffff);
-  return [(color.r * 255) | 0, (color.g * 255) | 0, (color.b * 255) | 0];
+  return byteRgb(color.r, color.g, color.b);
 }
+
+/** The same eight-bit colour, from a surface record the page already carries. */
+function surfaceColorOf(surface: PageSurface) {
+  const base = surface.baseColor;
+  return byteRgb(base[0], base[1], base[2]);
+}
+
+const byteRgb = (r: number, g: number, b: number) => [(r * 255) | 0, (g * 255) | 0, (b * 255) | 0];
 
 /** CPU raster of what a backend draws: its owned draw records, then the plain meshes of its
  *  scene. Used as an oracle; not a GPU timestamp. */
@@ -110,7 +119,7 @@ export function rasterPages(
     const position = page.attributes.position,
       index = page.array;
     if (!position || !index) continue;
-    const rgb = colorOf(page.material);
+    const rgb = surfaceColorOf(page.material);
     const attribute = asHostLibrary<THREE.BufferAttribute>(position);
     world.fromArray(page.matrix.elements);
     for (let i = 0; i < index.length; i += 3) {

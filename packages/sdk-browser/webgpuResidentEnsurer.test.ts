@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { createWebgpuPageTracking } from './webgpuPageTracking.ts';
 import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import type { PageRec } from './pageSelection.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
 const DUMMY_MATRIX = new THREE.Matrix4();
@@ -20,7 +21,8 @@ const pageOf = (url: string): PageRec => ({
   max: DUMMY_BOUNDS,
   depthLayer: 0,
   attributes: DUMMY_ATTRIBUTES,
-  material: [],
+  material: surfaceOf([]),
+  declaration: [],
   matrix: DUMMY_MATRIX,
   renderOrder: 0,
   attached: true,

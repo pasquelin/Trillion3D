@@ -9,6 +9,7 @@ import type { PageRec } from '../../packages/sdk-browser/pageSelection.ts';
 import { PAGE_INFO_STRIDE } from '../../packages/sdk-browser/visibilityTypes.ts';
 import { WRAP_MAP } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import { octetsTexture } from './adressageCas.ts';
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 
 const {
   ClampToEdgeWrapping: SERRE,
@@ -98,7 +99,8 @@ export function ligneDePageMelangee() {
   // the rest of `PageRec` is filled with placeholders the writer never reads.
   const rec: PageRec = {
     id: 0,
-    material: mat,
+    material: surfaceOf(mat),
+    declaration: mat,
     attributes,
     matrix: new THREE.Matrix4(),
     url: 'defect8',

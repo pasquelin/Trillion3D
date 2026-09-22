@@ -1,4 +1,5 @@
-import type { HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
+import type { HostGeometry, HostMesh } from './hostResources.ts';
+import type { PageSurface } from './pageSurface.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import { FRUSTUM_PLANE_VALUES, type DiagnosticMode, type Texture } from '../sdk-core/index.ts';
 import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
@@ -19,7 +20,7 @@ export type BlendGpuItem = {
   index?: GPUBuffer;
   uv?: GPUBuffer;
   normal?: GPUBuffer;
-  material: HostMaterials;
+  surface: PageSurface;
   count: number;
   matrix: MatrixElements;
   sourceMesh?: HostMesh;

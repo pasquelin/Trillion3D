@@ -6,7 +6,7 @@ import { backdropFormatReason } from './webglClusterBackdrop.ts';
 export { clusterMaterialReason } from './hostSurfaceGate.ts';
 
 type SceneCopy = {
-  material: BatchPage['material'];
+  material: BatchPage['declaration'];
   geometry: { attributes: BatchPage['attributes'] };
 };
 
@@ -35,7 +35,7 @@ export function clusterWebglCompatibility(
     if (reason) return reason;
   }
   for (const page of pages) {
-    const reason = clusterMaterialReason(page.material, page.attributes);
+    const reason = clusterMaterialReason(page.declaration, page.attributes);
     if (reason) return reason;
   }
 }

@@ -24,6 +24,14 @@ import { cullingLinks, type CullingLinks } from './pageSelectionCutForced.ts';
  *
  * The order of checks is the previous one, placement by placement: missing page, index coverage,
  * then the cache's error band. Only their count changes.
+ *
+ * COVERAGE IS CHECKED AGAINST THE CACHE'S OWN RECORD. Until this batch the pages of a primitive
+ * were concatenated and their triangles compared, as a multiset, with those of the source
+ * geometry the host had loaded — the engine path holding the source indices only for that. What
+ * a page is checked against now is what the manifest declares of it: the index count of the page
+ * entry. The page/source identity itself is a property of the cook, proved where it is produced
+ * (`packages/asset-compiler-rust`, its golden fixtures) and not re-derived at every load by a
+ * runtime that will soon have no source file to derive it from (#78, part 4c).
  */
 type Template = {
   pages: Array<{
@@ -33,9 +41,7 @@ type Template = {
     clusterId: string;
   }>;
   sourceOrder: number[];
-  sourceOffset: number;
   complete: boolean;
-  checked: ArrayLike<number> | undefined;
   shape: Shape | undefined;
 };
 type Shape = {
@@ -45,17 +51,6 @@ type Shape = {
   links: CullingLinks | undefined;
   local: Float64Array;
 };
-
-/** Multiset of the triangles of an index array: coverage is a multiset identity, never an
- *  order identity — the DAG reorders the triangles. */
-function triangleCounts(arr: ArrayLike<number>) {
-  const map = new Map<string, number>();
-  for (let i = 0; i < arr.length; i += 3) {
-    const key = `${arr[i]},${arr[i + 1]},${arr[i + 2]}`;
-    map.set(key, (map.get(key) ?? 0) + 1);
-  }
-  return map;
-}
 
 /** Local box of a primitive: that of the root of its hierarchy, or the union of its pages. */
 function localBox(primitive: Primitive, culling: ReturnType<typeof cullingNodes>) {
@@ -88,11 +83,13 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
       const kept = held.get(primitive);
       if (kept) return kept;
       const placement = streamPlacement(primitive.streams, primitive.pages);
-      let sourceOffset = 0;
       const pages = primitive.pages.map((page, index) => {
         const array = indices.get(page.url);
         if (!array && !allowMissing && indices.size) throw new Error('Missing page');
-        if ((page.role ?? 'exact') !== 'coarse') sourceOffset += array ? array.length : page.count;
+        // The page carries the indices its manifest entry declares, or the cache is not the one
+        // this manifest describes: a short page would draw a hole and a long one another page's
+        // triangles, both silently.
+        if (array && array.length !== page.count) throw new Error('Incomplete cluster coverage');
         return {
           array,
           cut: clusterErrorFields(page),
@@ -105,36 +102,13 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
         // The source rank of a cluster depends only on the primitive; only a transparent mesh
         // reads it, and it reads it identically under each of its instances.
         sourceOrder: primitive.pages.map((page, index) => page.start ?? index),
-        sourceOffset,
         complete: primitive.pages.every(
           (page) => indices.has(page.url) || (page.role ?? 'exact') === 'coarse',
         ),
-        checked: undefined,
         shape: undefined,
       };
       held.set(primitive, template);
       return template;
-    },
-    /** Coverage, checked once per primitive / source-indices pair: two placements of the same
-     *  object set the same geometry, therefore the same index array. */
-    checkCoverage(primitive: Primitive, template: Template, src: ArrayLike<number>) {
-      if (!template.complete || template.checked === src) return;
-      const exact = primitive.pages.filter((page) => (page.role ?? 'exact') !== 'coarse');
-      let total = 0;
-      for (const page of exact) total += indices.get(page.url)!.length;
-      const joined = new Uint32Array(total);
-      let at = 0;
-      for (const page of exact) {
-        const part = indices.get(page.url)!;
-        joined.set(part, at);
-        at += part.length;
-      }
-      const fromPages = triangleCounts(joined),
-        fromSource = triangleCounts(src);
-      if (fromPages.size !== fromSource.size) throw new Error('Incomplete cluster coverage');
-      for (const [key, n] of fromSource)
-        if (fromPages.get(key) !== n) throw new Error('Page/source index mismatch');
-      template.checked = src;
     },
     /** Culling hierarchy, per-node bounds, group links and local box: the DAG's shape, shared
      *  by every instance of the object. */
