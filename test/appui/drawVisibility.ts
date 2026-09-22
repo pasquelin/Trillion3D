@@ -1,4 +1,5 @@
 import type { ComputeSetup } from './drawCompute.ts';
+import type { AtlasBindings } from '../../packages/sdk-browser/webgpuBindLayout.ts';
 
 /** Binding numbers the WGSL interpolates from `VIS_BINDINGS` (`webgpuBindLayout.ts`). */
 export interface VisBindings {
@@ -9,7 +10,7 @@ export interface VisBindings {
   uv: number;
   instances: number;
   slotOffsets: number;
-  color: { pages: number; pool: number };
+  color: AtlasBindings;
   uniform: number;
   sampler: number;
 }
@@ -93,7 +94,7 @@ export function setupVisibility(
     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
     buffer: { type: 'read-only-storage' },
   });
-  // Empty page table: no page carries a map, pool is never read.
+  // Empty page table: no page carries a map, so no lane pool is ever read.
   const colorPages = makeBuffer(64 * 4);
   const visLayout = device.createBindGroupLayout({
     entries: [
@@ -106,11 +107,11 @@ export function setupVisibility(
       lecture(b.slotOffsets),
       lecture(b.color.pages),
       { binding: b.uniform, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
-      {
-        binding: b.color.pool,
+      ...b.color.lanes.map((binding) => ({
+        binding,
         visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
+        texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,
+      })),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     ],
   });
@@ -143,7 +144,7 @@ export function setupVisibility(
           { binding: b.flags, resource: { buffer: flags } },
           { binding: b.uniform, resource: { buffer: visUniform } },
           { binding: b.uv, resource: { buffer: uvs } },
-          { binding: b.color.pool, resource: mapsView },
+          ...b.color.lanes.map((binding) => ({ binding, resource: mapsView })),
           { binding: b.sampler, resource: sampler },
           { binding: b.instances, resource: { buffer: instances } },
           { binding: b.slotOffsets, resource: { buffer: offsets } },
