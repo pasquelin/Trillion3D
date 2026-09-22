@@ -11,6 +11,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, rootPage, twoPrimitives } from './webgpuPagesTestScenes.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 /** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
  *  general `RenderBackend` contract leaves optional or omits. */
@@ -131,13 +132,13 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
       array: indices.get('0')!,
       attributes: geometry.attributes,
       matrix: mesh.matrixWorld,
-      material,
+      material: surfaceOf(material),
     },
     {
       array: indices.get('1')!,
       attributes: geometry.attributes,
       matrix: mesh.matrixWorld,
-      material,
+      material: surfaceOf(material),
     },
   ];
   const expected = rasterVisibilityIds(pages, cameraMoteur(cam), [32, 32]);

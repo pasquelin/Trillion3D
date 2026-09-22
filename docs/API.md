@@ -23,14 +23,17 @@ numbers. Conventions shared by every entry:
 
 - `createExplorer(target: ExplorerTarget, options: ExplorerOptions)` and
   `createExplorerJob(id, target, options)` accept a canvas element or its literal document ID.
-- `interactive: true` owns CSS/DPR sizing, OrbitControls and bounded demand-driven rendering;
+- `interactive: true` owns CSS/DPR sizing, the engine's own orbit controller and bounded
+  demand-driven rendering;
   absent/false preserves manual sessions. `invalidate()` requests a frame after programmatic edits.
-- With no `backends` option, interactive or not, the engine's own path renders: direct WebGPU
-  where a device was granted, the autonomous WebGL2 path where the cache carries its prepared
-  scene, and a named `EngineError` (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where neither exists. The
-  Three witnesses are opt-in through `options.backends`. `chooseBackends(options, metadata,
-  gpuDevice)` and `autonomousCacheReady(metadata)` expose that decision; the `backend-choice`
-  diagnostic reports it per session. Proof: `defaultBackends.test.ts`, the browser startup proof.
+- With no `backends` option, interactive or not, a session draws through the engine's own path:
+  direct WebGPU where a device was granted; `autonomous-pages-webgl` on WebGL2 alone, which since
+  #297 decodes the cache's geometry pages and draws them itself — from the cache's prepared scene
+  where it carries one, from `source.gltf` where it does not; and a named `EngineError`
+  (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where the machine granted neither API.
+  `chooseBackends(options, metadata, gpuDevice, webgl2)` and `autonomousCacheReady(metadata)`
+  expose that decision; the `backend-choice` diagnostic reports its `renderer`, `autonomous` and
+  `reason` per session. Proof: `defaultBackends.test.ts`, the browser startup proof.
 - `RenderBackend.pendingFrame?()` waits for submitted work without image readback and returns
   whether interactive rendering should continue. Custom backends with progressive work should
   implement it. Disposal owns all interactive listeners and pending callbacks.
@@ -322,13 +325,15 @@ library's rounded constants by the gap measured in #72; no beauty pass reads tha
 | `HostMaterial`, `HostMaterials`, `HostTexture`, `HostAttribute`, `HostAttributes`, `HostGeometry`, `HostMesh`, `HostNode`, `HostScene`, `HostPoint` — `packages/sdk-browser/hostResources.ts` | what the engine reads of a resource the host owns and the engine never builds: surface and raster state, sampler state, attribute layout, a box, an identity          | `THREE.Material`, `THREE.Texture`, `THREE.BufferGeometry['attributes']`, `THREE.Mesh`, `THREE.Object3D`, `THREE.Scene` in the contract files | `moteur-sans-three.test.ts` (closed list) |
 | `Texture`, `WrapMode`, `TextureFilter`, `TextureColorSpace` — `packages/sdk-core/textureContract.ts`                                     | the imported texture the engine samples: its identity, its decoded image, the UV set, and addressing, filtering and colour space as the engine's own words          | `THREE.Texture` in the tile pools, the atlas layers, the page row and the software raster        | `webgpuTileCatalogue.test.ts`, `visibilityWrapModes.test.ts`, `moteur-sans-three.test.ts` |
 | `importHostSurface`, `importHostTexture`, `importWrapMode` — `packages/sdk-browser/hostSurfaceImport.ts`                                  | the one place a host material or texture is read into those records; the material is re-read at every call, a texture keeps a single record for the session, refilled when the host bumps its version | the per-frame reads of `THREE.MeshStandardMaterial` and `THREE.Texture` in `visibilityMaterial.ts` | `hostSurfaceImport.test.ts`, `visibilityBufferMaterials.test.ts`, `moteur-sans-three.test.ts` |
-| `BlendCopy` — `packages/sdk-browser/blendCopyContract.ts`                                                 | the transparent draw copy as the engine reads it: geometry, declared material, the pose it shares with the engine's world storage, the source mesh it stands for      | `THREE.Mesh` in the blend prepare, the material census and the page setup                        | `webgpuBlendWorlds.test.ts`, `moteur-sans-three.test.ts` |
+| `PageSurface`, `surfaceOf`, `refreshSurface`, `surfaceSide`, `surfaceFrontOnly` — `packages/sdk-browser/pageSurface.ts`                                 | the surface record a page carries: the shaded fields of `VisMaterial` and the raster facts declared beside them (version, opacity, blended, single pass, declared as a list of materials). One record per declaration, held by it and refilled in place: the side at every read of it — `surfaceSide` and `surfaceFrontOnly` ask the declaration, since a host writes it without bumping a version — the other raster facts where the raster, the plan and the row read them, the shaded ones when the version moves | `PageRec.material`, `VisPage.material`, `BatchPage.material` and `BlendGpuItem.material` as host declarations, and the `visMaterial`/`sideOf` calls the cut, the rows, the raster, the plan and the audit each made on them | `pageSurface.test.ts`, `moteur-sans-three.test.ts` (closed list of `declaration` readers) |
+| `BlendCopy` — `packages/sdk-browser/blendCopyContract.ts`                                                 | the transparent draw copy as the engine reads it: geometry, the `PageSurface` record it wears — no host material since #288 —, the pose it shares with the engine's world storage, the source mesh it stands for      | `THREE.Mesh` in the blend prepare, the material census and the page setup                        | `webgpuBlendWorlds.test.ts`, `moteur-sans-three.test.ts` |
+| `HostLight`, `HostPlaced` — `packages/sdk-browser/sceneLighting.ts`; `HostDiagnosticMesh`, `HostDiagnosticMaterial`, `HostDiagnosticGeometry` — `packages/sdk-browser/hostResources.ts` | a source-graph light and the copy a display graph holds of it, and the mesh a diagnostic view repaints, read as shapes and never as classes. The shape is the host library's, named plainly: `isLight`, `isMesh`, `isColor`, `updateWorldMatrix(ancestors, descendants)` are that library's marker properties and signature, as `HostScene.traverse` already is. What the crossing buys is that the engine builds none of these objects and imports nothing to read them — a host that writes the same flags is a host | `THREE.Light`, `THREE.Mesh`, `THREE.Material` and `THREE.BufferGeometry` in `sceneLighting.ts`, `explorerDiagnosticApi.ts`, `hostGraphDiagnostic.ts`, `triangleDiagnostic.ts` and `pageRaster.ts`; the host objects they hang arrive through `HostDiagnosticFactory` and `aimNode`, injected by the engine that owns the graph | `sceneLighting.test.ts`, `triangleDiagnostic.test.ts`, `hostGraphDiagnostic.test.ts`, `moteur-sans-three.test.ts` (closed list) |
 | `asHostLibrary<T>(resource)` — `packages/sdk-browser/hostResources.ts`                                                     | the single crossing back: a boundary file gives a host resource to the library its owner wrote it with. Only the declared witnesses and host adapters call it          | scattered `as THREE.X` casts                                                  | `moteur-sans-three.test.ts` (closed list)    |
 | `addInstance(id, transform)`, `updateInstance(id, transform)`                                                              | a placement as sixteen column-major floats, `Float64Array(16)`; the engine copies them, the host keeps its array                                                      | `THREE.Matrix4`                                                              | `autonomousPages.test.ts`, `autonomousInstances.test.ts` |
 
 `scene`, `source` and `sceneLighting` keep pointing at the host's own display and source graphs:
-they are the host's, not the engine's, so they are named `HostScene` and `HostNode` and not
-`SceneRoot` / `SceneNode`. Substituting the engine hierarchy there is the per-frame-walk and
+they are the host's, not the engine's, so they are named `HostScene`, `HostTraversable` and
+`HostNode` and not `SceneRoot` / `SceneNode`. Substituting the engine hierarchy there is the per-frame-walk and
 source-loading work of the following lots, not a type change.
 
 ## Batch math for hosts (#104, #80)

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { HostNode } from './hostResources.ts';
+import type { HostTraversable } from './hostResources.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../sdk-core/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
@@ -12,7 +12,7 @@ import type { ExplorerSession } from './explorerSession.ts';
 
 type Inputs = {
   source: THREE.Object3D;
-  sceneLightingSource?: HostNode;
+  sceneLightingSource?: HostTraversable;
   associations: BackendContext['associations'];
   textureIndices: Map<THREE.Texture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
@@ -115,13 +115,12 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
-    // The reader exists only at the host's request: under `'host'`, the loader has read and
-    // decoded the images, and the engine takes the previous path — reading them a second time
-    // from the cache would double the network for the same image.
-    readTextureLevel:
-      options.textureSource === 'cache'
-        ? createTextureLevelReader(metadata.textures, base, signal)
-        : undefined,
+    // The reader exists as soon as the cache declares texture chains, whatever the host asked of
+    // the loader: the engine reads the levels the compiler baked and regenerates none it could
+    // have read instead. What `textureSource` still decides is whether the LOADER opens the
+    // source images for an engine that draws the host scene, not where the engine's texels
+    // come from.
+    readTextureLevel: createTextureLevelReader(metadata.textures, base, signal),
     sceneLights,
     importedLightIds,
   };

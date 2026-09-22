@@ -1,10 +1,10 @@
-import type { HostMaterials } from './hostResources.ts';
 import { FRUSTUM_PLANE_VALUES } from '../sdk-core/index.ts';
 import { createConeContext, type ConeContext, type NormalCone } from './pageCone.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import { IDENTITY_ELEMENTS, type MatrixElements } from './matrixElements.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
+import type { PageSurface } from './pageSurface.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
@@ -12,7 +12,7 @@ export interface PageRecord extends ClusterCut {
   min?: number[];
   max?: number[];
   cone?: NormalCone;
-  material?: HostMaterials;
+  material?: PageSurface;
   array?: Uint32Array;
 }
 

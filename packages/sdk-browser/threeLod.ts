@@ -2,6 +2,7 @@ import { meshes, geometryBytes } from './sceneMeshes.ts';
 import { asHostLibrary } from './hostResources.ts';
 import { collectCover, buildIndex } from './threeLodHelpers.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
+import { hostAimNode } from './backendCommon.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from './backendTypes.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';
@@ -9,7 +10,7 @@ import { isTransmissive } from './visibilityBuffer.ts';
 import { setGeometryBounds } from './threeBounds.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/index.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
-import { createThreeSceneDraw } from './threeSceneAdapter.ts';
+import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 
 /** What this engine does not claim to do, with or without levels of detail. */
 const HORS_PORTEE = [
@@ -22,11 +23,9 @@ const HORS_PORTEE = [
 /** Distance-based THREE.LOD from the same source meshes. Coarse levels exist only when QEM pages are present and loaded. */
 export const threeLodBackend: BackendFactory = (context) => {
   const scene = new THREE.Scene();
-  const sceneLights = installSceneLighting(
-    scene,
-    context.sceneLighting ?? context.source,
-    context.clearColor ?? 0x171d28,
-  );
+  scene.background = new THREE.Color(context.clearColor ?? 0x171d28);
+  const lightSource = context.sceneLighting ?? context.source;
+  const sceneLights = installSceneLighting(scene, lightSource, hostAimNode);
   const hostDraw = createThreeSceneDraw(context.webglContext, scene);
   const lods: THREE.LOD[] = [];
   let levels = 1,
@@ -119,7 +118,7 @@ export const threeLodBackend: BackendFactory = (context) => {
       overlays.splice(0).forEach((m) => m.dispose());
       for (const lod of lods)
         for (const level of lod.levels)
-          applyMeshDiagnostic(level.object as THREE.Mesh, mode, overlays);
+          applyMeshDiagnostic(level.object as THREE.Mesh, mode, overlays, hostDiagnostics);
     },
     async prepare() {},
     // This engine rewalks the scene every frame: no revision has to teach it.

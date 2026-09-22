@@ -16,6 +16,11 @@ export type {
   DiagnosticDetail,
   RenderBackend,
 } from '../sdk-browser/backendTypes.ts';
+export type {
+  ChangeListener,
+  ControlVector,
+  PivotCameraControls,
+} from '../sdk-browser/cameraControlTypes.ts';
 export type { ComparisonLayout } from '../sdk-browser/comparison.ts';
 export type { CpuStepSummary } from '../sdk-browser/cpuProfile.ts';
 export { createDiagnosticChannel } from '../sdk-browser/diagnosticChannel.ts';
@@ -36,6 +41,8 @@ export { EngineProfiler } from '../sdk-browser/telemetry.ts';
 export { exactPagesBackend } from '../sdk-browser/exactPagesBackend.ts';
 export type { ExplorerOptions, PointOfInterest } from '../sdk-browser/explorerOptions.ts';
 export type { ExplorerTarget } from '../sdk-browser/explorerTarget.ts';
+export type { FirstPersonCameraControls } from '../sdk-browser/cameraFirstPersonControls.ts';
+export type { FlyCameraControls } from '../sdk-browser/cameraFlyControls.ts';
 export { framingFromBounds } from '../sdk-browser/framing.ts';
 export type { GeometryPool, PoolClamp, TexturePool } from '../sdk-browser/webgpuMemoryBudgets.ts';
 export { gpuPassBlockOf, gpuPassStageOf } from '../sdk-browser/stageMapping.ts';
@@ -45,6 +52,9 @@ export type { GpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
 export type {
   HostAttribute,
   HostAttributes,
+  HostDiagnosticFactory,
+  HostDiagnosticGeometry,
+  HostDiagnosticMaterial,
   HostGeometry,
   HostMaterial,
   HostMaterials,
@@ -53,6 +63,7 @@ export type {
   HostPoint,
   HostScene,
   HostTexture,
+  HostTraversable,
 } from '../sdk-browser/hostResources.ts';
 export { enginePose, readCameraWorld } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawCamera, HostCamera } from '../sdk-browser/cameraWorld.ts';
@@ -64,6 +75,7 @@ export type {
 } from '../sdk-browser/lightingObservationContracts.ts';
 export type { MemoryBudgets, MemoryBudgetsReport } from '../sdk-browser/webgpuPagesMemory.ts';
 export type { MultiplyLot } from '../sdk-browser/mathBatchRuntime.ts';
+export type { PanZoomCameraControls } from '../sdk-browser/cameraPanZoomControls.ts';
 export type { PartitionAudit } from '../sdk-browser/webgpuPartitionAudit.ts';
 export { presentationColorDiagnostic } from '../sdk-browser/presentationDiagnostic.ts';
 export { referenceBackend } from '../sdk-browser/referenceBackend.ts';
@@ -79,6 +91,7 @@ export type {
   TextureLevelRequest,
 } from '../sdk-browser/textureLevelReader.ts';
 export { threeLodBackend } from '../sdk-browser/threeLod.ts';
+export type { TrackballCameraControls } from '../sdk-browser/cameraTrackballControls.ts';
 export type { TransparentOcclusionAudit } from '../sdk-browser/webgpuTransparentOcclusionAudit.ts';
 export { webgpuPagesBackend } from '../sdk-browser/webgpuPages.ts';
 export {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { surfaceOf } from './pageSurface.ts';
 import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
 import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import { blendLightResources } from './webgpuBlendLighting.ts';
@@ -54,7 +55,7 @@ function copy(material: THREE.Material, order: number) {
   mesh.matrixAutoUpdate = false;
   mesh.renderOrder = order;
   mesh.frustumCulled = false;
-  return mesh;
+  return Object.assign(mesh, { surface: surfaceOf(material) });
 }
 
 function eau(transmission: number) {

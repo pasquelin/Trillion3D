@@ -1,16 +1,14 @@
-import * as THREE from 'three';
 import { DIAGNOSTICS, type DiagnosticMode } from '../sdk-core/index.ts';
-import { clusterColor, hashId } from './backendCommon.ts';
-import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
-import { materialSide } from './materialSide.ts';
+import { repaintHostGraph, type BeautyMaterials } from './hostGraphDiagnostic.ts';
 import type { RenderBackend } from './backendTypes.ts';
+import type { HostDiagnosticMaterial } from './hostResources.ts';
 
 type Inputs = {
   check: () => void;
   active: () => RenderBackend;
   backends: RenderBackend[];
-  beautyMaterials: Map<THREE.Mesh, THREE.Material | THREE.Material[]>;
-  overlays: THREE.Material[];
+  beautyMaterials: BeautyMaterials;
+  overlays: HostDiagnosticMaterial[];
   setMode: (mode: DiagnosticMode) => void;
 };
 
@@ -40,41 +38,11 @@ export function createExplorerDiagnosticApi(inputs: Inputs) {
           backend.setDiagnostic(mode);
           continue;
         }
-        backend.scene.traverse((o) => {
-          if (!(o as THREE.Mesh).isMesh) return;
-          const mesh = o as THREE.Mesh;
-          if (!beautyMaterials.has(mesh)) beautyMaterials.set(mesh, mesh.material);
-          if (!mesh.userData.sourceGeometry) mesh.userData.sourceGeometry = mesh.geometry;
-          mesh.material = beautyMaterials.get(mesh)!;
-          mesh.geometry = mesh.userData.sourceGeometry as THREE.BufferGeometry;
-          if (mode === 'wireframe') {
-            mesh.geometry = triangleGeometry(
-              mesh.userData.sourceGeometry as THREE.BufferGeometry,
-              hashId(String(mesh.userData.clusterId ?? mesh.id)),
-            );
-            const material = createTriangleDiagnosticMaterial(materialSide(mesh.material));
-            overlays.push(material);
-            mesh.material = material;
-            return;
-          }
-          if (mode !== 'beauty') {
-            const originals = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            mesh.material = originals.map((original) => {
-              if (mode === 'clusters' && mesh.userData.clusterId) {
-                const basic = new THREE.MeshBasicMaterial({
-                  color: clusterColor(String(mesh.userData.clusterId), 0.75),
-                  side: original.side,
-                });
-                overlays.push(basic);
-                return basic;
-              }
-              const material = original.clone();
-              overlays.push(material);
-              return material;
-            });
-            if (mesh.material.length === 1) mesh.material = mesh.material[0];
-          }
-        });
+        // An engine that declares no diagnostic of its own is repainted on the display graph it
+        // publishes, with the host builders it hands in beside that graph.
+        if (!backend.hostDiagnostics)
+          throw new Error(`${backend.id} declares neither a diagnostic nor host builders`);
+        repaintHostGraph(backend.scene, mode, backend.hostDiagnostics, beautyMaterials, overlays);
       }
       setMode(mode);
     },

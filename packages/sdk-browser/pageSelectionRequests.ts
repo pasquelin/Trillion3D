@@ -113,13 +113,20 @@ export function catalogueIndexOf<T extends { packedIndex?: number }>(
   return index !== undefined && catalogue[index] === rec ? index : undefined;
 }
 
+/**
+ * Records grouped by address. The default key is the streaming request, which a path fetching
+ * packed cluster-index bundles reads; a path that reads, stores and evicts one geometry page at
+ * a time passes `(rec) => rec.url` instead — on a cache whose pages share one bundle the default
+ * would file every record of the scene under that single key.
+ */
 export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
   pages: readonly T[],
+  keyOf: (rec: T) => string = pageRequestUrl,
 ) {
   const byUrl = new Map<string, T[]>();
   for (let i = 0; i < pages.length; i++) {
     const rec = pages[i],
-      key = pageRequestUrl(rec);
+      key = keyOf(rec);
     let list = byUrl.get(key);
     if (!list) byUrl.set(key, (list = []));
     list.push(rec);
