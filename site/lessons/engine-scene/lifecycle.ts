@@ -3,13 +3,7 @@ import { createSceneTelemetry } from './telemetry.ts';
 import { configureSceneCamera } from './cameraControls.ts';
 import { createLightingControls } from './lightingControls.ts';
 import { addSceneFillLight } from '../sceneFillLight.ts';
-import {
-  createWorld,
-  math,
-  pose,
-  light as lightFamily,
-  type World,
-} from '../../../packages/sdk-browser/index.ts';
+import type { World } from '../../../packages/sdk-browser/index.ts';
 import { isDiagnosticMode } from './diagnosticModes.ts';
 import type { SceneCopy } from './content.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -74,6 +68,13 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
     loading.hidden = false;
     status.textContent = '';
     try {
+      // Loaded on first start only: a route that renders the preview never pays for the engine.
+      const {
+        createWorld,
+        math,
+        pose,
+        light: lightFamily,
+      } = await import('../../../packages/sdk-browser/index.ts');
       if (disposed) return;
       const created = createWorld(canvas, {
         pixelRatio: window.devicePixelRatio,

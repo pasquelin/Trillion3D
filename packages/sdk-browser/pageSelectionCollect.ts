@@ -126,7 +126,7 @@ export function collectClusterPages(
           marks: structure ? new Int32Array(culling.nodes.length / culling.stride) : undefined,
         },
         worldBox,
-        localBox: shape.local,
+        localBox: shape.local.slice(),
         structure,
         forced: structure ? new Uint8Array(structure.groupCount) : undefined,
         forcedList: structure ? [] : undefined,
