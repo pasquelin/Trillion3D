@@ -59,7 +59,9 @@ test('loadPreparedScene indexes every glTF texture association and nothing else'
  * Behaviour: with no `textureSource` given, a cache that bakes texture chains has its images
  * skipped by the loader. The engine reads the baked levels whatever the option says, so fetching
  * and decoding the source images would buy nothing; only a host that names `'host'` — because a
- * backend of its session draws the host scene — still gets them.
+ * backend of its session draws the host scene — still gets them. The loader is told which of the
+ * two it is: `prepareExplorer` resolves the option against the backends it chose before calling
+ * this function (`resolveTextureSource`, covered by `defaultBackendsTextureSource.test.ts`).
  */
 const bakedCache = {
   primitives: [],

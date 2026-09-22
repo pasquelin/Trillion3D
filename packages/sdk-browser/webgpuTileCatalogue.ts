@@ -15,9 +15,10 @@ import type { TileTexture } from './webgpuTileAtlas.ts';
  * reader comes with the cache and not with an option, so a whole chain wins whatever the host
  * asked of the loader and no level the compiler baked is regenerated. The host texture is the
  * source only where the cache carries no whole chain — an image the cook skipped, texels the
- * page itself built — or on a runtime with no `createImageBitmap` to read a level with; then in
- * the lossless lane, the only one a host image can fill. Slot 0 is a white texel, what a
- * material without a map reads.
+ * page itself built — or on a runtime with no `createImageBitmap` to read a level with, where
+ * the loader opens the source images for that very reason (`resolveTextureSource`), so the
+ * texture has one; then in the lossless lane, the only one a host image can fill. Slot 0 is a
+ * white texel, what a material without a map reads.
  */
 export function tileCatalogue(
   maps: readonly Texture[],
