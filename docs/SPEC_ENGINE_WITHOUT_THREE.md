@@ -163,9 +163,10 @@ all. Lot 2 (#78) did the same for the graph the engine walks: the shapes of `hos
 carry the node, the light, the mesh and the bounded box a scan, a bounds union, a replication and
 a pose write read, and `hostGraphObjects.ts` is the one file of that walk that still names a
 library — it BUILDS host-library objects rather than reading them: the framing camera, the box
-and the centre the explorer publishes, and the group and mesh copies a replication hangs. Two
-engine callers still go through it, `explorerCamera.ts` and `replicateInstances.ts`, so the
-construction is gathered in one file, not yet removed from the engine's own path.
+and the centre the explorer publishes, the point a capture aims at, and the group and mesh copies
+a replication hangs. Three engine callers still go through it — `explorerCamera.ts`,
+`explorerViewportApi.ts` and `replicateInstances.ts` — so the construction is gathered in one
+file, not yet removed from the engine's own path.
 What remains for the following lots is the source loading — until
 it lands, `scene`, `source` and `sceneLighting`
 still point at the host's graphs and are not `SceneRoot` / `SceneNode`. The camera controllers are

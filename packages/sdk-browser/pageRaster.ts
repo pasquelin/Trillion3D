@@ -151,7 +151,7 @@ export function rasterPages(
 }
 
 const projection = new Float64Array(16),
-  world = new Float64Array(16),
+  viewWorld = new Float64Array(16),
   view = new Float64Array(16),
   viewProjection = new Float64Array(16);
 /** Clip matrix of the drawn view, as the host composed it: its own projection, finite far plane
@@ -161,8 +161,8 @@ function cameraViewProjection(camera: HostCamera) {
   // Callable function alone: it resolves its own pose (contract: `cameraWorld.ts`).
   resolveCameraWorld(camera);
   copyElements(projection, camera.projectionMatrix.elements);
-  copyElements(world, camera.matrixWorld.elements);
-  invertMatrix4(view, world);
+  copyElements(viewWorld, camera.matrixWorld.elements);
+  invertMatrix4(view, viewWorld);
   multiplyMatrix4(viewProjection, projection, view);
   return viewProjection;
 }
