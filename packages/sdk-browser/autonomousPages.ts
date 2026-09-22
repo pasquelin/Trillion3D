@@ -9,7 +9,7 @@ import { createAutonomousInstances } from './autonomousInstances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './autonomousManifest.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
 import { createContractLighting } from './contractLightingApi.ts';
-import { createThreeSceneDraw } from './threeSceneAdapter.ts';
+import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 
@@ -100,6 +100,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   return {
     id: 'autonomous-pages-webgl',
     scene,
+    hostDiagnostics,
     capabilities: {
       renderer: 'WebGL2 autonomous prepared pages',
       materials:
