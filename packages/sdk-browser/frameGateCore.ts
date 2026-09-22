@@ -153,7 +153,7 @@ export function createFrameGateCore(holdValues: number) {
       /** Aspect ratio the image is drawn at, when a second view renders aside at its own. */
       aspect?: number,
     ) {
-      readCameraWorld(cam, camera, aspect ?? camera.aspect);
+      readCameraWorld(cam, camera, aspect);
       pixelError = resolvePixelError(context, cam, motion);
       gate.viewChanged(cam, viewport, pixelError);
       gate.readScene(source, drawn);
