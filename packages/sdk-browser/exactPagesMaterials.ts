@@ -20,8 +20,8 @@ type MaterialsOptions = {
 export function createExactPagesMaterials(options: MaterialsOptions) {
   const diagnosticMaterials = new Map<string, THREE.Material>();
   const materialFor = (rec: PageRec) => {
-    if (options.diagnostic === 'beauty') return rec.material;
-    const side = Array.isArray(rec.material) ? rec.material[0].side : rec.material.side;
+    if (options.diagnostic === 'beauty') return rec.declaration;
+    const side = materialSide(rec.declaration);
     if (options.diagnostic === 'wireframe') {
       const key = `wireframe:${rec.clusterId}`;
       let material = diagnosticMaterials.get(key);

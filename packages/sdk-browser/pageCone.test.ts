@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { surfaceOf } from './pageSurface.ts';
 import {
   OPEN_CONE,
   coneContextFor,
@@ -84,7 +85,14 @@ test('BackSide materials are not cone-culled from behind', () => {
   behind.updateMatrixWorld();
   const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
   assert.equal(
-    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], cameraMoteur(behind).eye, material),
+    coneCullsPage(
+      cone,
+      world,
+      [-0.1, -0.1, 0],
+      [0.1, 0.1, 0],
+      cameraMoteur(behind).eye,
+      surfaceOf(material),
+    ),
     false,
   );
   material.dispose();

@@ -1,5 +1,5 @@
 import { matrixWindingCw } from '../sdk-core/index.ts';
-import { sideOf } from './materialSide.ts';
+import { refreshSurface, surfaceSide } from './pageSurface.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './webgpuBlendRuns.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -82,7 +82,7 @@ export function buildBlendStatics(blendState: BlendState) {
   const draws = new Uint32Array(Math.max(1, items.length) * 4);
   // The two passes expand their instances into TWO disjoint regions of the same list. Their size
   // is that of the WORST CASE — two plan entries per item — not that of the current plan:
-  // `sidesOf` reads the LIVE material, which the host shares with its mesh, and a material switched
+  // `sidesOf` reads the item's surface RECORD, refilled in place by its declaration, and a material switched
   // to double-sided between two frames would overflow the list and push the transmission region
   // past its end. Out-of-bounds kernel writes are dropped silently: transparent geometry would
   // vanish without an error.
@@ -121,15 +121,15 @@ export function buildBlendStatics(blendState: BlendState) {
 
 /** Two plan entries of a double-sided item, in the order the pass encoded: back, face. */
 function sidesOf(item: BlendGpuItem) {
-  // Read for `forceSinglePass` alone, under the double-sided test: an empty list declares front,
-  // so the element `sideOf` read is there whenever this value is touched.
-  const material = Array.isArray(item.material) ? item.material[0] : item.material;
   // One determinant: the call used to yield the same value twice to pick the two faces.
   const renverse = matrixWindingCw(item.matrix.elements);
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT;
-  const side = sideOf(item.material);
-  if (side === 'double' && !material.forceSinglePass) return [back, front];
+  // The record is reread here: the host writes `side` on the declaration it shares with its
+  // mesh, and the plan is what must see it (see the room reserved above).
+  const surface = refreshSurface(item.surface);
+  const side = surfaceSide(surface);
+  if (side === 'double' && !surface.forceSinglePass) return [back, front];
   if (side === 'front') return [front];
   if (side === 'back') return [back];
   return [PIPELINE_NONE];

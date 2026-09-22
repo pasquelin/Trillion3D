@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { surfaceOf } from './pageSurface.ts';
 import type { VisPage } from './visibilityBuffer.ts';
 
 export function camera() {
@@ -25,14 +26,14 @@ export function quadPages(
       array: new Uint32Array([0, 1, 2]),
       attributes: geometry.attributes,
       matrix: new THREE.Matrix4(),
-      material,
+      material: surfaceOf(material),
       clusterId: '0/0/0',
     },
     {
       array: new Uint32Array([0, 2, 3]),
       attributes: geometry.attributes,
       matrix: new THREE.Matrix4(),
-      material,
+      material: surfaceOf(material),
       clusterId: '0/0/1',
     },
   ];
