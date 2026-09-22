@@ -88,7 +88,9 @@ export interface ExplorerOptions {
    *  levels, which it does whatever this option says. `'host'`: the loader reads and decodes
    *  every source image, what an engine that draws the host scene (the Three witness)
    *  requires; the engine still reads the baked levels, so such a session pays for the images
-   *  twice and asks for them on purpose. */
+   *  twice and asks for them on purpose. `'cache'` holds only where every mounted backend
+   *  reads those levels; where one of them samples the host images, the session reads them
+   *  as under `'host'` (`resolveTextureSource`). */
   textureSource?: 'host' | 'cache';
   sceneLighting?: HostNode;
   /** Bounced light. Off by default; `true` turns it on for the whole session. */

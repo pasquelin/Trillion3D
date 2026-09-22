@@ -88,3 +88,22 @@ export function chooseBackends(
     renderer: 'autonomous-pages-webgl',
   });
 }
+
+/**
+ * What the glTF loader must open, once the paths that will draw are known. The WebGPU page
+ * raster is the only backend that reads the levels the compiler baked; every other path — the
+ * engine's own WebGL2 page path, chosen on a machine that grants no WebGPU device, a Three
+ * witness named by the host — samples `texture.image`, so a session that skipped its source
+ * images would draw the one-pixel placeholder left in their place. Without `createImageBitmap`
+ * no level can be read at all (`createTextureLevelReader`), and the images are again the only
+ * source there is. A host that asked for `'host'` is obeyed whatever draws.
+ */
+export function resolveTextureSource(
+  asked: 'host' | 'cache' | undefined,
+  factories: readonly BackendFactory[],
+): 'host' | 'cache' {
+  const readsBakedLevels =
+    factories.length > 0 && factories.every((factory) => factory === webgpuPagesBackend);
+  if (!readsBakedLevels || typeof createImageBitmap !== 'function') return 'host';
+  return asked ?? 'cache';
+}
