@@ -109,6 +109,18 @@ export type HostMesh = { readonly name: string };
 /** A node of the host scene graph, held by identity and by the two fields a walk needs. */
 export type HostNode = { readonly name: string; readonly visible: boolean };
 
+/** A host object placed in a display graph: the pose the engine writes on it, the world matrix
+ *  the host resolves for it, and the chain a visibility walk climbs. */
+export type HostPlaced = {
+  visible: boolean;
+  position: { x: number; y: number; z: number };
+  quaternion: { x: number; y: number; z: number; w: number };
+  scale: { x: number; y: number; z: number };
+  readonly matrixWorld: { readonly elements: ArrayLike<number> };
+  readonly parent: HostPlaced | null;
+  updateWorldMatrix(ancestors: boolean, descendants: boolean): void;
+};
+
 /** A host node the engine walks: the subtree under it, itself first, in the host's own order. */
 export type HostTraversable = HostNode & { traverse(visit: (node: HostNode) => void): void };
 

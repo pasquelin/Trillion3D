@@ -2,6 +2,7 @@ import { meshes, geometryBytes } from './sceneMeshes.ts';
 import { asHostLibrary } from './hostResources.ts';
 import { collectCover, buildIndex } from './threeLodHelpers.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
+import { hostAimNode } from './backendCommon.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from './backendTypes.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';
@@ -23,7 +24,11 @@ const HORS_PORTEE = [
 export const threeLodBackend: BackendFactory = (context) => {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(context.clearColor ?? 0x171d28);
-  const sceneLights = installSceneLighting(scene, context.sceneLighting ?? context.source);
+  const sceneLights = installSceneLighting(
+    scene,
+    context.sceneLighting ?? context.source,
+    hostAimNode,
+  );
   const hostDraw = createThreeSceneDraw(context.webglContext, scene);
   const lods: THREE.LOD[] = [];
   let levels = 1,
