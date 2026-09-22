@@ -1,5 +1,6 @@
 import type { PageRec } from './pageSelection.ts';
 import { createWebgpuRowState } from './webgpuRowState.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 import { createBoxCorners } from './hiz.ts';
 import { CORNER_VALUES } from './gpuPartitionContract.ts';
 import { DRAW_ITEM_U32 } from './gpuDraw.ts';
@@ -31,11 +32,13 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);
   const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16);
   const gpuWanted: PageRec[] = bootstrap;
-  const copiesByUrl = new Map<string, number>();
+  // Rows one pool slot can feed: how many placements share a pool address, at the widest.
+  const copiesByAddress = new Map<string, number>();
   let maxCopies = 1;
   for (const page of packedPages) {
-    const n = (copiesByUrl.get(page.url) ?? 0) + 1;
-    copiesByUrl.set(page.url, n);
+    const address = pageAddress(page),
+      n = (copiesByAddress.get(address) ?? 0) + 1;
+    copiesByAddress.set(address, n);
     maxCopies = Math.max(maxCopies, n);
   }
   // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
