@@ -1,4 +1,5 @@
 use crate::coplanar::plane::*;
+use crate::shared_math::{dot, length};
 
 // Behavior 1: plane_of_triangles yields plane for flat cluster, None otherwise.
 #[test]
