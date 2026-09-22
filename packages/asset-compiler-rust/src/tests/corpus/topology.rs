@@ -146,10 +146,9 @@ fn huge_flat_plane(seed: u64) -> Case {
 }
 
 /// A sphere: curvature everywhere, a wrap column written twice, and at each pole a fan whose apex
-/// is written once per segment. Six or seven levels up, the last group — some two hundred
-/// triangles, one island, no lock — still holds a handful of seam positions: the pole apexes and
-/// what is left of the wrap column. Unlocked it still stalls; welded across those seams it
-/// halves: `seam-locked`, though almost every one of its positions is free.
+/// is written once per segment. Under meshoptimizer 0.22 the last group stalled on the seam
+/// positions left at the poles and the wrap column; 0.25 slides past them and the sphere climbs to
+/// one root.
 fn high_curvature(seed: u64) -> Case {
     let mut rng = Rng::new(seed);
     let (segments, rings) = (rng.between(64, 128), rng.between(32, 64));
@@ -181,7 +180,7 @@ pub(super) fn cases() -> Vec<(Generator, Expect)> {
         (smaller_than_cluster, Expect::ONE_ROOT),
         (exactly_one_cluster, Expect::ONE_ROOT),
         (huge_flat_plane, Expect::ONE_ROOT),
-        (high_curvature, Expect::stalled(&["seam-locked"])),
+        (high_curvature, Expect::ONE_ROOT),
         (slivers, Expect::ONE_ROOT),
     ]
 }

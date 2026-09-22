@@ -107,7 +107,7 @@ A case the compiler cannot accept fails with its named error code, checked again
 | `topology-smaller-than-cluster` | one root                                                        |
 | `topology-exactly-one-cluster`  | one root                                                        |
 | `topology-huge-flat-plane`      | one root                                                        |
-| `topology-high-curvature`       | stall: `seam-locked`                                            |
+| `topology-high-curvature`       | one root                                                        |
 | `topology-slivers`              | one root                                                        |
 | `materials-several`             | one root                                                        |
 | `materials-alpha-masked`        | one root                                                        |
@@ -123,7 +123,7 @@ A case the compiler cannot accept fails with its named error code, checked again
 | `inputs-millimetre-scale`       | one root                                                        |
 | `inputs-kilometre-scale`        | one root                                                        |
 
-Cases that stall record why in their own doc comment, from a property of the mesh. `uv-island-per-face`, `uv-island-per-brick`, `uv-second-set-with-own-seams` and `attributes-every-one` write every vertex as a seam corner of some texture set: lifting the locks frees nothing, welding the seams frees the groups. One group of `uv-island-per-face` on seed 1 — 2 072 triangles and 181 shared positions, the most of the case — advances with its locks lifted alone and is `border-locked`; the case accepts both causes and no other. `topology-high-curvature` stalls six or seven levels up on a last group of about two hundred triangles, one texture island and no lock, of which only a handful of positions are seam corners — the pole apexes and what is left of the wrap column: unlocked it still stalls, welded across those seams it halves, so it is `seam-locked` although almost all its positions are free.
+Cases that stall record why in their own doc comment, from a property of the mesh. `uv-island-per-face`, `uv-island-per-brick`, `uv-second-set-with-own-seams` and `attributes-every-one` write every vertex as a seam corner of some texture set: lifting the locks frees nothing, welding the seams frees the groups. One group of `uv-island-per-face` on seed 1 — 2 072 triangles and 181 shared positions, the most of the case — advances with its locks lifted alone and is `border-locked`; the case accepts both causes and no other. `topology-high-curvature` stalled under meshoptimizer 0.22 on the seam positions left at its poles and wrap column; 0.25 slides past them and it climbs to one root.
 
 Run it with `cargo test --release corpus --manifest-path packages/asset-compiler-rust/Cargo.toml`: 41 cases, 5 families, two seeds each, under 4 s.
 
