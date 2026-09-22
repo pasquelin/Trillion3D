@@ -58,7 +58,7 @@ mod tests_lotb;
 
 #[cfg(test)]
 #[path = "geometry_page_codec_tests.rs"]
-mod tests_codec;
+pub(crate) mod tests_codec;
 
 #[cfg(test)]
 #[path = "geometry_page_codec_refus_tests.rs"]
