@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { CLUSTER_PAGE_MAGIC } from './clusterFormat.ts';
 import {
   disposePagedQuad,
   pagedQuad,
@@ -54,5 +55,29 @@ test('the draw ceiling is the catalogue largest corner count, not the slot width
     assert.notEqual(ceiling, slotWords, 'the ceiling no longer follows the slot width');
   } finally {
     await disposePagedQuad(backend, fixture);
+  }
+});
+
+// Page words go into the pool unread and are decoded in place by the shaders, so a forged page
+// would never be noticed downstream. The format's own gate runs at admission instead.
+test('a page whose header is forged is refused instead of poured into the pool', async () => {
+  installGpuGlobals();
+  const forgeries: Record<string, (view: DataView) => void> = {
+    magic: (view) => view.setUint32(0, CLUSTER_PAGE_MAGIC ^ 1, true),
+    version: (view) => view.setUint32(4, 9, true),
+    counts: (view) => view.setUint32(8, view.getUint32(8, true) + 16, true),
+  };
+  for (const forge of Object.values(forgeries)) {
+    const fixture = pagedQuad([{ corners: FIRST }, { corners: SECOND }]);
+    const { backend } = pagedQuadBackend(fixture, [], async (url: string) => {
+      const bytes = fixture.bytes.get(url)!.slice();
+      forge(new DataView(bytes.buffer));
+      return bytes;
+    });
+    try {
+      await assert.rejects(backend.prepare(), /GEOMETRY_PAGE_/);
+    } finally {
+      await disposePagedQuad(backend, fixture);
+    }
   }
 });
