@@ -87,12 +87,19 @@ export function setupVisibility(
     sampler = device.createSampler();
   // The numbers are not copied: they come from `VIS_BINDINGS` (`webgpuBindLayout.ts`), the source
   // the WGSL already interpolates. One more atlas binding shifts all three sides together —
-  // that shift, missed here alone, is what made this proof fail on the page table.
+  // that shift, missed here alone, is what made this proof fail on the page table. The shape is
+  // read the same way: `AtlasBindings` carries one pool per lane, so a lane added to the atlas
+  // adds its entry here without a hand edit.
   const b = visBindings;
   const lecture = (binding: number): GPUBindGroupLayoutEntry => ({
     binding,
     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
     buffer: { type: 'read-only-storage' },
+  });
+  const lanePool = (binding: number): GPUBindGroupLayoutEntry => ({
+    binding,
+    visibility: GPUShaderStage.FRAGMENT,
+    texture: { sampleType: 'float', viewDimension: '2d-array' },
   });
   // Empty page table: no page carries a map, so no lane pool is ever read.
   const colorPages = makeBuffer(64 * 4);
@@ -107,11 +114,7 @@ export function setupVisibility(
       lecture(b.slotOffsets),
       lecture(b.color.pages),
       { binding: b.uniform, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
-      ...b.color.lanes.map((binding) => ({
-        binding,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,
-      })),
+      ...b.color.lanes.map(lanePool),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     ],
   });
