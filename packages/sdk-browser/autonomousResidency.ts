@@ -1,5 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
-import type { createAutonomousGeometry } from './autonomousGeometry.ts';
+import { releaseGeometry, type createAutonomousGeometry } from './autonomousGeometry.ts';
 
 type ResidencyEnvironment = {
   bootstrapUrls: Set<string>;
@@ -58,12 +58,7 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
       if (!recs) return;
       for (const rec of recs) {
         detach(rec);
-        if (rec.geometry) {
-          geometryStore.state.allocationBytes -= rec.geometry.getIndex()?.array.byteLength ?? 0;
-          for (const attr of Object.values(rec.geometry.attributes))
-            geometryStore.state.allocationBytes -= attr.array.byteLength;
-          rec.geometry.dispose();
-        }
+        releaseGeometry(geometryStore.state, rec);
         rec.geometry = undefined;
         rec.mesh = undefined;
         rec.array = undefined;

@@ -91,6 +91,7 @@ export {
   boxConeRejects,
 } from './mathCone.ts';
 export {
+  NODE_AUTO_UPDATE,
   addTransformNode,
   createTransformTree,
   setNodeAutoUpdate,
@@ -101,7 +102,11 @@ export {
   type TransformTree,
 } from './mathTransformTree.ts';
 export { removeTransformNode, reparentTransformNode } from './mathTransformTreeStructure.ts';
-export { updateNodeMatrixWorld, updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
+export {
+  markNodeWorldNeedsUpdate,
+  updateNodeMatrixWorld,
+  updateNodeWorldMatrix,
+} from './mathTransformTreeUpdate.ts';
 export {
   nodeWorldDirection,
   nodeWorldMirrorsFaces,

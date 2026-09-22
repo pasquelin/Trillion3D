@@ -18,6 +18,7 @@ import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import * as THREE from 'three';
+import { asHostLibrary } from './hostResources.ts';
 import type { CameraMotion } from './cameraWorld.ts';
 import { createExactPagesClusterBatches } from './exactPagesClusterBatches.ts';
 
@@ -31,8 +32,11 @@ export const exactPagesBackend: BackendFactory = (context) => {
     viewport,
     clearColor = DEFAULT_CLEAR_COLOR,
   } = context;
-  const { roots, allPages, blendCopies, bootstrap, requestCount, prepared, worlds } =
-    collectClusterPages(source, metadata, indices, associations);
+  const collected = collectClusterPages(source, metadata, indices, associations);
+  const { roots, allPages, bootstrap, requestCount, prepared, worlds } = collected;
+  // The witness draws the transparent copies with the host library it is written in: this is where
+  // the engine's contract copies go back to being its meshes.
+  const blendCopies = asHostLibrary<THREE.Mesh[]>(collected.blendCopies);
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
     scene = new THREE.Scene();
   const sceneLights = lighting(scene, clearColor, context.sceneLighting ?? source);

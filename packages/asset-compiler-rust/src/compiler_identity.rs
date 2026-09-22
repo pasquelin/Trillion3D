@@ -84,6 +84,16 @@ pub(super) fn cache_key(
 mod tests {
     use super::*;
 
+    // Behaviour: the build script watches the source directory itself. Watched file by file, a
+    // module created after the previous run is in no watch list, the script does not rerun and
+    // the next build keeps the previous `implementation_hash` — a cache key that stands still
+    // while the compiler moves. The stale reuse #290 hit came from the cook running a binary it
+    // never rebuilt (#291); this is the same shape, one build earlier, and is closed here.
+    #[test]
+    fn le_script_de_construction_surveille_le_dossier_des_sources() {
+        assert!(include_str!("../build.rs").contains("cargo:rerun-if-changed=src\""));
+    }
+
     // Behaviour: a measured time or a machine path leaves identity, at every
     // level; the rest of the manifest enters as-is.
     #[test]

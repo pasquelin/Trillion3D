@@ -1,11 +1,14 @@
-import * as THREE from 'three';
+import { hslToLinearRgb, srgbToLinear } from '../sdk-core/index.ts';
+import type { HostMaterials } from './hostResources.ts';
 import type { PageRec } from './pageSelection.ts';
 import { clusterHue } from './backendCommon.ts';
+import { visMaterial } from './visibilityMaterial.ts';
 
 /** View-projection of the image as the GPU reads it, flattened: sixteen floats rewritten each
  *  image, never reallocated. */
 export const viewProj = new Float64Array(16);
-const colorScratch = new THREE.Color();
+/** Three linear components reread immediately: a diagnostic colour allocates nothing more. */
+const tint = new Float64Array(3);
 export const PAGES_GREEN: [number, number, number] = [0.204, 0.827, 0.6];
 /** Ceiling on the screen error the GPU page budget may impose; past it the root cover is the cut. */
 export const MAX_BUDGET_PIXEL_ERROR = 4096;
@@ -31,25 +34,17 @@ export function outputColorDiagnostic(
   return { clearColor: clearHex, topLeft, center, matchesClearAtTopLeft: topLeft === clearHex };
 }
 
-export function lighting(scene: THREE.Scene, clearColor: number) {
-  scene.background = new THREE.Color(clearColor);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x495061, 2));
-  const light = new THREE.DirectionalLight(0xffffff, 2.5);
-  light.position.set(1, 3, 2);
-  scene.add(light);
+/** Base colour of a declaration through the transfer curve, for the fallback draw's uniform.
+ *  The curve is the repository's (`mathColor.ts`), whose gap to the host library's rounded
+ *  constants is measured and declared (#72); no beauty pass reads this path. */
+export function linearColor(declared: HostMaterials): [number, number, number] {
+  const base = visMaterial(declared).baseColor;
+  return [srgbToLinear(base[0]), srgbToLinear(base[1]), srgbToLinear(base[2])];
 }
-export function linearColor(material: THREE.Material | THREE.Material[]): [number, number, number] {
-  const first = Array.isArray(material) ? material[0] : material;
-  const color = (first as THREE.MeshBasicMaterial).color;
-  if (!color) return [1, 1, 1];
-  colorScratch.copy(color);
-  if (THREE.ColorManagement.enabled) colorScratch.convertSRGBToLinear();
-  return [colorScratch.r, colorScratch.g, colorScratch.b];
-}
+/** Diagnostic colour of a cluster: its golden-ratio hue, through the same transfer curve. */
 export function clusterRgb(id: string): [number, number, number] {
-  colorScratch.setHSL(clusterHue(id), 0.75, 0.55);
-  if (THREE.ColorManagement.enabled) colorScratch.convertSRGBToLinear();
-  return [colorScratch.r, colorScratch.g, colorScratch.b];
+  hslToLinearRgb(tint, 0, clusterHue(id), 0.75, 0.55);
+  return [srgbToLinear(tint[0]), srgbToLinear(tint[1]), srgbToLinear(tint[2])];
 }
 
 /** Sum of a cut's triangles, without the closure a `reduce` allocates on every frame. */

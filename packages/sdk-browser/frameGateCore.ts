@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostNode } from './hostResources.ts';
 import {
   bumpResources,
   bumpScene,
@@ -57,6 +57,22 @@ export function createFrameGateCore(holdValues: number) {
       sceneWatch.settle();
     },
     /**
+     * A POSE moved, and the shape of the scene did not: the engine wrote the local pose of a node
+     * that was already drawn, added no instance, retargeted no light, reparented nothing. The
+     * watched set therefore has exactly the same members, and this revision does not ask for it
+     * to be read anew — which is a full walk of the source graph, and would be paid on every
+     * image while a node is being moved.
+     */
+    sceneMoved() {
+      // Only a watched set UP TO DATE with the current scene is carried over. Before the first
+      // image it does not exist yet; after a reshape already announced it no longer names the
+      // right nodes. Settling either would drop the rebuild `readScene` still owes: the node the
+      // reshape brought in would never be hooked, and every host write on it lost for good.
+      const current = watchRevision === revisions.scene;
+      gate.sceneChanged();
+      if (current) watchRevision = revisions.scene;
+    },
+    /**
      * Resources moved: a page's bytes, residency, replaced geometry, and anything that arrives
      * off the frame thread — a program that finishes compiling, a proxy adopted when a promise
      * resolves. No step of the current frame will write it, and the next frame would read it
@@ -86,7 +102,7 @@ export function createFrameGateCore(holdValues: number) {
      * instance, a light set after the fact, a node reparented or a light retargeted by the host
      * — never per frame, and never after a pose write, which changes no node's membership.
      */
-    readScene(source: THREE.Object3D, drawn: FrameGateSources) {
+    readScene(source: HostNode, drawn: FrameGateSources) {
       const observe = () =>
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
       if (watchRevision !== revisions.scene) observe();
@@ -132,7 +148,7 @@ export function createFrameGateCore(holdValues: number) {
       camera: HostCamera,
       motion: CameraMotion,
       viewport: readonly [number, number] | undefined,
-      source: THREE.Object3D,
+      source: HostNode,
       drawn: FrameGateSources,
     ) {
       readCameraWorld(cam, camera);

@@ -1,5 +1,6 @@
 // what a frame used to rebuild for no reason.
 import * as THREE from 'three';
+import { asHostLibrary } from '../hostResources.ts';
 import { surfaceColorAttachments } from '../webgpuPagesAttachments.ts';
 import { anneauFroid } from '../explorerDraw.ts';
 import { deplaceInstance } from '../autonomousInstances.ts';
@@ -105,16 +106,19 @@ const passeInstance =
       instance: Instance['instance'],
       basePages: PageRec[],
       baseRoots: ClusterRoot<PageRec>[],
-      transform: THREE.Matrix4,
+      transform: Float64Array,
     ) => void,
   ) =>
   (input: Instance) => {
     const { basePages, baseRoots, instance } = input;
-    fn(instance, basePages, baseRoots, transformation);
+    fn(instance, basePages, baseRoots, transformation.toArray(new Float64Array(16)));
     const output: number[] = [];
     for (const rec of instance.pages)
-      output.push(...rec.matrix.elements, ...(rec.mesh?.matrix.elements ?? []));
-    for (const root of instance.roots) output.push(...root.world.elements);
+      output.push(
+        ...Array.from(rec.matrix.elements),
+        ...Array.from(asHostLibrary<THREE.Mesh | undefined>(rec.mesh)?.matrix.elements ?? []),
+      );
+    for (const root of instance.roots) output.push(...Array.from(root.world.elements));
     return Float64Array.from(output);
   };
 
@@ -147,7 +151,14 @@ const resInstance = await mesure({
     { name: '100 pages', input: petiteInstance, size: 100 },
   ],
   calcul: passeInstance((inst, _bases, racines, t) => deplaceInstance(inst, racines, t)),
-  attendu: passeInstance(referenceUpdateInstance),
+  attendu: passeInstance((inst, bases, racines, t) =>
+    referenceUpdateInstance(
+      asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>(inst),
+      asHostLibrary<Parameters<typeof referenceUpdateInstance>[1]>(bases),
+      asHostLibrary<Parameters<typeof referenceUpdateInstance>[2]>(racines),
+      asHostLibrary<THREE.Matrix4>(t),
+    ),
+  ),
   options: { tours: 100, budgetMs: 1500 },
 });
 
