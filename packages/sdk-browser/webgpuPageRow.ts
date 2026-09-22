@@ -2,7 +2,13 @@ import type { HostAttributes } from './hostResources.ts';
 import type { PageRec } from './pageSelection.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
-import { rowMaterial, type GeometryBlock, type MaterialLayers } from './webgpuPageRowMaterial.ts';
+import {
+  emptyGeometryBlock,
+  rowGeometry,
+  rowMaterial,
+  type GeometryBlock,
+  type MaterialLayers,
+} from './webgpuPageRowMaterial.ts';
 import {
   assertVisibilityPageTriangles,
   PAGE_INFO_STRIDE,
@@ -31,6 +37,10 @@ export const ROW_INDEX_WORDS = 25;
  * of the same value, one formula.
  */
 export const packedRowBase = (row: number) => ((row + 1) << VIS_TRIANGLE_BITS) >>> 0;
+/** A cluster holds the geometry a row draws: its own quantized page, or the float buffer its
+ *  primitive was uploaded into. Without either, the cluster takes no row. */
+export const rowHasGeometry = (rec: PageRec, position: GPUBuffer | undefined) =>
+  !!rec.geometryPage || !!position;
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
   markRowDirty: (row: number) => void;
@@ -41,6 +51,8 @@ export function createPageRowWriter(resources: PageRowResources) {
   const { geometryBlocks, markRowDirty } = resources;
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
   const constants = createPageRowConstants();
+  // Filled again at every row write, never allocated again.
+  const block = emptyGeometryBlock();
   return (
     rec: PageRec,
     pageIndex: number,
@@ -52,7 +64,7 @@ export function createPageRowWriter(resources: PageRowResources) {
   ) => {
     const base = row * (PAGE_INFO_STRIDE / 4),
       material = constants.materialOf(rec.material),
-      geo = geometryBlocks.get(rec.attributes);
+      geo = rowGeometry(rec, geometryBlocks, block);
     const mat = material.mat,
       maps = rowMaterial(mat, geo, resources);
     floats.set(rec.matrix.elements, base);

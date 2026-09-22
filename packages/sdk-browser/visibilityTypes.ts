@@ -32,6 +32,11 @@ export const FLAG_LIT = 1,
   FLAG_HAS_UV = 4,
   FLAG_HAS_MAP = 8,
   FLAG_HAS_NORMAL = 16,
+  /** The row's pool slot holds this cluster's quantized geometry page (`WGP3`), not its index
+   *  page: every corner, position and attribute is decoded from those words in place
+   *  (`clusterDecodeWgsl.ts`). A primitive the compiler gave no geometry page keeps the source
+   *  float buffers, and its rows carry this bit at zero. */
+  FLAG_CLUSTER_PAGE = 32,
   FLAG_MASK = 128,
   FLAG_BACK = 256,
   FLAG_HAS_ORM = 512,
@@ -47,7 +52,7 @@ export const FLAG_LIT = 1,
   FLAG_UNLIT_VIEW = 8192,
   /** The material transmits: the surface reads the already-drawn background instead of blending by alpha. */
   FLAG_TRANSMISSIVE = 16384;
-// Bits 32, 64, 32768 and 65536 are free: they carried wrap of a single map, which
+// Bits 64, 32768 and 65536 are free: they carried wrap of a single map, which
 // `visibilityWrapModes.ts` now stores per map, in a word of its own.
 export type VisPage = {
   array: Uint32Array;
