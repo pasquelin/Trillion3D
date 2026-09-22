@@ -15,6 +15,7 @@ export {
 export {
   addTransformNode,
   createTransformTree,
+  NODE_AUTO_UPDATE,
   setNodeAutoUpdate,
   setNodeLocalMatrix,
   setNodePosition,
@@ -22,6 +23,12 @@ export {
   setNodeScale,
 } from '../../sdk-core/mathTransformTree.ts';
 export type { TransformTree } from '../../sdk-core/mathTransformTree.ts';
+export {
+  axisAngleQuaternion,
+  multiplyQuaternion,
+  normalizeQuaternion,
+  rotateByQuaternion,
+} from '../../sdk-core/mathQuaternion.ts';
 export {
   basisMatrix4,
   decomposeMatrix4,
@@ -55,6 +62,7 @@ export {
 } from '../../sdk-core/mathBatch.ts';
 export {
   createCameraFrame,
+  orthographicProjection,
   perspectiveProjection,
   updateCameraFrame,
 } from '../../sdk-core/mathCamera.ts';
@@ -66,15 +74,8 @@ export {
   frustumPlanesFromMatrix,
   frustumPlanesToLocal,
 } from '../../sdk-core/mathFrustum.ts';
-export {
-  clusterErrorAtDepth,
-  clusterErrorPixels,
-  coneRejects,
-  dot,
-  maxStretch,
-  screenErrorBound,
-} from '../../sdk-core/projectionOracles.ts';
 export { composeMatrix4, composeMatrix4Batch } from '../../sdk-core/mathMatrix4Compose.ts';
+export { coneRejects, dot, maxStretch } from '../../sdk-core/projectionOracles.ts';
 export {
   copyMatrix4,
   determinantMatrix4,
@@ -122,6 +123,11 @@ export {
 } from '../../sdk-core/mathSingular.ts';
 export { linearToSrgbBatch, srgbToLinearBatch } from '../../sdk-core/mathBatchColor.ts';
 export { lookAtNode } from '../../sdk-core/mathTransformTreeLookAt.ts';
+export {
+  markNodeWorldNeedsUpdate,
+  updateNodeMatrixWorld,
+  updateNodeWorldMatrix,
+} from '../../sdk-core/mathTransformTreeUpdate.ts';
 export { MATH_PATH_CONTRACT } from '../../sdk-core/mathPathContracts.ts';
 export type {
   MathPath,
@@ -160,7 +166,3 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from '../../sdk-core/mathBatchPoints.ts';
-export {
-  updateNodeMatrixWorld,
-  updateNodeWorldMatrix,
-} from '../../sdk-core/mathTransformTreeUpdate.ts';

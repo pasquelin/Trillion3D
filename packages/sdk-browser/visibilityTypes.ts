@@ -89,6 +89,8 @@ export type VisMaterial = {
   thickness: number;
   attenuationDistance: number;
   attenuationColor: [number, number, number];
+  /** The surface model a non-physical family maps onto (`surfaceModel.ts`); physical if absent. */
+  model?: number;
 };
 
 export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };

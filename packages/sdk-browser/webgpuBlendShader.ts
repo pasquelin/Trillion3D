@@ -143,11 +143,11 @@ ${BLEND_SURFACE_WGSL}
  // No declared lamp, or an unlit view requested: the raw albedo, exactly like the opaque
  // resolve. Neither ambient, nor sky, nor a default sun (P6).
  let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
- let V=normalize(uni.camPos.xyz-in.view);
+ let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
  let clamped=clamp(s.rough,0.0525,1.0);
  if(!unlit&&(flags&1u)!=0u){
   let m=clamp(s.metal,0.0,1.0);
-  rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+s.emissive;
+  rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
  }
  return BlendOut(vec4f(rgb,s.alpha),s.request);
 }

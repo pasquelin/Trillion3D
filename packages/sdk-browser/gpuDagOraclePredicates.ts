@@ -27,15 +27,17 @@ type PredicateContext = {
   stretches: number[];
   focal: number;
   near: number;
+  perspective: number;
+  /** The camera of the render frame, homogeneous (`DagViewFrames.viewPoint`). */
+  viewPoint: Float64Array;
 };
 
-/** Eye of the render frame: the origin, by construction. */
-const RENDER_ORIGIN_EYE = new Float64Array(3);
 /** The scratch world under the host-matrix shape the cone test reads. */
 const SCRATCH_WORLD: MatrixElements = { elements: dagScratch.world };
 
 export function createDagOraclePredicates(context: PredicateContext) {
   const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context;
+  const { perspective, viewPoint } = context;
   const { worlds } = packed;
   const coneRejects = (index: number, w: number) => {
     if (!hasBoxOf(records, index)) return false;
@@ -43,11 +45,11 @@ export function createDagOraclePredicates(context: PredicateContext) {
     coneInto(records, index, cone);
     boxInto(records, index, min, max);
     // Kernel world matrices are those of the render frame, whose uniforms `cameraWorld` is the
-    // origin: the camera is at zero there. The oracle therefore puts the eye at zero — putting
-    // the world position here would mix an absolute operand with relative boxes, and the cone
-    // would decide wrongly.
+    // origin: a perspective camera is at zero there. The oracle therefore reads the view point
+    // of that frame — putting the world position here would mix an absolute operand with
+    // relative boxes, and the cone would decide wrongly.
     copyMatrix4(dagScratch.world, worlds, 0, w * 16);
-    return coneCullsPage(cone, SCRATCH_WORLD, min, max, RENDER_ORIGIN_EYE);
+    return coneCullsPage(cone, SCRATCH_WORLD, min, max, viewPoint);
   };
   const visible = (index: number) => {
     // The owner node lives in the cold, outside what each frame pass rereads.
@@ -80,6 +82,7 @@ export function createDagOraclePredicates(context: PredicateContext) {
       stretches[w],
       focal,
       near,
+      perspective,
     );
   };
   const selects = (index: number, threshold: number) =>

@@ -29,14 +29,15 @@ test('every example is one standalone HTML file that imports the built engine', 
     const html = await readFile(new URL(entry.file, site), 'utf8');
     assert.match(html, /^<!doctype html>/);
     assert.match(html, /<canvas id="view"><\/canvas>/);
-    assert.match(html, /import \{ createExplorer[^}]*\} from '\.\.\/runtime\/engine\.js'/);
+    assert.match(html, /import \{ createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
     // #276: an example lets the engine read the machine and choose its path, so it renders
     // wherever it is opened; one that pins a backend to show the setting says so on the page.
     if (/backends:/.test(html)) assert.match(html, /<p>[^<]*\bbackend\b[^<]*<\/p>/i, entry.id);
     else assert.doesNotMatch(html, /webgpuPagesBackend/, entry.id);
-    const manifest = html.match(/manifestUrl: '\.\.\/(assets\/[^']+)'/)?.[1];
-    assert.ok(manifest, entry.id);
+    // A scene built in code loads nothing; one that loads a compiled cache names a published one.
+    const manifest = html.match(/scene\.load\('\.\.\/(assets\/[^']+)'\)/)?.[1];
+    if (!manifest) continue;
     await access(new URL(manifest, site));
     // A scene built around an imported model credits its author on the page.
     if (Object.keys(modelScenes).some((scene) => manifest.startsWith(`assets/examples/${scene}/`)))

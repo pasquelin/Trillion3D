@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { applyMeshDiagnostic, triangleGeometry } from './triangleDiagnostic.ts';
 import { hostDiagnostics } from './threeSceneAdapter.ts';
 import { asHostLibrary } from './hostResources.ts';
-import { exactPagesBackend, referenceBackend } from './index.ts';
+import { exactPagesBackend, referenceBackend } from './measurement.ts';
 import { quadScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 import { submittedDraws } from './clusterBatchMesh.ts';
 

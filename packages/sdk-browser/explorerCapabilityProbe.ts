@@ -11,7 +11,7 @@ export type ExplorerProbe = Awaited<ReturnType<typeof probeExplorerCapabilities>
 /** True when a WebGPU device is worth asking for: the host did not pin the session to the
  *  autonomous path, and either named no backend or named the WebGPU page raster among them. */
 function wantsWebgpu(options: ExplorerSession['options']) {
-  if (options.autonomousGeometry === true) return false;
+  if (options.autonomousGeometry === true || options.renderer === 'webgl2') return false;
   return !options.backends || options.backends.includes(webgpuPagesBackend);
 }
 
@@ -54,7 +54,8 @@ export async function probeExplorerCapabilities(session: ExplorerSession) {
   });
   let gpuDevice: GPUDevice | undefined;
   try {
-    if (wantsWebgpu(options)) {
+    if (wantsWebgpu(options) && options.gpuDevice) gpuDevice = options.gpuDevice;
+    else if (wantsWebgpu(options)) {
       const gpu = options.gpu ?? (typeof navigator === 'undefined' ? undefined : navigator.gpu);
       if (gpu) {
         const gpuCaps = await detectCapabilities('webgpu', canvas, { gpu });

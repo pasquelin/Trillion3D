@@ -77,7 +77,7 @@ export const cameraLessonDefinitions: RendererLessonItem[] = [
 ].map((lesson) => ({
   ...lesson,
   category: 'camera',
-  functions: ['homePose', 'setPose'],
+  functions: ['pose.fromBounds', 'camera.lookAt'],
   renderer: true,
   runtime: 'camera-pose',
 }));

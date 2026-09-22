@@ -62,7 +62,7 @@ test('the kernel projects a cluster error exactly like clusterErrorPixels', () =
   // The shader carries the same terms, in the same order.
   assert.match(
     DAG_SELECTION_SHADER,
-    /let nearest=-v\.z-reach;let closest=nearest-shift;let side=sqrt\(v\.x\*v\.x\+v\.y\*v\.y\)\+reach;/,
+    /let nearest=p\*\(-v\.z-reach\)\+flat;let closest=nearest-p\*shift;let side=p\*\(sqrt\(v\.x\*v\.x\+v\.y\*v\.y\)\+reach\);/,
   );
   assert.match(DAG_SELECTION_SHADER, /return \(\(shift\*focal\)\/nearest\)\*\(slant\/closest\);/);
 });

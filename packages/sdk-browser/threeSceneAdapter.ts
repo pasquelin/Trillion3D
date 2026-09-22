@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { HostDrawOutput } from './backendTypes.ts';
+import { DEFAULT_TONE_MAPPING, type SceneToneMapping } from '../sdk-core/sceneEnvironment.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import { clusterColor } from './hostSceneObjects.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';
@@ -38,6 +39,16 @@ type FramebufferRenderer = THREE.WebGLRenderer & {
   setRenderTargetFramebuffer(target: Wrapper, framebuffer: WebGLFramebuffer): void;
 };
 const shared = new WeakMap<WebGL2RenderingContext, Shared>();
+/** The host renderer's word for each display curve the scene may choose. */
+const HOST_CURVE: Record<SceneToneMapping, THREE.ToneMapping> = {
+  none: THREE.NoToneMapping,
+  linear: THREE.LinearToneMapping,
+  reinhard: THREE.ReinhardToneMapping,
+  cineon: THREE.CineonToneMapping,
+  aces: THREE.ACESFilmicToneMapping,
+  agx: THREE.AgXToneMapping,
+  neutral: THREE.NeutralToneMapping,
+};
 
 function acquire(gl: WebGL2RenderingContext) {
   let entry = shared.get(gl);
@@ -89,7 +100,9 @@ export function createThreeSceneDraw(
       entry ??= acquire(gl);
       const { renderer, wrapper } = entry;
       renderer.resetState();
-      const tone = output.toneMapped ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+      const tone = output.toneMapped
+        ? HOST_CURVE[output.toneMapping ?? DEFAULT_TONE_MAPPING]
+        : THREE.NoToneMapping;
       if (renderer.toneMapping !== tone) renderer.toneMapping = tone;
       if (output.framebuffer) {
         renderer.setRenderTargetFramebuffer(wrapper, output.framebuffer);

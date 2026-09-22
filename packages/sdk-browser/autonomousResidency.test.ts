@@ -19,6 +19,8 @@ function fakeGeometryStore() {
     colorMaterials: new Map(),
     detach: () => {},
     sync: () => {},
+    rowsWritten: () => {},
+    dispose: () => {},
     removeRecords: () => {},
     storeGeometryPage: () => {},
     acceptGeometryPage: () => {},

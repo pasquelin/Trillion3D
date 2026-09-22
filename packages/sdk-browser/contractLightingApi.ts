@@ -1,4 +1,5 @@
 import type { SceneLightStore } from '../sdk-core/index.ts';
+import { DEFAULT_TONE_MAPPING } from '../sdk-core/sceneEnvironment.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { lighting as installLighting } from './hostSceneObjects.ts';
 import type { BackendContext } from './backendTypes.ts';
@@ -24,6 +25,8 @@ export function contractLightingApi(
     ...sceneLightingApi(source, sceneChanged),
     /** The image comes out in real light as soon as either light set carries one. */
     sceneLit: () => contract.lit,
+    /** The display curve the scene chose through its environment; ACES when it chose none. */
+    sceneToneMapping: () => store?.environment?.toneMapping ?? DEFAULT_TONE_MAPPING,
     refreshSceneLights: contract.apply,
     lighting: CONTRACT_LIGHTS_LIGHTING,
   };

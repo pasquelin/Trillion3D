@@ -31,6 +31,22 @@ type Inputs = {
   geometryUrls: Set<string>;
 };
 
+/** Frees what a session owns: the scene source and the canvas context unless the caller holds
+ *  them, the device unless the caller handed it in. */
+export function releaseOwned(
+  session: ExplorerSession,
+  owned: { source?: BackendContext['source']; webglSurface?: WebglSurface; gpuDevice?: GPUDevice },
+) {
+  if (owned.source && !session.callerOwned) disposeSource(owned.source);
+  owned.webglSurface?.dispose(session.callerOwned);
+  try {
+    // A device the caller handed in is the caller's to destroy.
+    if (owned.gpuDevice !== session.options.gpuDevice) owned.gpuDevice?.destroy();
+  } catch {
+    /* Device may already be lost. */
+  }
+}
+
 export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs) {
   const { scope, diagnosticChannel, diagnose } = session;
   const {
@@ -51,7 +67,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
   } = inputs;
   const dispose = () => {
     if (state.disposed) return;
-    diagnose('dispose-start', 'Explorer disposal started', {
+    diagnose('dispose-start', 'MeasuredWorld disposal started', {
       kind: 'lifecycle',
       scope,
       backend: state.active.id,
@@ -77,14 +93,8 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     releasePageIntegration();
     overlays.forEach((material) => material.dispose());
     backends.forEach((backend) => backend.dispose());
-    disposeSource(source);
-    webglSurface?.dispose();
-    try {
-      gpuDevice?.destroy();
-    } catch {
-      /* Device may already be lost. */
-    }
-    diagnose('dispose-complete', 'Explorer disposal completed', { kind: 'lifecycle', scope });
+    releaseOwned(session, { source, webglSurface, gpuDevice });
+    diagnose('dispose-complete', 'MeasuredWorld disposal completed', { kind: 'lifecycle', scope });
     diagnosticChannel.flushSync();
     diagnosticChannel.close();
   };

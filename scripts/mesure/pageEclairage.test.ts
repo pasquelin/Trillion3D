@@ -7,25 +7,25 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView } from './pageEclairage.ts';
 import type { MeasureViewOptions } from './mesureOptions.ts';
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/index.ts';
 
-/** The fake SDK that `measureView` imports by URL: a `createExplorer` returning the mock set
+/** The fake SDK that `measureView` imports by URL: a `openMeasuredWorld` returning the mock set
  *  on `globalThis` before the call, as Playwright serializes `measureView` into the real page. */
 const FAKE_SDK_URL =
   'data:text/javascript,' +
   encodeURIComponent(
     `export const creerMoteur = () => {};
-     export async function createExplorer() { return globalThis.__wgTestExplorer; }`,
+     export async function openMeasuredWorld() { return globalThis.__wgTestExplorer; }`,
   );
 
 function canvasMock() {
   return { width: 8, height: 8, addEventListener: () => {}, remove: () => {} };
 }
 
-/** Explorer mock: `render()` returns the reading and records the pose it saw; `cpuSteps()`
+/** MeasuredWorld mock: `render()` returns the reading and records the pose it saw; `cpuSteps()`
  *  counts the images since the last profile reset, as the engine's window does. */
-function explorerMock(metrics: Record<string, unknown> | null): Explorer & {
+function explorerMock(metrics: Record<string, unknown> | null): MeasuredWorld & {
   seen: unknown[];
   profileResets: number[];
 } {
@@ -47,7 +47,7 @@ function explorerMock(metrics: Record<string, unknown> | null): Explorer & {
     flush: async () => {},
     capture: () => new Uint8Array(4),
     dispose: () => {},
-  } as unknown as Explorer & { seen: unknown[]; profileResets: number[] };
+  } as unknown as MeasuredWorld & { seen: unknown[]; profileResets: number[] };
 }
 
 /** What this test replaces on `globalThis` while `measureView` runs: only what the page module

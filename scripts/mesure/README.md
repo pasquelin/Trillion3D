@@ -34,7 +34,7 @@ rerun benchmarks.
 
 ## The Three Witness and Contract Lights
 
-Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the public `sceneLighting` option of `createExplorer` (`pageTemoin.ts`, served to page under `/mesure/` and imported by URL). Nothing is hardcoded: everything comes from `explorer.lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
+Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the `sceneLighting` option of `openMeasuredWorld`, the SDK's measurement entry (`pageTemoin.ts`, served to page under `/mesure/` and imported by URL). Nothing is hardcoded: everything comes from the measured world's `lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
 
 The mapping is exact in Three units: linear color, unscaled radiometric intensity, `distance` = range, `decay` = 2, yielding windowed inverse square of `directIncidence`; spotlight cone edge is matched by penumbra. Each side publishes in its `lampesTemoin` record what it received, or `null` if not rendered with Three.
 

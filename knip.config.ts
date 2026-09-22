@@ -25,6 +25,8 @@ const config: KnipConfig = {
     'scripts/mesure/pageThreeNu.ts',
     'scripts/mesure/pageThreeLod.ts',
     'scripts/mesure/pageMesure.ts',
+    // The measurement entry: served as `measurement.js` and imported by URL by those pages.
+    'packages/sdk-browser/measurement.ts',
     // Full campaign and its report, launched manually.
     'scripts/mesure/campagne.ts',
     'scripts/mesure/rapportGlobal.ts',
