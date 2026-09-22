@@ -121,6 +121,8 @@ try {
       renderer: 'autonomous-pages-webgl',
       autonomous: false,
       webgpuDevice: false,
+      // This path samples the host images, so the loader opens them (#289).
+      textureSource: 'host',
     });
     // The canvas is not empty: a twentieth of it at least differs from the cleared background.
     for (const drawn of [gpu.drawn, webgl.drawn])
