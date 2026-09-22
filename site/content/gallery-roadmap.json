@@ -629,6 +629,15 @@
       "file": ""
     },
     {
+      "id": "five-ways-to-move-the-camera",
+      "title": {
+        "en": "Five ways to move the camera",
+        "fr": "Cinq façons de déplacer la caméra"
+      },
+      "theme": "interaction",
+      "file": "examples/five-ways-to-move-the-camera.html"
+    },
+    {
       "id": "bloom-on-the-neon",
       "title": {
         "en": "Bloom on the neon sign",

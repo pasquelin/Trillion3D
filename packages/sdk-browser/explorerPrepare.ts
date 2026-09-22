@@ -1,5 +1,5 @@
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
-import { chooseBackends } from './defaultBackends.ts';
+import { chooseBackends, resolveTextureSource } from './defaultBackends.ts';
 import { configureExplorer } from './explorerCapabilities.ts';
 import { directWebgpu } from './explorerInteractiveOptions.ts';
 import { probeExplorerCapabilities } from './explorerCapabilityProbe.ts';
@@ -32,15 +32,20 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   // session loads — the cache's prepared scene for the autonomous path, `source.gltf` otherwise.
   const { capabilities, gpuDevice } = await probeExplorerCapabilities(session);
   resources.gpuDevice = gpuDevice;
-  const choice = chooseBackends(options, metadata, gpuDevice);
+  const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer);
   const autonomous = choice.autonomous;
+  // What the loader opens follows what will draw: a path that samples the host images needs
+  // them read, however the host set `textureSource`.
+  const textureSource = resolveTextureSource(options.textureSource, choice.factories);
   diagnose('backend-choice', 'Backend chosen for this session', {
     kind: 'configuration',
     scope,
     origin: choice.origin,
     reason: choice.reason,
+    renderer: choice.renderer,
     autonomous,
     webgpuDevice: !!gpuDevice,
+    textureSource,
   });
   const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf';
   progress(
@@ -50,7 +55,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     `Chargement de ${metadata.selectedTriangles.toLocaleString()} triangles (${scope})`,
   );
   const loadedScene = await loadPreparedScene(
-    options,
+    { ...options, textureSource },
     metadata,
     sceneFile,
     base,

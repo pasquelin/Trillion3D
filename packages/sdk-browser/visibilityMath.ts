@@ -117,7 +117,7 @@ export function sampleLinear(map: Texture, u: number, v: number): [number, numbe
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255];
 }
 
-/** ×31 polynomial by code points. `hashId` (backendCommon.ts) walks UTF-16 units: same
+/** ×31 polynomial by code points. `hashId` (diagnosticColors.ts) walks UTF-16 units: same
  *  polynomial, two walks, two results outside the BMP — not two copies of one. */
 export function clusterHash(id: string) {
   return Array.from(id).reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 0);

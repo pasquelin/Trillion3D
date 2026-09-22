@@ -28,6 +28,10 @@ export type { DiagnosticDetail } from './backendTypes.ts';
 export type {
   HostAttribute,
   HostAttributes,
+  HostColour,
+  HostDiagnosticFactory,
+  HostDiagnosticGeometry,
+  HostDiagnosticMaterial,
   HostGeometry,
   HostMaterial,
   HostMaterials,
@@ -36,6 +40,7 @@ export type {
   HostPoint,
   HostScene,
   HostTexture,
+  HostTraversable,
 } from './hostResources.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpuPassBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpuPassBlocks.ts';
@@ -131,3 +136,11 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from '../sdk-core/index.ts';
+
+// The camera controllers a session hands out: their contract is public because
+// `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").
+export type { ChangeListener, ControlVector, PivotCameraControls } from './cameraControlTypes.ts';
+export type { FlyCameraControls } from './cameraFlyControls.ts';
+export type { FirstPersonCameraControls } from './cameraFirstPersonControls.ts';
+export type { TrackballCameraControls } from './cameraTrackballControls.ts';
+export type { PanZoomCameraControls } from './cameraPanZoomControls.ts';

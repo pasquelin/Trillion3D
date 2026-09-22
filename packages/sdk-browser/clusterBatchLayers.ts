@@ -22,7 +22,7 @@ export function buildLayerGroups(
   for (const page of pages) {
     const layer = page.depthLayer ?? 0;
     // A multi-material has no single bias to carry: the page stays on its original batch.
-    if (layer <= 0 || Array.isArray(page.material)) continue;
+    if (layer <= 0 || page.material.grouped) continue;
     const base = groups[page.renderOrder];
     if (!base) continue;
     let map = layerGroups[page.renderOrder];

@@ -7,12 +7,8 @@ import { createExactPagesAttachment } from './exactPagesAttachment.ts';
 import { createExactPagesResidency } from './exactPagesResidency.ts';
 import { createExactPagesMaterials } from './exactPagesMaterials.ts';
 import { DEFAULT_CLEAR_COLOR, baseCapabilities, lighting } from './backendCommon.ts';
-import { sceneLightingApi } from './sceneLighting.ts';
-import {
-  attachContractLights,
-  CONTRACT_LIGHTS_LIGHTING,
-  CONTRACT_LIGHTS_UNSUPPORTED,
-} from './exactPagesContractLights.ts';
+import { CONTRACT_LIGHTS_UNSUPPORTED } from './exactPagesContractLights.ts';
+import { contractLightingApi } from './contractLightingApi.ts';
 import { collectClusterPages, type PageRec } from './pageSelection.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
@@ -58,9 +54,10 @@ export const exactPagesBackend: BackendFactory = (context) => {
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
-  // Contract lights, translated into Three lights. As long as the host has neither declared a
-  // light nor asked for a view, the source graph lights alone and the image is the previous one, pixel for pixel.
-  const contract = attachContractLights(scene, context.sceneLights, sceneLights, gate.sceneChanged);
+  // Contract lights, translated into Three lights, and the lighting half of the API they drive.
+  // As long as the host has neither declared a light nor asked for a view, the source graph
+  // lights alone and the image is the previous one, pixel for pixel.
+  const contract = contractLightingApi(scene, context.sceneLights, sceneLights, gate.sceneChanged);
   const motion: CameraMotion = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
     context.onDiagnostic,
@@ -178,11 +175,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     get frameHeld() {
       return renderState.frameHeld;
     },
-    ...sceneLightingApi(sceneLights, gate.sceneChanged),
-    /** The image comes out in real light as soon as either light set carries one. */
-    sceneLit: () => contract.lit,
-    refreshSceneLights: contract.apply,
-    lighting: CONTRACT_LIGHTS_LIGHTING,
+    ...contract,
     render(camera) {
       renderFrame(camera);
     },

@@ -100,7 +100,7 @@ test('cpuSelectMs measures selection time, finite and non-negative', () => {
       ...MANIFEST_IDENTITY,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([cluster(0, 0)]) }],
     },
-    indices: new Map([['0', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
+    indices: new Map([['0', new Uint32Array([0, 1, 2])]]),
     associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
     maxResidentPages: 1,
   };
