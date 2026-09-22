@@ -19,8 +19,6 @@ pub(super) struct DagResult {
     pub stream_report: Value,
     /// Grid the primitive's pages were quantized on.
     pub position_exponent: i32,
-    /// Vertices the coarse levels appended to the primitive's buffer.
-    pub added_vertices: usize,
 }
 
 /// Minimum, median and maximum of a DAG level's errors. Three order statistics
@@ -46,14 +44,12 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
     (min, median, max)
 }
 
-/// Builds the DAG of one primitive and everything the cache says about it. `pos` and
-/// `attributes` come back extended with the vertices the coarse levels created, which the
-/// pages, the bounds and the proxy cut read like the source ones.
+/// Builds the DAG of one primitive and everything the cache says about it.
 pub(super) fn build_dag_primitive(
     o: &Options,
     material: Option<&Value>,
-    pos: &mut Vec<f32>,
-    attributes: &mut [geometry_page::Attribute],
+    pos: &[f32],
+    attributes: &[geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
 ) -> Result<DagResult> {
@@ -63,7 +59,6 @@ pub(super) fn build_dag_primitive(
         clusters: dag,
         groups,
         tallies,
-        added_vertices,
     } = crate::dag::build_dag_tallied(
         crate::dag::DagVertices {
             positions: pos,
@@ -73,8 +68,6 @@ pub(super) fn build_dag_primitive(
         strategy,
         &|| check(o),
     )?;
-    // The buffer is final: every level is built, the created vertices are in it.
-    let (pos, attributes) = (&pos[..], &attributes[..]);
     if dag
         .iter()
         .filter(|c| c.level == 0)
@@ -184,6 +177,5 @@ pub(super) fn build_dag_primitive(
         structure_report,
         stream_report,
         position_exponent,
-        added_vertices,
     })
 }

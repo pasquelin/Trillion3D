@@ -100,7 +100,7 @@ pub(super) fn compile_primitive(
         }
         ((0..positions.count as u32).collect(), positions.count / 3)
     };
-    let mut pos = {
+    let pos = {
         let _t = perf::Timer::new(perf::Phase::Decode);
         positions.collect_f32()?
     };
@@ -128,7 +128,7 @@ pub(super) fn compile_primitive(
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.
     let dag_primitive = !unsplit;
-    let mut attributes = if dag_primitive {
+    let attributes = if dag_primitive {
         decode_page_attributes(g, bin, p, positions.count, validated)?
     } else {
         Vec::new()
@@ -158,16 +158,8 @@ pub(super) fn compile_primitive(
         structure_report,
         stream_report,
         position_exponent,
-        added_vertices,
     } = if dag_primitive {
-        build_dag_primitive(
-            o,
-            material,
-            &mut pos,
-            &mut attributes,
-            &index_values,
-            demand,
-        )?
+        build_dag_primitive(o, material, &pos, &attributes, &index_values, demand)?
     } else {
         DagResult::default()
     };
@@ -178,6 +170,6 @@ pub(super) fn compile_primitive(
         proxy_cut,
         // The threshold is back in object space: it goes out in metres for the report.
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
-        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"vertices":weld.map_or(Value::Null,|weld|json!({"source":positions.count,"used":weld.vertices,"welded":weld.welded,"weldRefused":weld.refused,"coarse":added_vertices})),"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
+        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"vertices":weld.map_or(Value::Null,|weld|json!({"source":positions.count,"used":weld.vertices,"welded":weld.welded,"weldRefused":weld.refused})),"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }

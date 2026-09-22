@@ -1,11 +1,11 @@
-//! `qem-attributes`: coarse levels made of solved vertices, at no cost to the source buffer.
+//! `qem-attributes`: coarse levels ranked on the attributes, drawn on the source vertices.
 use super::*;
 use crate::dag::{build_dag_tallied, DagStrategy, DagVertices};
 use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// Compiles a sheet and rereads what the cache says of its one primitive: the compilation
 /// result, the written `source.gltf`, and the bytes of `source.bin`.
-pub(super) fn compiled(simplification: &str, sheet: Sheet) -> (PathBuf, Value, Value, Vec<u8>) {
+fn compiled(simplification: &str, sheet: Sheet) -> (PathBuf, Value, Value, Vec<u8>) {
     let (root, options) = seam_fixture(64, 64, simplification, sheet);
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options
@@ -31,10 +31,9 @@ fn accessor_count(source: &Value, name: &str) -> u64 {
         .as_u64()
         .expect("count")
 }
-/// The DAG of the seam sheet under the attribute strategy, the seam carried by `seam_set`, and
-/// the buffer it leaves: the source vertices first, the created ones after them.
-fn seam_dag(seam_set: u32) -> (usize, Vec<Attribute>) {
-    let (mut positions, normals, uvs, indices) = seam_sheet(64, 64, false);
+/// The DAG of the seam sheet under the attribute strategy, the seam carried by `seam_set`.
+fn seam_dag(seam_set: u32) -> (usize, Vec<Attribute>, crate::dag::DagBuild) {
+    let (positions, normals, uvs, indices) = seam_sheet(64, 64, false);
     let source = positions.len() / 3;
     // The continuous set the seam does not cut, when the seam is on the second one.
     let chart: Vec<f32> = positions
@@ -59,23 +58,22 @@ fn seam_dag(seam_set: u32) -> (usize, Vec<Attribute>) {
     attributes.push(textured(seam_set, uvs));
     let built = build_dag_tallied(
         DagVertices {
-            positions: &mut positions,
-            attributes: &mut attributes,
+            positions: &positions,
+            attributes: &attributes,
         },
         &indices,
         DagStrategy::QemAttributes,
         &|| Ok(()),
     )
     .expect("dag");
-    assert!(built.added_vertices > 0, "coarse levels created vertices");
-    (source, attributes)
+    (source, attributes, built)
 }
 
-// Behaviour: the DAG climbs and its coarse levels carry vertices the source does not have, while
-// the compiled scene keeps the accessors it was given: a created vertex lives in the pages that
-// name it, and `source.bin` comes out byte for byte the one `qem-endpoints` writes.
+// Behaviour: the DAG climbs, and every vertex its coarse levels draw is one of the source
+// buffer — the collapses land on existing vertices, so no page carries an invented attribute
+// and `source.bin` comes out byte for byte the one `qem-endpoints` writes.
 #[test]
-fn coarse_levels_create_vertices_the_source_buffer_does_not_pay_for() {
+fn coarse_levels_draw_source_vertices_and_cost_the_buffer_nothing() {
     let (root, result, source, bin) = compiled("qem-attributes", Sheet::Seam("TEXCOORD_0"));
     let primitive = &result["primitives"][0];
     assert!(
@@ -83,10 +81,6 @@ fn coarse_levels_create_vertices_the_source_buffer_does_not_pay_for() {
         "the DAG climbs"
     );
     let vertices = &primitive["vertices"];
-    assert!(
-        vertices["coarse"].as_u64().expect("coarse") > 0,
-        "coarse levels created vertices"
-    );
     assert_eq!(
         vertices["used"].as_u64().expect("used"),
         65 * 65 + 65,
@@ -98,36 +92,34 @@ fn coarse_levels_create_vertices_the_source_buffer_does_not_pay_for() {
     }
     assert_eq!(accessor_count(&source, "indices"), 64 * 64 * 6);
     assert_eq!(source["accessors"].as_array().expect("accessors").len(), 4);
-    let (endpoints_root, endpoints, _, endpoints_bin) =
+    let (endpoints_root, _, _, endpoints_bin) =
         compiled("qem-endpoints", Sheet::Seam("TEXCOORD_0"));
-    assert_eq!(endpoints["primitives"][0]["vertices"]["coarse"], json!(0));
     assert_eq!(bin, endpoints_bin, "the same source.bin, byte for byte");
     fs::remove_dir_all(root).expect("cleanup");
     fs::remove_dir_all(endpoints_root).expect("cleanup");
 }
 
-// Behaviour: a sheet with no seam, whose solve moves nothing, creates no vertex at all and comes
-// out of `qem-attributes` with the source buffer `qem-endpoints` would have written.
+// Behaviour: a textured region does reach a coarse level — the attribute terms rank the
+// collapses, they never forbid them — and every level it reaches carries a positive error.
 #[test]
-fn a_flat_sheet_creates_no_vertex_and_keeps_its_source_buffer() {
-    let (root, result, source, bin) = compiled("qem-attributes", Sheet::Flat);
-    let primitive = &result["primitives"][0];
-    assert!(
-        primitive["dag"]["depth"].as_u64().expect("depth") > 0,
-        "the DAG climbs"
-    );
-    assert_eq!(primitive["vertices"]["coarse"], json!(0), "no vertex");
-    assert_eq!(accessor_count(&source, "POSITION"), 65 * 65);
-    let (endpoints_root, _, endpoints_source, endpoints_bin) =
-        compiled("qem-endpoints", Sheet::Flat);
-    assert_eq!(source["accessors"], endpoints_source["accessors"]);
-    assert_eq!(bin, endpoints_bin, "the same source.bin, byte for byte");
-    fs::remove_dir_all(root).expect("cleanup");
-    fs::remove_dir_all(endpoints_root).expect("cleanup");
+fn a_textured_region_reaches_a_coarse_level() {
+    let (_, _, built) = seam_dag(FLAG_UV);
+    let reduced: usize = built.tallies.iter().map(|t| t.reduced).sum();
+    assert!(reduced > 0, "no group reduced");
+    let coarse = built.clusters.iter().filter(|c| c.level > 0);
+    assert!(coarse.clone().count() > 0, "no coarse cluster");
+    for cluster in coarse {
+        assert!(
+            cluster.lod_error as f32 > 0.0,
+            "a coarse cluster at error {}",
+            cluster.lod_error
+        );
+    }
 }
 
-// Behaviour: a texture seam is never crossed: no created vertex carries a texture coordinate
-// from the gap between the two sides, whichever coordinate set carries the seam.
+// Behaviour: a texture seam is never crossed. Every corner a coarse level draws is a source
+// vertex with its own texture coordinate, so none can land in the gap between the two sides —
+// whichever coordinate set carries the seam.
 #[test]
 fn a_texture_seam_is_kept_and_never_interpolated_across() {
     seam_is_kept(FLAG_UV);
@@ -137,26 +129,26 @@ fn a_seam_of_the_second_texture_set_is_kept_as_well() {
     seam_is_kept(FLAG_UV1);
 }
 fn seam_is_kept(seam_set: u32) {
-    let (source, attributes) = seam_dag(seam_set);
+    let (source, attributes, built) = seam_dag(seam_set);
     let seam = attributes
         .iter()
         .find(|a| a.flag == seam_set)
         .expect("the seam set");
     let mut crossed = 0usize;
-    for vertex in source..seam.values.len() / 2 {
-        // A seam vertex keeps its position and has its texture coordinate solved on its own
-        // side: it drifts by the chart's least squares (measured: 1.6e-4 at most), never by
-        // the whole texture that separates the two sides.
-        let u = seam.values[vertex * 2];
-        crossed += usize::from(u > SEAM_GAP.0 + 0.01 && u < SEAM_GAP.1 - 0.01);
+    for cluster in built.clusters.iter().filter(|c| c.level > 0) {
+        for &corner in &cluster.indices {
+            assert!((corner as usize) < source, "a corner outside the source");
+            let u = seam.values[corner as usize * 2];
+            crossed += usize::from(u > SEAM_GAP.0 + 0.01 && u < SEAM_GAP.1 - 0.01);
+        }
     }
     assert_eq!(
         crossed, 0,
-        "a created vertex took its u from across the seam"
+        "a coarse corner took its u from across the seam"
     );
 }
 
-// Behaviour: two compilations of the same scene write the same pages, created vertices included.
+// Behaviour: two compilations of the same scene write the same pages.
 #[test]
 fn two_compilations_write_the_same_pages() {
     let sheet = Sheet::Seam("TEXCOORD_0");

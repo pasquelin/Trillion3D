@@ -57,7 +57,6 @@ mod reuse;
 mod reuse_proof;
 mod scene_autonome;
 mod simplification_attributes;
-mod simplification_attributes_error;
 mod simplification_none;
 mod unity_driver;
 mod unity_fidelite;
