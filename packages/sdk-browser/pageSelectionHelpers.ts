@@ -101,10 +101,16 @@ const NO_CLUSTER_ERROR = {
  *
  * `quantizationError` is the largest distance the primitive's grid moved one of its source
  * positions (`primitives[].quantization.maxPositionError`): the surface an engine draws from the
- * quantized pages stands that far from the surface the error band was computed on, so the two
- * distances add — the screen threshold then bounds the drawn surface, not the source one. It is a
- * sum of two lengths in the same unit, nothing weighted: the parent's band grows by the same
- * amount, so which cluster replaces which does not move.
+ * quantized pages stands that far from the surface the band was computed on, so the two distances
+ * add — the screen threshold then bounds the drawn surface, not the source one. It is a sum of two
+ * lengths in the same unit, nothing weighted.
+ *
+ * A cluster NO GROUP PRODUCED keeps its band as it is. Its band is the floor of the ladder — the
+ * cache holds nothing finer of that surface —, and the threshold cannot ask for a refinement that
+ * does not exist: at zero pixels, raising that floor would leave the cut with nothing to draw.
+ * Every band the cut can still choose against grows: a produced cluster's own band, the band of
+ * the group that replaces it, and the group bands themselves, so a replacement swaps at exactly
+ * the same threshold as before and the cut stays a partition.
  */
 export function clusterErrorFields(
   page: Page,
@@ -132,14 +138,15 @@ export function clusterErrorFields(
   // its sphere; it has nothing to validate.
   if (parent !== null && parent + quantizationError > 0 && !clusterSphereValid(page.parentSphere))
     throw new Error('Invalid cluster parameters');
+  const source = typeof page.source === 'number' ? page.source : null;
   return {
     level: page.level,
-    lodError: page.lodError! + quantizationError,
+    lodError: page.lodError! + (source === null ? 0 : quantizationError),
     sphere: page.sphere,
     parentError: parent === null ? null : parent + quantizationError,
     parentSphere: parent === null ? null : page.parentSphere,
     group: typeof page.group === 'number' ? page.group : null,
-    source: typeof page.source === 'number' ? page.source : null,
+    source,
   };
 }
 /** Bundle URL and offset of every page, or undefined when the cache predates streaming bundles. */

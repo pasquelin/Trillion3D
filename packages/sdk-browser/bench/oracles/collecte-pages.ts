@@ -14,9 +14,9 @@ import {
   objects,
   streamPlacement,
   clusterErrorFields,
-  structureIndex,
   cullingNodes,
 } from '../../pageSelectionHelpers.ts';
+import { structureIndex } from '../../pageSelectionStructure.ts';
 import { cullingBounds } from '../../pageSelectionCutBounds.ts';
 import { indexPageRequests } from '../../pageSelectionRequests.ts';
 import { surfaceOf } from '../../pageSurface.ts';

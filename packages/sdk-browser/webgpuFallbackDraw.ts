@@ -72,12 +72,14 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
   voidStaleFallbackGroups(rt);
   let vertices = 0;
   for (let i = 0; i < rows.packedCount; i++) {
-    // A cluster drawn from its quantized page reads no float position: the binding still needs a
-    // buffer, and the smallest one the engine holds stands in for it.
-    const position = rows.packedPositions[i] ?? gpu.zeroUv;
+    const rec = rows.packedRecs[i]!;
+    // A cluster drawn from its quantized page reads no float position, but the binding still needs
+    // a buffer: the smallest one the engine holds stands in, and the shader never reads it. Any
+    // other cluster without its positions is skipped, as before.
+    const position = rec.geometryPage ? gpu.zeroUv : rows.packedPositions[i];
     if (!position) continue;
     const group = bindGroupFor(rt, device, position),
-      pipeline = pipelineFor(rt, rows.packedRecs[i]!);
+      pipeline = pipelineFor(rt, rec);
     if (!group || !pipeline) continue;
     const count = rows.pageTableInts![i * fallbackWords + ROW_INDEX_WORDS];
     pass.setPipeline(pipeline);
