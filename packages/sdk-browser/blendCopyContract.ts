@@ -11,16 +11,14 @@
 import type { HostAttribute, HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
-/** The geometry of a copy: the attributes, the index it draws, and its local box on demand. */
-export type BlendGeometry = HostGeometry & {
-  getIndex(): HostAttribute | null;
-  computeBoundingBox(): void;
-};
-
-/** What the engine reads on a transparent copy. Its `matrix` is the engine's world storage for
- *  the source mesh, shared and never written through the copy (`blendCopyMesh.ts`). */
+/** What the engine reads on a transparent copy. Its `geometry` is the source one, with the index
+ *  it draws and its local box on demand; its `matrix` is the engine's world storage for the
+ *  source mesh, shared and never written through the copy (`blendCopyMesh.ts`). */
 export type BlendCopy = {
-  readonly geometry: BlendGeometry;
+  readonly geometry: HostGeometry & {
+    getIndex(): HostAttribute | null;
+    computeBoundingBox(): void;
+  };
   readonly material: HostMaterials;
   readonly matrix: MatrixElements;
   readonly frustumCulled: boolean;
