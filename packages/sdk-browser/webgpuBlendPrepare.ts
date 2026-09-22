@@ -10,8 +10,6 @@ import {
   FLAG_LIT,
   FLAG_PAGED,
   FLAG_TRANSMISSIVE,
-  isTransmissive,
-  visMaterial,
 } from './visibilityBuffer.ts';
 import { wrapModes } from './visibilityWrapModes.ts';
 import { WATER_RANK_SHIFT } from './webgpuWaterSurfaceWgsl.ts';
@@ -37,8 +35,8 @@ export function prepareWebgpuBlend(
   for (const copy of blendCopies) {
     // A transmissive surface goes through the same prepare as the other blends: it differs only
     // at draw, where the water pass composes it over the frozen backdrop instead of blending it.
-    const transmits = isTransmissive(copy.material);
-    const mat = visMaterial(copy.material);
+    const mat = copy.surface;
+    const transmits = mat.transmission > 0;
     const attr = copy.geometry.attributes.position,
       idx = copy.geometry.getIndex();
     if (!attr || !idx) continue;
@@ -59,8 +57,7 @@ export function prepareWebgpuBlend(
       ? undefined
       : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
     const hasNormal = paged ? !!copy.geometry.attributes.normal : !!normal;
-    const declared = Array.isArray(copy.material) ? copy.material[0] : copy.material;
-    const opacity = declared?.opacity ?? 1;
+    const opacity = mat.opacity;
     let flags = 0;
     if (mat.lit) flags |= FLAG_LIT;
     if (mat.doubleSided) flags |= FLAG_DOUBLE;
@@ -86,7 +83,7 @@ export function prepareWebgpuBlend(
       index,
       uv,
       normal,
-      material: copy.material,
+      surface: mat,
       count: paged ? 0 : idx.count,
       matrix: copy.matrix,
       sourceMesh: copy.userData.sourceMesh,

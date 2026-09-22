@@ -152,8 +152,9 @@ transparent items and the software raster compute on those alone; the admission 
 (`hostSurfaceGate.ts`) and the published display graph (`hostBlendScene.ts`) are what is left of
 the host library on that path. What remains for the following lots is the source loading — until
 it lands, `scene`, `source` and `sceneLighting`
-still point at the host's graphs and are not `SceneRoot` / `SceneNode`; `explorerCameraApi.ts` keeps the
-host's orbit and fly controls it returns to the host.
+still point at the host's graphs and are not `SceneRoot` / `SceneNode`. The camera controllers are
+no longer among them: since #222 `explorerCameraApi.ts` returns the engine's own orbit, flight,
+first-person, trackball and planar pan-zoom controllers, and the file left the closed list.
 
 R1a. **What remains of Three.js in the engine, measured.** The 15 September survey (lot T1) listed
 file by file every call to a Three.js math method in `sdk-browser`; those counts are stale and are

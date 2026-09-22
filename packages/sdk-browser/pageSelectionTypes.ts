@@ -1,4 +1,5 @@
 import type { HostAttributes, HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
+import type { PageSurface } from './pageSurface.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import type { NormalCone } from './pageCone.ts';
 import type { CullingLinks } from './pageSelectionCutForced.ts';
@@ -30,7 +31,14 @@ export type PageRec = {
    *  undefined, so a page record keeps one shape through the selection loop. */
   depthLayer: number;
   attributes: HostAttributes;
-  material: HostMaterials;
+  /** The engine's own record of the surface this cluster wears (`pageSurface.ts`). Every reader
+   *  on the way to the image takes it from here and nothing else. */
+  material: PageSurface;
+  /** The host declaration the record was read from, carried for the ONE use that needs the object
+   *  itself: handing a surface back to the library that owns it — the WebGL2 witness draw, the
+   *  transparent copy, the diagnostic materials. The closed list of
+   *  `test/integration/moteur-sans-three.test.ts` says who may read it. */
+  declaration: HostMaterials;
   transparent?: boolean;
   sourceMesh?: HostMesh;
   sourceOrder?: number;

@@ -22,6 +22,7 @@ import {
 } from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 
 const SEUIL = 0.4;
 const VIEWPORT: [number, number] = [1920, 1080];
@@ -78,7 +79,7 @@ const page = (
   parentError,
   parentSphere,
   matrix: world,
-  material,
+  material: surfaceOf(material),
 });
 const pages = [
   page(0, boiteGrossier, EPS, null, null),

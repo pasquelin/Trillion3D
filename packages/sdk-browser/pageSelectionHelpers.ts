@@ -1,4 +1,3 @@
-import type { HostMaterials } from './hostResources.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import {
@@ -9,7 +8,6 @@ import {
   type ClusterStructure,
   type StreamCatalogue,
 } from '../sdk-core/index.ts';
-import { sideOf } from './materialSide.ts';
 import {
   OPEN_CONE,
   coneContextFor,
@@ -18,10 +16,7 @@ import {
   type NormalCone,
 } from './pageCone.ts';
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
-
-function pageIsDoubleSided(material: HostMaterials | undefined) {
-  return !!material && sideOf(material) === 'double';
-}
+import { surfaceFrontOnly, type PageSurface } from './pageSurface.ts';
 
 /** The context is set at the root's first cone: a root without a cone never pays for it. */
 export function coneSkipsPage(
@@ -29,7 +24,7 @@ export function coneSkipsPage(
     cone?: NormalCone;
     min?: number[];
     max?: number[];
-    material?: HostMaterials;
+    material?: PageSurface;
   },
   ctx: ConeContext,
   world: MatrixElements,
@@ -37,7 +32,9 @@ export function coneSkipsPage(
   fallbackMin: number[],
   fallbackMax: number[],
 ) {
-  if (pageIsDoubleSided(rec.material)) return false;
+  // The side is reread here, not taken off the record as it was last filled: `surfaceFrontOnly`
+  // asks the declaration, and only a front-only surface can be cone-rejected at all.
+  if (rec.material && !surfaceFrontOnly(rec.material)) return false;
   const min = rec.min ?? fallbackMin,
     max = rec.max ?? fallbackMax;
   if (!ctx.ready) coneContextFor(ctx, world, cam.eye);

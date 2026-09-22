@@ -1,3 +1,4 @@
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 import * as THREE from 'three';
 import type { VisPage } from '../../packages/sdk-browser/visibilityBuffer.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
@@ -37,7 +38,7 @@ export function quad(
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
     matrix: new THREE.Matrix4(),
-    material,
+    material: surfaceOf(material),
     clusterId,
     min,
     max,

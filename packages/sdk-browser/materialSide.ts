@@ -24,3 +24,33 @@ export function sideOf(material: HostMaterials): Side {
   const side = materialSide(material);
   return side === HOST_SIDE_DOUBLE ? 'double' : side === HOST_SIDE_BACK ? 'back' : 'front';
 }
+
+/**
+ * The raster facts a host declares beside the shaded ones: which version of the declaration this
+ * is, its opacity, its alpha cutoff, whether it is drawn blended, whether the host draws a
+ * double-sided blended surface in one pass, and whether it is declared as one material per
+ * geometry group. The cache's material
+ * table declares none of them (`sceneTableContracts.ts`), so they are read here, at the same
+ * boundary as the side, and travel on inside the engine's own surface record (`pageSurface.ts`).
+ * They are written INTO the record given: this runs per page row and per plan entry.
+ */
+export type MaterialRaster = {
+  version: number;
+  opacity: number;
+  alphaTest: number;
+  transparent: boolean;
+  forceSinglePass: boolean;
+  grouped: boolean;
+};
+export function materialRaster<T extends MaterialRaster>(material: HostMaterials, into: T): T {
+  const first = firstMaterial(material);
+  into.version = first?.version ?? 0;
+  into.opacity = first?.opacity ?? 1;
+  into.alphaTest = first?.alphaTest ?? 0;
+  into.transparent = Array.isArray(material)
+    ? material.some((entry) => entry.transparent)
+    : !!material?.transparent;
+  into.forceSinglePass = !!first?.forceSinglePass;
+  into.grouped = Array.isArray(material);
+  return into;
+}

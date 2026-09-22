@@ -13,7 +13,7 @@ import {
   triangleAt,
 } from '../../visibilityMath.ts';
 import { shadeLit } from '../../visibilityLighting.ts';
-import { unpackVisibilityId, visMaterial, type VisPage } from '../../visibilityTypes.ts';
+import { unpackVisibilityId, type VisPage } from '../../visibilityTypes.ts';
 import { createEngineCamera, readCameraWorld, type EngineCamera } from '../../cameraWorld.ts';
 import type { DepthCamera } from '../../depthConvention.ts';
 
@@ -21,7 +21,7 @@ import type { DepthCamera } from '../../depthConvention.ts';
  *  camera as the frame input does, and shading reads the same. */
 const engineScratch = createEngineCamera();
 
-/** `visibilityShadePixel.ts:15-63` before batch A: `visMaterial` and the triangle per pixel. */
+/** `visibilityShadePixel.ts:15-63` before batch A: the surface record and the triangle per pixel. */
 function referenceShadePixel(
   id: number,
   pages: readonly (VisPage | undefined)[],
@@ -43,7 +43,7 @@ function referenceShadePixel(
   if (!affine) return backgroundRgb(background);
   const bary = perspectiveBary(tri.a, tri.b, tri.c, affine);
   const uv = attr2(page.attributes.uv, tri.i0, tri.i1, tri.i2, bary.w0, bary.w1, bary.w2);
-  const mat = visMaterial(page.material);
+  const mat = page.material;
   let rgb: [number, number, number] = [mat.baseColor[0], mat.baseColor[1], mat.baseColor[2]];
   if (mat.map) {
     const sample = sampleMap(mat.map, uv[0], uv[1]);

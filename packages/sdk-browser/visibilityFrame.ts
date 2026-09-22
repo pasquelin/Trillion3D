@@ -1,11 +1,6 @@
 import type { DepthCamera } from './depthConvention.ts';
 import { triangleAt } from './visibilityMath.ts';
-import {
-  unpackVisibilityId,
-  visMaterial,
-  type VisMaterial,
-  type VisPage,
-} from './visibilityTypes.ts';
+import { unpackVisibilityId, type VisPage } from './visibilityTypes.ts';
 
 export type VisTriangle = NonNullable<ReturnType<typeof triangleAt>>;
 
@@ -17,7 +12,8 @@ export type VisTriangle = NonNullable<ReturnType<typeof triangleAt>>;
  * computation hundreds of times per triangle — the cache keeps the result, term for term the one
  * `triangleAt` yields, so the pixel sees exactly the same floats. The last identifier is held
  * aside: two neighbouring pixels almost always land on the same triangle, and the table is then
- * not even consulted. `visMaterial` is memoised per page, for the same reason.
+ * not even consulted. A page's surface is the engine record it was collected with, so the image
+ * reads it as it stands instead of re-reading a host declaration per pixel.
  */
 export function createVisibilityFrame(
   pages: VisPage[],
@@ -25,8 +21,7 @@ export function createVisibilityFrame(
   width: number,
   height: number,
 ) {
-  const triangles = new Map<number, VisTriangle | null>(),
-    materiaux = new Map<VisPage, VisMaterial>();
+  const triangles = new Map<number, VisTriangle | null>();
   let dernierId = 0,
     dernier: VisTriangle | null = null;
   return {
@@ -43,11 +38,9 @@ export function createVisibilityFrame(
       triangles.set(id, triangle);
       return (dernier = triangle);
     },
-    /** Description of a page's material, computed once per image and not per pixel. */
+    /** The page's surface record, as the collection read it once at the boundary. */
     material(page: VisPage) {
-      let materiau = materiaux.get(page);
-      if (!materiau) materiaux.set(page, (materiau = visMaterial(page.material)));
-      return materiau;
+      return page.material;
     },
   };
 }

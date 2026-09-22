@@ -81,12 +81,12 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
     if (!mesh)
       mesh = group.mesh = new ClusterDrawMesh(
         group.primitive.geometry,
-        sample.material,
+        sample.declaration,
         group.ranges,
         sample.renderOrder,
         group.polygonOffsetUnits,
       );
-    else mesh.material = sample.material;
+    else mesh.material = sample.declaration;
     mesh.matrix.elements.set(sample.matrix.elements);
     // Arrays are reused; their identity changes only when they had to grow.
     mesh._multiDrawStarts = group.ranges.starts;

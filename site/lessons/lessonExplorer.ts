@@ -11,13 +11,11 @@ export async function createLessonExplorer({
   manifest?: string;
   importedLights?: boolean;
 }) {
-  const { createExplorer, webgpuPagesBackend } =
-    await import('../../packages/sdk-browser/index.ts');
+  const { createExplorer } = await import('../../packages/sdk-browser/index.ts');
   const bounds = canvas.getBoundingClientRect();
   return createExplorer(canvas, {
     manifestUrl: new URL(manifest, document.baseURI).href,
     scope: 'full',
-    backends: [webgpuPagesBackend],
     importedLights,
     width: Math.max(1, Math.round(bounds.width)),
     height: Math.max(1, Math.round(bounds.height)),

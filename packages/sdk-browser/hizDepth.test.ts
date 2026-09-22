@@ -10,6 +10,7 @@ import { visibilityDepth } from './hiz.ts';
 import { referenceVisibilityDepth } from './bench/oracles/hiz.ts';
 import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 function bitExactDepth(a: Float32Array, b: Float32Array) {
   assert.equal(a.length, b.length);
@@ -74,7 +75,7 @@ test('a page whose index reaches past its triangle stays background, not a throw
     array: new Uint32Array([0, 1]), // Truncated triangle: base + 2 >= index.length.
     attributes: new THREE.BufferGeometry().attributes,
     matrix: new THREE.Matrix4(),
-    material: new THREE.MeshBasicMaterial(),
+    material: surfaceOf(new THREE.MeshBasicMaterial()),
   };
   const cam = cameraAt();
   const ids = new Uint32Array(1).fill(packVisibilityId(0, 0));
