@@ -1,10 +1,10 @@
 import {
+  MASK_KEEP_WGSL,
   PAGE_BINDING,
   PAGE_INFO_WGSL,
   PAGE_LOOKUP_WGSL,
-  PAGE_MASK_WGSL,
-  PAGE_VERTEX_WGSL,
 } from './visibilityPageWgsl.ts';
+import { PAGE_GEOMETRY_WGSL } from './visibilityPageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
@@ -20,7 +20,7 @@ import { VIS_BINDINGS } from './webgpuBindLayout.ts';
  *
  * The fragment stage writes nothing: it exists only to discard. An opacity-mask material —
  * foliage, grille, lattice — casts the shadow of its cutout and not the full silhouette of its
- * cluster, because the mask test is the raster's (`PAGE_MASK_WGSL`), read at the map level the
+ * cluster, because the mask test is the raster's (`MASK_KEEP_WGSL`), read at the map level the
  * shadow texel asks for — its derivatives, not the camera's.
  *
  * It also discards the emitter envelope: a light that declares a radius accepts no depth from a
@@ -42,24 +42,25 @@ struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
 struct ShadowOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
 ${PAGE_LOOKUP_WGSL}
-${PAGE_VERTEX_WGSL}
+${PAGE_GEOMETRY_WGSL}
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(true)}
-${PAGE_MASK_WGSL}
+${MASK_KEEP_WGSL}
 @vertex fn shadow_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
  var out:ShadowOut;
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);out.fromEmitter=vec3f(0.0);
  if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
- let id=indices[page.pageOffset+vertexIndex];
- let vertex=vertPos(page.vertexBase,id);
+ let h=pageHeader(page);
+ let id=pageCorner(page,h,vertexIndex);
+ let vertex=pagePosition(page,h,id);
  // The out.position product is not reassociated: world position is composed apart, otherwise
  // the written depth would no longer be that from before this batch, to the bit.
  out.position=shadow.viewProjection*page.world*vec4f(vertex,1.0);
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
- if((page.flags&4u)!=0u){out.uv=vertUv(page.vertexBase,id);}
+ if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
 }
 /** Writes no colour: the pass has no target. It only discards the envelope and the cutout. */

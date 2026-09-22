@@ -1,5 +1,6 @@
 import { readGpuImage } from './gpuPresentation.ts';
 import { collectPendingUrls } from './pageSelection.ts';
+import { awaitedPages } from './webgpuPageSlots.ts';
 import { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 import { fallbackToCpuCut } from './webgpuPagesDrops.ts';
 import { bounceState, directLightingState } from './webgpuPagesEncodeLights.ts';
@@ -37,7 +38,10 @@ function reportProgress(rt: WebgpuPagesRuntime) {
       submittedTriangles: run.blendSubmittedTriangles,
       gpuMs: null,
     },
-    pendingPages: collectPendingUrls(run.desired, run.pendingScratch).length,
+    pendingPages: collectPendingUrls(
+      awaitedPages(run.desired, run.awaitedScratch),
+      run.pendingScratch,
+    ).length,
     surfaceVersion: gpu.surfaces?.version ?? null,
     presentation: context.gpuCanvas ? 'direct' : 'composed',
     imageReadbackDuringRender: false,

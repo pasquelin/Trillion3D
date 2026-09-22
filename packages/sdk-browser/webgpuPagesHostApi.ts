@@ -1,5 +1,6 @@
 import { createSynchronousCanvasCapture } from './gpuPresentation.ts';
 import { collectPendingUrls, type PageRec } from './pageSelection.ts';
+import { awaitedPages } from './webgpuPageSlots.ts';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import { defaultEngineCamera } from './cameraWorld.ts';
@@ -127,7 +128,7 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
   // its rows without bytes: those are the only ones to walk, and a fully arrived cut — the ordinary
   // case — walks none.
   const waiting = !ready
-    ? rt.setup.bootstrap
+    ? awaitedPages(rt.setup.bootstrap, run.awaitedScratch)
     : run.coverageBudgetLimited
       ? EMPTY_CUT
       : rt.services.cutPending.records;

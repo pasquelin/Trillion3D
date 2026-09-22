@@ -10,6 +10,7 @@ import {
   PAGE_INFO_STRUCT_WGSL,
   VIS_UNIFORMS_WGSL,
 } from './visibilityPageWgsl.ts';
+import { PAGE_GEOMETRY_WGSL } from './visibilityPageGeometryWgsl.ts';
 import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
 import { RASTER_TRI_WGSL } from './gpuRasterTriWgsl.ts';
 import { COMPUTE_TAKES_WGSL } from './gpuRasterContract.ts';
@@ -56,11 +57,10 @@ fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 // in the same order give the same float as a per-triangle compute.
 fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
 fn pageWinding(page:PageInfo)->f32{return determinant(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));}
-fn vertex(vp:mat4x4f,vertexBase:u32,index:u32)->vec4f{
- let base=(vertexBase+index)*3u;
- return vp*vec4f(positions[base],positions[base+1u],positions[base+2u],1.0);
+${PAGE_GEOMETRY_WGSL}
+fn vertex(vp:mat4x4f,page:PageInfo,h:ClusterHeader,index:u32)->vec4f{
+ return vp*vec4f(pagePosition(page,h,index),1.0);
 }
-fn uv(page:PageInfo,index:u32)->vec2f{let base=(page.vertexBase+index)*2u;return vec2f(uvs[base],uvs[base+1u]);}
 ${EDGE_WGSL}
 ${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}
