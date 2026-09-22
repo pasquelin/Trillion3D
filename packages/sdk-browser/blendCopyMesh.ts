@@ -11,16 +11,22 @@ import type { MatrixElements } from './matrixElements.ts';
  * copying a world matrix at prepare time made it a snapshot that no later move —
  * `setTransform`, a moved parent, a direct host write — would correct.
  *
- * The copy therefore receives the `world` OBJECT the engine holds for the source mesh
- * (`hostWorldPlacements.ts`), not its sixteen numbers: what the index rewrites there, the
- * copy reads — like the opaque pages of the same mesh, which carry that same matrix.
- * `matrixAutoUpdate` stays false, so Three never recomposes this matrix from the copy's
- * local pose — which it does not have.
+ * The copy therefore reads the engine's world STORAGE for the source mesh
+ * (`hostWorldPlacements.ts`), not a copy of its sixteen numbers: the host matrix built here is
+ * a container whose `elements` ARE the engine's view, so what a pass rewrites there the copy
+ * reads — like the opaque pages of the same mesh, which carry that same pose.
+ * `matrixAutoUpdate` stays false, so Three never recomposes this matrix from the copy's local
+ * pose — which it does not have, and that is what keeps this container READ-ONLY. The storage is
+ * shared both ways: a host-library call that writes THROUGH it — `copy.matrix.copy()`,
+ * `.identity()`, `.set()`, the recomposition — would write into the engine's world buffer and
+ * corrupt the pose of every page of the same mesh. Nothing on this copy may write its matrix.
  */
 export function createBlendCopy(mesh: THREE.Mesh, renderOrder: number, world: MatrixElements) {
   const copy = new THREE.Mesh(mesh.geometry, mesh.material);
   copy.matrixAutoUpdate = false;
-  copy.matrix = asHostLibrary<THREE.Matrix4>(world);
+  copy.matrix = Object.assign(new THREE.Matrix4(), {
+    elements: asHostLibrary<number[]>(world.elements),
+  });
   copy.frustumCulled = mesh.frustumCulled;
   copy.renderOrder = renderOrder;
   copy.userData.sourceMesh = mesh;
