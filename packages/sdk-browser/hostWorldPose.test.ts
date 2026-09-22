@@ -81,3 +81,22 @@ test('recomposition cut then restored: the flag follows the host, and the pose c
   updateNodeMatrixWorld(tree, 0);
   assert.deepEqual(Array.from(tree.worldViews[0]).slice(12, 15), [2, 3, 4]);
 });
+
+test('the sign of a zero is a change: `-0` and `0` do not compose the same translation', () => {
+  const { tree, root } = mirror();
+  pushHostPose(tree, 0, root);
+  updateNodeMatrixWorld(tree, 0);
+  root.position.setX(-0);
+  assert.equal(pushHostPose(tree, 0, root), true, 'the sign of the zero entered');
+  updateNodeMatrixWorld(tree, 0);
+  root.updateMatrixWorld(true);
+  assert.ok(Object.is(tree.worldViews[0][12], root.matrixWorld.elements[12]), 'same bits');
+});
+
+test('a pose left at NaN is not rewritten on every pass', () => {
+  const { tree, root } = mirror();
+  root.position.setY(Number.NaN);
+  assert.equal(pushHostPose(tree, 0, root), true);
+  updateNodeMatrixWorld(tree, 0);
+  assert.equal(pushHostPose(tree, 0, root), false, 'NaN compares equal to itself');
+});

@@ -94,7 +94,6 @@ export {
   NODE_AUTO_UPDATE,
   addTransformNode,
   createTransformTree,
-  markNodeWorldNeedsUpdate,
   setNodeAutoUpdate,
   setNodeLocalMatrix,
   setNodePosition,
@@ -103,7 +102,11 @@ export {
   type TransformTree,
 } from './mathTransformTree.ts';
 export { removeTransformNode, reparentTransformNode } from './mathTransformTreeStructure.ts';
-export { updateNodeMatrixWorld, updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
+export {
+  markNodeWorldNeedsUpdate,
+  updateNodeMatrixWorld,
+  updateNodeWorldMatrix,
+} from './mathTransformTreeUpdate.ts';
 export {
   nodeWorldDirection,
   nodeWorldMirrorsFaces,

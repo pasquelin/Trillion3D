@@ -64,9 +64,12 @@ export function createFrameGateCore(holdValues: number) {
      * image while a node is being moved.
      */
     sceneMoved() {
-      bumpScene(revisions);
-      sceneWatch.settle();
-      watchRevision = revisions.scene;
+      // Before the first image the watched set does not exist yet: settling it here would leave
+      // it empty for good, and every host write would go unseen. Only a set already built is
+      // carried over.
+      const built = watchRevision >= 0;
+      gate.sceneChanged();
+      if (built) watchRevision = revisions.scene;
     },
     /**
      * Resources moved: a page's bytes, residency, replaced geometry, and anything that arrives
