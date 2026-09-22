@@ -66,7 +66,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   const temporal = rt.gpu.temporal;
   if (!temporal) return;
   const state = temporal.frame;
-  state.active = !rt.capture.secondaryCamera && rt.run.diagnostic === 'beauty';
+  state.active = !rt.capture.capturing && rt.run.diagnostic === 'beauty';
   if (!state.active) return;
   // A convergence image remakes the last ordinary image, it does not accumulate it further.
   if (rt.run.textureConverging) quiet = temporal.replay();

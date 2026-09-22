@@ -43,7 +43,7 @@ function vidange(adopte?: () => boolean, arme = true) {
     run,
     gpu: { surfaces: undefined, deferred: undefined, colorTexture: undefined, targetSize: [8, 8] },
     vis: { textureJobs: [] },
-    capture: { secondaryCamera: undefined, capturePending: undefined },
+    capture: { capturing: false, capturePending: undefined },
     timing: { gpuTiming: undefined },
     diag: { engineDiagnostic: () => {}, diagnosticFailure: () => {} },
     services: {

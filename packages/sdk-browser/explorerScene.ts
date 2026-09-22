@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { meshes as objects } from './sceneMeshes.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import { assertFiniteTransform } from './hostWorldMatrices.ts';
 import { hostWorldChainInto } from './hostWorldChain.ts';
 import { exactPagesBounds, exactPagesLot } from './exactPagesBounds.ts';
@@ -29,7 +30,7 @@ function manquante(): never {
 
 /** Scene-bounds buffer, at the exact size of the compute that follows. */
 function sceneBoundsLot(
-  source: THREE.Object3D,
+  source: HostGraphNode,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
   autonomous: boolean,
@@ -46,7 +47,7 @@ export async function loadPreparedScene(
   autonomous: boolean,
   signal: AbortSignal | undefined,
   diagnose: ExplorerEmitters['diagnose'],
-  registerSource: (source: THREE.Object3D) => void,
+  registerSource: (source: HostGraphNode) => void,
 ) {
   // The compute path the host asked for holds FROM LOAD: the governor receives it before the
   // first lot, and `configureExplorer` will tell it again without changing anything. Module
@@ -95,7 +96,7 @@ export async function loadPreparedScene(
     manager.setURLModifier((url) => (skipped.has(url) ? PLACEHOLDER_IMAGE : url));
     gltf = await loader.parseAsync(text, path);
   } else gltf = await loader.loadAsync(sceneUrl);
-  let source: THREE.Object3D = gltf.scene;
+  let source: HostGraphNode = gltf.scene;
   registerSource(source);
   // No non-finite pose enters the engine: each mesh world matrix is computed once by the
   // engine, from the host's local poses. Without this refusal, a host NaN would come out as

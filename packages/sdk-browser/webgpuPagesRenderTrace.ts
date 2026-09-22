@@ -28,7 +28,7 @@ function cpuSelectionDecision(rt: WebgpuPagesRuntime) {
   return {
     source: 'cpu' as const,
     decision: 'fallback',
-    reason: rt.capture.secondaryCamera ? 'surface-capture' : 'gpu-selection-unavailable',
+    reason: rt.capture.capturing ? 'surface-capture' : 'gpu-selection-unavailable',
   };
 }
 

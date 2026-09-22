@@ -101,7 +101,7 @@ const passeBounds =
   (fn: typeof exactPagesBounds | typeof referenceExactPagesBounds) => (input: ChargementScene) => {
     const manquants: string[] = [];
     const boite = fn(input.source, input.associations, input.metadata, (mesh) =>
-      manquants.push(mesh.id.toString()),
+      manquants.push(mesh.name),
     );
     return { boite: boiteVersTableau(boite), manquants };
   };

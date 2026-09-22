@@ -1,5 +1,4 @@
-import type * as THREE from 'three';
-import { asHostLibrary, type HostNode } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import {
   EngineError,
   POSITION_VALUES,
@@ -24,8 +23,7 @@ import { copyElements } from './matrixElements.ts';
  */
 
 /** Whole subtree of `node` updated IN THE HOST SCENE, for its own readers. */
-export function resolveHostSubtree(source: HostNode) {
-  const node = asHostLibrary<THREE.Object3D>(source);
+export function resolveHostSubtree(node: HostGraphNode) {
   node.updateMatrixWorld(true);
 }
 
@@ -39,7 +37,7 @@ const position = new Float64Array(POSITION_VALUES),
  * and at the same bits; a node whose host cut recomposition returns the matrix it set, as-is.
  * Nothing of the host library is called — the ten pose numbers are READ.
  */
-export function hostLocalInto(out: Float64Array, node: THREE.Object3D) {
+export function hostLocalInto(out: Float64Array, node: HostGraphNode) {
   if (!node.matrixAutoUpdate) {
     copyElements(out, node.matrix.elements);
     return out;
