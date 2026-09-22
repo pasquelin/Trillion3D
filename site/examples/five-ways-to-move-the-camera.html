@@ -43,9 +43,12 @@
         color: #0e1621;
       }
     </style>
-    <!-- No `three/addons/` entry: the controllers below are the engine's own. -->
+    <!-- The camera controllers below are the engine's own; both entries are here because the
+         built engine bundle still imports the library (#272), and a page missing one never
+         loads its module at all. -->
     <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js" } }
+      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
     </script>
   </head>
   <body>
