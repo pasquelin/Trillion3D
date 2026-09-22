@@ -5,10 +5,8 @@ import {
   type ClusterManifest,
   type Primitive,
 } from '../../../sdk-core/index.ts';
-import type { Object3D } from '../../../sdk-core/world/object/object3d.ts';
 import type { Cut } from './worldCuts.ts';
 import type { Batch } from './worldBatches.ts';
-import type { MaterialEntry } from './worldMaterials.ts';
 import { buildWorldMirror } from './worldMirror.ts';
 import type { LoadedModel } from './loadedModel.ts';
 
@@ -32,10 +30,9 @@ function absolutePrimitive(primitive: Primitive, base: string, mesh: number): Pr
   };
 }
 
-/** What a session is opened on: the batches placed by rows, the meshes drawn whole, the models. */
+/** What a session is opened on: the batches placed by rows, and the models. */
 export type WorldPlan = {
   batches: readonly Batch[];
-  whole: readonly { node: Object3D; cut: Cut; entry: MaterialEntry }[];
   models: readonly LoadedModel[];
 };
 
@@ -47,7 +44,7 @@ export type WorldPlan = {
  * lights. Null when nothing is drawn.
  */
 export function buildWorldSource(plan: WorldPlan) {
-  const { batches, whole, models } = plan;
+  const { batches, models } = plan;
   const primitives: Primitive[] = [];
   const associations = new Map<object, { meshes?: number; primitives?: number }>();
   let offset = 0;
@@ -69,7 +66,7 @@ export function buildWorldSource(plan: WorldPlan) {
     }
     return rank;
   };
-  if (!primitives.length && !batches.length && !whole.length) return null;
+  if (!primitives.length && !batches.length) return null;
   const mirror = buildWorldMirror({
     placed: batches.map((batch) => ({
       cut: batch.cut,
@@ -77,7 +74,6 @@ export function buildWorldSource(plan: WorldPlan) {
       rows: batch.rows!,
       name: batch.entry.material.name as string,
     })),
-    whole: whole.map(({ node, cut, entry }) => ({ node, cut, material: entry.material })),
     models: models.map((node) => ({ node, graph: node.record.scene.source as never })),
     rankOf,
   });

@@ -63,15 +63,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     modifiedPages,
   });
   const { sync, storeGeometryPage, acceptGeometryPage } = geometryStore;
+  // The tables a placement enters: instances and instance-buffer rows append to the same.
+  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
   const { disposeOwnedMaterials, ...instances } = createAutonomousInstances({
-    roots,
+    ...tables,
     baseRoots,
-    allPages,
     basePages,
-    bootstrap,
     baseBootstrap,
-    byUrl,
-    baseMaterials,
     geometryStore,
     cap,
     sceneChanged: gate.sceneChanged,
@@ -145,7 +143,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
-    updatePlacements: autonomousPlacements(roots, gate),
+    ...autonomousPlacements({ ...tables, blendCopies, scene, gate }),
     ...lightingApi,
     ...residency,
     dropPage(url: string) {

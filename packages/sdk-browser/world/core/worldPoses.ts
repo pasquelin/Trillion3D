@@ -3,8 +3,8 @@ import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
 import type { PlacementRows } from '../../placement/placementRows.ts';
 import type { Batch, Seat } from './worldBatches.ts';
 
-/** A node drawn whole — a transparent mesh, a loaded model — through a host node posed by the
- *  world matrix alone (`worldMirror.ts`). */
+/** A loaded model, drawn whole through a host node posed by its world matrix alone
+ *  (`worldMirror.ts`). */
 export type PosedTwin = {
   matrixAutoUpdate: boolean;
   visible: boolean;

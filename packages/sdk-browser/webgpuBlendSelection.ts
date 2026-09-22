@@ -1,5 +1,6 @@
 import { frustumExcludesBox } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
+import { rowParked } from './placement/placementRows.ts';
 import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
@@ -8,18 +9,18 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
  *
  * The production path holds no draw list: the frustum is tested there with the sort keys, and
  * the GPU expands the sorted plan into instances (`webgpuBlendOrder.ts`). Here the frustum
- * rejects whole primitives, the CPU cut omits items with no selected cluster, and source order
- * is preserved.
+ * rejects whole primitives, the CPU cut omits items with no selected cluster, a parked row omits
+ * its item, and source order is preserved.
  */
 export function selectWebgpuBlend(blendState: BlendState, drawn?: readonly PageRec[]) {
-  const selected = blendState.cpuSelectedMeshes;
+  const selected = blendState.cpuSelectedPlacements;
   selected.clear();
   blendState.visibleBlend.length = 0;
-  if (drawn)
-    for (const rec of drawn) if (rec.transparent && rec.sourceMesh) selected.add(rec.sourceMesh);
+  if (drawn) for (const rec of drawn) if (rec.transparent) selected.add(rec.matrix);
   let rejected = 0;
   for (const item of blendState.blendGpu) {
-    if (drawn && item.paged && (!item.sourceMesh || !selected.has(item.sourceMesh))) continue;
+    if (rowParked(item.placement)) continue;
+    if (drawn && item.paged && !selected.has(item.matrix)) continue;
     const box = item.bounds;
     if (
       box &&
@@ -57,7 +58,7 @@ export function writeCpuTransparentInstances(
   for (let i = 0; i < drawn.length; i++) {
     const rec = drawn[i];
     if (!rec.transparent) continue;
-    const item = rec.sourceMesh && blendState.pagedBlendGpu.get(rec.sourceMesh);
+    const item = blendState.pagedBlendGpu.get(rec.matrix);
     if (!item || item.pagedIndex === undefined) continue;
     const entry = entryOf(rec);
     if (entry < 0) continue;

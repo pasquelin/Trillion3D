@@ -6,9 +6,9 @@
  * (`hostGraphNodes.ts`). A world hands them one host mesh per drawn resource — a geometry
  * resource worn with one material entry — whose association carries the resource's instance
  * buffer (`placementRows.ts`): ten thousand placements of one pebble are one host mesh and ten
- * thousand rows the engine reads in place. What cannot be a row is drawn whole, through one host
- * node posed by its world matrix alone: a transparent or transmissive mesh, drawn per source mesh
- * in its order, and a loaded model's graph. Nothing is decided here: the triangles arrive drawn
+ * thousand rows the engine reads in place — a blended or transmissive resource too, whose rows the
+ * engine draws one blended draw each. A loaded model's graph is drawn whole, through one host node
+ * posed by its world matrix alone. Nothing is decided here: the triangles arrive drawn
  * (`drawn.ts`), the surface is the host family of the material's kind (`worldSurface.ts`), and
  * every host object handed to a host method is one this file built.
  */
@@ -34,11 +34,10 @@ function hostGeometry(drawn: DrawnTriangles) {
   return geometry;
 }
 
-/** What the mirror is built from: the resources placed by rows, the meshes and models drawn
- *  whole, and the mesh rank each geometry resource was given in the session's manifest. */
+/** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
+ *  mesh rank each geometry resource was given in the session's manifest. */
 export type MirrorInput = {
   placed: readonly { cut: Cut; material: Material; rows: PlacementRows; name: string }[];
-  whole: readonly { node: Object3D; cut: Cut; material: Material }[];
   models: readonly { node: Object3D; graph: THREE.Object3D }[];
   rankOf: (cut: Cut) => number;
 };
@@ -66,22 +65,14 @@ export function buildWorldMirror(input: MirrorInput) {
     associations.set(mesh, { meshes: input.rankOf(cut), primitives: 0, placements: rows });
     root.add(mesh);
   }
-  const posed = (node: Object3D, twin: THREE.Object3D) => {
+  for (const { node, graph } of input.models) {
+    const twin = new THREE.Group();
+    twin.add(graph);
     twin.name = node.name;
     twin.matrixAutoUpdate = false;
     twin.matrix.fromArray(node.matrixWorld.elements);
     root.add(twin);
     twins.set(node, twin);
-  };
-  for (const { node, cut, material } of input.whole) {
-    const twin = meshOf(cut, material);
-    associations.set(twin, { meshes: input.rankOf(cut), primitives: 0 });
-    posed(node, twin);
-  }
-  for (const { node, graph } of input.models) {
-    const twin = new THREE.Group();
-    twin.add(graph);
-    posed(node, twin);
   }
   return { root, twins, associations };
 }

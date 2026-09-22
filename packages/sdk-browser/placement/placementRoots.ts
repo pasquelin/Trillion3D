@@ -25,11 +25,3 @@ export function placementsOf(
     };
   return placed;
 }
-
-/** The one world of a mesh drawn whole — a transparent or transmissive surface is drawn per
- *  source mesh, in its order — refused by name when an instance buffer was handed for it. */
-export function onePlacement(placed: readonly Placed[], mesh: { name: string }) {
-  if (placed.length !== 1 || placed[0].placement)
-    throw new Error(`PLACEMENT_ROWS_OPAQUE_ONLY: ${mesh.name}`);
-  return placed[0].world;
-}

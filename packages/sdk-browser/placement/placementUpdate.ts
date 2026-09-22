@@ -7,6 +7,7 @@ type RowRoot<T> = { root: ClusterRoot<T>; rank: number };
 
 /** The roots of each instance buffer, by row: built once per root list, which a session keeps. */
 const indexes = new WeakMap<readonly object[], Map<PlacementRows, RowRoot<unknown>[]>>();
+const NO_ROOTS: readonly RowRoot<unknown>[] = [];
 
 function rowRoots<T>(roots: readonly ClusterRoot<T>[], rows: PlacementRows) {
   let index = indexes.get(roots);
@@ -21,10 +22,15 @@ function rowRoots<T>(roots: readonly ClusterRoot<T>[], rows: PlacementRows) {
     }
     indexes.set(roots, index);
   }
-  const list = index.get(rows) as RowRoot<T>[] | undefined;
-  if (!list) throw new Error('PLACEMENT_ROWS_UNKNOWN');
-  return list;
+  // Rows no root reads are those of a blended surface: its copies read them (`placedBy`).
+  return (index.get(rows) ?? NO_ROOTS) as RowRoot<T>[];
 }
+
+/** A root list's rows were rebound or extended (`placementGrowth.ts`): its index is built again
+ *  at the next follow. */
+export const forgetRowRoots = (roots: readonly object[]) => {
+  indexes.delete(roots);
+};
 
 /** What rows the owner wrote changed: the box they left and entered, as one union. */
 const moved = new Float64Array(BOX_VALUES),
