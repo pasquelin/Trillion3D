@@ -1,4 +1,5 @@
-import type { HostAttributes, HostTexture } from './hostResources.ts';
+import type { HostAttributes } from './hostResources.ts';
+import type { Texture } from '../sdk-core/index.ts';
 import type { GpuPartition } from './gpuPartitionTypes.ts';
 import { SHADE_UNIFORM_WORDS } from './visibilityShaderRequest.ts';
 import type { GpuHiz } from './gpuHiz.ts';
@@ -79,8 +80,8 @@ export interface WebgpuVisState {
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
-  mapLayer: Map<HostTexture, number>;
-  dataLayer: Map<HostTexture, number>;
+  mapLayer: Map<Texture, number>;
+  dataLayer: Map<Texture, number>;
 }
 
 export function createWebgpuVisState(): WebgpuVisState {

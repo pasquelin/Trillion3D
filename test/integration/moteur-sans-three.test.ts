@@ -17,7 +17,9 @@ const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 //  2. HOST BOUNDARIES. Scene, camera, renderer, lights belong to the host: something must
 //     create, read, and set them. These files do it once, returning flat buffers or owned structures.
 //  3. HOST RESOURCES. Materials, textures, geometries, meshes, colors, face/winding constants:
-//     objects that the engine consults without ever calculating with.
+//     objects the engine READS ONCE, at the boundary, to build its own records. Since lot 3 of
+//     #78 the passes no longer consult one: surfaces cross as the `Material`/`Texture` records
+//     of `sdk-core`, and only the import and the admission gate below still name the library.
 //
 // Adding a line is a decision, not an oversight; removing an unused line as well — the
 // second test fails on a dead line. The camera pose contract lives in `cameraWorld.ts`
@@ -82,20 +84,15 @@ const AUTORISES: Record<string, string> = {
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
   webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
 
-  // 3. Host resources: materials, textures, geometries, colours, face constants. The contract
-  //    types no longer name them (#269): materials, textures, attributes, meshes and scene nodes
-  //    cross the engine as `hostResources.ts` shapes, and only the files below turn one back into
-  //    the host library's own type, through `asHostLibrary`.
+  // 3. Host resources read ONCE, at the boundary. Materials and textures enter as the engine's
+  //    own records (#271): the import below builds them, the gate below refuses what the passes
+  //    could not preserve, and the display graph the backend publishes is built here too. No
+  //    pass, no row, no pool names the host library any more.
   explorerDiagnosticApi: 'it replaces host materials and geometries with diagnostic ones',
+  hostBlendScene: 'boundary: the host display graph the transparent copies are held in',
+  hostSurfaceGate: 'boundary: it refuses a host material the autonomous programs cannot preserve',
+  hostSurfaceImport: 'boundary: it reads a host material and texture into the engine records',
   triangleDiagnostic: 'it colours a host geometry in a host material',
-  visibilityMath: 'host attributes, textures and wrap modes',
-  visibilityMaterial: 'host material properties converted to engine material',
-  visibilityWrapModes: 'host-texture wrap modes',
-  webgpuBlendPrepare: 'host meshes and materials to prepare',
-  webgpuMaterialTextures: 'host-material textures',
-  webgpuPagesHelpers: 'host colours and colour management',
-  webgpuPagesPrepare: 'host geometry attributes',
-  webgpuPagesSetup: 'meshes of the host scene',
 };
 
 const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three(?:\/[^'"]*)?['"]/m;

@@ -145,7 +145,7 @@ function alphaGarde(
     ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
     : 0;
   // Guaranteed by the caller: `masque` is only built when `mat.alphaTest > 0 && mat.map`.
-  const texture = mat.map as THREE.Texture;
+  const texture = mat.map!;
   const rgba = textureRgba(texture);
   if (!rgba) return true;
   const tx = wrapTexel(u, rgba.width, texture.wrapS),

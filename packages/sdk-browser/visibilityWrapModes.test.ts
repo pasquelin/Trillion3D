@@ -3,6 +3,8 @@
 // carries one nibble per map, and each shader read receives the nibble of the map it samples —
 // not the material flags, which carried only one for all of them.
 // Proof on a real GPU is the `test/justesse/adressage-cartes-gpu.ts` bench.
+import type { Texture } from '../sdk-core/index.ts';
+import { importWrapMode } from './hostSurfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -27,7 +29,8 @@ import {
   materielMelange,
 } from '../../test/justesse/adressageCartes.ts';
 
-const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) => ({ wrapS, wrapT }) as THREE.Texture;
+const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) =>
+  ({ wrapS: importWrapMode(wrapS), wrapT: importWrapMode(wrapT) }) as Texture;
 /** Expected nibble of a fixture entry, recomputed from its two declared wrap modes. */
 const attendu = (c: (typeof CARTES)[number]) => wrapNibble(carte(c.wrapS, c.wrapT));
 
