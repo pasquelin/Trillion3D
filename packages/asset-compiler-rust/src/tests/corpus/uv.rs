@@ -22,9 +22,10 @@ fn one_island(seed: u64) -> Case {
 
 /// Every triangle its own chart in an atlas: three vertices per triangle, none shared, so every
 /// position is a seam corner written as many times as it has triangles. Nothing can move:
-/// `seam-locked`. One group of seed 1 (2 072 triangles, 181 shared positions, the most of the
-/// case) is `border-locked` instead: with its locks lifted, the few positions written only twice
-/// slide along their seam, enough to drop one cluster. Both are accepted, no other cause.
+/// `seam-locked`. Observed: the diagnosis names one group of seed 1 (2 072 triangles, 181 shared
+/// positions, the most of the case) `border-locked` instead, which says only that its reduction
+/// advanced once its locks were lifted; why is not explained here. The corpus accepts both causes,
+/// no other.
 fn island_per_face(seed: u64) -> Case {
     let mut rng = Rng::new(seed);
     let amplitude = amplitude(&mut rng);

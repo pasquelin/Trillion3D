@@ -102,7 +102,6 @@ pub(super) fn check_roots(expect: Roots, built: &Built, label: &str) {
         roots == 1 || !causes.is_empty(),
         "{label}: {roots} roots and no stall named"
     );
-    eprintln!("CAUSES {label}: roots {roots} {causes:?}");
     match expect {
         Roots::One => {
             assert_eq!(roots, 1, "{label}: one root, stalls {causes:?}");

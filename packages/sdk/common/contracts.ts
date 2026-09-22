@@ -18,7 +18,7 @@ export type {
   DagWarning,
 } from '../../sdk-core/dagContracts.ts';
 export { dagWarningsDiagnostic } from '../../sdk-core/dagWarnings.ts';
-export type { PrimitiveDagWarning } from '../../sdk-core/dagWarnings.ts';
+export type { PrimitiveDagStall, PrimitiveDagWarning } from '../../sdk-core/dagWarnings.ts';
 export type {
   GeometryPageDescriptor,
   GeometryPageFormat,
