@@ -1,4 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 
 // Two walks of the page catalogue, done once at load: the page table by address and the texture
 // diagnostic counters.
@@ -15,7 +16,7 @@ export function indexSourceBytes(allPages: readonly PageRec[]) {
   const sourceBytes = new Map<string, Uint8Array>();
   for (const page of allPages) {
     const bytes = pageSourceBytes(page);
-    if (bytes) sourceBytes.set(page.url, bytes);
+    if (bytes) sourceBytes.set(pageAddress(page), bytes);
   }
   return sourceBytes;
 }

@@ -29,12 +29,11 @@ export async function drawResidentCut(
   gpuDevice: GPUDevice,
   hooks: { admitted?: () => void; beforeEncode?: () => void } = {},
 ) {
-  const { run, gpu, services } = rt;
+  const { run, services } = rt;
   await services.residency.pending;
   hooks.admitted?.();
   await services.ensureResident(run.shown, run.frame, services.residency.nextJobId());
-  if (run.shown.some((page) => !gpu.cache?.get(page.url)))
-    throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
+  if (!run.shown.every(services.poolHolds)) throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
   copyDrawnFromShown(run);
   hooks.beforeEncode?.();
   run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);

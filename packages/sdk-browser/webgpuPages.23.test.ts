@@ -12,7 +12,7 @@ import {
 } from './pagedQuadFixture.ts';
 import type { BackendDiagnostic } from './backendTypes.ts';
 import type { PageRec } from './pageSelection.ts';
-import { describePageSlots } from './webgpuPageSlots.ts';
+import { describePageSlots, pageAddress } from './webgpuPageSlots.ts';
 
 /** The quad as two clusters whose two widths disagree: the first draws both triangles from
  *  positions alone — six corners in the fewest bytes the format can hold them — while the second
@@ -112,6 +112,46 @@ test('a paged cluster is admitted and drawn without its index page', async () =>
   }
 });
 
+// Index pages are content-addressed: two clusters whose index bytes are identical are published
+// under one url, while the compiler writes each of them its own quantized page. The pool is
+// addressed by that page, so each takes a slot of its own and decodes its own geometry — one slot
+// for the two would have made one of them draw the other's triangle.
+test('two clusters sharing an index page each keep their own page and draw', async () => {
+  installGpuGlobals();
+  const events: BackendDiagnostic[] = [];
+  // The same corner list twice, so the two index pages hold the same bytes; the second cluster
+  // carries a texture coordinate, so the two quantized pages do not.
+  const fixture = pagedQuad([
+    { corners: FIRST },
+    { corners: FIRST, attributes: { TEXCOORD_0: { itemSize: 2, array: WIDE.subarray(0, 8) } } },
+  ]);
+  const pages = fixture.metadata.primitives[0].pages;
+  pages[1].url = pages[0].url;
+  const { gpu, backend } = pagedQuadBackend(fixture, events);
+  try {
+    await backend.prepare();
+    backend.render(frontCamera());
+    await backend.flush?.();
+    assert.equal(geometryPages(events).context.fromGeometryPage, 2, 'both draw from their page');
+    assert.equal(backend.metrics().submittedTriangles, 2, 'both clusters are drawn');
+    const pool = gpu.buffers.find((buffer) => buffer.label === 'WG geometry page cache')!;
+    const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
+    const width = Number(geometryPages(events).context.slotBytes);
+    const held = Array.from({ length: pool.data.byteLength / width }, (_, at) =>
+      hex(pool.data.subarray(at * width, (at + 1) * width)),
+    );
+    // Each page opens a slot of its own: under one address, one of the two would be missing.
+    const at = fixture.encoded.map((page) => held.findIndex((s) => s.startsWith(hex(page.data))));
+    assert.ok(
+      at.every((slot) => slot >= 0),
+      'both pages are in the pool',
+    );
+    assert.notEqual(at[0], at[1], 'each page holds a slot of its own');
+  } finally {
+    await disposePagedQuad(backend, fixture);
+  }
+});
+
 /** A quantized page of the shape the manifest declares, at an address of its own. */
 const descriptor = (url: string) => ({
   url,
@@ -127,29 +167,18 @@ const slotRecord = (extra: Partial<PageRec>) =>
   ({ url: 'cluster/0', triangles: 1, indexBytes: 12, ...extra }) as unknown as PageRec;
 
 // One primitive placed twice — opaque here, `clustered-blend` there — gives two records at one
-// cluster address, and only the opaque placement carries a geometry page. That catalogue is sound:
-// the pool holds ONE slot per address and the transparent draw reads index words out of it, so the
-// address keeps its index page for both placements instead of being refused.
-test('an address a blend placement shares with an opaque one keeps its index page', () => {
+// cluster url, and only the opaque one carries a geometry page: transparency is a property of the
+// placement, the page a property of the cluster. Their pool addresses differ, so the copy is served
+// the index words its forward draw reads while the opaque record keeps its quantized page.
+test('a blend placement reads index words where the opaque one keeps its page', () => {
   const opaque = slotRecord({ geometryPage: descriptor('page/0.wgp') }),
     blend = slotRecord({ transparent: true });
+  assert.notEqual(pageAddress(opaque), pageAddress(blend), 'two addresses, therefore two slots');
   const slots = describePageSlots([opaque, blend]);
-  assert.equal(slots.sharedIndexPages, 1, 'the shared address gave its page up');
-  assert.equal(slots.geometryUrls.size, 0, 'the one slot holds index words');
-  assert.equal(opaque.geometryPage, undefined, 'the row reads the decision the slot was made on');
+  assert.equal(opaque.geometryPage?.url, 'page/0.wgp', 'the opaque record gives nothing up');
+  assert.deepEqual([...slots.geometryUrls], [['page/0.wgp', 'page/0.wgp']]);
+  assert.equal(slots.geometryUrls.get('cluster/0'), undefined, 'the copy slot holds index words');
   assert.equal(slots.transparentClusters, 1, 'the copy is counted transparent');
-  assert.equal(slots.fromSourceGeometry, 1);
-  assert.equal(slots.fromGeometryPage, 0);
-});
-
-// Two placements of the same kind cannot explain a disagreement: one row would decode index words
-// as a page, or a page as index words, and no reading of the catalogue says which. Refused.
-test('two opaque records that disagree on a cluster page are still refused', () => {
-  const paged = slotRecord({ geometryPage: descriptor('page/0.wgp') }),
-    plain = slotRecord({});
-  assert.throws(() => describePageSlots([paged, plain]), /CLUSTER_PAGE_DISAGREEMENT/);
-  assert.throws(
-    () => describePageSlots([paged, slotRecord({ geometryPage: descriptor('page/1.wgp') })]),
-    /CLUSTER_PAGE_DISAGREEMENT/,
-  );
+  assert.equal(slots.fromGeometryPage, 1);
+  assert.equal(slots.fromSourceGeometry, 0);
 });

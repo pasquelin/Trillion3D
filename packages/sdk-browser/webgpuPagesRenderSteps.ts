@@ -60,7 +60,7 @@ export function traceQueueReconstruct(rt: WebgpuPagesRuntime, elapsedMs: number)
 }
 
 export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
-  const { run, gpu, diag } = rt,
+  const { run, diag, services } = rt,
     { tracking } = rt.setup;
   diag.traceDiagnostic('residency-drawn-verify', 'Resident coverage checked before encode', () => ({
     frame: run.frame,
@@ -68,10 +68,7 @@ export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
     elapsedMs,
     shown: tracking.traceSet('drawn.shown', urlsOf(run.shown)),
     drawn: tracking.traceSet('drawn', urlsOf(run.drawn)),
-    loaded: tracking.traceSet(
-      'drawn.loaded',
-      urlsOf(run.drawn.filter((page) => !!gpu.cache!.get(page.url))),
-    ),
+    loaded: tracking.traceSet('drawn.loaded', urlsOf(run.drawn.filter(services.poolHolds))),
   }));
 }
 

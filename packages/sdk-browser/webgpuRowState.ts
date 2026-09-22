@@ -1,15 +1,19 @@
 import { createWebgpuRowJournal } from './webgpuRowJournal.ts';
 import { catalogueIndexOf, type PageRec } from './pageSelection.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 
 /** Stable row and residency arrays shared by the cut, visibility pass, and cache journal. */
 export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) {
   const residentFlags = new Uint32Array(packedPages.length);
+  // Packed ranks by pool ADDRESS: that is the key the cache names when a slot moves, and several
+  // placements of one cluster share it.
   const pageIndicesByUrl = new Map<string, number[]>();
   for (let i = 0; i < packedPages.length; i++) {
-    const page = packedPages[i];
-    const indices = pageIndicesByUrl.get(page.url);
+    const page = packedPages[i],
+      address = pageAddress(page);
+    const indices = pageIndicesByUrl.get(address);
     if (indices) indices.push(i);
-    else pageIndicesByUrl.set(page.url, [i]);
+    else pageIndicesByUrl.set(address, [i]);
     page.packedIndex = i;
   }
   const pageIndexOf = (rec: PageRec) => catalogueIndexOf(packedPages, rec);

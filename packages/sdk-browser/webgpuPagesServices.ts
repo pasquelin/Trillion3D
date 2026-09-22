@@ -13,7 +13,7 @@ import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutPublication } from './webgpuCutPublication.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
 import { readGeometryPageHeader } from './geometryPageHeader.ts';
-import { awaitsPageBytes } from './webgpuPageSlots.ts';
+import { awaitsPageBytes, pageAddress } from './webgpuPageSlots.ts';
 import { markWebgpuLost } from './webgpuPagesLost.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
@@ -82,7 +82,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const pageSource = { read };
   // A cluster drawn from its quantized page needs no index page: its slot is filled from the page
   // reader above. Only a cluster that still draws from an index buffer waits for one.
-  const hasBytes = (rec: PageRec) => !awaitsPageBytes(rec) || sourceBytes.has(rec.url);
+  const hasBytes = (rec: PageRec) => !awaitsPageBytes(rec) || sourceBytes.has(pageAddress(rec));
+  /** True while the pool holds the slot this cluster draws from, at its own address. */
+  const poolHolds = (rec: PageRec) => !!gpu.cache?.get(pageAddress(rec));
   /** The sets residency is decided with, and the difference the GPU readback is read as. Both
    *  outlive the image: an image that moves no page touches neither. */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
@@ -141,6 +143,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     syncRowsFromCut,
     pageSource,
     hasBytes,
+    poolHolds,
     residencySets,
     bootstrapState,
     ensureResident,
