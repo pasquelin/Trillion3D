@@ -1,5 +1,8 @@
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
+import { chooseBackends } from './defaultBackends.ts';
 import { configureExplorer } from './explorerCapabilities.ts';
+import { directWebgpu } from './explorerInteractiveOptions.ts';
+import { probeExplorerCapabilities } from './explorerCapabilityProbe.ts';
 import { prepareExplorerBackends } from './explorerBackends.ts';
 import { createExplorerCamera } from './explorerCamera.ts';
 import { createExplorerPageSources } from './explorerPageSources.ts';
@@ -16,9 +19,7 @@ export type ExplorerResources = {
 type Inputs = {
   manifestUrl: string;
   metadataUrl: string;
-  sceneFile: string;
   base: string;
-  autonomous: boolean;
   backends: RenderBackend[];
   resources: ExplorerResources;
   progress: (phase: string, completed: number, total: number, message: string) => void;
@@ -26,8 +27,23 @@ type Inputs = {
 
 export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, metadata, scope, signal, diagnosticChannel, diagnose } = session;
-  const { manifestUrl, metadataUrl, sceneFile, base, autonomous, backends, resources, progress } =
-    inputs;
+  const { manifestUrl, metadataUrl, base, backends, resources, progress } = inputs;
+  // The machine is read before the scene: which engine path renders decides which file the
+  // session loads — the cache's prepared scene for the autonomous path, `source.gltf` otherwise.
+  const { capabilities, gpuDevice } = await probeExplorerCapabilities(session);
+  resources.gpuDevice = gpuDevice;
+  const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer);
+  const autonomous = choice.autonomous;
+  diagnose('backend-choice', 'Backend chosen for this session', {
+    kind: 'configuration',
+    scope,
+    origin: choice.origin,
+    reason: choice.reason,
+    renderer: choice.renderer,
+    autonomous,
+    webgpuDevice: !!gpuDevice,
+  });
+  const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf';
   progress(
     'scene',
     0,
@@ -59,8 +75,10 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     diagnosticChannel,
     progress,
   );
-  const configured = await configureExplorer(session, {
-    autonomous,
+  const directGpu = directWebgpu(options, choice.factories, gpuDevice);
+  await configureExplorer(session, {
+    choice,
+    directGpu,
     manifestUrl,
     metadataUrl,
     sceneFile,
@@ -69,17 +87,16 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     pageSources,
     resources,
   });
-  resources.gpuDevice = configured.gpuDevice;
   const { viewport, context } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,
     associations: loadedScene.associations,
     textureIndices: loadedScene.textureIndices,
     pageSources,
-    gpuDevice: resources.gpuDevice,
+    gpuDevice,
     webglContext: resources.webglSurface?.context,
-    directGpu: configured.directGpu,
-    autonomous,
+    directGpu,
+    factories: choice.factories,
     backends,
     base,
   });
@@ -97,8 +114,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   return {
     source,
     pageSources,
-    capabilities: configured.capabilities,
-    directGpu: configured.directGpu,
+    capabilities,
+    directGpu,
     viewport,
     context,
     ...cameraState,

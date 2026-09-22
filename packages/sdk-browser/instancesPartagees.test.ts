@@ -113,7 +113,8 @@ function primitiveWithCulling(metadata: ClusterManifest) {
 }
 
 // Behaviour: one template per primitive. Two calls yield the same pages, the same hierarchy and
-// the same bounds, and coverage is checked only once per source index array.
+// the same bounds, and a page whose index array contradicts the count its manifest entry
+// declares is refused where the template is built.
 test('a primitive’s template is computed once and returned as-is to the next placement', () => {
   const fixture = dagFixture();
   const primitive = primitiveWithCulling(fixture.metadata);
@@ -121,14 +122,14 @@ test('a primitive’s template is computed once and returned as-is to the next p
   const first = templates.pagesOf(primitive),
     second = templates.pagesOf(primitive);
   assert.equal(second, first);
-  const src = fixture.geometry.getIndex()!.array as ArrayLike<number>;
-  templates.checkCoverage(primitive, first, src);
-  assert.equal(first.checked, src);
   const shape = templates.shapeOf(primitive, first);
   assert.equal(templates.shapeOf(primitive, second), shape);
   assert.ok(shape.culling && shape.bounds);
-  // A coverage that does not match is refused, even after a template already checked.
-  assert.throws(() => templates.checkCoverage(primitive, first, new Uint32Array([0, 1, 2])), {
+  // A page shorter than its manifest entry is refused at the template that reads it.
+  const short = new Map(fixture.indices);
+  const head = primitive.pages[0];
+  short.set(head.url, new Uint32Array(head.count + 3));
+  assert.throws(() => createPrimitiveTemplates(short, false).pagesOf(primitive), {
     message: 'Incomplete cluster coverage',
   });
 });

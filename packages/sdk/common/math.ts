@@ -15,6 +15,7 @@ export {
 export {
   addTransformNode,
   createTransformTree,
+  NODE_AUTO_UPDATE,
   setNodeAutoUpdate,
   setNodeLocalMatrix,
   setNodePosition,
@@ -122,6 +123,11 @@ export {
 } from '../../sdk-core/mathSingular.ts';
 export { linearToSrgbBatch, srgbToLinearBatch } from '../../sdk-core/mathBatchColor.ts';
 export { lookAtNode } from '../../sdk-core/mathTransformTreeLookAt.ts';
+export {
+  markNodeWorldNeedsUpdate,
+  updateNodeMatrixWorld,
+  updateNodeWorldMatrix,
+} from '../../sdk-core/mathTransformTreeUpdate.ts';
 export { MATH_PATH_CONTRACT } from '../../sdk-core/mathPathContracts.ts';
 export type {
   MathPath,
@@ -160,7 +166,3 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from '../../sdk-core/mathBatchPoints.ts';
-export {
-  updateNodeMatrixWorld,
-  updateNodeWorldMatrix,
-} from '../../sdk-core/mathTransformTreeUpdate.ts';

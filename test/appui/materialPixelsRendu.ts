@@ -2,6 +2,7 @@
 // the two images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
 // comparison) to keep each file under the line gate.
 import * as THREE from 'three';
+import { asHostLibrary } from '../../packages/sdk-browser/hostResources.ts';
 import { batisseur, engine, libere, type ScenePreparee } from './preuveSceneCommune.ts';
 import { jusquaTenue } from './preuveSceneImage.ts';
 import { SIZE, type Fixture } from './materialFixtures.ts';
@@ -76,7 +77,7 @@ export function witnessImage(
   });
   renderer.toneMapping = backend.sceneLit!() ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
   backend.render(camera);
-  renderer.render(backend.scene, camera);
+  renderer.render(asHostLibrary<THREE.Scene>(backend.scene), camera);
   const pixels = new Uint8Array(SIZE * SIZE * 4);
   const gl = renderer.getContext();
   gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);

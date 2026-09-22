@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
-import { attributes, fixture, resident, drawOf } from './clusterBatchesFixture.ts';
+import { attributes, fixture, resident, drawOf, wears } from './clusterBatchesFixture.ts';
 
 test('instances of one primitive share a single resident index buffer written once per page', () => {
   const scene = new THREE.Scene(),
@@ -98,7 +98,7 @@ test('a transparent group draws its pages in source order whatever the order of 
     min: [0, 0, 0],
     max: [1, 1, 1],
     attributes: attrs,
-    material,
+    ...wears(material),
     matrix,
     renderOrder: 0,
     transparent: true,
@@ -133,7 +133,7 @@ test('draw groups keep opaque first then transparent source rank and coplanar la
       id: 0,
       url: 'opaque',
       attributes: attrs,
-      material: opaque,
+      ...wears(opaque),
       matrix,
       renderOrder: 0,
     },
@@ -142,7 +142,7 @@ test('draw groups keep opaque first then transparent source rank and coplanar la
       id: 1,
       url: 'late',
       attributes: attrs,
-      material: blend,
+      ...wears(blend),
       matrix,
       renderOrder: 2,
       transparent: true,
@@ -152,7 +152,7 @@ test('draw groups keep opaque first then transparent source rank and coplanar la
       id: 2,
       url: 'early',
       attributes: attrs,
-      material: blend,
+      ...wears(blend),
       matrix,
       renderOrder: 1,
       transparent: true,

@@ -1,3 +1,4 @@
+import { surfaceFrontOnly, type PageSurface } from './pageSurface.ts';
 import {
   CONE_LENGTH_RATIO,
   CONE_ORTHO_EPS,
@@ -6,8 +7,6 @@ import {
   linearPartScale,
   normalMatrix3,
 } from '../sdk-core/index.ts';
-import type * as THREE from 'three';
-import { sideOf } from './materialSide.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };
@@ -109,9 +108,9 @@ export function coneCullsPageWith(
   world: MatrixElements,
   min: number[],
   max: number[],
-  material?: THREE.Material | THREE.Material[],
+  surface?: PageSurface,
 ): boolean {
-  if (material && sideOf(material) !== 'front') return false;
+  if (surface && !surfaceFrontOnly(surface)) return false;
   if (!ctx.conformal) return false;
   if (cone.angle >= HALF_PI) return false;
   return boxConeRejects(
@@ -135,14 +134,7 @@ export function coneCullsPage(
   min: number[],
   max: number[],
   eye: ArrayLike<number>,
-  material?: THREE.Material | THREE.Material[],
+  surface?: PageSurface,
 ): boolean {
-  return coneCullsPageWith(
-    coneContextFor(loneContext, world, eye),
-    cone,
-    world,
-    min,
-    max,
-    material,
-  );
+  return coneCullsPageWith(coneContextFor(loneContext, world, eye), cone, world, min, max, surface);
 }

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEPTH_LAYER_BIAS_UNITS, depthLayerUnits, biasedDepthBits } from './depthLayer.ts';
 import { assertFormat } from './cacheContracts.ts';
+import { CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION } from './contractsBase.ts';
 
 // Behavior 14: depthLayerUnits returns 0 for 0/undefined/negative and 16 × layer otherwise
 test('depthLayerUnits returns 0 for undefined or non-positive layers', () => {
@@ -40,21 +41,19 @@ test('biasedDepthBits preserves bits for layer 0 or undefined', () => {
   assert.equal(biasedDepthBits(bits, undefined), bits >>> 0);
 });
 
-// Behavior 12: assertFormat accepts 3 and 4, rejects 1, 2, and others
-test('assertFormat accepts format version 3', () => {
-  assert.doesNotThrow(() => assertFormat(3));
+// Behavior 12: assertFormat accepts the two formats this runtime reads, and refuses every other —
+// the constants decide, so raising them cannot leave a stale number passing here.
+test('assertFormat accepts the format this runtime reads', () => {
+  assert.doesNotThrow(() => assertFormat(FORMAT_VERSION));
 });
 
-test('assertFormat accepts format version 4', () => {
-  assert.doesNotThrow(() => assertFormat(4));
+test('assertFormat accepts the clustered-blend format', () => {
+  assert.doesNotThrow(() => assertFormat(CLUSTERED_BLEND_FORMAT_VERSION));
 });
 
-test('assertFormat rejects format version 1', () => {
-  assert.throws(() => assertFormat(1), /cache format/i);
-});
-
-test('assertFormat rejects format version 2', () => {
-  assert.throws(() => assertFormat(2), /cache format/i);
+test('assertFormat rejects every format below the one it reads', () => {
+  for (let version = 1; version < FORMAT_VERSION; version++)
+    assert.throws(() => assertFormat(version), /cache format/i);
 });
 
 test('assertFormat rejects unknown versions', () => {

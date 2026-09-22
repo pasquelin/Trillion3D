@@ -8,6 +8,7 @@
 // module opposes the two truths: the raw one and the engine's, measured in fragments actually
 // covered by rasterisation.
 import * as THREE from 'three';
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 import { windingCw } from '../../packages/sdk-browser/webgpuPagesWinding.ts';
 import type { PageRec } from '../../packages/sdk-browser/pageSelectionTypes.ts';
 import { camera } from './inverseTransposeCas.ts';
@@ -29,7 +30,7 @@ export function pageVisible(cas: Cas) {
     array: new Uint32Array(cas.indices),
     attributes: geometrie.attributes,
     matrix: cas.world,
-    material: new THREE.MeshBasicMaterial({ side: THREE.FrontSide }),
+    material: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.FrontSide })),
   };
 }
 

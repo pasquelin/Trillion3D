@@ -1,5 +1,6 @@
-import * as THREE from 'three';
 import { BOX_VALUES } from '../sdk-core/index.ts';
+import type { BlendCopy } from './blendCopyContract.ts';
+import type { BlendHostScene } from './hostBlendScene.ts';
 import { refreshBlendBounds } from './webgpuBlendWorlds.ts';
 import {
   FLAG_BACK,
@@ -9,8 +10,6 @@ import {
   FLAG_LIT,
   FLAG_PAGED,
   FLAG_TRANSMISSIVE,
-  isTransmissive,
-  visMaterial,
 } from './visibilityBuffer.ts';
 import { wrapModes } from './visibilityWrapModes.ts';
 import { WATER_RANK_SHIFT } from './webgpuWaterSurfaceWgsl.ts';
@@ -27,17 +26,17 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
 /** Creates forward transparent GPU items while preserving source mesh order and materials. */
 export function prepareWebgpuBlend(
   device: GPUDevice,
-  blendCopies: THREE.Mesh[],
+  blendCopies: readonly BlendCopy[],
   gpu: WebgpuGpuState,
   blendState: BlendState,
-  scene: THREE.Scene,
+  scene: BlendHostScene,
 ) {
   let transmissive = 0;
   for (const copy of blendCopies) {
     // A transmissive surface goes through the same prepare as the other blends: it differs only
     // at draw, where the water pass composes it over the frozen backdrop instead of blending it.
-    const transmits = isTransmissive(copy.material);
-    const mat = visMaterial(copy.material);
+    const mat = copy.surface;
+    const transmits = mat.transmission > 0;
     const attr = copy.geometry.attributes.position,
       idx = copy.geometry.getIndex();
     if (!attr || !idx) continue;
@@ -58,9 +57,7 @@ export function prepareWebgpuBlend(
       ? undefined
       : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
     const hasNormal = paged ? !!copy.geometry.attributes.normal : !!normal;
-    const opacity = Array.isArray(copy.material)
-      ? ((copy.material[0] as THREE.MeshBasicMaterial).opacity ?? 1)
-      : ((copy.material as THREE.MeshBasicMaterial).opacity ?? 1);
+    const opacity = mat.opacity;
     let flags = 0;
     if (mat.lit) flags |= FLAG_LIT;
     if (mat.doubleSided) flags |= FLAG_DOUBLE;
@@ -86,10 +83,10 @@ export function prepareWebgpuBlend(
       index,
       uv,
       normal,
-      material: copy.material,
+      surface: mat,
       count: paged ? 0 : idx.count,
       matrix: copy.matrix,
-      sourceMesh: copy.userData.sourceMesh as THREE.Mesh | undefined,
+      sourceMesh: copy.userData.sourceMesh,
       sourceGeometry: copy.geometry,
       worldBox,
       bounds: undefined as Float64Array | undefined,

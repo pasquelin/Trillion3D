@@ -1,5 +1,6 @@
-import * as THREE from 'three';
+import type { MatrixElements } from './matrixElements.ts';
 import type { NormalCone } from './pageCone.ts';
+import type { PageSurface } from './pageSurface.ts';
 
 /** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
  *  sphere, the floor and a flags word (`gpuDagPackNodes.ts`). */
@@ -16,14 +17,14 @@ type DagCluster = {
   min?: number[];
   max?: number[];
   cone?: NormalCone;
-  material?: THREE.Material | THREE.Material[];
+  material?: PageSurface;
   /** Cluster triangles and its pass: the GPU holds the totals, the CPU no longer sums them
    *  (`gpuDagLayout.ts`, snapshot header). */
   triangles?: number;
   transparent?: boolean;
 };
 export type DagRoot = {
-  world: THREE.Matrix4;
+  world: MatrixElements;
   pages: DagCluster[];
   flat?: boolean;
   /** `bounds`: per-node bounds `cullingBounds` derives from the pages. The host shares them

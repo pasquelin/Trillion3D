@@ -1,8 +1,7 @@
 // Batch F oracles, WebGPU engine-prepare side: `webgpuPagesPrepare.ts:23-44`,
 // `webgpuPagesSetup.ts:94-105` and `webgpuPagesPrepareTextures.ts:37-42` from before batch F.
-import type * as THREE from 'three';
+import type { HostAttributes } from '../../hostResources.ts';
 import { OPEN_CONE, triangleCone } from '../../pageCone.ts';
-import { visMaterial } from '../../visibilityBuffer.ts';
 import type { PageRec } from '../../pageSelectionTypes.ts';
 
 interface ConesRoot {
@@ -25,7 +24,7 @@ export function entreeCones(pages: PageRec[], roots: ConesRoot[] = [{ cones: fal
 
 /** `prepareCones` before batch F: per-vertex accessors and the material read twice. */
 export function referencePrepareCones(rt: { setup: { allPages: PageRec[] } }) {
-  const xyzCache = new WeakMap<THREE.BufferGeometry['attributes'], Float32Array>();
+  const xyzCache = new WeakMap<HostAttributes, Float32Array>();
   for (const rec of rt.setup.allPages) {
     const array = rec.array,
       attr = rec.attributes.position;
@@ -41,9 +40,7 @@ export function referencePrepareCones(rt: { setup: { allPages: PageRec[] } }) {
       xyzCache.set(rec.attributes, xyz);
     }
     rec.cone =
-      visMaterial(rec.material).doubleSided || visMaterial(rec.material).backSide
-        ? OPEN_CONE
-        : triangleCone(xyz, array);
+      rec.material.doubleSided || rec.material.backSide ? OPEN_CONE : triangleCone(xyz, array);
   }
 }
 

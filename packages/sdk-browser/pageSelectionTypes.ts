@@ -1,4 +1,6 @@
-import * as THREE from 'three';
+import type { HostAttributes, HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
+import type { PageSurface } from './pageSurface.ts';
+import type { MatrixElements } from './matrixElements.ts';
 import type { NormalCone } from './pageCone.ts';
 import type { CullingLinks } from './pageSelectionCutForced.ts';
 
@@ -28,18 +30,25 @@ export type PageRec = {
   /** Coplanar depth layer, 0 for every cluster the compiler left alone. Always present, never
    *  undefined, so a page record keeps one shape through the selection loop. */
   depthLayer: number;
-  attributes: THREE.BufferGeometry['attributes'];
-  material: THREE.Material | THREE.Material[];
+  attributes: HostAttributes;
+  /** The engine's own record of the surface this cluster wears (`pageSurface.ts`). Every reader
+   *  on the way to the image takes it from here and nothing else. */
+  material: PageSurface;
+  /** The host declaration the record was read from, carried for the ONE use that needs the object
+   *  itself: handing a surface back to the library that owns it — the WebGL2 witness draw, the
+   *  transparent copy, the diagnostic materials. The closed list of
+   *  `test/integration/moteur-sans-three.test.ts` says who may read it. */
+  declaration: HostMaterials;
   transparent?: boolean;
-  sourceMesh?: THREE.Mesh;
+  sourceMesh?: HostMesh;
   sourceOrder?: number;
-  matrix: THREE.Matrix4;
+  matrix: MatrixElements;
   /** Cached winding and epoch of the world matrix that produced it (`webgpuPagesWinding`). */
   windingCw?: boolean;
   windingEpoch?: number;
   renderOrder: number;
-  geometry?: THREE.BufferGeometry;
-  mesh?: THREE.Mesh;
+  geometry?: HostGeometry;
+  mesh?: HostMesh;
   attached: boolean;
   resident?: boolean;
   cone?: NormalCone;
@@ -80,7 +89,7 @@ export type ClusterStructureIndex = {
  * screen-error band, and the hierarchy is only a traversal accelerator.
  */
 export type ClusterRoot<T> = {
-  world: THREE.Matrix4;
+  world: MatrixElements;
   pages: T[];
   /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
    *  `links`: parent of each node and leaf node of each cluster, the same shared prepare.

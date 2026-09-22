@@ -1,13 +1,12 @@
 import { signedArea, type Projected } from './visibilityProjection.ts';
 import { matrixWindingCw } from '../sdk-core/index.ts';
-import { sideOf } from './materialSide.ts';
+import { refreshSurface, surfaceSide } from './pageSurface.ts';
 import { DEPTH_CLEAR, depthNearer } from './depthConvention.ts';
 import { triangleAt, perspectiveBary, wrapTexel } from './visibilityMath.ts';
 import {
   assertVisibilityPageTriangles,
   packVisibilityId,
   textureRgba,
-  visMaterial,
   VIS_MAX_PAGES,
   VIS_TRIANGLE_MASK,
   type VisPage,
@@ -76,8 +75,11 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     const page = pages[pageIndex],
       index = page.array;
     if (!page.attributes.position) continue;
-    const side = sideOf(page.material),
-      mat = visMaterial(page.material);
+    // Once per page and per image: the host writes its raster state — a side, an alpha cutoff
+    // — on the declaration it shares with its mesh, and this raster is an oracle of what it
+    // declares NOW.
+    const mat = refreshSurface(page.material),
+      side = surfaceSide(mat);
     // A reflection reverses the walk direction on screen: the face to drop is the other one, as
     // `visBin` does for WebGPU pipelines and Three for WebGL (`frontFaceCW`). Without this
     // flip, this rasterizer drew under reflection exactly the faces that cone rejection

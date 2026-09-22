@@ -1,11 +1,12 @@
 import type { BatchPage } from './clusterBatches.ts';
-import { clusterMaterialReason, isTransmissive } from './visibilityMaterial.ts';
+import { clusterMaterialReason } from './hostSurfaceGate.ts';
+import { isTransmissive } from './visibilityMaterial.ts';
 import { unsupportedClusterLight, type WebglClusterScene } from './webglClusterLights.ts';
 import { backdropFormatReason } from './webglClusterBackdrop.ts';
-export { clusterMaterialReason } from './visibilityMaterial.ts';
+export { clusterMaterialReason } from './hostSurfaceGate.ts';
 
 type SceneCopy = {
-  material: BatchPage['material'];
+  material: BatchPage['declaration'];
   geometry: { attributes: BatchPage['attributes'] };
 };
 
@@ -34,7 +35,7 @@ export function clusterWebglCompatibility(
     if (reason) return reason;
   }
   for (const page of pages) {
-    const reason = clusterMaterialReason(page.material, page.attributes);
+    const reason = clusterMaterialReason(page.declaration, page.attributes);
     if (reason) return reason;
   }
 }

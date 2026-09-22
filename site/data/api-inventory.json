@@ -37,10 +37,22 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
+        "packages/sdk-browser/hostWorldPose.test.ts",
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".addTransformNode"
+    },
+    {
+      "name": "AlphaMode",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/materialContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/materialContract\".AlphaMode"
     },
     {
       "name": "AnthropicToolDefinition",
@@ -142,6 +154,20 @@
       "bindingIdentity": "\"packages/sdk-core/sceneProxy\".assertSceneProxy"
     },
     {
+      "name": "assertSceneTables",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/preparedSceneTables.test.ts",
+        "packages/sdk-browser/preparedSceneTables.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".assertSceneTables"
+    },
+    {
       "name": "AssetScope",
       "kind": "type",
       "definingModule": "packages/sdk-core/contractsBase.ts",
@@ -175,6 +201,17 @@
       "bindingIdentity": "\"packages/sdk-browser/textureBlockFormats\".AtlasLanes"
     },
     {
+      "name": "autonomousCacheReady",
+      "kind": "value",
+      "definingModule": "packages/sdk-browser/defaultBackends.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".autonomousCacheReady"
+    },
+    {
       "name": "autonomousPagesBackend",
       "kind": "value",
       "definingModule": "packages/sdk-browser/autonomousPages.ts",
@@ -198,6 +235,17 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/metricsContracts\".BackendCapabilities"
+    },
+    {
+      "name": "BackendChoice",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/defaultBackends.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".BackendChoice"
     },
     {
       "name": "BackendContext",
@@ -227,6 +275,7 @@
         "scripts/mesure/pageMesure.ts",
         "test/appui/antialiasingTemporelPage.ts",
         "test/appui/coupeGpuTenuePage.ts",
+        "test/appui/defaultBackendCase.ts",
         "test/appui/hizDeuxPassesPage.ts",
         "test/appui/hizRigPage.ts",
         "test/appui/materialPixelsPage.ts",
@@ -703,6 +752,28 @@
       "bindingIdentity": "\"packages/sdk-core/safety\".CapabilityTier"
     },
     {
+      "name": "ChangeListener",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cameraControlTypes.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cameraControlTypes\".ChangeListener"
+    },
+    {
+      "name": "chooseBackends",
+      "kind": "value",
+      "definingModule": "packages/sdk-browser/defaultBackends.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".chooseBackends"
+    },
+    {
       "name": "clipPlanesFromMatrix",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathFrustum.ts",
@@ -740,7 +811,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/cacheFormat.test.ts",
         "packages/sdk-browser/pagesBackendFixture.ts",
-        "test/fixtures/manifestBinary.ts"
+        "test/fixtures/manifestBinary.ts",
+        "test/integration/format-cache-partage.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/contractsBase\".CLUSTERED_BLEND_FORMAT_VERSION"
@@ -797,11 +869,15 @@
         "packages/sdk-browser/autonomousManifest.test.ts",
         "packages/sdk-browser/autonomousManifest.ts",
         "packages/sdk-browser/autonomousPages.test.ts",
+        "packages/sdk-browser/autonomousPagesBundle.test.ts",
+        "packages/sdk-browser/autonomousPagesLighting.test.ts",
         "packages/sdk-browser/backendTypes.ts",
         "packages/sdk-browser/bench/appui/scenesChargement.ts",
         "packages/sdk-browser/bench/chargement-scene.perf.ts",
         "packages/sdk-browser/bench/oracles/bornes-et-index.ts",
         "packages/sdk-browser/bench/oracles/collecte-pages.ts",
+        "packages/sdk-browser/defaultBackends.test.ts",
+        "packages/sdk-browser/defaultBackends.ts",
         "packages/sdk-browser/exactPagesBounds.ts",
         "packages/sdk-browser/explorerCamera.test.ts",
         "packages/sdk-browser/explorerCamera.ts",
@@ -812,6 +888,7 @@
         "packages/sdk-browser/explorerScene.test.ts",
         "packages/sdk-browser/explorerScene.ts",
         "packages/sdk-browser/explorerSceneFiniteTransform.test.ts",
+        "packages/sdk-browser/explorerSceneLoad.test.ts",
         "packages/sdk-browser/explorerSession.ts",
         "packages/sdk-browser/instancesPartagees.test.ts",
         "packages/sdk-browser/manifestLoad.ts",
@@ -1115,6 +1192,17 @@
       "bindingIdentity": "\"packages/sdk-core/projectionOracles\".coneRejects"
     },
     {
+      "name": "ControlVector",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cameraControlTypes.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cameraControlTypes\".ControlVector"
+    },
+    {
       "name": "copyMatrix4",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathMatrix4.ts",
@@ -1372,6 +1460,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/autonomousPagesLighting.test.ts",
         "packages/sdk-browser/bench/lampes-ombres.perf.ts",
         "packages/sdk-browser/exactPagesContractLights.test.ts",
         "packages/sdk-browser/explorerBackends.ts",
@@ -1428,6 +1517,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
+        "packages/sdk-browser/hostWorldPose.test.ts",
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
@@ -1656,17 +1746,6 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathBatchTransforms\".decomposeMatrix4Batch"
-    },
-    {
-      "name": "DEFAULT_BACKENDS",
-      "kind": "value",
-      "definingModule": "packages/sdk-browser/defaultBackends.ts",
-      "currentEntryPoints": ["web-geometry (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".DEFAULT_BACKENDS"
     },
     {
       "name": "DEFAULT_SCOPE",
@@ -1935,11 +2014,14 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/autonomousGeometry.ts",
         "packages/sdk-browser/bench/oracles/collecte-pages.ts",
         "packages/sdk-browser/cacheFormat.test.ts",
         "packages/sdk-browser/clusterBatches.ts",
         "packages/sdk-browser/clusterPages.ts",
-        "packages/sdk-browser/explorer.ts",
+        "packages/sdk-browser/defaultBackends.test.ts",
+        "packages/sdk-browser/defaultBackends.ts",
+        "packages/sdk-browser/explorerCapabilityProbe.ts",
         "packages/sdk-browser/explorerDraw.ts",
         "packages/sdk-browser/explorerInteractive.ts",
         "packages/sdk-browser/explorerInteractiveOptions.ts",
@@ -1952,11 +2034,14 @@
         "packages/sdk-browser/hostWorldMatrices.test.ts",
         "packages/sdk-browser/hostWorldMatrices.ts",
         "packages/sdk-browser/hostWorldPlacements.test.ts",
+        "packages/sdk-browser/hostWorldPlacements.ts",
         "packages/sdk-browser/hostWorldTree.test.ts",
         "packages/sdk-browser/hostWorldTree.ts",
         "packages/sdk-browser/manifestLoad.ts",
         "packages/sdk-browser/pageSelection5.test.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
+        "packages/sdk-browser/preparedSceneTables.test.ts",
+        "packages/sdk-browser/preparedSceneTables.ts",
         "packages/sdk-browser/sceneProxyLoad.ts",
         "packages/sdk-browser/webglClusterRefusal.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
@@ -2029,6 +2114,7 @@
         "site/lessons/rendererLessonRuntime.ts",
         "site/lessons/rendererLessonSessionTypes.ts",
         "site/lessons/sceneFillLight.ts",
+        "test/appui/cameraControlsPage.ts",
         "test/browser/explorer-startup.browser.ts",
         "test/browser/mountain-terrain.browser.ts",
         "test/browser/observatory.browser.ts",
@@ -2059,6 +2145,7 @@
       "classification": "public",
       "affectedConsumers": [
         "scripts/mesure/pageExplorateur.ts",
+        "test/appui/defaultBackendCase.ts",
         "test/appui/explorerStartupTargets.ts",
         "test/fixtures/publicBrowser.ts",
         "test/fixtures/publicTypesOnly.ts"
@@ -2100,6 +2187,28 @@
       "bindingIdentity": "\"packages/sdk-core/sceneLightShadowFaces\".faceCountOf"
     },
     {
+      "name": "FirstPersonCameraControls",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cameraFirstPersonControls.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cameraFirstPersonControls\".FirstPersonCameraControls"
+    },
+    {
+      "name": "FlyCameraControls",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cameraFlyControls.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cameraFlyControls\".FlyCameraControls"
+    },
+    {
       "name": "forEachShadowFace",
       "kind": "value",
       "definingModule": "packages/sdk-core/sceneLightShadowCasters.ts",
@@ -2119,7 +2228,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/cacheFormat.test.ts",
-        "test/fixtures/publicNode.mts"
+        "test/fixtures/publicNode.mts",
+        "test/integration/format-cache-partage.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/contractsBase\".FORMAT_VERSION"
@@ -2152,7 +2262,8 @@
         "scripts/mesure/rapportTextures.ts",
         "scripts/mesure/report/types.ts",
         "scripts/mesure/serieReservoirs.ts",
-        "site/lessons/lessonShadowPages.ts"
+        "site/lessons/lessonShadowPages.ts",
+        "test/appui/defaultBackendCase.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/metricsContracts\".FrameMetrics"
@@ -2698,6 +2809,28 @@
       "bindingIdentity": "\"packages/sdk-core/hizOracles\".hizReduceCeil"
     },
     {
+      "name": "HostAttribute",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostAttribute"
+    },
+    {
+      "name": "HostAttributes",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostAttributes"
+    },
+    {
       "name": "HostDrawCamera",
       "kind": "type",
       "definingModule": "packages/sdk-browser/cameraWorld.ts",
@@ -2725,6 +2858,72 @@
       "bindingIdentity": "\"packages/sdk-browser/webglRenderTarget\".HostDrawOutput"
     },
     {
+      "name": "HostGeometry",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostGeometry"
+    },
+    {
+      "name": "HostMaterial",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostMaterial"
+    },
+    {
+      "name": "HostMaterials",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostMaterials"
+    },
+    {
+      "name": "HostMesh",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostMesh"
+    },
+    {
+      "name": "HostNode",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostNode"
+    },
+    {
+      "name": "HostPoint",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostPoint"
+    },
+    {
       "name": "HostRetentionDelta",
       "kind": "type",
       "definingModule": "packages/sdk-browser/streamingTypes.ts",
@@ -2736,13 +2935,38 @@
       "bindingIdentity": "\"packages/sdk-browser/streamingTypes\".HostRetentionDelta"
     },
     {
+      "name": "HostScene",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostScene"
+    },
+    {
+      "name": "HostTexture",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostTexture"
+    },
+    {
       "name": "hslToLinearRgb",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathColor.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/backendCommon.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/backendCommon.ts",
+        "packages/sdk-browser/webgpuPagesHelpers.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathColor\".hslToLinearRgb"
     },
@@ -3050,6 +3274,17 @@
       "bindingIdentity": "\"packages/sdk-core/mathSingular\".linearPartScale"
     },
     {
+      "name": "LinearRgb",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/materialContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/materialContract\".LinearRgb"
+    },
+    {
       "name": "linearToSrgb",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathColor.ts",
@@ -3185,6 +3420,45 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryLayout\".manifestBinaryRanges"
+    },
+    {
+      "name": "markNodeWorldNeedsUpdate",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/mathTransformTreeUpdate.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/hostWorldPose.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTreeUpdate\".markNodeWorldNeedsUpdate"
+    },
+    {
+      "name": "Material",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/materialContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/autonomousInstances.test.ts",
+        "packages/sdk-browser/autonomousInstances.ts",
+        "packages/sdk-browser/autonomousPages.test.ts",
+        "packages/sdk-browser/backendTypes.ts",
+        "packages/sdk-browser/explorerSceneApi.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/materialContract\".Material"
+    },
+    {
+      "name": "MATERIAL_TABLE_VERSION",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".MATERIAL_TABLE_VERSION"
     },
     {
       "name": "MATH_PATH_CONTRACT",
@@ -3447,6 +3721,31 @@
       "affectedConsumers": ["packages/sdk-browser/mathBatchRuntime.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathBatch\".multiplyMatrix4Batch"
+    },
+    {
+      "name": "NODE_AUTO_UPDATE",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/mathTransformTree.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/hostWorldPose.test.ts",
+        "packages/sdk-browser/hostWorldPose.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".NODE_AUTO_UPDATE"
+    },
+    {
+      "name": "NODE_TABLE_VERSION",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".NODE_TABLE_VERSION"
     },
     {
       "name": "nodeWorldDirection",
@@ -3974,6 +4273,17 @@
       "bindingIdentity": "\"packages/sdk-core/cacheContracts\".PageSource"
     },
     {
+      "name": "PanZoomCameraControls",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cameraPanZoomControls.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cameraPanZoomControls\".PanZoomCameraControls"
+    },
+    {
       "name": "PartitionAudit",
       "kind": "type",
       "definingModule": "packages/sdk-browser/webgpuPartitionAudit.ts",
@@ -4022,6 +4332,17 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathCamera\".perspectiveProjection"
+    },
+    {
+      "name": "PivotCameraControls",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cameraControlTypes.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cameraControlTypes\".PivotCameraControls"
     },
     {
       "name": "planPageIntegration",
@@ -4124,6 +4445,20 @@
       "affectedConsumers": ["test/fixtures/publicNode.mts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/index\".prepare"
+    },
+    {
+      "name": "PreparedSceneTables",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/preparedSceneTables.test.ts",
+        "packages/sdk-browser/preparedSceneTables.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".PreparedSceneTables"
     },
     {
       "name": "prepareMany",
@@ -4849,6 +5184,28 @@
       "bindingIdentity": "\"packages/sdk-core/proxyContracts\".SCENE_PROXY_VERSION"
     },
     {
+      "name": "SCENE_TABLES_FILE",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/preparedSceneTables.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".SCENE_TABLES_FILE"
+    },
+    {
+      "name": "SCENE_TABLES_VERSION",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".SCENE_TABLES_VERSION"
+    },
+    {
       "name": "SceneEnvironment",
       "kind": "type",
       "definingModule": "packages/sdk-core/sceneLightContracts.ts",
@@ -4880,6 +5237,8 @@
         "scripts/mesure/oraclePage.ts",
         "scripts/mesure/pageTemoin.ts",
         "scripts/mesure/pageThreeNuScene.ts",
+        "test/appui/blendCacheScenes.ts",
+        "test/appui/defaultBackendCase.ts",
         "test/appui/materialFixtures.ts"
       ],
       "disposition": "retained",
@@ -4905,6 +5264,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/backendTypes.ts",
+        "packages/sdk-browser/contractLightingApi.ts",
         "packages/sdk-browser/exactPagesContractLights.ts",
         "packages/sdk-browser/explorerLightApi.ts",
         "packages/sdk-browser/importedLights.ts",
@@ -5058,7 +5418,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
-        "packages/sdk-browser/hostWorldTree.ts"
+        "packages/sdk-browser/hostWorldPose.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeAutoUpdate"
@@ -5072,7 +5432,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
-        "packages/sdk-browser/hostWorldTree.ts"
+        "packages/sdk-browser/hostWorldPose.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeLocalMatrix"
@@ -5084,7 +5444,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
+        "packages/sdk-browser/hostWorldPose.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodePosition"
     },
@@ -5095,7 +5458,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
+        "packages/sdk-browser/hostWorldPose.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeQuaternion"
     },
@@ -5106,7 +5472,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
+        "packages/sdk-browser/hostWorldPose.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".setNodeScale"
     },
@@ -5256,6 +5625,22 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".ShadowViewpoint"
+    },
+    {
+      "name": "Side",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/materialContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/clusterBatchMesh.ts",
+        "packages/sdk-browser/materialSide.ts",
+        "packages/sdk-browser/pageSurface.ts",
+        "packages/sdk-browser/webglClusterMaterialBinding.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/materialContract\".Side"
     },
     {
       "name": "Simplification",
@@ -5503,7 +5888,8 @@
         "packages/sdk-browser/bench/appui/socleConsommateursBrowser.ts",
         "packages/sdk-browser/bench/appui/socleEcarts.ts",
         "packages/sdk-browser/visibilityLighting.ts",
-        "packages/sdk-browser/visibilityMath.ts"
+        "packages/sdk-browser/visibilityMath.ts",
+        "packages/sdk-browser/webgpuPagesHelpers.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathColor\".srgbToLinear"
@@ -5691,6 +6077,101 @@
       "bindingIdentity": "\"packages/sdk-browser/surfaceBuffer\".SurfaceCapture"
     },
     {
+      "name": "TABLE_FLAGS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/preparedSceneMaterials.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TABLE_FLAGS"
+    },
+    {
+      "name": "TABLE_NUMBERS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/preparedSceneMaterials.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TABLE_NUMBERS"
+    },
+    {
+      "name": "TABLE_SLOTS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/preparedSceneMaterials.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TABLE_SLOTS"
+    },
+    {
+      "name": "TABLE_TRIPLETS",
+      "kind": "value",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/preparedSceneMaterials.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TABLE_TRIPLETS"
+    },
+    {
+      "name": "TableMaterial",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/preparedSceneFixture.ts",
+        "packages/sdk-browser/preparedSceneMaterials.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TableMaterial"
+    },
+    {
+      "name": "TableNode",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/preparedSceneTables.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TableNode"
+    },
+    {
+      "name": "TableTexture",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/preparedSceneFixture.ts",
+        "packages/sdk-browser/preparedSceneMaterials.test.ts",
+        "packages/sdk-browser/preparedSceneMaterials.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TableTexture"
+    },
+    {
+      "name": "TableTextureSlot",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/sceneTableContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/preparedSceneMaterials.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TableTextureSlot"
+    },
+    {
       "name": "TelemetryReport",
       "kind": "type",
       "definingModule": "packages/sdk-browser/telemetryTypes.ts",
@@ -5724,6 +6205,42 @@
       "bindingIdentity": "\"packages/sdk-node/contracts\".TerminalProgressOptions"
     },
     {
+      "name": "Texture",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/textureContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/bench/ombrage-srgb.perf.ts",
+        "packages/sdk-browser/bench/oracles/texture-echantillonnee.ts",
+        "packages/sdk-browser/bench/texture-echantillonnee.perf.ts",
+        "packages/sdk-browser/hostSurfaceImport.ts",
+        "packages/sdk-browser/preparedSceneFixture.ts",
+        "packages/sdk-browser/preparedSceneMaterials.ts",
+        "packages/sdk-browser/preparedSceneTables.ts",
+        "packages/sdk-browser/visibilityLighting.test.ts",
+        "packages/sdk-browser/visibilityMath.test.ts",
+        "packages/sdk-browser/visibilityMath.ts",
+        "packages/sdk-browser/visibilityShadingNormal.test.ts",
+        "packages/sdk-browser/visibilityTypes.ts",
+        "packages/sdk-browser/visibilityWrapModes.test.ts",
+        "packages/sdk-browser/visibilityWrapModes.ts",
+        "packages/sdk-browser/webglClusterTextures.ts",
+        "packages/sdk-browser/webgpuBlendItems.ts",
+        "packages/sdk-browser/webgpuBlendState.ts",
+        "packages/sdk-browser/webgpuMaterialTextures.ts",
+        "packages/sdk-browser/webgpuPageRowMaterial.ts",
+        "packages/sdk-browser/webgpuPagesStateVis.ts",
+        "packages/sdk-browser/webgpuTileAtlas.ts",
+        "packages/sdk-browser/webgpuTileCatalogue.ts",
+        "packages/sdk-browser/webgpuTileScratch.ts",
+        "test/justesse/adressageCartes.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/textureContract\".Texture"
+    },
+    {
       "name": "TEXTURE_PREVIEW_VERSION",
       "kind": "value",
       "definingModule": "packages/sdk-core/texturePreviewFormat.ts",
@@ -5746,6 +6263,17 @@
       "bindingIdentity": "\"packages/sdk-core/texturePreviewFormat\".TextureBlockFormat"
     },
     {
+      "name": "TextureColorSpace",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/textureContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/textureContract\".TextureColorSpace"
+    },
+    {
       "name": "TextureCompression",
       "kind": "type",
       "definingModule": "packages/sdk-browser/textureBlockFormats.ts",
@@ -5755,6 +6283,20 @@
       "affectedConsumers": ["scripts/mesure/mesureOptions.ts", "scripts/mesure/optionsCote.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/textureBlockFormats\".TextureCompression"
+    },
+    {
+      "name": "TextureFilter",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/textureContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/hostSurfaceImport.ts",
+        "packages/sdk-browser/webglClusterTextures.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/textureContract\".TextureFilter"
     },
     {
       "name": "TextureFrameMetrics",
@@ -5929,6 +6471,17 @@
       "bindingIdentity": "\"packages/sdk-core/llm/toolDefinitions\".toOpenAiTool"
     },
     {
+      "name": "TrackballCameraControls",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/cameraTrackballControls.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/cameraTrackballControls\".TrackballCameraControls"
+    },
+    {
       "name": "transformAffinePoint",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathVector.ts",
@@ -6012,7 +6565,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/hostWorldTree.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/hostWorldPose.ts",
+        "packages/sdk-browser/hostWorldTree.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".TransformTree"
     },
@@ -6116,6 +6672,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/hierarchieRejeuNous.ts",
+        "packages/sdk-browser/hostWorldPose.test.ts",
         "packages/sdk-browser/hostWorldTree.ts"
       ],
       "disposition": "retained",
@@ -6277,6 +6834,22 @@
       "bindingIdentity": "\"packages/sdk-core/mathRenderOrigin\".worldToRenderOrigin"
     },
     {
+      "name": "WrapMode",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/textureContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/hostSurfaceImport.ts",
+        "packages/sdk-browser/visibilityMath.ts",
+        "packages/sdk-browser/visibilityWrapModes.ts",
+        "packages/sdk-browser/webglClusterTextures.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/textureContract\".WrapMode"
+    },
+    {
       "name": "writeFace",
       "kind": "value",
       "definingModule": "packages/sdk-core/sceneLightShadowFaces.ts",
@@ -6396,17 +6969,6 @@
       ],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathSingular.ts:SINGULAR_DETERMINANT"
-    },
-    {
-      "name": "Side",
-      "kind": "type",
-      "definingModule": "packages/sdk-browser/materialSide.ts",
-      "currentEntryPoints": ["web-geometry (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
-      "disposition": "newly exposed",
-      "bindingIdentity": "documented:packages/sdk-browser/materialSide.ts:Side"
     },
     {
       "name": "adjugateFactor",

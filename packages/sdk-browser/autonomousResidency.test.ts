@@ -9,12 +9,14 @@ import { collectPendingUrls } from './pageSelectionRequests.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
 import { referenceCollectPendingUrls, referenceResidency } from './bench/oracles/selection.ts';
 import type { PageRec } from './pageSelection.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 // A minimal but complete geometry store: only `detach` and `state.allocationBytes` are read by
 // `createAutonomousResidency`, but its parameter type is the full geometry-store shape.
 function fakeGeometryStore() {
   return {
     state: { allocationBytes: 0, submittedTriangles: 0 },
+    colorMaterials: new Map(),
     detach: () => {},
     sync: () => {},
     geometryBytes: () => 0,
@@ -36,7 +38,8 @@ function fakePageRec(url = '', array?: Uint32Array): PageRec {
     max: [0, 0, 0],
     depthLayer: 0,
     attributes: {},
-    material: [],
+    material: surfaceOf([]),
+    declaration: [],
     matrix: new THREE.Matrix4(),
     renderOrder: 0,
     attached: false,

@@ -1,6 +1,7 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
-import * as THREE from 'three';
-import { isTransmissive } from './visibilityBuffer.ts';
+import type { HostNode } from './hostResources.ts';
+import { meshSurface } from './pageSurface.ts';
+import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
 import { objects } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
@@ -10,10 +11,10 @@ import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 
 export function collectClusterPages(
-  source: THREE.Object3D,
+  source: HostNode,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
-  associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>,
+  associations: Map<HostNode, { meshes?: number; primitives?: number }>,
   options: { allowMissing?: boolean } = {},
 ) {
   // World matrices of pages and roots are the ENGINE's, computed from the host's local poses:
@@ -21,7 +22,7 @@ export function collectClusterPages(
   const worlds = hostWorldPlacements(source);
   const roots: Array<ClusterRoot<PageRec>> = [],
     allPages: PageRec[] = [],
-    blendCopies: THREE.Mesh[] = [],
+    blendCopies: BlendCopy[] = [],
     bootstrap: PageRec[] = [];
   const primitiveOf = primitiveFinder(metadata.primitives);
   // One template per source object, shared by all its placements: the DAG shape, its error
@@ -32,18 +33,15 @@ export function collectClusterPages(
     const primitive = primitiveOf(associations.get(mesh));
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
     const world = worlds.of(mesh);
-    if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
-      blendCopies.push(createBlendCopy(mesh, order++, world));
+    // The surface the declaration wears, read at the boundary into the engine's own record:
+    // from here on this collection and everything it feeds hold records, not host materials.
+    const surface = meshSurface(mesh);
+    if (primitive.pass === 'shared-blend' || surface.transmission > 0) {
+      blendCopies.push(createBlendCopy(mesh, order++, world, surface));
       continue;
     }
-    const sourceIndices = mesh.geometry.getIndex();
-    if (!sourceIndices) throw new Error('Indexed source required');
     const template = templates.pagesOf(primitive);
-    const transparent =
-      primitive.pass === 'clustered-blend' ||
-      (Array.isArray(mesh.material)
-        ? mesh.material.some((material) => material.transparent)
-        : mesh.material.transparent);
+    const transparent = primitive.pass === 'clustered-blend' || surface.transparent;
     // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
     const sourceOrder = transparent ? template.sourceOrder : undefined;
     const pages = primitive.pages.map((page, pageIndex) => {
@@ -71,7 +69,8 @@ export function collectClusterPages(
         streamOffset: placed?.offset,
         depthLayer: page.depthLayer ?? 0,
         attributes: mesh.geometry.attributes,
-        material: mesh.material,
+        material: surface,
+        declaration: mesh.material,
         transparent,
         sourceMesh: mesh,
         sourceOrder: sourceOrder?.[pageIndex] ?? pageIndex,
@@ -87,9 +86,6 @@ export function collectClusterPages(
       return rec;
     });
     order++;
-    if (template.complete && template.sourceOffset !== sourceIndices.count)
-      throw new Error('Incomplete cluster coverage');
-    templates.checkCoverage(primitive, template, sourceIndices.array as ArrayLike<number>);
     const shape = templates.shapeOf(primitive, template);
     const { structure, culling } = shape;
     const worldBox = new Float64Array(BOX_VALUES);

@@ -2,6 +2,7 @@
 // length, ground and sky colour) out of `shadeLit`, called per pixel, instead of recomputing and
 // reallocating them at every call. Oracle: the pre-lot-G version, copied as-is into
 // `bench/oracles/eclairage-pixel.ts`, its ground colour on the exact sRGB curve since #76.
+import type { Texture } from '../sdk-core/index.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -10,17 +11,18 @@ import { referenceShadeLit } from './bench/oracles/eclairage-pixel.ts';
 import type { VisPage, VisMaterial } from './visibilityTypes.ts';
 import type { Projected } from './visibilityProjection.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 function vertex(worldX: number, worldY: number, worldZ: number, invW = 1): Projected {
   return { x: 0, y: 0, z: 0, invW, worldX, worldY, worldZ };
 }
 
-function fakeTexture(pixel: [number, number, number, number]): THREE.Texture {
+function fakeTexture(pixel: [number, number, number, number]): Texture {
   return {
     image: { data: Uint8Array.from(pixel), width: 1, height: 1 },
-    wrapS: THREE.ClampToEdgeWrapping,
-    wrapT: THREE.ClampToEdgeWrapping,
-  } as unknown as THREE.Texture;
+    wrapS: 'clamp',
+    wrapT: 'clamp',
+  } as unknown as Texture;
 }
 
 function material(overrides: Partial<VisMaterial> = {}): VisMaterial {
@@ -50,7 +52,7 @@ function pageOf(overrides: Partial<VisPage> = {}): VisPage {
     array: new Uint32Array([0, 1, 2]),
     attributes: {},
     matrix: new THREE.Matrix4(),
-    material: new THREE.MeshBasicMaterial(),
+    material: surfaceOf(new THREE.MeshBasicMaterial()),
     ...overrides,
   };
 }

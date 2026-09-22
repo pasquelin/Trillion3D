@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { surfaceOf } from './pageSurface.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
 import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import { refreshBlendBounds, refreshBlendWorlds } from './webgpuBlendWorlds.ts';
@@ -20,7 +21,7 @@ function item(position: THREE.Vector3, cullable = true) {
   mesh.position.copy(position);
   parent.add(mesh);
   const worlds = hostWorldPlacements(parent);
-  const copy = createBlendCopy(mesh, 0, worlds.of(mesh));
+  const copy = createBlendCopy(mesh, 0, worlds.of(mesh), surfaceOf([]));
   const shaped = {
     matrix: copy.matrix,
     worldBox: cullable ? new Float64Array(BOX_VALUES) : undefined,
@@ -36,14 +37,21 @@ test('the transparent copy reads the world matrix the engine holds, it keeps no 
   const mesh = new THREE.Mesh(new THREE.BufferGeometry());
   mesh.position.set(1, 2, 3);
   const worlds = hostWorldPlacements(mesh);
-  const copy = createBlendCopy(mesh, 7, worlds.of(mesh));
-  assert.equal(copy.matrix, worlds.of(mesh), 'the matrix IS the one the engine holds');
-  assert.equal(copy.matrixAutoUpdate, false, 'Three must never recompose it');
+  const copy = createBlendCopy(mesh, 7, worlds.of(mesh), surfaceOf([]));
+  assert.equal(
+    copy.matrix.elements,
+    worlds.of(mesh).elements,
+    'the sixteen numbers ARE the ones the engine holds: the container borrows them, it copies none',
+  );
   assert.equal(copy.userData.sourceMesh, mesh);
   assert.equal(copy.renderOrder, 7);
   mesh.position.set(4, 5, 6);
   worlds.refresh();
-  assert.deepEqual([...copy.matrix.elements].slice(12, 15), [4, 5, 6], 'the move is already there');
+  assert.deepEqual(
+    Array.from(copy.matrix.elements).slice(12, 15),
+    [4, 5, 6],
+    'the move is already there',
+  );
 });
 
 test('a world box follows the mesh matrix, a direct move as well as a parent move', () => {

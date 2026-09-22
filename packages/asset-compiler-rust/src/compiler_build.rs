@@ -152,12 +152,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &progress,
     )?;
-    // Lights declared by the source file, in world space, in the engine contract.
+    // Cache products of the published scene, each under its own name: the lights the source
+    // declares, in the engine contract, then its node and material tables (`compiler_tables.rs`).
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
-    let (autonomous_scene, autonomous_refusal, scene) =
+    let tables = stage_scene_tables(&source, &directory, &progress)?;
+    let (autonomous_scene, autonomous_refusal, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
-    let mut products = vec![source_bin, source_gltf, lights];
-    products.extend(scene);
+    products.extend([source_bin, source_gltf, lights, tables]);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
     let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});

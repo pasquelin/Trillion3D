@@ -9,7 +9,6 @@ import {
   assertVisibilityPageTriangles,
   packVisibilityId,
   textureRgba,
-  visMaterial,
   VIS_MAX_PAGES,
   VIS_TRIANGLE_MASK,
 } from '../../visibilityTypes.ts';
@@ -145,7 +144,7 @@ function alphaGarde(
     ? uv.getY(tri.i0) * bary.w0 + uv.getY(tri.i1) * bary.w1 + uv.getY(tri.i2) * bary.w2
     : 0;
   // Guaranteed by the caller: `masque` is only built when `mat.alphaTest > 0 && mat.map`.
-  const texture = mat.map as THREE.Texture;
+  const texture = mat.map!;
   const rgba = textureRgba(texture);
   if (!rgba) return true;
   const tx = wrapTexel(u, rgba.width, texture.wrapS),
@@ -168,11 +167,11 @@ export function rasterAvec(fill: Fill) {
       const page = pages[pageIndex],
         index = page.array;
       if (!page.attributes.position) continue;
-      const side = visMaterial(page.material).doubleSided
+      const side = page.material.doubleSided
         ? THREE.DoubleSide
-        : Array.isArray(page.material)
-          ? page.material[0].side
-          : page.material.side;
+        : page.material.backSide
+          ? THREE.BackSide
+          : THREE.FrontSide;
       const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
       for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
         const tri = triangleAt(page, t, cam, width, height);
@@ -184,7 +183,7 @@ export function rasterAvec(fill: Fill) {
             if (area <= 0) continue;
           } else if (area >= 0) continue;
         }
-        const mat = visMaterial(page.material);
+        const mat = page.material;
         const masque: Keep | undefined =
           mat.alphaTest > 0 && mat.map
             ? (x, y, w0, w1, w2) => alphaGarde(page, tri, mat, w0, w1, w2)

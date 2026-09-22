@@ -58,6 +58,8 @@ mod reuse_proof;
 mod scene_autonome;
 mod simplification_attributes;
 mod simplification_none;
+mod tables_scene;
+mod tables_surface;
 mod unity_driver;
 mod unity_fidelite;
 mod unity_golden;

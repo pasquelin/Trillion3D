@@ -1,35 +1,31 @@
-import { clusterHash, visMaterial } from './visibilityBuffer.ts';
+import { clusterHash } from './visibilityBuffer.ts';
 import { wrapModes } from './visibilityWrapModes.ts';
-import type { VisMaterial } from './visibilityTypes.ts';
-
-/** Material as the row receives it from the host: the type `visMaterial` already accepts. */
-type HostMaterial = Parameters<typeof visMaterial>[0];
+import { refreshSurface, type PageSurface } from './pageSurface.ts';
 
 /** What a material brings to a page row: its read fields, and its wrap word. */
-type MaterialRow = { version: number; mat: VisMaterial; wrap: number };
+type MaterialRow = { version: number; mat: PageSurface; wrap: number };
 
 /**
  * What writing a page row used to recompute every time even though it depends only on the compiled
  * catalogue: the material fields — a new object and four arrays per write —, its wrap word and the
  * cluster hash — a code-point array per write.
  *
- * Twelve placements of the same scene share their materials and clusters: one memo per material and
- * one per cluster id is enough to compute them once and for all, however many pages arrive in the
- * image. A material memo is reread when Three changes its version, the only mutation the engine
- * applies to it.
+ * Twelve placements of the same scene share their materials and clusters: one memo per surface
+ * record and one per cluster id is enough to compute them once and for all, however many pages
+ * arrive in the image. A memo is reread when the host bumps the declaration's version, the only
+ * mutation the engine honours — the record itself is refilled in place (`pageSurface.ts`).
  */
 export function createPageRowConstants() {
-  const materials = new Map<HostMaterial, MaterialRow>();
+  const materials = new Map<PageSurface, MaterialRow>();
   const hashes = new Map<string, number>();
   return {
-    /** Fields and wrap word of a material, computed at its first row. */
-    materialOf(material: HostMaterial) {
-      const version = (Array.isArray(material) ? material[0] : material).version;
-      const held = materials.get(material);
-      if (held && held.version === version) return held;
-      const mat = visMaterial(material);
-      const row = { version, mat, wrap: wrapModes(mat) };
-      materials.set(material, row);
+    /** Fields and wrap word of a surface, computed at its first row. */
+    materialOf(surface: PageSurface) {
+      const mat = refreshSurface(surface);
+      const held = materials.get(mat);
+      if (held && held.version === mat.version) return held;
+      const row = { version: mat.version, mat, wrap: wrapModes(mat) };
+      materials.set(mat, row);
       return row;
     },
     /** Hash of a cluster id, computed at its first row. */

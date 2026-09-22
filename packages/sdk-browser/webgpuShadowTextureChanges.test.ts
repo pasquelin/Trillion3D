@@ -16,7 +16,7 @@ function record(x: number) {
     matrix: new THREE.Matrix4().makeTranslation(x, 0, 0),
     min: [-1, -1, -1],
     max: [1, 1, 1],
-  } as PageRec;
+  } as unknown as PageRec;
 }
 
 /** Three rows: a masked cutout on texture 3, an opaque surface on texture 3, a cutout on texture 5. */

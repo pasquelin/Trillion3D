@@ -88,8 +88,11 @@ Harness serves `.mesure/assets/` (gitignored; `WG_ASSETS` points to alternative 
 
     pnpm run build && pnpm run build:native
     WEB_GEOMETRY_COMPILER_BIN=packages/asset-compiler-rust/target/release/web-geometry-compiler \
-    node dist/sdk-node/cli.ts .mesure/assets/emerald-square/emerald-day.gltf \
-         .mesure/assets/emerald-square-derived full 150000 /benchmark-assets/emerald-square/
+    node dist/sdk-node/cli.mjs .mesure/assets/emerald-square/emerald-day.gltf \
+         .mesure/assets/emerald-square-derived full 150000 /benchmark-assets/emerald-square/ 8 16384
+
+The two trailing numbers are the worker count and the RAM admission budget in MiB. The reference
+scene does not fit the 256 MiB default: omitted, the run stops on `RAM_ADMISSION_BUDGET_EXCEEDED`.
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
 
@@ -104,6 +107,18 @@ Harness is scene-agnostic: measures provided caches, pose bounds read from page 
 Memory pools match engine fixed byte budgets: `--pool-geometrie <MiB>` (geometry pages, default 512 MiB) and `--pool-textures <MiB>` (texture tiles, default 512 MiB). Extreme values test degradation behavior, logged in metrics (`poolGeometrie.borne`, `poolGeometrie.saturees`, `coverageBudgetLimited`, `budgetPages.seuilBudget` — the rung of the screen-error ladder the image is drawn at, `0` when the requested cut fits, also in the `page budget` column of `resume.md` —, `textureTilesRefused`). `--max-pages` remains a PAGE cap for test scenes. Recorded in metrics; comparisons require matching pool sizes.
 
 IN-SESSION adjustment (app slider via `explorer.setMemoryBudgets`) measured via `--pool-geometrie-vivant <MiB>` and `--pool-textures-vivant <MiB>`: post-warmup, harness resizes pools and logs engine response (`series[].sides[].reglageVivant`: retained pools, evicted items, resize duration, pre-resize residency) and frame count to recover held pose (`imagesReprise`, `null` if unrecoverable — pool smaller than view). Long warmup (`--chauffe 60`) fills pools before adjustment. To GROW geometry pool in-session, `--pool-geometrie-plafond <MiB>` declares max session pool ceiling.
+
+## What a Cache's Pages Cost in Precision
+
+    node scripts/mesure/quantificationPages.ts <cache>/native/full
+
+The autonomous WebGL2 path draws decoded geometry pages — positions on the primitive's
+quantization grid, normals as octahedral bytes ([`docs/FORMAT.md`](../../docs/FORMAT.md)) — where
+every other path reads the float attributes of `source.bin`. This script compares the two corner
+by corner and prints the largest and mean position gap and the angle between the two normals: the
+input difference behind an image difference between that path and a witness, measured rather than
+supposed. On `site/assets/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
+6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
 
 ## Performance Benchmarks
 

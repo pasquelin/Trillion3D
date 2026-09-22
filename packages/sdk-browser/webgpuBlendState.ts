@@ -1,5 +1,7 @@
-import * as THREE from 'three';
-import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../sdk-core/index.ts';
+import type { HostGeometry, HostMesh } from './hostResources.ts';
+import type { PageSurface } from './pageSurface.ts';
+import type { MatrixElements } from './matrixElements.ts';
+import { FRUSTUM_PLANE_VALUES, type DiagnosticMode, type Texture } from '../sdk-core/index.ts';
 import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
@@ -18,11 +20,11 @@ export type BlendGpuItem = {
   index?: GPUBuffer;
   uv?: GPUBuffer;
   normal?: GPUBuffer;
-  material: THREE.Material | THREE.Material[];
+  surface: PageSurface;
   count: number;
-  matrix: THREE.Matrix4;
-  sourceMesh?: THREE.Mesh;
-  sourceGeometry: THREE.BufferGeometry;
+  matrix: MatrixElements;
+  sourceMesh?: HostMesh;
+  sourceGeometry: HostGeometry;
   /** World box of the item, six bounds flat (`mathBox.ts`); absent, the item is not rejected. */
   bounds?: Float64Array;
   /** Buffer this box occupies, allocated once for the item when the frustum can reject it.
@@ -30,7 +32,7 @@ export type BlendGpuItem = {
    *  the bounds obtained were not usable (`webgpuBlendWorlds.ts`). */
   worldBox?: Float64Array;
   rgba: [number, number, number, number];
-  map?: THREE.Texture;
+  map?: Texture;
   /** Material flags (`visibilityTypes.ts`) in the low sixteen bits; above them the one-based water
    *  rank of a transmissive item, zero for a blend (`webgpuWaterSurfaceWgsl.ts`). */
   flags: number;
@@ -57,7 +59,7 @@ export function createWebgpuBlendState() {
   /** Words of the view uniform, allocated once. */
   const view = new Float32Array(BLEND_VIEW_SIZE / 4);
   const blendGpu: BlendGpuItem[] = [];
-  const pagedBlendGpu = new Map<THREE.Mesh, BlendGpuItem>();
+  const pagedBlendGpu = new Map<HostMesh, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];
   const state = {
     blendGpu,
@@ -77,7 +79,7 @@ export function createWebgpuBlendState() {
     /** Instances a CPU cut wrote, and the meshes it selected. */
     cpuInstances: new Uint32Array(0),
     cpuInstanceCount: 0,
-    cpuSelectedMeshes: new Set<THREE.Mesh>(),
+    cpuSelectedMeshes: new Set<HostMesh>(),
     /** Table entries changed by the residency journal, awaiting a partial upload. */
     dirtySpans: new Set<number>(),
     /** Instances each item drew this image; only a CPU cut counts them, a GPU cut does not. */

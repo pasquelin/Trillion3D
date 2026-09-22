@@ -116,6 +116,12 @@ export {
   TEXTURE_PREVIEW_VERSION,
 } from '../../sdk-core/texturePreviewFormat.ts';
 export type { TextureBlockFormat, TextureLayout } from '../../sdk-core/texturePreviewFormat.ts';
+export type {
+  Texture,
+  TextureColorSpace,
+  TextureFilter,
+  WrapMode,
+} from '../../sdk-core/textureContract.ts';
 export type { TextureFrameMetrics } from '../../sdk-core/textureMetricsContracts.ts';
 export { textureLevelFormat, textureLevelUrl } from '../../sdk-core/textureLevelUrl.ts';
 export type { TextureLevelFormat } from '../../sdk-core/textureLevelUrl.ts';

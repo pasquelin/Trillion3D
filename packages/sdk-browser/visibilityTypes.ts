@@ -1,4 +1,7 @@
-import * as THREE from 'three';
+import type { HostAttributes } from './hostResources.ts';
+import type { PageSurface } from './pageSurface.ts';
+import type { Texture } from '../sdk-core/index.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 export const VIS_INVALID = 0;
 /**
@@ -48,9 +51,10 @@ export const FLAG_LIT = 1,
 // `visibilityWrapModes.ts` now stores per map, in a word of its own.
 export type VisPage = {
   array: Uint32Array;
-  attributes: THREE.BufferGeometry['attributes'];
-  matrix: THREE.Matrix4;
-  material: THREE.Material | THREE.Material[];
+  attributes: HostAttributes;
+  matrix: MatrixElements;
+  /** The engine's surface record, read once at the boundary (`pageSurface.ts`). */
+  material: PageSurface;
   clusterId?: string;
 };
 
@@ -62,16 +66,16 @@ export type VisMaterial = {
   doubleSided: boolean;
   backSide: boolean;
   alphaTest: number;
-  map?: THREE.Texture;
-  metalnessMap?: THREE.Texture;
-  roughnessMap?: THREE.Texture;
-  normalMap?: THREE.Texture;
+  map?: Texture;
+  metalnessMap?: Texture;
+  roughnessMap?: Texture;
+  normalMap?: Texture;
   normalScale: number;
   normalScaleY: number;
-  aoMap?: THREE.Texture;
+  aoMap?: Texture;
   aoIntensity: number;
   emissive: [number, number, number];
-  emissiveMap?: THREE.Texture;
+  emissiveMap?: Texture;
   /** `KHR_materials_transmission.transmissionFactor`: the share of the background the surface lets through. */
   transmission: number;
   /** `KHR_materials_ior.ior`, and the volume of `KHR_materials_volume`. `attenuationDistance` is 0
@@ -117,9 +121,9 @@ export type TextureRgba = { data: Uint8Array; width: number; height: number };
  * object. The source is rechecked every call — buffer, offset, length, width, height — so a
  * replaced image does yield the new bytes.
  */
-const rgbaCache = new WeakMap<THREE.Texture, { source: ArrayBufferView; rgba: TextureRgba }>();
+const rgbaCache = new WeakMap<Texture, { source: ArrayBufferView; rgba: TextureRgba }>();
 
-export function textureRgba(texture: THREE.Texture): TextureRgba | null {
+export function textureRgba(texture: Texture): TextureRgba | null {
   const image = texture.image as
     { data?: ArrayBufferView; width?: number; height?: number } | undefined;
   if (!image?.data || !image.width || !image.height) return null;

@@ -23,9 +23,17 @@ numbers. Conventions shared by every entry:
 
 - `createExplorer(target: ExplorerTarget, options: ExplorerOptions)` and
   `createExplorerJob(id, target, options)` accept a canvas element or its literal document ID.
-- `interactive: true` owns CSS/DPR sizing, OrbitControls and bounded demand-driven rendering;
-  absent/false preserves manual sessions. Defaults to direct WebGPU, with explicit failure
-  when unavailable. `invalidate()` requests a frame after programmatic edits.
+- `interactive: true` owns CSS/DPR sizing, the engine's own orbit controller and bounded
+  demand-driven rendering;
+  absent/false preserves manual sessions. `invalidate()` requests a frame after programmatic edits.
+- With no `backends` option, interactive or not, a session draws through the engine's own path:
+  direct WebGPU where a device was granted; `autonomous-pages-webgl` on WebGL2 alone, which since
+  #297 decodes the cache's geometry pages and draws them itself — from the cache's prepared scene
+  where it carries one, from `source.gltf` where it does not; and a named `EngineError`
+  (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where the machine granted neither API.
+  `chooseBackends(options, metadata, gpuDevice, webgl2)` and `autonomousCacheReady(metadata)`
+  expose that decision; the `backend-choice` diagnostic reports its `renderer`, `autonomous` and
+  `reason` per session. Proof: `defaultBackends.test.ts`, the browser startup proof.
 - `RenderBackend.pendingFrame?()` waits for submitted work without image readback and returns
   whether interactive rendering should continue. Custom backends with progressive work should
   implement it. Disposal owns all interactive listeners and pending callbacks.
@@ -277,6 +285,55 @@ difference sits inside the after-side spread. **No gain is claimed**: the batch 
 | `createObservationDraw(gl, resources, meshes)`                                   | `drawHostGeometry` of the experiment: textures uploaded when dirty, uniforms set, one draw per record on the bound destination; rebuilt after a context restore                                                                                                    | `createThreeSceneDraw` for this engine                                                                                                                         | `observation-eclairage-webgl.browser.ts` (composed image = the engine's pass, byte for byte)                                                                                   |
 | `OUTPUT_TRANSFER_GLSL`                                                           | the filmic curve and the sRGB transfer, one text for the cluster program and the observation program                                                                                                                                                               | the same two functions inlined in the cluster fragment                                                                                                         | `check:duplicates`; the cluster fragment text is unchanged                                                                                                                      |
 | `materialTextures(material)`                                                     | the textures a host material carries, whatever their slot — what its renderer would sample — for the anisotropy setting and the disposal                                                                                                                           | `value instanceof THREE.Texture` in two files                                                                                                                  | `explorerDisposeSource` and `explorerCapabilities` share it; `check:duplicates`                                                                                                 |
+
+## Batch C, lot 1 — the public contract stops naming the host library (#269, #78)
+
+The engine's signatures no longer carry a type of the rendering library the host draws with, with
+one declared exception: `render(camera: HostCamera)` of `backendTypes.ts`, where `HostCamera` is
+still the host's perspective camera (`cameraWorld.ts`) — the engine-owned camera is a following lot
+of #78. Two contracts replace the resource types, and the closed list of `test/integration/moteur-sans-three.test.ts` lost
+the fifteen files that named it: `backendTypes.ts`, `explorerOptions.ts`, `explorerSceneApi.ts`,
+`gpuDagTypes.ts`, `gpuSelection.ts`, `materialSide.ts`, `pageCone.ts`, `pageSelectionCutState.ts`,
+`pageSelectionHelpers.ts`, `pageSelectionTypes.ts`, `visibilityTypes.ts`, `webgpuBlendState.ts`,
+`webgpuPageRowMaterial.ts`, `webgpuPagesStateGpu.ts`, `webgpuPagesStateVis.ts`. Ten readers
+downstream of them stopped needing the library at all once their parameters became contract
+types, and left the list with them: `clusterBatchRange.ts`, `frameGateCore.ts`,
+`webgpuBlendBuffers.ts`, `webgpuBlendItems.ts`, `webgpuGeometryPrepare.ts`, `webgpuPageRow.ts`,
+`webgpuPositions.ts`, `webgpuTileAtlas.ts`, `webgpuTileCatalogue.ts`, `webgpuTileScratch.ts` —
+twenty-five files in all, and the list never grows.
+
+## Batch C, lot 3 — materials, textures and geometries come from the manifest (#271, #78)
+
+A surface is read in ONE place, at `hostSurfaceImport.ts`, into the engine's own records: `Material` for
+the parameters, `Texture` for the image and its sampler state, with addressing, filtering and
+colour space spelled in the engine's words (`'repeat'`, `'linear-mip-linear'`, `'srgb'`) instead
+of a host constant. `visMaterial()`, `isTransmissive()`, `textureRgba()`, `wrapTexel()`,
+`wrapNibble()` and `wrapLinear()` compute on those; the tile pools, the atlas lanes, the page row
+and the transparent items address a texture by the identity of its record, which is built once
+per source texture and refilled when the host bumps its version. Eight more files left the
+closed list with this lot — `visibilityMath.ts`, `visibilityMaterial.ts`, `visibilityWrapModes.ts`,
+`webgpuBlendPrepare.ts`, `webgpuMaterialTextures.ts`, `webgpuPagesHelpers.ts`,
+`webgpuPagesPrepare.ts`, `webgpuPagesSetup.ts` — and three boundaries joined it:
+`hostSurfaceImport.ts` (the reading), `hostSurfaceGate.ts` (the admission gate on a host
+declaration) and `hostBlendScene.ts` (the display graph the backend publishes). Colour handling
+of `webgpuPagesHelpers.ts` now runs on `mathColor.ts`, whose transfer curve differs from the host
+library's rounded constants by the gap measured in #72; no beauty pass reads that path.
+
+| Contract                                                                                                                   | What it names                                                                                                                                                         | Replaces                                                                     | Proof                                        |
+| -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| `Material`, `Side`, `AlphaMode`, `LinearRgb` — `packages/sdk-core/materialContract.ts`                                     | the surface parameters the compiler imported from the source file: linear base colour and emissive, opacity, metalness, roughness, side, alpha mode and cutoff        | `THREE.Material` in `RenderBackend.updateMaterial` and `explorer.updateMaterial` | `autonomousPages.test.ts`                    |
+| `HostMaterial`, `HostMaterials`, `HostTexture`, `HostAttribute`, `HostAttributes`, `HostGeometry`, `HostMesh`, `HostNode`, `HostScene`, `HostPoint` — `packages/sdk-browser/hostResources.ts` | what the engine reads of a resource the host owns and the engine never builds: surface and raster state, sampler state, attribute layout, a box, an identity          | `THREE.Material`, `THREE.Texture`, `THREE.BufferGeometry['attributes']`, `THREE.Mesh`, `THREE.Object3D`, `THREE.Scene` in the contract files | `moteur-sans-three.test.ts` (closed list) |
+| `Texture`, `WrapMode`, `TextureFilter`, `TextureColorSpace` — `packages/sdk-core/textureContract.ts`                                     | the imported texture the engine samples: its identity, its decoded image, the UV set, and addressing, filtering and colour space as the engine's own words          | `THREE.Texture` in the tile pools, the atlas layers, the page row and the software raster        | `webgpuTileCatalogue.test.ts`, `visibilityWrapModes.test.ts`, `moteur-sans-three.test.ts` |
+| `importHostSurface`, `importHostTexture`, `importWrapMode` — `packages/sdk-browser/hostSurfaceImport.ts`                                  | the one place a host material or texture is read into those records; the material is re-read at every call, a texture keeps a single record for the session, refilled when the host bumps its version | the per-frame reads of `THREE.MeshStandardMaterial` and `THREE.Texture` in `visibilityMaterial.ts` | `hostSurfaceImport.test.ts`, `visibilityBufferMaterials.test.ts`, `moteur-sans-three.test.ts` |
+| `PageSurface`, `surfaceOf`, `refreshSurface`, `surfaceSide`, `surfaceFrontOnly` — `packages/sdk-browser/pageSurface.ts`                                 | the surface record a page carries: the shaded fields of `VisMaterial` and the raster facts declared beside them (version, opacity, blended, single pass, declared as a list of materials). One record per declaration, held by it and refilled in place: the side at every read of it — `surfaceSide` and `surfaceFrontOnly` ask the declaration, since a host writes it without bumping a version — the other raster facts where the raster, the plan and the row read them, the shaded ones when the version moves | `PageRec.material`, `VisPage.material`, `BatchPage.material` and `BlendGpuItem.material` as host declarations, and the `visMaterial`/`sideOf` calls the cut, the rows, the raster, the plan and the audit each made on them | `pageSurface.test.ts`, `moteur-sans-three.test.ts` (closed list of `declaration` readers) |
+| `BlendCopy` — `packages/sdk-browser/blendCopyContract.ts`                                                 | the transparent draw copy as the engine reads it: geometry, the `PageSurface` record it wears — no host material since #288 —, the pose it shares with the engine's world storage, the source mesh it stands for      | `THREE.Mesh` in the blend prepare, the material census and the page setup                        | `webgpuBlendWorlds.test.ts`, `moteur-sans-three.test.ts` |
+| `asHostLibrary<T>(resource)` — `packages/sdk-browser/hostResources.ts`                                                     | the single crossing back: a boundary file gives a host resource to the library its owner wrote it with. Only the declared witnesses and host adapters call it          | scattered `as THREE.X` casts                                                  | `moteur-sans-three.test.ts` (closed list)    |
+| `addInstance(id, transform)`, `updateInstance(id, transform)`                                                              | a placement as sixteen column-major floats, `Float64Array(16)`; the engine copies them, the host keeps its array                                                      | `THREE.Matrix4`                                                              | `autonomousPages.test.ts`, `autonomousInstances.test.ts` |
+
+`scene`, `source` and `sceneLighting` keep pointing at the host's own display and source graphs:
+they are the host's, not the engine's, so they are named `HostScene` and `HostNode` and not
+`SceneRoot` / `SceneNode`. Substituting the engine hierarchy there is the per-frame-walk and
+source-loading work of the following lots, not a type change.
 
 ## Batch math for hosts (#104, #80)
 

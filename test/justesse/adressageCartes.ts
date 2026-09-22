@@ -1,12 +1,15 @@
 // Defect 8: the material whose six maps do not share the same wrap mode, and the page row the
 // real `createPageRowWriter` writes for it. The GPU bench and the non-regression test both read
 // this fixture: one material exercised, hence one thing to reread when the modes change.
+import { importHostTexture } from '../../packages/sdk-browser/hostSurfaceImport.ts';
+import type { Texture } from '../../packages/sdk-core/index.ts';
 import * as THREE from 'three';
 import { createPageRowWriter } from '../../packages/sdk-browser/webgpuPageRow.ts';
 import type { PageRec } from '../../packages/sdk-browser/pageSelection.ts';
 import { PAGE_INFO_STRIDE } from '../../packages/sdk-browser/visibilityTypes.ts';
 import { WRAP_MAP } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import { octetsTexture } from './adressageCas.ts';
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 
 const {
   ClampToEdgeWrapping: SERRE,
@@ -71,15 +74,15 @@ export function ligneDePageMelangee() {
   const attributes = new THREE.BufferGeometry().attributes;
   // Every slot was just assigned a real Texture by `materielMelange`: the class declares them
   // nullable, this fixture never leaves one unset.
-  const mapLayer = new Map<THREE.Texture, number>([
-    [mat.map!, 1],
-    [mat.emissiveMap!, 2],
+  const mapLayer = new Map<Texture, number>([
+    [importHostTexture(mat.map!), 1],
+    [importHostTexture(mat.emissiveMap!), 2],
   ]);
-  const dataLayer = new Map<THREE.Texture, number>([
-    [mat.roughnessMap!, 1],
-    [mat.metalnessMap!, 2],
-    [mat.normalMap!, 3],
-    [mat.aoMap!, 4],
+  const dataLayer = new Map<Texture, number>([
+    [importHostTexture(mat.roughnessMap!), 1],
+    [importHostTexture(mat.metalnessMap!), 2],
+    [importHostTexture(mat.normalMap!), 3],
+    [importHostTexture(mat.aoMap!), 4],
   ]);
   const ecrire = createPageRowWriter({
     geometryBlocks: new Map([
@@ -96,7 +99,8 @@ export function ligneDePageMelangee() {
   // the rest of `PageRec` is filled with placeholders the writer never reads.
   const rec: PageRec = {
     id: 0,
-    material: mat,
+    material: surfaceOf(mat),
+    declaration: mat,
     attributes,
     matrix: new THREE.Matrix4(),
     url: 'defect8',

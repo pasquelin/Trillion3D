@@ -6,6 +6,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFile } from 'node:fs/promises';
 import { loadReactComponents } from './docs/render-react.ts';
 import { configureSceneCamera } from '../site/lessons/engine-scene/cameraControls.ts';
+import { createOrbitCameraControls } from '../packages/sdk-browser/cameraOrbitControls.ts';
+import { fixtureCamera, fixtureSurface } from '../packages/sdk-browser/cameraControlsFixture.ts';
 import type { Explorer } from '../packages/sdk-browser/index.ts';
 
 const { Canvas } = (await loadReactComponents('site/app/components/Canvas.tsx')) as {
@@ -176,4 +178,23 @@ test('RendererViewport offers every shared diagnostic mode with the scene copy o
       assert.match(html, new RegExp(`<option value="${mode}"[^>]*>${copy[mode]}</option>`));
     assert.equal(html.match(/<option /g)?.length, DIAGNOSTIC_MODES.length);
   }
+});
+
+// THE SWAP: the portal's helper, unchanged, on the engine's own orbit controller.
+test('the portal camera helper drives the native orbit controller unchanged', () => {
+  const camera = fixtureCamera(0, 0, 10),
+    surface = fixtureSurface(400);
+  const controls = createOrbitCameraControls(camera, surface.element);
+  const explorer = {
+    center: vector(0, 0, 0),
+    resetHome: () => void camera.position.set(0, 0, 10),
+  } as Explorer;
+  const helper = configureSceneCamera(explorer, controls);
+  helper.reset();
+  assert.deepEqual([controls.minDistance, controls.maxDistance], [1.5, 25]);
+  const span = () => Number(camera.position.distanceTo(controls.target).toFixed(6));
+  helper.zoomIn();
+  assert.equal(span(), 8);
+  for (let i = 0; i < 20; i++) helper.zoomOut();
+  assert.equal(span(), 25);
 });

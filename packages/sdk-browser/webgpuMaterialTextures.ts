@@ -1,33 +1,32 @@
-import type * as THREE from 'three';
+import type { Texture } from '../sdk-core/index.ts';
+import type { VisMaterial } from './visibilityTypes.ts';
+import type { BlendCopy } from './blendCopyContract.ts';
 import type { PageRec } from './pageSelection.ts';
-import { visMaterial } from './visibilityBuffer.ts';
 
 /** Store a texture in an atlas if it is not already there, and return the slot it occupies.
  *  Slot 0 is the fill texel, so the first stored texture takes slot 1. */
-const adder =
-  (known: Map<THREE.Texture, number>, list: THREE.Texture[]) => (texture?: THREE.Texture) => {
-    if (!texture) return;
-    if (known.has(texture)) return;
-    known.set(texture, list.length + 1);
-    list.push(texture);
-  };
+const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Texture) => {
+  if (!texture) return;
+  if (known.has(texture)) return;
+  known.set(texture, list.length + 1);
+  list.push(texture);
+};
 
 /** Census every colour and data texture once, in a stable slot order. */
 export function collectWebgpuMaterialTextures(
   allPages: PageRec[],
-  blendCopies: THREE.Mesh[],
-  mapLayer: Map<THREE.Texture, number>,
-  dataLayer: Map<THREE.Texture, number>,
+  blendCopies: readonly BlendCopy[],
+  mapLayer: Map<Texture, number>,
+  dataLayer: Map<Texture, number>,
 ) {
-  const maps: THREE.Texture[] = [];
-  const dataMaps: THREE.Texture[] = [];
-  const seen = new Set<THREE.Material | THREE.Material[]>();
+  const maps: Texture[] = [];
+  const dataMaps: Texture[] = [];
+  const seen = new Set<VisMaterial>();
   const addColor = adder(mapLayer, maps);
   const addData = adder(dataLayer, dataMaps);
-  const collect = (material: THREE.Material | THREE.Material[]) => {
-    if (seen.has(material)) return;
-    seen.add(material);
-    const mat = visMaterial(material);
+  const collect = (mat: VisMaterial) => {
+    if (seen.has(mat)) return;
+    seen.add(mat);
     addColor(mat.map);
     addColor(mat.emissiveMap);
     addData(mat.roughnessMap);
@@ -36,6 +35,6 @@ export function collectWebgpuMaterialTextures(
     addData(mat.aoMap);
   };
   for (const rec of allPages) collect(rec.material);
-  for (const copy of blendCopies) collect(copy.material);
+  for (const copy of blendCopies) collect(copy.surface);
   return { maps, dataMaps };
 }

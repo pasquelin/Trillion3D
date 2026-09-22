@@ -1,5 +1,4 @@
-import { visMaterial } from './visibilityBuffer.ts';
-import type * as THREE from 'three';
+import type { Texture } from '../sdk-core/index.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /**
@@ -15,8 +14,8 @@ export const BLEND_ITEM_WORDS = 40;
 
 /** Atlas tables the record cites: each texture's slot, per atlas. */
 export type BlendAtlasTables = {
-  mapLayer: Map<THREE.Texture, number>;
-  dataLayer: Map<THREE.Texture, number>;
+  mapLayer: Map<Texture, number>;
+  dataLayer: Map<Texture, number>;
 };
 
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer. */
@@ -28,7 +27,7 @@ export function writeBlendItemRecord(
   tables: BlendAtlasTables,
 ) {
   const base = index * BLEND_ITEM_WORDS,
-    mat = visMaterial(item.material);
+    mat = item.surface;
   const layer = item.map && tables.mapLayer.has(item.map) ? tables.mapLayer.get(item.map)! : 0;
   floats.set(item.matrix.elements, base);
   floats[base + 16] = item.rgba[0];
