@@ -50,3 +50,22 @@ pub(super) fn check_cache(case: &Case, expect: &Expect, roots_in_memory: &[usize
         );
     }
 }
+
+/// The DAG the compiled cache holds for the case, primitive by primitive: every page's index
+/// payload digest and its errors, in page order.
+pub(super) fn compiled_dag(case: &Case) -> Vec<Vec<Value>> {
+    let written = gltf::write(case);
+    let result = compile(&written.options, |_| {}).expect("compile");
+    result["primitives"]
+        .as_array()
+        .expect("primitives")
+        .iter()
+        .map(|primitive| {
+            let pages = primitive["pages"].as_array().expect("pages");
+            pages
+                .iter()
+                .map(|p| json!([p["sha256"], p["lodError"], p["parentError"]]))
+                .collect()
+        })
+        .collect()
+}

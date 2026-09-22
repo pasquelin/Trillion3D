@@ -1,7 +1,7 @@
 use super::*;
 mod base;
 mod directories;
-mod fixtures;
+pub(crate) mod fixtures;
 mod golden;
 use base::*;
 use directories::scratch;
