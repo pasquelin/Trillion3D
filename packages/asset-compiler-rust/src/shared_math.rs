@@ -95,6 +95,9 @@ pub fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
         a[0] * b[1] - a[1] * b[0],
     ]
 }
+pub fn scale(a: [f64; 3], k: f64) -> [f64; 3] {
+    [a[0] * k, a[1] * k, a[2] * k]
+}
 pub fn length(a: [f64; 3]) -> f64 {
     dot(a, a).sqrt()
 }
