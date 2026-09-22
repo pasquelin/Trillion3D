@@ -47,10 +47,7 @@ export const surfaceSide = (surface: PageSurface): Side => {
   return now.doubleSided ? 'double' : now.backSide ? 'back' : 'front';
 };
 /** True when only the front faces are drawn: the one case a normal cone may reject a page. */
-export const surfaceFrontOnly = (surface: PageSurface) => {
-  const now = refreshSide(surface);
-  return !now.doubleSided && !now.backSide;
-};
+export const surfaceFrontOnly = (surface: PageSurface) => surfaceSide(surface) === 'front';
 
 const held = new WeakMap<object, PageSurface>();
 const declarations = new WeakMap<PageSurface, HostMaterials>();

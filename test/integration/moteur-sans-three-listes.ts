@@ -101,10 +101,9 @@ export const AUTORISES: Record<string, string> = {
 // audit all compute on that record. `declaration` is the host object itself, kept for the one
 // use that needs it — handing a surface back to the library that owns it. Reading it anywhere
 // else puts the host material back in the middle of a number the engine computes.
-export //
 // The keys are paths under `packages/sdk-browser/`, extension dropped: the rule reads the
 // benches too, since a bench builds the page records the engine path then reads.
-const DECLARATION: Record<string, string> = {
+export const DECLARATION: Record<string, string> = {
   clusterBatchRange: 'contract: it declares the field on a batch page',
   pageSelectionTypes: 'contract: it declares the field on a page record',
   pageSelectionCollect: 'the collection sets it, once, beside the record it built',
