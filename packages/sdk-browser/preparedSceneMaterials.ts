@@ -76,14 +76,22 @@ export function materialDivergence(
   actual: VisMaterial,
   ranks: ReadonlyMap<Texture, number>,
   textures: readonly TableTexture[],
+  derivativeTangents: boolean,
 ) {
   if (!expected) return 'the material table has no entry at that rank';
+  // The host flips the second normal factor when it has to rebuild the tangent frame from screen
+  // derivatives. The table was written for the geometry of `source.gltf`; the autonomous scene
+  // publishes the same materials over primitives stripped of their tangents, so the sign follows
+  // the geometry actually loaded and the magnitude stays the material's.
+  const flip = expected.derivativeTangents === derivativeTangents ? 1 : -1;
   for (const field of TABLE_FLAGS)
     if (expected[field] !== actual[field])
       return `${field} is ${actual[field]} where the table says ${expected[field]}`;
-  for (const field of TABLE_NUMBERS)
-    if (!near(expected[field], actual[field]))
-      return `${field} is ${actual[field]} where the table says ${expected[field]}`;
+  for (const field of TABLE_NUMBERS) {
+    const declared = field === 'normalScaleY' ? expected[field] * flip : expected[field];
+    if (!near(declared, actual[field]))
+      return `${field} is ${actual[field]} where the table says ${declared}`;
+  }
   for (const field of TABLE_TRIPLETS)
     for (let axis = 0; axis < 3; axis++)
       if (!near(expected[field][axis], actual[field][axis]))

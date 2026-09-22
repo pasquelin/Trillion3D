@@ -58,9 +58,14 @@ export interface TableTexture {
 /**
  * A surface as the engine reads it. One glTF material is one entry per tangent variant: a host
  * that has to rebuild the tangent frame from screen derivatives flips `normalScaleY`, so the
- * table names a rank a node points at rather than the glTF material rank.
+ * table names a rank a node points at rather than the glTF material rank. `derivativeTangents`
+ * says which variant the entry was written for — the autonomous scene publishes its primitives
+ * without tangents, so a reader flips the sign back when the geometry it holds disagrees.
  */
-export type TableMaterial = { name: string } & Record<(typeof TABLE_FLAGS)[number], boolean> &
+export type TableMaterial = { name: string; derivativeTangents: boolean } & Record<
+  (typeof TABLE_FLAGS)[number],
+  boolean
+> &
   Record<(typeof TABLE_NUMBERS)[number], number> &
   Record<(typeof TABLE_TRIPLETS)[number], Triplet> &
   Record<TableSlotName, TableTextureSlot | null>;
