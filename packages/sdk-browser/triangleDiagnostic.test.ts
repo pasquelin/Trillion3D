@@ -1,19 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {
-  applyMeshDiagnostic,
-  createTriangleDiagnosticMaterial,
-  triangleGeometry,
-} from './triangleDiagnostic.ts';
-import { hashId } from './backendCommon.ts';
+import { applyMeshDiagnostic, triangleGeometry } from './triangleDiagnostic.ts';
+import { hostTriangleMaterial } from './threeSceneAdapter.ts';
+import { asHostLibrary } from './hostResources.ts';
 import { exactPagesBackend, referenceBackend } from './index.ts';
 import { quadScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 import { submittedDraws } from './clusterBatchMesh.ts';
 
 test('triangle diagnostic expands indexed geometry and assigns a color per submitted triangle', () => {
   const { geometry } = quadScene();
-  const expanded = triangleGeometry(geometry);
+  const expanded = asHostLibrary<THREE.BufferGeometry>(triangleGeometry(geometry));
   assert.equal(expanded.getIndex(), null);
   assert.equal(expanded.getAttribute('position').count, 6);
   assert.ok(expanded.getAttribute('color'));
@@ -24,7 +21,7 @@ test('triangle diagnostic expands indexed geometry and assigns a color per submi
 });
 
 test('triangle material is filled and unlit with vertex colors', () => {
-  const material = createTriangleDiagnosticMaterial(THREE.FrontSide, hashId('0/0/1'));
+  const material = asHostLibrary<THREE.MeshBasicMaterial>(hostTriangleMaterial(THREE.FrontSide));
   assert.ok(material instanceof THREE.MeshBasicMaterial);
   assert.equal(material.wireframe, false);
   assert.equal(material.vertexColors, true);

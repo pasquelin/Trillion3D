@@ -42,12 +42,11 @@ export const AUTORISES: Record<string, string> = {
   explorerCameraApi:
     'boundary: the orbit and fly controls of `three/addons` it returns to the host',
   exactPagesRequests: 'exact witness: its requests start from its host graph',
-  lightingObservationResources: 'boundary: the empty host scene the experiment publishes',
   referenceBackend: 'reference witness: the host engine, as-is',
   threeBounds: 'witness: bounds as the host library computes them',
   threeLod: 'witness: the host level-of-detail selection, `LOD.update` included',
   threeSceneAdapter:
-    'witness adapter: the one host renderer the witnesses share to draw their scenes',
+    'witness adapter: the host renderer the witnesses share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
   backendCommon: 'boundary: it creates the scene each engine renders to the host',
@@ -66,13 +65,11 @@ export const AUTORISES: Record<string, string> = {
   hostWorldPose: 'boundary: it reads the local pose of a host node into the engine tree',
   hostWorldTree: 'boundary: it reads local poses of a host subtree',
   replicateInstances: 'boundary: it replicates nodes of the host graph',
-  sceneLighting: 'boundary: contract lights placed in the host scene',
   sceneMeshes: 'boundary: it enumerates meshes of the host graph',
   webgpuPagesSurfaceCapture: 'boundary: capture enters through a host camera',
   webgpuPagesTransform: 'boundary: the host moves a subtree of its scene',
 
-  // 2 bis. Test-scene mounts and oracles that walk the host graph.
-  pageRaster: 'raster oracle: it reads meshes, materials and colours of the host graph',
+  // 2 bis. Test-scene mounts that walk the host graph.
   pageSelectionBlendFixture: 'test-scene mount: it sets the camera and materials',
   pageSelectionDagFixture: 'test-scene mount: it sets the camera and materials',
   pagesBackendScenes: 'test-scene mount: it sets the camera',
@@ -87,11 +84,9 @@ export const AUTORISES: Record<string, string> = {
   //    own records (#271): the import below builds them, the gate below refuses what the passes
   //    could not preserve, and the display graph the backend publishes is built here too. No
   //    pass, no row, no pool names the host library any more.
-  explorerDiagnosticApi: 'it replaces host materials and geometries with diagnostic ones',
   hostBlendScene: 'boundary: the host display graph the transparent copies are held in',
   hostSurfaceGate: 'boundary: it refuses a host material the autonomous programs cannot preserve',
   hostSurfaceImport: 'boundary: it reads a host material and texture into the engine records',
-  triangleDiagnostic: 'it colours a host geometry in a host material',
 };
 
 // CLOSED LIST OF FILES ALLOWED TO READ `declaration` — the host material a page was read from.

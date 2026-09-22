@@ -3,7 +3,8 @@ import { asHostLibrary } from './hostResources.ts';
 import { clusterColor, hashId } from './backendCommon.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
-import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
+import { triangleGeometry } from './triangleDiagnostic.ts';
+import { hostTriangleMaterial } from './threeSceneAdapter.ts';
 import { materialSide } from './materialSide.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -26,7 +27,7 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
       const key = `wireframe:${rec.clusterId}`;
       let material = diagnosticMaterials.get(key);
       if (!material) {
-        material = createTriangleDiagnosticMaterial(side);
+        material = asHostLibrary<THREE.Material>(hostTriangleMaterial(side));
         diagnosticMaterials.set(key, material);
       }
       return material;
@@ -81,7 +82,9 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
   ) => {
     mesh.material = material;
     mesh.geometry =
-      options.diagnostic === 'wireframe' ? triangleGeometry(sourceGeometry, salt) : sourceGeometry;
+      options.diagnostic === 'wireframe'
+        ? asHostLibrary<THREE.BufferGeometry>(triangleGeometry(sourceGeometry, salt))
+        : sourceGeometry;
   };
   const paintBlend = () => {
     for (const copy of options.blendCopies) {
@@ -91,7 +94,9 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
         const key = `blend:${copy.uuid}`;
         let material = diagnosticMaterials.get(key);
         if (!material) {
-          material = createTriangleDiagnosticMaterial(materialSide(sourceMaterial));
+          material = asHostLibrary<THREE.Material>(
+            hostTriangleMaterial(materialSide(sourceMaterial)),
+          );
           diagnosticMaterials.set(key, material);
         }
         paint(copy, sourceGeometry, material, hashId(copy.uuid));

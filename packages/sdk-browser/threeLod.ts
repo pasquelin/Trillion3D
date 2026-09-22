@@ -22,11 +22,8 @@ const HORS_PORTEE = [
 /** Distance-based THREE.LOD from the same source meshes. Coarse levels exist only when QEM pages are present and loaded. */
 export const threeLodBackend: BackendFactory = (context) => {
   const scene = new THREE.Scene();
-  const sceneLights = installSceneLighting(
-    scene,
-    context.sceneLighting ?? context.source,
-    context.clearColor ?? 0x171d28,
-  );
+  scene.background = new THREE.Color(context.clearColor ?? 0x171d28);
+  const sceneLights = installSceneLighting(scene, context.sceneLighting ?? context.source);
   const hostDraw = createThreeSceneDraw(context.webglContext, scene);
   const lods: THREE.LOD[] = [];
   let levels = 1,
