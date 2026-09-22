@@ -1,4 +1,5 @@
 import { installSceneLighting } from './sceneLighting.ts';
+import type { HostNode } from './hostResources.ts';
 import { hslToLinearRgb, type BackendCapabilities } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
@@ -70,6 +71,6 @@ export function clusterColor(id: string, saturation = 0.75) {
   hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
   return new THREE.Color(tint[0], tint[1], tint[2]);
 }
-export function lighting(scene: THREE.Scene, clearColor: number, source: THREE.Object3D) {
+export function lighting(scene: THREE.Scene, clearColor: number, source: HostNode) {
   return installSceneLighting(scene, source, clearColor);
 }

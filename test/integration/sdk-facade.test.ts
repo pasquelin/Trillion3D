@@ -94,7 +94,7 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
-  assert.equal(inventory.exports.length, 505);
+  assert.equal(inventory.exports.length, 518);
   assert.deepEqual(inventory.collisions, []);
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes(process.cwd())));
   assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes('file://')));
