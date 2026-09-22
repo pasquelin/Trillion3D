@@ -77,11 +77,9 @@ try {
     document.body.innerHTML +=
       '<canvas id="viewer" style="width:240px;height:160px;display:block"></canvas>';
   });
-  const backend = await page.evaluate(async (sdkUrl) => {
+  await page.evaluate(async (sdkUrl) => {
     window.sdk = await import(sdkUrl);
-    return true;
   }, '/sdk/sdk-browser/index.js');
-  assert.equal(backend, true);
   assert.equal(await page.evaluate(openProbe), 'webgpu-page-raster');
   type Gesture = Awaited<ReturnType<typeof endGesture>> & { home: number[]; moved: number[] };
   const gestures: Record<string, Gesture> = {};

@@ -17,6 +17,14 @@ export interface PanZoomCameraControls extends PivotCameraControls {
   keyPanPixels: number;
 }
 
+/** Where each arrow key takes the view, in screen directions. */
+const ARROWS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+
 export function createPanZoomCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
@@ -31,12 +39,6 @@ export function createPanZoomCameraControls(
     },
   });
   trackWheel(surface, core.base, (steps) => core.dolly(-steps));
-  const ARROWS: Record<string, [number, number]> = {
-    ArrowLeft: [-1, 0],
-    ArrowRight: [1, 0],
-    ArrowUp: [0, -1],
-    ArrowDown: [0, 1],
-  };
   // Keys are acted on as they arrive, never polled: a held arrow repeats through the
   // platform's own auto-repeat, and a still view is never woken by a key nobody pressed.
   core.base.listen<KeyboardEvent>(surface.ownerDocument, 'keydown', (event) => {
