@@ -1,5 +1,6 @@
 // the autonomous backend detaches by cut delta instead of sweeping the whole DAG.
 import * as THREE from 'three';
+import { surfaceOf } from '../pageSurface.ts';
 import { createAutonomousGeometry } from '../autonomousGeometry.ts';
 import type { PageRec } from '../pageSelection.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
@@ -28,7 +29,8 @@ function monde(total: number, depart: number): Monde {
       attached: false,
       mesh: undefined,
       geometry: geometrie,
-      material: materiau,
+      material: surfaceOf(materiau),
+      declaration: materiau,
       renderOrder: i,
       matrix: new THREE.Matrix4().makeTranslation(alea(), alea(), alea()),
       array: new Uint32Array(3),

@@ -1,6 +1,13 @@
 import * as THREE from 'three';
+import { surfaceOf } from './pageSurface.ts';
 import { ClusterBatches, type BatchPage } from './clusterBatches.ts';
 import { isClusterDrawMesh, type ClusterDrawMesh } from './clusterBatchMesh.ts';
+
+/** The surface a page wears: the engine's record, and the host declaration behind it. */
+export const wears = (material: THREE.Material) => ({
+  material: surfaceOf(material),
+  declaration: material,
+});
 
 export function attributes(count: number) {
   const geometry = new THREE.BufferGeometry();
@@ -39,7 +46,8 @@ export function fixture(): Fixture {
       min: [0, 0, 0],
       max: [1, 1, 1],
       attributes: attrs,
-      material,
+      material: surfaceOf(material),
+      declaration: material,
       matrix: new THREE.Matrix4(),
       renderOrder,
       ...extra,

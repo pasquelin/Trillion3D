@@ -1,5 +1,6 @@
 // what a frame used to rebuild for no reason.
 import * as THREE from 'three';
+import { surfaceOf } from '../pageSurface.ts';
 import { asHostLibrary } from '../hostResources.ts';
 import { surfaceColorAttachments } from '../webgpuPagesAttachments.ts';
 import { anneauFroid } from '../explorerDraw.ts';
@@ -70,7 +71,8 @@ const pageOf = (matrix: THREE.Matrix4, mesh?: THREE.Mesh): PageRec => ({
   max: DUMMY_BOUNDS,
   depthLayer: 0,
   attributes: DUMMY_ATTRIBUTES,
-  material: [],
+  material: surfaceOf([]),
+  declaration: [],
   matrix,
   renderOrder: 0,
   attached: true,

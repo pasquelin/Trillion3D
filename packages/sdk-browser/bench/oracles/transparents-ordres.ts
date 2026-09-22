@@ -7,7 +7,6 @@
 //
 // This is the oracle: these copies are wanted duplicates, and the bench compares their
 // output to that of the imported package path.
-import * as THREE from 'three';
 import { frustumExcludesBox, matrixWindingCw } from '../../../sdk-core/index.ts';
 import type { BlendGpuItem } from '../../webgpuBlendState.ts';
 
@@ -27,15 +26,20 @@ const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 
-/** `webgpuBlendPlan.ts` from before: the two entries of a double-sided item, back then front. */
+/** `webgpuBlendPlan.ts` from before: the two entries of a double-sided item, back then front.
+ *  The item carries the engine's surface record where it carried a host material (#288); the three
+ *  host face constants this copy tested are that record's two booleans, one for one —
+ *  `DoubleSide` is `doubleSided`, `BackSide` is `backSide`, `FrontSide` is neither. Nothing else
+ *  of the copy moved: a double-sided item drawn in ONE pass falls through all three tests and
+ *  plans `PIPELINE_NONE`, as it did. */
 function sidesOf(item: BlendGpuItem) {
-  const material = Array.isArray(item.material) ? item.material[0] : item.material;
+  const surface = item.surface;
   const renverse = matrixWindingCw(item.matrix.elements);
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT;
-  if (material.side === THREE.DoubleSide && !material.forceSinglePass) return [back, front];
-  if (material.side === THREE.FrontSide) return [front];
-  if (material.side === THREE.BackSide) return [back];
+  if (surface.doubleSided && !surface.forceSinglePass) return [back, front];
+  if (!surface.doubleSided && !surface.backSide) return [front];
+  if (surface.backSide) return [back];
   return [PIPELINE_NONE];
 }
 
