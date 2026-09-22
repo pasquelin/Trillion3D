@@ -68,13 +68,14 @@ export async function loadPreparedScene(
     }
   };
   // Images whose chain is baked are not read: the loader receives a white pixel in their
-  // place, and the engine will read their levels from the cache. Only at the host's request,
-  // because an engine that draws the host scene needs the real images.
+  // place, and the engine reads their levels from the cache — which it does either way, so
+  // fetching them here would buy nothing. A host that says `'host'` wants them anyway, because
+  // an engine that draws the host scene samples the images themselves.
   // GLTFLoader has no AbortSignal in this Three version; dispose late results after loading settles.
   const sceneUrl = new URL(sceneFile, base).href;
   const loader = new GLTFLoader(manager);
   let gltf: Awaited<ReturnType<GLTFLoader['loadAsync']>>;
-  if (options.textureSource === 'cache' && metadata.textures) {
+  if (options.textureSource !== 'host' && metadata.textures) {
     // The glTF is read once, here: its image list says which to skip, then the loader parses
     // it as-is, without asking the network again.
     const text = await (await checked(sceneUrl, signal)).text();
