@@ -1,5 +1,5 @@
-import type * as THREE from 'three';
 import { copyElements, sameElements } from './matrixElements.ts';
+import type { HostGraphNode, HostLightNode } from './hostGraphNodes.ts';
 
 /** What a watch reports of a read: nothing, a value moved, or the set of read objects changed. */
 export type WatchVerdict = 0 | 'moved' | 'reshaped';
@@ -9,15 +9,6 @@ const LIGHT_VALUES = 11;
 const scratch = new Float64Array(LIGHT_VALUES);
 const finite = (value: number | undefined) => (Number.isFinite(value) ? (value as number) : 0);
 
-type Light = THREE.Light & {
-  distance?: number;
-  decay?: number;
-  angle?: number;
-  penumbra?: number;
-  groundColor?: THREE.Color;
-  target?: THREE.Object3D;
-};
-
 /**
  * What a watched node holds outside its hooked pose, as last read. These are the node's own
  * data fields — the reference writes them itself on its walk — so no hook may sit on them
@@ -25,20 +16,20 @@ type Light = THREE.Light & {
  * per node, and a matrix set by hand is compared whole while the node is frozen.
  */
 export interface NodeState {
-  node: THREE.Object3D;
+  node: HostGraphNode;
   visible: boolean;
-  parent: THREE.Object3D | null;
+  parent: HostGraphNode | null;
   auto: boolean;
   matrix: Float64Array | null;
   light: LightState | null;
 }
 
 interface LightState {
-  target: THREE.Object3D | undefined;
+  target: HostGraphNode | undefined;
   values: Float64Array;
 }
 
-function lightValues(light: Light, into: Float64Array) {
+function lightValues(light: HostLightNode, into: Float64Array) {
   const colour = light.color,
     ground = light.groundColor;
   into[0] = colour.r;
@@ -55,8 +46,8 @@ function lightValues(light: Light, into: Float64Array) {
 }
 
 /** The node as it stands: the first read after it announces nothing. */
-export function snapshot(node: THREE.Object3D): NodeState {
-  const light = node as Light;
+export function snapshot(node: HostGraphNode): NodeState {
+  const light = node as HostLightNode;
   const lit: LightState | null = light.isLight
     ? { target: light.target, values: new Float64Array(LIGHT_VALUES) }
     : null;
@@ -71,7 +62,7 @@ export function snapshot(node: THREE.Object3D): NodeState {
   };
 }
 
-function scanLight(light: Light, state: LightState): WatchVerdict {
+function scanLight(light: HostLightNode, state: LightState): WatchVerdict {
   // A new target is another chain of ancestors to watch: the set is reshaped.
   const retargeted = light.target !== state.target;
   state.target = light.target;
@@ -105,7 +96,7 @@ export function scan(state: NodeState): WatchVerdict {
     copyElements(state.matrix, node.matrix.elements);
     moved = true;
   }
-  const light = state.light ? scanLight(node as Light, state.light) : 0;
+  const light = state.light ? scanLight(node as HostLightNode, state.light) : 0;
   if (reparented || light === 'reshaped') return 'reshaped';
   return moved || light ? 'moved' : 0;
 }

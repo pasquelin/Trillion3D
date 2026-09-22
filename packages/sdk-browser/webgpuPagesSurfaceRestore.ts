@@ -5,13 +5,14 @@ import { resetHizHistory } from './webgpuPagesDrops.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Renders through the backend while the secondary camera is set, which `render` otherwise refuses. */
-export function renderForCapture(rt: WebgpuPagesRuntime, camera: HostCamera) {
+/** Renders through the backend while a capture holds it, which `render` otherwise refuses.
+ *  `aspect` is the shape of the surface written into, when it is not the camera's own. */
+export function renderForCapture(rt: WebgpuPagesRuntime, camera: HostCamera, aspect?: number) {
   rt.capture.surfaceRenderAllowed = true;
   // A capture renders from another camera and then restores the image: nothing is held there.
   rt.run.gate.viewReplaced();
   try {
-    renderWebgpuPages(rt, camera);
+    renderWebgpuPages(rt, camera, aspect);
   } finally {
     rt.capture.surfaceRenderAllowed = false;
   }
@@ -73,7 +74,7 @@ export async function restoreMainView(
       height: saved.size[1],
     });
   } finally {
-    capture.secondaryCamera = undefined;
+    capture.capturing = false;
     capture.surfaceRenderAllowed = false;
   }
 }

@@ -75,7 +75,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
     },
     gpu: { cache: { get: (url: string) => residents.get(url) }, targetSize: [64, 64] },
     vis: { visEnabled: false, gpuHiz: undefined, textureJobs: [] },
-    capture: { secondaryCamera: false },
+    capture: { capturing: false },
     blendState: { visibleBlend: [] },
     timing: { marks: { preStart: 0 }, cpuSample: undefined },
     diag: {
