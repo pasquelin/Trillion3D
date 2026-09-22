@@ -37,7 +37,10 @@ const document = {
 function container() {
   const json = Buffer.from(JSON.stringify(document), 'utf8');
   const chunks = [json, Buffer.from(positions.buffer)].map((body) => {
-    const padded = Buffer.alloc(body.length + ((4 - (body.length % 4)) % 4), body === json ? 32 : 0);
+    const padded = Buffer.alloc(
+      body.length + ((4 - (body.length % 4)) % 4),
+      body === json ? 32 : 0,
+    );
     body.copy(padded);
     return padded;
   });
@@ -69,8 +72,9 @@ const defaultMaterial = {
   alphaTest: 0,
   normalScale: 1,
   // The triangle declares no tangent, so the host flips the second normal factor and so does
-  // the table (`compiler_tables/materials.rs`).
+  // the table (`compiler_tables/materials.rs`), which says which variant it was written for.
   normalScaleY: -1,
+  derivativeTangents: true,
   aoIntensity: 1,
   transmission: 0,
   ior: 1.5,

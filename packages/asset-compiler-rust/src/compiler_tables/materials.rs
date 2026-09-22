@@ -6,7 +6,7 @@
 //! would build it. Filters and wrapping are the sampler constants of the same specification.
 use super::*;
 
-pub(super) fn number(value: Option<&Value>, default: f64) -> f64 {
+fn number(value: Option<&Value>, default: f64) -> f64 {
     value
         .and_then(Value::as_f64)
         .filter(|v| v.is_finite())
@@ -44,10 +44,12 @@ fn uv_transform(transform: Option<&Value>) -> [f64; 9] {
 /// One texture slot of a material: which texture, which coordinate set, and the transform composed
 /// for it. `null` when the material leaves the slot empty, which is what the engine record holds.
 fn slot(info: Option<&Value>) -> Value {
-    let Some(index) = info.and_then(|i| i.get("index")).and_then(Value::as_u64) else {
+    let Some(info) = info else {
         return Value::Null;
     };
-    let info = info.expect("index came from it");
+    let Some(index) = info.get("index").and_then(Value::as_u64) else {
+        return Value::Null;
+    };
     let transform = extension(info, "KHR_texture_transform");
     let tex_coord = transform
         .and_then(|t| t.get("texCoord"))
@@ -66,6 +68,7 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
     let pbr = m.get("pbrMetallicRoughness");
     let of = |name: &str| pbr.and_then(|p| p.get(name));
     let (normal, occlusion) = (m.get("normalTexture"), m.get("occlusionTexture"));
+    let normal_scale = number(normal.and_then(|n| n.get("scale")), 1.0);
     let strength = number(
         extension(m, "KHR_materials_emissive_strength").and_then(|e| e.get("emissiveStrength")),
         1.0,
@@ -92,9 +95,9 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
         "metalnessMap": slot(of("metallicRoughnessTexture")),
         "roughnessMap": slot(of("metallicRoughnessTexture")),
         "normalMap": slot(normal),
-        "normalScale": number(normal.and_then(|n| n.get("scale")), 1.0),
-        "normalScaleY": number(normal.and_then(|n| n.get("scale")), 1.0)
-            * if derivative { -1.0 } else { 1.0 },
+        "normalScale": normal_scale,
+        "normalScaleY": normal_scale * if derivative { -1.0 } else { 1.0 },
+        "derivativeTangents": derivative,
         "aoMap": slot(occlusion),
         "aoIntensity": number(occlusion.and_then(|o| o.get("strength")), 1.0),
         "emissive": emissive,
