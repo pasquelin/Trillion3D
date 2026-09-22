@@ -8,6 +8,7 @@ mod geometry_page;
 mod geometry_page_cells;
 mod geometry_page_quant;
 pub mod import;
+mod join;
 mod manifest_binary;
 pub mod oracle;
 mod perf;

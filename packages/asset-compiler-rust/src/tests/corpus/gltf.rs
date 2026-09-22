@@ -113,40 +113,30 @@ pub(super) fn write(case: &Case) -> Written {
         buffer.floats(&case.positions, "VEC3", 3)
     };
     attributes.insert("POSITION".into(), json!(position));
-    let named = [
-        ("NORMAL", "VEC3", 3, &case.normals),
-        ("TEXCOORD_0", "VEC2", 2, &case.uv0),
-        ("TEXCOORD_1", "VEC2", 2, &case.uv1),
-        ("TANGENT", "VEC4", 4, &case.tangents),
-    ];
-    for (name, kind, width, values) in named {
-        if let Some(values) = values {
-            let accessor = buffer.floats(values, kind, width);
+    let names = geometry_page::PAGE_ATTRIBUTES.map(|(name, _, _)| name);
+    for name in names.into_iter().chain(["TANGENT"]) {
+        if let Some((width, values)) = case.values(name) {
+            let accessor = buffer.floats(values, &format!("VEC{width}"), width);
             attributes.insert(name.into(), json!(accessor));
         }
     }
-    if let Some((width, values)) = &case.colours {
-        let kind = if *width == 3 { "VEC3" } else { "VEC4" };
-        let accessor = buffer.floats(values, kind, *width);
-        attributes.insert("COLOR_0".into(), json!(accessor));
-    }
+    let (materials, textured) = materials(case);
     let mut primitives = Vec::new();
     for (slot, indices) in case.primitives().iter().enumerate() {
         let mut primitive = json!({"attributes":attributes});
         if case.index_kind != Indices::Unindexed {
             primitive["indices"] = json!(index_accessor(&mut buffer, indices, case.index_kind));
         }
-        if !case.materials.is_empty() {
+        if !materials.is_empty() {
             primitive["material"] = json!(slot);
         }
         primitives.push(primitive);
     }
-    let materials: Vec<Value> = case
-        .materials
-        .iter()
-        .map(|m| json!({"alphaMode":m.alpha_mode,"doubleSided":m.double_sided}))
-        .collect();
     let mut gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":format!("{}.bin",case.name),"byteLength":buffer.bin.len()}],"bufferViews":buffer.views,"accessors":buffer.accessors,"meshes":[{"primitives":primitives}],"nodes":[{"mesh":0}],"materials":materials,"images":[]});
+    if textured {
+        gltf["images"] = json!([{"uri":"corpus.png"}]);
+        gltf["textures"] = json!([{"source":0}]);
+    }
     if case.quantized_positions {
         gltf["extensionsUsed"] = json!(["KHR_mesh_quantization"]);
         gltf["extensionsRequired"] = json!(["KHR_mesh_quantization"]);
@@ -158,4 +148,36 @@ pub(super) fn write(case: &Case) -> Written {
         bin: buffer.bin,
         views: buffer.ranges,
     }
+}
+
+/// The materials of the document, and whether they sample a texture. Every texture set the case
+/// marks sampled is read by one texture of every material — the base colour for the first set,
+/// the emissive for the second — and a case with such a set and no material gets one opaque
+/// material, so the compiler carries exactly the sets the case says a material samples.
+fn materials(case: &Case) -> (Vec<Value>, bool) {
+    let reads: Vec<u64> = case
+        .uv_sets()
+        .iter()
+        .map(|&(name, _)| u64::from(name == "TEXCOORD_1"))
+        .collect();
+    let declared: &[Material] = if case.materials.is_empty() && !reads.is_empty() {
+        &[Material::OPAQUE]
+    } else {
+        &case.materials
+    };
+    let materials = declared
+        .iter()
+        .map(|m| {
+            let mut material = json!({"alphaMode":m.alpha_mode,"doubleSided":m.double_sided});
+            for &set in &reads {
+                let info = json!({"index":0,"texCoord":set});
+                match set {
+                    0 => material["pbrMetallicRoughness"] = json!({"baseColorTexture":info}),
+                    _ => material["emissiveTexture"] = info,
+                }
+            }
+            material
+        })
+        .collect();
+    (materials, !reads.is_empty())
 }

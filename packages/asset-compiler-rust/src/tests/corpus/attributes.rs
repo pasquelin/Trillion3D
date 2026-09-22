@@ -4,7 +4,7 @@ use super::*;
 
 /// Flat shading: every quad owns its vertices and carries its face normal.
 fn hard_normals(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let quads = Exploded::new(&mut rng, NX, NY, amplitude);
     let normals = (0..quads.positions.len() / 3)
@@ -17,7 +17,7 @@ fn hard_normals(seed: u64) -> Case {
 
 /// Smooth shading: one normal per shared vertex, from the relief's finite differences.
 fn smooth_normals(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, NX, NY, amplitude);
     let z = |x: usize, y: usize| sheet.positions[sheet.vertex(x, y) as usize * 3 + 2];
@@ -37,7 +37,7 @@ fn smooth_normals(seed: u64) -> Case {
 
 /// A colour per band of columns, stepping where two bands meet.
 fn vertex_colour_steps(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let width = rng.between(4, 16);
     let amplitude = amplitude(&mut rng);
     let bands = Banded::new(&mut rng, NX, NY, amplitude, width);
@@ -78,7 +78,7 @@ fn tangents_present(seed: u64) -> Case {
 fn every_attribute(seed: u64) -> Case {
     let mut case = hard_normals(seed);
     case.name = "attributes-every-one";
-    let mut rng = Rng::new(seed ^ 0x5EED);
+    let mut rng = seeded(seed ^ 0x5EED);
     let count = case.vertex_count();
     case.uv0 = Some(
         (0..count)

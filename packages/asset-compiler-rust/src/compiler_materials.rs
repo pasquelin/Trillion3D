@@ -42,8 +42,8 @@ pub(super) fn material_reads_texcoord(material: Option<&Value>, set: u64) -> boo
 
 /// The attributes a page carries. Tangents are never read: a page carries none, the shader
 /// rebuilds them. A texture coordinate set no texture of the material reads stays out of the
-/// pages too, while the DAG still welds along it, so clusters do not depend on what a
-/// material samples.
+/// pages too, and out of the DAG's seam weld: its seams are drawn by nobody, so they hold no
+/// group back.
 pub(super) fn carried_attributes<'a>(
     attributes: &'a [geometry_page::Attribute],
     material: Option<&Value>,

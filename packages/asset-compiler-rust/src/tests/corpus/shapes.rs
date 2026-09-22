@@ -6,7 +6,7 @@ pub(super) const NX: usize = 64;
 pub(super) const NY: usize = 64;
 
 /// The relief amplitude of a case, drawn from its seed: never flat, never a cliff.
-pub(super) fn amplitude(rng: &mut Rng) -> f32 {
+pub(super) fn amplitude(rng: &mut Xorshift) -> f32 {
     1.0 + rng.unit() * 4.0
 }
 
@@ -19,7 +19,7 @@ pub(super) struct Sheet {
 impl Sheet {
     /// The sheet's relief: a portable sine of the given amplitude, its frequencies and phases
     /// drawn from the seed.
-    pub fn new(rng: &mut Rng, nx: usize, ny: usize, amplitude: f32) -> Self {
+    pub fn new(rng: &mut Xorshift, nx: usize, ny: usize, amplitude: f32) -> Self {
         let relief = Relief::new(rng, amplitude);
         let mut positions = Vec::with_capacity((nx + 1) * (ny + 1) * 3);
         for y in 0..=ny {
@@ -51,7 +51,7 @@ pub(super) struct Relief {
     phase: [f32; 2],
 }
 impl Relief {
-    pub fn new(rng: &mut Rng, amplitude: f32) -> Self {
+    pub fn new(rng: &mut Xorshift, amplitude: f32) -> Self {
         Relief {
             amplitude,
             frequency: [0.2 + rng.unit() * 0.2, 0.2 + rng.unit() * 0.2],
@@ -65,23 +65,6 @@ impl Relief {
     }
 }
 
-/// Two triangles per quad, corners named by `vertex(x, y)`.
-pub(super) fn grid_indices(nx: usize, ny: usize, vertex: impl Fn(usize, usize) -> u32) -> Vec<u32> {
-    let mut indices = Vec::with_capacity(nx * ny * 6);
-    for y in 0..ny {
-        for x in 0..nx {
-            let (a, b, c, d) = (
-                vertex(x, y),
-                vertex(x + 1, y),
-                vertex(x, y + 1),
-                vertex(x + 1, y + 1),
-            );
-            indices.extend([a, b, c, b, d, c]);
-        }
-    }
-    indices
-}
-
 /// A sheet in which every quad owns its four vertices, quad-major: vertex `4q + c` is corner
 /// `c` (`c & 1` along x, `c >> 1` along y) of quad `q`. Positions coincide, indices never meet.
 pub(super) struct Exploded {
@@ -90,7 +73,7 @@ pub(super) struct Exploded {
     pub indices: Vec<u32>,
 }
 impl Exploded {
-    pub fn new(rng: &mut Rng, nx: usize, ny: usize, amplitude: f32) -> Self {
+    pub fn new(rng: &mut Xorshift, nx: usize, ny: usize, amplitude: f32) -> Self {
         let relief = Relief::new(rng, amplitude);
         let mut positions = Vec::with_capacity(nx * ny * 12);
         let mut indices = Vec::with_capacity(nx * ny * 6);
@@ -131,7 +114,7 @@ pub(super) struct Banded {
     pub band: Vec<usize>,
 }
 impl Banded {
-    pub fn new(rng: &mut Rng, nx: usize, ny: usize, amplitude: f32, width: usize) -> Self {
+    pub fn new(rng: &mut Xorshift, nx: usize, ny: usize, amplitude: f32, width: usize) -> Self {
         let relief = Relief::new(rng, amplitude);
         let (mut positions, mut x, mut y, mut band, mut indices) =
             (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
