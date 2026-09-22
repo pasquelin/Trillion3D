@@ -33,10 +33,12 @@ pub(super) fn build_of(
     positions: &[f32],
     indices: &[u32],
 ) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>) {
-    build_dag_tallied(positions, &[], indices, DagStrategy::QemEndpoints, &|| {
-        Ok(())
-    })
-    .expect("dag")
+    let (dag, groups, tallies, _) =
+        build_dag_tallied(positions, &[], indices, DagStrategy::QemEndpoints, &|| {
+            Ok(())
+        })
+        .expect("dag");
+    (dag, groups, tallies)
 }
 
 pub(super) fn build(n: usize) -> (Vec<f32>, Vec<u32>, Vec<DagCluster>) {
@@ -82,3 +84,4 @@ mod part3;
 mod part4;
 mod part5;
 mod part6;
+mod part7;
