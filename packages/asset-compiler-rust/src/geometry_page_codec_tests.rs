@@ -60,7 +60,7 @@ fn distance(a: &[f32], b: &[f32]) -> f64 {
 }
 
 /// Every decoded vertex against the source vertex its triangle names, within the declared error.
-fn verify(
+pub(crate) fn verify(
     page: &codec::DecodedPage,
     indices: &[u32],
     positions: &[f32],
@@ -73,8 +73,13 @@ fn verify(
         let source = source as usize;
         let position = &page.attribute(0).expect("position")[local * 3..local * 3 + 3];
         assert!(distance(position, &positions[source * 3..source * 3 + 3]) <= f64::from(error));
-        for (rank, attribute) in attrs.iter().enumerate() {
-            let decoded = page.attribute(rank + 1).expect("decoded attribute");
+        for attribute in attrs {
+            // Ranks follow the page's fixed attribute order, present or not.
+            let rank = 1 + [FLAG_NORMAL, FLAG_UV, FLAG_UV1, FLAG_COLOR]
+                .iter()
+                .position(|bit| *bit == attribute.flag)
+                .expect("a page attribute");
+            let decoded = page.attribute(rank).expect("decoded attribute");
             let width = attribute.width;
             let expected = &attribute.values[source * width..source * width + width];
             match attribute.flag {
