@@ -18,6 +18,7 @@ import type { AdressageCas } from './adressageCas.ts';
 import { bilan, somme } from './adressageBilan.ts';
 import { CARTES, materielMelange, TEXTURE, UV } from './adressageCartes.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 
 const textures = new Map<string, THREE.Texture>();
 function carte(c: AdressageCas) {
@@ -50,7 +51,7 @@ function texelRaster(c: AdressageCas): [number, number] | null {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometrie.attributes,
     matrix: new THREE.Matrix4(),
-    material: materiau,
+    material: surfaceOf(materiau),
   };
   const garde = (rang: number) => {
     materiau.alphaTest = (10 + 10 * rang) / 255;

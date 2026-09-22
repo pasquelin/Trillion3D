@@ -1,8 +1,7 @@
 import { hslToLinearRgb, srgbToLinear } from '../sdk-core/index.ts';
-import type { HostMaterials } from './hostResources.ts';
 import type { PageRec } from './pageSelection.ts';
 import { clusterHue } from './backendCommon.ts';
-import { visMaterial } from './visibilityMaterial.ts';
+import type { VisMaterial } from './visibilityTypes.ts';
 
 /** View-projection of the image as the GPU reads it, flattened: sixteen floats rewritten each
  *  image, never reallocated. */
@@ -37,8 +36,8 @@ export function outputColorDiagnostic(
 /** Base colour of a declaration through the transfer curve, for the fallback draw's uniform.
  *  The curve is the repository's (`mathColor.ts`), whose gap to the host library's rounded
  *  constants is measured and declared (#72); no beauty pass reads this path. */
-export function linearColor(declared: HostMaterials): [number, number, number] {
-  const base = visMaterial(declared).baseColor;
+export function linearColor(surface: VisMaterial): [number, number, number] {
+  const base = surface.baseColor;
   return [srgbToLinear(base[0]), srgbToLinear(base[1]), srgbToLinear(base[2])];
 }
 /** Diagnostic colour of a cluster: its golden-ratio hue, through the same transfer curve. */

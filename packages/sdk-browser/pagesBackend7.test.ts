@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { collectClusterPages } from './pageSelection.ts';
+import { asHostLibrary } from './hostResources.ts';
 import { dagRoots, DAG } from './pagesBackendFixture.ts';
 
 test('transmissive materials stay as unsplit source meshes even when the cache pass is exact-clusters', () => {
@@ -41,7 +42,9 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
   );
   assert.equal(collected.allPages.length, 0);
   assert.equal(collected.blendCopies.length, 1);
-  assert.equal(collected.blendCopies[0].material, material);
+  // The contract hands out the engine's record; the host material stays on the mesh itself, for
+  // the renderer that draws it (`blendCopyContract.ts`).
+  assert.equal(asHostLibrary<THREE.Mesh>(collected.blendCopies[0]).material, material);
   geometry.dispose();
   material.dispose();
 });

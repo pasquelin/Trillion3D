@@ -28,6 +28,7 @@ import { selectionGpu } from './noyauSelectionGpu.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 import type { NormalCone } from '../../packages/sdk-browser/pageCone.ts';
 import type { PackedDag } from '../../packages/sdk-browser/gpuDagTypes.ts';
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 
 const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
 const indices = [0, 1, 2, 3, 4, 5];
@@ -78,7 +79,7 @@ function coupeCpu(cones: boolean) {
     cone,
     lodError: 0,
     matrix: world,
-    material: new THREE.MeshBasicMaterial({ side: THREE.FrontSide }),
+    material: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.FrontSide })),
   };
   const root = {
     world,
