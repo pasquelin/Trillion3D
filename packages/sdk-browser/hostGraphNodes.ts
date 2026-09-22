@@ -56,8 +56,10 @@ export interface HostGraphNode extends HostNode {
    * angles that copy into it — each ANNOUNCING its own writes: a callback the host already
    * chains, which a hook extends instead of replacing (`hostSceneHooks.ts`). The two
    * underscored members are a private of the host's library, so they are written here, where
-   * the hook needs them, and are given no name of their own: the SDK facades publish
-   * `HostGraphNode`, and a named shape would publish that private with it.
+   * the hook needs them, and are given no name of their own. That keeps the private out of the
+   * SDK's list of published contracts; it does NOT keep it out of the published surface, since
+   * `HostGraphNode` carries it. Comparing the pose per frame, as the scan already does, is what
+   * would remove the coupling — it is not this lot's.
    */
   readonly quaternion: HostRotation & {
     _onChangeCallback: () => void;
