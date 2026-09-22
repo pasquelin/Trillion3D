@@ -17,7 +17,7 @@ const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 //  2. HOST BOUNDARIES. Scene, camera, renderer, lights belong to the host: something must
 //     create, read, and set them. These files do it once, returning flat buffers or owned structures.
 //  3. HOST RESOURCES. Materials, textures, geometries, meshes, colors, face/winding constants:
-//     objects the engine READS ONCE, at the boundary, to build its own records. Since lot 3 of
+//     objects the engine READS IN ONE PLACE, at the boundary, to build its own records. Since lot 3 of
 //     #78 the passes no longer consult one: surfaces cross as the `Material`/`Texture` records
 //     of `sdk-core`, and only the import and the admission gate below still name the library.
 //
@@ -83,7 +83,7 @@ const AUTORISES: Record<string, string> = {
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
   webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
 
-  // 3. Host resources read ONCE, at the boundary. Materials and textures enter as the engine's
+  // 3. Host resources read IN ONE PLACE, at the boundary. Materials and textures enter as the engine's
   //    own records (#271): the import below builds them, the gate below refuses what the passes
   //    could not preserve, and the display graph the backend publishes is built here too. No
   //    pass, no row, no pool names the host library any more.
