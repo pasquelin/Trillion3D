@@ -8,8 +8,9 @@
 //!   (measured: 15 825 → 7 869 → 5 967 → 5 680 → 5 647 triangles, 881 ordinary
 //!   vertices for 1 582 seams and 259 complex ones at the top of the DAG, and
 //!   nothing below 5 635 even with zero locks). When reduction yields no fewer
-//!   clusters than it received, it is retried on indices welded by (position,
-//!   uv): copies that differ only by normal or colour become one, coarse levels
+//!   clusters than it received, it is retried on indices welded by position and
+//!   every texture set the primitive carries: copies that differ only by normal
+//!   or colour become one, copies on a seam of any set stay apart, coarse levels
 //!   point at the welded survivor — its normal stands for the others, that is
 //!   the declared cost — and level zero is unchanged. Welding texture seams too
 //!   was tried and measured: Emerald facades at the 2 px threshold drew with the
