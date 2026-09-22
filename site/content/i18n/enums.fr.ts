@@ -13,7 +13,7 @@ export const enumsFr: LocaleOverlay = {
       { desc: 'Image éclairée issue des matériaux glTF.' },
       { desc: 'Une couleur pleine unique par triangle soumis, sans lignes.' },
       {
-        desc: 'Identité stable primitive/page, une couleur par grappe ; backend de grappes exactes uniquement.',
+        desc: 'Identité stable primitive/page, une couleur par grappe ; WebGL2 et WebGPU tous les deux.',
       },
       {
         desc: 'Grappes de niveau 0 face aux réductions plus grossières réellement choisies dans cette image.',

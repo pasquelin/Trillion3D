@@ -1,12 +1,12 @@
 import { createChangeGate, createControlBase } from './cameraControlBase.ts';
 import { axisOf, trackKeys, trackPointers, type KeyAxis } from './cameraControlInput.ts';
 import { controlPose } from './cameraControlPose.ts';
+import { moveLocal } from './cameraControlMath.ts';
 import {
-  localTurnQuaternion,
-  moveLocal,
   multiplyQuaternion,
   normalizeQuaternion,
-} from './cameraControlMath.ts';
+  localTurnQuaternion,
+} from '../sdk-core/mathQuaternion.ts';
 import type { ControlCamera, SteeredCameraControls } from './cameraControlTypes.ts';
 
 /**

@@ -1,5 +1,6 @@
 import type { RenderBackend } from './backendTypes.ts';
 import { createExplorerCapture } from './explorerCapture.ts';
+import { createExplorerCaptureView } from './explorerCaptureView.ts';
 import { createExplorerHostState } from './explorerHostState.ts';
 import { createExplorerHostFrame } from './explorerHostFrame.ts';
 import { createExplorerLifecycle } from './explorerLifecycle.ts';
@@ -58,6 +59,13 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     diagnose,
     compose,
   });
+  const captureView = createExplorerCaptureView({
+    camera,
+    context: webglSurface?.context,
+    active: () => state.active,
+    check,
+    compose,
+  });
   const { dispose, flush, awaitPages } = createExplorerLifecycle(session, {
     check,
     state,
@@ -91,6 +99,8 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
       return !!loading || !!streaming.promise || streaming.arrivals.pending > 0 || !!pending;
     },
     capture,
+    captureView,
+    gpuDevice,
     dispose,
     setPose,
     awaitPages,

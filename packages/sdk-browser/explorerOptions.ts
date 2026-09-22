@@ -11,10 +11,19 @@ import type { BackendDiagnostic, BackendFactory, DiagnosticDetail } from './back
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
 export type PointOfInterest = { id: string; label: string; pose: CameraPose };
-export interface ExplorerOptions {
+export interface MeasuredWorldOptions {
   /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default.
    *  Defaults to direct WebGPU; a missing capability rejects startup. */
   interactive?: boolean;
+  /** The engine path that draws. Absent: the best one the machine grants. Forced and missing:
+   *  the session is refused by that name, never served the other path. */
+  renderer?: 'webgpu' | 'webgl2';
+  /** Called before every frame the interactive session draws: the host writes its scene then. */
+  beforeFrame?: () => void;
+  /** False: the interactive session installs no camera controller of its own. */
+  ownControls?: boolean;
+  /** Called after every frame the session draws, with that frame's metrics. */
+  onFrame?: (metrics: import('../sdk-core/index.ts').FrameMetrics) => void;
   replicaCount?: 1 | 4 | 9 | 12;
   detail?: 'source' | 'maximum';
   onEvent?: (event: import('../sdk-core/index.ts').RuntimeEvent) => void;
@@ -47,6 +56,9 @@ export interface ExplorerOptions {
   comparisonLayout?: ComparisonLayout;
   comparisonPair?: [string, string];
   gpu?: GPU;
+  /** A WebGPU device the caller holds: the session draws on it instead of requesting its own,
+   *  and leaves it alive when disposed — what a world reopening its session keeps. */
+  gpuDevice?: GPUDevice;
   pointsOfInterest?: PointOfInterest[];
   /** Texture-tile bytes the WebGPU engine admits per frame; 16 MiB by default. */
   maxTextureTransferBytesPerFrame?: number;

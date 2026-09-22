@@ -28,7 +28,7 @@ export async function startupSite(page: Page, base: string, out: string) {
         'portal stylesheet is active',
       );
       const text = (await code.locator('pre code').allTextContents()).join('\n');
-      assert.match(text, /createExplorer\('viewer'/);
+      assert.match(text, /openMeasuredWorld\('viewer'/);
       assert.match(text, /interactive: true/);
       assert.match(text, /scope: 'full'/);
       assert.doesNotMatch(text, /querySelector|requestAnimationFrame/);
@@ -39,12 +39,12 @@ export async function startupSite(page: Page, base: string, out: string) {
         animations: 'disabled',
       });
     }
-    await page.goto(`${base}/site/index.html#/${locale}/api/createExplorerJob`);
+    await page.goto(`${base}/site/index.html#/${locale}/api/createMeasuredWorldJob`);
     await page.locator('main [data-code-block]').last().waitFor();
     const text = (await page.locator('main').textContent()) ?? '';
-    assert.match(text, /target: ExplorerTarget/);
-    assert.match(text, /await createExplorerJob/);
-    await page.goto(`${base}/site/index.html#/${locale}/api/createExplorer`);
+    assert.match(text, /target: MeasuredWorldTarget/);
+    assert.match(text, /await createMeasuredWorldJob/);
+    await page.goto(`${base}/site/index.html#/${locale}/api/openMeasuredWorld`);
     await page.locator('main [data-code-block]').last().waitFor();
     const row = page.locator('main tr').filter({ hasText: 'invalidate()' });
     assert.match((await row.textContent()) ?? '', /camera|caméra/);

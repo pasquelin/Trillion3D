@@ -60,6 +60,8 @@ export function writeDagUniforms(
   // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it
   // truncated (`gpuDagLayout.ts`).
   ints[52] = selectionListCap(packed.pageCount);
+  // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
+  target[53] = uniforms.perspective ?? 1;
 }
 
 /** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none. */

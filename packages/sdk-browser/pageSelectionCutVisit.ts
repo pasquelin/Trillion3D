@@ -1,6 +1,6 @@
 import { coneSkipsPage } from './pageSelectionHelpers.ts';
 import { frustumClipBox } from '../sdk-core/index.ts';
-import { cutSelects, projectedClusterError } from './pageSelectionMath.ts';
+import { frameClusterError, frameSelects } from './pageSelectionFrame.ts';
 import { cutSelectsAtZero } from './pageSelectionProjection.ts';
 import { drawnUnderForcing } from './pageSelectionCutLogic.ts';
 import {
@@ -81,7 +81,7 @@ function take<T extends PageRecord>(
       ? drawnUnderForcing(s, rec)
       : exact
         ? cutSelectsAtZero(rec)
-        : cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, s.cam.near, s.pixelError))
+        : frameSelects(s, rec, s.pixelError))
   )
     return;
   if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!))
@@ -162,16 +162,7 @@ export function traverse<T extends PageRecord>(
       if (
         exact
           ? bound === 0
-          : bound >= 0 &&
-            projectedClusterError(
-              bound,
-              nodes,
-              base + 6,
-              s.flatElements,
-              s.flatStretch,
-              s.flatFocal,
-              s.cam.near,
-            ) <= s.pixelError
+          : bound >= 0 && frameClusterError(s, bound, nodes, base + 6) <= s.pixelError
       )
         continue;
       if (!forcing || (marks !== undefined && marks[node] === 0)) {

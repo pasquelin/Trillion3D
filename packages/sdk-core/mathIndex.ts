@@ -117,6 +117,7 @@ export {
 export { lookAtNode } from './mathTransformTreeLookAt.ts';
 export {
   createCameraFrame,
+  orthographicProjection,
   perspectiveProjection,
   updateCameraFrame,
   type CameraFrame,
@@ -126,3 +127,9 @@ export {
   viewToRenderOrigin,
   worldToRenderOrigin,
 } from './mathRenderOrigin.ts';
+export {
+  axisAngleQuaternion,
+  multiplyQuaternion,
+  normalizeQuaternion,
+  rotateByQuaternion,
+} from './mathQuaternion.ts';

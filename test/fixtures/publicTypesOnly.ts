@@ -1,7 +1,7 @@
-import type { CameraPose, Explorer, ExplorerOptions } from 'web-geometry';
+import type { CameraPose, World, WorldOptions } from 'web-geometry';
 
 export type PublicBrowserTypes = {
-  explorer: Explorer;
-  options: ExplorerOptions;
+  world: World;
+  options: WorldOptions;
   pose: CameraPose;
 };

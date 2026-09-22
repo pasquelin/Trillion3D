@@ -1,5 +1,5 @@
 import {
-  colouredHostSurface,
+  colouredTwin,
   hostPageBytes,
   hostPageGeometry,
   hostPageMesh,
@@ -8,7 +8,9 @@ import {
 } from './hostPageObjects.ts';
 import { surfaceOf } from './pageSurface.ts';
 import { EngineError, type GeometryPageDescriptor } from '../sdk-core/index.ts';
-import type { HostMaterial, HostMaterials } from './hostResources.ts';
+import type { HostGeometry, HostMaterial, HostMaterials } from './hostResources.ts';
+import { createWebglPageBatches } from './placement/webglPageBatches.ts';
+import { drawnInstanced } from './placement/autonomousPlacements.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
@@ -26,36 +28,33 @@ type GeometryEnvironment = {
   modifiedPages: Set<string>;
 };
 
+const released = new WeakSet<object>();
 /**
  * Frees the host geometry a page record holds and gives its bytes back to the store. The one
- * place that releases a page's geometry: the store and the residency both call it.
+ * place that releases a page's geometry: the store and the residency both call it. The records
+ * a page is placed by rows share one geometry, given back once.
  */
 export function releaseGeometry(state: { allocationBytes: number }, rec: PageRec) {
-  if (!rec.geometry) return;
+  if (!rec.geometry || released.has(rec.geometry)) return;
+  released.add(rec.geometry);
   state.allocationBytes -= hostPageBytes(rec.geometry);
   releaseHostGeometry(rec.geometry);
+}
+
+/** A decoded position may leave the page's box by the page's own quantization error, no more. */
+function assertWithinBox(data: DecodedGeometryPage, rec: PageRec) {
+  const positions = data.attributes.position,
+    slack = 1e-5 + data.quantizationError;
+  for (let i = 0; i < positions.length; i++) {
+    const axis = i % 3;
+    if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)
+      throw new Error('AUTONOMOUS_PAGE_BOUNDS');
+  }
 }
 
 /** Components of a decoded attribute, by name; anything else is a UV pair. */
 const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
 const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
-
-/**
- * The vertex-coloured twin of a host surface: cloned once, then read from the shared cache.
- * The only place a twin is built — a page that decodes a colour attribute and a primitive the
- * host repaints ask the same cache, so one surface never holds two of them.
- */
-export function colouredTwin(
-  cache: Map<HostMaterial, HostMaterial>,
-  original: HostMaterial,
-): HostMaterial {
-  let twin = cache.get(original);
-  if (!twin) {
-    twin = colouredHostSurface(original);
-    cache.set(original, twin);
-  }
-  return twin;
-}
 
 export function createAutonomousGeometry(env: GeometryEnvironment) {
   const {
@@ -95,10 +94,16 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       attachees.add(rec);
     }
   };
+  // Opaque records placed by rows are drawn instanced, one host mesh per page and surface.
+  const batches = createWebglPageBatches(scene),
+    rowed: PageRec[] = [];
   const sync = () => {
     const display = shown;
     affichees.clear();
-    for (const rec of display) affichees.add(rec);
+    rowed.length = 0;
+    for (const rec of display)
+      if (drawnInstanced(rec)) rowed.push(rec);
+      else affichees.add(rec);
     // Removing the current element of a `Set` while iterating it is defined: it will not be revisited.
     for (const rec of attachees) if (!affichees.has(rec)) detach(rec);
     state.submittedTriangles = 0;
@@ -109,9 +114,10 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           'The prepared autonomous scene does not cover every page the cut requires',
           { page: rec.url },
         );
-      attach(rec);
+      if (!drawnInstanced(rec)) attach(rec);
       state.submittedTriangles += rec.triangles;
     }
+    batches.draw(rowed);
   };
   const removeRecords = (records: PageRec[]) => {
     const removed = new Set(records);
@@ -142,18 +148,15 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       data.flags !== descriptor.flags
     )
       throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
+    let rowedGeometry: HostGeometry | undefined;
     for (const rec of recs) {
       detach(rec);
       releaseGeometry(state, rec);
-      // A decoded position may leave the source box by the page's own quantization error.
-      const positions = data.attributes.position,
-        slack = 1e-5 + data.quantizationError;
-      for (let i = 0; i < positions.length; i++) {
-        const axis = i % 3;
-        if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)
-          throw new Error('AUTONOMOUS_PAGE_BOUNDS');
-      }
-      const geometry = hostPageGeometry(data, itemSize, rec.min, rec.max);
+      // Records placed by rows share the page: its geometry, its box and the check of it.
+      const shared = !!rec.placement && !!rowedGeometry;
+      if (!shared) assertWithinBox(data, rec);
+      const geometry = shared ? rowedGeometry! : hostPageGeometry(data, itemSize, rec.min, rec.max);
+      if (rec.placement) rowedGeometry = geometry;
       const base = baseMaterials.get(rec)!;
       // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
       const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
@@ -164,6 +167,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;
       rec.mesh = undefined;
+      if (shared) continue;
       state.allocationBytes += data.indices.byteLength;
       for (const array of Object.values(data.attributes)) state.allocationBytes += array.byteLength;
     }
@@ -177,6 +181,17 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     colorMaterials,
     detach,
     sync,
+    /** Rows were written or rebound: the instanced pages read them again at the next sync. */
+    rowsWritten: batches.rowsWritten,
+    /** Gives back every page's mesh and geometry, and the instanced pages: the backend ends. */
+    dispose() {
+      batches.clear();
+      for (const rec of allPages) {
+        detach(rec);
+        if (rec.geometry) releaseHostGeometry(rec.geometry);
+        rec.geometry = rec.mesh = rec.array = undefined;
+      }
+    },
     removeRecords,
     storeGeometryPage,
     acceptGeometryPage,

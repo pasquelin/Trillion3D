@@ -46,7 +46,7 @@ export async function runOnPage({
   width: number;
   height: number;
 }) {
-  const { createExplorer, referenceBackend, webgpuPagesBackend } = await import(sdkUrl);
+  const { openMeasuredWorld, referenceBackend, webgpuPagesBackend } = await import(sdkUrl);
   const { poseAt, PATH_POSES, FRAMES_PER_SEGMENT } = await import(posesUrl);
   const backends = {
     'three-webgl-reference': referenceBackend,
@@ -87,7 +87,7 @@ export async function runOnPage({
   for (const id of ['three-webgl-reference', 'webgpu-page-raster'] as const) {
     const canvas = document.createElement('canvas');
     document.body.append(canvas);
-    const e = await createExplorer(canvas, {
+    const e = await openMeasuredWorld(canvas, {
       manifestUrl,
       scope: 'full',
       ...viewport,

@@ -84,6 +84,8 @@ export function selectVisiblePages<T extends PageRecord>(
     state.complete = true;
     for (const root of roots) {
       if (state.over) return;
+      // A parked instance-buffer row places nothing: its root waits in the tables, untested.
+      if (root.parked) continue;
       const box = root.worldBox;
       if (box && frustumExcludesBox(worldPlanes, box[0], box[1], box[2], box[3], box[4], box[5])) {
         state.frustumRejected++;

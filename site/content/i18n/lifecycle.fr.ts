@@ -28,40 +28,45 @@ export const lifecycleFr: LocaleOverlay = {
       },
     ],
   },
-  createExplorer: {
+  createWorld: {
     description:
-      'Ouvre un cache compilé sur un élément canevas ou son ID littéral (ExplorerTarget). Avec `interactive: true`, le moteur affiche une première image, gère les contrôles, suit la taille CSS et le DPR, puis redessine à la demande. Ce mode utilise WebGPU par défaut et refuse son absence. Sans cette option, l’hôte pilote le rendu. Il reste propriétaire du canevas et appelle `dispose()` à la fermeture. La caméra cadre les bornes chargées ; les détails arrivent progressivement. Pour une capture déterministe, utilisez une session manuelle avec `awaitPages()`.',
-    valuesTitle: 'Ce que propose l’explorateur',
+      "Crée un monde vide sur un élément canevas ou son ID. Le monde possède la scène, la caméra, le moteur de rendu et la boucle ; rien d’autre n’est construit — un modèle compilé se charge ensuite avec `scene.load`, comme tout ce qu’on ajoute à la scène. `interactive` vaut vrai par défaut : le monde soumet des images à la demande et se met en pause une fois l’image stable pendant 120 images, et reprend sur `invalidate()`. `renderer` est absent par défaut (le moteur prend la meilleure voie que la machine permet) ou en nomme un explicitement (`'webgpu'` / `'webgl2'`) ; en forcer un sur une machine qui ne l’a pas est refusé nommément, jamais servi en silence par l’autre. `controls` choisit le contrôleur de caméra (`'orbit'` | `'fly'` | `'firstPerson'` | `'trackball'` | `'panZoom'` | `'none'`, la valeur par défaut), relu ou changé ensuite via `world.controls.kind`.",
+    valuesTitle: 'Ce que propose le monde',
     values: [
       {
-        desc: 'Après une modification de caméra, scène ou lumière : programme une image en mode interactif ; dessine immédiatement en mode manuel.',
-      },
-      { desc: 'Dessine une image et renvoie ses `FrameMetrics`.' },
-      {
-        desc: 'Poses de caméra ; la pose d’accueil vient des bornes, les autres de `pointsOfInterest`.',
+        desc: 'Construit la scène depuis `geometry`/`material`/`object`/`light`, ou charge un cache compilé ; `load` se résout avec le `LoadedModel` (`bounds`, `lights`).',
       },
       {
-        desc: 'Attend les pages lues par la vue ; `flush()` redessine jusqu’à une capture déterministe.',
-      },
-      { desc: 'Choisit un `DiagnosticMode` et lit ceux que ce backend sait produire.' },
-      { desc: 'Modifie le seuil d’erreur écran de la coupe.' },
-      { desc: 'Lit la surface dessinée ou redimensionne les cibles.' },
-      { desc: 'Quantiles CPU/GPU par étape et rapport de télémétrie.' },
-      {
-        desc: 'Éclairage de scène, déclaré avant la préparation du premier backend. Le moteur valide sa propre copie de ce qu’il reçoit : une lumière modifiée après envoi ne change rien tant qu’elle n’est pas renvoyée.',
+        desc: 'Une `Camera` vivante : `position.set(...)`, `lookAt(...)`, `fov`/`near`/`far`, ou `camera.set(pose)` avec une `CameraPose` comme celle que renvoie `pose.fromBounds(box3)`.',
       },
       {
-        desc: 'Lisent les lumières et l’exposition tenues sous forme de copies détachées, tableaux compris : y écrire ne change rien dans le moteur, et chaque appel relit le magasin. La copie est payée par l’appel, jamais par l’image.',
+        desc: 'Le contrôleur vivant qui pilote la caméra depuis le canevas : `.kind`, `.enabled`, `.target` — réglé à la création, modifiable à tout moment.',
       },
       {
-        desc: 'Une pose, une visibilité ou une lampe écrite sur un nœud source sans aucun appel — `mesh.position.x = 100` — est vue : l’écriture d’une pose incrémente elle-même la révision de scène, l’image compare un entier ; les autres champs, matrice posée à la main (`matrixAutoUpdate = false`) comprise, sont comparés à chaque image, quelques valeurs par nœud. Une lampe ajoutée au graphe ou retirée s’annonce par `refreshSceneLighting()`.',
+        desc: 'Le crochet par image (`loop` en est l’alias) et la demande de redessiner après un changement manuel ; renvoie une fonction de désabonnement.',
       },
-      { desc: 'Libère backends, appareil GPU et sources. Obligatoire.' },
+      {
+        desc: 'Dessine une image à la main (boucle tenue par l’hôte, `interactive: false`) ; redimensionne les cibles.',
+      },
+      {
+        desc: 'Le multiplicateur appliqué à la radiance linéaire avant ACES ; ne peut éclairer une surface qu’aucune lumière déclarée n’atteint.',
+      },
+      { desc: 'L’erreur écran de la coupe du DAG, en pixels — `0` garde les feuilles exactes.' },
+      {
+        desc: 'Fixe ou relit les pools géométrie/texture fixes (`geometryPool`, `texturePool`, `geometryPoolCeiling`).',
+      },
+      {
+        desc: 'Choisit ce que l’image dessine (`beauty` | `clusters` | `wireframe` | `triangles`), et lit les modes que cet appareil sait produire.',
+      },
+      {
+        desc: 'La courbe de tone mapping appliquée à la composition, p. ex. `toneMapping.aces` (la valeur par défaut).',
+      },
+      { desc: 'Libère le moteur de rendu, l’appareil GPU et chaque page résidente. Obligatoire.' },
     ],
   },
-  createExplorerJob: {
+  createWorldJob: {
     description:
-      'Même création avec un élément canevas ou un ID, sous forme de tâche annulable. Attendez `createExplorerJob`, puis `job.promise`. L’identifiant de tâche est distinct de celui du canevas : les événements de préparation deviennent sa progression et une interruption avant la fin libère l’explorateur qui aurait été renvoyé. Une fois terminée, l’appelant possède l’explorateur.',
+      'Un monde n’a pas d’enveloppe de tâche qui lui soit propre : `scene.load` est une simple promesse, et l’aide générique `createJob` la transforme en tâche annulable avec progression quand un hôte a besoin du même contrat que la compilation.',
   },
   createJob: {
     description:
@@ -69,18 +74,20 @@ export const lifecycleFr: LocaleOverlay = {
   },
   detectCapabilities: {
     description:
-      'Décrit ce que cette machine prend réellement en charge avant l’ouverture d’un explorateur : `{ tier, renderer, adapter, extensions, reason }`. La raison est toujours fournie ; une capacité absente est signalée, jamais supposée.',
+      'Décrit ce que cette machine prend réellement en charge avant la création d’un monde : `{ tier, renderer, adapter, extensions, reason }`. L’enveloppe publique qu’un monde relit est `capability.detect()` — `{ webgpu, webgl2, ... }`, une forme plus simple pour la même sonde. La raison est toujours fournie ; une capacité absente est signalée, jamais supposée.',
   },
   runCameraPath: {
+    title: 'pose.runPath()',
     description:
-      'Outil de campagne : contrôle d’image A/A exact, puis blocs chronométrés sur la même liste de poses. Ce n’est pas un verdict de performance général ; chaque backend rejoue les mêmes poses sans mélanger les moteurs dans un bloc.',
+      'Rejoue une liste de poses sur un monde, répartie sur `images` images (ou une par pose), l’œil et la cible se déplaçant en ligne droite entre deux. Une `CameraPose` est `{ position, target, fov? }` — near/far restent des propriétés de la caméra. En interne, un outil de campagne, `runCameraPath(session, path, { backendIds, warmup, … })`, mène le même rejeu pour le banc : contrôle d’image A/A exact, puis blocs chronométrés ; pas un verdict de performance général, et jamais deux moteurs mélangés dans un même bloc.',
   },
   replicateInstances: {
     description:
-      'Instancie la source 1, 4 ou 9 fois en partageant géométrie et matériaux. Outil de mesure pour des scènes plus grandes que l’actif présent sur disque.',
+      'Instancie la source 1, 4 ou 9 fois en partageant géométrie et matériaux — l’option `replicaCount` passe par là. Outil de mesure atteint seulement par le point d’entrée de mesure (`packages/sdk-browser/measurement.ts`), pour des scènes plus grandes que l’actif présent sur disque ; hors du point d’entrée publié de `web-geometry`.',
   },
   createGpuPageCache: {
+    title: 'page.createCache() · page.httpSource()',
     description:
-      'Adaptateur WebGPU borné de tampons et de file qui conserve les pages résidentes, avec la source HTTP qui l’alimente. La résidence suit ce que l’image lit réellement dans le budget déclaré.',
+      'La famille `page` : la géométrie coupée en pages, qui entrent et sortent de la mémoire selon ce que l’image lit. `page.createCache` est l’adaptateur WebGPU borné de tampons et de file (`createGpuPageCache`) qui conserve les pages résidentes ; `page.httpSource` la source HTTP qui l’alimente (`httpPageSource`). Le moteur de rendu interne qui consomme les mêmes pages et réglages de LOD est choisi par l’option `renderer` de `createWorld`, jamais nommé par un hôte.',
   },
 };

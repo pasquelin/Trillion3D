@@ -1,13 +1,12 @@
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 
-/** Shared opaque/forward lighting. Match the explorer's Three.js standard
- * material with punctual light and hemisphere irradiance, without an envMap. */
+/** Shared opaque/forward lighting of one punctual light: the standard material's GGX lobe and its
+ *  Lambert diffuse. The environment's irradiance is added apart (\`environmentLighting\`). */
 export const STANDARD_LIGHTING_WGSL = `
-fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f,sky:vec3f,ground:vec3f,ao:f32)->vec3f{
+fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f)->vec3f{
  let L=normalize(light.xyz);
  let NdotL=max(dot(N,L),0.0);
  let NdotV=max(dot(N,V),1e-4);
- let hemi=mix(ground,sky,N.y*0.5+0.5);
  let direct=light.w*NdotL;
  let H=normalize(L+V);
  let NdotH=max(dot(N,H),0.0);
@@ -21,7 +20,7 @@ fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f,sk
  let f0=mix(vec3f(0.04),rgb,metal);
  let F=f0+(vec3f(1.0)-f0)*pow(clamp(1.0-VdotH,0.0,1.0),5.0);
  let diffuse=rgb*(1.0-metal)/3.14159265;
- return diffuse*(hemi*ao+vec3f(direct))+D*Vis*F*direct;
+ return diffuse*direct+D*Vis*F*direct;
 }`;
 
 /**

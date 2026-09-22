@@ -19,7 +19,7 @@
 
 </div>
 
-[Simple browser startup](docs/SDK.md#simple-browser-startup): pass a canvas ID or element and opt into `interactive: true` for controls, CSS/DPR sizing and demand-driven rendering. Manual integration remains available.
+[Create a world](docs/SDK.md#create-a-world): `createWorld(canvasOrId)`, add objects or `scene.load` a compiled model, `onFrame` for per-frame work. It owns the scene, the camera, the renderer and the loop, and pauses once the image is stable.
 
 ---
 
@@ -49,9 +49,9 @@ Parity means four things, and none of them is a pixel count:
 | **Cache**              | SHA-addressed page, geometry-page and bundle objects; every persisted entry validated before reuse; `formatVersion` separate from `compilerVersion`, unknown formats rejected                                                                                                                                                       |
 | **WebGPU page raster** | GPU frustum + `lodScore` cut in compute, conservative backface cones, two-phase Hi-Z occlusion, visibility-buffer encode through at most six non-indexed `drawIndirect` commands, deferred material shading, temporal antialiasing                                                                                                  |
 | **Textures**           | virtual texturing: a bounded tile pool, per-tile feedback read back by rank, residency driven by what the frame sampled                                                                                                                                                                                                             |
-| **Lighting**           | Cook-Torrance GGX with a hemispherical ambient term; sun through cascaded shadow maps under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap                                                                                                                                        |
+| **Lighting**           | Cook-Torrance GGX, no fixed ambient term — ambient only comes from a declared `light.ambient`/`light.hemisphere`, and a surface no light reaches stays black; sun through cascaded shadow maps under a 1 ms budget; per-tile light rejection — the stochastic and screen-space stages are the roadmap                                                                                                                                        |
 | **Memory**             | fixed reservoirs for pages and tiles like the reference, adjustable in session without losing residency; no image cap; a `cpu-timing` diagnostic and per-step CPU profile                                                                                                                                                           |
-| **Fallbacks**          | the CPU cut stays the A/A oracle and the silent fallback; WebGL2 exact-cluster and reference backends when no WebGPU device is present                                                                                                                                                                                              |
+| **Fallbacks**          | a world takes WebGPU pages by default when the machine grants a device, WebGL2 pages otherwise; the CPU cut stays the A/A oracle; witnesses (bare Three.js, `THREE.LOD`) are never chosen automatically, only named through the separate measurement entry point                                                                                                                                                                                              |
 | **Jobs**               | immutable progress snapshots, subscriptions, bounded cancellation, explicit failure semantics                                                                                                                                                                                                                                       |
 
 ## Quick start
@@ -68,6 +68,23 @@ pnpm run test:native     # cargo test
 
 The package is private and consumed locally; it is not published to npm. Scene assets are supplied
 by the host and are not part of this repository.
+
+```js
+import { createWorld, object, geometry, material, light } from 'web-geometry';
+
+const world = createWorld('viewer'); // a canvas element, or its id
+
+const ball = object.mesh(geometry.sphere(1), material.meshStandard({ color: 0x8899aa }));
+world.scene.add(ball);
+world.scene.add(light.directional({ intensity: 3, position: [5, 10, 2] }));
+
+await world.scene.load('assets/whisperwind/manifest.json'); // a compiled model, added like anything else
+
+world.onFrame(({ delta }) => {
+  ball.rotation.y += delta;
+  world.invalidate();
+});
+```
 
 ## Native compiler
 
@@ -93,9 +110,10 @@ all environments, rendering APIs to browser bundlers, and native preparation API
 | ----------------- | ------------------------------------------------------------------------------------- |
 | Common and worker | Versioned contracts, maths, jobs, diagnostics and safety policy                       |
 | Node              | Common API plus native compiler process adapter and compilation jobs                  |
-| Browser bundler   | Common API plus explorer lifecycle, rendering, camera paths, page cache and tile pool |
+| Browser bundler   | Common API plus `createWorld` and its families (`geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`, `capability`, `capture`, `pose`, `batch`, …) |
 
-Applications own their canvas, animation loop, resource URLs and controller disposal. Node hosts
+An application owns the canvas, its resource URLs and controller disposal; the world owns its own
+loop by default (`interactive: false` + `world.render()` for a host-led loop instead). Node hosts
 own source/cache directories and process configuration. React and Electron integrations use these
 boundaries without bringing a framework into the core. Consumers use public exports, never internal
 source paths. See the [SDK guide](docs/SDK.md) and the [architecture notes](packages/README.md).
@@ -204,8 +222,9 @@ Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/WebGeomet
 
 ## Current limits
 
-- Not yet a general-purpose engine: the importer reads a versioned source manifest and the
-  source it names; non-triangle primitives and non-standard glTF extensions are unsupported.
+- Not yet a general-purpose engine: `scene.load` reads a versioned source manifest and the source
+  it names; non-triangle primitives and non-standard glTF extensions are unsupported. A world built
+  in code — `geometry`/`material`/`object`/`light` — does not go through the compiler at all.
 - Delivered simplification and page compression are those documented in
   [docs/FORMAT.md](docs/FORMAT.md); the compiler's RAM option is an admission estimate, not an
   enforced peak-memory limit.

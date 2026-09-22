@@ -54,6 +54,25 @@ export async function runPageDecodeTask(
 ): Promise<{ answer: PageDecodeAnswer; transfer: ArrayBuffer[] }> {
   const started = performance.now();
   try {
+    if (request.op === 'cut') {
+      // Loaded on the first cut alone: a worker that only decodes never reads the encoder.
+      const cutter = await import('./world/page/runtimeCut.ts');
+      const cut = await cutter.cutDrawnTriangles(cutter.unpackDrawn(request.source));
+      return {
+        answer: {
+          protocol: PAGE_DECODE_PROTOCOL,
+          id: request.id,
+          ok: true,
+          sha256: null,
+          source: null,
+          decoded: null,
+          cut,
+          wasm: false,
+          taskMs: performance.now() - started,
+        },
+        transfer: cut.pages.flatMap((page) => [page.index, page.geometry]),
+      };
+    }
     if (request.op === 'verify') {
       const sha256 = await sha256Hex(request.source);
       return {

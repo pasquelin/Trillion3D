@@ -32,7 +32,7 @@ console.log(MATH_PATH_CONTRACT, governor.metrics()); // per operation: jsNsPerEl
     module: 'packages/sdk-core/jobs.ts',
     signature: "type JobStatus = 'queued' | 'running' | 'completed' | 'cancelled' | 'failed'",
     description:
-      'Lifecycle of a job created by `createJob` — a compilation, an explorer creation. A cancelled or failed job disposes the result it owned.',
+      'Lifecycle of a job created by `createJob` — a compilation, a world creation. A cancelled or failed job disposes the result it owned.',
     values: [
       { name: "'queued'", desc: 'Created, not started.' },
       { name: "'running'", desc: 'Running; `progress` events carry a phase and a count.' },
@@ -73,8 +73,8 @@ policy.trip('device-lost', now); // straight to the safe path`,
       { name: "'timestamp-query'", desc: 'Native WebGPU timestamp queries.' },
       { name: "'EXT_disjoint_timer_query_webgl2'", desc: 'The WebGL2 extension, for that path.' },
     ],
-    example: `const profile = explorer.stageProfile();
-console.log(profile.gpuMethod, profile.gpuImageMs); // null when nothing measured it`,
+    example: `const frame = metric.frame(world);
+console.log(frame.gpuFrameMs); // null when nothing measured it`,
   },
   {
     ...ENUM,

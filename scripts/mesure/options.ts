@@ -10,7 +10,7 @@ export type { BenchSettings } from './benchSettings.ts';
 
 export { PATH_VERSION, VIEWS, poseAt } from './poses.ts';
 export { applySceneFlag, assetsManifest, sceneGltf, sceneOf, scenesOf } from './scene.ts';
-export { resolveSides } from './dists.ts';
+export { resolveSides, sdkEntryUrl } from './dists.ts';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './optionsCote.ts';
 import { ENGINES } from './optionsCote.ts';
 

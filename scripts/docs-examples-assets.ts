@@ -1,20 +1,13 @@
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { rm, writeFile } from 'node:fs/promises';
-import { scenes } from './docs/examples/scenes.ts';
-import { geometryScenes } from './docs/examples/scenes-geometry.ts';
-import { materialScenes } from './docs/examples/scenes-materials.ts';
-import { lightScenes } from './docs/examples/scenes-lights.ts';
-import { writeSurfacesGltf } from './docs/examples/gltf.ts';
-import { writePartsGltf } from './docs/examples/gltf-parts.ts';
+import { rm } from 'node:fs/promises';
 import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
-import type { ExampleScene } from './docs/examples/workshop.ts';
 
 /**
- * Writes the sources of the example scenes under `site/assets/examples/<scene>/source` — the
- * original procedural ones as glTF, the ones built around an imported model as merged OBJ
- * folders — then compiles each with this checkout's native compiler. An argument limits the run
- * to one scene; `--source-only` skips the compiler.
+ * Writes the sources of the example scenes built around an imported model, under
+ * `site/assets/examples/<scene>/source` as merged OBJ folders, then compiles each with this
+ * checkout's native compiler. An argument limits the run to one scene; `--source-only` skips
+ * the compiler.
  */
 const root = resolve(import.meta.dirname, '..'),
   examples = resolve(root, 'site/assets/examples'),
@@ -23,31 +16,9 @@ const root = resolve(import.meta.dirname, '..'),
     process.env.WG_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
 
-const procedural: Record<string, () => ExampleScene> = {
-  ...scenes,
-  ...geometryScenes,
-  ...materialScenes,
-  ...lightScenes,
-};
-const names = [...Object.keys(procedural), ...Object.keys(modelScenes)].filter(
-  (name) => !only || name === only,
-);
+const names = Object.keys(modelScenes).filter((name) => !only || name === only);
 if (!names.length) throw new Error(`Unknown example scene: ${only}`);
 
-for (const [name, build] of Object.entries(procedural)) {
-  if (!names.includes(name)) continue;
-  const scene = build(),
-    source = resolve(examples, name, 'source');
-  // A scene is either one mesh of surfaces, or named parts placed by nodes, with the images its
-  // materials read written beside the glTF.
-  if (scene.parts)
-    await writePartsGltf(source, scene.name, scene.materials, scene.parts, scene.nodes, {
-      images: Object.keys(scene.images ?? {}),
-    });
-  else await writeSurfacesGltf(source, scene.name, scene.materials, scene.surfaces);
-  for (const [file, bytes] of Object.entries(scene.images ?? {}))
-    await writeFile(resolve(source, file), bytes);
-}
 await writeModelScenes(examples, resolve(examples, 'models'), names);
 if (process.argv.includes('--source-only')) process.exit(0);
 

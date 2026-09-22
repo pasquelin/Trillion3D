@@ -17,8 +17,8 @@ import { quartet } from './visibilityShaderMaps.ts';
  * (`directShadowWgsl.ts`), copied into the pass uniform: binding the slice buffer would give
  * it one more lifetime on the bind group — rebuilt when a shadow is born or dies —
  * for five hundred bytes copied per frame. The host shader declares `uni.sun`, `uni.feedback`,
- * `PageInfo`, `vertUv`, `wrapOf`, `TILE_REQUEST_WGSL` and the class overrides `HAS_UV`,
- * `HAS_MAP` and `HAS_MASK` (`visibilityMaterialClass.ts`) before this block.
+ * `PageInfo`, `vertUv`, `wrapOf`, `TILE_REQUEST_WGSL` and the class overrides — `HAS_UV`,
+ * `HAS_MASK` and one per map (`visibilityMaterialClass.ts`) — before this block.
  */
 const HEADER_WORDS = 24;
 /** Words of the resolve uniform: the header, then the sun slice. */
@@ -26,6 +26,8 @@ export const SHADE_UNIFORM_WORDS = HEADER_WORDS + SHADOW_SLICE_FLOATS;
 export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4;
 
 export const SHADE_REQUEST_WGSL = `const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
+/** A class reading any map asks for its tiles: a normal map alone is still a texture to stream. */
+override ANY_MAP:bool=HAS_MAP||HAS_ROUGH||HAS_METAL||HAS_NORMAL_MAP||HAS_AO||HAS_EMISSIVE;
 /** Derivative of the shadow-texel coordinate of cascade c (xy, zw), or zero if the cascade
  *  does not draw this point. */
 fn cascadeGradient(c:u32,w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec4f)->vec4f{
@@ -45,7 +47,7 @@ fn cascadeGradient(c:u32,w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec
 }
 /** Tile rank this pixel asks for, plus one, or zero. */
 fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
- if(!(HAS_UV&&HAS_MAP)||!feedbackPhase(pos,uni.feedback)){return 0u;}
+ if(!(HAS_UV&&ANY_MAP)||!feedbackPhase(pos,uni.feedback)){return 0u;}
  let p=requestPick(pos,MAP_CHOICES+SUN_CASCADES);
  if(p.sel>=MAP_CHOICES&&HAS_MASK){
   let uva=pageUv(page,h,i0);

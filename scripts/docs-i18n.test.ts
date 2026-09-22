@@ -41,7 +41,7 @@ const entries = [
 
 test('French content covers every documentation entry and preserves its technical contract', () => {
   const localized = localizeEntries(entries, 'fr');
-  assert.equal(entries.length, 87);
+  assert.equal(entries.length, 89);
   assert.equal(localized.length, entries.length);
   for (let index = 0; index < entries.length; index += 1) {
     const source = entries[index];
@@ -115,19 +115,19 @@ test('legacy documentation hashes retain the active locale', () => {
 test('both locales describe interactive startup and align every method description', () => {
   for (const locale of supportedLocales) {
     const localized = localizeEntries(rawEntries, locale);
-    const explorer = localized.find(({ id }) => id === 'createExplorer');
-    assert(explorer);
-    assert.match(explorer.description, /interactive: true/);
-    assert.match(explorer.description, /ExplorerTarget/);
-    const invalidate = explorer.values?.find(({ name }) => name === 'invalidate()');
-    const dispose = explorer.values?.find(({ name }) => name === 'dispose()');
+    const world = localized.find(({ id }) => id === 'createWorld');
+    assert(world);
+    assert.match(world.description, /`interactive`/);
+    assert.match(world.description, /`scene\.load`/);
+    const invalidate = world.values?.find(({ name }) => name.includes('invalidate()'));
+    const dispose = world.values?.find(({ name }) => name === 'dispose()');
     assert(invalidate);
     assert(dispose);
-    assert.match(invalidate.desc, /camera|caméra/);
+    assert.match(invalidate.desc, /frame|image/i);
     assert.match(dispose.desc, /Releases|Libère/);
     const quickStart = localized.find(({ id }) => id === 'quick-start');
     assert(quickStart);
     assert(quickStart.html);
-    assert.match(quickStart.html, /interactive: true/);
+    assert.match(quickStart.html, /createWorld/);
   }
 });

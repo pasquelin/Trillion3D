@@ -1,6 +1,6 @@
 import { DEFAULT_SCOPE, setScreenErrorVariant } from '../sdk-core/index.ts';
 import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
-import type { ExplorerOptions } from './backendTypes.ts';
+import type { MeasuredWorldOptions } from './backendTypes.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
 
 /** The two observer outlets every explorer module reports through. */
@@ -12,14 +12,17 @@ export type ExplorerEmitters = {
 /** What one explorer shares from its manifest onwards; built once and handed to each module as is. */
 export type ExplorerSession = ExplorerEmitters & {
   canvas: HTMLCanvasElement;
-  options: ExplorerOptions;
+  options: MeasuredWorldOptions;
   metadata: ClusterManifest;
   scope: AssetScope;
   signal?: AbortSignal;
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
+  /** The caller holds the canvas context and the scene: the session frees neither, the next one
+   *  opens on them. */
+  callerOwned?: boolean;
 };
 
-export function createExplorerSession(options: ExplorerOptions) {
+export function createExplorerSession(options: MeasuredWorldOptions) {
   // EXPERIENCE screen-error variant, set before any selection and before the DAG
   // shader is compiled. A session without the option restores ours: nothing inherits.
   setScreenErrorVariant(options.screenError);

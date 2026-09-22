@@ -14,6 +14,7 @@ import { SHADE_REQUEST_WGSL } from './visibilityShaderRequest.ts';
 import { SHADOW_SLICE_WGSL } from './directShadowWgsl.ts';
 import { SHADE_BINDINGS } from './webgpuBindLayout.ts';
 import { MATERIAL_CLASS_WGSL } from './visibilityMaterialClass.ts';
+import { SURFACE_MODEL_SHADE_WGSL } from './surfaceModel.ts';
 
 /**
  * Declarations of the surface resolve: its bindings, the page reads, the atlas reads, the tile
@@ -48,6 +49,7 @@ ${TILE_REQUEST_WGSL}
 ${SHADE_REQUEST_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
 ${COTANGENT_FRAME_WGSL}
+${SURFACE_MODEL_SHADE_WGSL}
 // The fifth output is the tile rank this pixel asks of virtual textures, placed in the
 // feedback target that transparents complete and that a compute pass reduces into counters.
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) request:u32,}

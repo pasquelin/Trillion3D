@@ -4,13 +4,13 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
-import type { Explorer } from '../../packages/sdk-browser/explorer.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/explorer.ts';
 
 // `window.scene` only exists in the page this harness evaluates code in, never in Node; declared
 // here so the `page.evaluate` callbacks below (type-checked, though they run in the browser) see it.
 declare global {
   interface Window {
-    scene: Explorer;
+    scene: MeasuredWorld;
   }
 }
 
@@ -47,8 +47,8 @@ try {
     canvas.id = 'terrain-proof';
     canvas.style.cssText = 'width:900px;height:620px;display:block';
     document.body.append(canvas);
-    const { createExplorer, webgpuPagesBackend } = await import(sdkUrl);
-    window.scene = await createExplorer('terrain-proof', {
+    const { openMeasuredWorld, webgpuPagesBackend } = await import(sdkUrl);
+    window.scene = await openMeasuredWorld('terrain-proof', {
       manifestUrl: '/site/assets/gallery/offline/terrain/cache/native/full/manifest.json',
       scope: 'full',
       importedLights: true,
@@ -68,7 +68,7 @@ try {
       position: [10.5, 8.2, 12.5],
       target: [0, 1.1, 0],
     });
-  }, '/sdk/sdk-browser/index.js');
+  }, '/sdk/sdk-browser/measurement.js');
   const sample = await page.evaluate(async () => {
     let metrics;
     for (let frame = 0; frame < 64; frame++) {

@@ -6,11 +6,11 @@ import type {
   StablePreview,
 } from '../sdk-core/index.ts';
 import { nextFrame } from './scheduling.ts';
-import type { Explorer } from './index.ts';
+import type { MeasuredWorld } from './explorer.ts';
 
 /** Caller supplies immutable poses: every backend gets exactly the same trajectory. */
 export async function runCameraPath(
-  explorer: Explorer,
+  explorer: MeasuredWorld,
   path: readonly CameraPose[],
   options: {
     backendIds?: string[];

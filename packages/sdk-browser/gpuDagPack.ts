@@ -84,8 +84,10 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   const worldSlots = Math.max(1, roots.length);
   const worlds = new Float32Array(worldSlots * 16),
     worldStretch = new Float32Array(worldSlots),
-    // Each primitive's root, which prepare deposits in pass 0's queue.
-    rootNodes = new Uint32Array(worldSlots).fill(NONE);
+    // Each primitive's root, which prepare deposits in pass 0's queue; a parked row deposits
+    // none, and `rootBases` keeps the node it takes back.
+    rootNodes = new Uint32Array(worldSlots).fill(NONE),
+    rootBases = new Uint32Array(worldSlots).fill(NONE);
   let cluster = 0,
     node = 0,
     rootClusters = 0;
@@ -97,7 +99,8 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     worlds.set(root.world.elements, w * 16);
     worldStretch[w] = maxStretch(root.world.elements);
     const owner = new Uint32Array(root.pages.length).fill(NONE);
-    rootNodes[w] = nodeBase;
+    rootBases[w] = nodeBase;
+    rootNodes[w] = root.parked ? NONE : nodeBase;
     node += packCullingNodes(
       nodes,
       nodeInts,
@@ -154,6 +157,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     worlds,
     worldStretch,
     rootNodes,
+    rootBases,
     levelSizes,
     nodeCount,
     worldCount: roots.length,

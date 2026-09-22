@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createExplorer } from './index.ts';
+import { openMeasuredWorld } from './measurement.ts';
 import { CLUSTERED_BLEND_FORMAT_VERSION, EngineError, FORMAT_VERSION } from '../sdk-core/index.ts';
 
 for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
@@ -44,7 +44,7 @@ for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
     // #274: the machine is read before the source. An accepted format therefore stops at the
     // capability floor here — no WebGL2 under Node — and never asks for the glTF.
     await assert.rejects(
-      createExplorer({ nodeName: 'CANVAS', getContext() {} } as unknown as HTMLCanvasElement, {
+      openMeasuredWorld({ nodeName: 'CANVAS', getContext() {} } as unknown as HTMLCanvasElement, {
         manifestUrl: 'http://localhost/manifest.json',
         scope: 'full',
       }),
@@ -85,7 +85,7 @@ test('explorer rejects an unsupported pointer format before requesting metadata'
     );
   });
   await assert.rejects(
-    createExplorer({ nodeName: 'CANVAS', getContext() {} } as unknown as HTMLCanvasElement, {
+    openMeasuredWorld({ nodeName: 'CANVAS', getContext() {} } as unknown as HTMLCanvasElement, {
       manifestUrl: 'http://localhost/manifest.json',
       scope: 'full',
     }),

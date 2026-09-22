@@ -23,7 +23,8 @@ export const PAGE_CONE_FLOATS = 13,
   SELECTION_WORKGROUP = WORKGROUP;
 
 /**
- * `cameraStretch` is the camera half of the cut's object-to-view stretch.
+ * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
+ * projection's clip-w weight (`EngineCamera.perspective`), 1 when absent.
  *
  * `view` and `planes` are those of the render frame, and `cameraWorld` — the eye's world
  * position, ancestors resolved — is its ORIGIN: that is what the kernel's world matrices have
@@ -38,6 +39,7 @@ export type SelectionUniforms = {
   near: number;
   cameraWorld: [number, number, number];
   cameraStretch?: number;
+  perspective?: number;
 };
 export type SelectionResult = {
   pageIds: number[];
@@ -75,6 +77,8 @@ export type GpuSelection = {
   readonly maskOffset: number;
   readonly pageCount: number;
   updateWorlds(worldMatrices: Float32Array): boolean;
+  /** Parks placement `world` — its root enters no descent queue — or takes it back. */
+  parkWorld(world: number, parked: boolean): void;
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
   /**
    * Encodes the selection. Given `shared`, the caller owns the command buffer — one image submits one
@@ -110,6 +114,7 @@ export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms
   if (
     a.pixelError !== b.pixelError ||
     a.near !== b.near ||
+    (a.perspective ?? 1) !== (b.perspective ?? 1) ||
     a.pixelScale[0] !== b.pixelScale[0] ||
     a.pixelScale[1] !== b.pixelScale[1]
   )
@@ -134,6 +139,7 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
     near: source.near,
     cameraWorld: [source.cameraWorld[0], source.cameraWorld[1], source.cameraWorld[2]],
     cameraStretch: source.cameraStretch,
+    perspective: source.perspective,
   };
 }
 
@@ -168,9 +174,7 @@ export function cameraSelectionUniforms(
     position[1],
     position[2],
   ];
-  cameraWorld[0] = position[0];
-  cameraWorld[1] = position[1];
-  cameraWorld[2] = position[2];
+  for (let axis = 0; axis < 3; axis++) cameraWorld[axis] = position[axis];
   // The flat cut multiplies this by each primitive's own stretch, exactly like `selectVisiblePages`.
   // Stretch reads only the linear part, which the render frame does not touch: same bits.
   const cameraStretch = maxStretch(cam.viewRelative);
@@ -179,6 +183,7 @@ export function cameraSelectionUniforms(
     into.near = cam.near;
     into.cameraWorld = cameraWorld;
     into.cameraStretch = cameraStretch;
+    into.perspective = cam.perspective;
     return into;
   }
   return {
@@ -189,5 +194,6 @@ export function cameraSelectionUniforms(
     near: cam.near,
     cameraWorld: [cameraWorld[0], cameraWorld[1], cameraWorld[2]],
     cameraStretch,
+    perspective: cam.perspective,
   };
 }

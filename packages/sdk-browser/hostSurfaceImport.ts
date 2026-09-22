@@ -29,6 +29,7 @@ import {
 import type { Texture, TextureFilter, WrapMode } from '../sdk-core/index.ts';
 import { sideOf } from './materialSide.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
+import { SURFACE_MODEL, hostSurfaceModel, litModel, shininessRoughness } from './surfaceModel.ts';
 
 /** Addressing the host declared, in the engine's words; anything else repeats, as the samplers do. */
 export function importWrapMode(wrap: number): WrapMode {
@@ -96,7 +97,11 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     HostShadedMaterial | undefined;
   if (!first) return undefined;
   const color = isHostColour(first.color) ? first.color : WHITE;
-  const lit = !!first.isMeshStandardMaterial,
+  // A non-physical family reads in the one model (`surfaceModel.ts`): Lambert and toon lit
+  // apart, Phong as the physical model at the roughness of its exponent, the others unlit.
+  const model = hostSurfaceModel(first),
+    lit = litModel(first, model),
+    standard = !!first.isMeshStandardMaterial,
     physical = !!first.isMeshPhysicalMaterial,
     side = sideOf(first),
     emissive = lit && isHostColour(first.emissive) ? first.emissive : undefined,
@@ -104,13 +109,17 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     normalScale = (lit && first.normalScale) || undefined;
   return {
     baseColor: [color.r, color.g, color.b],
-    metalness: lit ? (first.metalness ?? 0) : 0,
-    roughness: lit ? (first.roughness ?? 1) : 1,
+    metalness: standard ? (first.metalness ?? 0) : 0,
+    roughness: standard
+      ? (first.roughness ?? 1)
+      : first.isMeshPhongMaterial
+        ? shininessRoughness(first.shininess ?? 30)
+        : 1,
     lit,
     doubleSided: side === 'double',
     backSide: side === 'back',
     alphaTest: typeof first.alphaTest === 'number' ? first.alphaTest : 0,
-    map: map(first.map),
+    map: map(model === SURFACE_MODEL.matcap ? first.matcap : first.map),
     metalnessMap: lit ? map(first.metalnessMap) : undefined,
     roughnessMap: lit ? map(first.roughnessMap) : undefined,
     normalMap: lit ? map(first.normalMap) : undefined,
@@ -131,5 +140,6 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
       physical && isHostColour(first.attenuationColor)
         ? [first.attenuationColor.r, first.attenuationColor.g, first.attenuationColor.b]
         : [1, 1, 1],
+    model,
   };
 }

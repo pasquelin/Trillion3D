@@ -36,7 +36,7 @@ export function coneSkipsPage(
   if (rec.material && !surfaceFrontOnly(rec.material)) return false;
   const min = rec.min ?? fallbackMin,
     max = rec.max ?? fallbackMax;
-  if (!ctx.ready) coneContextFor(ctx, world, cam.eye);
+  if (!ctx.ready) coneContextFor(ctx, world, cam.viewPoint);
   return coneCullsPageWith(ctx, rec.cone ?? OPEN_CONE, world, min, max, rec.material);
 }
 

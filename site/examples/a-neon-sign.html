@@ -8,37 +8,41 @@
       canvas { display: block; width: 100%; height: 100%; }
       p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/neon/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
+      const world = createWorld('view', { controls: 'orbit' });
+      const dark = material.meshStandard({ color: [0.12, 0.12, 0.14], roughness: 0.9 });
+      const wall = object.mesh(geometry.box(6, 3.4, 0.2), dark);
+      wall.position.set(0, 1.5, -0.2);
+      const floor = object.mesh(geometry.box(6, 0.2, 3.4), dark);
+      floor.position.set(0, -0.1, 1.5);
+
+      // The tube emits: its material carries an emissive colour at a strength of six, added to
+      // the image whatever the lighting.
+      const tubeRadius = 0.04;
+      const glass = material.meshStandard({
+        color: [1, 0.4, 0.7], roughness: 0.3, emissive: [1, 0.25, 0.6], emissiveIntensity: 6,
       });
-      // The tube emits: its material carries an emissive colour with a strength of six, added
-      // to the image whatever the lighting. What it throws on the wall and the floor is a point
-      // light of the same colour at the centre of the sign, its emitter radius enclosing the
-      // tube so that the glass does not shadow its own light. No bloom is drawn.
-      explorer.addLight({
-        id: 'neon',
-        kind: 'point',
-        position: [0.4, 1.6, 0.35],
-        color: [1, 0.25, 0.6],
-        intensity: 3,
-        range: 8,
-        emitterRadius: 1.9,
-        castsShadow: true,
-      });
-      explorer.setPose({ ...explorer.homePose(), position: [1.2, 1.7, 4.2], target: [0.2, 1.4, 0] });
-      explorer.invalidate();
+      const ring = object.mesh(geometry.torus(0.7, tubeRadius, 12, 48), glass);
+      ring.position.set(-1, 1.6, 0);
+      const bar = object.mesh(geometry.cylinder(tubeRadius, tubeRadius, 2.2, 12), glass);
+      bar.rotation.z = Math.PI / 2;
+      bar.position.set(1.4, 1.6, 0);
+      world.scene.add(wall, floor, ring, bar);
+
+      // What it throws on the wall and the floor is a point light of the same colour at the
+      // centre of the sign, its radius the tube's own. No bloom is drawn.
+      world.scene.add(light.point({
+        position: [0.4, 1.6, 0.35], color: [1, 0.25, 0.6], intensity: 3, distance: 8, radius: tubeRadius, castShadow: true,
+      }));
+      world.camera.position.set(1.2, 1.7, 4.2);
+      world.camera.lookAt(0.2, 1.4, 0);
+      world.controls.target.set(0.2, 1.4, 0);
+      world.invalidate();
     </script>
   </body>
 </html>

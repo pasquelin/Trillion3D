@@ -5,8 +5,10 @@ import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
 import type { ClusterManifest, Material } from '../sdk-core/index.ts';
+import { createPlacementRows, type PlacementRows } from './placement/placementRows.ts';
 
-test('autonomous pages add, move and remove an instance while keeping page coverage', async () => {
+/** One triangle cut into one page, and the WebGL2 page path opened on `mesh` placed by `link`. */
+function triangleBackend(link: { placements?: PlacementRows } = {}) {
   const position = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]);
   const encoded = encodeGeometryPage([0, 1, 2], {
     POSITION: { itemSize: 3, array: position },
@@ -65,13 +67,18 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     source,
     metadata,
     indices: new Map(),
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
+    associations: new Map([[mesh, { meshes: 0, primitives: 0, ...link }]]),
     readGeometryPage: async () => encoded.data,
     maxResidentPages: 2,
   });
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
+  return { backend, camera, encoded, geometry, material };
+}
+
+test('autonomous pages add, move and remove an instance while keeping page coverage', async () => {
+  const { backend, camera, encoded, geometry, material } = triangleBackend();
   try {
     await backend.prepare();
     backend.render(camera);
@@ -117,6 +124,37 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     backend.removeInstance?.('copy');
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1);
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
+
+test('a full instance buffer grows in place: its rows kept, the new ones drawn once taken', async () => {
+  const from = createPlacementRows(1);
+  from.matrices.set(new THREE.Matrix4().toArray());
+  from.live[0] = 1;
+  const { backend, camera, geometry, material } = triangleBackend({ placements: from });
+  try {
+    await backend.prepare();
+    backend.render(camera);
+    assert.equal(backend.metrics().submittedTriangles, 1);
+    const to = createPlacementRows(2);
+    to.matrices.set(from.matrices);
+    to.live.set(from.live);
+    backend.growPlacements!(from, to);
+    backend.render(camera);
+    assert.equal(backend.metrics().submittedTriangles, 1, 'the new row is parked');
+    to.matrices.set(new THREE.Matrix4().makeTranslation(1, 0, 0).toArray(), 16);
+    to.live[1] = 1;
+    backend.updatePlacements!(to, 1, 1);
+    backend.render(camera);
+    assert.equal(backend.metrics().submittedTriangles, 2);
+    to.live[0] = 0;
+    backend.updatePlacements!(to, 0, 0);
+    backend.render(camera);
+    assert.equal(backend.metrics().submittedTriangles, 1, 'the kept row reads the grown buffer');
   } finally {
     backend.dispose();
     geometry.dispose();

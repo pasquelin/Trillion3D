@@ -33,6 +33,7 @@ ${HASH_UNIT_WGSL}
  *  when the unshadowed contribution is — out of range, or behind the surface —, so no light
  *  that could contribute is ever left undrawable. */
 fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{
+ if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}
  let incidence=directIncidence(light,P);
  return light.colorIntensity.w*incidence.w*max(dot(N,incidence.xyz),0.0)*dot(light.colorIntensity.rgb,LUMINANCE);
 }

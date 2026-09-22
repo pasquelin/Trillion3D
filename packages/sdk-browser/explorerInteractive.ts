@@ -1,7 +1,7 @@
 import { EngineError } from '../sdk-core/index.ts';
 import { createExplorerFrameScheduler } from './explorerFrameScheduler.ts';
 import { interactiveSize } from './explorerInteractiveOptions.ts';
-import type { ExplorerOptions } from './explorerOptions.ts';
+import type { MeasuredWorldOptions } from './explorerOptions.ts';
 import type { createExplorerApi } from './explorerApi.ts';
 import type { ExplorerRuntimeSurface } from './explorerHostRuntime.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
@@ -10,12 +10,12 @@ import type { ExplorerEmitters } from './explorerSession.ts';
 export function startInteractiveExplorer(
   explorer: ReturnType<typeof createExplorerApi>,
   runtime: ExplorerRuntimeSurface,
-  original: ExplorerOptions,
+  original: MeasuredWorldOptions,
   events: ExplorerEmitters,
 ) {
   const { canvas, options, hostedControls, state } = runtime;
   const view = canvas.ownerDocument.defaultView!;
-  const controls = explorer.controls();
+  const controls = original.ownControls === false ? undefined : explorer.controls();
   const reportFailure = (error: unknown) => {
     events.emit({
       eventVersion: 1,
@@ -33,7 +33,9 @@ export function startInteractiveExplorer(
     request: view.requestAnimationFrame.bind(view),
     cancel: view.cancelAnimationFrame.bind(view),
     render: () => {
-      explorer.render();
+      original.beforeFrame?.();
+      const metrics = explorer.render();
+      original.onFrame?.(metrics);
     },
     pending: runtime.pendingFrame,
     error: reportFailure,
@@ -98,11 +100,11 @@ export function startInteractiveExplorer(
       observer?.disconnect();
       media?.removeEventListener('change', dprChanged);
       view.removeEventListener('resize', resizeSafely);
-      controls.removeEventListener('change', invalidate);
+      controls?.removeEventListener('change', invalidate);
       options.signal?.removeEventListener('abort', abort);
     },
   });
-  controls.addEventListener('change', invalidate);
+  controls?.addEventListener('change', invalidate);
   if (
     typeof ResizeObserver !== 'undefined' &&
     (original.width === undefined || original.height === undefined)
@@ -115,7 +117,8 @@ export function startInteractiveExplorer(
   options.signal?.addEventListener('abort', abort, { once: true });
   options.signal?.throwIfAborted();
   resize();
-  explorer.render();
+  original.beforeFrame?.();
+  original.onFrame?.(explorer.render());
   invalidate();
   return invalidate;
 }

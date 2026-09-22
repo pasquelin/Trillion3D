@@ -2,7 +2,9 @@
 
 One section per merged batch, listing the functions it delivers or puts to work: signature,
 what it computes, the host-library call it replaces and the proof that it gives the same
-numbers. Conventions shared by every entry:
+numbers. The public families a page writes against — `createWorld` and everything it hands out —
+are the contract of [docs/SDK.md](SDK.md#create-a-world); this file does not restate it. Conventions
+shared by every entry:
 
 - **Column-major 4×4 matrices** in sixteen consecutive numbers, `[12..14]` the translation —
   the layout of the reference library, so a host matrix copies without reordering.
@@ -19,26 +21,44 @@ numbers. Conventions shared by every entry:
   the engine's speed-up over the reference, best of three runs on the same machine (#72, #76,
   19 Sept. 2026); they say where, not how much a frame gains.
 
-## Explorer startup (#111)
+## World startup
 
-- `createExplorer(target: ExplorerTarget, options: ExplorerOptions)` and
-  `createExplorerJob(id, target, options)` accept a canvas element or its literal document ID.
+- `createWorld(target: HTMLCanvasElement | HTMLElement | string, options?: WorldOptions)` creates an
+  empty world at once; a compiled model is loaded afterwards with `scene.load(manifestUrl)`, like
+  any other addition. `options.renderer` (absent = best path; forced + missing = refused by name),
+  `interactive` (default `true`, the world's own loop), `controls`, `pixelRatio` and `signal` are
+  the only public options — `options.backends` and the backend factories are not part of this entry
+  point. Details, defaults and every family: [SDK guide](SDK.md#create-a-world).
+- `interactive: true` (the default) owns CSS/DPR sizing and bounded demand-driven rendering, pausing
+  after 120 stable frames (`world.onFrame`/`world.loop`, `world.invalidate()`). `interactive: false`
+  leaves the loop to the host (`world.render()`).
+- With no `renderer` forced, a world draws through the engine's own path: direct WebGPU where a
+  device was granted; `autonomous-pages-webgl` on WebGL2 alone, which since #297 decodes the cache's
+  geometry pages and draws them itself — from the cache's prepared scene where it carries one, from
+  `source.gltf` where it does not; and a named `EngineError` (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where
+  the machine granted neither API. Proof: `defaultBackends.test.ts`, the browser startup proof.
+- Proof: `explorerTarget.test.ts`, `explorerFrameScheduler.test.ts` and the browser startup proof.
+
+## Explorer startup (#111, historical)
+
+The internal session `createWorld` opens on itself, reached today only through the measurement
+entry point (`packages/sdk-browser/measurement.ts`) for the bench, the proofs and the comparison
+views. A host never imports it.
+
+- `openMeasuredWorld(target: MeasuredWorldTarget, options: MeasuredWorldOptions)` and
+  `createMeasuredWorldJob(id, target, options)` accept a canvas element or its literal document ID.
 - `interactive: true` owns CSS/DPR sizing, the engine's own orbit controller and bounded
   demand-driven rendering;
   absent/false preserves manual sessions. `invalidate()` requests a frame after programmatic edits.
-- With no `backends` option, interactive or not, a session draws through the engine's own path:
-  direct WebGPU where a device was granted; `autonomous-pages-webgl` on WebGL2 alone, which since
-  #297 decodes the cache's geometry pages and draws them itself — from the cache's prepared scene
-  where it carries one, from `source.gltf` where it does not; and a named `EngineError`
-  (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where the machine granted neither API.
-  `chooseBackends(options, metadata, gpuDevice, webgl2)` and `autonomousCacheReady(metadata)`
-  expose that decision; the `backend-choice` diagnostic reports its `renderer`, `autonomous` and
-  `reason` per session. Proof: `defaultBackends.test.ts`, the browser startup proof.
+- With no `backends` option, interactive or not, a session draws through the engine's own path,
+  exactly as a world does above. `chooseBackends(options, metadata, gpuDevice, webgl2)` and
+  `autonomousCacheReady(metadata)` — reached through the measurement entry point — expose that
+  decision; the `backend-choice` diagnostic reports its `renderer`, `autonomous` and `reason` per
+  session.
 - `RenderBackend.pendingFrame?()` waits for submitted work without image readback and returns
   whether interactive rendering should continue. Custom backends with progressive work should
   implement it. Disposal owns all interactive listeners and pending callbacks.
-- Details, defaults and teardown: [SDK guide](SDK.md#simple-browser-startup). Proof:
-  `explorerTarget.test.ts`, `explorerFrameScheduler.test.ts` and the browser startup proof.
+- Details: [SDK guide](SDK.md#explorer-sessions).
 
 ## Batch A — maths and side enum (#76)
 

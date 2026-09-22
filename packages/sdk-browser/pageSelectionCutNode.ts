@@ -38,11 +38,20 @@ export function nodeDecision<T extends PageRecord>(
   const limit = s.pixelError,
     e = s.flatElements,
     stretch = s.flatStretch,
-    focal = s.flatFocal;
+    focal = s.flatFocal,
+    perspective = s.cam.perspective;
   const ownRadius = values[at + OWN_SPHERE + 3],
     ownDepth = viewDepth(values, at + OWN_SPHERE, e);
   // No cluster of the subtree is fine enough: the cut takes none of them.
-  if (errorFloorAt(values[at + OWN_FLOOR], ownDepth, ownRadius, stretch, focal) > limit) return -1;
+  const floor = errorFloorAt(
+    values[at + OWN_FLOOR],
+    ownDepth,
+    ownRadius,
+    stretch,
+    focal,
+    perspective,
+  );
+  if (floor > limit) return -1;
   // A cluster may still be too coarse: one descends.
   const ownCeil = projectedErrorAt(
     values[at + OWN_CEIL],
@@ -52,6 +61,7 @@ export function nodeDecision<T extends PageRecord>(
     stretch,
     focal,
     s.cam.near,
+    perspective,
   );
   if (ownCeil > limit) return 0;
   // All are fine enough; the cut keeps them if no replacement still covers them.
@@ -61,6 +71,7 @@ export function nodeDecision<T extends PageRecord>(
     values[at + PARENT_SPHERE + 3],
     stretch,
     focal,
+    perspective,
   ) > limit
     ? 1
     : 0;

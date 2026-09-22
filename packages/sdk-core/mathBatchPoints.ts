@@ -8,7 +8,7 @@ import { POSITION_VALUES } from './mathBatchStrides.ts';
  * Repeats `transformAffinePoint`. Replaces Three.js loop: `for … v.applyMatrix4(m)`.
  */
 export function transformPointsBatch(
-  out: Float64Array,
+  out: Float64Array | Float32Array,
   m: ArrayLike<number>,
   points: ArrayLike<number>,
   n: number,

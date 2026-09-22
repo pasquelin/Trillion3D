@@ -3,6 +3,7 @@ import type { Texture } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
 import { materialClassKey } from './visibilityMaterialClass.ts';
+import { MODEL_SHIFT } from './surfaceModel.ts';
 import { FLAG_NORMAL, FLAG_UV } from './clusterFormat.ts';
 import {
   FLAG_CLUSTER_PAGE,
@@ -95,6 +96,7 @@ export function rowMaterial(
   if (mat.backSide) flags |= FLAG_BACK;
   if (rough || metal) flags |= FLAG_HAS_ORM;
   if (normal) flags |= FLAG_HAS_NORMAL_MAP;
+  flags |= (mat.model ?? 0) << MODEL_SHIFT;
   const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal });
   // Where the row reads its geometry is not a material feature: it never splits a resolve class.
   if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE;

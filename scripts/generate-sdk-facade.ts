@@ -139,10 +139,23 @@ for (const entry of inventory) {
   group.push(entry);
   grouped.set(entry.name, group);
 }
-const collisions = [...grouped.entries()]
-  .filter(([, entries]) => new Set(entries.map((entry) => entry.bindingIdentity)).size > 1)
-  .map(([name, entries]) => ({ name, bindings: entries.map((entry) => entry.bindingIdentity) }));
+// A name bound twice is a collision, unless one binding is a page word of the world families
+// (`packages/*/world/`) and the other an engine contract of the common entry: the browser facade
+// names the page word explicitly, and an explicit export shadows the common one there. Those are
+// listed apart, so the shadowing is a decision the inventory states, not an accident.
+const collisions: { name: string; bindings: string[] }[] = [],
+  shadowed: { name: string; bindings: string[] }[] = [];
+for (const [name, entries] of grouped) {
+  const bindings = entries.map((entry) => entry.bindingIdentity);
+  if (new Set(bindings).size < 2) continue;
+  const words = entries.filter((entry) => entry.definingModule.includes('/world/'));
+  const pageWord =
+    entries.length === 2 &&
+    words.length === 1 &&
+    entries.some((entry) => entry.currentEntryPoints.includes(entryLabel.core));
+  (pageWord ? shadowed : collisions).push({ name, bindings });
+}
 await write(
   'site/data/api-inventory.json',
-  `${JSON.stringify({ generatedFrom: ENTRIES, collisions, exports: inventory }, null, 2)}\n`,
+  `${JSON.stringify({ generatedFrom: ENTRIES, collisions, shadowed, exports: inventory }, null, 2)}\n`,
 );

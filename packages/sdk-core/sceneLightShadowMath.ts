@@ -1,4 +1,5 @@
 import { copyMatrix4, multiplyMatrix4 } from './mathMatrix4.ts';
+import { orthographicProjection } from './mathCamera.ts';
 import { crossVector3, dotVector3 } from './mathVector.ts';
 import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
 
@@ -56,12 +57,10 @@ export function shadowProjection(fov: number, range: number) {
  * aperture to publish: both come out zero.
  */
 export function shadowOrthographic(halfExtent: number, far: number) {
-  projScratch.fill(0);
-  projScratch[0] = arrondi(1 / halfExtent);
-  projScratch[5] = arrondi(1 / halfExtent);
-  projScratch[10] = arrondi(1 / far);
-  projScratch[14] = 1;
-  projScratch[15] = 1;
+  orthographicProjection(projScratch, -halfExtent, halfExtent, -halfExtent, halfExtent, 0, far);
+  projScratch[0] = arrondi(projScratch[0]);
+  projScratch[5] = arrondi(projScratch[5]);
+  projScratch[10] = arrondi(projScratch[10]);
   planes.near = 0;
   planes.far = far;
   planes.halfFov = 0;

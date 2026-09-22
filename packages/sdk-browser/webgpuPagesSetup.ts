@@ -1,4 +1,4 @@
-import type { HostMesh } from './hostResources.ts';
+import type { MatrixElements } from './matrixElements.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopyRecord } from './blendCopyRecord.ts';
 import { indexSourceBytes } from './webgpuPagesCatalogue.ts';
@@ -57,16 +57,22 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // Meshes the cut never sees: `shared-blend` and transmissive primitives leave the collection as
   // forward copies. Counted here, while the list is still only theirs.
   const sharedBlendMeshes = blendCopies.length;
-  // Transparent pages share selection/residency with opaque pages, but retain
-  // one forward draw per source mesh (all back faces, then all front faces).
-  const pagedBlendCopies = new Map<HostMesh, BlendCopy>();
+  // Transparent pages share selection/residency with opaque pages, but retain one forward draw
+  // per placement (all back faces, then all front faces), keyed by the world its pages read: the
+  // source mesh's own, or one row of its instance buffer.
+  const pagedBlendCopies = new Map<MatrixElements, BlendCopy>();
   for (const rec of allPages)
     if (rec.transparent && rec.sourceMesh) {
-      const mesh = rec.sourceMesh;
-      if (pagedBlendCopies.has(mesh)) continue;
-      const copy = createBlendCopyRecord(mesh, rec.renderOrder, rec.matrix, rec.material);
+      if (pagedBlendCopies.has(rec.matrix)) continue;
+      const copy = createBlendCopyRecord(
+        rec.sourceMesh,
+        rec.renderOrder,
+        rec.matrix,
+        rec.material,
+        rec.placement,
+      );
       copy.userData.pagedBlend = true;
-      pagedBlendCopies.set(mesh, copy);
+      pagedBlendCopies.set(rec.matrix, copy);
       blendCopies.push(copy);
     }
   blendCopies.sort((a, b) => a.renderOrder - b.renderOrder);

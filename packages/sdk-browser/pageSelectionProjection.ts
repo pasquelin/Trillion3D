@@ -1,4 +1,5 @@
 import { clusterErrorAtDepth } from '../sdk-core/index.ts';
+import { clipWeight } from '../sdk-core/mathCamera.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
 
 /**
@@ -36,10 +37,11 @@ export function projectedErrorAt(
   stretch: number,
   focal: number,
   near: number,
+  perspective = 1,
 ) {
   if (error === 0) return 0;
   if (error == null || error === Infinity) return Infinity;
-  return clusterErrorAtDepth(error, stretch, lateral, depth, radius, focal, near);
+  return clusterErrorAtDepth(error, stretch, lateral, depth, radius, focal, near, perspective);
 }
 
 /**
@@ -56,6 +58,8 @@ export function projectedErrorAt(
  * projected error is infinite.
  *
  * `depth` is `−view(C).z`, already computed by the caller: a node's floor and ceiling share it.
+ * Under an orthographic projection (`perspective` 0) the clip weight is 1 at every depth, and
+ * the floor is ε_min·stretch·f itself — the error every cluster of the subtree announces at least.
  */
 export function errorFloorAt(
   error: number,
@@ -63,12 +67,13 @@ export function errorFloorAt(
   radius: number,
   stretch: number,
   focal: number,
+  perspective = 1,
 ) {
   if (error === 0) return 0;
   if (error === Infinity) return Infinity;
   // Without a bounding sphere, no bound to oppose: the floor certifies nothing.
   if (!(error > 0) || !(radius >= 0)) return 0;
-  const far = depth + radius * stretch;
+  const far = clipWeight(perspective, depth + radius * stretch);
   if (!(far > 0)) return Infinity;
   // The floor holds for both metrics: the external reference's EXPERIENCE variant
   // yields `ε·stretch·f/depth`, which `ε_min·stretch·f/(farthest depth of the

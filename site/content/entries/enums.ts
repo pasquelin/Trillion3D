@@ -29,7 +29,7 @@ copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
     signature:
       "type DiagnosticMode = 'beauty' | 'wireframe' | 'clusters' | 'lod' | 'screen-error' | 'materials' | 'visibility' | 'pages' | 'texture-mip' | 'overdraw'",
     description:
-      'What a frame draws. Availability describes real pipeline outputs, never synthetic overlays: `DIAGNOSTICS` gives, per mode, whether the backend can produce it and why not.',
+      'What a frame draws. Availability describes real pipeline outputs, never synthetic overlays: `DIAGNOSTICS` gives, per mode, whether the active renderer can produce it and why not.',
     values: [
       { name: "'beauty'", desc: 'The lit image, from the glTF materials.' },
       {
@@ -38,7 +38,7 @@ copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
       },
       {
         name: "'clusters'",
-        desc: 'Stable primitive/page identity, one colour per cluster; exact-cluster backend only.',
+        desc: 'Stable primitive/page identity, one colour per cluster; WebGL2 and WebGPU both.',
       },
       {
         name: "'lod'",
@@ -65,7 +65,7 @@ copyMatrix4(nodeTransform, IDENTITY_MATRIX4); // reset, no allocation`,
     ],
     example: `import { DIAGNOSTICS } from 'web-geometry';
 
-explorer.setDiagnostic('clusters');
+world.diagnostic.mode = 'clusters';
 console.log(DIAGNOSTICS['overdraw']); // { available: false, reason: 'No fragment counter' }`,
   },
   {
@@ -89,7 +89,8 @@ console.log(DIAGNOSTICS['overdraw']); // { available: false, reason: 'No fragmen
     example: `import { LOD_QUALITY, lodQuality } from 'web-geometry';
 
 const { pixelError } = lodQuality('balanced'); // 4; an unknown id throws
-explorer.setPixelError(pixelError);`,
+world.pixelError = pixelError; // the world's own property reads the same threshold back
+console.log(world.pixelError);`,
   },
   {
     ...ENUM,

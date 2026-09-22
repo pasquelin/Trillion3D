@@ -1,5 +1,8 @@
 import { TRANSMISSION_GLSL } from './webglClusterTransmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from './webglOutputGlsl.ts';
+import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './webglClusterRectGlsl.ts';
+import { PROBE_IRRADIANCE_GLSL } from './webglClusterProbe.ts';
+import { PI } from './shaderConstants.ts';
 
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
@@ -10,11 +13,14 @@ void main(){vec4 view=modelViewMatrix*vec4(position,1.0);viewPosition=view.xyz;
 viewNormal=normalize(normalMatrix*normal);
 texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*(modelViewMatrix*vec4(position,1.0));}`;
 
+// The view vector reads the camera as one homogeneous point (`EngineCamera.viewPoint`), in view
+// space: the origin under a perspective projection, +z under an orthographic one — its weight p
+// is the projection's own clip-w row, `-projectionMatrix[2][3]`, 1 or 0.
 // `cotangentFrame`: the tangent frame a page does not store, from the screen derivatives of
 // position and texture coordinate — the WGSL routine of `clusterDecodeWgsl.ts`, operation for
 // operation, so the three lighting passes bend a normal map in one frame.
 export const CLUSTER_FRAGMENT = `#version 300 es
-precision highp float;const float PI=3.141592653589793;const int MAX_LIGHTS=64;
+precision highp float;const float PI=${PI};const int MAX_LIGHTS=64;
 in vec3 viewPosition;in vec3 viewNormal;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
 uniform vec3 emissiveFactor;uniform bool lit,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask;
@@ -34,13 +40,17 @@ vec3 brdf(vec3 N,vec3 V,vec3 L,vec3 base,float metal,float rough){float nl=max(d
 vec3 H=normalize(V+L);float nh=max(dot(N,H),0.0),vh=max(dot(V,H),0.0);float a=max(0.0525,rough);a*=a;float a2=a*a;
 float d0=nh*nh*(a2-1.0)+1.0,D=a2/(PI*d0*d0);float gv=nl*sqrt(nv*nv*(1.0-a2)+a2),gl=nv*sqrt(nl*nl*(1.0-a2)+a2);
 float Vis=0.5/(gv+gl+1e-7);vec3 F=fresnel(vh,mix(vec3(0.04),base,metal));return(base*(1.0-metal)/PI+D*Vis*F)*nl;}
-float attenuation(float distance,float range){float a=1.0/max(distance*distance,0.01);if(range>0.0){float r=distance/range;a*=pow(clamp(1.0-r*r*r*r,0.0,1.0),2.0);}return a;}
+float rangeWindow(float distance,float range){if(range<=0.0)return 1.0;float r=distance/range;return pow(clamp(1.0-r*r*r*r,0.0,1.0),2.0);}
+float attenuation(float distance,float range){return 1.0/max(distance*distance,0.01)*rangeWindow(distance,range);}
 float spotFactor(float cosine,float inner,float outer){return inner<=outer?(cosine>=outer?1.0:0.0):smoothstep(outer,inner,cosine);}
 ${OUTPUT_TRANSFER_GLSL}
-// The declared lights on one surface: the engine's only lighting formula, ambient included.
-vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 rgb=vec3(0.0);for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
+${RECT_LIGHT_GLSL}
+${PROBE_IRRADIANCE_GLSL}
+// The declared lights on one surface: the engine's only lighting formula, ambient and probe included.
+vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 rgb=base*(1.0-metal)/PI*probeIrradiance(N)*ao;for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
 vec4 positionRange=lightData[i*4],directionKind=lightData[i*4+1],colorIntensity=lightData[i*4+2],cone=lightData[i*4+3];
 int kind=int(directionKind.w);if(kind==3){rgb+=base*(1.0-metal)/PI*colorIntensity.rgb*colorIntensity.w*ao;continue;}
+if(kind==${WEBGL_RECT_KIND}){rgb+=rectLight(positionRange,directionKind.xyz,cone,colorIntensity,N,V,viewPosition,base,metal,rough);continue;}
 vec3 L;float falloff=1.0;if(kind==0)L=normalize(-directionKind.xyz);else{vec3 delta=positionRange.xyz-viewPosition;float d=length(delta);L=delta/max(d,1e-6);falloff=attenuation(d,positionRange.w);
 if(kind==2){float c=dot(L,normalize(-directionKind.xyz));falloff*=spotFactor(c,cone.x,cone.y);}}
 rgb+=brdf(N,V,L,base,metal,rough)*colorIntensity.rgb*colorIntensity.w*falloff;}return rgb;}
@@ -51,8 +61,8 @@ float metal=clamp(metalFactor*metalSample,0.0,1.0),rough=clamp(roughFactor*rough
 vec3 N=normalize(viewNormal);if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
 CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));N=normalize(frame.T*n.x+frame.B*n.y+N*n.z);}if(!gl_FrontFacing)N=-N;
 rough=filteredRoughness(N,rough);
-vec3 V=normalize(-viewPosition);float ao=1.0;if((mapMask&16)!=0)ao+=aoStrength*(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0);
+float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao+=aoStrength*(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0);
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
 float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
-if(toneMapped)rgb=aces(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,alpha);}`;
+if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,alpha);}`;

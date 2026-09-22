@@ -8,10 +8,6 @@ import {
   createObservationCapabilities,
   observationDiagnostic,
 } from './lightingObservationDiagnostics.ts';
-export type {
-  LightingExperimentRenderState,
-  LightingExperimentRayDiagnostics,
-} from './lightingObservationContracts.ts';
 
 /**
  * Observation backend for the transport experiment. Rasterizes the prepared source meshes on

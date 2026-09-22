@@ -25,7 +25,7 @@ test('the reference variant returns only the constant, and carries the same form
   // Shader branch, copied: same operands, same order as `referenceScreenError`.
   assert.match(
     code,
-    /if\(!\(depth>uni\.near\)\)\{return INF;\}\n {2}let delta=error\*stretch;\n {2}return \(delta\*focal\)\/depth;/,
+    /let depth=p\*-v\.z\+flat;\n {2}if\(!\(depth>p\*uni\.near\)\)\{return INF;\}\n {2}let delta=error\*stretch;\n {2}return \(delta\*focal\)\/depth;/,
   );
   for (const [error, stretch, depth, focal, near] of [
     [0.05, 1, 10, 600, 0.1],

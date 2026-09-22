@@ -12,6 +12,16 @@ export class SceneRoot extends SceneNode {
   readonly version = SCENE_MODEL_VERSION;
 
   createNode(options: SceneNodeOptions = {}) {
+    const slot = this.reserve(options);
+    return this.register(new SceneNode(slot.state, slot.id, slot.index, slot.visible));
+  }
+
+  /**
+   * The storage of a node about to be built: its identifier, its transform slot and the state
+   * that owns both. `createNode` builds a plain node on it; a node kind of its own (the scene
+   * objects of `world/object3d.ts`) passes it to its constructor, then `register`s itself.
+   */
+  reserve(options: SceneNodeOptions = {}) {
     this.assertAlive();
     const visible = sceneNodeVisibility(options.visible);
     let id = options.id;
@@ -22,9 +32,13 @@ export class SceneRoot extends SceneNode {
       sceneNodeFail('INVALID_SCENE_NODE_ID', 'A scene node id must be a non-empty string', { id });
     if (this.state.ids.has(id))
       sceneNodeFail('DUPLICATE_SCENE_NODE_ID', `Scene node id ${id} already exists`, { id });
-    const node = new SceneNode(this.state, id, addTransformNode(this.state.tree), visible);
+    return { state: this.state, id, index: addTransformNode(this.state.tree), visible };
+  }
+
+  /** Makes a node built on `reserve` reachable by its index and its identifier. */
+  register<T extends SceneNode>(node: T) {
     this.state.nodes.set(node.index, node);
-    this.state.ids.set(id, node);
+    this.state.ids.set(node.id, node);
     return node;
   }
 

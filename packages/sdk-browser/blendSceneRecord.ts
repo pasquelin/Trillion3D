@@ -11,7 +11,7 @@
  */
 
 import { srgbToLinear } from '../sdk-core/index.ts';
-import { clearValueOf } from './clearColour.ts';
+import { clearValueOf } from '../sdk-core/world/math/packedColour.ts';
 import type { HostNode, HostScene } from './hostResources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 
@@ -20,7 +20,7 @@ import type { BlendCopy } from './blendCopyContract.ts';
 export type BlendHostScene = HostScene & { remove(node: unknown): void; clear(): void };
 
 /** The clear colour in the linear components a host reads off a scene background. The packed
- *  triple is taken apart where every other reader of it takes it apart (`clearColour.ts`); what
+ *  triple is taken apart where every other reader of it takes it apart (`sdk-core/world/math/packedColour.ts`); what
  *  is proper to a background is the conversion out of sRGB, which a clear value does not make. */
 const linearBackground = (clearColor: number) => {
   const { r, g, b } = clearValueOf(clearColor);

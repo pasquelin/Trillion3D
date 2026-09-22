@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { replicateInstances } from '../../packages/sdk/browser.ts';
+import { replicateInstances } from '../../packages/sdk-browser/measurement.ts';
 import { asHostLibrary } from '../../packages/sdk-browser/hostResources.ts';
 test('1/4/9/12 replicas share assets, preserve associations and extend real bounds', () => {
   const counts: readonly (1 | 4 | 9 | 12)[] = [1, 4, 9, 12];

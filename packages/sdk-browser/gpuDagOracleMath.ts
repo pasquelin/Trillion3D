@@ -48,11 +48,13 @@ export function projectedError(
   stretch: number,
   focal: number,
   near: number,
+  perspective = 1,
 ) {
   if (error === 0) return 0;
   if (!(error > 0)) return Infinity;
-  const lateral = viewLateralOf(sx, sy, sz, e);
-  return screenErrorBound(error, stretch, lateral, viewDepthOf(sx, sy, sz, e), radius, focal, near);
+  const lateral = viewLateralOf(sx, sy, sz, e),
+    depth = viewDepthOf(sx, sy, sz, e);
+  return screenErrorBound(error, stretch, lateral, depth, radius, focal, near, perspective);
 }
 
 /**
@@ -68,13 +70,18 @@ export type DagViewFrames = {
   stretches: number[];
   focal: number;
   near: number;
+  /** The projection's clip-w weight, and the camera as a homogeneous point of the render frame:
+   *  the origin under a perspective projection, the way back under an orthographic one. */
+  perspective: number;
+  viewPoint: Float64Array;
   pixelError: number;
 };
 export function dagViewFrames(
   packed: { worlds: Float32Array; worldStretch: Float32Array; worldCount: number },
   uniforms: SelectionUniforms,
 ): DagViewFrames {
-  const cameraStretch = uniforms.cameraStretch ?? 1;
+  const cameraStretch = uniforms.cameraStretch ?? 1,
+    perspective = uniforms.perspective ?? 1;
   const planes: Float64Array[] = [],
     views: number[][] = [],
     stretches: number[] = [];
@@ -95,6 +102,13 @@ export function dagViewFrames(
     stretches,
     focal: Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]),
     near: uniforms.near,
+    perspective,
+    viewPoint: Float64Array.of(
+      view[2] * (1 - perspective),
+      view[6] * (1 - perspective),
+      view[10] * (1 - perspective),
+      perspective,
+    ),
     pixelError: uniforms.pixelError,
   };
 }
@@ -135,6 +149,7 @@ export function dagNodeVerdict(
       f.stretches[w],
       f.focal,
       f.near,
+      f.perspective,
     ) <= f.pixelError
   )
     return -1;
@@ -167,5 +182,6 @@ export function dagNodeFloor(
     nodes[base + NODE_FLOOR_SPHERE + 3],
     f.stretches[w],
     f.focal,
+    f.perspective,
   );
 }

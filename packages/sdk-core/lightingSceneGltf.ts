@@ -1,7 +1,7 @@
 import type { Scene } from './lightingSceneTypes.ts';
 import { add, cross, normalized } from './lightingSceneMath.ts';
 import { createLightingGltfBuffer } from './lightingSceneGltfBuffer.ts';
-import { createLightingSphereGeometry } from './lightingSceneSphere.ts';
+import { sphereArrays } from './world/geometry/sphere.ts';
 
 /** glTF and a separate, little-endian binary buffer; adapters own persistence. */
 export function exportLightingGltf(scene: Scene): {
@@ -53,7 +53,7 @@ export function exportLightingGltf(scene: Scene): {
   });
   if (scene.sphere) {
     const { center, radius, roughness } = scene.sphere;
-    const { positions, normals, uv, indices } = createLightingSphereGeometry({ center, radius });
+    const { positions, normals, uv, indices } = sphereArrays(center, radius);
     materials.push({
       name: 'glossy_sphere_material',
       pbrMetallicRoughness: {

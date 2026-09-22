@@ -2,7 +2,7 @@
  * MEASUREMENT EXPERIMENT, never a production path: the cluster screen-error metric,
  * switchable between ours and that of the external reference. Branch `calculs/exp-erreur-ecran`.
  *
- * `certifiee` (default): `screenErrorBound` of `projectionOracles.ts`, a certified majorant of
+ * `certifiee` (default): `screenErrorBound` of `screenErrorBound.ts`, a certified majorant of
  * screen displacement — near plane, off-axis lateral offset, anisotropic stretch included.
  *
  * `reference`: the simple projection of the cluster error sphere, as the external
@@ -32,6 +32,8 @@
  * everything that descends from it) and by the WGSL text when the selection shader is compiled.
  * Each side of the bench runs in its own page: module state is enough to separate them.
  */
+
+import { clipWeight } from './mathCamera.ts';
 export type ScreenErrorVariant = 'certifiee' | 'reference';
 
 let current: ScreenErrorVariant = 'certifiee';
@@ -49,10 +51,11 @@ export function screenErrorVariant(): ScreenErrorVariant {
 }
 
 /**
- * Screen error of the external reference: `(error × stretch) × focal / depth`, infinity
- * when the centre depth does not reach the near plane. WGSL mirror in
- * `gpuDagShaderError.ts`, same operands and same order, to f32. The caller has already handled
- * a zero or infinite error.
+ * Screen error of the external reference: `(error × stretch) × focal / w`, infinity when the
+ * centre does not reach the near plane; `w` is the clip weight of the centre's depth, the depth
+ * itself under a perspective projection (`perspective` = 1) and 1 under an orthographic one (0,
+ * `screenErrorBound.ts`). WGSL mirror in `gpuDagShaderError.ts`, same operands and same order,
+ * to f32. The caller has already handled a zero or infinite error.
  */
 export function referenceScreenError(
   error: number,
@@ -60,8 +63,10 @@ export function referenceScreenError(
   depth: number,
   focal: number,
   near: number,
+  perspective = 1,
 ): number {
-  if (!(depth > near)) return Infinity;
+  const w = clipWeight(perspective, depth);
+  if (!(w > perspective * near)) return Infinity;
   const shift = error * stretch;
-  return (shift * focal) / depth;
+  return (shift * focal) / w;
 }

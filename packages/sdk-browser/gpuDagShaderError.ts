@@ -1,6 +1,6 @@
 /**
  * Screen error of the DAG selection kernel, in WGSL: sdk-core's `screenErrorBound` (proof at the
- * formula site, `projectionOracles.ts`), same operands and same order, in f32. CPU mirror:
+ * formula site, `screenErrorBound.ts`), same operands and same order, in f32. CPU mirror:
  * `projectedError` from `gpuDagOracleMath.ts`. WGSL module declarations are read in any order:
  * this fragment is added to the text of `gpuDagShader.ts`.
  *
@@ -17,22 +17,24 @@ export const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
 /** Upper bound of the screen displacement of any point of the sphere moved by at most \`error\`:
- *  minimum depth m, distance to the axis l, radius and error stretched rho and delta,
- *  E = (delta*f/m)*(sqrt(m*m+(l+rho)^2)/(m-delta)) ; near plane reached: INF.
- *  Under \`REFERENCE_ERROR\`, the external reference's simple projection: delta*f/depth. */
+ *  minimum depth m, distance to the axis l, radius and error stretched rho and delta, written on
+ *  the clip weight w = p*depth+(1-p) of the projection (\`uni.perspective\`, p):
+ *  E = (delta*f/w(m))*(sqrt(w(m)^2+(p*(l+rho))^2)/w(m-delta)) ; near plane reached: INF.
+ *  Under \`REFERENCE_ERROR\`, the external reference's simple projection: delta*f/w(depth). */
 fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
  let v=(e*vec4f(sphere.xyz,1.0)).xyz;
+ let p=uni.perspective;let flat=1.0-p;
  if(REFERENCE_ERROR){
-  let depth=-v.z;
-  if(!(depth>uni.near)){return INF;}
+  let depth=p*-v.z+flat;
+  if(!(depth>p*uni.near)){return INF;}
   let delta=error*stretch;
   return (delta*focal)/depth;
  }
  let reach=sphere.w*stretch;let shift=error*stretch;
- let nearest=-v.z-reach;let closest=nearest-shift;let side=sqrt(v.x*v.x+v.y*v.y)+reach;
- if(!(closest>uni.near)){return INF;}
+ let nearest=p*(-v.z-reach)+flat;let closest=nearest-p*shift;let side=p*(sqrt(v.x*v.x+v.y*v.y)+reach);
+ if(!(closest>p*uni.near)){return INF;}
  let slant=sqrt(nearest*nearest+side*side);
  if(!(slant>=nearest&&slant<INF)){return INF;}
  return ((shift*focal)/nearest)*(slant/closest);

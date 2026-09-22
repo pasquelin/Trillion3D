@@ -12,6 +12,7 @@ import type { LightsPlan } from './lampes.ts';
 import type { SideBase } from './dists.ts';
 import { compareIrradiance, convergenceDelay, oracleJob, runOracle } from './oracleCompare.ts';
 import type { OracleReport } from './oracleCompare.ts';
+import { sdkEntryUrl } from './dists.ts';
 
 /** The oracle campaign's own settings, read once from flags. */
 export interface OracleSettings {
@@ -75,7 +76,7 @@ export async function runView(page: Page, ctx: RunViewCtx): Promise<VueOracle> {
     ctx;
   const captureFile = `${view}-irradiance.png`;
   const result = await page.evaluate(measureIrradiance, {
-    sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
+    sdkUrl: sdkEntryUrl(side),
     manifestUrl,
     backend: options.ENGINES.webgpu.backend,
     pose,

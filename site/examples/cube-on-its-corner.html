@@ -8,32 +8,31 @@
       canvas { display: block; width: 100%; height: 100%; }
       p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/corner-cube/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
-      });
-      // The cube stands on a vertex: three of its faces meet the light at three different angles.
-      explorer.addLight({
-        id: 'sun',
-        kind: 'directional',
-        direction: [-0.55, -0.7, -0.45],
-        color: [1, 0.95, 0.85],
-        intensity: 3,
-        castsShadow: true,
-      });
-      explorer.setPose({ ...explorer.homePose(), position: [4.2, 2.4, 4.8], target: [0, 1.1, 0] });
-      explorer.invalidate();
+      const world = createWorld('view', { controls: 'orbit' });
+      const slab = object.mesh(geometry.box(6, 0.3, 6), material.meshStandard({ color: [0.22, 0.24, 0.27], roughness: 0.85 }));
+      slab.position.y = -0.15;
+
+      // The cube stands on a vertex: 45 degrees around Y, then the angle that puts its body
+      // diagonal on the vertical, so three of its faces meet the light at three different angles.
+      const side = 1.6;
+      const cube = object.mesh(geometry.box(side, side, side), material.meshStandard({ color: [0.85, 0.28, 0.2], metalness: 0.1, roughness: 0.35 }));
+      cube.position.set(0, (side * Math.sqrt(3)) / 2, 0);
+      cube.rotation.set(Math.atan(Math.SQRT2), Math.PI / 4, 0);
+      world.scene.add(slab, cube);
+
+      world.scene.add(light.directional({
+        intensity: 3, color: [1, 0.95, 0.85], position: [11, 14, 9], target: [0, 0, 0], castShadow: true,
+      }));
+      world.camera.position.set(4.2, 2.4, 4.8);
+      world.camera.lookAt(0, 1.1, 0);
+      world.controls.target.set(0, 1.1, 0);
+      world.invalidate();
     </script>
   </body>
 </html>

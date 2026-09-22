@@ -25,14 +25,21 @@ export function sameSceneLight(a: SceneLight, b: SceneLight) {
     a.castsShadow === b.castsShadow &&
     a.range === b.range &&
     a.coneAngle === b.coneAngle &&
+    a.penumbra === b.penumbra &&
     a.emitterRadius === b.emitterRadius &&
     sameVector(a.color, b.color) &&
     sameVector(a.position, b.position) &&
-    sameVector(a.direction, b.direction)
+    sameVector(a.direction, b.direction) &&
+    sameVector(a.right, b.right) &&
+    sameVector(a.size, b.size)
   );
 }
 
 /** Same rule for the environment: an exposure reset identically stales no frame. */
 export function sameSceneEnvironment(a: SceneEnvironment, b: SceneEnvironment) {
-  return a.exposure === b.exposure;
+  return (
+    a.exposure === b.exposure &&
+    a.toneMapping === b.toneMapping &&
+    sameVector(a.irradiance, b.irradiance)
+  );
 }

@@ -15,6 +15,8 @@ import type { DemoDef } from '../demos/kit.ts';
 import type { Locale } from '../content/locale.ts';
 import type { PortalEntry } from '../content/model.ts';
 
+const ENGINE_SCENE_IDS = ['example-world', 'createWorld', 'example-diagnostics'];
+
 function LiveDemo({ demo, locale }: { demo: DemoDef; locale: Locale }) {
   return (
     <section className="space-y-4">
@@ -37,7 +39,7 @@ function Example({
   demo: DemoDef | null;
 }) {
   if (!entry.example) return null;
-  if (['example-explorer', 'createExplorer', 'example-diagnostics'].includes(entry.id)) {
+  if (ENGINE_SCENE_IDS.includes(entry.id)) {
     const diagnostics = entry.id === 'example-diagnostics';
     return (
       <EngineExample
@@ -84,7 +86,7 @@ export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: L
   const embedsDemo =
     demo &&
     entry.example &&
-    !['example-explorer', 'createExplorer', 'example-diagnostics'].includes(entry.id) &&
+    !ENGINE_SCENE_IDS.includes(entry.id) &&
     apiScenario(entry.id, entry.section);
   return (
     <article className="space-y-6">

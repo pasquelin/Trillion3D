@@ -28,6 +28,10 @@ export type HostShadedMaterial = HostMaterial & {
   readonly isMeshBasicMaterial?: boolean;
   readonly isMeshStandardMaterial?: boolean;
   readonly isMeshPhysicalMaterial?: boolean;
+  readonly isMeshPhongMaterial?: boolean;
+  /** A Phong material's exponent, and a matcap material's image. */
+  readonly shininess?: number;
+  readonly matcap?: HostMap;
   readonly color?: unknown;
   readonly map?: HostMap;
   readonly metalness?: number;

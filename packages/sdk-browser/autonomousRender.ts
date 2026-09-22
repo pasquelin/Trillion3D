@@ -4,6 +4,7 @@ import type { installSceneLighting } from './sceneLighting.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
 import type { CameraMotion, HostCamera } from './cameraWorld.ts';
 import type { HostWorldPlacements } from './hostWorldPlacements.ts';
+import { attachedPages } from './placement/autonomousPlacements.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -76,7 +77,7 @@ export function createAutonomousRender(options: {
     state.selectedTriangles = selected.selectedTriangles;
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
-    state.overBudget = shown.length > cap;
+    state.overBudget = attachedPages(shown) > cap;
     if (state.overBudget) {
       shown.length = 0;
       for (let i = 0; i < bootstrap.length; i++) shown.push(bootstrap[i]);

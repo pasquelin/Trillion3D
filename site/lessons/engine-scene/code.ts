@@ -1,21 +1,18 @@
 import { sceneFillLightCode } from '../sceneFillLight.ts';
 
-export const engineExampleCode = `import { createExplorer } from 'web-geometry';
+export const engineExampleCode = `import { createWorld, light } from 'web-geometry';
 
 // HTML: <canvas id="garden" style="width:100%;height:60vh;display:block"></canvas>
-const explorer = await createExplorer('garden', {
-  manifestUrl: './assets/kinetic-garden/cache/native/full/manifest.json',
-  scope: 'full',
-  interactive: true,
-  geometryPoolBytes: 16 * 1024 * 1024,
-  texturePoolBytes: 128 * 1024 * 1024,
-});
+const world = createWorld('garden');
+await world.scene.load('./assets/kinetic-garden/cache/native/full/manifest.json');
+world.budget.geometryPool = 16 * 1024 * 1024;
+world.budget.texturePool = 128 * 1024 * 1024;
 ${sceneFillLightCode()}
 
 // In a component, call dispose() on unmount instead.
-window.addEventListener('pagehide', () => explorer.dispose(), { once: true });`;
+window.addEventListener('pagehide', () => world.dispose(), { once: true });`;
 
 export const engineDiagnosticsCode = `${engineExampleCode}
 
-explorer.setDiagnostic('clusters'); // Try 'pages', 'wireframe' or 'beauty'.
-explorer.invalidate();`;
+world.diagnostic.mode = 'clusters'; // Try 'wireframe', 'triangles' or 'beauty'.
+world.invalidate();`;

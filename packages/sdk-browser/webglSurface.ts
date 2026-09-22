@@ -67,12 +67,13 @@ export function createWebglSurface(canvas: HTMLCanvasElement, options: SurfaceOp
       pixelRatio = ratio;
       return changed;
     },
-    dispose() {
+    /** Releases the surface; `keepContext` leaves the context alive for the next surface on it. */
+    dispose(keepContext = false) {
       if (disposed) return;
       disposed = true;
       canvas.removeEventListener('webglcontextlost', onContextLost);
       canvas.removeEventListener('webglcontextrestored', onContextRestored);
-      context.getExtension('WEBGL_lose_context')?.loseContext();
+      if (!keepContext) context.getExtension('WEBGL_lose_context')?.loseContext();
     },
   };
 }

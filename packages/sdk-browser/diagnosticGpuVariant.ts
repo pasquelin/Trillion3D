@@ -9,7 +9,7 @@ import type { DiagnosticDetail } from './backendTypes.ts';
  * durations do not subtract like the others. The rendered image therefore DIFFERS from the
  * production image by construction: none is an optimisation, none is measured in fidelity,
  * and no production path turns one on. The only way is `diagnosticGpuVariant` of
- * `createExplorer`, refused outside `diagnosticDetail: 'trace'`.
+ * `openMeasuredWorld`, refused outside `diagnosticDetail: 'trace'`.
  */
 export const DIAGNOSTIC_GPU_VARIANTS = [
   /** Blend fragment stage renders a constant colour: no texture, no lighting. */

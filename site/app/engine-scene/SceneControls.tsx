@@ -10,7 +10,7 @@ interface SceneControlsProps {
 }
 
 /** The engine scene's controls, described like every other lesson's; the scene script drives them
- * through their data attributes once the explorer is up. */
+ * through their data attributes once the world is up. */
 export function SceneControls({ copy, diagnostic }: SceneControlsProps) {
   return (
     <LessonControls
