@@ -19,6 +19,6 @@ and transparent copy carries is a view on that tree's world buffer. A host still
 `node.position.x` as before and still reads nothing of the engine's storage — but no host matrix
 is created, copied or composed for a drawn node any more.
 
-Manual mixed-backend fallback: `detectCapabilities('webgl')` never touches WebGPU. A missing or lost WebGPU backend falls back silently to the Three.js path without user warnings; `audience:'diagnostic'` events remain reserved for lab/developer monitoring.
+Manual mixed-backend fallback: `detectCapabilities('webgl')` never touches WebGPU. A missing WebGPU device no longer falls back to a Three.js path: the session takes the engine's own WebGL2 path when the cache carries its prepared scene and fails with a named `EngineError` otherwise, and that choice is never silent — the `backend-choice` diagnostic reports the path taken and the reason; `audience:'diagnostic'` events remain reserved for lab/developer monitoring.
 
-Interactive startup defaults to direct WebGPU and rejects `WEBGPU_UNAVAILABLE` when unavailable. Choose an explicit backend to select a different capability set. Use canvas elements for framework refs and shadow roots; a string is a literal document ID, not a selector.
+Startup defaults to the engine's own path: direct WebGPU where a device was granted, the autonomous WebGL2 path where the cache carries its prepared scene, and a named `EngineError` where neither exists. A host that names `backends: [webgpuPagesBackend]` explicitly is still rejected with `WEBGPU_UNAVAILABLE` when no device is granted. Choose an explicit backend to select a different capability set. Use canvas elements for framework refs and shadow roots; a string is a literal document ID, not a selector.
