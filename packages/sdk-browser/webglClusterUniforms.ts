@@ -6,7 +6,8 @@ export class Matrix3UniformCache {
     this.gl = gl;
     this.location = location;
   }
-  set(name: string, value: Float32List) {
+  /** The nine elements the caller holds, read-only: the cache copies them before the upload. */
+  set(name: string, value: ArrayLike<number>) {
     let previous = this.values.get(name);
     if (!previous) {
       previous = new Float32Array(9);
@@ -15,8 +16,8 @@ export class Matrix3UniformCache {
     }
     for (let i = 0; i < 9; i++)
       if (previous[i] !== value[i]) {
-        this.gl.uniformMatrix3fv(this.location(name), false, value);
         previous.set(value);
+        this.gl.uniformMatrix3fv(this.location(name), false, previous);
         return;
       }
   }

@@ -25,7 +25,7 @@ export function lireCoupe(
     return { source: 'selectedPageIds', ids: [...backend.selectedPageIds()].sort() };
   if (!backend || !backend.scene) return { source: null, ids: [] };
   explorer.setDiagnostic('pages');
-  const ids = backend.scene.children
+  const ids = (backend.scene.children as readonly { userData?: { clusterId?: unknown } }[])
     .map((child) => child.userData && child.userData.clusterId)
     .filter((id): id is string => typeof id === 'string')
     .sort();

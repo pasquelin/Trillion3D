@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary, type HostNode } from './hostResources.ts';
 import { MATRIX_VALUES, boxIsEmpty, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type { MultiplyLot } from './mathBatchRuntime.ts';
 import { ENGINE_OWNED } from './hostSceneWatch.ts';
@@ -18,8 +19,8 @@ const groupWorld = new Float64Array(16),
 
 /** Replicate transforms only. Geometry, materials and textures remain shared. */
 export function replicateInstances(
-  source: THREE.Object3D,
-  associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>,
+  source: HostNode,
+  associations: Map<HostNode, { meshes?: number; primitives?: number }>,
   count: 1 | 4 | 9 | 12,
   /** Flat world bounds `[minX, minY, minZ, maxX, maxY, maxZ]`, when caller already has them. */
   preparedBounds?: ArrayLike<number>,
@@ -28,7 +29,7 @@ export function replicateInstances(
 ) {
   if (![1, 4, 9, 12].includes(count)) throw new Error('Replica count must be 1, 4, 9 or 12');
   resolveHostSubtree(source);
-  if (count === 1) return source;
+  if (count === 1) return asHostLibrary<THREE.Object3D>(source);
   const bounds = preparedBounds ?? hostWorldBounds(source),
     // Empty box has no size: yields zero on each axis, like reference.
     empty = boxIsEmpty(bounds, 0),

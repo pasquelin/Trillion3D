@@ -17,7 +17,9 @@ const browser = new URL('../../packages/sdk-browser/', import.meta.url);
 //  2. HOST BOUNDARIES. Scene, camera, renderer, lights belong to the host: something must
 //     create, read, and set them. These files do it once, returning flat buffers or owned structures.
 //  3. HOST RESOURCES. Materials, textures, geometries, meshes, colors, face/winding constants:
-//     objects that the engine consults without ever calculating with.
+//     objects the engine READS IN ONE PLACE, at the boundary, to build its own records. Since lot 3 of
+//     #78 the passes no longer consult one: surfaces cross as the `Material`/`Texture` records
+//     of `sdk-core`, and only the import and the admission gate below still name the library.
 //
 // Adding a line is a decision, not an oversight; removing an unused line as well — the
 // second test fails on a dead line. The camera pose contract lives in `cameraWorld.ts`
@@ -30,7 +32,6 @@ const AUTORISES: Record<string, string> = {
   autonomousPages: 'autonomous witness: its pages are host geometries',
   blendCopyMesh: 'witness: the transparent copy is a host mesh',
   clusterBatchesFixture: 'batch-witness mount',
-  clusterBatchRange: 'batch witness: index ranges of a host geometry',
   exactPagesAttachment: 'exact witness: it attaches its pages to the host graph',
   exactPagesBackend: 'exact witness: engine written with the host library',
   exactPagesContractLights: 'exact witness: it maps contract lights to host-library lights',
@@ -56,17 +57,14 @@ const AUTORISES: Record<string, string> = {
   explorerDisposeSource: 'boundary: it frees host-graph resources',
   exactPagesBounds: 'boundary: it walks the host source graph to bound its pages',
   explorerScene: 'boundary: it builds the host’s prepared scene',
-  frameGateCore: 'boundary: the frame gate listens to the host source node',
   hostSceneHooks: 'boundary: it hooks the fields the host writes on its nodes',
   hostSceneScan: 'boundary: it compares the fields the host writes that no hook may touch',
   hostSceneWatch: 'boundary: it names the host nodes whose writes are listened to',
   hostWorldBounds: 'boundary: host-graph bounds, returned flat',
   hostWorldChain: 'boundary: it reads the ancestor chain of a host node',
   hostWorldMatrices: 'boundary: the local pose of a host node, read flat',
-  hostWorldPlacements:
-    'boundary: the matrix container the host attaches and witnesses draw, filled by the engine',
+  hostWorldPose: 'boundary: it reads the local pose of a host node into the engine tree',
   hostWorldTree: 'boundary: it reads local poses of a host subtree',
-  pageSelectionCollect: 'boundary: it walks the host source graph',
   replicateInstances: 'boundary: it replicates nodes of the host graph',
   sceneLighting: 'boundary: contract lights placed in the host scene',
   sceneMeshes: 'boundary: it enumerates meshes of the host graph',
@@ -85,57 +83,45 @@ const AUTORISES: Record<string, string> = {
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
   webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
 
-  // 3. Host resources: materials, textures, geometries, colours, face constants.
-  backendTypes: 'contract: host resources an engine receives',
-  explorerOptions: 'contract: host resources the host declares',
+  // 3. Host resources read IN ONE PLACE, at the boundary. Materials and textures enter as the engine's
+  //    own records (#271): the import below builds them, the gate below refuses what the passes
+  //    could not preserve, and the display graph the backend publishes is built here too. No
+  //    pass, no row, no pool names the host library any more.
   explorerDiagnosticApi: 'it replaces host materials and geometries with diagnostic ones',
-  explorerSceneApi: 'contract: materials and poses the host rewrites on its scene',
-  gpuDagTypes: 'contract: materials and matrices the host writes',
-  gpuSelection: 'host material type carried by a page',
-  materialSide: 'host-material face constants, read once into the engine `Side`',
-  pageCone: 'host material type carried by a page',
-  pageSelectionCutState: 'host material carried by a page',
-  pageSelectionHelpers: 'host material type carried by a page',
-  pageSelectionTypes: 'contract: geometries, materials and matrices the host writes',
+  hostBlendScene: 'boundary: the host display graph the transparent copies are held in',
+  hostSurfaceGate: 'boundary: it refuses a host material the autonomous programs cannot preserve',
+  hostSurfaceImport: 'boundary: it reads a host material and texture into the engine records',
   triangleDiagnostic: 'it colours a host geometry in a host material',
-  visibilityMath: 'host attributes, textures and wrap modes',
-  visibilityMaterial: 'host material properties converted to engine material',
-  visibilityTypes: 'contract: host materials, textures and colours',
-  visibilityWrapModes: 'host-texture wrap modes',
-  webgpuTileAtlas: 'host texture as a tile source',
-  webgpuTileCatalogue: 'host textures in the pool catalogue',
-  webgpuTileScratch: 'host image transferred into the working texture',
-  webgpuBlendBuffers: 'host geometry attributes',
-  webgpuBlendItems: 'contract: host textures stored by an item record',
-  webgpuBlendPrepare: 'host meshes and materials to prepare',
-  webgpuBlendState: 'contract: geometries, materials and matrices the host writes',
-  webgpuGeometryPrepare: 'host geometries to prepare',
-  webgpuMaterialTextures: 'host-material textures',
-  webgpuPageRow: 'host geometry and textures of a row',
-  webgpuPageRowMaterial: 'contract: host textures a row material addresses by atlas slot',
-  webgpuPagesHelpers: 'host colours and colour management',
-  webgpuPagesPrepare: 'host geometry attributes',
-  webgpuPagesSetup: 'meshes of the host scene',
-  webgpuPagesStateGpu: 'contract: host geometries and textures',
-  webgpuPagesStateVis: 'contract: host geometries and textures',
-  webgpuPositions: 'position attribute of the host geometry',
 };
 
 const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three(?:\/[^'"]*)?['"]/m;
+/** A call of the crossing back, `asHostLibrary<T>(x)` or `asHostLibrary(x)`, never its import. */
+const TRAVERSE = /\basHostLibrary\s*[<(]/;
 
 const sources = async () =>
   (await readdir(browser)).filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'));
 
-test('only declared files import the host library', async () => {
-  const fichiers = await sources();
-  assert.ok(fichiers.length > 100, 'the browser package must be found');
+/** Files outside the closed list where a pattern appears; `exclu` is the file that declares it. */
+async function horsListe(motif: RegExp, exclu = ''): Promise<string[]> {
   const fuites: string[] = [];
-  for (const file of fichiers) {
-    if (AUTORISES[file.slice(0, -3)]) continue;
-    const texte = await readFile(new URL(file, browser), 'utf8');
-    if (IMPORTE_HOTE.test(texte)) fuites.push(file);
+  for (const file of await sources()) {
+    if (file === exclu || AUTORISES[file.slice(0, -3)]) continue;
+    if (motif.test(await readFile(new URL(file, browser), 'utf8'))) fuites.push(file);
   }
+  return fuites;
+}
+
+test('only declared files import the host library', async () => {
+  assert.ok((await sources()).length > 100, 'the browser package must be found');
+  const fuites = await horsListe(IMPORTE_HOTE);
   assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`);
+});
+
+// `hostResources.ts` declares the crossing; the same closed list says who may call it, so the
+// doc of `asHostLibrary` stays a rule and not a hope.
+test('only the declared boundary files cross back through `asHostLibrary`', async () => {
+  const fuites = await horsListe(TRAVERSE, 'hostResources.ts');
+  assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`);
 });
 
 test('no dead lines: each declared file exists and still imports', async () => {

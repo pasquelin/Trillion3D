@@ -1,5 +1,6 @@
-import * as THREE from 'three';
 import { BOX_VALUES } from '../sdk-core/index.ts';
+import type { BlendCopy } from './blendCopyContract.ts';
+import type { BlendHostScene } from './hostBlendScene.ts';
 import { refreshBlendBounds } from './webgpuBlendWorlds.ts';
 import {
   FLAG_BACK,
@@ -27,10 +28,10 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
 /** Creates forward transparent GPU items while preserving source mesh order and materials. */
 export function prepareWebgpuBlend(
   device: GPUDevice,
-  blendCopies: THREE.Mesh[],
+  blendCopies: readonly BlendCopy[],
   gpu: WebgpuGpuState,
   blendState: BlendState,
-  scene: THREE.Scene,
+  scene: BlendHostScene,
 ) {
   let transmissive = 0;
   for (const copy of blendCopies) {
@@ -58,9 +59,8 @@ export function prepareWebgpuBlend(
       ? undefined
       : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
     const hasNormal = paged ? !!copy.geometry.attributes.normal : !!normal;
-    const opacity = Array.isArray(copy.material)
-      ? ((copy.material[0] as THREE.MeshBasicMaterial).opacity ?? 1)
-      : ((copy.material as THREE.MeshBasicMaterial).opacity ?? 1);
+    const declared = Array.isArray(copy.material) ? copy.material[0] : copy.material;
+    const opacity = declared?.opacity ?? 1;
     let flags = 0;
     if (mat.lit) flags |= FLAG_LIT;
     if (mat.doubleSided) flags |= FLAG_DOUBLE;
@@ -89,7 +89,7 @@ export function prepareWebgpuBlend(
       material: copy.material,
       count: paged ? 0 : idx.count,
       matrix: copy.matrix,
-      sourceMesh: copy.userData.sourceMesh as THREE.Mesh | undefined,
+      sourceMesh: copy.userData.sourceMesh,
       sourceGeometry: copy.geometry,
       worldBox,
       bounds: undefined as Float64Array | undefined,
