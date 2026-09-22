@@ -21,7 +21,10 @@ fn one_island(seed: u64) -> Case {
 }
 
 /// Every triangle its own chart in an atlas: three vertices per triangle, none shared, so every
-/// position is a seam corner written as many times as it has triangles. Nothing can move.
+/// position is a seam corner written as many times as it has triangles. Nothing can move:
+/// `seam-locked`. One group of seed 1 (2 072 triangles, 181 shared positions, the most of the
+/// case) is `border-locked` instead: with its locks lifted, the few positions written only twice
+/// slide along their seam, enough to drop one cluster. Both are accepted, no other cause.
 fn island_per_face(seed: u64) -> Case {
     let mut rng = Rng::new(seed);
     let amplitude = amplitude(&mut rng);
@@ -47,7 +50,8 @@ fn island_per_face(seed: u64) -> Case {
     case
 }
 
-/// One chart per brick: every vertex is a seam corner, nothing shares a texture coordinate.
+/// One chart per brick: every vertex is a seam corner, nothing shares a texture coordinate. Only
+/// welding the seams frees the groups: `seam-locked`.
 fn island_per_brick(seed: u64) -> Case {
     let mut rng = Rng::new(seed);
     let amplitude = amplitude(&mut rng);
@@ -128,7 +132,7 @@ fn tiled_beyond_unit(seed: u64) -> Case {
 /// Flat-shaded bricks under a continuous first set and a per-brick second set: `TEXCOORD_1`
 /// has seams the first set does not. Every vertex is a seam corner of that second set, so the
 /// weld that respects it merges nothing and the groups stall — a property of the layout, not a
-/// defect: coarsening it would draw a brick with its neighbour's second texture.
+/// defect: coarsening it would draw a brick with its neighbour's second texture. `seam-locked`.
 fn second_set_with_own_seams(seed: u64) -> Case {
     let mut rng = Rng::new(seed);
     let amplitude = amplitude(&mut rng);
@@ -155,11 +159,14 @@ fn second_set_with_own_seams(seed: u64) -> Case {
 pub(super) fn cases() -> Vec<(Generator, Expect)> {
     vec![
         (one_island as Generator, Expect::ONE_ROOT),
-        (island_per_face, Expect::stalled("noCollapse")),
-        (island_per_brick, Expect::stalled("noCollapse")),
+        (
+            island_per_face,
+            Expect::stalled(&["seam-locked", "border-locked"]),
+        ),
+        (island_per_brick, Expect::stalled(&["seam-locked"])),
         (atlas_of_islands, Expect::ONE_ROOT),
         (mirrored_halves, Expect::ONE_ROOT),
         (tiled_beyond_unit, Expect::ONE_ROOT),
-        (second_set_with_own_seams, Expect::stalled("noCollapse")),
+        (second_set_with_own_seams, Expect::stalled(&["seam-locked"])),
     ]
 }

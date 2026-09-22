@@ -73,7 +73,8 @@ fn tangents_present(seed: u64) -> Case {
 
 /// Colours and a mirrored second texture set on flat-shaded quads, all at once. Both sets are
 /// laid out per quad corner, so every vertex is a seam corner of both and the groups stall:
-/// a property of the layout, not a defect.
+/// a property of the layout, not a defect. Lifting the locks does not free them, welding the
+/// seams does: `seam-locked`.
 fn every_attribute(seed: u64) -> Case {
     let mut case = hard_normals(seed);
     case.name = "attributes-every-one";
@@ -111,6 +112,6 @@ pub(super) fn cases() -> Vec<(Generator, Expect)> {
         (smooth_normals, Expect::ONE_ROOT),
         (vertex_colour_steps, Expect::ONE_ROOT),
         (tangents_present, Expect::ONE_ROOT),
-        (every_attribute, Expect::stalled("noCollapse")),
+        (every_attribute, Expect::stalled(&["seam-locked"])),
     ]
 }

@@ -127,3 +127,29 @@ impl Drop for Timer {
         }
     }
 }
+
+/// Elapsed milliseconds of the stages of one primitive, in order. Primitives compile in parallel
+/// and share their job's counters, so a primitive cannot read its own share of them: it times its
+/// own stages, each from the end of the one before, and a slow cook says where it went.
+pub struct Laps {
+    last: Instant,
+    laps: serde_json::Map<String, Value>,
+}
+impl Laps {
+    pub fn start() -> Self {
+        Self {
+            last: Instant::now(),
+            laps: serde_json::Map::new(),
+        }
+    }
+    /// Closes the running stage under `label`, and opens the next.
+    pub fn lap(&mut self, label: &str) {
+        let now = Instant::now();
+        let ms = now.duration_since(self.last).as_secs_f64() * 1000.0;
+        self.laps.insert(label.into(), json!(ms));
+        self.last = now;
+    }
+    pub fn report(self) -> Value {
+        Value::Object(self.laps)
+    }
+}

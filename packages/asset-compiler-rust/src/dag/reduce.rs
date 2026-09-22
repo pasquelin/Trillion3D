@@ -29,7 +29,7 @@ use border::{live_triangles, lock_triangles_touching, lost_locks, required_locks
 const BORDER_RETRIES: usize = 3;
 
 /// Succeeded reduction: simplified surface and re-clustered result.
-struct Attempt {
+pub(super) struct Attempt {
     simplified: SimplifiedMesh,
     clusters: Vec<Vec<u32>>,
     /// Locks added to preserve border.
@@ -37,9 +37,17 @@ struct Attempt {
 }
 impl Attempt {
     /// Reduction yielding no fewer clusters than received does not advance DAG.
-    fn progresses(&self, children: usize) -> bool {
+    pub(super) fn progresses(&self, children: usize) -> bool {
         self.clusters.len() < children
     }
+}
+/// Why an attempt stopped, before the stalled group is diagnosed.
+#[derive(Clone, Copy)]
+pub(super) enum Stop {
+    TooSmall,
+    NoCollapse,
+    BorderLost,
+    UnusableError,
 }
 
 pub(super) fn reduce_group(
@@ -58,30 +66,16 @@ pub(super) fn reduce_group(
     }
     let sphere = enclosing_sphere(&spheres);
     let live = live_triangles(merged.iter().copied());
-    let raw = attempt(input, &live)?;
-    // Reduction yielding no fewer clusters does not advance DAG: refused,
-    // even if removing triangles, rather than adding unreplaced level.
-    let (chosen, welded) = match raw {
-        Ok(raw) if raw.progresses(children.len()) => (raw, false),
-        raw => {
-            let welded_indices =
-                live_triangles(merged.iter().map(|&i| input.weld_seam[i as usize]));
-            // Already indexed mesh, with no copy to weld, does not restart for same result.
-            let welded = if welded_indices == live {
-                Err(GroupOutcome::NoCollapse)
-            } else {
-                attempt(input, &welded_indices)?
-            };
-            match welded {
-                Ok(welded) if welded.progresses(children.len()) => (welded, true),
-                Ok(_) => return Ok(Err(GroupOutcome::NoCollapse)),
-                Err(outcome) => return Ok(Err(raw.err().unwrap_or(outcome))),
-            }
+    let (chosen, welded) = match choose(input, &merged, &live, children.len())? {
+        Ok(chosen) => chosen,
+        Err((stop, last)) => {
+            return diagnosis::stalled(input, &live, &last, children.len(), stop).map(Err)
         }
     };
     let error = chosen.simplified.error_object.max(child_error);
     if !error.is_finite() {
-        return Ok(Err(GroupOutcome::UnusableError));
+        return diagnosis::stalled(input, &live, &live, children.len(), Stop::UnusableError)
+            .map(Err);
     }
     Ok(Ok(GroupReduction {
         error,
@@ -93,18 +87,56 @@ pub(super) fn reduce_group(
     }))
 }
 
+/// The reduction that advances the DAG, and whether it needed the weld; otherwise why it
+/// stopped and the indices of the last attempt, which the diagnosis reruns without locks.
+type Choice = std::result::Result<(Attempt, bool), (Stop, Vec<u32>)>;
+
+fn choose(
+    input: &GroupReductionInput,
+    merged: &[u32],
+    live: &[u32],
+    children: usize,
+) -> Result<Choice> {
+    let raw = attempt(input, live, true)?;
+    // Reduction yielding no fewer clusters does not advance DAG: refused,
+    // even if removing triangles, rather than adding unreplaced level.
+    let raw = match raw {
+        Ok(raw) if raw.progresses(children) => return Ok(Ok((raw, false))),
+        raw => raw.err(),
+    };
+    let welded_indices = live_triangles(merged.iter().map(|&i| input.weld_seam[i as usize]));
+    // Already indexed mesh, with no copy to weld, does not restart for same result.
+    let welded = if welded_indices == live {
+        Err(Stop::NoCollapse)
+    } else {
+        attempt(input, &welded_indices, true)?
+    };
+    let stop = match welded {
+        Ok(welded) if welded.progresses(children) => return Ok(Ok((welded, true))),
+        Ok(_) => Stop::NoCollapse,
+        Err(stop) => raw.unwrap_or(stop),
+    };
+    Ok(Err((stop, welded_indices)))
+}
+
 /// Simplifies `source` to half triangles, restarting with extra locks as long
-/// as shared vertex disappears, then re-clusters result.
-fn attempt(
+/// as shared vertex disappears, then re-clusters result. `locked` false drops every lock,
+/// the level's and the retries': the diagnosis of a stalled group asks what they cost.
+pub(super) fn attempt(
     input: &GroupReductionInput,
     source: &[u32],
-) -> Result<std::result::Result<Attempt, GroupOutcome>> {
+    locked: bool,
+) -> Result<std::result::Result<Attempt, Stop>> {
     let (locks, weld) = (input.locks, input.weld);
     let triangles = source.len() / 3;
     if triangles < 2 {
-        return Ok(Err(GroupOutcome::TooSmall));
+        return Ok(Err(Stop::TooSmall));
     }
-    let required = required_locks(source, locks, weld);
+    let required = if locked {
+        required_locks(source, locks, weld)
+    } else {
+        Vec::new()
+    };
     let mut extra: Vec<u32> = Vec::new();
     let mut retries = 0usize;
     loop {
@@ -116,13 +148,14 @@ fn attempt(
                 triangles / 2,
                 SIMPLIFY_ERROR_CEILING,
                 &|vertex| {
-                    locks.get(vertex as usize).copied().unwrap_or(true)
-                        || extra.binary_search(&weld[vertex as usize]).is_ok()
+                    locked
+                        && (locks.get(vertex as usize).copied().unwrap_or(true)
+                            || extra.binary_search(&weld[vertex as usize]).is_ok())
                 },
             )?
         };
         if simplified.triangles >= triangles || simplified.indices.is_empty() {
-            return Ok(Err(GroupOutcome::NoCollapse));
+            return Ok(Err(Stop::NoCollapse));
         }
         let lost = lost_locks(&required, &simplified.indices, weld);
         if lost.is_empty() {
@@ -137,7 +170,7 @@ fn attempt(
             }));
         }
         if retries == BORDER_RETRIES {
-            return Ok(Err(GroupOutcome::BorderLost));
+            return Ok(Err(Stop::BorderLost));
         }
         retries += 1;
         lock_triangles_touching(source, &lost, weld, &mut extra);

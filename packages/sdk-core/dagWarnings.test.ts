@@ -9,7 +9,17 @@ const primitive = (mesh: number, dag: Primitive['dag']): Primitive =>
 // Behavior: compiler warnings surface as a named diagnostic attached to their primitive;
 // a clean cache produces no diagnostic.
 test('DAG warnings from cache surface as a diagnostic on open', () => {
-  const flat = { code: 'DAG_FLAT' as const, roots: 98, pages: 98, groups: { noCollapse: 4 } };
+  const flat = {
+    code: 'DAG_FLAT' as const,
+    roots: 98,
+    pages: 98,
+    groups: { seamLocked: 4 },
+    rootTriangles: 12544,
+    cause: 'seam-locked' as const,
+    seamVertices: 300,
+    lockedVertices: 40,
+    uvIslands: 98,
+  };
   const diagnostic = dagWarningsDiagnostic([
     primitive(0, { warnings: [] }),
     primitive(1, { warnings: [flat] }),

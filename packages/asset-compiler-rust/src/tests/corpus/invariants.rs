@@ -1,11 +1,11 @@
 //! What the DAG builder guarantees on every case, asserted on the DAG it builds in memory.
 use super::*;
-use crate::dag::{build_dag_tallied, DagCluster, DagStrategy, GroupTally};
+use crate::dag::{build_dag_tallied, DagCluster, DagStall, DagStrategy};
 use std::collections::HashSet;
 
 pub(super) struct Built {
     pub dag: Vec<DagCluster>,
-    pub tallies: Vec<GroupTally>,
+    pub stalls: Vec<DagStall>,
 }
 impl Built {
     pub fn roots(&self) -> usize {
@@ -21,7 +21,7 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
         .flatten()
         .map(|uvs| &uvs[..])
         .collect();
-    let (dag, _, tallies) = build_dag_tallied(
+    let (dag, _, _, stalls) = build_dag_tallied(
         &case.positions,
         &uv_sets,
         indices,
@@ -29,7 +29,7 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
         &|| Ok(()),
     )
     .expect("dag");
-    Built { dag, tallies }
+    Built { dag, stalls }
 }
 
 /// Level 0 partitions the source triangles; every coarse index names a vertex the source uses;
@@ -89,26 +89,30 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
 }
 
 /// The roots the case expects, and never a silent stall: more than one root is always explained
-/// by a tally.
+/// by stalled groups, and every stalled group of a case that expects a stall carries one of the
+/// causes that case accepts.
 pub(super) fn check_roots(expect: Roots, built: &Built, label: &str) {
     let roots = built.roots();
-    let total = GroupTally::total(&built.tallies);
-    let stalled = total.too_small + total.no_collapse + total.border_lost + total.unusable_error;
+    let causes: Vec<(usize, &str)> = built
+        .stalls
+        .iter()
+        .map(|s| (s.level, s.outcome.cause.name()))
+        .collect();
     assert!(
-        roots == 1 || stalled > 0,
+        roots == 1 || !causes.is_empty(),
         "{label}: {roots} roots and no stall named"
     );
+    eprintln!("CAUSES {label}: roots {roots} {causes:?}");
     match expect {
         Roots::One => {
-            assert_eq!(roots, 1, "{label}: one root, tallies {:?}", built.tallies);
-            assert_eq!(stalled, 0, "{label}: no stall");
+            assert_eq!(roots, 1, "{label}: one root, stalls {causes:?}");
+            assert!(causes.is_empty(), "{label}: no stall, stalls {causes:?}");
         }
-        Roots::Stalled(key) => {
+        Roots::Stalled(accepted) => {
             assert!(roots > 1, "{label}: the stall leaves several roots");
             assert!(
-                total.json()[key].as_u64().unwrap_or(0) > 0,
-                "{label}: the stall is named {key}, tallies {:?}",
-                built.tallies
+                causes.iter().all(|(_, named)| accepted.contains(named)),
+                "{label}: every stall is one of {accepted:?}, stalls {causes:?}"
             );
         }
     }
