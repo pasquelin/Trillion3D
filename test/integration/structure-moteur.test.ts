@@ -40,6 +40,7 @@ const RESOLVENT: Record<string, string> = {
 const POSE_LOCALE: Record<string, string> = {
   'cameraWorld.ts': 'the contract: it is what translates local pose into world pose',
   'explorerCamera.ts': 'the host POSES its camera; the local pose is what it writes',
+  'cameraControlPose.ts': 'the camera-controller boundary: a controller writes a local pose',
   'explorerCameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
   'explorerHostState.ts': 'the host restores the local pose it had recorded',
   'gpuDagOraclePredicates.ts': 'the oracle POSES a parentless camera from a world position',
