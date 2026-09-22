@@ -1,5 +1,7 @@
-// The WGSL decode of a quantized cluster page, run in Chromium WebGPU, against the JavaScript
-// decoder of the same bytes: positions, texture coordinates and colours bit for bit — the
+// The WGSL decode of a quantized cluster page, run in Chromium WebGPU through the very accessors
+// the engine's raster, shadow and resolve stages call — a page-table row over a pool slot —,
+// against the JavaScript decoder of the same bytes: positions, texture coordinates and colours
+// bit for bit — the
 // format's arithmetic is one multiply and one add, both correctly rounded in WGSL —, normals to
 // the tolerance WGSL grants `normalize`, indices exact, and the cotangent frame every lighting
 // pass bends its normal map with, against the same formula in JavaScript.
