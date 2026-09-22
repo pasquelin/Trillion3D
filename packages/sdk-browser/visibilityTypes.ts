@@ -1,4 +1,5 @@
-import type { HostAttributes, HostMaterials, HostTexture } from './hostResources.ts';
+import type { HostAttributes, HostMaterials } from './hostResources.ts';
+import type { Texture } from '../sdk-core/index.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 export const VIS_INVALID = 0;
@@ -63,16 +64,16 @@ export type VisMaterial = {
   doubleSided: boolean;
   backSide: boolean;
   alphaTest: number;
-  map?: HostTexture;
-  metalnessMap?: HostTexture;
-  roughnessMap?: HostTexture;
-  normalMap?: HostTexture;
+  map?: Texture;
+  metalnessMap?: Texture;
+  roughnessMap?: Texture;
+  normalMap?: Texture;
   normalScale: number;
   normalScaleY: number;
-  aoMap?: HostTexture;
+  aoMap?: Texture;
   aoIntensity: number;
   emissive: [number, number, number];
-  emissiveMap?: HostTexture;
+  emissiveMap?: Texture;
   /** `KHR_materials_transmission.transmissionFactor`: the share of the background the surface lets through. */
   transmission: number;
   /** `KHR_materials_ior.ior`, and the volume of `KHR_materials_volume`. `attenuationDistance` is 0
@@ -118,9 +119,9 @@ export type TextureRgba = { data: Uint8Array; width: number; height: number };
  * object. The source is rechecked every call — buffer, offset, length, width, height — so a
  * replaced image does yield the new bytes.
  */
-const rgbaCache = new WeakMap<HostTexture, { source: ArrayBufferView; rgba: TextureRgba }>();
+const rgbaCache = new WeakMap<Texture, { source: ArrayBufferView; rgba: TextureRgba }>();
 
-export function textureRgba(texture: HostTexture): TextureRgba | null {
+export function textureRgba(texture: Texture): TextureRgba | null {
   const image = texture.image as
     { data?: ArrayBufferView; width?: number; height?: number } | undefined;
   if (!image?.data || !image.width || !image.height) return null;

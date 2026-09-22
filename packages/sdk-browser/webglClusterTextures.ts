@@ -1,3 +1,4 @@
+import type { TextureFilter, WrapMode } from '../sdk-core/index.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 type Texture = NonNullable<VisMaterial['map']>;
@@ -5,20 +6,18 @@ type Texture = NonNullable<VisMaterial['map']>;
 type TextureRecord = { texture: WebGLTexture; version: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
-const wrap = (gl: WebGL2RenderingContext, value: number) =>
-  value === 1000 ? gl.REPEAT : value === 1002 ? gl.MIRRORED_REPEAT : gl.CLAMP_TO_EDGE;
+const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
+  value === 'repeat' ? gl.REPEAT : value === 'mirror' ? gl.MIRRORED_REPEAT : gl.CLAMP_TO_EDGE;
 
-const filter = (gl: WebGL2RenderingContext, value: number) => {
-  const filters = new Map<number, number>([
-    [1003, gl.NEAREST],
-    [1006, gl.LINEAR],
-    [1004, gl.NEAREST_MIPMAP_NEAREST],
-    [1005, gl.NEAREST_MIPMAP_LINEAR],
-    [1007, gl.LINEAR_MIPMAP_NEAREST],
-    [1008, gl.LINEAR_MIPMAP_LINEAR],
-  ]);
-  return filters.get(value) ?? gl.LINEAR;
-};
+const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
+  ({
+    nearest: gl.NEAREST,
+    linear: gl.LINEAR,
+    'nearest-mip-nearest': gl.NEAREST_MIPMAP_NEAREST,
+    'nearest-mip-linear': gl.NEAREST_MIPMAP_LINEAR,
+    'linear-mip-nearest': gl.LINEAR_MIPMAP_NEAREST,
+    'linear-mip-linear': gl.LINEAR_MIPMAP_LINEAR,
+  })[value];
 
 export class WebglClusterTextures {
   private records = new Map<string, TextureRecord>();
@@ -60,7 +59,7 @@ export class WebglClusterTextures {
       this.bound[unit] = target;
       return;
     }
-    const key = `${texture.uuid}:${color ? 'srgb' : 'linear'}`;
+    const key = `${texture.id}:${color ? 'srgb' : 'linear'}`;
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {
       if (record) gl.deleteTexture(record.texture);
@@ -71,7 +70,7 @@ export class WebglClusterTextures {
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultiplyAlpha);
       const image = texture.image as TexImageSource | undefined;
       if (!image)
-        throw new Error(`Cluster material texture ${texture.name || texture.uuid} has no image`);
+        throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
       gl.texImage2D(
         gl.TEXTURE_2D,
         0,

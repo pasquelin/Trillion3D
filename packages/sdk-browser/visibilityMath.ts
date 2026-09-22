@@ -1,6 +1,5 @@
-import type { HostAttribute, HostTexture } from './hostResources.ts';
-import * as THREE from 'three';
-import { linearToSrgb, srgbToLinear } from '../sdk-core/index.ts';
+import type { HostAttribute } from './hostResources.ts';
+import { linearToSrgb, srgbToLinear, type Texture, type WrapMode } from '../sdk-core/index.ts';
 import type { Projected } from './visibilityProjection.ts';
 import type { DepthCamera } from './depthConvention.ts';
 import { barycentricAt, projectVisibilityVertex, signedArea } from './visibilityProjection.ts';
@@ -76,10 +75,9 @@ export function attr2(
 }
 
 /** Texel of an axis by the sampler's integer rule: mirror folds two periods. */
-export function wrapTexel(t: number, size: number, wrap: number) {
-  const p = wrap === THREE.MirroredRepeatWrapping ? 2 : 1;
-  const scaled =
-    wrap === THREE.ClampToEdgeWrapping ? Math.min(1, Math.max(0, t)) : t - p * Math.floor(t / p);
+export function wrapTexel(t: number, size: number, wrap: WrapMode) {
+  const p = wrap === 'mirror' ? 2 : 1;
+  const scaled = wrap === 'clamp' ? Math.min(1, Math.max(0, t)) : t - p * Math.floor(t / p);
   const i = Math.floor(scaled * size);
   return Math.min(size - 1, Math.max(0, i < size ? i : 2 * size - 1 - i));
 }
@@ -94,13 +92,13 @@ export function linearToSrgb8(c: number) {
 }
 
 /** Rank of the texel in the image, not its components: that byte indexes the sRGB table. */
-function texelAt(image: { width: number; height: number }, map: HostTexture, u: number, v: number) {
+function texelAt(image: { width: number; height: number }, map: Texture, u: number, v: number) {
   const x = wrapTexel(u, image.width, map.wrapS),
     y = wrapTexel(v, image.height, map.wrapT);
   return (y * image.width + x) * 4;
 }
 
-export function sampleMap(map: HostTexture, u: number, v: number): [number, number, number] {
+export function sampleMap(map: Texture, u: number, v: number): [number, number, number] {
   const image = textureRgba(map);
   if (!image) return [1, 1, 1];
   const d = image.data,
@@ -111,7 +109,7 @@ export function sampleMap(map: HostTexture, u: number, v: number): [number, numb
     SRGB8_LINEAIRE[d[i + 2]] ?? NaN,
   ];
 }
-export function sampleLinear(map: HostTexture, u: number, v: number): [number, number, number] {
+export function sampleLinear(map: Texture, u: number, v: number): [number, number, number] {
   const image = textureRgba(map);
   if (!image) return [1, 1, 1];
   const d = image.data,
