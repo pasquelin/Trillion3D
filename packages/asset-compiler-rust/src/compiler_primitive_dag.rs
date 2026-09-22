@@ -12,10 +12,11 @@ pub(super) struct DagResult {
     pub proxy_threshold: f64,
     pub reused: i32,
     pub dag_report: Value,
-    /// What the primitive's progress event tells beyond its identity: the elapsed milliseconds of
-    /// its stages, and its warnings — what the DAG has to complain about, named — when it has any.
-    /// Wall-clock times stay in the log: the cache holds only what a rebuild reproduces byte for byte.
-    pub told: Value,
+    /// Elapsed milliseconds of the primitive's stages, told on its progress event alone: the cache
+    /// holds only what a rebuild reproduces byte for byte.
+    pub timings: Value,
+    /// What the DAG has to complain about, named, also told on the progress event.
+    pub warnings: Vec<Value>,
     pub culling_report: Value,
     pub structure_report: Value,
     pub stream_report: Value,
@@ -176,10 +177,6 @@ pub(super) fn build_dag_primitive(
     }
     let culling_report = json!({"stride":CULLING_STRIDE,"count":culling.len(),"nodes":flat});
     laps.lap("reportMs");
-    let mut told = json!({"timings": laps.report()});
-    if !warnings.is_empty() {
-        told["warnings"] = json!(warnings);
-    }
     Ok(DagResult {
         pages,
         cluster_planes,
@@ -187,7 +184,8 @@ pub(super) fn build_dag_primitive(
         proxy_threshold,
         reused,
         dag_report,
-        told,
+        timings: laps.report(),
+        warnings,
         culling_report,
         structure_report,
         stream_report,

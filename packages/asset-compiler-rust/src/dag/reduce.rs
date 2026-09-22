@@ -47,7 +47,6 @@ pub(super) enum Stop {
     TooSmall,
     NoCollapse,
     BorderLost,
-    UnusableError,
 }
 
 pub(super) fn reduce_group(
@@ -74,8 +73,11 @@ pub(super) fn reduce_group(
     };
     let error = chosen.simplified.error_object.max(child_error);
     if !error.is_finite() {
-        return diagnosis::stalled(input, &live, &live, children.len(), Stop::UnusableError)
-            .map(Err);
+        return Ok(Err(diagnosis::outcome(
+            StallCause::UnusableError,
+            input,
+            &live,
+        )));
     }
     Ok(Ok(GroupReduction {
         error,

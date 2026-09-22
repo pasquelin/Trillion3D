@@ -85,12 +85,22 @@ pub(super) fn dag_warnings(
     vec![warning]
 }
 
-/// Progress event of a compiled primitive, with what its DAG tells (`told`, an object or null):
-/// a DAG that did not rise is told in the log, not only in `clusters.json`, and its stage
-/// timings are told there alone.
-pub(super) fn primitive_event(mesh: usize, primitive: usize, pages: usize, told: Value) -> Value {
+/// Progress event of a compiled primitive: a DAG that did not rise is told in the log, not only
+/// in `clusters.json`, and its stage timings (null without a DAG) are told there alone.
+pub(super) fn primitive_event(
+    mesh: usize,
+    primitive: usize,
+    pages: usize,
+    timings: Value,
+    warnings: Vec<Value>,
+) -> Value {
     let mut event = json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages});
-    super::compiler_primitive_stalls::merge(&mut event, told);
+    if !timings.is_null() {
+        event["timings"] = timings;
+    }
+    if !warnings.is_empty() {
+        event["warnings"] = json!(warnings);
+    }
     event
 }
 
@@ -166,10 +176,10 @@ mod tests {
     // primitive without a DAG tells nothing more than its identity.
     #[test]
     fn the_primitive_event_carries_what_the_dag_tells() {
-        let event = primitive_event(2, 1, 9, json!({"timings": {"dagMs": 4.0}}));
+        let event = primitive_event(2, 1, 9, json!({"dagMs": 4.0}), Vec::new());
         assert_eq!(event["timings"]["dagMs"], 4.0);
         assert_eq!(event["pages"], 9);
-        let bare = primitive_event(2, 1, 9, Value::Null);
+        let bare = primitive_event(2, 1, 9, Value::Null, Vec::new());
         assert_eq!(bare.as_object().map(|o| o.len()), Some(4));
     }
 }
