@@ -1,5 +1,9 @@
-import { FlyControls } from 'three/addons/controls/FlyControls.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createFirstPersonCameraControls } from './cameraFirstPersonControls.ts';
+import { createFlyCameraControls } from './cameraFlyControls.ts';
+import { createOrbitCameraControls } from './cameraOrbitControls.ts';
+import { createPanZoomCameraControls } from './cameraPanZoomControls.ts';
+import { createTrackballCameraControls } from './cameraTrackballControls.ts';
+import type { PivotCameraControls } from './cameraControlTypes.ts';
 import type { CameraPose } from '../sdk-core/index.ts';
 import type { ExplorerOptions, PointOfInterest, RenderBackend } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
@@ -36,6 +40,13 @@ export function createExplorerCameraApi(inputs: Inputs) {
     setActive,
     hostedControls,
   } = inputs;
+  /** A pivot controller starts on the scene centre, at the distance the camera already has. */
+  const pivot = <T extends PivotCameraControls>(controls: T): T => {
+    controls.target.copy(center);
+    controls.update();
+    hostedControls.push(controls);
+    return controls;
+  };
   const homePose = (): CameraPose => ({
     position: camera.position.toArray() as CameraPose['position'],
     target: center.toArray() as CameraPose['target'],
@@ -43,7 +54,7 @@ export function createExplorerCameraApi(inputs: Inputs) {
     near: camera.near,
     far: camera.far,
   });
-  let orbit: OrbitControls | undefined;
+  let orbit: PivotCameraControls | undefined;
   return {
     pointsOfInterest(): Array<PointOfInterest> {
       const extras = (options.pointsOfInterest ?? []).filter(
@@ -76,24 +87,38 @@ export function createExplorerCameraApi(inputs: Inputs) {
       setMeasuring(enabled);
     },
     homePose,
+    /** Six degrees of freedom, keys and drag-to-look; the host integrates it per frame. */
     flyControls() {
-      const controls = new FlyControls(camera, canvas);
+      const controls = createFlyCameraControls(camera, canvas);
       controls.movementSpeed = radius / 4;
-      controls.rollSpeed = 0.4;
-      controls.dragToLook = true;
       hostedControls.push(controls);
       return controls;
     },
+    /** Pointer-locked walk, horizon level; the host integrates it per frame. */
+    firstPersonControls() {
+      const controls = createFirstPersonCameraControls(camera, canvas);
+      controls.movementSpeed = radius / 4;
+      hostedControls.push(controls);
+      return controls;
+    },
+    /** Free spin about the scene centre, roll included, bounded like the orbit. */
+    trackballControls() {
+      const controls = createTrackballCameraControls(camera, canvas);
+      return pivot(controls);
+    },
+    /** Flat view: the camera keeps its direction and only slides and zooms. */
+    panZoomControls() {
+      const controls = createPanZoomCameraControls(camera, canvas);
+      return pivot(controls);
+    },
+    /**
+     * The turntable the interactive session drives, made once and reused: a second call on an
+     * interactive explorer returns the controller already wired to its frame scheduler.
+     */
     controls() {
       check();
       if (options.interactive && orbit) return orbit;
-      const controls = new OrbitControls(camera, canvas);
-      controls.target.copy(center);
-      orbit = controls;
-      controls.enableDamping = false;
-      controls.update();
-      hostedControls.push(controls);
-      return controls;
+      return (orbit = pivot(createOrbitCameraControls(camera, canvas)));
     },
   };
 }
