@@ -1,6 +1,5 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
 import type { HostNode } from './hostResources.ts';
-import * as THREE from 'three';
 import { isTransmissive } from './visibilityBuffer.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
