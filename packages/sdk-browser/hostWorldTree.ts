@@ -1,6 +1,5 @@
-import type * as THREE from 'three';
-import { asHostLibrary } from './hostResources.ts';
 import type { HostNode } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import {
   EngineError,
   HIERARCHY_ROOT,
@@ -59,7 +58,7 @@ export interface HostWorldTree {
 }
 
 /** Nodes of the subtree and of its root's ancestors: the EXACT size the lot must carry. */
-function hostWorldNodeCount(source: THREE.Object3D) {
+function hostWorldNodeCount(source: HostGraphNode) {
   let n = 0;
   for (let walk = source.parent; walk; walk = walk.parent) n++;
   source.traverse(() => n++);
@@ -67,14 +66,14 @@ function hostWorldNodeCount(source: THREE.Object3D) {
 }
 
 /** Hierarchy lot that carries this subtree, or `null` when it is empty. */
-export async function hostWorldLot(source: THREE.Object3D) {
+export async function hostWorldLot(source: HostGraphNode) {
   const n = hostWorldNodeCount(source);
   return n ? await createHierarchyLot(n) : null;
 }
 
 /** Nodes ranked parents before children, and each one's parent index (`-1` for the root). */
-function collect(source: THREE.Object3D) {
-  const nodes: THREE.Object3D[] = [];
+function collect(source: HostGraphNode) {
+  const nodes: HostGraphNode[] = [];
   for (let walk = source.parent; walk; walk = walk.parent) nodes.push(walk);
   nodes.reverse();
   // The reference's `traverse` is a prefix walk: a parent is always seen before its children.
@@ -90,20 +89,20 @@ function collect(source: THREE.Object3D) {
 }
 
 /** Engine tree mirroring the host structure: one node per host node, at the same rank. */
-function socle(nodes: readonly THREE.Object3D[], parents: Int32Array) {
+function socle(nodes: readonly HostGraphNode[], parents: Int32Array) {
   const tree = createTransformTree(Math.max(1, nodes.length));
   for (let rank = 0; rank < nodes.length; rank++) addTransformNode(tree, parents[rank]);
   return tree;
 }
 
 /** Host poses pushed where they moved, then the world pass over what that marked. */
-function parArbre(nodes: readonly THREE.Object3D[], tree: TransformTree) {
+function parArbre(nodes: readonly HostGraphNode[], tree: TransformTree) {
   for (let rank = 0; rank < nodes.length; rank++) pushHostPose(tree, rank, nodes[rank]);
   updateNodeMatrixWorld(tree, 0);
 }
 
 /** Local poses written into the arena buffers, then the lot run by the governor. */
-function parLot(nodes: readonly THREE.Object3D[], parents: Int32Array, lot: HierarchyLot) {
+function parLot(nodes: readonly HostGraphNode[], parents: Int32Array, lot: HierarchyLot) {
   const positions = lot.positions,
     rotations = lot.rotations,
     scales = lot.scales,
@@ -128,7 +127,7 @@ function parLot(nodes: readonly THREE.Object3D[], parents: Int32Array, lot: Hier
 }
 
 /** True when each node recomposes its local matrix: the only shape the lot can receive. */
-function composent(nodes: readonly THREE.Object3D[]) {
+function composent(nodes: readonly HostGraphNode[]) {
   for (const node of nodes) if (!node.matrixAutoUpdate) return false;
   return true;
 }
@@ -137,8 +136,8 @@ function composent(nodes: readonly THREE.Object3D[]) {
  * World-matrix index of `source`, recomputed a first time before it is returned. `lot` is the
  * hierarchy buffer reserved for this subtree; without it, the pass is that of the tree.
  */
-export function hostWorldTree(source: HostNode, lot?: HierarchyLot | null): HostWorldTree {
-  const { nodes, index, parents } = collect(asHostLibrary<THREE.Object3D>(source));
+export function hostWorldTree(source: HostGraphNode, lot?: HierarchyLot | null): HostWorldTree {
+  const { nodes, index, parents } = collect(source);
   const enLot = lot?.holds(nodes.length) ? lot : null;
   let tree: TransformTree | null = null,
     batched = false,

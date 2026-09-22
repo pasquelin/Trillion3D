@@ -1,12 +1,17 @@
-import * as THREE from 'three';
-import { asHostLibrary, type HostNode } from './hostResources.ts';
+import type {
+  HostGraphGeometry,
+  HostGraphMaterial,
+  HostGraphTexture,
+} from './hostGraphResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import { materialTextures, meshes as objects } from './sceneMeshes.ts';
 
-export function disposeSource(node: HostNode) {
-  const source = asHostLibrary<THREE.Object3D>(node);
-  const geometries = new Set<THREE.BufferGeometry>(),
-    materials = new Set<THREE.Material>(),
-    textures = new Set<THREE.Texture>();
+/** Gives back every host resource the loaded subtree holds: geometries, surfaces, textures and
+ *  the images they decoded. Each is freed once — several meshes share one surface. */
+export function disposeSource(source: HostGraphNode) {
+  const geometries = new Set<HostGraphGeometry>(),
+    materials = new Set<HostGraphMaterial>(),
+    textures = new Set<HostGraphTexture>();
   for (const mesh of objects(source)) {
     geometries.add(mesh.geometry);
     for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
@@ -18,7 +23,8 @@ export function disposeSource(node: HostNode) {
   materials.forEach((m) => m.dispose());
   textures.forEach((t) => {
     t.dispose();
-    const image = t.source.data as { close?: () => void };
+    // An image bitmap holds decoded pixels until it is closed; a plain image element has no close.
+    const image = t.image as { close?: () => void } | undefined;
     image?.close?.();
   });
 }

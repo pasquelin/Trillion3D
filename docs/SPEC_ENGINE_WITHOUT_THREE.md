@@ -141,10 +141,10 @@ renderer, program, render target or material clone of the host's rendering libra
 what the engine draws or composes — a scene copy stays a host mesh read by shape — and the
 witness adapter serves the Three witnesses alone. What the WebGL2 path still reads of the host library is
 its data model — geometry attributes, materials, textures, the host camera and source graph.
-Lot 1 of batch C (#269) closed the naming of it for the resources, with one signature left over:
-apart from `render(camera: HostCamera)` of `backendTypes.ts`, whose `HostCamera` is still the
-host's perspective camera (`cameraWorld.ts`), no signature of the engine carries a type of the
-host library. `packages/sdk-browser/hostResources.ts` names each resource by the
+Lot 1 of batch C (#269) closed the naming of it for the resources, and lot 2 (#78) the last
+signature left over: `HostCamera` of `render(camera: HostCamera)` is the SHAPE `cameraWorld.ts`
+declares — pose, optics, world matrix, the host's own projection — so no signature of the engine
+carries a type of the host library. `packages/sdk-browser/hostResources.ts` names each resource by the
 shape the engine reads (`HostMaterial`, `HostTexture`, `HostAttributes`, `HostGeometry`,
 `HostMesh`, `HostNode`, `HostScene`), `packages/sdk-core/materialContract.ts` carries the
 engine's own `Material` for `updateMaterial`, a placement crosses as sixteen floats, and the
@@ -157,8 +157,16 @@ transparent items and the software raster compute on those alone. Lot 5 (#78) cl
 itself: the admission gate reads a host material through the shapes of `hostShadedMaterial.ts`
 and the named constants of `hostSurfaceConstants.ts`, the transparent display graph the backend
 publishes is a record the engine owns (`blendSceneRecord.ts`, `blendCopyRecord.ts`), and the
-second capture view is the resolved pose and the declared optics rather than a host camera
-(`detachedHostView`), so bundling `webgpuPages.ts` pulls no module of the host library at all.
+second capture view is the same host camera read at the aspect ratio of the surface written into
+rather than a fabricated one, so bundling `webgpuPages.ts` pulls no module of the host library at
+all. Lot 2 (#78) did the same for the graph the engine walks: the shapes of `hostGraphNodes.ts`
+carry the node, the light, the mesh and the bounded box a scan, a bounds union, a replication and
+a pose write read, and `hostGraphObjects.ts` is the one file of that walk that still names a
+library — it BUILDS host-library objects rather than reading them: the framing camera, the box
+and the centre the explorer publishes, the point a capture aims at, and the group and mesh copies
+a replication hangs. Three engine callers still go through it — `explorerCamera.ts`,
+`explorerViewportApi.ts` and `replicateInstances.ts` — so the construction is gathered in one
+file, not yet removed from the engine's own path.
 What remains for the following lots is the source loading — until
 it lands, `scene`, `source` and `sceneLighting`
 still point at the host's graphs and are not `SceneRoot` / `SceneNode`. The camera controllers are

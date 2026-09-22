@@ -46,7 +46,9 @@ export async function openProbe() {
       const { position, quaternion } = explorer.camera;
       const target = globalThis.probe.controls?.target;
       return [
-        ...position.toArray(),
+        position.x,
+        position.y,
+        position.z,
         quaternion.x,
         quaternion.y,
         quaternion.z,

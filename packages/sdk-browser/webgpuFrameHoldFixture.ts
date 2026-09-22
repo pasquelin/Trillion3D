@@ -58,7 +58,7 @@ export function settledRt() {
     vis: { visEnabled: true, gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
     lights: { plan: { counts: { pendingPages: 0 } }, shadowsUpdated: 0, shadowFaces: 0 },
     bounce: { probes: undefined as unknown },
-    capture: { secondaryCamera: false, capturePending: false },
+    capture: { capturing: false, capturePending: false },
     services: {
       bootstrapState: { ready: true },
       residency: { busy: false },

@@ -113,16 +113,17 @@ try {
   };
   await settle();
   await page.screenshot({ path: resolve(out, 'startup.png') });
-  const initial = await page.evaluate(() => window.explorer.camera.position.toArray());
+  const pose = () => {
+    const { x, y, z } = window.explorer.camera.position;
+    return [x, y, z];
+  };
+  const initial = await page.evaluate(pose);
   await page.mouse.move(230, 100);
   await page.mouse.down();
   await page.mouse.move(290, 125, { steps: 4 });
   await page.mouse.up();
   await settle();
-  assert.notDeepEqual(
-    await page.evaluate(() => window.explorer.camera.position.toArray()),
-    initial,
-  );
+  assert.notDeepEqual(await page.evaluate(pose), initial);
   await page.setViewportSize({ width: 560, height: 400 });
   await page.waitForFunction(
     () => window.explorer.canvas.width === 1120 && window.explorer.canvas.height === 560,

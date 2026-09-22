@@ -111,10 +111,40 @@ test('only the declared files read the host declaration a page was collected fro
   assert.deepEqual(morts, [], 'an authorisation whose file no longer reads the field is removed');
 });
 
+/**
+ * The host camera is named by SHAPE since the graph left the list, so the rule can no longer be
+ * read on a library name. What it protects has not moved: ONE file declares what a host camera
+ * is, and ONE translation turns it into the engine camera every other file reads. That
+ * translation is `writeEngineCamera`, which derives the projection, the view, the
+ * view-projection and the frustum planes; a file naming a host camera beside it would be a
+ * second translation.
+ *
+ * `writeEngineCamera` is not looked for alone: a second translation could be written straight
+ * on the two core calls it is made of, `perspectiveProjection` and `updateCameraFrame`, and
+ * would then name no host-camera translation at all. Naming a host camera beside ANY of the
+ * three is what the rule refuses.
+ */
+const COMPOSE_LA_CAMERA = [
+  /\bwriteEngineCamera\b/,
+  /\bperspectiveProjection\b/,
+  /\bupdateCameraFrame\b/,
+];
 test('`cameraWorld.ts` remains the only translation from host camera to engine camera', async () => {
   const texte = await readFile(new URL('cameraWorld.ts', browser), 'utf8');
-  assert.match(texte, /export type HostCamera = THREE\.PerspectiveCamera/);
+  assert.match(texte, /export type HostCamera = \{/);
   assert.match(texte, /export function readCameraWorld\(/);
+  const secondes: string[] = [];
+  for (const file of await sources()) {
+    if (file === 'cameraWorld.ts') continue;
+    const code = sansCommentaires(await readFile(new URL(file, browser), 'utf8'));
+    if (/\bHostCamera\b/.test(code) && COMPOSE_LA_CAMERA.some((motif) => motif.test(code)))
+      secondes.push(file);
+  }
+  assert.deepEqual(
+    secondes,
+    [],
+    'a host camera becomes an engine camera in `cameraWorld.ts` alone',
+  );
   const moteur = await readFile(new URL('engineCamera.ts', browser), 'utf8');
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'])
     assert.match(moteur, new RegExp(`\\b${champ}\\b`), champ);

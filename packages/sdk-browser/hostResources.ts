@@ -20,6 +20,9 @@
  * pixels stay `unknown`: only the boundary that uploads them knows their container.
  */
 export type HostTexture = {
+  /** Raised by the host on the objects its sampler reads: what tells a texture from any other
+   *  field of a material, whose slots the engine does not enumerate. */
+  readonly isTexture?: boolean;
   readonly uuid: string;
   readonly name: string;
   /** Bumped by the host on every content change: what an upload compares to skip a re-copy. */
@@ -76,6 +79,10 @@ export type HostGeometry = {
   boundingBox?: HostBox | null;
 };
 
+/** A host resource the engine frees when the graph it came from is released: a geometry, a
+ *  surface, a texture. The engine never builds one, so freeing it is giving it back. */
+export type HostDisposable = { dispose(): void };
+
 /**
  * A host material as the engine reads it: the surface parameters shared by every host material,
  * and nothing the host library adds on top. Maps, colours and factors are read once at the
@@ -110,14 +117,17 @@ export type HostMaterial = {
 export type HostMaterials = HostMaterial | HostMaterial[];
 
 /** A host mesh, held by identity: the draw record, the transparent table and the selection sets
- *  name the surface the host placed; nothing but its name is read. */
-export type HostMesh = { readonly name: string };
+ *  name the surface the host placed. Its name is read, and its chain of ancestors when a moved
+ *  subtree has to be told from the rest (`webgpuPagesTransform.ts`); nothing else. */
+export type HostMesh = { readonly name: string; readonly parent?: HostMesh | null };
 
 /** A node of the host scene graph, held by identity and by the two fields a walk needs. */
 export type HostNode = { readonly name: string; readonly visible: boolean };
 
 /** A host object placed in a display graph: the pose the engine writes on it, the world matrix
- *  the host resolves for it, and the chain a visibility walk climbs. */
+ *  the host resolves for it, and the chain a visibility walk climbs. `HostGraphNode`
+ *  (`hostGraphNodes.ts`) describes a posed node too, deliberately: this one asks the host to
+ *  resolve ONE node with its ancestors, that one a whole subtree; neither stands for the other. */
 export type HostPlaced = {
   visible: boolean;
   position: { x: number; y: number; z: number };
@@ -149,11 +159,11 @@ export type HostScene = HostTraversable & {
  * host objects it hangs arrive through `HostDiagnosticFactory`, handed in by the boundary that
  * owns the graph, never through an import: no view file names a rendering library.
  */
-export type HostDiagnosticMaterial = HostMaterial & {
-  clone(): HostDiagnosticMaterial;
-  dispose(): void;
-};
-export type HostDiagnosticGeometry = HostGeometry & { dispose(): void };
+export type HostDiagnosticMaterial = HostMaterial &
+  HostDisposable & {
+    clone(): HostDiagnosticMaterial;
+  };
+export type HostDiagnosticGeometry = HostGeometry & HostDisposable;
 export type HostDiagnosticMesh = {
   readonly isMesh?: boolean;
   /** Identity the host numbered the mesh with: the colour seed of a mesh with no cluster. */

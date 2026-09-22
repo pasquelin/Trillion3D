@@ -289,9 +289,8 @@ difference sits inside the after-side spread. **No gain is claimed**: the batch 
 ## Batch C, lot 1 — the public contract stops naming the host library (#269, #78)
 
 The engine's signatures no longer carry a type of the rendering library the host draws with, with
-one declared exception: `render(camera: HostCamera)` of `backendTypes.ts`, where `HostCamera` is
-still the host's perspective camera (`cameraWorld.ts`) — the engine-owned camera is a following lot
-of #78. Two contracts replace the resource types, and the closed list of `test/integration/moteur-sans-three.test.ts` lost
+one exception this lot left behind and lot 2 below closed: `render(camera: HostCamera)` of
+`backendTypes.ts`, whose `HostCamera` was the host's perspective camera (`cameraWorld.ts`). Two contracts replace the resource types, and the closed list of `test/integration/moteur-sans-three.test.ts` lost
 the fifteen files that named it: `backendTypes.ts`, `explorerOptions.ts`, `explorerSceneApi.ts`,
 `gpuDagTypes.ts`, `gpuSelection.ts`, `materialSide.ts`, `pageCone.ts`, `pageSelectionCutState.ts`,
 `pageSelectionHelpers.ts`, `pageSelectionTypes.ts`, `visibilityTypes.ts`, `webgpuBlendState.ts`,
@@ -301,6 +300,31 @@ types, and left the list with them: `clusterBatchRange.ts`, `frameGateCore.ts`,
 `webgpuBlendBuffers.ts`, `webgpuBlendItems.ts`, `webgpuGeometryPrepare.ts`, `webgpuPageRow.ts`,
 `webgpuPositions.ts`, `webgpuTileAtlas.ts`, `webgpuTileCatalogue.ts`, `webgpuTileScratch.ts` —
 twenty-five files in all, and the list never grows.
+
+## Batch C, lot 2 — the host scene graph and its camera are read by shape (#78)
+
+Reading a host graph no longer names the library that built it. `packages/sdk-browser/hostGraphNodes.ts`
+declares what a walk sees of a node — its identity, its local pose, the world matrix its host
+resolved, its chain, its `userData`, and the light, mesh and bounded faces a scan, a replication
+and a bounds union read — and `cameraWorld.ts` declares `HostCamera` the same way: the local pose
+the host's controls write — its three fields and the matrix that is their other face — the optics
+it declares, the world matrix its own resolution fills, and the projection its own renderer
+composed. The engine reads no inverse off it: the view a host draw needs is inverted into the
+buffer the engine owns (`invertMatrix4`), so nothing of a frame writes on the host's camera. Sixteen files left the closed list of
+`test/integration/moteur-sans-three.test.ts` with that: `cameraWorld.ts`, `exactPagesBounds.ts`,
+`explorerBackends.ts`, `explorerCamera.ts`, `explorerDisposeSource.ts`, `hostSceneHooks.ts`,
+`hostSceneScan.ts`, `hostSceneWatch.ts`, `hostWorldBounds.ts`, `hostWorldChain.ts`,
+`hostWorldMatrices.ts`, `hostWorldPose.ts`, `hostWorldTree.ts`, `replicateInstances.ts`,
+`sceneMeshes.ts`, `webgpuPagesTransform.ts`. One file joined it, `hostGraphObjects.ts`: making a
+host object is not reading one, and the camera the explorer frames, the box and the centre it
+publishes and the copies a replication hangs are built there, from numbers the core computed.
+
+The capture stopped fabricating a camera. `detachedHostView` returned a seven-field literal cast
+to a host camera — no projection matrix, no inverse, an empty `updateWorldMatrix` — and the cast
+was the only thing holding it together. A second view is now what it always was: the same host
+camera, read by `readCameraWorld` at the aspect ratio of the surface written into. The runtime
+state carries a `capturing` flag, which is what its twenty readers were testing, and the one
+place that needed a camera receives the host's own.
 
 ## Batch C, lot 3 — materials, textures and geometries come from the manifest (#271, #78)
 
@@ -356,7 +380,7 @@ through the resolved world pose and the declared optics. The witnesses keep thei
 | `HOST_WRAP_*`, `HOST_FILTER_*`, `HOST_MAPPING_UV`, `HOST_BLENDING_NORMAL`, `HOST_NORMAL_MAP_TANGENT_SPACE` — `packages/sdk-browser/hostSurfaceConstants.ts` | the host's own surface constants, each named for what it stands for: the glTF sampler states, the blend equation of the `BLEND` alpha mode, glTF's tangent-space normal texture | `THREE.ClampToEdgeWrapping`, `THREE.LinearMipmapLinearFilter`, `THREE.UVMapping`, `THREE.NormalBlending`, `THREE.TangentSpaceNormalMap` in `hostSurfaceImport.ts` and `hostSurfaceGate.ts` | `hostSurfaceConstants.test.ts` (value by value against the host library)         |
 | `HostShadedMaterial`, `HostStoredTexture`, `isHostColour` — `packages/sdk-browser/hostShadedMaterial.ts`; `declaresCompileHook` — `hostMaterialHook.ts`     | the PBR fields, extension slots and texture storage the two surface boundaries read, and whether the material reaches a compile hook other than the one it inherits             | `THREE.MeshStandardMaterial`, `THREE.MeshPhysicalMaterial`, `THREE.Color`, `THREE.BufferAttribute` and `THREE.Material.prototype.onBeforeCompile` comparisons                              | `webglClusterCompatibility.test.ts`, `moteur-sans-three.test.ts`                 |
 | `createBlendCopyRecord` — `packages/sdk-browser/blendCopyRecord.ts`; `createBlendScene`, `BlendHostScene` — `blendSceneRecord.ts`                           | the engine's own transparent draw record and the display graph it publishes: the clear colour in linear, the children, the walk, and the two writes prepare and disposal make   | `new THREE.Mesh` / `new THREE.Matrix4` of `blendCopyMesh.ts` and the `THREE.Scene` of `hostBlendScene.ts` on the engine path                                                               | `blendSceneRecord.test.ts`, `pagesBackend7.test.ts`, `webgpuBlendWorlds.test.ts` |
-| `detachedHostView(camera, aspect)` — `packages/sdk-browser/cameraWorld.ts`                                                                                  | the second view a capture renders from: the rig-resolved world matrix and the declared optics, at the capture's own aspect, with no parent left to resolve against              | `holdHostCamera(new THREE.PerspectiveCamera(), camera)` in `webgpuPagesSurfaceCapture.ts`                                                                                                  | `cameraDetachedView.test.ts`, `moteur-sans-three-math.test.ts`                   |
+| `readCameraWorld(into, camera, aspect)` — `packages/sdk-browser/cameraWorld.ts`                                                                             | the second view a capture renders from: the same camera, rig-resolved, at the aspect ratio of the surface written into rather than the one it declares for the host's canvas    | `detachedHostView`, itself the replacement of `holdHostCamera(new THREE.PerspectiveCamera(), camera)` in `webgpuPagesSurfaceCapture.ts`                                                    | `cameraDetachedView.test.ts`, `moteur-sans-three-math.test.ts`                   |
 | `readHostBox` — `packages/sdk-browser/hostBoxBounds.ts`                                                                                                     | the six numbers of a host box, copied flat; writing bounds back INTO a host geometry stays the witness side's (`threeBounds.ts`)                                                | `readThreeBox` of `threeBounds.ts`, which pulled the library for its neighbour                                                                                                             | `webgpuBlendWorlds.test.ts`                                                      |
 
 ## Batch math for hosts (#104, #80)

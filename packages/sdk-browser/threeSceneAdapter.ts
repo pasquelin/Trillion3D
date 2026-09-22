@@ -100,7 +100,7 @@ export function createThreeSceneDraw(gl: WebGL2RenderingContext | undefined, sce
       renderer.autoClear = false;
       scene.background = null;
       try {
-        renderer.render(scene, camera);
+        renderer.render(scene, asHostLibrary<THREE.Camera>(camera));
       } finally {
         renderer.autoClear = autoClear;
         scene.background = background;

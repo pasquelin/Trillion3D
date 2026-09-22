@@ -1,5 +1,5 @@
-import type * as THREE from 'three';
-import { asHostLibrary, type HostMesh, type HostNode } from './hostResources.ts';
+import type { HostMesh } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import {
   BOX_VALUES,
   EngineError,
@@ -30,9 +30,8 @@ const local = new Float64Array(16),
   moved = new Float64Array(BOX_VALUES);
 
 /** The named node of the prepared scene, or `undefined`: the search is a walk, not an index. */
-function findNode(node: HostNode, nodeName: string) {
-  const source = asHostLibrary<THREE.Object3D>(node);
-  let found: THREE.Object3D | undefined;
+function findNode(source: HostGraphNode, nodeName: string) {
+  let found: HostGraphNode | undefined;
   source.traverse((node) => {
     if (!found && node.name === nodeName) found = node;
   });
@@ -112,7 +111,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   node.position.set(trs[0], trs[1], trs[2]);
   node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3]);
   node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
-  node.matrix.fromArray(local);
+  copyElements(node.matrix.elements, local);
   node.matrixAutoUpdate = false;
   // The pose is set: the engine index takes it, and every matrix it holds — page records,
   // selection roots, transparent copies — carries the new place at that instant, with no snapshot
@@ -154,9 +153,8 @@ function unionInto(box: Float64Array) {
 }
 
 /** True when `mesh` is the moved node or one of its descendants. */
-function isUnder(source: HostMesh | undefined, node: THREE.Object3D) {
-  const mesh = asHostLibrary<THREE.Object3D | undefined>(source);
-  let walk: THREE.Object3D | null = mesh ?? null;
+function isUnder(mesh: HostMesh | undefined, node: HostGraphNode) {
+  let walk: HostMesh | null | undefined = mesh;
   while (walk) {
     if (walk === node) return true;
     walk = walk.parent;

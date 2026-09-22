@@ -98,7 +98,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       diag.diagnosticFailure('visibility-render-failed', error);
       dropVis(rt);
       run.gpuDrawCalls = 0;
-      if (context.gpuCanvas || capture.secondaryCamera || run.gpuFrameActive) throw error;
+      if (context.gpuCanvas || capture.capturing || run.gpuFrameActive) throw error;
     }
   }
   if (!gpu.pipelineBack) return 0;

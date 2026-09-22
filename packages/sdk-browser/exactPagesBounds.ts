@@ -1,5 +1,5 @@
-import type * as THREE from 'three';
 import { meshes as objects } from './sceneMeshes.ts';
+import type { HostGraphMesh, HostGraphNode } from './hostGraphNodes.ts';
 import { hostWorldTree } from './hostWorldTree.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { emptyWorldBox } from './hostWorldBounds.ts';
@@ -35,7 +35,7 @@ function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
 
 /** Exact pages of `source`: the EXACT size the box lot must carry. */
 function exactPagesCount(
-  source: THREE.Object3D,
+  source: HostGraphNode,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
 ) {
@@ -50,7 +50,7 @@ function exactPagesCount(
 
 /** The lot that carries these pages, or `null` when there are none: a reservation, not a frame. */
 export async function exactPagesLot(
-  source: THREE.Object3D,
+  source: HostGraphNode,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
 ) {
@@ -61,10 +61,10 @@ export async function exactPagesLot(
 /** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`; `onMissing`
  *  decides what a mesh without a prepared primitive does, and the mesh is skipped once it returns. */
 export function exactPagesBounds(
-  source: THREE.Object3D,
+  source: HostGraphNode,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
-  onMissing: (mesh: THREE.Mesh) => void,
+  onMissing: (mesh: HostGraphMesh) => void,
   into = emptyWorldBox(),
   lot?: BoxTransformLot | null,
 ) {

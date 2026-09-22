@@ -49,6 +49,7 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../sdk-browser/stageMapping.ts';
 export type { GpuPassBlock } from '../sdk-browser/stageMapping.ts';
 export { gpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
 export type { GpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
+export type { HostGraphNode, HostRotation, HostVector } from '../sdk-browser/hostGraphNodes.ts';
 export type {
   HostAttribute,
   HostAttributes,
@@ -56,6 +57,7 @@ export type {
   HostDiagnosticFactory,
   HostDiagnosticGeometry,
   HostDiagnosticMaterial,
+  HostDisposable,
   HostGeometry,
   HostMaterial,
   HostMaterials,
@@ -70,6 +72,7 @@ export { enginePose, readCameraWorld } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawCamera, HostCamera } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawOutput } from '../sdk-browser/webglRenderTarget.ts';
 export type { HostRetentionDelta, StreamPage } from '../sdk-browser/streamingTypes.ts';
+export type { HostNodeMatrix, MatrixElements } from '../sdk-browser/matrixElements.ts';
 export type {
   LightingExperimentRayDiagnostics,
   LightingExperimentRenderState,

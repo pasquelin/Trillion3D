@@ -41,7 +41,7 @@ export function encodeWaterPass(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
   // reads the surface buffer as opaque once the frame is drawn: the surface stage leaves it alone.
   if (
     run.diagnostic !== 'beauty' ||
-    capture.secondaryCamera ||
+    capture.capturing ||
     !water ||
     !blendState.transmissiveInView ||
     !blendState.argsBuffer ||

@@ -4,9 +4,10 @@ import { createOrbitCameraControls } from './cameraOrbitControls.ts';
 import { createPanZoomCameraControls } from './cameraPanZoomControls.ts';
 import { createTrackballCameraControls } from './cameraTrackballControls.ts';
 import type { PivotCameraControls } from './cameraControlTypes.ts';
+import { copyElements } from './matrixElements.ts';
 import type { CameraPose } from '../sdk-core/index.ts';
 import type { ExplorerOptions, PointOfInterest, RenderBackend } from './backendTypes.ts';
-import type { HostCamera } from './cameraWorld.ts';
+import { resolveCameraWorld, type HostCamera } from './cameraWorld.ts';
 
 type Inputs = {
   check: () => void;
@@ -48,8 +49,8 @@ export function createExplorerCameraApi(inputs: Inputs) {
     return controls;
   };
   const homePose = (): CameraPose => ({
-    position: camera.position.toArray() as CameraPose['position'],
-    target: center.toArray() as CameraPose['target'],
+    position: [camera.position.x, camera.position.y, camera.position.z],
+    target: [center.x, center.y, center.z],
     fov: camera.fov,
     near: camera.near,
     far: camera.far,
@@ -79,7 +80,26 @@ export function createExplorerCameraApi(inputs: Inputs) {
       if (disposed()) return;
       setMeasuring(false);
       setActive(backends.find((backend) => backend.id === id)!);
-      camera.copy(saved);
+      // The saved view goes back on the live camera number by number — local pose and declared
+      // optics — then its matrices are recomposed from them: what a host camera holds besides
+      // these is derived from them. The LOCAL MATRIX comes back beside the three fields, with the
+      // flag that says which of the two is the pose: a host that poses its camera by matrix keeps
+      // `matrixAutoUpdate` false, and `updateMatrixWorld` then recomposes nothing — restoring the
+      // fields alone would leave that camera on the pose the campaign left it at.
+      const { x, y, z, w } = saved.quaternion;
+      camera.position.copy(saved.position);
+      camera.quaternion.set(x, y, z, w);
+      camera.fov = saved.fov;
+      camera.aspect = saved.aspect;
+      camera.near = saved.near;
+      camera.far = saved.far;
+      camera.zoom = saved.zoom;
+      copyElements(camera.matrix.elements, saved.matrix.elements);
+      camera.matrixAutoUpdate = saved.matrixAutoUpdate;
+      camera.updateProjectionMatrix();
+      // `updateMatrixWorld` recomposes nothing when the host poses by matrix: writing
+      // `matrix` raises no update flag. The contract's resolve composes it unconditionally.
+      resolveCameraWorld(camera);
       lookAtTarget.copy(center);
     },
     setMeasurementSurface(enabled: boolean) {
