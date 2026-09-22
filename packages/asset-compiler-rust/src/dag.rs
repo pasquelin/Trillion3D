@@ -7,12 +7,12 @@
 //! the error of the group that replaces it. A flat runtime cut `parent_error > t >= lod_error`
 //! then covers the surface exactly once.
 //!
-//! Two simplifiers, chosen by `DagStrategy`. `QemEndpoints` keeps the source vertices: a collapse
-//! lands on one of its endpoints, so coarse indices point at source vertices and their
-//! attributes stay whatever the survivor carried. `QemAttributes` puts normals, texture
-//! coordinates and colours in the quadric and solves every surviving vertex to the position and
-//! attributes that minimise it (`attributes.rs`): a coarse level then carries vertices the source
-//! does not have, appended to the buffer the DAG was given, and its indices point at them.
+//! Two simplifiers, chosen by `DagStrategy`, both placing their collapses on the region's own
+//! vertices: coarse indices point at source vertices, which keeps every attribute where the
+//! source put it. `QemEndpoints` ranks the collapses on the distance to the surface alone.
+//! `QemAttributes` adds normals, texture coordinates and colours to that ranking, each weighed
+//! into object units by `attributes.rs`, so a collapse that would slide a texture costs what
+//! the slide is worth and is taken later.
 use crate::geometry_page::Attribute;
 use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
@@ -42,9 +42,9 @@ pub enum DagStrategy {
     /// `qem-endpoints`: coarse levels, each group reduced by a positional QEM whose collapses
     /// land on existing vertices; the border is locked.
     QemEndpoints,
-    /// `qem-attributes`: coarse levels, each group reduced by an attribute-aware QEM that moves
-    /// the surviving vertices and interpolates their attributes; the border is locked and a
-    /// texture seam only slides along itself.
+    /// `qem-attributes`: coarse levels, each group reduced by an attribute-aware QEM whose
+    /// collapses also land on existing vertices; the border is locked and a texture seam only
+    /// slides along itself.
     QemAttributes,
 }
 impl DagStrategy {
@@ -63,8 +63,7 @@ impl DagStrategy {
 
 #[derive(Clone, Debug)]
 pub struct DagCluster {
-    /// Triangle list in the vertex buffer, three indices per triangle. Level zero indexes source
-    /// vertices only; a coarse level may name vertices the build appended.
+    /// Triangle list in the source vertex buffer, three indices per triangle, at every level.
     pub indices: Vec<u32>,
     pub level: usize,
     /// Object-space error of the simplification that produced this cluster. Zero at level 0.
@@ -95,27 +94,20 @@ impl DagCluster {
     }
 }
 
-/// The vertex buffer of a primitive: what the DAG reads at every level and, under
-/// `QemAttributes`, extends with the vertices its coarse levels create. Positions are three
-/// floats per vertex; each attribute holds `width` floats per vertex, in the same order.
+/// The vertex buffer of a primitive, as the DAG reads it at every level: positions are three
+/// floats per vertex, and each attribute holds `width` floats per vertex, in the same order.
 pub struct DagVertices<'a> {
-    pub positions: &'a mut Vec<f32>,
-    pub attributes: &'a mut [Attribute],
-}
-impl DagVertices<'_> {
-    pub fn count(&self) -> usize {
-        self.positions.len() / 3
-    }
+    pub positions: &'a [f32],
+    pub attributes: &'a [Attribute],
 }
 
-/// Everything a build publishes: the clusters, the groups that replace them, the tally of every
-/// level, and how many vertices the coarse levels appended to the buffer.
+/// Everything a build publishes: the clusters, the groups that replace them, and the tally of
+/// every level.
 #[derive(Debug)]
 pub struct DagBuild {
     pub clusters: Vec<DagCluster>,
     pub groups: Vec<DagGroup>,
     pub tallies: Vec<GroupTally>,
-    pub added_vertices: usize,
 }
 
 // ---------------------------------------------------------------- geometry helpers
@@ -123,15 +115,12 @@ pub struct DagBuild {
 struct GroupReduction {
     error: f64,
     sphere: [f64; 4],
-    /// Cluster indices; a corner flagged `NEW_VERTEX` names one of `vertices`.
     clusters: Vec<Vec<u32>>,
     source_rank: u32,
     /// Reduction had to weld indices by position (`reduce.rs`).
     welded: bool,
     /// Reduction had to lock additional triangles to preserve border.
     relocked: bool,
-    /// Vertices the reduction created, appended to the buffer once the level is gathered.
-    vertices: NewVertices,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
 ///
@@ -151,9 +140,9 @@ struct GroupReductionInput<'a> {
     positions: &'a [f32],
     attributes: &'a [Attribute],
     locks: &'a [bool],
-    /// Source vertices on a texture seam: `QemAttributes` protects them from a collapse across
-    /// the seam while it lets every other copied position collapse (`weld.rs`).
-    protect: &'a [bool],
+    /// Simplifier flags per source vertex, `PROTECT` on a texture seam and `LOCK` on a mirror
+    /// edge, which `QemAttributes` adds to the level's own locks (`protect.rs`).
+    vertex_flags: &'a [u8],
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
     /// Canonical vertex by (position, uv): the weld a stalled reduction falls back on.
@@ -167,6 +156,7 @@ mod build;
 pub(crate) mod clusters;
 mod culling;
 pub(crate) mod groups;
+mod protect;
 pub(crate) mod reduce;
 mod reduce_attributes;
 mod tally;
@@ -174,7 +164,6 @@ mod tally;
 pub(crate) mod tests;
 pub(crate) mod weld;
 
-use attributes::{NewVertices, NEW_VERTEX};
 use bounds::*;
 pub use build::build_dag_tallied;
 use clusters::*;

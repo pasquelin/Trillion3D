@@ -39,38 +39,33 @@ fn level_zero(positions: &[f32], indices: &[u32]) -> Result<Vec<DagCluster>> {
         .collect())
 }
 
-/// Builds the cluster DAG over `vertices`, which `QemAttributes` extends with the vertices its
-/// coarse levels create. `strategy` decides whether coarse levels exist: in `ExactClusters` the
-/// build yields level zero alone, without group or reduction, so the published coverage is
-/// exactly the source triangles.
+/// Builds the cluster DAG over `vertices`. `strategy` decides whether coarse levels exist: in
+/// `ExactClusters` the build yields level zero alone, without group or reduction, so the
+/// published coverage is exactly the source triangles.
 pub fn build_dag_tallied(
-    mut vertices: DagVertices<'_>,
+    vertices: DagVertices<'_>,
     indices: &[u32],
     strategy: DagStrategy,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<DagBuild> {
     checkpoint()?;
-    let source_vertices = vertices.count();
     let mut dag = level_zero(vertices.positions, indices)?;
     let mut tallies: Vec<GroupTally> = Vec::new();
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
-    let build = |dag, groups, tallies, vertices: &DagVertices<'_>| DagBuild {
+    let build = |dag, groups, tallies| DagBuild {
         clusters: dag,
         groups,
         tallies,
-        added_vertices: vertices.count() - source_vertices,
     };
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
-        return Ok(build(dag, reductions_kept, tallies, &vertices));
+        return Ok(build(dag, reductions_kept, tallies));
     }
-    let mut welds = {
+    let welds = {
         let _t = Timer::new(Phase::Weld);
         Welds::of(&vertices, indices)
     };
-    // Texture seams of the source; a created vertex inherits the flag of the vertex it was
-    // solved from (`reduce_attributes.rs`), so the table follows the buffer.
-    let mut protect = welds.texture_seams();
+    let vertex_flags = protect::vertex_flags(&vertices, indices, &welds);
     let mut current: Vec<usize> = (0..dag.len()).collect();
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;
@@ -108,7 +103,7 @@ pub fn build_dag_tallied(
             positions: vertices.positions,
             attributes: vertices.attributes,
             locks: &locks,
-            protect: &protect,
+            vertex_flags: &vertex_flags,
             weld: &welds.position,
             weld_seam: welds.seam.as_deref().unwrap_or(&welds.position),
         };
@@ -149,17 +144,8 @@ pub fn build_dag_tallied(
                 dag[id].group = Some(group_index);
                 children.push(id);
             }
-            // The vertices this group created take their place in the buffer, in group order:
-            // the same mesh always yields the same buffer.
-            let first_new = attributes::append(&mut vertices, &reduction.vertices);
-            protect.extend_from_slice(&reduction.vertices.protected);
             let mut outputs = Vec::with_capacity(reduction.clusters.len());
-            for mut cluster in reduction.clusters {
-                for corner in cluster.iter_mut() {
-                    if *corner & NEW_VERTEX != 0 {
-                        *corner = first_new + (*corner & !NEW_VERTEX);
-                    }
-                }
+            for cluster in reduction.clusters {
                 outputs.push(dag.len());
                 next.push(dag.len());
                 dag.push(DagCluster {
@@ -183,7 +169,6 @@ pub fn build_dag_tallied(
                 outputs,
             });
         }
-        welds.extend(&vertices);
         tallies.push(tally);
         if next.is_empty() {
             break;
@@ -194,5 +179,5 @@ pub fn build_dag_tallied(
             break;
         }
     }
-    Ok(build(dag, reductions_kept, tallies, &vertices))
+    Ok(build(dag, reductions_kept, tallies))
 }

@@ -33,11 +33,10 @@ pub(super) fn build_of(
     positions: &[f32],
     indices: &[u32],
 ) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>) {
-    let mut positions = positions.to_vec();
     let built = build_dag_tallied(
         DagVertices {
-            positions: &mut positions,
-            attributes: &mut [],
+            positions,
+            attributes: &[],
         },
         indices,
         DagStrategy::QemEndpoints,

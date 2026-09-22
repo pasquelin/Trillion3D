@@ -27,7 +27,7 @@ fn a_vertex_soup_still_climbs_to_a_single_root() {
         tallies.iter().any(|t| t.welded > 0),
         "at least one group had to weld"
     );
-    let weld = PositionWeld::by_position(&positions, &indices);
+    let weld = weld_positions(&positions, &indices);
     for cluster in dag.iter().filter(|c| c.level > 0) {
         for &id in &cluster.indices {
             assert_eq!(
@@ -72,25 +72,24 @@ fn live_triangles_drops_a_triangle_with_two_corners_on_one_position() {
     assert_eq!(kept, vec![0, 1, 2, 7, 8, 9]);
 }
 
-// Behaviour: under the attribute strategy the soup climbs to a single root too: its fallback
-// weld follows the buffer that the created vertices grow, level after level (measured: Emerald,
-// a cluster index of 3 259 against a seam weld of 1 899 entries before the weld followed).
+// Behaviour: under the attribute strategy an unindexed soup climbs to a single root too, its
+// stalled groups falling back on the (position, uv) weld exactly as the positional one does.
 #[test]
-fn a_vertex_soup_climbs_under_the_attribute_strategy_as_its_welds_follow_the_buffer() {
-    let (mut positions, indices) = soup(64);
+fn a_vertex_soup_climbs_under_the_attribute_strategy() {
+    let (positions, indices) = soup(64);
     let source = positions.len() / 3;
     let uvs: Vec<f32> = (0..source)
         .flat_map(|v| [positions[v * 3] / 64.0, positions[v * 3 + 1] / 64.0])
         .collect();
-    let mut attributes = [Attribute {
+    let attributes = [Attribute {
         flag: crate::geometry_page::FLAG_UV,
         width: 2,
         values: uvs,
     }];
     let built = build_dag_tallied(
         DagVertices {
-            positions: &mut positions,
-            attributes: &mut attributes,
+            positions: &positions,
+            attributes: &attributes,
         },
         &indices,
         DagStrategy::QemAttributes,
@@ -98,18 +97,61 @@ fn a_vertex_soup_climbs_under_the_attribute_strategy_as_its_welds_follow_the_buf
     )
     .expect("dag");
     assert_eq!(built.clusters.iter().filter(|c| c.is_root()).count(), 1);
-    assert!(built.added_vertices > 0, "coarse levels created vertices");
     assert!(
         built.tallies.iter().any(|t| t.welded > 0),
         "the fallback weld was used"
     );
     let count = positions.len() / 3;
-    assert_eq!(
-        attributes[0].values.len(),
-        count * 2,
-        "every attribute follows the buffer"
-    );
     for cluster in &built.clusters {
         assert!(cluster.indices.iter().all(|&id| (id as usize) < count));
+    }
+}
+
+// Behaviour: a mirrored texture island is protected like a seam. Its two halves share the
+// middle column — same position, same texture coordinate, opposite parameterisation — so
+// nothing but the orientation of the chart tells the simplifier not to collapse across it. No
+// coarse triangle may then span the mirror line, which is what folding the texture would look
+// like (`mirror.rs`).
+#[test]
+fn a_mirrored_texture_island_keeps_the_edge_its_two_halves_share() {
+    let n = 48usize;
+    let half = n as f32 / 2.0;
+    let (positions, indices) = grid(n);
+    let uvs: Vec<f32> = positions
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .flat_map(|[x, y, _]| [(x - half).abs() / half, y / n as f32])
+        .collect();
+    let attributes = [Attribute {
+        flag: crate::geometry_page::FLAG_UV,
+        width: 2,
+        values: uvs,
+    }];
+    let built = build_dag_tallied(
+        DagVertices {
+            positions: &positions,
+            attributes: &attributes,
+        },
+        &indices,
+        DagStrategy::QemAttributes,
+        &|| Ok(()),
+    )
+    .expect("dag");
+    let coarse = built.clusters.iter().filter(|c| c.level > 0);
+    assert!(coarse.clone().count() > 0, "the DAG did not climb");
+    let side = |corner: u32| {
+        positions[corner as usize * 3]
+            .partial_cmp(&half)
+            .expect("x")
+    };
+    for cluster in coarse {
+        for corners in cluster.indices.as_chunks::<3>().0 {
+            let sides: Vec<_> = corners.iter().map(|&c| side(c)).collect();
+            assert!(
+                !sides.iter().any(|s| s.is_lt()) || !sides.iter().any(|s| s.is_gt()),
+                "a coarse triangle spans the mirror line"
+            );
+        }
     }
 }

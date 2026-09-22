@@ -150,11 +150,11 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_the_regulariser() {
 
 #[test]
 fn build_honours_cancellation() {
-    let (mut positions, indices) = grid(32);
+    let (positions, indices) = grid(32);
     let error = build_dag_tallied(
         DagVertices {
-            positions: &mut positions,
-            attributes: &mut [],
+            positions: &positions,
+            attributes: &[],
         },
         &indices,
         DagStrategy::QemEndpoints,

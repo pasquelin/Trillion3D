@@ -13,9 +13,8 @@
 //!   its normal stands for the others, that is the declared cost — and level
 //!   zero is unchanged. Welding texture seams too was tried and measured: Emerald
 //!   facades at the 2 px threshold drew with the texture from the other side of
-//!   the seam. Refused. Under `QemAttributes` the welded survivor's attributes
-//!   are solved rather than chosen (`reduce_attributes.rs`), and the weld follows
-//!   the buffer as coarse levels create vertices.
+//!   the seam. Refused. `QemAttributes` falls back on the same weld, its
+//!   attribute quadric only ranking the collapses (`reduce_attributes.rs`).
 //! - **Added locks.** On foliage, a chart whose edge is shared with another group
 //!   disappears when its free vertices collapse onto locked vertices, and the
 //!   other group keeps its half (measured: 92 groups of 123 lost that way, 339
@@ -28,11 +27,10 @@ use border::{live_triangles, lock_triangles_touching, lost_locks, required_locks
 /// Times group restarted with extra locks before declared lost.
 const BORDER_RETRIES: usize = 3;
 
-/// Succeeded reduction: simplified surface, re-clustered, and the vertices it created.
+/// Succeeded reduction: the simplified surface, re-clustered.
 pub(super) struct Attempt {
     pub error_object: f64,
     pub clusters: Vec<Vec<u32>>,
-    pub vertices: NewVertices,
     /// Locks added to preserve border.
     pub relocked: bool,
 }
@@ -50,8 +48,7 @@ pub(super) enum Try {
     Lost(Vec<u32>),
 }
 impl Try {
-    /// Judges a reduction by its border: `corners` are what survived, in buffer indices or
-    /// `NEW_VERTEX` ranks, which count for no lock.
+    /// Judges a reduction by its border: `corners` are what survived, in buffer indices.
     pub(super) fn of(
         required: &[u32],
         corners: &[u32],
@@ -115,7 +112,6 @@ pub(super) fn reduce_group(
         source_rank,
         welded,
         relocked: chosen.relocked,
-        vertices: chosen.vertices,
     }))
 }
 
@@ -137,16 +133,7 @@ fn attempt(
             locks.get(vertex as usize).copied().unwrap_or(true)
                 || extra.binary_search(&weld[vertex as usize]).is_ok()
         };
-        let tried = {
-            let _t = Timer::new(Phase::Simplify);
-            match input.strategy {
-                DagStrategy::QemAttributes => {
-                    reduce_attributes::updated(input, source, &required, &lock)?
-                }
-                _ => endpoints(input, source, &required, &lock)?,
-            }
-        };
-        match tried {
+        match reduce_once(input, source, &required, &lock)? {
             Try::Done(mut attempt) => {
                 attempt.relocked = retries > 0;
                 return Ok(Ok(attempt));
@@ -161,21 +148,29 @@ fn attempt(
     }
 }
 
-/// `QemEndpoints`: the positional simplifier, its collapses landing on source vertices.
-fn endpoints(
+/// One run of the strategy's simplifier, re-clustered when it reduced anything. Both
+/// simplifiers place their collapses on the region's own vertices, so what comes back indexes
+/// the buffer the group was given and a coarse cluster names source vertices alone.
+fn reduce_once(
     input: &GroupReductionInput,
     source: &[u32],
     required: &[u32],
     lock: &dyn Fn(u32) -> bool,
 ) -> Result<Try> {
     let triangles = source.len() / 3;
-    let simplified = simplify_with_locked_vertices(
-        input.positions,
-        source,
-        triangles / 2,
-        SIMPLIFY_ERROR_CEILING,
-        lock,
-    )?;
+    let simplified = {
+        let _t = Timer::new(Phase::Simplify);
+        match input.strategy {
+            DagStrategy::QemAttributes => reduce_attributes::simplify(input, source, lock)?,
+            _ => simplify_with_locked_vertices(
+                input.positions,
+                source,
+                triangles / 2,
+                SIMPLIFY_ERROR_CEILING,
+                lock,
+            )?,
+        }
+    };
     if simplified.triangles >= triangles || simplified.indices.is_empty() {
         return Ok(Try::NoCollapse);
     }
@@ -187,7 +182,6 @@ fn endpoints(
         Ok(Attempt {
             error_object: simplified.error_object,
             clusters,
-            vertices: NewVertices::default(),
             relocked: false,
         })
     })

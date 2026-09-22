@@ -14,7 +14,7 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         groups.len() > 1,
         "the test needs at least two groups for a shared seam"
     );
-    let weld = PositionWeld::by_position(&positions, &indices);
+    let weld = weld_positions(&positions, &indices);
     let locks = level_locks(&weld, &lists, &groups);
     assert!(
         locks.iter().any(|&locked| locked),
@@ -62,7 +62,7 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         positions: &positions,
         attributes: &[],
         locks: &locks,
-        protect: &[],
+        vertex_flags: &[],
         weld: &weld,
         weld_seam: &weld,
     };
@@ -99,7 +99,7 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
         cluster_triangles(&positions, &indices, DAG_CLUSTER_TRIANGLES).expect("clusters");
     let lists: Vec<&[u32]> = clusters.iter().map(|c| c.as_slice()).collect();
     let groups = vec![(0..clusters.len()).collect::<Vec<_>>()];
-    let weld = PositionWeld::by_position(&positions, &indices);
+    let weld = weld_positions(&positions, &indices);
     let locks = level_locks(&weld, &lists, &groups);
     assert!(
         locks.iter().all(|&locked| !locked),
@@ -129,7 +129,7 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
         positions: &positions,
         attributes: &[],
         locks: &locks,
-        protect: &[],
+        vertex_flags: &[],
         weld: &weld,
         weld_seam: &weld,
     };

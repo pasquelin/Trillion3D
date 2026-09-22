@@ -13,7 +13,7 @@
 //! quads — welds into edges shared by more than two triangles, which the simplifier locks
 //! (measured: Emerald's street signs, 484 triangles, 52 such edges, one level lost). When the
 //! weld creates a non-manifold edge the source indexing stands, and the report says so.
-use crate::dag::weld::{normalized_bits as bits, Welder};
+use crate::dag::weld::{normalized_bits as bits, weld_by};
 use crate::geometry_page::Attribute;
 use crate::topology::{classify_topology, TopologyReport};
 use crate::Result;
@@ -89,16 +89,16 @@ pub(super) fn weld_identical(
         }
         key
     };
-    let welder = Welder::by_indices(count, indices, key);
+    let canonical = weld_by(count, indices, key);
     let mut named = vec![false; count];
     let mut welded = 0usize;
     for index in indices.iter_mut() {
         let slot = *index as usize;
         if slot < count && !named[slot] {
             named[slot] = true;
-            welded += usize::from(welder.canonical[slot] != *index);
+            welded += usize::from(canonical[slot] != *index);
         }
-        *index = welder.canonical.get(slot).copied().unwrap_or(*index);
+        *index = canonical.get(slot).copied().unwrap_or(*index);
     }
     WeldReport {
         vertices: named.iter().filter(|&&used| used).count(),
