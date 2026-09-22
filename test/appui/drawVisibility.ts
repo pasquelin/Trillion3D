@@ -1,4 +1,5 @@
 import type { ComputeSetup } from './drawCompute.ts';
+import type { AtlasBindings } from '../../packages/sdk-browser/webgpuBindLayout.ts';
 
 /** Binding numbers the WGSL interpolates from `VIS_BINDINGS` (`webgpuBindLayout.ts`). */
 export interface VisBindings {
@@ -9,7 +10,7 @@ export interface VisBindings {
   uv: number;
   instances: number;
   slotOffsets: number;
-  color: { pages: number; pool: number };
+  color: AtlasBindings;
   uniform: number;
   sampler: number;
 }
@@ -86,14 +87,21 @@ export function setupVisibility(
     sampler = device.createSampler();
   // The numbers are not copied: they come from `VIS_BINDINGS` (`webgpuBindLayout.ts`), the source
   // the WGSL already interpolates. One more atlas binding shifts all three sides together —
-  // that shift, missed here alone, is what made this proof fail on the page table.
+  // that shift, missed here alone, is what made this proof fail on the page table. The shape is
+  // read the same way: `AtlasBindings` carries one pool per lane, so a lane added to the atlas
+  // adds its entry here without a hand edit.
   const b = visBindings;
   const lecture = (binding: number): GPUBindGroupLayoutEntry => ({
     binding,
     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
     buffer: { type: 'read-only-storage' },
   });
-  // Empty page table: no page carries a map, pool is never read.
+  const lanePool = (binding: number): GPUBindGroupLayoutEntry => ({
+    binding,
+    visibility: GPUShaderStage.FRAGMENT,
+    texture: { sampleType: 'float', viewDimension: '2d-array' },
+  });
+  // Empty page table: no page carries a map, so no lane pool is ever read.
   const colorPages = makeBuffer(64 * 4);
   const visLayout = device.createBindGroupLayout({
     entries: [
@@ -106,11 +114,7 @@ export function setupVisibility(
       lecture(b.slotOffsets),
       lecture(b.color.pages),
       { binding: b.uniform, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
-      {
-        binding: b.color.pool,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
+      ...b.color.lanes.map(lanePool),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     ],
   });
@@ -143,7 +147,7 @@ export function setupVisibility(
           { binding: b.flags, resource: { buffer: flags } },
           { binding: b.uniform, resource: { buffer: visUniform } },
           { binding: b.uv, resource: { buffer: uvs } },
-          { binding: b.color.pool, resource: mapsView },
+          ...b.color.lanes.map((binding) => ({ binding, resource: mapsView })),
           { binding: b.sampler, resource: sampler },
           { binding: b.instances, resource: { buffer: instances } },
           { binding: b.slotOffsets, resource: { buffer: offsets } },
