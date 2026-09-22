@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import { setGeometryBounds } from './threeBounds.ts';
-import type { GeometryPageDescriptor } from '../sdk-core/index.ts';
+import { EngineError, type GeometryPageDescriptor } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 
@@ -103,7 +103,12 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     for (const rec of attachees) if (!affichees.has(rec)) detach(rec);
     state.submittedTriangles = 0;
     for (const rec of display) {
-      if (!rec.array) throw new Error('AUTONOMOUS_COVERAGE_MISSING');
+      if (!rec.array)
+        throw new EngineError(
+          'AUTONOMOUS_COVERAGE_MISSING',
+          'The prepared autonomous scene does not cover every page the cut requires',
+          { page: rec.url },
+        );
       attach(rec);
       state.submittedTriangles += rec.triangles;
     }
