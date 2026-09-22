@@ -1,6 +1,7 @@
 import type { EngineCamera } from './cameraWorld.ts';
 import { selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { applyTemporalHiz, resetHizCounts } from './hiz.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 import {
   appendAll,
   markDrawnDiverged,
@@ -33,7 +34,7 @@ function selectCpuCut(
   pinnedOnly: boolean,
 ) {
   const { roots, viewport, bootstrapUrls } = rt.setup,
-    cache = rt.gpu.cache!;
+    { poolHolds } = rt.services;
   // The image's cut writes into the reused result; the rare pinned fallback keeps its own.
   const result = pinnedOnly ? undefined : rt.run.selectResult;
   return selectVisiblePages(
@@ -45,8 +46,8 @@ function selectCpuCut(
       holdResident: true,
       rootFallback: true,
       isResident: pinnedOnly
-        ? (rec) => bootstrapUrls.has(rec.url) && !!cache.get(rec.url)
-        : (rec) => !!cache.get(rec.url),
+        ? (rec) => bootstrapUrls.has(pageAddress(rec)) && poolHolds(rec)
+        : poolHolds,
       wanted: result?.wanted,
       result,
     },
@@ -92,8 +93,7 @@ export function renderCpuCut(
 ) {
   const { run, gpu, timing, services } = rt,
     { bootstrapUrls, slots, viewport } = rt.setup,
-    gpuDevice = rt.setup.gpuDevice!,
-    cache = gpu.cache!;
+    gpuDevice = rt.setup.gpuDevice!;
   // The CPU cut rewrites the lists itself: no held image leans on its own.
   run.gate.resourcesChanged();
   // The GPU sample no longer describes the image's arrays: this cut will write them.
@@ -121,7 +121,7 @@ export function renderCpuCut(
     requested = run.requestedScratch;
   requested.clear();
   for (const url of bootstrapUrls) requested.add(url);
-  for (let i = 0; i < wanted.length; i++) requested.add(wanted[i].url);
+  for (let i = 0; i < wanted.length; i++) requested.add(pageAddress(wanted[i]));
   const wasLimited = run.coverageBudgetLimited;
   run.coverageBudgetLimited = requested.size > slots;
   if (wasLimited !== run.coverageBudgetLimited)
@@ -153,7 +153,7 @@ export function renderCpuCut(
     transition = run.transitionScratch;
   transition.clear();
   for (const url of requested) transition.add(url);
-  for (let i = 0; i < run.shown.length; i++) transition.add(run.shown[i].url);
+  for (let i = 0; i < run.shown.length; i++) transition.add(pageAddress(run.shown[i]));
   if (!run.coverageBudgetLimited && transition.size > slots) {
     const fallback = selectCpuCut(rt, cam, pixelError, true);
     if (!fallback.complete) throw new Error('GPU_COVERAGE_INCOMPLETE');
@@ -175,7 +175,7 @@ export function renderCpuCut(
   const queueEnd = performance.now();
   traceQueueReconstruct(rt, queueEnd - queueStarted);
   const drawnVerifyStarted = performance.now();
-  if (culled.some((page) => !cache.get(page.url))) throw new Error('GPU_COVERAGE_INCOMPLETE');
+  if (culled.some((page) => !services.poolHolds(page))) throw new Error('GPU_COVERAGE_INCOMPLETE');
   run.drawn.length = 0;
   appendAll(run.drawn, culled);
   run.blendPagedTriangles = triangleSum(run.drawn, true);
