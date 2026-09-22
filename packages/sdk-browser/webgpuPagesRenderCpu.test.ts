@@ -88,6 +88,8 @@ function banc(options: { ready: boolean; resident: boolean }) {
       bootstrapState: { ready: options.ready },
       residencySets: { keepCount: 0 },
       hasBytes: () => true,
+      // The pool holds a cluster at its own address, which no page of this fixture quantizes.
+      poolHolds: (rec: PageRec) => residents.has(rec.url),
       forgetReadback: () => journal.push('oubli'),
       adoptCpuCut: (wanted: readonly PageRec[]) => {
         journal.push('publication');

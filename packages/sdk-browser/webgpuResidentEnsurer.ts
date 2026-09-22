@@ -1,4 +1,5 @@
 import { UPLOAD_SLICE_MS } from './backendCommon.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { createGpuPageCache } from './gpuPages.ts';
 import type { createWebgpuPageTracking } from './webgpuPageTracking.ts';
@@ -51,7 +52,7 @@ export function createWebgpuResidentEnsurer({
     let cache = getCache();
     if (!cache) return;
     const started = performance.now(),
-      urls = traceEnabled ? wanted.map((page) => page.url) : [];
+      urls = traceEnabled ? wanted.map(pageAddress) : [];
     const loaded = () =>
       tracking.traceSet(
         'ensure.loaded',
@@ -77,11 +78,12 @@ export function createWebgpuResidentEnsurer({
     let sliceStart = performance.now();
     for (let i = 0; i < wanted.length; i++) {
       const rec = wanted[i],
-        key = tracking.keyOf(rec);
+        key = tracking.keyOf(rec),
+        address = pageAddress(rec);
       if (!tracking.wanted.has(key)) continue;
       signal?.throwIfAborted();
       if (isLost()) throw new Error('WEBGPU_LOST');
-      if (!hasBytes(rec) || cache.get(rec.url)) continue;
+      if (!hasBytes(rec) || cache.get(address)) continue;
       // Per-image budget: the burst yields as soon as its ceiling is reached. Remaining work is not
       // dropped, it resumes after the image — and a camera that moved in between is already taken
       // into account, since each turn rereads `wanted` before uploading anything.
@@ -92,7 +94,7 @@ export function createWebgpuResidentEnsurer({
         sliceStart = performance.now();
       }
       try {
-        await cache.load(rec.url, signal);
+        await cache.load(address, signal);
       } catch (error) {
         if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
         // Pool full of pages the image holds: like the reference streamer, the burst stops there,
@@ -104,7 +106,7 @@ export function createWebgpuResidentEnsurer({
       cache = getCache();
       if (isLost() || !cache) throw new Error('WEBGPU_LOST');
       if (tracking.wanted.has(key) || bootstrapKey[key]) {
-        cache.pin(rec.url);
+        cache.pin(address);
         tracking.markPinned(key);
       }
     }

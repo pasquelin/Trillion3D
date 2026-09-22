@@ -3,6 +3,7 @@ import type { createGpuPageCache } from './gpuPages.ts';
 import type { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import type { createWebgpuPageTracking } from './webgpuPageTracking.ts';
 import type { WebgpuResidencySets } from './webgpuResidencySets.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Diagnostics = ReturnType<typeof createWebgpuDiagnostics>;
@@ -43,14 +44,11 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
       traceDiagnostic('residency-queue', 'GPU residency queued', () => ({
         frame: jobFrame,
         jobId,
-        pages: tracking.traceSet(
-          'queue',
-          items.map((page) => page.url),
-        ),
+        pages: tracking.traceSet('queue', items.map(pageAddress)),
         wanted: tracking.traceKeys('wanted', tracking.wanted),
         loaded: tracking.traceSet(
           'queue.loaded',
-          items.filter((page) => !!getCache()?.get(page.url)).map((page) => page.url),
+          items.map(pageAddress).filter((address) => !!getCache()?.get(address)),
         ),
         queueDepth: items.length,
         residentPages: getCache()?.stats().residentPages ?? null,
@@ -64,10 +62,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
         jobId,
         scope: 'async-residency-job',
         queueWaitMs: started - queuedAt,
-        pages: tracking.traceSet(
-          'job',
-          items.map((page) => page.url),
-        ),
+        pages: tracking.traceSet('job', items.map(pageAddress)),
         elapsedMs: null,
         cpuWorkIncluded: true,
         gpuQueueWaitIncluded: false,
