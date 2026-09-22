@@ -15,7 +15,24 @@
  */
 import type { HostNodeMatrix } from './matrixElements.ts';
 import type { HostGraphGeometry, HostGraphMaterial } from './hostGraphResources.ts';
-import type { HostBox, HostColour, HostNode } from './hostResources.ts';
+import type { HostBox, HostColour, HostMesh, HostNode, HostScene } from './hostResources.ts';
+
+/**
+ * The display graph an engine whose image the HOST RENDERER draws writes: it hangs a resident
+ * page on it, takes the page back off when the cut drops it, and empties it when the session
+ * ends. `HostScene` (`hostResources.ts`) is that graph as a composition READS it; this one is
+ * the same graph as the engine writes it, which is why it lives here. An engine presenting its
+ * own surface adds nothing to the graph it publishes and declares its own writes beside it
+ * (`blendSceneRecord.ts`).
+ */
+export type HostDrawScene = HostScene & {
+  /** What the graph is given is what a host boundary BUILT for it: the host raises its own brand
+   *  on the objects its renderer accepts and drops any other node silently, so a record of the
+   *  engine's own never crosses here. The lights go on through `HostLightScene`. */
+  add(node: HostMesh): void;
+  remove(node: HostMesh): void;
+  clear(): void;
+};
 
 /** Three numbers of a pose, as the host stores them and a boundary sets them back. */
 export type HostVector = {
