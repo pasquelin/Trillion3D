@@ -58,9 +58,9 @@ export interface TerminalProgressOptions {
   interval?: number;
 }
 
-/** What the cluster DAG may hold above the exact clusters: nothing (`none`), coarse levels
- *  made of source vertices (`qem-endpoints`), or coarse levels whose vertices are solved with
- *  their attributes (`qem-attributes`). */
+/** What the cluster DAG may hold above the exact clusters: nothing (`none`), coarse levels whose
+ *  collapses are ranked on the geometry alone (`qem-endpoints`), or on the attributes as well
+ *  (`qem-attributes`). Both draw source vertices. */
 export const SIMPLIFICATIONS = ['none', 'qem-endpoints', 'qem-attributes'] as const;
 export type Simplification = (typeof SIMPLIFICATIONS)[number];
 export function isSimplification(value: string): value is Simplification {
