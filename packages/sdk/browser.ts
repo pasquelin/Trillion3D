@@ -53,6 +53,7 @@ export type {
   HostPoint,
   HostScene,
   HostTexture,
+  HostTraversable,
 } from '../sdk-browser/hostResources.ts';
 export { enginePose, readCameraWorld } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawCamera, HostCamera } from '../sdk-browser/cameraWorld.ts';
