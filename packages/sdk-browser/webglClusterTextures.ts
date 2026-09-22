@@ -1,7 +1,4 @@
-import type { TextureFilter, WrapMode } from '../sdk-core/index.ts';
-import type { VisMaterial } from './visibilityTypes.ts';
-
-type Texture = NonNullable<VisMaterial['map']>;
+import type { Texture, TextureFilter, WrapMode } from '../sdk-core/index.ts';
 
 type TextureRecord = { texture: WebGLTexture; version: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
