@@ -5,7 +5,7 @@ use super::*;
 
 /// A band of columns mapped to a single `u`: its triangles have no area in texture space.
 fn zero_area_uv_triangles(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let (from, width) = (rng.between(8, 40), rng.between(2, 8));
     let amplitude = amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, NX, NY, amplitude);
@@ -29,7 +29,7 @@ fn zero_area_uv_triangles(seed: u64) -> Case {
 
 /// Every vertex mapped to the same texel.
 fn all_uvs_at_one_point(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let point = [rng.unit(), rng.unit()];
     let amplitude = amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, NX, NY, amplitude);
@@ -41,7 +41,7 @@ fn all_uvs_at_one_point(seed: u64) -> Case {
 
 /// No texture coordinates at all.
 fn no_uvs(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, NX, NY, amplitude);
     Case::new("uv-none", sheet.positions, sheet.indices)

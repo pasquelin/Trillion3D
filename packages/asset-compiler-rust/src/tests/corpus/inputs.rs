@@ -4,7 +4,7 @@ use super::shapes::Sheet;
 use super::*;
 
 fn sheet(seed: u64, name: &'static str, nx: usize, ny: usize) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = shapes::amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, nx, ny, amplitude);
     Case::new(name, sheet.positions, sheet.indices)
