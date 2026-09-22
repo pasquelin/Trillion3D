@@ -185,6 +185,17 @@
       "bindingIdentity": "\"packages/sdk-browser/textureBlockFormats\".AtlasLanes"
     },
     {
+      "name": "autonomousCacheReady",
+      "kind": "value",
+      "definingModule": "packages/sdk-browser/defaultBackends.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".autonomousCacheReady"
+    },
+    {
       "name": "autonomousPagesBackend",
       "kind": "value",
       "definingModule": "packages/sdk-browser/autonomousPages.ts",
@@ -208,6 +219,17 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/metricsContracts\".BackendCapabilities"
+    },
+    {
+      "name": "BackendChoice",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/defaultBackends.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".BackendChoice"
     },
     {
       "name": "BackendContext",
@@ -237,6 +259,7 @@
         "scripts/mesure/pageMesure.ts",
         "test/appui/antialiasingTemporelPage.ts",
         "test/appui/coupeGpuTenuePage.ts",
+        "test/appui/defaultBackendCase.ts",
         "test/appui/hizDeuxPassesPage.ts",
         "test/appui/hizRigPage.ts",
         "test/appui/materialPixelsPage.ts",
@@ -713,6 +736,17 @@
       "bindingIdentity": "\"packages/sdk-core/safety\".CapabilityTier"
     },
     {
+      "name": "chooseBackends",
+      "kind": "value",
+      "definingModule": "packages/sdk-browser/defaultBackends.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".chooseBackends"
+    },
+    {
       "name": "clipPlanesFromMatrix",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathFrustum.ts",
@@ -812,6 +846,8 @@
         "packages/sdk-browser/bench/chargement-scene.perf.ts",
         "packages/sdk-browser/bench/oracles/bornes-et-index.ts",
         "packages/sdk-browser/bench/oracles/collecte-pages.ts",
+        "packages/sdk-browser/defaultBackends.test.ts",
+        "packages/sdk-browser/defaultBackends.ts",
         "packages/sdk-browser/exactPagesBounds.ts",
         "packages/sdk-browser/explorerCamera.test.ts",
         "packages/sdk-browser/explorerCamera.ts",
@@ -1668,17 +1704,6 @@
       "bindingIdentity": "\"packages/sdk-core/mathBatchTransforms\".decomposeMatrix4Batch"
     },
     {
-      "name": "DEFAULT_BACKENDS",
-      "kind": "value",
-      "definingModule": "packages/sdk-browser/defaultBackends.ts",
-      "currentEntryPoints": ["web-geometry (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/defaultBackends\".DEFAULT_BACKENDS"
-    },
-    {
       "name": "DEFAULT_SCOPE",
       "kind": "value",
       "definingModule": "packages/sdk-core/contractsBase.ts",
@@ -1945,11 +1970,14 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/autonomousGeometry.ts",
         "packages/sdk-browser/bench/oracles/collecte-pages.ts",
         "packages/sdk-browser/cacheFormat.test.ts",
         "packages/sdk-browser/clusterBatches.ts",
         "packages/sdk-browser/clusterPages.ts",
-        "packages/sdk-browser/explorer.ts",
+        "packages/sdk-browser/defaultBackends.test.ts",
+        "packages/sdk-browser/defaultBackends.ts",
+        "packages/sdk-browser/explorerCapabilityProbe.ts",
         "packages/sdk-browser/explorerDraw.ts",
         "packages/sdk-browser/explorerInteractive.ts",
         "packages/sdk-browser/explorerInteractiveOptions.ts",
@@ -2069,6 +2097,7 @@
       "classification": "public",
       "affectedConsumers": [
         "scripts/mesure/pageExplorateur.ts",
+        "test/appui/defaultBackendCase.ts",
         "test/appui/explorerStartupTargets.ts",
         "test/fixtures/publicBrowser.ts",
         "test/fixtures/publicTypesOnly.ts"
@@ -3314,6 +3343,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/autonomousInstances.test.ts",
         "packages/sdk-browser/autonomousInstances.ts",
         "packages/sdk-browser/autonomousPages.test.ts",
         "packages/sdk-browser/backendTypes.ts",

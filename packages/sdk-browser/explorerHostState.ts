@@ -46,9 +46,12 @@ export function createExplorerHostState(
   const { camera, center } = prepared;
   const baseline =
     backends.find((backend) => backend.id === 'three-webgl-reference') ?? backends[0];
+  // The engine's own paths render; a Three witness only becomes active in a session that holds
+  // nothing else, which is a host that asked for one (`chooseBackends`).
   const optimized =
-    backends.find((backend) => backend.id === 'exact-cluster-pages') ??
     backends.find((backend) => backend.id === 'webgpu-page-raster') ??
+    backends.find((backend) => backend.id === 'autonomous-pages-webgl') ??
+    backends.find((backend) => backend.id === 'exact-cluster-pages') ??
     baseline;
   const state: ExplorerHostState = {
     fallbackReason: null,
