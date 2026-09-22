@@ -109,13 +109,31 @@ export async function loadPreparedScene(
   for (const [object, reference] of gltf.parser.associations as Map<object, { textures?: number }>)
     if (object instanceof THREE.Texture && typeof reference?.textures === 'number')
       textureIndices.set(object, reference.textures);
+  // The source each image record names, which is what the loader keys its texture cache on: a
+  // document may name one file from several records, and the check has to read the two ranks
+  // that folded into one object as the loader read them. The kind is part of the key, so no
+  // address can read as a buffer view.
+  const images = (gltf.parser.json as { images?: { uri?: string; bufferView?: number }[] }).images;
+  const imageSources = (images ?? []).map((image) =>
+    image.uri !== undefined
+      ? `uri:${image.uri}`
+      : typeof image.bufferView === 'number'
+        ? `view:${image.bufferView}`
+        : null,
+  );
   // What the cache says this scene is, checked against the scene just built — before any
   // replication, which is the host's own copy of it. This batch draws nothing from the tables:
   // it proves them, and a divergence refuses the session by name rather than passing silently.
   const readAt = performance.now();
   const { tables, bytes } = await loadPreparedSceneTables(base, signal);
   const checkAt = performance.now();
-  const agreement = checkPreparedScene({ tables, source, associations, textureIndices });
+  const agreement = checkPreparedScene({
+    tables,
+    source,
+    associations,
+    textureIndices,
+    imageSources,
+  });
   diagnose('prepared-scene', 'Cache tables checked against the loaded scene', {
     kind: 'preparation',
     scope,
