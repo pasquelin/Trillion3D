@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary } from './hostResources.ts';
 import { hashId } from './backendCommon.ts';
 import { materialSide } from './materialSide.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
@@ -50,7 +51,8 @@ function colorTriangles(geometry: THREE.BufferGeometry, salt: number) {
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 }
 
-export function createTriangleDiagnosticMaterial(side: THREE.Side, _salt = 0) {
+export function createTriangleDiagnosticMaterial(hostSide: number, _salt = 0) {
+  const side = asHostLibrary<THREE.Side>(hostSide);
   return new THREE.MeshBasicMaterial({ vertexColors: true, side, toneMapped: false, fog: false });
 }
 
