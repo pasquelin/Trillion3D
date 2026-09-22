@@ -1,6 +1,6 @@
 import { BOX_VALUES } from '../sdk-core/index.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
-import type { BlendHostScene } from './hostBlendScene.ts';
+import type { BlendHostScene } from './blendSceneRecord.ts';
 import { refreshBlendBounds } from './webgpuBlendWorlds.ts';
 import {
   FLAG_BACK,

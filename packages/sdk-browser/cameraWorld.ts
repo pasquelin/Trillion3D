@@ -120,17 +120,25 @@ export function enginePose(cam: EngineCamera) {
 }
 
 /**
- * Copies `camera` into `into`, a parentless HOST camera that keeps its world pose bit for
- * bit: its local matrix is the source world matrix and is no longer recomposed from a local
- * position. A view rendered aside — second capture view — thus describes the view actually
- * drawn, even when the source is the child of a rig; for a parentless camera, nothing changes.
- * The source must be current, ancestors included.
+ * A SECOND VIEW, detached from the host camera it starts from.
+ *
+ * A capture renders aside, at its own aspect ratio, from the view the frame is drawn from. What
+ * `readCameraWorld` reads of a camera is exactly this: the resolved world matrix and the declared
+ * optics. So the second view is those numbers and nothing else — a record the engine owns, with
+ * the world pose already resolved and no parent left to resolve it against. It describes the
+ * view actually drawn even when the source is the child of a rig, and building it needs no
+ * object of the host's rendering library.
  */
-export function holdHostCamera(into: HostCamera, camera: HostCamera): HostCamera {
-  into.copy(camera, false);
-  into.matrixAutoUpdate = false;
-  into.matrix.copy(camera.matrixWorld);
-  into.matrixWorld.copy(into.matrix);
-  into.matrixWorldInverse.copy(into.matrixWorld).invert();
-  return into;
+export function detachedHostView(camera: HostCamera, aspect: number): HostCamera {
+  resolveCameraWorld(camera);
+  const elements = [...camera.matrixWorld.elements];
+  return {
+    fov: camera.fov,
+    near: camera.near,
+    far: camera.far,
+    zoom: camera.zoom,
+    aspect,
+    matrixWorld: { elements },
+    updateWorldMatrix: () => {},
+  } as unknown as HostCamera;
 }

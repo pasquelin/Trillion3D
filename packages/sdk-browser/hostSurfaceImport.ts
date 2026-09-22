@@ -1,36 +1,48 @@
 /**
- * The one boundary that reads a host material and a host texture, and the only file of the engine
- * path that still names the host rendering library for a surface.
+ * The one boundary that reads a host material and a host texture.
  *
  * What comes out is the engine's own records — `Texture` of `sdk-core/textureContract.ts` and the
  * `VisMaterial` of `visibilityTypes.ts`, colours, factors, addressing and filtering in the engine's
  * words. Everything downstream — the page row, the tile pools, the transparent items, the software
  * raster — computes on those and never reaches back to the host object.
  *
+ * Nothing here names a rendering library: a host material and a host texture are read through the
+ * shapes of `hostShadedMaterial.ts`, and the state they declare through the named constants of
+ * `hostSurfaceConstants.ts`.
+ *
  * A texture keeps ONE record for the session: atlas layers, preview ranks and lane pools address a
  * texture by the identity of its record, so a re-import refills the fields of the held record
  * instead of returning a second one.
  */
 
-import * as THREE from 'three';
-import type { HostMaterials, HostTexture } from './hostResources.ts';
+import type { HostColour, HostMaterials, HostTexture } from './hostResources.ts';
+import { isHostColour, type HostShadedMaterial } from './hostShadedMaterial.ts';
+import {
+  HOST_FILTER_LINEAR_MIP_LINEAR,
+  HOST_FILTER_LINEAR_MIP_NEAREST,
+  HOST_FILTER_NEAREST,
+  HOST_FILTER_NEAREST_MIP_LINEAR,
+  HOST_FILTER_NEAREST_MIP_NEAREST,
+  HOST_WRAP_CLAMP_TO_EDGE,
+  HOST_WRAP_MIRRORED_REPEAT,
+} from './hostSurfaceConstants.ts';
 import type { Texture, TextureFilter, WrapMode } from '../sdk-core/index.ts';
 import { sideOf } from './materialSide.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /** Addressing the host declared, in the engine's words; anything else repeats, as the samplers do. */
 export function importWrapMode(wrap: number): WrapMode {
-  if (wrap === THREE.ClampToEdgeWrapping) return 'clamp';
-  return wrap === THREE.MirroredRepeatWrapping ? 'mirror' : 'repeat';
+  if (wrap === HOST_WRAP_CLAMP_TO_EDGE) return 'clamp';
+  return wrap === HOST_WRAP_MIRRORED_REPEAT ? 'mirror' : 'repeat';
 }
 
 /** Filtering the host declared; an unknown constant reads linear, as the binders already did. */
 function filterOf(filter: number): TextureFilter {
-  if (filter === THREE.NearestFilter) return 'nearest';
-  if (filter === THREE.NearestMipmapNearestFilter) return 'nearest-mip-nearest';
-  if (filter === THREE.NearestMipmapLinearFilter) return 'nearest-mip-linear';
-  if (filter === THREE.LinearMipmapNearestFilter) return 'linear-mip-nearest';
-  return filter === THREE.LinearMipmapLinearFilter ? 'linear-mip-linear' : 'linear';
+  if (filter === HOST_FILTER_NEAREST) return 'nearest';
+  if (filter === HOST_FILTER_NEAREST_MIP_NEAREST) return 'nearest-mip-nearest';
+  if (filter === HOST_FILTER_NEAREST_MIP_LINEAR) return 'nearest-mip-linear';
+  if (filter === HOST_FILTER_LINEAR_MIP_NEAREST) return 'linear-mip-nearest';
+  return filter === HOST_FILTER_LINEAR_MIP_LINEAR ? 'linear-mip-linear' : 'linear';
 }
 
 type Editable = { -readonly [K in keyof Texture]: Texture[K] };
@@ -73,56 +85,51 @@ export function importTextureIndices(indices?: ReadonlyMap<HostTexture, number>)
   return ranks;
 }
 
+/** White is what a material with no declared colour is drawn with, as the host does. */
+const WHITE: HostColour = { r: 1, g: 1, b: 1 };
+
 /** Surface parameters of a host material, read in one place — here — into the engine's own
  *  record. Nothing is cached: every call re-reads the host declaration, so a reassigned material
  *  or a replaced map is seen as it stands. */
 export function importHostSurface(material: HostMaterials): VisMaterial | undefined {
-  const first = Array.isArray(material) ? material[0] : material;
+  const first = (Array.isArray(material) ? material[0] : material) as
+    HostShadedMaterial | undefined;
   if (!first) return undefined;
-  const color =
-    'color' in first && first.color instanceof THREE.Color ? first.color : new THREE.Color(1, 1, 1);
-  const std = first as THREE.MeshStandardMaterial;
-  const phys = first as THREE.MeshPhysicalMaterial;
-  const lit = !!std.isMeshStandardMaterial,
-    side = sideOf(first);
+  const color = isHostColour(first.color) ? first.color : WHITE;
+  const lit = !!first.isMeshStandardMaterial,
+    physical = !!first.isMeshPhysicalMaterial,
+    side = sideOf(first),
+    emissive = lit && isHostColour(first.emissive) ? first.emissive : undefined,
+    glow = emissive ? (first.emissiveIntensity ?? 1) : 0,
+    normalScale = (lit && first.normalScale) || undefined;
   return {
     baseColor: [color.r, color.g, color.b],
-    metalness: lit ? std.metalness : 0,
-    roughness: lit ? std.roughness : 1,
+    metalness: lit ? (first.metalness ?? 0) : 0,
+    roughness: lit ? (first.roughness ?? 1) : 1,
     lit,
     doubleSided: side === 'double',
     backSide: side === 'back',
-    alphaTest: 'alphaTest' in first && typeof first.alphaTest === 'number' ? first.alphaTest : 0,
-    map: 'map' in first ? map(first.map) : undefined,
-    metalnessMap: lit ? map(std.metalnessMap) : undefined,
-    roughnessMap: lit ? map(std.roughnessMap) : undefined,
-    normalMap: lit ? map(std.normalMap) : undefined,
-    normalScale: lit && std.normalScale ? std.normalScale.x : 1,
-    normalScaleY: lit && std.normalScale ? std.normalScale.y : 1,
-    aoMap: lit ? map(std.aoMap) : undefined,
-    aoIntensity: lit ? std.aoMapIntensity : 1,
-    emissive: lit
-      ? [
-          std.emissive.r * std.emissiveIntensity,
-          std.emissive.g * std.emissiveIntensity,
-          std.emissive.b * std.emissiveIntensity,
-        ]
-      : [0, 0, 0],
-    emissiveMap: lit ? map(std.emissiveMap) : undefined,
-    transmission:
-      phys.isMeshPhysicalMaterial && typeof phys.transmission === 'number' ? phys.transmission : 0,
-    ior: phys.isMeshPhysicalMaterial && typeof phys.ior === 'number' ? phys.ior : 1.5,
-    thickness:
-      phys.isMeshPhysicalMaterial && typeof phys.thickness === 'number' ? phys.thickness : 0,
-    // Three yields `Infinity` when the glTF does not declare a distance; zero says “no attenuation”
-    // without shipping an infinity as far as a uniform.
+    alphaTest: typeof first.alphaTest === 'number' ? first.alphaTest : 0,
+    map: map(first.map),
+    metalnessMap: lit ? map(first.metalnessMap) : undefined,
+    roughnessMap: lit ? map(first.roughnessMap) : undefined,
+    normalMap: lit ? map(first.normalMap) : undefined,
+    normalScale: normalScale ? normalScale.x : 1,
+    normalScaleY: normalScale ? normalScale.y : 1,
+    aoMap: lit ? map(first.aoMap) : undefined,
+    aoIntensity: lit ? (first.aoMapIntensity ?? 1) : 1,
+    emissive: emissive ? [emissive.r * glow, emissive.g * glow, emissive.b * glow] : [0, 0, 0],
+    emissiveMap: lit ? map(first.emissiveMap) : undefined,
+    transmission: physical && typeof first.transmission === 'number' ? first.transmission : 0,
+    ior: physical && typeof first.ior === 'number' ? first.ior : 1.5,
+    thickness: physical && typeof first.thickness === 'number' ? first.thickness : 0,
+    // A host yields `Infinity` when the glTF declares no attenuation distance; zero says “no
+    // attenuation” without shipping an infinity as far as a uniform.
     attenuationDistance:
-      phys.isMeshPhysicalMaterial && Number.isFinite(phys.attenuationDistance)
-        ? phys.attenuationDistance
-        : 0,
+      physical && Number.isFinite(first.attenuationDistance) ? first.attenuationDistance! : 0,
     attenuationColor:
-      phys.isMeshPhysicalMaterial && phys.attenuationColor
-        ? [phys.attenuationColor.r, phys.attenuationColor.g, phys.attenuationColor.b]
+      physical && isHostColour(first.attenuationColor)
+        ? [first.attenuationColor.r, first.attenuationColor.g, first.attenuationColor.b]
         : [1, 1, 1],
   };
 }

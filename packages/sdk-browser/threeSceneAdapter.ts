@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { HostDrawOutput } from './backendTypes.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
-import { clusterColor } from './backendCommon.ts';
+import { clusterColor } from './hostSceneObjects.ts';
 import {
   asHostLibrary,
   type HostDiagnosticFactory,

@@ -1,6 +1,6 @@
 import type { EngineCamera } from './cameraWorld.ts';
 import { asHostLibrary } from './hostResources.ts';
-import { clusterColor } from './backendCommon.ts';
+import { clusterColor } from './hostSceneObjects.ts';
 import { hashId, screenErrorColor } from './diagnosticColors.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { triangleGeometry } from './triangleDiagnostic.ts';
