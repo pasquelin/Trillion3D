@@ -1,3 +1,6 @@
+import { LTC_SIZE, ltcTable } from '../sdk-core/ltcTable.ts';
+import { LTC_UNIT, WEBGL_RECT_KIND } from './webglClusterRectGlsl.ts';
+
 type MatrixNode = {
   visible: boolean;
   parent: MatrixNode | null;
@@ -9,6 +12,10 @@ type ClusterLight = MatrixNode & {
   isDirectionalLight?: boolean;
   isPointLight?: boolean;
   isSpotLight?: boolean;
+  isRectAreaLight?: boolean;
+  /** A rectangle's size along its local x and y. */
+  width?: number;
+  height?: number;
   type: string;
   color: { r: number; g: number; b: number };
   intensity: number;
@@ -43,7 +50,8 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
       !light.isAmbientLight &&
       !light.isDirectionalLight &&
       !light.isPointLight &&
-      !light.isSpotLight
+      !light.isSpotLight &&
+      !light.isRectAreaLight
     )
       reason = `${light.type} is unsupported`;
     else if ((light.isPointLight || light.isSpotLight) && light.decay !== 2)
@@ -54,9 +62,46 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
   );
 };
 
+/** The fitted lobe of the rectangles (`ltcTable.ts`) as a float texture read by `texelFetch`:
+ *  two texels a cell, no filtering asked of the device. */
+function createLtcTexture(gl: WebGL2RenderingContext) {
+  const texture = gl.createTexture()!;
+  gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA32F,
+    LTC_SIZE * 2,
+    LTC_SIZE,
+    0,
+    gl.RGBA,
+    gl.FLOAT,
+    ltcTable(),
+  );
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  return texture;
+}
+
+/** A vector of the light's world matrix, its column `at`, unit and carried into view space. */
+function viewAxis(view: ArrayLike<number>, m: ArrayLike<number>, at: number, scale: number) {
+  const x = m[at],
+    y = m[at + 1],
+    z = m[at + 2],
+    s = scale / (Math.hypot(x, y, z) || 1);
+  return [
+    (view[0] * x + view[4] * y + view[8] * z) * s,
+    (view[1] * x + view[5] * y + view[9] * z) * s,
+    (view[2] * x + view[6] * y + view[10] * z) * s,
+  ];
+}
+
 export class WebglClusterLights {
   private data = new Float32Array(4 * 4 * 64);
   private buffer: WebGLBuffer;
+  private ltc: WebGLTexture;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
@@ -64,6 +109,7 @@ export class WebglClusterLights {
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.buffer);
     gl.bufferData(gl.UNIFORM_BUFFER, this.data.byteLength, gl.DYNAMIC_DRAW);
     gl.uniformBlockBinding(program, gl.getUniformBlockIndex(program, 'ClusterLights'), 0);
+    this.ltc = createLtcTexture(gl);
   }
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;
@@ -85,6 +131,9 @@ export class WebglClusterLights {
       if (light.isDirectionalLight) kind = 0;
       else if (light.isPointLight) {
         kind = 1;
+        range = light.distance ?? 0;
+      } else if (light.isRectAreaLight) {
+        kind = WEBGL_RECT_KIND;
         range = light.distance ?? 0;
       } else if (light.isSpotLight) {
         kind = 2;
@@ -113,11 +162,20 @@ export class WebglClusterLights {
       pz = vz;
       const base = count++ * 16;
       data.set([px, py, pz, range], base);
-      data.set([vdx, vdy, vdz, kind], base + 4);
       data.set([light.color.r, light.color.g, light.color.b, light.intensity], base + 8);
+      if (kind === WEBGL_RECT_KIND) {
+        // It emits down its local -z; its width runs along its local x.
+        data.set([...viewAxis(view, matrix, 8, -1), kind], base + 4);
+        data.set([...viewAxis(view, matrix, 0, light.width! / 2), light.height! / 2], base + 12);
+        return;
+      }
+      data.set([vdx, vdy, vdz, kind], base + 4);
       data.set([inner, outer, 0, 0], base + 12);
     });
     const gl = this.gl;
+    // The host's texture units are unknown at frame start: the lobe is bound again every frame.
+    gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
+    gl.bindTexture(gl.TEXTURE_2D, this.ltc);
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.buffer);
     if (count > 0) gl.bufferSubData(gl.UNIFORM_BUFFER, 0, data, 0, count * 16);
     gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, this.buffer);
@@ -125,5 +183,6 @@ export class WebglClusterLights {
   }
   dispose() {
     this.gl.deleteBuffer(this.buffer);
+    this.gl.deleteTexture(this.ltc);
   }
 }

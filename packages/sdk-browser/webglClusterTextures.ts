@@ -1,4 +1,5 @@
 import type { Texture, TextureFilter, WrapMode } from '../sdk-core/index.ts';
+import { textureRgba } from './visibilityTypes.ts';
 
 type TextureRecord = { texture: WebGLTexture; version: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
@@ -65,17 +66,25 @@ export class WebglClusterTextures {
       gl.bindTexture(gl.TEXTURE_2D, target);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, texture.flipY);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultiplyAlpha);
-      const image = texture.image as TexImageSource | undefined;
-      if (!image)
-        throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        color ? gl.SRGB8_ALPHA8 : gl.RGBA8,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        image,
-      );
+      // Texels held in memory (`texture.data`) upload through the byte overload, read as the
+      // WebGPU path reads them (`textureRgba`); anything else is an image the browser decodes.
+      const format = color ? gl.SRGB8_ALPHA8 : gl.RGBA8,
+        rgba = textureRgba(texture),
+        image = texture.image as TexImageSource | undefined;
+      if (rgba)
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          format,
+          rgba.width,
+          rgba.height,
+          0,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          rgba.data,
+        );
+      else if (image) gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image);
+      else throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap(gl, texture.wrapS));
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap(gl, texture.wrapT));
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter(gl, texture.magFilter));

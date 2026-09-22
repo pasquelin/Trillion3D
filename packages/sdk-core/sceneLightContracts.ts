@@ -22,7 +22,7 @@ export interface SceneLight {
   direction?: [number, number, number];
   color: [number, number, number];
   intensity: number;
-  /** Point and spot only: the range in metres, where energy vanishes exactly. */
+  /** Point, spot and rect: the range in metres, where energy vanishes exactly. */
   range?: number;
   coneAngle?: number;
   /** Spot only: the share of the cone, from its edge inward, over which the light fades in

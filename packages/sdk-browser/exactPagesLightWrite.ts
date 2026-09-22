@@ -85,8 +85,9 @@ export function writeLight(light: THREE.Light, source: SceneLight) {
 /**
  * A rectangle: its centre, its face turned along the contract's normal — the host's area light
  * emits down its own −z — with its width along the contract's `right`, its two sides, and its
- * radiance, which is the host's area-light intensity. No range: the host's area light has none,
- * where the WebGPU path windows the energy at the range (`directRectLightWgsl.ts`).
+ * radiance, which is the host's area-light intensity. The host's area light has no range; the
+ * contract's is carried beside it as `distance`, read by the cluster program alone
+ * (`webglClusterLights.ts`), which windows the energy at it as the WebGPU path does.
  */
 function writeRect(light: THREE.RectAreaLight, source: SceneLight) {
   const [x, y, z] = source.position!,
@@ -98,4 +99,5 @@ function writeRect(light: THREE.RectAreaLight, source: SceneLight) {
   const up = new THREE.Vector3().crossVectors(back, across);
   light.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(across, up, back));
   [light.width, light.height] = source.size!;
+  Object.assign(light, { distance: source.range });
 }
