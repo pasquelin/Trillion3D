@@ -109,12 +109,67 @@ export type HostMesh = { readonly name: string };
 /** A node of the host scene graph, held by identity and by the two fields a walk needs. */
 export type HostNode = { readonly name: string; readonly visible: boolean };
 
+/** A host object placed in a display graph: the pose the engine writes on it, the world matrix
+ *  the host resolves for it, and the chain a visibility walk climbs. */
+export type HostPlaced = {
+  visible: boolean;
+  position: { x: number; y: number; z: number };
+  quaternion: { x: number; y: number; z: number; w: number };
+  scale: { x: number; y: number; z: number };
+  readonly matrixWorld: { readonly elements: ArrayLike<number> };
+  readonly parent: HostPlaced | null;
+  updateWorldMatrix(ancestors: boolean, descendants: boolean): void;
+};
+
+/** A host node the engine walks: the subtree under it, itself first, in the host's own order. */
+export type HostTraversable = HostNode & { traverse(visit: (node: HostNode) => void): void };
+
+/** A host colour: three linear components, read one by one and written the same way. The engine
+ *  never converts here — a colour crosses as the host holds it. */
+export type HostColour = { r: number; g: number; b: number };
+
 /** The host display graph an engine draws into: what it holds, how it is walked, and the clear
  *  colour the composition reads. Building and drawing it belongs to the host boundaries. */
-export type HostScene = HostNode & {
+export type HostScene = HostTraversable & {
   readonly background: unknown;
   readonly children: readonly HostNode[];
-  traverse(visit: (node: HostNode) => void): void;
+};
+
+/**
+ * WHAT A DIAGNOSTIC VIEW TOUCHES ON THE HOST GRAPH. A diagnostic is not a beauty pass, but the
+ * graph it repaints belongs to the host: it swaps a surface and a geometry on a mesh, keeps the
+ * beauty pair beside it, and frees what it made. It reads nothing else, and builds nothing — the
+ * host objects it hangs arrive through `HostDiagnosticFactory`, handed in by the boundary that
+ * owns the graph, never through an import: no view file names a rendering library.
+ */
+export type HostDiagnosticMaterial = HostMaterial & {
+  clone(): HostDiagnosticMaterial;
+  dispose(): void;
+};
+export type HostDiagnosticGeometry = HostGeometry & { dispose(): void };
+export type HostDiagnosticMesh = {
+  readonly isMesh?: boolean;
+  /** Identity the host numbered the mesh with: the colour seed of a mesh with no cluster. */
+  readonly id: number;
+  material: HostDiagnosticMaterial | HostDiagnosticMaterial[];
+  geometry: HostDiagnosticGeometry;
+  userData: Record<string, unknown>;
+};
+
+/**
+ * The host objects a diagnostic view swaps in, made by the boundary that owns the display graph
+ * and injected into the views, the way a light placement receives the node its copy aims at.
+ * Nothing is decided here: the salt, the per-triangle colours and the side all arrive computed.
+ */
+export type HostDiagnosticFactory = {
+  /** Copy of a host geometry with every triangle on its own three vertices. */
+  triangleGeometry(source: HostDiagnosticGeometry): HostDiagnosticGeometry;
+  /** Writes the per-vertex colours the engine computed onto a host geometry. */
+  vertexColors(geometry: HostDiagnosticGeometry, colors: Float32Array): void;
+  /** Unshaded surface showing those vertex colours as they are. */
+  triangleMaterial(side: number): HostDiagnosticMaterial;
+  /** Unshaded surface of one cluster's colour, the hue the core computed from its identifier. */
+  clusterMaterial(id: string, side: number): HostDiagnosticMaterial;
 };
 
 /**

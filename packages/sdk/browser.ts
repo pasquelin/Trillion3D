@@ -52,6 +52,9 @@ export type { GpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
 export type {
   HostAttribute,
   HostAttributes,
+  HostDiagnosticFactory,
+  HostDiagnosticGeometry,
+  HostDiagnosticMaterial,
   HostGeometry,
   HostMaterial,
   HostMaterials,
@@ -60,6 +63,7 @@ export type {
   HostPoint,
   HostScene,
   HostTexture,
+  HostTraversable,
 } from '../sdk-browser/hostResources.ts';
 export { enginePose, readCameraWorld } from '../sdk-browser/cameraWorld.ts';
 export type { HostDrawCamera, HostCamera } from '../sdk-browser/cameraWorld.ts';
