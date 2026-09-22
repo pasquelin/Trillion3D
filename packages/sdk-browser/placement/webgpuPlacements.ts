@@ -1,7 +1,7 @@
 import { invalidateOccluderHistory } from '../webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from '../webgpuPagesRuntime.ts';
 import { followPlacementRows } from './placementUpdate.ts';
-import type { PlacementRows } from './placementRows.ts';
+import { placedBy, type PlacementRows } from './placementRows.ts';
 
 /**
  * Rows of an instance buffer the WebGPU page raster was opened with were written. The roots read
@@ -21,12 +21,15 @@ export function updateWebgpuPlacements(
   const touched = followPlacementRows(layout.selectionRoots, rows, from, to, (rank, parked) =>
     run.gpuSelection?.parkWorld(rank, parked),
   );
-  if (!touched) return;
-  layout.rows.tableEpoch++;
+  // Blend items posed by these rows read them in place: the frame only has to be drawn again,
+  // and their boxes follow at its world refresh (`refreshBlendWorlds`).
+  if (!touched && !placedBy(rt.blendState.blendGpu, rows)) return;
   // Poses moved and rows were parked or taken: no node entered or left the source graph, so
   // the watched set stands (`frameGateCore.ts`), and the host index already holds its worlds.
   run.gate.sceneMoved();
   run.gate.noteWorldsUpdated();
+  if (!touched) return;
+  layout.rows.tableEpoch++;
   invalidateOccluderHistory(run);
   lights.plan.worldChanged(touched.min, touched.max);
 }

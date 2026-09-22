@@ -23,7 +23,7 @@ import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
-/** Creates forward transparent GPU items while preserving source mesh order and materials. */
+/** Creates forward transparent GPU items, one per copy — per placement —, in source mesh order. */
 export function prepareWebgpuBlend(
   device: GPUDevice,
   blendCopies: readonly BlendCopy[],
@@ -86,6 +86,7 @@ export function prepareWebgpuBlend(
       surface: mat,
       count: paged ? 0 : idx.count,
       matrix: copy.matrix,
+      placement: copy.placement,
       sourceMesh: copy.userData.sourceMesh,
       sourceGeometry: copy.geometry,
       worldBox,
@@ -107,7 +108,7 @@ export function prepareWebgpuBlend(
     };
     refreshBlendBounds(item);
     blendState.blendGpu.push(item);
-    if (paged && item.sourceMesh) blendState.pagedBlendGpu.set(item.sourceMesh, item);
+    if (paged) blendState.pagedBlendGpu.set(item.matrix, item);
     scene.remove(copy);
   }
   return transmissive;

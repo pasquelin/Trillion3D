@@ -9,8 +9,16 @@ import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts'
 import { CULL_STRIDE } from './gpuDagTypes.ts';
 
 const mesh = (name: string) => ({ name }) as unknown as THREE.Mesh;
+// A placement is named by the world its pages and its item read: here, one per mesh.
 const rec = (sourceMesh: THREE.Mesh, id: number, sourceOrder: number, transparent = true) =>
-  ({ id, sourceOrder, transparent, sourceMesh, triangles: 1 }) as unknown as PageRec;
+  ({
+    id,
+    sourceOrder,
+    transparent,
+    sourceMesh,
+    matrix: sourceMesh,
+    triangles: 1,
+  }) as unknown as PageRec;
 
 /** One primitive: its pages, and optionally the culling tree the cut walks them with. */
 function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
@@ -30,7 +38,7 @@ function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
   return { pages, culling: { nodes, stride: CULL_STRIDE } } as unknown as ClusterRoot<PageRec>;
 }
 const item = (sourceMesh: THREE.Mesh | undefined, paged: boolean) =>
-  ({ sourceMesh, paged }) as unknown as BlendGpuItem;
+  ({ sourceMesh, matrix: sourceMesh, paged }) as unknown as BlendGpuItem;
 
 /** A reproducible pseudo-random stream: the sweep below has to be the same on every run. */
 function stream(seed: number) {

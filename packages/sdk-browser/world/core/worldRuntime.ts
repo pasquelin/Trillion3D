@@ -35,10 +35,10 @@ type Inputs = {
 /**
  * The session drawing a world, fed by a per-frame change list. What the scene asks is resolved off
  * the frame into tables — resources, material entries, batches and their rows (`worldContents.ts`)
- * — and applied once before each frame: a mesh added or removed takes or parks a row, a pose writes
- * its row, the session reads the rows in place. It is opened again, on the world's same device and
- * once for a burst of changes, only for what it does not hold: a resource or material entry it
- * never had, rows beyond a buffer's capacity (then doubled), a surface drawn whole, a model.
+ * — and applied once before each frame: a mesh added or removed takes or parks a row, a full buffer
+ * grows in place (`placementGrowth.ts`), a pose writes its row, the session reads the rows in place.
+ * It is opened again, on the world's same device and once for a burst of changes, only for what it
+ * does not hold: a resource or material entry it never had, rows it cannot grow, a model.
  */
 export function createWorldRuntime(inputs: Inputs) {
   const { canvas, scene, camera } = inputs;
@@ -124,13 +124,13 @@ export function createWorldRuntime(inputs: Inputs) {
   };
   /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
+    const session = explorer;
     if (seatWanted) {
       seatWanted = false;
-      contents.seat();
-      if (contents.reopenNeeded() || (!explorer && !reopening)) requestReopen();
+      contents.seat(session?.growsPlacements() ? session.growPlacements : undefined);
+      if (contents.reopenNeeded() || (!session && !reopening)) requestReopen();
     }
-    if (!explorer) return;
-    const session = explorer;
+    if (!session) return;
     if (poses.pending)
       poses.apply(scene, contents.batches.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
