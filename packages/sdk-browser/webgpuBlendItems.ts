@@ -1,4 +1,4 @@
-import type { HostTexture } from './hostResources.ts';
+import type { Texture } from '../sdk-core/index.ts';
 import { visMaterial } from './visibilityBuffer.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
@@ -15,8 +15,8 @@ export const BLEND_ITEM_WORDS = 40;
 
 /** Atlas tables the record cites: each texture's slot, per atlas. */
 export type BlendAtlasTables = {
-  mapLayer: Map<HostTexture, number>;
-  dataLayer: Map<HostTexture, number>;
+  mapLayer: Map<Texture, number>;
+  dataLayer: Map<Texture, number>;
 };
 
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer. */

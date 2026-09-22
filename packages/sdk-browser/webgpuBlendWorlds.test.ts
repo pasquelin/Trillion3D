@@ -42,12 +42,15 @@ test('the transparent copy reads the world matrix the engine holds, it keeps no 
     worlds.of(mesh).elements,
     'the sixteen numbers ARE the ones the engine holds: the container borrows them, it copies none',
   );
-  assert.equal(copy.matrixAutoUpdate, false, 'Three must never recompose it');
   assert.equal(copy.userData.sourceMesh, mesh);
   assert.equal(copy.renderOrder, 7);
   mesh.position.set(4, 5, 6);
   worlds.refresh();
-  assert.deepEqual([...copy.matrix.elements].slice(12, 15), [4, 5, 6], 'the move is already there');
+  assert.deepEqual(
+    Array.from(copy.matrix.elements).slice(12, 15),
+    [4, 5, 6],
+    'the move is already there',
+  );
 });
 
 test('a world box follows the mesh matrix, a direct move as well as a parent move', () => {

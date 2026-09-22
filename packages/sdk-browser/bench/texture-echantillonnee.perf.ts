@@ -1,4 +1,6 @@
 // the bytes of a sampled texture.
+import type { Texture } from '../../sdk-core/index.ts';
+import { importHostTexture } from '../hostSurfaceImport.ts';
 import * as THREE from 'three';
 import { textureRgba } from '../visibilityTypes.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
@@ -35,7 +37,7 @@ interface CasTexture {
 }
 
 const passeTexture =
-  (fn: (t: THREE.Texture) => { data: Uint8Array; width: number; height: number } | null) =>
+  (fn: (t: Texture) => { data: Uint8Array; width: number; height: number } | null) =>
   (input: CasTexture) => {
     const somme = new Float64Array(4);
     let nuls = 0;
@@ -52,7 +54,8 @@ const passeTexture =
       for (const cible of cibles) {
         if (input.remplacer && tour === 1)
           cible.image = { data: contenuApres, width: 8, height: 8 };
-        const rgba = fn(cible);
+        // The engine reads the imported record; the host object is what a bench may still mutate.
+        const rgba = fn(importHostTexture(cible));
         if (!rgba) {
           nuls++;
           continue;
@@ -96,7 +99,7 @@ const resTexture = await mesure({
 
 await stress({
   name: 'textureRgba extremes',
-  calcul: (t: THREE.Texture) => textureRgba(t),
+  calcul: (t: THREE.Texture) => textureRgba(importHostTexture(t)),
   extremes: [
     { name: 'sansImage', input: sansImage },
     { name: 'zero', input: zero },

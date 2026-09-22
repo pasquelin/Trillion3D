@@ -1,6 +1,6 @@
-import type { HostGeometry, HostMaterials, HostMesh, HostTexture } from './hostResources.ts';
+import type { HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
 import type { MatrixElements } from './matrixElements.ts';
-import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../sdk-core/index.ts';
+import { FRUSTUM_PLANE_VALUES, type DiagnosticMode, type Texture } from '../sdk-core/index.ts';
 import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
@@ -31,7 +31,7 @@ export type BlendGpuItem = {
    *  the bounds obtained were not usable (`webgpuBlendWorlds.ts`). */
   worldBox?: Float64Array;
   rgba: [number, number, number, number];
-  map?: HostTexture;
+  map?: Texture;
   /** Material flags (`visibilityTypes.ts`) in the low sixteen bits; above them the one-based water
    *  rank of a transmissive item, zero for a blend (`webgpuWaterSurfaceWgsl.ts`). */
   flags: number;

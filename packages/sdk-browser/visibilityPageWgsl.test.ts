@@ -1,6 +1,7 @@
 // Common-formulas lot: each WGSL fragment factored out of `visibilityPageWgsl.ts` must stay the
 // unique write of its identifier, and each shader that assembles it must carry it only once —
 // two copies in the same text would be two chances of seeing it drift, as before this lot.
+import { importWrapMode } from './hostSurfaceImport.ts';
 import test from 'node:test';
 import { TAA_SHADER } from './taaShaderWgsl.ts';
 import assert from 'node:assert/strict';
@@ -104,8 +105,8 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
         const attendu = regle(t, taille, wrap);
         if (attendu[1] !== attendu[0] + 1 && wrap === THREE.RepeatWrapping) couture++;
         assert.ok(
-          Math.abs(valeur(wrapLinear(t, taille, wrap)) - valeur(attendu)) <= 1e-9,
-          `${taille} texels, t=${t}: rule ${attendu}, read ${wrapLinear(t, taille, wrap)}`,
+          Math.abs(valeur(wrapLinear(t, taille, importWrapMode(wrap))) - valeur(attendu)) <= 1e-9,
+          `${taille} texels, t=${t}: rule ${attendu}, read ${wrapLinear(t, taille, importWrapMode(wrap))}`,
         );
       }
   assert.ok(couture > 100, `the series must exercise the seam, only ${couture} cases`);
