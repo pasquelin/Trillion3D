@@ -82,7 +82,6 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
         pageIndex,
         row,
         rows.residentOffsetWords[pageIndex],
-        rec.array!,
         rows.pageTableFloats!,
         rows.pageTableInts!,
       );

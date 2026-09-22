@@ -2,6 +2,7 @@ import { invertMatrix4 } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { checkSurfaceSize, createSurfaceBuffer, type SurfaceCapture } from './surfaceBuffer.ts';
 import { collectPendingUrls } from './pageSelection.ts';
+import { awaitedPages } from './webgpuPageSlots.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
 import { holdHostCamera, resolveCameraWorld, type HostCamera } from './cameraWorld.ts';
@@ -137,7 +138,7 @@ export async function captureSurfaceView(
     renderForCapture(rt, view);
     await drawResidentCut(rt, gpuDevice, {
       admitted: () => {
-        const missing = collectPendingUrls(run.desired, []);
+        const missing = collectPendingUrls(awaitedPages(run.desired, run.awaitedScratch), []);
         if (missing.length) throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`);
         if (run.coverageBudgetLimited) throw new Error('SURFACE_PAGE_BUDGET');
       },

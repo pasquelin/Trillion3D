@@ -27,15 +27,7 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageRec[], write
     rows.rowEpoch[row] = rows.tableEpoch;
     rows.rowOfPage[page] = row;
     state.changed = true;
-    writePageRow(
-      rec,
-      page,
-      row,
-      offsetWords,
-      rec.array!,
-      rows.pageTableFloats!,
-      rows.pageTableInts!,
-    );
+    writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, rows.pageTableInts!);
   };
 
   /** Moves row `from` to rank `to`: the row's words, then the two that ARE the rank. */

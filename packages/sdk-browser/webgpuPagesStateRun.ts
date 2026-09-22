@@ -81,6 +81,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   culledScratch: PageRec[];
   readyScratch: PageRec[];
   pendingScratch: string[];
+  /** Records whose bytes are still awaited, refilled before each pending-address walk. */
+  awaitedScratch: PageRec[];
   /** Array of the list returned to the host, for it alone: render tracking writes into the other, and
    *  a list held from one image to the next would not survive that sharing. */
   hostPendingScratch: string[];
@@ -173,6 +175,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     culledScratch: [],
     readyScratch: [],
     pendingScratch: [],
+    awaitedScratch: [],
     hostPendingScratch: [],
     urlScratch: [],
     cutHeld: false,
