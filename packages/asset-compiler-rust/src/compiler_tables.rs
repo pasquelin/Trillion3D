@@ -46,7 +46,9 @@ fn world_bounds(g: &Value, primitive: &Value, m: &Mat4) -> Result<Value> {
             .get(name)
             .and_then(Value::as_array)
             .filter(|values| values.len() >= 3)
-            .map(|values| [0, 1, 2].map(|axis| materials::number(values.get(axis), f64::NAN)))
+            .map(|values| {
+                [0, 1, 2].map(|axis| values.get(axis).and_then(Value::as_f64).unwrap_or(f64::NAN))
+            })
     };
     let (Some(low), Some(high)) = (corner("min"), corner("max")) else {
         return Ok(Value::Null);
@@ -58,8 +60,8 @@ fn world_bounds(g: &Value, primitive: &Value, m: &Mat4) -> Result<Value> {
             _ => high[axis],
         });
         for axis in 0..3 {
-            let value = m[axis] * local[0] + m[4 + axis] * local[1] + m[8 + axis] * local[2]
-                + m[12 + axis];
+            let value =
+                m[axis] * local[0] + m[4 + axis] * local[1] + m[8 + axis] * local[2] + m[12 + axis];
             min[axis] = min[axis].min(value);
             max[axis] = max[axis].max(value);
         }

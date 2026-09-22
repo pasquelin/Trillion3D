@@ -44,7 +44,13 @@ export async function loadPreparedSceneTables(base: string, signal?: AbortSignal
 
 /** Entries of one primitive, which copies are already matched, and a pose index over them: an
  *  instanced primitive is thousands of entries, and the check is not allowed to be quadratic. */
-type Group = { material: number; poses: TableNode[]; taken: boolean[]; left: number };
+type Group = {
+  material: number;
+  poses: TableNode[];
+  taken: boolean[];
+  left: number;
+  at: Map<string, number[]>;
+};
 const keyOf = (mesh: number, primitive: number) => `${mesh}/${primitive}`;
 /** Pose as a key: sixteen numbers at the same tick. Two matrices composed on either side of the
  *  cache agree to the last digit or they do not agree at all, so a tick decides the bucket and
@@ -57,27 +63,27 @@ const poseKey = (matrix: ArrayLike<number>) => {
 
 function groupsOf(tables: PreparedSceneTables) {
   const groups = new Map<string, Group>();
-  const index = new Map<string, number[]>();
   for (const entry of tables.nodes) {
     const key = keyOf(entry.mesh, entry.primitive);
-    const group = groups.get(key);
-    if (!group) groups.set(key, { material: entry.material, poses: [entry], taken: [], left: 1 });
-    else if (group.material !== entry.material)
+    let group = groups.get(key);
+    if (!group) {
+      group = { material: entry.material, poses: [], taken: [], left: 0, at: new Map() };
+      groups.set(key, group);
+    } else if (group.material !== entry.material)
       refuse(`primitive ${key} is drawn with two materials in the node table`, { key });
-    else {
-      group.poses.push(entry);
-      group.left++;
-    }
-    const at = `${key}|${poseKey(entry.matrix)}`;
-    const ranks = index.get(at) ?? [];
-    if (!ranks.length) index.set(at, ranks);
-    ranks.push((groups.get(key) as Group).poses.length - 1);
+    group.poses.push(entry);
+    group.left++;
+    const at = poseKey(entry.matrix);
+    const ranks = group.at.get(at) ?? [];
+    if (!ranks.length) group.at.set(at, ranks);
+    ranks.push(group.poses.length - 1);
   }
-  return { groups, index };
+  return groups;
 }
 /** Takes the table entry whose pose is the one given, or refuses. Copies of one primitive differ
  *  only by their pose, so consuming the one placed there is consuming the right one. */
-function takePose(group: Group, matrix: Float64Array, key: string, candidates: number[]) {
+function takePose(group: Group, matrix: Float64Array, key: string) {
+  const candidates = group.at.get(poseKey(matrix)) ?? [];
   let best = -1;
   let closest = Number.POSITIVE_INFINITY;
   // The bucket answers in one step; a pose that rounded to the neighbouring tick on one side of
@@ -117,9 +123,11 @@ type Inputs = {
  * the first divergence: a scene the cache describes wrongly is not opened half way.
  */
 export function checkPreparedScene({ tables, source, associations, textureIndices }: Inputs) {
-  const { groups, index } = groupsOf(tables);
+  const groups = groupsOf(tables);
   const ranks: ReadonlyMap<Texture, number> = importTextureIndices(textureIndices) ?? new Map();
-  const checkedMaterials = new Set<number>();
+  // One surface is compared once per rank and per tangent state — everything else about it is a
+  // property of the rank, and a scene of ten thousand meshes wears a handful of surfaces.
+  const checkedMaterials = new Set<string>();
   let nodes = 0;
   for (const mesh of objects(source)) {
     const reference = associations.get(mesh);
@@ -132,10 +140,12 @@ export function checkPreparedScene({ tables, source, associations, textureIndice
     if (!group || !group.left)
       refuse(`the node table declares no copy left of primitive ${key}`, { key, name: mesh.name });
     hostWorldChainInto(pose, mesh);
-    const entry = takePose(group, pose, key, index.get(`${key}|${poseKey(pose)}`) ?? []);
+    const entry = takePose(group, pose, key);
     nodes++;
-    if (checkedMaterials.has(entry.material)) continue;
-    checkedMaterials.add(entry.material);
+    const derivative = mesh.geometry.attributes.tangent === undefined;
+    const surfaceKey = `${entry.material}:${derivative}`;
+    if (checkedMaterials.has(surfaceKey)) continue;
+    checkedMaterials.add(surfaceKey);
     const surface = importHostSurface(mesh.material);
     if (!surface) refuse(`mesh "${mesh.name}" carries no material to check`, { name: mesh.name });
     const divergence = materialDivergence(
@@ -143,6 +153,7 @@ export function checkPreparedScene({ tables, source, associations, textureIndice
       surface,
       ranks,
       tables.textures,
+      derivative,
     );
     if (divergence)
       refuse(`material ${entry.material} of primitive ${key}: ${divergence}`, {
