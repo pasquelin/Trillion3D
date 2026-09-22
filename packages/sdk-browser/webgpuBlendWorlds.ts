@@ -1,5 +1,5 @@
 import { boxIsEmpty, boxTransform } from '../sdk-core/index.ts';
-import { readThreeBox } from './threeBounds.ts';
+import { readHostBox } from './hostBoxBounds.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /**
@@ -20,7 +20,7 @@ export function refreshBlendBounds(item: BlendGpuItem) {
     item.bounds = undefined;
     return;
   }
-  readThreeBox(box, local);
+  readHostBox(box, local);
   boxTransform(box, 0, box, 0, item.matrix.elements);
   item.bounds = !boxIsEmpty(box, 0) && box.every(Number.isFinite) ? box : undefined;
 }

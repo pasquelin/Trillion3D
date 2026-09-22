@@ -16,10 +16,11 @@
 //     would eliminate the comparison.
 //  2. HOST BOUNDARIES. Scene, camera, renderer, lights belong to the host: something must
 //     create, read, and set them. These files do it once, returning flat buffers or owned structures.
-//  3. HOST RESOURCES. Materials, textures, geometries, meshes, colors, face/winding constants:
-//     objects the engine READS IN ONE PLACE, at the boundary, to build its own records. Since lot 3 of
-//     #78 the passes no longer consult one: surfaces cross as the `Material`/`Texture` records
-//     of `sdk-core`, and only the import and the admission gate below still name the library.
+//  3. HOST RESOURCES — the family is empty. Materials, textures, geometries and the constants
+//     they declare are read through the shapes of `hostResources.ts` and `hostShadedMaterial.ts`
+//     and the named constants of `hostSurfaceConstants.ts`: since this lot the import, the
+//     admission gate and the transparent display graph name no library either, and bundling
+//     `webgpuPages.ts` pulls no module of one.
 //
 // Adding a line is a decision, not an oversight; removing an unused line as well — the
 // second test fails on a dead line. The camera pose contract lives in `cameraWorld.ts`
@@ -30,7 +31,7 @@ export const AUTORISES: Record<string, string> = {
   autonomousGeometry: 'autonomous witness: it mounts its meshes with the host library',
   autonomousInstances: 'autonomous witness: its instances carry host matrices',
   autonomousPages: 'autonomous witness: its pages are host geometries',
-  blendCopyMesh: 'witness: the transparent copy is a host mesh',
+  blendCopyMesh: 'witness: its transparent copy is a host mesh, handed to the host renderer',
   clusterBatchesFixture: 'batch-witness mount',
   exactPagesAttachment: 'exact witness: it attaches its pages to the host graph',
   exactPagesBackend: 'exact witness: engine written with the host library',
@@ -41,13 +42,12 @@ export const AUTORISES: Record<string, string> = {
   exactPagesRender: 'exact witness: the host camera and scene copies its frame reads',
   exactPagesRequests: 'exact witness: its requests start from its host graph',
   referenceBackend: 'reference witness: the host engine, as-is',
-  threeBounds: 'witness: bounds as the host library computes them',
+  threeBounds: 'witness: bounds written back into a host geometry, as the library computes them',
   threeLod: 'witness: the host level-of-detail selection, `LOD.update` included',
   threeSceneAdapter:
     'witness adapter: the host renderer the witnesses share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
-  backendCommon: 'boundary: it creates the scene each engine renders to the host',
   cameraWorld: 'camera-pose contract: the only one that maps a host camera to an engine camera',
   explorerBackends: 'boundary: it mounts engines on the host renderer',
   explorerCamera: 'boundary: the host SETS its camera, and rereads `bounds` and `center`',
@@ -55,6 +55,8 @@ export const AUTORISES: Record<string, string> = {
   exactPagesBounds: 'boundary: it walks the host source graph to bound its pages',
   explorerScene: 'boundary: it builds the host’s prepared scene',
   hostSceneHooks: 'boundary: it hooks the fields the host writes on its nodes',
+  hostSceneObjects:
+    'boundary: the host colours, lights and nodes a witness hangs on the display graph it publishes',
   hostSceneScan: 'boundary: it compares the fields the host writes that no hook may touch',
   hostSceneWatch: 'boundary: it names the host nodes whose writes are listened to',
   hostWorldBounds: 'boundary: host-graph bounds, returned flat',
@@ -64,7 +66,6 @@ export const AUTORISES: Record<string, string> = {
   hostWorldTree: 'boundary: it reads local poses of a host subtree',
   replicateInstances: 'boundary: it replicates nodes of the host graph',
   sceneMeshes: 'boundary: it enumerates meshes of the host graph',
-  webgpuPagesSurfaceCapture: 'boundary: capture enters through a host camera',
   webgpuPagesTransform: 'boundary: the host moves a subtree of its scene',
 
   // 2 bis. Test-scene mounts that walk the host graph.
@@ -78,14 +79,6 @@ export const AUTORISES: Record<string, string> = {
   webgpuTransformCisaillementFixture:
     'test mount: minimal scene and runtime for `setWebgpuTransform`',
   webgpuWaterPassFixture: 'test mount: three transparent host meshes, one of which transmits',
-
-  // 3. Host resources read IN ONE PLACE, at the boundary. Materials and textures enter as the engine's
-  //    own records (#271): the import below builds them, the gate below refuses what the passes
-  //    could not preserve, and the display graph the backend publishes is built here too. No
-  //    pass, no row, no pool names the host library any more.
-  hostBlendScene: 'boundary: the host display graph the transparent copies are held in',
-  hostSurfaceGate: 'boundary: it refuses a host material the autonomous programs cannot preserve',
-  hostSurfaceImport: 'boundary: it reads a host material and texture into the engine records',
 };
 
 // CLOSED LIST OF FILES ALLOWED TO READ `declaration` — the host material a page was read from.

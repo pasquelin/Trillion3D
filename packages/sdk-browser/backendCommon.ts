@@ -1,8 +1,9 @@
-import { installSceneLighting } from './sceneLighting.ts';
-import { clusterHue } from './diagnosticColors.ts';
-import type { HostPlaced, HostTraversable } from './hostResources.ts';
-import { hslToLinearRgb, type BackendCapabilities } from '../sdk-core/index.ts';
-import * as THREE from 'three';
+/**
+ * The frame constants and the capability sheet every engine shares: sizes, budgets, batch
+ * ceilings. Nothing here builds or reads a host object, so this module names no rendering
+ * library — the host-library objects a witness publishes live in `hostSceneObjects.ts`.
+ */
+import type { BackendCapabilities } from '../sdk-core/index.ts';
 
 export const DEFAULT_FOV = 55,
   DEFAULT_PIXEL_RATIO = 1,
@@ -51,22 +52,3 @@ export const baseCapabilities: BackendCapabilities = {
     'physical VRAM instrumentation',
   ],
 };
-/** Three linear components reread immediately: a cluster colour allocates nothing more. */
-const tint = new Float64Array(3);
-
-/** A cluster's hue, computed by the core. The colour object returned is the one host
- *  materials want; its construction is the boundary, not the computation. */
-export function clusterColor(id: string, saturation = 0.75) {
-  hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
-  return new THREE.Color(tint[0], tint[1], tint[2]);
-}
-/** An empty node of a host display graph: what a copied light aims at, made here because
- *  making a host object is the boundary's, and posed by the placement that asked for it. */
-export const hostAimNode = () => new THREE.Object3D() as unknown as HostPlaced;
-
-/** The display graph a witness publishes: its clear colour, then the source-graph lights
- *  placed on it. Building the host objects is the boundary's, the placement is not. */
-export function lighting(scene: THREE.Scene, clearColor: number, source: HostTraversable) {
-  scene.background = new THREE.Color(clearColor);
-  return installSceneLighting(scene, source, hostAimNode);
-}

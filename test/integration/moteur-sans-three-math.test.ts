@@ -151,14 +151,10 @@ const CALCULE_UNE_MATRICE =
 const TEMOINS =
   /^(?:referenceBackend|threeLod|threeBounds|exactPages|autonomous|clusterBatch|blendCopyMesh|comparison|lightingObservation)/;
 
-/** File -> exact line -> why it SETS a host matrix instead of computing one. */
-const ECRIT_L_HOTE: Record<string, Record<string, string>> = {
-  'cameraWorld.ts': {
-    'into.matrix.copy(camera.matrixWorld);':
-      'detached copy of a host camera: it SETS the world pose, it does not compute it',
-    'into.matrixWorld.copy(into.matrix);': 'the same copy, resolved in place for lack of a parent',
-  },
-};
+/** File -> exact line -> why it SETS a host matrix instead of computing one. Empty since the
+ *  second capture view stopped being a host camera (`detachedHostView`): it reads the resolved
+ *  world matrix and keeps its sixteen floats, so nothing copies into a host matrix any more. */
+const ECRIT_L_HOTE: Record<string, Record<string, string>> = {};
 
 test('engine reads the host matrix, it does not compute with it', async () => {
   const fichiers = (await readdir(browser)).filter(
