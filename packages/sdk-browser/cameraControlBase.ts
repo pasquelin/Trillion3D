@@ -1,4 +1,4 @@
-import type { ChangeListener } from './cameraControlTypes.ts';
+import type { CameraControlBase, ChangeListener } from './cameraControlTypes.ts';
 
 /**
  * The socle every camera controller is built on: the `change` emitter the host listens to,
@@ -21,16 +21,9 @@ export interface ControlBase {
     options?: AddEventListenerOptions,
   ): void;
   emit(): void;
-  disposed(): boolean;
-  api: ControlBaseApi;
+  /** The three methods every controller re-publishes as-is. */
+  api: Omit<CameraControlBase, 'object'>;
 }
-
-/** The three methods every controller re-publishes as-is. */
-type ControlBaseApi = {
-  addEventListener(type: 'change', listener: ChangeListener): void;
-  removeEventListener(type: 'change', listener: ChangeListener): void;
-  dispose(): void;
-};
 
 export function createControlBase(): ControlBase {
   const removals: Array<() => void> = [];
@@ -45,7 +38,6 @@ export function createControlBase(): ControlBase {
     emit() {
       for (const listener of [...listeners]) listener();
     },
-    disposed: () => gone,
     api: {
       addEventListener(type, listener) {
         if (type === 'change') listeners.add(listener);

@@ -1,5 +1,5 @@
 import { createChangeGate, createControlBase } from './cameraControlBase.ts';
-import { axisOf, trackKeys, trackPointers } from './cameraControlInput.ts';
+import { axisOf, trackKeys, trackPointers, type KeyAxis } from './cameraControlInput.ts';
 import { controlPose } from './cameraControlPose.ts';
 import {
   clampNumber,
@@ -28,6 +28,10 @@ export interface FirstPersonCameraControls extends SteeredCameraControls {
   lock(): void;
   unlock(): void;
 }
+
+const STRAFE: KeyAxis = [['KeyD'], ['KeyA']],
+  RISE: KeyAxis = [['Space'], ['ShiftLeft']],
+  ADVANCE: KeyAxis = [['KeyW'], ['KeyS']];
 
 export function createFirstPersonCameraControls(
   camera: ControlCamera,
@@ -90,9 +94,9 @@ export function createFirstPersonCameraControls(
       moveLocal(
         position,
         orbitOrientation(walk, angles),
-        axisOf(keys, ['KeyD'], ['KeyA']) * step,
-        axisOf(keys, ['Space'], ['ShiftLeft']) * step,
-        axisOf(keys, ['KeyW'], ['KeyS']) * step,
+        axisOf(keys, ...STRAFE) * step,
+        axisOf(keys, ...RISE) * step,
+        axisOf(keys, ...ADVANCE) * step,
       );
       pose.write(position, orientation);
       written.set(orientation);

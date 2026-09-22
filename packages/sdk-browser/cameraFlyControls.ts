@@ -1,5 +1,5 @@
 import { createChangeGate, createControlBase } from './cameraControlBase.ts';
-import { axisOf, trackKeys, trackPointers } from './cameraControlInput.ts';
+import { axisOf, trackKeys, trackPointers, type KeyAxis } from './cameraControlInput.ts';
 import { controlPose } from './cameraControlPose.ts';
 import {
   localTurnQuaternion,
@@ -25,6 +25,13 @@ export interface FlyCameraControls extends SteeredCameraControls {
   rollSpeed: number;
   dragToLook: boolean;
 }
+
+const PITCH: KeyAxis = [['ArrowUp'], ['ArrowDown']],
+  YAW: KeyAxis = [['ArrowLeft'], ['ArrowRight']],
+  ROLL: KeyAxis = [['KeyQ'], ['KeyE']],
+  STRAFE: KeyAxis = [['KeyD'], ['KeyA']],
+  RISE: KeyAxis = [['KeyR'], ['KeyF']],
+  ADVANCE: KeyAxis = [['KeyW'], ['KeyS']];
 
 export function createFlyCameraControls(
   camera: ControlCamera,
@@ -55,9 +62,9 @@ export function createFlyCameraControls(
       const dt = delta > 0 ? delta : 0;
       pose.readPosition(position);
       pose.readOrientation(orientation);
-      const pitch = lookPitch + axisOf(keys, ['ArrowUp'], ['ArrowDown']) * api.rollSpeed * dt,
-        yaw = lookYaw + axisOf(keys, ['ArrowLeft'], ['ArrowRight']) * api.rollSpeed * dt,
-        roll = axisOf(keys, ['KeyQ'], ['KeyE']) * api.rollSpeed * dt;
+      const pitch = lookPitch + axisOf(keys, ...PITCH) * api.rollSpeed * dt,
+        yaw = lookYaw + axisOf(keys, ...YAW) * api.rollSpeed * dt,
+        roll = axisOf(keys, ...ROLL) * api.rollSpeed * dt;
       lookPitch = lookYaw = 0;
       if (pitch || yaw || roll)
         normalizeQuaternion(
@@ -67,9 +74,9 @@ export function createFlyCameraControls(
       moveLocal(
         position,
         orientation,
-        axisOf(keys, ['KeyD'], ['KeyA']) * step,
-        axisOf(keys, ['KeyR'], ['KeyF']) * step,
-        axisOf(keys, ['KeyW'], ['KeyS']) * step,
+        axisOf(keys, ...STRAFE) * step,
+        axisOf(keys, ...RISE) * step,
+        axisOf(keys, ...ADVANCE) * step,
       );
       pose.write(position, orientation);
       moved.set(position);
