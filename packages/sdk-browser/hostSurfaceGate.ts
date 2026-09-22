@@ -32,8 +32,7 @@ const textureReason = (source: HostMap) => {
 
 /** An attribute the autonomous programs can bind on its own: the host declares it as a buffer of
  *  its own, not as one view interleaved into a shared one. */
-const ownBuffer = (attribute: HostAttribute | undefined) =>
-  !!(attribute as { isBufferAttribute?: boolean } | undefined)?.isBufferAttribute;
+const ownBuffer = (attribute: HostAttribute | undefined) => !!attribute?.isBufferAttribute;
 
 /**
  * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
