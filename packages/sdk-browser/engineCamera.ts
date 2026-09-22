@@ -1,6 +1,7 @@
 import {
   createCameraFrame,
   IDENTITY_MATRIX4,
+  orthographicProjection,
   perspectiveProjection,
   updateCameraFrame,
   type CameraFrame,
@@ -31,10 +32,42 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
   /** Vertical field in degrees and aspect ratio, as the host declares them. */
   fov: number;
   aspect: number;
+  /** The projection's clip-w weight: a point at view depth d has w = perspective·d +
+   *  (1 − perspective) — 1 under a perspective projection, 0 under an orthographic one. What
+   *  a screen error divides by (`screenErrorBound.ts`). */
+  perspective: number;
+  /** The camera as ONE homogeneous point: `(eye, 1)` under a perspective projection, `(back, 0)`
+   *  — the unit direction toward the camera — under an orthographic one. The vector from a
+   *  point P toward the camera is `viewPoint.xyz − P·viewPoint.w` for both: the view vector of
+   *  the shading and the normal-cone test read it, never the eye alone. */
+  viewPoint: Float64Array;
 }
 
-/** The optics a camera declares: what the projection is composed from. */
-export type CameraOptics = { fov: number; aspect: number; near: number; far: number; zoom: number };
+/** The box an orthographic camera sees, in its own frame, before its zoom. */
+export type OrthographicBox = { left: number; right: number; top: number; bottom: number };
+/** The box `box` scaled by `zoom` about its centre, written in `into`: what the camera sees. */
+function zoomedBox(box: OrthographicBox, zoom: number, into: OrthographicBox) {
+  const x = (box.right + box.left) / 2,
+    y = (box.top + box.bottom) / 2,
+    w = (box.right - box.left) / (2 * zoom),
+    h = (box.top - box.bottom) / (2 * zoom);
+  into.left = x - w;
+  into.right = x + w;
+  into.bottom = y - h;
+  into.top = y + h;
+  return into;
+}
+const seen: OrthographicBox = { left: 0, right: 0, top: 0, bottom: 0 };
+/** The optics a camera declares: what the projection is composed from. An `orthographic` box
+ *  makes the projection orthographic; `fov` then still sizes what reads a field of view. */
+export type CameraOptics = {
+  fov: number;
+  aspect: number;
+  near: number;
+  far: number;
+  zoom: number;
+  orthographic?: OrthographicBox | null;
+};
 
 /** Optics of a camera nobody has set: the fallback of oracles called before the first frame. */
 const DEFAULT_OPTICS: CameraOptics = { fov: 50, aspect: 1, near: 0.1, far: 2000, zoom: 1 };
@@ -50,6 +83,8 @@ export function createEngineCamera(): EngineCamera {
     far: 0,
     fov: 0,
     aspect: 1,
+    perspective: 1,
+    viewPoint: new Float64Array(4),
   };
 }
 
@@ -65,7 +100,12 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   into.far = optics.far;
   into.fov = optics.fov;
   into.aspect = optics.aspect;
-  perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom);
+  const box = optics.orthographic;
+  if (box) {
+    const { left, right, bottom, top } = zoomedBox(box, optics.zoom || 1, seen);
+    orthographicProjection(into.projection, left, right, bottom, top, optics.near, optics.far);
+  } else
+    perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom);
   updateCameraFrame(into, into.projection, into.world, into.far);
   // The render frame is set here, in the same pass: what leaves in single precision will read
   // the view without translation, never an absolute view accompanied by relative worlds.
@@ -73,7 +113,20 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   into.eye[0] = into.world[12];
   into.eye[1] = into.world[13];
   into.eye[2] = into.world[14];
+  writeViewPoint(into, box ? 0 : 1);
   return into;
+}
+
+/** `perspective` and `viewPoint` of a camera whose world and eye are set: the eye, or the
+ *  camera's own +z — the way back toward it —, weighted by the projection. */
+function writeViewPoint(into: EngineCamera, perspective: number) {
+  const w = into.world,
+    length = Math.hypot(w[8], w[9], w[10]) || 1,
+    flat = (1 - perspective) / length;
+  into.perspective = perspective;
+  for (let axis = 0; axis < 3; axis++)
+    into.viewPoint[axis] = into.eye[axis] * perspective + w[8 + axis] * flat;
+  into.viewPoint[3] = perspective;
 }
 
 let defaultEngine: EngineCamera | undefined;
@@ -106,5 +159,7 @@ export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineC
   into.far = from.far;
   into.fov = from.fov;
   into.aspect = from.aspect;
+  into.perspective = from.perspective;
+  into.viewPoint.set(from.viewPoint);
   return into;
 }

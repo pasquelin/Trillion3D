@@ -2,7 +2,7 @@
 // on `window` so two cases of the same context can be compared pixel for pixel (#274).
 import type { FrameMetrics, SceneLight } from '../../packages/sdk-core/index.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
-import type { ExplorerOptions } from '../../packages/sdk-browser/index.ts';
+import type { MeasuredWorldOptions } from '../../packages/sdk-browser/measurement.ts';
 
 export type DefaultBackendCase = {
   manifestUrl: string;
@@ -27,7 +27,7 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
   canvas.style.cssText = 'width:480px;height:320px;display:block';
   document.body.append(canvas);
   const diagnostics: BackendDiagnostic[] = [];
-  const base: ExplorerOptions = {
+  const base: MeasuredWorldOptions = {
     manifestUrl: input.manifestUrl,
     scope: 'full',
     width: 480,
@@ -39,7 +39,7 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
       if (/^backend-/.test(event.phase)) diagnostics.push(event);
     },
   };
-  const options: ExplorerOptions =
+  const options: MeasuredWorldOptions =
     input.request === 'witness'
       ? { ...base, backends: [sdk.referenceBackend, sdk.exactPagesBackend, sdk.threeLodBackend] }
       : input.request === 'autonomous'
@@ -83,9 +83,9 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
       diagnostics,
     };
   };
-  let explorer: Awaited<ReturnType<typeof sdk.createExplorer>>;
+  let explorer: Awaited<ReturnType<typeof sdk.openMeasuredWorld>>;
   try {
-    explorer = await sdk.createExplorer(canvas, options);
+    explorer = await sdk.openMeasuredWorld(canvas, options);
   } catch (error) {
     return report({ backend: null, error: String(error) });
   }

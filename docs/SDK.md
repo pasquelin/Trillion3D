@@ -5,13 +5,255 @@ the common, browser or Node API. Do not import `packages/` internals.
 
 Build: `pnpm install`, `pnpm run build`, `pnpm test`. Native: `pnpm run build:native` and `pnpm run test:native`. `SDK_VERSION` and `FORMAT_VERSION` are independent.
 
-The generic SDK has no asset URL defaults. Hosts must pass `resourceBaseUrl` to `prepare` and `manifestUrl` to `createExplorer`. The shared default scope is `slice`. Pointers and compiled manifests with another scope are rejected with `SCOPE_MISMATCH`.
+The generic SDK has no asset URL defaults. Hosts must pass `resourceBaseUrl` to `prepare` and a real `manifestUrl` to `scene.load`. The shared default scope is `slice`. Pointers and compiled manifests with another scope are rejected with `SCOPE_MISMATCH`.
 
-A host that probes a cache before opening it — to enable a button, to tell a user to recompile — calls `assertCachePointer(pointer, scope)` and `assertCacheReady(metadata, scope)` on the two JSON documents it fetched: the first returns the cache URL the pointer names, the second returns the selected triangle count, and both raise an `EngineError` (`INVALID_POINTER`, `CACHE_NOT_READY`, `SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`, `STALE_CACHE`) otherwise. These are the same checks `createExplorer` runs, so a host never has to read a format field itself. They deliberately require no cluster, and therefore no binary sidecar download; the identity of the clusters themselves is `assertCacheIdentity`, which the reader runs on the decoded manifest.
+A host that probes a cache before opening it — to enable a button, to tell a user to recompile — calls `assertCachePointer(pointer, scope)` and `assertCacheReady(metadata, scope)` on the two JSON documents it fetched: the first returns the cache URL the pointer names, the second returns the selected triangle count, and both raise an `EngineError` (`INVALID_POINTER`, `CACHE_NOT_READY`, `SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`, `STALE_CACHE`) otherwise. These are the same checks `scene.load` runs, so a host never has to read a format field itself. They deliberately require no cluster, and therefore no binary sidecar download; the identity of the clusters themselves is `assertCacheIdentity`, which the reader runs on the decoded manifest.
 
 The compiler publishes under `native/<scope>/manifest.json`. See [the cache format](FORMAT.md).
 
 The compiler rejects selected accessors that cross their `bufferView`, invalid strides, malformed sparse ranges/indices and invalid POSITION/index component contracts before publishing a ready pointer. Simplification error is meshoptimizer's reported relative error scaled to object space; it is not a certified global Hausdorff bound. Cache keys include the executed compiler implementation and its dependency lock. Recompile prepared assets to use these corrections; source files are never overwritten.
+
+## Terms
+
+- **World** — what `createWorld` returns. It owns the scene, the camera, the renderer and the loop; nothing else is constructed.
+- **Scene** — `world.scene`, the root objects are added to; a compiled model is loaded into it like any other addition.
+- **Model** — a compiled manifest, loaded with `scene.load(manifestUrl)` and added to the scene.
+- **Renderer** — the drawing path a world takes, `'webgpu'` or `'webgl2'`. A host never imports, names or holds one.
+- **Witness** — a comparison backend (bare Three.js, `THREE.LOD`, …), named only through the measurement entry point; it never reaches a published world.
+- **Host** — the page that creates a world: it owns the canvas, the layout and the disposal.
+- **Pose** — a camera framing: `{ position, target, fov? }`.
+
+`explorer` and `backend` are not public vocabulary: a page creates a **world**, never an explorer,
+and never names what draws. The two words stay in this guide only where they name an internal
+session (see "Explorer sessions" below) or a measurement concept.
+
+## Create a world
+
+```js
+const monde = createWorld(canvas);          // an element…
+const monde = createWorld('id-canvas');     // …or the id of one
+```
+
+The world owns the scene, the camera, the renderer and the loop. Nothing else is constructed.
+
+```js
+import { createWorld, object, geometry, material, light } from 'web-geometry';
+
+const monde = createWorld('mon-canvas');
+
+const sol = object.mesh(geometry.plane(20, 20), material.meshStandard({ color: 0x8899aa }));
+const bille = object.mesh(
+  geometry.sphere(1, 64, 32),
+  material.meshStandard({ metalness: 0.9, roughness: 0.1 }),
+);
+bille.position.set(0, 1, 0);
+
+monde.scene.add(sol, bille);
+monde.scene.add(light.directional({ intensity: 3, position: [5, 10, 2] }));
+monde.scene.add(light.ambient({ intensity: 0.2 }));
+
+monde.camera.position.set(0, 3, 8);
+monde.camera.lookAt(0, 1, 0);
+
+await monde.scene.load('assets/whisperwind/manifest.json'); // a compiled model, added like the rest
+```
+
+`world.ready` resolves once the renderer is prepared; an object added or a model loaded before it
+resolves is queued and drawn once it does.
+
+## API rule
+
+State that is read and written is a **property** (`camera.near = 0.1`, `light.intensity = 2`,
+`world.exposure`, `world.pixelError`, `world.controls.kind`); a value with several components is an
+object with **`.set()`** (`position.set(0, 1, 0)`, `repeat.set(4, 4)`, `color.set(0xcc3344)`); a
+**method** is an action or a computation (`lookAt`, `add`, `load`, `invalidate`, `render`,
+`world.stageProfile()`, `world.awaitPages()`). A setter applies its own consequences — the
+projection update, the next frame — so a host never calls an update by hand.
+
+## Naming rule
+
+Families are **singular**. Inside one, a member that produces a thing of the scene is named after
+the thing (`geometry.box`); a member that sets up machinery is `create` + its name
+(`page.createStreamer`). This holds over four hundred entries: it is a rule, not a taste.
+
+## Families
+
+Twelve families come from the whole-mesh renderer a page already knows; one example each:
+
+```js
+// geometry — the shape alone, with no matter
+const g = geometry.sphere(1, 64, 32);
+const sol = geometry.plane(20, 20);
+const tuyau = geometry.tube(math.path([[0, 0, 0], [2, 1, 0], [4, 0, 2]]), 64, 0.2);
+```
+```js
+// material — the matter alone, with no shape
+const acier = material.meshStandard({ color: 0x8899aa, metalness: 0.9, roughness: 0.15 });
+const verre = material.meshPhysical({ transmission: 1, ior: 1.5, thickness: 0.4 });
+```
+```js
+// object — shape and matter, placed in the scene
+const bille = object.mesh(geometry.sphere(1), acier);
+bille.position.set(0, 1, 0);
+const decor = object.group();
+decor.add(bille);
+monde.scene.add(decor);
+```
+```js
+// light
+monde.scene.add(light.ambient({ intensity: 0.2 }));
+monde.scene.add(light.directional({ intensity: 3, position: [5, 10, 2], castShadow: true }));
+monde.scene.add(light.spot({ angle: 0.4, penumbra: 0.3, distance: 30, decay: 2 }));
+```
+```js
+// camera
+monde.camera = camera.perspective({ fov: 55, near: 0.1, far: 500 });
+monde.camera.position.set(0, 3, 8);
+monde.camera.lookAt(0, 1, 0);
+```
+```js
+// math
+const axe = math.vector3(0, 1, 0);
+const rot = math.quaternion().setFromAxisAngle(axe, Math.PI / 4);
+const boite = math.box3().setFromObject(decor);
+```
+```js
+// texture + loader
+const albedo = await loader.texture('bois.jpg');
+albedo.wrap = wrap.repeat;
+albedo.repeat.set(4, 4);
+```
+```js
+// helper — the marks you work with
+monde.scene.add(helper.grid(20, 20));
+monde.scene.add(helper.axes(2));
+```
+```js
+// animation
+const mixeur = animation.createMixer(decor);
+const vaEtVient = animation.clip('flotte', 2, [
+  animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0]),
+]);
+mixeur.play(vaEtVient);
+```
+```js
+// buffer — a geometry built by hand
+const g2 = geometry.createBuffer({ position: buffer.float32(sommets, 3), index: buffer.uint32(indices) });
+```
+```js
+// the constants, each in its own family
+acier.side = side.double;
+verre.blending = blending.normal;
+monde.toneMapping = toneMapping.aces;
+```
+
+| Family | Members |
+|---|---|
+| `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types a Three.js page already knows, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
+
+Eight families are ours: they exist because geometry here is **cut into pages** the engine moves
+in and out of memory according to what the frame reads. A whole-mesh renderer has no equivalent —
+these are not parity, they are what this engine is.
+
+```js
+// page — the geometry that enters and leaves according to what the frame reads
+const flux = page.createStreamer({ source: page.httpSource('assets/foret/'), workers: 4 });
+monde.scene.load('assets/foret/manifest.json', { stream: flux });
+```
+```js
+// budget — fixed envelopes, not wishes
+monde.budget.geometryPool = 512 * 1024 * 1024;
+monde.budget.texturePool = 256 * 1024 * 1024;
+```
+```js
+// metric — what the image cost, never estimated
+monde.onFrame(({ metrics }) => console.log(metrics.selectedTriangles, metrics.residentPages));
+const profil = metric.createProfiler(monde);
+```
+```js
+// diagnostic — watching the engine work
+monde.diagnostic.mode = 'clusters'; // or 'wireframe', 'triangles', 'beauty'
+```
+```js
+// capability — what the machine grants, before an image is promised
+const quoi = await capability.detect();
+if (!quoi.webgpu) message('fallback rendering, without indirect lighting');
+```
+```js
+// capture — an image aside, without touching the view
+const png = await capture.surface(monde, { width: 3840, height: 2160 });
+```
+```js
+// pose — framing, named poses, replaying a path
+monde.camera.set(pose.fromBounds(math.box3().setFromObject(decor)));
+```
+```js
+// batch — a thousand matrices at once instead of a loop
+batch.multiplyMatrix4(sorties, parents, locales, 1000);
+```
+
+| Family | Members | What it does |
+|---|---|---|
+| `page` | `createStreamer`, `createCache`, `httpSource`, `decode` | geometry in pages: what enters and leaves memory according to what the frame reads |
+| `budget` | `memory`, `geometryPool`, `texturePool` | the fixed envelopes that are not exceeded |
+| `metric` | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler` | what the image cost, never estimated |
+| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work |
+| `capability` | `detect`, `lighting` | what the machine grants, before an image is promised |
+| `capture` | `surface`, `buffer` | an image taken aside, at another resolution, without touching the view |
+| `pose` | `fromBounds`, `runPath`, `pointOfInterest` | named poses, automatic framing, replaying a path |
+| `batch` | `multiplyMatrix4`, `transformPoints`, `composeMatrix4`, `frustumKeepsBox` | a thousand matrices at once instead of a loop |
+
+The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
+`budget`, `diagnostic`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`.
+
+`LOD`, `InstancedMesh` and `BatchedMesh` have no counterpart here: they exist in a whole-mesh
+renderer to work around what this engine does natively — one cut through a DAG per frame,
+instances, and draw grouping.
+
+## Loop
+
+The world owns the loop, and it stops when the image is stable: after 120 frames with nothing
+changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A still scene costs
+nothing. `onFrame` is the per-frame hook; `loop` is its alias, for readers coming from a renderer
+where the loop is written by hand.
+
+```js
+// 1. The world leads; you give it work per frame.
+monde.onFrame(({ delta, metrics }) => {
+  bille.position.y = 1 + Math.sin(performance.now() / 500);
+  monde.invalidate();                 // I moved something: draw again
+});
+
+// 2. You lead; the world schedules nothing.
+const monde = createWorld('mon-canvas', { interactive: false });
+function boucle() {
+  bille.rotation.y += 0.01;
+  monde.render();
+  requestAnimationFrame(boucle);
+}
+boucle();
+```
+
+Form 2 is the host-led form: `interactive: false` plus `render()`.
+
+## What draws: the renderer option
+
+One option, and saying nothing is the normal case — automatic is the absence of a choice, not a
+word to write, so there is no `auto` value:
+
+```js
+createWorld('mon-canvas');                          // the engine takes the best path the machine grants
+createWorld('mon-canvas', { renderer: 'webgpu' });  // forced; a machine without it is refused BY NAME
+createWorld('mon-canvas', { renderer: 'webgl2' });
+```
+
+Forcing one and being served the other silently is the one outcome this must never produce. A host
+never imports, names or holds a backend factory: `options.backends` and the backend factories are
+not part of the published entry point (`web-geometry`). The bench and the proofs name their
+witnesses (bare Three.js, `THREE.LOD`, …) through a separate measurement entry point
+(`packages/sdk-browser/measurement.ts`, `openMeasuredWorld` and the witnesses) — that is their job,
+never a host's. See "Which backend renders by default" below for the decision the world takes
+internally.
 
 ## Installation and environment API
 
@@ -24,7 +266,7 @@ branch, which contains no DOM, WebGPU, filesystem or process API.
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Common API          | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy                                       |
 | Native preparation  | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, CLI                                                                |
-| Browser exploration | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories |
+| Browser rendering | `createWorld` and the families it hands a page — `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `animation`, `buffer`, `page`, `budget`, `metric`, `diagnostic`, `capability`, `capture`, `pose`, `batch`, the constant families — plus `detectCapabilities`. Witnesses, `chooseBackends`, `replicateInstances` and internal sessions (`openMeasuredWorld` and the backend factories) live behind the separate measurement entry point, not here. |
 
 Version 0.2.0 is the breaking import boundary. Replace `@web-geometry/sdk`,
 `@web-geometry/sdk/core`, `@web-geometry/sdk/browser` and `@web-geometry/sdk/node` with
@@ -33,7 +275,7 @@ to `0.2.0`; `FORMAT_VERSION` and compiler/cache identity do not change.
 
 For a strict browser TypeScript project, enable the `browser` condition explicitly. Without it,
 Bundler resolution deliberately selects the platform-neutral common declarations, which do not
-contain `createExplorer` or browser-only types.
+contain `createWorld` or browser-only types.
 
 ```jsonc
 {
@@ -61,7 +303,7 @@ files as separate module-worker entries, and code splitting enabled. Copy the in
 directory together with the compiled scene cache. `pnpm run proof:package -- --browser` is the
 repository's executable esbuild configuration and verifies both worker tasks and WASM selection.
 
-`replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials.
+`replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials — a measurement helper, reached through the measurement entry point, not part of `web-geometry`'s published entry.
 
 ## CLI
 
@@ -104,6 +346,12 @@ FBX/OBJ sources are first imported into `<cache>/native/imports/<key>/` as `mode
 
 ## Scene hierarchy foundation
 
+The scene graph a page writes into is `world.scene` — `scene.add(object, …)`, described in "Create
+a world" above. What follows is the transform foundation that graph is built on. `SceneRoot` and
+`createSceneRoot` are exported by the common facade `web-geometry`, but are not members of the
+`world` object itself — they are the lower-level hierarchy a page reaches for when it manages a
+transform tree of its own, outside a world.
+
 `web-geometry` publishes scene-model version `SCENE_MODEL_VERSION` 1. A
 `SceneRoot` owns one transform hierarchy; nodes created by `root.createNode({ id, visible })`
 have stable, root-unique identifiers and can be attached with `add` or `reparent`. `remove` and
@@ -128,7 +376,7 @@ hierarchy unchanged. Pose setters mark the data-oriented transform dirty; call
 `updateWorldMatrix()` before reading `worldMatrix`. The matrix views are read-only by contract;
 write through the setters so dirty tracking remains correct.
 
-This first #78 lot is the hierarchy foundation only. `createExplorer` does not accept a
+This first #78 lot is the hierarchy foundation only. `openMeasuredWorld` does not accept a
 `SceneRoot` yet. Engine materials, texture references, frame hooks, and browser-contract migration
 remain later #78 lots; lights continue to use the existing `SceneLight` version 2 contract.
 
@@ -210,9 +458,10 @@ replaces, its measured ratio and the exceptions it declares, are listed once, in
 **Which path ran.** Three of them — `hierarchyUpdateBatch`, `multiplyMatrix4Batch`,
 `boxTransformBatch` — also exist as WebAssembly kernels (`packages/page-codec-wasm/src/math.rs`),
 bit-identical to the JavaScript loop, and the governor (`mathPathGovernor.ts`) plays whichever it
-measured faster, operation by operation. `createExplorer(canvas, { mathPath })` takes `'auto'`
-(the default), `'js'` or `'wasm'` — `'wasm'` falls back on `'js'` where the module is missing and
-says so. `explorer.metrics().mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
+measured faster, operation by operation. `mathPath` is an internal explorer option (`'auto'` by
+default, `'js'` or `'wasm'` — `'wasm'` falls back on `'js'` where the module is missing and says
+so), reached through the measurement entry point; a world always runs `'auto'`. What a page reads
+through `world` is `metric.frame(world).mathBatch`, which publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
 `operations[name].path` is the path the next call plays, `jsNsPerElement` and `wasmNsPerElement`
 the sliding medians in nanoseconds per element (`null` while unmeasured — never zero), `switches`
 how many times the decision changed, `elements` the total processed; `clockCoarse` says the thread
@@ -270,38 +519,14 @@ engine loop was replaced by a batch in this stage, and no WebAssembly kernel was
 host batches: the rule stays that a kernel is written only where a loop's share is measured above
 0.1 ms in the engine's own frame, and no loop above reaches it.
 
-## Browser explorer
+## Explorer sessions
 
-### Simple browser startup
-
-```html
-<canvas id="viewer" style="width:100%;height:70vh;display:block"></canvas>
-```
-
-```typescript
-import { createExplorer, type CameraPose, type Explorer, type ExplorerOptions } from 'web-geometry';
-
-const options: ExplorerOptions = {
-  manifestUrl: '/cache/city/manifest.json',
-  scope: 'full',
-  interactive: true,
-};
-const explorer: Explorer = await createExplorer('viewer', options);
-const home: CameraPose = explorer.pointsOfInterest()[0].pose;
-```
-
-`ExplorerTarget` is a canvas element or a **literal ID**, without `#`. Existing-element
-usage is equivalent: `createExplorer(canvas, options)`. Use the element form for framework
-refs, shadow roots or another document. Invalid targets are rejected before cache requests.
-ID lookup without a document fails with `CANVAS_DOCUMENT_UNAVAILABLE`; missing IDs use
-`CANVAS_NOT_FOUND`, and empty IDs/non-canvas targets use `INVALID_CANVAS`.
-
-`interactive: true` opts into the engine's own orbit controller, CSS sizing, browser DPR and
-coalesced rendering. Creation resolves after submitting a first image with the prepared
-root cover; visible detail and temporal antialiasing refine progressively. No `controls()`,
-`awaitPages()` or animation loop is needed to explore. Calling `controls()` again returns
-those same controls. After programmatic edits to the camera, scene or lights, call
-`explorer.invalidate()`. In manual mode, that method renders immediately.
+A page creates a **world** ("Create a world" above); it never creates an explorer. What follows is
+the internal session a world opens on itself — `openMeasuredWorld` and its options — kept nameable
+for the measurement entry point (`packages/sdk-browser/measurement.ts`) and for the parts of this
+guide that document its lighting, memory and diagnostic behaviour in depth. A host reads them
+through the `world` families above (`world.exposure`, `world.diagnostic.mode`, `metric.frame(world)`,
+…), never by importing `openMeasuredWorld` itself.
 
 ### Camera controllers
 
@@ -309,13 +534,34 @@ The engine owns its controllers: they read `PointerEvent`, `WheelEvent` and `Key
 write the camera's pose, and bring no host-library addon into the page. A session hands out five,
 each disposed with the session.
 
-| Call                    | Motion                                         | Gestures                                                            |
-| ----------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
-| `controls()`            | orbit around `target`, world up kept           | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
-| `flyControls()`         | six degrees of freedom                         | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look       |
-| `firstPersonControls()` | pointer-locked walk, horizon level             | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift`            |
-| `trackballControls()`   | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms                        |
-| `panZoomControls()`     | planar view, no rotation                       | drag slides, wheel and pinch zoom, arrow keys pan                   |
+A world asks for one at creation, and reads or drives it afterward through the live `world.controls`
+handle:
+
+```js
+const world = createWorld('viewer', { controls: 'orbit' }); // at creation
+world.controls.kind = 'fly';          // switch live
+world.controls.enabled = false;       // pause input
+world.controls.target.set(0, 1, 0);   // orbit pivot
+```
+
+Controls live on the world, never held or driven by the host directly, for two reasons: they read
+input on the canvas the world already owns — a second listener would double the gestures — and
+they follow `world.camera` when it is replaced, so a host that swaps the camera never has to
+rebuild its controller by hand. `kind` is one of `'orbit'` | `'fly'` | `'firstPerson'` |
+`'trackball'` | `'panZoom'` | `'none'` (the default); setting it applies its own consequence — the
+previous controller is released and the next one built, following the world's own camera — and
+`.enabled` turns the current one off without losing it. Live example:
+[`site/examples/five-ways-to-move-the-camera.html`](../site/examples/five-ways-to-move-the-camera.html).
+The table below is the contract each one implements underneath.
+
+| `world.controls.kind` | Motion                                         | Gestures                                                            |
+| ---------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
+| `'orbit'`               | orbit around `target`, world up kept           | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
+| `'fly'`                 | six degrees of freedom                         | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look       |
+| `'firstPerson'`         | pointer-locked walk, horizon level             | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift`            |
+| `'trackball'`           | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms                        |
+| `'panZoom'`             | planar view, no rotation                       | drag slides, wheel and pinch zoom, arrow keys pan                   |
+| `'none'`                | camera posed by the host                       | none                                                                 |
 
 All five publish `object.position`, `addEventListener('change')`, `removeEventListener` and
 `dispose()`; the three that keep a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
@@ -331,49 +577,61 @@ node), and the write itself increments the scene revision, so a frame compares o
 Their other fields — visibility, parent, a matrix set by hand on a frozen node, a light's
 numbers — are the node's own data fields, which no hook may touch without slowing Three's
 walk: they are compared per frame, a few values per node. One rule remains: a light added to
-or removed from the graph changes its shape, and is announced by `refreshSceneLighting()`.
+or removed from the graph changes its shape; the world re-syncs its light store from the scene
+itself, on the next frame, so a host never calls anything to announce the change.
 
-Set a CSS width **and** height independently of the canvas drawing-buffer attributes, as
-above. Omitted `width`/`height` follow that CSS box; omitted `pixelRatio` follows the browser,
-including later DPR changes. Explicit values override each automatic dimension independently.
-An initially hidden/zero-size canvas needs explicit dimensions or must be shown before creation;
-a canvas hidden later retains its last dimensions until visible. Invalid initial sizes/DPR fail.
-The host retains ownership of CSS layout and the canvas element.
+The canvas drawing-buffer follows its CSS box: a world sized by CSS needs no option at creation,
+and `pixelRatio` follows the browser, including later DPR changes, unless set explicitly.
+`world.resize(width, height)` sets an explicit size — omitted arguments read the canvas's current
+CSS box. An initially hidden/zero-size canvas needs an explicit `resize()` or must be shown before
+creation; a canvas hidden later retains its last dimensions until visible. The host retains
+ownership of CSS layout and the canvas element.
 
-The simple path prepares only the engine's own backend, chosen from the machine (see "Which
-backend renders by default" below). A host that names `backends: [webgpuPagesBackend]` and gets
-no device is still rejected with `WEBGPU_UNAVAILABLE`: an explicit list never silently changes
-lighting or rendering capability. An explicit `backends` list or `autonomousGeometry` retains
-its own capability contract.
-`scope` still defaults to `slice`: keep `scope: 'full'` for a full cache. Memory pools retain
-their bounded 512 MiB geometry / 512 MiB texture defaults; the earlier 16/128 MiB example
-was an explicit budget choice and remains available through overrides.
+A world's session prepares only the engine's own path, chosen from the machine (see "What draws"
+above and "Which backend renders by default" below); `options.backends` is not part of `WorldOptions`
+— it is an internal explorer option, reached only through the measurement entry point — a world that
+is forced to `'webgpu'` and gets no device is refused by that name, never silently switched, exactly
+as an explicit `backends: [webgpuPagesBackend]` list is on the internal session.
+`scope` still defaults to `slice`: `scene.load(url, { scope: 'full' })` for a full cache. Memory
+pools retain their bounded 512 MiB geometry / 512 MiB texture defaults, read and written through
+`world.budget.geometryPool` / `world.budget.texturePool`.
 
-Automatic rendering waits for asynchronous feedback without reading image pixels and retains
-per-frame streaming/shadow budgets. Once settled, it schedules no frames. A burst that cannot
-settle within 120 frames pauses and publishes `interactive-settle-limit`; `invalidate()` or a
-new interaction resumes it. An asynchronous render failure stops automatic work and emits
-`INTERACTIVE_RENDER_FAILED` through `onEvent`, with a diagnostic. Explicit capture/measurement
-work should use a manual session to avoid competing rendering.
+The loop's own pausing rule — 120 stable frames, `interactive-settle-limit`, resumed by
+`invalidate()` — is described once in "Loop" above. An asynchronous render failure stops automatic
+work and emits `INTERACTIVE_RENDER_FAILED` through the internal session's diagnostics; explicit
+capture and measurement work should use the measurement entry's manual session to avoid competing
+rendering.
 
 Dispose in the actual component/page teardown, **not immediately after startup**:
 
 ```javascript
 function unmountViewer() {
-  explorer.dispose();
+  monde.dispose();
 }
 ```
 
-Disposal removes owned controls, observers, queued frames and abort listeners without removing
-the canvas. An aborted interactive session also disposes itself. `createExplorerJob(jobId,
-canvasOrId, options)` accepts the same target and options; await its creation, then `job.promise`.
-Its first argument is the job identifier, separate from the canvas ID.
+`world.dispose()` removes owned controls, observers, queued frames and abort listeners, and closes
+the internal session, without removing the canvas. A page that wants job semantics — progress,
+cancellation — around a load wraps `scene.load(url, { signal })` itself with `createJob` from
+`web-geometry`; `createMeasuredWorldJob` is the internal session's own adapter, used by the
+measurement entry.
 
 ### Manual rendering and explicit configuration
 
-Without `interactive: true`, `createExplorer(canvas, { manifestUrl, scope, width, height, fov, pixelRatio, maxResidentPages, pageFetchWorkers, replicaCount, backends, pixelError, preload, comparisonLayout, comparisonPair, gpu, pointsOfInterest, ... })` owns neither the animation loop nor the canvas. Call `dispose()` when finished; hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box (`near = radius / 10000`, no absolute floor). `pointsOfInterest()` returns that home pose; extra named poses come from the host `pointsOfInterest` option, not from the SDK. `pixelError` (default `0`) keeps the exact leaves; a positive threshold selects coarse QEM pages when the cache includes them. `preload: 'visible'` (default) streams detail for the current camera; WebGPU first loads a complete, camera-independent root cover before explorer creation resolves; `preload: 'all'` restores the previous eager load. `awaitPages()` must be called before the first official image when using the visible preload. Comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render backends A and B to detached targets with the same camera; they are not an official performance verdict.
+A world's public surface for this is `createWorld(target, { renderer, interactive: false, controls,
+pixelRatio, signal })` (`renderer`, `interactive`, `pixelRatio`, `controls`, `signal` — "What draws"
+above) plus `world.pixelError`, the DAG cut's screen error in pixels (`0` by default, the exact
+leaves; a positive value selects coarser pages when the cache includes them). `world.render()` draws
+one frame and owns neither the loop nor the canvas when `interactive: false`; `world.dispose()` when
+finished. `pose.fromBounds(box)` frames a box the same way the default camera used to on open;
+`pose.pointOfInterest(name, pose)` names one. The internal session's remaining options —
+`maxResidentPages`, `pageFetchWorkers`, `replicaCount`, `backends`, `preload`, `comparisonLayout`,
+`comparisonPair`, `gpu`, … — stay on `openMeasuredWorld`, reached only through the measurement entry
+point: comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) that render two
+witnesses to detached targets with the same camera are a bench and proof tool, not an official
+performance verdict, and never part of a published world.
 
-What the engine computes for itself — matrices, vectors, colours, its camera, the side of a material — it builds on `sdk-core` (`engineCamera.ts`, `materialSide.ts`), not on host-library objects — since #78 without exception, the second capture view of `webgpuPagesSurfaceCapture.ts` included, which is the host camera itself read at the aspect ratio of the surface written into (`readCameraWorld`); the functions and their proofs are listed batch by batch in [`docs/API.md`](API.md). Since #269 the contract itself no longer names that library: a material, a texture, a geometry attribute, a mesh and a scene node cross it as the shapes of `hostResources.ts` (`HostMaterial`, `HostTexture`, `HostAttributes`, `HostMesh`, `HostNode`, `HostScene`), a placement as a `Float64Array(16)`, and `explorer.updateMaterial` as the engine's own `Material` (`sdk-core/materialContract.ts`) — parameters imported from the manifest, no shader and no program hook. Since #271 the resources themselves stop at that boundary too: `hostSurfaceImport.ts` reads a host material and its textures in one place into the engine's `Material` and `Texture` (`sdk-core/materialContract.ts`, `sdk-core/textureContract.ts`), addressing and filtering in the engine's own words, and every pass, page row, tile pool and transparent item computes on those records alone. The material is re-read at every call, so a reassigned material or a replaced map is seen as it stands; a texture, addressed by the identity of its record, is read once and refilled when the host bumps `texture.version`. **A host that changes anything a sampler declares — its wrap modes, its filters, its anisotropy, its colour space, or the `KHR_texture_transform` offset, repeat and rotation the engine composes into `transform` — bumps that version**, exactly as it already must for the texels; the host library does it through `needsUpdate` for everything but the UV transform, which the host composes itself. Since #288 no pass, cut, row or plan of the page path reads a host material: a page, a visibility page, a batch page and a transparent item carry `PageSurface` (`pageSurface.ts`), one record per declaration refilled in place, and the cut's normal cones, the page rows, the software raster, the coplanar layer batches, the transparent plan and the frame audit compute on it. Two host reads are left beside it, and they are named rather than implied: the transparent prepare still takes its index buffer from the source geometry (`webgpuBlendPrepare.ts`), and the WebGL2 admission gate still reads the declaration it refuses before anything is drawn (`webglClusterCompatibility.ts`). The host object stays reachable as `PageRec.declaration` for the single use that needs it — handing a surface back to the library that owns it, which is the WebGL2 witness draw, the transparent copy and the diagnostic materials — and `test/integration/moteur-sans-three.test.ts` holds the closed list of files allowed to read that field. **A host that rewrites a surface in place keeps the same contract as for a texture**, and what is seen without a version bump is stated field by field: the **side** is reread at every look, since every reader of it goes through `surfaceSide`/`surfaceFrontOnly`, which ask the declaration — that is what keeps a surface opened to double-sided in place from losing its pages to their own normal cones; `alphaTest`, `opacity` and the blend flags are reread where they are read, the software raster once per page and per image and the transparent plan at every plan build, while the page row reads them when it writes a row, as it already did. Everything else the record holds — the colours, the six map slots, the transmission — follows `material.version`. The same batch stops the collection from reading the source index buffer: a page is checked against the index count its manifest entry declares, and the page/source identity is proved where it is produced, by the compiler's golden fixtures. Vertex attributes are still the host geometry's — the cache carries index pages over them — and they leave with the loader. A host still hands its own display graph and its perspective camera to `createExplorer`, and the witnesses convert at their own boundary through `asHostLibrary`; since lot 2 of #78 the engine no longer NAMES that library to read them — the graph it walks and the camera it copies are the shapes of `hostGraphNodes.ts` and `cameraWorld.ts`, and building a host object is gathered in `hostGraphObjects.ts`. The engine-owned scene model is the following lot. Since #273 the lights of a source graph and the diagnostic views (`clusters`, `pages`, `lod`, `visibility`, `screen-error`, `materials`, `tri`) are on those shapes too — `HostTraversable`, `HostColour`, `HostLight`, `HostDiagnosticMesh` — so placing a light and repainting a mesh are the engine's, while building the host material or geometry a view hangs on a mesh stays the witness adapter's.
+What the engine computes for itself — matrices, vectors, colours, its camera, the side of a material — it builds on `sdk-core` (`engineCamera.ts`, `materialSide.ts`), not on host-library objects — since #78 without exception, the second capture view of `webgpuPagesSurfaceCapture.ts` included, which is the host camera itself read at the aspect ratio of the surface written into (`readCameraWorld`); the functions and their proofs are listed batch by batch in [`docs/API.md`](API.md). Since #269 the contract itself no longer names that library: a material, a texture, a geometry attribute, a mesh and a scene node cross it as the shapes of `hostResources.ts` (`HostMaterial`, `HostTexture`, `HostAttributes`, `HostMesh`, `HostNode`, `HostScene`), a placement as a `Float64Array(16)`, and `explorer.updateMaterial` as the engine's own `Material` (`sdk-core/materialContract.ts`) — parameters imported from the manifest, no shader and no program hook. Since #271 the resources themselves stop at that boundary too: `hostSurfaceImport.ts` reads a host material and its textures in one place into the engine's `Material` and `Texture` (`sdk-core/materialContract.ts`, `sdk-core/textureContract.ts`), addressing and filtering in the engine's own words, and every pass, page row, tile pool and transparent item computes on those records alone. The material is re-read at every call, so a reassigned material or a replaced map is seen as it stands; a texture, addressed by the identity of its record, is read once and refilled when the host bumps `texture.version`. **A host that changes anything a sampler declares — its wrap modes, its filters, its anisotropy, its colour space, or the `KHR_texture_transform` offset, repeat and rotation the engine composes into `transform` — bumps that version**, exactly as it already must for the texels; the host library does it through `needsUpdate` for everything but the UV transform, which the host composes itself. Since #288 no pass, cut, row or plan of the page path reads a host material: a page, a visibility page, a batch page and a transparent item carry `PageSurface` (`pageSurface.ts`), one record per declaration refilled in place, and the cut's normal cones, the page rows, the software raster, the coplanar layer batches, the transparent plan and the frame audit compute on it. Two host reads are left beside it, and they are named rather than implied: the transparent prepare still takes its index buffer from the source geometry (`webgpuBlendPrepare.ts`), and the WebGL2 admission gate still reads the declaration it refuses before anything is drawn (`webglClusterCompatibility.ts`). The host object stays reachable as `PageRec.declaration` for the single use that needs it — handing a surface back to the library that owns it, which is the WebGL2 witness draw, the transparent copy and the diagnostic materials — and `test/integration/moteur-sans-three.test.ts` holds the closed list of files allowed to read that field. **A host that rewrites a surface in place keeps the same contract as for a texture**, and what is seen without a version bump is stated field by field: the **side** is reread at every look, since every reader of it goes through `surfaceSide`/`surfaceFrontOnly`, which ask the declaration — that is what keeps a surface opened to double-sided in place from losing its pages to their own normal cones; `alphaTest`, `opacity` and the blend flags are reread where they are read, the software raster once per page and per image and the transparent plan at every plan build, while the page row reads them when it writes a row, as it already did. Everything else the record holds — the colours, the six map slots, the transmission — follows `material.version`. The same batch stops the collection from reading the source index buffer: a page is checked against the index count its manifest entry declares, and the page/source identity is proved where it is produced, by the compiler's golden fixtures. Vertex attributes are still the host geometry's — the cache carries index pages over them — and they leave with the loader. A host still hands its own display graph and its perspective camera to `openMeasuredWorld`, and the witnesses convert at their own boundary through `asHostLibrary`; since lot 2 of #78 the engine no longer NAMES that library to read them — the graph it walks and the camera it copies are the shapes of `hostGraphNodes.ts` and `cameraWorld.ts`, and building a host object is gathered in `hostGraphObjects.ts`. The engine-owned scene model is the following lot. Since #273 the lights of a source graph and the diagnostic views (`clusters`, `pages`, `lod`, `visibility`, `screen-error`, `materials`, `tri`) are on those shapes too — `HostTraversable`, `HostColour`, `HostLight`, `HostDiagnosticMesh` — so placing a light and repainting a mesh are the engine's, while building the host material or geometry a view hangs on a mesh stays the witness adapter's.
 
 The engine does not read the host's clip-depth convention, and `HostCamera` does not declare one. It composes its own projection from the optics the camera declares — field, aspect, near plane, zoom — in reversed depth with an infinite far plane (`engineCamera.ts`, `depthConvention.ts`), and that single convention applies to the frustum planes, the view-projection the GPU consumes, the Hi-Z bounds and the CPU visibility raster alike; a camera reaching the engine through `restoreAfterCampaign` or a backend's own `render(camera)` is read the same way, whatever its own renderer draws in. The host's `projectionMatrix` is read in one place only, `readHostDrawCamera`, for a draw the host renderer itself owns — and there it is copied as it stands, never rewritten.
 
@@ -381,7 +639,7 @@ The engine does not read the host's clip-depth convention, and `HostCamera` does
 
 ### Which backend renders by default
 
-`createExplorer({ manifestUrl })` with no `backends` option renders through the engine's own path,
+`openMeasuredWorld({ manifestUrl })` with no `backends` option renders through the engine's own path,
 whichever one the machine allows. The choice is made once, before the scene is read, from what the
 machine offers, and is reported by the `backend-choice` diagnostic: `origin` (`default` or
 `host`), `renderer` (the backend id that draws), `autonomous` (true when the session reads the
@@ -407,15 +665,16 @@ granted neither API. No witness is mounted in any row: `explorer.backends` holds
 alone.
 
 `referenceBackend`, `exactPagesBackend` and `threeLodBackend` are the Three witnesses of the
-comparison views and the bench: they are opt-in through `options.backends`, and the engine never
-reaches for one on its own.
-`chooseBackends(options, metadata, gpuDevice, webgl2)` is exported so a host can read the same
-decision before opening a session, and `autonomousCacheReady(metadata)` answers whether a cache
-carries the prepared autonomous scene.
+comparison views and the bench: they are opt-in through `options.backends`, on the internal session
+opened by `openMeasuredWorld`, reached only through the measurement entry point — the engine never
+reaches for one on its own, and a published world never sees this option.
+`chooseBackends(options, metadata, gpuDevice, webgl2)`, also reached only through the measurement
+entry point, is exported so a bench or a proof can read the same decision before opening a session,
+and `autonomousCacheReady(metadata)` answers whether a cache carries the prepared autonomous scene.
 
-`runCameraPath` is a campaign helper: exact A/A image gate, then timed blocks. It is not a general performance verdict. Hosts that already switch backends in the UI should replay the same pose list per backend; do not mix engines inside one timed block.
+The public form is `pose.runPath(world, poses, { images })`, `poses` an array of `{ position, target, fov? }`; internally it is a campaign helper (`runCameraPath`): exact A/A image gate, then timed blocks. It is not a general performance verdict. A bench that already switches renderers should replay the same pose list per renderer; do not mix engines inside one timed block.
 
-The `wireframe` diagnostic is a filled unique color per submitted triangle, not `MeshBasicMaterial.wireframe` / GL_LINES. Cluster, page and LOD diagnostics stay on the selected backend's actual cut. The `materials` diagnostic colours each pixel by the material class that resolved it and exists on the WebGPU visibility path only: `setDiagnostic('materials')` on another backend, or selecting another backend under it, throws by name.
+The `wireframe` diagnostic is a filled unique color per submitted triangle, not `MeshBasicMaterial.wireframe` / GL_LINES. Cluster, page and LOD diagnostics stay on the selected backend's actual cut. The `materials` diagnostic colours each pixel by the material class that resolved it and exists on the WebGPU visibility path only: `world.diagnostic.mode = 'materials'` on another renderer, or switching renderer under it, throws by name.
 
 `createGpuPageCache` is a bounded WebGPU buffer/queue adapter. `webgpuPagesBackend` (`webgpu-page-raster`) consumes the same pages and LOD settings. For opaque pages, selection computes the current camera's drawable resident cut on the GPU, retaining complete coarse coverage until every required child is resident. Draw compaction consumes that mask, counts and scatters in parallel groups, and the visibility shader consumes the resulting instance indices and slot offsets against the original page table. No CPU compaction or CPU opaque selection repeats that work. Asynchronous selection readback serves streaming requests and diagnostics; busy readbacks do not block current-camera selection. Selection/submission counters stay `null` until the matching GPU result is available. Transparency keeps its existing forward path; secondary-camera surface captures and unsupported GPU paths retain the CPU selection fallback. `capabilities.gpuDriven` denotes this opaque selection-to-draw path, not a completely GPU-autonomous engine. The visibility path issues at most six geometry `drawIndirect` commands (cull mode × Hi-Z pass); material, lighting, transparency and presentation add their own draw commands.
 
@@ -437,35 +696,38 @@ Two regimes. While something moves — camera, scene, resources, or work in flig
 
 The jitter never reaches the engine camera: the cluster selection, its frustum planes and its screen-error threshold read the unjittered camera, and the selection proofs are unchanged by construction. The occlusion partition, whose margins are ulp-tight, projects with the same jittered matrix that rasterised the pyramid it reads. A surface capture and a diagnostic view render unjittered and unaccumulated.
 
-`temporalAntialiasing` (`true` by default, `false` to opt out) is the public option; with `false` the image is sampled at the pixel centre with no history — the "before" of a comparison, and what pixel-exact benches of the raster itself ask for. `render-capabilities` reports `temporalAntialiasing` and `motionVectors: 'derived'`. The pass is timed under its own label, but on apple metal-3 the timestamps of the last passes absorb the ones before them (the label reads ~7.5 ms, the whole lighting group), so its cost reads only as a difference of the whole-image envelope with the option off and on (`scripts/mesure/README.md`, `--antialiasing`). Measured on the Emerald cache at 2496×1404, sun and shadows, moving camera, two series each side: whole-image GPU envelope p50 on the ground view 10.57 → 11.09 ms (+0.5; the four samples per side span 10.22–11.01 and 10.95–11.29, so the difference is of the order of the spread), on the general view 9.08 → 9.48 ms (+0.4; spans 8.96–9.30 and 9.26–9.92, above the spread); p95 +1.5 and +1.4 ms — the price of one fullscreen pass reading ten texels and writing one at 3.5 Mpx, with the filter weights and the motion lookups taken out of the per-pixel path. The pass label itself reads 7.5 ms and means nothing. Image, still camera, converged and held: 27.1 % of the ground-view pixels differ from the unaccumulated image (852 926 of them by one level, 42 by more than 64), 12.2 % of the general view (191 775 by one level, 5 363 by more than 64) — edges and texture shimmer, the intended change, published with the captures under `.mesure/out/l16-fixe-*` on the measuring machine.
+`temporalAntialiasing` (`true` by default, `false` to opt out) is an internal session option, reached only through the measurement entry point — it is not a member of `WorldOptions`, so a published world always accumulates history; with `false` the image is sampled at the pixel centre with no history — the "before" of a comparison, and what pixel-exact benches of the raster itself ask for. `render-capabilities` reports `temporalAntialiasing` and `motionVectors: 'derived'`. The pass is timed under its own label, but on apple metal-3 the timestamps of the last passes absorb the ones before them (the label reads ~7.5 ms, the whole lighting group), so its cost reads only as a difference of the whole-image envelope with the option off and on (`scripts/mesure/README.md`, `--antialiasing`). Measured on the Emerald cache at 2496×1404, sun and shadows, moving camera, two series each side: whole-image GPU envelope p50 on the ground view 10.57 → 11.09 ms (+0.5; the four samples per side span 10.22–11.01 and 10.95–11.29, so the difference is of the order of the spread), on the general view 9.08 → 9.48 ms (+0.4; spans 8.96–9.30 and 9.26–9.92, above the spread); p95 +1.5 and +1.4 ms — the price of one fullscreen pass reading ten texels and writing one at 3.5 Mpx, with the filter weights and the motion lookups taken out of the per-pixel path. The pass label itself reads 7.5 ms and means nothing. Image, still camera, converged and held: 27.1 % of the ground-view pixels differ from the unaccumulated image (852 926 of them by one level, 42 by more than 64), 12.2 % of the general view (191 775 by one level, 5 363 by more than 64) — edges and texture shimmer, the intended change, published with the captures under `.mesure/out/l16-fixe-*` on the measuring machine.
 
 ### No light without a declared source (opaque path)
 
 Nothing lights an opaque surface except a light the host declared. The deferred resolve has no fixed ambient term, no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero, so a windowless corridor stays black at noon. Emission is a material property and is added as before.
 
-Declare lights through `addLight`/`setLight`/`removeLight`. `SceneLight` (version 2) has three kinds. `point` and `spot` carry `position` and `range` in metres, `spot` also `direction` and a `coneAngle` half-angle; `directional` (sun, overcast sky) carries only `direction` — the propagation direction — and is refused if given a `position`, a `range` or a `coneAngle`, because it has none. All three carry linear `color`, a positive radiometric `intensity` and `castsShadow`. Bounds (`explorer.lightSettings`): 64 lights, 32 per 16x16 screen tile, a 4096-square depth atlas, and at most `shadowUpdatesPerFrame * 6` (24) shadow regions redrawn per frame.
+A world declares lights the same way as any other object: `scene.add(light.point({ intensity: 2,
+position: [0, 3, 0] }))`, `light.intensity = 2` afterward, `scene.remove(light)` to drop it — the
+`light` family builds every kind the internal session accepts. What follows is that session's own
+contract, `addLight`/`setLight`/`removeLight`. `SceneLight` (version 2) has three kinds. `point` and `spot` carry `position` and `range` in metres, `spot` also `direction` and a `coneAngle` half-angle; `directional` (sun, overcast sky) carries only `direction` — the propagation direction — and is refused if given a `position`, a `range` or a `coneAngle`, because it has none. All three carry linear `color`, a positive radiometric `intensity` and `castsShadow`. Bounds (`explorer.lightSettings`): 64 lights, 32 per 16x16 screen tile, a 4096-square depth atlas, and at most `shadowUpdatesPerFrame * 6` (24) shadow regions redrawn per frame.
 
 #### A moving image shades a drawn subset of each pixel's lights
 
 The per-tile list bounds what a pixel may walk; what it walks depends on the image. A **moving** image — one temporal antialiasing accumulates on a history, at one eighth — weighs every light of its tile without its shadow (incidence, attenuation, the cosine and the light's luminance: the cheap part) and shades in full, shadow read included, only `samplesPerPixel` (4, `explorer.lightSettings`) of them. A light worth a sample's share of the pixel's weight is shaded exactly and leaves the pool — it would be drawn every image anyway, and drawing it a varying number of times is what would make a sunlit wall flicker; the remaining samples are drawn from the rest, evenly spaced along the cumulative weight from a per-pixel offset that advances by the golden ratio every image, each drawn light divided by its probability. The estimate is unbiased, so the history averages it toward the sum over every light; a list of four lights or fewer is summed in full. A **still** image — the sixteen quiet ones the hold waits for, and any image nothing averages: a capture, a diagnostic view, `temporalAntialiasing: false`, the first moving image after the history was dropped — shades every light of the tile, character for character the loop from before, so the held image is the exact sum and two runs give it to the bit (`0 px` A/A, Emerald ground view, thirty-two shadowed lights of three-cell range). The blend pass keeps shading its lights in full: a forward surface has no history to average.
 
-Measured (Emerald cache, 2496×1404, DPR 1, `pixelError` 1, ground view, `--lampes 32 --portee 3`: thirty-two shadowed point lights whose ranges reach one pixel, moving camera, 60 Hz display cap, the before side built from `develop` 3e6508b7 and the after side from the batch's shader at 99d1e9c3, both measured in one execution): whole-image GPU envelope p50 39.9 → 17.9 ms, the after side's two runs at 17.9 and 19.3; without any light the same image reads 5.0 ms, without shadows and with every light shaded 10.3. `metrics().lightsSampled` is the mode flag: `true` when the resolve ran in its sampled mode — a moving image on a history, where a pixel with more lights than samples draws a subset —, `false` when it ran the full loop. The declared cost: a moving image carries a faint grain on lit surfaces where lights of different colours overlap — on a plane under eight lamps of two colours built so that two draws differ as much as they can, the interior settles within 2.4 levels of the still image on average and 27 at worst after twenty-four moving frames (`test/browser/eclairage-echantillonne.browser.ts`); the still image differs from the one before this rule by 52 pixels of one level over 3.5 million, scattered single pixels; the rank-zero loop is the same text, the compiled module is not, and the cause is not isolated further. What remains, where the reference has one: a spatial denoise before the history.
+Measured (Emerald cache, 2496×1404, DPR 1, `pixelError` 1, ground view, `--lampes 32 --portee 3`: thirty-two shadowed point lights whose ranges reach one pixel, moving camera, 60 Hz display cap, the before side built from `develop` 3e6508b7 and the after side from the batch's shader at 99d1e9c3, both measured in one execution): whole-image GPU envelope p50 39.9 → 17.9 ms, the after side's two runs at 17.9 and 19.3; without any light the same image reads 5.0 ms, without shadows and with every light shaded 10.3. `metric.frame(world).lightsSampled` is the mode flag: `true` when the resolve ran in its sampled mode — a moving image on a history, where a pixel with more lights than samples draws a subset —, `false` when it ran the full loop. The declared cost: a moving image carries a faint grain on lit surfaces where lights of different colours overlap — on a plane under eight lamps of two colours built so that two draws differ as much as they can, the interior settles within 2.4 levels of the still image on average and 27 at worst after twenty-four moving frames (`test/browser/eclairage-echantillonne.browser.ts`); the still image differs from the one before this rule by 52 pixels of one level over 3.5 million, scattered single pixels; the rank-zero loop is the same text, the compiled module is not, and the cause is not isolated further. What remains, where the reference has one: a spatial denoise before the history.
 
 #### Shadow maps are invalidated page by page, under a millisecond budget
 
-The atlas is cut into `shadowPage` (128) texel pages. A light that moves invalidates its whole map; an object that moves — a transform, a page entering or leaving residence — invalidates only the pages of each face its projected box covers, and only those are redrawn. The frame is the whole face's, only the scissor is the region's, so a page redrawn this way carries **exactly the depth a full redraw would write**, bit for bit. `explorer.shadowAtlasDigest()` returns the raw depth hash so a host can check that for itself; `createExplorer({ shadowPageInvalidation: false })` turns the rule off and redraws whole faces, which is how the two are compared.
+The atlas is cut into `shadowPage` (128) texel pages. A light that moves invalidates its whole map; an object that moves — a transform, a page entering or leaving residence — invalidates only the pages of each face its projected box covers, and only those are redrawn. The frame is the whole face's, only the scissor is the region's, so a page redrawn this way carries **exactly the depth a full redraw would write**, bit for bit. `diagnostic.shadowAtlas(world)` returns the raw depth hash so a host can check that for itself; `openMeasuredWorld({ shadowPageInvalidation: false })` turns the rule off and redraws whole faces, which is how the two are compared.
 
-What a frame redraws is bounded by `shadowBudgetMs` (`createExplorer`, 1.0 ms by default), measured on the shadow pass's own GPU timestamps and smoothed across frames. Pages the budget refuses wait for the next frame, ordered by the light's screen coverage and by how long they have already waited; they are never dropped, and the frame's `shadowPagesDrawn`, `shadowPagesTotal` (cumulative, `flush()` drains included), `shadowPagesPending` and `shadowWaitMs` publish the work, the queue and the oldest page's delay; the per-stage profile adds, under Shadows, the clusters the region culls kept (`occludeursGardes`, with `regionsRelevees` and `imageRelevee`), sampled on the device one frame in fifteen and read after submission — the frame it describes is named, never the current one. Without GPU timestamps there is no budget at all, only the region ceiling. The cost of one region — rejection, depth reset, indirect draw — is folded into an averaged per-page cost: a named approximation, published in the `direct-lighting` diagnostic.
+What a frame redraws is bounded by `shadowBudgetMs` (an internal explorer option reached through the measurement entry point, 1.0 ms by default), measured on the shadow pass's own GPU timestamps and smoothed across frames. Pages the budget refuses wait for the next frame, ordered by the light's screen coverage and by how long they have already waited; they are never dropped, and the frame's `shadowPagesDrawn`, `shadowPagesTotal` (cumulative, `flush()` drains included), `shadowPagesPending` and `shadowWaitMs` publish the work, the queue and the oldest page's delay; the per-stage profile adds, under Shadows, the clusters the region culls kept (`occludeursGardes`, with `regionsRelevees` and `imageRelevee`), sampled on the device one frame in fifteen and read after submission — the frame it describes is named, never the current one. Without GPU timestamps there is no budget at all, only the region ceiling. The cost of one region — rejection, depth reset, indirect draw — is folded into an averaged per-page cost: a named approximation, published in the `direct-lighting` diagnostic.
 
 A directional light's shadows are `sunCascades` (4) cascades following the camera, stored in the same atlas slice mechanism as a point light's six faces, under the same rules: the map is reused while neither the light nor the world inside its extent has moved, and while the cascade still describes the same world extent. That extent is a whole number of `shadowPage` pages on the light plane, addressed by absolute page modulo the face — a ring, as the published virtual shadow maps do —, so a camera that moves less than a page changes nothing, and a camera that moves by whole pages keeps every page still inside and redraws **only the strip that entered**; a move of an extent side or more, or a step of the depth anchor — snapped to a grid of one sphere diameter along the light axis — redraws the cascade whole. Each region drawn rejects, before drawing, the clusters outside the box it cuts in the extent — its page rectangle by the map's depth bounds; alpha-masked materials keep their real cutout; no resolution or detail reduction. Cascades cover `sunShadowFarFraction` (0.2) of the camera's far plane. Their splits are a geometric series of ratio `sunCascadeRatioMax` (4), so texel density changes by exactly that ratio at every seam; the near end of the series is `shadow distance / ratio^cascades`, not the camera's near plane, while the first cascade still covers from that near plane.
 
 Beyond the last cascade the sun's shadow is one ray per pixel against the resident proxy (`proxy.bin`), traced by the same bounded traversal the bounce uses. It is deterministic — the ray direction is the sun's — so nothing is accumulated across frames. The ray starts `sunFarShadowStartCells` (1) proxy cells along its own direction, so a blocker nearer than one proxy cell carries no far shadow; the proxy's certified geometric error moves the shadow edge; a ray that exhausts the published traversal bound reports no blocker, which lights. All of these are published in the `sun-far-shadow` diagnostic, together with the pixels tested and darkened on one sampled image out of fifteen. Without a resident proxy in the cache, the diagnostic says the far shadow is unavailable and the surface stays lit with no cast shadow, as before: the last cascade is never stretched to cover the far plane, which would divide the texel density of every near shadow by five on each axis. The blend pass that lights transparent surfaces binds the same proxy and traces the same ray through the same WGSL, so a distant transparent surface darkens exactly like the opaque one beside it; it binds the proxy read-only, so the two sampled counters come from the deferred pass alone, and the blend fragment stage keeps early depth rejection, which a writable storage binding would cost it. The resident proxy lives in a single storage buffer (a twelve-word header, then the three columns) so that both passes stay within the eight storage buffers guaranteed per shader stage.
 
-`setLightingView(view)` selects what the opaque path outputs. `'lit'` is real lighting and nothing else. `'unlit'` is the raw-albedo diagnostic view: base colour as authored, with no light, no ambient and no emission, for geometry benchmarks that compare images pixel by pixel. It is a diagnostic view, not a light. `'auto'` is the default: the unlit view while no light is declared, real lighting as soon as one is. Declaring a light therefore changes the image; declaring none never leaves a black frame.
+`setLightingView(view)` selects what the opaque path outputs. `'lit'` is real lighting and nothing else. `'unlit'` is the raw-albedo diagnostic view: base colour as authored, with no light, no ambient and no emission, for geometry benchmarks that compare images pixel by pixel. It is a diagnostic view, not a light. `'auto'` is the default: the unlit view while no light is declared, real lighting as soon as one is. Declaring a light therefore changes the image; declaring none never leaves a black frame. A world always opens its session on `'lit'`: the auto/unlit distinction, and `'bounce'` below, are internal explorer views reached only through the measurement entry point.
 
 ### What a backend actually does with the lights
 
-`explorer.lightingCapabilities()` reports what the **active** backend applies, not what the contract publishes: `{ sceneLights, lightingView, shadows, transforms, reason? }`. A call the store accepts is not proof of lighting — the store belongs to the session and every backend shares it, so a backend that never reads it leaves the image exactly as it was. `sceneLights` and `lightingView` are read from the backend itself (it reads the store, or it does not); `transforms` is read from `setTransform`; `shadows` is declared by the backend, because no signature says it. `reason` names in one sentence what is not applied. Selecting another backend changes the answer.
+`capability.lighting(world)` (internally `explorer.lightingCapabilities()`) reports what the **active** renderer applies, not what the contract publishes: `{ sceneLights, lightingView, shadows, transforms, reason? }`. A call the store accepts is not proof of lighting — the store belongs to the session and every backend shares it, so a backend that never reads it leaves the image exactly as it was. `sceneLights` and `lightingView` are read from the backend itself (it reads the store, or it does not); `transforms` is read from `setTransform`; `shadows` is declared by the backend, because no signature says it. `reason` names in one sentence what is not applied. Selecting another backend changes the answer.
 
 The first `addLight`, `setLight` or `setLightingView` made against a backend without `sceneLights` emits one `scene-lights-unsupported` diagnostic per session — the store still accepts the light, because the host may select a backend that applies it later.
 
@@ -502,7 +764,7 @@ three entries, each with the world transform of its node.
 `spot`, lux (lm/m²) for `directional` — while the engine is radiometric (P1), in W/sr and W/m². The
 compiler divides by **683 lm/W**, `K_cd`, the SI constant that defines the candela; no spectrum is
 assumed, and no hidden gain is applied. A source whose image is then too dark or too bright is
-corrected by `setEnvironment({ exposure })`, never by the import. FBX carries no photometric unit at
+corrected by `world.exposure`, never by the import. FBX carries no photometric unit at
 all — its `Intensity` is a percentage — so two published settings convert it: one unit is
 **1000 lm / 4π ≈ 79.6 cd** for a point or spot (a domestic bulb radiating in every direction), and
 **10 000 lux** for a directional (an overcast day). A `point` or `spot` with no `range` gets one
@@ -512,16 +774,19 @@ softens a spot edge with its own published `spotEdgeSoftness`. A light whose typ
 intensity does not hold the contract is counted in the file's `rejected` map and left out — a
 compile never dies on a light, it says so.
 
-`prepare()` and `createExplorer()` declare these lights on open, before the first backend prepares,
+`prepare()` and `openMeasuredWorld()` declare these lights on open, before the first backend prepares,
 so the `auto` view knows from its first frame that it has a source. A light casts a shadow when the
 file says so (FBX carries the flag; glTF has none, so imported glTF lights cast one) — the per-frame
 cap of `shadowUpdatesPerFrame` (4) already bounds what that costs. If a file declares more than the
 64 lights the contract accepts, the ones that carry furthest are kept — directionals first, then by
 peak channel intensity — and the rest are counted in the `imported-lights` diagnostic, never
-silently lost. `explorer.importedLights()` returns them, in cache order, for the host to change with
-`setLight` or drop with `removeLight`; `importedLights: false` in the explorer options opens the
-scene without any of them. A scene with no imported light behaves exactly as before: no light, `auto`
-resolves to `unlit`. The measurement harness carries the same switch as `--lampes-fichier on|off`.
+silently lost. A world reads them as `(await scene.load(url)).lights`, in cache order, for the host to
+change with `light.visible = false`, `model.remove(light)` or `light.intensity = …` — each lamp is a
+child of the model, not of the scene directly; `explorer.importedLights()` and
+`importedLights: false` are the internal session's own form, reached only through the measurement
+entry point, for a session that must open a scene with none of them. A scene with no imported light
+behaves exactly as before: no light, `auto` resolves to `unlit`. The measurement harness carries the
+same switch as `--lampes-fichier on|off`.
 
 ### Light that bounces (opaque path)
 
@@ -557,7 +822,8 @@ scheduler skips the rest: empty sky and the solid core of a block cost no ray. A
 out to be buried in a surface, or lost in open sky, also puts itself to sleep until a light changes
 or it changes cell.
 
-**A budget in milliseconds, not in rays.** `createExplorer({ bounceBudgetMs })` sets the GPU time
+**A budget in milliseconds, not in rays.** `bounceBudgetMs` (an internal explorer option, reached
+through the measurement entry point) sets the GPU time
 the `bounce` stage should take per frame (0.8 ms by default). The engine reads the stage's own
 timestamp from the per-pass GPU profile and corrects, with smoothing, the fraction of its published
 ceilings — `raysPerFrame` (49 152 probe rays) and `surfaceTexelsPerFrame` (16 384 cache cells) — that
@@ -597,7 +863,7 @@ stage costs **1.12 / 1.18 / 1.26 ms** (p50, the three bench views) against 2.22 
 before this change, which is still above the one-millisecond bar that would have made it the default.
 Most of that is fixed cost, not work: the millisecond budget drives the fraction down to its floor
 (2 %, 15 probes and 328 cache cells per frame) and the stage still reads 1.1 ms.
-`createExplorer({ bounce: true })` turns it on for the session. Left off, the deferred resolve
+`bounce: true` (also reached only through the measurement entry point) turns it on for the session. A published world does not expose it yet. Left off, the deferred resolve
 compiles the direct-only program, exactly the shader of the previous change, and the bounce declares
 itself unavailable rather than appearing silently. Emission, transparency and specular are not
 bounced; the proxy carries diffuse albedo only.
@@ -610,11 +876,11 @@ same light and diffuse-material model. The oracle truncates the bounce series at
 count while the engine carries the whole series, so a comparison only means something at a matching
 order.
 
-`setEnvironment({ exposure })` sets camera exposure, applied to linear radiance immediately before ACES. It is not a light: it cannot brighten a surface no declared light reaches, and a scene without lights stays black whatever its value.
+`world.exposure` sets camera exposure, applied to linear radiance immediately before ACES. It is not a light: it cannot brighten a surface no declared light reaches, and a scene without lights stays black whatever its value.
 
 The transparent path still uses the authored Three.js light graph and its fixed ambient, so `sceneLighting?: HostTraversable` still supplies that graph (falling back to the loaded glTF graph, then to a hemisphere/sun rig), still adapts directional, point, spot, hemisphere and ambient lights to a bounded buffer (maximum 256 visible lights; excess and unsupported types fail explicitly), and `explorer.refreshSceneLighting()` still applies after adding or removing lights there. Extending the no-implicit-light rule to transparents is later work. Environment-map lighting, area lights, probes and global illumination are not implemented.
 
-For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. `presentedSurface` is published only while its image is current: a lost or disposed device withdraws it and blanks the canvas, on either path, before the next call raises `WEBGPU_LOST`, and the loss is announced once, after that withdrawal, by the `gpu-device-lost` diagnostic (`code: 'WEBGPU_LOST'`, `reason`: the device's own, `unknown` when its `lost` promise rejected, `uncaptured-error` or `residency`) — no host composes a frame older than the device. The browser proof (`test/browser/surface-appareil-perdu.browser.ts`) covers the composed path; the direct path shares the presenter code that blanks the canvas. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
+For `renderer: 'webgpu'` (or, internally, `backends: [webgpuPagesBackend]`), the session configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend internal session — reached only through the measurement entry point, never a published world — composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. `presentedSurface` is published only while its image is current: a lost or disposed device withdraws it and blanks the canvas, on either path, before the next call raises `WEBGPU_LOST`, and the loss is announced once, after that withdrawal, by the `gpu-device-lost` diagnostic (`code: 'WEBGPU_LOST'`, `reason`: the device's own, `unknown` when its `lost` promise rejected, `uncaptured-error` or `residency`) — no host composes a frame older than the device. The browser proof (`test/browser/surface-appareil-perdu.browser.ts`) covers the composed path; the direct path shares the presenter code that blanks the canvas. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 
 For every WebGL2-hosted session, `createWebglSurface` creates and owns the context before
 anything else exists. It fixes the context attributes, computes drawing-buffer dimensions from
@@ -720,7 +986,7 @@ claim; GPU timestamps remained unavailable.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the temporal history and a surface capture follow the resolution, as the reference's do, and `gpuFrameTargetBytes` says what they cost. Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`). The previous 288 MiB frame cap refused 4K on machines that held it; it is gone.
 
-**Budgets change during the session** — the call an application's memory slider makes — through `explorer.setMemoryBudgets({ geometryPoolBytes?, texturePoolBytes? })`, which resolves to what the engine holds afterwards (`geometryPool`, `texturePool` with their `clamp`, `evictedPages`, `evictedTiles`, `durationMs`; `texturePool` is `null` before `prepare()` has drawn the lane pools — the budget is kept and prepare draws them at it). Unlike the reference, which flushes its pools when their size changes, the engine keeps what fits: pages and tiles are copied on the GPU into the new pool, the root cover keeping its place before any other page, then the pinned pages, then the most recent; only what no longer fits is evicted, and the image stays complete throughout. Every bind group that named the old pool is rebuilt on the next image from the identity of what it names, in every pass. The geometry pool can grow up to `geometryPoolCeilingBytes` (the slider's maximum; the initial budget when absent), because the per-drawable-row tables are sized once, at that ceiling; a request above it is clamped `ceiling`. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+**Budgets change during the session** — the call an application's memory slider makes — through `world.budget.geometryPool = bytes` / `world.budget.texturePool = bytes` (clamped to `world.budget.geometryPoolCeiling` / `texturePoolCeiling`; reading either property back gives what the engine actually holds, not what was asked); internally the write resolves through `explorer.setMemoryBudgets({ geometryPoolBytes?, texturePoolBytes? })` to what the engine holds afterwards (`geometryPool`, `texturePool` with their `clamp`, `evictedPages`, `evictedTiles`, `durationMs`; `texturePool` is `null` before `prepare()` has drawn the lane pools — the budget is kept and prepare draws them at it). Two writes made before the next frame settle in one rebalance. Unlike the reference, which flushes its pools when their size changes, the engine keeps what fits: pages and tiles are copied on the GPU into the new pool, the root cover keeping its place before any other page, then the pinned pages, then the most recent; only what no longer fits is evicted, and the image stays complete throughout. Every bind group that named the old pool is rebuilt on the next image from the identity of what it names, in every pass. The geometry pool can grow up to `geometryPoolCeilingBytes` (the slider's maximum; the initial budget when absent), because the per-drawable-row tables are sized once, at that ceiling; a request above it is clamped `ceiling`. Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
 
 WebGPU pins the root cover for the lifetime of the backend, including its CPU index bytes. A region keeps a complete resident representation until all replacement pages have been uploaded; queue writes precede subsequent draws on the same GPU queue. If old and new detail cannot coexist, the renderer returns to the root cover before reclaiming old slots. Shared URLs occupy one slot across instances. The pool always holds the pinned cover: a budget under it is raised to it (`geometryPoolClamp: 'root-cover'`), never refused. If requested detail plus the cover cannot fit, rendering retains a complete available cut and reports `coverageBudgetLimited: true`; it may therefore be coarser than the requested pixel error. This does not bound total scene memory or certify the compiler's simplification quality. Standalone backends must supply validated `readPage(url)` or preload the root bytes; otherwise they submit no image until the complete initial cover is available.
 
@@ -735,7 +1001,7 @@ Two counters say different things about pages, and a host that confuses them rea
 
 A bounded cache evicting nothing while `pagesDetached` climbs is the normal state of an exploration. Background loads attempt a failed URL at most three times per explorer, then stop retrying it; reload the explorer to retry after repairing the source. `awaitPages()` rejects a failed requested URL. Initial cover read failures reject preparation. Diagnostics include `coverage-bootstrap-start`, `coverage-bootstrap-ready`/`coverage-bootstrap-failed`, `coverage-budget` (delivered during `flush()`), `coverage-upload-failed`, and `coverage-streaming-failed`. The `render-progress.coverage` object uses version 1. CPU cache eviction cannot remove an active GPU fallback; deferred evictions apply when its detail pages are released.
 
-`await explorer.captureSurfaceView(pose, {width, height, signal})` returns an owned `SurfaceCapture` version 1 with the four material textures, depth, inverse view-projection, camera position and selected triangle count. The host must serialize this operation with ordinary rendering and call `capture.dispose()` before requesting another capture. It reuses the engine's geometry and page cache, selects for the requested camera, rejects missing pages/insufficient budgets, and restores the main viewport and camera afterward. Translucency is excluded from these surface textures. The current implementation executes views sequentially and reallocates frame targets when dimensions change; it is not a batched multi-view renderer. It provides a concrete surface interface for future GI work, not Lumen cards, distance fields, ray tracing, velocity or a populated Surface Cache.
+This is an internal GI capture, distinct from the `capture` family a world reads (`capture.surface(world, { width, height })` and `capture.buffer(world, { width, height })`, plain pixels aside from the view): `await explorer.captureSurfaceView(pose, {width, height, signal})` returns an owned `SurfaceCapture` version 1 with the four material textures, depth, inverse view-projection, camera position and selected triangle count. The host must serialize this operation with ordinary rendering and call `capture.dispose()` before requesting another capture. It reuses the engine's geometry and page cache, selects for the requested camera, rejects missing pages/insufficient budgets, and restores the main viewport and camera afterward. Translucency is excluded from these surface textures. The current implementation executes views sequentially and reallocates frame targets when dimensions change; it is not a batched multi-view renderer. It provides a concrete surface interface for future GI work, not Lumen cards, distance fields, ray tracing, velocity or a populated Surface Cache.
 
 If visibility/material initialization fails in a direct WebGPU session, the engine fails visibly. It also rejects transmission rather than silently leaving it out. Mixed sessions retain the earlier reported fallback path; inspect `unsupported` and diagnostics and reject fallbacks for quality/performance comparisons. Per-texture transforms/UV channels/sampler modes, skinning, morph targets and the full material contract remain unsupported. No compiler/cache-format migration or new LOD algorithm is part of this integration.
 
@@ -759,7 +1025,7 @@ The browser requests `timestamp-query` when the adapter advertises it. `gpu-timi
 
 WebGPU filters transparent meshes against the current camera frustum before uploading their per-frame uniforms or issuing their draws. Bounds cover the complete transformed geometry, preserving objects that intersect the frustum. Source transforms are baked during preparation, as with the existing geometry path. `frustumCulled: false` and unavailable/nonfinite bounds conservatively retain a mesh. This does not add transparent LOD, occlusion culling or transparency sorting. `FrameMetrics` exposes `transparentMeshes` (retained meshes), `transparentFrustumRejected`, `transparentDrawCalls` and `transparentSubmittedTriangles`; the latter two include both passes of double-sided materials when required. Unsupported backends leave these metrics null. The bounded `render-progress` event includes the same counters in `transparent`, with `version: 1`, total candidates and `gpuMs: null`: command counts do not measure GPU duration.
 
-For image checks, call `setPose()`, `awaitPages()`, `render()`, then `await flush()` and `capture()`. The WebGPU `flush()` performs an explicit asynchronous image readback outside the beauty loop; `capture()` returns bottom-left RGBA bytes for that submitted frame. If a browser host renders again and immediately calls the existing synchronous `capture()` API, an isolated WebGL2 canvas copies the current GPU canvas with the same engine-owned program and reads its pixels on demand; `capture-synchronous` identifies this expensive compatibility path. It is never used by normal `render()`. A texture-only backend rejects unavailable/stale captures. Serialize `flush()` with explicit host rendering; a frame changed by a host render during readback is rejected rather than returned as current. Streaming completion during readback retains the accepted page bytes and defers its automatic redraw to the next render, preserving the captured frame. The first such deferral emits `capture-streaming-deferred`. The WebGL backends continue reading their rendered default framebuffer so pinned Three r174 tone mapping matches the displayed image.
+For image checks, a world calls `world.camera.set(pose)`, `await world.awaitPages()`, `world.render()`, then `await capture.buffer(world, { width, height })` — the equivalent of the internal session's `setPose()`, `awaitPages()`, `render()`, `await flush()` and `capture()`. The WebGPU `flush()` performs an explicit asynchronous image readback outside the beauty loop; `capture()` returns bottom-left RGBA bytes for that submitted frame. If a browser host renders again and immediately calls the existing synchronous `capture()` API, an isolated WebGL2 canvas copies the current GPU canvas with the same engine-owned program and reads its pixels on demand; `capture-synchronous` identifies this expensive compatibility path. It is never used by normal `render()`. A texture-only backend rejects unavailable/stale captures. Serialize `flush()` with explicit host rendering; a frame changed by a host render during readback is rejected rather than returned as current. Streaming completion during readback retains the accepted page bytes and defers its automatic redraw to the next render, preserving the captured frame. The first such deferral emits `capture-streaming-deferred`. The WebGL backends continue reading their rendered default framebuffer so pinned Three r174 tone mapping matches the displayed image.
 
 `pnpm run test:gpu` runs every hardware proof (`test/justesse/`, `test/browser/`) with the repository's own Playwright and esbuild, the machine's Chrome and its actual WebGPU device, and the assets under `.mesure/assets/` (see `scripts/mesure/README.md` § Assets). Nothing outside this repository is read. The material and Emerald visual proofs run standalone on the test harness server:
 
@@ -770,7 +1036,7 @@ node test/browser/scene-webgpu.browser.ts
 
 The material check renders twelve fixtures (`test/appui/materialFixtures.ts`) with `three-webgl-reference` and `webgpu-page-raster`, both from `dist/`, and compares four or five pixels of each — base colour and its map, alpha MASK at the two 8-bit alphas around its cutoff, BLEND over the background and over an opaque surface, single- and double-sided back faces, rough dielectric, polished metal, emissive and normal map under one declared sun — within one level per channel, except the blend over an opaque surface, where the engine blends in linear radiance and the witness in display space: the fixture declares the 45-level gap of that pair, one level either side, and the proof holds the engine inside it. It fails on a gap outside a fixture's window, on a missing render diagnostic, on a GPU failure and on an engine image that never holds — the blend over the background excepted, since a view with no opaque cluster publishes no held frame (#198) — and writes both images and the readings under `benchmark-runs/material-pixels/`. The reference-scene check replays ten bench poses on the same source, camera, pixel error 1, and a 2496×1404 viewport — the internal resolution of the published profile `docs/REFERENCE_UE5.md` compares pass shapes against, declared once as `MEASURE_WIDTH`/`MEASURE_HEIGHT` in `test/appui/sceneProvenance.ts` and recorded in the provenance. What is matched is the internal render size, not their 4K output: that comes from a temporal upscale this engine does not have. It saves PNGs, per-view differences, source fingerprints and logs under `benchmark-runs/webgpu-visual/`. A successful runner execution is **not** a full-scene visual-parity verdict: inspect the measured differences and screenshots. The runner measures no performance and proves no memory stability.
 
-The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps, shadows and the full material contract. Padded texture-array boundaries and full-scene pixel differences still need dedicated parity checks; transparent compositing has its material fixtures. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
+The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps and the full material contract; shadow maps are applied (see "Shadow maps are invalidated page by page" above). Padded texture-array boundaries and full-scene pixel differences still need dedicated parity checks; transparent compositing has its material fixtures. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
 
 The separated pipeline has completed real render paths, A/A checks and the material fixtures above; full-scene parity and a controlled performance verdict remain unvalidated. Next is the reference scene with fixed camera, resolution, lights, pixel error and warmup. Verify actual direct-presentation logs, independent A/A captures, foreground coverage, transparent compositing and second-view restoration before timing. Preserve raw source hashes and results; old reports do not validate this code. Node tests validate orchestration/CPU contracts with GPU doubles and do not execute WGSL.
 

@@ -13,7 +13,7 @@ test('the observation shaders compile as one engine program: 3.00 profile, no ho
   assert.match(fragment, /#define SURFACE_COUNT 3\n/);
   assert.match(fragment, /uniform vec3 cameraPosition;uniform bool toneMapped;/);
   // The display chain in place of the two includes, in the order the host applied them.
-  const tone = fragment.indexOf('if(toneMapped)gl_FragColor.rgb=aces(gl_FragColor.rgb);'),
+  const tone = fragment.indexOf('if(toneMapped)gl_FragColor.rgb=toneMap(gl_FragColor.rgb);'),
     transfer = fragment.indexOf('gl_FragColor.rgb=linearToSrgb(gl_FragColor.rgb);');
   assert.ok(tone > 0 && transfer > tone, 'tone mapping, then the sRGB transfer');
 });

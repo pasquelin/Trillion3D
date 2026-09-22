@@ -69,6 +69,8 @@ export type ConeContext = {
   camX: number;
   camY: number;
   camZ: number;
+  /** 1 when `cam` is the eye, 0 when it is the direction back to an orthographic camera. */
+  camW: number;
 };
 
 /** Reused context of a cut: selection is synchronous, like its `selectionScratch`. */
@@ -81,10 +83,12 @@ export function createConeContext(): ConeContext {
     camX: 0,
     camY: 0,
     camZ: 0,
+    camW: 1,
   };
 }
 
-/** Fills context for a root transform and eye world position. */
+/** Fills context for a root transform and the camera's homogeneous view point
+ *  (`EngineCamera.viewPoint`); a three-component eye is a point. */
 export function coneContextFor(into: ConeContext, world: MatrixElements, eye: ArrayLike<number>) {
   const e = world.elements;
   into.ready = true;
@@ -92,10 +96,11 @@ export function coneContextFor(into: ConeContext, world: MatrixElements, eye: Ar
   if (!into.conformal) return into;
   into.scale = Math.hypot(e[0], e[1], e[2]);
   normalMatrix3(into.normal, e);
-  // Eye world position comes from engine camera (`cam.eye`): frame sets it once.
+  // The view point comes from the engine camera (`cam.viewPoint`): the frame sets it once.
   into.camX = eye[0];
   into.camY = eye[1];
   into.camZ = eye[2];
+  into.camW = eye[3] ?? 1;
   return into;
 }
 
@@ -124,6 +129,7 @@ export function coneCullsPageWith(
     ctx.camX,
     ctx.camY,
     ctx.camZ,
+    ctx.camW,
   );
 }
 

@@ -52,6 +52,8 @@ export function evaluateDagSelectionKernel(
     stretches,
     focal,
     near,
+    perspective: frames.perspective,
+    viewPoint: frames.viewPoint,
   });
   const coneCache = cacheCone ? new Map<number, boolean>() : undefined;
   const cone = (i: number, w: number): boolean => {

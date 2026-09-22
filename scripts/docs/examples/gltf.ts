@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Mesh } from '../shadow-theatre/geometry.ts';
 import type {
@@ -25,7 +25,7 @@ function bounds(values: readonly number[], size: number) {
  * The buffer views, accessors and primitives of workshop surfaces, in one binary chunk list;
  * `uv` adds the texture coordinates the workshop recorded, for a material that reads a map.
  */
-export function surfacesBuffers(
+function surfacesBuffers(
   surfaces: Iterable<[number, Mesh]>,
   buffer: number,
   firstView: number,
@@ -70,7 +70,7 @@ export function surfacesBuffers(
 }
 
 /** A material row: name, base colour, metalness, roughness, then any glTF field of its own. */
-export const material = ([
+const material = ([
   name,
   baseColorFactor,
   metallicFactor,
@@ -82,49 +82,6 @@ export const material = ([
   pbrMetallicRoughness: { baseColorFactor, metallicFactor, roughnessFactor },
   ...extra,
 });
-
-/** The document skeleton every example scene starts from. */
-export const examplesDocument = () => ({
-  asset: {
-    version: '2.0',
-    generator: 'Web Geometry examples recipe v1',
-    copyright: 'Original Web Geometry contributors; repository license',
-  },
-  scene: 0,
-});
-
-/**
- * Writes the surfaces of a workshop — one `{ positions, normals, indices }` per material index,
- * `materials` as `[name, baseColor, metallic, roughness]` rows — as `geometry.gltf` +
- * `geometry.bin` in `directory`: one mesh, one primitive per material, nothing external.
- */
-export async function writeSurfacesGltf(
-  directory: string,
-  name: string,
-  materials: readonly MaterialRow[],
-  surfaces: Iterable<[number, Mesh]>,
-) {
-  const { views, accessors, primitives, chunks, byteLength } = surfacesBuffers(
-    surfaces,
-    0,
-    0,
-    0,
-    0,
-  );
-  const gltf: GltfDocument = {
-    ...examplesDocument(),
-    scenes: [{ nodes: [0] }],
-    nodes: [{ name, mesh: 0 }],
-    meshes: [{ name, primitives }],
-    materials: materials.map(material),
-    buffers: [{ uri: 'geometry.bin', byteLength }],
-    bufferViews: views,
-    accessors,
-  };
-  await mkdir(directory, { recursive: true });
-  await writeFile(resolve(directory, 'geometry.gltf'), JSON.stringify(gltf));
-  await writeFile(resolve(directory, 'geometry.bin'), Buffer.concat(chunks));
-}
 
 /**
  * Appends workshop surfaces to an imported glTF as one more node, in their own `setting.bin`:

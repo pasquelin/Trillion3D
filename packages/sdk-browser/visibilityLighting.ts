@@ -48,11 +48,12 @@ export function shadeLit(
   const Nx = normal[0],
     Ny = normal[1],
     Nz = normal[2];
-  // The eye in world space, taken from the engine camera that the frame entry copied.
-  const eye = cam.eye;
-  const vx = eye[0] - world[0],
-    vy = eye[1] - world[1],
-    vz = eye[2] - world[2],
+  // The camera as one homogeneous point (`EngineCamera.viewPoint`), copied by the frame entry:
+  // the eye under a perspective projection, the way back under an orthographic one.
+  const eye = cam.viewPoint;
+  const vx = eye[0] - world[0] * eye[3],
+    vy = eye[1] - world[1] * eye[3],
+    vz = eye[2] - world[2] * eye[3],
     vLen = Math.hypot(vx, vy, vz) || 1;
   const Vx = vx / vLen,
     Vy = vy / vLen,

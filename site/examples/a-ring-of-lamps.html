@@ -23,56 +23,55 @@
         font: 12px system-ui;
       }
     </style>
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/"
-        }
-      }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <p id="shadows"></p>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/colonnade/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
-        // Shadow work per frame, in GPU milliseconds: what the sixteen lamps share.
-        shadowBudgetMs: 1,
-      });
-      // Sixteen shadow-casting lamps around the colonnade — six faces each in the shadow atlas.
-      // The budget bounds what one frame redraws; the pages left over wait, never dropped, and
-      // the counter below reads the queue as the frames settle.
+      const world = createWorld('view', { controls: 'orbit' });
+      const sand = material.meshStandard({ color: [0.6, 0.55, 0.45], roughness: 0.9 });
+      const chalk = material.meshStandard({ color: [0.88, 0.85, 0.78], roughness: 0.7 });
+      const floor = object.mesh(geometry.box(6, 0.3, 14), sand);
+      floor.position.y = -0.15;
+      world.scene.add(floor);
+      const profile = [[0, 0], [0.42, 0], [0.42, 0.25], [0.3, 0.25], [0.28, 2.7], [0.4, 2.7], [0.42, 2.95], [0, 2.95]];
+      for (const side of [-1, 1]) {
+        for (let index = 0; index < 6; index++) {
+          const column = object.mesh(geometry.lathe(profile, 24), chalk);
+          column.position.set(side * 1.8, 0, index * 2.4 - 6);
+          world.scene.add(column);
+        }
+        const lintel = object.mesh(geometry.box(0.9, 0.4, 13.5), chalk);
+        lintel.position.set(side * 1.8, 3.15, 0);
+        world.scene.add(lintel);
+      }
+
+      // Sixteen shadow-casting lamps around the colonnade.
       for (let index = 0; index < 16; index++) {
         const angle = (index / 16) * Math.PI * 2;
-        explorer.addLight({
-          id: `lamp-${index}`,
-          kind: 'point',
+        world.scene.add(light.point({
           position: [Math.sin(angle) * 3.2, 2.2, Math.cos(angle) * 7.2],
           color: index % 2 ? [1, 0.75, 0.45] : [0.7, 0.8, 1],
           intensity: 4,
-          range: 9,
-          emitterRadius: 0.1,
-          castsShadow: true,
-        });
+          distance: 9,
+          castShadow: true,
+          radius: 0.1,
+        }));
       }
-      explorer.setPose({ ...explorer.homePose(), position: [4.5, 3.6, 10], target: [0, 1.2, 0] });
-      explorer.invalidate();
-      // The queue drains once; the page reads it until it is empty, then stops — a settled scene
-      // does no work.
+      world.camera.position.set(4.5, 3.6, 10);
+      world.camera.lookAt(0, 1.2, 0);
+      world.controls.target.set(0, 1.2, 0);
+
+      // The world settles once every lamp's shadow has been drawn; the counter reads the
+      // resident pages until the scene stops moving.
       const shadows = document.getElementById('shadows');
-      const read = () => {
-        const { shadowPagesDrawn, shadowPagesPending, shadowPagesTotal } =
-          explorer.backends[0].metrics();
-        shadows.textContent = `shadow pages: ${shadowPagesDrawn ?? '?'} drawn this frame, ${shadowPagesPending ?? '?'} waiting, ${shadowPagesTotal ?? '?'} in all`;
-        if (shadowPagesPending) setTimeout(read, 250);
-      };
-      read();
+      world.onFrame(({ metrics }) => {
+        const text = `resident pages: ${metrics.residentPages ?? '?'} — triangles selected: ${metrics.selectedTriangles ?? '?'}`;
+        if (shadows.textContent !== text) shadows.textContent = text;
+      });
+      world.invalidate();
     </script>
   </body>
 </html>
