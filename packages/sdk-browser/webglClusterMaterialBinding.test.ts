@@ -15,8 +15,18 @@ function recorder() {
   const uploaded: { name: string; value: ArrayLike<number> }[] = [];
   const nothing = () => {};
   const binding = {
-    uniforms: { f1: nothing, f2: nothing, f3: nothing, f4: nothing, i1: nothing, i2: nothing, i4: nothing },
-    matrices: { set: (name: string, value: ArrayLike<number>) => void uploaded.push({ name, value }) },
+    uniforms: {
+      f1: nothing,
+      f2: nothing,
+      f3: nothing,
+      f4: nothing,
+      i1: nothing,
+      i2: nothing,
+      i4: nothing,
+    },
+    matrices: {
+      set: (name: string, value: ArrayLike<number>) => void uploaded.push({ name, value }),
+    },
     textures: { bind: nothing },
     state: { apply: nothing },
   } as unknown as Binding;
