@@ -6,7 +6,7 @@
     "texturePreviews": 1
   },
   "case": "A quad whose base colour is vraies-couleurs-24-bas.bmp, a 4 × 2 24-bit true-colour BMP stored bottom-up, compiled by the common harness.",
-  "formatVersion": 3,
+  "formatVersion": 5,
   "manifestBinaryVersion": 7,
   "previews": [
     {
