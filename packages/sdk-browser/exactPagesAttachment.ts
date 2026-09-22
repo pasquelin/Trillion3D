@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import { setGeometryBounds } from './threeBounds.ts';
 import type { PageRec } from './pageSelection.ts';
-import { hashId } from './backendCommon.ts';
+import { hashId } from './diagnosticColors.ts';
 
 /** The whole-page mesh record of a diagnostic mode: built once per resident page, painted on
  *  every sync, handed to the draw owner — never to the host scene. */
