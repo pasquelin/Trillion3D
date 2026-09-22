@@ -34,6 +34,23 @@ fn run(family: Vec<(Generator, Expect)>) {
     }
 }
 
+/// A texture set no material samples leaves the compiled DAG exactly as the mesh builds it
+/// without that set: page for page, the same triangles and the same errors.
+#[test]
+fn an_unread_texture_set_leaves_the_dag_as_without_it() {
+    for seed in SEEDS {
+        let unread = uv::second_set_unread(seed);
+        let mut without = uv::second_set_unread(seed);
+        without.uv1 = None;
+        assert_eq!(
+            cache::compiled_dag(&unread),
+            cache::compiled_dag(&without),
+            "{} (seed {seed})",
+            unread.name
+        );
+    }
+}
+
 #[test]
 fn uv_layouts_are_explained() {
     run([uv::cases(), uv_degenerate::cases()].concat());

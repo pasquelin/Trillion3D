@@ -3,7 +3,7 @@ use super::shapes::Sheet;
 use super::*;
 
 fn sheet_case(seed: u64, name: &'static str, materials: Vec<Material>) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = shapes::amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, shapes::NX, shapes::NY, amplitude);
     let slots = materials.len() as u32;
