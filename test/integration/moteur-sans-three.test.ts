@@ -94,6 +94,28 @@ const AUTORISES: Record<string, string> = {
   triangleDiagnostic: 'it colours a host geometry in a host material',
 };
 
+// CLOSED LIST OF FILES ALLOWED TO READ `declaration` — the host material a page was read from.
+//
+// Since lot 4b of #78 a page carries the engine's own surface record (`pageSurface.ts`) and the
+// engine path reads nothing else: the cut, the rows, the raster, the transparent items and the
+// audit all compute on that record. `declaration` is the host object itself, kept for the one
+// use that needs it — handing a surface back to the library that owns it. Reading it anywhere
+// else puts the host material back in the middle of a number the engine computes.
+const DECLARATION: Record<string, string> = {
+  clusterBatchRange: 'contract: it declares the field on a batch page',
+  pageSelectionTypes: 'contract: it declares the field on a page record',
+  pageSelectionCollect: 'the collection sets it, once, beside the record it built',
+  pageSurface: 'the record itself: its doc names the field as the crossing back',
+  autonomousGeometry: 'autonomous witness: it repaints its pages with host materials',
+  autonomousInstances: 'autonomous witness: it repaints its instances with host materials',
+  autonomousPages: 'autonomous witness: it keeps the base paint of each page',
+  clusterBatchUpdate: 'the WebGL2 draw record hands the declaration to the host renderer',
+  clusterBatchesFixture: 'batch-witness mount',
+  exactPagesMaterials: 'exact witness: the host material each page is drawn with',
+  webglClusterCompatibility: 'the admission gate reads the declaration it refuses',
+};
+const LIT_LA_DECLARATION = /(?:\.declaration\b|^\s*declaration[?]?:)/m;
+
 const IMPORTE_HOTE = /^\s*(?:import|export)\b[^\n]*\bfrom\s+['"]three(?:\/[^'"]*)?['"]/m;
 /** A call of the crossing back, `asHostLibrary<T>(x)` or `asHostLibrary(x)`, never its import. */
 const TRAVERSE = /\basHostLibrary\s*[<(]/;
@@ -135,6 +157,21 @@ test('no dead lines: each declared file exists and still imports', async () => {
       morts.push(`${file} no longer imports the host library: remove its line`);
   }
   assert.deepEqual(morts, [], 'an unused authorisation is removed from the list');
+});
+
+test('only the declared files read the host declaration a page was collected from', async () => {
+  const fuites: string[] = [],
+    morts: string[] = [];
+  for (const file of await sources())
+    if (LIT_LA_DECLARATION.test(await readFile(new URL(file, browser), 'utf8'))) {
+      if (!DECLARATION[file.slice(0, -3)]) fuites.push(file);
+    } else if (DECLARATION[file.slice(0, -3)]) morts.push(file);
+  assert.deepEqual(
+    fuites,
+    [],
+    `the engine path reads \`material\`, the record (${import.meta.url})`,
+  );
+  assert.deepEqual(morts, [], 'an authorisation whose file no longer reads the field is removed');
 });
 
 test('`cameraWorld.ts` remains the only translation from host camera to engine camera', async () => {

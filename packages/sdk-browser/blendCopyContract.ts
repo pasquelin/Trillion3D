@@ -10,6 +10,7 @@
 
 import type { HostAttribute, HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
 import type { MatrixElements } from './matrixElements.ts';
+import type { PageSurface } from './pageSurface.ts';
 
 /** What the engine reads on a transparent copy. Its `geometry` is the source one, with the index
  *  it draws and its local box on demand; its `matrix` is the engine's world storage for the
@@ -19,7 +20,10 @@ export type BlendCopy = {
     getIndex(): HostAttribute | null;
     computeBoundingBox(): void;
   };
+  /** The declaration the HOST renderer draws this copy with; only the host boundaries read it. */
   readonly material: HostMaterials;
+  /** The same surface as the engine's own record: what the engine path reads of this copy. */
+  readonly surface: PageSurface;
   readonly matrix: MatrixElements;
   readonly frustumCulled: boolean;
   renderOrder: number;

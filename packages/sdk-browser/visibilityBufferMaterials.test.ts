@@ -12,6 +12,7 @@ import {
 } from './visibilityBuffer.ts';
 import { camera, quadPages } from './visibilityBufferFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
   const map = new THREE.DataTexture(
@@ -84,7 +85,7 @@ test('a metalness map B=0 keeps a dielectric; B=1 is a metal', () => {
     metalnessMap: metal,
   });
   const { pages, geometry } = quadPages(a, [0, 0, 1, 0, 1, 1, 0, 1]);
-  const metalPages = pages.map((page) => ({ ...page, material: b }));
+  const metalPages = pages.map((page) => ({ ...page, material: surfaceOf(b) }));
   const cam = camera(),
     size: [number, number] = [16, 16];
   const ids = rasterVisibilityIds(pages, cameraMoteur(cam), size);
@@ -116,7 +117,7 @@ test('a roughness map G channel changes the GGX highlight', () => {
     roughnessMap: rough,
   });
   const { pages, geometry } = quadPages(a, [0, 0, 1, 0, 1, 1, 0, 1]);
-  const roughPages = pages.map((page) => ({ ...page, material: b }));
+  const roughPages = pages.map((page) => ({ ...page, material: surfaceOf(b) }));
   const cam = camera(),
     size: [number, number] = [16, 16];
   const ids = rasterVisibilityIds(pages, cameraMoteur(cam), size);
@@ -151,7 +152,7 @@ test('MeshStandardMaterial visbuffer lighting implements Cook-Torrance GGX micro
   const basic = new THREE.MeshBasicMaterial({ color: 0x331111 });
   const standard = new THREE.MeshStandardMaterial({ color: 0x331111, metalness: 0, roughness: 1 });
   const { pages, geometry } = quadPages(basic);
-  const litPages = pages.map((page) => ({ ...page, material: standard }));
+  const litPages = pages.map((page) => ({ ...page, material: surfaceOf(standard) }));
   const cam = camera(),
     size: [number, number] = [16, 16];
   const ids = rasterVisibilityIds(pages, cameraMoteur(cam), size);
