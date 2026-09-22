@@ -112,7 +112,7 @@ struct GroupReductionInput<'a> {
     locks: &'a [bool],
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
-    /// Canonical vertex by (position, uv): fallback reduction weld.
+    /// Canonical vertex by position and every texture set: fallback reduction weld.
     weld_seam: &'a [u32],
 }
 pub const CULLING_BRANCHING: usize = 8;
