@@ -1,16 +1,10 @@
 import type { DagStallSummary, DagWarning } from './dagContracts.ts';
 import type { Primitive } from './geometryContracts.ts';
 
-/** Where a primitive sits in the cache. */
-interface PrimitiveKey {
-  index: number;
-  mesh: number;
-  primitive: number;
-}
-/** A compiler warning attached to the primitive carrying it. */
-export type PrimitiveDagWarning = DagWarning & PrimitiveKey;
+/** A compiler warning attached to the primitive carrying it, and where it sits in the cache. */
+export type PrimitiveDagWarning = DagWarning & { index: number; mesh: number; primitive: number };
 /** The stall summary of a primitive with at least one stalled group, warned about or not. */
-export type PrimitiveDagStall = DagStallSummary & PrimitiveKey;
+export type PrimitiveDagStall = DagStallSummary & Omit<PrimitiveDagWarning, keyof DagWarning>;
 
 /**
  * The `dag-warnings` diagnostic of a cache: the primitives flagged by the compiler, and every
