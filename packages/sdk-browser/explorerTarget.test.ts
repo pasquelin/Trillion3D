@@ -2,7 +2,7 @@ import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { createExplorer, createExplorerJob } from './index.ts';
 import { resolveExplorerTarget } from './explorerTarget.ts';
-import { interactiveOptions, interactiveSize } from './explorerInteractiveOptions.ts';
+import { directWebgpu, interactiveOptions, interactiveSize } from './explorerInteractiveOptions.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 
 const canvas = () =>
@@ -58,7 +58,8 @@ test('interactive options derive CSS size and DPR with explicit overrides; manua
   assert.equal(interactiveOptions(element, options), options);
   const automatic = interactiveOptions(element, { ...options, interactive: true, scope: 'full' });
   assert.deepEqual([automatic.width, automatic.height, automatic.pixelRatio], [640, 360, 2]);
-  assert.deepEqual(automatic.backends, [webgpuPagesBackend]);
+  // #274: no backend is forced here; `chooseBackends` reads the machine at preparation.
+  assert.equal(automatic.backends, undefined);
   assert.equal(automatic.scope, 'full');
   assert.equal(automatic.geometryPoolBytes, undefined);
   assert.deepEqual(interactiveSize(element, { ...options, width: 10, pixelRatio: 1 }), {
@@ -90,4 +91,27 @@ test('hidden or invalid initial viewports fail with an actionable error', () => 
       () => interactiveSize(element, { ...options, width: 40, pixelRatio }),
       /Pixel ratio/,
     );
+});
+
+test('#274: the direct-GPU decision reads the chosen backends, not the host list', () => {
+  const device = {} as GPUDevice;
+  // A session that named nothing now gets the WebGPU raster by default, and it presents its own
+  // surface: no WebGL2 surface is built under it.
+  assert.equal(directWebgpu(options, [webgpuPagesBackend], device), true);
+  assert.equal(directWebgpu({ ...options, interactive: true }, [webgpuPagesBackend], device), true);
+  // Without a device the chosen path is another one, and nothing is refused by name.
+  assert.equal(
+    directWebgpu({ ...options, interactive: true }, [webgpuPagesBackend], undefined),
+    false,
+  );
+  // A host that named the raster itself and got no device is still refused by name.
+  assert.throws(
+    () =>
+      directWebgpu(
+        { ...options, interactive: true, backends: [webgpuPagesBackend] },
+        [webgpuPagesBackend],
+        undefined,
+      ),
+    /requires WebGPU/,
+  );
 });
