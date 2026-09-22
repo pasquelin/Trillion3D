@@ -17,14 +17,13 @@
     <canvas id="view"></canvas>
     <p>Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md</p>
     <script type="module">
-      import { createExplorer, webgpuPagesBackend } from '../runtime/engine.js';
+      import { createExplorer } from '../runtime/engine.js';
 
       // Manual rendering: the loop below draws every frame itself, so the canvas size is given.
       const canvas = document.getElementById('view');
       const explorer = await createExplorer(canvas, {
         manifestUrl: '../assets/examples/bust/cache/native/full/manifest.json',
         scope: 'full',
-        backends: [webgpuPagesBackend],
         width: canvas.clientWidth,
         height: canvas.clientHeight,
         pixelRatio: devicePixelRatio,
