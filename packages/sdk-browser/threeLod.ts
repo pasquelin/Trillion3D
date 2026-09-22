@@ -24,11 +24,8 @@ const HORS_PORTEE = [
 export const threeLodBackend: BackendFactory = (context) => {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(context.clearColor ?? 0x171d28);
-  const sceneLights = installSceneLighting(
-    scene,
-    context.sceneLighting ?? context.source,
-    hostAimNode,
-  );
+  const lightSource = context.sceneLighting ?? context.source;
+  const sceneLights = installSceneLighting(scene, lightSource, hostAimNode);
   const hostDraw = createThreeSceneDraw(context.webglContext, scene);
   const lods: THREE.LOD[] = [];
   let levels = 1,
