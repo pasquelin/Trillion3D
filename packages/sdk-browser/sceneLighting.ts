@@ -38,8 +38,9 @@ export type HostLight = HostPlaced & {
   decay?: number;
   angle?: number;
   penumbra?: number;
-  /** Aim of a directional or a spot; a copy carries its own, cloned with it. */
+  /** Aim of a directional or a spot: the point it looks at, a node of the same graph. */
   target?: HostPlaced;
+  /** A copy of this light, the host's own: a light that aims clones its target with itself. */
   clone(): HostLight;
 };
 
@@ -124,9 +125,11 @@ export function installSceneLighting(scene: HostLightScene, source: HostTraversa
     pairs = [];
     for (const original of sceneLights(source)) {
       // The host's own copy: a light that aims somewhere clones its target with it, and that
-      // clone is what is placed here — the aim is a position in this graph, never a rig.
+      // clone is what is placed here — the aim is a position in this graph, never a rig. A copy
+      // that shared the source's target is left aiming at it, where the source graph resolves
+      // it: moving that node here would take it out of the graph its owner walks.
       const copy = original.clone();
-      const target = copy.target;
+      const target = copy.target === original.target ? undefined : copy.target;
       if (target) scene.add(target);
       scene.add(copy);
       pairs.push({ original, copy, target });
