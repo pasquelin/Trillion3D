@@ -11,15 +11,17 @@ export const ASSETS = process.env.WG_ASSETS
   : resolve(import.meta.dirname, '../../.mesure/assets');
 
 /** Harness fallback when no named cache gives it a scene. */
-export const DEFAULT_SCENE = 'emerald-square';
+export const DEFAULT_SCENE = 'sponza';
 
-/** The two scenes the campaign plays, in this order, as soon as their cache is there. */
-export const REFERENCE_SCENES = ['emerald-square', 'whisperwind-village'];
+/** The scenes the campaign plays, in this order, as soon as their cache is there. */
+export const REFERENCE_SCENES = ['sponza', 'normal-tangent-mirror-test'];
 
 /** What the report must say of a scene, and that a reading does not carry. */
 const SCENE_NOTES: Record<string, string> = {
-  'whisperwind-village':
-    'Unreal FBX, heavy instancing (one wall × 1,292). 81 materials, 6 textured: the export omitted Megascans textures — not on us; re-export from Unreal.',
+  sponza:
+    'Khronos glTF-Sample-Assets, public: an interior of 262 k triangles and 69 images, the big cut and the lighting of the bench (`scripts/mesure/assets.ts`).',
+  'normal-tangent-mirror-test':
+    'Khronos glTF-Sample-Assets, public: a plane whose texture coordinates are mirrored halves — a fold the weld must not split, and that must cost the simplification nothing. Small on purpose: it proves a rule, it measures no frame.',
 };
 
 export const sceneNote = (scene: string) => SCENE_NOTES[scene] ?? null;
