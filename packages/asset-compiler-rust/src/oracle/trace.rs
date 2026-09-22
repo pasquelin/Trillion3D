@@ -1,6 +1,7 @@
-use super::geometry::{cross, dot, scale, sub, vertex};
+use super::geometry::vertex;
 use super::scene::World;
 use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN, SPOT_EDGE};
+use crate::shared_math::{cross, dot, scale, sub};
 use rayon::prelude::*;
 
 /// What a ray hit: distance, and triangle. No stack, no recursion.
