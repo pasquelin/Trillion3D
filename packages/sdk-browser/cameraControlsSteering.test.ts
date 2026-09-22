@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { createFlyCameraControls } from './cameraFlyControls.ts';
 import { createFirstPersonCameraControls } from './cameraFirstPersonControls.ts';
 import { rotateByQuaternion } from './cameraControlMath.ts';
-import { fixtureCamera, fixtureDrag, fixtureSurface } from './cameraControlsFixture.ts';
+import {
+  fixtureCamera,
+  fixtureDrag,
+  fixtureSurface,
+  type FixtureCamera,
+} from './cameraControlsFixture.ts';
+import type { SteeredCameraControls } from './cameraControlTypes.ts';
 
 const round = (value: number, digits = 6) => Number(value.toFixed(digits)) + 0;
 const facing = (camera: { quaternion: { x: number; y: number; z: number; w: number } }) => {
@@ -13,7 +19,10 @@ const facing = (camera: { quaternion: { x: number; y: number; z: number; w: numb
 const at = (camera: { position: { x: number; y: number; z: number } }) =>
   [round(camera.position.x), round(camera.position.y), round(camera.position.z)] as const;
 
-function steered(make: typeof createFlyCameraControls) {
+/** One camera, one surface and the named controller, with its emissions counted. */
+function steered<T extends SteeredCameraControls>(
+  make: (camera: FixtureCamera, surface: HTMLElement) => T,
+) {
   const camera = fixtureCamera(0, 0, 0),
     surface = fixtureSurface(400);
   const controls = make(camera, surface.element);
