@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { triangleGeometry } from '../../packages/sdk-browser/triangleDiagnostic.ts';
+import { hostDiagnostics } from '../../packages/sdk-browser/threeSceneAdapter.ts';
 import { asHostLibrary } from '../../packages/sdk-browser/hostResources.ts';
 import { drawCoplanarBlend } from './webglClusterCoplanarBlend.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.ts';
@@ -106,7 +107,7 @@ export function execute() {
   drawCoplanarBlend(renderer, scene, drawCamera, geometry, clusterRecord, lower, true);
   const coplanarBlendPixel = pixel(gl);
 
-  const diagnosticGeometry = asHostLibrary<THREE.BufferGeometry>(triangleGeometry(geometry())),
+  const diagnosticGeometry = asHostLibrary<THREE.BufferGeometry>(triangleGeometry(geometry(), hostDiagnostics)),
     diagnosticMaterial = new THREE.MeshBasicMaterial({ vertexColors: true }),
     diagnostic = new THREE.Mesh(diagnosticGeometry, diagnosticMaterial);
   diagnostic.matrixAutoUpdate = false;
