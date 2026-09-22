@@ -5,9 +5,7 @@
     "bakedLevels": 0,
     "base": 64,
     "blockBytes": 0,
-    "blockFormats": [
-      "bc7"
-    ],
+    "blockFormats": ["bc7"],
     "colorTextures": 1,
     "dataTextures": 0,
     "encoded": {
