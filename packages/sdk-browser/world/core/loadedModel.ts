@@ -16,6 +16,8 @@ export type ModelRecord = {
   base: string;
   metadata: ClusterManifest;
   scene: ExplorerScene;
+  /** Where its images were read: `cache` left the baked ones to the levels the session reads. */
+  textureSource: 'host' | 'cache';
 };
 
 /**
@@ -96,6 +98,7 @@ export async function loadModel(
     base,
     metadata,
     scene: { ...scene, framingLot: null },
+    textureSource,
   });
   for (const record of imported.lights) {
     const lamp = lightFromRecord(record);

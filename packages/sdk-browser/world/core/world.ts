@@ -34,6 +34,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     animating = false,
     disposed = false;
   const ready = probeWorldRenderer(canvas, options.renderer).then((granted) => {
+    // A world disposed while its renderer was asked for keeps nothing it was granted.
+    if (disposed) return granted.gpuDevice?.destroy();
     renderer = granted.renderer;
     gpuDevice = granted.gpuDevice;
   });
