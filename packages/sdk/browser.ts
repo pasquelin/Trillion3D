@@ -45,6 +45,9 @@ export type { GpuPassBlockTotals } from '../sdk-browser/gpuPassBlocks.ts';
 export type {
   HostAttribute,
   HostAttributes,
+  HostDiagnosticFactory,
+  HostDiagnosticGeometry,
+  HostDiagnosticMaterial,
   HostGeometry,
   HostMaterial,
   HostMaterials,

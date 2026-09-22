@@ -138,8 +138,9 @@ export type HostScene = HostTraversable & {
 /**
  * WHAT A DIAGNOSTIC VIEW TOUCHES ON THE HOST GRAPH. A diagnostic is not a beauty pass, but the
  * graph it repaints belongs to the host: it swaps a surface and a geometry on a mesh, keeps the
- * beauty pair beside it, and frees what it made. It reads nothing else, and builds nothing —
- * building a host object is the boundary's (`threeSceneAdapter.ts`).
+ * beauty pair beside it, and frees what it made. It reads nothing else, and builds nothing — the
+ * host objects it hangs arrive through `HostDiagnosticFactory`, handed in by the boundary that
+ * owns the graph, never through an import: no view file names a rendering library.
  */
 export type HostDiagnosticMaterial = HostMaterial & {
   clone(): HostDiagnosticMaterial;
@@ -153,6 +154,22 @@ export type HostDiagnosticMesh = {
   material: HostDiagnosticMaterial | HostDiagnosticMaterial[];
   geometry: HostDiagnosticGeometry;
   userData: Record<string, unknown>;
+};
+
+/**
+ * The host objects a diagnostic view swaps in, made by the boundary that owns the display graph
+ * and injected into the views, the way a light placement receives the node its copy aims at.
+ * Nothing is decided here: the salt, the per-triangle colours and the side all arrive computed.
+ */
+export type HostDiagnosticFactory = {
+  /** Copy of a host geometry with every triangle on its own three vertices. */
+  triangleGeometry(source: HostDiagnosticGeometry): HostDiagnosticGeometry;
+  /** Writes the per-vertex colours the engine computed onto a host geometry. */
+  vertexColors(geometry: HostDiagnosticGeometry, colors: Float32Array): void;
+  /** Unshaded surface showing those vertex colours as they are. */
+  triangleMaterial(side: number): HostDiagnosticMaterial;
+  /** Unshaded surface of one cluster's colour, the hue the core computed from its identifier. */
+  clusterMaterial(id: string, side: number): HostDiagnosticMaterial;
 };
 
 /**

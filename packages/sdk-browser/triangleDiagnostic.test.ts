@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { applyMeshDiagnostic, triangleGeometry } from './triangleDiagnostic.ts';
-import { hostTriangleMaterial } from './threeSceneAdapter.ts';
+import { hostDiagnostics } from './threeSceneAdapter.ts';
 import { asHostLibrary } from './hostResources.ts';
 import { exactPagesBackend, referenceBackend } from './index.ts';
 import { quadScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
@@ -10,18 +10,18 @@ import { submittedDraws } from './clusterBatchMesh.ts';
 
 test('triangle diagnostic expands indexed geometry and assigns a color per submitted triangle', () => {
   const { geometry } = quadScene();
-  const expanded = asHostLibrary<THREE.BufferGeometry>(triangleGeometry(geometry));
+  const expanded = asHostLibrary<THREE.BufferGeometry>(triangleGeometry(geometry, hostDiagnostics));
   assert.equal(expanded.getIndex(), null);
   assert.equal(expanded.getAttribute('position').count, 6);
   assert.ok(expanded.getAttribute('color'));
   const colors = expanded.getAttribute('color').array;
   assert.notDeepEqual([...colors.subarray(0, 3)], [...colors.subarray(9, 12)]);
-  assert.equal(triangleGeometry(geometry), expanded);
+  assert.equal(triangleGeometry(geometry, hostDiagnostics), expanded);
   geometry.dispose();
 });
 
 test('triangle material is filled and unlit with vertex colors', () => {
-  const material = asHostLibrary<THREE.MeshBasicMaterial>(hostTriangleMaterial(THREE.FrontSide));
+  const material = asHostLibrary<THREE.MeshBasicMaterial>(hostDiagnostics.triangleMaterial(THREE.FrontSide));
   assert.ok(material instanceof THREE.MeshBasicMaterial);
   assert.equal(material.wireframe, false);
   assert.equal(material.vertexColors, true);
@@ -34,12 +34,12 @@ test('a mesh diagnostic swaps in the triangle colouring and hands the source bac
   mesh.userData.sourceMaterial = material;
   material.side = THREE.DoubleSide;
   const overlays: THREE.Material[] = [];
-  applyMeshDiagnostic(mesh, 'wireframe', overlays);
-  assert.equal(mesh.geometry, triangleGeometry(geometry));
+  applyMeshDiagnostic(mesh, 'wireframe', overlays, hostDiagnostics);
+  assert.equal(mesh.geometry, triangleGeometry(geometry, hostDiagnostics));
   assert.equal(overlays.length, 1);
   assert.equal(mesh.material, overlays[0]);
   assert.equal((mesh.material as THREE.Material).side, THREE.DoubleSide);
-  applyMeshDiagnostic(mesh, 'beauty', overlays);
+  applyMeshDiagnostic(mesh, 'beauty', overlays, hostDiagnostics);
   assert.equal(mesh.geometry, geometry);
   assert.equal(mesh.material, material);
   assert.equal(overlays.length, 1, 'the overlay stays for its owner to dispose');

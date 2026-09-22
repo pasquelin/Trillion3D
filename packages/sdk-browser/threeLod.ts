@@ -10,7 +10,7 @@ import { isTransmissive } from './visibilityBuffer.ts';
 import { setGeometryBounds } from './threeBounds.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/index.ts';
 import { resolveCameraWorld } from './cameraWorld.ts';
-import { createThreeSceneDraw } from './threeSceneAdapter.ts';
+import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 
 /** What this engine does not claim to do, with or without levels of detail. */
 const HORS_PORTEE = [
@@ -118,7 +118,7 @@ export const threeLodBackend: BackendFactory = (context) => {
       overlays.splice(0).forEach((m) => m.dispose());
       for (const lod of lods)
         for (const level of lod.levels)
-          applyMeshDiagnostic(level.object as THREE.Mesh, mode, overlays);
+          applyMeshDiagnostic(level.object as THREE.Mesh, mode, overlays, hostDiagnostics);
     },
     async prepare() {},
     // This engine rewalks the scene every frame: no revision has to teach it.

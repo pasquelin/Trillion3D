@@ -4,6 +4,7 @@ import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import { clusterColor } from './backendCommon.ts';
 import {
   asHostLibrary,
+  type HostDiagnosticFactory,
   type HostDiagnosticGeometry,
   type HostDiagnosticMaterial,
 } from './hostResources.ts';
@@ -114,37 +115,29 @@ export function createThreeSceneDraw(gl: WebGL2RenderingContext | undefined, sce
   };
 }
 
-/**
- * THE HOST OBJECTS A DIAGNOSTIC VIEW SWAPS IN. The views are the engine's — which triangle, which
- * cluster, which tint — but what they hang on a host mesh is a host material and a host geometry,
- * and building one is this boundary's work, never a pass's. Nothing is decided here: the salt, the
- * per-triangle colours and the side all arrive computed.
- */
-
-/** Copy of a host geometry with every triangle standing on its own three vertices, so a colour
- *  can be written per triangle without a shared corner taking two. */
-export function hostTriangleGeometry(geometry: HostDiagnosticGeometry): HostDiagnosticGeometry {
-  const source = asHostLibrary<THREE.BufferGeometry>(geometry);
-  const copy = source.index ? source.toNonIndexed() : source.clone();
-  return copy as unknown as HostDiagnosticGeometry;
-}
-
-/** Writes the per-vertex colours the engine computed onto a host geometry. */
-export function hostVertexColors(geometry: HostDiagnosticGeometry, colors: Float32Array) {
-  const target = asHostLibrary<THREE.BufferGeometry>(geometry);
-  target.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-}
-
 const unshaded = (parameters: THREE.MeshBasicMaterialParameters, side: number) =>
   new THREE.MeshBasicMaterial({
     ...parameters,
     side: asHostLibrary<THREE.Side>(side),
   }) as unknown as HostDiagnosticMaterial;
 
-/** Unshaded surface that shows the vertex colours as they are: the per-triangle view. */
-export const hostTriangleMaterial = (side: number) =>
-  unshaded({ vertexColors: true, toneMapped: false, fog: false }, side);
-
-/** Unshaded surface of one cluster's colour, the hue the core computed from its identifier. */
-export const hostClusterMaterial = (id: string, side: number) =>
-  unshaded({ color: clusterColor(id, 0.75) }, side);
+/**
+ * THE HOST OBJECTS A DIAGNOSTIC VIEW SWAPS IN. The views are the engine's — which triangle, which
+ * cluster, which tint — but what they hang on a host mesh is a host material and a host geometry,
+ * and building one is this boundary's work, never a pass's. Nothing is decided here: the salt, the
+ * per-triangle colours and the side all arrive computed. No view imports this object; the engine
+ * that owns the display graph hands it in (`RenderBackend.hostDiagnostics`).
+ */
+export const hostDiagnostics: HostDiagnosticFactory = {
+  triangleGeometry(geometry) {
+    const source = asHostLibrary<THREE.BufferGeometry>(geometry);
+    const copy = source.index ? source.toNonIndexed() : source.clone();
+    return copy as unknown as HostDiagnosticGeometry;
+  },
+  vertexColors(geometry, colors) {
+    const target = asHostLibrary<THREE.BufferGeometry>(geometry);
+    target.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  },
+  triangleMaterial: (side) => unshaded({ vertexColors: true, toneMapped: false, fog: false }, side),
+  clusterMaterial: (id, side) => unshaded({ color: clusterColor(id, 0.75) }, side),
+};

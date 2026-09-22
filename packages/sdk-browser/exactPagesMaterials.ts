@@ -1,10 +1,10 @@
 import type { EngineCamera } from './cameraWorld.ts';
 import { asHostLibrary } from './hostResources.ts';
-import { clusterColor, hashId } from './backendCommon.ts';
+import { clusterColor } from './backendCommon.ts';
+import { hashId, screenErrorColor } from './diagnosticColors.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
-import { screenErrorColor } from './diagnosticColors.ts';
 import { triangleGeometry } from './triangleDiagnostic.ts';
-import { hostTriangleMaterial } from './threeSceneAdapter.ts';
+import { hostDiagnostics } from './threeSceneAdapter.ts';
 import { materialSide } from './materialSide.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -27,7 +27,7 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
       const key = `wireframe:${rec.clusterId}`;
       let material = diagnosticMaterials.get(key);
       if (!material) {
-        material = asHostLibrary<THREE.Material>(hostTriangleMaterial(side));
+        material = asHostLibrary<THREE.Material>(hostDiagnostics.triangleMaterial(side));
         diagnosticMaterials.set(key, material);
       }
       return material;
@@ -83,7 +83,9 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
     mesh.material = material;
     mesh.geometry =
       options.diagnostic === 'wireframe'
-        ? asHostLibrary<THREE.BufferGeometry>(triangleGeometry(sourceGeometry, salt))
+        ? asHostLibrary<THREE.BufferGeometry>(
+            triangleGeometry(sourceGeometry, hostDiagnostics, salt),
+          )
         : sourceGeometry;
   };
   const paintBlend = () => {
@@ -95,7 +97,7 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
         let material = diagnosticMaterials.get(key);
         if (!material) {
           material = asHostLibrary<THREE.Material>(
-            hostTriangleMaterial(materialSide(sourceMaterial)),
+            hostDiagnostics.triangleMaterial(materialSide(sourceMaterial)),
           );
           diagnosticMaterials.set(key, material);
         }
