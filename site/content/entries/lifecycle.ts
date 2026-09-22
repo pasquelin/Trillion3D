@@ -1,10 +1,10 @@
 import type { PortalEntry } from '../model.ts';
+import { NODE, BROWSER } from './lifecycleShared.ts';
+import { LIFECYCLE_WORLD } from './lifecycleWorld.ts';
 
-/** Engine lifecycle: compiling a scene, opening an explorer, driving it. */
-const NODE = { section: 'lifecycle', kind: 'Function', module: 'packages/sdk-node/index.mts' };
-const BROWSER = { section: 'lifecycle', kind: 'Function' };
-
-export const LIFECYCLE: PortalEntry[] = [
+/** Engine lifecycle: compiling a scene, creating a world. Driving it after creation continues
+ *  in `lifecycleWorld.ts`, concatenated below in the same order the French overlay expects. */
+const CORE: PortalEntry[] = [
   {
     ...NODE,
     id: 'prepare',
@@ -60,132 +60,68 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
   },
   {
     ...BROWSER,
-    id: 'createExplorer',
-    exports: ['createExplorer'],
-    title: 'createExplorer()',
-    module: 'packages/sdk-browser/explorer.ts',
+    section: 'world',
+    id: 'createWorld',
+    exports: ['createWorld'],
+    title: 'createWorld()',
+    module: 'packages/sdk-browser/index.ts',
     signature:
-      'createExplorer(target: ExplorerTarget, options: ExplorerOptions): Promise<Explorer>',
-    valuesTitle: 'What the explorer offers',
+      'createWorld(target: HTMLCanvasElement | HTMLElement | string, options?: WorldOptions): World',
+    valuesTitle: 'What the world offers',
     description:
-      "Opens a compiled cache on a canvas element or literal ID (ExplorerTarget). With `interactive: true`, it submits the first image, owns controls, follows CSS size and browser DPR, and redraws on demand. This path defaults to direct WebGPU and rejects unavailable WebGPU. Without the option, the host owns rendering and the existing defaults stay unchanged. The host always owns the canvas and calls `dispose()` when done — hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box. `preload: 'visible'` (the default) streams the detail of the current camera after a complete, camera-independent root cover is resident; use a manual session with `awaitPages()` for deterministic captures.",
+      "Creates an empty world on a canvas element or its id. The world owns the scene, the camera, the renderer and the loop; nothing else is constructed — a compiled model is loaded afterwards with `scene.load`, like any other thing added to the scene. `interactive` defaults to true: the world submits frames on demand and pauses once the image has held for 120 frames, resuming on `invalidate()`. `renderer` is absent by default (the engine takes the best path the machine grants) or names one explicitly (`'webgpu'` / `'webgl2'`); forcing one on a machine that lacks it is refused by name, never silently served the other. `controls` picks the camera controller (`'orbit'` | `'fly'` | `'firstPerson'` | `'trackball'` | `'panZoom'` | `'none'`, the default), read or changed later through `world.controls.kind`.",
     values: [
       {
-        name: 'invalidate()',
-        desc: 'After programmatic camera, scene or light edits: coalesces an interactive frame; draws immediately in manual mode.',
-      },
-      { name: 'render(pose?)', desc: 'Draws one frame and returns its `FrameMetrics`.' },
-      {
-        name: 'setPose(pose) / pointsOfInterest() / resetHome()',
-        desc: 'Camera poses; the home pose comes from the loaded bounds, extra named poses from the `pointsOfInterest` option.',
+        name: 'scene.add(...) / scene.remove(...) / scene.load(url, options?)',
+        desc: 'Builds the scene from `geometry`/`material`/`object`/`light`, or loads a compiled cache; `load` resolves with the `LoadedModel` (`bounds`, `lights`).',
       },
       {
-        name: 'awaitPages() / flush()',
-        desc: 'Waits for the pages the current view reads; `flush()` redraws until nothing missing remains, for a deterministic capture.',
+        name: 'camera',
+        desc: 'A live `Camera`: `position.set(...)`, `lookAt(...)`, `fov`/`near`/`far`, or `camera.set(pose)` with a `CameraPose` such as `pose.fromBounds(box3)` returns.',
       },
       {
-        name: 'setDiagnostic(mode) / diagnostics',
-        desc: 'Selects a `DiagnosticMode`, and reads which ones this backend can produce.',
-      },
-      { name: 'setPixelError(value)', desc: 'Changes the screen-error threshold of the cut.' },
-      { name: 'capture() / resize(w, h)', desc: 'Reads the drawn surface; resizes the targets.' },
-      {
-        name: 'stageProfile() / getReport()',
-        desc: 'Per-stage CPU/GPU quantiles, and the telemetry report.',
+        name: 'controls.kind / .enabled / .target',
+        desc: 'The live controller that drives the camera from the canvas: `.kind`, `.enabled`, `.target` — set at creation, changeable at any time.',
       },
       {
-        name: 'addLight / setLight / removeLight / setEnvironment',
-        desc: 'Scene lighting, declared before the first backend prepares. The engine validates its own copy of what it receives: a light mutated after submission changes nothing until it is submitted again.',
+        name: 'onFrame(cb) / loop(cb) / invalidate()',
+        desc: 'The per-frame hook (`loop` is its alias) and the request to draw again after a manual change; returns an unsubscribe function.',
       },
       {
-        name: 'lights() / importedLights() / environment',
-        desc: 'Read the held lights and exposure as detached copies, arrays included: writing into them changes nothing in the engine, and each call rereads the store. The copy is paid by the call, never by the frame.',
+        name: 'render() / resize(width?, height?)',
+        desc: 'Draws one frame by hand (host-led loop, `interactive: false`); resizes the targets.',
       },
       {
-        name: 'Direct writes on the source graph',
-        desc: 'A pose, a visibility or a light written on a source node without any call — `mesh.position.x = 100` — is seen: a pose write increments the scene revision itself, so a frame compares one integer; the other fields, a matrix set by hand (`matrixAutoUpdate = false`) included, are compared per frame, a few values per node. A light added to or removed from the graph is announced by `refreshSceneLighting()`.',
+        name: 'exposure',
+        desc: 'The multiplier applied to linear radiance before ACES; it cannot light a surface no declared light reaches.',
       },
-      { name: 'dispose()', desc: 'Releases backends, GPU device and sources. Mandatory.' },
+      {
+        name: 'pixelError',
+        desc: 'The DAG cut’s screen error, in pixels — `0` keeps the exact leaves.',
+      },
+      {
+        name: 'budget.geometryPool / .texturePool',
+        desc: 'Read/write properties for the fixed geometry and texture pools; read-only `geometryPoolCeiling`, `texturePoolCeiling` cap them.',
+      },
+      {
+        name: 'diagnostic.mode / diagnostic.modes',
+        desc: "Selects what the frame draws (`'beauty' | 'clusters' | 'wireframe' | 'triangles'`), and reads which modes this device can produce.",
+      },
+      {
+        name: 'toneMapping',
+        desc: 'The tone-mapping curve applied at composition, e.g. `toneMapping.aces` (the default).',
+      },
+      {
+        name: 'dispose()',
+        desc: 'Releases the renderer, the GPU device and every resident page. Mandatory.',
+      },
     ],
     example: `// HTML: <canvas id="viewer" style="width:100%;height:70vh"></canvas>
-const explorer = await createExplorer('viewer', {
-  manifestUrl: '/cache/city/manifest.json', scope: 'full', interactive: true,
-});
-// In your page/component teardown: explorer.dispose();`,
-  },
-  {
-    ...BROWSER,
-    id: 'createExplorerJob',
-    exports: ['createExplorerJob'],
-    title: 'createExplorerJob()',
-    module: 'packages/sdk-browser/index.ts',
-    signature: 'createExplorerJob(id: string, target: ExplorerTarget, options: ExplorerOptions)',
-    description:
-      'The same creation as a cancellable job: preparation events become job progress, and an abort before the end disposes the explorer it would have returned. A completed explorer is owned by the caller.',
-    example: `const job = await createExplorerJob('city-job', 'viewer', {
-  manifestUrl, scope: 'full', interactive: true,
-});
-job.subscribe(() => console.log(job.getSnapshot().progress));
-const explorer = await job.promise;`,
-  },
-  {
-    ...BROWSER,
-    id: 'createJob',
-    exports: ['createJob'],
-    title: 'createJob()',
-    module: 'packages/sdk-core/jobs.ts',
-    signature:
-      'createJob<T>(id, work: ({ signal, progress }) => Promise<T>, options?: { signal, telemetry })',
-    description:
-      'Wraps any pending operation in the engine job contract: a snapshot (`JobStatus`, progress, result, error), subscription, and an abort that disposes what the job owned. The operation must support abort through its owner (RAF, readback, …).',
-    example: `const job = createJob('decode', async ({ signal, progress }) => {
-  progress({ phase: 'pages', completed: 0, total: 12 });
-  return decodePages(signal);
-});`,
-  },
-  {
-    ...BROWSER,
-    id: 'detectCapabilities',
-    exports: ['detectCapabilities'],
-    title: 'detectCapabilities()',
-    module: 'packages/sdk-browser/capabilities.ts',
-    signature:
-      "detectCapabilities(mode: 'webgl' | 'webgpu', canvas: HTMLCanvasElement, environment?: { gpu, createWebglCanvas })",
-    description:
-      'What this machine actually supports, before an explorer is opened: `{ tier, renderer, adapter, extensions, reason }`. The reason is always given, so an unsupported capability is reported rather than assumed. The WebGL2 probe is cached.',
-    example: `const capabilities = await detectCapabilities('webgpu', canvas);
-console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
-  },
-  {
-    ...BROWSER,
-    id: 'runCameraPath',
-    exports: ['runCameraPath'],
-    title: 'runCameraPath()',
-    module: 'packages/sdk-browser/cameraPath.ts',
-    signature:
-      'runCameraPath(explorer, path: readonly CameraPose[], options: { backendIds, warmup, … })',
-    description:
-      'A campaign helper: an exact A/A image gate, then timed blocks over the same pose list. It is not a general performance verdict — a host that switches backends replays the same poses per backend and never mixes engines inside one timed block. A `CameraPose` is `{ position, target, fov, near, far }`.',
-    example: `const runs = await runCameraPath(explorer, poses, { backendIds: ['webgpu-page-raster'], warmup: 8 });`,
-  },
-  {
-    ...BROWSER,
-    id: 'replicateInstances',
-    exports: ['replicateInstances'],
-    title: 'replicateInstances()',
-    module: 'packages/sdk-browser/replicateInstances.ts',
-    signature: 'replicateInstances(...)',
-    description:
-      'Instances the source 1, 4 or 9 times while sharing geometry and materials — the `replicaCount` option goes through it. A measurement helper for scenes larger than the asset on disk.',
-  },
-  {
-    ...BROWSER,
-    id: 'createGpuPageCache',
-    exports: ['createGpuPageCache', 'httpPageSource'],
-    title: 'createGpuPageCache() · httpPageSource()',
-    module: 'packages/sdk-browser/gpuPages.ts',
-    signature: 'createGpuPageCache(...) · httpPageSource(...)',
-    description:
-      'The bounded WebGPU buffer/queue adapter that holds resident pages, and the HTTP source that feeds it. `webgpuPagesBackend` (`webgpu-page-raster`) consumes the same pages and LOD settings; residency is driven by what the frame actually reads, within the declared budget.',
+const world = createWorld('viewer', { controls: 'orbit' });
+world.toneMapping = toneMapping.aces;
+await world.scene.load('/cache/city/manifest.json');
+// In your page/component teardown: world.dispose();`,
   },
 ];
+
+export const LIFECYCLE: PortalEntry[] = [...CORE, ...LIFECYCLE_WORLD];

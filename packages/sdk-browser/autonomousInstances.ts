@@ -7,11 +7,12 @@ import {
   releaseHostSurface,
   setHostPose,
   setHostSurface,
+  colouredTwin,
 } from './hostPageObjects.ts';
 import { surfaceOf } from './pageSurface.ts';
 import { copyElements, type HostNodeMatrix, type MatrixElements } from './matrixElements.ts';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
-import { colouredTwin, type createAutonomousGeometry } from './autonomousGeometry.ts';
+import type { createAutonomousGeometry } from './autonomousGeometry.ts';
 
 type InstanceEnvironment = {
   roots: ClusterRoot<PageRec>[];

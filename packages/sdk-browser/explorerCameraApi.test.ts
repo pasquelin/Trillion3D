@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createExplorerCameraApi } from './explorerCameraApi.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 
 test('restoreAfterCampaign puts the saved pose and optics back on the live camera', () => {
   const camera = new THREE.PerspectiveCamera(50, 1.5, 0.1, 100);
@@ -22,7 +22,7 @@ test('restoreAfterCampaign puts the saved pose and optics back on the live camer
   camera.updateMatrixWorld();
   const api = createExplorerCameraApi({
     check: () => {},
-    options: {} as ExplorerOptions,
+    options: {} as MeasuredWorldOptions,
     camera,
     center: new THREE.Vector3(-4, 0, 6),
     homeOffset: new THREE.Vector3(0, 0, 1),
@@ -59,7 +59,7 @@ test('restoreAfterCampaign restores a camera the host posed by matrix', () => {
   camera.updateMatrixWorld();
   const api = createExplorerCameraApi({
     check: () => {},
-    options: {} as ExplorerOptions,
+    options: {} as MeasuredWorldOptions,
     camera,
     center: new THREE.Vector3(),
     homeOffset: new THREE.Vector3(0, 0, 1),

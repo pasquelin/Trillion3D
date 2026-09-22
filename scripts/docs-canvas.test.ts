@@ -6,9 +6,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFile } from 'node:fs/promises';
 import { loadReactComponents } from './docs/render-react.ts';
 import { configureSceneCamera } from '../site/lessons/engine-scene/cameraControls.ts';
-import { createOrbitCameraControls } from '../packages/sdk-browser/cameraOrbitControls.ts';
-import { fixtureCamera, fixtureSurface } from '../packages/sdk-browser/cameraControlsFixture.ts';
-import type { Explorer } from '../packages/sdk-browser/index.ts';
+import { pose } from '../packages/sdk-browser/world/pose/index.ts';
+import { Camera } from '../packages/sdk-core/world/camera/camera.ts';
+import { Vector3 } from '../packages/sdk-core/world/math/vector3.ts';
+import { Box3 } from '../packages/sdk-core/world/math/box3.ts';
+import type { World } from '../packages/sdk-browser/index.ts';
 
 const { Canvas } = (await loadReactComponents('site/app/components/Canvas.tsx')) as {
   Canvas: ComponentType<{
@@ -22,53 +24,10 @@ const { Canvas } = (await loadReactComponents('site/app/components/Canvas.tsx'))
 const { DIAGNOSTIC_MODES } = await import('../site/lessons/engine-scene/diagnosticModes.ts');
 const { sceneCopy } = await import('../site/lessons/engine-scene/content.ts');
 
-// The camera helper only touches these fields of the engine's session and orbit controls; cast
-// at this boundary rather than modelling the whole `Explorer`/orbit-controls surface.
-type ControlsLike = Parameters<typeof configureSceneCamera>[1];
-
-interface Vector3Like {
-  x: number;
-  y: number;
-  z: number;
-  clone(): Vector3Like;
-  copy(v: Vector3Like): Vector3Like;
-  sub(v: Vector3Like): Vector3Like;
-  add(v: Vector3Like): Vector3Like;
-  length(): number;
-  setLength(l: number): Vector3Like;
-  distanceTo(v: { x: number; y: number; z: number }): number;
-}
-
-// A mutating vector with the operations the camera helper uses, as Three's Vector3 behaves;
-// shared so a stub `controls`/`explorer` overlaps `OrbitControls`/`Explorer` enough for the cast
-// below (a handful of loose scalar fields does not, per TS's structural "sufficient overlap").
-const vector = (x: number, y: number, z: number): Vector3Like => ({
-  x,
-  y,
-  z,
-  clone() {
-    return vector(this.x, this.y, this.z);
-  },
-  copy(v) {
-    return Object.assign(this, { x: v.x, y: v.y, z: v.z });
-  },
-  sub(v) {
-    return Object.assign(this, { x: this.x - v.x, y: this.y - v.y, z: this.z - v.z });
-  },
-  add(v) {
-    return Object.assign(this, { x: this.x + v.x, y: this.y + v.y, z: this.z + v.z });
-  },
-  length() {
-    return Math.hypot(this.x, this.y, this.z);
-  },
-  setLength(l) {
-    const k = l / this.length();
-    return Object.assign(this, { x: this.x * k, y: this.y * k, z: this.z * k });
-  },
-  distanceTo(v) {
-    return Math.hypot(this.x - v.x, this.y - v.y, this.z - v.z);
-  },
-});
+// The camera helper only reads `camera` and `controls.target`; a real `Camera` and a real
+// `Vector3` stand in for the world, which otherwise needs a canvas.
+const fakeWorld = (): World =>
+  ({ camera: new Camera('perspective'), controls: { target: new Vector3() } }) as unknown as World;
 
 test('a pending canvas stays mounted behind one loading state and disables its actions', () => {
   const html = renderToStaticMarkup(
@@ -106,47 +65,28 @@ test('a canvas frames its overlay in the hover-revealed chrome next to the actio
   assert.equal(html.match(/class="canvas-overlay/g)?.length, 2);
 });
 
-test('configureSceneCamera clamps the distance and leaves wheel zoom enabled', () => {
-  let homeReset = false;
-  const explorer = {
-    center: vector(0, 0, 0),
-    resetHome() {
-      homeReset = true;
-    },
-  } as Explorer;
-  const controls = {
-    target: vector(0, 0, 0),
-    object: { position: vector(10, 0, 0) },
-    minDistance: 0,
-    maxDistance: 0,
-    update() {},
-  } as ControlsLike;
-  configureSceneCamera(explorer, controls).reset();
-  assert.equal(homeReset, true);
-  assert.equal((controls as { enableZoom?: boolean }).enableZoom, undefined);
-  assert.equal(controls.minDistance, 1.5);
-  assert.equal(controls.maxDistance, 25);
+test('configureSceneCamera frames the bounds on reset and sets the controls target', () => {
+  const world = fakeWorld();
+  const bounds = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 3, 1));
+  const framing = pose.fromBounds(bounds);
+  configureSceneCamera(pose, world, bounds).reset();
+  assert.deepEqual(world.camera.position.toArray(), framing.position);
+  assert.deepEqual(world.controls.target.toArray(), framing.target);
 });
 
-test('zoom buttons scale the offset from the controls target, the pivot the wheel uses', () => {
-  const controls = {
-    target: vector(0, 3, 0),
-    object: { position: vector(0, 3, 10) },
-    minDistance: 1,
-    maxDistance: 25,
-    update() {},
-  } as ControlsLike;
-  const explorer = { center: vector(0, 0, 0), resetHome() {} } as Explorer;
-  const camera = configureSceneCamera(explorer, controls);
-  const offset = () => controls.object.position.clone().sub(controls.target);
+test('zoom buttons scale the offset from the controls target, clamped to a home-relative range', () => {
+  const world = fakeWorld();
+  const bounds = new Box3(new Vector3(-1, 0, -1), new Vector3(1, 2, 1));
+  const camera = configureSceneCamera(pose, world, bounds);
+  camera.reset();
+  const offset = () => world.camera.position.clone().sub(world.controls.target);
+  const home = offset().length();
   camera.zoomIn();
-  assert.deepEqual([offset().x, offset().y, offset().z], [0, 0, 8]);
-  camera.zoomOut();
-  camera.zoomOut();
-  camera.zoomOut();
-  assert.equal(offset().length(), 15.625);
-  for (let i = 0; i < 8; i++) camera.zoomOut();
-  assert.equal(offset().length(), controls.maxDistance);
+  assert.ok(offset().length() < home);
+  for (let i = 0; i < 20; i++) camera.zoomOut();
+  assert.equal(Number(offset().length().toFixed(6)), Number((home * 2.5).toFixed(6)));
+  for (let i = 0; i < 20; i++) camera.zoomIn();
+  assert.equal(Number(offset().length().toFixed(6)), Number((home * 0.15).toFixed(6)));
 });
 
 test('RendererViewport offers every shared diagnostic mode with the scene copy of each locale', async () => {
@@ -178,23 +118,4 @@ test('RendererViewport offers every shared diagnostic mode with the scene copy o
       assert.match(html, new RegExp(`<option value="${mode}"[^>]*>${copy[mode]}</option>`));
     assert.equal(html.match(/<option /g)?.length, DIAGNOSTIC_MODES.length);
   }
-});
-
-// THE SWAP: the portal's helper, unchanged, on the engine's own orbit controller.
-test('the portal camera helper drives the native orbit controller unchanged', () => {
-  const camera = fixtureCamera(0, 0, 10),
-    surface = fixtureSurface(400);
-  const controls = createOrbitCameraControls(camera, surface.element);
-  const explorer = {
-    center: vector(0, 0, 0),
-    resetHome: () => void camera.position.set(0, 0, 10),
-  } as Explorer;
-  const helper = configureSceneCamera(explorer, controls);
-  helper.reset();
-  assert.deepEqual([controls.minDistance, controls.maxDistance], [1.5, 25]);
-  const span = () => Number(camera.position.distanceTo(controls.target).toFixed(6));
-  helper.zoomIn();
-  assert.equal(span(), 8);
-  for (let i = 0; i < 20; i++) helper.zoomOut();
-  assert.equal(span(), 25);
 });

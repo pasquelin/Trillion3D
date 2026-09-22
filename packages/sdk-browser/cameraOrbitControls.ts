@@ -3,16 +3,18 @@ import { pinchSteps } from './cameraControlPivot.ts';
 import { trackPointers, trackWheel } from './cameraControlInput.ts';
 import { controlPose, readVector, writeVector } from './cameraControlPose.ts';
 import {
-  clampNumber,
   dollyDistance,
-  fromSpherical,
   orbitOrientation,
   panOffset,
   pixelWorldScale,
+} from './cameraControlMath.ts';
+import {
+  clampNumber,
+  fromSpherical,
   POLAR_EPSILON,
   RADIUS_EPSILON,
   toSpherical,
-} from './cameraControlMath.ts';
+} from '../sdk-core/world/math/spherical.ts';
 import type { ControlCamera, PivotCameraControls } from './cameraControlTypes.ts';
 
 /**

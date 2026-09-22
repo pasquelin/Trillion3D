@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createExplorer } from '../../packages/sdk/browser.ts';
+import { openMeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
 import { EngineError } from '../../packages/sdk-core/index.ts';
 
 const CAS: Array<[label: string, body: string, status: number, type: string, code: string]> = [
@@ -15,11 +15,11 @@ for (const [label, body, status, type, code] of CAS)
       'fetch',
       async () => new Response(body, { status, headers: { 'Content-Type': type } }),
     );
-    // A duck-typed target: `createExplorer` only reads `nodeName` and `getContext` before
+    // A duck-typed target: `openMeasuredWorld` only reads `nodeName` and `getContext` before
     // rejecting on the manifest, well short of the full `HTMLCanvasElement` surface.
     const target = { nodeName: 'CANVAS', getContext() {} } as unknown as HTMLCanvasElement;
     await assert.rejects(
-      createExplorer(target, {
+      openMeasuredWorld(target, {
         manifestUrl: 'http://localhost/cache/manifest.json',
         scope: 'full',
       }),

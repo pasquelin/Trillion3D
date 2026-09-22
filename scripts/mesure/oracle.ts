@@ -25,6 +25,7 @@ import { oracleBuilt } from './oracleCompare.ts';
 import { machineLoad } from './rapport.ts';
 import { runView } from './oracleView.ts';
 import type { OracleSettings, VueOracle } from './oracleView.ts';
+import { sdkEntryUrl } from './dists.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const args = process.argv.slice(2);
@@ -118,7 +119,7 @@ async function main() {
     });
     await page.goto(`http://127.0.0.1:${port}/`);
     const bounds = await page.evaluate(readBounds, {
-      sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
+      sdkUrl: sdkEntryUrl(side),
       manifestUrl,
     });
     const lights = benchLights(bounds, {

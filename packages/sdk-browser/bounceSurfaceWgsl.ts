@@ -60,13 +60,15 @@ fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
  for(var index=0u;index<MAX_LIGHTS;index++){
   if(index>=count){break;}
   let light=directLights.items[index];
+  // A rectangle casts no shadow: its irradiance is its whole contribution.
+  if(isRect(light)){total+=light.colorIntensity.rgb*light.colorIntensity.w*rectIrradiance(light,P,N).w;continue;}
   let incidence=directIncidence(light,P);
   if(incidence.w<=0.0){continue;}
   let cosine=dot(N,incidence.xyz);
   if(cosine<=0.0){continue;}
   if(light.params.z>0.5&&shadows<LIGHTS_PER_TEXEL){
    shadows++;
-   let span=select(length(light.positionRange.xyz-P),reach,light.params.x>KIND_SUN-0.5);
+   let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
    if(proxyBlocked(offset,incidence.xyz,span)){continue;}
   }
   total+=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;

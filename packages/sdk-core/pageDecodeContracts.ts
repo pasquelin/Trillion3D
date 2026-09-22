@@ -1,6 +1,7 @@
 /**
- * Off-main-thread page-decode contract, version 4: the decoded geometry travels as one block
- * with its quantization error, and the arena slot records that error in word 8.
+ * Off-main-thread page-decode contract, version 5: the decoded geometry travels as one block
+ * with its quantization error, and the arena slot records that error in word 8; `cut` turns
+ * drawn triangles into pages, which come back as bytes with their descriptors.
  *
  * The calling thread sends a `PageDecodeRequest`, the executor returns a `PageDecodeAnswer` carrying
  * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser
@@ -13,10 +14,34 @@
  * returns exactly the same values: the contract does not say how the work travels, only what it
  * returns.
  */
-export const PAGE_DECODE_PROTOCOL = 4;
+export const PAGE_DECODE_PROTOCOL = 5;
 
-/** `verify`: a page's SHA-256 digest. `decode`: its indices and per-vertex attributes. */
-export type PageDecodeOp = 'verify' | 'decode';
+/** `verify`: a page's SHA-256 digest. `decode`: its indices and per-vertex attributes. `cut`:
+ *  drawn triangles, packed as five lengths then five four-byte arrays, cut into pages. */
+export type PageDecodeOp = 'verify' | 'decode' | 'cut';
+
+/** One page a `cut` wrote: its index and geometry bytes, their digests, and its descriptor. */
+export interface PageCutPage {
+  index: ArrayBuffer;
+  geometry: ArrayBuffer;
+  indexSha256: string;
+  geometrySha256: string;
+  count: number;
+  start: number;
+  min: number[];
+  max: number[];
+  sphere: number[];
+  vertexCount: number;
+  indexCount: number;
+  flags: number;
+  uncompressedBytes: number;
+}
+/** What a `cut` returns: its pages, and the position grid they were quantized on. */
+export interface PageCutPayload {
+  pages: PageCutPage[];
+  positionExponent: number;
+  maxPositionError: number;
+}
 
 export interface PageDecodeRequest {
   protocol: number;
@@ -74,6 +99,8 @@ export interface PageDecodeDone {
   /** `verify`: the source buffer returned. `decode`: `null`, the source is consumed. */
   source: ArrayBuffer | null;
   decoded: PageDecodeGeometryPayload | null;
+  /** `cut`: the pages, their bytes transferred. Absent otherwise. */
+  cut?: PageCutPayload;
   /** True when the WebAssembly-compiled decoder did the work, false for the
    *  JavaScript decoder. Both yield the same bytes; only the counter distinguishes them. */
   wasm: boolean;

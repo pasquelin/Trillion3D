@@ -17,7 +17,7 @@ export interface RendererLessonControl {
   legend?: RendererLessonLegendItem[];
 }
 
-/** A lesson's initial camera pose, applied on top of the explorer's own home pose. */
+/** A lesson's initial camera pose, applied on top of the world's own home pose. */
 export interface RendererLessonPose {
   position: [number, number, number];
   target: [number, number, number];

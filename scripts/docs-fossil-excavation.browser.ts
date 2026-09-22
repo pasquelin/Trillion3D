@@ -45,11 +45,11 @@ test('the original OBJ excavation renders stable exterior surfaces and coloured 
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
     const proof = await page.evaluate<FossilProof, string>(async (moduleUrl) => {
-      const { createExplorer, webgpuPagesBackend } = await import(moduleUrl);
+      const { openMeasuredWorld, webgpuPagesBackend } = await import(moduleUrl);
       const canvas = document.createElement('canvas');
       canvas.style.cssText = 'display:block;width:900px;height:620px';
       document.body.replaceChildren(canvas);
-      const model = await createExplorer(canvas, {
+      const model = await openMeasuredWorld(canvas, {
         manifestUrl: '/site/assets/gallery/fossil-excavation/cache/native/full/manifest.json',
         backends: [webgpuPagesBackend],
         scope: 'full',

@@ -11,7 +11,7 @@ import { hostWorldLot } from './hostWorldTree.ts';
 import { EngineError, MATRIX_VALUES, type ClusterManifest } from '../sdk-core/index.ts';
 import { createMultiplyLot } from './mathBatchRuntime.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
-import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
+import type { BackendContext, MeasuredWorldOptions } from './backendTypes.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
 import { checked } from './clusterPages.ts';
 import { bakedImageUrls, PLACEHOLDER_IMAGE } from './sceneTextureSkip.ts';
@@ -39,7 +39,7 @@ function sceneBoundsLot(
 }
 
 export async function loadPreparedScene(
-  options: ExplorerOptions,
+  options: MeasuredWorldOptions,
   metadata: ClusterManifest,
   sceneFile: string,
   base: string,

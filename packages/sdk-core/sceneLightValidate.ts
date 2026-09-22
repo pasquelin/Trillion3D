@@ -1,5 +1,10 @@
 import { EngineError } from './cacheContracts.ts';
-import type { SceneEnvironment, SceneLight } from './sceneLightContracts.ts';
+import type { SceneLight } from './sceneLightContracts.ts';
+import {
+  ENVIRONMENT_COEFFICIENTS,
+  TONE_MAPPING_RANK,
+  type SceneEnvironment,
+} from './sceneEnvironment.ts';
 
 const finite = (value: unknown): value is number => typeof value === 'number' && isFinite(value);
 function vector(value: unknown, field: string, id: string): [number, number, number] {
@@ -28,7 +33,7 @@ function requiredDirection(value: unknown, id: string, why: string): [number, nu
 /** A field a light type does not use is rejected, never accepted then ignored. */
 function unused(
   light: SceneLight,
-  field: 'position' | 'range' | 'coneAngle' | 'emitterRadius',
+  field: 'position' | 'range' | 'coneAngle' | 'emitterRadius' | 'penumbra' | 'right' | 'size',
   why: string,
 ) {
   if (light[field] !== undefined)
@@ -71,7 +76,7 @@ export function validateSceneLight(light: SceneLight): SceneLight {
   const id = light?.id;
   if (typeof id !== 'string' || !id.length)
     throw new EngineError('INVALID_SCENE_LIGHT', 'empty light identifier', { id });
-  if (light.kind !== 'point' && light.kind !== 'spot' && light.kind !== 'directional')
+  if (!['point', 'spot', 'directional', 'rect'].includes(light.kind))
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: unknown type ${String(light.kind)}`, {
       kind: light.kind,
     });
@@ -89,10 +94,15 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     intensity: light.intensity,
     castsShadow: !!light.castsShadow,
   };
+  if (light.kind !== 'rect') {
+    unused(light, 'right', 'exists only for a rect');
+    unused(light, 'size', 'exists only for a rect');
+  }
   if (light.kind === 'directional') {
     unused(light, 'position', 'does not exist for a directional light');
     unused(light, 'range', 'does not exist for a directional light: it carries everywhere');
     unused(light, 'coneAngle', 'exists only for a spot');
+    unused(light, 'penumbra', 'exists only for a spot');
     unused(light, 'emitterRadius', 'does not exist for a directional light: it has no position');
     validated.direction = requiredDirection(
       light.direction,
@@ -105,13 +115,45 @@ export function validateSceneLight(light: SceneLight): SceneLight {
   validated.range = range(light.range, id);
   if (light.emitterRadius !== undefined)
     validated.emitterRadius = emitterRadius(light.emitterRadius, validated.range, id);
+  if (light.kind === 'rect') return validateRect(light, validated);
   if (light.kind === 'spot') {
     validated.direction = requiredDirection(light.direction, id, 'a spot requires a direction');
     validated.coneAngle = coneAngle(light.coneAngle, id);
+    if (light.penumbra !== undefined) {
+      if (!finite(light.penumbra) || light.penumbra < 0 || light.penumbra > 1)
+        throw new EngineError('INVALID_SCENE_LIGHT', `${id}: penumbra expected in [0, 1]`, {
+          penumbra: light.penumbra,
+        });
+      validated.penumbra = light.penumbra;
+    }
     return validated;
   }
   unused(light, 'coneAngle', 'exists only for a spot');
+  unused(light, 'penumbra', 'exists only for a spot');
   if (light.direction !== undefined) validated.direction = direction(light.direction, id);
+  return validated;
+}
+/**
+ * The fields of a rectangle: the normal of its emitting face, its width axis — made
+ * perpendicular to that normal, then unit —, and its two sides, strictly positive. It casts no
+ * shadow, and says so by refusing one: a flag the engine would not honour is not accepted.
+ */
+function validateRect(light: SceneLight, validated: SceneLight): SceneLight {
+  const { id } = light;
+  unused(light, 'coneAngle', 'exists only for a spot');
+  unused(light, 'penumbra', 'exists only for a spot');
+  unused(light, 'emitterRadius', 'bounds a shadow map, which a rect does not have');
+  if (light.castsShadow)
+    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: a rect casts no shadow`, {});
+  const normal = requiredDirection(light.direction, id, 'a rect requires the normal of its face');
+  const right = vector(light.right, 'right', id);
+  const along = right[0] * normal[0] + right[1] * normal[1] + right[2] * normal[2];
+  validated.direction = normal;
+  validated.right = normalized([0, 1, 2].map((k) => right[k] - along * normal[k]) as never, id);
+  const size = light.size;
+  if (!Array.isArray(size) || size.length !== 2 || !size.every((side) => finite(side) && side > 0))
+    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: size expects two sides > 0`, { size });
+  validated.size = [size[0], size[1]];
   return validated;
 }
 export function validateSceneEnvironment(environment: SceneEnvironment): SceneEnvironment {
@@ -119,5 +161,21 @@ export function validateSceneEnvironment(environment: SceneEnvironment): SceneEn
     throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'exposure must be > 0', {
       exposure: environment?.exposure,
     });
-  return { exposure: environment.exposure };
+  const validated: SceneEnvironment = { exposure: environment.exposure };
+  const { toneMapping, irradiance } = environment;
+  if (toneMapping !== undefined) {
+    if (!(toneMapping in TONE_MAPPING_RANK))
+      throw new EngineError('INVALID_SCENE_ENVIRONMENT', `unknown tone mapping ${toneMapping}`, {
+        toneMapping,
+      });
+    validated.toneMapping = toneMapping;
+  }
+  if (irradiance !== undefined) {
+    if (irradiance.length !== ENVIRONMENT_COEFFICIENTS * 3 || !irradiance.every(finite))
+      throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'irradiance expects 27 finite numbers', {
+        length: irradiance.length,
+      });
+    validated.irradiance = [...irradiance];
+  }
+  return validated;
 }

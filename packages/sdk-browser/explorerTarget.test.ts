@@ -1,6 +1,6 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { createExplorer, createExplorerJob } from './index.ts';
+import { openMeasuredWorld, createMeasuredWorldJob } from './measurement.ts';
 import { resolveExplorerTarget } from './explorerTarget.ts';
 import { directWebgpu, interactiveOptions, interactiveSize } from './explorerInteractiveOptions.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
@@ -37,18 +37,18 @@ test('invalid targets fail before any network request, including job targets', a
   const fetch = t.mock.method(globalThis, 'fetch', async () => {
     throw Error('must not fetch');
   });
-  await assert.rejects(createExplorer('', options), /must not be empty/);
-  await assert.rejects(createExplorer('missing', options), /requires a document/);
+  await assert.rejects(openMeasuredWorld('', options), /must not be empty/);
+  await assert.rejects(openMeasuredWorld('missing', options), /requires a document/);
   documentFor(t, {
     getElementById: (id: string) => (id === 'div' ? { nodeName: 'DIV' } : null),
   } as Document);
-  await assert.rejects(createExplorer('missing', options), /No canvas/);
-  await assert.rejects(createExplorer('div', options), /must be a canvas/);
+  await assert.rejects(openMeasuredWorld('missing', options), /No canvas/);
+  await assert.rejects(openMeasuredWorld('div', options), /must be a canvas/);
   await assert.rejects(
-    createExplorer(null as unknown as HTMLCanvasElement, options),
+    openMeasuredWorld(null as unknown as HTMLCanvasElement, options),
     /must be a canvas/,
   );
-  const job = await createExplorerJob('job-id', 'missing', options);
+  const job = await createMeasuredWorldJob('job-id', 'missing', options);
   await assert.rejects(job.promise, /No canvas/);
   assert.equal(fetch.mock.callCount(), 0);
 });

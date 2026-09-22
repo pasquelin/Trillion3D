@@ -42,7 +42,13 @@ test('a complete frame on the surface: bound, cleared with the encoded backgroun
   assert.deepEqual(of('clearDepth')[0], [1]);
   assert.deepEqual(of('clearStencil')[0], [0]);
   assert.equal(outputs.length, 1);
-  assert.deepEqual(outputs[0], { toneMapped: true, framebuffer: null, width: 8, height: 4 });
+  assert.deepEqual(outputs[0], {
+    toneMapped: true,
+    toneMapping: 'aces',
+    framebuffer: null,
+    width: 8,
+    height: 4,
+  });
   assert.equal(of('blitFramebuffer').length, 1, 'the complete frame is kept');
   assert.ok(names().indexOf('clear') < names().indexOf('blitFramebuffer'));
 });
@@ -67,6 +73,7 @@ test('a target is bound, drawn at its size, and never kept', () => {
   assert.deepEqual(of('bindFramebuffer').at(-1), ['FRAMEBUFFER', target.framebuffer]);
   assert.deepEqual(outputs[0], {
     toneMapped: true,
+    toneMapping: 'aces',
     framebuffer: target.framebuffer,
     width: 4,
     height: 2,

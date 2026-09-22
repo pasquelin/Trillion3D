@@ -4,7 +4,7 @@
 // what the frame shows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exactPagesBackend } from './index.ts';
+import { exactPagesBackend } from './measurement.ts';
 import { drawnIndices } from './pagesBackendFixture.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { submittedDraws, isClusterDrawMesh } from './clusterBatchMesh.ts';

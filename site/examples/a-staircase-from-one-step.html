@@ -8,34 +8,48 @@
       canvas { display: block; width: 100%; height: 100%; }
       p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/staircase/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
-      });
-      // The scene file holds one step mesh and thirty-six nodes that place it, each one turned a
-      // twenty-second of a turn further and raised one riser higher: the compiler paged the step
-      // once, and every node draws the same pages at its own transform.
-      explorer.addLight({
-        id: 'skylight',
-        kind: 'directional',
-        direction: [-0.35, -0.8, -0.45],
-        color: [1, 0.97, 0.92],
-        intensity: 3,
-        castsShadow: true,
-      });
-      explorer.setPose({ ...explorer.homePose(), position: [5.6, 5.2, 6.4], target: [0, 3.3, 0] });
-      explorer.invalidate();
+      const world = createWorld('view', { controls: 'orbit' });
+      const oak = material.meshStandard({ color: [0.6, 0.42, 0.24], roughness: 0.65 });
+      const plaster = material.meshStandard({ color: [0.8, 0.78, 0.72], roughness: 0.85 });
+
+      const base = object.mesh(geometry.box(6, 0.3, 6), plaster);
+      base.position.y = -0.15;
+      const column = object.mesh(geometry.cylinder(0.2, 0.2, 7.2, 32), plaster);
+      column.position.y = 3.6;
+      world.scene.add(base, column);
+
+      // One step mesh — a tread and its baluster — placed thirty-six times, each one turned a
+      // twenty-second of a turn further and raised one riser higher.
+      const sector = (Math.PI * 2) / 22;
+      function step() {
+        const group = object.group();
+        const tread = object.mesh(geometry.box(1.25, 0.18, 0.24), oak);
+        tread.position.x = 0.2 + 1.25 / 2;
+        const baluster = object.mesh(geometry.box(0.05, 1, 0.05), oak);
+        baluster.position.set(1.38, 0.5, 0);
+        group.add(tread, baluster);
+        return group;
+      }
+      for (let index = 0; index < 36; index++) {
+        const flight = step();
+        flight.position.y = 0.18 + index * 0.18;
+        flight.rotation.y = index * sector;
+        world.scene.add(flight);
+      }
+
+      world.scene.add(light.directional({
+        intensity: 3, color: [1, 0.97, 0.92], position: [7, 16, 9], target: [0, 3.3, 0], castShadow: true,
+      }));
+      world.camera.position.set(5.6, 5.2, 6.4);
+      world.camera.lookAt(0, 3.3, 0);
+      world.controls.target.set(0, 3.3, 0);
+      world.invalidate();
     </script>
   </body>
 </html>

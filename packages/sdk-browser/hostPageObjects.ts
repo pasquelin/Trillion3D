@@ -33,8 +33,13 @@ import { hostSide } from './materialSide.ts';
 import { geometryBytes } from './sceneMeshes.ts';
 import { setGeometryBounds } from './threeBounds.ts';
 
-/** The display graph a backend drawn by the host renderer hangs its pages on. */
-export const hostPageScene = (): HostDrawScene => new THREE.Scene();
+/** The display graph a backend drawn by the host renderer hangs its pages on, holding from the
+ *  start the transparent copies it draws whole (`blendCopyMesh.ts`). */
+export function hostPageScene(copies: readonly object[] = []): HostDrawScene {
+  const scene = new THREE.Scene();
+  for (const copy of copies) scene.add(asHostLibrary<THREE.Object3D>(copy));
+  return scene;
+}
 
 /**
  * The mesh one resident page is drawn as: the geometry decoded for it, and the declaration it
@@ -57,6 +62,46 @@ export function hostPageMesh(
   mesh.renderOrder = renderOrder;
   return mesh;
 }
+
+/**
+ * The one mesh a page is drawn as at every placement a row of an instance buffer gives it: the
+ * page's geometry and surface, and one matrix per placement, the count set per frame. Culled by
+ * nobody but the cut, like `hostPageMesh`.
+ */
+export function hostPageInstances(
+  geometry: HostGeometry,
+  declaration: HostMaterials,
+  renderOrder: number,
+  capacity: number,
+): HostMesh {
+  const mesh = new THREE.InstancedMesh(
+    asHostLibrary<THREE.BufferGeometry>(geometry),
+    asHostLibrary<THREE.Material | THREE.Material[]>(declaration),
+    capacity,
+  );
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.matrixAutoUpdate = false;
+  mesh.frustumCulled = false;
+  mesh.renderOrder = renderOrder;
+  return mesh;
+}
+
+/** Placement `index` of an instanced page: the sixteen floats of its row. */
+export const setHostInstance = (mesh: HostMesh, index: number, pose: MatrixElements) => {
+  asHostLibrary<THREE.InstancedMesh>(mesh).instanceMatrix.array.set(pose.elements, index * 16);
+};
+
+/** How many placements the instanced page draws this frame; its matrices go up once. */
+export const setHostInstanceCount = (mesh: HostMesh, count: number) => {
+  const instanced = asHostLibrary<THREE.InstancedMesh>(mesh);
+  instanced.count = count;
+  instanced.instanceMatrix.needsUpdate = true;
+};
+
+/** Gives an instanced page's matrices back; its geometry and surface are released by theirs. */
+export const releaseHostInstances = (mesh: HostMesh) => {
+  asHostLibrary<THREE.InstancedMesh>(mesh).dispose();
+};
 
 /** The pose a drawn page wears: the sixteen floats the engine composed for it. */
 export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
@@ -124,9 +169,22 @@ export function hostPageSurface(material: Material, vertexColors: boolean): Host
   });
 }
 
-/** The vertex-coloured twin of a host surface: the same surface, reading the colour attribute
- *  a decoded page carries. Whose twin it is, and when one is made, is the engine's (
- *  `autonomousGeometry.ts` holds the one cache). */
+/**
+ * The vertex-coloured twin of a host surface — the same surface, reading the colour attribute a
+ * decoded page carries —, cloned once, then read from the shared cache. The only place a twin is
+ * built: a page that decodes a colour attribute and a primitive the host repaints ask the same
+ * cache, so one surface never holds two of them.
+ */
+export function colouredTwin(
+  cache: Map<HostMaterial, HostMaterial>,
+  original: HostMaterial,
+): HostMaterial {
+  let twin = cache.get(original);
+  if (!twin) cache.set(original, (twin = colouredHostSurface(original)));
+  return twin;
+}
+
+/** The same surface, reading the colour attribute a decoded page carries. */
 export function colouredHostSurface(original: HostMaterial): HostMaterial {
   const twin = asHostLibrary<THREE.Material>(original).clone();
   (twin as THREE.MeshStandardMaterial).vertexColors = true;

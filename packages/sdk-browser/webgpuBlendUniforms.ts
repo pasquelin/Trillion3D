@@ -58,10 +58,13 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
     diagnosticPixelError,
   );
   packed.set(viewProj, 0);
-  packed[16] = eye?.[0] ?? 0;
-  packed[17] = eye?.[1] ?? 0;
-  packed[18] = eye?.[2] ?? 0;
-  packed[19] = 1;
+  // The camera as one homogeneous point (`EngineCamera.viewPoint`): the shading's view vector
+  // is `camPos.xyz − P·camPos.w` whatever the projection.
+  const viewPoint = eye && run.gate.cam.viewPoint;
+  packed[16] = viewPoint?.[0] ?? 0;
+  packed[17] = viewPoint?.[1] ?? 0;
+  packed[18] = viewPoint?.[2] ?? 0;
+  packed[19] = viewPoint?.[3] ?? 1;
   // Lamp tiles of this image: without them the pixel loop falls back on the declared lamps.
   // Zero when no list has been encoded, never those of another image.
   packed[20] = tiles[1];

@@ -129,7 +129,7 @@ async function main() {
   try {
     report.bounds = await onFreshPage((page) =>
       page.evaluate(readBounds, {
-        sdkUrl: `/sdk/${sides[0].name}/sdk-browser/index.js`,
+        sdkUrl: options.sdkEntryUrl(sides[0]),
         manifestUrl: sides[0].manifestUrl ?? MANIFEST,
       }),
     );

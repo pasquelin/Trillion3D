@@ -15,8 +15,10 @@ export const CONE_ORTHO_EPS_WGSL = CONE_ORTHO_EPS.toExponential();
 export const HALF_PI_WGSL = HALF_PI.toString();
 
 /**
- * Half-angle under which a sphere is seen from a point: `asin(r / d)`, clamped to [0, 1] before
- * arcsine. A point inside the sphere, or a NaN distance, sees it from everywhere: π.
+ * Half-angle under which a sphere is seen from a homogeneous view point `(p, w)`: `asin(r / d)`,
+ * clamped to [0, 1] before arcsine, for a point (w = 1); 0 for a direction (w = 0, an
+ * orthographic camera sees every point of the sphere along the same line). A point inside the
+ * sphere, or a NaN distance, sees it from everywhere: π.
  */
 function sphereSpreadAngle(
   cx: number,
@@ -26,10 +28,11 @@ function sphereSpreadAngle(
   px: number,
   py: number,
   pz: number,
+  pw: number,
 ) {
-  const d = Math.hypot(px - cx, py - cy, pz - cz);
-  if (!(d > radius)) return Math.PI;
-  const t = radius / d;
+  const d = Math.hypot(px - cx * pw, py - cy * pw, pz - cz * pw);
+  if (!(d > radius * pw)) return Math.PI;
+  const t = (radius * pw) / d;
   return Math.asin(t < 0 ? 0 : t > 1 ? 1 : t);
 }
 
@@ -42,6 +45,10 @@ function sphereSpreadAngle(
  * matrix of `world`) and is then normalized; a zero axis or view direction does not reject.
  * The verdict is `coneRejects` of the clamped dot product, the cone angle, and the sphere's
  * perspective spread; a parameter it refuses does not reject either.
+ *
+ * The camera is one homogeneous view point `eye` (`EngineCamera.viewPoint`): its position and 1
+ * under a perspective projection, the direction back to it and 0 under an orthographic one. The
+ * vector toward the camera is `eye.xyz − centre·eye.w` in both, one formula for both.
  */
 export function boxConeRejects(
   axis: ArrayLike<number>,
@@ -54,6 +61,7 @@ export function boxConeRejects(
   eyeX: number,
   eyeY: number,
   eyeZ: number,
+  eyeW = 1,
 ) {
   const e = world;
   const lx = (min[0] + max[0]) * 0.5,
@@ -65,7 +73,7 @@ export function boxConeRejects(
     cz = (e[2] * lx + e[6] * ly + e[10] * lz + e[14]) * w;
   const radius =
     Math.hypot((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale;
-  const spread = sphereSpreadAngle(cx, cy, cz, radius, eyeX, eyeY, eyeZ);
+  const spread = sphereSpreadAngle(cx, cy, cz, radius, eyeX, eyeY, eyeZ, eyeW);
   const a0 = axis[0],
     a1 = axis[1],
     a2 = axis[2];
@@ -78,9 +86,9 @@ export function boxConeRejects(
   ax *= inverse;
   ay *= inverse;
   az *= inverse;
-  const vx = eyeX - cx,
-    vy = eyeY - cy,
-    vz = eyeZ - cz;
+  const vx = eyeX - cx * eyeW,
+    vy = eyeY - cy * eyeW,
+    vz = eyeZ - cz * eyeW;
   const vl = Math.hypot(vx, vy, vz);
   if (!(vl > 0)) return false;
   const dot = Math.min(1, Math.max(-1, (ax * vx + ay * vy + az * vz) / vl));

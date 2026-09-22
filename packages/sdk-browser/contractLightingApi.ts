@@ -24,6 +24,8 @@ export function contractLightingApi(
     ...sceneLightingApi(source, sceneChanged),
     /** The image comes out in real light as soon as either light set carries one. */
     sceneLit: () => contract.lit,
+    /** The display curve the scene chose through its environment; ACES when it chose none. */
+    sceneToneMapping: () => store?.environment?.toneMapping ?? 'aces',
     refreshSceneLights: contract.apply,
     lighting: CONTRACT_LIGHTS_LIGHTING,
   };

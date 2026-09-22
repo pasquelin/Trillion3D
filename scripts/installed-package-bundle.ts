@@ -52,8 +52,8 @@ export function emitInstalledBrowserBundle({
   mkdirSync(outputRoot, { recursive: true });
   writeFileSync(
     explorer,
-    `import { createExplorer,decodeManifestBinary,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES } from '${packageName}';\n` +
-      `globalThis.__installedSdk={createExplorer,decodeManifestBinary,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES};\n`,
+    `import { createWorld,pose,metric,capture,decodeManifestBinary,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES } from '${packageName}';\n` +
+      `globalThis.__installedSdk={createWorld,pose,metric,capture,decodeManifestBinary,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES};\n`,
   );
   run(
     bundler,

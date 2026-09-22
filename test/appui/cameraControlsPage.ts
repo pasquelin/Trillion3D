@@ -3,7 +3,7 @@
 // the explorer, the drawing, the pose reading — hangs off `globalThis.probe`, which the first
 // call installs. It owns one manual explorer, swaps the controller under test, keeps the image
 // of the pose a gesture starts from, and counts what differs once the gesture is undone.
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
 
 type Controls = {
   object: { position: { x: number; y: number; z: number } };
@@ -17,7 +17,7 @@ type Controls = {
 
 declare global {
   var probe: {
-    explorer: Explorer;
+    explorer: MeasuredWorld;
     controls?: Controls;
     baseline: Uint8Array;
     changes: number;
@@ -27,8 +27,8 @@ declare global {
 }
 
 export async function openProbe() {
-  const { createExplorer, webgpuPagesBackend } = window.sdk;
-  const explorer = await createExplorer('viewer', {
+  const { openMeasuredWorld, webgpuPagesBackend } = window.sdk;
+  const explorer = await openMeasuredWorld('viewer', {
     manifestUrl: '/cache/city/manifest.json',
     scope: 'full',
     backends: [webgpuPagesBackend],

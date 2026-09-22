@@ -1,5 +1,5 @@
 import type { CameraPose, DiagnosticMode } from '../sdk-core/index.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts';
 import { createFrameComposer } from './explorerCompose.ts';
 import type { createExplorerDiagnosticApi } from './explorerDiagnosticApi.ts';
@@ -37,7 +37,7 @@ export type ExplorerHostState = {
 
 export function createExplorerHostState(
   prepared: Prepared,
-  options: ExplorerOptions,
+  options: MeasuredWorldOptions,
   backends: RenderBackend[],
   canvas: HTMLCanvasElement,
   webglSurface: WebglSurface | undefined,
@@ -107,7 +107,7 @@ export function createExplorerHostState(
     );
   };
   const check = () => {
-    if (state.disposed) throw new Error('Explorer disposed');
+    if (state.disposed) throw new Error('MeasuredWorld disposed');
     if (state.capturingSurface) throw new Error('SURFACE_CAPTURE_BUSY');
     signal?.throwIfAborted();
   };

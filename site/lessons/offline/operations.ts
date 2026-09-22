@@ -1,19 +1,9 @@
-import { mesh, triangle, box, combine, type Mesh } from './mesh.ts';
-/** Extrude a convex, counterclockwise contour in the XY plane. */
+import { mesh, triangle, box, combine, fromSolid, type Mesh } from './mesh.ts';
+import { geometry, math } from '../../../packages/sdk-browser/index.ts';
+/** A contour in the XY plane, extruded by the engine's own extrude and ear-cut triangulator —
+ *  no longer a fan from one vertex, so a concave contour no longer needs to stay convex. */
 export function extrude(points: number[][], depth = 1) {
-  const out = mesh(),
-    n = points.length;
-  const at = (i: number, z: number) => [...points[i], z];
-  for (let i = 1; i < n - 1; i++) {
-    triangle(out, at(0, depth), at(i, depth), at(i + 1, depth));
-    triangle(out, at(0, 0), at(i + 1, 0), at(i, 0));
-  }
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
-    triangle(out, at(i, 0), at(j, 0), at(j, depth));
-    triangle(out, at(i, 0), at(j, depth), at(i, depth));
-  }
-  return out;
+  return fromSolid(geometry.extrude(math.shape(points as [number, number][]), { depth }));
 }
 export function polygon(sides = 6) {
   return Array.from({ length: sides }, (_, i) => [
@@ -21,7 +11,9 @@ export function polygon(sides = 6) {
     Math.sin((i * 2 * Math.PI) / sides),
   ]);
 }
-/** Linear midpoint refinement preserves the original piecewise planar surface. */
+/** Linear midpoint refinement preserves the original piecewise planar surface — unlike
+ *  `geometry.polyhedron`'s detail subdivision, which pushes new vertices onto a sphere; this one
+ *  keeps an arbitrary caller-supplied mesh flat, so it has no family member to call instead. */
 export function subdivide(source: Mesh) {
   const out = mesh(),
     vertex = (i: number) => source.positions.slice(i * 3, i * 3 + 3);

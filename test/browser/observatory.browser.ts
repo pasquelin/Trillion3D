@@ -4,14 +4,14 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
-import type { Explorer } from '../../packages/sdk-browser/explorer.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/explorer.ts';
 
 // `window.scene`/`firstPixels`/`lastPixels` only exist in the page this harness evaluates code
 // in, never in Node; declared here so the `page.evaluate` callbacks below (type-checked, though
 // they run in the browser) see them.
 declare global {
   interface Window {
-    scene: Explorer;
+    scene: MeasuredWorld;
     firstPixels?: Uint8Array;
     lastPixels?: Uint8Array;
   }
@@ -46,8 +46,8 @@ try {
     canvas.id = 'observatory';
     canvas.style.cssText = 'width:800px;height:520px;display:block';
     document.body.append(canvas);
-    const { createExplorer, webgpuPagesBackend } = await import(sdkUrl);
-    window.scene = await createExplorer('observatory', {
+    const { openMeasuredWorld, webgpuPagesBackend } = await import(sdkUrl);
+    window.scene = await openMeasuredWorld('observatory', {
       manifestUrl: '/site/assets/gallery/signature-architecture/cache/native/full/manifest.json',
       scope: 'full',
       importedLights: true,
@@ -63,7 +63,7 @@ try {
     });
     await window.scene.awaitPages();
     window.scene.setPose({ ...window.scene.homePose(), position: [19, 13, 22], target: [0, 3, 0] });
-  }, '/sdk/sdk-browser/index.js');
+  }, '/sdk/sdk-browser/measurement.js');
   const samples = [];
   for (const threshold of [0, 1, 8, 0]) {
     const sample = await page.evaluate(async (pixelError) => {

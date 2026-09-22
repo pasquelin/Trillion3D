@@ -7,6 +7,7 @@ import type { Side } from './optionsCote.ts';
 import type { BenchSettings } from './options.ts';
 import type { LightsPlan } from './lampes.ts';
 import type { MeasureViewOptions, MeasureViewResult } from './mesureOptions.ts';
+import { sdkEntryUrl } from './dists.ts';
 
 /** The payload one series sends into the page: everything `measureView` needs. */
 export function measurePayload(
@@ -24,7 +25,7 @@ export function measurePayload(
   const manifestUrl = side.manifestUrl ?? manifest;
   if (!manifestUrl) throw new Error(`no manifest URL for side ${side.name}`);
   return {
-    sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
+    sdkUrl: sdkEntryUrl(side),
     manifestUrl,
     backend: ENGINE.backend,
     engineId: ENGINE.id,

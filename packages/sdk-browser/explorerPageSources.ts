@@ -3,7 +3,7 @@ import { configurePageDecoders } from './pageDecodeHost.ts';
 import { createPageStreamer } from './streamingPages.ts';
 import { loadClusterPages } from './clusterPages.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
-import type { RenderBackend, ExplorerOptions } from './backendTypes.ts';
+import type { RenderBackend, MeasuredWorldOptions } from './backendTypes.ts';
 import { indexManifestBundles, indexManifestPages } from './manifestPageIndex.ts';
 import type { ClusterManifest } from '../sdk-core/index.ts';
 
@@ -11,7 +11,7 @@ type Progress = (phase: string, completed: number, total: number, message: strin
 
 export async function createExplorerPageSources(
   metadata: ClusterManifest,
-  options: ExplorerOptions,
+  options: MeasuredWorldOptions,
   base: string,
   signal: AbortSignal | undefined,
   autonomous: boolean,

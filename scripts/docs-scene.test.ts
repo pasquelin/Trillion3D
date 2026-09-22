@@ -126,7 +126,7 @@ test('garden snippets execute the ID startup contract and invalidate diagnostic 
         invalidated = true;
       },
     };
-    const createExplorer = async (target: string, options: CreateExplorerOptions) => {
+    const openMeasuredWorld = async (target: string, options: CreateExplorerOptions) => {
       assert.equal(target, 'garden');
       assert.equal(options.interactive, true);
       assert.equal(options.scope, 'full');
@@ -135,8 +135,8 @@ test('garden snippets execute the ID startup contract and invalidate diagnostic 
     const body = code.replace(/^import[^\n]+\n/, '');
     const AsyncFunction = Object.getPrototypeOf(async function () {})
       .constructor as AsyncFunctionConstructor;
-    const runSnippet = new AsyncFunction('createExplorer', 'window', body);
-    await runSnippet(createExplorer, {
+    const runSnippet = new AsyncFunction('openMeasuredWorld', 'window', body);
+    await runSnippet(openMeasuredWorld, {
       addEventListener(event: string, callback: () => void) {
         assert.equal(event, 'pagehide');
         listener = callback;

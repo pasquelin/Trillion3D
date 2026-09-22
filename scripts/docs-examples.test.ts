@@ -29,7 +29,7 @@ test('every example is one standalone HTML file that imports the built engine', 
     const html = await readFile(new URL(entry.file, site), 'utf8');
     assert.match(html, /^<!doctype html>/);
     assert.match(html, /<canvas id="view"><\/canvas>/);
-    assert.match(html, /import \{ createExplorer[^}]*\} from '\.\.\/runtime\/engine\.js'/);
+    assert.match(html, /import \{ openMeasuredWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
     // #276: an example lets the engine read the machine and choose its path, so it renders
     // wherever it is opened; one that pins a backend to show the setting says so on the page.

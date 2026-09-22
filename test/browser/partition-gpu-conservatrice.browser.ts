@@ -23,7 +23,7 @@ import { ASSETS, DEFAULT_SCENE, assetsManifest } from '../../scripts/mesure/scen
 import { poseAt } from '../../scripts/mesure/poses.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const SDK_URL = '/sdk/sdk-browser/index.js',
+const SDK_URL = '/sdk/sdk-browser/measurement.js',
   MODULES_URL = '/preuve/',
   MESURE_URL = '/mesure/';
 const POSES = 30;
@@ -51,7 +51,7 @@ function cacheAvecTransparents() {
   );
 }
 assert.ok(
-  existsSync(join(ROOT, 'dist/sdk-browser/index.js')),
+  existsSync(join(ROOT, 'dist/sdk-browser/measurement.js')),
   'dist missing: run `pnpm run build` before this proof',
 );
 // The page module is bundled from the repository SOURCES, so it reads the production reference

@@ -1,6 +1,6 @@
 import type { CameraPose } from '../sdk-core/index.ts';
 import { devicePixels } from './backendCommon.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
 import type { BoundTarget } from './explorerHostState.ts';
 import { hostPoint } from './hostGraphObjects.ts';
@@ -17,7 +17,7 @@ type Inputs = {
    *  where the page canvas is sized directly. */
   webglSurface?: WebglSurface;
   viewport: [number, number];
-  options: ExplorerOptions;
+  options: MeasuredWorldOptions;
 };
 
 export function createExplorerViewportApi(inputs: Inputs) {

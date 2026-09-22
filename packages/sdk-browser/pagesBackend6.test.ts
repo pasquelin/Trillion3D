@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { exactPagesBackend } from './index.ts';
+import { exactPagesBackend } from './measurement.ts';
 import { drawnTriangles, dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
 import {
   quadScene,

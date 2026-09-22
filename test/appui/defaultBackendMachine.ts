@@ -8,7 +8,7 @@ import { serverPort } from '../../scripts/mesure/serveur.ts';
 import type { runDefaultBackendCase } from './defaultBackendCase.ts';
 
 declare global {
-  var sdk: typeof import('../../packages/sdk-browser/index.ts');
+  var sdk: typeof import('../../packages/sdk-browser/measurement.ts');
   var proof: { images: Record<string, number[]> } | undefined;
 }
 
@@ -42,6 +42,6 @@ export async function openMachine(input: {
   await page.goto(`http://127.0.0.1:${serverPort(input.server)}`);
   await page.evaluate(async (url) => {
     window.sdk = await import(url);
-  }, '/sdk/sdk-browser/index.js');
+  }, '/sdk/sdk-browser/measurement.js');
   return { context, page };
 }

@@ -4,7 +4,7 @@
 // redisplayed cut.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exactPagesBackend } from './index.ts';
+import { exactPagesBackend } from './measurement.ts';
 import { quadRootsContext, frontCamera } from './pagesBackendScenes.ts';
 
 function engine() {

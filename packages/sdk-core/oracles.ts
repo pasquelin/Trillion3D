@@ -1,11 +1,5 @@
-export {
-  dot,
-  maxStretch,
-  clusterErrorPixels,
-  clusterErrorAtDepth,
-  screenErrorBound,
-  coneRejects,
-} from './projectionOracles.ts';
+export { dot, maxStretch, coneRejects } from './projectionOracles.ts';
+export { clusterErrorPixels, clusterErrorAtDepth, screenErrorBound } from './screenErrorBound.ts';
 export {
   referenceScreenError,
   screenErrorVariant,

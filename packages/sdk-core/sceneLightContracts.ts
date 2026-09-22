@@ -1,28 +1,33 @@
 /**
- * A scene light, version 2. Units are radiometric and linear (P1): `color` is a
- * linear colour and `intensity` a strictly positive radiometric intensity.
- *
- * Three kinds, and nothing else makes light in this engine (P6):
+ * A scene light, version 2. Units are radiometric and linear (P1): `color` is a linear colour and
+ * `intensity` a strictly positive radiometric intensity — a radiance for a `rect`. Four kinds,
+ * and nothing else makes light in this engine (P6):
  * - `point`: a position and a range in metres beyond which it lights nothing;
  * - `spot`: the same plus a direction and a cone half-angle in radians;
  * - `directional`: the sun or an overcast sky — a propagation direction, no position and
- *   no range, the same irradiance everywhere, and cascade shadows that follow the camera.
+ *   no range, the same irradiance everywhere, and cascade shadows that follow the camera;
+ * - `rect`: a one-sided rectangle of `size` metres centred on `position`, emitting along
+ *   `direction`, its width along `right`; no cast shadow (`directRectLightWgsl.ts`).
  *
  * Fields a kind does not use are rejected at validation: a directional light with
  * a position would be a promise the engine would not keep.
  */
 export interface SceneLight {
   id: string;
-  kind: 'point' | 'spot' | 'directional';
+  kind: 'point' | 'spot' | 'directional' | 'rect';
   /** Point and spot only: the point the light comes from, in metres. */
   position?: [number, number, number];
-  /** Spot: the cone axis. Directional: the propagation direction (from the sun toward the ground). */
+  /** Spot: the cone axis. Directional: the propagation direction (from the sun toward the
+   *  ground). Rect: the normal of its emitting face. */
   direction?: [number, number, number];
   color: [number, number, number];
   intensity: number;
   /** Point and spot only: the range in metres, where energy vanishes exactly. */
   range?: number;
   coneAngle?: number;
+  /** Spot only: the share of the cone, from its edge inward, over which the light fades in
+   *  `[0, 1]`; without it the edge softens over `spotEdgeSoftness`. */
+  penumbra?: number;
   /**
    * Point and spot only: the radius, in metres, of the envelope that holds the source.
    * A real light is always housed in something — lantern glass, reflector, shade
@@ -33,16 +38,14 @@ export interface SceneLight {
    * surfaces. Strictly positive and strictly less than the range; if absent, nothing changes.
    */
   emitterRadius?: number;
+  /** Rect only: the unit axis its width runs along, perpendicular to `direction`. */
+  right?: [number, number, number];
+  /** Rect only: its width and height, in metres. */
+  size?: [number, number];
   castsShadow: boolean;
 }
-/**
- * Camera exposure, applied to linear radiance just before ACES (P4). This is not
- * a light: it cannot light a surface that nothing lights, it only sets
- * the conversion of radiance into an image. A scene without a light stays black whatever its value.
- */
-export interface SceneEnvironment {
-  exposure: number;
-}
+/** Exposure, display curve and the irradiance from every direction (`sceneEnvironment.ts`). */
+export type { SceneEnvironment, SceneToneMapping } from './sceneEnvironment.ts';
 export const SCENE_LIGHT_VERSION = 2;
 /**
  * What the host asks to see. `lit` is real lighting and that alone; `unlit` is the raw-albedo
@@ -164,18 +167,16 @@ export const LIGHT_SETTINGS = {
 export const MAX_SHADOW_SLICES = LIGHT_SETTINGS.maxLights;
 /** Faces of a slice: six for a point, one for a spot, the sun's cascades. */
 export const POINT_FACES = 6;
-/** Floats of a light in the GPU buffer: four `vec4f`, never reallocated. */
-export const SCENE_LIGHT_FLOATS = 16;
+/** Floats of a light in the GPU buffer: five `vec4f`, never reallocated. */
+export const SCENE_LIGHT_FLOATS = 20;
 /** Light-buffer header: count, tiles in X, tiles in Y, reserved. */
 export const SCENE_LIGHT_HEADER_FLOATS = 4;
 export const SCENE_LIGHT_BUFFER_FLOATS =
   SCENE_LIGHT_HEADER_FLOATS + LIGHT_SETTINGS.maxLights * SCENE_LIGHT_FLOATS;
 /** Rank of a light kind in the GPU buffer: the shader refers to it by this number, not by name. */
-export const LIGHT_KIND = { point: 0, spot: 1, directional: 2 } as const;
-/**
- * Axis of a light that has one — spot or directional. The contract has already normalised it and
- * rejects a light of that kind without a direction: reading this field here assumes nothing more.
- */
+export const LIGHT_KIND = { point: 0, spot: 1, directional: 2, rect: 3 } as const;
+/** Axis of a light that has one — spot, directional, rect —, normalised by the contract, which
+ *  rejects a light of those kinds without one: reading it here assumes nothing more. */
 export const lightDirection = (light: SceneLight) => light.direction as [number, number, number];
 /** What the scheduler knows of the view: a camera, not a matrix, to stay without a dependency. */
 export interface ShadowViewpoint {

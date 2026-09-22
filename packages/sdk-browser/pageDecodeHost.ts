@@ -4,14 +4,15 @@ import { restorePageDecode, runPageDecodeTask } from './pageDecodeTask.ts';
 import { createPageArena, sharedPagesAllowed } from './pageDecodeShared.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { PageDecodeAnswer, PageDecodeOp } from '../sdk-core/index.ts';
+import type { PageCutPayload } from '../sdk-core/pageDecodeContracts.ts';
 
 /** Decoded-byte ceiling of a page, identical to the original synchronous path. */
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;
 const counters = { tasks: 0, offThread: 0, wasm: 0, decodeMs: 0 };
 let admissionLimit = 1,
   pool: PageDecodePool | undefined;
-/** `undefined` until the startup check has answered, then its verdict. */
-let started: boolean | undefined;
+/** `undefined` until the startup check has answered, then its verdict; `starting` is that check. */
+let started: boolean | undefined, starting: Promise<unknown> | undefined;
 
 /** Bounds the pool to the admission already in force for page transfers. Call before the
  *  first decode; a later call does not resize an already-open pool. */
@@ -43,7 +44,7 @@ function openPool() {
       workers,
       sharedPagesAllowed() ? createPageArena(workers) : undefined,
     );
-    void pool.start().then((ok) => {
+    starting = pool.start().then((ok) => {
       started = ok;
       if (!ok) pool = undefined;
     });
@@ -140,6 +141,30 @@ export async function decodePageOffThread(
   return restorePageDecode(answer.decoded);
 }
 
+/**
+ * Drawn triangles, packed by `packDrawn`, cut into pages in a worker when the pool lives and by
+ * the same task on the main thread otherwise. **The caller yields its buffer.** A cut is not a
+ * decode: it is not counted among the decoded pages.
+ */
+export async function cutPagesOffThread(packed: ArrayBuffer): Promise<PageCutPayload> {
+  // A cut is never urgent: it waits for the pool's startup check rather than take the main thread.
+  if (!openPool() && started === undefined) await starting;
+  const open = openPool();
+  let answer = open ? await open.submit('cut', packed, 0).answer : undefined;
+  if (!answer || (!answer.ok && answer.code === 'PAGE_DECODE_WORKER'))
+    answer = (
+      await runPageDecodeTask({
+        protocol: PAGE_DECODE_PROTOCOL,
+        id: 0,
+        op: 'cut',
+        source: packed,
+        maxDecodedBytes: 0,
+      })
+    ).answer;
+  if (!answer.ok || !answer.cut) refuse(answer);
+  return answer.cut;
+}
+
 /** Off-thread decoded pages, pages decoded by the WebAssembly module, cumulative decode
  *  time, pool size. `null` when nothing was decoded: an unmeasured metric is not a zero. */
 export function pageDecodeStats() {
@@ -156,7 +181,7 @@ export function pageDecodeStats() {
 export function releasePageDecoders() {
   pool?.retire();
   pool = undefined;
-  started = undefined;
+  started = starting = undefined;
   counters.tasks = 0;
   counters.offThread = 0;
   counters.wasm = 0;

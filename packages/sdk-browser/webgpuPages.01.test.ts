@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { presentationColorDiagnostic } from './index.ts';
+import { presentationColorDiagnostic } from './measurement.ts';
 import { outputColorDiagnostic, webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';

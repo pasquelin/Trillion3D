@@ -3,7 +3,7 @@ import type { BoxTransformLot } from './mathBatchRuntime.ts';
 import { emptyWorldBox, hostWorldBounds } from './hostWorldBounds.ts';
 import { framingFromBounds } from './framing.ts';
 import { DEFAULT_FOV } from './backendCommon.ts';
-import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
+import type { BackendContext, MeasuredWorldOptions } from './backendTypes.ts';
 import type { HostGraphNode } from './hostGraphNodes.ts';
 import { hostBox, hostFramingCamera, hostPoint } from './hostGraphObjects.ts';
 import { sphereFromBounds, type ClusterManifest } from '../sdk-core/index.ts';
@@ -17,7 +17,7 @@ export function createExplorerCamera(
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
   canvas: HTMLCanvasElement,
-  options: ExplorerOptions,
+  options: MeasuredWorldOptions,
   /** Framing-box buffer, reserved at load; `null` leaves it in JavaScript. */
   lot?: BoxTransformLot | null,
 ) {

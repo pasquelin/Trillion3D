@@ -18,7 +18,7 @@ test('every integrated renderer lesson emits complete parseable host code', () =
   for (const lesson of rendererLessons) {
     const code = rendererCodeFor(lesson, rendererInitialState(lesson));
     assert.doesNotThrow(() => transformSync(code, { format: 'esm' }), lesson.id);
-    assert.match(code, /from 'web-geometry'[\s\S]*createExplorer\(canvas/);
+    assert.match(code, /from 'web-geometry'[\s\S]*openMeasuredWorld\(canvas/);
     // #276: the normal call names no backend — the engine reads the machine and chooses.
     assert.doesNotMatch(code, /backends:/);
     assert.match(code, /pixelRatio: window\.devicePixelRatio/);
@@ -121,7 +121,7 @@ test('renderer badges link only to documented API entries', () => {
   const light = render('point-light-range');
   assert.doesNotMatch(light, /#\/en\/api\/addLight/);
   assert.match(light, />addLight<\/code>/);
-  assert.match(render('offline-prism'), /#\/en\/api\/createExplorer/);
+  assert.match(render('offline-prism'), /#\/en\/api\/openMeasuredWorld/);
 });
 
 test('the shadow switch uses its original theatre and keeps direct light in both states', async () => {

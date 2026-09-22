@@ -55,4 +55,4 @@ vec3 V=normalize(-viewPosition);float ao=1.0;if((mapMask&16)!=0)ao+=aoStrength*(
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
 float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
-if(toneMapped)rgb=aces(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,alpha);}`;
+if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,alpha);}`;

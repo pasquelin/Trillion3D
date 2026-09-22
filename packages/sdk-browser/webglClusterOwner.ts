@@ -17,6 +17,10 @@ export class WebglClusterOwner {
     this.renderer = new WebglClusterRenderer(context);
     context.canvas.addEventListener('webglcontextrestored', this.restored);
   }
+  /** The display curve of the frames to come, a rank of `TONE_MAPPING_RANK`. */
+  set toneCurve(rank: number) {
+    this.renderer.toneCurve = rank;
+  }
   get backdropBytes() {
     return this.renderer.backdropBytes;
   }

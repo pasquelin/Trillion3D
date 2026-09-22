@@ -1,13 +1,13 @@
 import type { JsonSchemaObject } from './types.ts';
 
 /**
- * Comprehensive JSON Schema documenting all initialization options for the WebGeometry explorer (ExplorerOptions).
+ * Comprehensive JSON Schema documenting all initialization options for the WebGeometry explorer (MeasuredWorldOptions).
  * Enables LLMs to understand, validate, and tune the 3D engine configuration.
  */
 export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
   type: 'object',
   description:
-    'Initialization options for the WebGeometry rendering engine (createExplorer). Configures virtualized geometry (Nanite), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting (Lumen), and virtual shadow maps.',
+    'Initialization options for the WebGeometry rendering engine (openMeasuredWorld). Configures virtualized geometry (Nanite), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting (Lumen), and virtual shadow maps.',
   properties: {
     interactive: {
       type: 'boolean',

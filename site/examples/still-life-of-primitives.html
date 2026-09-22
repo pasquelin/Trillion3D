@@ -8,31 +8,37 @@
       canvas { display: block; width: 100%; height: 100%; }
       p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math, pose } from '../runtime/engine.js';
 
-      const explorer = await createExplorer('view', {
-        manifestUrl: '../assets/examples/still-life/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
-      });
-      // Sphere, cylinder, cone, torus and box, compiled together into one streamed scene.
-      explorer.addLight({
-        id: 'sun',
-        kind: 'directional',
-        direction: [-0.4, -0.75, -0.5],
-        color: [1, 0.95, 0.85],
-        intensity: 3,
-        castsShadow: true,
-      });
-      explorer.invalidate();
+      const world = createWorld('view', { controls: 'orbit' });
+
+      // Sphere, cylinder, cone, torus and box, on one slate slab.
+      const slab = object.mesh(geometry.box(8, 0.3, 8), material.meshStandard({ color: [0.22, 0.24, 0.27], roughness: 0.85 }));
+      slab.position.y = -0.15;
+      const sphere = object.mesh(geometry.sphere(0.9, 64, 32), material.meshStandard({ color: [0.9, 0.86, 0.76], roughness: 0.4 }));
+      sphere.position.set(-2.2, 0.9, -0.8);
+      const cylinder = object.mesh(geometry.cylinder(0.6, 0.6, 1.8, 32), material.meshStandard({ color: [0.1, 0.55, 0.5], metalness: 0.2, roughness: 0.5 }));
+      cylinder.position.set(0.4, 0.9, -1.6);
+      const cone = object.mesh(geometry.cone(0.8, 2, 32), material.meshStandard({ color: [0.8, 0.55, 0.15], roughness: 0.6 }));
+      cone.position.set(2.3, 1, 0.2);
+      const torus = object.mesh(geometry.torus(0.9, 0.32, 24, 48), material.meshStandard({ color: [0.8, 0.6, 0.25], metalness: 0.9, roughness: 0.3 }));
+      torus.position.set(-0.6, 0.35, 1.6);
+      torus.rotation.x = Math.PI / 2;
+      const box = object.mesh(geometry.box(1.1, 1.1, 1.1), material.meshStandard({ color: [0.4, 0.15, 0.35], roughness: 0.7 }));
+      box.position.set(1.9, 0.55, 2.2);
+      world.scene.add(slab, sphere, cylinder, cone, torus, box);
+
+      world.scene.add(light.directional({
+        intensity: 3, color: [1, 0.95, 0.85], position: [8, 15, 10], target: [0, 0, 0], castShadow: true,
+      }));
+      const framing = pose.fromBounds(math.box3().setFromObject(world.scene));
+      world.camera.set(framing);
+      world.controls.target.set(...framing.target);
+      world.invalidate();
     </script>
   </body>
 </html>

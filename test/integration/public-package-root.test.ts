@@ -81,7 +81,8 @@ test('type-only imports leave no runtime package import', async () => {
 test('the browser condition imports rendering and common bindings without initialization', () => {
   const probe = `
     const sdk = await import('web-geometry');
-    if (typeof sdk.createExplorer !== 'function') throw new Error('missing createExplorer');
+    if (typeof sdk.createWorld !== 'function') throw new Error('missing createWorld');
+    if ('openMeasuredWorld' in sdk) throw new Error('the measurement entry leaked into the package');
     if (typeof sdk.hierarchyUpdateBatch !== 'function') throw new Error('missing common maths');
     if ('prepare' in sdk) throw new Error('Node API leaked into browser');
   `;
@@ -131,7 +132,7 @@ test('a packed installation resolves Node and browser runtime and declarations',
     );
     await writeFile(
       join(directory, 'browser.ts'),
-      "import {createExplorer,hierarchyUpdateBatch} from 'web-geometry'; if (!createExplorer || !hierarchyUpdateBatch) throw Error('browser');",
+      "import {createWorld,hierarchyUpdateBatch} from 'web-geometry'; if (!createWorld || !hierarchyUpdateBatch) throw Error('browser');",
     );
     execFileSync(process.execPath, ['node.ts'], { cwd: directory, stdio: 'pipe' });
     execFileSync(process.execPath, ['--conditions=browser', 'browser.ts'], {

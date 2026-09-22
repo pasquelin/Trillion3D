@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createHostSceneWatch } from './hostSceneWatch.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
-import { exactPagesBackend } from './index.ts';
+import { exactPagesBackend } from './measurement.ts';
 import { quadRootsContext, frontCamera } from './pagesBackendScenes.ts';
 
 function graphe() {

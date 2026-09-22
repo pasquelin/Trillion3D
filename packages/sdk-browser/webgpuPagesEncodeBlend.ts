@@ -11,7 +11,7 @@ import { blendLightResources } from './webgpuBlendLighting.ts';
 import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
-import { clearValueOf } from './clearColour.ts';
+import { clearValueOf } from '../sdk-core/world/math/packedColour.ts';
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
 import { composesOffscreen } from './diagnosticGpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from './taaFrame.ts';
@@ -20,7 +20,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
 const inverseViewProj = new Float64Array(16),
-  cameraWorldArray: [number, number, number] = [0, 0, 0];
+  cameraWorldArray: [number, number, number, number] = [0, 0, 0, 1];
 
 export function encodeBlend(
   rt: WebgpuPagesRuntime,
@@ -145,9 +145,8 @@ export function encodeSurfaceLighting(
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   );
   // Image entry copied the camera, ancestors included: world position is read without recomputing.
-  cameraWorldArray[0] = cam.eye[0];
-  cameraWorldArray[1] = cam.eye[1];
-  cameraWorldArray[2] = cam.eye[2];
+  // The camera as one homogeneous point: the view vector of the resolve is `xyz − P·w`.
+  for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i];
   gpu.deferred.update(
     inverseViewProj,
     cameraWorldArray,

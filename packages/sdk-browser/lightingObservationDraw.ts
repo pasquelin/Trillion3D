@@ -1,3 +1,4 @@
+import { TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
 import type { HostDrawOutput } from './backendTypes.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 import type { ObservationMeshes } from './lightingObservationMeshes.ts';
@@ -85,7 +86,7 @@ class ObservationPass {
     }
     this.fresh = false;
   }
-  draw(camera: HostDrawCamera, toneMapped: boolean) {
+  draw(camera: HostDrawCamera, toneMapped: boolean, toneCurve: number) {
     const gl = this.gl,
       { uniforms } = this.resources;
     gl.useProgram(this.program);
@@ -104,6 +105,7 @@ class ObservationPass {
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform3fv(this.at('cameraPosition'), camera.eye);
     gl.uniform1i(this.at('toneMapped'), toneMapped ? 1 : 0);
+    gl.uniform1i(this.at('toneCurve'), toneCurve);
     gl.uniform2fv(this.at('cacheSize'), uniforms.cacheSize);
     gl.uniform4fv(this.at('sphere'), uniforms.sphere);
     gl.uniform1f(this.at('sphereRoughness'), uniforms.sphereRoughness);
@@ -151,7 +153,7 @@ export function createObservationDraw(
     drawHostGeometry(camera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
       pass ??= new ObservationPass(gl, resources, meshes);
-      pass.draw(camera, output.toneMapped);
+      pass.draw(camera, output.toneMapped, TONE_MAPPING_RANK[output.toneMapping ?? 'aces']);
     },
     dispose() {
       gl?.canvas.removeEventListener('webglcontextrestored', restored);

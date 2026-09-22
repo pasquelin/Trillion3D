@@ -9,6 +9,7 @@ import type {
 import type { RenderBackend } from './backendTypes.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { MemoryBudgets } from './webgpuPagesMemory.ts';
+import type { PlacementRows } from './placement/placementRows.ts';
 
 type Inputs = {
   check: () => void;
@@ -68,6 +69,25 @@ export function createExplorerSceneApi(inputs: Inputs) {
           `${active.id} does not support instance removal`,
         );
       active.removeInstance(id);
+    },
+    /** Rows `from` to `to` of an instance buffer the session holds were written. */
+    updatePlacements(rows: PlacementRows, from: number, to: number) {
+      check();
+      const active = getActive();
+      if (!active.updatePlacements)
+        throw new EngineError(
+          'UNSUPPORTED_SCENE_UPDATE',
+          `${active.id} does not support instance-buffer rows`,
+        );
+      active.updatePlacements(rows, from, to);
+    },
+    /** Bounced light on or off in the session; false when the active path cannot toggle it in
+     *  place, and only a session opened with the other setting will have it. */
+    setBounce(on: boolean) {
+      check();
+      const active = getActive();
+      active.setBounce?.(on);
+      return !!active.setBounce;
     },
     updateMaterial(primitive: string, material: Material) {
       check();

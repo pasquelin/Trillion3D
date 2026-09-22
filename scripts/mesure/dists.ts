@@ -62,3 +62,8 @@ function resolveDist(value: string, label: string, root: string): { dist: string
   buildDist(dir);
   return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)}` };
 }
+
+/** The page-side address of a side's SDK: its measurement entry, which names the witnesses, or the
+ *  published entry of a dist built before that entry existed, which named them itself. */
+export const sdkEntryUrl = (side: { name: string; dist: string }) =>
+  `/sdk/${side.name}/sdk-browser/${existsSync(join(side.dist, 'sdk-browser/measurement.js')) ? 'measurement' : 'index'}.js`;

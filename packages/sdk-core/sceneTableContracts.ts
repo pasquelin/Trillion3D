@@ -15,7 +15,6 @@ export const SCENE_TABLES_VERSION = 1;
 export const NODE_TABLE_VERSION = 1;
 export const MATERIAL_TABLE_VERSION = 1;
 
-type Triplet = readonly [number, number, number];
 /** The six map slots the engine reads of a surface, in the engine's own field names. */
 export const TABLE_SLOTS = [
   'map',
@@ -67,7 +66,7 @@ export type TableMaterial = { name: string; derivativeTangents: boolean } & Reco
   boolean
 > &
   Record<(typeof TABLE_NUMBERS)[number], number> &
-  Record<(typeof TABLE_TRIPLETS)[number], Triplet> &
+  Record<(typeof TABLE_TRIPLETS)[number], readonly [number, number, number]> &
   Record<TableSlotName, TableTextureSlot | null>;
 /**
  * One drawn primitive: the node that carries it, its world pose, the surface it wears and its
@@ -84,7 +83,7 @@ export interface TableNode {
   material: number;
   instance: number;
   matrix: readonly number[];
-  bounds: { min: Triplet; max: Triplet } | null;
+  bounds: { min: readonly [number, number, number]; max: readonly [number, number, number] } | null;
 }
 export interface PreparedSceneTables {
   version: number;

@@ -7,7 +7,7 @@
 // The harness is a host like any other. Three adapters do not read the `SceneLight` store:
 // they copy lights from the source graph, and nothing else. The host therefore itself places,
 // in Three, the lights the store declares — those of the imported file as those of the
-// bench — through the public `sceneLighting` option of `createExplorer`. No light is written
+// bench — through the public `sceneLighting` option of `openMeasuredWorld`. No light is written
 // here: everything comes from `explorer.lights()`, hence from the compiled cache and the
 // contract, never from a named scene or a position placed by hand.
 //
@@ -20,7 +20,7 @@
 // off` on both sides, otherwise the measured delta first carries the shadows only the
 // engine draws.
 import * as THREE from 'three';
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
 import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
 
 /** Physical inverse-square of the contract: `directIncidence` knows no other falloff. */
@@ -103,7 +103,7 @@ export function creerEclairageTemoin() {
   let signature: string | null = null;
   return {
     groupe,
-    suivre(explorer: Explorer) {
+    suivre(explorer: MeasuredWorld) {
       if (typeof explorer.lights !== 'function') return null;
       const lights = explorer.lights();
       const douceur = explorer.lightSettings ? explorer.lightSettings.spotEdgeSoftness : 0;

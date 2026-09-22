@@ -1,6 +1,6 @@
 // Executed WITHIN page for oracle campaign. Playwright serializes this function:
 // it reads no module variables, receiving everything via its single argument.
-import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type * as SdkBrowser from '../../packages/sdk-browser/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/contractsBase.ts';
 import type { SceneLight } from '../../packages/sdk-core/sceneLightContracts.ts';
 
@@ -48,7 +48,7 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
   document.body.append(canvas);
   // Engine bounce diagnostic.
   const bounce: Record<string, unknown>[] = [];
-  const explorer = await sdk.createExplorer(canvas, {
+  const explorer = await sdk.openMeasuredWorld(canvas, {
     onDiagnostic: (event) => {
       if (event.phase === 'bounce-lighting') bounce.push(event.context);
     },

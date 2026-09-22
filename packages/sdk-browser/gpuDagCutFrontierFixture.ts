@@ -110,6 +110,7 @@ export function descenteComptee(
             frames.stretches[w],
             frames.focal,
             frames.near,
+            frames.perspective,
           ) > frames.pixelError
         )
           compte.tropGrossieres++;

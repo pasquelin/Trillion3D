@@ -13,7 +13,7 @@ export type { BounceOccupancy } from '../../sdk-core/bounceOccupancy.ts';
 export { cloneSceneLight } from '../../sdk-core/sceneLightClone.ts';
 export { createDefaultLightingSceneLights } from '../../sdk-core/lightingSceneControls.ts';
 export { createLightingScene } from '../../sdk-core/lightingExperimentScene.ts';
-export { createSceneLightStore, LIGHT_FIELD } from '../../sdk-core/sceneLightStore.ts';
+export { createSceneLightStore } from '../../sdk-core/sceneLightStore.ts';
 export type { SceneLightStore } from '../../sdk-core/sceneLightStore.ts';
 export { createShadowPlan } from '../../sdk-core/sceneLightShadowPlan.ts';
 export type { ShadowPlan } from '../../sdk-core/sceneLightShadowPlan.ts';
@@ -30,6 +30,7 @@ export {
   writeFace,
 } from '../../sdk-core/sceneLightShadowFaces.ts';
 export { forEachShadowFace } from '../../sdk-core/sceneLightShadowCasters.ts';
+export { LIGHT_FIELD } from '../../sdk-core/sceneLightFields.ts';
 export {
   LIGHT_KIND,
   LIGHT_SETTINGS,
@@ -41,7 +42,6 @@ export {
   SCENE_LIGHT_VERSION,
 } from '../../sdk-core/sceneLightContracts.ts';
 export type {
-  SceneEnvironment,
   SceneLight,
   SceneLightingView,
   ShadowViewpoint,

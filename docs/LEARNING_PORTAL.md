@@ -110,17 +110,18 @@ dependency and exercise the live scene after the change.
 
 ## Adding an example
 
-1. Write `site/examples/<id>.html`: one file, a `<canvas id="view">`, the import map of the
-   Three.js peer dependency and a module script that imports `createExplorer` from
-   `../runtime/engine.js`. Keep it as short as the feature allows; no controls, no copy.
-2. If it needs a scene, add it to `scripts/docs/examples/scenes.mjs` (procedural) or
-   `scripts/docs/examples/models.mjs` (around an imported model, credited in
-   `site/assets/examples/CREDITS.md`), then run `pnpm build:native` and
+1. Write `site/examples/<id>.html`: one file, a `<canvas id="view">`, no import map, and a module
+   script that imports `createWorld` and the families it needs (`object`, `geometry`, `material`,
+   `light`, …) from `../runtime/engine.js`. Keep it as short as the feature allows; no controls, no
+   copy.
+2. A scene of primitives is built in code, with `geometry.*`, directly in the example's HTML. A
+   scene built around an imported model is added to `scripts/docs/examples/models.ts`, credited in
+   `site/assets/examples/CREDITS.md`, then run `pnpm build:native` and
    `node scripts/docs-examples-assets.ts <scene>`.
 3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, and
    capture its thumbnail: `node scripts/docs-examples-thumbnails.ts <id>`.
-4. Run `node --test scripts/docs-examples.test.mjs`, then the browser proof
-   `node --test scripts/docs-examples.browser.mjs`.
+4. Run `node --test scripts/docs-examples.test.ts`, then the browser proof
+   `node --test scripts/docs-examples.browser.ts`.
 
 ## Adding a lesson
 
@@ -183,6 +184,9 @@ The gallery's procedural 3D illustrations explain SDK calculations; the compiled
 the streaming pipeline. Neither proves a speedup over another renderer. Comparative claims require
 the repository measurement harness described in `scripts/mesure/README.md`, identical input, camera,
 quality and resource budgets, plus resolution, DPR, commit, display cap and run-to-run spread.
+A witness (bare Three.js, `THREE.LOD`, …) is never imported by a portal example or demo: it is
+named only through the measurement entry point (`packages/sdk-browser/measurement.ts`) the bench
+and the report pipeline use.
 
 API pages may show a related concept beside their original snippet. The panel labels this
 relationship explicitly and links to the interactive example with its own inputs and matching code.

@@ -6,49 +6,48 @@ import {
 } from './lightingLessonDefinitions.ts';
 import { ringLamps } from './lightingLessonRuntime.ts';
 import type { RendererLessonItem } from './rendererLessonTypes.ts';
-const light = (
-  id: string,
+const lamp = (
+  variable: string,
   position: string,
   color: string,
   intensity: number,
-  emitterRadius = 0.1,
-  castsShadow = true,
-  range = 10,
+  castShadow = true,
+  distance = 10,
+  radius?: number,
 ) =>
-  `explorer.addLight({ id: '${id}', kind: 'point', position: [${position}], color: [${color}], intensity: ${intensity}, range: ${range}, emitterRadius: ${emitterRadius}, castsShadow: ${castsShadow} });`;
+  `const ${variable} = light.point({ position: [${position}], color: [${color}], intensity: ${intensity}, distance: ${distance}, castShadow: ${castShadow}${radius === undefined ? '' : `, radius: ${radius}`} });
+world.scene.add(${variable});`;
 
 function operation(lesson: RendererLessonItem, state: Record<string, number>) {
   if (lesson.kind === 'color-balance')
-    return `${light('warm', '-3, 3, 2', '1, 0.35, 0.12', state.warm)}
-${light('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
+    return `${lamp('warm', '-3, 3, 2', '1, 0.35, 0.12', state.warm)}
+${lamp('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
   if (lesson.kind === 'moving-point')
-    return light('moving', `${state.x}, 4, 2`, '1, 0.8, 0.55', LESSON_POINT_INTENSITY);
+    return lamp('moving', `${state.x}, 4, 2`, '1, 0.8, 0.55', LESSON_POINT_INTENSITY);
   if (lesson.kind === 'shadow-switch')
-    return `explorer.addLight({ id: 'switch', kind: 'point', position: [-3, 7, 10], color: [1, 0.72, 0.42], intensity: 1800, range: 30, emitterRadius: 0.1, castsShadow: ${state.shadow === 1} });`;
+    return lamp('switchLamp', '-3, 7, 10', '1, 0.72, 0.42', 1800, state.shadow === 1, 30);
   if (lesson.kind === 'emitter-radius')
-    return light('envelope', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY, state.radius);
+    return lamp('envelope', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY, true, 10, state.radius);
   if (lesson.kind === 'many-lights')
     return ringLamps(state.count)
-      .map((lamp) =>
-        light(
-          lamp.id,
-          lamp.position.join(', '),
-          lamp.color.join(', '),
+      .map((ring, index) =>
+        lamp(
+          `ring${index}`,
+          ring.position.join(', '),
+          ring.color.join(', '),
           LESSON_RING_INTENSITY,
-          0.1,
           true,
           LESSON_RING_RANGE,
         ),
       )
       .join('\n');
-  const created = light('lifecycle', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY);
-  return state.enabled === 1 ? created : `${created}\nexplorer.removeLight('lifecycle');`;
+  const created = lamp('lifecycle', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY);
+  return state.enabled === 1 ? created : `${created}\nworld.scene.remove(lifecycle);`;
 }
 
 export function lightingLessonCode(lesson: RendererLessonItem, state: Record<string, number>) {
   return lessonCode(operation(lesson, state), {
     manifest: lesson.manifest,
-    importedLights: lesson.importedLights,
     sceneFill: lesson.sceneFill,
     initialPose: lesson.initialPose,
   });

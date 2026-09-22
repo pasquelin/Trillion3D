@@ -1,6 +1,6 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { createRenderEncoder } from './webgpuPagesEncoder.ts';
-import { clearValueOf } from './clearColour.ts';
+import { clearValueOf } from '../sdk-core/world/math/packedColour.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from './visibilityBuffer.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';

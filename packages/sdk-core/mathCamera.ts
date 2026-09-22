@@ -15,8 +15,8 @@ import { invertMatrix4 } from './mathMatrix4Inverse.ts';
  * value. Far plane no longer enters the formula — no `far - near` in denominator,
  * hence nothing to tune and nothing that saturates: `ndc = near / distance`.
  *
- * Neither offset view (`setViewOffset`), nor film offset, nor orthographic projection: the engine
- * sets none.
+ * Neither offset view (`setViewOffset`) nor film offset: the engine sets none. An orthographic
+ * camera composes `orthographicProjection`, below, in the same depth convention.
  */
 
 const DEG2RAD = Math.PI / 180;
@@ -57,6 +57,32 @@ export function perspectiveProjection<T extends NumberSink>(
   out[13] = 0;
   out[14] = near;
   out[15] = 0;
+  return out;
+}
+
+/**
+ * Orthographic projection of the box `[left, right] × [bottom, top]` between `near` and `far`,
+ * in the same REVERSED depth: `near` projects to 1 and `far` to 0 — an orthography has a finite
+ * far plane, depth being affine in distance. The box may sit off the axis (`left ≠ −right`).
+ */
+export function orthographicProjection<T extends NumberSink>(
+  out: T,
+  left: number,
+  right: number,
+  bottom: number,
+  top: number,
+  near: number,
+  far: number,
+) {
+  for (let i = 0; i < 16; i++) out[i] = 0;
+  out[0] = 2 / (right - left);
+  out[5] = 2 / (top - bottom);
+  out[10] = 1 / (far - near);
+  // `+ 0` keeps a centred box's offsets at +0, never −0.
+  out[12] = -(right + left) / (right - left) + 0;
+  out[13] = -(top + bottom) / (top - bottom) + 0;
+  out[14] = far / (far - near);
+  out[15] = 1;
   return out;
 }
 

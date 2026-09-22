@@ -159,6 +159,16 @@ export {
   SCENE_LIGHT_VERSION,
 } from './sceneLightContracts.ts';
 export { cloneSceneLight } from './sceneLightClone.ts';
+export {
+  SCENE_ENVIRONMENT_FLOATS,
+  TONE_MAPPING_RANK,
+  addHemisphereIrradiance,
+  addIrradianceCoefficients,
+  addUniformIrradiance,
+  emptyIrradiance,
+  environmentLights,
+} from './sceneEnvironment.ts';
+export type { SceneToneMapping } from './sceneEnvironment.ts';
 export type {
   SceneEnvironment,
   SceneLight,

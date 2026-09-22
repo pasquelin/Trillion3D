@@ -2,7 +2,7 @@
 
 [Contributing](../CONTRIBUTING.md): engineering practices, validation and review.
 
-[Simple browser startup](SDK.md#simple-browser-startup): pass a canvas ID or element and opt into `interactive: true` for controls, CSS/DPR sizing and demand-driven rendering. Manual integration remains available.
+[Create a world](SDK.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the camera, the renderer and the loop; every family a page writes with is listed in [SDK.md#families](SDK.md#families).
 
 This folder is the repository documentation only. The learning portal lives under `site/`, one TypeScript folder organised by role, and is published from the tree `pnpm build:docs` writes into `dist/site/` (see [LEARNING_PORTAL.md](LEARNING_PORTAL.md)): `index.html` is the portal (guides, constants and enums, every public function, the live WebGPU demo, the measurement reports staged by `node scripts/mesure/publierRapport.ts`); the demos run the engine's own kernels, bundled into `js/engine.js` at build time.
 
@@ -10,6 +10,7 @@ The delivered SDK is described by the [SDK guide](SDK.md), [package architecture
 
 | Document                                            | Role                                                                                                                               |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [SDK guide — families](SDK.md#families)             | Every family `createWorld` hands a page — `geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`, `capability`, `capture`, `pose`, `batch`, … — one example each |
 | [Native compiler](COMPILER.md)                      | `web-geometry-compiler`: CLI arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                     |
 | [Cache format](FORMAT.md)                           | Pointer, `clusters.json` and its binary sidecar `clusters.bin`, cluster DAG, culling hierarchy, streaming bundles, SHA objects     |
 | [Product principles](PRODUCT_PRINCIPLES.md)         | Behavioral requirements: portable core, capabilities, source ownership, fallback                                                   |

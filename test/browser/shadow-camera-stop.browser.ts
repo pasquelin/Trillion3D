@@ -13,14 +13,14 @@ import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { resolveMounts } from '../../scripts/mesure/options.ts';
 import { ENGINES } from '../../scripts/mesure/optionsCote.ts';
 import { assetsManifest, DEFAULT_SCENE } from '../../scripts/mesure/scene.ts';
-import type { Explorer } from '../../packages/sdk-browser/explorer.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/explorer.ts';
 
 // `window.scene`/`settle`/`stopped`/`pose` only exist in the page this harness evaluates code
 // in, never in Node; declared here so the `page.evaluate` callbacks below (type-checked, though
 // they run in the browser) see them.
 declare global {
   interface Window {
-    scene: Explorer;
+    scene: MeasuredWorld;
     settle: (pose: unknown) => Promise<boolean>;
     stopped: Uint8Array;
     pose: unknown;
@@ -52,9 +52,9 @@ try {
       canvas.style.cssText = `width:${width}px;height:${height}px;display:block`;
       document.body.style.margin = '0';
       document.body.append(canvas);
-      const { createExplorer, webgpuPagesBackend } = await import(sdkUrl);
+      const { openMeasuredWorld, webgpuPagesBackend } = await import(sdkUrl);
       const { poseAt, VIEWS } = await import(posesUrl);
-      const scene = await createExplorer('stop', {
+      const scene = await openMeasuredWorld('stop', {
         manifestUrl,
         scope: 'full',
         interactive: false,
@@ -116,7 +116,7 @@ try {
       return { settledStart, pending, pendingAtCapture: metrics.shadowPagesPending ?? 0 };
     },
     {
-      sdkUrl: '/sdk/sdk-browser/index.js',
+      sdkUrl: '/sdk/sdk-browser/measurement.js',
       posesUrl: '/mesure/poses.ts',
       manifestUrl: assetsManifest(DEFAULT_SCENE, true),
       width: WIDTH,

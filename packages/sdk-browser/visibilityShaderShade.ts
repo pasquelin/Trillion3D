@@ -1,5 +1,6 @@
 import { SHADE_DECL_WGSL } from './visibilityShaderShadeDecl.ts';
 import { lecture, lectureDonnee, siCarte } from './visibilityShaderMaps.ts';
+import { MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from './surfaceModel.ts';
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -49,6 +50,13 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
     ddx=(dUdx*W-U*dWdx)/(W*W);ddy=(dUdy*W-U*dWdy)/(W*W);
    }
   }
+ }
+ let model=(page.flags>>${MODEL_SHIFT}u)&7u;
+ // A matcap material reads its image by the view-space normal: the base map at that coordinate.
+ if(model==${SURFACE_MODEL.matcap}u){
+  let it=invTranspose3Prep(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));
+  uv=matcapUv(uniteOuZero(invTranspose3Apply(it,pageNormal(page,h,i0))*bary.x+invTranspose3Apply(it,pageNormal(page,h,i1))*bary.y+invTranspose3Apply(it,pageNormal(page,h,i2))*bary.z));
+  ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
  let request=shadeRequest(page,h,pos.xy,uv,ddx,ddy,w0,w1,w2,i0,i1,i2,w0*bary.x+w1*bary.y+w2*bary.z);
  var roughSample=vec4f(1.0);
@@ -122,6 +130,13 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
    if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
    N=uniteOuZero(T*mapN.x+B*mapN.y+N*mapN.z);
   }
- return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),select(1u,2u,(page.flags&1u)!=0u),request);
+ // The models that show something other than light leave unlit (\`surfaceModel.ts\`).
+ if(model==${SURFACE_MODEL.normal}u){rgb=viewNormal(N)*0.5+0.5;}
+ if(model==${SURFACE_MODEL.depth}u){rgb=vec3f(dot(bary,vec3f(c0.z,c1.z,c2.z))/dot(bary,vec3f(c0.w,c1.w,c2.w)));}
+ if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),1u,request);}
+ var flag=select(1u,2u,(page.flags&1u)!=0u);
+ if(flag==2u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
+ if(flag==2u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
+ return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag,request);
 }
 `;

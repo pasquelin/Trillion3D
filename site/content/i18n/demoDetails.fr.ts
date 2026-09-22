@@ -87,7 +87,7 @@ export const demoDetailsFr: Record<string, string> = {
   'available — Selected visible pages; rejected hierarchy nodes are counted, not drawn':
     'disponible — pages visibles sélectionnées ; les nœuds rejetés sont comptés, pas dessinés',
   'available — Stable primitive/page ID, exact-cluster backend only':
-    'disponible — identité primitive/page stable, backend de grappes exactes uniquement',
+    'disponible — identité primitive/page stable, chemin WebGL2 de grappes exactes uniquement',
   'available — glTF materials': 'disponible — matériaux glTF',
   'unavailable — No fragment counter': 'indisponible — aucun compteur de fragments',
   'unavailable — Texture mip residency not instrumented':

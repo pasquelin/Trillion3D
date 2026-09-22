@@ -1,13 +1,8 @@
 import { createChangeGate, createControlBase, type ControlBase } from './cameraControlBase.ts';
 import { controlPose, readVector, writeVector } from './cameraControlPose.ts';
-import {
-  clampNumber,
-  dollyDistance,
-  panOffset,
-  pixelWorldScale,
-  RADIUS_EPSILON,
-  rotateByQuaternion,
-} from './cameraControlMath.ts';
+import { dollyDistance, panOffset, pixelWorldScale } from './cameraControlMath.ts';
+import { clampNumber, RADIUS_EPSILON } from '../sdk-core/world/math/spherical.ts';
+import { rotateByQuaternion } from '../sdk-core/mathQuaternion.ts';
 import type { ControlCamera, PivotCameraControls } from './cameraControlTypes.ts';
 
 /**

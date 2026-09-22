@@ -10,7 +10,7 @@ import { range, text } from './lessonDefinitionHelpers.ts';
 export const occlusionLessonDefinition: RendererLessonItem = {
   id: 'occlusion-two-phase',
   category: 'streaming',
-  functions: ['homePose', 'setPose', 'createExplorer'],
+  functions: ['pose.fromBounds', 'camera.lookAt', 'createWorld'],
   title: text('Hide a ring behind a ring', 'Cacher un anneau derrière un anneau'),
   description: text(
     'Lower the eye to ring height and look along a row: the clusters the front ring hides leave the image through the two-phase Hi-Z test.',
