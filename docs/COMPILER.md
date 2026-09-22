@@ -54,17 +54,19 @@ web-geometry-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/e
 
 ### The corpus
 
-The DAG builder is proved on a generated corpus, `packages/asset-compiler-rust/src/tests/corpus/`. A case is a function of a seed: its shape, its texture layout and its parameters are drawn from that seed, nothing is hand-picked, and no file is read from disk. Five families say what a mesh can be — `uv` (where the seams of an artist's charts fall, including a second texture set with seams of its own), `attributes` (normals, vertex colours, tangents, present or absent), `topology` (closed, open, non-manifold, T-junctions, degenerate and sliver triangles, meshes smaller than one cluster and larger than one level), `materials` (several slots, masked, blended, double-sided) and `inputs` (how the document is written: `u8`, `u16`, `u32` and unindexed triangles, sparse positions, quantized positions, and scenes at the millimetre, the metre and the kilometre).
+The DAG builder is proved on a generated corpus, `packages/asset-compiler-rust/src/tests/corpus/`. A case is a function of a seed: its shape, its texture layout and its parameters are drawn from that seed, nothing is hand-picked, and no file is read from disk. Five families say what a mesh can be — `uv` (where the seams of an artist's charts fall, including a second texture set with seams of its own, sampled or read by no material), `attributes` (normals, vertex colours, tangents, present or absent), `topology` (closed, open, non-manifold, T-junctions, degenerate and sliver triangles, meshes smaller than one cluster and larger than one level), `materials` (several slots, masked, blended, double-sided) and `inputs` (how the document is written: `u8`, `u16`, `u32` and unindexed triangles, sparse positions, quantized positions, and scenes at the millimetre, the metre and the kilometre).
 
 Every case is built on two seeds, and on each the corpus asserts the same set:
 
 - level 0 is the source partition — the same triangles, each exactly once;
 - every index of a coarse cluster names a vertex the source itself uses;
 - every LOD error is finite, and a cluster's error never exceeds its parent's;
-- no coarse triangle spans two texture islands of any set the mesh carries, so no texture slides between two islands; a seam whose two sides stay connected elsewhere, such as a wrap column, is one island and is not covered;
+- no coarse triangle spans two texture islands of any set a material samples, so no texture slides between two islands; a seam whose two sides stay connected elsewhere, such as a wrap column, is one island and is not covered;
 - either the primitive reaches a single root, or every stalled group carries one of the causes the case accepts — a silent stall is a failure;
 - every cluster's page encodes and decodes back to its positions and attributes, within the error the page declares;
 - the compiled cache agrees with the DAG built in memory, root for root, and its `source.bin` is the source buffer byte for byte, view by view.
+
+A texture set no material samples stays out of the pages and out of the seam weld: `uv-second-set-unread` is `uv-second-set-with-own-seams` with its second set read by nobody, and it reaches one root; its compiled DAG is, page for page, the one the mesh compiles to without that set.
 
 A stalled group is named by experiment on the group itself, never by a threshold, and only once it has stalled: the builder reruns the reduction that stalled with one constraint lifted at a time, drops the result — the DAG is the one built without the reruns — and keeps the first cause that holds:
 
@@ -72,7 +74,7 @@ A stalled group is named by experiment on the group itself, never by a threshold
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `too-small`      | holds fewer than two live triangles: nothing to halve                                                                                               |
 | `border-locked`  | advances when rerun with no lock: the positions it shares with the neighbouring groups hold it                                                      |
-| `seam-locked`    | still stalls with no lock, and advances with no lock on its position copies welded across the seams of every texture set: its texture seams hold it |
+| `seam-locked`    | still stalls with no lock, and advances with no lock on its position copies welded across the seams of every texture set the pages carry: its texture seams hold it |
 | `unreducible`    | advances under neither rerun: the surface itself resists the halving                                                                                |
 | `border-lost`    | lost a shared position on every retry with added locks                                                                                              |
 | `unusable-error` | received a non-finite error from the simplifier                                                                                                     |
@@ -88,6 +90,7 @@ A case the compiler cannot accept fails with its named error code, checked again
 | `uv-mirrored-halves`            | one root                                                        |
 | `uv-tiled-beyond-unit`          | one root                                                        |
 | `uv-second-set-with-own-seams`  | stall: `seam-locked`                                            |
+| `uv-second-set-unread`          | one root                                                        |
 | `uv-zero-area-triangles`        | one root                                                        |
 | `uv-all-at-one-point`           | one root                                                        |
 | `uv-none`                       | one root                                                        |
@@ -125,7 +128,7 @@ A case the compiler cannot accept fails with its named error code, checked again
 
 Cases that stall record why in their own doc comment, from a property of the mesh. `uv-island-per-face`, `uv-island-per-brick`, `uv-second-set-with-own-seams` and `attributes-every-one` write every vertex as a seam corner of some texture set: lifting the locks frees nothing, welding the seams frees the groups. One group of `uv-island-per-face` on seed 1 — 2 072 triangles and 181 shared positions, the most of the case — advances with its locks lifted alone and is `border-locked`; the case accepts both causes and no other. `topology-high-curvature` stalled under meshoptimizer 0.22 on the seam positions left at its poles and wrap column; 0.25 slides past them and it climbs to one root.
 
-Run it with `cargo test --release corpus --manifest-path packages/asset-compiler-rust/Cargo.toml`: 41 cases, 5 families, two seeds each, under 4 s.
+Run it with `cargo test --release corpus --manifest-path packages/asset-compiler-rust/Cargo.toml`: 42 cases, 5 families, two seeds each, under 4 s.
 
 A glTF document renders one scene (glTF 2.0 §3.5). The compiler takes the scene `scene` names, otherwise the first of `scenes`, and compiles only the nodes reachable from that scene's roots — node selection, the resident proxy and `lights.json` read that one set, so a mesh or a `KHR_lights_punctual` lamp that lives in another scene, or in none, is not compiled. A document with **no** `scenes` (or an empty one) names no scene at all: every root of the node hierarchy is compiled then, and `selectedNodes` says which nodes were kept. A `scene`, `scenes[].nodes` or `children` index outside the node table is refused (`INVALID_GLTF`), and so is a `children` chain that closes back on itself: the whole node table is checked for cycles before anything is published, whether or not the rendered scene reaches them, because the published document carries every node. A node with no parent that no scene names is not a cycle and stays accepted, uncompiled.
 
