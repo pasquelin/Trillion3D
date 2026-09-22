@@ -22,10 +22,10 @@ import { cullingLinks, type CullingLinks } from './pageSelectionCutForced.ts';
  * box. None of that depends on a placement's world matrix — two instances of the same object used
  * to hold two copies of it. Placements keep what belongs to them: a matrix, a draw rank, a mesh.
  *
- * The order of checks is the previous one, placement by placement: missing page, index coverage,
- * then the cache's error band. Only their count changes.
+ * The checks are the previous ones, once per primitive instead of once per placement: missing
+ * page, index coverage, then the cache's error band.
  *
- * COVERAGE IS CHECKED AGAINST THE CACHE'S OWN RECORD. Until this batch the pages of a primitive
+ * COVERAGE IS CHECKED AGAINST THE CACHE'S OWN RECORD (#288). Until this batch the pages of a primitive
  * were concatenated and their triangles compared, as a multiset, with those of the source
  * geometry the host had loaded — the engine path holding the source indices only for that. What
  * a page is checked against now is what the manifest declares of it: the index count of the page

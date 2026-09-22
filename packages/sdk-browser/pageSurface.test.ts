@@ -50,7 +50,11 @@ test('a declaration of several materials is blended if any of them is, and reads
   assert.equal(group.grouped, true);
   assert.equal(group.opacity, 1, 'the first element decides the raster values');
   const alone = surfaceOf([blended]);
-  assert.equal(alone.grouped, false, 'one material in an array is not a group');
+  assert.equal(
+    alone.grouped,
+    true,
+    'a declaration written as a list is a list, one element or ten',
+  );
   assert.equal(alone.opacity, 0.4);
   const empty = surfaceOf([]);
   assert.equal(empty.transparent, false);
