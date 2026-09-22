@@ -1,13 +1,20 @@
-import * as THREE from 'three';
-import { asHostLibrary, type HostMaterials } from './hostResources.ts';
-import { setGeometryBounds } from './threeBounds.ts';
+import {
+  colouredHostSurface,
+  hostPageBytes,
+  hostPageGeometry,
+  hostPageMesh,
+  releaseHostGeometry,
+  setHostPose,
+} from './hostPageObjects.ts';
 import { surfaceOf } from './pageSurface.ts';
 import { EngineError, type GeometryPageDescriptor } from '../sdk-core/index.ts';
+import type { HostMaterial, HostMaterials } from './hostResources.ts';
+import type { HostDrawScene } from './hostGraphNodes.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 
 type GeometryEnvironment = {
-  scene: THREE.Scene;
+  scene: HostDrawScene;
   allPages: PageRec[];
   bootstrap: PageRec[];
   shown: PageRec[];
@@ -15,16 +22,9 @@ type GeometryEnvironment = {
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
   baseMaterials: Map<PageRec, HostMaterials>;
-  colorMaterials: Map<THREE.Material, THREE.Material>;
+  colorMaterials: Map<HostMaterial, HostMaterial>;
   modifiedPages: Set<string>;
 };
-
-/** The host bytes a geometry holds: its index buffer plus every attribute array. */
-function geometryBytes(geometry: THREE.BufferGeometry) {
-  let bytes = geometry.getIndex()?.array.byteLength ?? 0;
-  for (const attr of Object.values(geometry.attributes)) bytes += attr.array.byteLength;
-  return bytes;
-}
 
 /**
  * Frees the host geometry a page record holds and gives its bytes back to the store. The one
@@ -32,27 +32,26 @@ function geometryBytes(geometry: THREE.BufferGeometry) {
  */
 export function releaseGeometry(state: { allocationBytes: number }, rec: PageRec) {
   if (!rec.geometry) return;
-  const geometry = asHostLibrary<THREE.BufferGeometry>(rec.geometry);
-  state.allocationBytes -= geometryBytes(geometry);
-  geometry.dispose();
+  state.allocationBytes -= hostPageBytes(rec.geometry);
+  releaseHostGeometry(rec.geometry);
 }
 
+/** Components of a decoded attribute, by name; anything else is a UV pair. */
+const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
+const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
+
 /**
- * The vertex-coloured twin of a host material: cloned once, then read from the shared cache.
+ * The vertex-coloured twin of a host surface: cloned once, then read from the shared cache.
  * The only place a twin is built — a page that decodes a colour attribute and a primitive the
  * host repaints ask the same cache, so one surface never holds two of them.
  */
-/** Components of a decoded attribute, by name; anything else is a UV pair. */
-const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
-
 export function colouredTwin(
-  cache: Map<THREE.Material, THREE.Material>,
-  original: THREE.Material,
-): THREE.Material {
+  cache: Map<HostMaterial, HostMaterial>,
+  original: HostMaterial,
+): HostMaterial {
   let twin = cache.get(original);
   if (!twin) {
-    twin = original.clone();
-    (twin as THREE.MeshStandardMaterial).vertexColors = true;
+    twin = colouredHostSurface(original);
     cache.set(original, twin);
   }
   return twin;
@@ -79,29 +78,19 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const attachees = new Set<PageRec>();
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
-      scene.remove(asHostLibrary<THREE.Object3D>(rec.mesh));
+      scene.remove(rec.mesh);
       rec.attached = false;
       attachees.delete(rec);
     }
   };
   const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
-    if (!rec.mesh) {
-      // The host declaration, not the engine's surface record: the record has no `visible`
-      // flag, and the host library silently drops every mesh whose material lacks one.
-      const mesh = new THREE.Mesh(
-        asHostLibrary<THREE.BufferGeometry>(rec.geometry),
-        asHostLibrary<THREE.Material | THREE.Material[]>(rec.declaration),
-      );
-      mesh.matrixAutoUpdate = false;
-      mesh.frustumCulled = false;
-      mesh.renderOrder = rec.renderOrder;
-      rec.mesh = mesh;
-    }
-    const placed = asHostLibrary<THREE.Mesh>(rec.mesh);
-    placed.matrix.fromArray(rec.matrix.elements);
+    // The host declaration, not the engine's surface record: the record has no `visible`
+    // flag, and the host library silently drops every mesh whose material lacks one.
+    rec.mesh ??= hostPageMesh(rec.geometry, rec.declaration, rec.renderOrder);
+    setHostPose(rec.mesh, rec.matrix);
     if (!rec.attached) {
-      scene.add(placed);
+      scene.add(rec.mesh);
       rec.attached = true;
       attachees.add(rec);
     }
@@ -164,14 +153,10 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
         if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)
           throw new Error('AUTONOMOUS_PAGE_BOUNDS');
       }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
-      for (const [name, array] of Object.entries(data.attributes))
-        geometry.setAttribute(name, new THREE.BufferAttribute(array, ITEM_SIZE[name] ?? 2));
-      setGeometryBounds(geometry, rec.min, rec.max);
-      const base = asHostLibrary<THREE.Material | THREE.Material[]>(baseMaterials.get(rec)!);
+      const geometry = hostPageGeometry(data, itemSize, rec.min, rec.max);
+      const base = baseMaterials.get(rec)!;
       // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
-      const twin = (one: THREE.Material) => colouredTwin(colorMaterials, one);
+      const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
       const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
       rec.declaration = data.attributes.color ? paint() : base;
       rec.material = surfaceOf(rec.declaration);
@@ -192,7 +177,6 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     colorMaterials,
     detach,
     sync,
-    geometryBytes,
     removeRecords,
     storeGeometryPage,
     acceptGeometryPage,

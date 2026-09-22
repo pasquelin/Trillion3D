@@ -16,6 +16,13 @@
 //     would eliminate the comparison.
 //  2. HOST BOUNDARIES. Scene, camera, renderer, lights belong to the host: something must
 //     create, read, and set them. These files do it once, returning flat buffers or owned structures.
+//     THE HOST-RENDERED IMAGE IS ONE OF THEM, and it is not a witness's alone: the autonomous
+//     WebGL2 path is what `chooseBackends` picks on a machine that grants no WebGPU device, and
+//     its pages are drawn by the host renderer, lit by host lights. Its three files were filed
+//     under family 1 until lot 3 of #78 — "autonomous witness", which it never was. They name no
+//     library now; the objects they draw with are built by `hostPageObjects.ts`, and the renderer,
+//     the lights and the bounds they share with the witnesses are declared here as what they are:
+//     the boundary of an image drawn by the host, on the shipping path as on the witnesses.
 //  3. HOST RESOURCES — the family is empty. Materials, textures, geometries and the constants
 //     they declare are read through the shapes of `hostResources.ts` and `hostShadedMaterial.ts`
 //     and the named constants of `hostSurfaceConstants.ts`: since this lot the import, the
@@ -33,31 +40,32 @@
 // `test/integration/moteur-sans-three-math.test.ts`.
 export const AUTORISES: Record<string, string> = {
   // 1. Witness engines.
-  autonomousGeometry: 'autonomous witness: it mounts its meshes with the host library',
-  autonomousInstances: 'autonomous witness: its instances carry host matrices',
-  autonomousPages: 'autonomous witness: its pages are host geometries',
   blendCopyMesh: 'witness: its transparent copy is a host mesh, handed to the host renderer',
   clusterBatchesFixture: 'batch-witness mount',
   exactPagesAttachment: 'exact witness: it attaches its pages to the host graph',
   exactPagesBackend: 'exact witness: engine written with the host library',
-  exactPagesContractLights: 'exact witness: it maps contract lights to host-library lights',
   exactPagesMaterials: 'exact witness: its materials are the host’s',
-  exactPagesUnlitAlbedo: 'exact witness: its unlit view zeros the host material factors',
   exactPagesMetrics: 'exact witness: the host meshes and geometries it counts and disposes',
   exactPagesRender: 'exact witness: the host camera and scene copies its frame reads',
   exactPagesRequests: 'exact witness: its requests start from its host graph',
   referenceBackend: 'reference witness: the host engine, as-is',
-  threeBounds: 'witness: bounds written back into a host geometry, as the library computes them',
   threeLod: 'witness: the host level-of-detail selection, `LOD.update` included',
-  threeSceneAdapter:
-    'witness adapter: the host renderer the witnesses share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 
   // 2. Host boundaries: scene, camera, renderer, lights, poses.
   explorerScene: 'boundary: it builds the host’s prepared scene',
   hostGraphObjects:
     'boundary: the host camera, framing points and instance copies the explorer builds for its host',
+  hostPageObjects:
+    'boundary: the scene, meshes, geometries and surfaces the WebGL2 page path is drawn with',
   hostSceneObjects:
-    'boundary: the host colours, lights and nodes a witness hangs on the display graph it publishes',
+    'boundary: the host colours, lights and nodes an engine drawn by the host renderer hangs on its display graph',
+  exactPagesContractLights:
+    'boundary: the contract lights of an image the host renderer draws, mapped to host lights',
+  exactPagesUnlitAlbedo:
+    'boundary: the unlit view of that image zeros the host material factors for the frame',
+  threeBounds: 'boundary: bounds written back into a host geometry, as the library computes them',
+  threeSceneAdapter:
+    'boundary: the host renderer the witnesses and the WebGL2 page path share, and the materials and geometry copies their diagnostic views hang on a host mesh',
 
   // 2 bis. Test-scene mounts that walk the host graph.
   pageSelectionBlendFixture: 'test-scene mount: it sets the camera and materials',
@@ -85,9 +93,10 @@ export const DECLARATION: Record<string, string> = {
   clusterBatchRange: 'contract: it declares the field on a batch page',
   pageSelectionTypes: 'contract: it declares the field on a page record',
   pageSelectionCollect: 'the collection sets it, once, beside the record it built',
-  autonomousGeometry: 'autonomous witness: it repaints its pages with host materials',
-  autonomousInstances: 'autonomous witness: it repaints its instances with host materials',
-  autonomousPages: 'autonomous witness: it keeps the base paint of each page',
+  autonomousGeometry: 'WebGL2 page path: it repaints its pages with host materials',
+  autonomousInstances: 'WebGL2 page path: it repaints its instances with host materials',
+  autonomousPages: 'WebGL2 page path: it keeps the base paint of each page',
+  hostPageObjects: 'boundary: the declaration it gives back to the library that draws it',
   clusterBatchUpdate: 'the WebGL2 draw record hands the declaration to the host renderer',
   clusterBatchesFixture: 'batch-witness mount',
   exactPagesMaterials: 'exact witness: the host material each page is drawn with',

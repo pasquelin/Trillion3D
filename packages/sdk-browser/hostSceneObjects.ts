@@ -3,15 +3,18 @@
  * colour, the lights copied from the source graph, the empty node a copied light aims at, and
  * the colour a diagnostic paints a cluster with.
  *
- * Only witnesses reach this file — the reference and exact engines, the level-of-detail witness,
- * the shared scene adapter and the contract-lighting API they share. The engine path publishes
- * its own display-graph record instead (`blendSceneRecord.ts`) and names no library: the
- * constants and the frame budgets it still shares with the witnesses stayed in
- * `backendCommon.ts`, which imports nothing.
+ * What reaches this file is every engine whose image the HOST RENDERER draws — the reference,
+ * exact and level-of-detail witnesses, and the autonomous WebGL2 path, which is a shipping
+ * backend and not a witness at all (`hostPageObjects.ts`) — through the scene adapter and the
+ * contract-lighting API they share. The engine that presents its own surface publishes a
+ * display-graph record instead (`blendSceneRecord.ts`) and names no library: the constants and
+ * the frame budgets it still shares with the others stayed in `backendCommon.ts`, which imports
+ * nothing.
  */
 import { installSceneLighting } from './sceneLighting.ts';
 import { clusterHue } from './diagnosticColors.ts';
-import type { HostPlaced, HostTraversable } from './hostResources.ts';
+import { asHostLibrary, type HostPlaced, type HostTraversable } from './hostResources.ts';
+import type { HostDrawScene } from './hostGraphNodes.ts';
 import { hslToLinearRgb } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
@@ -28,9 +31,9 @@ export function clusterColor(id: string, saturation = 0.75) {
  *  making a host object is the boundary's, and posed by the placement that asked for it. */
 export const hostAimNode = () => new THREE.Object3D() as unknown as HostPlaced;
 
-/** The display graph a witness publishes: its clear colour, then the source-graph lights
- *  placed on it. Building the host objects is the boundary's, the placement is not. */
-export function lighting(scene: THREE.Scene, clearColor: number, source: HostTraversable) {
-  scene.background = new THREE.Color(clearColor);
+/** The display graph a host-rendered engine publishes: its clear colour, then the source-graph
+ *  lights placed on it. Building the host objects is the boundary's, the placement is not. */
+export function lighting(scene: HostDrawScene, clearColor: number, source: HostTraversable) {
+  asHostLibrary<THREE.Scene>(scene).background = new THREE.Color(clearColor);
   return installSceneLighting(scene, source, hostAimNode);
 }
