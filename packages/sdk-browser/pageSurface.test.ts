@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { refreshSurface, surfaceFrontOnly, surfaceOf, surfaceSide } from './pageSurface.ts';
+import { visBin } from './webgpuPagesPipelineFor.ts';
+import { BIN_BACK, BIN_NONE } from './gpuDraw.ts';
+import type { PageRec } from './pageSelection.ts';
 
 test('one record per declaration, shared by every page and placement that wears it', () => {
   const material = new THREE.MeshStandardMaterial({ color: 0x336699, metalness: 0.25 });
@@ -84,4 +87,17 @@ test('a record this module did not build is returned untouched', () => {
   const foreign = { ...surfaceOf(new THREE.MeshBasicMaterial()), version: 7 };
   assert.equal(refreshSurface(foreign), foreign);
   assert.equal(foreign.version, 7);
+});
+
+test('the face bin of a draw follows a side switched in place, so no face is culled for nothing', () => {
+  const material = new THREE.MeshBasicMaterial({ side: THREE.FrontSide });
+  const rec = { material: surfaceOf(material), matrix: new THREE.Matrix4() } as unknown as PageRec;
+  assert.equal(visBin(rec), BIN_BACK, 'front-only: the back faces are culled');
+  material.side = THREE.DoubleSide;
+  assert.equal(
+    visBin(rec),
+    BIN_NONE,
+    'double-sided: nothing is culled, both faces reach the image',
+  );
+  material.dispose();
 });
