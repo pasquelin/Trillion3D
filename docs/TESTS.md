@@ -106,13 +106,15 @@ node test/test-gpu.ts test/justesse/reflexion-cone.ts   # run single target
 
 `test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
 inherited rather than the ones it caused, and the baseline lives here so the next batch compares
-against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome
-headless, `WG_ASSETS` pointed at the shared `.mesure/assets/`, on `origin/develop` at
-`005b5c445` (2026-09-22): **52 pass, 7 fail** — `emeraude-webgpu`, `explorer-startup`, `materiaux-temoin`,
-`observatory`, `partition-gpu-conservatrice`, `rendu-clusters-webgl`, `shadow-camera-stop`. Seven,
-not the six an older note quoted. A batch that leaves exactly these seven failing has changed
-nothing here; one that adds an eighth owns it. Re-read the baseline on your own machine before
-leaning on it — the count is not portable, only the method is.
+against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
+`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-22: **7 fail**, and always these
+seven files — `emeraude-webgpu`, `explorer-startup`, `materiaux-temoin`, `observatory`,
+`partition-gpu-conservatrice`, `rendu-clusters-webgl`, `shadow-camera-stop`. Seven, not the six
+an older note quoted. Two readings, one commit apart: `origin/develop` at `005b5c445`, 52 pass /
+7 fail; the head of #297, which adds one proof file, 53 pass / 7 fail. A batch that leaves exactly
+these seven failing has changed nothing here; one that adds an eighth owns it. The pass count
+moves with the number of proof files and means nothing on its own. Re-read the baseline on your
+own machine before leaning on it — the failures are not portable, only the method is.
 
 ### Performance Benchmarks
 

@@ -27,6 +27,7 @@ test('the autonomous path lights from the contract table, not from the source gr
     color: [1, 1, 1],
     intensity: RADIOMETRIC,
     direction: [0, -1, 0],
+    castsShadow: false,
   });
   const backend = autonomousPagesBackend({
     source,
@@ -40,7 +41,7 @@ test('the autonomous path lights from the contract table, not from the source gr
     const shown = (object: THREE.Object3D): boolean =>
       object.visible && (!object.parent || shown(object.parent));
     const lit: number[] = [];
-    backend.scene.traverse((object) => {
+    (backend.scene as THREE.Scene).traverse((object) => {
       if ((object as THREE.Light).isLight && shown(object))
         lit.push((object as THREE.Light).intensity);
     });
