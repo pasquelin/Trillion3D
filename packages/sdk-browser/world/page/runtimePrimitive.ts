@@ -16,7 +16,7 @@ function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
 }
 
 /** The pages of a cut, served at addresses of their own: the primitive a manifest lists. */
-export function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
+function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
   const urls: string[] = [];
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
