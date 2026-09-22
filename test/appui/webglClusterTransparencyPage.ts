@@ -107,7 +107,9 @@ export function execute() {
   drawCoplanarBlend(renderer, scene, drawCamera, geometry, clusterRecord, lower, true);
   const coplanarBlendPixel = pixel(gl);
 
-  const diagnosticGeometry = asHostLibrary<THREE.BufferGeometry>(triangleGeometry(geometry(), hostDiagnostics)),
+  const diagnosticGeometry = asHostLibrary<THREE.BufferGeometry>(
+      triangleGeometry(geometry(), hostDiagnostics),
+    ),
     diagnosticMaterial = new THREE.MeshBasicMaterial({ vertexColors: true }),
     diagnostic = new THREE.Mesh(diagnosticGeometry, diagnosticMaterial);
   diagnostic.matrixAutoUpdate = false;
