@@ -61,8 +61,7 @@ const AUTORISES: Record<string, string> = {
   hostWorldBounds: 'boundary: host-graph bounds, returned flat',
   hostWorldChain: 'boundary: it reads the ancestor chain of a host node',
   hostWorldMatrices: 'boundary: the local pose of a host node, read flat',
-  hostWorldPlacements:
-    'boundary: the matrix container the host attaches and witnesses draw, filled by the engine',
+  hostWorldPose: 'boundary: it reads the local pose of a host node into the engine tree',
   hostWorldTree: 'boundary: it reads local poses of a host subtree',
   pageSelectionCollect: 'boundary: it walks the host source graph',
   replicateInstances: 'boundary: it replicates nodes of the host graph',

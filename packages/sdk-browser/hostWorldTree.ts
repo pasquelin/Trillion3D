@@ -9,28 +9,36 @@ import {
   QUATERNION_VALUES,
   addTransformNode,
   createTransformTree,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
   updateNodeMatrixWorld,
   type TransformTree,
 } from '../sdk-core/index.ts';
-import { hostLocalInto } from './hostWorldMatrices.ts';
+import { pushHostPose } from './hostWorldPose.ts';
 import { createHierarchyLot, type HierarchyLot } from './mathBatchHierarchy.ts';
 
 /**
- * World matrices of a HOST SUBTREE, computed by the engine from local poses.
+ * World matrices of a HOST SUBTREE, computed by the engine in ITS OWN transform tree.
  *
  * The index covers the subtree of `source` AND the ancestor chain of its root, parents before
- * children: each node composes its local matrix, then multiplies it by its parent's world
- * matrix. This is the reference's `updateMatrixWorld(true)` rule, with the core formulas in the
- * same order — the same bits.
+ * children. The structure is read ONCE, when the index is built; after that the engine's tree
+ * carries the hierarchy, and a pass writes only what moved. What that saves is PRODUCTS, not
+ * reads: every pose is still read and compared at every pass, so on a scene of a few thousand
+ * nodes the pass can cost MORE than the one that recomputed everything — only a measurement of
+ * the frame says which way it went there.
+ *
+ * WHAT A PASS COSTS. Local poses are pushed into the tree number by number, and a number that
+ * has not moved is not written: the node keeps its flags clean. `updateNodeMatrixWorld` is then
+ * called WITHOUT `force`, so the tree's own rule — a node recomputes when one of its inputs
+ * changed, or when its parent's world matrix was recomputed since — restricts the products to
+ * the subtrees that actually moved. One node moved out of two thousand costs the chain under it,
+ * not the scene. The formulas are unchanged: the same composition and the same product, in the
+ * same order, hence the same bits as the pass that recomputed everything.
  *
  * TWO PATHS, ONE TRUTH. When the whole subtree recomposes its pose and a hierarchy lot carries
  * it exactly, the pass goes AS A LOT: poses are written into the arena buffers, the governor
  * chooses JavaScript or WebAssembly, and world matrices stay where the kernel wrote them —
- * nothing is copied, and views are rebuilt when the module memory has grown. Otherwise — a node
- * whose host cut recomposition carries a set matrix, which the lot cannot receive — the pass
- * runs on the core tree, which accepts both.
+ * nothing is copied, and views are rebuilt when the module memory has grown. Otherwise the pass
+ * runs on the core tree, which accepts both a node that recomposes and a node whose host cut
+ * recomposition.
  *
  * The engine keeps ITS copy: no host `matrixWorld` is written, nor even read.
  */
@@ -40,9 +48,13 @@ export interface HostWorldTree {
   readonly n: number;
   /** True when the last recompute went as a lot; false when it went through the tree. */
   readonly batched: boolean;
-  /** World matrix the ENGINE computed for `node`. Throws for a node outside the index. */
-  world(node: THREE.Object3D): Float64Array;
-  /** Recomputes the whole index from the local poses the host carries at this instant. */
+  /**
+   * World matrix the ENGINE computed for `node`. Throws for a node outside the index. Without a
+   * lot, the returned view is the tree's own storage and stays valid for the index's whole life:
+   * a caller may hold it once and reread it after every pass, with nothing to copy.
+   */
+  world(node: HostNode): Float64Array;
+  /** Recomputes the index from the local poses the host carries at this instant. */
   refresh(): void;
 }
 
@@ -67,7 +79,7 @@ function collect(source: THREE.Object3D) {
   nodes.reverse();
   // The reference's `traverse` is a prefix walk: a parent is always seen before its children.
   source.traverse((object) => nodes.push(object));
-  const index = new Map<THREE.Object3D, number>();
+  const index = new Map<HostNode, number>();
   for (let rank = 0; rank < nodes.length; rank++) index.set(nodes[rank], rank);
   const parents = new Int32Array(nodes.length);
   for (let rank = 0; rank < nodes.length; rank++) {
@@ -77,21 +89,17 @@ function collect(source: THREE.Object3D) {
   return { nodes, index, parents };
 }
 
-/** Core tree that receives the poses: each node carries the local matrix the engine read. */
+/** Engine tree mirroring the host structure: one node per host node, at the same rank. */
 function socle(nodes: readonly THREE.Object3D[], parents: Int32Array) {
   const tree = createTransformTree(Math.max(1, nodes.length));
-  for (let rank = 0; rank < nodes.length; rank++)
-    setNodeAutoUpdate(tree, addTransformNode(tree, parents[rank]), false);
+  for (let rank = 0; rank < nodes.length; rank++) addTransformNode(tree, parents[rank]);
   return tree;
 }
 
-const scratch = new Float64Array(MATRIX_VALUES);
-
-/** Local poses read, set in the tree, then the whole subtree walked up in one pass. */
+/** Host poses pushed where they moved, then the world pass over what that marked. */
 function parArbre(nodes: readonly THREE.Object3D[], tree: TransformTree) {
-  for (let rank = 0; rank < nodes.length; rank++)
-    setNodeLocalMatrix(tree, rank, hostLocalInto(scratch, nodes[rank]));
-  updateNodeMatrixWorld(tree, 0, true);
+  for (let rank = 0; rank < nodes.length; rank++) pushHostPose(tree, rank, nodes[rank]);
+  updateNodeMatrixWorld(tree, 0);
 }
 
 /** Local poses written into the arena buffers, then the lot run by the governor. */

@@ -12,7 +12,7 @@ test('setWebgpuTransform refuses a NaN or infinite matrix (NON_FINITE_TRANSFORM)
   const { source, mesh, worlds } = scene(),
     { rt } = runtime(source, [], worlds),
     monde = worlds.of(mesh),
-    intacte = monde.elements.slice();
+    intacte = Array.from(monde.elements);
   for (const [index, valeur] of [
     [0, NaN],
     [15, Infinity],
