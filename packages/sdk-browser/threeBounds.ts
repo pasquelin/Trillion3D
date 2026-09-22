@@ -1,24 +1,10 @@
 /**
- * Bridge between sdk-core's flat boxes and the bounds a Three.js geometry carries. No
- * computation here: volumes are computed in `mathBox.ts` and `mathSphere.ts`; this module only
- * copies bounds into the objects the Three renderer still reads.
+ * Bounds written back INTO a Three.js geometry, for the witnesses whose pages are host
+ * geometries. No computation here: the sphere comes from `mathSphere.ts`, and reading a host
+ * box needs no library at all (`hostBoxBounds.ts`).
  */
 import { sphereFromBounds } from '../sdk-core/index.ts';
 import * as THREE from 'three';
-import type { HostPoint } from './hostResources.ts';
-
-/** A local or world box of the host, read by its two corners. */
-export type HostBox = { readonly min: HostPoint; readonly max: HostPoint };
-
-/** Copy the six bounds of a host box into a flat array. */
-export function readThreeBox(out: Float64Array, box: HostBox) {
-  out[0] = box.min.x;
-  out[1] = box.min.y;
-  out[2] = box.min.z;
-  out[3] = box.max.x;
-  out[4] = box.max.y;
-  out[5] = box.max.z;
-}
 
 const sphere = new Float64Array(4);
 

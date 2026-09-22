@@ -2,7 +2,7 @@ import { meshes, geometryBytes } from './sceneMeshes.ts';
 import { asHostLibrary } from './hostResources.ts';
 import { collectCover, buildIndex } from './threeLodHelpers.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
-import { hostAimNode } from './backendCommon.ts';
+import { hostAimNode } from './hostSceneObjects.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from './backendTypes.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';

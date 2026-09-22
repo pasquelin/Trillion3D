@@ -2,7 +2,7 @@ import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/inde
 import type { HostNode } from './hostResources.ts';
 import { meshSurface } from './pageSurface.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
-import { createBlendCopy } from './blendCopyMesh.ts';
+import { createBlendCopyRecord } from './blendCopyRecord.ts';
 import { objects, quantizationErrorOf } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
@@ -15,7 +15,7 @@ export function collectClusterPages(
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
   associations: Map<HostNode, { meshes?: number; primitives?: number }>,
-  options: { allowMissing?: boolean } = {},
+  options: { allowMissing?: boolean; blendCopy?: typeof createBlendCopyRecord } = {},
 ) {
   // World matrices of pages and roots are the ENGINE's, computed from the host's local poses:
   // no record any longer carries the live `matrixWorld` of its mesh.
@@ -25,6 +25,9 @@ export function collectClusterPages(
     blendCopies: BlendCopy[] = [],
     bootstrap: PageRec[] = [];
   const primitiveOf = primitiveFinder(metadata.primitives);
+  // A transparent surface leaves the collection as the engine's own record. A witness that draws
+  // it with a host renderer hands in a builder of host meshes instead (`blendCopyMesh.ts`).
+  const blendCopy = options.blendCopy ?? createBlendCopyRecord;
   // One template per source object, shared by all its placements: the DAG shape, its error
   // bands and cluster identities depend on no world matrix.
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true);
@@ -37,7 +40,7 @@ export function collectClusterPages(
     // from here on this collection and everything it feeds hold records, not host materials.
     const surface = meshSurface(mesh);
     if (primitive.pass === 'shared-blend' || surface.transmission > 0) {
-      blendCopies.push(createBlendCopy(mesh, order++, world, surface));
+      blendCopies.push(blendCopy(mesh, order++, world, surface));
       continue;
     }
     const template = templates.pagesOf(primitive);

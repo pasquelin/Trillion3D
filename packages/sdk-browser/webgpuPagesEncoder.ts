@@ -1,4 +1,5 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
+import { clearValueOf } from './clearColour.ts';
 import { enginePose } from './cameraWorld.ts';
 import { composesOffscreen } from './diagnosticGpuVariant.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
@@ -100,15 +101,6 @@ export function submitColorCopy(
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     });
-}
-
-export function clearValueOf(clearColor: number) {
-  return {
-    r: (clearColor >> 16) / 255,
-    g: ((clearColor >> 8) & 255) / 255,
-    b: (clearColor & 255) / 255,
-    a: 1,
-  };
 }
 
 export function encodeClear(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {

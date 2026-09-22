@@ -5,12 +5,13 @@ import type { MatrixElements } from './matrixElements.ts';
 import type { PageSurface } from './pageSurface.ts';
 
 /**
- * The draw copy of a transparent surface.
+ * The transparent draw copy a WITNESS holds: a host mesh, because a witness hands its
+ * transparent surfaces back to the host renderer that draws them. The engine path holds the
+ * record of `blendCopyRecord.ts` instead and names no library; `collectClusterPages` takes this
+ * builder as an option, and only `exactPagesBackend.ts` passes it.
  *
- * A blended or transmissive surface is not drawn by the opaque path: the engine holds a
- * copy of it, in source order, with the mesh material. What this copy carries as placement
- * is the ONLY thing that still ties it to the scene, and that is where the defect lived:
- * copying a world matrix at prepare time made it a snapshot that no later move —
+ * The placement is the ONLY thing that still ties a copy to the scene, and that is where the
+ * defect lived: copying a world matrix at prepare time made it a snapshot that no later move —
  * `setTransform`, a moved parent, a direct host write — would correct.
  *
  * The copy therefore reads the engine's world STORAGE for the source mesh

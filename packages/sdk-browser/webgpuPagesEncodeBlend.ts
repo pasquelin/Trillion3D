@@ -11,7 +11,7 @@ import { blendLightResources } from './webgpuBlendLighting.ts';
 import { voidStaleBlendGroups } from './webgpuBlendIdentity.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
-import { clearValueOf } from './webgpuPagesEncoder.ts';
+import { clearValueOf } from './clearColour.ts';
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
 import { composesOffscreen } from './diagnosticGpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from './taaFrame.ts';

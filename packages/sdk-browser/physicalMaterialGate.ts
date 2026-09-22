@@ -4,29 +4,31 @@
  * factors — and nothing else. Every other physical extension is named here before a draw,
  * so a surface never loses a declared feature silently.
  */
-type PhysicalLike = {
-  isMeshPhysicalMaterial?: boolean;
-  transmission?: number;
-  ior?: number;
-  transmissionMap?: unknown;
-  thicknessMap?: unknown;
-  clearcoat?: number;
-  clearcoatMap?: unknown;
-  clearcoatRoughnessMap?: unknown;
-  clearcoatNormalMap?: unknown;
-  sheen?: number;
-  sheenColorMap?: unknown;
-  sheenRoughnessMap?: unknown;
-  iridescence?: number;
-  iridescenceMap?: unknown;
-  iridescenceThicknessMap?: unknown;
-  anisotropy?: number;
-  anisotropyMap?: unknown;
-  dispersion?: number;
-  specularIntensity?: number;
-  specularIntensityMap?: unknown;
-  specularColorMap?: unknown;
-  specularColor?: { r: number; g: number; b: number };
+import type { HostShadedMaterial } from './hostShadedMaterial.ts';
+
+/** The physical material as this gate reads it: what `hostShadedMaterial.ts` already declares of
+ *  a shaded surface, plus the extension slots only a refusal ever looks at. Declared here and not
+ *  there because nothing else in the engine reads them — they exist to be named in a refusal. */
+type PhysicalLike = HostShadedMaterial & {
+  readonly transmissionMap?: unknown;
+  readonly thicknessMap?: unknown;
+  readonly clearcoat?: number;
+  readonly clearcoatMap?: unknown;
+  readonly clearcoatRoughnessMap?: unknown;
+  readonly clearcoatNormalMap?: unknown;
+  readonly sheen?: number;
+  readonly sheenColorMap?: unknown;
+  readonly sheenRoughnessMap?: unknown;
+  readonly iridescence?: number;
+  readonly iridescenceMap?: unknown;
+  readonly iridescenceThicknessMap?: unknown;
+  readonly anisotropy?: number;
+  readonly anisotropyMap?: unknown;
+  readonly dispersion?: number;
+  readonly specularIntensity?: number;
+  readonly specularIntensityMap?: unknown;
+  readonly specularColorMap?: unknown;
+  readonly specularColor?: { readonly r: number; readonly g: number; readonly b: number };
 };
 
 const EXTENSION_FACTORS = [
