@@ -9,6 +9,12 @@ pub(super) struct Written {
     /// Offset and length of every view, in the order the document declares them.
     pub views: Vec<(usize, usize)>,
 }
+/// The scratch tree goes with the document that wrote it, whether the case passes or panics.
+impl Drop for Written {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
 
 #[derive(Default)]
 struct Buffer {

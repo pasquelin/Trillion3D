@@ -14,7 +14,6 @@ pub(super) fn check_cache(case: &Case, expect: &Expect, roots_in_memory: &[usize
             "{label}: refusal code ({})",
             error.message
         );
-        fs::remove_dir_all(&written.root).expect("cleanup");
         return;
     }
     let result = result.unwrap_or_else(|e| panic!("{label}: compile: {e}"));
@@ -50,5 +49,4 @@ pub(super) fn check_cache(case: &Case, expect: &Expect, roots_in_memory: &[usize
             "{label}: source.bin is the source, byte for byte"
         );
     }
-    fs::remove_dir_all(&written.root).expect("cleanup");
 }

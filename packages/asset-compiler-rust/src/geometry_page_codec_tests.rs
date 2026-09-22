@@ -75,9 +75,9 @@ pub(crate) fn verify(
         assert!(distance(position, &positions[source * 3..source * 3 + 3]) <= f64::from(error));
         for attribute in attrs {
             // Ranks follow the page's fixed attribute order, present or not.
-            let rank = 1 + [FLAG_NORMAL, FLAG_UV, FLAG_UV1, FLAG_COLOR]
+            let rank = 1 + codec::OPTIONAL
                 .iter()
-                .position(|bit| *bit == attribute.flag)
+                .position(|(bit, _)| *bit == attribute.flag)
                 .expect("a page attribute");
             let decoded = page.attribute(rank).expect("decoded attribute");
             let width = attribute.width;

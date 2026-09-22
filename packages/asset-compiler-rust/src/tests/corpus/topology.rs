@@ -146,7 +146,7 @@ fn huge_flat_plane(seed: u64) -> Case {
 }
 
 /// A sphere: curvature everywhere, and at each pole a fan of triangles whose apex is written
-/// once per segment. The top group is those apexes alone, every one a seam corner: it stalls.
+/// once per segment. The top group is mostly those apexes, every one a seam corner: it stalls.
 fn high_curvature(seed: u64) -> Case {
     let mut rng = Rng::new(seed);
     let (segments, rings) = (rng.between(64, 128), rng.between(32, 64));
