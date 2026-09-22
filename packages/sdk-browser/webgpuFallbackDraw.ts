@@ -1,5 +1,6 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
-import { clearValueOf, createRenderEncoder } from './webgpuPagesEncoder.ts';
+import { createRenderEncoder } from './webgpuPagesEncoder.ts';
+import { clearValueOf } from './clearColour.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from './visibilityBuffer.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
