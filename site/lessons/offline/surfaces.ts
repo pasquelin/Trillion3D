@@ -1,5 +1,4 @@
-import { surface, box, combine, fromSolid } from './mesh.ts';
-import { geometry, math } from '../../../packages/sdk-browser/index.ts';
+import { surface, box, combine } from './mesh.ts';
 const tau = 2 * Math.PI;
 export function terrain(detail = 24, amplitude = 1) {
   return surface(detail, detail, (u, v) => [
@@ -8,8 +7,6 @@ export function terrain(detail = 24, amplitude = 1) {
     (v - 0.5) * 6,
   ]);
 }
-/** A twisted revolution: `geometry.lathe` has no twist term, so this stays a general parametric
- *  surface rather than a lathe call. */
 export function loft(twist = 0.7) {
   return surface(48, 24, (u, v) => {
     const a = u * tau + v * twist,
@@ -17,15 +14,12 @@ export function loft(twist = 0.7) {
     return [r * Math.cos(a), v * 3 - 1.5, r * Math.sin(a)];
   });
 }
-/** The wobble's centreline, revolved by the engine's own tube sweep — a proper cross-section
- *  frame along the path, not the naive Y/Z offset the original hand-rolled version used. */
 export function splineTube(bend = 1) {
-  const points: [number, number, number][] = [];
-  for (let step = 0; step <= 64; step++) {
-    const u = step / 64;
-    points.push([(u - 0.5) * 5, bend * Math.sin(u * tau), 0]);
-  }
-  return fromSolid(geometry.tube(math.curve(points), 64, 0.18, 12, false));
+  return surface(64, 12, (u, v) => {
+    const a = v * tau,
+      x = (u - 0.5) * 5;
+    return [x, bend * Math.sin(u * tau) + 0.18 * Math.cos(a), 0.18 * Math.sin(a)];
+  });
 }
 export function rationalPatch(weight = 2) {
   const basis = (t: number) => [(1 - t) ** 2, 2 * t * (1 - t), t * t];
@@ -44,16 +38,11 @@ export function rationalPatch(weight = 2) {
     return p.map((x) => x / total);
   });
 }
-/** An axisymmetric profile revolved by the engine's own lathe, rather than sampling the
- *  revolution as a generic parametric surface. */
 export function vessel(width = 1) {
-  const profile: [number, number][] = [];
-  for (let step = 0; step <= 24; step++) {
-    const v = step / 24;
+  return surface(48, 24, (u, v) => {
     const r = width * (0.35 + 0.5 * Math.sin(v * Math.PI) + 0.1 * Math.cos(v * 3 * Math.PI));
-    profile.push([r, 3 * v - 1.5]);
-  }
-  return fromSolid(geometry.lathe(profile, 48));
+    return [r * Math.cos(u * tau), 3 * v - 1.5, r * Math.sin(u * tau)];
+  });
 }
 export function city(rows = 5) {
   return combine(
