@@ -17,15 +17,22 @@
  *
  * Everything is derived: the lobe is the engine's, the tolerances are float resolutions, and
  * the sample counts only set the fit's precision, which `ltcTable.ts` records with the table.
+ *
+ * A cook tool, never loaded at run time: `node scripts/ltc-fit.ts` prints the table
+ * `ltcTable.ts` keeps, about two minutes of fitting.
  */
-import { minimise } from './mathMinimise.ts';
+import { pathToFileURL } from 'node:url';
+import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/ltcTable.ts';
+import { normalizeVector3 } from '../packages/sdk-core/mathVector.ts';
+import { minimise } from './ltc-minimise.ts';
 
 type V3 = [number, number, number];
 const PI = Math.PI;
 
+/** `v` made unit in place, and returned. */
 const normalize = (v: V3): V3 => {
-  const l = Math.hypot(v[0], v[1], v[2]) || 1;
-  return [v[0] / l, v[1] / l, v[2] / l];
+  normalizeVector3(v);
+  return v;
 };
 
 /** The engine's specular lobe times the cosine, Fresnel at 1: `standardLighting`'s D·Vis·NdotL. */
@@ -174,3 +181,6 @@ export function fitLtcTable(size: number, side: number) {
   }
   return table;
 }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+  console.log(encodeLtcTable(fitLtcTable(LTC_SIZE, 24)));

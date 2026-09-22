@@ -1,3 +1,5 @@
+import { PI } from './shaderConstants.ts';
+
 export const lightingSurfaceShader = `precision highp float;
 uniform highp sampler2D indirectCache;
 uniform highp sampler2D surfaceData;
@@ -14,7 +16,7 @@ uniform int directLightSamples;
 uniform int directLightGrid;
 uniform float experimentExposure;
 varying vec3 worldPosition;
-const float PI=3.141592653589793;
+const float PI=${PI};
 const float RAY_EPSILON=0.0001;
 const vec3 SPECULAR_F0=vec3(0.92);
 

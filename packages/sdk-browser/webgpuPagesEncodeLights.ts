@@ -1,5 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
-import { TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
+import { DEFAULT_TONE_MAPPING, TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
 import { PAGES_RING, noteShadowFrame, uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
@@ -35,7 +35,7 @@ export function encodeDirectLights(
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
   // the declared lights do not already light.
   directParams[3] = environment ? environment.exposure : 1;
-  directParams[4] = TONE_MAPPING_RANK[environment?.toneMapping ?? 'aces'];
+  directParams[4] = TONE_MAPPING_RANK[environment?.toneMapping ?? DEFAULT_TONE_MAPPING];
   // The unlit view reads neither light lists nor an atlas: it therefore encodes none of them.
   // The slices survive it, so a representation change held for the camera to rest is released
   // to the list now: the plan of the first lit frame stales its pages, whatever the camera does.

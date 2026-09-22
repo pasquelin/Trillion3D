@@ -2,9 +2,13 @@ import { crossVector3, normalizeVector3 } from '../../mathVector.ts';
 import { computeNormals } from './normals.ts';
 import { GeometryBuilder, fromArrays } from './builder.ts';
 import type { Geometry } from './geometry.ts';
+import { edgesOf } from './lines.ts';
+import { Box3 } from '../math/box3.ts';
+import { Vector3 } from '../math/vector3.ts';
+import type { Primitive } from '../object/mesh.ts';
 
-/** How a mesh reads its geometry (`object/mesh.ts`). */
-type Reading = 'triangles' | 'points' | 'lineStrip' | 'lineSegments' | 'lineLoop' | 'sprite';
+const box = new Box3(),
+  size = new Vector3();
 
 /** The triangles a mesh draws, as the page cutter reads them. */
 export interface DrawnTriangles {
@@ -27,7 +31,7 @@ type V3 = [number, number, number];
  */
 export function drawnTriangles(
   geometry: Geometry,
-  reading: Reading,
+  reading: Primitive,
   options: { size?: number; linewidth?: number; wireframe?: boolean; flat?: boolean } = {},
 ): DrawnTriangles | null {
   const position = geometry.attributes.position;
@@ -37,7 +41,8 @@ export function drawnTriangles(
     ? Array.from(geometry.index.array)
     : Array.from({ length: position.count }, (_, i) => i);
   if (reading === 'points') return solids(points(p, (options.size ?? 1) / 2));
-  const thickness = (diagonal(p) / 1024) * (options.linewidth ?? 1);
+  const diagonal = box.setFromArray(position.array, position.itemSize).getSize(size).length() || 1;
+  const thickness = (diagonal / 1024) * (options.linewidth ?? 1);
   if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
     const segments: number[] = [];
     const step = reading === 'lineSegments' ? 2 : 1;
@@ -48,16 +53,8 @@ export function drawnTriangles(
   }
   if (corners.length < 3) return null;
   if (options.wireframe) {
-    const segments: number[] = [];
-    for (let t = 0; t + 2 < corners.length; t += 3)
-      segments.push(
-        corners[t],
-        corners[t + 1],
-        corners[t + 1],
-        corners[t + 2],
-        corners[t + 2],
-        corners[t],
-      );
+    // Every edge once, however many triangles share it (`edgesOf`).
+    const segments = [...edgesOf(geometry).values()].flatMap(({ a, b }) => [a, b]);
     return solids(prisms(p, segments, thickness));
   }
   const attribute = (name: string, width: number) => {
@@ -78,17 +75,6 @@ export function drawnTriangles(
   };
   if (options.flat) return flatten(drawn);
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
-}
-
-/** The diagonal of the box the positions span. */
-function diagonal(p: number[]) {
-  const lo = [Infinity, Infinity, Infinity],
-    hi = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < p.length; i++) {
-    lo[i % 3] = Math.min(lo[i % 3], p[i]);
-    hi[i % 3] = Math.max(hi[i % 3], p[i]);
-  }
-  return Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1;
 }
 
 /** An octahedron of radius `r` on every vertex. */
@@ -113,8 +99,8 @@ function prisms(p: number[], segments: number[], t: number) {
     const len = Math.hypot(...d);
     if (len === 0) continue;
     const side = Math.abs(d[0]) < 0.9 * len ? [1, 0, 0] : [0, 1, 0];
-    const u = unit(cross(d, side as V3)),
-      w = unit(cross(d, u));
+    const u = normalOf(d, side as V3),
+      w = normalOf(d, u);
     const ring = (o: V3) =>
       [
         [1, 1],
@@ -138,16 +124,16 @@ function prisms(p: number[], segments: number[], t: number) {
 
 /** One triangle with its own vertices, wound outward from the solid it closes. */
 function face(b: GeometryBuilder, [a, c, d]: V3[]) {
-  const n = unit(cross(c.map((x, i) => x - a[i]) as V3, d.map((x, i) => x - a[i]) as V3));
+  const n = normalOf(c.map((x, i) => x - a[i]) as V3, d.map((x, i) => x - a[i]) as V3);
   const first = b.vertex(a, n, [0, 0]);
   b.vertex(c, n, [1, 0]);
   b.vertex(d, n, [0, 1]);
   b.triangle(first, first + 1, first + 2);
 }
 
-const cross = (a: V3, b: V3): V3 => crossVector3([0, 0, 0] as V3, a, b);
-const unit = (v: V3): V3 => {
-  const out: V3 = [v[0], v[1], v[2]];
+/** The unit vector along `a × b`. */
+const normalOf = (a: V3, b: V3): V3 => {
+  const out = crossVector3([0, 0, 0] as V3, a, b);
   normalizeVector3(out);
   return out;
 };

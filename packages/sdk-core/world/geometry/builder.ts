@@ -1,4 +1,4 @@
-import { normalizeVector3 } from '../../mathVector.ts';
+import { crossVector3, normalizeVector3 } from '../../mathVector.ts';
 import { BufferAttribute } from '../buffer/index.ts';
 import { Geometry } from './geometry.ts';
 import { computeNormals } from './normals.ts';
@@ -57,11 +57,7 @@ export class GeometryBuilder {
       N = this.normals;
     const e1 = [0, 1, 2].map((k) => P[c * 3 + k] - P[a * 3 + k]);
     const e2 = [0, 1, 2].map((k) => P[d * 3 + k] - P[b * 3 + k]);
-    const n = [
-      e1[1] * e2[2] - e1[2] * e2[1],
-      e1[2] * e2[0] - e1[0] * e2[2],
-      e1[0] * e2[1] - e1[1] * e2[0],
-    ];
+    const n = crossVector3([0, 0, 0], e1, e2);
     let dot = 0;
     for (const v of [a, b, c, d]) for (let k = 0; k < 3; k++) dot += n[k] * N[v * 3 + k];
     return dot >= 0;

@@ -1,3 +1,5 @@
+import { normalizeVector3 } from '../../mathVector.ts';
+
 /**
  * Per-vertex normals from the faces around each vertex: the cross product of two edges is the
  * face normal scaled by twice its area, so summing them weights each face by its area before the
@@ -30,13 +32,7 @@ export function computeNormals(
       normals[v + 2] += nz;
     }
   }
-  for (let v = 0; v < normals.length; v += 3) {
-    const l = Math.hypot(normals[v], normals[v + 1], normals[v + 2]);
-    if (l > 0) {
-      normals[v] /= l;
-      normals[v + 1] /= l;
-      normals[v + 2] /= l;
-    }
-  }
+  // A zero sum stays zero: `normalizeVector3` scales it by one.
+  for (let v = 0; v < normals.length; v += 3) normalizeVector3(normals, v);
   return normals;
 }

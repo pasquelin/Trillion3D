@@ -1,7 +1,7 @@
 import { resolveExplorerTarget, type MeasuredWorldTarget } from './explorerTarget.ts';
 import { interactiveOptions } from './explorerInteractiveOptions.ts';
 import { startInteractiveExplorer } from './explorerInteractive.ts';
-import { disposeSource } from './explorerDisposeSource.ts';
+import { releaseOwned } from './explorerLifecycle.ts';
 import { loadExplorerManifest } from './explorerManifest.ts';
 import type { RenderBackend, MeasuredWorldOptions } from './backendTypes.ts';
 import { createExplorerSession, type ExplorerSession } from './explorerSession.ts';
@@ -46,7 +46,8 @@ export async function openMeasuredWorld(
     diagnosticChannel,
     emit,
     diagnose,
-    callerOwned: source?.callerOwned,
+    // A scene handed in is the caller's, and so is the canvas context it is drawn on.
+    callerOwned: source !== undefined,
   };
   let disposeRuntime: (() => void) | undefined;
   try {
@@ -96,13 +97,7 @@ export async function openMeasuredWorld(
       throw error;
     }
     backends.forEach((b) => b.dispose());
-    if (resources.source && !source?.callerOwned) disposeSource(resources.source);
-    resources.webglSurface?.dispose(source?.callerOwned);
-    try {
-      if (resources.gpuDevice !== options.gpuDevice) resources.gpuDevice?.destroy();
-    } catch {
-      /* Device may already be lost. */
-    }
+    releaseOwned(session, resources);
     diagnosticChannel.flushSync();
     diagnosticChannel.close();
     throw error;

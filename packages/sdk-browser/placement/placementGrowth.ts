@@ -30,7 +30,7 @@ function pose(root: ClusterRoot<PageRec>, placement: PlacementOf) {
 }
 
 /** A parked root for row `index` of `rows`, cloned from `template`: shared clusters and tables,
- *  its own world, box, marks and forced groups. Its box is set when its row is taken. */
+ *  its own world, box, marks and forced groups; its local box is the template's. Its box is set when its row is taken. */
 function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: number) {
   const culling = template.culling;
   const root: ClusterRoot<PageRec> = {
@@ -41,7 +41,6 @@ function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: num
       marks: culling.marks && new Int32Array(culling.marks.length),
     },
     worldBox: template.worldBox && new Float64Array(BOX_VALUES),
-    localBox: template.localBox?.slice(),
     stretch: undefined,
     stretchKey: undefined,
     forced: template.forced && new Uint8Array(template.forced.length),
@@ -53,25 +52,41 @@ function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: num
 }
 
 /**
- * Steps 1 and 2 of the contract on a root list: the roots of `from` read `to`, and one parked
- * root per new row is returned — with the root it was cloned from, whose pages its own pages
- * copy rank for rank — for the engine to append to its tables. `roots` itself is not extended.
+ * Steps 1 and 2 of the contract on any list posed by rows: each item of `from` is `rebind`-ed to
+ * the same row of `to`, and one item per new row is `clone`-d from the first of them, returned
+ * with it. `items` itself is not extended.
  */
+export function growPlaced<T extends { readonly placement?: PlacementOf }>(
+  items: readonly T[],
+  from: PlacementRows,
+  to: PlacementRows,
+  rebind: (item: T, placement: PlacementOf) => void,
+  clone: (template: T, placement: PlacementOf) => T,
+) {
+  let template: T | undefined;
+  for (const item of items)
+    if (item.placement?.rows === from) {
+      rebind(item, { rows: to, index: item.placement.index });
+      template ??= item;
+    }
+  const added: { item: T; template: T }[] = [];
+  if (template)
+    for (let index = from.capacity; index < to.capacity; index++)
+      added.push({ item: clone(template, { rows: to, index }), template });
+  return added;
+}
+
+/** `growPlaced` on a root list: the roots of `from` read `to`, and one parked root per new row is
+ *  returned — with the root whose pages its own pages copy rank for rank — for the engine to
+ *  append to its tables. */
 export function growRowRoots(
   roots: ClusterRoot<PageRec>[],
   from: PlacementRows,
   to: PlacementRows,
 ) {
-  let template: ClusterRoot<PageRec> | undefined;
-  for (const root of roots)
-    if (root.placement?.rows === from) {
-      pose(root, { rows: to, index: root.placement.index });
-      template ??= root;
-    }
+  const added = growPlaced(roots, from, to, pose, (template, { rows, index }) =>
+    rowRoot(template, rows, index),
+  );
   forgetRowRoots(roots);
-  const added: { root: ClusterRoot<PageRec>; template: ClusterRoot<PageRec> }[] = [];
-  if (template)
-    for (let index = from.capacity; index < to.capacity; index++)
-      added.push({ root: rowRoot(template, to, index), template });
   return added;
 }

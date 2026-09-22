@@ -85,19 +85,6 @@ function createLtcTexture(gl: WebGL2RenderingContext) {
   return texture;
 }
 
-/** A vector of the light's world matrix, its column `at`, unit and carried into view space. */
-function viewAxis(view: ArrayLike<number>, m: ArrayLike<number>, at: number, scale: number) {
-  const x = m[at],
-    y = m[at + 1],
-    z = m[at + 2],
-    s = scale / (Math.hypot(x, y, z) || 1);
-  return [
-    (view[0] * x + view[4] * y + view[8] * z) * s,
-    (view[1] * x + view[5] * y + view[9] * z) * s,
-    (view[2] * x + view[6] * y + view[10] * z) * s,
-  ];
-}
-
 export class WebglClusterLights {
   private data = new Float32Array(4 * 4 * 64);
   private buffer: WebGLBuffer;
@@ -114,6 +101,25 @@ export class WebglClusterLights {
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;
     const data = this.data;
+    // Everything is written in place: nothing is allocated per light.
+    const write = (at: number, x: number, y: number, z: number, w: number) => {
+      data[at] = x;
+      data[at + 1] = y;
+      data[at + 2] = z;
+      data[at + 3] = w;
+    };
+    /** Direction (x, y, z) carried into view space and scaled by `s`, `w` beside it. */
+    const toView = (at: number, x: number, y: number, z: number, s: number, w: number) =>
+      write(
+        at,
+        (view[0] * x + view[4] * y + view[8] * z) * s,
+        (view[1] * x + view[5] * y + view[9] * z) * s,
+        (view[2] * x + view[6] * y + view[10] * z) * s,
+        w,
+      );
+    /** Column `c` of a world matrix, unit, carried into view space and scaled by `s`. */
+    const axis = (at: number, m: ArrayLike<number>, c: number, s: number, w: number) =>
+      toView(at, m[c], m[c + 1], m[c + 2], s / (Math.hypot(m[c], m[c + 1], m[c + 2]) || 1), w);
     scene.traverse((entry) => {
       const light = entry as ClusterLight;
       if (!light.isLight || !visibleThroughParents(light)) return;
@@ -122,7 +128,7 @@ export class WebglClusterLights {
         inner = 1,
         outer = 1;
       const matrix = light.matrixWorld.elements;
-      let px = matrix[12],
+      const px = matrix[12],
         py = matrix[13],
         pz = matrix[14];
       let dx = 0,
@@ -151,26 +157,23 @@ export class WebglClusterLights {
         dy /= length;
         dz /= length;
       }
-      const vx = view[0] * px + view[4] * py + view[8] * pz + view[12],
-        vy = view[1] * px + view[5] * py + view[9] * pz + view[13],
-        vz = view[2] * px + view[6] * py + view[10] * pz + view[14],
-        vdx = view[0] * dx + view[4] * dy + view[8] * dz,
-        vdy = view[1] * dx + view[5] * dy + view[9] * dz,
-        vdz = view[2] * dx + view[6] * dy + view[10] * dz;
-      px = vx;
-      py = vy;
-      pz = vz;
       const base = count++ * 16;
-      data.set([px, py, pz, range], base);
-      data.set([light.color.r, light.color.g, light.color.b, light.intensity], base + 8);
+      write(
+        base,
+        view[0] * px + view[4] * py + view[8] * pz + view[12],
+        view[1] * px + view[5] * py + view[9] * pz + view[13],
+        view[2] * px + view[6] * py + view[10] * pz + view[14],
+        range,
+      );
+      write(base + 8, light.color.r, light.color.g, light.color.b, light.intensity);
       if (kind === WEBGL_RECT_KIND) {
         // It emits down its local -z; its width runs along its local x.
-        data.set([...viewAxis(view, matrix, 8, -1), kind], base + 4);
-        data.set([...viewAxis(view, matrix, 0, light.width! / 2), light.height! / 2], base + 12);
+        axis(base + 4, matrix, 8, -1, kind);
+        axis(base + 12, matrix, 0, light.width! / 2, light.height! / 2);
         return;
       }
-      data.set([vdx, vdy, vdz, kind], base + 4);
-      data.set([inner, outer, 0, 0], base + 12);
+      toView(base + 4, dx, dy, dz, 1, kind);
+      write(base + 12, inner, outer, 0, 0);
     });
     const gl = this.gl;
     // The host's texture units are unknown at frame start: the lobe is bound again every frame.

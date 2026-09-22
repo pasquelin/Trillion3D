@@ -1,8 +1,6 @@
 import type { Page, Primitive } from '../../../sdk-core/index.ts';
 import type { PageCutPayload } from '../../../sdk-core/pageDecodeContracts.ts';
-import type { DrawnTriangles } from '../../../sdk-core/world/geometry/drawn.ts';
 import { cutPagesOffThread } from '../../pageDecodeHost.ts';
-import { packDrawn } from './runtimeCut.ts';
 
 /** Texture coordinates sit on the format's fixed grid of 2^-14. */
 const UV_EXPONENT = -14;
@@ -60,11 +58,11 @@ export function servePrimitive(cut: PageCutPayload): RuntimePrimitive {
 }
 
 /**
- * Cuts drawn triangles into engine pages at run time — in the page worker, where one lives, by
+ * Cuts drawn triangles, packed by `packDrawn` and yielded, into engine pages at run time — in the page worker, where one lives, by
  * the same function on the main thread otherwise (`runtimeCut.ts`) — and serves them. The pages
  * then enter the session like a compiled model's: read by the streamer at their address, held
  * in the same pools under the same budgets, evicted by the same rules.
  */
-export async function cutRuntimePrimitive(drawn: DrawnTriangles): Promise<RuntimePrimitive> {
-  return servePrimitive(await cutPagesOffThread(packDrawn(drawn)));
+export async function cutRuntimePrimitive(packed: ArrayBuffer): Promise<RuntimePrimitive> {
+  return servePrimitive(await cutPagesOffThread(packed));
 }

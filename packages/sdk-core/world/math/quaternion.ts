@@ -34,8 +34,11 @@ export class Quaternion extends ObservedComponents {
     this.elements[3] = value;
     this._changed();
   }
-  /** Writes the four numbers; `quiet` skips the notification, for an owner syncing its twin. */
+  /** Writes the four numbers; `quiet` skips the notification, for an owner syncing its twin, and
+   *  a write that changes none of them tells nobody. */
   set(x: number, y: number, z: number, w: number, quiet = false) {
+    const e = this.elements;
+    if (e[0] === x && e[1] === y && e[2] === z && e[3] === w) return this;
     this.elements[0] = x;
     this.elements[1] = y;
     this.elements[2] = z;

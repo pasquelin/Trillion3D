@@ -25,9 +25,11 @@ export type ModelRecord = {
 export class LoadedModel extends Object3D {
   readonly isLoadedModel = true as const;
   readonly bounds: Box3;
-  /** Lights the source file carried, as nodes under the model: a page edits, moves or removes
-   *  them like its own, and they move with the model. */
-  readonly lights: Light[] = [];
+  /** Lights under the model — those the source file carried, as nodes: a page edits, moves or
+   *  removes them like its own, and they move with the model. */
+  get lights(): Light[] {
+    return this.children.filter((child) => (child as Light).isLight === true) as Light[];
+  }
 
   readonly record: ModelRecord;
   constructor(record: ModelRecord) {
@@ -70,19 +72,24 @@ export async function loadModel(
   const loaded = await loadClusterManifest(manifestUrl, options.scope, signal);
   const { metadata, metadataUrl, base } = loaded,
     scope = metadata.scope;
-  const scene = await loadPreparedScene(
-    { manifestUrl, textureSource },
-    metadata,
-    'source.gltf',
-    base,
-    scope,
-    false,
-    signal,
-    () => {},
-    () => {},
-  );
-  // The framing buffer serves a session's first frame; a world frames with its own camera.
-  scene.framingLot?.release();
+  const [scene, imported] = await Promise.all([
+    loadPreparedScene(
+      { manifestUrl, textureSource },
+      metadata,
+      'source.gltf',
+      base,
+      scope,
+      false,
+      signal,
+      () => {},
+      () => {},
+    ).then((read) => {
+      // The framing buffer serves a session's first frame; a world frames with its own camera.
+      read.framingLot?.release();
+      return read;
+    }),
+    loadImportedLights(base, signal),
+  ]);
   const model = new LoadedModel({
     manifestUrl,
     metadataUrl,
@@ -90,10 +97,9 @@ export async function loadModel(
     metadata,
     scene: { ...scene, framingLot: null },
   });
-  for (const record of (await loadImportedLights(base, signal)).lights) {
+  for (const record of imported.lights) {
     const lamp = lightFromRecord(record);
     model.add(lamp, lamp.target);
-    model.lights.push(lamp);
   }
   return model;
 }

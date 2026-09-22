@@ -15,7 +15,6 @@ export {
   blending,
   colorSpace,
   filter,
-  filterRule,
   side,
   toneMapping,
   wrap,

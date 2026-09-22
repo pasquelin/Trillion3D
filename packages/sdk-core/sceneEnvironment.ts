@@ -26,11 +26,13 @@ export const TONE_MAPPING_RANK = {
   neutral: 6,
 } as const;
 export type SceneToneMapping = keyof typeof TONE_MAPPING_RANK;
+/** The display curve of a scene that names none, or declares no environment at all. */
+export const DEFAULT_TONE_MAPPING: SceneToneMapping = 'aces';
 
 export interface SceneEnvironment {
   /** Multiplier of linear radiance, applied before the curve. */
   exposure: number;
-  /** The display curve; ACES when absent. */
+  /** The display curve; `DEFAULT_TONE_MAPPING` when absent. */
   toneMapping?: SceneToneMapping;
   /**
    * The irradiance arriving from every direction, as 27 numbers: nine coefficients, each an RGB

@@ -1,6 +1,6 @@
 import type { LocaleOverlay } from './entryOverlay.ts';
 
-/** French overlay for the guides added by #319: camera controls, the family index and the
+/** French overlay for the world guides: camera controls, the family index and the
  *  measurement entry point. Split from `guides.fr.ts` to keep both files under the 200-line
  *  source cap. */
 export const worldGuidesFr: LocaleOverlay = {

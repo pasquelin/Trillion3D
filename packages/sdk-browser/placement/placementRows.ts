@@ -28,6 +28,21 @@ export function createPlacementRows(capacity: number): PlacementRows {
   return { matrices: new Float64Array(rows * 16), live: new Uint8Array(rows), capacity: rows };
 }
 
+/** The capacity a table holding `held` entries grows to when it needs `needed`: twice as large at
+ *  least, so growing one entry at a time grows it a logarithmic number of times. */
+export const grownCapacity = (held: number, needed: number) => Math.max(needed, held * 2);
+
+/** A larger buffer for `needed` rows (`grownCapacity`): `before`'s rows copied first, the new
+ *  ones parked. */
+export function growPlacementRows(before: PlacementRows | null, needed: number) {
+  const rows = createPlacementRows(grownCapacity(before?.capacity ?? 0, needed));
+  if (before) {
+    rows.matrices.set(before.matrices);
+    rows.live.set(before.live);
+  }
+  return rows;
+}
+
 /** The world matrix of row `index`: a view on the buffer, never a copy. */
 export const placementWorld = (rows: PlacementRows, index: number): MatrixElements => ({
   elements: rows.matrices.subarray(index * 16, index * 16 + 16),

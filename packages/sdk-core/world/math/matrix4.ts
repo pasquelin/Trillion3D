@@ -3,12 +3,15 @@ import { composeMatrix4 } from '../../mathMatrix4Compose.ts';
 import { decomposeMatrix4 } from '../../mathMatrix4Trs.ts';
 import { invertMatrix4 } from '../../mathMatrix4Inverse.ts';
 import { normalMatrix3 } from '../../mathMatrix3.ts';
+import { axisAngleQuaternion } from '../../mathQuaternion.ts';
 import type { XYZSink as V, XYZWLike as Q, XYZWSink as QOut } from './likes.ts';
 
 const t = new Float64Array(3),
   r = new Float64Array(4),
   s = new Float64Array(3),
   scratch = new Float64Array(16);
+const ORIGIN = [0, 0, 0],
+  UNIT = [1, 1, 1];
 
 /** A 4×4 matrix, column-major, over the core's free functions (`mathMatrix4*.ts`). */
 export class Matrix4 {
@@ -104,18 +107,17 @@ export class Matrix4 {
     r[1] = q.y;
     r[2] = q.z;
     r[3] = q.w;
-    composeMatrix4(this.elements, [0, 0, 0], r, [1, 1, 1]);
+    composeMatrix4(this.elements, ORIGIN, r, UNIT);
     return this;
   }
+  /** The rotation about `axis`, made unit first (`axisAngleQuaternion`). */
   makeRotationAxis(axis: { x: number; y: number; z: number }, angle: number) {
-    const n = Math.hypot(axis.x, axis.y, axis.z) || 1,
-      h = Math.sin(angle / 2) / n;
-    return this.makeRotationFromQuaternion({
-      x: axis.x * h,
-      y: axis.y * h,
-      z: axis.z * h,
-      w: Math.cos(angle / 2),
-    });
+    const n = Math.hypot(axis.x, axis.y, axis.z) || 1;
+    t[0] = axis.x / n;
+    t[1] = axis.y / n;
+    t[2] = axis.z / n;
+    composeMatrix4(this.elements, ORIGIN, axisAngleQuaternion(r, t, angle), UNIT);
+    return this;
   }
   makeRotationX(a: number) {
     return this.makeRotationAxis({ x: 1, y: 0, z: 0 }, a);

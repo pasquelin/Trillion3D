@@ -38,8 +38,13 @@ export interface MaterialParameters {
 
 /** The fields whose value is a colour: written through `Color`, whatever the page passes. */
 const COLOURS = new Set(['color', 'emissive', 'specular', 'sheenColor', 'attenuationColor']);
-/** The fields that are the material's own bookkeeping, never a parameter a copy carries. */
-const OWN = new Set(['isMaterial', 'kind', 'version', '_listeners', 'heard']);
+/** The fields that are a material's bookkeeping, never one of its parameters. */
+export const MATERIAL_BOOKKEEPING: ReadonlySet<string> = new Set([
+  'isMaterial',
+  'version',
+  '_listeners',
+  'heard',
+]);
 
 /**
  * The matter alone: the parameters of one material kind. The engine lights every kind with its
@@ -128,7 +133,8 @@ export class Material {
   clone() {
     const parameters: MaterialParameters = {};
     for (const [key, value] of Object.entries(this))
-      if (!OWN.has(key)) parameters[key] = value instanceof Color ? value.clone() : value;
+      if (key !== 'kind' && !MATERIAL_BOOKKEEPING.has(key))
+        parameters[key] = value instanceof Color ? value.clone() : value;
     return new Material(this.kind, parameters);
   }
   /** Forgets the wearers: a disposed material repaints nobody. */

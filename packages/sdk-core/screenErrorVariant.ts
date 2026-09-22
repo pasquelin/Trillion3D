@@ -32,6 +32,8 @@
  * everything that descends from it) and by the WGSL text when the selection shader is compiled.
  * Each side of the bench runs in its own page: module state is enough to separate them.
  */
+
+import { clipWeight } from './mathCamera.ts';
 export type ScreenErrorVariant = 'certifiee' | 'reference';
 
 let current: ScreenErrorVariant = 'certifiee';
@@ -63,7 +65,7 @@ export function referenceScreenError(
   near: number,
   perspective = 1,
 ): number {
-  const w = perspective * depth + (1 - perspective);
+  const w = clipWeight(perspective, depth);
   if (!(w > perspective * near)) return Infinity;
   const shift = error * stretch;
   return (shift * focal) / w;

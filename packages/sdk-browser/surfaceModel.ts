@@ -14,6 +14,7 @@
  * lit ones as the surface flag (`MODEL_FLAG`) the resolve reads.
  */
 import type { HostShadedMaterial } from './hostShadedMaterial.ts';
+import { INVERSE_PI } from './shaderConstants.ts';
 
 export const SURFACE_MODEL = {
   standard: 0,
@@ -58,7 +59,7 @@ export const shininessRoughness = (shininess: number) =>
 export const SURFACE_MODEL_LIGHT_WGSL = `
 var<private> surfaceModel:u32;
 fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
- let diffuse=rgb*(1.0-metal)*0.3183098861837907*energy*ao;
+ let diffuse=rgb*(1.0-metal)*${INVERSE_PI}*energy*ao;
  let nl=dot(N,L);
  if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5));}
  return diffuse*max(nl,0.0);

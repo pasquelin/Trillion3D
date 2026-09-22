@@ -1,4 +1,5 @@
 import { clusterErrorAtDepth } from '../sdk-core/index.ts';
+import { clipWeight } from '../sdk-core/mathCamera.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
 
 /**
@@ -72,7 +73,7 @@ export function errorFloorAt(
   if (error === Infinity) return Infinity;
   // Without a bounding sphere, no bound to oppose: the floor certifies nothing.
   if (!(error > 0) || !(radius >= 0)) return 0;
-  const far = perspective * (depth + radius * stretch) + (1 - perspective);
+  const far = clipWeight(perspective, depth + radius * stretch);
   if (!(far > 0)) return Infinity;
   // The floor holds for both metrics: the external reference's EXPERIENCE variant
   // yields `ε·stretch·f/depth`, which `ε_min·stretch·f/(farthest depth of the

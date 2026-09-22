@@ -71,7 +71,7 @@ export function createWorldRuntime(inputs: Inputs) {
       }
       const plan = contents.plan();
       const built = buildWorldSource(plan);
-      const held = contents.cutsOf(plan);
+      const held = new Set(plan.batches.map((item) => item.cut));
       for (const cut of held) cuts.hold(cut, true);
       explorer?.dispose();
       if (mirror) releaseWorldMirror(mirror);
@@ -132,7 +132,7 @@ export function createWorldRuntime(inputs: Inputs) {
     }
     if (!session) return;
     if (poses.pending)
-      poses.apply(scene, contents.batches.seats, twins, (rows, from, to) =>
+      poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
       );
     if (lightsChanged) {
@@ -151,24 +151,24 @@ export function createWorldRuntime(inputs: Inputs) {
   const link: SceneLink = {
     pose(node: Object3D) {
       poses.moved(node);
-      if (lightsUnder(node)) lightsChanged = true;
+      if (!isLight(node) || node.children.length) lights.boundsMoved();
+      if (lights.held && lightsUnder(node)) lightsChanged = true;
       invalidate();
     },
     structure(parent: Object3D) {
       contents.changed(parent);
+      lights.boundsMoved();
       schedule();
     },
     content(node: Object3D) {
-      if (isLight(node)) relight();
-      else {
-        contents.stale(node as Mesh);
-        schedule();
-      }
+      if (isLight(node)) return relight();
+      contents.stale(node as Mesh);
+      lights.boundsMoved();
+      schedule();
     },
   };
   scene._link = link;
   return {
-    link,
     beforeFrame,
     invalidate,
     /** A session option changed: the next opening takes it, whatever the scene holds. */

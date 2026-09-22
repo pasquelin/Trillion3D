@@ -59,13 +59,18 @@ export function collectClusterPages(
     const slack = quantizationErrorOf(primitive);
     const widen = (bounds: number[], sign: number) =>
       slack > 0 ? bounds.map((value) => value + sign * slack) : bounds;
+    // The widened boxes depend on no placement: every placement's records share them.
+    const mins = primitive.pages.map((page) => widen(page.min, -1)),
+      maxs = primitive.pages.map((page) => widen(page.max, 1));
     // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
     const sourceOrder = transparent ? template.sourceOrder : undefined;
+    const shape = templates.shapeOf(primitive, template);
+    const { structure, culling } = shape;
     for (const { world, parked, placement } of placed) {
       const pages = primitive.pages.map((page, pageIndex) => {
         const entry = template.pages[pageIndex],
           cut = entry.cut,
-          placed = entry.placed;
+          streamed = entry.placed;
         const rec: PageRec = {
           id: page.id,
           url: page.url,
@@ -76,8 +81,8 @@ export function collectClusterPages(
           // A transparent cluster keeps its index page: its forward draw reads an index buffer and
           // the source vertices, which no page replaces (`webgpuBlendShader.ts`).
           geometryPage: transparent ? undefined : page.geometry,
-          min: widen(page.min, -1),
-          max: widen(page.max, 1),
+          min: mins[pageIndex],
+          max: maxs[pageIndex],
           role: page.role,
           level: cut.level,
           lodError: cut.lodError,
@@ -86,8 +91,8 @@ export function collectClusterPages(
           parentSphere: cut.parentSphere,
           group: cut.group,
           source: cut.source,
-          streamUrl: placed?.url,
-          streamOffset: placed?.offset,
+          streamUrl: streamed?.url,
+          streamOffset: streamed?.offset,
           depthLayer: page.depthLayer ?? 0,
           attributes: mesh.geometry.attributes,
           material: surface,
@@ -107,8 +112,6 @@ export function collectClusterPages(
         allPages.push(rec);
         return rec;
       });
-      const shape = templates.shapeOf(primitive, template);
-      const { structure, culling } = shape;
       const worldBox = new Float64Array(BOX_VALUES);
       boxTransform(worldBox, 0, shape.local, 0, world.elements);
       roots.push({
@@ -123,7 +126,7 @@ export function collectClusterPages(
           marks: structure ? new Int32Array(culling.nodes.length / culling.stride) : undefined,
         },
         worldBox,
-        localBox: shape.local.slice(),
+        localBox: shape.local,
         structure,
         forced: structure ? new Uint8Array(structure.groupCount) : undefined,
         forcedList: structure ? [] : undefined,

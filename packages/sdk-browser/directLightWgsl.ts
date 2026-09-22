@@ -28,6 +28,11 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight,MAX_LIGHTS>,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,}
 /** The type rank is a float in the buffer: a single place knows how to reread it. */
 fn isSun(light:DirectLight)->bool{return abs(light.params.x-KIND_SUN)<0.5;}
+/** The range window at \`distance\` from a light's centre: one at the centre, zero at its range. */
+fn rangeWindow(distance:f32,range:f32)->f32{
+ let ratio=distance/range;
+ return pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
+}
 ${RECT_LIGHT_WGSL}
 /** Normalized direction toward the light and attenuation; w at zero when the point is out of
  *  range. A punctual light's: a rectangle has no one direction (\`rectIrradiance\`). */
@@ -42,9 +47,7 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  if(distance>=range){return vec4f(0.0);}
  let L=offset/max(distance,1e-6);
  // Physical inverse square, windowed by range: energy cancels exactly at range.
- let ratio=distance/range;
- let window=pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
- var attenuation=window/max(distance*distance,1e-4);
+ var attenuation=rangeWindow(distance,range)/max(distance*distance,1e-4);
  if(abs(light.params.x-KIND_SPOT)<0.5){
   let cosine=dot(-L,light.directionCone.xyz);
   let edge=light.directionCone.w;

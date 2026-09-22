@@ -4,6 +4,7 @@ import {
   multiplyMatrix4,
   transformAffinePoint,
 } from '../sdk-core/index.ts';
+import { clipWeight } from '../sdk-core/mathCamera.ts';
 import { copyElements, type MatrixElements } from './matrixElements.ts';
 
 /** Everything the order needs from a cluster record; a superset of `PageRec`. */
@@ -125,8 +126,8 @@ export function orderPendingUrls(
       distance = Math.hypot(centre[0], centre[1], centre[2]);
     } else {
       // No cluster error: fall back on the screen footprint of the bounds, which orders the same way.
-      const lens = [frame.stretch, focal, near, perspective] as const;
-      pixels = sphereScreenRadius(boundsSphere(record, bounds), frame.view, ...lens);
+      const hull = boundsSphere(record, bounds);
+      pixels = sphereScreenRadius(hull, frame.view, frame.stretch, focal, near, perspective);
       distance = Math.hypot(centre[0], centre[1], centre[2]);
     }
     const held = slots.get(key);
@@ -156,7 +157,7 @@ function sphereScreenRadius(
 ) {
   project(view, sphere, centre);
   const distance = Math.hypot(centre[0], centre[1], centre[2]);
-  const w = perspective * distance + (1 - perspective);
+  const w = clipWeight(perspective, distance);
   return (centre[3] * stretch * focal) / Math.max(w, perspective * near);
 }
 

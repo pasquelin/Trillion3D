@@ -37,7 +37,10 @@ export class Vector3 extends ObservedComponents {
   constructor(x = 0, y = 0, z = 0) {
     super(new Float64Array([x, y, z]));
   }
+  /** Writes the three numbers; a write that changes none of them tells nobody. */
   set(x: number, y: number, z: number) {
+    const e = this.elements;
+    if (e[0] === x && e[1] === y && e[2] === z) return this;
     this.elements[0] = x;
     this.elements[1] = y;
     this.elements[2] = z;

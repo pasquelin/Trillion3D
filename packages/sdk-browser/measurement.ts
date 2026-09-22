@@ -1,9 +1,9 @@
 /**
  * THE MEASUREMENT ENTRY. What the bench, the proofs and the comparison views name and a host
  * never does: the engine paths and the witnesses they are compared against, and the session
- * that takes an explicit list of them — beside everything the published entry exports. The published entry (`index.ts`) draws with one code and
- * lets the engine choose the path; this one exists so the witnesses stay nameable for the
- * campaigns without being handed to every page.
+ * that takes an explicit list of them — beside everything the published entry exports. The
+ * published entry (`index.ts`) draws with one code and lets the engine choose the path; this one
+ * exists so the witnesses stay nameable for the campaigns without being handed to every page.
  */
 export * from './index.ts';
 import { openMeasuredWorld } from './explorer.ts';

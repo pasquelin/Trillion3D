@@ -114,7 +114,8 @@ export type ClusterRoot<T> = {
   };
   /** Root world box, six bounds flat (`mathBox.ts`). */
   worldBox?: Float64Array;
-  /** The local box of which `worldBox` is the image: what a node move reprojects (R8). */
+  /** The local box of which `worldBox` is the image: what a node move reprojects (R8). Shared by
+   *  every placement of the primitive, so it is read, never written. */
   localBox?: Float64Array;
   stretch?: number;
   stretchKey?: Float64Array;

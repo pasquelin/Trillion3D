@@ -69,7 +69,7 @@ await world.scene.load('/cache/city/manifest.json');
 <tr><td><code>renderer.setAnimationLoop(fn)</code></td><td><code>world.onFrame(fn)</code>; <code>world.invalidate()</code> after a change the world would not otherwise see</td></tr>
 <tr><td><code>camera.updateProjectionMatrix()</code></td><td>nothing to call — every setter (<code>camera.fov = …</code>, <code>camera.near = …</code>) applies its own consequence</td></tr>
 <tr><td><code>new GLTFLoader().load(url, cb)</code></td><td><code>await world.scene.load(manifestUrl)</code>, once the source is compiled — the model then streams by pages instead of loading whole</td></tr>
-<tr><td><code>THREE.LOD</code> / <code>THREE.InstancedMesh</code> / <code>THREE.BatchedMesh</code></td><td>nothing: the DAG cut, one per frame, is what these exist to approximate (deliberately absent, <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/issues/319">issue #319</a>)</td></tr>
+<tr><td><code>THREE.LOD</code> / <code>THREE.InstancedMesh</code> / <code>THREE.BatchedMesh</code></td><td>nothing: the DAG cut, one per frame, is what these exist to approximate (deliberately absent: a whole-mesh renderer needs them, a page-streamed one does not)</td></tr>
 </tbody></table></div>
 <h3 class="text-lg font-bold mt-4">Where the two really differ</h3>
 <p>What the engine computes for itself reads the same physical inputs as Three.js, with two declared exceptions: the sRGB conversion is the exact curve rather than Three's rounded constants (gap ≤ 1e-11, invisible at 8 bits), and the camera's projection is reversed-depth with an infinite far plane (<code>near</code> maps to 1, infinity to 0) — the same optics read back a different depth value.</p>

@@ -181,6 +181,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     colorMaterials,
     detach,
     sync,
+    /** Rows were written or rebound: the instanced pages read them again at the next sync. */
+    rowsWritten: batches.rowsWritten,
     /** Gives back every page's mesh and geometry, and the instanced pages: the backend ends. */
     dispose() {
       batches.clear();

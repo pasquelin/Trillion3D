@@ -13,8 +13,10 @@ export function resolveWorldTarget(target: WorldTarget): HTMLCanvasElement {
     typeof target === 'string' && typeof document !== 'undefined'
       ? document.getElementById(target)
       : target;
-  if (!element || typeof element === 'string' || element.nodeName === 'CANVAS')
-    return resolveExplorerTarget(target as HTMLCanvasElement | string);
+  // An ID not found, or no document, is refused by its own reason; an element found is not
+  // looked up again.
+  if (!element || typeof element === 'string') return resolveExplorerTarget(target as string);
+  if (element.nodeName === 'CANVAS') return resolveExplorerTarget(element as HTMLCanvasElement);
   if (typeof element.appendChild !== 'function' || !element.ownerDocument)
     throw new EngineError('INVALID_CANVAS', 'World target must be an element, a canvas or its ID');
   const canvas = element.ownerDocument.createElement('canvas');

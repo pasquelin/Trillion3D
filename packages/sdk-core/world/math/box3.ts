@@ -1,4 +1,5 @@
 import { boxTransform } from '../../mathBox.ts';
+import { sphereFromBounds } from '../../mathSphere.ts';
 import { Vector3 } from './vector3.ts';
 import type { Matrix4 } from './matrix4.ts';
 import type { XYZLike as XYZ } from './likes.ts';
@@ -119,9 +120,12 @@ export class Box3 {
       b.min.z > max.z
     );
   }
+  /** The sphere through the corners (`sphereFromBounds`); an empty box gives radius −1. */
   getBoundingSphere<T extends { center: Vector3; radius: number }>(out: T): T {
-    this.getCenter(out.center);
-    out.radius = this.isEmpty() ? -1 : this.getSize(new Vector3()).length() * 0.5;
+    const { min, max } = this;
+    sphereFromBounds(flat, 0, min.x, min.y, min.z, max.x, max.y, max.z);
+    out.center.set(flat[0], flat[1], flat[2]);
+    out.radius = flat[3];
     return out;
   }
   equals(b: Box3) {

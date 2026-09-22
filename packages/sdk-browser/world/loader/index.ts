@@ -11,8 +11,10 @@ async function picture(url: string) {
 }
 
 /**
- * The `loader` family: files fetched and turned into what a scene uses. Every read goes through
- * the engine's checked fetch (`clusterPages.ts`), which refuses a failed response by its status.
+ * The `loader` family: files fetched and turned into what a scene uses. A file is read through
+ * the engine's checked fetch (`clusterPages.ts`), which refuses a failed response by its status;
+ * a picture (`texture`, `cubeTexture`) is fetched by an image element, which refuses one by
+ * failing to decode.
  */
 export const loader = {
   texture: async (url: string) => texture.image(await picture(url)),

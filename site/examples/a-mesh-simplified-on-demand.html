@@ -33,7 +33,8 @@
       // asks for a coarser or finer cut on demand, and the counter reads what that cut drew.
       const cut = document.getElementById('cut');
       world.onFrame(({ metrics }) => {
-        cut.textContent = `${metrics.selectedTriangles ?? 'unmeasured'} triangles drawn — ${metrics.residentPages ?? '?'} resident pages`;
+        const text = `${metrics.selectedTriangles ?? 'unmeasured'} triangles drawn — ${metrics.residentPages ?? '?'} resident pages`;
+        if (cut.textContent !== text) cut.textContent = text;
       });
       const slider = document.getElementById('pixelError'), value = document.getElementById('pixelErrorValue');
       const setPixelError = () => {

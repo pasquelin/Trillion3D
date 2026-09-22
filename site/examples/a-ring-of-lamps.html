@@ -68,7 +68,8 @@
       // resident pages until the scene stops moving.
       const shadows = document.getElementById('shadows');
       world.onFrame(({ metrics }) => {
-        shadows.textContent = `resident pages: ${metrics.residentPages ?? '?'} — triangles selected: ${metrics.selectedTriangles ?? '?'}`;
+        const text = `resident pages: ${metrics.residentPages ?? '?'} — triangles selected: ${metrics.selectedTriangles ?? '?'}`;
+        if (shadows.textContent !== text) shadows.textContent = text;
       });
       world.invalidate();
     </script>

@@ -28,6 +28,15 @@ export function frameClusterError<T extends PageRecord>(
   offset = 0,
 ) {
   const { flatElements, flatStretch, flatFocal, cam } = s;
-  const lens = [flatElements, flatStretch, flatFocal, cam.near, cam.perspective] as const;
-  return projectedClusterError(error, sphere, offset, ...lens);
+  const { near, perspective } = cam;
+  return projectedClusterError(
+    error,
+    sphere,
+    offset,
+    flatElements,
+    flatStretch,
+    flatFocal,
+    near,
+    perspective,
+  );
 }

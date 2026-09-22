@@ -2,6 +2,7 @@ import type { Object3D } from '../../../sdk-core/world/object/object3d.ts';
 import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
 import type { LoadedModel } from './loadedModel.ts';
 import { isLight } from './worldLights.ts';
+import { rootedUnder } from './worldPoses.ts';
 
 /**
  * Who a world's scene draws — its meshes and its loaded models —, kept up to date from the
@@ -16,11 +17,7 @@ export function createWorldMembers(scene: Object3D) {
     changed = new Set<Object3D>();
   /** Raised when a light entered or left: the session's light store is written again. */
   let lit = false;
-  const rooted = (node: Object3D) => {
-    let walk: Object3D | null = node;
-    while (walk && walk !== scene) walk = walk.parent;
-    return walk === scene;
-  };
+  const rooted = (node: Object3D) => rootedUnder(node, scene);
   const enter = (node: Object3D, added: Mesh[]) =>
     node.traverse((child) => {
       known.set(child, child.children);

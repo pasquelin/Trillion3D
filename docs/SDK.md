@@ -149,7 +149,7 @@ monde.toneMapping = toneMapping.aces;
 
 | Family | Members |
 |---|---|
-| `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | see [issue #319](https://github.com/pasquelin/WebGeometry/issues/319) for every member |
+| `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types a Three.js page already knows, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
 
 Eight families are ours: they exist because geometry here is **cut into pages** the engine moves
 in and out of memory according to what the frame reads. A whole-mesh renderer has no equivalent —

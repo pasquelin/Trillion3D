@@ -2,7 +2,6 @@ import type { SceneLight } from '../../sceneLightContracts.ts';
 import { Object3D } from '../object/object3d.ts';
 import { Color, type ColorInput } from '../math/color.ts';
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts';
-import { addLightIrradiance, lampRecord } from './lightRecord.ts';
 import { listen } from '../math/observed.ts';
 
 /** What a page may pass to a light member. */
@@ -110,14 +109,6 @@ export class Light extends Object3D {
     else point.set(x.x, x.y, x.z);
     this.target.parent?.worldToLocal(point);
     this.target.position.copy(point);
-  }
-  /** The light as the engine's store holds it (`lightRecord.ts`), or null. */
-  sceneLight(id: string, reach: number): SceneLight | null {
-    return lampRecord(this, id, reach);
-  }
-  /** Adds what this light gives from every direction to `sh` (`lightRecord.ts`). */
-  addIrradiance(sh: number[]) {
-    return addLightIrradiance(this, sh);
   }
 }
 

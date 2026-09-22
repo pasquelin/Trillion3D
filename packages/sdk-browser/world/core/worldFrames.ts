@@ -1,6 +1,5 @@
 import type { FrameMetrics } from '../../../sdk-core/index.ts';
 
-/** What a frame hook receives: seconds since the last frame and since the world began. */
 /** A frame's metrics, with the names a page reads them by; `null` where the path does not count. */
 export type WorldFrameMetrics = FrameMetrics & {
   gpuFrameMs: number | null;
@@ -8,6 +7,8 @@ export type WorldFrameMetrics = FrameMetrics & {
   shadowPagesResident: number | null;
 };
 
+/** What a frame hook receives: seconds since the last frame and since the world began. The
+ *  world's one object, rewritten each frame: a hook that keeps a value copies it. */
 export interface FrameInfo {
   delta: number;
   time: number;
@@ -58,6 +59,7 @@ export function createWorldFrames() {
   let previous = start,
     frame = 0,
     last: WorldFrameMetrics | null = null;
+  const info: FrameInfo = { delta: 0, time: 0, frame: 0, metrics: NOT_DRAWN };
   return {
     get last() {
       return last;
@@ -72,16 +74,12 @@ export function createWorldFrames() {
     },
     dispatch(metrics: FrameMetrics) {
       const now = performance.now();
-      const info = {
-        delta: (now - previous) / 1000,
-        time: (now - start) / 1000,
-        frame,
-        metrics: named(metrics),
-      };
+      info.delta = (now - previous) / 1000;
+      info.time = (now - start) / 1000;
+      info.frame = frame++;
+      info.metrics = last = named(metrics);
       previous = now;
-      frame++;
-      last = info.metrics;
-      for (const hook of [...hooks]) hook(info);
+      for (const hook of hooks) hook(info);
     },
     clear() {
       hooks.clear();
