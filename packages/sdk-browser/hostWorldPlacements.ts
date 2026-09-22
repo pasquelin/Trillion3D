@@ -2,10 +2,6 @@ import type { HostNode } from './hostResources.ts';
 import { hostWorldTree } from './hostWorldTree.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
-/** A pose the engine owns: sixteen numbers of its transform tree, read through the shared
- *  `MatrixElements` contract, and typed here as the buffer they really live in. */
-export type EngineWorldPose = MatrixElements & { readonly elements: Float64Array };
-
 /**
  * World matrices THE ENGINE owns for the drawn nodes of the host scene.
  *
@@ -25,7 +21,7 @@ export type EngineWorldPose = MatrixElements & { readonly elements: Float64Array
 export interface HostWorldPlacements {
   /** Engine world matrix for `node`: the same object from call to call, its numbers always
    *  those of the last pass. Throws for a node outside the indexed subtree. */
-  of(node: HostNode): EngineWorldPose;
+  of(node: HostNode): MatrixElements;
   /** Recomputes the index from the host's local poses. Every pose already handed out reads the
    *  result: they are views on it. */
   refresh(): void;
@@ -38,12 +34,12 @@ export function hostWorldPlacements(source: HostNode): HostWorldPlacements {
   const tree = hostWorldTree(source);
   // Requested nodes, and them alone. One table, node → pose: the rank of a parallel list would
   // be a third way of saying the same thing, and one more to keep in agreement.
-  const matrices = new Map<HostNode, EngineWorldPose>();
+  const matrices = new Map<HostNode, MatrixElements>();
   return {
     of(node) {
       const held = matrices.get(node);
       if (held) return held;
-      const matrix: EngineWorldPose = { elements: tree.world(node) };
+      const matrix: MatrixElements = { elements: tree.world(node) };
       matrices.set(node, matrix);
       return matrix;
     },
