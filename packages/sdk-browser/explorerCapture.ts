@@ -1,6 +1,6 @@
 import { presentationColorDiagnostic } from './presentationDiagnostic.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
-import type { ExplorerOptions } from './backendTypes.ts';
+import type { MeasuredWorldOptions } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
 import type { createFrameComposer } from './explorerCompose.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -13,7 +13,7 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   /** The engine's context, where the composition lands and the pixels are read; absent on the
    *  direct WebGPU path. */
   context?: WebGL2RenderingContext;
-  options: ExplorerOptions;
+  options: MeasuredWorldOptions;
   directGpu: boolean;
   state: Pick<ExplorerHostState, 'active' | 'measuring'>;
   check: () => void;

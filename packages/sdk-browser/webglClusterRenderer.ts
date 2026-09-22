@@ -13,7 +13,7 @@ import {
   type WebglClusterScene,
 } from './webglClusterLights.ts';
 import { WebglClusterState } from './webglClusterState.ts';
-import { normalMatrix3 } from '../sdk-core/index.ts';
+import { TONE_MAPPING_RANK, normalMatrix3 } from '../sdk-core/index.ts';
 import { multiplyMatrix4 } from './webglClusterMatrices.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './webglClusterUniforms.ts';
@@ -52,6 +52,8 @@ export class WebglClusterRenderer {
   backdropSubmissions = 0;
   /** Whether the last frame drew the backdrop pass: its submissions are the display pass's again. */
   backdropPasses = 0;
+  /** The display curve's rank (`TONE_MAPPING_RANK`), written by the owner before a frame. */
+  toneCurve: number = TONE_MAPPING_RANK.aces;
   private binding: Parameters<typeof bindClusterMaterial>[0];
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -154,6 +156,7 @@ export class WebglClusterRenderer {
     gl.useProgram(this.program);
     gl.disable(gl.STENCIL_TEST);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
+    gl.uniform1i(this.at('toneCurve'), this.toneCurve);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
     // The host's texture units are unknown at frame start; the backdrop pass touches only its own.
     this.textures.invalidateBindings();

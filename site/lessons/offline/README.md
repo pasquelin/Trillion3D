@@ -1,8 +1,8 @@
 # Original offline geometry recipes
 
 These deterministic authoring examples produce glTF triangle assets, compiled by this
-repository's native compiler and rendered through `createExplorer`. They are not runtime
-geometry modifiers. No external engine code, model or font is used.
+repository's native compiler and rendered through `createWorld` and `scene.load`. They are not
+runtime geometry modifiers. No external engine code, model or font is used.
 
 Regenerate with `node scripts/docs-geometry.mjs` after building the native compiler. An optional
 recipe identifier selects one asset. `WG_COMPILER` can select the compiler built from this

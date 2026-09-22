@@ -16,7 +16,8 @@ export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:ve
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,nodeFlags:u32,pad0:u32,pad1:u32,}
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,pad0:u32,pad1:u32,pad2:u32,}
+// \`perspective\` is the projection's clip-w weight, 1 perspective and 0 orthographic (\`viewPoint\`).
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,pad1:u32,pad2:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
@@ -57,6 +58,12 @@ fn isConformal(m:mat3x3f)->bool{
  *  \`world\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
  *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
  *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space. */
+/** The camera as one homogeneous point of the render frame (\`EngineCamera.viewPoint\`): the origin
+ *  under a perspective projection, the way back — the view's third row — under an orthographic one. */
+fn viewPoint()->vec4f{
+ let back=vec3f(uni.view[0].z,uni.view[1].z,uni.view[2].z);
+ return vec4f(back*(1.0-uni.perspective),uni.perspective);
+}
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  if(cone.w>=${HALF_PI_WGSL}){return false;}
  let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
@@ -64,7 +71,8 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
  let center=(world*vec4f(c,1.0)).xyz;
  let we=abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;
- let toCam=-center;
+ let eye=viewPoint();
+ let toCam=eye.xyz-center*eye.w;
  let dist=length(toCam);
  if(dist==0.0){return false;}
  let view=toCam/dist;
@@ -73,8 +81,8 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  if(!(al>0.0)){return false;}
  let axisWorld=axis/al;
  let radius=length(we);
- if(dist<=radius){return false;}
- let spread=asin(clamp(radius/dist,0.0,1.0));
+ if(dist<=radius*eye.w){return false;}
+ let spread=asin(clamp(radius*eye.w/dist,0.0,1.0));
  let d=dot(axisWorld,view);
  return d<-sin(cone.w+spread)&&(cone.w+spread)<${HALF_PI_WGSL};
 }

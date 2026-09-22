@@ -1,26 +1,18 @@
 import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts';
 import { DIRECT_LIGHTING_WGSL } from './directLightingWgsl.ts';
 import { BOUNCE_APPLY_WGSL } from './bounceApplyWgsl.ts';
+import { TONE_MAPPING_WGSL } from './toneMappingWgsl.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
 /** Last link of every composition: linear radiance carried into display space. */
 const SRGB_WGSL = `
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
-/** Contract curve, applied just before sRGB and never before a blend (P4). */
-export const ACES_WGSL = `
-fn aces(color:vec3f)->vec3f{
- var c=color/0.6;
- c=mat3x3f(vec3f(0.59719,0.07600,0.02840),vec3f(0.35458,0.90834,0.13383),vec3f(0.04823,0.01566,0.83777))*c;
- let a=c*(c+0.0245786)-0.000090537;let b=c*(0.983729*c+0.4329510)+0.238081;c=a/b;
- c=mat3x3f(vec3f(1.60475,-0.10208,-0.00327),vec3f(-0.53108,1.10813,-0.07276),vec3f(-0.07367,-0.00605,1.07602))*c;
- return clamp(c,vec3f(0.0),vec3f(1.0));
-}`;
 /** View uniform, shared by both programs and by the water composite: `viewport` carries the
  *  size, the raw-output flag of diagnostic views and the rank of a sampled image
  *  (`directLightSamplingWgsl.ts`); `lightParams` the contract light count, tiles in X and Y, and
- *  exposure, applied before ACES (P4). Nothing else — there is no longer a sky or an ambient to
- *  pass to opaque resolve (P6). */
-export const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,}`;
+ *  exposure, applied before the display curve (P4); `display.x` the rank of that curve
+ *  (`toneMappingWgsl.ts`). The environment's irradiance travels with the lights. */
+export const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,display:vec4f,}`;
 /** World position of a pixel at a depth, reconstructed through that view: the one reading of
  *  the depth buffer every fullscreen pass shares. */
 export const WORLD_AT_WGSL = `
@@ -71,10 +63,12 @@ ${WORLD_AT_WGSL}
  if(flag==1u||flag==3u){return vec4f(base.rgb,1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
  let P=worldAt(pixel.xy,textureLoad(depth,coord,0));
- let V=normalize(view.camera.xyz-P);let N=normalize(normal.xyz);
+ let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
+ surfaceModel=flag;
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);
- return vec4f(lit+emissive.rgb${bounce},1.0);
+ let ambient=environmentLighting(base.rgb,base.a,N,emissive.a);
+ return vec4f(lit+ambient+emissive.rgb${bounce},1.0);
 }`;
 /**
  * Contract program: deferred resolve lit by the declared lights only, with their shadows.
@@ -130,12 +124,13 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
  return DisplayOutput(color,color);
 }`;
 /**
- * Contract composition: exposure multiplies linear radiance before ACES, last link of the
- * chain (P4). That is the one of programs lit by declared lights.
+ * Contract composition: exposure multiplies linear radiance before the display curve the scene
+ * chose — ACES unless it chose another —, last link of the chain (P4). That is the one of
+ * programs lit by declared lights.
  */
 export const COMPOSE_SHADER = composeSource(
-  ACES_WGSL,
-  'aces(value.rgb*view.lightParams.w/max(value.a,1e-6))',
+  TONE_MAPPING_WGSL,
+  'toneMap(value.rgb*view.lightParams.w/max(value.a,1e-6),u32(view.display.x))',
 );
 /**
  * Unlit-view composition: identity, from linear to sRGB and nothing else. With no declared

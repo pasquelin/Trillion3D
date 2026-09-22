@@ -1,11 +1,14 @@
 // Runs in the browser through Playwright serialization.
-import type { ExplorerOptions, ExplorerTarget } from '../../packages/sdk-browser/index.ts';
+import type {
+  MeasuredWorldOptions,
+  MeasuredWorldTarget,
+} from '../../packages/sdk-browser/measurement.ts';
 
 export async function startupTargets() {
-  const { createExplorer, createExplorerJob, webgpuPagesBackend } = window.sdk;
+  const { openMeasuredWorld, createMeasuredWorldJob, webgpuPagesBackend } = window.sdk;
   const canvas = document.getElementById('viewer');
   if (!(canvas instanceof HTMLCanvasElement)) throw new Error('missing #viewer canvas');
-  const options: ExplorerOptions = {
+  const options: MeasuredWorldOptions = {
     manifestUrl: '/cache/city/manifest.json',
     scope: 'full',
     backends: [webgpuPagesBackend],
@@ -18,9 +21,9 @@ export async function startupTargets() {
   };
   const images: number[][] = [],
     triangles: [number | null | undefined, number | null | undefined][] = [];
-  const targets: ExplorerTarget[] = ['viewer', canvas, 'viewer'];
+  const targets: MeasuredWorldTarget[] = ['viewer', canvas, 'viewer'];
   for (const target of targets) {
-    const e = await createExplorer(target, options);
+    const e = await openMeasuredWorld(target, options);
     await e.awaitPages();
     e.setDiagnostic('beauty'); // Force an encoded frame so submitted triangles describe this draw.
     const metrics = e.render();
@@ -33,11 +36,11 @@ export async function startupTargets() {
     .slice(1)
     .map((image) => image.filter((value, i) => value !== images[0][i]).length);
   const failure = async (
-    target: ExplorerTarget | HTMLElement,
-    extra: Partial<ExplorerOptions> = {},
+    target: MeasuredWorldTarget | HTMLElement,
+    extra: Partial<MeasuredWorldOptions> = {},
   ) => {
     try {
-      await createExplorer(target as ExplorerTarget, { ...options, ...extra });
+      await openMeasuredWorld(target as MeasuredWorldTarget, { ...options, ...extra });
       return 'unexpected success';
     } catch (error) {
       const details = error as { code?: string; name?: string; message?: string };
@@ -58,12 +61,15 @@ export async function startupTargets() {
     interactive: true,
     gpu: noAdapterGpu,
   });
-  const job = await createExplorerJob('scene-job', 'viewer', { ...options, interactive: true });
+  const job = await createMeasuredWorldJob('scene-job', 'viewer', {
+    ...options,
+    interactive: true,
+  });
   const e = await job.promise;
   const overrides = [e.canvas.width, e.canvas.height];
   e.dispose();
   const controller = new AbortController();
-  const aborted = await createExplorer(canvas, {
+  const aborted = await openMeasuredWorld(canvas, {
     ...options,
     interactive: true,
     signal: controller.signal,
@@ -84,7 +90,7 @@ export async function startupTargets() {
     pixelRatio: 2,
   });
   unsized.remove();
-  const cancelled = await createExplorerJob('cancelled-job', 'viewer', options);
+  const cancelled = await createMeasuredWorldJob('cancelled-job', 'viewer', options);
   cancelled.cancel();
   try {
     await cancelled.promise;

@@ -19,7 +19,7 @@ const lightingLessonBase: RendererLessonItem[] = [
   {
     id: 'colored-light-balance',
     category: 'lighting',
-    functions: ['addLight', 'setLight'],
+    functions: ['scene.add(light.*)', 'light.intensity ='],
     title: text('Balance two coloured lamps', 'Équilibrer deux lampes colorées'),
     description: text(
       'Mix warm and cool radiance on the same surfaces.',
@@ -42,7 +42,7 @@ const lightingLessonBase: RendererLessonItem[] = [
   {
     id: 'moving-point-shadow',
     category: 'lighting',
-    functions: ['addLight', 'setLight'],
+    functions: ['scene.add(light.*)', 'light.intensity ='],
     title: text('Move a shadow-casting lamp', 'Déplacer une lampe avec ombres'),
     description: text(
       'Move one point emitter across a rolling terrain.',
@@ -62,7 +62,7 @@ const lightingLessonBase: RendererLessonItem[] = [
   {
     id: 'shadow-casting-switch',
     category: 'lighting',
-    functions: ['addLight', 'setLight'],
+    functions: ['scene.add(light.*)', 'light.intensity ='],
     title: text('Keep light, remove its shadow', 'Garder la lumière, retirer son ombre'),
     description: text(
       'Compare identical illumination with and without cast shadows.',
@@ -90,7 +90,7 @@ const lightingLessonBase: RendererLessonItem[] = [
   {
     id: 'light-emitter-envelope',
     category: 'lighting',
-    functions: ['addLight', 'setLight'],
+    functions: ['scene.add(light.*)', 'light.intensity ='],
     title: text('Protect a lamp from itself', 'Protéger une lampe contre elle-même'),
     description: text(
       'Set the physical envelope excluded from its own shadow map.',
@@ -110,7 +110,7 @@ const lightingLessonBase: RendererLessonItem[] = [
   {
     id: 'light-session-lifecycle',
     category: 'lighting',
-    functions: ['addLight', 'removeLight'],
+    functions: ['scene.add(light.*)', 'scene.remove'],
     title: text('Add and remove a live light', 'Ajouter et retirer une lumière'),
     description: text(
       'Exercise the light store lifecycle without rebuilding the scene.',
@@ -130,7 +130,7 @@ const lightingLessonBase: RendererLessonItem[] = [
   {
     id: 'many-lights-sampling',
     category: 'lighting',
-    functions: ['addLight', 'setLight', 'removeLight'],
+    functions: ['scene.add(light.*)', 'light.intensity =', 'scene.remove'],
     title: text('Light a surface with many lamps', 'Éclairer une surface avec beaucoup de lampes'),
     description: text(
       'Ring a terrain with more lamps than a moving pixel shades, and watch the image converge.',

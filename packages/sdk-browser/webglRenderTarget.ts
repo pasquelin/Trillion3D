@@ -1,3 +1,4 @@
+import type { SceneToneMapping } from '../sdk-core/sceneEnvironment.ts';
 /**
  * An engine-owned render target: one colour texture and, unless declined, one 24-bit depth
  * renderbuffer on a framebuffer of the host context, sized in drawing-buffer pixels. It holds a
@@ -11,6 +12,8 @@ export type WebglRenderTarget = ReturnType<typeof createWebglRenderTarget>;
  *  the scene's light calls for tone mapping; `width` and `height` are the viewport's. */
 export type HostDrawOutput = {
   toneMapped: boolean;
+  /** The display curve the scene chose; ACES when absent. */
+  toneMapping?: SceneToneMapping;
   framebuffer: WebGLFramebuffer | null;
   width: number;
   height: number;

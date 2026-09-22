@@ -119,7 +119,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let emissiveAo=textureLoad(emissiveAo,coord,0);
  let fragZ=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,fragZ);
- let V=normalize(view.camera.xyz-P);
+ let V=normalize(view.camera.xyz-P*view.camera.w);
  // Normal of the side we look from: a single-sided surface, or a mesh with no normal attribute
  // whose normal comes from screen derivatives, can arrive turned the wrong way, and refraction
  // would then go through the wrong way while Fresnel would yield a black mirror.
@@ -135,7 +135,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let f0=pow((vol.ior-1.0)/(vol.ior+1.0),2.0);
  let F=f0+(1.0-f0)*pow(clamp(1.0-max(dot(Nv,V),0.0),0.0,1.0),5.0);
  if(!unlit){
-  lit=declaredLighting(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy)+bounceLighting(base.rgb,metal,Nv,P,ao)+emissiveAo.rgb;
+  lit=declaredLighting(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy)+bounceLighting(base.rgb,metal,Nv,P,ao)+environmentLighting(base.rgb,metal,Nv,ao)+emissiveAo.rgb;
   // Environment reflection weighted by Fresnel — probe irradiance in the mirror direction, exactly
   // zero when the scene carries none — and the specular of the declared lights on a null albedo:
   // the diffuse lobe cancels, the dielectric specular lobe stays.

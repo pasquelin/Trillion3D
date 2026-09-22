@@ -16,7 +16,21 @@ export type ExplorerResources = {
   gpuDevice?: GPUDevice;
 };
 
+/** The scene a loader builds: what `loadPreparedScene` returns. */
+export type ExplorerScene = Awaited<ReturnType<typeof loadPreparedScene>>;
+
+/** A scene the caller already holds, handed to `openMeasuredWorld` in place of a manifest URL. */
+export type ExplorerSource = {
+  manifestUrl: string;
+  metadataUrl: string;
+  base: string;
+  metadata: import('../sdk-core/index.ts').ClusterManifest;
+  scene: ExplorerScene;
+  callerOwned?: boolean;
+};
+
 type Inputs = {
+  scene?: ExplorerScene;
   manifestUrl: string;
   metadataUrl: string;
   base: string;
@@ -54,19 +68,21 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     1,
     `Chargement de ${metadata.selectedTriangles.toLocaleString()} triangles (${scope})`,
   );
-  const loadedScene = await loadPreparedScene(
-    { ...options, textureSource },
-    metadata,
-    sceneFile,
-    base,
-    scope,
-    autonomous,
-    signal,
-    diagnose,
-    (source) => {
-      resources.source = source;
-    },
-  );
+  const loadedScene =
+    inputs.scene ??
+    (await loadPreparedScene(
+      { ...options, textureSource },
+      metadata,
+      sceneFile,
+      base,
+      scope,
+      autonomous,
+      signal,
+      diagnose,
+      (source) => {
+        resources.source = source;
+      },
+    ));
   const source = loadedScene.source;
   resources.source = source;
   const pageSources = await createExplorerPageSources(

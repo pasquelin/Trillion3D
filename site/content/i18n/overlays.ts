@@ -7,6 +7,7 @@ import { lightingFr } from './lighting.fr.ts';
 import { matrixFr } from './matrix.fr.ts';
 import { treeFr } from './tree.fr.ts';
 import { vectorFr } from './vector.fr.ts';
+import { worldGuidesFr } from './worldGuides.fr.ts';
 
 import type { LocaleOverlay } from './entryOverlay.ts';
 
@@ -22,4 +23,5 @@ export const FRENCH: LocaleOverlay = Object.assign(
   matrixFr,
   treeFr,
   vectorFr,
+  worldGuidesFr,
 );

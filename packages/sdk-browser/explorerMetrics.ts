@@ -3,7 +3,7 @@ import { pageIntegrationStats } from './pageIntegrationHost.ts';
 import { pageDecodeStats } from './pageDecodeHost.ts';
 import { EngineProfiler } from './telemetry.ts';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import { BACKEND_METRIC_KEYS } from './backendMetricKeys.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 
@@ -20,7 +20,7 @@ function publishMetric<K extends (typeof BACKEND_METRIC_KEYS)[number]>(
 
 export function createExplorerMetrics(
   metadata: ClusterManifest,
-  options: ExplorerOptions,
+  options: MeasuredWorldOptions,
   streamer: ReturnType<typeof createPageStreamer>,
   loaded: number,
   pageBytesRead: number,

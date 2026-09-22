@@ -1,3 +1,4 @@
+import { rgbHex } from '../sdk-core/world/math/packedColour.ts';
 import { hslToLinearRgb, srgbToLinear } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import { clusterHue } from './diagnosticColors.ts';
@@ -12,9 +13,6 @@ const tint = new Float64Array(3);
 export const PAGES_GREEN: [number, number, number] = [0.204, 0.827, 0.6];
 /** Ceiling on the screen error the GPU page budget may impose; past it the root cover is the cut. */
 export const MAX_BUDGET_PIXEL_ERROR = 4096;
-
-const rgbHex = (red: number, green: number, blue: number) =>
-  `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 
 /** First GPU readback evidence: requested clear versus two actual pixels from the color target. */
 export function outputColorDiagnostic(

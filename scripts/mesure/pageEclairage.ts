@@ -1,4 +1,4 @@
-import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type * as SdkBrowser from '../../packages/sdk-browser/measurement.ts';
 import type { MeasureViewOptions, MeasureViewResult } from './mesureOptions.ts';
 import type * as PageCoupe from './pageCoupe.ts';
 import type * as PageTemoin from './pageTemoin.ts';
@@ -44,7 +44,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   performance.setResourceTimingBufferSize(1_000_000);
   const resourcesBefore = performance.getEntriesByType('resource').length;
   const diagnostics = mesure.collecteDiagnostics(lost);
-  const explorer = await sdk.createExplorer(canvas, {
+  const explorer = await sdk.openMeasuredWorld(canvas, {
     onDiagnostic: diagnostics.onDiagnostic,
     ...reglages.explorerOptions(options, factory, lighting),
   });

@@ -39,7 +39,7 @@ export const offlineExamples = geometryRecipes.map((recipe) => {
         'Géométrie originale préparée avant compilation et affichée par le moteur public.',
     },
     category: 'geometry',
-    functions: ['createExplorer'],
+    functions: ['createWorld', 'scene.load'],
     status: 'ready' as const,
     coverage: 'offline-analogue',
     referenceIds: recipe.referenceIds,

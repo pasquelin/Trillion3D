@@ -1,17 +1,7 @@
-import type { DiagnosticMode as EngineDiagnosticMode } from '../../../packages/sdk/index.ts';
-
 // The diagnostic modes every documentation viewport offers, in display order; labels live in
-// `sceneCopy[locale]` (content.ts). Availability is the engine's word, not this list's.
-export const DIAGNOSTIC_MODES = [
-  'beauty',
-  'clusters',
-  'pages',
-  'wireframe',
-  'lod',
-  'screen-error',
-  'materials',
-  'visibility',
-] as const satisfies readonly EngineDiagnosticMode[];
+// `sceneCopy[locale]` (content.ts). Availability is `world.diagnostic.modes`, read at mount time,
+// never this list alone: a mode named here that the device does not offer stays disabled.
+export const DIAGNOSTIC_MODES = ['beauty', 'clusters', 'wireframe', 'triangles'] as const;
 
 export type DiagnosticMode = (typeof DIAGNOSTIC_MODES)[number];
 

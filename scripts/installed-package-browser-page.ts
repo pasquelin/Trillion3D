@@ -2,9 +2,9 @@
 // `crypto.subtle`, `Worker`) are ambient.
 import type {
   EvaluatedInstalledPage,
-  LooseExplorer,
   LooseMetadata,
   LooseSdk,
+  LooseWorld,
 } from './installed-package-browser-page-types.ts';
 
 export type { EvaluatedInstalledPage } from './installed-package-browser-page-types.ts';
@@ -62,29 +62,25 @@ export async function evaluateInstalledPage({
       reject(new Error(event.message));
     };
   });
-  const open = async (target: string, url: string): Promise<LooseExplorer> => {
-    const explorer = await sdk.createExplorer(target, {
-      manifestUrl: url,
-      scope: 'slice',
-      interactive: false,
-      pixelError: 1_000,
+  // A world on the page's canvas, the compiled model loaded into it, framed by its own bounds
+  // and drawn at a zero pixel error once the pages the view reads are resident.
+  const open = async (target: string, url: string) => {
+    const world = sdk.createWorld(target, { interactive: false });
+    await world.ready;
+    const model = await world.scene.load(url);
+    const view = sdk.pose.fromBounds(model.bounds, {
+      aspect: world.canvas.width / Math.max(1, world.canvas.height),
     });
-    const readyBy = performance.now() + 30_000;
-    while (!explorer.profiler.lastMetrics?.coverageReady && performance.now() < readyBy)
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    explorer.setPose(explorer.pointsOfInterest()[0].pose);
-    explorer.setPixelError(0);
-    explorer.invalidate();
-    await explorer.awaitPages();
-    explorer.render();
-    await explorer.flush();
-    return explorer;
+    world.camera.set(view);
+    world.pixelError = 0;
+    await world.awaitPages();
+    world.render();
+    return { world, view, metrics: sdk.metric.frame(world) };
   };
   const primer = await open('primer', manifestUrl);
   await new Promise((resolve) => setTimeout(resolve, 1_000));
   const replay = await open('replay', replayUrl);
-  const samples = [primer, replay].map((item) => item.profiler.lastMetrics);
+  const samples = [primer, replay].map((item) => item.metrics);
   const value: Record<string, number> = { ...samples[1] };
   for (const key of ['pagesDecodedOffThread', 'pagesDecodedWasm', 'pagesPlannedOffThread'])
     value[key] = Math.max(...samples.map((sample) => sample?.[key] ?? 0));
@@ -102,10 +98,11 @@ export async function evaluateInstalledPage({
     .flatMap((primitive) => primitive.pages)
     .find((item) => item.geometry)?.geometry;
   if (!geometry) throw new Error('installed cache carries no geometry page');
-  const capture = replay.capture();
-  replay.render();
-  await replay.flush();
-  const repeated = replay.capture();
+  const size = { width: replay.world.canvas.width, height: replay.world.canvas.height };
+  const read = async (world: LooseWorld) => (await sdk.capture.buffer(world, size)).data;
+  const capture = await read(replay.world);
+  replay.world.render();
+  const repeated = await read(replay.world);
   let aaDifferentPixels = 0;
   for (let index = 0; index < capture.length; index += 4)
     if (
@@ -115,7 +112,7 @@ export async function evaluateInstalledPage({
       capture[index + 3] !== repeated[index + 3]
     )
       aaDifferentPixels++;
-  const hash = async (bytes: Uint8ClampedArray<ArrayBuffer>): Promise<string> =>
+  const hash = async (bytes: Uint8Array<ArrayBuffer>): Promise<string> =>
     [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
       .map((byte) => byte.toString(16).padStart(2, '0'))
       .join('');
@@ -124,17 +121,17 @@ export async function evaluateInstalledPage({
     repeatedSha256: await hash(repeated),
     aaDifferentPixels,
     byteLength: capture.byteLength,
-    width: replay.canvas.width,
-    height: replay.canvas.height,
+    width: size.width,
+    height: size.height,
     dpr: devicePixelRatio,
     pixelError: 0,
-    camera: replay.pointsOfInterest()[0].pose,
-    capabilities: replay.capabilities,
+    camera: replay.view,
+    capabilities: { renderer: replay.world.renderer },
   };
   value.drawnTriangles ??= value.submittedTriangles;
   value.uncoveredTriangles ??= value.selectedTriangles - value.drawnTriangles;
-  replay.dispose();
-  primer.dispose();
+  replay.world.dispose();
+  primer.world.dispose();
   return {
     metrics: value,
     capture: captureEvidence,

@@ -26,7 +26,7 @@ const ROOT = resolve(import.meta.dirname, '../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
 const out = resolve(ROOT, 'benchmark-runs/material-pixels', run);
 assert.ok(
-  existsSync(resolve(ROOT, 'dist/sdk-browser/index.js')),
+  existsSync(resolve(ROOT, 'dist/sdk-browser/measurement.js')),
   'dist missing: run `pnpm run build` before this proof',
 );
 const mounts = [
@@ -51,7 +51,7 @@ try {
     // rather than a "cannot find module" error.
     (urls) => import(`${urls.pageUrl}`).then((m) => m.run(urls)),
     {
-      sdkUrl: '/dist/sdk-browser/index.js',
+      sdkUrl: '/dist/sdk-browser/measurement.js',
       coreUrl: '/dist/sdk-core/index.js',
       pageUrl: '/test/appui/materialPixelsPage.ts',
     },

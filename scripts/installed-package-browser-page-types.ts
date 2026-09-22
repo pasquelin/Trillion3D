@@ -1,19 +1,16 @@
 // The installed package is loaded dynamically inside the browser page, from a bundle this proof
-// does not control the types of: `LooseSdk`/`LooseExplorer` describe only the members
+// does not control the types of: `LooseSdk`/`LooseWorld` describe only the members
 // `evaluateInstalledPage` calls, deliberately looser than the package's own declarations.
 
-export interface LooseExplorer {
-  profiler: { lastMetrics?: (Record<string, number> & { coverageReady?: boolean }) | null };
-  pointsOfInterest(): { pose: unknown }[];
-  setPose(pose: unknown): void;
-  setPixelError(value: number): void;
-  invalidate(): void;
+export interface LooseWorld {
+  ready: Promise<void>;
+  scene: { load(url: string): Promise<{ bounds: unknown }> };
+  camera: { set(pose: unknown): void };
+  pixelError: number;
+  renderer: string | null;
   awaitPages(): Promise<void>;
   render(): void;
-  flush(): Promise<void>;
-  capture(): Uint8ClampedArray<ArrayBuffer>;
   canvas: { width: number; height: number };
-  capabilities: unknown;
   dispose(): void;
 }
 
@@ -31,7 +28,15 @@ export interface LooseSdk {
     count: number,
     local: Float64Array,
   ): void;
-  createExplorer(target: string, options: Record<string, unknown>): Promise<LooseExplorer>;
+  createWorld(target: string, options: Record<string, unknown>): LooseWorld;
+  pose: { fromBounds(box: unknown, options: { aspect: number }): unknown };
+  metric: { frame(world: LooseWorld): Record<string, number> | null };
+  capture: {
+    buffer(
+      world: LooseWorld,
+      size: { width: number; height: number },
+    ): Promise<{ data: Uint8Array<ArrayBuffer> }>;
+  };
   decodeManifestBinary(slim: unknown, buffer: ArrayBuffer): LooseMetadata;
 }
 
