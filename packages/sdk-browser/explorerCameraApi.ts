@@ -114,11 +114,22 @@ export function createExplorerCameraApi(inputs: Inputs) {
     /**
      * The turntable the interactive session drives, made once and reused: a second call on an
      * interactive explorer returns the controller already wired to its frame scheduler.
+     *
+     * A host that disposes it is handed a NEW one next time, never the dead one: swapping
+     * controller means releasing the surface, and a page that offers several has to be able
+     * to come back to this one. The automatic redraw went with the controller it was bound
+     * to, so that host listens to the `change` of the controller it now holds.
      */
     controls() {
       check();
       if (options.interactive && orbit) return orbit;
-      return (orbit = pivot(createOrbitCameraControls(camera, canvas)));
+      const controls = pivot(createOrbitCameraControls(camera, canvas));
+      const release = controls.dispose;
+      controls.dispose = () => {
+        if (orbit === controls) orbit = undefined;
+        release();
+      };
+      return (orbit = controls);
     },
   };
 }

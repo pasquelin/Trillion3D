@@ -70,8 +70,9 @@
         castsShadow: true,
       });
 
-      // One controller at a time, each asked of the session and each disposed when it is
-      // replaced. The orbit is the session's own: interactive startup already made it.
+      // One controller at a time: the one leaving is disposed — surface released, listeners
+      // gone — before the one arriving is asked of the session, orbit included. Two live
+      // controllers would drive the same canvas at once.
       const KINDS = [
         ['Orbit', () => explorer.controls(), 'Drag to turn, right-drag to pan, wheel to zoom.'],
         [
@@ -92,18 +93,17 @@
         [
           'Pan-zoom',
           () => explorer.panZoomControls(),
-          'Drag to slide the flat view; wheel and arrows to zoom.',
+          'Drag to slide the flat view; wheel to zoom, arrows to pan.',
         ],
       ];
-      const orbit = explorer.controls();
       const home = explorer.homePose();
-      let active = orbit,
+      let active = null,
         steering = false,
         last = 0;
 
       function use(index) {
         const [, make, hint] = KINDS[index];
-        if (active !== orbit) active.dispose();
+        active?.dispose();
         explorer.setPose(home);
         active = make();
         active.addEventListener('change', () => explorer.invalidate());

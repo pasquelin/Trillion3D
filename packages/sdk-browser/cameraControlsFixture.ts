@@ -30,6 +30,9 @@ function fixtureVector(x = 0, y = 0, z = 0): ControlVector {
   return v;
 }
 
+/** A pointer position in client pixels. */
+type Point = { x: number; y: number };
+
 export interface FixtureCamera extends ControlCamera {
   /** How many times the controller made the matrices current. */
   updates: number;
@@ -83,12 +86,18 @@ export function fixtureSurface(height = 400) {
     document = recordingTarget(),
     window = recordingTarget();
   let locked: unknown = null;
+  const captured = new Set<number>();
   const element = {
     ...view.target,
     clientHeight: height,
     clientWidth: height,
-    setPointerCapture() {},
-    releasePointerCapture() {},
+    style: { touchAction: 'pan-y' },
+    setPointerCapture(pointerId: number) {
+      captured.add(pointerId);
+    },
+    releasePointerCapture(pointerId: number) {
+      captured.delete(pointerId);
+    },
     requestPointerLock() {
       locked = element;
     },
@@ -107,6 +116,10 @@ export function fixtureSurface(height = 400) {
     element: element as unknown as HTMLElement,
     /** Listeners still installed across the surface, its document and its window. */
     listeners: () => view.live.length + document.live.length + window.live.length,
+    /** The pointers the surface still holds captured. */
+    captured,
+    /** What the surface lets the page do with a touch of its own. */
+    touchAction: () => element.style.touchAction,
     fire: view.fire,
     key: document.fire,
     blur: window.fire,
@@ -131,4 +144,20 @@ export function fixtureDrag(
     movementY: dy,
   });
   surface.fire('pointerup', start);
+}
+
+/** Two pointers pressed at `from`, moved one after the other to `to`, and released. */
+export function fixturePinch(
+  surface: ReturnType<typeof fixtureSurface>,
+  from: readonly [Point, Point],
+  to: readonly [Point, Point],
+) {
+  const ids = [1, 2] as const;
+  const fire = (type: string, at: readonly [Point, Point]) =>
+    ids.forEach((pointerId, i) =>
+      surface.fire(type, { pointerId, button: 0, clientX: at[i].x, clientY: at[i].y }),
+    );
+  fire('pointerdown', from);
+  fire('pointermove', to);
+  fire('pointerup', to);
 }

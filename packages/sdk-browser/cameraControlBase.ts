@@ -20,6 +20,11 @@ export interface ControlBase {
     handler: (event: T) => void,
     options?: AddEventListenerOptions,
   ): void;
+  /**
+   * A teardown `dispose()` runs once, for the state that is not a listener: the surface's
+   * `touch-action`, the pointers still captured. Same register, same guarantee.
+   */
+  undo(action: () => void): void;
   emit(): void;
   /** The three methods every controller re-publishes as-is. */
   api: Omit<CameraControlBase, 'object'>;
@@ -29,12 +34,16 @@ export function createControlBase(): ControlBase {
   const removals: Array<() => void> = [];
   const listeners = new Set<ChangeListener>();
   let gone = false;
+  const undo = (action: () => void) => {
+    removals.push(action);
+  };
   return {
     listen(target, type, handler, options) {
       const bound = handler as EventListener;
       target.addEventListener(type, bound, options);
-      removals.push(() => target.removeEventListener(type, bound, options));
+      undo(() => target.removeEventListener(type, bound, options));
     },
+    undo,
     emit() {
       for (const listener of [...listeners]) listener();
     },
