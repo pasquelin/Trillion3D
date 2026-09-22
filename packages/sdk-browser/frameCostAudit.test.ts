@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { surfaceOf } from './pageSurface.ts';
 import { createHostFrameCostAudit, gpuFrameCostSnapshot } from './frameCostAudit.ts';
 import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
 import type { FrameMetrics } from '../sdk-core/index.ts';
@@ -25,7 +26,7 @@ test('opt-in audit: bounded snapshot, deferred, without changing the selection o
     setSearch('?wgFrameAudit=1');
     const item = {
       bounds: [10, 0, 0, 11, 1, 1],
-      material: new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+      surface: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
     };
     const items = [item];
     const rt = {
@@ -106,7 +107,7 @@ test('an item that declares no material is counted as one draw, the host default
   try {
     // An empty material array declares nothing: the side read is the host default, front, and the
     // item costs one draw. Reading the extracted first element instead would throw here.
-    const item = { bounds: [10, 0, 0, 11, 1, 1], material: [] };
+    const item = { bounds: [10, 0, 0, 11, 1, 1], surface: surfaceOf([]) };
     const rt = {
       blendState: {
         visibleBlend: [item],

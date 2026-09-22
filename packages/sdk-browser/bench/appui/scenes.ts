@@ -1,3 +1,4 @@
+import { surfaceOf, type PageSurface } from '../../pageSurface.ts';
 // Bench inputs: realistic (a cut of thousands of pages in front of a camera) and hostile
 // (degenerate triangles, vertices behind the camera, NaN, Infinity, -0, empty or inverted boxes).
 // Everything comes from a seeded generator: two runs see the exact same floats.
@@ -19,7 +20,7 @@ export interface ScenePage {
   array: Uint32Array;
   attributes: { position: THREE.BufferAttribute };
   matrix: THREE.Matrix4;
-  material: THREE.Material;
+  material: PageSurface;
   clusterId: string;
   url: string;
   min: number[];
@@ -97,7 +98,7 @@ function page(
     array: indices,
     attributes,
     matrix: new THREE.Matrix4(),
-    material,
+    material: surfaceOf(material),
     clusterId: `0/0/${index}`,
     url: `page-${index}.bin`,
     min,

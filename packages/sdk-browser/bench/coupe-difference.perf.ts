@@ -1,5 +1,6 @@
 // GEO-1: cut readers and budget ranking by delta.
 import * as THREE from 'three';
+import { surfaceOf } from '../pageSurface.ts';
 import { RequestStamps, collectPendingUrls } from '../pageSelection.ts';
 import type { PageRec } from '../pageSelection.ts';
 import { createCutDelta, type CutDelta } from '../webgpuCutDelta.ts';
@@ -41,7 +42,8 @@ for (let i = 0; i < PAGES; i++)
     max: DUMMY_BOUNDS,
     depthLayer: 0,
     attributes: DUMMY_ATTRIBUTES,
-    material: [],
+    material: surfaceOf([]),
+    declaration: [],
     matrix: DUMMY_MATRIX,
     renderOrder: 0,
     attached: true,

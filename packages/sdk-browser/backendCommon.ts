@@ -1,5 +1,6 @@
 import { installSceneLighting } from './sceneLighting.ts';
-import type { HostNode } from './hostResources.ts';
+import { clusterHue } from './diagnosticColors.ts';
+import type { HostPlaced, HostTraversable } from './hostResources.ts';
 import { hslToLinearRgb, type BackendCapabilities } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
@@ -50,18 +51,6 @@ export const baseCapabilities: BackendCapabilities = {
     'physical VRAM instrumentation',
   ],
 };
-/** Stable 32-bit hash of a cluster or mesh id, used as a colour seed.
- *  Neighbour of `clusterHash` (visibilityMath.ts), which walks code points rather than
- *  UTF-16 units: same ×31 polynomial, two walks, two results outside the basic plane. */
-export function hashId(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
-  return h;
-}
-/** Golden-ratio hue of an id, so neighbouring ids get distant colours. */
-export function clusterHue(id: string) {
-  return (hashId(id) * 0.61803398875) % 1;
-}
 /** Three linear components reread immediately: a cluster colour allocates nothing more. */
 const tint = new Float64Array(3);
 
@@ -71,6 +60,13 @@ export function clusterColor(id: string, saturation = 0.75) {
   hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
   return new THREE.Color(tint[0], tint[1], tint[2]);
 }
-export function lighting(scene: THREE.Scene, clearColor: number, source: HostNode) {
-  return installSceneLighting(scene, source, clearColor);
+/** An empty node of a host display graph: what a copied light aims at, made here because
+ *  making a host object is the boundary's, and posed by the placement that asked for it. */
+export const hostAimNode = () => new THREE.Object3D() as unknown as HostPlaced;
+
+/** The display graph a witness publishes: its clear colour, then the source-graph lights
+ *  placed on it. Building the host objects is the boundary's, the placement is not. */
+export function lighting(scene: THREE.Scene, clearColor: number, source: HostTraversable) {
+  scene.background = new THREE.Color(clearColor);
+  return installSceneLighting(scene, source, hostAimNode);
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { surfaceOf } from './pageSurface.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { blendLightResources } from './webgpuBlendLighting.ts';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
@@ -17,7 +18,7 @@ const item = (side: THREE.Side, negatif = false, paged = false) => {
   const matrix = new THREE.Matrix4();
   if (negatif) matrix.makeScale(-1, 1, 1);
   return {
-    material: new THREE.MeshBasicMaterial({ side }),
+    surface: surfaceOf(new THREE.MeshBasicMaterial({ side })),
     matrix,
     count: 3,
     group: {} as GPUBindGroup,

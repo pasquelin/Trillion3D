@@ -5,7 +5,7 @@ import { visLayerPipelineIndex } from './webgpuVisibilityPipelines.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { PAGES_GREEN, clusterRgb, linearColor } from './webgpuPagesHelpers.ts';
-import { sideOf } from './materialSide.ts';
+import { surfaceSide } from './pageSurface.ts';
 import { windingCw } from './webgpuPagesWinding.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
@@ -20,7 +20,7 @@ const VIS_SLOTS = [
 ] as const;
 
 export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
-  const side = sideOf(rec.material);
+  const side = surfaceSide(rec.material);
   if (side === 'double') return rt.gpu.pipelineNone;
   return windingCw(rec) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
 }
@@ -28,7 +28,7 @@ export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
 /** Rank of a cluster's face mode in a layer set: back, none, front, inverted back, inverted front.
  *  The same order `LAYER_CULLS` builds. */
 const visCullSlot = (rec: PageRec) => {
-  const side = sideOf(rec.material);
+  const side = surfaceSide(rec.material);
   if (side === 'double') return 1;
   if (side === 'back') return windingCw(rec) ? 4 : 2;
   return windingCw(rec) ? 3 : 0;
@@ -51,7 +51,7 @@ export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   const layer = Math.min(rec.depthLayer, vis.drawLayerSlots - 1);
   if (layer > 0)
     return vis.visLayerPipelines[visLayerPipelineIndex(layer, false, visCullSlot(rec))];
-  const side = sideOf(rec.material),
+  const side = surfaceSide(rec.material),
     cw = windingCw(rec);
   if (side === 'double') return vis.visPipelineNone;
   if (side === 'back') return cw ? vis.visPipelineFrontCw : vis.visPipelineFront;
@@ -59,7 +59,7 @@ export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
 }
 
 export const visBin = (rec: PageRec): 0 | 1 | 2 => {
-  const side = sideOf(rec.material);
+  const side = surfaceSide(rec.material);
   if (side === 'double') return BIN_NONE;
   // Indirect pipelines share ccw front faces; a reflection swaps which side
   // must be culled instead of requiring three more draw slots.

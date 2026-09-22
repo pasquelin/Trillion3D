@@ -1,5 +1,6 @@
 // winding of a cluster and view-camera comparison.
 import * as THREE from 'three';
+import { surfaceOf } from '../pageSurface.ts';
 import { sameHizView } from '../hizTemporal.ts';
 import { setWindingEpoch, windingCw } from '../webgpuPagesWinding.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.ts';
@@ -23,7 +24,8 @@ const pageOf = (matrix: THREE.Matrix4): PageRec => ({
   max: DUMMY_BOUNDS,
   depthLayer: 0,
   attributes: DUMMY_ATTRIBUTES,
-  material: [],
+  material: surfaceOf([]),
+  declaration: [],
   matrix,
   renderOrder: 0,
   attached: true,

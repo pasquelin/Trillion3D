@@ -19,7 +19,8 @@ test('every integrated renderer lesson emits complete parseable host code', () =
     const code = rendererCodeFor(lesson, rendererInitialState(lesson));
     assert.doesNotThrow(() => transformSync(code, { format: 'esm' }), lesson.id);
     assert.match(code, /from 'web-geometry'[\s\S]*createExplorer\(canvas/);
-    assert.match(code, /backends: \[webgpuPagesBackend\]/);
+    // #276: the normal call names no backend — the engine reads the machine and chooses.
+    assert.doesNotMatch(code, /backends:/);
     assert.match(code, /pixelRatio: window\.devicePixelRatio/);
     assert.match(code, /new ResizeObserver/);
     assert.match(code, /await explorer.awaitPages\(\)/);
@@ -81,7 +82,6 @@ test('the LOD lesson uses a compiled multi-level cache', async () => {
   const code = rendererCodeFor(lesson, rendererInitialState(lesson));
   for (const expected of [
     "manifestUrl: './assets/gallery/signature-architecture/cache/native/full/manifest.json'",
-    'backends: [webgpuPagesBackend]',
     'importedLights: true',
     'interactive: false',
     'pixelRatio: window.devicePixelRatio',

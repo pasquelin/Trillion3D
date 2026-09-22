@@ -70,7 +70,6 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
     loading.hidden = false;
     status.textContent = '';
     try {
-      if (!navigator.gpu) throw new Error('WEBGPU_UNAVAILABLE');
       const { createExplorer } = await import('../../../packages/sdk-browser/index.ts');
       if (disposed) return;
       // The engine has already withdrawn its image on a loss: only a new explorer draws again.

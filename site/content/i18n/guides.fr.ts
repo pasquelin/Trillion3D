@@ -1,6 +1,21 @@
 import type { LocaleOverlay } from './entryOverlay.ts';
 
 export const guidesFr: LocaleOverlay = {
+  'camera-controls': {
+    title: 'Les contrôleurs de caméra, portés par le moteur',
+    description:
+      'Les cinq contrôleurs qu’une session confie à son hôte — orbite, vol, première personne, trackball, pan-zoom plan —, ce que fait chaque geste et le contrat qu’ils partagent.',
+    html: `<p>Un explorateur porte ses contrôleurs de caméra : ils sont écrits contre la caméra du moteur et sa pose, lisent <code>PointerEvent</code>, <code>WheelEvent</code> et <code>KeyboardEvent</code>, et n’amènent aucune bibliothèque supplémentaire dans la page. Une session en propose cinq, chacun prêt à l’emploi et libéré avec elle.</p>
+<ul class="list-disc pl-6 space-y-1">
+<li><code>controls()</code> — l’<strong>orbite</strong>, le tourne-disque attendu : le glisser principal tourne l’azimut et l’élévation autour de <code>target</code>, la verticale du monde est conservée et les pôles jamais atteints ; le glisser secondaire ou deux doigts font le panoramique ; molette et pincement zooment entre <code>minDistance</code> et <code>maxDistance</code>. Sur une session interactive il est créé une fois et réutilisé.</li>
+<li><code>flyControls()</code> — le <strong>vol</strong>, six degrés de liberté : W/S avant et arrière, A/D gauche et droite, R/F haut et bas, les flèches pour le tangage et le lacet, Q/E pour le roulis, et un glisser regarde autour. L’hôte l’intègre : <code>update(secondes)</code>.</li>
+<li><code>firstPersonControls()</code> — la <strong>première personne</strong> : le verrouillage du pointeur est demandé sur le geste, l’horizon reste droit, la marche suit le seul lacet. Intégré lui aussi par <code>update(secondes)</code>.</li>
+<li><code>trackballControls()</code> — le <strong>trackball</strong> : la scène tourne autour des deux axes de l’écran, roulis compris et sans pôle où buter ; <code>turntable</code> garde la rotation horizontale à plat.</li>
+<li><code>panZoomControls()</code> — le <strong>pan-zoom plan</strong> : la caméra ne tourne jamais ; les glissers font glisser la vue, molette et pincement l’éloignent ou la rapprochent du plan qu’elle regarde, et les flèches la déplacent d’un pas fixe pour qui n’a pas de pointeur.</li>
+</ul>
+<p><strong>Un seul contrat.</strong> Chaque contrôleur publie <code>object.position</code> — la position vivante de la caméra —, <code>addEventListener('change')</code>, <code>removeEventListener</code> et <code>dispose()</code> ; les trois qui gardent un pivot y ajoutent <code>target</code>, <code>minDistance</code>, <code>maxDistance</code>, <code>enableZoom</code>, <code>enablePan</code> et <code>update()</code>. Écrivez vous-même <code>object.position</code> ou <code>target</code> : le prochain <code>update()</code> le relit et le borne.</p>
+<p><strong>Rien ne se passe dans une scène immobile.</strong> Un contrôleur n’émet <code>change</code> que si la pose a vraiment bougé, et c’est à cela qu’une session interactive accroche son redessin ; aucun contrôleur ne scrute les images, et <code>dispose()</code> retire chaque écouteur du canevas, de son document et de sa fenêtre.</p>`,
+  },
   'example-many-lights': {
     title: 'Beaucoup de lumières, un seul budget',
     description:
