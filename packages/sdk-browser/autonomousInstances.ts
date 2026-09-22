@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Material } from '../sdk-core/index.ts';
 import { asHostLibrary, type HostMaterials } from './hostResources.ts';
+import { surfaceOf } from './pageSurface.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
 import { colouredTwin, type createAutonomousGeometry } from './autonomousGeometry.ts';
@@ -179,10 +180,11 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         : painted;
       for (const rec of records) {
         baseMaterials.set(rec, painted);
-        rec.material = rec.attributes.color ? coloured : painted;
+        rec.declaration = rec.attributes.color ? coloured : painted;
+        rec.material = surfaceOf(rec.declaration);
         if (rec.mesh)
           asHostLibrary<THREE.Mesh>(rec.mesh).material = asHostLibrary<THREE.Material>(
-            rec.material,
+            rec.declaration,
           );
       }
       if (previous) releasePaint(previous);

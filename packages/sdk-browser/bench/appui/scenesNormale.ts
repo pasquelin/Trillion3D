@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import { triangleAt } from '../../visibilityMath.ts';
 import type { VisPage } from '../../visibilityTypes.ts';
+import { surfaceOf } from '../../pageSurface.ts';
 
 /** Hostile poses, column-major: shear, singular and cancelling row included. */
 const POSES = [
@@ -129,7 +130,12 @@ export function reperes(): Repere[] {
       for (const attributes of attributs(garniture))
         for (let v = 0; v < TRIANGLES.length; v++) {
           const coins = TRIANGLES[v];
-          const page = { array: new Uint32Array([0, 1, 2]), attributes, matrix, material: [] };
+          const page = {
+            array: new Uint32Array([0, 1, 2]),
+            attributes,
+            matrix,
+            material: surfaceOf([]),
+          };
           const tri = {
             a: sommet(coins, 0),
             b: sommet(coins, 3),
