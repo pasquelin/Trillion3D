@@ -18,4 +18,4 @@ The delivered SDK is described by the [SDK guide](SDK.md), [package architecture
 | [Tests and performance benchmarks](TESTS.md)        | Unit tests organization, GPU correctness probes, and 39 performance benchmarks                                                     |
 | [Reference UE5 in numbers](REFERENCE_UE5.md)        | Published constants, bytes per triangle, and performance profile of the reference versus our engine; valid comparisons and caveats |
 
-The engine target (editor, final baking, Three.js retirement, requirements and exit criteria) is maintained in [`docs/SPEC_ENGINE_WITHOUT_THREE.md`](SPEC_ENGINE_WITHOUT_THREE.md). The backlog of open tasks is kept in the [GitHub issues](https://github.com/pasquelin/WebGeometry/issues); a finished task is closed.
+The end goal the engine is built for — dynamic global illumination, reflections and shadows — and the stages it is reached by are maintained in [`docs/LIGHTING_STRATEGY.md`](LIGHTING_STRATEGY.md). The backlog of open tasks is kept in the [GitHub issues](https://github.com/pasquelin/WebGeometry/issues); a finished task is closed.

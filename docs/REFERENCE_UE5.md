@@ -70,7 +70,7 @@ How they achieve it, and where we stand:
 | Vertices, total      | —                                             | ~48 B/tri                                  |
 
 **The verdict: no.** Their memory format stands at 8.7 bytes per triangle, ours at around
-50 bytes — a ~6× factor on geometry. The repository target (≤ 12 B/tri, `docs/SPEC_ENGINE_WITHOUT_THREE.md` C5)
+50 bytes — a ~6× factor on geometry. The repository target of at most 12 bytes per triangle
 is the right order of magnitude; the work to achieve it remains open.
 
 Outside geometry, the gap has narrowed in kind: Emerald's textures, 7.56 GB of raw RGBA, are baked

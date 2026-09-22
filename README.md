@@ -180,7 +180,7 @@ repository; everything is reimplemented from papers, talks, documentation and ob
 | [Web / Electron / Node integration](docs/INTEGRATION.md) | Who owns the canvas, the loop, the preparation and the fallback                                               |
 | [Tests and benches](docs/TESTS.md)                       | Unit tests, GPU correctness probes, performance benches                                                       |
 | [The reference in numbers](docs/REFERENCE_UE5.md)        | The reference's published constants, bytes per triangle and profile, against ours                             |
-| [Engine target](docs/SPEC_ENGINE_WITHOUT_THREE.md)       | Editor, final cook, exit from Three.js, requirements, exit criteria, lighting strategy                        |
+| [Lighting strategy](docs/LIGHTING_STRATEGY.md)           | The end goal — dynamic global illumination, reflections, shadows — and the stages it is reached by            |
 
 The documentation, the code, its identifiers and this page are in English.
 
@@ -188,7 +188,7 @@ The documentation, the code, its identifiers and this page are in English.
 
 The geometry, the temporal antialiasing and the memory budgets are the foundation. What they are
 for is **real-time dynamic global illumination, reflections and shadows** — reached by
-stages, each measured before the next ([spec §8](docs/SPEC_ENGINE_WITHOUT_THREE.md)):
+stages, each measured before the next ([lighting strategy](docs/LIGHTING_STRATEGY.md)):
 
 | Stage | Content                                                                             | State                                                      |
 | ----- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
