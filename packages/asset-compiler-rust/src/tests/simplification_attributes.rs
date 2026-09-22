@@ -5,7 +5,7 @@ use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// Compiles a sheet and rereads what the cache says of its one primitive: the compilation
 /// result, the written `source.gltf`, and the bytes of `source.bin`.
-fn compiled(simplification: &str, sheet: Sheet) -> (PathBuf, Value, Value, Vec<u8>) {
+pub(super) fn compiled(simplification: &str, sheet: Sheet) -> (PathBuf, Value, Value, Vec<u8>) {
     let (root, options) = seam_fixture(64, 64, simplification, sheet);
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options
@@ -154,23 +154,6 @@ fn seam_is_kept(seam_set: u32) {
         crossed, 0,
         "a created vertex took its u from across the seam"
     );
-}
-
-// Behaviour: a coarse level made of solved vertices is never the source bit for bit, so it
-// carries a positive error — one the runtime still reads as positive once packed in single
-// precision — and a threshold of zero draws level zero alone, even where the collapses
-// themselves were lossless.
-#[test]
-fn a_solved_level_carries_a_positive_error() {
-    let (root, result, _, _) = compiled("qem-attributes", Sheet::Seam("TEXCOORD_0"));
-    let pages = result["primitives"][0]["pages"].as_array().expect("pages");
-    let coarse = pages.iter().filter(|page| page["level"] != json!(0));
-    assert!(coarse.clone().count() > 0);
-    for page in coarse {
-        let error = page["lodError"].as_f64().expect("lodError");
-        assert!(error as f32 > 0.0, "a coarse page with error {error}");
-    }
-    fs::remove_dir_all(root).expect("cleanup");
 }
 
 // Behaviour: two compilations of the same scene write the same pages, created vertices included.

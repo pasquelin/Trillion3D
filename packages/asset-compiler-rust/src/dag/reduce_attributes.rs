@@ -27,7 +27,12 @@ pub(super) fn updated(
     else {
         return Ok(Try::NoCollapse);
     };
-    let (named, vertices, deviation) = sort_survivors(input, &region, &weights);
+    let (named, vertices) = sort_survivors(input, &region, &weights);
+    let floor = if vertices.count() > 0 {
+        region.scale * f32::EPSILON as f64
+    } else {
+        0.0
+    };
     let corners: Vec<u32> = region.indices.iter().map(|&l| named[l as usize]).collect();
     Try::of(required, &corners, input.weld, || {
         let clusters = {
@@ -35,10 +40,13 @@ pub(super) fn updated(
             cluster_triangles(&region.positions, &region.indices, DAG_CLUSTER_TRIANGLES)?
         };
         Ok(Attempt {
-            // A solved vertex is not the source's: how far the solve moved one enters the
-            // error, and a level that created any vertex carries a positive error at least,
-            // so a surface no longer bit for bit the source is never drawn at threshold zero.
-            error_object: region.error_object.max(deviation),
+            // The simplifier's error already bounds how far the level's surface left the
+            // source's: the solve that follows the collapses moves a survivor towards the
+            // minimum of its own quadric, and the distance it travels — a facade vertex sliding
+            // along its wall covers the whole group — is not a deviation of that surface.
+            // Only the floor is added, so a level that created any vertex carries a positive
+            // error and a surface no longer bit for bit the source is never drawn at zero.
+            error_object: region.error_object.max(floor),
             clusters: clusters
                 .into_iter()
                 .map(|cluster| cluster.iter().map(|&l| named[l as usize]).collect())
@@ -66,12 +74,11 @@ fn sort_survivors(
     input: &GroupReductionInput,
     region: &UpdatedRegion,
     weights: &[f32],
-) -> (Vec<u32>, NewVertices, f64) {
+) -> (Vec<u32>, NewVertices) {
     let stride = weights.len();
     let tolerance = region.scale * SOLVE_TOLERANCE;
     let mut named = vec![u32::MAX; region.remap.len()];
     let mut new = NewVertices::default();
-    let mut deviation = 0.0f64;
     let mut source_attributes = Vec::with_capacity(stride);
     for &local in &region.indices {
         let l = local as usize;
@@ -97,13 +104,9 @@ fn sort_survivors(
                 .any(|((solved, from), weight)| {
                     (*solved as f64 - *from as f64).abs() * *weight as f64 > SOLVE_TOLERANCE
                 });
-        // Kept or created, the vertex is drawn where this says: snapping a survivor back onto
-        // its source position is a displacement like any other, and the level's error carries it.
-        deviation = deviation.max(moved);
         named[l] = if moved <= tolerance && !drifted {
             source as u32
         } else {
-            deviation = deviation.max(region.scale * f32::EPSILON as f64);
             let rank = new.count() as u32;
             new.positions
                 .extend_from_slice(&region.positions[l * 3..l * 3 + 3]);
@@ -112,5 +115,5 @@ fn sort_survivors(
             NEW_VERTEX | rank
         };
     }
-    (named, new, deviation)
+    (named, new)
 }

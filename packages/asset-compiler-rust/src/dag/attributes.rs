@@ -3,12 +3,10 @@
 //! Under `QemAttributes` the quadric of a collapse adds, to the distance to the surface, the
 //! deviation of each attribute weighed by `weight_of`. meshoptimizer scales positions to the
 //! unit extent of the region before it adds the attribute terms, so a weight reads as "one unit
-//! of this attribute is worth that fraction of the region's extent": 0.5 on a unit normal makes
-//! a full flip count half the region, 0.5 on a texture coordinate makes one wrap of the texture
-//! count the same. A page carries no tangent — the shader rebuilds it — so none enters the
-//! error. The weights are part of the
-//! strategy: changing one changes every coarse level, hence the cache key through the
-//! implementation fingerprint.
+//! of this attribute is worth that fraction of the region's extent". A page carries no tangent —
+//! the shader rebuilds it — so none enters the error. The weights are part of the strategy:
+//! changing one changes every coarse level, hence the cache key through the implementation
+//! fingerprint.
 use super::*;
 use crate::geometry_page::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
@@ -17,12 +15,25 @@ use crate::geometry_page::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 /// appended (`build.rs`), so a cluster never leaves the builder with this bit set.
 pub(super) const NEW_VERTEX: u32 = 1 << 31;
 
+/// Weight of a unit of normal or texture coordinate against the region's extent; a colour, whose
+/// unit is a whole channel rather than a wrap or a flip, is worth half of it.
+///
+/// Measured on Emerald (1280x720, 1 px threshold, 60 frames, `qem-endpoints` as the reference),
+/// scaling the declared 0.5 / 0.5 / 0.25 uniformly: 0.5 drew +6.6 / +34.7 / +26.7 % triangles on
+/// the `generale`, `sol` and `rue` views, 0.25 +0.2 / +17.4 / +12.1 %, 0.125 -2.7 / +8.6 / +6.7 %,
+/// 0.0625 -5.9 / +4.6 / +3.8 %, 0 -7.9 / -0.8 / -0.6 % — and at 0 meshoptimizer stops solving the
+/// attributes at all, which is the strategy itself. The normal carries nearly the whole cost: at
+/// 0.5 on the normal alone the views drew +3.9 / +34.0 / +26.1 %, at 0.5 on the texture
+/// coordinates and 0.25 on the colour alone -4.9 / +10.8 / +8.1 %. The roots stayed between 1 870
+/// and 1 875 against 1 883 at every point, so nothing here is bought from the seams.
+const ATTRIBUTE_WEIGHT: f32 = 0.0625;
+
 /// Weight of every component of an attribute in the quadric; zero keeps it out of the error and
 /// out of the solve, so the survivor's value is copied as is.
 pub(super) fn weight_of(flag: u32) -> f32 {
     match flag {
-        FLAG_NORMAL | FLAG_UV | FLAG_UV1 => 0.5,
-        FLAG_COLOR => 0.25,
+        FLAG_NORMAL | FLAG_UV | FLAG_UV1 => ATTRIBUTE_WEIGHT,
+        FLAG_COLOR => ATTRIBUTE_WEIGHT / 2.0,
         _ => 0.0,
     }
 }
