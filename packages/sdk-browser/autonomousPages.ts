@@ -9,6 +9,7 @@ import { createAutonomousInstances } from './autonomousInstances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './autonomousManifest.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
+import { hostAimNode } from './backendCommon.ts';
 import { createThreeSceneDraw } from './threeSceneAdapter.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
@@ -35,7 +36,11 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       Math.max(1024, bootstrapUrls.size),
     scene = new THREE.Scene();
   scene.background = new THREE.Color(context.clearColor ?? 0x171d28);
-  const lighting = installSceneLighting(scene, context.sceneLighting ?? context.source);
+  const lighting = installSceneLighting(
+    scene,
+    context.sceneLighting ?? context.source,
+    hostAimNode,
+  );
   const shown: PageRec[] = [],
     desired: PageRec[] = [],
     pending: string[] = [],
