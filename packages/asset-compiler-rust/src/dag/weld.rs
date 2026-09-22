@@ -41,7 +41,7 @@ pub(crate) fn weld_by<K: std::hash::Hash + Eq>(
 }
 /// Canonical vertex per position: duplicated vertices at UV or normal seams are one point, so a
 /// lock placed on one copy locks every copy and no seam can crack.
-pub(crate) fn weld_positions(positions: &[f32], indices: &[u32]) -> Vec<u32> {
+pub(super) fn weld_positions(positions: &[f32], indices: &[u32]) -> Vec<u32> {
     weld_by(positions.len() / 3, indices, |id| {
         position_key(positions, id)
     })

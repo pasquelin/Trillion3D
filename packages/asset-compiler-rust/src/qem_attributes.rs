@@ -78,9 +78,13 @@ pub fn simplify_region_with_attributes(
     };
     let vertices = VertexDataAdapter::new(bytes, 12, 0).map_err(|_| invalid("POSITION adapter"))?;
     let scale = meshopt::simplify::simplify_scale(&vertices) as f64;
+    // The call requires a weight that is neither negative nor infinite; a region whose extent is
+    // nil, or whose measure overflowed, weighs its attributes at nothing rather than at a number
+    // the quadric cannot use.
     let scaled: Vec<f32> = weights
         .iter()
-        .map(|w| if scale > 0.0 { w / scale as f32 } else { 0.0 })
+        .map(|w| (w / scale as f32).max(0.0))
+        .map(|w| if w.is_finite() { w } else { 0.0 })
         .collect();
     let mut result_error = 0.0_f32;
     let mut out = vec![0u32; compact_idx.len()];
