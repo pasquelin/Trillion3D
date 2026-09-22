@@ -13,7 +13,6 @@
  * boxes, which the autonomous scene publishes degenerate — both are proven on the compiler side
  * by `packages/asset-compiler-rust/src/tests/tables_scene.rs`.
  */
-import type * as THREE from 'three';
 import {
   EngineError,
   SCENE_TABLES_FILE,
@@ -22,6 +21,7 @@ import {
   type TableNode,
   type Texture,
 } from '../sdk-core/index.ts';
+import type { HostNode, HostTexture } from './hostResources.ts';
 import { checked } from './clusterPages.ts';
 import { meshes as objects } from './sceneMeshes.ts';
 import { hostWorldChainInto } from './hostWorldChain.ts';
@@ -114,9 +114,9 @@ function takePose(group: Group, matrix: Float64Array, key: string) {
 
 type Inputs = {
   tables: PreparedSceneTables;
-  source: THREE.Object3D;
+  source: HostNode;
   associations: BackendContext['associations'];
-  textureIndices: ReadonlyMap<THREE.Texture, number>;
+  textureIndices: ReadonlyMap<HostTexture, number>;
 };
 /**
  * Checks the tables against the scene the loader built, and returns what was compared. Throws on
