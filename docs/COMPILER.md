@@ -62,11 +62,68 @@ Every case is built on two seeds, and on each the corpus asserts the same set:
 - every index of a coarse cluster names a vertex the source itself uses;
 - every LOD error is finite, and a cluster's error never exceeds its parent's;
 - no coarse triangle spans two texture islands of any set the mesh carries, so no texture slides between two islands; a seam whose two sides stay connected elsewhere, such as a wrap column, is one island and is not covered;
-- either the primitive reaches a single root, or the stall is named by a tally key (`noCollapse`, `tooSmall`, `borderLost`, `unusableError`) — a silent stall is a failure;
+- either the primitive reaches a single root, or every stalled group carries one of the causes the case accepts — a silent stall is a failure;
 - every cluster's page encodes and decodes back to its positions and attributes, within the error the page declares;
 - the compiled cache agrees with the DAG built in memory, root for root, and its `source.bin` is the source buffer byte for byte, view by view.
 
-A case the compiler cannot accept fails with its named error code, checked against the code the case expects: today `inputs-quantized-positions` is the only one, refused `INVALID_GLTF` ("POSITION must be float VEC3") because `KHR_mesh_quantization` is not read. A panic, a refusal under another code, or a flat DAG with no explanation is a failing case, never a tolerated one. Cases that stall record why in their own doc comment, from a property of the mesh: `uv-island-per-face`, `uv-island-per-brick`, `uv-second-set-with-own-seams` and `attributes-every-one` stop on `noCollapse` because every one of their vertices is a seam corner of some texture set, so nothing can move without dragging a texture across a seam; `topology-high-curvature` stops because its top group is the fans of a sphere's two poles, whose apexes are written once per segment and are all seam corners.
+A stalled group is named by experiment on the group itself, never by a threshold, and only once it has stalled: the builder reruns the reduction that stalled with one constraint lifted at a time, drops the result — the DAG is the one built without the reruns — and keeps the first cause that holds:
+
+| Cause            | The group…                                                                                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `too-small`      | holds fewer than two live triangles: nothing to halve                                                                                               |
+| `border-locked`  | advances when rerun with no lock: the positions it shares with the neighbouring groups hold it                                                      |
+| `seam-locked`    | still stalls with no lock, and advances with no lock on its position copies welded across the seams of every texture set: its texture seams hold it |
+| `unreducible`    | advances under neither rerun: the surface itself resists the halving                                                                                |
+| `border-lost`    | lost a shared position on every retry with added locks                                                                                              |
+| `unusable-error` | received a non-finite error from the simplifier                                                                                                     |
+
+A case the compiler cannot accept fails with its named error code, checked against the code the case expects: today `inputs-quantized-positions` is the only one, refused `INVALID_GLTF` ("POSITION must be float VEC3") because `KHR_mesh_quantization` is not read. A panic, a refusal under another code, or a flat DAG with no explanation is a failing case, never a tolerated one. Each case guarantees one outcome, on both seeds:
+
+| Case                            | Guaranteed outcome                                              |
+| ------------------------------- | --------------------------------------------------------------- |
+| `uv-one-island`                 | one root                                                        |
+| `uv-island-per-face`            | stall: `seam-locked`, or `border-locked` on one group of seed 1 |
+| `uv-island-per-brick`           | stall: `seam-locked`                                            |
+| `uv-atlas-of-islands`           | one root                                                        |
+| `uv-mirrored-halves`            | one root                                                        |
+| `uv-tiled-beyond-unit`          | one root                                                        |
+| `uv-second-set-with-own-seams`  | stall: `seam-locked`                                            |
+| `uv-zero-area-triangles`        | one root                                                        |
+| `uv-all-at-one-point`           | one root                                                        |
+| `uv-none`                       | one root                                                        |
+| `attributes-hard-normals`       | one root                                                        |
+| `attributes-smooth-normals`     | one root                                                        |
+| `attributes-colour-steps`       | one root                                                        |
+| `attributes-tangents`           | one root                                                        |
+| `attributes-every-one`          | stall: `seam-locked`                                            |
+| `topology-closed-manifold`      | one root                                                        |
+| `topology-open-borders`         | one root                                                        |
+| `topology-non-manifold-edges`   | one root                                                        |
+| `topology-t-junctions`          | one root                                                        |
+| `topology-unwelded-duplicates`  | one root                                                        |
+| `topology-degenerate-triangles` | one root                                                        |
+| `topology-thin-strip`           | one root                                                        |
+| `topology-slats`                | one root                                                        |
+| `topology-smaller-than-cluster` | one root                                                        |
+| `topology-exactly-one-cluster`  | one root                                                        |
+| `topology-huge-flat-plane`      | one root                                                        |
+| `topology-high-curvature`       | stall: `seam-locked`                                            |
+| `topology-slivers`              | one root                                                        |
+| `materials-several`             | one root                                                        |
+| `materials-alpha-masked`        | one root                                                        |
+| `materials-blended`             | one root                                                        |
+| `materials-double-sided`        | one root                                                        |
+| `inputs-indices-u8`             | one root                                                        |
+| `inputs-indices-u16`            | one root                                                        |
+| `inputs-indices-u32`            | one root                                                        |
+| `inputs-unindexed`              | one root                                                        |
+| `inputs-sparse-positions`       | one root                                                        |
+| `inputs-quantized-positions`    | refused: `INVALID_GLTF`                                         |
+| `inputs-large-offset`           | one root                                                        |
+| `inputs-millimetre-scale`       | one root                                                        |
+| `inputs-kilometre-scale`        | one root                                                        |
+
+Cases that stall record why in their own doc comment, from a property of the mesh. `uv-island-per-face`, `uv-island-per-brick`, `uv-second-set-with-own-seams` and `attributes-every-one` write every vertex as a seam corner of some texture set: lifting the locks frees nothing, welding the seams frees the groups. One group of `uv-island-per-face` on seed 1 — 2 072 triangles and 181 shared positions, the most of the case — advances with its locks lifted alone and is `border-locked`; the case accepts both causes and no other. `topology-high-curvature` stalls six or seven levels up on a last group of about two hundred triangles, one texture island and no lock, of which only a handful of positions are seam corners — the pole apexes and what is left of the wrap column: unlocked it still stalls, welded across those seams it halves, so it is `seam-locked` although almost all its positions are free.
 
 Run it with `cargo test --release corpus --manifest-path packages/asset-compiler-rust/Cargo.toml`: 41 cases, 5 families, two seeds each, under 4 s.
 
@@ -94,6 +151,7 @@ Every stderr line is `{"event": <kind>, "job": <id>, ...}`. `accepted`, `progres
 | `queued`    | Once per job in a batch, before any work | `source`                                                                            |
 | `accepted`  | A worker starts the job                  | `source`, `cache`, `scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` |
 | `progress`  | During the job                           | `phase` and phase-specific fields, see below                                        |
+| `stall`     | The job succeeded, before `complete`     | one line per primitive among the ten that left the most level-0 triangles as roots, over those with a stalled group: `rank`, `mesh`, `primitive`, `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands` (the primitive's `dag` fields, [FORMAT.md](FORMAT.md)); in batch mode too, under the job's id |
 | `complete`  | The job succeeded                        | `pointer` (same object as stdout), `ms`                                             |
 | `cancelled` | The job stopped on a cancel request      | `status:"error"`, `code:"CANCELLED"`, `message`, `ms`                               |
 | `error`     | The job failed                           | `status:"error"`, `code`, `message`, `ms`                                           |
@@ -105,7 +163,7 @@ Progress phases, in order:
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `import-source` | `step` = `parse` (`file`, `index`, `files`, `completed`, `total` in bytes) → `meshes` (`completed`, `total` in nodes) → `write` (`bytes`) → `complete` (`key`, `triangles`, `meshNodes`, `ms`), or `reused` (`key`) when a previous import is reused | FBX/OBJ only                                                                                                                                                                                                              |
 | `import`        | `completed`, `total`, `ms`, `primitives`, `nodes`                                                                                                                                                                                                    | glTF loaded and validated, source geometry written; `primitives` is the number of `primitive` events to expect                                                                                                            |
-| `primitive`     | `mesh`, `primitive`, `pages`                                                                                                                                                                                                                         | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                                                                                                                                |
+| `primitive`     | `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (elapsed ms of its own stages, each from the end of the one before: `dagMs`, `cullingMs`, `pagesMs`, `reportMs`), and `warnings` when it has any                                          | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                                                                                                                                |
 | `bootstrap`     | `completed`, `total`                                                                                                                                                                                                                                 | Root bundles assembled                                                                                                                                                                                                    |
 | `textures`      | `completed`, `total`                                                                                                                                                                                                                                 | One source image decoded, its mip chain baked for every atlas that reads it, its levels written                                                                                                                           |
 | `cutouts`       | `pending`, `sheet`                                                                                                                                                                                                                                   | Cutout sheet written; `pending` counts the textures nobody has answered yet, `sheet` is where the answer sheet landed                                                                                                     |
