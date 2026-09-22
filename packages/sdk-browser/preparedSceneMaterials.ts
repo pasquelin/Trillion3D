@@ -29,6 +29,35 @@ const SAMPLER_FIELDS = ['wrapS', 'wrapT', 'magFilter', 'minFilter'] as const;
 const sameTexture = (a: TableTexture | undefined, b: TableTexture) =>
   !!a && a.image === b.image && SAMPLER_FIELDS.every((field) => a[field] === b[field]);
 
+/**
+ * The texture table read through the source each of its images names, so that `sameTexture`
+ * compares images and not image records.
+ *
+ * The loader keys its texture cache on `(uri | bufferView) + sampler`, never on the image rank:
+ * a document that carries one image record per material — what the compiler writes for an OBJ
+ * set whose materials share a map — names one image from several records, and the loader folds
+ * their textures all the same. Every record naming the same source is given the rank of the
+ * first; a record whose source is unknown keeps its own, which compares as it did before.
+ */
+export function foldImageRanks(
+  textures: readonly TableTexture[],
+  sources: readonly (string | null)[] | undefined,
+): readonly TableTexture[] {
+  if (!sources?.length) return textures;
+  const first = new Map<string, number>();
+  const canonical = sources.map((source, rank) => {
+    if (source === null) return rank;
+    const held = first.get(source);
+    if (held !== undefined) return held;
+    first.set(source, rank);
+    return rank;
+  });
+  return textures.map((texture) => {
+    const image = texture.image === null ? null : (canonical[texture.image] ?? texture.image);
+    return image === texture.image ? texture : { ...texture, image };
+  });
+}
+
 function sampler(slot: TableTextureSlot, texture: Texture, textures: readonly TableTexture[]) {
   const declared = textures[slot.texture];
   if (!declared) return `texture ${slot.texture} is outside the texture table`;

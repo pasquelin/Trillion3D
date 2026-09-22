@@ -9,7 +9,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { materialDivergence } from './preparedSceneMaterials.ts';
+import { foldImageRanks, materialDivergence } from './preparedSceneMaterials.ts';
 import { hostSurface, hostTexture, tableMaterial, tableTexture } from './preparedSceneFixture.ts';
 import type { TableTexture } from '../sdk-core/index.ts';
 
@@ -65,6 +65,40 @@ test('the sampler state of the named texture is compared', () => {
     'map wrapT clamp where the table says repeat',
   );
 });
+
+/**
+ * The crates of the published example (#307): one image record per source material, all naming
+ * the same file, and one sampler — the loader folds the three textures into the object it
+ * publishes at rank 0, while the table names rank 1 for the second material. Read through the
+ * sources, the two ranks are one image; read through the ranks of the records, they are not.
+ */
+const crates = (sources: string[]) =>
+  foldImageRanks(
+    sources.map((_, rank) => tableTexture({ image: rank })),
+    sources,
+  );
+
+for (const { what, sources, expected } of [
+  { what: 'name one file are one image', sources: ['box1.png', 'box1.png'], expected: null },
+  {
+    what: 'name two files stay a named divergence',
+    sources: ['box1.png', 'box2.png'],
+    expected: 'map names texture 0 where the table names 1',
+  },
+])
+  test(`two image records that ${what}`, () => {
+    const actual = hostTexture();
+    assert.equal(
+      materialDivergence(
+        tableMaterial({ map: { texture: 1, texCoord: 0, transform: TRANSFORM } }),
+        hostSurface({ map: actual }),
+        new Map([[actual, 0]]),
+        crates(sources),
+        true,
+      ),
+      expected,
+    );
+  });
 
 // The host flips the second normal factor when it rebuilds the tangent frame from screen
 // derivatives (three.js issue 11438). The table says which variant it was written for; a reader
