@@ -31,7 +31,7 @@ export interface ControlVector {
 }
 
 /** The orientation a controller writes, as the host stores it: `(x, y, z, w)`. */
-export interface ControlQuaternion {
+interface ControlQuaternion {
   x: number;
   y: number;
   z: number;

@@ -14,7 +14,6 @@ import {
   openProbe,
   stepGesture,
 } from '../appui/cameraControlsPage.ts';
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
 import type { Page } from 'playwright';
 
 declare global {
