@@ -72,20 +72,35 @@ test('the sampler state of the named texture is compared', () => {
  * publishes at rank 0, while the table names rank 1 for the second material. Read through the
  * sources, the two ranks are one image; read through the ranks of the records, they are not.
  */
-const crates = (sources: string[]) =>
+const crates = (sources: string[], first: Partial<TableTexture> = {}) =>
   foldImageRanks(
-    sources.map((_, rank) => tableTexture({ image: rank })),
+    sources.map((_, rank) => tableTexture({ image: rank, ...(rank === 0 ? first : {}) })),
     sources,
   );
 
-for (const { what, sources, expected } of [
+const NAMED = 'map names texture 0 where the table names 1';
+const cases: {
+  what: string;
+  sources: string[];
+  first?: Partial<TableTexture>;
+  expected: string | null;
+}[] = [
   { what: 'name one file are one image', sources: ['box1.png', 'box1.png'], expected: null },
   {
     what: 'name two files stay a named divergence',
     sources: ['box1.png', 'box2.png'],
-    expected: 'map names texture 0 where the table names 1',
+    expected: NAMED,
   },
-])
+  // The fold rewrites the image rank alone: two records naming one file under two samplers are
+  // still two textures for the loader, and `sameTexture` reads the sampler fields unfolded.
+  {
+    what: 'name one file under two samplers stay a named divergence',
+    sources: ['box1.png', 'box1.png'],
+    first: { wrapS: 'clamp' },
+    expected: NAMED,
+  },
+];
+for (const { what, sources, first, expected } of cases)
   test(`two image records that ${what}`, () => {
     const actual = hostTexture();
     assert.equal(
@@ -93,7 +108,7 @@ for (const { what, sources, expected } of [
         tableMaterial({ map: { texture: 1, texCoord: 0, transform: TRANSFORM } }),
         hostSurface({ map: actual }),
         new Map([[actual, 0]]),
-        crates(sources),
+        crates(sources, first),
         true,
       ),
       expected,
