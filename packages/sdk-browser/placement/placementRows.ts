@@ -9,8 +9,9 @@
  * copied. A parked row keeps its root in every table and is skipped by every cut: taking it back
  * is writing its matrix and raising its flag, never rebuilding a table.
  *
- * The capacity is the owner's decision, made when the session is opened; a resource that needs
- * more rows than it holds is opened again with more.
+ * The capacity is the owner's decision; a resource that needs more rows than it holds is given a
+ * larger buffer, which the session grows into in place where its engine can
+ * (`placementGrowth.ts`), and is opened again with otherwise.
  */
 import type { MatrixElements } from '../matrixElements.ts';
 
@@ -32,5 +33,16 @@ export const placementWorld = (rows: PlacementRows, index: number): MatrixElemen
   elements: rows.matrices.subarray(index * 16, index * 16 + 16),
 });
 
-/** What a root carries of the row it was collected from: the rows, and its rank in them. */
+/** What a root or a blended copy carries of the row it was collected from: the rows, and its rank
+ *  in them. */
 export type PlacementOf = { rows: PlacementRows; index: number };
+
+/** True when `placement` names a row the owner parked: its draw is skipped, its place kept. */
+export const rowParked = (placement: PlacementOf | undefined) =>
+  !!placement && placement.rows.live[placement.index] === 0;
+
+/** True when one of `placed` — blended copies, blend items — is posed by a row of `rows`. */
+export const placedBy = (
+  placed: readonly { readonly placement?: PlacementOf }[],
+  rows: PlacementRows,
+) => placed.some((entry) => entry.placement?.rows === rows);

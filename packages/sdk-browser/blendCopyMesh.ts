@@ -3,6 +3,12 @@ import { asHostLibrary, type HostMesh } from './hostResources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import type { PageSurface } from './pageSurface.ts';
+import {
+  placementWorld,
+  rowParked,
+  type PlacementOf,
+  type PlacementRows,
+} from './placement/placementRows.ts';
 
 /**
  * The transparent draw copy of an engine the HOST renderer draws — a witness, or the WebGL2 page
@@ -30,6 +36,7 @@ export function createBlendCopy(
   renderOrder: number,
   world: MatrixElements,
   surface: PageSurface,
+  placement?: PlacementOf,
 ): BlendCopy {
   const source = asHostLibrary<THREE.Mesh>(mesh);
   const copy = new THREE.Mesh(source.geometry, source.material);
@@ -42,5 +49,48 @@ export function createBlendCopy(
   copy.userData.sourceMesh = mesh;
   // The engine reads the surface off the record the collection built; the host material stays on
   // the copy for the ONE reader that needs it, the host renderer that draws it.
-  return Object.assign(copy as unknown as BlendCopy, { surface });
+  // A copy posed by a row is shown while the row is live: the host reads the flag the owner
+  // writes, so parking or taking the row back needs no write here.
+  if (placement)
+    Object.defineProperty(copy, 'visible', {
+      get(this: { placement?: PlacementOf }) {
+        return !rowParked(this.placement);
+      },
+      configurable: true,
+    });
+  return Object.assign(copy as unknown as BlendCopy, { surface, placement });
+}
+
+/**
+ * Steps 1 and 2 of the growth contract (`placementGrowth.ts`) on the host copies: those posed by
+ * `from` read the same row of `to`, and one parked copy per new row, cloned from the first of
+ * them, is appended to `copies` and handed to `add`, the graph that shows them.
+ */
+export function growBlendCopies(
+  copies: BlendCopy[],
+  from: PlacementRows,
+  to: PlacementRows,
+  add: (copy: HostMesh) => void,
+) {
+  let template: BlendCopy | undefined;
+  for (const copy of copies)
+    if (copy.placement?.rows === from) {
+      const { index } = copy.placement;
+      asHostLibrary<THREE.Mesh>(copy).matrix.elements = asHostLibrary<THREE.Matrix4Tuple>(
+        placementWorld(to, index).elements,
+      );
+      Object.assign(copy, { placement: { rows: to, index } });
+      template ??= copy;
+    }
+  if (!template?.userData.sourceMesh) return;
+  const { sourceMesh } = template.userData;
+  for (let index = from.capacity; index < to.capacity; index++) {
+    const world = placementWorld(to, index);
+    const copy = createBlendCopy(sourceMesh, template.renderOrder, world, template.surface, {
+      rows: to,
+      index,
+    });
+    copies.push(copy);
+    add(asHostLibrary<HostMesh>(copy));
+  }
 }
