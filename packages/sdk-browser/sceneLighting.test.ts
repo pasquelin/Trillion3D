@@ -35,7 +35,7 @@ test('a source without a declared light installs no light at all', () => {
 
 test('placing the lights leaves the display background to the boundary that owns the graph', () => {
   const scene = new THREE.Scene();
-  installSceneLighting(scene, new THREE.Group());
+  installSceneLighting(scene, new THREE.Group(), hostAimNode);
   assert.equal(scene.background, null, 'the light placement declares no clear colour');
   lighting(scene, 0x112233, new THREE.Group());
   const background: THREE.Color | null = scene.background as THREE.Color | null;
