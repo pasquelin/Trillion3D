@@ -28,6 +28,10 @@ export type { DiagnosticDetail } from './backendTypes.ts';
 export type {
   HostAttribute,
   HostAttributes,
+  HostColour,
+  HostDiagnosticFactory,
+  HostDiagnosticGeometry,
+  HostDiagnosticMaterial,
   HostGeometry,
   HostMaterial,
   HostMaterials,
@@ -36,6 +40,7 @@ export type {
   HostPoint,
   HostScene,
   HostTexture,
+  HostTraversable,
 } from './hostResources.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpuPassBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpuPassBlocks.ts';
