@@ -10,6 +10,7 @@ import { surfaceOf } from './pageSurface.ts';
 import { EngineError, type GeometryPageDescriptor } from '../sdk-core/index.ts';
 import type { HostGeometry, HostMaterial, HostMaterials } from './hostResources.ts';
 import { createWebglPageBatches } from './placement/webglPageBatches.ts';
+import { drawnInstanced } from './placement/autonomousPlacements.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
@@ -93,7 +94,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       attachees.add(rec);
     }
   };
-  // Records placed by rows are drawn instanced, one host mesh per page and surface.
+  // Opaque records placed by rows are drawn instanced, one host mesh per page and surface.
   const batches = createWebglPageBatches(scene),
     rowed: PageRec[] = [];
   const sync = () => {
@@ -101,7 +102,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     affichees.clear();
     rowed.length = 0;
     for (const rec of display)
-      if (rec.placement) rowed.push(rec);
+      if (drawnInstanced(rec)) rowed.push(rec);
       else affichees.add(rec);
     // Removing the current element of a `Set` while iterating it is defined: it will not be revisited.
     for (const rec of attachees) if (!affichees.has(rec)) detach(rec);
@@ -113,7 +114,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           'The prepared autonomous scene does not cover every page the cut requires',
           { page: rec.url },
         );
-      if (!rec.placement) attach(rec);
+      if (!drawnInstanced(rec)) attach(rec);
       state.submittedTriangles += rec.triangles;
     }
     batches.draw(rowed);

@@ -81,6 +81,19 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       active.updatePlacements(rows, from, to);
     },
+    /** Whether the active path grows an instance buffer in place (`growPlacements`). */
+    growsPlacements: () => !!getActive().growPlacements,
+    /** An instance buffer the session holds was replaced by a larger one (`placementGrowth.ts`). */
+    growPlacements(from: PlacementRows, to: PlacementRows) {
+      check();
+      const active = getActive();
+      if (!active.growPlacements)
+        throw new EngineError(
+          'UNSUPPORTED_SCENE_UPDATE',
+          `${active.id} does not grow instance buffers in place`,
+        );
+      active.growPlacements(from, to);
+    },
     /** Bounced light on or off in the session; false when the active path cannot toggle it in
      *  place, and only a session opened with the other setting will have it. */
     setBounce(on: boolean) {

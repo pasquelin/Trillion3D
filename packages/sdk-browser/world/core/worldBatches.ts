@@ -24,16 +24,18 @@ export type Seat = { batch: Batch; row: number };
 
 /**
  * The batches of a world and the rows their meshes hold. A mesh is SEATED when its batch is in
- * the open session and a row was free; one that is not — a resource the session does not hold,
- * or a buffer already full — waits for the next opening, which gives every batch the rows its
- * wearers need: twice what it had when it grew, so a scene that grows by one mesh at a time
- * opens a number of times that grows with the logarithm of its size, never with its size.
+ * the open session and a row was free; one that is not waits. A batch the session holds grows in
+ * place (`growHeld`): its rows are replaced by a buffer twice as large at least, the session is
+ * handed both (`placementGrowth.ts`), and the waiting meshes take the new rows. A batch the
+ * session does not hold — a resource or material entry it never had — waits for the next
+ * opening, which sizes every batch by the same rule.
  */
 export function createWorldBatches() {
   const batches = new Map<string, Batch>();
   const seats = new Map<Mesh, Seat>();
-  /** Meshes seated on no row yet: what asks for an opening. */
+  /** Meshes seated on no row yet, and the batches they wait in. */
   let waiting = 0;
+  const short = new Set<Batch>();
   const batchOf = (cut: Cut, entry: MaterialEntry) => {
     const key = `${cut.key}/${entry.key}`;
     let batch = batches.get(key);
@@ -58,13 +60,45 @@ export function createWorldBatches() {
     batch.free.push(row);
     touched(batch, row);
   };
+  /**
+   * Sizes `batch`'s rows for its wearers — kept when they suffice, doubled at least when they do
+   * not, the rows held copied first and the new ones parked — and seats every waiting wearer,
+   * handing it to `seated`. Returns the rows it replaced, or null when it kept them.
+   */
+  const fit = (batch: Batch, seated?: (mesh: Mesh) => void) => {
+    const before = batch.rows;
+    const held = before?.capacity ?? 0,
+      needed = batch.wearers.size;
+    if (needed > held) {
+      const capacity = held ? Math.max(needed, held * 2) : needed;
+      const rows = createPlacementRows(capacity);
+      if (before) {
+        rows.matrices.set(before.matrices);
+        rows.live.set(before.live);
+      }
+      for (let row = capacity - 1; row >= held; row--) batch.free.push(row);
+      batch.owners.length = capacity;
+      batch.owners.fill(null, held);
+      batch.rows = rows;
+    }
+    for (const mesh of batch.wearers) {
+      const seat = seats.get(mesh)!;
+      if (seat.row >= 0) continue;
+      seat.row = batch.free.pop()!;
+      batch.owners[seat.row] = mesh;
+      waiting--;
+      seated?.(mesh);
+    }
+    short.delete(batch);
+    return before && batch.rows !== before ? before : null;
+  };
   return {
     seats,
     batches,
     unseat,
     /**
      * Seats `mesh` on the batch of `cut` × `entry`. True when it holds a row — the caller writes
-     * its matrix —, false when it waits for an opening.
+     * its matrix —, false when it waits.
      */
     seat(mesh: Mesh, cut: Cut, entry: MaterialEntry, touched: (b: Batch, row: number) => void) {
       const batch = batchOf(cut, entry);
@@ -76,47 +110,39 @@ export function createWorldBatches() {
       seats.set(mesh, { batch, row });
       if (row < 0) {
         waiting++;
+        short.add(batch);
         return false;
       }
       batch.owners[row] = mesh;
       touched(batch, row);
       return true;
     },
-    /** True while some mesh waits for a row: the session must be opened again. */
+    /** True while some mesh waits for a row. */
     waiting: () => waiting > 0,
     /**
-     * The batches the next session opens with, their buffers sized for their wearers — kept
-     * when they suffice, doubled at least when they do not — and every mesh seated. A batch no
-     * mesh wears any more is dropped with its rows. Returns the batches kept.
+     * Seats the waiting meshes of the batches the session holds, growing their rows where they are
+     * full. Returns each buffer replaced, with its batch, for the session to grow in place.
+     */
+    growHeld(seated: (mesh: Mesh) => void) {
+      const grown: { batch: Batch; from: PlacementRows }[] = [];
+      for (const batch of short) {
+        if (!batch.rows) continue;
+        const from = fit(batch, seated);
+        if (from) grown.push({ batch, from });
+      }
+      return grown;
+    },
+    /**
+     * The batches the next session opens with, each sized and seated by `fit`. A batch no mesh
+     * wears any more is dropped with its rows. Returns the batches kept.
      */
     reopen() {
       for (const [key, batch] of batches) {
         if (!batch.wearers.size) {
           batches.delete(key);
-          continue;
-        }
-        const held = batch.rows?.capacity ?? 0;
-        const needed = batch.wearers.size;
-        const capacity = needed <= held ? held : held ? Math.max(needed, held * 2) : needed;
-        if (capacity !== held) {
-          const rows = createPlacementRows(capacity);
-          if (batch.rows) {
-            rows.matrices.set(batch.rows.matrices);
-            rows.live.set(batch.rows.live);
-          }
-          for (let row = capacity - 1; row >= held; row--) batch.free.push(row);
-          batch.owners.length = capacity;
-          batch.owners.fill(null, held);
-          batch.rows = rows;
-        }
-        for (const mesh of batch.wearers) {
-          const seat = seats.get(mesh)!;
-          if (seat.row >= 0) continue;
-          seat.row = batch.free.pop()!;
-          batch.owners[seat.row] = mesh;
-        }
+          short.delete(batch);
+        } else fit(batch);
       }
-      waiting = 0;
       return [...batches.values()];
     },
   };

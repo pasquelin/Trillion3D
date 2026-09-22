@@ -1,6 +1,7 @@
 import type { HostGeometry, HostMesh } from './hostResources.ts';
 import type { PageSurface } from './pageSurface.ts';
 import type { MatrixElements } from './matrixElements.ts';
+import type { PlacementOf } from './placement/placementRows.ts';
 import { FRUSTUM_PLANE_VALUES, type DiagnosticMode, type Texture } from '../sdk-core/index.ts';
 import { createWebgpuBindIdentity } from './webgpuBindIdentity.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
@@ -23,6 +24,8 @@ export type BlendGpuItem = {
   surface: PageSurface;
   count: number;
   matrix: MatrixElements;
+  /** The row posing the item when its mesh is placed by rows: skipped while it is parked. */
+  placement?: PlacementOf;
   sourceMesh?: HostMesh;
   sourceGeometry: HostGeometry;
   /** World box of the item, six bounds flat (`mathBox.ts`); absent, the item is not rejected. */
@@ -59,7 +62,8 @@ export function createWebgpuBlendState() {
   /** Words of the view uniform, allocated once. */
   const view = new Float32Array(BLEND_VIEW_SIZE / 4);
   const blendGpu: BlendGpuItem[] = [];
-  const pagedBlendGpu = new Map<HostMesh, BlendGpuItem>();
+  /** Paged items by the world their clusters read: one per placement of a transparent mesh. */
+  const pagedBlendGpu = new Map<MatrixElements, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];
   const state = {
     blendGpu,
@@ -76,10 +80,10 @@ export function createWebgpuBlendState() {
     /** World corners of each table entry, and the age of the table they come from. */
     occlusionCorners: new Float32Array(0) as Float32Array<ArrayBuffer>,
     occlusionEpoch: -1,
-    /** Instances a CPU cut wrote, and the meshes it selected. */
+    /** Instances a CPU cut wrote, and the placements it selected. */
     cpuInstances: new Uint32Array(0),
     cpuInstanceCount: 0,
-    cpuSelectedMeshes: new Set<HostMesh>(),
+    cpuSelectedPlacements: new Set<MatrixElements>(),
     /** Table entries changed by the residency journal, awaiting a partial upload. */
     dirtySpans: new Set<number>(),
     /** Instances each item drew this image; only a CPU cut counts them, a GPU cut does not. */

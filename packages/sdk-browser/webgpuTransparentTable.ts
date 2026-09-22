@@ -65,12 +65,13 @@ export function createTransparentTable(
   packedPages: readonly PageRec[],
   items: readonly BlendGpuItem[],
 ) {
-  /** Where each root's pages start in the catalogue, and how the cut walks them. */
-  const rootOfMesh = new Map<object, { base: number; root: ClusterRoot<PageRec> }>();
+  /** Where each root's pages start in the catalogue, and how the cut walks them, by the world its
+   *  pages read: a paged item and the root of its placement read the same one. */
+  const rootOfPlacement = new Map<object, { base: number; root: ClusterRoot<PageRec> }>();
   let base = 0;
   for (const root of roots) {
-    const mesh = root.pages[0]?.sourceMesh;
-    if (mesh && root.pages[0]?.transparent) rootOfMesh.set(mesh, { base, root });
+    const first = root.pages[0];
+    if (first?.transparent) rootOfPlacement.set(first.matrix, { base, root });
     base += root.pages.length;
   }
   const paged = items.filter((item) => item.paged);
@@ -78,7 +79,7 @@ export function createTransparentTable(
   let length = 0,
     maxVertexWords = 0;
   for (const item of paged) {
-    const owner = item.sourceMesh && rootOfMesh.get(item.sourceMesh);
+    const owner = rootOfPlacement.get(item.matrix);
     const order: number[] = [];
     if (owner) {
       const visited = visitOrder(owner.root);

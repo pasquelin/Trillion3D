@@ -10,7 +10,7 @@ import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
 import { indexPageRequests } from './pageSelectionRequests.ts';
 import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
-import { onePlacement, placementsOf } from './placement/placementRoots.ts';
+import { placementsOf } from './placement/placementRoots.ts';
 import type { PlacementRows } from './placement/placementRows.ts';
 
 export function collectClusterPages(
@@ -44,14 +44,16 @@ export function collectClusterPages(
     // The surface the declaration wears, read at the boundary into the engine's own record:
     // from here on this collection and everything it feeds hold records, not host materials.
     const surface = meshSurface(mesh);
+    // One blended draw per placement, sharing the mesh's geometry and surface: each is ordered by
+    // its own depth, and a row's copy is skipped while the row is parked.
     if (primitive.pass === 'shared-blend' || surface.transmission > 0) {
-      blendCopies.push(blendCopy(mesh, order++, onePlacement(placed, mesh), surface));
+      for (const { world, placement } of placed)
+        blendCopies.push(blendCopy(mesh, order, world, surface, placement));
+      order++;
       continue;
     }
     const template = templates.pagesOf(primitive);
     const transparent = primitive.pass === 'clustered-blend' || surface.transparent;
-    // A transparent item is drawn per source mesh, with the mesh's own pose: rows are opaque.
-    if (transparent) onePlacement(placed, mesh);
     // The grid moved every position of this primitive by at most this much: its clusters' boxes
     // grow by it, so culling still encloses the surface an engine draws from the pages.
     const slack = quantizationErrorOf(primitive);
