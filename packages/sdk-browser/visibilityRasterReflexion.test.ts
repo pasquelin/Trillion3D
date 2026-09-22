@@ -14,6 +14,7 @@ import { rasterVisibility } from './visibilityRaster.ts';
 import { unpackVisibilityId, type VisPage } from './visibilityTypes.ts';
 import { matrixWindingCw } from '../sdk-core/index.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 const VUE: [number, number] = [96, 96];
 // Left: front winding. Right: reverse winding. Same area, same height, no overlap.
@@ -26,7 +27,7 @@ function page(matrix: THREE.Matrix4, side: THREE.Side): VisPage {
     array: new Uint32Array([0, 1, 2, 3, 4, 5]),
     attributes: geometrie.attributes,
     matrix,
-    material: new THREE.MeshBasicMaterial({ side }),
+    material: surfaceOf(new THREE.MeshBasicMaterial({ side })),
   };
 }
 

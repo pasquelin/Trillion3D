@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { asHostLibrary, type HostMesh } from './hostResources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import type { MatrixElements } from './matrixElements.ts';
+import type { PageSurface } from './pageSurface.ts';
 
 /**
  * The draw copy of a transparent surface.
@@ -26,6 +27,7 @@ export function createBlendCopy(
   mesh: HostMesh,
   renderOrder: number,
   world: MatrixElements,
+  surface: PageSurface,
 ): BlendCopy {
   const source = asHostLibrary<THREE.Mesh>(mesh);
   const copy = new THREE.Mesh(source.geometry, source.material);
@@ -36,5 +38,7 @@ export function createBlendCopy(
   copy.frustumCulled = source.frustumCulled;
   copy.renderOrder = renderOrder;
   copy.userData.sourceMesh = mesh;
-  return copy as unknown as BlendCopy;
+  // The engine reads the surface off the record the collection built; the host material stays on
+  // the copy for the ONE reader that needs it, the host renderer that draws it.
+  return Object.assign(copy as unknown as BlendCopy, { surface });
 }

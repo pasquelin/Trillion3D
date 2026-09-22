@@ -1,3 +1,4 @@
+import { surfaceOf } from '../../packages/sdk-browser/pageSurface.ts';
 // Engine sites that read a camera pose, each called by its real code. A site is
 // `{ name, cree, mesure }`: `cree()` returns the state of a frame sequence (Hi-Z hold, cut,
 // engine), `mesure(state, camera)` returns as JSON what the site took from the camera for that
@@ -58,7 +59,7 @@ function pagesDag(): { roots: ReturnType<typeof collectClusterPages>['roots']; v
     array: new Uint32Array([t * 3, t * 3 + 1, t * 3 + 2]),
     attributes: fixture.geometry.attributes,
     matrix: identite,
-    material,
+    material: surfaceOf(material),
     min: [-2 + t, -0.5, 0],
     max: [-1 + t, 0.5, 0],
   }));

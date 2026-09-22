@@ -13,6 +13,7 @@ import {
 } from './visibilityBuffer.ts';
 import { camera, quadPages, centerId } from './visibilityBufferFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 test('the closer triangle wins the visibility id when two pages overlap', () => {
   const geometry = new THREE.BufferGeometry();
@@ -29,14 +30,14 @@ test('the closer triangle wins the visibility id when two pages overlap', () => 
     array: new Uint32Array([0, 1, 2]),
     attributes: geometry.attributes,
     matrix: new THREE.Matrix4(),
-    material: farMat,
+    material: surfaceOf(farMat),
     clusterId: 'far',
   };
   const near: VisPage = {
     array: new Uint32Array([3, 4, 5]),
     attributes: geometry.attributes,
     matrix: new THREE.Matrix4(),
-    material: nearMat,
+    material: surfaceOf(nearMat),
     clusterId: 'near',
   };
   const cam = camera(),
@@ -88,7 +89,7 @@ test('the second pass samples the source map at reconstructed UVs', () => {
   const untextured = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const white = shadeVisibility(
     ids,
-    pages.map((page) => ({ ...page, material: untextured })),
+    pages.map((page) => ({ ...page, material: surfaceOf(untextured) })),
     cameraMoteur(cam),
     size,
   );
@@ -118,14 +119,14 @@ test('UV derivatives come from the winning triangle, not a neighbour across a vi
       array: new Uint32Array([0, 1, 2]),
       attributes: geometry.attributes,
       matrix: new THREE.Matrix4(),
-      material,
+      material: surfaceOf(material),
       clusterId: 'left',
     },
     {
       array: new Uint32Array([3, 4, 5]),
       attributes: geometry.attributes,
       matrix: new THREE.Matrix4(),
-      material,
+      material: surfaceOf(material),
       clusterId: 'right',
     },
   ];

@@ -1,3 +1,4 @@
+import { surfaceOf } from './pageSurface.ts';
 import * as THREE from 'three';
 import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import { setGeometryBounds } from './threeBounds.ts';
@@ -168,12 +169,11 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           ),
         );
       setGeometryBounds(geometry, rec.min, rec.max);
-      const original = asHostLibrary<THREE.Material | THREE.Material[]>(baseMaterials.get(rec)!);
-      rec.material = !data.attributes.color
-        ? original
-        : Array.isArray(original)
-          ? original.map((material) => colouredTwin(colorMaterials, material))
-          : colouredTwin(colorMaterials, original);
+      const base = asHostLibrary<THREE.Material | THREE.Material[]>(baseMaterials.get(rec)!);
+      const twin = (one: THREE.Material) => colouredTwin(colorMaterials, one);
+      const painted = Array.isArray(base) ? base.map(twin) : twin(base);
+      rec.declaration = data.attributes.color ? painted : base;
+      rec.material = surfaceOf(rec.declaration);
       rec.array = data.indices;
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;

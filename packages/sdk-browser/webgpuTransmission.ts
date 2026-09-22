@@ -1,4 +1,3 @@
-import { visMaterial } from './visibilityBuffer.ts';
 import { WATER_RANK_SHIFT } from './webgpuWaterSurfaceWgsl.ts';
 import type { TransmissionBackdrop, WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -72,7 +71,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const rank = waterRankOf(item.flags);
     if (!rank) continue;
     const base = (rank - 1) * VOLUME_WORDS,
-      mat = visMaterial(item.material);
+      mat = item.surface;
     packed[base] = mat.transmission;
     packed[base + 1] = mat.ior;
     packed[base + 2] = mat.thickness;
