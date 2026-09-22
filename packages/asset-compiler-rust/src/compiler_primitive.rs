@@ -173,7 +173,8 @@ pub(super) fn compile_primitive(
         proxy_threshold,
         reused,
         dag_report,
-        told,
+        timings,
+        warnings,
         culling_report,
         structure_report,
         stream_report,
@@ -183,7 +184,8 @@ pub(super) fn compile_primitive(
     } else {
         DagResult::default()
     };
-    progress(primitive_event(mesh, *primitive, pages.len(), told));
+    let event = primitive_event(mesh, *primitive, pages.len(), timings, warnings);
+    progress(event);
     let quantization = compiler_page_object::quantization_report(&pages, position_exponent);
     Ok(CompiledPrimitive {
         cluster_planes,

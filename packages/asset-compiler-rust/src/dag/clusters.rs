@@ -149,7 +149,7 @@ pub fn weld_positions_and_uv(positions: &[f32], uv_sets: &[&[f32]], indices: &[u
     weld_by(positions.len() / 3, indices, |id| {
         let mut key = [0u32; 7];
         key[..3].copy_from_slice(&position_key(positions, id));
-        for (set, uvs) in uv_sets.iter().take(2).enumerate() {
+        for (set, uvs) in uv_sets.iter().enumerate() {
             let i = id as usize * 2;
             key[3 + 2 * set] = normalized_bits(uvs[i]);
             key[4 + 2 * set] = normalized_bits(uvs[i + 1]);
