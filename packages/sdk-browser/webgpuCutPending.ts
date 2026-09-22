@@ -1,6 +1,7 @@
 import type { PageRec } from './pageSelection.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
+import { awaitsPageBytes } from './webgpuPageSlots.ts';
 
 /**
  * Pages of the requested cut that do not yet have their bytes, held from one image to the next.
@@ -41,15 +42,15 @@ export function createCutPending(packedPages: readonly PageRec[], delta: CutDelt
       for (let i = 0; i < delta.enteredCount; i++) {
         const id = entries[i];
         const rec = packedPages[id];
-        if (!rec.array && slots[id] < 0) missing.add(id, rec);
+        if (awaitsPageBytes(rec) && slots[id] < 0) missing.add(id, rec);
       }
     },
     /** A page's bytes have just arrived or left; outside the cut, nothing to say of it. */
     touch(id: number) {
       if (!delta.has(id)) return;
       const rec = packedPages[id];
-      if (rec.array) missing.remove(id);
-      else missing.add(id, rec);
+      if (awaitsPageBytes(rec)) missing.add(id, rec);
+      else missing.remove(id);
     },
   };
 }

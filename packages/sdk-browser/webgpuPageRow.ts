@@ -41,6 +41,11 @@ export const packedRowBase = (row: number) => ((row + 1) << VIS_TRIANGLE_BITS) >
  *  primitive was uploaded into. Without either, the cluster takes no row. */
 export const rowHasGeometry = (rec: PageRec, position: GPUBuffer | undefined) =>
   !!rec.geometryPage || !!position;
+/** Corners the row draws: the count the cluster's own geometry page declares, or the length of the
+ *  index page for a cluster that still draws from one. A paged cluster never holds an index page —
+ *  nothing fetches it — and this is the only number the row ever wanted from it. */
+export const rowIndexCount = (rec: PageRec) =>
+  rec.geometryPage?.indexCount ?? rec.array?.length ?? 0;
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
   markRowDirty: (row: number) => void;
@@ -58,10 +63,10 @@ export function createPageRowWriter(resources: PageRowResources) {
     pageIndex: number,
     row: number,
     offsetWords: number,
-    index: Uint32Array,
     floats: Float32Array,
     ints: Uint32Array,
   ) => {
+    const indexCount = rowIndexCount(rec);
     const base = row * (PAGE_INFO_STRIDE / 4),
       material = constants.materialOf(rec.material),
       geo = rowGeometry(rec, geometryBlocks, block);
@@ -75,11 +80,11 @@ export function createPageRowWriter(resources: PageRowResources) {
     floats[base + 20] = mat.metalness;
     floats[base + 21] = mat.roughness;
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
-    assertVisibilityPageTriangles(index.length / 3, rec.url);
+    assertVisibilityPageTriangles(indexCount / 3, rec.url);
     ints[base + ROW_MAP_LAYER_WORD] = maps.map;
     ints[base + ROW_FLAGS_WORD] = maps.flags;
     ints[base + 24] = offsetWords;
-    ints[base + ROW_INDEX_WORDS] = index.length;
+    ints[base + ROW_INDEX_WORDS] = indexCount;
     ints[base + 26] = geo?.vertexBase ?? 0;
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
     ints[base + 30] = constants.hashOf(rec.clusterId);

@@ -3,6 +3,7 @@ import { createWebgpuRowWriters } from './webgpuRowWriters.ts';
 import { createWebgpuRowClaims, serveClaims } from './webgpuRowClaims.ts';
 import type { PageRec } from './pageSelection.ts';
 import { rowHasGeometry, type createPageRowWriter } from './webgpuPageRow.ts';
+import { awaitsPageBytes } from './webgpuPageSlots.ts';
 import type { createWebgpuRowState } from './webgpuRowState.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
@@ -84,7 +85,7 @@ export function createWebgpuRowSlots(
   const release = (page: number) => {
     const rec = packedPages[page],
       offsetWords = rows.residentOffsetWords[page];
-    const resident = offsetWords >= 0 && !!rec.array;
+    const resident = offsetWords >= 0 && !awaitsPageBytes(rec);
     const wantsRow = resident && !rec.transparent && rowHasGeometry(rec, rows.pagePositions[page]);
     setResident(page, resident && (!wantsRow || rowWritten(page)));
     if (wantsRow) return !rows.residentFlags[page];
