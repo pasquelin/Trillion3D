@@ -5,9 +5,13 @@
 // mirrored halves — over a checkerboard that names each of its cells in digits, so a slide of one
 // cell is visible on a capture.
 //
-//   node scripts/mesure/scenes/facade.ts [--seed 7] [--triangles 300000]
+//   node scripts/mesure/scenes/facade.ts [--seed 7] [--triangles 300000] [--islands brick]
 //
-// It writes `.mesure/assets/facade-<seed>/` (glTF, binary and PNG), which
+// `--islands brick` lays every wall out one texture island per brick instead: every position is
+// a seam corner, the layout whose stalled groups the DAG names mostly `seam-locked`.
+//
+// It writes `.mesure/assets/facade-<seed>/` (`facade-<seed>-bricks/` under `--islands brick`:
+// glTF, binary and PNG), which
 // `node scripts/mesure/assets.ts --only facade-<seed>` then compiles like any other scene.
 // =====================================================================================
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -114,10 +118,10 @@ export function facadeGltf(walls: WallMesh[]) {
 }
 
 /** Writes the scene folder and returns what it holds. */
-function writeFacade(directory: string, seed: number, triangles: number) {
+function writeFacade(directory: string, seed: number, triangles: number, bricks: boolean) {
   const plan = facadePlan(seed),
     subdivision = baySubdivision(plan, triangles),
-    walls = facadeWalls(plan, subdivision),
+    walls = facadeWalls(plan, subdivision, bricks),
     { binary, gltf } = facadeGltf(walls);
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, 'facade.bin'), binary);
@@ -138,8 +142,11 @@ function main() {
   const triangles = asked && asked !== 'true' ? Number(asked) : defaultTriangles(seed);
   if (!Number.isSafeInteger(seed) || !Number.isSafeInteger(triangles) || triangles < 1)
     throw new Error('--seed and --triangles must be integers, --triangles positive');
-  const scene = `facade-${seed}`;
-  const written = writeFacade(join(ASSETS, scene), seed, triangles);
+  const islands = flags.get('islands');
+  if (islands !== undefined && islands !== 'brick') throw new Error('--islands takes `brick`');
+  const bricks = islands === 'brick';
+  const scene = `facade-${seed}${bricks ? '-bricks' : ''}`;
+  const written = writeFacade(join(ASSETS, scene), seed, triangles, bricks);
   process.stdout.write(
     `${scene}: ${written.triangles} triangles, ${written.plan.bays.join('×')} bays, ` +
       `${written.plan.storeys} storeys, bay cut ${written.subdivision}², ` +

@@ -1,7 +1,8 @@
-use super::geometry::{albedo_of, cross, normalise, sub, surface_at};
+use super::geometry::{albedo_of, normalise, surface_at};
 use super::scene::World;
 use super::trace::{direct, scene_reach, trace};
 use super::OracleJob;
+use crate::shared_math::{cross, sub};
 use std::f64::consts::PI;
 
 /// Secondary bounce rays, relative to primary ones: variance that matters is first bounce,

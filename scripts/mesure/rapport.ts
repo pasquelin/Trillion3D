@@ -1,13 +1,12 @@
-// Statistics, image deltas, machine load and `resume.md`, for `banc.ts`.
-// The calculations are the SDK's: same quantiles, same image comparison everywhere.
+// Statistics, image deltas, machine load and `resume.md`, for `banc.ts`, on the SDK's calculations.
 import { loadavg } from 'node:os';
 import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
 import type { Capture } from './serveur.ts';
 import { cheminsCalcul } from './rapportCalcul.ts';
-import { p50p95, passes } from './rapportPasses.ts';
+import { p50p95, passes, type Distribution } from './rapportPasses.ts';
 import { textures } from './rapportTextures.ts';
 import { memoire } from './rapportMemoire.ts';
-import type { Distribution } from './rapportPasses.ts';
+import { stalls } from './rapportDag.ts';
 import type { ImageDiff, Report, Row } from './report/types.ts';
 
 /** p50/p95/p99 of a series, or `null` if it is empty: nothing is inferred from an absent series. */
@@ -164,6 +163,7 @@ export function resume(report: Report) {
     '',
     ...memoire(report),
     '',
+    ...stalls(report),
     '## A/A witness and before/after delta',
     '',
     '| view | pixelError | A/A witness (same side, two captures) | before vs after |',
