@@ -74,7 +74,10 @@ const bakedCache = {
 
 async function loadWith(t: TestContext, textureSource?: 'host' | 'cache') {
   const taken: string[] = [];
-  const answer = { scene: new THREE.Group(), parser: { associations: new Map() } };
+  // The parser carries the document it read, which the prepared-scene check reads its image
+  // sources from; here it is the one the fetch below serves.
+  const json = { images: [{ uri: 'a.png' }] };
+  const answer = { scene: new THREE.Group(), parser: { associations: new Map(), json } };
   t.mock.method(GLTFLoader.prototype, 'loadAsync', async () => {
     taken.push('loadAsync');
     return answer;
