@@ -21,7 +21,9 @@ test('triangle diagnostic expands indexed geometry and assigns a color per submi
 });
 
 test('triangle material is filled and unlit with vertex colors', () => {
-  const material = asHostLibrary<THREE.MeshBasicMaterial>(hostDiagnostics.triangleMaterial(THREE.FrontSide));
+  const material = asHostLibrary<THREE.MeshBasicMaterial>(
+    hostDiagnostics.triangleMaterial(THREE.FrontSide),
+  );
   assert.ok(material instanceof THREE.MeshBasicMaterial);
   assert.equal(material.wireframe, false);
   assert.equal(material.vertexColors, true);
