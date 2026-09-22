@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { Texture } from '../sdk-core/index.ts';
 import type { TextureRgba } from './visibilityTypes.ts';
 import { entryLevel, type TileLayout, type TilePlace } from './textureTiles.ts';
 import type { WebgpuTilePool } from './webgpuTilePool.ts';
@@ -22,7 +22,7 @@ import { tailId, tileId, tileKeyOf } from './webgpuTileIds.ts';
 type TileSource =
   | { kind: 'bytes'; tail: TailBytes }
   | { kind: 'baked'; sha256: string; atlas: number; tail: TailBytes }
-  | { kind: 'host'; map: THREE.Texture; rgba: TextureRgba | null };
+  | { kind: 'host'; map: Texture; rgba: TextureRgba | null };
 
 /** A texture of the atlas: its tile geometry, the lane whose pool holds it, its texels. */
 export type TileTexture = { layout: TileLayout; lane: PoolLane; source: TileSource };

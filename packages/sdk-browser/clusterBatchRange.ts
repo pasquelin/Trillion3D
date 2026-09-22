@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+import type { HostAttributes, HostMaterials } from './hostResources.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 /** Structural shape of a page record. Deliberately structural: no coupling to pageSelection.ts. */
 export type BatchPage = {
@@ -8,11 +9,11 @@ export type BatchPage = {
   triangles: number;
   min: number[];
   max: number[];
-  attributes: THREE.BufferGeometry['attributes'];
-  material: THREE.Material | THREE.Material[];
+  attributes: HostAttributes;
+  material: HostMaterials;
   transparent?: boolean;
   sourceOrder?: number;
-  matrix: THREE.Matrix4;
+  matrix: MatrixElements;
   renderOrder: number;
   /** Coplanar depth layer, 0 for a cluster the compiler left alone. */
   depthLayer?: number;

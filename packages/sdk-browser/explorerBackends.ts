@@ -1,27 +1,26 @@
 import * as THREE from 'three';
-import { webgpuPagesBackend } from './webgpuPages.ts';
-import { autonomousPagesBackend } from './autonomousPages.ts';
-import { DEFAULT_BACKENDS } from './defaultBackends.ts';
+import type { HostNode } from './hostResources.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../sdk-core/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
 import { createTextureLevelReader } from './textureLevelReader.ts';
 import { resolveDiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 import { declareImportedLights, loadImportedLights } from './importedLights.ts';
-import type { BackendContext, RenderBackend } from './backendTypes.ts';
+import type { BackendContext, BackendFactory, RenderBackend } from './backendTypes.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 
 type Inputs = {
   source: THREE.Object3D;
-  sceneLightingSource?: THREE.Object3D;
+  sceneLightingSource?: HostNode;
   associations: BackendContext['associations'];
   textureIndices: Map<THREE.Texture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
   gpuDevice?: GPUDevice;
   webglContext?: WebGL2RenderingContext;
   directGpu: boolean;
-  autonomous: boolean;
+  /** The engine paths this session renders through, already chosen (`chooseBackends`). */
+  factories: BackendFactory[];
   backends: RenderBackend[];
   /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string;
@@ -38,7 +37,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     gpuDevice,
     webglContext,
     directGpu,
-    autonomous,
+    factories,
     backends,
     base,
   } = inputs;
@@ -126,10 +125,6 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     sceneLights,
     importedLightIds,
   };
-  const factories = autonomous
-    ? [autonomousPagesBackend]
-    : (options.backends ??
-      (gpuDevice ? [...DEFAULT_BACKENDS, webgpuPagesBackend] : DEFAULT_BACKENDS));
   for (const factory of factories) {
     const backend = factory(context);
     if (backends.some((b) => b.id === backend.id)) throw new Error('Duplicate backend id');

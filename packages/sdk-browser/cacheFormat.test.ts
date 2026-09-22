@@ -38,17 +38,19 @@ for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
           { headers: { 'Content-Type': 'application/json' } },
         ),
     );
-    const sourceBoundary = new Error('source-load-boundary');
-    t.mock.method(GLTFLoader.prototype, 'loadAsync', async () => {
-      throw sourceBoundary;
+    const load = t.mock.method(GLTFLoader.prototype, 'loadAsync', async () => {
+      throw new Error('source-load-boundary');
     });
+    // #274: the machine is read before the source. An accepted format therefore stops at the
+    // capability floor here — no WebGL2 under Node — and never asks for the glTF.
     await assert.rejects(
       createExplorer({ nodeName: 'CANVAS', getContext() {} } as unknown as HTMLCanvasElement, {
         manifestUrl: 'http://localhost/manifest.json',
         scope: 'full',
       }),
-      (error) => error === sourceBoundary,
+      (error: unknown) => error instanceof EngineError && error.code === 'NO_WEBGL2',
     );
+    assert.equal(load.mock.callCount(), 0);
   });
 test('explorer rejects an unsupported pointer format before requesting metadata', async (t) => {
   const prior = Object.getOwnPropertyDescriptor(globalThis, 'location');

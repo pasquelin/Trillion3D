@@ -1,4 +1,5 @@
 // per-pixel shading of the CPU visbuffer.
+import { importHostTexture } from '../hostSurfaceImport.ts';
 import * as THREE from 'three';
 import { shadeLit } from '../visibilityLighting.ts';
 import { triangleAt } from '../visibilityMath.ts';
@@ -30,7 +31,7 @@ function texture(depart: number) {
   map.image = { data, width: 8, height: 8 };
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.ClampToEdgeWrapping;
-  return map;
+  return importHostTexture(map);
 }
 
 function page(depart: number) {

@@ -1,10 +1,11 @@
-import type * as THREE from 'three';
+import type { HostNode, HostScene, HostTexture } from './hostResources.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import type { HostDrawOutput } from './webglRenderTarget.ts';
 import type {
   BackendCapabilities,
   ClusterManifest,
   DiagnosticMode,
+  Material,
   SceneLightStore,
   StageProfile,
 } from '../sdk-core/index.ts';
@@ -18,9 +19,8 @@ export interface RenderBackend {
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
   refreshSceneLighting?(): void;
-  /** True when the rendered scene carries at least one declared light. False = unlit view, whose
-   *  composition is identity (P6). Absent from an engine that does not go through Three. Read every
-   *  frame: a light placed after engine creation changes the answer. */
+  /** True when the rendered scene carries at least one declared light; false is the unlit view,
+   *  whose composition is identity (P6). Read every frame: a light added later changes it. */
   sceneLit?(): boolean;
   /** The contract light store has changed: the next frame will reread it. Absent = lights ignored. */
   refreshSceneLights?(): void;
@@ -42,7 +42,7 @@ export interface RenderBackend {
   /** True when the last rendered frame was held: nothing was reselected or rebuilt, and the
    *  attached scene IS this frame. Read per frame; absent from an engine that holds nothing. */
   readonly frameHeld?: boolean;
-  scene: THREE.Scene;
+  scene: HostScene;
   /** Canvas the engine presented its image into, when that canvas is not the host's own surface:
    *  a host composing elsewhere copies it (`createBackendPresenter`) instead of drawing `scene`.
    *  Absent from an engine drawing on the host surface itself, and withdrawn — canvas blanked —
@@ -90,11 +90,12 @@ export interface RenderBackend {
   ): void;
   acceptGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
   replaceGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
-  /** Additional prepared-scene instance; supported by backends that own mutable scene records. */
-  addInstance?(id: string, transform: THREE.Matrix4): void;
-  updateInstance?(id: string, transform: THREE.Matrix4): void;
+  /** Prepared-scene instance placed by sixteen column-major floats the engine copies. */
+  addInstance?(id: string, transform: Float64Array): void;
+  updateInstance?(id: string, transform: Float64Array): void;
   removeInstance?(id: string): void;
-  updateMaterial?(primitive: string, material: THREE.Material): void;
+  /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
+  updateMaterial?(primitive: string, material: Material): void;
   dropPage?(url: string): void;
   syncResident?(): void;
   flush?(): Promise<void>;
@@ -123,12 +124,12 @@ export type BackendDiagnostic = {
   createdAt?: number;
 };
 export interface BackendContext {
-  source: THREE.Object3D;
+  source: HostNode;
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
-  associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>;
+  associations: Map<HostNode, { meshes?: number; primitives?: number }>;
   /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
-  textureIndices?: Map<THREE.Texture, number>;
+  textureIndices?: Map<HostTexture, number>;
   /** Reader of texture levels baked in the cache; absent from a cache that has none. */
   readTextureLevel?: import('./textureLevelReader.ts').TextureLevelReader;
   signal?: AbortSignal;
@@ -169,7 +170,7 @@ export interface BackendContext {
   /** Temporal antialiasing, on by default as in the reference: `false` renders the
    *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
   temporalAntialiasing?: boolean;
-  sceneLighting?: THREE.Object3D;
+  sceneLighting?: HostNode;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
   /** Identifiers of the lights the source file carried, in cache order; the host rereads them

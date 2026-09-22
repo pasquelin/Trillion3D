@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostAttribute, HostAttributes } from './hostResources.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 
 /**
@@ -20,7 +20,7 @@ function upload(device: GPUDevice, data: ArrayBufferView, floor: number, tally: 
 /** Indices of an unpaged transparent geometry, shared by all of its placements. */
 export function ensureBlendIndexBuffer(
   device: GPUDevice,
-  index: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  index: HostAttribute,
   gpu: WebgpuGpuState,
 ) {
   const held = gpu.blendIndexBuffers.get(index);
@@ -35,7 +35,7 @@ export function ensureBlendIndexBuffer(
 /** UVs of a transparent geometry, unfolded once for all of its instances. */
 export function ensureBlendUvBuffer(
   device: GPUDevice,
-  attributes: THREE.BufferGeometry['attributes'],
+  attributes: HostAttributes,
   gpu: WebgpuGpuState,
 ) {
   if (gpu.blendUvBuffers.has(attributes)) return gpu.blendUvBuffers.get(attributes);
@@ -56,7 +56,7 @@ export function ensureBlendUvBuffer(
 /** Normal and tangent of a transparent geometry, in the same buffer and the same order as before. */
 export function ensureBlendNormalBuffer(
   device: GPUDevice,
-  attributes: THREE.BufferGeometry['attributes'],
+  attributes: HostAttributes,
   gpu: WebgpuGpuState,
 ) {
   if (gpu.blendNormalBuffers.has(attributes)) return gpu.blendNormalBuffers.get(attributes);
