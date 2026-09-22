@@ -1,3 +1,5 @@
+import { LTC_UNIT } from './webglClusterRectGlsl.ts';
+
 export class Matrix3UniformCache {
   private values = new Map<string, Float32Array>();
   private gl: WebGL2RenderingContext;
@@ -38,6 +40,7 @@ export const setClusterSamplers = (
     'backdropDepth',
   ];
   for (let unit = 0; unit < names.length; unit++) gl.uniform1i(location(names[unit]), unit);
+  gl.uniform1i(location('ltcTable'), LTC_UNIT);
 };
 
 export const setMatrix3 = (
