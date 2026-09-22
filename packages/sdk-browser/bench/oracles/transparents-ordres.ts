@@ -22,18 +22,25 @@ export interface ReferenceScene {
 
 /** The previous plan: the item rank, the pipeline in the two low bits, and nothing more. */
 const planItem = (entry: number) => entry >>> 2;
-const PIPELINE_FRONT = 1,
+const PIPELINE_NONE = 0,
+  PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 
-/** `webgpuBlendPlan.ts` from before: the two entries of a double-sided item, back then front. */
+/** `webgpuBlendPlan.ts` from before: the two entries of a double-sided item, back then front.
+ *  The item carries the engine's surface record where it carried a host material (#288); the three
+ *  host face constants this copy tested are that record's two booleans, one for one —
+ *  `DoubleSide` is `doubleSided`, `BackSide` is `backSide`, `FrontSide` is neither. Nothing else
+ *  of the copy moved: a double-sided item drawn in ONE pass falls through all three tests and
+ *  plans `PIPELINE_NONE`, as it did. */
 function sidesOf(item: BlendGpuItem) {
   const surface = item.surface;
   const renverse = matrixWindingCw(item.matrix.elements);
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT;
   if (surface.doubleSided && !surface.forceSinglePass) return [back, front];
+  if (!surface.doubleSided && !surface.backSide) return [front];
   if (surface.backSide) return [back];
-  return [front];
+  return [PIPELINE_NONE];
 }
 
 /** The previous blend plan, seeded in source order. */
