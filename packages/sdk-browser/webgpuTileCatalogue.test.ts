@@ -1,3 +1,4 @@
+import { importHostTexture } from './hostSurfaceImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -22,7 +23,7 @@ const preview = (width: number, height: number, bakedLevels: number): TexturePre
 const map = () => {
   const texture = new THREE.Texture();
   texture.image = { data: new Uint8Array(4 * 4 * 4), width: 4, height: 4 };
-  return texture;
+  return importHostTexture(texture);
 };
 const reader = async () => {
   throw new Error('never read here');

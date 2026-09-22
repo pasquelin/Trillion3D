@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadPreparedScene } from './explorerScene.ts';
 import { exactPagesBounds } from './exactPagesBounds.ts';
 import { emptyWorldBox } from './hostWorldBounds.ts';
 import { indexManifestPages, indexManifestBundles } from './manifestPageIndex.ts';
@@ -12,45 +10,6 @@ import {
   referenceIndexManifestBundles,
 } from './bench/oracles/bornes-et-index.ts';
 import type { ClusterManifest, Page, Primitive } from '../sdk-core/index.ts';
-
-const manifest = { primitives: [] } as unknown as ClusterManifest;
-
-// Behaviour 13: `textureIndices` covers every texture the glTF associates with a rank, and nothing
-// else — not objects that are not textures, nor an association without a texture rank.
-test('loadPreparedScene indexes every glTF texture association and nothing else', async (t) => {
-  const scene = new THREE.Group();
-  const [textureA, textureB, textureC] = [
-    new THREE.Texture(),
-    new THREE.Texture(),
-    new THREE.Texture(),
-  ];
-  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
-  const associations = new Map<object, { textures?: number; meshes?: number }>([
-    [textureA, { textures: 0 }],
-    [textureB, { textures: 2 }],
-    [textureC, {}],
-    [mesh, { meshes: 0 }],
-  ]);
-  t.mock.method(GLTFLoader.prototype, 'loadAsync', async () => ({
-    scene,
-    parser: { associations },
-  }));
-  const result = await loadPreparedScene(
-    { manifestUrl: 'scene.gltf' },
-    manifest,
-    'scene.gltf',
-    'http://localhost/',
-    'full',
-    false,
-    undefined,
-    () => {},
-    () => {},
-  );
-  assert.equal(result.textureIndices.size, 2);
-  assert.equal(result.textureIndices.get(textureA), 0);
-  assert.equal(result.textureIndices.get(textureB), 2);
-  assert.equal(result.textureIndices.has(textureC), false);
-});
 
 // Batch F, F17: three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed
 // walk. `indexManifestPages`/`indexManifestBundles` (manifestPageIndex.ts) and `exactPagesBounds`

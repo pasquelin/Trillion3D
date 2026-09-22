@@ -132,6 +132,14 @@ This first #78 lot is the hierarchy foundation only. `createExplorer` does not a
 `SceneRoot` yet. Engine materials, texture references, frame hooks, and browser-contract migration
 remain later #78 lots; lights continue to use the existing `SceneLight` version 2 contract.
 
+The same transform tree already carries the frame. A prepared host subtree is mirrored into one
+engine tree when the scene index is built; every later pass enters only the pose numbers the host
+moved — each compared bit for bit against what the tree holds — and then runs the world update
+without `force`, so a node moved out of two thousand costs the chain under it instead of the
+scene. The pose a page record, a cluster root or a transparent copy carries is a sixteen-number
+view on that tree's world buffer: a pass rewrites it in place, nothing is copied and nothing can
+go stale.
+
 ## Batch math for hosts
 
 A host that moves ten thousand instances or culls ten thousand boxes writes the loop itself with a
@@ -312,9 +320,11 @@ An initially hidden/zero-size canvas needs explicit dimensions or must be shown 
 a canvas hidden later retains its last dimensions until visible. Invalid initial sizes/DPR fail.
 The host retains ownership of CSS layout and the canvas element.
 
-The simple path prepares only the direct WebGPU backend. Unavailable WebGPU rejects startup
-with `WEBGPU_UNAVAILABLE`; there is no silent change of lighting or rendering capability.
-An explicit `backends` list or `autonomousGeometry` retains its own capability contract.
+The simple path prepares only the engine's own backend, chosen from the machine (see "Which
+backend renders by default" below). A host that names `backends: [webgpuPagesBackend]` and gets
+no device is still rejected with `WEBGPU_UNAVAILABLE`: an explicit list never silently changes
+lighting or rendering capability. An explicit `backends` list or `autonomousGeometry` retains
+its own capability contract.
 `scope` still defaults to `slice`: keep `scope: 'full'` for a full cache. Memory pools retain
 their bounded 512 MiB geometry / 512 MiB texture defaults; the earlier 16/128 MiB example
 was an explicit budget choice and remains available through overrides.
@@ -343,11 +353,39 @@ Its first argument is the job identifier, separate from the canvas ID.
 
 Without `interactive: true`, `createExplorer(canvas, { manifestUrl, scope, width, height, fov, pixelRatio, maxResidentPages, pageFetchWorkers, replicaCount, backends, pixelError, preload, comparisonLayout, comparisonPair, gpu, pointsOfInterest, ... })` owns neither the animation loop nor the canvas. Call `dispose()` when finished; hosted Orbit/Fly controls created through the explorer are disposed with it. The default camera is framed from the loaded bounding box (`near = radius / 10000`, no absolute floor). `pointsOfInterest()` returns that home pose; extra named poses come from the host `pointsOfInterest` option, not from the SDK. `pixelError` (default `0`) keeps the exact leaves; a positive threshold selects coarse QEM pages when the cache includes them. `preload: 'visible'` (default) streams detail for the current camera; WebGPU first loads a complete, camera-independent root cover before explorer creation resolves; `preload: 'all'` restores the previous eager load. `awaitPages()` must be called before the first official image when using the visible preload. Comparison layouts (`single`, `side-by-side`, `wipe`, `toggle`, `difference`) render backends A and B to detached targets with the same camera; they are not an official performance verdict.
 
-What the engine computes for itself — matrices, vectors, colours, its camera, the side of a material — it builds on `sdk-core` (`engineCamera.ts`, `materialSide.ts`), not on host-library objects — one exception left, the secondary capture view of `webgpuPagesSurfaceCapture.ts`, which enters the frame gate as a host camera until #78; the functions and their proofs are listed batch by batch in [`docs/API.md`](API.md). The host contract itself — the `THREE.Scene` handed to `createExplorer` and the `THREE.PerspectiveCamera` read once per frame — holds until the engine-owned scene model lands (#78).
+What the engine computes for itself — matrices, vectors, colours, its camera, the side of a material — it builds on `sdk-core` (`engineCamera.ts`, `materialSide.ts`), not on host-library objects — one exception left, the secondary capture view of `webgpuPagesSurfaceCapture.ts`, which enters the frame gate as a host camera until #78; the functions and their proofs are listed batch by batch in [`docs/API.md`](API.md). Since #269 the contract itself no longer names that library: a material, a texture, a geometry attribute, a mesh and a scene node cross it as the shapes of `hostResources.ts` (`HostMaterial`, `HostTexture`, `HostAttributes`, `HostMesh`, `HostNode`, `HostScene`), a placement as a `Float64Array(16)`, and `explorer.updateMaterial` as the engine's own `Material` (`sdk-core/materialContract.ts`) — parameters imported from the manifest, no shader and no program hook. Since #271 the resources themselves stop at that boundary too: `hostSurfaceImport.ts` reads a host material and its textures in one place into the engine's `Material` and `Texture` (`sdk-core/materialContract.ts`, `sdk-core/textureContract.ts`), addressing and filtering in the engine's own words, and every pass, page row, tile pool and transparent item computes on those records alone. The material is re-read at every call, so a reassigned material or a replaced map is seen as it stands; a texture, addressed by the identity of its record, is read once and refilled when the host bumps `texture.version`. **A host that changes anything a sampler declares — its wrap modes, its filters, its anisotropy, its colour space, or the `KHR_texture_transform` offset, repeat and rotation the engine composes into `transform` — bumps that version**, exactly as it already must for the texels; the host library does it through `needsUpdate` for everything but the UV transform, which the host composes itself. A host still hands its own display graph and its perspective camera to `createExplorer`, and the witnesses convert at their own boundary through `asHostLibrary`; the engine-owned scene model is the following lot of #78.
 
 The host camera declares its own clip-depth convention through `camera.coordinateSystem`, and both are supported: `[-1, 1]` (WebGL, the default of the camera the explorer builds) and `[0, 1]` (WebGPU). It is read once per frame into the engine camera and applies to the frustum planes, the view-projection the GPU consumes, the Hi-Z bounds and the CPU visibility raster alike; a camera reaching the engine through `restoreAfterCampaign` or a backend's own `render(camera)` carries its convention with it. The engine never rewrites `coordinateSystem`; a projection matrix inconsistent with the declared convention is the host's own error.
 
 `autonomousGeometry: true` selects the prepared-page WebGL2 backend for wholly static opaque/masked assets. It reads `scene.gltf` and verified geometry pages without downloading the full source geometry buffer; a complete root cover is resident before rendering and useful detail streams afterward. The mode rejects caches without `autonomousScene`, BLEND/skinned/morph scenes and custom backend lists. Existing WebGPU and Three comparison paths still use `source.gltf` and its complete geometry buffer. Material images remain eager in this mode, and GPU-driven selection, indirect drawing and hybrid rasterization are not provided by this WebGL2 path.
+
+### Which backend renders by default
+
+`createExplorer({ manifestUrl })` with no `backends` option renders through the engine's own path,
+never through a Three witness. The choice is made once, before the scene is read, from what the
+machine and the cache offer, and is reported by the `backend-choice` diagnostic with its `origin`
+(`default` or `host`) and the `reason` that decided it.
+
+| Machine / cache                                                  | Backend that renders  | Scene file read       |
+| ---------------------------------------------------------------- | --------------------- | --------------------- |
+| A WebGPU device was granted                                        | `webgpu-page-raster`  | `source.gltf`         |
+| WebGL2 only, cache carries `autonomousScene`                       | `autonomous-pages-webgl` chosen — it does not render yet, see below | the cache's `scene.gltf` |
+| WebGL2 only, cache carries no `autonomousScene`                    | none — `EngineError('NO_ENGINE_BACKEND')` | — |
+| No WebGL2 at all                                                   | none — `EngineError('NO_WEBGL2')` | — |
+
+Known limit on a WebGL2-only machine: the chosen `autonomous-pages-webgl` path does not produce
+an image today. On `site/assets/kinetic-garden`, the repository's only cache in the current
+format, its preparation stops with `EngineError('AUTONOMOUS_COVERAGE_MISSING')` — the prepared
+scene does not cover every page the cut requires. Such a machine therefore gets a named failure
+rather than a picture. The gap is in that WebGL2 path itself, not in the selection above, and it
+is lifted by #78. A host that must draw on such a machine names a backend itself —
+`backends: [exactPagesBackend]`, which is what the comparison views and the bench do.
+
+`referenceBackend`, `exactPagesBackend` and `threeLodBackend` are the Three witnesses of the
+comparison views and the bench: they are opt-in, reached only through `options.backends`, and a
+host that asked for nothing never gets one. `chooseBackends(options, metadata, gpuDevice)` is
+exported so a host can read the same decision before opening a session, and
+`autonomousCacheReady(metadata)` answers whether a cache carries the prepared autonomous scene.
 
 `runCameraPath` is a campaign helper: exact A/A image gate, then timed blocks. It is not a general performance verdict. Hosts that already switch backends in the UI should replay the same pose list per backend; do not mix engines inside one timed block.
 
@@ -548,7 +586,7 @@ order.
 
 `setEnvironment({ exposure })` sets camera exposure, applied to linear radiance immediately before ACES. It is not a light: it cannot brighten a surface no declared light reaches, and a scene without lights stays black whatever its value.
 
-The transparent path still uses the authored Three.js light graph and its fixed ambient, so `sceneLighting?: THREE.Object3D` still supplies that graph (falling back to the loaded glTF graph, then to a hemisphere/sun rig), still adapts directional, point, spot, hemisphere and ambient lights to a bounded buffer (maximum 256 visible lights; excess and unsupported types fail explicitly), and `explorer.refreshSceneLighting()` still applies after adding or removing lights there. Extending the no-implicit-light rule to transparents is later work. Environment-map lighting, area lights, probes and global illumination are not implemented.
+The transparent path still uses the authored Three.js light graph and its fixed ambient, so `sceneLighting?: HostNode` still supplies that graph (falling back to the loaded glTF graph, then to a hemisphere/sun rig), still adapts directional, point, spot, hemisphere and ambient lights to a bounded buffer (maximum 256 visible lights; excess and unsupported types fail explicitly), and `explorer.refreshSceneLighting()` still applies after adding or removing lights there. Extending the no-implicit-light rule to transparents is later work. Environment-map lighting, area lights, probes and global illumination are not implemented.
 
 For `backends: [webgpuPagesBackend]`, `createExplorer` configures the host canvas with its own `GPUCanvasContext` and the engine writes the final image into it; no WebGL renderer is created. A mixed-backend explorer composes on a WebGL2 surface instead: the engine presents into a canvas of its own, publishes it as `presentedSurface` on the backend, and the host copies it there with the engine's own full-screen program (`createBackendPresenter`) — no texture, material or mesh of a rendering library takes part, and the bytes go through unchanged. `presentedSurface` is published only while its image is current: a lost or disposed device withdraws it and blanks the canvas, on either path, before the next call raises `WEBGPU_LOST`, and the loss is announced once, after that withdrawal, by the `gpu-device-lost` diagnostic (`code: 'WEBGPU_LOST'`, `reason`: the device's own, `unknown` when its `lost` promise rejected, `uncaptured-error` or `residency`) — no host composes a frame older than the device. The browser proof (`test/browser/surface-appareil-perdu.browser.ts`) covers the composed path; the direct path shares the presenter code that blanks the canvas. This cross-API composition has a separate cost and must not be conflated with direct presentation. Neither normal path calls `copyTextureToBuffer` for the image. No physical zero-copy or performance gain is claimed without browser measurements. Geometry-selection feedback is separate from image readback and still exists.
 

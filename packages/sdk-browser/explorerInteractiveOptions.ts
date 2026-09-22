@@ -1,5 +1,6 @@
 import { EngineError } from '../sdk-core/index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
+import type { BackendFactory } from './backendTypes.ts';
 import type { ExplorerOptions } from './explorerOptions.ts';
 
 /** CSS owns layout; drawing-buffer attributes must never resize the observed layout. */
@@ -26,17 +27,21 @@ export function interactiveOptions(canvas: HTMLCanvasElement, options: ExplorerO
   if (!options.interactive) return options;
   if (!canvas.ownerDocument.defaultView)
     throw new EngineError('CANVAS_WINDOW_UNAVAILABLE', 'Interactive rendering requires a window');
-  return {
-    ...options,
-    ...interactiveSize(canvas, options),
-    backends: options.backends ?? (options.autonomousGeometry ? undefined : [webgpuPagesBackend]),
-  };
+  // No backend is forced here: `chooseBackends` reads the machine and takes the engine path
+  // it allows, so an interactive host without WebGPU falls back instead of failing.
+  return { ...options, ...interactiveSize(canvas, options) };
 }
 
-/** Preserve manual backend selection; the simple WebGPU path never silently changes capabilities. */
-export function directWebgpu(options: ExplorerOptions, device: GPUDevice | undefined) {
-  const requested = options.backends?.length === 1 && options.backends[0] === webgpuPagesBackend;
-  if (options.interactive && requested && !device)
+/** The WebGPU page raster presents its own surface when it is the session's only engine. A host
+ *  that named it explicitly and got no device is refused by name: an explicit backend list never
+ *  silently changes capabilities. A host that named nothing is served the fallback instead. */
+export function directWebgpu(
+  options: ExplorerOptions,
+  factories: BackendFactory[],
+  device: GPUDevice | undefined,
+) {
+  const requested = factories.length === 1 && factories[0] === webgpuPagesBackend;
+  if (options.interactive && options.backends && requested && !device)
     throw new EngineError(
       'WEBGPU_UNAVAILABLE',
       'Interactive startup requires WebGPU; choose an explicit backend for another capability set',

@@ -1,3 +1,4 @@
+import type { HostMaterials } from './hostResources.ts';
 import {
   CONE_LENGTH_RATIO,
   CONE_ORTHO_EPS,
@@ -6,7 +7,6 @@ import {
   linearPartScale,
   normalMatrix3,
 } from '../sdk-core/index.ts';
-import type * as THREE from 'three';
 import { sideOf } from './materialSide.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
@@ -109,7 +109,7 @@ export function coneCullsPageWith(
   world: MatrixElements,
   min: number[],
   max: number[],
-  material?: THREE.Material | THREE.Material[],
+  material?: HostMaterials,
 ): boolean {
   if (material && sideOf(material) !== 'front') return false;
   if (!ctx.conformal) return false;
@@ -135,7 +135,7 @@ export function coneCullsPage(
   min: number[],
   max: number[],
   eye: ArrayLike<number>,
-  material?: THREE.Material | THREE.Material[],
+  material?: HostMaterials,
 ): boolean {
   return coneCullsPageWith(
     coneContextFor(loneContext, world, eye),

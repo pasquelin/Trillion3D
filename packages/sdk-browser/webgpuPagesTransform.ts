@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { asHostLibrary, type HostMesh, type HostNode } from './hostResources.ts';
 import {
   BOX_VALUES,
   EngineError,
@@ -29,7 +30,8 @@ const local = new Float64Array(16),
   moved = new Float64Array(BOX_VALUES);
 
 /** The named node of the prepared scene, or `undefined`: the search is a walk, not an index. */
-function findNode(source: THREE.Object3D, nodeName: string) {
+function findNode(node: HostNode, nodeName: string) {
+  const source = asHostLibrary<THREE.Object3D>(node);
   let found: THREE.Object3D | undefined;
   source.traverse((node) => {
     if (!found && node.name === nodeName) found = node;
@@ -131,8 +133,10 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     unionInto(root.worldBox);
   }
   layout.rows.tableEpoch++;
-  // Origin of the scene change: this subtree's world matrices have just been rewritten.
-  run.gate.sceneChanged();
+  // Origin of the scene change: this subtree's world matrices have just been rewritten. Only
+  // poses moved — no node entered or left the scene — so the watched set is left as it stands
+  // instead of being rebuilt from a walk of the source graph on the next image.
+  run.gate.sceneMoved();
   // The hierarchy already carries this revision's matrices: the next image does not climb it.
   run.gate.noteWorldsUpdated();
   invalidateOccluderHistory(run);
@@ -150,7 +154,8 @@ function unionInto(box: Float64Array) {
 }
 
 /** True when `mesh` is the moved node or one of its descendants. */
-function isUnder(mesh: THREE.Object3D | undefined, node: THREE.Object3D) {
+function isUnder(source: HostMesh | undefined, node: THREE.Object3D) {
+  const mesh = asHostLibrary<THREE.Object3D | undefined>(source);
   let walk: THREE.Object3D | null = mesh ?? null;
   while (walk) {
     if (walk === node) return true;

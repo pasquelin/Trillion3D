@@ -32,7 +32,6 @@ export const DOCUMENTED_GAPS: ExportRow[] = [
   gap('PATH_MIN_SAMPLES', 'value', 'packages/sdk-core/mathPathGovernor.ts', 'core', ENUMS),
   gap('PATH_SWITCH_RUNS', 'value', 'packages/sdk-core/mathPathGovernor.ts', 'core', ENUMS),
   gap('SINGULAR_DETERMINANT', 'value', 'packages/sdk-core/mathSingular.ts', 'core', MATRIX),
-  gap('Side', 'type', 'packages/sdk-browser/materialSide.ts', 'browser', ENUMS),
   gap('adjugateFactor', 'value', 'packages/sdk-core/mathSingular.ts', 'core', MATRIX),
   gap('createEngineCamera', 'value', 'packages/sdk-browser/engineCamera.ts', 'browser', CAMERA),
   gap('defaultEngineCamera', 'value', 'packages/sdk-browser/engineCamera.ts', 'browser', CAMERA),
