@@ -1,4 +1,4 @@
-import { multiplyMatrix4 } from '../sdk-core/index.ts';
+import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type {
   HostAttribute,
   HostAttributes,
@@ -151,15 +151,18 @@ export function rasterPages(
 }
 
 const projection = new Float64Array(16),
+  viewWorld = new Float64Array(16),
   view = new Float64Array(16),
   viewProjection = new Float64Array(16);
 /** Clip matrix of the drawn view, as the host composed it: its own projection, finite far plane
- *  included, times the inverse of the world pose the contract resolves. */
+ *  included, times the inverse of the world pose the contract resolves. The inverse is taken
+ *  here, in buffers the engine owns, rather than read off the camera the host handed over. */
 function cameraViewProjection(camera: HostCamera) {
   // Callable function alone: it resolves its own pose (contract: `cameraWorld.ts`).
   resolveCameraWorld(camera);
   copyElements(projection, camera.projectionMatrix.elements);
-  copyElements(view, camera.matrixWorldInverse.elements);
+  copyElements(viewWorld, camera.matrixWorld.elements);
+  invertMatrix4(view, viewWorld);
   multiplyMatrix4(viewProjection, projection, view);
   return viewProjection;
 }

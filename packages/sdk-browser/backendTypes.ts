@@ -5,6 +5,7 @@ import type {
   HostTexture,
   HostTraversable,
 } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import type { HostDrawOutput } from './webglRenderTarget.ts';
 import type {
@@ -18,9 +19,8 @@ import type {
 import type { BackendMetrics } from './backendMetricKeys.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 import type { CpuStepSummary } from './cpuProfile.ts';
-export type { BackendCapabilities, HostDrawOutput };
 import type { BackendDiagnostic, DiagnosticDetail } from './backendDiagnosticTypes.ts';
-export type { BackendDiagnostic, DiagnosticDetail };
+export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
 
 export interface RenderBackend {
   id: string;
@@ -124,7 +124,7 @@ export interface RenderBackend {
   dispose(): void;
 }
 export interface BackendContext {
-  source: HostTraversable;
+  source: HostGraphNode;
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
   associations: Map<HostNode, { meshes?: number; primitives?: number }>;

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import type { ClusterManifest, GeometryPageDescriptor, Page } from '../../../sdk-core/index.ts';
 import type { BackendContext } from '../../backendTypes.ts';
 import { meshes as objects } from '../../sceneMeshes.ts';
+import { asHostLibrary } from '../../hostResources.ts';
 
 /** A manifest page whose optional `geometry` descriptor is present. */
 type PageWithGeometry = Page & { geometry: GeometryPageDescriptor };
@@ -20,7 +21,8 @@ export function referenceExactPagesBounds(
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it
   // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true);
-  for (const mesh of objects(source)) {
+  for (const sourceMesh of objects(source)) {
+    const mesh = asHostLibrary<THREE.Mesh>(sourceMesh);
     const association = associations.get(mesh);
     const primitive = metadata.primitives.find(
       (item) =>

@@ -1,5 +1,6 @@
 import { EngineError } from '../sdk-core/index.ts';
 import type { HostNode } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import { hostWorldTree, type HostWorldTree } from './hostWorldTree.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
@@ -42,7 +43,7 @@ function assertStable(tree: HostWorldTree) {
 
 /** World-matrix index of `source`, ready to be read: the pass is that of the core tree
  *  (`hostWorldTree.ts`), which accepts both a node that recomposes its pose and a posed node. */
-export function hostWorldPlacements(source: HostNode): HostWorldPlacements {
+export function hostWorldPlacements(source: HostGraphNode): HostWorldPlacements {
   // No lot: the pass runs on the tree, whose per-node views stay valid for the index's life.
   const tree = hostWorldTree(source);
   assertStable(tree);

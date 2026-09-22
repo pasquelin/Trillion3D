@@ -95,7 +95,7 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  */
 export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | undefined) {
   const { run, vis, capture, diag } = rt;
-  if (!gpuDevice || !run.lastCamera || run.lost || capture.secondaryCamera) return;
+  if (!gpuDevice || !run.lastCamera || run.lost || capture.capturing) return;
   let rounds = 0,
     served = 0,
     drains = 0;

@@ -21,7 +21,8 @@ import {
   type TableNode,
   type Texture,
 } from '../sdk-core/index.ts';
-import type { HostNode, HostTexture } from './hostResources.ts';
+import type { HostTexture } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import { checked } from './clusterPages.ts';
 import { meshes as objects } from './sceneMeshes.ts';
 import { hostWorldChainInto } from './hostWorldChain.ts';
@@ -118,7 +119,7 @@ function takePose(group: Group, matrix: Float64Array, key: string) {
 
 type Inputs = {
   tables: PreparedSceneTables;
-  source: HostNode;
+  source: HostGraphNode;
   associations: BackendContext['associations'];
   textureIndices: ReadonlyMap<HostTexture, number>;
   imageSources?: readonly (string | null)[];

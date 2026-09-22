@@ -1,5 +1,5 @@
-import * as THREE from 'three';
-import type { HostTraversable } from './hostResources.ts';
+import type { HostTexture, HostTraversable } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../sdk-core/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
@@ -11,10 +11,10 @@ import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 
 type Inputs = {
-  source: THREE.Object3D;
+  source: HostGraphNode;
   sceneLightingSource?: HostTraversable;
   associations: BackendContext['associations'];
-  textureIndices: Map<THREE.Texture, number>;
+  textureIndices: Map<HostTexture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
   gpuDevice?: GPUDevice;
   webglContext?: WebGL2RenderingContext;

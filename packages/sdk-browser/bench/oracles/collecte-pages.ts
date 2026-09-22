@@ -1,6 +1,7 @@
 // Batch F oracles, loading side: `pageSelectionCollect.ts:34-153`, `explorerScene.ts:18-36` and
 // `explorerPageSources.ts:20-49` from before batch F, copied as-is.
 import * as THREE from 'three';
+import { asHostLibrary } from '../../hostResources.ts';
 import {
   DAG_ERROR_MODEL,
   EngineError,
@@ -50,7 +51,8 @@ export function referenceCollectClusterPages(
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it
   // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true);
-  for (const mesh of objects(source)) {
+  for (const sourceMesh of objects(source)) {
+    const mesh = asHostLibrary<THREE.Mesh>(sourceMesh);
     const association = associations.get(mesh),
       primitive = metadata.primitives.find(
         (p) => p.mesh === association?.meshes && p.primitive === (association?.primitives ?? 0),
