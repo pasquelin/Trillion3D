@@ -1,12 +1,13 @@
-import { emeraldProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../appui/emeraldProvenance.ts';
-import { routeBaseline } from '../appui/emeraldBaseline.ts';
+import { sceneProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../appui/sceneProvenance.ts';
+import { routeBaseline } from '../appui/sceneBaseline.ts';
 import assert from 'node:assert/strict';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { resolveMounts } from '../../scripts/mesure/options.ts';
+import { assetsManifest, DEFAULT_SCENE } from '../../scripts/mesure/scene.ts';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { runOnPage } from './emeraldPageRun.ts';
+import { runOnPage } from './scenePageRun.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
@@ -16,7 +17,7 @@ const out = resolve('benchmark-runs/webgpu-visual', run);
 const mounts = [...resolveMounts(ROOT, []), { prefix: '/dist/', dir: resolve(ROOT, 'dist') }];
 const server = await startServer({ port: 0, mounts, captures: new Map() });
 const harnessUrl = `http://127.0.0.1:${serverPort(server)}`;
-const provenance = await emeraldProvenance(harnessUrl),
+const provenance = await sceneProvenance(harnessUrl),
   taa = process.env.WEBGPU_TAA !== 'off';
 await mkdir(out, { recursive: true });
 const browser = await launchChrome({ headless: true });
@@ -39,6 +40,7 @@ try {
   const result = await page.evaluate(runOnPage, {
     sdkUrl: '/dist/sdk-browser/index.js',
     posesUrl: '/mesure/poses.ts',
+    manifestUrl: assetsManifest(DEFAULT_SCENE, true),
     // `WEBGPU_TAA=off` yields the `--avant` of the Lumiere 16 batch, with no jitter and no history.
     temporalAntialiasing: taa,
     ...viewport,

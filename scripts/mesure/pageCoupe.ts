@@ -6,7 +6,8 @@
  * The selected cut, read without any API added for the measurement. WebGPU publishes
  * `selectedPageIds()`; the WebGL path has no equivalent, but outside beauty mode it attaches a
  * mesh per displayed page and stores its `clusterId` there. Mode `pages` and not `clusters`:
- * `clusters` tints each page with its colour, hence one shader per cluster — 80 153 on Emerald,
+ * `clusters` tints each page with its colour, hence one shader per cluster — 80 153 read once
+ * on a ten-million-triangle interior,
  * enough to exhaust the driver — while `pages` has only two and renders the same meshes. The two
  * sources are not compared; the report says which one served.
  */
