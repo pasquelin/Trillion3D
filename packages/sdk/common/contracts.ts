@@ -37,6 +37,11 @@ export {
   depthLayerUnits,
   MAX_DEPTH_LAYER,
 } from '../../sdk-core/depthLayer.ts';
+export {
+  clusterErrorAtDepth,
+  clusterErrorPixels,
+  screenErrorBound,
+} from '../../sdk-core/screenErrorBound.ts';
 export { createSceneRoot, SceneRoot } from '../../sdk-core/sceneRoot.ts';
 export type {
   DagReport,
