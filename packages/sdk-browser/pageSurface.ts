@@ -24,27 +24,25 @@
  */
 import type { Side } from '../sdk-core/index.ts';
 import type { HostMaterials } from './hostResources.ts';
-import { materialRaster, sideOf } from './materialSide.ts';
+import { firstMaterial, materialRaster, sideOf, type MaterialRaster } from './materialSide.ts';
 import { visMaterial } from './visibilityMaterial.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /** The shaded fields of a surface, and the raster facts declared beside them. */
-export type PageSurface = VisMaterial & ReturnType<typeof materialRaster>;
+export type PageSurface = VisMaterial & MaterialRaster;
 
 /** The side a record declares, in the engine's own enum. */
 export const surfaceSide = (surface: PageSurface): Side =>
   surface.doubleSided ? 'double' : surface.backSide ? 'back' : 'front';
+/** True when only the front faces are drawn: the one case a normal cone may reject a page. */
+export const surfaceFrontOnly = (surface: PageSurface) => !surface.doubleSided && !surface.backSide;
 
 const held = new WeakMap<object, PageSurface>();
 const declarations = new WeakMap<PageSurface, HostMaterials>();
 
 /** Fills a record from a declaration, reusing the object so every holder sees the new fields. */
-function fill(into: PageSurface | undefined, material: HostMaterials): PageSurface {
-  return Object.assign(
-    into ?? ({} as PageSurface),
-    visMaterial(material),
-    materialRaster(material),
-  );
+function fill(into: PageSurface, material: HostMaterials): PageSurface {
+  return materialRaster(material, Object.assign(into, visMaterial(material)));
 }
 
 /**
@@ -55,7 +53,7 @@ function fill(into: PageSurface | undefined, material: HostMaterials): PageSurfa
 export function surfaceOf(material: HostMaterials): PageSurface {
   const kept = held.get(material as object);
   if (kept) return refreshSurface(kept);
-  const surface = fill(undefined, material);
+  const surface = fill({} as PageSurface, material);
   held.set(material as object, surface);
   declarations.set(surface, material);
   return surface;
@@ -68,18 +66,18 @@ export const meshSurface = (mesh: { material: HostMaterials }) => surfaceOf(mesh
  * Rereads a record whose declaration the host has rewritten, and returns it either way; a record
  * built outside this module — a fixture's — is returned untouched.
  *
- * The raster facts are reread on every call: a host switches a surface to double-sided by
- * writing `side`, which bumps no version, and the transparent plan has to see that between two
- * images (`webgpuBlendPlan.ts`). The shaded fields, which walk the six map slots, are reread
- * only when the version moved — the comparison the page row already made before writing.
+ * The raster facts are reread on every call: a host writes `side`, `alphaTest` or `opacity` on
+ * the declaration it shares with its mesh without bumping any version, and the transparent plan
+ * (`webgpuBlendPlan.ts`) and the software raster (`visibilityRaster.ts`) have to see it between
+ * two images. The shaded fields, which walk the six map slots, are reread only when the version
+ * moved — the comparison the page row already made before writing.
  */
 export function refreshSurface(surface: PageSurface): PageSurface {
   const material = declarations.get(surface);
   if (!material) return surface;
+  if ((firstMaterial(material)?.version ?? 0) !== surface.version) return fill(surface, material);
   const side = sideOf(material);
   surface.doubleSided = side === 'double';
   surface.backSide = side === 'back';
-  const raster = materialRaster(material);
-  if (raster.version !== surface.version) return fill(surface, material);
-  return Object.assign(surface, raster);
+  return materialRaster(material, surface);
 }

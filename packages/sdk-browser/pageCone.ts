@@ -1,4 +1,4 @@
-import type { PageSurface } from './pageSurface.ts';
+import { surfaceFrontOnly, type PageSurface } from './pageSurface.ts';
 import {
   CONE_LENGTH_RATIO,
   CONE_ORTHO_EPS,
@@ -110,7 +110,7 @@ export function coneCullsPageWith(
   max: number[],
   surface?: PageSurface,
 ): boolean {
-  if (surface && (surface.doubleSided || surface.backSide)) return false;
+  if (surface && !surfaceFrontOnly(surface)) return false;
   if (!ctx.conformal) return false;
   if (cone.angle >= HALF_PI) return false;
   return boxConeRejects(

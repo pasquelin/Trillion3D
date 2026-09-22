@@ -1,7 +1,7 @@
-import { surfaceOf } from './pageSurface.ts';
 import * as THREE from 'three';
 import { asHostLibrary, type HostMaterials } from './hostResources.ts';
 import { setGeometryBounds } from './threeBounds.ts';
+import { surfaceOf } from './pageSurface.ts';
 import type { GeometryPageDescriptor } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
@@ -171,8 +171,9 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       setGeometryBounds(geometry, rec.min, rec.max);
       const base = asHostLibrary<THREE.Material | THREE.Material[]>(baseMaterials.get(rec)!);
       const twin = (one: THREE.Material) => colouredTwin(colorMaterials, one);
-      const painted = Array.isArray(base) ? base.map(twin) : twin(base);
-      rec.declaration = data.attributes.color ? painted : base;
+      // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
+      const painted = () => (Array.isArray(base) ? base.map(twin) : twin(base));
+      rec.declaration = data.attributes.color ? painted() : base;
       rec.material = surfaceOf(rec.declaration);
       rec.array = data.indices;
       rec.attributes = geometry.attributes;
