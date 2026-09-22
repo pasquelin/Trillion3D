@@ -3,11 +3,10 @@ import type { HostNode } from './hostResources.ts';
 import { meshSurface } from './pageSurface.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
-import { objects } from './pageSelectionHelpers.ts';
+import { objects, quantizationErrorOf } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
 import { indexPageRequests } from './pageSelectionRequests.ts';
-import { quantizationErrorOf } from './pageSelectionHelpers.ts';
 import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 

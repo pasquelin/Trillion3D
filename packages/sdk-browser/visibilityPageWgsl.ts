@@ -84,7 +84,3 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:
  // level and made the quad opaque during loading.
  return maskAlpha(page.mapIndex,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u),ddx,ddy)>=page.baseColor.w;
 }`;
-
-/** The mask test preceded by the texture coordinate a page vertex supplies it. */
-export const PAGE_MASK_WGSL = `${PAGE_UV_WGSL}
-${MASK_KEEP_WGSL}`;

@@ -99,11 +99,16 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // one, its index page otherwise. The slot is the widest of them, so any admitted page fits.
   const geometryUrls = new Map<string, string>();
   let pageBytes = 4,
-    clustersWithoutGeometryPage = 0;
+    fromGeometryPage = 0,
+    fromSourceGeometry = 0,
+    transparentClusters = 0;
   for (const page of allPages) {
     const geometry = page.geometryPage;
-    if (geometry) geometryUrls.set(page.url, geometry.url);
-    else if (!page.transparent) clustersWithoutGeometryPage++;
+    if (geometry) {
+      geometryUrls.set(page.url, geometry.url);
+      fromGeometryPage++;
+    } else if (page.transparent) transparentClusters++;
+    else fromSourceGeometry++;
     const n = geometry ? geometry.bytes : (page.array?.byteLength ?? page.indexBytes);
     const padded = n + (n % 4 ? 4 - (n % 4) : 0);
     if (padded > pageBytes) pageBytes = padded;
@@ -113,9 +118,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   diag.engineDiagnostic('geometry-pages', 'Clusters drawn from their quantized page', {
     backend: 'webgpu-page-raster',
     clusters: allPages.length,
-    fromGeometryPage: geometryUrls.size,
-    fromSourceGeometry: clustersWithoutGeometryPage,
-    transparentClusters: allPages.length - geometryUrls.size - clustersWithoutGeometryPage,
+    fromGeometryPage,
+    fromSourceGeometry,
+    transparentClusters,
     slotBytes: pageBytes,
   });
   const sourceBytes = indexSourceBytes(allPages);
