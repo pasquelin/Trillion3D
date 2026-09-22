@@ -13,6 +13,7 @@
 use super::border::live_triangles;
 use super::reduce::{attempt, Stop};
 use super::*;
+use crate::join::Join;
 
 /// Position counts of a group, over its live triangles.
 struct Census {
@@ -41,17 +42,15 @@ fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
         let next = slots.len() as u32;
         slots.entry(copy).or_insert(next);
     }
-    let mut parent: Vec<u32> = (0..slots.len() as u32).collect();
+    let mut join = Join::new(slots.len());
     for tri in live.as_chunks::<3>().0 {
         let a = slots[&input.weld_seam[tri[0] as usize]];
         for &corner in &tri[1..] {
-            let b = slots[&input.weld_seam[corner as usize]];
-            let (ra, rb) = (find(&mut parent, a), find(&mut parent, b));
-            parent[ra as usize] = rb;
+            join.unite(a, slots[&input.weld_seam[corner as usize]]);
         }
     }
-    let islands = (0..parent.len() as u32)
-        .filter(|&slot| find(&mut parent, slot) == slot)
+    let islands = (0..slots.len() as u32)
+        .filter(|&slot| join.root(slot) == slot)
         .count();
     let seam = positions.values().filter(|p| p.1).count();
     let locked = positions.values().filter(|p| p.2).count();
@@ -60,15 +59,6 @@ fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
         locked,
         islands,
     }
-}
-
-fn find(parent: &mut [u32], mut slot: u32) -> u32 {
-    while parent[slot as usize] != slot {
-        let up = parent[parent[slot as usize] as usize];
-        parent[slot as usize] = up;
-        slot = up;
-    }
-    slot
 }
 
 /// Names why the group stalled. `last` holds the indices of the attempt that stalled, rerun
@@ -86,7 +76,6 @@ pub(super) fn stalled(
     let cause = match stop {
         Stop::TooSmall => StallCause::TooSmall,
         Stop::BorderLost => StallCause::BorderLost,
-        Stop::UnusableError => StallCause::UnusableError,
         Stop::NoCollapse if advances(last)? => StallCause::BorderLocked,
         Stop::NoCollapse => {
             let welded = live_triangles(live.iter().map(|&i| input.weld[i as usize]));
@@ -98,12 +87,21 @@ pub(super) fn stalled(
             }
         }
     };
+    Ok(outcome(cause, input, live))
+}
+
+/// The stalled group's outcome under a cause already known: its live triangles and census.
+pub(super) fn outcome(
+    cause: StallCause,
+    input: &GroupReductionInput,
+    live: &[u32],
+) -> GroupOutcome {
     let census = census(input, live);
-    Ok(GroupOutcome {
+    GroupOutcome {
         cause,
         triangles: live.len() / 3,
         seam: census.seam,
         locked: census.locked,
         islands: census.islands,
-    })
+    }
 }

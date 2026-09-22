@@ -7,8 +7,7 @@ pub struct ClusterPlane {
     pub area: f64,
 }
 
-use crate::shared_math::{cross, scale};
-pub use crate::shared_math::{dot, length};
+use crate::shared_math::{cross, dot, length, scale};
 
 /// One orientation per plane, whichever way its triangles wind: a surface and the surface facing it
 /// hash to the same bucket, which is exactly the pair that fights over a pixel.

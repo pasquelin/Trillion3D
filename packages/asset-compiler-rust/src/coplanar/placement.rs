@@ -6,7 +6,7 @@ pub fn world_plane(
     plane: &plane::ClusterPlane,
 ) -> Option<([f64; 3], f64, f64)> {
     let direction = crate::compiler_world::cofactor_direction(matrix, plane.normal);
-    let scale = plane::length(direction);
+    let scale = crate::shared_math::length(direction);
     if !matches!(scale.partial_cmp(&0.0), Some(std::cmp::Ordering::Greater)) {
         return None;
     }
@@ -23,7 +23,7 @@ pub fn world_plane(
             plane.normal[2] * plane.offset,
         ],
     );
-    let (normal, offset) = plane::canonical(unit, plane::dot(unit, point));
+    let (normal, offset) = plane::canonical(unit, crate::shared_math::dot(unit, point));
     Some((normal, offset, scale))
 }
 
