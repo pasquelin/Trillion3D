@@ -50,8 +50,8 @@ fn identical_fingerprint_reuses_the_folder_without_rebuilding() {
         report["textureLevels"], 2,
         "one baked level proven, lossless and in blocks: {report}"
     );
-    // source.gltf, source.bin, proxy.bin, lights.json, scene.gltf, scene.bin.
-    assert_eq!(report["files"], 6, "every product recorded: {report}");
+    // source.gltf, source.bin, proxy.bin, lights.json, scene-tables.json, scene.gltf, scene.bin.
+    assert_eq!(report["files"], 7, "every product recorded: {report}");
     assert!(
         second["metrics"]["clusterHierarchyPagesMs"].is_null(),
         "no DAG built"

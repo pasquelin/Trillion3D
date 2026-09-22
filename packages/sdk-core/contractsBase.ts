@@ -1,8 +1,8 @@
 export const SDK_VERSION = '0.2.0';
-/** Cache format this runtime reads. Format 3 carries the per-cluster coplanar depth layer, which
- *  decides which of two exactly coplanar opaque surfaces draws on top; formats 1 and 2 have no such
- *  column and are refused rather than half-read. */
-export const FORMAT_VERSION = 3;
+/** Cache format this runtime reads. Format 5 carries `scene-tables.json`, the node and material
+ *  tables the prepared scene is checked against; formats 3 and 4 have no such product and are
+ *  refused by their number rather than half-read. */
+export const FORMAT_VERSION = 5;
 /**
  * Cutout response sheet, mirroring `packages/asset-compiler-rust/src/cutout.rs`.
  *
@@ -13,7 +13,7 @@ export const FORMAT_VERSION = 3;
 export const CUTOUT_SHEET_FILE = 'decoupes.json';
 export const CUTOUT_SHEET_VERSION = 1;
 /** Outer cache format required for clustered BLEND; source manifests keep their own format. */
-export const CLUSTERED_BLEND_FORMAT_VERSION = 4;
+export const CLUSTERED_BLEND_FORMAT_VERSION = 6;
 /** Cache identity for per-cluster DAG errors: group QEM error projected through the group sphere. */
 export const DAG_ERROR_MODEL = 'dag-group-qem-v1';
 export const DEFAULT_SCOPE: AssetScope = 'slice';

@@ -1,4 +1,4 @@
-# Cache formats 1 and 2 — produced and read by the SDK
+# Cache formats 5 and 6 — produced and read by the SDK
 
 This is the on-disk contract implemented today. Design documents under
 
@@ -25,13 +25,13 @@ Every served object carries the `.bin` extension and every object name is the SH
 }
 ```
 
-`status` must be `ready`. `url` is resolved relative to the pointer. A cache containing `clustered-blend` uses `formatVersion: 2` in both this pointer and its metadata. Other caches remain format 1.
+`status` must be `ready`. `url` is resolved relative to the pointer. A cache containing `clustered-blend` uses `formatVersion: 6` in both this pointer and its metadata. Other caches are format 5. Formats below these are refused whole, by their number: format 5 is the one that carries the [prepared-scene tables](#prepared-scene-tables), which a reader checks the scene it builds against, and an earlier folder has no answer to give it.
 
 ## `clusters.json`
 
 Required fields consumed by the browser adapter:
 
-- `schema` / `formatVersion` — must agree: `2` when the cache contains `clustered-blend`, otherwise `1`
+- `schema` / `formatVersion` — must agree: `6` when the cache contains `clustered-blend`, otherwise `5`
 - `status` — `ready`
 - `scope` — `slice` or `full`
 - `selectedTriangles`, `selectedNodes`
@@ -42,7 +42,7 @@ Required fields consumed by the browser adapter:
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews, texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
-Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
+Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
 
 ### `clusters.bin`
 
@@ -126,6 +126,42 @@ The compiler bakes the **whole mip chain** of every texture an atlas reads — b
 Every level, tail and head, follows the rule the card applied when it regenerated the chain itself (`textureMips.ts`): level `k` from the **quantized** level `k - 1`, colours averaged in the atlas's own encoding (sRGB decoded and re-encoded for the colour atlas, linear for the data atlas), alpha the **median** of the four texels, an odd side repeating its last texel. Neither premultiplication nor the file's declared transfer enters it: the pyramid follows the display, not the file. Baking instead of regenerating therefore keeps the image within rounding — measured on Emerald at 2496×1404: 0 pixels beyond ±2 per channel on the general view, and on the lawn view 1 720 isolated pixels (0,05 %) where the median alpha of a coarse texel lands on the other side of the 0,5 cutoff, plus their shadows when the sun is on.
 
 An image whose decode fails has no entry: its textures load from the source as before. A texture whose chain is not whole (`bakedLevels < firstLevel`) also keeps the source path, in the engine's lossless lane, whatever the family the device samples.
+
+## Prepared scene tables
+
+`scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, so a reader
+does not have to read it back out of the source file. Its own version governs it —
+`version`, `nodeTableVersion`, `materialTableVersion`, all `1` — and an unknown one is refused
+rather than half-read (`assertSceneTables`). Every value is read from the `source.gltf` the same
+compilation publishes, which is the document the runtime loads: the slice's nodes, the cutout
+answers already applied, the mesh ranks already remapped.
+
+- `nodes[]` — one entry per drawn primitive: `{ name, node, parent, mesh, primitive, material,
+  instance, matrix, bounds }`. `matrix` is the world pose, sixteen numbers column-major; `parent`
+  is a glTF node index or `null`; `instance` is the rank among the copies of that same primitive,
+  which is what instancing is here — one geometry named by several nodes. `bounds` is the world
+  box of the position accessor's declared corners, `null` when it declares none; the autonomous
+  scene publishes degenerate triangles, so the box is the cache's answer, not the loader's.
+- `materials[]` — the surface fields the engine reads: `lit`, `baseColor`, `metalness`,
+  `roughness`, `doubleSided`, `backSide`, `alphaTest`, the six map slots (`map`, `metalnessMap`,
+  `roughnessMap`, `normalMap`, `aoMap`, `emissiveMap`), `normalScale`, `normalScaleY`,
+  `aoIntensity`, `emissive`, `transmission`, `ior`, `thickness`, `attenuationDistance`,
+  `attenuationColor`. One glTF material is one entry **per tangent variant**: a host that rebuilds
+  the tangent frame from screen derivatives flips `normalScaleY`, so a node names a rank in this
+  table, not the glTF material rank, and `derivativeTangents` says which variant the entry was
+  written for — the autonomous scene carries the same materials over primitives stripped of their
+  tangents, and a reader flips the sign back when the geometry it holds disagrees. A primitive that declares no material wears an entry holding
+  the glTF default one.
+- `textures[]` — sampler state at the glTF texture rank: `{ image, wrapS, wrapT, magFilter,
+  minFilter }`, in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
+  specification's defaults where the sampler is silent. A map slot is
+  `{ texture, texCoord, transform }`, the transform being the 3×3 `KHR_texture_transform` composes,
+  column-major.
+
+The runtime reads the tables at load and checks them against the scene the loader built — which
+primitive each mesh draws, at what pose, with which surface and which sampler. A divergence is
+`PREPARED_SCENE_MISMATCH`, naming the field: a cache that describes another scene is refused, not
+opened half way.
 
 ## Source glTF
 
