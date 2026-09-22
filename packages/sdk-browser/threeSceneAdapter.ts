@@ -135,22 +135,16 @@ export function hostVertexColors(geometry: HostDiagnosticGeometry, colors: Float
   target.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 }
 
-/** Unshaded surface that shows the vertex colours as they are: the per-triangle view. */
-export function hostTriangleMaterial(side: number): HostDiagnosticMaterial {
-  const material = new THREE.MeshBasicMaterial({
-    vertexColors: true,
+const unshaded = (parameters: THREE.MeshBasicMaterialParameters, side: number) =>
+  new THREE.MeshBasicMaterial({
+    ...parameters,
     side: asHostLibrary<THREE.Side>(side),
-    toneMapped: false,
-    fog: false,
-  });
-  return material as unknown as HostDiagnosticMaterial;
-}
+  }) as unknown as HostDiagnosticMaterial;
+
+/** Unshaded surface that shows the vertex colours as they are: the per-triangle view. */
+export const hostTriangleMaterial = (side: number) =>
+  unshaded({ vertexColors: true, toneMapped: false, fog: false }, side);
 
 /** Unshaded surface of one cluster's colour, the hue the core computed from its identifier. */
-export function hostClusterMaterial(id: string, side: number): HostDiagnosticMaterial {
-  const material = new THREE.MeshBasicMaterial({
-    color: clusterColor(id, 0.75),
-    side: asHostLibrary<THREE.Side>(side),
-  });
-  return material as unknown as HostDiagnosticMaterial;
-}
+export const hostClusterMaterial = (id: string, side: number) =>
+  unshaded({ color: clusterColor(id, 0.75) }, side);

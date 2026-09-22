@@ -106,6 +106,23 @@ export type HostMaterials = HostMaterial | HostMaterial[];
  *  name the surface the host placed; nothing but its name is read. */
 export type HostMesh = { readonly name: string };
 
+/** A node of the host scene graph, held by identity and by the two fields a walk needs. */
+export type HostNode = { readonly name: string; readonly visible: boolean };
+
+/** A host node the engine walks: the subtree under it, itself first, in the host's own order. */
+export type HostTraversable = HostNode & { traverse(visit: (node: HostNode) => void): void };
+
+/** A host colour: three linear components, read one by one and written the same way. The engine
+ *  never converts here — a colour crosses as the host holds it. */
+export type HostColour = { r: number; g: number; b: number };
+
+/** The host display graph an engine draws into: what it holds, how it is walked, and the clear
+ *  colour the composition reads. Building and drawing it belongs to the host boundaries. */
+export type HostScene = HostTraversable & {
+  readonly background: unknown;
+  readonly children: readonly HostNode[];
+};
+
 /**
  * WHAT A DIAGNOSTIC VIEW TOUCHES ON THE HOST GRAPH. A diagnostic is not a beauty pass, but the
  * graph it repaints belongs to the host: it swaps a surface and a geometry on a mesh, keeps the
@@ -124,23 +141,6 @@ export type HostDiagnosticMesh = {
   material: HostDiagnosticMaterial | HostDiagnosticMaterial[];
   geometry: HostDiagnosticGeometry;
   userData: Record<string, unknown>;
-};
-
-/** A node of the host scene graph, held by identity and by the two fields a walk needs. */
-export type HostNode = { readonly name: string; readonly visible: boolean };
-
-/** A host node the engine walks: the subtree under it, itself first, in the host's own order. */
-export type HostTraversable = HostNode & { traverse(visit: (node: HostNode) => void): void };
-
-/** A host colour: three linear components, read one by one and written the same way. The engine
- *  never converts here — a colour crosses as the host holds it. */
-export type HostColour = { r: number; g: number; b: number };
-
-/** The host display graph an engine draws into: what it holds, how it is walked, and the clear
- *  colour the composition reads. Building and drawing it belongs to the host boundaries. */
-export type HostScene = HostTraversable & {
-  readonly background: unknown;
-  readonly children: readonly HostNode[];
 };
 
 /**
