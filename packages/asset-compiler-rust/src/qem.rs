@@ -2,6 +2,7 @@
 use crate::{invalid, Result};
 use meshopt::{SimplifyOptions, VertexDataAdapter};
 use std::collections::HashMap;
+#[derive(Debug)]
 pub struct SimplifiedMesh {
     pub indices: Vec<u32>,
     pub error_object: f64,

@@ -1,12 +1,11 @@
-//! The flat sheet: what the solve does when nothing in the region leaves the plane.
+//! The flat sheet: the texture a coarse level draws, when the region is a plane under one chart.
 use super::*;
 use crate::dag::tests::grid;
 
 /// A flat sheet of `n` by `n` cells at `z = 0`, carrying a unit normal and the texture
-/// coordinate `uv` per vertex, simplified to half its triangles. Nothing in it leaves the plane,
-/// so whatever the solve then does to a survivor, it does inside that plane. Returns the source
-/// positions and attributes beside the region, as the sheet laid them out.
-fn flat_sheet(n: usize, uv: &dyn Fn(f32, f32) -> [f32; 2]) -> (Vec<f32>, Vec<f32>, UpdatedRegion) {
+/// coordinate `uv` per vertex, simplified to half its triangles. Returns the source positions
+/// and attributes beside the region, as the sheet laid them out.
+fn flat_sheet(n: usize, uv: &dyn Fn(f32, f32) -> [f32; 2]) -> (Vec<f32>, Vec<f32>, SimplifiedMesh) {
     let (mut positions, indices) = grid(n);
     for vertex in positions.as_chunks_mut::<3>().0 {
         vertex[2] = 0.0;
@@ -28,32 +27,28 @@ fn flat_sheet(n: usize, uv: &dyn Fn(f32, f32) -> [f32; 2]) -> (Vec<f32>, Vec<f32
             &positions,
             &indices,
             &gather,
-            &[0.5; 5],
+            &[1.0, 1.0, 1.0, n as f32, n as f32],
             indices.len() / 3 / 2,
             1.0,
             &|_| 0,
         )
         .expect("simplify")
-        .expect("reduced")
     };
     (positions, attributes, region)
 }
 
-// Behaviour: on a flat sheet whose attributes follow its plane, the solve has nothing to move.
-// Every survivor stays within a ten-thousandth of the region's extent, which is what lets the
-// reduction keep the source vertices instead of copying each of them (measured on the displaced
-// grid of the test above: 235 survivors of 544 beyond that fraction, 309 within it).
+// Behaviour: every vertex a coarse level draws carries the position and the texture coordinate
+// the source gave it, so no pattern can slide: the parameterisation of the coarse surface is a
+// restriction of the source's, not an interpolation of it (Cohen, Olano & Manocha 1998).
 #[test]
-fn a_flat_sheet_leaves_every_survivor_where_it_was() {
+fn a_coarse_sheet_draws_the_source_vertices_with_their_own_texture() {
     let n = 32usize;
     let (positions, attributes, region) = flat_sheet(n, &|x, y| [x / n as f32, y / n as f32]);
-    for &local in &region.indices {
-        let (l, source) = (local as usize, region.remap[local as usize] as usize);
-        let moved = region.displacement(l, &positions[source * 3..source * 3 + 3]);
-        assert!(moved <= region.scale * 1e-4, "{moved} at {source}");
-        for component in 0..5 {
-            let drift = region.attributes[l * 5 + component] - attributes[source * 5 + component];
-            assert!(drift.abs() as f64 * 0.5 <= 1e-4, "{drift} at {source}");
-        }
+    assert!(region.triangles > 0 && region.triangles <= n * n);
+    for &corner in &region.indices {
+        let at = corner as usize;
+        let [x, y] = [positions[at * 3], positions[at * 3 + 1]];
+        let [u, v] = [attributes[at * 5 + 3], attributes[at * 5 + 4]];
+        assert_eq!([u, v], [x / n as f32, y / n as f32], "vertex {at} drifted");
     }
 }

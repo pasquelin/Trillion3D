@@ -1,65 +1,45 @@
-//! Region simplification with attribute quadrics and vertex update: meshoptimizer's
-//! `simplifyWithUpdate`, which collapses edges on an error that includes the weighed attributes,
-//! then solves every surviving vertex — position and attributes — to the minimum of its
-//! accumulated quadric. A locked vertex is neither moved nor rewritten; a vertex on an attribute
-//! seam or a mesh border keeps its position and only its attributes are solved.
+//! Region simplification on attribute quadrics, placed on the region's own vertices.
+//!
+//! meshoptimizer's `simplifyWithAttributes`: the collapse error carries the distance to the
+//! surface **and** the deviation of every weighed attribute (Garland & Heckbert 1998; Hoppe
+//! 1999), and the surviving endpoint of each collapse is one of the two it started from —
+//! subset placement, as Garland & Heckbert 1997 describes it and as `qem-endpoints` already
+//! works. The quadric ranks the collapses; it never invents a vertex.
+//!
+//! That is what keeps a texture where it was painted. A drawn vertex is a source vertex with
+//! its own texture coordinate, so the parameterisation of the coarse surface is a restriction
+//! of the source's and the pattern cannot slide — the texture deviation of Cohen, Olano &
+//! Manocha 1998 is zero at every vertex by construction. Solving each survivor to the joint
+//! minimum of position and attributes would place it off the source vertices, and a surface
+//! drawn there with the source attributes slides the pattern by the in-surface part of the
+//! move; storing the solved attributes instead would cost a vertex per survivor.
 //!
 //! The simplifier runs permissive: a copied position — a hard edge, a vertex colour step — may
-//! collapse across its seam, all copies moving together and their attributes solved afterwards,
-//! except where a copy is flagged `PROTECT`: there the seam is kept and only slid along.
-use crate::qem::compact_region;
-use crate::qem_attributes_hausdorff::one_sided_hausdorff;
+//! collapse across its seam, all copies moving together, except where a copy is flagged
+//! `PROTECT`: there the seam is kept and only slid along.
+use crate::qem::{compact_region, SimplifiedMesh};
 use crate::{invalid, Result};
 use meshopt::{SimplifyOptions, VertexDataAdapter};
 
-/// Per-vertex flag: the vertex is neither moved nor rewritten.
+/// Per-vertex flag: the vertex is never collapsed away.
 pub const LOCK: u8 = 1;
 /// Per-vertex flag: the attribute seam at this vertex is kept; the position may still slide
 /// along it.
 pub const PROTECT: u8 = 2;
-
-/// A region after simplification, in its own local vertex space: `positions` and `attributes`
-/// are the region's vertices as solved, `remap` names in the source buffer the vertex each local
-/// one started from, and `indices` reference the local vertices.
-pub struct UpdatedRegion {
-    pub indices: Vec<u32>,
-    pub positions: Vec<f32>,
-    /// Interleaved, `stride` floats per local vertex.
-    pub attributes: Vec<f32>,
-    pub remap: Vec<u32>,
-    /// The simplifier's own error, in the units of `positions`: a weighed mean of squared
-    /// point-to-plane distances over the collapses, attribute terms included, read before the
-    /// survivors are solved. An average of what the collapses cost, never a bound on where the
-    /// level ended up — `surface_deviation` is that.
-    pub error_object: f64,
-    /// One-sided Hausdorff distance from the region as simplified to the source triangles it
-    /// replaced, in the units of `positions` (`one_sided_hausdorff`). Purely geometric, as a
-    /// certified error must be, and measured after the solve — the only number here that bounds
-    /// how far this surface is from the one it stands for.
-    pub surface_deviation: f64,
-    /// Object units per unit of the region's extent, as the simplifier scales it.
-    pub scale: f64,
-}
-impl UpdatedRegion {
-    /// Object-space distance between a local vertex as solved and the source position it
-    /// started from. What the solve did to the attributes is not a distance: the collapse
-    /// error carries the attribute terms, as the simplifier weighs them.
-    pub fn displacement(&self, local: usize, source: &[f32]) -> f64 {
-        self.positions[local * 3..local * 3 + 3]
-            .iter()
-            .zip(source)
-            .map(|(solved, from)| (*solved as f64 - *from as f64).powi(2))
-            .sum::<f64>()
-            .sqrt()
-    }
-}
+/// Weighed components one call may carry, as `kMaxAttributes` sets it.
+const MAX_COMPONENTS: usize = 32;
 
 /// Simplifies a region to `target_triangles`, with `flags` — `LOCK`, `PROTECT` — queried on
 /// source vertex indices and `gather` producing the interleaved attributes of the region's
-/// vertices, `weights.len()` per vertex. `target_error` is read against the region's extent, as
-/// the ceiling that names it is; what comes back is absolute, so the errors of two regions of one
-/// primitive are in the same units and the DAG may compare them. `None` when the simplifier
-/// removed no triangle: the region is then what it was.
+/// vertices, `weights.len()` per vertex.
+///
+/// `weights` are object units per unit of their component (`dag/attributes.rs`); they are
+/// divided here by the region's extent, which is what the simplifier rescales positions by
+/// before the two terms are added. `target_error` is read against that same extent. What comes
+/// back is absolute — `ErrorAbsolute` multiplies the simplifier's own error by the extent
+/// again — so the errors of two regions of one primitive are in the same units and the DAG may
+/// compare them, exactly as `qem-endpoints` does. A region the simplifier did not reduce comes
+/// back as it went in, at error zero.
 pub fn simplify_region_with_attributes(
     positions: &[f32],
     indices: &[u32],
@@ -68,7 +48,7 @@ pub fn simplify_region_with_attributes(
     target_triangles: usize,
     target_error: f32,
     flags: &dyn Fn(u32) -> u8,
-) -> Result<Option<UpdatedRegion>> {
+) -> Result<SimplifiedMesh> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) {
         return Err(invalid("Index count must be a positive multiple of three"));
     }
@@ -76,14 +56,16 @@ pub fn simplify_region_with_attributes(
         return Err(invalid("POSITION count must be a multiple of three"));
     }
     let current = indices.len() / 3;
-    if current <= target_triangles.max(1) || weights.len() > 32 {
-        return Ok(None);
+    let unchanged = || SimplifiedMesh {
+        indices: indices.to_vec(),
+        error_object: 0.0,
+        triangles: current,
+    };
+    if current <= target_triangles.max(1) || weights.len() > MAX_COMPONENTS {
+        return Ok(unchanged());
     }
-    let (mut compact_pos, mut compact_idx, remap) = compact_region(positions, indices);
-    // The call rewrites positions and indices in place; the surface the solved vertices are then
-    // measured against is this copy of them.
-    let (source_pos, source_idx) = (compact_pos.clone(), compact_idx.clone());
-    let mut attributes = gather(&remap);
+    let (compact_pos, compact_idx, remap) = compact_region(positions, indices);
+    let attributes = gather(&remap);
     let stride = weights.len();
     if attributes.len() != remap.len() * stride {
         return Err(invalid(
@@ -91,28 +73,32 @@ pub fn simplify_region_with_attributes(
         ));
     }
     let locks: Vec<u8> = remap.iter().map(|&s| flags(s)).collect();
-    let scale = {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(compact_pos.as_ptr() as *const u8, compact_pos.len() * 4)
-        };
-        let vertices =
-            VertexDataAdapter::new(bytes, 12, 0).map_err(|_| invalid("POSITION adapter"))?;
-        meshopt::simplify::simplify_scale(&vertices) as f64
+    let bytes = unsafe {
+        std::slice::from_raw_parts(compact_pos.as_ptr() as *const u8, compact_pos.len() * 4)
     };
+    let vertices = VertexDataAdapter::new(bytes, 12, 0).map_err(|_| invalid("POSITION adapter"))?;
+    let scale = meshopt::simplify::simplify_scale(&vertices) as f64;
+    let scaled: Vec<f32> = weights
+        .iter()
+        .map(|w| if scale > 0.0 { w / scale as f32 } else { 0.0 })
+        .collect();
     let mut result_error = 0.0_f32;
-    // Every pointer names a buffer sized as the call requires: `compact_idx` holds
-    // `index_count` indices below `vertex_count`, positions and attributes hold one row per
-    // vertex at the declared strides, `locks` one byte per vertex, `weights` one per attribute.
+    let mut out = vec![0u32; compact_idx.len()];
+    // Every pointer names a buffer sized as the call requires: `out` holds room for every input
+    // index, `compact_idx` holds `index_count` indices below `vertex_count`, positions and
+    // attributes hold one row per vertex at the declared strides, `locks` one byte per vertex,
+    // `scaled` one weight per attribute component.
     let count = unsafe {
-        meshopt::ffi::meshopt_simplifyWithUpdate(
-            compact_idx.as_mut_ptr(),
+        meshopt::ffi::meshopt_simplifyWithAttributes(
+            out.as_mut_ptr(),
+            compact_idx.as_ptr(),
             compact_idx.len(),
-            compact_pos.as_mut_ptr(),
+            compact_pos.as_ptr(),
             remap.len(),
             12,
-            attributes.as_mut_ptr(),
+            attributes.as_ptr(),
             stride * 4,
-            weights.as_ptr(),
+            scaled.as_ptr(),
             stride,
             locks.as_ptr(),
             target_triangles.max(1) * 3,
@@ -123,20 +109,14 @@ pub fn simplify_region_with_attributes(
     };
     let triangles = count / 3;
     if count == 0 || triangles >= current {
-        return Ok(None);
+        return Ok(unchanged());
     }
-    compact_idx.truncate(count);
-    let surface_deviation =
-        one_sided_hausdorff(&source_pos, &source_idx, &compact_pos, &compact_idx);
-    Ok(Some(UpdatedRegion {
-        indices: compact_idx,
-        positions: compact_pos,
-        attributes,
-        remap,
+    out.truncate(count);
+    Ok(SimplifiedMesh {
+        indices: out.into_iter().map(|local| remap[local as usize]).collect(),
         error_object: result_error as f64,
-        surface_deviation,
-        scale,
-    }))
+        triangles,
+    })
 }
 
 #[cfg(test)]

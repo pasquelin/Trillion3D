@@ -1,4 +1,4 @@
-//! The attribute-aware simplifier: what it moves, what it keeps, what it reports.
+//! The attribute-aware simplifier: what it keeps, what it refuses, what it reports.
 use super::*;
 use crate::dag::tests::grid;
 
@@ -15,7 +15,7 @@ fn attributed(n: usize) -> (Vec<f32>, Vec<u32>, Vec<f32>) {
         .collect();
     (positions, indices, attributes)
 }
-fn simplify(n: usize, flags: &dyn Fn(u32) -> u8) -> Option<UpdatedRegion> {
+fn simplify(n: usize, flags: &dyn Fn(u32) -> u8) -> SimplifiedMesh {
     let (positions, indices, attributes) = attributed(n);
     let gather = |remap: &[u32]| {
         remap
@@ -28,7 +28,7 @@ fn simplify(n: usize, flags: &dyn Fn(u32) -> u8) -> Option<UpdatedRegion> {
         &positions,
         &indices,
         &gather,
-        &[0.5, 0.5, 0.5, 0.5, 0.5],
+        &[1.0, 1.0, 1.0, 32.0, 32.0],
         target,
         1.0,
         flags,
@@ -36,108 +36,63 @@ fn simplify(n: usize, flags: &dyn Fn(u32) -> u8) -> Option<UpdatedRegion> {
     .expect("simplify")
 }
 
-// Behaviour: the region halves, and the survivors it moved carry solved attributes: a texture
-// coordinate that still follows the plane it was laid on, within the collapse it absorbed.
+// Behaviour: the region halves, and every corner it draws is a vertex of the region it was
+// given — the collapses land on existing vertices, so no attribute is ever invented.
 #[test]
-fn a_region_halves_and_its_moved_survivors_carry_solved_attributes() {
-    let region = simplify(32, &|_| 0).expect("reduced");
+fn a_region_halves_and_draws_source_vertices_alone() {
+    let (positions, indices, _) = attributed(32);
+    let region = simplify(32, &|_| 0);
     assert!(
-        region.indices.len() / 3 <= 32 * 32,
-        "{} corners",
-        region.indices.len()
+        region.triangles <= indices.len() / 3 / 2,
+        "{}",
+        region.triangles
     );
     assert!(region.error_object > 0.0 && region.error_object.is_finite());
-    let (positions, _, _) = attributed(32);
-    let mut moved = 0usize;
-    for local in region.indices.iter().map(|&l| l as usize) {
-        let source = region.remap[local] as usize;
-        if region.positions[local * 3..local * 3 + 3] != positions[source * 3..source * 3 + 3] {
-            moved += 1;
-            let [x, y] = [region.positions[local * 3], region.positions[local * 3 + 1]];
-            let [u, v] = [
-                region.attributes[local * 5 + 3],
-                region.attributes[local * 5 + 4],
-            ];
-            assert!(
-                (u - x / 32.0).abs() < 0.05 && (v - y / 32.0).abs() < 0.05,
-                "uv drifted"
-            );
-        }
-    }
-    assert!(moved > 0, "the solve moved no survivor");
+    let source: std::collections::HashSet<u32> = indices.iter().copied().collect();
+    assert!(region.indices.iter().all(|corner| source.contains(corner)));
+    assert!(
+        region
+            .indices
+            .iter()
+            .all(|&c| (c as usize) < positions.len() / 3),
+        "a corner outside the buffer"
+    );
 }
 
-// Behaviour: the displacement of a solved vertex is its object-space distance from the source
-// position, and nothing else: a vertex that only changed attributes has none.
+// Behaviour: a locked vertex is never collapsed away, so two groups sharing it still meet.
 #[test]
-fn a_displacement_is_the_distance_from_the_source_position() {
-    let region = UpdatedRegion {
-        indices: vec![0],
-        positions: vec![3.0, 4.0, 0.0],
-        attributes: vec![1.0, 0.0],
-        remap: vec![0],
-        error_object: 0.0,
-        surface_deviation: 0.0,
-        scale: 1.0,
-    };
-    let moved = region.displacement(0, &[0.0, 0.0, 0.0]);
-    assert!((moved - 5.0).abs() < 1e-9, "{moved}");
-    assert_eq!(region.displacement(0, &[3.0, 4.0, 0.0]), 0.0);
-}
-
-// Behaviour: a locked vertex is neither moved nor rewritten, so two groups sharing it still meet.
-#[test]
-fn a_locked_vertex_keeps_its_position_and_attributes() {
-    let (positions, _, attributes) = attributed(32);
-    let region = simplify(32, &|v| u8::from(v.is_multiple_of(7)) * LOCK).expect("reduced");
-    for local in region.indices.iter().map(|&l| l as usize) {
-        let source = region.remap[local] as usize;
-        if source.is_multiple_of(7) {
-            assert_eq!(
-                region.positions[local * 3..local * 3 + 3],
-                positions[source * 3..source * 3 + 3]
-            );
-            assert_eq!(
-                region.attributes[local * 5..local * 5 + 5],
-                attributes[source * 5..source * 5 + 5]
-            );
-        }
+fn a_locked_vertex_survives_the_reduction() {
+    let (_, indices, _) = attributed(32);
+    let locked = |v: u32| v.is_multiple_of(7);
+    let region = simplify(32, &|v| u8::from(locked(v)) * LOCK);
+    let drawn: std::collections::HashSet<u32> = region.indices.iter().copied().collect();
+    for corner in indices.iter().copied().filter(|&v| locked(v)) {
+        assert!(drawn.contains(&corner), "lost the lock on {corner}");
     }
 }
 
-// Behaviour: a region already at its target is returned as `None`, never as a rewritten copy.
+// Behaviour: a region already at its target is returned as it came, at error zero, never as a
+// rewritten copy.
 #[test]
 fn a_region_below_its_target_is_left_alone() {
     let (positions, indices, _) = attributed(2);
     let gather = |remap: &[u32]| vec![0.0; remap.len() * 3];
     let out =
-        simplify_region_with_attributes(&positions, &indices, &gather, &[0.5; 3], 8, 1.0, &|_| 0)
+        simplify_region_with_attributes(&positions, &indices, &gather, &[1.0; 3], 8, 1.0, &|_| 0)
             .expect("simplify");
-    assert!(out.is_none());
+    assert_eq!(out.indices, indices);
+    assert_eq!(out.error_object, 0.0);
+    assert_eq!(out.triangles, indices.len() / 3);
 }
 
-// Behaviour: on a displaced grid the simplified surface does leave the source, and the level says
-// how far. It is never the whole distance a vertex travelled: what is measured is the distance
-// between the two surfaces, so whatever a survivor did inside the source surface costs nothing.
+// Behaviour: a region whose attribute rows do not match its vertices is refused, never weighed
+// against whatever the buffer happened to hold next.
 #[test]
-fn a_simplified_surface_that_leaves_the_source_reports_how_far() {
-    let region = simplify(32, &|_| 0).expect("reduced");
-    let (positions, _, _) = attributed(32);
-    let travelled = region
-        .indices
-        .iter()
-        .map(|&local| {
-            let source = region.remap[local as usize] as usize * 3;
-            region.displacement(local as usize, &positions[source..source + 3])
-        })
-        .fold(0.0_f64, f64::max);
-    assert!(
-        region.surface_deviation > 0.0,
-        "a displaced grid deviates by nothing"
-    );
-    assert!(
-        region.surface_deviation < travelled,
-        "{} of {travelled} travelled",
-        region.surface_deviation
-    );
+fn attributes_that_do_not_match_the_region_are_refused() {
+    let (positions, indices, _) = attributed(8);
+    let gather = |remap: &[u32]| vec![0.0; remap.len() * 2];
+    let error =
+        simplify_region_with_attributes(&positions, &indices, &gather, &[1.0; 3], 4, 1.0, &|_| 0)
+            .expect_err("refused");
+    assert!(error.to_string().contains("Attribute count"));
 }
