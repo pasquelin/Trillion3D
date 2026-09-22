@@ -109,6 +109,7 @@ export { SCENE_MODEL_VERSION, SceneNode, type SceneNodeOptions } from './sceneNo
 export type { SceneState } from './sceneNodeContracts.ts';
 export { SceneRoot, createSceneRoot } from './sceneRoot.ts';
 export type { AlphaMode, LinearRgb, Material, Side } from './materialContract.ts';
+export type { Texture, TextureColorSpace, TextureFilter, WrapMode } from './textureContract.ts';
 export { compareImages } from './compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */
