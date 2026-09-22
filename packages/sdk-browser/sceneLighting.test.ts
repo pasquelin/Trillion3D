@@ -60,3 +60,75 @@ test('a light that aims carries its own target: the source graph keeps the one i
   assert.equal(sun.target.parent, source, 'the source keeps its own target');
   assert.equal(copy.target.parent, scene, 'the copied aim is placed in the display graph');
 });
+
+/** A host of the contract's shape alone: no rendering library on either side. */
+function fakeLight(extra: Record<string, unknown>, clone: () => unknown) {
+  return {
+    name: 'light',
+    visible: true,
+    isLight: true,
+    color: { r: 1, g: 1, b: 1 },
+    intensity: 1,
+    position: { x: 0, y: 0, z: 0 },
+    quaternion: { x: 0, y: 0, z: 0, w: 1 },
+    scale: { x: 1, y: 1, z: 1 },
+    matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 3, 4, 1] },
+    parent: null,
+    updateWorldMatrix() {},
+    clone,
+    ...extra,
+  };
+}
+function fakeGraph(light: unknown) {
+  const added: unknown[] = [];
+  return {
+    added,
+    source: {
+      name: 'source',
+      visible: true,
+      traverse: (visit: (n: never) => void) => visit(light as never),
+    },
+    scene: { add: (node: unknown) => added.push(node), remove: () => {} },
+  };
+}
+const fakeAim = () => ({
+  visible: true,
+  position: { x: 0, y: 0, z: 0 },
+  quaternion: { x: 0, y: 0, z: 0, w: 1 },
+  scale: { x: 1, y: 1, z: 1 },
+  matrixWorld: { elements: new Array(16).fill(0) },
+  parent: null,
+  updateWorldMatrix() {},
+});
+
+test('the aim is read on the light the source declared, not on the copy the host returned', () => {
+  const target = {
+    ...fakeAim(),
+    matrixWorld: { elements: [...new Array(12).fill(0), 7, 8, 9, 1] },
+  };
+  // A host whose `clone()` drops the target: the old read of the copy lost the aim silently.
+  const light = fakeLight({ target }, () => fakeLight({}, () => null));
+  const graph = fakeGraph(light);
+  installSceneLighting(graph.scene as never, graph.source as never, fakeAim as never);
+  assert.equal(graph.added.length, 2, 'the aim node is placed beside the copy');
+  const aim = graph.added[0] as ReturnType<typeof fakeAim>;
+  assert.deepEqual(
+    [aim.position.x, aim.position.y, aim.position.z],
+    [7, 8, 9],
+    'and it is posed on the world position of the target the source declared',
+  );
+});
+
+test('a hemisphere the host declared without a ground colour is placed, not crashed', () => {
+  const light = fakeLight({ isHemisphereLight: true }, () =>
+    fakeLight({ isHemisphereLight: true }, () => null),
+  );
+  const graph = fakeGraph(light);
+  const installed = installSceneLighting(
+    graph.scene as never,
+    graph.source as never,
+    fakeAim as never,
+  );
+  assert.equal(installed.lit, true);
+  assert.equal(graph.added.length, 1, 'a hemisphere aims at nothing: no aim node');
+});

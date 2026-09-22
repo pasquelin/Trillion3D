@@ -1,4 +1,10 @@
-import type { HostNode, HostScene, HostTexture, HostTraversable } from './hostResources.ts';
+import type {
+  HostDiagnosticFactory,
+  HostNode,
+  HostScene,
+  HostTexture,
+  HostTraversable,
+} from './hostResources.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import type { HostDrawOutput } from './webglRenderTarget.ts';
 import type {
@@ -13,11 +19,17 @@ import type { BackendMetrics } from './backendMetricKeys.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 import type { CpuStepSummary } from './cpuProfile.ts';
 export type { BackendCapabilities, HostDrawOutput };
+import type { BackendDiagnostic, DiagnosticDetail } from './backendDiagnosticTypes.ts';
+export type { BackendDiagnostic, DiagnosticDetail };
 
 export interface RenderBackend {
   id: string;
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
+  /** The host builders a view needs to repaint `scene`, declared by an engine that has no
+   *  `setDiagnostic` of its own: making a host object belongs to the boundary that owns the
+   *  graph, never to the view. Absent from an engine that paints its own diagnostic. */
+  hostDiagnostics?: HostDiagnosticFactory;
   refreshSceneLighting?(): void;
   /** True when the rendered scene carries at least one declared light; false is the unlit view,
    *  whose composition is identity (P6). Read every frame: a light added later changes it. */
@@ -111,18 +123,6 @@ export interface RenderBackend {
   visibilityIds?(): Uint32Array;
   dispose(): void;
 }
-export type DiagnosticDetail = 'summary' | 'trace';
-import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
-export type BackendDiagnostic = {
-  phase: string;
-  message: string;
-  context: Record<string, unknown>;
-  /** Added by the host collector; optional for standalone backend consumers. */
-  sequence?: number;
-  sessionId?: string;
-  queuedAt?: number;
-  createdAt?: number;
-};
 export interface BackendContext {
   source: HostTraversable;
   metadata: ClusterManifest;
@@ -184,7 +184,7 @@ export interface BackendContext {
   /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
   stageProfile?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`diagnosticGpuVariant.ts`); absent in production. */
-  diagnosticGpuVariant?: DiagnosticGpuVariant;
+  diagnosticGpuVariant?: import('./diagnosticGpuVariant.ts').DiagnosticGpuVariant;
   /** Shadows-step budget, in GPU milliseconds per frame (`LIGHT_SETTINGS`); page-by-page
    *  shadow-map invalidation, on by default. */
   shadowBudgetMs?: number;

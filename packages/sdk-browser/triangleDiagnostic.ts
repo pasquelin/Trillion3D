@@ -1,11 +1,7 @@
-import { hashId } from './backendCommon.ts';
+import { hashId } from './diagnosticColors.ts';
 import { materialSide } from './materialSide.ts';
-import {
-  hostTriangleGeometry,
-  hostTriangleMaterial,
-  hostVertexColors,
-} from './threeSceneAdapter.ts';
 import type {
+  HostDiagnosticFactory,
   HostDiagnosticGeometry,
   HostDiagnosticMaterial,
   HostDiagnosticMesh,
@@ -15,8 +11,8 @@ import type { DiagnosticMode } from '../sdk-core/index.ts';
 /**
  * The per-triangle view, computed here and nowhere else: one colour per submitted triangle, from
  * the triangle's rank and the salt of the page or mesh it belongs to. The copy that carries those
- * colours is a host geometry and its paint a host material, both built at the boundary
- * (`threeSceneAdapter.ts`); this file decides every number they receive.
+ * colours is a host geometry and its paint a host material; both are made by the `host` factory
+ * the engine owning the graph hands in, and this file decides every number they receive.
  */
 
 const cache = new WeakMap<HostDiagnosticGeometry, HostDiagnosticGeometry>();
@@ -55,11 +51,15 @@ function triangleColors(count: number, salt: number) {
   return colors;
 }
 
-export function triangleGeometry(geometry: HostDiagnosticGeometry, salt = 0) {
+export function triangleGeometry(
+  geometry: HostDiagnosticGeometry,
+  host: HostDiagnosticFactory,
+  salt = 0,
+) {
   let copy = cache.get(geometry);
   if (!copy) {
-    copy = hostTriangleGeometry(geometry);
-    hostVertexColors(copy, triangleColors(copy.attributes.position.count, salt));
+    copy = host.triangleGeometry(geometry);
+    host.vertexColors(copy, triangleColors(copy.attributes.position.count, salt));
     cache.set(geometry, copy);
   }
   return copy;
@@ -74,14 +74,15 @@ export function applyMeshDiagnostic(
   mesh: HostDiagnosticMesh,
   mode: DiagnosticMode,
   overlays: HostDiagnosticMaterial[],
+  host: HostDiagnosticFactory,
 ) {
   const sourceGeometry = mesh.userData.sourceGeometry as HostDiagnosticGeometry;
   const sourceMaterial = mesh.userData.sourceMaterial as HostDiagnosticMesh['material'];
   mesh.geometry = sourceGeometry;
   mesh.material = sourceMaterial;
   if (mode !== 'wireframe') return;
-  mesh.geometry = triangleGeometry(sourceGeometry, hashId(String(mesh.id)));
-  const material = hostTriangleMaterial(materialSide(sourceMaterial));
+  mesh.geometry = triangleGeometry(sourceGeometry, host, hashId(String(mesh.id)));
+  const material = host.triangleMaterial(materialSide(sourceMaterial));
   overlays.push(material);
   mesh.material = material;
 }

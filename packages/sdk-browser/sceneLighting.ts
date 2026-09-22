@@ -34,6 +34,10 @@ export type HostLight = HostPlaced & {
 /** The two writes this boundary makes on the display graph it lights. */
 export type HostLightScene = { add(node: unknown): void; remove(node: unknown): void };
 
+/** What a copied light aims at: `from` is the target the source declared, read every update;
+ *  `to` is the node of the display graph the copy points at in its place. */
+type Aim = { from: HostPlaced; to: HostPlaced };
+
 function sceneLights(source: HostTraversable): HostLight[] {
   const lights: HostLight[] = [];
   source.traverse((object: HostNode) => {
@@ -70,12 +74,13 @@ export function installSceneLighting(
    *  makes it — the source's own target belongs to the source graph and stays there. */
   aimNode: () => HostPlaced,
 ) {
-  let pairs: Array<{ original: HostLight; copy: HostLight; target?: HostPlaced }> = [];
+  /** One entry per copied light; `aim` only where the source declared a target. */
+  let pairs: Array<{ original: HostLight; copy: HostLight; aim?: Aim }> = [];
   // Source-graph lights are cleared when another lighting contract takes over: two
   // stacked light sets would be nobody's lighting.
   let enabled = true;
   const update = () => {
-    for (const { original, copy, target } of pairs) {
+    for (const { original, copy, aim } of pairs) {
       original.updateWorldMatrix(true, false);
       placeAt(copy, original);
       copy.quaternion.x = 0;
@@ -90,15 +95,16 @@ export function installSceneLighting(
       copy.color.b = original.color.b;
       copy.intensity = original.intensity;
       copy.visible = enabled && visible(original);
-      if (target) {
-        const sourceTarget = original.target!;
-        sourceTarget.updateWorldMatrix(true, false);
-        placeAt(target, sourceTarget);
+      if (aim) {
+        aim.from.updateWorldMatrix(true, false);
+        placeAt(aim.to, aim.from);
       }
-      if (original.isHemisphereLight) {
-        copy.groundColor!.r = original.groundColor!.r;
-        copy.groundColor!.g = original.groundColor!.g;
-        copy.groundColor!.b = original.groundColor!.b;
+      // A ground colour is optional on both sides of the contract: a host that flags a
+      // hemisphere without one keeps the copy's own, rather than crashing the frame.
+      if (original.groundColor && copy.groundColor) {
+        copy.groundColor.r = original.groundColor.r;
+        copy.groundColor.g = original.groundColor.g;
+        copy.groundColor.b = original.groundColor.b;
       }
       if (original.isPointLight || original.isSpotLight) {
         copy.distance = original.distance;
@@ -111,23 +117,24 @@ export function installSceneLighting(
     }
   };
   const refresh = () => {
-    for (const { copy, target } of pairs) {
+    for (const { copy, aim } of pairs) {
       scene.remove(copy);
-      if (target) scene.remove(target);
+      if (aim) scene.remove(aim.to);
     }
     pairs = [];
     for (const original of sceneLights(source)) {
       const copy = original.clone();
-      let target: HostPlaced | undefined;
+      let aim: Aim | undefined;
       // A light that aims gets an aim of this graph: the copy is posed here, and the source's
-      // own target stays in the graph its owner walks and resolves.
-      if (copy.target) {
-        target = aimNode();
-        copy.target = target;
-        scene.add(target);
+      // own target stays in the graph its owner walks and resolves. The question is asked of
+      // the original — a host whose `clone()` drops the target would otherwise lose the aim.
+      if (original.target) {
+        aim = { from: original.target, to: aimNode() };
+        copy.target = aim.to;
+        scene.add(aim.to);
       }
       scene.add(copy);
-      pairs.push({ original, copy, target });
+      pairs.push({ original, copy, aim });
     }
     update();
   };

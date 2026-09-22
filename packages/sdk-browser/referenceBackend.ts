@@ -2,7 +2,7 @@ import { meshes as objects, geometryBytes } from './sceneMeshes.ts';
 import { asHostLibrary } from './hostResources.ts';
 import { baseCapabilities, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { sceneLightingApi } from './sceneLighting.ts';
-import { createThreeSceneDraw } from './threeSceneAdapter.ts';
+import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
@@ -38,7 +38,7 @@ export const referenceBackend: BackendFactory = ({
   }
   const applyDiagnostic = (mode: DiagnosticMode) => {
     overlays.splice(0).forEach((m) => m.dispose());
-    for (const mesh of copies) applyMeshDiagnostic(mesh, mode, overlays);
+    for (const mesh of copies) applyMeshDiagnostic(mesh, mode, overlays, hostDiagnostics);
   };
   return {
     id: 'three-webgl-reference',
