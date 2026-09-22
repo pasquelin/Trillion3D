@@ -89,3 +89,19 @@ test('a move announced before the first image still has the watched set built', 
   gate.readScene(source, drawn);
   assert.notEqual(gate.revisions.scene, revision, 'the host write reaches a watch that exists');
 });
+
+test('a reshape then a move before the same image: the node the reshape brought in is hooked', () => {
+  const { source, drawn } = scene();
+  const gate = createFrameGateCore(1);
+  const entrant = new THREE.Mesh();
+  const list = [...drawn, { sourceMesh: entrant }];
+  gate.readScene(source, drawn);
+  source.add(entrant);
+  gate.sceneChanged(); // the reshape: the watched set owes a rebuild
+  gate.sceneMoved(); // a pose the engine moved, same interval, before the image
+  gate.readScene(source, list);
+  const revision = gate.revisions.scene;
+  entrant.visible = false;
+  gate.readScene(source, list);
+  assert.notEqual(gate.revisions.scene, revision, 'the write on the entered node is seen');
+});
