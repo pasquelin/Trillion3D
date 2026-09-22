@@ -1,5 +1,13 @@
 use super::*;
 
+/// Clusters, kept groups, one tally per level, and the stalled groups with their level.
+pub type DagBuild = (
+    Vec<DagCluster>,
+    Vec<DagGroup>,
+    Vec<GroupTally>,
+    Vec<DagStall>,
+);
+
 /// Builds cluster DAG. `strategy` decides whether coarse levels exist: in
 /// `ExactClusters` build yields level zero alone, without group or reduction, so
 /// published coverage is exactly source triangles.
@@ -7,13 +15,16 @@ use super::*;
 /// `uv_sets` — every texture set the primitive carries, two floats per vertex, empty when it
 /// carries none — says which position copies reduction is allowed to weld when stuck: those
 /// sharing every texture coordinate, never the opposite edge of a seam of any set.
+///
+/// Returns the clusters, the groups kept, one tally per level and every stalled group with its
+/// level, in level order.
 pub fn build_dag_tallied(
     positions: &[f32],
     uv_sets: &[&[f32]],
     indices: &[u32],
     strategy: DagStrategy,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
-) -> Result<(Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>)> {
+) -> Result<DagBuild> {
     checkpoint()?;
     // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
     let mut first_use = vec![u32::MAX; positions.len() / 3];
@@ -49,10 +60,11 @@ pub fn build_dag_tallied(
         });
     }
     let mut tallies: Vec<GroupTally> = Vec::new();
+    let mut stalls: Vec<DagStall> = Vec::new();
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
-        return Ok((dag, reductions_kept, tallies));
+        return Ok((dag, reductions_kept, tallies, stalls));
     }
     let (weld, weld_seam) = {
         let _t = Timer::new(Phase::Weld);
@@ -115,13 +127,14 @@ pub fn build_dag_tallied(
         for (group, reduction) in groups.iter().zip(reductions) {
             let reduction = match reduction {
                 Ok(reduction) => {
-                    tally.record(GroupOutcome::Reduced);
+                    tally.reduced += 1;
                     tally.welded += usize::from(reduction.welded);
                     tally.relocked += usize::from(reduction.relocked);
                     reduction
                 }
                 Err(outcome) => {
-                    tally.record(outcome);
+                    tally.record(outcome.cause);
+                    stalls.push(DagStall { level, outcome });
                     continue;
                 }
             };
@@ -171,5 +184,5 @@ pub fn build_dag_tallied(
             break;
         }
     }
-    Ok((dag, reductions_kept, tallies))
+    Ok((dag, reductions_kept, tallies, stalls))
 }
