@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =====================================================================================
 // The complete benchmark campaign: everything the benchmark can measure, run in a single command,
-// each reference scene (`emerald-square`, `whisperwind-village`) then each run under
+// each reference scene (`REFERENCE_SCENES` of `scene.ts`) then each run under
 // `--out/<scene>/<name>/` (default `.mesure/out/global/`). A run whose directory already
 // contains a `mesure.json` is skipped to resume an interrupted campaign.
 //
