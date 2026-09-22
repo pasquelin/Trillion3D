@@ -1,21 +1,23 @@
 import type { PageRec } from './pageSelection.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
+import { pageAddress } from './webgpuPageSlots.ts';
 
 /** Addresses a trace sample names, at most, whatever the size of the described set. */
 const TRACE_SAMPLE = 16;
 /** A record list as a sample reads it: the row table holds empty slots. */
 type PageList = ArrayLike<PageRec | undefined>;
 
-/** Stable numeric page keys keep the hot residency path out of string hash tables. */
+/** Stable numeric page keys keep the hot residency path out of string hash tables. The catalogue
+ *  is the list of pool ADDRESSES (`pageAddress`), which is what the cache holds and pins. */
 export function createWebgpuPageTracking(allPages: PageRec[]) {
-  const pageCatalog = [...new Set(allPages.map((page) => page.url))];
+  const pageCatalog = [...new Set(allPages.map(pageAddress))];
   const pageCatalogIds = new Map(pageCatalog.map((url, index) => [url, index]));
   const pageRefs = (urls: string[]) => urls.map((url) => pageCatalogIds.get(url) ?? url);
   const keyCount = Math.max(1, pageCatalog.length);
-  for (const page of allPages) page.keyIndex = pageCatalogIds.get(page.url);
+  for (const page of allPages) page.keyIndex = pageCatalogIds.get(pageAddress(page));
   const keyOf = (rec: PageRec) => {
-    const key = rec.keyIndex ?? pageCatalogIds.get(rec.url);
-    if (key === undefined) throw new Error(`RESIDENCY_KEY_UNKNOWN: ${rec.url}`);
+    const key = rec.keyIndex ?? pageCatalogIds.get(pageAddress(rec));
+    if (key === undefined) throw new Error(`RESIDENCY_KEY_UNKNOWN: ${pageAddress(rec)}`);
     rec.keyIndex = key;
     return key;
   };
@@ -80,7 +82,10 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
   /** The same sample, taken from the records themselves: no address list is built for it. `count`
    *  bounds the list when only its start is valid, like the row table. */
   const traceRecs = (name: string, pages: PageList, count = pages.length) =>
-    publish(name, count, (index) => pages[index]?.url ?? '');
+    publish(name, count, (index) => {
+      const rec = pages[index];
+      return rec ? pageAddress(rec) : '';
+    });
   /** The same sample, taken from a dense key set, without copying a single address from it. */
   const traceKeys = (name: string, set: { list: Int32Array; count: number }) =>
     publish(name, set.count, (index) => pageCatalog[set.list[index]]);
