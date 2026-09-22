@@ -64,12 +64,13 @@ export function createFrameGateCore(holdValues: number) {
      * image while a node is being moved.
      */
     sceneMoved() {
-      // Before the first image the watched set does not exist yet: settling it here would leave
-      // it empty for good, and every host write would go unseen. Only a set already built is
-      // carried over.
-      const built = watchRevision >= 0;
+      // Only a watched set UP TO DATE with the current scene is carried over. Before the first
+      // image it does not exist yet; after a reshape already announced it no longer names the
+      // right nodes. Settling either would drop the rebuild `readScene` still owes: the node the
+      // reshape brought in would never be hooked, and every host write on it lost for good.
+      const current = watchRevision === revisions.scene;
       gate.sceneChanged();
-      if (built) watchRevision = revisions.scene;
+      if (current) watchRevision = revisions.scene;
     },
     /**
      * Resources moved: a page's bytes, residency, replaced geometry, and anything that arrives
