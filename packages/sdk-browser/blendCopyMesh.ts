@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { asHostLibrary } from './hostResources.ts';
+import { asHostLibrary, type HostMesh } from './hostResources.ts';
+import type { BlendCopy } from './blendCopyContract.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 /**
@@ -21,14 +22,19 @@ import type { MatrixElements } from './matrixElements.ts';
  * `.identity()`, `.set()`, the recomposition — would write into the engine's world buffer and
  * corrupt the pose of every page of the same mesh. Nothing on this copy may write its matrix.
  */
-export function createBlendCopy(mesh: THREE.Mesh, renderOrder: number, world: MatrixElements) {
-  const copy = new THREE.Mesh(mesh.geometry, mesh.material);
+export function createBlendCopy(
+  mesh: HostMesh,
+  renderOrder: number,
+  world: MatrixElements,
+): BlendCopy {
+  const source = asHostLibrary<THREE.Mesh>(mesh);
+  const copy = new THREE.Mesh(source.geometry, source.material);
   copy.matrixAutoUpdate = false;
   copy.matrix = Object.assign(new THREE.Matrix4(), {
     elements: asHostLibrary<number[]>(world.elements),
   });
-  copy.frustumCulled = mesh.frustumCulled;
+  copy.frustumCulled = source.frustumCulled;
   copy.renderOrder = renderOrder;
   copy.userData.sourceMesh = mesh;
-  return copy;
+  return copy as unknown as BlendCopy;
 }

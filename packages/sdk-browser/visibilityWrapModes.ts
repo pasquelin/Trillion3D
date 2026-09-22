@@ -1,5 +1,4 @@
-import type { HostTexture } from './hostResources.ts';
-import * as THREE from 'three';
+import type { Texture, WrapMode } from '../sdk-core/index.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 
 /**
@@ -45,14 +44,10 @@ const WRAP_SOURCE = {
 } as const satisfies Record<keyof typeof WRAP_MAP, keyof VisMaterial>;
 
 /** Nibble of a map: no bit when clamping, one bit per axis otherwise, never both of the same axis. */
-export function wrapNibble(map: HostTexture | undefined) {
+export function wrapNibble(map: Texture | undefined) {
   if (!map) return 0;
-  const axis = (wrap: number, repeat: number, mirror: number) =>
-    wrap === THREE.ClampToEdgeWrapping
-      ? 0
-      : wrap === THREE.MirroredRepeatWrapping
-        ? mirror
-        : repeat;
+  const axis = (wrap: WrapMode, repeat: number, mirror: number) =>
+    wrap === 'clamp' ? 0 : wrap === 'mirror' ? mirror : repeat;
   return (
     axis(map.wrapS, WRAP_S_REPEAT, WRAP_S_MIRROR) | axis(map.wrapT, WRAP_T_REPEAT, WRAP_T_MIRROR)
   );
@@ -84,7 +79,7 @@ const WRAP_OF_WGSL = `fn wrapOf(modes:u32,map:u32)->u32{return (modes>>(map*4u))
 /**
  * Texture coordinate brought back into [0, 1] according to each axis's mode, for a clamp sampler.
  * Mirror reads odd periods backwards: `p` walks [0, 2) and `2 - p` is exact, so linear filtering
- * yields the colour of Three's `mirror-repeat` sampler.
+ * yields the colour of the hardware `mirror-repeat` sampler.
  *
  * `wrapUv` receives the nibble of the map being read, not the material flags: a page's colour may
  * repeat where its normals clamp.
@@ -136,12 +131,12 @@ fn wrapUv(uv:vec2f,wrap:u32,texels:vec2f)->WrapTaps{
  * the taps then wrap the period. Two languages, one rule: the shader text is not shared with
  * TypeScript.
  */
-export function wrapLinear(t: number, size: number, wrap: number): [number, number, number] {
-  const repeat = wrap === THREE.RepeatWrapping;
-  const p = wrap === THREE.MirroredRepeatWrapping ? t - 2 * Math.floor(t / 2) : 0;
+export function wrapLinear(t: number, size: number, wrap: WrapMode): [number, number, number] {
+  const repeat = wrap === 'repeat';
+  const p = wrap === 'mirror' ? t - 2 * Math.floor(t / 2) : 0;
   const c = repeat
     ? t - Math.floor(t)
-    : wrap === THREE.ClampToEdgeWrapping
+    : wrap === 'clamp'
       ? Math.min(1, Math.max(0, t))
       : p > 1
         ? 2 - p

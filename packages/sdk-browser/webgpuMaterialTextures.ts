@@ -1,11 +1,12 @@
-import type { HostMaterials, HostTexture } from './hostResources.ts';
-import type * as THREE from 'three';
+import type { HostMaterials } from './hostResources.ts';
+import type { Texture } from '../sdk-core/index.ts';
+import type { BlendCopy } from './blendCopyContract.ts';
 import type { PageRec } from './pageSelection.ts';
 import { visMaterial } from './visibilityBuffer.ts';
 
 /** Store a texture in an atlas if it is not already there, and return the slot it occupies.
  *  Slot 0 is the fill texel, so the first stored texture takes slot 1. */
-const adder = (known: Map<HostTexture, number>, list: HostTexture[]) => (texture?: HostTexture) => {
+const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Texture) => {
   if (!texture) return;
   if (known.has(texture)) return;
   known.set(texture, list.length + 1);
@@ -15,12 +16,12 @@ const adder = (known: Map<HostTexture, number>, list: HostTexture[]) => (texture
 /** Census every colour and data texture once, in a stable slot order. */
 export function collectWebgpuMaterialTextures(
   allPages: PageRec[],
-  blendCopies: THREE.Mesh[],
-  mapLayer: Map<HostTexture, number>,
-  dataLayer: Map<HostTexture, number>,
+  blendCopies: readonly BlendCopy[],
+  mapLayer: Map<Texture, number>,
+  dataLayer: Map<Texture, number>,
 ) {
-  const maps: HostTexture[] = [];
-  const dataMaps: HostTexture[] = [];
+  const maps: Texture[] = [];
+  const dataMaps: Texture[] = [];
   const seen = new Set<HostMaterials>();
   const addColor = adder(mapLayer, maps);
   const addData = adder(dataLayer, dataMaps);
