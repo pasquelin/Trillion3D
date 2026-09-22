@@ -24,8 +24,13 @@ numbers. Conventions shared by every entry:
 - `createExplorer(target: ExplorerTarget, options: ExplorerOptions)` and
   `createExplorerJob(id, target, options)` accept a canvas element or its literal document ID.
 - `interactive: true` owns CSS/DPR sizing, OrbitControls and bounded demand-driven rendering;
-  absent/false preserves manual sessions. Defaults to direct WebGPU, with explicit failure
-  when unavailable. `invalidate()` requests a frame after programmatic edits.
+  absent/false preserves manual sessions. `invalidate()` requests a frame after programmatic edits.
+- With no `backends` option, interactive or not, the engine's own path renders: direct WebGPU
+  where a device was granted, the autonomous WebGL2 path where the cache carries its prepared
+  scene, and a named `EngineError` (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where neither exists. The
+  Three witnesses are opt-in through `options.backends`. `chooseBackends(options, metadata,
+  gpuDevice)` and `autonomousCacheReady(metadata)` expose that decision; the `backend-choice`
+  diagnostic reports it per session. Proof: `defaultBackends.test.ts`, the browser startup proof.
 - `RenderBackend.pendingFrame?()` waits for submitted work without image readback and returns
   whether interactive rendering should continue. Custom backends with progressive work should
   implement it. Disposal owns all interactive listeners and pending callbacks.
