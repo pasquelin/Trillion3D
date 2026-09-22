@@ -14,13 +14,9 @@ impl Built {
 }
 
 /// The DAG of one primitive of the case, built as the compiler builds it: `qem-endpoints`, every
-/// texture set the case carries as the seam weld.
+/// texture set the pages carry as the seam weld.
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
-    let uv_sets: Vec<&[f32]> = [&case.uv0, &case.uv1]
-        .into_iter()
-        .flatten()
-        .map(|uvs| &uvs[..])
-        .collect();
+    let uv_sets: Vec<&[f32]> = case.uv_sets().into_iter().map(|(_, uvs)| uvs).collect();
     let (dag, _, _, stalls) = build_dag_tallied(
         &case.positions,
         &uv_sets,
