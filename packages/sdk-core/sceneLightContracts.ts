@@ -45,7 +45,7 @@ export interface SceneLight {
   castsShadow: boolean;
 }
 /** Exposure, display curve and the irradiance from every direction (`sceneEnvironment.ts`). */
-export type { SceneEnvironment, SceneToneMapping } from './sceneEnvironment.ts';
+export type { SceneEnvironment } from './sceneEnvironment.ts';
 export const SCENE_LIGHT_VERSION = 2;
 /**
  * What the host asks to see. `lit` is real lighting and that alone; `unlit` is the raw-albedo

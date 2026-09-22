@@ -25,7 +25,7 @@ function bounds(values: readonly number[], size: number) {
  * The buffer views, accessors and primitives of workshop surfaces, in one binary chunk list;
  * `uv` adds the texture coordinates the workshop recorded, for a material that reads a map.
  */
-export function surfacesBuffers(
+function surfacesBuffers(
   surfaces: Iterable<[number, Mesh]>,
   buffer: number,
   firstView: number,
@@ -70,7 +70,7 @@ export function surfacesBuffers(
 }
 
 /** A material row: name, base colour, metalness, roughness, then any glTF field of its own. */
-export const material = ([
+const material = ([
   name,
   baseColorFactor,
   metallicFactor,

@@ -46,7 +46,7 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
 /** The box an orthographic camera sees, in its own frame, before its zoom. */
 export type OrthographicBox = { left: number; right: number; top: number; bottom: number };
 /** The box `box` scaled by `zoom` about its centre, written in `into`: what the camera sees. */
-export function zoomedBox(box: OrthographicBox, zoom: number, into: OrthographicBox) {
+function zoomedBox(box: OrthographicBox, zoom: number, into: OrthographicBox) {
   const x = (box.right + box.left) / 2,
     y = (box.top + box.bottom) / 2,
     w = (box.right - box.left) / (2 * zoom),

@@ -31,7 +31,7 @@ function verdict(text: string, complete: boolean): ModelFormat | null {
  * be named — and names the model format: a binary glTF by its `glTF` magic, a JSON document by
  * the field its shape declares, an OBJ by its first statement. The rest is never downloaded.
  */
-export async function detectModelFormat(url: string, signal?: AbortSignal) {
+async function detectModelFormat(url: string, signal?: AbortSignal) {
   const reader = (await checked(url, signal)).body?.getReader();
   if (!reader) return 'unknown';
   const decoder = new TextDecoder();
