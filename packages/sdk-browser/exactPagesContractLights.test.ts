@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { LIGHT_SETTINGS, createSceneLightStore } from '../sdk-core/index.ts';
 import { attachContractLights } from './exactPagesContractLights.ts';
 import { installSceneLighting } from './sceneLighting.ts';
-import { hostAimNode } from './backendCommon.ts';
+import { hostAimNode } from './hostSceneObjects.ts';
 import { unsupportedClusterLight } from './webglClusterLights.ts';
 
 /** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
