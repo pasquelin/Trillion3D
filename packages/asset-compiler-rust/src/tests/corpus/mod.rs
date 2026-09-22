@@ -18,28 +18,12 @@ mod topology;
 mod uv;
 mod uv_degenerate;
 
-/// xorshift64, seeded: the same case on every platform, no libm in the way.
-pub(super) struct Rng(u64);
-impl Rng {
-    pub fn new(seed: u64) -> Self {
-        Self(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1)
-    }
-    pub fn next(&mut self) -> u64 {
-        let mut x = self.0;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        self.0 = x;
-        x
-    }
-    /// A float in `[0, 1)`.
-    pub fn unit(&mut self) -> f32 {
-        (self.next() >> 40) as f32 / (1u64 << 24) as f32
-    }
-    /// An integer in `[low, high]`.
-    pub fn between(&mut self, low: usize, high: usize) -> usize {
-        low + (self.next() % (high - low + 1) as u64) as usize
-    }
+pub(super) use crate::bench_calculs::inputs::Xorshift;
+
+/// The generator of a case: the benches' xorshift, its seed spread over the whole state so that
+/// neighbouring seeds draw unrelated cases. The same case on every platform, no libm in the way.
+pub(super) fn seeded(seed: u64) -> Xorshift {
+    Xorshift::new(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15))
 }
 
 /// How the triangles are written to the document.
@@ -85,6 +69,9 @@ pub(super) struct Case {
     pub sparse_positions: bool,
     /// `POSITION` written as normalised `SHORT` under `KHR_mesh_quantization`.
     pub quantized_positions: bool,
+    /// Whether a material samples `TEXCOORD_0` and `TEXCOORD_1`. A set the case carries and no
+    /// material samples stays out of the pages and out of the seam weld.
+    pub sampled: [bool; 2],
 }
 impl Case {
     pub fn new(name: &'static str, positions: Vec<f32>, indices: Vec<u32>) -> Self {
@@ -102,6 +89,7 @@ impl Case {
             materials: Vec::new(),
             sparse_positions: false,
             quantized_positions: false,
+            sampled: [true; 2],
         }
     }
     pub fn vertex_count(&self) -> usize {
@@ -118,29 +106,55 @@ impl Case {
         }
         out
     }
-    /// The page attributes of the case, in the order the page format writes them.
+    /// Width and values of the attribute the document names `name`, when the case carries it.
+    pub fn values(&self, name: &str) -> Option<(usize, &[f32])> {
+        let (width, values) = match name {
+            "NORMAL" => (3, self.normals.as_ref()?),
+            "TEXCOORD_0" => (2, self.uv0.as_ref()?),
+            "TEXCOORD_1" => (2, self.uv1.as_ref()?),
+            "TANGENT" => (4, self.tangents.as_ref()?),
+            "COLOR_0" => {
+                let (width, values) = self.colours.as_ref()?;
+                (*width, values)
+            }
+            _ => return None,
+        };
+        Some((width, values))
+    }
+    /// Whether the pages carry the attribute flagged `flag`: every one but a texture set no
+    /// material samples.
+    fn carried(&self, flag: u32) -> bool {
+        match flag {
+            geometry_page::FLAG_UV => self.sampled[0],
+            geometry_page::FLAG_UV1 => self.sampled[1],
+            _ => true,
+        }
+    }
+    /// The attributes the pages carry, in the order the page format writes them.
     pub fn attributes(&self) -> Vec<geometry_page::Attribute> {
-        let mut out = Vec::new();
-        let mut push = |flag, width, values: &Option<Vec<f32>>| {
-            if let Some(values) = values {
-                out.push(geometry_page::Attribute {
+        geometry_page::PAGE_ATTRIBUTES
+            .iter()
+            .filter(|&&(_, _, flag)| self.carried(flag))
+            .filter_map(|&(name, _, flag)| {
+                let (width, values) = self.values(name)?;
+                Some(geometry_page::Attribute {
                     flag,
                     width,
-                    values: values.clone(),
-                });
-            }
-        };
-        push(geometry_page::FLAG_NORMAL, 3, &self.normals);
-        push(geometry_page::FLAG_UV, 2, &self.uv0);
-        push(geometry_page::FLAG_UV1, 2, &self.uv1);
-        if let Some((width, values)) = &self.colours {
-            out.push(geometry_page::Attribute {
-                flag: geometry_page::FLAG_COLOR,
-                width: *width,
-                values: values.clone(),
-            });
-        }
-        out
+                    values: values.to_vec(),
+                })
+            })
+            .collect()
+    }
+    /// The texture sets the pages carry, by name: those the seam weld keeps apart.
+    pub fn uv_sets(&self) -> Vec<(&'static str, &[f32])> {
+        geometry_page::PAGE_ATTRIBUTES
+            .iter()
+            .filter(|&&(_, _, flag)| {
+                (flag == geometry_page::FLAG_UV || flag == geometry_page::FLAG_UV1)
+                    && self.carried(flag)
+            })
+            .filter_map(|&(name, _, _)| Some((name, self.values(name)?.1)))
+            .collect()
     }
 }
 

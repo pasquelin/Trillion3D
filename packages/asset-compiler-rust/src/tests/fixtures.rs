@@ -69,6 +69,24 @@ pub(super) fn portable_sin(t: f32) -> f32 {
     sign * 16.0 * a / (5.0 * std::f32::consts::PI * std::f32::consts::PI - 4.0 * a)
 }
 
+/// Two triangles per quad of an `nx × ny` grid, corners named by `vertex(x, y)`: the one
+/// quad split every grid fixture of the crate shares.
+pub(crate) fn grid_indices(nx: usize, ny: usize, vertex: impl Fn(usize, usize) -> u32) -> Vec<u32> {
+    let mut indices = Vec::with_capacity(nx * ny * 6);
+    for y in 0..ny {
+        for x in 0..nx {
+            let (a, b, c, d) = (
+                vertex(x, y),
+                vertex(x + 1, y),
+                vertex(x, y + 1),
+                vertex(x + 1, y + 1),
+            );
+            indices.extend([a, b, c, b, d, c]);
+        }
+    }
+    indices
+}
+
 pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (PathBuf, Options) {
     let mut positions = Vec::new();
     for y in 0..=ny {
@@ -80,14 +98,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
             ]);
         }
     }
-    let mut indices = Vec::new();
-    let width = (nx + 1) as u32;
-    for y in 0..ny as u32 {
-        for x in 0..nx as u32 {
-            let i = y * width + x;
-            indices.extend([i, i + 1, i + width, i + 1, i + 1 + width, i + width]);
-        }
-    }
+    let indices = grid_indices(nx, ny, |x, y| (y * (nx + 1) + x) as u32);
     let mut bin = Vec::new();
     for value in &positions {
         bin.extend_from_slice(&value.to_le_bytes());

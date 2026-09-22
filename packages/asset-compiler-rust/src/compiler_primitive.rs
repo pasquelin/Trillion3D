@@ -129,12 +129,7 @@ pub(super) fn compile_primitive(
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
     let mut attributes = Vec::<geometry_page::Attribute>::new();
     if !unsplit {
-        for (name, width, flag) in [
-            ("NORMAL", 3, geometry_page::FLAG_NORMAL),
-            ("TEXCOORD_0", 2, geometry_page::FLAG_UV),
-            ("TEXCOORD_1", 2, geometry_page::FLAG_UV1),
-            ("COLOR_0", 4, geometry_page::FLAG_COLOR),
-        ] {
+        for &(name, width, flag) in &geometry_page::PAGE_ATTRIBUTES {
             if let Some(id) = p
                 .get("attributes")
                 .and_then(Value::as_object)
@@ -184,7 +179,7 @@ pub(super) fn compile_primitive(
         stream_report,
         position_exponent,
     } = if dag_primitive {
-        build_dag_primitive(o, &pos, &attributes, &index_values, demand, &store_packed)?
+        build_dag_primitive(o, &pos, &carried, &index_values, demand, &store_packed)?
     } else {
         DagResult::default()
     };

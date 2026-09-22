@@ -1,17 +1,17 @@
 //! Connectivity: what a mesh's edges and borders do to the groups the DAG makes of it.
-use super::shapes::{grid_indices, Exploded, Sheet};
+use super::shapes::{Exploded, Sheet};
 use super::solids::{sphere, torus};
 use super::*;
 
 fn sheet(seed: u64, nx: usize, ny: usize, amplitude: f32) -> Sheet {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude * (0.5 + rng.unit());
     Sheet::new(&mut rng, nx, ny, amplitude)
 }
 
 /// A torus: closed, every edge shared by two triangles, no border to keep.
 fn closed_manifold(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let (major, minor) = (rng.between(64, 96), rng.between(32, 48));
     let (positions, indices) = torus(10.0, 3.0, major, minor);
     Case::new("topology-closed-manifold", positions, indices)
@@ -66,7 +66,7 @@ fn t_junctions(seed: u64) -> Case {
 
 /// Every quad its own four vertices, nothing else to tell them apart.
 fn unwelded_duplicates(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = shapes::amplitude(&mut rng);
     let quads = Exploded::new(&mut rng, shapes::NX, shapes::NY, amplitude);
     Case::new(
@@ -105,7 +105,7 @@ fn thin_strip(seed: u64) -> Case {
 /// Parallel slats a quad wide, disjoint, each short enough that a cluster spans several: the
 /// group borders cut the slats and lock their vertices.
 fn slats(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let (count, length) = (rng.between(48, 96), rng.between(24, 48));
     let (mut positions, mut indices) = (Vec::new(), Vec::new());
     for slat in 0..count {
@@ -148,7 +148,7 @@ fn huge_flat_plane(seed: u64) -> Case {
 /// A sphere: curvature everywhere, and at each pole a fan of triangles whose apex is written
 /// once per segment. The top group is mostly those apexes, every one a seam corner: it stalls.
 fn high_curvature(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let (segments, rings) = (rng.between(64, 128), rng.between(32, 64));
     let (positions, indices, uvs) = sphere(5.0, segments, rings);
     let mut case = Case::new("topology-high-curvature", positions, indices);
