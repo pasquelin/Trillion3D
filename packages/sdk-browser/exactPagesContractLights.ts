@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { LIGHT_SETTINGS, type SceneLight, type SceneLightStore } from '../sdk-core/index.ts';
+import { asHostLibrary } from './hostResources.ts';
+import type { HostDrawScene } from './hostGraphNodes.ts';
 import { baseCapabilities } from './backendCommon.ts';
 import { createUnlitAlbedo } from './exactPagesUnlitAlbedo.ts';
 
@@ -96,7 +98,8 @@ function writeLight(light: THREE.Light, source: SceneLight) {
  * the one from before this batch, pixel for pixel. As soon as it has, the source graph
  * disappears: two stacked light sets would be nobody's lighting.
  */
-function createContractLights(scene: THREE.Scene, store: SceneLightStore | undefined) {
+function createContractLights(display: HostDrawScene, store: SceneLightStore | undefined) {
+  const scene = asHostLibrary<THREE.Scene>(display);
   const group = new THREE.Group();
   group.visible = false;
   scene.add(group);
@@ -175,7 +178,7 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
  * the engine exists, so the first pass happens here, at construction.
  */
 export function attachContractLights(
-  scene: THREE.Scene,
+  scene: HostDrawScene,
   store: SceneLightStore | undefined,
   source: { setEnabled(enabled: boolean): void; readonly lit: boolean },
   sceneChanged: () => void,

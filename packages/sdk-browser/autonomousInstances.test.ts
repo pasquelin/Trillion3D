@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createAutonomousInstances, deplaceInstance } from './autonomousInstances.ts';
-import { asHostLibrary } from './hostResources.ts';
+import { asHostLibrary, type HostMaterial } from './hostResources.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import type { Material } from '../sdk-core/index.ts';
 
@@ -119,7 +119,7 @@ const CONTRACT_MATERIAL: Material = {
 function primitivePeinte() {
   const plain = { clusterId: 'prim/0', attributes: {} } as unknown as PageRec;
   const coloured = { clusterId: 'prim/1', attributes: { color: {} } } as unknown as PageRec;
-  const colorMaterials = new Map<THREE.Material, THREE.Material>();
+  const colorMaterials = new Map<HostMaterial, HostMaterial>();
   const instances = createAutonomousInstances({
     roots: [],
     baseRoots: [],
@@ -131,7 +131,7 @@ function primitivePeinte() {
     baseMaterials: new Map(),
     geometryStore: {
       colorMaterials,
-    } as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
+    } as unknown as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
     cap: 0,
     sceneChanged: () => {},
   });
@@ -148,7 +148,7 @@ test('repainting a primitive frees the pair the previous paint owned', () => {
   instances.updateMaterial('prim', { ...CONTRACT_MATERIAL, baseColor: [0, 1, 0] });
   assert.equal(disposed, 2, 'the plain material and its twin are freed at the replacement');
   assert.equal(colorMaterials.size, 1, 'the shared cache keeps one twin per live material');
-  assert.equal(colorMaterials.get(plain.declaration as THREE.Material), coloured.declaration);
+  assert.equal(colorMaterials.get(plain.declaration as HostMaterial), coloured.declaration);
   instances.disposeOwnedMaterials();
   assert.equal(colorMaterials.size, 0, 'disposal frees the last paint and its twin');
 });

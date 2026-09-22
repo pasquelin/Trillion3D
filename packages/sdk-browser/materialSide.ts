@@ -25,6 +25,11 @@ export function sideOf(material: HostMaterials): Side {
   return side === HOST_SIDE_DOUBLE ? 'double' : side === HOST_SIDE_BACK ? 'back' : 'front';
 }
 
+/** The host face constant for the side the engine declares: the way back, for a boundary that
+ *  builds a host material out of the engine's own material parameters. */
+export const hostSide = (side: Side): number =>
+  side === 'double' ? HOST_SIDE_DOUBLE : side === 'back' ? HOST_SIDE_BACK : HOST_SIDE_FRONT;
+
 /**
  * The raster facts a host declares beside the shaded ones: which version of the declaration this
  * is, its opacity, its alpha cutoff, whether it is drawn blended, whether the host draws a

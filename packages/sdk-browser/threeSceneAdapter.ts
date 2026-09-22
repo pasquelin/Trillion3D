@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { HostDrawOutput } from './backendTypes.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import { clusterColor } from './hostSceneObjects.ts';
+import type { HostDrawScene } from './hostGraphNodes.ts';
 import {
   asHostLibrary,
   type HostDiagnosticFactory,
@@ -10,11 +11,12 @@ import {
 } from './hostResources.ts';
 
 /**
- * The witness adapter: the one Three renderer the witness engines share over the engine's
- * context, to draw the scenes they hold. The host never holds a renderer; a witness acquires
- * this one at its first draw and releases it at its dispose, and the renderer leaves with the
- * last of them. One per context, so that a texture or a program is uploaded once for every
- * witness of the session, as the host's own adapter did.
+ * The host-renderer adapter: the one renderer every engine drawn by the host library shares
+ * over the engine's context, to draw the display graph it holds — the witnesses, and the
+ * autonomous WebGL2 path, which is a shipping backend and not a witness. The host never holds a
+ * renderer; a user acquires this one at its first draw and releases it at its dispose, and the
+ * renderer leaves with the last of them. One per context, so that a texture or a program is
+ * uploaded once for the whole session, as the host's own adapter did.
  *
  * Every draw starts from a reset state: the engine's programs and copies wrote the context in
  * between, and the renderer's cache no longer describes it. A render target of the engine is a
@@ -68,7 +70,11 @@ function release(entry: Shared) {
  * `null` before the first frame. Without a context (a session that never draws on the host
  * surface) the draw is refused by name.
  */
-export function createThreeSceneDraw(gl: WebGL2RenderingContext | undefined, scene: THREE.Scene) {
+export function createThreeSceneDraw(
+  gl: WebGL2RenderingContext | undefined,
+  display: HostDrawScene,
+) {
+  const scene = asHostLibrary<THREE.Scene>(display);
   let entry: Shared | undefined,
     camera: HostCamera | undefined,
     counters: { calls: number; triangles: number } | null = null;

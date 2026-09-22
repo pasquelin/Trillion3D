@@ -146,7 +146,7 @@ export type HostTraversable = HostNode & { traverse(visit: (node: HostNode) => v
 export type HostColour = { r: number; g: number; b: number };
 
 /** The host display graph an engine draws into: what it holds, how it is walked, and the clear
- *  colour the composition reads. Building and drawing it belongs to the host boundaries. */
+ *  colour the composition reads. Building it is a host boundary's; writing one, `HostDrawScene`. */
 export type HostScene = HostTraversable & {
   readonly background: unknown;
   readonly children: readonly HostNode[];
