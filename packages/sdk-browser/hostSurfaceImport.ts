@@ -73,7 +73,9 @@ export function importTextureIndices(indices?: ReadonlyMap<HostTexture, number>)
   return ranks;
 }
 
-/** Surface parameters of a host material, read once into the engine's own record. */
+/** Surface parameters of a host material, read in one place — here — into the engine's own
+ *  record. Nothing is cached: every call re-reads the host declaration, so a reassigned material
+ *  or a replaced map is seen as it stands. */
 export function importHostSurface(material: HostMaterials): VisMaterial | undefined {
   const first = Array.isArray(material) ? material[0] : material;
   if (!first) return undefined;

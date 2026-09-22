@@ -145,7 +145,7 @@ shape the engine reads (`HostMaterial`, `HostTexture`, `HostAttributes`, `HostGe
 engine's own `Material` for `updateMaterial`, a placement crosses as sixteen floats, and the
 declared witnesses and host adapters are the only callers of `asHostLibrary`, the single
 crossing back. Lot 3 (#271) closed the resources themselves: a material and a texture are read
-ONCE, at `hostSurfaceImport.ts`, into the engine's `Material` and `Texture`
+in ONE place, at `hostSurfaceImport.ts`, into the engine's `Material` and `Texture`
 (`packages/sdk-core/materialContract.ts`, `textureContract.ts`) — addressing, filtering and
 colour space in the engine's own words — and the passes, the page row, the tile pools, the
 transparent items and the software raster compute on those alone; the admission gate
