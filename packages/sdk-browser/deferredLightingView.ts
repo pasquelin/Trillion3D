@@ -4,6 +4,8 @@
  * the background and the contract's light parameters. One buffer, one packed array, written
  * once per image; the shader-side layout is the struct in `deferredLightingShaders.ts`.
  */
+import { clearValueOf } from './clearColour.ts';
+
 const DEFERRED_VIEW_BYTES = 128;
 
 /** With no declared light: zero lights, zero tiles, exposure 1. */
@@ -34,10 +36,8 @@ export function createDeferredView(device: GPUDevice) {
       packed.set(inverseViewProjection as ArrayLike<number> & number[], 0);
       packed.set(camera, 16);
       packed.set([width, height, rawOutput ? 1 : 0, sampledRank], 20);
-      packed.set(
-        [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
-        24,
-      );
+      const clear = clearValueOf(clearColor);
+      packed.set([clear.r, clear.g, clear.b, clear.a], 24);
       packed.set(direct as number[], 28);
       device.queue.writeBuffer(buffer, 0, packed);
     },

@@ -146,3 +146,17 @@ test('a transmissive copy mutated into another physical extension is refused bef
     /drawn as a scene copy/,
   );
 });
+
+// The gate no longer compares against the host library's own class to find a shader hook: it
+// asks whether the material reaches a compile hook other than the one it inherits.
+test('a compile hook the host installed is refused, the empty one it inherits is not', () => {
+  const normal = new THREE.BufferAttribute(new Float32Array(9), 3);
+  const material = new THREE.MeshStandardMaterial();
+  assert.equal(clusterMaterialReason(material, { position, normal }), undefined);
+  material.onBeforeCompile = () => {};
+  assert.match(clusterMaterialReason(material, { position, normal })!, /carries a shader hook/);
+  class Hooked extends THREE.MeshStandardMaterial {
+    override onBeforeCompile() {}
+  }
+  assert.match(clusterMaterialReason(new Hooked(), { position, normal })!, /carries a shader hook/);
+});
