@@ -41,9 +41,27 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
       : input.request === 'autonomous'
         ? { ...base, autonomousGeometry: true }
         : base;
-  const report = (backend: string | null, error: string | null, runs: number[][]) => {
+  const report = (
+    backend: string | null,
+    error: string | null,
+    runs: number[][],
+    cpuRuns: number[][] = [],
+    mounted: string[] = [],
+    capabilities: unknown = null,
+    metrics: Record<string, unknown> | null = null,
+  ) => {
     canvas.remove();
-    return { backend, error, webgpu: !!navigator.gpu, diagnostics, runs };
+    return {
+      backend,
+      error,
+      webgpu: !!navigator.gpu,
+      diagnostics,
+      runs,
+      cpuRuns,
+      mounted,
+      capabilities,
+      metrics,
+    };
   };
   let explorer: Awaited<ReturnType<typeof sdk.createExplorer>>;
   try {
@@ -51,15 +69,30 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
   } catch (error) {
     return report(null, String(error), []);
   }
-  explorer.setPose(explorer.pointsOfInterest()[0].pose);
+  const pose = explorer.pointsOfInterest()[0].pose;
+  explorer.setPose(pose);
   await explorer.awaitPages();
-  explorer.render();
+  // The frame's own counters: `tri = selected` is read here, on the frame that is captured.
+  const frame = explorer.render() as unknown as Record<string, number | boolean | null>;
   await explorer.flush();
   (window.proof ??= { images: {} }).images[input.key] = Array.from(explorer.capture());
-  // rAF cadence with one rendered frame per callback: `invalidate()` renders on the manual path.
+  // rAF cadence with one rendered frame per callback, on a camera that turns: a still scene
+  // holds its frame by design, and a held frame times the composer instead of the engine. The
+  // eye orbits the framing target by a milliradian per frame, far too little to change the cut.
+  const dx = pose.position[0] - pose.target[0];
+  const dz = pose.position[2] - pose.target[2];
+  const turned = { ...pose, position: [...pose.position] as [number, number, number] };
+  const orbit = (frame: number) => {
+    const angle = frame * 0.001;
+    turned.position[0] = pose.target[0] + dx * Math.cos(angle) - dz * Math.sin(angle);
+    turned.position[2] = pose.target[2] + dx * Math.sin(angle) + dz * Math.cos(angle);
+    explorer.setPose(turned);
+  };
   const runs: number[][] = [];
+  const cpuRuns: number[][] = [];
   for (let repeat = 0; repeat < input.repeats; repeat += 1) {
     const intervals: number[] = [];
+    const cpu: number[] = [];
     await new Promise<void>((resolve) => {
       let previous = performance.now();
       let count = 0;
@@ -67,7 +100,9 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
         const now = performance.now();
         intervals.push(now - previous);
         previous = now;
-        explorer.invalidate();
+        orbit(count);
+        const rendered = explorer.render() as { cpuFrameMs?: number | null };
+        if (typeof rendered?.cpuFrameMs === 'number') cpu.push(rendered.cpuFrameMs);
         count += 1;
         if (count < input.frames) requestAnimationFrame(step);
         else resolve();
@@ -75,62 +110,22 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
       requestAnimationFrame(step);
     });
     runs.push(intervals.slice(20)); // the first frames warm caches and pipelines
+    cpuRuns.push(cpu.slice(20));
   }
   const backend = explorer.backend;
+  // Every backend this session mounted, not only the active one: a witness that never draws is
+  // still a witness the engine built.
+  const mounted = explorer.backends.map((one) => one.id);
+  const capabilities = explorer.backends.find((one) => one.id === backend)?.capabilities ?? null;
+  const metrics = {
+    selectedTriangles: frame.selectedTriangles ?? null,
+    submittedTriangles: frame.submittedTriangles ?? null,
+    clusters: frame.clusters ?? null,
+    drawCalls: frame.drawCalls ?? null,
+    residentPages: frame.residentPages ?? null,
+    coverageReady: frame.coverageReady ?? null,
+    frameHeld: frame.frameHeld ?? null,
+  };
   explorer.dispose();
-  return report(backend, null, runs);
-}
-
-/** A stored capture as a PNG data URL, rows flipped: `capture()` hands back bottom-left origin. */
-export function defaultBackendCapturePng(key: string) {
-  const bytes = window.proof?.images[key];
-  if (!bytes) throw new Error('unknown capture');
-  const width = 480;
-  const height = bytes.length / 4 / width;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const image = new ImageData(width, height);
-  for (let row = 0; row < height; row += 1) {
-    const source = (height - 1 - row) * width * 4;
-    for (let index = 0; index < width * 4; index += 1)
-      image.data[row * width * 4 + index] = bytes[source + index];
-  }
-  canvas.getContext('2d')!.putImageData(image, 0, 0);
-  return canvas.toDataURL('image/png');
-}
-
-/** Pixels of a stored capture that differ from its corner pixel, the cleared background: a
- *  capture where the scene appears has many of them, an empty canvas has none (#298). */
-export function countDrawnPixels(key: string) {
-  const bytes = window.proof?.images[key];
-  if (!bytes) throw new Error('unknown capture');
-  let drawn = 0;
-  for (let index = 0; index < bytes.length; index += 4)
-    for (let channel = 0; channel < 4; channel += 1)
-      if (bytes[index + channel] !== bytes[channel]) {
-        drawn += 1;
-        break;
-      }
-  return { drawn, totalPixels: bytes.length / 4 };
-}
-
-/** Pixels that differ between two stored captures, and the largest channel gap among them. */
-export function compareDefaultBackendCaptures(pair: [string, string]) {
-  const store = window.proof;
-  const a = store?.images[pair[0]];
-  const b = store?.images[pair[1]];
-  if (!a || !b || a.length !== b.length) throw new Error('captures are not comparable');
-  let differentPixels = 0;
-  let maxChannelDelta = 0;
-  for (let index = 0; index < a.length; index += 4) {
-    let pixelDelta = 0;
-    for (let channel = 0; channel < 4; channel += 1) {
-      const delta = Math.abs(a[index + channel] - b[index + channel]);
-      if (delta > pixelDelta) pixelDelta = delta;
-    }
-    if (pixelDelta > 0) differentPixels += 1;
-    if (pixelDelta > maxChannelDelta) maxChannelDelta = pixelDelta;
-  }
-  return { differentPixels, maxChannelDelta, totalPixels: a.length / 4 };
+  return report(backend, null, runs, cpuRuns, mounted, capabilities, metrics);
 }
