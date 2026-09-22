@@ -47,7 +47,8 @@ export function createExplorerHostState(
   const baseline =
     backends.find((backend) => backend.id === 'three-webgl-reference') ?? backends[0];
   // The engine's own paths render; a Three witness only becomes active in a session that holds
-  // nothing else, which is a host that asked for one (`chooseBackends`).
+  // nothing else — a host that asked for one, or the degraded mode a machine without WebGPU
+  // falls into for as long as #297 is open (`chooseBackends`).
   const optimized =
     backends.find((backend) => backend.id === 'webgpu-page-raster') ??
     backends.find((backend) => backend.id === 'autonomous-pages-webgl') ??
