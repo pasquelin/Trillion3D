@@ -111,7 +111,6 @@ export function facadeWalls(
     for (let row = 0; row < height; row++)
       for (let column = 0; column < columns; column++) {
         if (open[row * columns + column]) continue;
-        const base = positions.length / 3;
         if (bricks) {
           // Each cell writes its own four corners, corner `c` at `(c & 1, c >> 1)` of the cell.
           for (let v = 0; v < subdivision; v++)
@@ -123,6 +122,7 @@ export function facadeWalls(
             }
           continue;
         }
+        const base = positions.length / 3;
         for (let v = 0; v <= subdivision; v++)
           for (let u = 0; u <= subdivision; u++) vertex(column, row, u, v);
         for (let v = 0; v < subdivision; v++)
