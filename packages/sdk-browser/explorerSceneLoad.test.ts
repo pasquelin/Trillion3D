@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -6,6 +6,16 @@ import { loadPreparedScene } from './explorerScene.ts';
 import type { ClusterManifest } from '../sdk-core/index.ts';
 
 const manifest = { primitives: [] } as unknown as ClusterManifest;
+/** The cache's scene tables, describing a scene that draws nothing: what both loads check against. */
+const emptyTables = () =>
+  Response.json({
+    version: 1,
+    nodeTableVersion: 1,
+    materialTableVersion: 1,
+    nodes: [],
+    materials: [],
+    textures: [],
+  });
 
 // Behaviour 13: `textureIndices` covers every texture the glTF associates with a rank, and nothing
 // else — not objects that are not textures, nor an association without a texture rank.
@@ -27,18 +37,7 @@ test('loadPreparedScene indexes every glTF texture association and nothing else'
     scene,
     parser: { associations },
   }));
-  // The cache's scene tables are read at load and checked against the scene: this one draws
-  // nothing, so the tables that describe it are empty.
-  t.mock.method(globalThis, 'fetch', async () =>
-    Response.json({
-      version: 1,
-      nodeTableVersion: 1,
-      materialTableVersion: 1,
-      nodes: [],
-      materials: [],
-      textures: [],
-    }),
-  );
+  t.mock.method(globalThis, 'fetch', async () => emptyTables());
   const result = await loadPreparedScene(
     { manifestUrl: 'scene.gltf' },
     manifest,
@@ -54,4 +53,54 @@ test('loadPreparedScene indexes every glTF texture association and nothing else'
   assert.equal(result.textureIndices.get(textureA), 0);
   assert.equal(result.textureIndices.get(textureB), 2);
   assert.equal(result.textureIndices.has(textureC), false);
+});
+
+/**
+ * Behaviour: with no `textureSource` given, a cache that bakes texture chains has its images
+ * skipped by the loader. The engine reads the baked levels whatever the option says, so fetching
+ * and decoding the source images would buy nothing; only a host that names `'host'` — because a
+ * backend of its session draws the host scene — still gets them. The loader is told which of the
+ * two it is: `prepareExplorer` resolves the option against the backends it chose before calling
+ * this function (`resolveTextureSource`, covered by `defaultBackendsTextureSource.test.ts`).
+ */
+const bakedCache = {
+  primitives: [],
+  textures: { url: 'textures/v4' },
+  texturePreviews: [{ image: 0, firstLevel: 0, bakedLevels: 0 }],
+} as unknown as ClusterManifest;
+
+async function loadWith(t: TestContext, textureSource?: 'host' | 'cache') {
+  const taken: string[] = [];
+  const answer = { scene: new THREE.Group(), parser: { associations: new Map() } };
+  t.mock.method(GLTFLoader.prototype, 'loadAsync', async () => {
+    taken.push('loadAsync');
+    return answer;
+  });
+  t.mock.method(GLTFLoader.prototype, 'parseAsync', async () => {
+    taken.push('parseAsync');
+    return answer;
+  });
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) =>
+    String(input).endsWith('scene.gltf')
+      ? new Response('{"images":[{"uri":"a.png"}]}')
+      : emptyTables(),
+  );
+  await loadPreparedScene(
+    { manifestUrl: 'scene.gltf', ...(textureSource ? { textureSource } : {}) },
+    bakedCache,
+    'scene.gltf',
+    'http://localhost/',
+    'full',
+    false,
+    undefined,
+    () => {},
+    () => {},
+  );
+  return taken;
+}
+
+test('the loader skips the baked images by default and reads them only when the host says host', async (t) => {
+  assert.deepEqual(await loadWith(t), ['parseAsync']);
+  assert.deepEqual(await loadWith(t, 'cache'), ['parseAsync']);
+  assert.deepEqual(await loadWith(t, 'host'), ['loadAsync']);
 });
