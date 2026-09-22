@@ -14,7 +14,7 @@ test('Three reference adapter copies the authored directional target in world sp
   sun.target.position.set(4, 0, 0);
   source.add(sun.target);
   const reference = new THREE.Scene();
-  installSceneLighting(reference, source, 0);
+  installSceneLighting(reference, source);
   const copy = reference.children.find(
     (object) => object instanceof THREE.DirectionalLight,
   ) as THREE.DirectionalLight;
@@ -24,7 +24,7 @@ test('Three reference adapter copies the authored directional target in world sp
 
 test('a source without a declared light installs no light at all', () => {
   const scene = new THREE.Scene();
-  installSceneLighting(scene, new THREE.Group(), 0);
+  installSceneLighting(scene, new THREE.Group());
   assert.equal(
     scene.children.filter((object) => (object as THREE.Light).isLight).length,
     0,

@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import type { HostDrawOutput } from './backendTypes.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
+import { clusterColor } from './backendCommon.ts';
+import {
+  asHostLibrary,
+  type HostDiagnosticGeometry,
+  type HostDiagnosticMaterial,
+} from './hostResources.ts';
 
 /**
  * The witness adapter: the one Three renderer the witness engines share over the engine's
@@ -106,4 +112,45 @@ export function createThreeSceneDraw(gl: WebGL2RenderingContext | undefined, sce
       entry = undefined;
     },
   };
+}
+
+/**
+ * THE HOST OBJECTS A DIAGNOSTIC VIEW SWAPS IN. The views are the engine's — which triangle, which
+ * cluster, which tint — but what they hang on a host mesh is a host material and a host geometry,
+ * and building one is this boundary's work, never a pass's. Nothing is decided here: the salt, the
+ * per-triangle colours and the side all arrive computed.
+ */
+
+/** Copy of a host geometry with every triangle standing on its own three vertices, so a colour
+ *  can be written per triangle without a shared corner taking two. */
+export function hostTriangleGeometry(geometry: HostDiagnosticGeometry): HostDiagnosticGeometry {
+  const source = asHostLibrary<THREE.BufferGeometry>(geometry);
+  const copy = source.index ? source.toNonIndexed() : source.clone();
+  return copy as unknown as HostDiagnosticGeometry;
+}
+
+/** Writes the per-vertex colours the engine computed onto a host geometry. */
+export function hostVertexColors(geometry: HostDiagnosticGeometry, colors: Float32Array) {
+  const target = asHostLibrary<THREE.BufferGeometry>(geometry);
+  target.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+}
+
+/** Unshaded surface that shows the vertex colours as they are: the per-triangle view. */
+export function hostTriangleMaterial(side: number): HostDiagnosticMaterial {
+  const material = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    side: asHostLibrary<THREE.Side>(side),
+    toneMapped: false,
+    fog: false,
+  });
+  return material as unknown as HostDiagnosticMaterial;
+}
+
+/** Unshaded surface of one cluster's colour, the hue the core computed from its identifier. */
+export function hostClusterMaterial(id: string, side: number): HostDiagnosticMaterial {
+  const material = new THREE.MeshBasicMaterial({
+    color: clusterColor(id, 0.75),
+    side: asHostLibrary<THREE.Side>(side),
+  });
+  return material as unknown as HostDiagnosticMaterial;
 }

@@ -1,16 +1,22 @@
-import * as THREE from 'three';
 import { DIAGNOSTICS, type DiagnosticMode } from '../sdk-core/index.ts';
-import { clusterColor, hashId } from './backendCommon.ts';
-import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
+import { hashId } from './backendCommon.ts';
+import { hostClusterMaterial, hostTriangleMaterial } from './threeSceneAdapter.ts';
+import { triangleGeometry } from './triangleDiagnostic.ts';
 import { materialSide } from './materialSide.ts';
 import type { RenderBackend } from './backendTypes.ts';
+import type {
+  HostDiagnosticGeometry,
+  HostDiagnosticMaterial,
+  HostDiagnosticMesh,
+  HostNode,
+} from './hostResources.ts';
 
 type Inputs = {
   check: () => void;
   active: () => RenderBackend;
   backends: RenderBackend[];
-  beautyMaterials: Map<THREE.Mesh, THREE.Material | THREE.Material[]>;
-  overlays: THREE.Material[];
+  beautyMaterials: Map<HostDiagnosticMesh, HostDiagnosticMesh['material']>;
+  overlays: HostDiagnosticMaterial[];
   setMode: (mode: DiagnosticMode) => void;
 };
 
@@ -40,39 +46,34 @@ export function createExplorerDiagnosticApi(inputs: Inputs) {
           backend.setDiagnostic(mode);
           continue;
         }
-        backend.scene.traverse((o) => {
-          if (!(o as THREE.Mesh).isMesh) return;
-          const mesh = o as THREE.Mesh;
+        backend.scene.traverse((node: HostNode) => {
+          const mesh = node as unknown as HostDiagnosticMesh;
+          if (!mesh.isMesh) return;
           if (!beautyMaterials.has(mesh)) beautyMaterials.set(mesh, mesh.material);
           if (!mesh.userData.sourceGeometry) mesh.userData.sourceGeometry = mesh.geometry;
           mesh.material = beautyMaterials.get(mesh)!;
-          mesh.geometry = mesh.userData.sourceGeometry as THREE.BufferGeometry;
+          mesh.geometry = mesh.userData.sourceGeometry as HostDiagnosticGeometry;
           if (mode === 'wireframe') {
             mesh.geometry = triangleGeometry(
-              mesh.userData.sourceGeometry as THREE.BufferGeometry,
+              mesh.userData.sourceGeometry as HostDiagnosticGeometry,
               hashId(String(mesh.userData.clusterId ?? mesh.id)),
             );
-            const material = createTriangleDiagnosticMaterial(materialSide(mesh.material));
+            const material = hostTriangleMaterial(materialSide(mesh.material));
             overlays.push(material);
             mesh.material = material;
             return;
           }
           if (mode !== 'beauty') {
             const originals = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            mesh.material = originals.map((original) => {
-              if (mode === 'clusters' && mesh.userData.clusterId) {
-                const basic = new THREE.MeshBasicMaterial({
-                  color: clusterColor(String(mesh.userData.clusterId), 0.75),
-                  side: original.side,
-                });
-                overlays.push(basic);
-                return basic;
-              }
-              const material = original.clone();
+            const painted = originals.map((original) => {
+              const material =
+                mode === 'clusters' && mesh.userData.clusterId
+                  ? hostClusterMaterial(String(mesh.userData.clusterId), original.side)
+                  : original.clone();
               overlays.push(material);
               return material;
             });
-            if (mesh.material.length === 1) mesh.material = mesh.material[0];
+            mesh.material = painted.length === 1 ? painted[0] : painted;
           }
         });
       }

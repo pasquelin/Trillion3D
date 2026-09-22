@@ -34,11 +34,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       context.residentPagesDefault ??
       Math.max(1024, bootstrapUrls.size),
     scene = new THREE.Scene();
-  const lighting = installSceneLighting(
-    scene,
-    asHostLibrary<THREE.Object3D>(context.sceneLighting ?? context.source),
-    context.clearColor ?? 0x171d28,
-  );
+  scene.background = new THREE.Color(context.clearColor ?? 0x171d28);
+  const lighting = installSceneLighting(scene, context.sceneLighting ?? context.source);
   const shown: PageRec[] = [],
     desired: PageRec[] = [],
     pending: string[] = [],

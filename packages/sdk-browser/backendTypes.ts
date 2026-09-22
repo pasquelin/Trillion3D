@@ -1,4 +1,4 @@
-import type { HostNode, HostScene, HostTexture } from './hostResources.ts';
+import type { HostNode, HostScene, HostTexture, HostTraversable } from './hostResources.ts';
 import type { HostCamera, HostDrawCamera } from './cameraWorld.ts';
 import type { HostDrawOutput } from './webglRenderTarget.ts';
 import type {
@@ -124,7 +124,7 @@ export type BackendDiagnostic = {
   createdAt?: number;
 };
 export interface BackendContext {
-  source: HostNode;
+  source: HostTraversable;
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
   associations: Map<HostNode, { meshes?: number; primitives?: number }>;
@@ -170,7 +170,7 @@ export interface BackendContext {
   /** Temporal antialiasing, on by default as in the reference: `false` renders the
    *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
   temporalAntialiasing?: boolean;
-  sceneLighting?: HostNode;
+  sceneLighting?: HostTraversable;
   /** Contract lights, owned by the host and shared by every engine of the session. */
   sceneLights?: SceneLightStore;
   /** Identifiers of the lights the source file carried, in cache order; the host rereads them
