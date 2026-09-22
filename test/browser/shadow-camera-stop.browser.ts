@@ -1,9 +1,9 @@
 // A camera stop releases the representation changes held during the move: their pages go back
 // to the queue, and under a tight shadow budget they wait several frames. Those pages still
 // hold a depth of their extent and must be read until their redraw lands — never skipped to
-// the next cascade or the far proxy, which would drop the shadow. This proof walks the bench
-// street of Emerald Square, stops with a 0.01 ms budget, captures while pages are pending, and
-// counts the pixels the settled image shades but the stopped frame lights.
+// the next cascade or the far proxy, which would drop the shadow. This proof walks the bench's
+// street view of the reference scene, stops with a 0.01 ms budget, captures while pages are
+// pending, and counts the pixels the settled image shades but the stopped frame lights.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -12,6 +12,7 @@ import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { resolveMounts } from '../../scripts/mesure/options.ts';
 import { ENGINES } from '../../scripts/mesure/optionsCote.ts';
+import { assetsManifest, DEFAULT_SCENE } from '../../scripts/mesure/scene.ts';
 import type { Explorer } from '../../packages/sdk-browser/explorer.ts';
 
 // `window.scene`/`settle`/`stopped`/`pose` only exist in the page this harness evaluates code
@@ -45,7 +46,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
   const stop = await page.evaluate(
-    async ({ sdkUrl, posesUrl, width, height }) => {
+    async ({ sdkUrl, posesUrl, manifestUrl, width, height }) => {
       const canvas = document.createElement('canvas');
       canvas.id = 'stop';
       canvas.style.cssText = `width:${width}px;height:${height}px;display:block`;
@@ -54,7 +55,7 @@ try {
       const { createExplorer, webgpuPagesBackend } = await import(sdkUrl);
       const { poseAt, VIEWS } = await import(posesUrl);
       const scene = await createExplorer('stop', {
-        manifestUrl: '/benchmark-assets/emerald-square-derived/native/full/manifest.json',
+        manifestUrl,
         scope: 'full',
         interactive: false,
         backends: [webgpuPagesBackend],
@@ -117,6 +118,7 @@ try {
     {
       sdkUrl: '/sdk/sdk-browser/index.js',
       posesUrl: '/mesure/poses.ts',
+      manifestUrl: assetsManifest(DEFAULT_SCENE, true),
       width: WIDTH,
       height: HEIGHT,
     },

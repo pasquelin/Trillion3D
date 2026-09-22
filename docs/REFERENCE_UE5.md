@@ -115,7 +115,8 @@ from compute offloading small triangles. It remains disabled pending measurement
 What can be concluded rigorously:
 
 - **CPU cost.** Their figure is "nearly zero CPU time": fully GPU-driven, independent of object count.
-  Ours, measured on `emerald-square`, is **0.5 to 2.8 ms per frame** — including cut, dispatch, and residency.
+  Ours, measured on the ten-million-triangle interior the bench used before 22 Sept. 2026, is
+  **0.5 to 2.8 ms per frame** — including cut, dispatch, and residency.
   This metric is comparable across hardware because it is intended to be zero.
 - **Draw calls.** Reference: one per material in the deferred pass. Ours: one for the 252 clustered
   opaque primitives, but one per item and face for the 29 primitives declared blended — up to 1,928
