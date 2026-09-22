@@ -18,7 +18,10 @@ type CulledCopy = {
   matrix: { elements: ArrayLike<number> };
   geometry: { boundingBox: Parameters<typeof readThreeBox>[1] | null; computeBoundingBox(): void };
 };
-/** A scene copy the owner draws: a host mesh drawn whole, culled as the host would. */
+/** A scene copy the owner draws: a host mesh drawn whole, culled as the host would. Its
+ *  `material` is the HOST MESH's own field, not a page's `declaration`: a diagnostic mode
+ *  repaints these meshes in place — painted glass stops transmitting — and the pass a copy
+ *  belongs to is decided at the draw, on what the mesh declares at that moment. */
 export type SceneCopy = WholeMesh & CulledCopy;
 
 /**
