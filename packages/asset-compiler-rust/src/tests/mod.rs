@@ -1,7 +1,7 @@
 use super::*;
 mod base;
 mod directories;
-mod fixtures;
+pub(crate) mod fixtures;
 mod golden;
 use base::*;
 use directories::scratch;
@@ -21,6 +21,7 @@ mod coplanar_assign;
 mod coplanar_collect;
 mod coplanar_golden;
 mod coplanar_overlap;
+mod corpus;
 mod decoupes;
 mod flottant_golden;
 mod gltf_cycle;
