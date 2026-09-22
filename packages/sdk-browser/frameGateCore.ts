@@ -57,6 +57,18 @@ export function createFrameGateCore(holdValues: number) {
       sceneWatch.settle();
     },
     /**
+     * A POSE moved, and the shape of the scene did not: the engine wrote the local pose of a node
+     * that was already drawn, added no instance, retargeted no light, reparented nothing. The
+     * watched set therefore has exactly the same members, and this revision does not ask for it
+     * to be read anew — which is a full walk of the source graph, and would be paid on every
+     * image while a node is being moved.
+     */
+    sceneMoved() {
+      bumpScene(revisions);
+      sceneWatch.settle();
+      watchRevision = revisions.scene;
+    },
+    /**
      * Resources moved: a page's bytes, residency, replaced geometry, and anything that arrives
      * off the frame thread — a program that finishes compiling, a proxy adopted when a promise
      * resolves. No step of the current frame will write it, and the next frame would read it

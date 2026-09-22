@@ -133,8 +133,10 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     unionInto(root.worldBox);
   }
   layout.rows.tableEpoch++;
-  // Origin of the scene change: this subtree's world matrices have just been rewritten.
-  run.gate.sceneChanged();
+  // Origin of the scene change: this subtree's world matrices have just been rewritten. Only
+  // poses moved — no node entered or left the scene — so the watched set is left as it stands
+  // instead of being rebuilt from a walk of the source graph on the next image.
+  run.gate.sceneMoved();
   // The hierarchy already carries this revision's matrices: the next image does not climb it.
   run.gate.noteWorldsUpdated();
   invalidateOccluderHistory(run);
