@@ -23,14 +23,16 @@ numbers. Conventions shared by every entry:
 
 - `createExplorer(target: ExplorerTarget, options: ExplorerOptions)` and
   `createExplorerJob(id, target, options)` accept a canvas element or its literal document ID.
-- `interactive: true` owns CSS/DPR sizing, OrbitControls and bounded demand-driven rendering;
+- `interactive: true` owns CSS/DPR sizing, the engine's own orbit controller and bounded
+  demand-driven rendering;
   absent/false preserves manual sessions. `invalidate()` requests a frame after programmatic edits.
-- With no `backends` option, interactive or not, a session draws wherever an image can be drawn:
-  direct WebGPU where a device was granted; on WebGL2 alone a declared degraded mode through the
-  `exact-cluster-pages` witness, temporary until #297 finishes the engine's own WebGL2 renderer;
-  and a named `EngineError` (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where neither API exists.
+- With no `backends` option, interactive or not, a session draws through the engine's own path:
+  direct WebGPU where a device was granted; `autonomous-pages-webgl` on WebGL2 alone, which since
+  #297 decodes the cache's geometry pages and draws them itself — from the cache's prepared scene
+  where it carries one, from `source.gltf` where it does not; and a named `EngineError`
+  (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where the machine granted neither API.
   `chooseBackends(options, metadata, gpuDevice, webgl2)` and `autonomousCacheReady(metadata)`
-  expose that decision; the `backend-choice` diagnostic reports its `renderer`, `degraded` and
+  expose that decision; the `backend-choice` diagnostic reports its `renderer`, `autonomous` and
   `reason` per session. Proof: `defaultBackends.test.ts`, the browser startup proof.
 - `RenderBackend.pendingFrame?()` waits for submitted work without image readback and returns
   whether interactive rendering should continue. Custom backends with progressive work should

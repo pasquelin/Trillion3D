@@ -39,8 +39,6 @@ export const AUTORISES: Record<string, string> = {
   exactPagesUnlitAlbedo: 'exact witness: its unlit view zeros the host material factors',
   exactPagesMetrics: 'exact witness: the host meshes and geometries it counts and disposes',
   exactPagesRender: 'exact witness: the host camera and scene copies its frame reads',
-  explorerCameraApi:
-    'boundary: the orbit and fly controls of `three/addons` it returns to the host',
   exactPagesRequests: 'exact witness: its requests start from its host graph',
   referenceBackend: 'reference witness: the host engine, as-is',
   threeBounds: 'witness: bounds as the host library computes them',

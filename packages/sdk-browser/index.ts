@@ -136,3 +136,11 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from '../sdk-core/index.ts';
+
+// The camera controllers a session hands out: their contract is public because
+// `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").
+export type { ChangeListener, ControlVector, PivotCameraControls } from './cameraControlTypes.ts';
+export type { FlyCameraControls } from './cameraFlyControls.ts';
+export type { FirstPersonCameraControls } from './cameraFirstPersonControls.ts';
+export type { TrackballCameraControls } from './cameraTrackballControls.ts';
+export type { PanZoomCameraControls } from './cameraPanZoomControls.ts';

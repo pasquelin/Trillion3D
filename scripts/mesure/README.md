@@ -108,6 +108,18 @@ Memory pools match engine fixed byte budgets: `--pool-geometrie <MiB>` (geometry
 
 IN-SESSION adjustment (app slider via `explorer.setMemoryBudgets`) measured via `--pool-geometrie-vivant <MiB>` and `--pool-textures-vivant <MiB>`: post-warmup, harness resizes pools and logs engine response (`series[].sides[].reglageVivant`: retained pools, evicted items, resize duration, pre-resize residency) and frame count to recover held pose (`imagesReprise`, `null` if unrecoverable — pool smaller than view). Long warmup (`--chauffe 60`) fills pools before adjustment. To GROW geometry pool in-session, `--pool-geometrie-plafond <MiB>` declares max session pool ceiling.
 
+## What a Cache's Pages Cost in Precision
+
+    node scripts/mesure/quantificationPages.ts <cache>/native/full
+
+The autonomous WebGL2 path draws decoded geometry pages — positions on the primitive's
+quantization grid, normals as octahedral bytes ([`docs/FORMAT.md`](../../docs/FORMAT.md)) — where
+every other path reads the float attributes of `source.bin`. This script compares the two corner
+by corner and prints the largest and mean position gap and the angle between the two normals: the
+input difference behind an image difference between that path and a witness, measured rather than
+supposed. On `site/assets/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
+6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
+
 ## Performance Benchmarks
 
 Located per package under `packages/<package>/bench/`, executed via `pnpm run perf:all`. Operation, oracles, and baselines documented in [`docs/TESTS.md`](../../docs/TESTS.md); this README covers the campaign harness measuring real scenes in-browser.

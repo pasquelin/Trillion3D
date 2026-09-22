@@ -1,6 +1,5 @@
 import { EngineError, type ClusterManifest } from '../sdk-core/index.ts';
 import type { BackendFactory } from './backendTypes.ts';
-import { exactPagesBackend } from './exactPagesBackend.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 
@@ -15,9 +14,6 @@ export type BackendChoice = {
   reason: string;
   /** Id of the backend that draws, or `null` when the host named the list itself. */
   renderer: string | null;
-  /** True when no engine path can draw and another renderer draws instead, so that an image
-   *  still appears; `reason` says why the engine's path was not used. */
-  degraded: boolean;
 };
 
 /** True when the cache carries what the autonomous WebGL2 path reads. */
@@ -25,12 +21,11 @@ export function autonomousCacheReady(metadata: ClusterManifest) {
   return typeof metadata.autonomousScene === 'string' && metadata.autonomousScene.length > 0;
 }
 
-/** A choice before its two defaults: a path is neither autonomous nor degraded unless it says so. */
-type Decided = Omit<BackendChoice, 'autonomous' | 'degraded'> &
-  Partial<Pick<BackendChoice, 'autonomous' | 'degraded'>>;
+/** A choice before its default: a path is not autonomous unless it says so. */
+type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, 'autonomous'>>;
 
 /** The paths of a session the host left to the engine: the WebGPU page raster where a device was
- *  granted, the degraded witness otherwise, for as long as #297 is open. The Three witnesses
+ *  granted, the engine's own WebGL2 page path otherwise. The Three witnesses
  *  (`referenceBackend`, `exactPagesBackend`, `threeLodBackend`) are never chosen on their own
  *  merit: a host that wants one, for a comparison view or the bench, names it in
  *  `options.backends`. A machine offering neither WebGPU nor WebGL2 fails by name. */
@@ -42,11 +37,7 @@ export function chooseBackends(
 ): BackendChoice {
   // `autonomous` is stated, never derived from the factory: a host list naming the autonomous
   // backend without `autonomousGeometry` keeps reading `source.gltf`, as it always has.
-  const choice = (part: Decided): BackendChoice => ({
-    autonomous: false,
-    degraded: false,
-    ...part,
-  });
+  const choice = (part: Decided): BackendChoice => ({ autonomous: false, ...part });
   if (options.autonomousGeometry === true) {
     if (options.backends || !autonomousCacheReady(metadata))
       throw new EngineError(
@@ -77,25 +68,23 @@ export function chooseBackends(
       reason: 'a WebGPU device was granted',
       renderer: 'webgpu-page-raster',
     });
-  // TEMPORARY, REMOVED WITH #297. The engine's own WebGL2 path (`autonomous-pages-webgl`) draws
-  // nothing on a cache of the current format: its preparation stops with
-  // `AUTONOMOUS_COVERAGE_MISSING`. Until #297 finishes that renderer, a machine without WebGPU
-  // gets the `exact-cluster-pages` witness rather than an empty canvas, and the choice says so.
-  // The batch that lands #297 deletes this branch and gives such a machine the autonomous path.
-  if (webgl2)
-    return choice({
-      factories: [exactPagesBackend],
-      origin: 'default',
-      reason:
-        "no WebGPU device, and the engine's own WebGL2 path cannot draw yet " +
-        '(AUTONOMOUS_COVERAGE_MISSING, #297), so this session runs in a degraded mode where a ' +
-        'host-library witness draws the scene',
-      renderer: 'exact-cluster-pages',
-      degraded: true,
-    });
-  throw new EngineError(
-    'NO_ENGINE_BACKEND',
-    'No engine path is available: this machine granted neither a WebGPU device nor a WebGL2 ' +
-      'context. Name a backend in options.backends to render anyway.',
-  );
+  if (!webgl2)
+    throw new EngineError(
+      'NO_ENGINE_BACKEND',
+      'No engine path is available: this machine granted neither a WebGPU device nor a WebGL2 ' +
+        'context. Name a backend in options.backends to render anyway.',
+    );
+  // Until the compiler writes a prepared scene for a cache that blends, it writes none at all:
+  // one `clustered-blend` primitive is enough for it to refuse. The same page path draws either
+  // cache — only the file it reads its materials and placements from changes.
+  const prepared = autonomousCacheReady(metadata);
+  return choice({
+    factories: [autonomousPagesBackend],
+    autonomous: prepared,
+    origin: 'default',
+    reason: prepared
+      ? 'no WebGPU device; the cache carries a prepared autonomous scene'
+      : 'no WebGPU device and no prepared autonomous scene; the same path reads source.gltf',
+    renderer: 'autonomous-pages-webgl',
+  });
 }
