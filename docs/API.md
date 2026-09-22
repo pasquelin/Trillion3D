@@ -23,7 +23,8 @@ numbers. Conventions shared by every entry:
 
 - `createExplorer(target: ExplorerTarget, options: ExplorerOptions)` and
   `createExplorerJob(id, target, options)` accept a canvas element or its literal document ID.
-- `interactive: true` owns CSS/DPR sizing, OrbitControls and bounded demand-driven rendering;
+- `interactive: true` owns CSS/DPR sizing, the engine's own orbit controller and bounded
+  demand-driven rendering;
   absent/false preserves manual sessions. `invalidate()` requests a frame after programmatic edits.
 - With no `backends` option, interactive or not, a session draws wherever an image can be drawn:
   direct WebGPU where a device was granted; on WebGL2 alone a declared degraded mode through the
