@@ -1,5 +1,4 @@
 import type { HostAttributes } from './hostResources.ts';
-import * as THREE from 'three';
 import { createDeferredLighting } from './deferredLighting.ts';
 import { prepareTemporalAntialiasing } from './taaPrepare.ts';
 import { createSceneLightContractBuffer } from './webgpuPagesStateLights.ts';
@@ -43,14 +42,18 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
         // yield `array[i * 3 + c]`, and the block copy writes the same values, rounded to the same 32-bit
         // float. Any other attribute — interleaved, normalized, another stride — goes back through the
         // accessors, the only ones able to say what it holds.
-        const plat = attr as THREE.BufferAttribute;
+        const flat = attr.array as ArrayLike<number> & {
+          subarray?(begin: number, end: number): ArrayLike<number>;
+          isInterleavedBufferAttribute?: boolean;
+        };
         if (
-          plat.itemSize === 3 &&
-          !plat.normalized &&
+          attr.itemSize === 3 &&
+          !attr.normalized &&
           !(attr as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute &&
-          plat.array.length >= attr.count * 3
+          flat.subarray &&
+          flat.length >= attr.count * 3
         )
-          xyz.set(plat.array.subarray(0, attr.count * 3) as ArrayLike<number>);
+          xyz.set(flat.subarray(0, attr.count * 3));
         else
           for (let i = 0; i < attr.count; i++) {
             xyz[i * 3] = attr.getX(i);
