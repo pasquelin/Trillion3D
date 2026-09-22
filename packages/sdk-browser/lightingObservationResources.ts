@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import type { HostNode, HostScene } from './hostResources.ts';
 import {
   MAX_SURFACES,
   MAX_CACHE_DIMENSION,
@@ -23,15 +23,27 @@ const floatTexture = (data: Float32Array, width: number, height: number): Observ
   dirty: true,
 });
 
+/**
+ * The display graph the backend publishes, by contract: empty, black — no mesh ever enters it,
+ * the observation draws on the engine's own program. It is the engine's own description of a
+ * scene, not a host library's: there is nothing in it for a host to draw.
+ */
+const emptyScene = (): HostScene => ({
+  name: 'lighting-experiment',
+  visible: true,
+  background: { isColor: true, r: 0, g: 0, b: 0 },
+  children: [],
+  traverse(visit: (node: HostNode) => void) {
+    visit(this);
+  },
+});
+
 export function createObservationResources(state: LightingExperimentRenderState) {
   const domain = state.scene,
     surfaceCount = domain.surfaces.length;
   if (surfaceCount < 1 || surfaceCount > MAX_SURFACES)
     throw new Error(`Lighting experiment requires 1..${MAX_SURFACES} surfaces`);
-  // The host scene the backend publishes, by contract: empty, black — no mesh ever enters it,
-  // the observation draws on the engine's program.
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x000000);
+  const scene = emptyScene();
   const patchOffsets: number[] = [],
     tileOffsets: number[] = [];
   let patchCount = 0,
