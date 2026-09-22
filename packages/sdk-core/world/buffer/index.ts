@@ -3,7 +3,14 @@ import type { PageAttribute } from '../../../page-codec/pageAttributes.ts';
 export type BufferNumbers = ArrayLike<number> | ArrayBufferView;
 /** The typed arrays a buffer holds. */
 export type BufferTypedArray =
-  Float64Array | Float32Array | Uint32Array | Uint16Array | Uint8Array | Int32Array | Int16Array | Int8Array;
+  | Float64Array
+  | Float32Array
+  | Uint32Array
+  | Uint16Array
+  | Uint8Array
+  | Int32Array
+  | Int16Array
+  | Int8Array;
 
 /** A typed array of per-vertex values, `itemSize` numbers per vertex: the page codec's
  *  `PageAttribute` (`page-codec/pageAttributes.ts`), with what a page writes into it. */

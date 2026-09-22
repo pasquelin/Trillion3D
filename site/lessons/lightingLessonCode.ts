@@ -27,7 +27,15 @@ ${lamp('cool', '3, 3, 2', '0.12, 0.4, 1', state.cool)}`;
   if (lesson.kind === 'shadow-switch')
     return lamp('switchLamp', '-3, 7, 10', '1, 0.72, 0.42', 1800, state.shadow === 1, 30);
   if (lesson.kind === 'emitter-radius')
-    return lamp('envelope', '0, 4, 2', '1, 0.8, 0.55', LESSON_POINT_INTENSITY, true, 10, state.radius);
+    return lamp(
+      'envelope',
+      '0, 4, 2',
+      '1, 0.8, 0.55',
+      LESSON_POINT_INTENSITY,
+      true,
+      10,
+      state.radius,
+    );
   if (lesson.kind === 'many-lights')
     return ringLamps(state.count)
       .map((ring, index) =>

@@ -42,8 +42,7 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
     const m = light.matrixWorld.elements;
     record.right = right.set(m[0], m[1], m[2]).normalize().toArray();
     record.size = [light.width, light.height];
-  }
-  else if (kind !== 'point') light.target.getWorldPosition(aim).sub(eye);
+  } else if (kind !== 'point') light.target.getWorldPosition(aim).sub(eye);
   if (kind !== 'point')
     record.direction = (aim.lengthSq() > 0 ? aim.normalize() : aim.set(0, -1, 0)).toArray();
   if (kind === 'directional') return record;

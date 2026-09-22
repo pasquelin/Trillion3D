@@ -44,6 +44,10 @@ export function writeLightFields(packed: Float32Array, base: number, light: Scen
   packed[base + LIGHT_FIELD.cosInner] =
     spot && light.penumbra ? Math.cos(light.coneAngle! * (1 - light.penumbra)) : NO_CONE;
   const [width, height] = light.size ?? [0, 0];
-  writeVector(packed, base + LIGHT_FIELD.halfWidth, (light.right ?? [0, 0, 0]).map((c) => c * width / 2));
+  writeVector(
+    packed,
+    base + LIGHT_FIELD.halfWidth,
+    (light.right ?? [0, 0, 0]).map((c) => (c * width) / 2),
+  );
   packed[base + LIGHT_FIELD.halfHeight] = height / 2;
 }
