@@ -11,20 +11,7 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
             positions.extend([fx, fy, (fx * 0.31).sin() * (fy * 0.27).cos() * 2.0]);
         }
     }
-    let mut indices = Vec::with_capacity(n * n * 6);
-    for y in 0..n as u32 {
-        for x in 0..n as u32 {
-            let a = y * w as u32 + x;
-            indices.extend([
-                a,
-                a + 1,
-                a + w as u32,
-                a + 1,
-                a + 1 + w as u32,
-                a + w as u32,
-            ]);
-        }
-    }
+    let indices = crate::tests::fixtures::grid_indices(n, n, |x, y| (y * w + x) as u32);
     (positions, indices)
 }
 
