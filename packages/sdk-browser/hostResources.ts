@@ -4,8 +4,7 @@
  * The engine receives materials, textures, geometry attributes, meshes and scene nodes that the
  * host created and still owns: it reads them, it never builds one and never computes with one.
  * Naming them by the rendering library the host happens to use would put that library back inside
- * a number the engine calculates (`docs/SPEC_ENGINE_WITHOUT_THREE.md` R1b), so the contract types
- * below describe only what the engine reads. Any host object of the same shape satisfies them.
+ * a number the engine calculates, so the contract types below describe only what the engine reads. Any host object of the same shape satisfies them.
  *
  * Boundary files — the witness engines and the host adapters listed by
  * `test/integration/moteur-sans-three.test.ts` — own the conversion back to their library's types;
