@@ -4,12 +4,12 @@ use super::*;
 /// `ExactClusters` build yields level zero alone, without group or reduction, so
 /// published coverage is exactly source triangles.
 ///
-/// `uvs` — two floats per vertex, or none — says which position copies reduction is
-/// allowed to weld when stuck: those sharing texture, never the opposite edge
-/// of a seam.
+/// `uv_sets` — every texture set the primitive carries, two floats per vertex, empty when it
+/// carries none — says which position copies reduction is allowed to weld when stuck: those
+/// sharing every texture coordinate, never the opposite edge of a seam of any set.
 pub fn build_dag_tallied(
     positions: &[f32],
-    uvs: Option<&[f32]>,
+    uv_sets: &[&[f32]],
     indices: &[u32],
     strategy: DagStrategy,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
@@ -58,7 +58,7 @@ pub fn build_dag_tallied(
         let _t = Timer::new(Phase::Weld);
         (
             weld_positions(positions, indices),
-            uvs.map(|uvs| weld_positions_and_uv(positions, uvs, indices)),
+            (!uv_sets.is_empty()).then(|| weld_positions_and_uv(positions, uv_sets, indices)),
         )
     };
     let mut current: Vec<usize> = (0..dag.len()).collect();
