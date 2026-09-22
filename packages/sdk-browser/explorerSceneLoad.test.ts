@@ -23,9 +23,12 @@ test('loadPreparedScene indexes every glTF texture association and nothing else'
     [textureC, {}],
     [mesh, { meshes: 0 }],
   ]);
+  // The document the parser read, as it carries it: three image records, two of which name one
+  // file — the fold the loader applies, which the prepared-scene check reads from `json`.
+  const json = { images: [{ uri: 'box1.png' }, { uri: 'box2.png' }, { uri: 'box1.png' }] };
   t.mock.method(GLTFLoader.prototype, 'loadAsync', async () => ({
     scene,
-    parser: { associations },
+    parser: { associations, json },
   }));
   // The cache's scene tables are read at load and checked against the scene: this one draws
   // nothing, so the tables that describe it are empty.
