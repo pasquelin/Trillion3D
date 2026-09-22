@@ -153,8 +153,10 @@ const TEMOINS =
   /^(?:referenceBackend|threeLod|threeBounds|exactPages|autonomous|clusterBatch|blendCopyMesh|comparison|lightingObservation)/;
 
 /** File -> exact line -> why it SETS a host matrix instead of computing one. Empty since the
- *  second capture view stopped being a host camera (`detachedHostView`): it reads the resolved
- *  world matrix and keeps its sixteen floats, so nothing copies into a host matrix any more. */
+ *  second capture view became the host camera itself, read at the aspect ratio of the surface
+ *  written into (`readCameraWorld`): no engine file composes into a host matrix any more. The
+ *  boundary that gives a campaign its camera back writes the sixteen floats it was handed
+ *  (`copyElements`), which is a copy and not a composition. */
 const ECRIT_L_HOTE: Record<string, Record<string, string>> = {};
 
 test('engine reads the host matrix, it does not compute with it', async () => {

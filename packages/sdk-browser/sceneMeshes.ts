@@ -1,10 +1,9 @@
 import type {
   HostGraphGeometry,
   HostGraphMaterial,
-  HostGraphMesh,
-  HostGraphNode,
   HostGraphTexture,
-} from './hostGraphNodes.ts';
+} from './hostGraphResources.ts';
+import type { HostGraphMesh, HostGraphNode } from './hostGraphNodes.ts';
 
 /** Meshes of a subtree, in preorder. Nothing is lifted here: the world matrices the
  *  engine needs are its own (`hostWorldPlacements.ts`), and the host scene stays as it left it. */

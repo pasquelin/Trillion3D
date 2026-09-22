@@ -46,14 +46,8 @@ export type {
 } from './hostResources.ts';
 /** The host scene graph as the engine walks it (`hostGraphNodes.ts`): the shapes a source node,
  *  its pose and its rotation are read through. */
-export type {
-  HostAnnounced,
-  HostGraphNode,
-  HostNodeMatrix,
-  HostRotation,
-  HostVector,
-} from './hostGraphNodes.ts';
-export type { MatrixElements } from './matrixElements.ts';
+export type { HostGraphNode, HostRotation, HostVector } from './hostGraphNodes.ts';
+export type { HostNodeMatrix, MatrixElements } from './matrixElements.ts';
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './gpuPassBlocks.ts';
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpuPassBlocks.ts';
 export { createDiagnosticChannel } from './diagnosticChannel.ts';

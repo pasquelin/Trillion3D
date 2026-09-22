@@ -1,9 +1,9 @@
 import type {
   HostGraphGeometry,
   HostGraphMaterial,
-  HostGraphNode,
   HostGraphTexture,
-} from './hostGraphNodes.ts';
+} from './hostGraphResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import { materialTextures, meshes as objects } from './sceneMeshes.ts';
 
 /** Gives back every host resource the loaded subtree holds: geometries, surfaces, textures and

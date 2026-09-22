@@ -4,6 +4,7 @@ import { createOrbitCameraControls } from './cameraOrbitControls.ts';
 import { createPanZoomCameraControls } from './cameraPanZoomControls.ts';
 import { createTrackballCameraControls } from './cameraTrackballControls.ts';
 import type { PivotCameraControls } from './cameraControlTypes.ts';
+import { copyElements } from './matrixElements.ts';
 import type { CameraPose } from '../sdk-core/index.ts';
 import type { ExplorerOptions, PointOfInterest, RenderBackend } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
@@ -81,7 +82,10 @@ export function createExplorerCameraApi(inputs: Inputs) {
       setActive(backends.find((backend) => backend.id === id)!);
       // The saved view goes back on the live camera number by number — local pose and declared
       // optics — then its matrices are recomposed from them: what a host camera holds besides
-      // these is derived from them.
+      // these is derived from them. The LOCAL MATRIX comes back beside the three fields, with the
+      // flag that says which of the two is the pose: a host that poses its camera by matrix keeps
+      // `matrixAutoUpdate` false, and `updateMatrixWorld` then recomposes nothing — restoring the
+      // fields alone would leave that camera on the pose the campaign left it at.
       const { x, y, z, w } = saved.quaternion;
       camera.position.copy(saved.position);
       camera.quaternion.set(x, y, z, w);
@@ -90,6 +94,8 @@ export function createExplorerCameraApi(inputs: Inputs) {
       camera.near = saved.near;
       camera.far = saved.far;
       camera.zoom = saved.zoom;
+      copyElements(camera.matrix.elements, saved.matrix.elements);
+      camera.matrixAutoUpdate = saved.matrixAutoUpdate;
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld();
       lookAtTarget.copy(center);

@@ -10,19 +10,12 @@
  *
  * Building one of these objects is not reading it: the boundary that makes a host node, a host
  * camera or a copy of a host mesh is `hostGraphObjects.ts`, the only file of the walk allowed
- * to name the library its host wrote them with.
+ * to name the library its host wrote them with. The geometry, the surface and the texture a node
+ * POINTS AT are resources rather than nodes, and live in `hostGraphResources.ts`.
  */
-import type { GpuBuffer } from './clusterBatchMesh.ts';
-import type {
-  HostAttribute,
-  HostBox,
-  HostColour,
-  HostDisposable,
-  HostGeometry,
-  HostMaterial,
-  HostNode,
-  HostTexture,
-} from './hostResources.ts';
+import type { HostNodeMatrix } from './matrixElements.ts';
+import type { HostGraphGeometry, HostGraphMaterial } from './hostGraphResources.ts';
+import type { HostBox, HostColour, HostNode } from './hostResources.ts';
 
 /** Three numbers of a pose, as the host stores them and a boundary sets them back. */
 export type HostVector = {
@@ -32,7 +25,8 @@ export type HostVector = {
   set(x: number, y: number, z: number): unknown;
 };
 
-/** The orientation of a pose, as the host stores it: `(x, y, z, w)`. */
+/** The orientation of a pose, as the host stores it: `(x, y, z, w)`. A camera controller writes
+ *  exactly this shape, so `cameraControlTypes.ts` reads it from here rather than redeclaring it. */
 export type HostRotation = {
   x: number;
   y: number;
@@ -42,55 +36,37 @@ export type HostRotation = {
 };
 
 /**
- * One face of a node's rotation — the quaternion, or the Euler angles that copy into it — as it
- * announces its own writes: a callback the host already chains, which a hook extends instead of
- * replacing (`hostSceneHooks.ts`).
- */
-export type HostAnnounced = {
-  _onChangeCallback: () => void;
-  _onChange(callback: () => void): unknown;
-};
-
-/**
- * A 4×4 a node carries, column-major. Its sixteen floats are read as they stand and written
- * term by term by the boundary that poses the node; nothing asks the host to compose them.
- */
-export type HostNodeMatrix = {
-  readonly elements: { [index: number]: number; readonly length: number };
-};
-
-/** A geometry of the walked graph: the local box it can compute on demand, the index its
- *  triangles are drawn through, and the release its host expects. */
-export type HostGraphGeometry = HostGeometry &
-  HostDisposable & {
-    computeBoundingBox(): void;
-    /** Triangle list of the geometry, with what an upload compares to skip a re-copy. */
-    readonly index: (HostAttribute & GpuBuffer) | null;
-  };
-
-/** A surface of the walked graph: what the engine reads of it, and the release its host expects. */
-export type HostGraphMaterial = HostMaterial & HostDisposable;
-
-/** A texture of the walked graph: the host resource itself, released with the surface that
- *  sampled it, and the sampling quality a session raises to what the device allows. */
-export type HostGraphTexture = Omit<HostTexture, 'anisotropy'> &
-  HostDisposable & {
-    anisotropy: number;
-    /** Raised when a sampler field changed: what tells the host to upload it again. */
-    needsUpdate: boolean;
-  };
-
-/**
  * A node of the host graph as a walk sees it: its identity, its local pose, the world matrix
  * the host resolved for it, and its chain. The engine computes its OWN world matrices from the
  * local poses (`hostWorldTree.ts`); `matrixWorld` is read where the HOST's own resolution is
  * what a boundary hands back to it.
+ *
+ * WHY `HostPlaced` (`hostResources.ts`) ALSO DESCRIBES A POSED NODE. The two are not a copy: they
+ * are keyed on the two different resolutions a host offers. `HostPlaced` asks for
+ * `updateWorldMatrix(ancestors, descendants)` — the chain of ONE node, what a placement and a
+ * visibility walk climb; this one asks for `updateMatrixWorld(force)` — the SUBTREE under a node,
+ * what a scan, a bounds union and a replication resolve in one call. A host offering only one of
+ * the two satisfies only the contract it answers, so neither may stand for the other.
  */
 export interface HostGraphNode extends HostNode {
   readonly parent: HostGraphNode | null;
   readonly position: HostVector;
-  readonly quaternion: HostRotation & HostAnnounced;
-  readonly rotation: HostAnnounced;
+  /**
+   * The two faces of a node's rotation — the quaternion the engine compares, and the Euler
+   * angles that copy into it — each ANNOUNCING its own writes: a callback the host already
+   * chains, which a hook extends instead of replacing (`hostSceneHooks.ts`). The two
+   * underscored members are a private of the host's library, so they are written here, where
+   * the hook needs them, and are given no name of their own: the SDK facades publish
+   * `HostGraphNode`, and a named shape would publish that private with it.
+   */
+  readonly quaternion: HostRotation & {
+    _onChangeCallback: () => void;
+    _onChange(callback: () => void): unknown;
+  };
+  readonly rotation: {
+    _onChangeCallback: () => void;
+    _onChange(callback: () => void): unknown;
+  };
   readonly scale: HostVector;
   /** False when the host set `matrix` itself: the matrix IS the pose and nothing recomposes it. */
   matrixAutoUpdate: boolean;
