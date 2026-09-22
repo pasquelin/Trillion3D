@@ -16,7 +16,7 @@ import {
   type NormalCone,
 } from './pageCone.ts';
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
-import type { PageSurface } from './pageSurface.ts';
+import { surfaceFrontOnly, type PageSurface } from './pageSurface.ts';
 
 /** The context is set at the root's first cone: a root without a cone never pays for it. */
 export function coneSkipsPage(
@@ -32,7 +32,9 @@ export function coneSkipsPage(
   fallbackMin: number[],
   fallbackMax: number[],
 ) {
-  if (rec.material?.doubleSided) return false;
+  // The side is reread here, not taken off the record as it was last filled: `surfaceFrontOnly`
+  // asks the declaration, and only a front-only surface can be cone-rejected at all.
+  if (rec.material && !surfaceFrontOnly(rec.material)) return false;
   const min = rec.min ?? fallbackMin,
     max = rec.max ?? fallbackMax;
   if (!ctx.ready) coneContextFor(ctx, world, cam.eye);

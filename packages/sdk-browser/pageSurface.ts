@@ -31,11 +31,26 @@ import type { VisMaterial } from './visibilityTypes.ts';
 /** The shaded fields of a surface, and the raster facts declared beside them. */
 export type PageSurface = VisMaterial & MaterialRaster;
 
-/** The side a record declares, in the engine's own enum. */
-export const surfaceSide = (surface: PageSurface): Side =>
-  surface.doubleSided ? 'double' : surface.backSide ? 'back' : 'front';
+/**
+ * The side a record declares, in the engine's own enum, AS THE HOST DECLARES IT NOW.
+ *
+ * Every reader of the side goes through this pair, and both reread the declaration first: a host
+ * switches a surface to double-sided by writing `side` on the declaration it shares with its mesh,
+ * without bumping any version, and the readers that answer with it decide what is drawn — the
+ * pipelines and their face culling (`webgpuPagesPipelineFor.ts`), the cut's normal cones
+ * (`gpuSelection.ts`, `pageCone.ts`, `webgpuPagesPrepare.ts`) and the transparent plan. A front-only
+ * page carries a closed cone; read a stale `front` on a surface the host has just opened and the
+ * cone rejects the page — its faces leave the image.
+ */
+export const surfaceSide = (surface: PageSurface): Side => {
+  const now = refreshSide(surface);
+  return now.doubleSided ? 'double' : now.backSide ? 'back' : 'front';
+};
 /** True when only the front faces are drawn: the one case a normal cone may reject a page. */
-export const surfaceFrontOnly = (surface: PageSurface) => !surface.doubleSided && !surface.backSide;
+export const surfaceFrontOnly = (surface: PageSurface) => {
+  const now = refreshSide(surface);
+  return !now.doubleSided && !now.backSide;
+};
 
 const held = new WeakMap<object, PageSurface>();
 const declarations = new WeakMap<PageSurface, HostMaterials>();
@@ -63,6 +78,20 @@ export function surfaceOf(material: HostMaterials): PageSurface {
 export const meshSurface = (mesh: { material: HostMaterials }) => surfaceOf(mesh.material);
 
 /**
+ * Rereads the SIDE of a record from the declaration it was built from; a record built outside this
+ * module — a fixture's — keeps the fields it was given. Two field writes and a lookup: this is the
+ * per-page, per-draw read the engine made on the host declaration itself before the record existed.
+ */
+function refreshSide(surface: PageSurface): PageSurface {
+  const material = declarations.get(surface);
+  if (!material) return surface;
+  const side = sideOf(material);
+  surface.doubleSided = side === 'double';
+  surface.backSide = side === 'back';
+  return surface;
+}
+
+/**
  * Rereads a record whose declaration the host has rewritten, and returns it either way; a record
  * built outside this module — a fixture's — is returned untouched.
  *
@@ -76,8 +105,6 @@ export function refreshSurface(surface: PageSurface): PageSurface {
   const material = declarations.get(surface);
   if (!material) return surface;
   if ((firstMaterial(material)?.version ?? 0) !== surface.version) return fill(surface, material);
-  const side = sideOf(material);
-  surface.doubleSided = side === 'double';
-  surface.backSide = side === 'back';
+  refreshSide(surface);
   return materialRaster(material, surface);
 }
