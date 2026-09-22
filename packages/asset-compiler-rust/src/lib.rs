@@ -15,6 +15,7 @@ pub mod plugins;
 pub mod proxy;
 mod qem;
 mod qem_attributes;
+mod qem_attributes_hausdorff;
 pub mod shared_math;
 pub mod texture_preview;
 mod topology;

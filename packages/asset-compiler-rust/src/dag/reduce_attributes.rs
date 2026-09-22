@@ -40,13 +40,14 @@ pub(super) fn updated(
             cluster_triangles(&region.positions, &region.indices, DAG_CLUSTER_TRIANGLES)?
         };
         Ok(Attempt {
-            // The simplifier's error already bounds how far the level's surface left the
-            // source's: the solve that follows the collapses moves a survivor towards the
-            // minimum of its own quadric, and the distance it travels — a facade vertex sliding
-            // along its wall covers the whole group — is not a deviation of that surface.
-            // Only the floor is added, so a level that created any vertex carries a positive
-            // error and a surface no longer bit for bit the source is never drawn at zero.
-            error_object: region.error_object.max(floor),
+            // What the level certifies is the distance between the surface it draws and the one
+            // it replaced, measured after the solve: `surface_deviation`. The simplifier's own
+            // number is kept beside it because the two see different things — it averages the
+            // collapses over the whole region, the Hausdorff distance reads the geometry as it
+            // ended up — and the level is certified at the worse of them. The floor keeps a level
+            // that created any vertex positive, so a surface no longer bit for bit the source is
+            // never drawn at a zero threshold.
+            error_object: region.error_object.max(region.surface_deviation).max(floor),
             clusters: clusters
                 .into_iter()
                 .map(|cluster| cluster.iter().map(|&l| named[l as usize]).collect())

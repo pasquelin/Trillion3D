@@ -21,12 +21,13 @@ fn a_solved_level_carries_a_positive_error() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 
-// Behaviour: the error of a coarse level is the simplifier's, not the distance its solve slid a
-// survivor across the surface. On this plane the collapses cost nothing and the error is what the
-// texture asks of the solve alone — measured 1.16 of the sheet's 64 units, while the solve slid a
-// survivor 2.00 within the plane, a slide the level used to carry as if the surface had left it.
+// Behaviour: a coarse level is charged for the distance between the surface it draws and the one
+// it replaced, never for how far a vertex travelled inside that surface. This sheet stays in its
+// plane whatever the solve does to it, so its Hausdorff distance to the source is zero and the
+// whole error is the simplifier's own — measured 1.16 of the sheet's 64 units, while the solve
+// slid a survivor 2.00 within the plane, a slide the level used to carry as a deviation.
 #[test]
-fn the_slide_of_a_solve_is_not_an_error() {
+fn a_slide_inside_the_surface_is_not_an_error() {
     let (mut positions, normals, _, indices) = seam_sheet(64, 64, true);
     let values = positions
         .as_chunks::<3>()

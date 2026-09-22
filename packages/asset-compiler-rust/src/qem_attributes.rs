@@ -8,6 +8,7 @@
 //! collapse across its seam, all copies moving together and their attributes solved afterwards,
 //! except where a copy is flagged `PROTECT`: there the seam is kept and only slid along.
 use crate::qem::compact_region;
+use crate::qem_attributes_hausdorff::one_sided_hausdorff;
 use crate::{invalid, Result};
 use meshopt::{SimplifyOptions, VertexDataAdapter};
 
@@ -26,10 +27,16 @@ pub struct UpdatedRegion {
     /// Interleaved, `stride` floats per local vertex.
     pub attributes: Vec<f32>,
     pub remap: Vec<u32>,
-    /// Object-space error of the collapses: distance to the surface and weighed attribute
-    /// deviation, in the units of `positions`. The solve that follows the collapses is not in
-    /// it: `displacement` measures how far it moved a vertex.
+    /// The simplifier's own error, in the units of `positions`: a weighed mean of squared
+    /// point-to-plane distances over the collapses, attribute terms included, read before the
+    /// survivors are solved. An average of what the collapses cost, never a bound on where the
+    /// level ended up — `surface_deviation` is that.
     pub error_object: f64,
+    /// One-sided Hausdorff distance from the region as simplified to the source triangles it
+    /// replaced, in the units of `positions` (`one_sided_hausdorff`). Purely geometric, as a
+    /// certified error must be, and measured after the solve — the only number here that bounds
+    /// how far this surface is from the one it stands for.
+    pub surface_deviation: f64,
     /// Object units per unit of the region's extent, as the simplifier scales it.
     pub scale: f64,
 }
@@ -49,8 +56,10 @@ impl UpdatedRegion {
 
 /// Simplifies a region to `target_triangles`, with `flags` — `LOCK`, `PROTECT` — queried on
 /// source vertex indices and `gather` producing the interleaved attributes of the region's
-/// vertices, `weights.len()` per vertex. `None` when the simplifier removed no triangle: the
-/// region is then what it was.
+/// vertices, `weights.len()` per vertex. `target_error` is read against the region's extent, as
+/// the ceiling that names it is; what comes back is absolute, so the errors of two regions of one
+/// primitive are in the same units and the DAG may compare them. `None` when the simplifier
+/// removed no triangle: the region is then what it was.
 pub fn simplify_region_with_attributes(
     positions: &[f32],
     indices: &[u32],
@@ -71,6 +80,9 @@ pub fn simplify_region_with_attributes(
         return Ok(None);
     }
     let (mut compact_pos, mut compact_idx, remap) = compact_region(positions, indices);
+    // The call rewrites positions and indices in place; the surface the solved vertices are then
+    // measured against is this copy of them.
+    let (source_pos, source_idx) = (compact_pos.clone(), compact_idx.clone());
     let mut attributes = gather(&remap);
     let stride = weights.len();
     if attributes.len() != remap.len() * stride {
@@ -104,8 +116,8 @@ pub fn simplify_region_with_attributes(
             stride,
             locks.as_ptr(),
             target_triangles.max(1) * 3,
-            target_error,
-            SimplifyOptions::Permissive.bits(),
+            target_error * scale as f32,
+            (SimplifyOptions::Permissive | SimplifyOptions::ErrorAbsolute).bits(),
             &mut result_error,
         )
     };
@@ -114,16 +126,22 @@ pub fn simplify_region_with_attributes(
         return Ok(None);
     }
     compact_idx.truncate(count);
+    let surface_deviation =
+        one_sided_hausdorff(&source_pos, &source_idx, &compact_pos, &compact_idx);
     Ok(Some(UpdatedRegion {
         indices: compact_idx,
         positions: compact_pos,
         attributes,
         remap,
-        error_object: (result_error as f64) * scale,
+        error_object: result_error as f64,
+        surface_deviation,
         scale,
     }))
 }
 
+#[cfg(test)]
+#[path = "qem_attributes_sheet_tests.rs"]
+mod sheet_tests;
 #[cfg(test)]
 #[path = "qem_attributes_tests.rs"]
 mod tests;

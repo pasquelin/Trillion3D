@@ -77,6 +77,7 @@ fn a_displacement_is_the_distance_from_the_source_position() {
         attributes: vec![1.0, 0.0],
         remap: vec![0],
         error_object: 0.0,
+        surface_deviation: 0.0,
         scale: 1.0,
     };
     let moved = region.displacement(0, &[0.0, 0.0, 0.0]);
@@ -115,47 +116,28 @@ fn a_region_below_its_target_is_left_alone() {
     assert!(out.is_none());
 }
 
-// Behaviour: on a flat sheet whose attributes follow its plane, the solve has nothing to move.
-// Every survivor stays within a ten-thousandth of the region's extent, which is what lets the
-// reduction keep the source vertices instead of copying each of them (measured on the displaced
-// grid of the test above: 235 survivors of 544 beyond that fraction, 309 within it).
+// Behaviour: on a displaced grid the simplified surface does leave the source, and the level says
+// how far. It is never the whole distance a vertex travelled: what is measured is the distance
+// between the two surfaces, so whatever a survivor did inside the source surface costs nothing.
 #[test]
-fn a_flat_sheet_leaves_every_survivor_where_it_was() {
-    let n = 32usize;
-    let (mut positions, indices) = grid(n);
-    for vertex in positions.as_chunks_mut::<3>().0 {
-        vertex[2] = 0.0;
-    }
-    let attributes: Vec<f32> = positions
-        .as_chunks::<3>()
-        .0
+fn a_simplified_surface_that_leaves_the_source_reports_how_far() {
+    let region = simplify(32, &|_| 0).expect("reduced");
+    let (positions, _, _) = attributed(32);
+    let travelled = region
+        .indices
         .iter()
-        .flat_map(|[x, y, _]| [0.0, 0.0, 1.0, x / n as f32, y / n as f32])
-        .collect();
-    let gather = |remap: &[u32]| {
-        remap
-            .iter()
-            .flat_map(|&v| attributes[v as usize * 5..v as usize * 5 + 5].to_vec())
-            .collect()
-    };
-    let region = simplify_region_with_attributes(
-        &positions,
-        &indices,
-        &gather,
-        &[0.5; 5],
-        indices.len() / 3 / 2,
-        1.0,
-        &|_| 0,
-    )
-    .expect("simplify")
-    .expect("reduced");
-    for &local in &region.indices {
-        let (l, source) = (local as usize, region.remap[local as usize] as usize);
-        let moved = region.displacement(l, &positions[source * 3..source * 3 + 3]);
-        assert!(moved <= region.scale * 1e-4, "{moved} at {source}");
-        for component in 0..5 {
-            let drift = region.attributes[l * 5 + component] - attributes[source * 5 + component];
-            assert!(drift.abs() as f64 * 0.5 <= 1e-4, "{drift} at {source}");
-        }
-    }
+        .map(|&local| {
+            let source = region.remap[local as usize] as usize * 3;
+            region.displacement(local as usize, &positions[source..source + 3])
+        })
+        .fold(0.0_f64, f64::max);
+    assert!(
+        region.surface_deviation > 0.0,
+        "a displaced grid deviates by nothing"
+    );
+    assert!(
+        region.surface_deviation < travelled,
+        "{} of {travelled} travelled",
+        region.surface_deviation
+    );
 }
