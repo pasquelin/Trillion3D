@@ -148,7 +148,9 @@ answers already applied, the mesh ranks already remapped.
   `aoIntensity`, `emissive`, `transmission`, `ior`, `thickness`, `attenuationDistance`,
   `attenuationColor`. One glTF material is one entry **per tangent variant**: a host that rebuilds
   the tangent frame from screen derivatives flips `normalScaleY`, so a node names a rank in this
-  table, not the glTF material rank. A primitive that declares no material wears an entry holding
+  table, not the glTF material rank, and `derivativeTangents` says which variant the entry was
+  written for — the autonomous scene carries the same materials over primitives stripped of their
+  tangents, and a reader flips the sign back when the geometry it holds disagrees. A primitive that declares no material wears an entry holding
   the glTF default one.
 - `textures[]` — sampler state at the glTF texture rank: `{ image, wrapS, wrapT, magFilter,
   minFilter }`, in the engine's words (`clamp`/`repeat`/`mirror`, `linear-mip-linear`…), with the
