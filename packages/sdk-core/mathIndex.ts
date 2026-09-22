@@ -91,8 +91,10 @@ export {
   boxConeRejects,
 } from './mathCone.ts';
 export {
+  NODE_AUTO_UPDATE,
   addTransformNode,
   createTransformTree,
+  markNodeWorldNeedsUpdate,
   setNodeAutoUpdate,
   setNodeLocalMatrix,
   setNodePosition,

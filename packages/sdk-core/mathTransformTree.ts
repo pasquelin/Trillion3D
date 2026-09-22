@@ -193,3 +193,12 @@ export function setNodeAutoUpdate(tree: TransformTree, node: number, auto: boole
   if (auto) tree.flags[node] |= NODE_AUTO_UPDATE;
   else tree.flags[node] &= ~NODE_AUTO_UPDATE;
 }
+
+/**
+ * `matrixWorldNeedsUpdate`. A node whose recomposition is cut carries a local matrix nobody
+ * recomposes: setting it marks no reach flag, so an update rule that starts above would walk
+ * past it. This is the mark the reference sets in that case, and the only way to set it.
+ */
+export function markNodeWorldNeedsUpdate(tree: TransformTree, node: number) {
+  tree.flags[node] |= NODE_WORLD_NEEDS_UPDATE;
+}
