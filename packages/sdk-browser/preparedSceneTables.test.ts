@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { EngineError, assertSceneTables, type PreparedSceneTables } from '../sdk-core/index.ts';
 import { checkPreparedScene } from './preparedSceneTables.ts';
+import { tableMaterial } from './preparedSceneFixture.ts';
 import type { BackendContext } from './backendTypes.ts';
 
 /** A triangle under a node the scene moves: enough to carry a pose, a primitive and a surface. */
@@ -58,35 +59,6 @@ function container() {
   return glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.length) as ArrayBuffer;
 }
 
-/** The material entry the compiler writes for a glTF material that declares nothing. */
-const defaultMaterial = {
-  name: '',
-  lit: true,
-  doubleSided: false,
-  backSide: false,
-  baseColor: [1, 1, 1],
-  emissive: [0, 0, 0],
-  attenuationColor: [1, 1, 1],
-  metalness: 1,
-  roughness: 1,
-  alphaTest: 0,
-  normalScale: 1,
-  // The triangle declares no tangent, so the host flips the second normal factor and so does
-  // the table (`compiler_tables/materials.rs`), which says which variant it was written for.
-  normalScaleY: -1,
-  derivativeTangents: true,
-  aoIntensity: 1,
-  transmission: 0,
-  ior: 1.5,
-  thickness: 0,
-  attenuationDistance: 0,
-  map: null,
-  metalnessMap: null,
-  roughnessMap: null,
-  normalMap: null,
-  aoMap: null,
-  emissiveMap: null,
-};
 const tables = () =>
   JSON.parse(
     JSON.stringify({
@@ -106,7 +78,7 @@ const tables = () =>
           bounds: { min: [1, 2, 3], max: [2, 3, 3] },
         },
       ],
-      materials: [{ ...defaultMaterial, name: 'surface' }],
+      materials: [tableMaterial({ name: 'surface' })],
       textures: [],
     }),
   ) as PreparedSceneTables;
