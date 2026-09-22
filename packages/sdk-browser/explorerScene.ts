@@ -69,8 +69,9 @@ export async function loadPreparedScene(
   };
   // Images whose chain is baked are not read: the loader receives a white pixel in their
   // place, and the engine reads their levels from the cache — which it does either way, so
-  // fetching them here would buy nothing. A host that says `'host'` wants them anyway, because
-  // an engine that draws the host scene samples the images themselves.
+  // fetching them here would buy nothing. `textureSource` arrives resolved against the paths
+  // that will draw (`resolveTextureSource`): it reads `'host'` wherever one of them samples
+  // the images themselves, and the images are then read as they always were.
   // GLTFLoader has no AbortSignal in this Three version; dispose late results after loading settles.
   const sceneUrl = new URL(sceneFile, base).href;
   const loader = new GLTFLoader(manager);
