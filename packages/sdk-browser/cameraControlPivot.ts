@@ -43,8 +43,10 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     offset = new Float64Array(3),
     orientation = new Float64Array(4),
     pan = new Float64Array(3),
-    moved = new Float64Array(6);
-  const gate = createChangeGate(base, 6);
+    moved = new Float64Array(10);
+  // Eye, pivot AND orientation: a trackball seen from its pivot's axis turns the view without
+  // moving a single point, and that spin is a change the host must redraw.
+  const gate = createChangeGate(base, 10);
   const height = () => surface.clientHeight || 1;
   const sample = () => {
     pose.readPosition(position);
@@ -66,6 +68,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     writeVector(api.target, center);
     moved.set(position);
     moved.set(center, 3);
+    moved.set(orientation, 6);
     return gate(moved);
   };
   const api: PivotCameraControls = {

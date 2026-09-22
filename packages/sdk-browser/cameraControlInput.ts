@@ -9,6 +9,11 @@ import type { ControlBase } from './cameraControlBase.ts';
  * drag with the button that started it; two report a pinch — the ratio of the distance
  * between them and the pixel motion of their midpoint — which is how a touch surface zooms
  * and pans at once. Nothing is polled: a controller that receives no event does no work.
+ *
+ * TOUCH. A touch screen scrolls the page on one finger and zooms it on two unless the surface
+ * claims the gesture with `touch-action: none`; the browser otherwise cancels the pointer
+ * stream mid-drag and no pinch ever reaches a controller. `dispose()` puts the value the host
+ * had written back, and gives up every capture still held, so the page is left as it was.
  */
 export interface DragHandlers {
   /** One pointer moved by `(dx, dy)` pixels, `button` being the one that started the drag. */
@@ -38,6 +43,13 @@ export function trackPointers(surface: HTMLElement, base: ControlBase, handlers:
     const [a, b] = [...pointers.values()];
     return Math.hypot(a.x - b.x, a.y - b.y);
   };
+  const scrolling = surface.style.touchAction;
+  surface.style.touchAction = 'none';
+  base.undo(() => {
+    surface.style.touchAction = scrolling;
+    for (const pointerId of pointers.keys()) surface.releasePointerCapture?.(pointerId);
+    pointers.clear();
+  });
   base.listen<PointerEvent>(surface, 'pointerdown', (event) => {
     if (pointers.size === 0) button = event.button;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
