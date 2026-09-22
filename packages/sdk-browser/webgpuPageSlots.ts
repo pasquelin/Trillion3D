@@ -69,8 +69,8 @@ export function describePageSlots(allPages: readonly PageRec[]) {
 function settleBlendAddresses(allPages: readonly PageRec[]) {
   const blendUrls = new Set<string>();
   for (const page of allPages) if (page.transparent) blendUrls.add(page.url);
+  if (!blendUrls.size) return 0;
   let sharedIndexPages = 0;
-  if (!blendUrls.size) return sharedIndexPages;
   for (const page of allPages)
     if (page.geometryPage && blendUrls.has(page.url)) {
       page.geometryPage = undefined;
