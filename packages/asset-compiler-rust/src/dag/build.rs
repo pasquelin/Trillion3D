@@ -26,6 +26,10 @@ pub fn build_dag_tallied(
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<DagBuild> {
     checkpoint()?;
+    // The seam weld's key holds the two texture sets a page can carry, no more.
+    if uv_sets.len() > 2 {
+        return Err(invalid("a page carries at most two texture sets"));
+    }
     // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
     let mut first_use = vec![u32::MAX; positions.len() / 3];
     for (offset, &vertex) in indices.iter().enumerate() {

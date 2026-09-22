@@ -36,8 +36,8 @@ export interface DagWarning extends DagStallSummary {
   pages: number;
   groups: Record<string, number>;
 }
-/** DAG report for a primitive; only its warnings are consumed by the runtime engine. */
-export interface DagReport extends Partial<DagStallSummary> {
-  warnings?: DagWarning[];
-  stalls?: DagStall[];
-}
+/** DAG report for a primitive; only its warnings are consumed by the runtime engine. A report
+ *  listing its stalls carries their summary. */
+export type DagReport = { warnings?: DagWarning[] } & (
+  { stalls?: undefined } | ({ stalls: DagStall[] } & DagStallSummary)
+);

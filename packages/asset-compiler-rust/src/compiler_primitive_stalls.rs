@@ -1,7 +1,7 @@
 //! The DAG report of a primitive: its levels, its group tallies, and every stalled group with the
 //! cause the builder named, so a primitive left with many roots says why.
 use super::*;
-use crate::dag::{DagCluster, DagStall, DagStrategy, GroupTally};
+use crate::dag::{DagCluster, DagStall, DagStrategy, GroupTally, StallCause};
 
 /// What a primitive's stalls come to, read once for the report and its warning.
 pub(super) struct StallSummary {
@@ -9,7 +9,7 @@ pub(super) struct StallSummary {
     pub root_triangles: usize,
     /// Cause of the stalls holding the most triangles, the first named on a tie; `None` without
     /// a stall.
-    pub cause: Option<&'static str>,
+    pub cause: Option<StallCause>,
     /// Seam, locked and island counts summed over the stalled groups.
     pub seam: usize,
     pub locked: usize,
@@ -17,19 +17,19 @@ pub(super) struct StallSummary {
 }
 impl StallSummary {
     pub fn of(dag: &[DagCluster], stalls: &[DagStall]) -> Self {
-        let mut weights: Vec<(&'static str, usize)> = Vec::new();
+        let mut weights: Vec<(StallCause, usize)> = Vec::new();
         for stall in stalls {
-            let (name, triangles) = (stall.outcome.cause.name(), stall.outcome.triangles);
-            match weights.iter_mut().find(|(n, _)| *n == name) {
+            let (cause, triangles) = (stall.outcome.cause, stall.outcome.triangles);
+            match weights.iter_mut().find(|(c, _)| *c == cause) {
                 Some((_, weight)) => *weight += triangles,
-                None => weights.push((name, triangles)),
+                None => weights.push((cause, triangles)),
             }
         }
         let cause = weights
             .iter()
             .rev()
             .max_by_key(|(_, weight)| *weight)
-            .map(|(name, _)| *name);
+            .map(|(cause, _)| *cause);
         Self {
             root_triangles: dag
                 .iter()
@@ -46,7 +46,7 @@ impl StallSummary {
     pub fn json(&self) -> Value {
         json!({
             "rootTriangles": self.root_triangles,
-            "cause": self.cause,
+            "cause": self.cause.map(StallCause::name),
             "seamVertices": self.seam,
             "lockedVertices": self.locked,
             "uvIslands": self.islands,
