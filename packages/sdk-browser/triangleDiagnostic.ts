@@ -1,10 +1,21 @@
-import * as THREE from 'three';
-import { asHostLibrary } from './hostResources.ts';
-import { hashId } from './backendCommon.ts';
+import { hashId } from './diagnosticColors.ts';
 import { materialSide } from './materialSide.ts';
+import type {
+  HostDiagnosticFactory,
+  HostDiagnosticGeometry,
+  HostDiagnosticMaterial,
+  HostDiagnosticMesh,
+} from './hostResources.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 
-const cache = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+/**
+ * The per-triangle view, computed here and nowhere else: one colour per submitted triangle, from
+ * the triangle's rank and the salt of the page or mesh it belongs to. The copy that carries those
+ * colours is a host geometry and its paint a host material; both are made by the `host` factory
+ * the engine owning the graph hands in, and this file decides every number they receive.
+ */
+
+const cache = new WeakMap<HostDiagnosticGeometry, HostDiagnosticGeometry>();
 
 function triangleHash(id: number) {
   let value = (id + 0x9e3779b9) >>> 0;
@@ -25,19 +36,8 @@ function hashColor(id: number) {
   return [channel(0), channel(2 / 3), channel(1 / 3)] as const;
 }
 
-export function triangleGeometry(geometry: THREE.BufferGeometry, salt = 0) {
-  const key = geometry;
-  let copy = cache.get(key);
-  if (!copy) {
-    copy = geometry.index ? geometry.toNonIndexed() : geometry.clone();
-    colorTriangles(copy, salt);
-    cache.set(key, copy);
-  }
-  return copy;
-}
-
-function colorTriangles(geometry: THREE.BufferGeometry, salt: number) {
-  const count = geometry.getAttribute('position').count;
+/** Three equal corner colours per triangle, over `count` vertices standing on their own. */
+function triangleColors(count: number, salt: number) {
   const colors = new Float32Array(count * 3);
   for (let i = 0; i < count; i += 3) {
     const [r, g, b] = hashColor((salt ^ triangleHash(i / 3)) >>> 0);
@@ -48,12 +48,21 @@ function colorTriangles(geometry: THREE.BufferGeometry, salt: number) {
       colors[offset + 2] = b;
     }
   }
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  return colors;
 }
 
-export function createTriangleDiagnosticMaterial(hostSide: number, _salt = 0) {
-  const side = asHostLibrary<THREE.Side>(hostSide);
-  return new THREE.MeshBasicMaterial({ vertexColors: true, side, toneMapped: false, fog: false });
+export function triangleGeometry(
+  geometry: HostDiagnosticGeometry,
+  host: HostDiagnosticFactory,
+  salt = 0,
+) {
+  let copy = cache.get(geometry);
+  if (!copy) {
+    copy = host.triangleGeometry(geometry);
+    host.vertexColors(copy, triangleColors(copy.attributes.position.count, salt));
+    cache.set(geometry, copy);
+  }
+  return copy;
 }
 
 /**
@@ -62,22 +71,23 @@ export function createTriangleDiagnosticMaterial(hostSide: number, _salt = 0) {
  * with the mode.
  */
 export function applyMeshDiagnostic(
-  mesh: THREE.Mesh,
+  mesh: HostDiagnosticMesh,
   mode: DiagnosticMode,
-  overlays: THREE.Material[],
+  overlays: HostDiagnosticMaterial[],
+  host: HostDiagnosticFactory,
 ) {
-  const sourceGeometry = mesh.userData.sourceGeometry as THREE.BufferGeometry;
-  const sourceMaterial = mesh.userData.sourceMaterial as THREE.Material | THREE.Material[];
+  const sourceGeometry = mesh.userData.sourceGeometry as HostDiagnosticGeometry;
+  const sourceMaterial = mesh.userData.sourceMaterial as HostDiagnosticMesh['material'];
   mesh.geometry = sourceGeometry;
   mesh.material = sourceMaterial;
   if (mode !== 'wireframe') return;
-  mesh.geometry = triangleGeometry(sourceGeometry, hashId(String(mesh.id)));
-  const material = createTriangleDiagnosticMaterial(materialSide(sourceMaterial));
+  mesh.geometry = triangleGeometry(sourceGeometry, host, hashId(String(mesh.id)));
+  const material = host.triangleMaterial(materialSide(sourceMaterial));
   overlays.push(material);
   mesh.material = material;
 }
 
-export function disposeTriangleGeometry(geometry: THREE.BufferGeometry) {
+export function disposeTriangleGeometry(geometry: HostDiagnosticGeometry) {
   const copy = cache.get(geometry);
   if (copy && copy !== geometry) {
     copy.dispose();

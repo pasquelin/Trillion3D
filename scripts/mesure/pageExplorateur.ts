@@ -72,8 +72,10 @@ export function explorerOptions(
       ? { shadowBudgetMs: options.shadowBudgetMs }
       : {}),
     ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
-    // Texture levels read from the cache rather than decoded source images.
-    ...(options.textureSource === 'cache' ? { textureSource: 'cache' } : {}),
+    // Whether the loader opens the source images. Forwarded both ways since the engine's own
+    // default became `'cache'` (#289): a witness side asks for `'host'` and has to be heard, or
+    // it would draw the placeholder pixel the loader leaves in a baked image's place.
+    textureSource: options.textureSource,
     // The tile pass's millisecond budget: without the option, the engine keeps its own default.
     ...(typeof options.textureUploadMs === 'number'
       ? { maxTextureUploadMsPerFrame: options.textureUploadMs }

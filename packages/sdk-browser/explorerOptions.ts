@@ -1,4 +1,4 @@
-import type { HostNode } from './hostResources.ts';
+import type { HostTraversable } from './hostResources.ts';
 import type {
   AssetScope,
   CameraPose,
@@ -75,22 +75,24 @@ export interface ExplorerOptions {
    *  mobile ones —, one byte per texel in the pool instead of four, the same budget holding
    *  four times the tiles; `'bc7'` or `'astc'` insist on one, `'none'` keeps RGBA8, the
    *  lossless "before" of a comparison. Only a texture whose chain the cache baked and kept in
-   *  that family reads blocks (`textureSource: 'cache'`); a host image, a chain the gate
-   *  refused or a cache cooked without the family stays RGBA8 in the lossless lane. */
+   *  that family reads blocks; a texture with no baked chain, a chain the gate refused or a
+   *  cache cooked without the family stays RGBA8 in the lossless lane. */
   textureCompression?: import('./textureBlockFormats.ts').TextureCompression;
   /** Temporal antialiasing of the WebGPU engine, on by default as in the reference: each
    *  frame is rendered with a fraction-of-a-pixel jitter and accumulated over the previous
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
-  /** Where material texels come from. `'host'`, the default: the glTF loader reads and
-   *  decodes every source image, as always — that is what an engine that draws the host
-   *  scene (the Three witness) requires. `'cache'`: an image whose mip chain is baked in
-   *  the cache is neither read nor decoded, the WebGPU engine reads its levels one by one
-   *  when the screen asks. Only request when every engine of the session reads the atlas,
-   *  not the scene. */
+  /** Whether the glTF loader opens the source images. `'cache'`, the default: an image whose
+   *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
+   *  levels, which it does whatever this option says. `'host'`: the loader reads and decodes
+   *  every source image, what an engine that draws the host scene (the Three witness)
+   *  requires; the engine still reads the baked levels, so such a session pays for the images
+   *  twice and asks for them on purpose. `'cache'` holds only where every mounted backend
+   *  reads those levels; where one of them samples the host images, the session reads them
+   *  as under `'host'` (`resolveTextureSource`). */
   textureSource?: 'host' | 'cache';
-  sceneLighting?: HostNode;
+  sceneLighting?: HostTraversable;
   /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean;
   /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */

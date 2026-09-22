@@ -132,7 +132,11 @@ try {
     renderer: 'autonomous-pages-webgl',
     autonomous: true,
     webgpuDevice: false,
+    // This path samples the host images, so the loader opens them whatever the option says
+    // (#289): a session that skipped them would draw the one-pixel placeholder.
+    textureSource: 'host',
   });
+  assert.equal(chosenBackend(withGpu.cases.default)?.textureSource, 'cache');
   // The cut it drew has no hole: every selected triangle was submitted.
   assert.ok(
     triEqualsSelected(withoutGpu.cases.default),
