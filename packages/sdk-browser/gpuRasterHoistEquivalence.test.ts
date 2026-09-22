@@ -29,8 +29,9 @@ test('sorting pass computes vp/det once per workgroup and rereads them per trian
   assert.match(shader, /workgroupBarrier\(\);/);
   assert.match(shader, /setupTriangle\(row,triangle,rowVp,rowDet\)/);
   // The vertex() function takes the precomputed product, it never recomputes it.
-  assert.match(shader, /fn vertex\(vp:mat4x4f,vertexBase:u32,index:u32\)->vec4f\{/);
+  assert.match(shader, /fn vertex\(vp:mat4x4f,page:PageInfo,h:ClusterHeader,index:u32\)->vec4f\{/);
   assert.doesNotMatch(shader, /vertex\(page,/);
+  assert.doesNotMatch(shader, /vertex\(pageTransform/);
 });
 
 function assertSameVertices(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]) {

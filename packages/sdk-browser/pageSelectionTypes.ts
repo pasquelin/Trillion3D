@@ -1,3 +1,4 @@
+import type { GeometryPageDescriptor } from '../sdk-core/index.ts';
 import type { HostAttributes, HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
 import type { PageSurface } from './pageSurface.ts';
 import type { MatrixElements } from './matrixElements.ts';
@@ -11,6 +12,12 @@ export type PageRec = {
   array?: Uint32Array;
   triangles: number;
   indexBytes: number;
+  /** Quantized cluster page of this cluster (`WGP3`, `docs/FORMAT.md`), when the compiler wrote
+   *  one AND the cluster is opaque or masked: an engine that reads pages in place uploads these
+   *  bytes instead of the index page and decodes every corner from them. Left undefined on a
+   *  transparent cluster — its forward draw still reads an index buffer — and on a cache that
+   *  carries no geometry page, both of which keep the source float buffers. */
+  geometryPage?: GeometryPageDescriptor;
   min: number[];
   max: number[];
   role?: 'exact' | 'coarse';

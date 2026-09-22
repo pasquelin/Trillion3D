@@ -53,7 +53,7 @@ test('PAGE_VERTEX_WGSL declares fn vertPos only once in the raster, shading and 
   eachOnce(PAGE_VERTEX_WGSL, { SHADE_SHADER, VIS_SHADER, SHADOW_DEPTH_SHADER });
 });
 
-test('PAGE_UV_WGSL declares fn vertUv only once, including via PAGE_MASK_WGSL', () => {
+test('PAGE_UV_WGSL declares fn vertUv only once in the raster, shading and shadows', () => {
   assert.match(PAGE_UV_WGSL, /fn vertUv\(/);
   eachOnce(PAGE_UV_WGSL, { SHADE_SHADER, VIS_SHADER, SHADOW_DEPTH_SHADER });
 });

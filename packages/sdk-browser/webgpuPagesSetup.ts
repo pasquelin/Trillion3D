@@ -2,6 +2,7 @@ import type { HostMesh } from './hostResources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
 import { indexSourceBytes } from './webgpuPagesCatalogue.ts';
+import { describePageSlots } from './webgpuPageSlots.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuPageTracking } from './webgpuPageTracking.ts';
@@ -53,6 +54,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     associations,
     { allowMissing: true },
   );
+  // Meshes the cut never sees: `shared-blend` and transmissive primitives leave the collection as
+  // forward copies. Counted here, while the list is still only theirs.
+  const sharedBlendMeshes = blendCopies.length;
   // Transparent pages share selection/residency with opaque pages, but retain
   // one forward draw per source mesh (all back faces, then all front faces).
   const pagedBlendCopies = new Map<HostMesh, BlendCopy>();
@@ -95,12 +99,20 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const byUrl = indexPagesByUrl(allPages);
   const uniquePages = Math.max(1, new Set(allPages.map((page) => page.url)).size);
   const scene = createBlendHostScene(clearColor, blendCopies);
-  let pageBytes = 4;
-  for (const page of allPages) {
-    const n = page.array?.byteLength ?? page.indexBytes;
-    const padded = n + (n % 4 ? 4 - (n % 4) : 0);
-    if (padded > pageBytes) pageBytes = padded;
-  }
+  // What a pool slot holds, how wide it is, and the corner count every page draw is bounded by.
+  const { geometryUrls, pageBytes, maxCorners, ...clusterSides } = describePageSlots(allPages);
+  // Said out loud, never silently: an opaque or masked cluster the cache gave no geometry page
+  // still draws from the source float buffers, and that is what those bytes are there for.
+  diag.engineDiagnostic('geometry-pages', 'Clusters drawn from their quantized page', {
+    backend: 'webgpu-page-raster',
+    clusters: allPages.length,
+    ...clusterSides,
+    sharedBlendMeshes,
+    slotBytes: pageBytes,
+    // Ceiling of every page draw, in corners: the catalogue's own largest corner count, which a
+    // slot's byte width no longer says anything about.
+    drawCorners: maxCorners,
+  });
   const sourceBytes = indexSourceBytes(allPages);
   // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
   // Image targets, themselves, follow resolution with no ceiling.
@@ -156,7 +168,13 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     cap,
     scene,
     pageBytes,
+    // Largest corner count of the catalogue: the ceiling of every page draw and of the compute
+    // raster's triangle budget.
+    maxCorners,
     sourceBytes,
+    // Geometry page url of every cluster drawn from one, by cluster address: what the pool reads
+    // for that slot. A cluster absent from this table is uploaded from `sourceBytes`.
+    geometryUrls,
     reserveHiz,
     textureBudget,
     textureUploadMs,

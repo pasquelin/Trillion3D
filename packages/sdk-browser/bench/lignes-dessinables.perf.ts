@@ -48,7 +48,6 @@ const ecrivain = (
   pageIndex: number,
   row: number,
   offsetWords: number,
-  index: Uint32Array | undefined,
   floats: Float32Array,
   ints: Uint32Array,
 ) => {
@@ -56,7 +55,7 @@ const ecrivain = (
   floats.fill(0, base, base + MOTS);
   floats[base] = pageIndex;
   floats[base + 1] = offsetWords;
-  floats[base + 2] = index?.length ?? 0;
+  floats[base + 2] = rec.array?.length ?? 0;
   ints[base + 3] = row + 1;
   ints[base + 4] = rec.id;
 };

@@ -1,13 +1,8 @@
 import { COTANGENT_FRAME_WGSL } from './clusterDecodeWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
-import {
-  BARY_WEIGHTS_WGSL,
-  EDGE_WGSL,
-  PAGE_INFO_STRUCT_WGSL,
-  PAGE_UV_WGSL,
-  PAGE_VERTEX_WGSL,
-} from './visibilityPageWgsl.ts';
+import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL } from './visibilityPageWgsl.ts';
+import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from './visibilityPageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
@@ -40,10 +35,10 @@ ${tileDeclarations(SHADE_BINDINGS.color, 'color')}
 ${tileDeclarations(SHADE_BINDINGS.data, 'data')}
 ${MATERIAL_CLASS_WGSL}
 ${TRIANGLE_PALETTE_WGSL}
-${PAGE_VERTEX_WGSL}
-${PAGE_UV_WGSL}
+${PAGE_GEOMETRY_WGSL}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
+${PAGE_NORMAL_WGSL}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
 ${TILE_POOL_WGSL}

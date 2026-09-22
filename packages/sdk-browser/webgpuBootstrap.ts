@@ -79,12 +79,20 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
       const results = await Promise.allSettled(workers);
       const failed = results.find((result) => result.status === 'rejected');
       if (failed?.status === 'rejected') throw failed.reason;
-      for (const page of pages) {
+      // Every cover page is asked for at once, then awaited in order: a page whose bytes the cache
+      // must still read starts that read immediately instead of waiting for the previous page's
+      // round trip, and the cache's own queue keeps the uploads in order and bounded.
+      const loads = pages.map((page) => {
+        const job = getCache()!.load(page.url, signal);
+        job.catch(() => {});
+        return job;
+      });
+      for (let i = 0; i < pages.length; i++) {
         signal?.throwIfAborted();
         if (isLost()) throw new Error('WEBGPU_LOST');
-        await getCache()!.load(page.url, signal);
-        getCache()!.pin(page.url);
-        tracking.markPinned(tracking.keyOf(page));
+        await loads[i];
+        getCache()!.pin(pages[i].url);
+        tracking.markPinned(tracking.keyOf(pages[i]));
       }
       ready = true;
       engineDiagnostic('coverage-bootstrap-ready', 'Full cover available on the GPU', {

@@ -70,6 +70,7 @@ export const AUTORISES: Record<string, string> = {
   // 2 bis. Test-scene mounts that walk the host graph.
   pageSelectionBlendFixture: 'test-scene mount: it sets the camera and materials',
   pageSelectionDagFixture: 'test-scene mount: it sets the camera and materials',
+  pagedQuadFixture: 'test-scene mount: the quad clustered into quantized pages',
   pagesBackendScenes: 'test-scene mount: it sets the camera',
   visibilityBufferFixture: 'test-scene mount: it sets the camera and pages',
   webgpuPagesTestOccluder: 'test-scene mount: the occluder and its camera',

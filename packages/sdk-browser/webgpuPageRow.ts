@@ -2,7 +2,13 @@ import type { HostAttributes } from './hostResources.ts';
 import type { PageRec } from './pageSelection.ts';
 import { depthLayerUnits } from '../sdk-core/index.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
-import { rowMaterial, type GeometryBlock, type MaterialLayers } from './webgpuPageRowMaterial.ts';
+import {
+  emptyGeometryBlock,
+  rowGeometry,
+  rowMaterial,
+  type GeometryBlock,
+  type MaterialLayers,
+} from './webgpuPageRowMaterial.ts';
 import {
   assertVisibilityPageTriangles,
   PAGE_INFO_STRIDE,
@@ -31,6 +37,14 @@ export const ROW_INDEX_WORDS = 25;
  * of the same value, one formula.
  */
 export const packedRowBase = (row: number) => ((row + 1) << VIS_TRIANGLE_BITS) >>> 0;
+/** A cluster holds the geometry a row draws: its own quantized page, or the float buffer its
+ *  primitive was uploaded into. Without either, the cluster takes no row. */
+export const rowHasGeometry = (rec: PageRec, position: GPUBuffer | undefined) =>
+  !!rec.geometryPage || !!position;
+/** Corners the row draws: the count the cluster's own geometry page declares, or the length of the
+ *  index page for a cluster that still draws from one. A paged cluster never holds an index page —
+ *  nothing fetches it — and this is the only number the row ever wanted from it. */
+const rowIndexCount = (rec: PageRec) => rec.geometryPage?.indexCount ?? rec.array?.length ?? 0;
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
   markRowDirty: (row: number) => void;
@@ -41,18 +55,20 @@ export function createPageRowWriter(resources: PageRowResources) {
   const { geometryBlocks, markRowDirty } = resources;
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
   const constants = createPageRowConstants();
+  // Filled again at every row write, never allocated again.
+  const block = emptyGeometryBlock();
   return (
     rec: PageRec,
     pageIndex: number,
     row: number,
     offsetWords: number,
-    index: Uint32Array,
     floats: Float32Array,
     ints: Uint32Array,
   ) => {
+    const indexCount = rowIndexCount(rec);
     const base = row * (PAGE_INFO_STRIDE / 4),
       material = constants.materialOf(rec.material),
-      geo = geometryBlocks.get(rec.attributes);
+      geo = rowGeometry(rec, geometryBlocks, block);
     const mat = material.mat,
       maps = rowMaterial(mat, geo, resources);
     floats.set(rec.matrix.elements, base);
@@ -63,11 +79,11 @@ export function createPageRowWriter(resources: PageRowResources) {
     floats[base + 20] = mat.metalness;
     floats[base + 21] = mat.roughness;
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
-    assertVisibilityPageTriangles(index.length / 3, rec.url);
+    assertVisibilityPageTriangles(indexCount / 3, rec.url);
     ints[base + ROW_MAP_LAYER_WORD] = maps.map;
     ints[base + ROW_FLAGS_WORD] = maps.flags;
     ints[base + 24] = offsetWords;
-    ints[base + ROW_INDEX_WORDS] = index.length;
+    ints[base + ROW_INDEX_WORDS] = indexCount;
     ints[base + 26] = geo?.vertexBase ?? 0;
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
     ints[base + 30] = constants.hashOf(rec.clusterId);

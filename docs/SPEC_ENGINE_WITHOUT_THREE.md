@@ -62,7 +62,12 @@ source order kept. Criterion: Emerald general view ≤ 200,000 selected triangle
 city, identical image at 0 px, differences at 1 px localised and under the threshold.
 C4. **Certified error**: `error(cluster) = max(group geometric error, child errors) + quantisation
 error + colour error` (UV deviation and texture-weighted normal), monotonic, in object units, with
-a projection sphere. Criterion: monotonicity test on every scene, zero violations.
+a projection sphere. The position quantisation term is in (#9): every band a group produced — the
+cluster it output, the parent band, the group bands and the culling node's subtree bound — grows by
+`quantization.maxPositionError`, and every box grows with it, so the threshold bounds the quantized
+surface. A cluster no group produced keeps its band: it is the floor of the ladder, and raising it
+would leave the cut with nothing to draw at zero pixels. The colour and UV-deviation terms remain
+open. Criterion: monotonicity test on every scene, zero violations.
 C5. **Self-contained packets**: each cluster is a page of its own (`WGP3`, `docs/FORMAT.md`)
 holding bit-packed local indices, positions on a per-primitive power-of-two grid with per-cluster
 minima and widths, 16-bit octahedral normals, UVs on a `2^-14` grid, colours on a `2^-8` grid, no

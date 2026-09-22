@@ -44,12 +44,12 @@ fn cascadeGradient(c:u32,w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec
  return vec4f(dUds*(dyc*inv)+dUdt*(-dyb*inv),dUds*(-dxc*inv)+dUdt*(dxb*inv));
 }
 /** Tile rank this pixel asks for, plus one, or zero. */
-fn shadeRequest(page:PageInfo,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
+fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
  if(!(HAS_UV&&HAS_MAP)||!feedbackPhase(pos,uni.feedback)){return 0u;}
  let p=requestPick(pos,MAP_CHOICES+SUN_CASCADES);
  if(p.sel>=MAP_CHOICES&&HAS_MASK){
-  let uva=vertUv(page.vertexBase,i0);
-  let g=cascadeGradient(p.sel-MAP_CHOICES,w0,w1,w2,vertUv(page.vertexBase,i1)-uva,vertUv(page.vertexBase,i2)-uva,wp);
+  let uva=pageUv(page,h,i0);
+  let g=cascadeGradient(p.sel-MAP_CHOICES,w0,w1,w2,pageUv(page,h,i1)-uva,pageUv(page,h,i2)-uva,wp);
   if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,${quartet('base')},g.xy,g.zw,p.next);}
  }
  return mapRequest(p.sel,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,page.wrapModes,ddx,ddy,p.next);

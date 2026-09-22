@@ -9,14 +9,21 @@ type GeometryBlock = {
 };
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 
-/** Packs each unique paged geometry once for the visibility, shade and transparent passes. */
+/**
+ * Packs, once, the source geometry the passes still read as floats: that of the clusters no
+ * quantized page covers — a transparent cluster, whose forward draw reads an index buffer, and a
+ * cache that carries no geometry page. A cluster drawn from its page contributes no vertex here,
+ * and its primitive contributes none unless another of its clusters needs one: that is the whole
+ * point of reading a page in place.
+ */
 export function prepareWebgpuGeometry(
   device: GPUDevice,
   allPages: PageRec[],
   geometryBlocks: GeometryBlocks,
 ) {
+  const sourced = allPages.filter((rec) => !rec.geometryPage);
   let vertexCount = 0;
-  for (const rec of allPages) {
+  for (const rec of sourced) {
     if (geometryBlocks.has(rec.attributes)) continue;
     const n = rec.attributes.position?.count ?? 0;
     geometryBlocks.set(rec.attributes, {
@@ -33,7 +40,7 @@ export function prepareWebgpuGeometry(
     uv = new Float32Array(vertexCount * 2),
     nrm = new Float32Array(vertexCount * 7),
     filled = new Set<HostAttributes>();
-  for (const rec of allPages) {
+  for (const rec of sourced) {
     if (filled.has(rec.attributes)) continue;
     filled.add(rec.attributes);
     const block = geometryBlocks.get(rec.attributes)!;

@@ -43,7 +43,9 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget);
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
   ensureGpuRaster(rt, device);
-  const maxVertexCount = Math.max(1, rt.setup.pageBytes / 4);
+  // Corners of the widest page of the catalogue, never the slot's word count: the slot holds a
+  // quantized page whose byte width is unrelated to how many corners the cluster draws.
+  const maxVertexCount = rt.setup.maxCorners;
   const useIndirect = !!vis.gpuDraw && rows.packedCount <= drawSlots;
   // The table holds every row ever claimed, so a row a page keeps stays valid across frames.
   const tableRows = rows.rowCount;
