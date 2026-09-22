@@ -57,9 +57,9 @@ test('the published original garden matches its deterministic source generator',
 
 test('the embedded preview and its code share the published scene contract', async () => {
   assert.match(engineExampleCode, /kinetic-garden\/cache\/native\/full\/manifest\.json/);
-  assert.match(engineExampleCode, /geometryPoolBytes: 16 \* 1024 \* 1024/);
-  assert.match(engineExampleCode, /texturePoolBytes: 128 \* 1024 \* 1024/);
-  assert.match(engineDiagnosticsCode, /setDiagnostic\('clusters'\)/);
+  assert.match(engineExampleCode, /world\.budget\.geometryPool = 16 \* 1024 \* 1024;/);
+  assert.match(engineExampleCode, /world\.budget\.texturePool = 128 \* 1024 \* 1024;/);
+  assert.match(engineDiagnosticsCode, /world\.diagnostic\.mode = 'clusters';/);
   const { EngineExample } = await loadReactComponents('site/app/engine-scene/index.tsx');
   const { EnginePreview } = await loadReactComponents('site/app/engine-scene/EnginePreview.tsx');
   const preview = renderToStaticMarkup(
@@ -84,20 +84,16 @@ test('the embedded preview and its code share the published scene contract', asy
 });
 
 interface MockLight {
-  id: string;
-  castsShadow: boolean;
+  kind: string;
+  intensity: number;
 }
 
-interface MockExplorer {
-  addLight(light: MockLight): void;
+interface MockWorld {
+  scene: { load(url: string): Promise<void>; add(light: MockLight): void };
+  budget: { geometryPool?: number; texturePool?: number };
+  diagnostic: { mode: string };
   dispose(): void;
-  setDiagnostic(mode: string): void;
   invalidate(): void;
-}
-
-interface CreateExplorerOptions {
-  interactive: boolean;
-  scope: string;
 }
 
 type AsyncFunctionConstructor = new (...args: string[]) => (...args: unknown[]) => Promise<unknown>;
@@ -110,38 +106,51 @@ test('garden snippets execute the ID startup contract and invalidate diagnostic 
   for (const [code, diagnostic] of cases) {
     let disposed = false,
       invalidated = false,
+      loaded = '',
+      added: MockLight | undefined,
       listener: (() => void) | undefined;
-    const explorer: MockExplorer = {
-      addLight(light) {
-        assert.equal(light.id, 'scene-fill');
-        assert.equal(light.castsShadow, false);
+    const world: MockWorld = {
+      scene: {
+        async load(url) {
+          loaded = url;
+        },
+        add(light) {
+          added = light;
+        },
       },
+      budget: {},
+      diagnostic: { mode: 'beauty' },
       dispose() {
         disposed = true;
-      },
-      setDiagnostic(mode) {
-        assert.equal(mode, 'clusters');
       },
       invalidate() {
         invalidated = true;
       },
     };
-    const openMeasuredWorld = async (target: string, options: CreateExplorerOptions) => {
+    const createWorld = (target: string) => {
       assert.equal(target, 'garden');
-      assert.equal(options.interactive, true);
-      assert.equal(options.scope, 'full');
-      return explorer;
+      return world;
+    };
+    const light = {
+      directional: ({ intensity }: { intensity: number }) => ({ kind: 'directional', intensity }),
     };
     const body = code.replace(/^import[^\n]+\n/, '');
     const AsyncFunction = Object.getPrototypeOf(async function () {})
       .constructor as AsyncFunctionConstructor;
-    const runSnippet = new AsyncFunction('openMeasuredWorld', 'window', body);
-    await runSnippet(openMeasuredWorld, {
+    const runSnippet = new AsyncFunction('createWorld', 'light', 'window', body);
+    await runSnippet(createWorld, light, {
       addEventListener(event: string, callback: () => void) {
         assert.equal(event, 'pagehide');
         listener = callback;
       },
     });
+    assert.equal(loaded, './assets/kinetic-garden/cache/native/full/manifest.json');
+    assert.deepEqual(world.budget, {
+      geometryPool: 16 * 1024 * 1024,
+      texturePool: 128 * 1024 * 1024,
+    });
+    assert.deepEqual(added, { kind: 'directional', intensity: 0.6 });
+    assert.equal(world.diagnostic.mode, diagnostic ? 'clusters' : 'beauty');
     assert.equal(invalidated, diagnostic);
     assert.equal(disposed, false);
     assert(listener);
