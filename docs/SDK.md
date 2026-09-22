@@ -312,9 +312,11 @@ An initially hidden/zero-size canvas needs explicit dimensions or must be shown 
 a canvas hidden later retains its last dimensions until visible. Invalid initial sizes/DPR fail.
 The host retains ownership of CSS layout and the canvas element.
 
-The simple path prepares only the direct WebGPU backend. Unavailable WebGPU rejects startup
-with `WEBGPU_UNAVAILABLE`; there is no silent change of lighting or rendering capability.
-An explicit `backends` list or `autonomousGeometry` retains its own capability contract.
+The simple path prepares only the engine's own backend, chosen from the machine (see "Which
+backend renders by default" below). A host that names `backends: [webgpuPagesBackend]` and gets
+no device is still rejected with `WEBGPU_UNAVAILABLE`: an explicit list never silently changes
+lighting or rendering capability. An explicit `backends` list or `autonomousGeometry` retains
+its own capability contract.
 `scope` still defaults to `slice`: keep `scope: 'full'` for a full cache. Memory pools retain
 their bounded 512 MiB geometry / 512 MiB texture defaults; the earlier 16/128 MiB example
 was an explicit budget choice and remains available through overrides.
@@ -348,6 +350,34 @@ What the engine computes for itself — matrices, vectors, colours, its camera, 
 The host camera declares its own clip-depth convention through `camera.coordinateSystem`, and both are supported: `[-1, 1]` (WebGL, the default of the camera the explorer builds) and `[0, 1]` (WebGPU). It is read once per frame into the engine camera and applies to the frustum planes, the view-projection the GPU consumes, the Hi-Z bounds and the CPU visibility raster alike; a camera reaching the engine through `restoreAfterCampaign` or a backend's own `render(camera)` carries its convention with it. The engine never rewrites `coordinateSystem`; a projection matrix inconsistent with the declared convention is the host's own error.
 
 `autonomousGeometry: true` selects the prepared-page WebGL2 backend for wholly static opaque/masked assets. It reads `scene.gltf` and verified geometry pages without downloading the full source geometry buffer; a complete root cover is resident before rendering and useful detail streams afterward. The mode rejects caches without `autonomousScene`, BLEND/skinned/morph scenes and custom backend lists. Existing WebGPU and Three comparison paths still use `source.gltf` and its complete geometry buffer. Material images remain eager in this mode, and GPU-driven selection, indirect drawing and hybrid rasterization are not provided by this WebGL2 path.
+
+### Which backend renders by default
+
+`createExplorer({ manifestUrl })` with no `backends` option renders through the engine's own path,
+never through a Three witness. The choice is made once, before the scene is read, from what the
+machine and the cache offer, and is reported by the `backend-choice` diagnostic with its `origin`
+(`default` or `host`) and the `reason` that decided it.
+
+| Machine / cache                                                  | Backend that renders  | Scene file read       |
+| ---------------------------------------------------------------- | --------------------- | --------------------- |
+| A WebGPU device was granted                                        | `webgpu-page-raster`  | `source.gltf`         |
+| WebGL2 only, cache carries `autonomousScene`                       | `autonomous-pages-webgl` chosen — it does not render yet, see below | the cache's `scene.gltf` |
+| WebGL2 only, cache carries no `autonomousScene`                    | none — `EngineError('NO_ENGINE_BACKEND')` | — |
+| No WebGL2 at all                                                   | none — `EngineError('NO_WEBGL2')` | — |
+
+Known limit on a WebGL2-only machine: the chosen `autonomous-pages-webgl` path does not produce
+an image today. On `site/assets/kinetic-garden`, the repository's only cache in the current
+format, its preparation stops with `EngineError('AUTONOMOUS_COVERAGE_MISSING')` — the prepared
+scene does not cover every page the cut requires. Such a machine therefore gets a named failure
+rather than a picture. The gap is in that WebGL2 path itself, not in the selection above, and it
+is lifted by #78. A host that must draw on such a machine names a backend itself —
+`backends: [exactPagesBackend]`, which is what the comparison views and the bench do.
+
+`referenceBackend`, `exactPagesBackend` and `threeLodBackend` are the Three witnesses of the
+comparison views and the bench: they are opt-in, reached only through `options.backends`, and a
+host that asked for nothing never gets one. `chooseBackends(options, metadata, gpuDevice)` is
+exported so a host can read the same decision before opening a session, and
+`autonomousCacheReady(metadata)` answers whether a cache carries the prepared autonomous scene.
 
 `runCameraPath` is a campaign helper: exact A/A image gate, then timed blocks. It is not a general performance verdict. Hosts that already switch backends in the UI should replay the same pose list per backend; do not mix engines inside one timed block.
 
