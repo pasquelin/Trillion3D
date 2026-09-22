@@ -15,7 +15,7 @@ export const SCENE_TABLES_VERSION = 1;
 export const NODE_TABLE_VERSION = 1;
 export const MATERIAL_TABLE_VERSION = 1;
 
-export type Triplet = readonly [number, number, number];
+type Triplet = readonly [number, number, number];
 /** The six map slots the engine reads of a surface, in the engine's own field names. */
 export const TABLE_SLOTS = [
   'map',
@@ -39,7 +39,7 @@ export const TABLE_NUMBERS = [
 ] as const;
 export const TABLE_TRIPLETS = ['baseColor', 'emissive', 'attenuationColor'] as const;
 export const TABLE_FLAGS = ['lit', 'doubleSided', 'backSide'] as const;
-export type TableSlotName = (typeof TABLE_SLOTS)[number];
+type TableSlotName = (typeof TABLE_SLOTS)[number];
 
 /** One filled map slot: which texture, which coordinate set, and the 3×3 composed for it. */
 export interface TableTextureSlot {
