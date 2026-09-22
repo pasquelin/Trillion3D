@@ -108,7 +108,7 @@ pub(super) fn primitive_event(
 mod tests {
     use super::super::compiler_primitive_stalls::StallSummary;
     use super::*;
-    use crate::dag::{DagStrategy, GroupTally};
+    use crate::dag::{DagStrategy, GroupTally, StallCause};
 
     fn stalled(seam_locked: usize) -> GroupTally {
         GroupTally {
@@ -118,7 +118,7 @@ mod tests {
     }
     const SEAMS: StallSummary = StallSummary {
         root_triangles: 12_544,
-        cause: Some("seam-locked"),
+        cause: Some(StallCause::SeamLocked),
         seam: 300,
         locked: 40,
         islands: 98,

@@ -137,14 +137,14 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_its_step() {
     // A collapse inside a plane displaces no surface, so no level may lift it by as much as the
     // distance between two of its own vertices, the only length the sheet carries. meshoptimizer
     // 0.25 accumulates its error over the collapses rather than remeasuring it, so what it reports
-    // on a plane is not exactly nil; it stays orders of magnitude under the step.
+    // on a plane is not exactly nil; it stays two orders of magnitude under the step.
     let step = 1.0;
     let worst = dag
         .iter()
         .map(|c| c.lod_error)
         .filter(|error| error.is_finite())
         .fold(0.0, f64::max);
-    assert!(worst < step, "a plane coarsened by {worst}");
+    assert!(worst < step * 1e-2, "a plane coarsened by {worst}");
 }
 
 #[test]

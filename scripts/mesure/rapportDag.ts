@@ -30,7 +30,7 @@ export function stalls(report: Report) {
       .sort((a, b) => b.rootTriangles - a.rootTriangles)
       .slice(0, WORST);
     if (!worst.length) {
-      lines.push(`- ${side}: no primitive stalled`, '');
+      lines.push(`- ${side}: no stall recorded`, '');
       continue;
     }
     lines.push(

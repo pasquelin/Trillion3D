@@ -32,7 +32,7 @@ test('each side lists its ten worst stalled primitives, or says it has none', ()
     ],
   } as unknown as Report;
   const lines = stalls(report);
-  assert.ok(lines.includes('- avant: no primitive stalled'));
+  assert.ok(lines.includes('- avant: no stall recorded'));
   const rows = lines.filter((line) => /^\| \d/.test(line));
   assert.equal(rows.length, 10);
   assert.equal(rows[0], '| 7/0 | 12544 | seam-locked | 30 | 4 | 9 |');
