@@ -75,6 +75,8 @@ export {
   pageDecodeWorkerCount,
 } from '../../sdk-core/pageDecodeContracts.ts';
 export type {
+  PageCutPage,
+  PageCutPayload,
   PageDecodeAnswer,
   PageDecodeCancel,
   PageDecodeDone,

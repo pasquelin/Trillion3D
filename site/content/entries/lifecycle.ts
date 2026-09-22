@@ -1,9 +1,8 @@
 import type { PortalEntry } from '../model.ts';
-import { NODE, BROWSER } from './lifecycleShared.ts';
-import { LIFECYCLE_WORLD } from './lifecycleWorld.ts';
+import { NODE, BROWSER, LIFECYCLE_WORLD } from '../lifecycleWorld.ts';
 
 /** Engine lifecycle: compiling a scene, creating a world. Driving it after creation continues
- *  in `lifecycleWorld.ts`, concatenated below in the same order the French overlay expects. */
+ *  in `../lifecycleWorld.ts`, concatenated below in the same order the French overlay expects. */
 const CORE: PortalEntry[] = [
   {
     ...NODE,
@@ -64,7 +63,7 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
     id: 'createWorld',
     exports: ['createWorld'],
     title: 'createWorld()',
-    module: 'packages/sdk-browser/index.ts',
+    module: 'packages/sdk-browser/world/core/world.ts',
     signature:
       'createWorld(target: HTMLCanvasElement | HTMLElement | string, options?: WorldOptions): World',
     valuesTitle: 'What the world offers',

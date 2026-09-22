@@ -31,6 +31,8 @@ export type {
 } from '../sdk-core/index.ts';
 export type { BackendDiagnostic, PointOfInterest } from './backendTypes.ts';
 export type { DiagnosticDetail } from './backendTypes.ts';
+/** The rows a mirrored mesh is placed through, reachable from the scene a loader records. */
+export type { PlacementRows } from './placement/placementRows.ts';
 /** Host resources the engine reads and never builds (`hostResources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
 export type {

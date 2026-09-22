@@ -610,6 +610,8 @@
         "packages/sdk-browser/mathBatchRuntime.ts",
         "packages/sdk-browser/pageSelectionCollect.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
+        "packages/sdk-browser/placement/placementGrowth.ts",
+        "packages/sdk-browser/placement/placementUpdate.ts",
         "packages/sdk-browser/threeLod.ts",
         "packages/sdk-browser/webglClusterCopyCulling.ts",
         "packages/sdk-browser/webgpuBlendPrepare.ts",
@@ -633,6 +635,7 @@
         "packages/sdk-browser/world/core/worldLights.ts",
         "packages/sdk-browser/world/helper/index.ts",
         "packages/sdk-browser/world/pose/index.ts",
+        "scripts/docs-canvas.test.ts",
         "site/lessons/engine-scene/cameraControls.ts",
         "site/lessons/lessonWorld.ts"
       ],
@@ -681,10 +684,12 @@
         "packages/sdk-browser/bench/volumes.perf.ts",
         "packages/sdk-browser/hostWorldBounds.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
+        "packages/sdk-browser/placement/placementUpdate.ts",
         "packages/sdk-browser/threeLod.ts",
         "packages/sdk-browser/webgpuPagesLightResources.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
-        "packages/sdk-browser/webgpuShadowBounds.ts"
+        "packages/sdk-browser/webgpuShadowBounds.ts",
+        "packages/sdk-browser/world/page/runtimeCut.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathBox\".boxEmpty"
@@ -699,7 +704,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/dagCoupe.ts",
         "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
-        "packages/sdk-browser/threeLod.ts"
+        "packages/sdk-browser/threeLod.ts",
+        "packages/sdk-browser/world/page/runtimeCut.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathBox\".boxExpandByPoint"
@@ -713,6 +719,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
+        "packages/sdk-browser/placement/placementUpdate.ts",
         "packages/sdk-browser/replicateInstances.ts",
         "packages/sdk-browser/webgpuBlendWorlds.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts"
@@ -731,6 +738,7 @@
         "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/mathBatchBoxes.ts",
         "packages/sdk-browser/pageSelectionCollect.ts",
+        "packages/sdk-browser/placement/placementUpdate.ts",
         "packages/sdk-browser/webglClusterCopyCulling.ts",
         "packages/sdk-browser/webgpuBlendWorlds.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
@@ -784,6 +792,7 @@
         "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/mathBatchBoxes.ts",
         "packages/sdk-browser/pageSelectionTemplate.ts",
+        "packages/sdk-browser/placement/placementUpdate.ts",
         "packages/sdk-browser/webgpuPagesTransform.ts",
         "packages/sdk-browser/webgpuShadowBounds.ts"
       ],
@@ -882,7 +891,9 @@
         "packages/sdk-browser/world/core/worldCamera.ts",
         "packages/sdk-browser/world/core/worldHandles.ts",
         "packages/sdk-browser/world/core/worldRuntime.ts",
-        "packages/sdk-browser/world/helper/index.ts"
+        "packages/sdk-browser/world/helper/index.ts",
+        "scripts/docs-camera-lessons.test.ts",
+        "scripts/docs-canvas.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/world/camera/camera\".Camera"
@@ -936,6 +947,7 @@
         "packages/sdk-browser/explorerSceneApi.ts",
         "packages/sdk-browser/explorerViewportApi.ts",
         "packages/sdk-browser/world/pose/index.ts",
+        "scripts/docs-camera-lessons.test.ts",
         "scripts/mesure/mesureOptions.ts",
         "scripts/mesure/oracle.ts",
         "scripts/mesure/oracleCompare.ts",
@@ -975,6 +987,7 @@
         "packages/sdk-browser/explorerSceneApi.ts",
         "packages/sdk-browser/explorerViewportApi.ts",
         "packages/sdk-browser/world/pose/index.ts",
+        "scripts/docs-camera-lessons.test.ts",
         "scripts/mesure/mesureOptions.ts",
         "scripts/mesure/oracle.ts",
         "scripts/mesure/oracleCompare.ts",
@@ -1123,18 +1136,18 @@
     {
       "name": "clusterErrorAtDepth",
       "kind": "value",
-      "definingModule": "packages/sdk-core/projectionOracles.ts",
+      "definingModule": "packages/sdk-core/screenErrorBound.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/pageSelectionProjection.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".clusterErrorAtDepth"
+      "bindingIdentity": "\"packages/sdk-core/screenErrorBound\".clusterErrorAtDepth"
     },
     {
       "name": "clusterErrorPixels",
       "kind": "value",
-      "definingModule": "packages/sdk-core/projectionOracles.ts",
+      "definingModule": "packages/sdk-core/screenErrorBound.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
@@ -1148,7 +1161,7 @@
         "test/justesse/erreur-ecran-borne.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".clusterErrorPixels"
+      "bindingIdentity": "\"packages/sdk-core/screenErrorBound\".clusterErrorPixels"
     },
     {
       "name": "ClusterGroup",
@@ -1865,11 +1878,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [
-        "site/lessons/engine-scene/lifecycle.ts",
-        "site/lessons/lessonWorld.ts",
-        "test/fixtures/publicBrowser.ts"
-      ],
+      "affectedConsumers": ["test/fixtures/publicBrowser.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/world/core/world\".createWorld"
     },
@@ -1997,6 +2006,39 @@
       "bindingIdentity": "\"packages/sdk-core/dagContracts\".DagReport"
     },
     {
+      "name": "DagStall",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/dagContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/dagContracts\".DagStall"
+    },
+    {
+      "name": "DagStallCause",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/dagContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/dagContracts\".DagStallCause"
+    },
+    {
+      "name": "DagStallSummary",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/dagContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/dagContracts\".DagStallSummary"
+    },
+    {
       "name": "DagWarning",
       "kind": "type",
       "definingModule": "packages/sdk-core/dagContracts.ts",
@@ -2108,6 +2150,7 @@
         "packages/sdk-browser/bench/appui/scenesChargement.ts",
         "packages/sdk-browser/bench/chargement-scene.perf.ts",
         "packages/sdk-browser/explorerSession.ts",
+        "packages/sdk-browser/manifestLoad.ts",
         "packages/sdk-browser/webgpuPages.08.test.ts",
         "packages/sdk-browser/webgpuPages.15.test.ts",
         "packages/sdk-node/cutoutThumb.mts",
@@ -2422,6 +2465,7 @@
         "packages/sdk-browser/webgpuTransformFiniteTransform.test.ts",
         "packages/sdk-browser/world/capability/worldReady.ts",
         "packages/sdk-browser/world/core/worldTarget.ts",
+        "packages/sdk-browser/world/loader/modelFormat.ts",
         "test/appui/webglClusterTransmissionExplorerPage.ts",
         "test/integration/validation-ressources.test.ts"
       ],
@@ -2550,17 +2594,6 @@
       "bindingIdentity": "\"packages/sdk-core/world/constants/index\".Filter"
     },
     {
-      "name": "filterRule",
-      "kind": "value",
-      "definingModule": "packages/sdk-core/world/constants/index.ts",
-      "currentEntryPoints": ["web-geometry (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": [],
-      "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/world/constants/index\".filterRule"
-    },
-    {
       "name": "FirstPersonCameraControls",
       "kind": "type",
       "definingModule": "packages/sdk-browser/cameraFirstPersonControls.ts",
@@ -2655,6 +2688,7 @@
         "packages/sdk-browser/world/core/worldHandles.ts",
         "packages/sdk-browser/world/core/worldRuntime.ts",
         "packages/sdk-browser/world/core/worldSession.ts",
+        "scripts/docs-scene-telemetry.test.ts",
         "scripts/mesure/mesureOptions.ts",
         "scripts/mesure/pageMesure.ts",
         "scripts/mesure/rapportCalcul.ts",
@@ -2835,12 +2869,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [
-        "site/lessons/offline/mesh.ts",
-        "site/lessons/offline/operations.ts",
-        "site/lessons/offline/surfaces.ts",
-        "site/lessons/sceneGeometryPrimitives.ts"
-      ],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/world/geometry/index\".geometry"
     },
@@ -2853,8 +2882,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/world/core/worldCuts.ts",
-        "packages/sdk-browser/world/helper/index.ts",
-        "site/lessons/offline/mesh.ts"
+        "packages/sdk-browser/world/helper/index.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/world/geometry/geometry\".Geometry"
@@ -3753,9 +3781,10 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "scripts/docs-lighting-lessons.test.ts",
+        "scripts/docs-renderer-lessons.test.ts",
         "site/lessons/lightingLessonRuntime.ts",
         "site/lessons/rendererLessonApply.ts",
-        "site/lessons/rendererLessonRuntime.ts",
         "site/lessons/sceneFillLight.ts"
       ],
       "disposition": "retained",
@@ -3772,6 +3801,7 @@
         "packages/sdk-browser/world/core/loadedModel.ts",
         "packages/sdk-browser/world/core/worldLights.ts",
         "packages/sdk-browser/world/helper/index.ts",
+        "scripts/docs-renderer-lessons.test.ts",
         "site/lessons/engine-scene/lightingControls.ts",
         "site/lessons/lightingLessonRuntime.ts",
         "site/lessons/rendererLessonApply.ts",
@@ -3800,6 +3830,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/directLightWgsl.ts",
+        "packages/sdk-browser/directRectLightWgsl.ts",
         "packages/sdk-browser/webgpuPagesEncodeShadows.ts"
       ],
       "disposition": "retained",
@@ -3819,7 +3850,7 @@
         "packages/sdk-browser/directLightWgsl.ts",
         "packages/sdk-browser/directShadowWgsl.ts",
         "packages/sdk-browser/exactPagesContractLights.test.ts",
-        "packages/sdk-browser/exactPagesContractLights.ts",
+        "packages/sdk-browser/exactPagesLightWrite.ts",
         "packages/sdk-browser/explorerLightApi.ts",
         "packages/sdk-browser/gpuLightTiles.ts",
         "packages/sdk-browser/gpuLightTilesRankEquivalence.test.ts",
@@ -3914,8 +3945,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/bench/appui/socleEcarts.ts",
         "packages/sdk-browser/explorerCompose.test.ts",
-        "packages/sdk-browser/explorerCompose.ts",
-        "packages/sdk-browser/visibilityMath.ts"
+        "packages/sdk-browser/explorerCompose.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathColor\".linearToSrgb"
@@ -4107,11 +4137,12 @@
         "packages/sdk-browser/autonomousInstances.test.ts",
         "packages/sdk-browser/autonomousInstances.ts",
         "packages/sdk-browser/autonomousPages.test.ts",
-        "packages/sdk-browser/backendTypes.ts",
         "packages/sdk-browser/explorerSceneApi.ts",
         "packages/sdk-browser/hostPageObjects.test.ts",
         "packages/sdk-browser/hostPageObjects.ts",
+        "packages/sdk-browser/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/world/core/worldCuts.ts",
+        "packages/sdk-browser/world/core/worldMaterials.ts",
         "packages/sdk-browser/world/core/worldMirror.ts",
         "packages/sdk-browser/world/core/worldSurface.ts",
         "packages/sdk-browser/world/helper/index.ts"
@@ -4130,11 +4161,12 @@
         "packages/sdk-browser/autonomousInstances.test.ts",
         "packages/sdk-browser/autonomousInstances.ts",
         "packages/sdk-browser/autonomousPages.test.ts",
-        "packages/sdk-browser/backendTypes.ts",
         "packages/sdk-browser/explorerSceneApi.ts",
         "packages/sdk-browser/hostPageObjects.test.ts",
         "packages/sdk-browser/hostPageObjects.ts",
+        "packages/sdk-browser/placement/backendSceneUpdates.ts",
         "packages/sdk-browser/world/core/worldCuts.ts",
+        "packages/sdk-browser/world/core/worldMaterials.ts",
         "packages/sdk-browser/world/core/worldMirror.ts",
         "packages/sdk-browser/world/core/worldSurface.ts",
         "packages/sdk-browser/world/helper/index.ts"
@@ -4171,14 +4203,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [
-        "site/lessons/engine-scene/lifecycle.ts",
-        "site/lessons/lessonWorld.ts",
-        "site/lessons/offline/attributes.ts",
-        "site/lessons/offline/operations.ts",
-        "site/lessons/offline/surfaces.ts",
-        "site/lessons/sceneGeometryPrimitives.ts"
-      ],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/world/math/index\".math"
     },
@@ -4436,8 +4461,12 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/world/core/worldBatches.ts",
+        "packages/sdk-browser/world/core/worldContents.ts",
         "packages/sdk-browser/world/core/worldCuts.ts",
-        "packages/sdk-browser/world/core/worldSource.ts",
+        "packages/sdk-browser/world/core/worldMembers.ts",
+        "packages/sdk-browser/world/core/worldPoses.ts",
+        "packages/sdk-browser/world/core/worldRuntime.ts",
         "packages/sdk-browser/world/helper/index.ts"
       ],
       "disposition": "retained",
@@ -4660,7 +4689,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/visibilityShadingNormal.ts",
-        "packages/sdk-browser/webgpuPagesEncodeShadows.ts"
+        "packages/sdk-browser/webgpuPagesEncodeShadows.ts",
+        "scripts/ltc-fit.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathVector\".normalizeVector3"
@@ -4730,10 +4760,12 @@
       "affectedConsumers": [
         "packages/sdk-browser/world/core/loadedModel.ts",
         "packages/sdk-browser/world/core/scene.ts",
+        "packages/sdk-browser/world/core/worldContents.ts",
         "packages/sdk-browser/world/core/worldLights.ts",
+        "packages/sdk-browser/world/core/worldMembers.ts",
         "packages/sdk-browser/world/core/worldMirror.ts",
+        "packages/sdk-browser/world/core/worldPoses.ts",
         "packages/sdk-browser/world/core/worldRuntime.ts",
-        "packages/sdk-browser/world/core/worldSource.ts",
         "packages/sdk-browser/world/helper/index.ts"
       ],
       "disposition": "retained",
@@ -4918,6 +4950,32 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/geometryContracts\".pageCarriesClusterError"
+    },
+    {
+      "name": "PageCutPage",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/pageDecodeContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["packages/sdk-browser/world/page/runtimeCut.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageCutPage"
+    },
+    {
+      "name": "PageCutPayload",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/pageDecodeContracts.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/pageDecodeHost.ts",
+        "packages/sdk-browser/world/page/runtimeCut.ts",
+        "packages/sdk-browser/world/page/runtimePrimitive.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/pageDecodeContracts\".PageCutPayload"
     },
     {
       "name": "PageDecodeAnswer",
@@ -5270,6 +5328,17 @@
       "bindingIdentity": "\"packages/sdk-browser/world/texture/index\".PixelImage"
     },
     {
+      "name": "PlacementRows",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/placement/placementRows.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/placement/placementRows\".PlacementRows"
+    },
+    {
       "name": "Plane",
       "kind": "both",
       "definingModule": "packages/sdk-core/world/math/volumes.ts",
@@ -5347,8 +5416,8 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
-        "site/lessons/engine-scene/cameraControls.ts",
-        "site/lessons/rendererLessonRuntime.ts"
+        "scripts/docs-canvas.test.ts",
+        "site/lessons/engine-scene/cameraControls.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/world/pose/index\".pose"
@@ -5696,6 +5765,17 @@
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/world/object/mesh\".Primitive"
+    },
+    {
+      "name": "PrimitiveDagStall",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/dagWarnings.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": ["scripts/mesure/rapportDag.ts"],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/dagWarnings\".PrimitiveDagStall"
     },
     {
       "name": "PrimitiveDagWarning",
@@ -6240,6 +6320,7 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/exactPagesContractLights.ts",
+        "packages/sdk-browser/exactPagesLightWrite.ts",
         "packages/sdk-browser/explorerLightApi.test.ts",
         "packages/sdk-browser/explorerLightApi.ts",
         "packages/sdk-browser/importedLights.ts",
@@ -6409,13 +6490,13 @@
     {
       "name": "screenErrorBound",
       "kind": "value",
-      "definingModule": "packages/sdk-core/projectionOracles.ts",
+      "definingModule": "packages/sdk-core/screenErrorBound.ts",
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": ["packages/sdk-browser/gpuDagOracleMath.ts"],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/projectionOracles\".screenErrorBound"
+      "bindingIdentity": "\"packages/sdk-core/screenErrorBound\".screenErrorBound"
     },
     {
       "name": "screenErrorVariant",
@@ -6935,7 +7016,7 @@
         "packages/sdk-browser/bench/appui/volumesCasBoites.ts",
         "packages/sdk-browser/explorerCamera.ts",
         "packages/sdk-browser/threeBounds.ts",
-        "packages/sdk-browser/world/page/runtimePrimitive.ts"
+        "packages/sdk-browser/world/page/runtimeCut.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/mathSphere\".sphereFromBounds"
@@ -7203,7 +7284,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/preparedSceneMaterials.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/preparedSceneMaterials.ts",
+        "packages/sdk-browser/world/core/worldSurface.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/sceneTableContracts\".TABLE_SLOTS"
     },
@@ -7674,6 +7758,17 @@
       "bindingIdentity": "\"packages/sdk-browser/cameraTrackballControls\".TrackballCameraControls"
     },
     {
+      "name": "TrackBinding",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/world/animation/index.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/world/animation/index\".TrackBinding"
+    },
+    {
       "name": "TrackKind",
       "kind": "type",
       "definingModule": "packages/sdk-core/world/animation/index.ts",
@@ -7998,7 +8093,8 @@
         "packages/sdk-browser/world/core/worldHandles.ts",
         "packages/sdk-browser/world/core/worldLights.ts",
         "packages/sdk-browser/world/helper/index.ts",
-        "packages/sdk-browser/world/pose/index.ts"
+        "packages/sdk-browser/world/pose/index.ts",
+        "scripts/docs-canvas.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/world/math/vector3\".Vector3"
@@ -8066,6 +8162,11 @@
       "proposedEnvironments": "browser",
       "classification": "public",
       "affectedConsumers": [
+        "scripts/docs-camera-lessons.test.ts",
+        "scripts/docs-canvas.test.ts",
+        "scripts/docs-lighting-lessons.test.ts",
+        "scripts/docs-renderer-lessons.test.ts",
+        "scripts/docs-scene-telemetry.test.ts",
         "site/lessons/cameraLessonRuntime.ts",
         "site/lessons/engine-scene/cameraControls.ts",
         "site/lessons/engine-scene/lifecycle.ts",

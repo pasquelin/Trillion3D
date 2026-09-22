@@ -39,11 +39,16 @@ function resolve(root: Object3D, path: string) {
 
 /** A track bound to what it writes: the owner and field it resolved to, the key it last stood
  *  at, and the numbers of one sample. */
-type Binding = { owner: Record<string, unknown>; field: string; key: number; value: Float64Array };
+export type TrackBinding = {
+  owner: Record<string, unknown>;
+  field: string;
+  key: number;
+  value: Float64Array;
+};
 
 /** The track's value at `t`, linearly between the two keys around it; quaternions on the arc.
  *  The search starts at the key the last sample stood at when `t` has not gone back past it. */
-function sample(tr: Track, t: number, bound: Binding) {
+function sample(tr: Track, t: number, bound: TrackBinding) {
   const { times, values } = tr,
     out = bound.value,
     size = out.length;
@@ -75,7 +80,7 @@ export class Action {
   readonly mixer: Mixer;
   readonly clip: Clip;
   /** Each track's binding, made on the first sample that finds its target. */
-  private readonly bindings = new Map<Track, Binding>();
+  private readonly bindings = new Map<Track, TrackBinding>();
   constructor(mixer: Mixer, clip: Clip) {
     this.mixer = mixer;
     this.clip = clip;

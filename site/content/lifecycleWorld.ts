@@ -1,5 +1,15 @@
-import type { PortalEntry } from '../model.ts';
-import { BROWSER } from './lifecycleShared.ts';
+import type { PortalEntry } from './model.ts';
+
+/** Shared row markers for the lifecycle entries, split between `entries/lifecycle.ts` and this
+ *  file to keep each under the line budget. It lives outside `entries/` because the portal reads
+ *  every export of that folder as a list of entries; the rows below reach the portal once,
+ *  concatenated by `LIFECYCLE` in the order the French overlay (`lifecycle.fr.ts`) merges onto. */
+export const NODE = {
+  section: 'lifecycle',
+  kind: 'Function',
+  module: 'packages/sdk-node/index.mts',
+};
+export const BROWSER = { section: 'lifecycle', kind: 'Function' };
 
 /** The rest of the lifecycle entries, after `createWorld` (`lifecycle.ts`): a world's own job
  *  wrapper, capability detection, camera paths, measurement and paged geometry. */
@@ -54,7 +64,7 @@ console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
     ...BROWSER,
     section: 'families',
     id: 'runCameraPath',
-    exports: ['runCameraPath'],
+    exports: ['pose'],
     title: 'pose.runPath()',
     module: 'packages/sdk-browser/world/pose/index.ts',
     signature:
@@ -78,7 +88,7 @@ console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
     ...BROWSER,
     section: 'families',
     id: 'createGpuPageCache',
-    exports: ['createGpuPageCache', 'httpPageSource'],
+    exports: ['page'],
     title: 'page.createCache() · page.httpSource()',
     module: 'packages/sdk-browser/world/page/index.ts',
     signature:
