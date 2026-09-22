@@ -7,7 +7,7 @@ import type { PivotCameraControls } from './cameraControlTypes.ts';
 import { copyElements } from './matrixElements.ts';
 import type { CameraPose } from '../sdk-core/index.ts';
 import type { ExplorerOptions, PointOfInterest, RenderBackend } from './backendTypes.ts';
-import type { HostCamera } from './cameraWorld.ts';
+import { resolveCameraWorld, type HostCamera } from './cameraWorld.ts';
 
 type Inputs = {
   check: () => void;
@@ -97,7 +97,9 @@ export function createExplorerCameraApi(inputs: Inputs) {
       copyElements(camera.matrix.elements, saved.matrix.elements);
       camera.matrixAutoUpdate = saved.matrixAutoUpdate;
       camera.updateProjectionMatrix();
-      camera.updateMatrixWorld();
+      // `updateMatrixWorld` recomposes nothing when the host poses by matrix: writing
+      // `matrix` raises no update flag. The contract's resolve composes it unconditionally.
+      resolveCameraWorld(camera);
       lookAtTarget.copy(center);
     },
     setMeasurementSurface(enabled: boolean) {
