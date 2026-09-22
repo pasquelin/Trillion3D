@@ -4,7 +4,7 @@
 // these lights would be a black canvas on any backend and would prove nothing.
 import type { SceneLight } from '../../packages/sdk-core/index.ts';
 
-export type BlendCacheScene = { page: string; asset: string; lights: SceneLight[] };
+type BlendCacheScene = { page: string; asset: string; lights: SceneLight[] };
 
 export const BLEND_CACHE_SCENES: BlendCacheScene[] = [
   {

@@ -21,8 +21,7 @@ function fixture() {
     encodeGeometryPage([0, 1, 2], { POSITION: { itemSize: 3, array } }),
   );
   const pages = TRIANGLES.map((positions, index) => {
-    const corner = (axis: number, pick: (a: number, b: number) => number) =>
-      pick(positions[axis], pick(positions[axis + 3], positions[axis + 6]));
+    const along = (axis: number) => [0, 3, 6].map((corner) => positions[axis + corner]);
     const page = encoded[index];
     return {
       id: index,
@@ -33,8 +32,8 @@ function fixture() {
       sha256: 'x',
       bytes: INDEX_BYTES,
       count: 3,
-      min: [0, 1, 2].map((axis) => corner(axis, Math.min)),
-      max: [0, 1, 2].map((axis) => corner(axis, Math.max)),
+      min: [0, 1, 2].map((axis) => Math.min(...along(axis))),
+      max: [0, 1, 2].map((axis) => Math.max(...along(axis))),
       role: 'exact' as const,
       start: index * 3,
       level: 0,
