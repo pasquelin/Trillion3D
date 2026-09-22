@@ -6,6 +6,8 @@ export type {
   LaneCounts,
   TextureCompression,
 } from '../sdk-browser/textureBlockFormats.ts';
+export { autonomousCacheReady, chooseBackends } from '../sdk-browser/defaultBackends.ts';
+export type { BackendChoice } from '../sdk-browser/defaultBackends.ts';
 export { autonomousPagesBackend } from '../sdk-browser/autonomousPages.ts';
 export type {
   BackendContext,
@@ -29,7 +31,6 @@ export { createGpuPageCache, httpPageSource } from '../sdk-browser/gpuPages.ts';
 export { createLightingExperimentBackend } from '../sdk-browser/lightingExperimentBackend.ts';
 export { createPageStreamer } from '../sdk-browser/streamingPages.ts';
 export type { DecodedGeometryPage } from '../sdk-browser/geometryPage.ts';
-export { DEFAULT_BACKENDS } from '../sdk-browser/defaultBackends.ts';
 export { detectCapabilities } from '../sdk-browser/capabilities.ts';
 export { EngineProfiler } from '../sdk-browser/telemetry.ts';
 export { exactPagesBackend } from '../sdk-browser/exactPagesBackend.ts';
