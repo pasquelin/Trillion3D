@@ -12,12 +12,15 @@ import {
   sceneOf,
   scenesOf,
 } from './scene.ts';
+import { catalogueScenes } from './assetsCatalogue.ts';
 import { CAMPAGNE } from './campagne.ts';
 import { parseArgs } from './options.ts';
 
-test('REFERENCE_SCENES places Whisperwind next to Emerald', () => {
-  assert.deepEqual(REFERENCE_SCENES, ['emerald-square', 'whisperwind-village']);
-  assert.equal(DEFAULT_SCENE, 'emerald-square');
+test('the reference scenes are the public ones, the cut first and the mirror next', () => {
+  assert.deepEqual(REFERENCE_SCENES, ['sponza', 'normal-tangent-mirror-test']);
+  assert.equal(DEFAULT_SCENE, 'sponza');
+  // Both are catalogue models: what the bench names, `assets.ts` knows how to fetch.
+  for (const scene of REFERENCE_SCENES) assert.ok(catalogueScenes().includes(scene), scene);
 });
 
 test('gltfUrlIn takes the glTF from the sources when it is there', () => {
@@ -47,15 +50,15 @@ test('gltfUrlIn falls back to source.gltf of the compiled cache', () => {
 });
 
 test('applySceneFlag sets the derived cache on sides that do not have one', () => {
-  const flags = parseArgs(['--scene', 'whisperwind-village', '--avant', 'dist']);
+  const flags = parseArgs(['--scene', 'flight-helmet', '--avant', 'dist']);
   applySceneFlag(flags, '/assets');
-  assert.equal(flags.get('cache-apres'), sceneDerived('whisperwind-village', '/assets'));
-  assert.equal(flags.get('cache-avant'), sceneDerived('whisperwind-village', '/assets'));
+  assert.equal(flags.get('cache-apres'), sceneDerived('flight-helmet', '/assets'));
+  assert.equal(flags.get('cache-avant'), sceneDerived('flight-helmet', '/assets'));
 });
 
 test('scenesOf reads --scene a,b and ignores valueless flag', () => {
   assert.deepEqual(scenesOf(parseArgs(['--scene', 'a,b'])), ['a', 'b']);
-  assert.equal(sceneOf('/x/whisperwind-village-derived'), 'whisperwind-village');
+  assert.equal(sceneOf('/x/flight-helmet-derived'), 'flight-helmet');
 });
 
 test('the campaign carries the Three LOD witness and the moving reference', () => {

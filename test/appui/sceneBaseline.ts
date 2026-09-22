@@ -1,10 +1,10 @@
-// The "avant" side of an Emerald-proof A/B comparison: two sources from a reference dist,
+// The "avant" side of a render-proof A/B comparison: two sources from a reference dist,
 // transpiled on the fly and served to the page in place of the current dist's.
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import type { Page, Route } from 'playwright';
-import type { Provenance } from './emeraldProvenance.ts';
+import type { Provenance } from './sceneProvenance.ts';
 
 /** Replaces, in `page`, `webgpuPages` and `visibilityBuffer` with those from `baselineDir`, and
  *  records their footprints in `provenance.baselineOverrides` and their sources under `out`. */

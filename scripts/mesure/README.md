@@ -17,7 +17,7 @@ rerun benchmarks.
   Witnesses to pit on one side via `--moteur-avant`: `three-nu` (Three.js alone, everything drawn every frame) and `three-lod` (Three.js with a three-level `THREE.LOD` per mesh, simplified by meshoptimizer at load: the classic method).
 - `--avant` / `--apres`: a built `dist/` directory, or a git ref. Without `--avant`, a single side is measured; `--apres` defaults to `dist/`.
 - `--moteur-avant` / `--moteur-apres`: per-side engine overrides. This is how the engine is pitted against the Three witness in a single execution — same poses, same lights, same caches, same server —, making `ecartAvantApres` a fidelity metric rather than a cross-campaign comparison. Chromium flags are the union of both sides' requirements.
-- `--scene <name>`: asset scene (`emerald-square` or `whisperwind-village`). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `emerald-square`.
+- `--scene <name>`: asset scene, any folder of `.mesure/assets/` that `assets.ts` compiled (`sponza`, `normal-tangent-mirror-test`, `facade-7`, …). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `sponza`.
 - `--cache-avant` / `--cache-apres`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
 - `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
 - `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
@@ -29,7 +29,7 @@ rerun benchmarks.
 - `--profil on|off` (default `on`): requests per-step timing breakdown.
 - `--lampes N`: enables N point lights in the scene. `--ombres on|off` toggles shadow casting; `--lampe-mobile` animates the first light in a circle. `--intensite N` sets light intensity. `--portee F` sets each light's range to `F` grid cells (0.75 by default): above one, several lights reach the same pixel.
 - `--soleil`: adds directional sun light with shadow cascades. Combines with `--lampes`.
-- `--camera-mobile`: the pose advances by one step along the benchmark trajectory at each measured frame, instead of replaying the same one. This is what distinguishes a still scene from a moving camera — and thus, for the sun, a cached cascade from a re-rendered cascade at each frame. It is also the only way to observe selection cost: with a fixed pose, everything retained frame-to-frame is free and appears nowhere. On Emerald, general view, GPU transparent selection drops `cpuFrameMs` p50 from 17.6 to 12.1 ms at threshold 0 and from 7.2 to 4.5 ms at threshold 1 — an invisible difference with a static camera. The recorded cut hash may differ between sides under this option without the image moving: it comes from asynchronous readback, one frame behind the cut it describes.
+- `--camera-mobile`: the pose advances by one step along the benchmark trajectory at each measured frame, instead of replaying the same one. This is what distinguishes a still scene from a moving camera — and thus, for the sun, a cached cascade from a re-rendered cascade at each frame. It is also the only way to observe selection cost: with a fixed pose, everything retained frame-to-frame is free and appears nowhere. On a ten-million-triangle interior, general view, GPU transparent selection drops `cpuFrameMs` p50 from 17.6 to 12.1 ms at threshold 0 and from 7.2 to 4.5 ms at threshold 1 — an invisible difference with a static camera. The recorded cut hash may differ between sides under this option without the image moving: it comes from asynchronous readback, one frame behind the cut it describes.
 - Without `--lampes` or `--soleil`, no lights are declared: the engine renders unlit material albedo. This is its default behavior, not a harness option.
 
 ## The Three Witness and Contract Lights
@@ -80,19 +80,55 @@ Finer than the stages, `series[].sides[].bornesCpu` holds the engine's CPU bound
 
 Capture is taken on a **still pose**: after warmup, pose renders until held — temporal accumulation converged, no pending work —, max 64 frames (`poseCalme`, `pageMesure.ts`). Mid-accumulation captures reflect trajectory history with non-deterministic tile streaming across runs. `series[].sides[].imagesCalme` records required frame count, `null` if engine does not hold frames (Three witness).
 
-Each series runs in a fresh page, closed immediately after. Emerald scene leaves hundreds of MBs active; reusing pages causes `new THREE.WebGLRenderer` to fail context creation ("Error creating WebGL context", observed Sept 14, 2026). Closing page restores WebGL context and heap to browser.
+Each series runs in a fresh page, closed immediately after. A large scene leaves hundreds of MBs active; reusing pages causes `new THREE.WebGLRenderer` to fail context creation ("Error creating WebGL context", observed Sept 14, 2026). Closing page restores WebGL context and heap to browser.
 
 ## Assets
 
-Harness serves `.mesure/assets/` (gitignored; `WG_ASSETS` points to alternative path) under `/benchmark-assets/`. Expects reference scene `emerald-square`: `emerald-square/` (glTF and textures, `emerald-day.gltf`) and `emerald-square-derived/` (compiled cache, `native/full/manifest.json`). Recompile cache from source:
+Harness serves `.mesure/assets/` (gitignored; `WG_ASSETS` points to alternative path) under
+`/benchmark-assets/`. A scene is a pair of folders: `<scene>/` holds the source glTF and its
+images, exactly as published and never written to, and `<scene>-derived/` the compiled cache
+(`native/full/manifest.json`). One command produces both:
 
     pnpm run build && pnpm run build:native
-    WEB_GEOMETRY_COMPILER_BIN=packages/asset-compiler-rust/target/release/web-geometry-compiler \
-    node dist/sdk-node/cli.mjs .mesure/assets/emerald-square/emerald-day.gltf \
-         .mesure/assets/emerald-square-derived full 150000 /benchmark-assets/emerald-square/ 8 16384
+    node scripts/mesure/assets.ts                 # everything
+    node scripts/mesure/assets.ts --only sponza   # one scene, both steps
+    node scripts/mesure/assets.ts --list          # what each model is kept for
 
-The two trailing numbers are the worker count and the RAM admission budget in MiB. The reference
-scene does not fit the 256 MiB default: omitted, the run stops on `RAM_ADMISSION_BUDGET_EXCEEDED`.
+It fetches the twelve models the proofs run on from
+[KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) — one sparse,
+blobless, depth-one clone for the whole set — into `.mesure/assets/<kebab-name>/`, then compiles
+every scene that has no cache yet, with the repository's own compiler, scope `full`, triangle
+budget 150 000 and the default `qem-endpoints` simplification. **Both steps are idempotent**: a
+source folder already there is kept untouched, a cache whose `manifest.json` is ready is not built
+again. Deleting a `<scene>-derived/` folder is how one asks for a rebuild.
+
+The worker count and the RAM admission budget are read off the machine, never chosen: every core
+`os.availableParallelism()` reports, and half of `os.totalmem()` as the budget — the other half is
+what the OS, the browser and the rest of the session keep. Both are printed with each job, so a
+cache carries the shape of the machine that cooked it. The 256 MiB default of the compiler is too
+small for a large scene: omitted, a run stops on `RAM_ADMISSION_BUDGET_EXCEEDED`.
+
+The bench's reference scenes are `sponza` (262 267 triangles, 103 primitives, 69 images: the cut,
+the sun and its shadows) and `normal-tangent-mirror-test` (mirrored texture coordinates). The other
+ten are the small cases a proof points at when it needs one thing and nothing else —
+`alpha-blend-mode-test` for the three alpha modes, `texture-coordinate-test` for a layout read
+straight off the image, `flight-helmet` for many small primitives, and so on. Measurements
+published before 22 Sept. 2026 name two private scenes that are no longer on any machine and are
+kept as they were read: no new measurement runs on them.
+
+A **facade** scene is generated rather than fetched — a block of walls whose texture coordinates
+are laid out three ways on different walls (one island per wall, one per window, mirrored halves)
+over a checkerboard that names each of its cells in digits, so a slide of one cell is visible on a
+capture:
+
+    node scripts/mesure/scenes/facade.ts --seed 7 [--triangles 300000]
+    node scripts/mesure/assets.ts --only facade-7
+
+The seed alone reproduces the block: plan, storeys and which bays are pierced are drawn from it,
+and the subdivision is whatever reaches the requested triangle count (a few hundred thousand by
+default, also drawn from the seed). `test/justesse/scenes-publiques.ts` reads what these caches
+guarantee — a DAG that climbs above level 0 wherever there is more than one cluster to coarsen, and
+a mirrored mapping that costs the simplification nothing — in a tenth of a second, without a GPU.
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
 
@@ -100,7 +136,7 @@ Resource base URL is where harness serves sources for compiled glTF texture fetc
 
 Harness is scene-agnostic: measures provided caches, pose bounds read from page model bounds. Three setup steps:
 
-1. **Compile glTF** as shown above (§ Assets), to `<name>-derived/` folder — under `.mesure/assets/` or elsewhere, gitignored.
+1. **Compile glTF** as shown above (§ Assets), to `<name>-derived/` folder — under `.mesure/assets/`, where dropping a source folder is enough for `assets.ts` to compile it, or elsewhere, gitignored.
 2. **Name cache for both sides**: `--cache-avant <dir>` and `--cache-apres <dir>`. Scene name derived from `derived` directory; defaulting to reference scene cache if omitted.
 3. **Mount resources**: `--ressources <dir>` sets relative glTF resource folder. Omission yields 404 textures. Caches compiled with absolute `resourceBaseUrl` fetch directly from URL; logged errors indicate per-page resolution.
 
