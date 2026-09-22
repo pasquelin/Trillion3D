@@ -7,19 +7,8 @@ pub struct ClusterPlane {
     pub area: f64,
 }
 
-pub fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-}
-pub fn length(a: [f64; 3]) -> f64 {
-    dot(a, a).sqrt()
-}
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
+use crate::shared_math::cross;
+pub use crate::shared_math::{dot, length};
 fn scale(a: [f64; 3], k: f64) -> [f64; 3] {
     [a[0] * k, a[1] * k, a[2] * k]
 }
