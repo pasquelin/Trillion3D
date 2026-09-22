@@ -53,15 +53,14 @@ pub(super) fn build_dag_primitive(
     store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
-    // UVs, when the primitive carries them: fallback DAG weld does not cross a texture seam.
-    let uvs = attributes.iter().find(|a| a.flag == geometry_page::FLAG_UV);
-    let (dag, groups, tallies) = crate::dag::build_dag_tallied(
-        pos,
-        uvs.map(|a| &a.values[..]),
-        index_values,
-        strategy,
-        &|| check(o),
-    )?;
+    // Every texture set the primitive carries: the fallback DAG weld crosses no seam of any of them.
+    let uv_sets: Vec<&[f32]> = attributes
+        .iter()
+        .filter(|a| a.flag == geometry_page::FLAG_UV || a.flag == geometry_page::FLAG_UV1)
+        .map(|a| &a.values[..])
+        .collect();
+    let (dag, groups, tallies) =
+        crate::dag::build_dag_tallied(pos, &uv_sets, index_values, strategy, &|| check(o))?;
     if dag
         .iter()
         .filter(|c| c.level == 0)
