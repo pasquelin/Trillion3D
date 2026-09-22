@@ -1,5 +1,6 @@
 import type { SceneLightStore } from '../sdk-core/index.ts';
-import { DEFAULT_CLEAR_COLOR, lighting as installLighting } from './backendCommon.ts';
+import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
+import { lighting as installLighting } from './hostSceneObjects.ts';
 import type { BackendContext } from './backendTypes.ts';
 import { sceneLightingApi, type installSceneLighting } from './sceneLighting.ts';
 import { attachContractLights, CONTRACT_LIGHTS_LIGHTING } from './exactPagesContractLights.ts';

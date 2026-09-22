@@ -153,9 +153,13 @@ crossing back. Lot 3 (#271) closed the resources themselves: a material and a te
 in ONE place, at `hostSurfaceImport.ts`, into the engine's `Material` and `Texture`
 (`packages/sdk-core/materialContract.ts`, `textureContract.ts`) — addressing, filtering and
 colour space in the engine's own words — and the passes, the page row, the tile pools, the
-transparent items and the software raster compute on those alone; the admission gate
-(`hostSurfaceGate.ts`) and the published display graph (`hostBlendScene.ts`) are what is left of
-the host library on that path. What remains for the following lots is the source loading — until
+transparent items and the software raster compute on those alone. Lot 5 (#78) closed the path
+itself: the admission gate reads a host material through the shapes of `hostShadedMaterial.ts`
+and the named constants of `hostSurfaceConstants.ts`, the transparent display graph the backend
+publishes is a record the engine owns (`blendSceneRecord.ts`, `blendCopyRecord.ts`), and the
+second capture view is the resolved pose and the declared optics rather than a host camera
+(`detachedHostView`), so bundling `webgpuPages.ts` pulls no module of the host library at all.
+What remains for the following lots is the source loading — until
 it lands, `scene`, `source` and `sceneLighting`
 still point at the host's graphs and are not `SceneRoot` / `SceneNode`. The camera controllers are
 no longer among them: since #222 `explorerCameraApi.ts` returns the engine's own orbit, flight,

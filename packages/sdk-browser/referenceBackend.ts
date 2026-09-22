@@ -1,6 +1,7 @@
 import { meshes as objects, geometryBytes } from './sceneMeshes.ts';
 import { asHostLibrary } from './hostResources.ts';
-import { baseCapabilities, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
+import { baseCapabilities, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
+import { lighting } from './hostSceneObjects.ts';
 import { sceneLightingApi } from './sceneLighting.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 import { applyMeshDiagnostic, disposeTriangleGeometry } from './triangleDiagnostic.ts';

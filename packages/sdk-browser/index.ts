@@ -28,6 +28,7 @@ export type { DiagnosticDetail } from './backendTypes.ts';
 export type {
   HostAttribute,
   HostAttributes,
+  HostBox,
   HostColour,
   HostDiagnosticFactory,
   HostDiagnosticGeometry,
