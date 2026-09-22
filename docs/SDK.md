@@ -296,12 +296,32 @@ refs, shadow roots or another document. Invalid targets are rejected before cach
 ID lookup without a document fails with `CANVAS_DOCUMENT_UNAVAILABLE`; missing IDs use
 `CANVAS_NOT_FOUND`, and empty IDs/non-canvas targets use `INVALID_CANVAS`.
 
-`interactive: true` opts into browser-owned OrbitControls, CSS sizing, browser DPR and
+`interactive: true` opts into the engine's own orbit controller, CSS sizing, browser DPR and
 coalesced rendering. Creation resolves after submitting a first image with the prepared
 root cover; visible detail and temporal antialiasing refine progressively. No `controls()`,
 `awaitPages()` or animation loop is needed to explore. Calling `controls()` again returns
 those same controls. After programmatic edits to the camera, scene or lights, call
 `explorer.invalidate()`. In manual mode, that method renders immediately.
+
+### Camera controllers
+
+The engine owns its controllers: they read `PointerEvent`, `WheelEvent` and `KeyboardEvent`,
+write the camera's pose, and bring no host-library addon into the page. A session hands out five,
+each disposed with the session.
+
+| Call | Motion | Gestures |
+| --- | --- | --- |
+| `controls()` | orbit around `target`, world up kept | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
+| `flyControls()` | six degrees of freedom | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look |
+| `firstPersonControls()` | pointer-locked walk, horizon level | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift` |
+| `trackballControls()` | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms |
+| `panZoomControls()` | planar view, no rotation | drag slides, wheel, pinch and arrow keys zoom |
+
+All five publish `object.position`, `addEventListener('change')`, `removeEventListener` and
+`dispose()`; the three that keep a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
+`enablePan` and `update()`, which reads back a pose the host wrote and clamps it. The two steered
+ones are integrated by the host: `update(seconds)`. A controller emits `change` only when the pose
+moved, so a still scene schedules nothing, and `dispose()` removes every listener it installed.
 
 A value written directly on a source node — `mesh.position.x = 100`, `mesh.visible = false`, a
 light's intensity, colour or pose — needs no call to be seen by the next frame. The local pose

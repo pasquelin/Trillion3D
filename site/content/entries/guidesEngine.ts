@@ -5,6 +5,46 @@ import type { PortalEntry } from '../model.ts';
 export const ENGINE_GUIDES: PortalEntry[] = [
   {
     ...GUIDE,
+    id: 'camera-controls',
+    title: 'Camera controllers, owned by the engine',
+    description:
+      'The five controllers a session hands to its host — orbit, flight, first person, trackball, planar pan-zoom — what each gesture does, and the contract they share.',
+    html: `<p>An explorer owns its camera controllers: they are written against the engine's own camera and its pose, read <code>PointerEvent</code>, <code>WheelEvent</code> and <code>KeyboardEvent</code>, and bring no library of their own into the page. A session offers five, each returned ready and disposed with the session.</p>
+<ul class="list-disc pl-6 space-y-1">
+<li><code>controls()</code> — <strong>orbit</strong>, the turntable a viewer expects: primary drag turns the azimuth and the elevation around <code>target</code>, world up kept and the poles never reached; secondary drag or two fingers pan; wheel and pinch zoom between <code>minDistance</code> and <code>maxDistance</code>. On an interactive session it is made once and reused.</li>
+<li><code>flyControls()</code> — <strong>flight</strong>, six degrees of freedom: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll, and a drag looks around. The host integrates it: <code>update(seconds)</code>.</li>
+<li><code>firstPersonControls()</code> — <strong>first person</strong>: the pointer lock is asked for on the gesture, the horizon stays level, the walk follows the yaw alone. Also integrated by <code>update(seconds)</code>.</li>
+<li><code>trackballControls()</code> — <strong>trackball</strong>: the scene spins about the two axes of the screen, roll included and no pole to stall on; <code>turntable</code> keeps the horizontal spin level.</li>
+<li><code>panZoomControls()</code> — <strong>planar pan-zoom</strong>: the camera never turns; drags slide the view, wheel, pinch and arrow keys move it in and out of the plane it faces.</li>
+</ul>
+<p><strong>One contract.</strong> Every controller publishes <code>object.position</code> — the camera's live position —, <code>addEventListener('change')</code>, <code>removeEventListener</code> and <code>dispose()</code>; the three that keep a pivot add <code>target</code>, <code>minDistance</code>, <code>maxDistance</code>, <code>enableZoom</code>, <code>enablePan</code> and <code>update()</code>. Write <code>object.position</code> or <code>target</code> yourself and the next <code>update()</code> reads it back, clamped.</p>
+<p><strong>Nothing happens in a still scene.</strong> A controller emits <code>change</code> only when the pose actually moved, which is what an interactive session binds its redraw to; no controller polls a frame, and <code>dispose()</code> takes every listener back off the canvas, its document and its window.</p>`,
+    example: `const explorer = await createExplorer('viewer', { manifestUrl, scope: 'full' });
+
+// Orbit: the contract the learning portal drives.
+const orbit = explorer.controls();
+orbit.target.set(0, 1, 0);
+orbit.minDistance = 2;
+orbit.maxDistance = 40;
+orbit.addEventListener('change', () => explorer.render());
+orbit.update();
+
+// Flight: the host owns the clock, and integrates in its own loop.
+const fly = explorer.flyControls();
+fly.movementSpeed = 12;
+let last = performance.now();
+function frame(now: number) {
+  if (fly.update((now - last) / 1000)) explorer.render();
+  last = now;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Disposing the session disposes every controller it handed out.
+explorer.dispose();`,
+  },
+  {
+    ...GUIDE,
     id: 'memory-pools',
     title: 'Memory pools and cut admission',
     description:
