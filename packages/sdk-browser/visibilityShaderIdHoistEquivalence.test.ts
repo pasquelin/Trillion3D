@@ -27,10 +27,14 @@ test('the hardware raster reads the share in the same text as the compute raster
   assert.ok(rasterSource(4, 16).includes(COMPUTE_TAKES_WGSL));
   assert.match(
     VIS_SHADER,
-    /fn hardwareSkips\(page:PageInfo,vertexIndex:u32\)->bool\{\n if\(vertexIndex>=page\.indexCount\|\|uni\.computeSpan>=1000000000\)\{return true;\}\n if\(uni\.computeSpan<=0\.0\)\{return false;\}/,
+    /fn hardwareIdle\(page:PageInfo,vertexIndex:u32\)->bool\{\n return vertexIndex>=page\.indexCount\|\|uni\.computeSpan>=1000000000;\n\}/,
+  );
+  assert.match(
+    VIS_SHADER,
+    /fn hardwareSkips\(page:PageInfo,h:ClusterHeader,vertexIndex:u32\)->bool\{\n if\(uni\.computeSpan<=0\.0\)\{return false;\}/,
   );
   assert.match(VIS_SHADER, /let vp=uni\.viewProj\*page\.world;/);
-  assert.equal(VIS_SHADER.match(/if\(hardwareSkips\(page,vertexIndex\)\)\{/g)?.length, 2);
+  assert.equal(VIS_SHADER.match(/if\(hardwareSkips\(page,h,vertexIndex\)\)\{/g)?.length, 2);
 });
 
 function assertSameTriangle(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]) {

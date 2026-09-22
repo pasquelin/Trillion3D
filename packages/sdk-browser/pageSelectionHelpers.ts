@@ -5,7 +5,7 @@ import {
   pageCarriesClusterError,
   type CullingHierarchy,
   type Page,
-  type ClusterStructure,
+  type Primitive,
   type StreamCatalogue,
 } from '../sdk-core/index.ts';
 import {
@@ -15,7 +15,6 @@ import {
   type ConeContext,
   type NormalCone,
 } from './pageCone.ts';
-import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 import { surfaceFrontOnly, type PageSurface } from './pageSurface.ts';
 
 /** The context is set at the root's first cone: a root without a cone never pays for it. */
@@ -41,8 +40,25 @@ export function coneSkipsPage(
   return coneCullsPageWith(ctx, rec.cone ?? OPEN_CONE, world, min, max, rec.material);
 }
 
-/** Validate and unpack the flat culling hierarchy. Absent or malformed, the flat path scans pages. */
-export function cullingNodes(culling: CullingHierarchy | null | undefined, pageCount: number) {
+/**
+ * The largest distance the primitive's grid moved one of its source positions, in object units
+ * (`primitives[].quantization.maxPositionError`), or zero on a cache whose pages carry no grid.
+ * Every band and every box of the primitive grows by it: that is what makes the pixel threshold
+ * bound the surface an engine actually draws, the quantized one.
+ */
+export function quantizationErrorOf(primitive: Pick<Primitive, 'quantization'>) {
+  const error = primitive.quantization?.maxPositionError;
+  return typeof error === 'number' && Number.isFinite(error) && error > 0 ? error : 0;
+}
+
+/** Validate and unpack the flat culling hierarchy. Absent or malformed, the flat path scans pages.
+ *  `quantizationError` raises each node's subtree replacement bound by the same length it raises
+ *  a cluster's band, so a subtree is never rejected on a band the clusters below no longer have. */
+export function cullingNodes(
+  culling: CullingHierarchy | null | undefined,
+  pageCount: number,
+  quantizationError = 0,
+) {
   if (!culling || !Array.isArray(culling.nodes) || culling.stride < 15 || culling.count < 1)
     return undefined;
   if (culling.nodes.length !== culling.count * culling.stride)
@@ -51,6 +67,13 @@ export function cullingNodes(culling: CullingHierarchy | null | undefined, pageC
   for (let node = 0; node < culling.count; node++) {
     const base = node * culling.stride,
       children = nodes[base + 12];
+    // -1 says the subtree holds a cluster nothing replaces; a bound is raised, a sentinel is not.
+    if (nodes[base + 10] >= 0) nodes[base + 10] += quantizationError;
+    // A node encloses the boxes of its clusters, which the grid moved by the same length.
+    for (let axis = 0; axis < 3; axis++) {
+      nodes[base + axis] -= quantizationError;
+      nodes[base + 3 + axis] += quantizationError;
+    }
     if (children > 0) {
       if (nodes[base + 11] + children > culling.count)
         throw new Error('Inconsistent culling hierarchy');
@@ -73,7 +96,20 @@ const NO_CLUSTER_ERROR = {
   group: undefined,
   source: undefined,
 } as const;
-export function clusterErrorFields(page: Page): {
+/**
+ * The error band of a cluster, in object units, as the cut certifies it.
+ *
+ * `quantizationError` is the largest distance the primitive's grid moved one of its source
+ * positions (`primitives[].quantization.maxPositionError`): the surface an engine draws from the
+ * quantized pages stands that far from the surface the error band was computed on, so the two
+ * distances add — the screen threshold then bounds the drawn surface, not the source one. It is a
+ * sum of two lengths in the same unit, nothing weighted: the parent's band grows by the same
+ * amount, so which cluster replaces which does not move.
+ */
+export function clusterErrorFields(
+  page: Page,
+  quantizationError = 0,
+): {
   level?: number;
   lodError?: number;
   sphere?: number[];
@@ -94,75 +130,16 @@ export function clusterErrorFields(page: Page): {
   // The parent sphere uses the same rule as the page's own sphere: rejected here,
   // at prepare time, never mid-frame. A zero error projects nothing and does not read
   // its sphere; it has nothing to validate.
-  if (parent !== null && parent > 0 && !clusterSphereValid(page.parentSphere))
+  if (parent !== null && parent + quantizationError > 0 && !clusterSphereValid(page.parentSphere))
     throw new Error('Invalid cluster parameters');
   return {
     level: page.level,
-    lodError: page.lodError,
+    lodError: page.lodError! + quantizationError,
     sphere: page.sphere,
-    parentError: parent,
+    parentError: parent === null ? null : parent + quantizationError,
     parentSphere: parent === null ? null : page.parentSphere,
     group: typeof page.group === 'number' ? page.group : null,
     source: typeof page.source === 'number' ? page.source : null,
-  };
-}
-export function structureIndex(
-  structure: ClusterStructure | null | undefined,
-  pageCount: number,
-): ClusterStructureIndex | undefined {
-  if (!structure || !Array.isArray(structure.groups) || !Array.isArray(structure.roots))
-    return undefined;
-  const groupCount = structure.groups.length;
-  if (!groupCount) return undefined;
-  const childOffsets = new Int32Array(groupCount + 1),
-    outputOffsets = new Int32Array(groupCount + 1);
-  for (let g = 0; g < groupCount; g++) {
-    childOffsets[g + 1] = childOffsets[g] + structure.groups[g].children.length;
-    outputOffsets[g + 1] = outputOffsets[g] + structure.groups[g].outputs.length;
-  }
-  const children = new Int32Array(childOffsets[groupCount]),
-    outputs = new Int32Array(outputOffsets[groupCount]);
-  const sources = new Int32Array(pageCount).fill(-1),
-    owners = new Int32Array(pageCount).fill(-1);
-  const error = new Float64Array(groupCount),
-    sphere = new Float64Array(groupCount * 4);
-  for (let g = 0; g < groupCount; g++) {
-    const group = structure.groups[g];
-    if (!(group.error >= 0) || !Array.isArray(group.sphere) || group.sphere.length !== 4)
-      throw new Error(`Group ${g} without error or bounds`);
-    error[g] = group.error;
-    for (let a = 0; a < 4; a++) sphere[g * 4 + a] = group.sphere[a];
-    let at = childOffsets[g];
-    for (const child of group.children) {
-      if (!(child >= 0 && child < pageCount))
-        throw new Error(`Group ${g} references an unknown page`);
-      if (owners[child] >= 0) throw new Error(`Page ${child} belongs to two groups`);
-      owners[child] = g;
-      children[at++] = child;
-    }
-    at = outputOffsets[g];
-    for (const output of group.outputs) {
-      if (!(output >= 0 && output < pageCount))
-        throw new Error(`Group ${g} references an unknown page`);
-      if (sources[output] >= 0) throw new Error(`Page ${output} is produced by two groups`);
-      sources[output] = g;
-      outputs[at++] = output;
-    }
-  }
-  for (const root of structure.roots)
-    if (!(root >= 0 && root < pageCount && owners[root] < 0))
-      throw new Error('Invalid structure root');
-  return {
-    groupCount,
-    childOffsets,
-    children,
-    outputOffsets,
-    outputs,
-    sources,
-    owners,
-    error,
-    sphere,
-    roots: structure.roots,
   };
 }
 /** Bundle URL and offset of every page, or undefined when the cache predates streaming bundles. */

@@ -7,6 +7,7 @@ import { objects } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
 import { indexPageRequests } from './pageSelectionRequests.ts';
+import { quantizationErrorOf } from './pageSelectionHelpers.ts';
 import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 
@@ -42,6 +43,11 @@ export function collectClusterPages(
     }
     const template = templates.pagesOf(primitive);
     const transparent = primitive.pass === 'clustered-blend' || surface.transparent;
+    // The grid moved every position of this primitive by at most this much: its clusters' boxes
+    // grow by it, so culling still encloses the surface an engine draws from the pages.
+    const slack = quantizationErrorOf(primitive);
+    const widen = (bounds: number[], sign: number) =>
+      slack > 0 ? bounds.map((value) => value + sign * slack) : bounds;
     // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
     const sourceOrder = transparent ? template.sourceOrder : undefined;
     const pages = primitive.pages.map((page, pageIndex) => {
@@ -55,8 +61,11 @@ export function collectClusterPages(
         array: entry.array,
         triangles: page.count / 3,
         indexBytes: entry.array?.byteLength ?? page.bytes,
-        min: page.min,
-        max: page.max,
+        // A transparent cluster keeps its index page: its forward draw reads an index buffer and
+        // the source vertices, which no page replaces (`webgpuBlendShader.ts`).
+        geometryPage: transparent ? undefined : page.geometry,
+        min: widen(page.min, -1),
+        max: widen(page.max, 1),
         role: page.role,
         level: cut.level,
         lodError: cut.lodError,
