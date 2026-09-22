@@ -18,6 +18,13 @@ type GeometryEnvironment = {
   modifiedPages: Set<string>;
 };
 
+/** The host bytes a geometry holds: its index buffer plus every attribute array. */
+function geometryBytes(geometry: THREE.BufferGeometry) {
+  let bytes = geometry.getIndex()?.array.byteLength ?? 0;
+  for (const attr of Object.values(geometry.attributes)) bytes += attr.array.byteLength;
+  return bytes;
+}
+
 /**
  * Frees the host geometry a page record holds and gives its bytes back to the store. The one
  * place that releases a page's geometry: the store and the residency both call it.
@@ -25,9 +32,7 @@ type GeometryEnvironment = {
 export function releaseGeometry(state: { allocationBytes: number }, rec: PageRec) {
   if (!rec.geometry) return;
   const geometry = asHostLibrary<THREE.BufferGeometry>(rec.geometry);
-  state.allocationBytes -= geometry.getIndex()?.array.byteLength ?? 0;
-  for (const attr of Object.values(rec.geometry.attributes))
-    state.allocationBytes -= attr.array.byteLength;
+  state.allocationBytes -= geometryBytes(geometry);
   geometry.dispose();
 }
 
@@ -113,20 +118,11 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       state.submittedTriangles += rec.triangles;
     }
   };
-  const geometryBytes = (geometry: THREE.BufferGeometry) => {
-    let bytes = geometry.getIndex()?.array.byteLength ?? 0;
-    for (const attr of Object.values(geometry.attributes)) bytes += attr.array.byteLength;
-    return bytes;
-  };
   const removeRecords = (records: PageRec[]) => {
     const removed = new Set(records);
     for (const rec of records) {
       detach(rec);
-      if (rec.geometry) {
-        const geometry = asHostLibrary<THREE.BufferGeometry>(rec.geometry);
-        state.allocationBytes -= geometryBytes(geometry);
-        geometry.dispose();
-      }
+      releaseGeometry(state, rec);
       rec.geometry = undefined;
       rec.mesh = undefined;
       rec.array = undefined;
