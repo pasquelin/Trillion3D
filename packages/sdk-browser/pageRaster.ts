@@ -29,6 +29,8 @@ export function opaqueBackgroundRgba(
   return pixels;
 }
 
+const byteRgb = (r: number, g: number, b: number) => [(r * 255) | 0, (g * 255) | 0, (b * 255) | 0];
+
 function colorOf(declared: HostMaterials) {
   const material = asHostLibrary<THREE.Material | THREE.Material[]>(declared);
   const first = Array.isArray(material) ? material[0] : material;
@@ -44,8 +46,6 @@ function surfaceColorOf(surface: PageSurface) {
   const base = surface.baseColor;
   return byteRgb(base[0], base[1], base[2]);
 }
-
-const byteRgb = (r: number, g: number, b: number) => [(r * 255) | 0, (g * 255) | 0, (b * 255) | 0];
 
 /** CPU raster of what a backend draws: its owned draw records, then the plain meshes of its
  *  scene. Used as an oracle; not a GPU timestamp. */
