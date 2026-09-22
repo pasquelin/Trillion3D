@@ -144,8 +144,14 @@ shape the engine reads (`HostMaterial`, `HostTexture`, `HostAttributes`, `HostGe
 `HostMesh`, `HostNode`, `HostScene`), `packages/sdk-core/materialContract.ts` carries the
 engine's own `Material` for `updateMaterial`, a placement crosses as sixteen floats, and the
 declared witnesses and host adapters are the only callers of `asHostLibrary`, the single
-crossing back. What remains for the following lots is the per-frame walk, the host resources
-themselves and the source loading — until those land, `scene`, `source` and `sceneLighting`
+crossing back. Lot 3 (#271) closed the resources themselves: a material and a texture are read
+in ONE place, at `hostSurfaceImport.ts`, into the engine's `Material` and `Texture`
+(`packages/sdk-core/materialContract.ts`, `textureContract.ts`) — addressing, filtering and
+colour space in the engine's own words — and the passes, the page row, the tile pools, the
+transparent items and the software raster compute on those alone; the admission gate
+(`hostSurfaceGate.ts`) and the published display graph (`hostBlendScene.ts`) are what is left of
+the host library on that path. What remains for the following lots is the source loading — until
+it lands, `scene`, `source` and `sceneLighting`
 still point at the host's graphs and are not `SceneRoot` / `SceneNode`; `explorerCameraApi.ts` keeps the
 host's orbit and fly controls it returns to the host.
 

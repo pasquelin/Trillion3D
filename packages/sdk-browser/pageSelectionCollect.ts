@@ -1,7 +1,7 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
 import type { HostNode } from './hostResources.ts';
-import * as THREE from 'three';
 import { isTransmissive } from './visibilityBuffer.ts';
+import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
 import { objects } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
@@ -22,7 +22,7 @@ export function collectClusterPages(
   const worlds = hostWorldPlacements(source);
   const roots: Array<ClusterRoot<PageRec>> = [],
     allPages: PageRec[] = [],
-    blendCopies: THREE.Mesh[] = [],
+    blendCopies: BlendCopy[] = [],
     bootstrap: PageRec[] = [];
   const primitiveOf = primitiveFinder(metadata.primitives);
   // One template per source object, shared by all its placements: the DAG shape, its error

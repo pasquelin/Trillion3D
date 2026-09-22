@@ -7,6 +7,7 @@
 // counted map by map rather than deduced from reading the code.
 //   node --experimental-strip-types test/justesse/adressage-cpu.ts [sortie.json]
 // Exit code 1 on the first mismatch. `sortie.json` receives the texels read, to compare two commits.
+import { importHostTexture, importWrapMode } from '../../packages/sdk-browser/hostSurfaceImport.ts';
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { sampleLinear, wrapTexel } from '../../packages/sdk-browser/visibilityMath.ts';
@@ -69,9 +70,12 @@ function texelRaster(c: AdressageCas): [number, number] | null {
 const tous = cas();
 const lus = tous.map((c, rang) => {
   c.rang = rang;
-  const [r, g] = sampleLinear(carte(c), c.u, c.v);
+  const [r, g] = sampleLinear(importHostTexture(carte(c)), c.u, c.v);
   return {
-    wrapTexel: [wrapTexel(c.u, c.largeur, c.wrapS), wrapTexel(c.v, c.hauteur, c.wrapT)],
+    wrapTexel: [
+      wrapTexel(c.u, c.largeur, importWrapMode(c.wrapS)),
+      wrapTexel(c.v, c.hauteur, importWrapMode(c.wrapT)),
+    ],
     sampleLinear: [Math.round((r * 255 - 20) / 40), Math.round((g * 255 - 20) / 40)],
     raster: texelRaster(c),
   };
@@ -98,7 +102,7 @@ const lineaire = (c: AdressageCas, k: number) => {
   const t = k ? c.v : c.u,
     taille = k ? c.hauteur : c.largeur,
     wrap = k ? c.wrapT : c.wrapS;
-  const lu = melange(wrapLinear(t, taille, wrap)),
+  const lu = melange(wrapLinear(t, taille, importWrapMode(wrap))),
     attendu = melange(lineaireThree(t, taille, wrap));
   return Math.abs(lu - attendu) <= 1e-9
     ? null
@@ -125,7 +129,7 @@ for (const { nom, champ, wrapS, wrapT } of CARTES) {
   const map = Object.assign(materiau[champ]!, { image, flipY: false });
   let ecartsCarte = 0;
   for (const [u, v] of UV) {
-    const [r, g] = sampleLinear(map, u, v);
+    const [r, g] = sampleLinear(importHostTexture(map), u, v);
     const lu = [Math.round((r * 255 - 20) / 40), Math.round((g * 255 - 20) / 40)];
     const attendu = [texelThree(u, TEXTURE.largeur, wrapS), texelThree(v, TEXTURE.hauteur, wrapT)];
     if (lu[0] !== attendu[0] || lu[1] !== attendu[1]) ecartsCarte++;

@@ -1,5 +1,5 @@
-import * as THREE from 'three';
-import { asHostLibrary } from './hostResources.ts';
+import type { HostMesh } from './hostResources.ts';
+import type { BlendCopy } from './blendCopyContract.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
 import { indexSourceBytes } from './webgpuPagesCatalogue.ts';
 import type { BackendContext } from './backendTypes.ts';
@@ -11,7 +11,7 @@ import {
   RequestStamps,
   rootCoverage,
 } from './pageSelection.ts';
-import { lighting } from './webgpuPagesHelpers.ts';
+import { createBlendHostScene } from './hostBlendScene.ts';
 import { createHostRankDelta } from './webgpuPagesHostRanks.ts';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
 import {
@@ -55,10 +55,10 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   );
   // Transparent pages share selection/residency with opaque pages, but retain
   // one forward draw per source mesh (all back faces, then all front faces).
-  const pagedBlendCopies = new Map<THREE.Mesh, THREE.Mesh>();
+  const pagedBlendCopies = new Map<HostMesh, BlendCopy>();
   for (const rec of allPages)
     if (rec.transparent && rec.sourceMesh) {
-      const mesh = asHostLibrary<THREE.Mesh>(rec.sourceMesh);
+      const mesh = rec.sourceMesh;
       if (pagedBlendCopies.has(mesh)) continue;
       const copy = createBlendCopy(mesh, rec.renderOrder, rec.matrix);
       copy.userData.pagedBlend = true;
@@ -94,9 +94,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // cache stays keyed by cluster (`rec.url`), because that is the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(allPages);
   const uniquePages = Math.max(1, new Set(allPages.map((page) => page.url)).size);
-  const scene = new THREE.Scene();
-  lighting(scene, clearColor);
-  for (const copy of blendCopies) scene.add(copy);
+  const scene = createBlendHostScene(clearColor, blendCopies);
   let pageBytes = 4;
   for (const page of allPages) {
     const n = page.array?.byteLength ?? page.indexBytes;

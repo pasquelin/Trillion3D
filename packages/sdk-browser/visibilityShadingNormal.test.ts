@@ -6,6 +6,7 @@
 //     the sum is 3 in the reference order, 4 if an add reassociates;
 //   — a pose whose normal matrix is exactly [[1, 1, 1], [0, 1, 0], [0, 0, 1]],
 //     combined with vertex normals (1e16, 1, 1).
+import type { Texture } from '../sdk-core/index.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -39,13 +40,13 @@ function materiau(overrides: Partial<VisMaterial> = {}): VisMaterial {
 }
 
 /** Minimal 2×2 normal map: enough to exercise `sampleLinear` without a spare allocation. */
-function carteNormales(): THREE.Texture {
+function carteNormales(): Texture {
   const data = Uint8Array.from([10, 200, 250, 255, 5, 90, 200, 255, 250, 5, 5, 255, 1, 1, 1, 255]);
   return {
     image: { data, width: 2, height: 2 },
-    wrapS: THREE.RepeatWrapping,
-    wrapT: THREE.ClampToEdgeWrapping,
-  } as unknown as THREE.Texture;
+    wrapS: 'repeat',
+    wrapT: 'clamp',
+  } as unknown as Texture;
 }
 
 const TRI = {

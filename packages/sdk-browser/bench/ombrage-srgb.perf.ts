@@ -1,4 +1,6 @@
 // sRGB to linear in texture sampling.
+import type { Texture } from '../../sdk-core/index.ts';
+import { importHostTexture } from '../hostSurfaceImport.ts';
 import * as THREE from 'three';
 import { sampleLinear, sampleMap, wrapTexel } from '../visibilityMath.ts';
 import { textureRgba } from '../visibilityTypes.ts';
@@ -9,7 +11,7 @@ function referenceSrgbToLinear(c: number) {
 }
 
 function referenceSampleTexel(
-  map: THREE.Texture,
+  map: Texture,
   u: number,
   v: number,
 ): [number, number, number, number] | null {
@@ -21,7 +23,7 @@ function referenceSampleTexel(
     d = image.data;
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255, d[i + 3] / 255];
 }
-function referenceSampleMap(map: THREE.Texture, u: number, v: number): [number, number, number] {
+function referenceSampleMap(map: Texture, u: number, v: number): [number, number, number] {
   const texel = referenceSampleTexel(map, u, v);
   if (!texel) return [1, 1, 1];
   return [
@@ -30,7 +32,7 @@ function referenceSampleMap(map: THREE.Texture, u: number, v: number): [number, 
     referenceSrgbToLinear(texel[2]),
   ];
 }
-function referenceSampleLinear(map: THREE.Texture, u: number, v: number): [number, number, number] {
+function referenceSampleLinear(map: Texture, u: number, v: number): [number, number, number] {
   const texel = referenceSampleTexel(map, u, v);
   if (!texel) return [1, 1, 1];
   return [texel[0], texel[1], texel[2]];
@@ -51,16 +53,16 @@ function texture(
   map.image = { data, width, height };
   map.wrapS = wrapS;
   map.wrapT = wrapT;
-  return map;
+  return importHostTexture(map);
 }
 
-const sansImage = new THREE.Texture();
+const sansImage = importHostTexture(new THREE.Texture());
 const atlas = texture(256, 256, 17, THREE.RepeatWrapping, THREE.RepeatWrapping);
 
-type EchantillonneurTexel = (map: THREE.Texture, u: number, v: number) => readonly number[];
+type EchantillonneurTexel = (map: Texture, u: number, v: number) => readonly number[];
 
 function parcours(sampler: EchantillonneurTexel) {
-  return (input: { map: THREE.Texture; coords: readonly (readonly [number, number])[] }) => {
+  return (input: { map: Texture; coords: readonly (readonly [number, number])[] }) => {
     const { map, coords } = input;
     const output = new Float64Array(coords.length * 3);
     for (let i = 0; i < coords.length; i++) {

@@ -299,10 +299,30 @@ types, and left the list with them: `clusterBatchRange.ts`, `frameGateCore.ts`,
 `webgpuPositions.ts`, `webgpuTileAtlas.ts`, `webgpuTileCatalogue.ts`, `webgpuTileScratch.ts` —
 twenty-five files in all, and the list never grows.
 
+## Batch C, lot 3 — materials, textures and geometries come from the manifest (#271, #78)
+
+A surface is read in ONE place, at `hostSurfaceImport.ts`, into the engine's own records: `Material` for
+the parameters, `Texture` for the image and its sampler state, with addressing, filtering and
+colour space spelled in the engine's words (`'repeat'`, `'linear-mip-linear'`, `'srgb'`) instead
+of a host constant. `visMaterial()`, `isTransmissive()`, `textureRgba()`, `wrapTexel()`,
+`wrapNibble()` and `wrapLinear()` compute on those; the tile pools, the atlas lanes, the page row
+and the transparent items address a texture by the identity of its record, which is built once
+per source texture and refilled when the host bumps its version. Eight more files left the
+closed list with this lot — `visibilityMath.ts`, `visibilityMaterial.ts`, `visibilityWrapModes.ts`,
+`webgpuBlendPrepare.ts`, `webgpuMaterialTextures.ts`, `webgpuPagesHelpers.ts`,
+`webgpuPagesPrepare.ts`, `webgpuPagesSetup.ts` — and three boundaries joined it:
+`hostSurfaceImport.ts` (the reading), `hostSurfaceGate.ts` (the admission gate on a host
+declaration) and `hostBlendScene.ts` (the display graph the backend publishes). Colour handling
+of `webgpuPagesHelpers.ts` now runs on `mathColor.ts`, whose transfer curve differs from the host
+library's rounded constants by the gap measured in #72; no beauty pass reads that path.
+
 | Contract                                                                                                                   | What it names                                                                                                                                                         | Replaces                                                                     | Proof                                        |
 | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------- |
 | `Material`, `Side`, `AlphaMode`, `LinearRgb` — `packages/sdk-core/materialContract.ts`                                     | the surface parameters the compiler imported from the source file: linear base colour and emissive, opacity, metalness, roughness, side, alpha mode and cutoff        | `THREE.Material` in `RenderBackend.updateMaterial` and `explorer.updateMaterial` | `autonomousPages.test.ts`                    |
 | `HostMaterial`, `HostMaterials`, `HostTexture`, `HostAttribute`, `HostAttributes`, `HostGeometry`, `HostMesh`, `HostNode`, `HostScene`, `HostPoint` — `packages/sdk-browser/hostResources.ts` | what the engine reads of a resource the host owns and the engine never builds: surface and raster state, sampler state, attribute layout, a box, an identity          | `THREE.Material`, `THREE.Texture`, `THREE.BufferGeometry['attributes']`, `THREE.Mesh`, `THREE.Object3D`, `THREE.Scene` in the contract files | `moteur-sans-three.test.ts` (closed list) |
+| `Texture`, `WrapMode`, `TextureFilter`, `TextureColorSpace` — `packages/sdk-core/textureContract.ts`                                     | the imported texture the engine samples: its identity, its decoded image, the UV set, and addressing, filtering and colour space as the engine's own words          | `THREE.Texture` in the tile pools, the atlas layers, the page row and the software raster        | `webgpuTileCatalogue.test.ts`, `visibilityWrapModes.test.ts`, `moteur-sans-three.test.ts` |
+| `importHostSurface`, `importHostTexture`, `importWrapMode` — `packages/sdk-browser/hostSurfaceImport.ts`                                  | the one place a host material or texture is read into those records; the material is re-read at every call, a texture keeps a single record for the session, refilled when the host bumps its version | the per-frame reads of `THREE.MeshStandardMaterial` and `THREE.Texture` in `visibilityMaterial.ts` | `hostSurfaceImport.test.ts`, `visibilityBufferMaterials.test.ts`, `moteur-sans-three.test.ts` |
+| `BlendCopy` — `packages/sdk-browser/blendCopyContract.ts`                                                 | the transparent draw copy as the engine reads it: geometry, declared material, the pose it shares with the engine's world storage, the source mesh it stands for      | `THREE.Mesh` in the blend prepare, the material census and the page setup                        | `webgpuBlendWorlds.test.ts`, `moteur-sans-three.test.ts` |
 | `asHostLibrary<T>(resource)` — `packages/sdk-browser/hostResources.ts`                                                     | the single crossing back: a boundary file gives a host resource to the library its owner wrote it with. Only the declared witnesses and host adapters call it          | scattered `as THREE.X` casts                                                  | `moteur-sans-three.test.ts` (closed list)    |
 | `addInstance(id, transform)`, `updateInstance(id, transform)`                                                              | a placement as sixteen column-major floats, `Float64Array(16)`; the engine copies them, the host keeps its array                                                      | `THREE.Matrix4`                                                              | `autonomousPages.test.ts`, `autonomousInstances.test.ts` |
 

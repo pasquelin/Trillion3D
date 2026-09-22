@@ -1,4 +1,5 @@
-import type { HostAttributes, HostTexture } from './hostResources.ts';
+import type { HostAttributes } from './hostResources.ts';
+import type { Texture } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
 import { materialClassKey } from './visibilityMaterialClass.ts';
@@ -25,8 +26,8 @@ export type GeometryBlock = {
 };
 /** Atlas slots of a scene's textures, by texture; a texture the atlas does not hold reads slot 0. */
 export type MaterialLayers = {
-  mapLayer: ReadonlyMap<HostTexture, number>;
-  dataLayer: ReadonlyMap<HostTexture, number>;
+  mapLayer: ReadonlyMap<Texture, number>;
+  dataLayer: ReadonlyMap<Texture, number>;
 };
 
 /** What a page row says of its material: its map slots, its flags word, and its resolve class. */
@@ -35,7 +36,7 @@ export function rowMaterial(
   geo: GeometryBlock | undefined,
   { mapLayer, dataLayer }: MaterialLayers,
 ) {
-  const slot = (layers: ReadonlyMap<HostTexture, number>, texture?: HostTexture) =>
+  const slot = (layers: ReadonlyMap<Texture, number>, texture?: Texture) =>
     texture ? (layers.get(texture) ?? 0) : 0;
   const map = slot(mapLayer, mat.map),
     rough = slot(dataLayer, mat.roughnessMap),
