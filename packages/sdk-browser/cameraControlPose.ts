@@ -44,7 +44,7 @@ export function controlPose(camera: ControlCamera): ControlPose {
     write(position, orientation) {
       camera.position.set(position[0], position[1], position[2]);
       camera.quaternion.set(orientation[0], orientation[1], orientation[2], orientation[3]);
-      camera.updateMatrixWorld(true);
+      camera.updateMatrixWorld();
     },
   };
 }

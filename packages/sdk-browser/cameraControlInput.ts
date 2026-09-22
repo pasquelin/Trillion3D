@@ -49,15 +49,19 @@ export function trackPointers(surface: HTMLElement, base: ControlBase, handlers:
   base.listen<PointerEvent>(surface, 'pointermove', (event) => {
     const previous = pointers.get(event.pointerId);
     if (!previous) return;
-    const before = pointers.size > 1 ? midpoint() : { ...previous };
+    const before = pointers.size > 1 ? midpoint() : previous;
+    const beforeX = before.x,
+      beforeY = before.y;
     previous.x = event.clientX;
     previous.y = event.clientY;
-    if (pointers.size === 1)
-      handlers.drag(event.clientX - before.x, event.clientY - before.y, button, event);
+    const dx = event.clientX - beforeX,
+      dy = event.clientY - beforeY;
+    // A move that moved nothing is not a gesture: it must not wake a still scene.
+    if (pointers.size === 1 && (dx || dy)) handlers.drag(dx, dy, button, event);
     else if (pointers.size === 2) {
       const after = midpoint(),
         next = distance();
-      handlers.pinch?.(span > 0 ? next / span : 1, after.x - before.x, after.y - before.y);
+      handlers.pinch?.(span > 0 ? next / span : 1, after.x - beforeX, after.y - beforeY);
       span = next;
     }
   });
@@ -121,7 +125,10 @@ export function trackKeys(surface: HTMLElement, base: ControlBase, onChange: () 
   return pressed;
 }
 
-/** `+1` when the first code is held, `-1` for the second, `0` for both or neither. */
+/** The two key groups of one axis: what drives it positive, what drives it negative. */
+export type KeyAxis = [string[], string[]];
+
+/** `+1` when the first group is held, `-1` for the second, `0` for both or neither. */
 export function axisOf(pressed: Set<string>, positive: string[], negative: string[]) {
   const up = positive.some((code) => pressed.has(code)) ? 1 : 0;
   const down = negative.some((code) => pressed.has(code)) ? 1 : 0;

@@ -125,18 +125,19 @@ export function panOffset(
   dy: number,
   scale: number,
 ) {
-  const right = rotateByQuaternion(PAN_AXIS, q, 1, 0, 0);
+  const right = rotateByQuaternion(SCRATCH_AXIS, q, 1, 0, 0);
   out[0] = -right[0] * dx * scale;
   out[1] = -right[1] * dx * scale;
   out[2] = -right[2] * dx * scale;
-  const up = rotateByQuaternion(PAN_AXIS, q, 0, 1, 0);
+  const up = rotateByQuaternion(SCRATCH_AXIS, q, 0, 1, 0);
   out[0] += up[0] * dy * scale;
   out[1] += up[1] * dy * scale;
   out[2] += up[2] * dy * scale;
   return out;
 }
 
-const PAN_AXIS = new Float64Array(3);
+/** Scratch axis of the two helpers below; neither is reentrant. */
+const SCRATCH_AXIS = new Float64Array(3);
 
 /** Distance after `steps` notches of a wheel or a pinch; a notch is 5 % at speed one. */
 export function dollyDistance(distance: number, steps: number, speed: number) {
@@ -173,7 +174,7 @@ export function moveLocal(
   forward: number,
 ) {
   if (!right && !rise && !forward) return;
-  const moved = rotateByQuaternion(PAN_AXIS, q, right, rise, -forward);
+  const moved = rotateByQuaternion(SCRATCH_AXIS, q, right, rise, -forward);
   position[0] += moved[0];
   position[1] += moved[1];
   position[2] += moved[2];
