@@ -25,7 +25,7 @@ export function autonomousCacheReady(metadata: ClusterManifest) {
 type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, 'autonomous'>>;
 
 /** The paths of a session the host left to the engine: the WebGPU page raster where a device was
- *  granted, the engine's own autonomous WebGL2 path otherwise. The Three witnesses
+ *  granted, the engine's own WebGL2 page path otherwise. The Three witnesses
  *  (`referenceBackend`, `exactPagesBackend`, `threeLodBackend`) are never chosen on their own
  *  merit: a host that wants one, for a comparison view or the bench, names it in
  *  `options.backends`. A machine offering neither WebGPU nor WebGL2 fails by name. */
@@ -68,20 +68,26 @@ export function chooseBackends(
       reason: 'a WebGPU device was granted',
       renderer: 'webgpu-page-raster',
     });
-  if (webgl2 && autonomousCacheReady(metadata))
+  // The engine's own WebGL2 path draws on either cache; only the scene file differs. Where the
+  // compiler wrote a prepared scene the session reads nothing but the cache. Where it refused
+  // one — a single `clustered-blend` primitive is enough — the same path decodes the same
+  // geometry pages and takes its materials and placements from `source.gltf`: not autonomy, but
+  // an image. `NO_ENGINE_BACKEND` is left to the machine with neither API, as #297 asks.
+  if (webgl2) {
+    const prepared = autonomousCacheReady(metadata);
     return choice({
       factories: [autonomousPagesBackend],
-      autonomous: true,
+      autonomous: prepared,
       origin: 'default',
-      reason: 'no WebGPU device; the cache carries a prepared autonomous scene',
+      reason: prepared
+        ? 'no WebGPU device; the cache carries a prepared autonomous scene'
+        : 'no WebGPU device and no prepared autonomous scene; the same path reads source.gltf',
       renderer: 'autonomous-pages-webgl',
     });
-  // One refusal, two causes, and the message names the one that applies.
-  const cause = webgl2
-    ? 'WebGPU was refused and this cache carries no prepared scene for the autonomous WebGL2 path'
-    : 'this machine granted neither a WebGPU device nor a WebGL2 context';
+  }
   throw new EngineError(
     'NO_ENGINE_BACKEND',
-    `No engine path is available: ${cause}. Name a backend in options.backends to render anyway.`,
+    'No engine path is available: this machine granted neither a WebGPU device nor a WebGL2 ' +
+      'context. Name a backend in options.backends to render anyway.',
   );
 }

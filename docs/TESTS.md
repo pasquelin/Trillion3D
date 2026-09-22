@@ -102,6 +102,18 @@ pnpm run test:gpu                                  # run all
 node test/test-gpu.ts test/justesse/reflexion-cone.ts   # run single target
 ```
 
+#### Known failures of `test:gpu`, and where they were read
+
+`test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
+inherited rather than the ones it caused, and the baseline lives here so the next batch compares
+against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome
+headless, `WG_ASSETS` pointed at the shared `.mesure/assets/`, on `origin/develop` at
+`005b5c445` (2026-09-22): **52 pass, 7 fail** — `emeraude-webgpu`, `explorer-startup`, `materiaux-temoin`,
+`observatory`, `partition-gpu-conservatrice`, `rendu-clusters-webgl`, `shadow-camera-stop`. Seven,
+not the six an older note quoted. A batch that leaves exactly these seven failing has changed
+nothing here; one that adds an eighth owns it. Re-read the baseline on your own machine before
+leaning on it — the count is not portable, only the method is.
+
 ### Performance Benchmarks
 
 A benchmark measures a package computation against named cases and **compares it to an oracle**:

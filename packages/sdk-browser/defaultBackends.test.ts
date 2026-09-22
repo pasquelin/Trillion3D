@@ -45,21 +45,25 @@ test('a witness renders only because the host opted into it', () => {
   }
 });
 
-test('no engine path fails by name, and the message says which half is missing', () => {
-  assert.throws(
-    () => chooseBackends({}, cache('scene.gltf'), undefined, false),
-    (error: unknown) =>
-      error instanceof EngineError &&
-      error.code === 'NO_ENGINE_BACKEND' &&
-      /neither a WebGPU device nor a WebGL2/.test(error.message),
-  );
-  assert.throws(
-    () => chooseBackends({}, cache(null), undefined),
-    (error: unknown) =>
-      error instanceof EngineError &&
-      error.code === 'NO_ENGINE_BACKEND' &&
-      /no prepared scene/.test(error.message),
-  );
+test('a cache without a prepared scene still draws, through source.gltf', () => {
+  const choice = chooseBackends({}, cache(null), undefined);
+  assert.deepEqual(choice.factories, [autonomousPagesBackend]);
+  assert.equal(choice.renderer, 'autonomous-pages-webgl');
+  // The same path, reading the source scene: an image, not autonomy and not a refusal.
+  assert.equal(choice.autonomous, false);
+  assert.equal(choice.origin, 'default');
+  assert.match(choice.reason, /source\.gltf/);
+});
+
+test('no engine path fails by name only when the machine offers neither API', () => {
+  for (const scene of ['scene.gltf', null])
+    assert.throws(
+      () => chooseBackends({}, cache(scene), undefined, false),
+      (error: unknown) =>
+        error instanceof EngineError &&
+        error.code === 'NO_ENGINE_BACKEND' &&
+        /neither a WebGPU device nor a WebGL2/.test(error.message),
+    );
 });
 
 test('an explicit autonomous request still refuses a cache without a prepared scene', () => {

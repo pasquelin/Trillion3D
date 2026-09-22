@@ -367,18 +367,22 @@ machine offers, and is reported by the `backend-choice` diagnostic: `origin` (`d
 `host`), `renderer` (the backend id that draws), `autonomous` (true when the session reads the
 cache's prepared scene rather than `source.gltf`) and the `reason` that decided it.
 
-| Machine                     | Backend that renders     | Scene file read           |
-| --------------------------- | ------------------------ | ------------------------- |
-| A WebGPU device was granted | `webgpu-page-raster`     | `source.gltf`             |
-| WebGL2 only                 | `autonomous-pages-webgl` | `metadata.autonomousScene` |
+| Machine                     | Backend that renders     | Scene file read            |
+| --------------------------- | ------------------------ | -------------------------- |
+| A WebGPU device was granted | `webgpu-page-raster`     | `source.gltf`              |
+| WebGL2, cache with a prepared scene | `autonomous-pages-webgl` | `metadata.autonomousScene` |
+| WebGL2, cache without one   | `autonomous-pages-webgl` | `source.gltf`              |
 | Neither WebGPU nor WebGL2   | none — `EngineError('NO_ENGINE_BACKEND')`, and `EngineError('NO_WEBGL2')` from the capability probe before it | — |
 
-Since #297 the WebGL2-only row ends in an image: `autonomous-pages-webgl` decodes the cache's
+Since #297 both WebGL2 rows end in an image: `autonomous-pages-webgl` decodes the cache's
 geometry pages itself, draws every page the cut selects — `submittedTriangles` equals
 `selectedTriangles` on the frame — and lights the scene from the cache's light table, radiometric
-as `lights.json` records it. A WebGL2-only machine that carries no prepared autonomous scene has
-no engine path left and fails by name with `NO_ENGINE_BACKEND`, whose message says which half is
-missing. No witness is mounted in either row: `explorer.backends` holds the chosen path alone.
+as `lights.json` records it. The compiler writes a prepared scene only when every primitive is
+`exact-clusters`; a cache holding a `clustered-blend` primitive carries none, and the same path
+then takes its materials and placements from `source.gltf` — `autonomous: false` in
+`backend-choice`, an image rather than a refusal. `NO_ENGINE_BACKEND` is left to the machine that
+granted neither API. No witness is mounted in any row: `explorer.backends` holds the chosen path
+alone.
 
 `referenceBackend`, `exactPagesBackend` and `threeLodBackend` are the Three witnesses of the
 comparison views and the bench: they are opt-in through `options.backends`, and the engine never
