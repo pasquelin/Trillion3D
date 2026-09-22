@@ -71,8 +71,7 @@ export function bindClusterMaterial(
       unit === 3 ? [128, 128, 255, 255] : undefined,
     );
     if (!texture || (sharedMetalRough && unit === 2)) continue;
-    if (texture?.matrixAutoUpdate) texture.updateMatrix();
-    matrices.set(MAP_UNIFORMS[unit], texture?.matrix.elements ?? IDENTITY_MATRIX3);
+    matrices.set(MAP_UNIFORMS[unit], (texture.transform as number[]) ?? IDENTITY_MATRIX3);
   }
   uniforms.i1(23, 'mapMask', mapMask);
   uniforms.i1(24, 'sharedMetalRough', sharedMetalRough ? 1 : 0);

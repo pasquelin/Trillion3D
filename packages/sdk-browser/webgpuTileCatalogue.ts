@@ -1,4 +1,4 @@
-import type { HostTexture } from './hostResources.ts';
+import type { Texture } from '../sdk-core/index.ts';
 import { previewIsWhole, type TexturePreview } from '../sdk-core/index.ts';
 import { WHITE_TAIL, type PoolEncoding } from './textureBlockFormats.ts';
 import { textureRgba } from './visibilityBuffer.ts';
@@ -16,7 +16,7 @@ import type { TileTexture } from './webgpuTileAtlas.ts';
  * one a host image can fill. Slot 0 is a white texel, what a material without a map reads.
  */
 export function tileCatalogue(
-  maps: readonly HostTexture[],
+  maps: readonly Texture[],
   previewFor: (index: number) => TexturePreview | undefined,
   readLevel: TextureLevelReader | undefined,
   encoding: PoolEncoding,

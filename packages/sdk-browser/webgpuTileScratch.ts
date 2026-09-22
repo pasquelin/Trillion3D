@@ -1,4 +1,4 @@
-import type { HostTexture } from './hostResources.ts';
+import type { Texture } from '../sdk-core/index.ts';
 import type { TextureRgba } from './visibilityTypes.ts';
 import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
 import { writeRgba } from './webgpuTileWrite.ts';
@@ -19,7 +19,7 @@ export type TileScratch = { texture: GPUTexture; destroy(): void };
 export function createTileScratch(
   device: GPUDevice,
   options: {
-    map: HostTexture;
+    map: Texture;
     rgba: TextureRgba | null;
     width: number;
     height: number;

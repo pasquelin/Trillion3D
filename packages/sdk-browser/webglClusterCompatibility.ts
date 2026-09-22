@@ -1,8 +1,9 @@
 import type { BatchPage } from './clusterBatches.ts';
-import { clusterMaterialReason, isTransmissive } from './visibilityMaterial.ts';
+import { clusterMaterialReason } from './hostSurfaceGate.ts';
+import { isTransmissive } from './visibilityMaterial.ts';
 import { unsupportedClusterLight, type WebglClusterScene } from './webglClusterLights.ts';
 import { backdropFormatReason } from './webglClusterBackdrop.ts';
-export { clusterMaterialReason } from './visibilityMaterial.ts';
+export { clusterMaterialReason } from './hostSurfaceGate.ts';
 
 type SceneCopy = {
   material: BatchPage['material'];
