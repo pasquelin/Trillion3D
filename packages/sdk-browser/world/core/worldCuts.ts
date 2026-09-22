@@ -86,7 +86,11 @@ export function createWorldCuts() {
     // A content read again after its resource was released packs its triangles again.
     pending = cutRuntimePrimitive(packed ?? packDrawn(drawn)).then(
       (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
-      () => null,
+      // A failed cut leaves no trace: the next mesh with this content tries again.
+      () => {
+        if (byKey.get(key) === pending) byKey.delete(key);
+        return null;
+      },
     );
     byKey.set(key, pending);
     return pending;

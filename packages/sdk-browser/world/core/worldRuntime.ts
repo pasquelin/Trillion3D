@@ -90,7 +90,7 @@ export function createWorldRuntime(inputs: Inputs) {
         const scope = built.source.metadata.scope;
         explorer = await openMeasuredWorld(canvas, { ...inputs.options(), scope }, built.source);
       } catch (error) {
-        inputs.failed(error);
+        if (!disposed) inputs.failed(error); // cut short by disposal, it failed nothing
         continue;
       }
       if (disposed) explorer.dispose();

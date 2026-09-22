@@ -1,30 +1,32 @@
 import { LTC_SIZE, ltcTable } from '../sdk-core/ltcTable.ts';
 import { LTC_UNIT, WEBGL_RECT_KIND } from './webglClusterRectGlsl.ts';
+import { WebglClusterProbe, type ProbeLight } from './webglClusterProbe.ts';
 
 type MatrixNode = {
   visible: boolean;
   parent: MatrixNode | null;
   matrixWorld: { elements: ArrayLike<number> };
 };
-type ClusterLight = MatrixNode & {
-  isLight?: boolean;
-  isAmbientLight?: boolean;
-  isDirectionalLight?: boolean;
-  isPointLight?: boolean;
-  isSpotLight?: boolean;
-  isRectAreaLight?: boolean;
-  /** A rectangle's size along its local x and y. */
-  width?: number;
-  height?: number;
-  type: string;
-  color: { r: number; g: number; b: number };
-  intensity: number;
-  distance?: number;
-  decay?: number;
-  angle?: number;
-  penumbra?: number;
-  target?: MatrixNode;
-};
+type ClusterLight = MatrixNode &
+  Partial<ProbeLight> & {
+    isLight?: boolean;
+    isAmbientLight?: boolean;
+    isDirectionalLight?: boolean;
+    isPointLight?: boolean;
+    isSpotLight?: boolean;
+    isRectAreaLight?: boolean;
+    /** A rectangle's size along its local x and y. */
+    width?: number;
+    height?: number;
+    type: string;
+    color: { r: number; g: number; b: number };
+    intensity: number;
+    distance?: number;
+    decay?: number;
+    angle?: number;
+    penumbra?: number;
+    target?: MatrixNode;
+  };
 /** A host scene background read by shape: a colour, in linear components, or anything else. */
 export type SceneColour = { isColor?: boolean; r: number; g: number; b: number } | null | undefined;
 export type WebglClusterScene = {
@@ -44,7 +46,8 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
   let count = 0;
   scene.traverse((entry) => {
     const light = entry as ClusterLight;
-    if (!light.isLight || !visibleThroughParents(light)) return;
+    // A probe takes no light slot: its coefficients add into the program's irradiance.
+    if (!light.isLight || light.isLightProbe || !visibleThroughParents(light)) return;
     count++;
     if (
       !light.isAmbientLight &&
@@ -89,6 +92,7 @@ export class WebglClusterLights {
   private data = new Float32Array(4 * 4 * 64);
   private buffer: WebGLBuffer;
   private ltc: WebGLTexture;
+  private probe: WebglClusterProbe;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
@@ -97,6 +101,7 @@ export class WebglClusterLights {
     gl.bufferData(gl.UNIFORM_BUFFER, this.data.byteLength, gl.DYNAMIC_DRAW);
     gl.uniformBlockBinding(program, gl.getUniformBlockIndex(program, 'ClusterLights'), 0);
     this.ltc = createLtcTexture(gl);
+    this.probe = new WebglClusterProbe(gl, program);
   }
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;
@@ -120,9 +125,11 @@ export class WebglClusterLights {
     /** Column `c` of a world matrix, unit, carried into view space and scaled by `s`. */
     const axis = (at: number, m: ArrayLike<number>, c: number, s: number, w: number) =>
       toView(at, m[c], m[c + 1], m[c + 2], s / (Math.hypot(m[c], m[c + 1], m[c + 2]) || 1), w);
+    this.probe.reset();
     scene.traverse((entry) => {
       const light = entry as ClusterLight;
       if (!light.isLight || !visibleThroughParents(light)) return;
+      if (light.isLightProbe) return this.probe.add(light as ClusterLight & ProbeLight);
       let kind = 3,
         range = 0,
         inner = 1,
@@ -175,6 +182,7 @@ export class WebglClusterLights {
       toView(base + 4, dx, dy, dz, 1, kind);
       write(base + 12, inner, outer, 0, 0);
     });
+    this.probe.upload(view);
     const gl = this.gl;
     // The host's texture units are unknown at frame start: the lobe is bound again every frame.
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);

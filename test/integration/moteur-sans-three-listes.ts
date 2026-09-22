@@ -61,6 +61,8 @@ export const AUTORISES: Record<string, string> = {
     'boundary: the host colours, lights and nodes an engine drawn by the host renderer hangs on its display graph',
   exactPagesContractLights:
     'boundary: the contract lights of an image the host renderer draws, mapped to host lights',
+  exactPagesLightWrite:
+    'boundary: one contract light built and written as its host light, split from the file above',
   exactPagesUnlitAlbedo:
     'boundary: the unlit view of that image zeros the host material factors for the frame',
   threeBounds: 'boundary: bounds written back into a host geometry, as the library computes them',

@@ -40,13 +40,24 @@ export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number
   into.orthographic = box;
   (into as { isOrthographicCamera?: boolean }).isOrthographicCamera = !!box;
   into.updateProjectionMatrix();
-  if (box) hostOrthographic(into.projectionMatrix.elements as number[], box, camera);
+  if (box)
+    hostOrthographic(
+      into.projectionMatrix.elements as number[],
+      into.projectionMatrixInverse?.elements as number[] | undefined,
+      box,
+      camera,
+    );
   into.updateMatrixWorld();
 }
 
 /** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of
- *  the box a camera sees, scaled by its zoom about the box centre. */
-function hostOrthographic(out: number[], box: OrthographicBox, camera: Camera) {
+ *  the box a camera sees, scaled by its zoom about the box centre, and its inverse. */
+function hostOrthographic(
+  out: number[],
+  inverse: number[] | undefined,
+  box: OrthographicBox,
+  camera: Camera,
+) {
   const x = (box.right + box.left) / 2,
     y = (box.top + box.bottom) / 2,
     w = (box.right - box.left) / 2 / camera.zoom,
@@ -60,6 +71,15 @@ function hostOrthographic(out: number[], box: OrthographicBox, camera: Camera) {
   out[13] = -y / h;
   out[14] = -(camera.far + camera.near) / depth;
   out[15] = 1;
+  if (!inverse) return;
+  inverse.fill(0);
+  inverse[0] = w;
+  inverse[5] = h;
+  inverse[10] = -depth / 2;
+  inverse[12] = x;
+  inverse[13] = y;
+  inverse[14] = -(camera.far + camera.near) / 2;
+  inverse[15] = 1;
 }
 
 /**

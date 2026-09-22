@@ -150,7 +150,8 @@ export async function cutPagesOffThread(packed: ArrayBuffer): Promise<PageCutPay
   // A cut is never urgent: it waits for the pool's startup check rather than take the main thread.
   if (!openPool() && started === undefined) await starting;
   const open = openPool();
-  let answer = open ? await open.submit('cut', packed, 0).answer : undefined;
+  // The worker receives a copy: a vanished worker leaves the original for the main thread.
+  let answer = open ? await open.submit('cut', packed.slice(0), 0).answer : undefined;
   if (!answer || (!answer.ok && answer.code === 'PAGE_DECODE_WORKER'))
     answer = (
       await runPageDecodeTask({

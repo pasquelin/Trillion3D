@@ -88,10 +88,15 @@ fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:v
  if(incident.w<=0.0){return vec3f(0.0);}
  let E=light.colorIntensity.w*incident.w;
  let tint=light.colorIntensity.rgb;
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){
-  return modelLight(rgb,metal,N,incident.xyz,E/max(dot(N,incident.xyz),1e-4),ao)*tint;
- }
  let r=rectView(light,P);
+ // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
+ if(surfaceModel==${MODEL_FLAG.diffuse}u){return modelLight(rgb,metal,N,N,E,ao)*tint;}
+ // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it,
+ // π|F|: bounded by π, as a lamp's energy is by its falloff.
+ if(surfaceModel==${MODEL_FLAG.toon}u){
+  let facing=light.colorIntensity.w*${PI}*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
+  return modelLight(rgb,metal,N,incident.xyz,facing,ao)*tint;
+ }
  let NdotV=clamp(dot(N,V),1e-4,1.0);
  let side=V-N*dot(N,V);
  let other=cross(N,select(vec3f(1.0,0.0,0.0),vec3f(0.0,1.0,0.0),abs(N.x)>0.9));

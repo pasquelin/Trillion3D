@@ -1,5 +1,5 @@
-import { GeometryBuilder, fromArrays, normalize, turnPoint } from './builder.ts';
-import { sphereArrays } from './sphere.ts';
+import { GeometryBuilder, fromArrays, normalize } from './builder.ts';
+import { sphereArrays, turnPoint } from './sphere.ts';
 
 type V3 = [number, number, number];
 const TAU = Math.PI * 2;

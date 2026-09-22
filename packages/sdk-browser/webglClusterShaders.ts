@@ -1,6 +1,7 @@
 import { TRANSMISSION_GLSL } from './webglClusterTransmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from './webglOutputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './webglClusterRectGlsl.ts';
+import { PROBE_IRRADIANCE_GLSL } from './webglClusterProbe.ts';
 import { PI } from './shaderConstants.ts';
 
 export const CLUSTER_VERTEX = `#version 300 es
@@ -44,8 +45,9 @@ float attenuation(float distance,float range){return 1.0/max(distance*distance,0
 float spotFactor(float cosine,float inner,float outer){return inner<=outer?(cosine>=outer?1.0:0.0):smoothstep(outer,inner,cosine);}
 ${OUTPUT_TRANSFER_GLSL}
 ${RECT_LIGHT_GLSL}
-// The declared lights on one surface: the engine's only lighting formula, ambient included.
-vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 rgb=vec3(0.0);for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
+${PROBE_IRRADIANCE_GLSL}
+// The declared lights on one surface: the engine's only lighting formula, ambient and probe included.
+vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 rgb=base*(1.0-metal)/PI*probeIrradiance(N)*ao;for(int i=0;i<MAX_LIGHTS;i++){if(i>=lightCount)break;
 vec4 positionRange=lightData[i*4],directionKind=lightData[i*4+1],colorIntensity=lightData[i*4+2],cone=lightData[i*4+3];
 int kind=int(directionKind.w);if(kind==3){rgb+=base*(1.0-metal)/PI*colorIntensity.rgb*colorIntensity.w*ao;continue;}
 if(kind==${WEBGL_RECT_KIND}){rgb+=rectLight(positionRange,directionKind.xyz,cone,colorIntensity,N,V,viewPosition,base,metal,rough);continue;}

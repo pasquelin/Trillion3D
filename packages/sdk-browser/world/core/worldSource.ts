@@ -57,9 +57,10 @@ export type WorldPlan = {
 /**
  * The scene a world's session opens on: one manifest merging the loaded models' (their page
  * addresses made absolute, their mesh ranks moved past each other's) and one primitive per
- * geometry resource, and the host graph that places them (`buildWorldMirror`). The first model
- * lends the session its base — its baked texture levels, its resident proxy, its declared
- * lights. Null when nothing is drawn.
+ * geometry resource, and the host graph that places them (`buildWorldMirror`). One model lends
+ * the session its base — its baked texture levels, its resident proxy, its declared lights: the
+ * one whose images were left to the cache, which only that base serves; else the first. Null
+ * when nothing is drawn.
  */
 export function buildWorldSource(plan: WorldPlan) {
   const { batches, models } = plan;
@@ -96,7 +97,8 @@ export function buildWorldSource(plan: WorldPlan) {
     rankOf,
   });
   for (const [twin, link] of mirror.associations) associations.set(twin, link);
-  const first = models[0]?.record;
+  const first = (models.find((model) => model.record.textureSource === 'cache') ?? models[0])
+    ?.record;
   const triangles = primitives.reduce(
     (sum, p) => sum + p.pages.reduce((t, page) => t + page.count / 3, 0),
     0,

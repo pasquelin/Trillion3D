@@ -188,3 +188,9 @@ test('changing a light type replaces its Three object, leaving no second one', (
   assert.equal(lights.length, 1);
   assert.ok((lights[0] as THREE.SpotLight).isSpotLight);
 });
+
+test('a visible host light probe is read by the cluster renderer, never refused', () => {
+  const probe = new THREE.LightProbe();
+  probe.sh.coefficients[0].set(1, 1, 1);
+  assert.equal(unsupportedClusterLight(harness([probe]).scene), undefined);
+});

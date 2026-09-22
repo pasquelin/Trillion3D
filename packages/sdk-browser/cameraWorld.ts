@@ -100,6 +100,8 @@ export type HostCamera = {
   /** Projection in the HOST's depth convention, finite far plane included. The engine composes
    *  its own (`engineCamera.ts`) and reads this one only for a draw the host renderer owns. */
   readonly projectionMatrix: MatrixElements;
+  /** Its inverse, which the host renderer keeps beside it and hands its own shaders. */
+  readonly projectionMatrixInverse?: MatrixElements;
   updateWorldMatrix(ancestors: boolean, descendants: boolean): void;
   updateMatrixWorld(force?: boolean): void;
   updateProjectionMatrix(): void;
