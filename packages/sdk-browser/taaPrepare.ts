@@ -44,7 +44,7 @@ export function ensureTaaTargets(rt: WebgpuPagesRuntime, width: number, height: 
   const temporal = rt.gpu.temporal;
   if (!temporal) return 0;
   // Under a capture, the capture's reserve already carries history: it is not counted twice.
-  if (rt.capture.secondaryCamera) return 0;
+  if (rt.capture.capturing) return 0;
   if (temporal.resize(width, height)) dropTaaHistory(rt);
   return width * height * TAA_HISTORY_BYTES_PER_PIXEL;
 }

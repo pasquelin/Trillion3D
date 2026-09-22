@@ -1,5 +1,4 @@
-import type * as THREE from 'three';
-import { asHostLibrary, type HostNode } from './hostResources.ts';
+import type { HostBoundedNode, HostGraphNode } from './hostGraphNodes.ts';
 import { BOX_VALUES, boxEmpty } from '../sdk-core/index.ts';
 import { boxUnionCollector } from './mathBatchBoxes.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
@@ -25,19 +24,12 @@ export function emptyWorldBox() {
   return box;
 }
 
-/** Host object as the bounds rule reads it: a geometry, sometimes its own box. */
-type Bounded = THREE.Object3D & {
-  geometry?: THREE.BufferGeometry;
-  boundingBox?: THREE.Box3 | null;
-  computeBoundingBox?: () => void;
-};
-
 /**
  * LOCAL box that `object` carries, or `undefined` if it has none. As in the reference, the
  * object's box wins over that of its geometry, and a missing box is computed on demand — it is
  * a derivative of the vertices the host owns, not a transform.
  */
-function localBoxOf(object: Bounded) {
+function localBoxOf(object: HostBoundedNode) {
   if (object.boundingBox !== undefined) {
     if (object.boundingBox === null) object.computeBoundingBox?.();
     return object.boundingBox ?? undefined;
@@ -49,16 +41,16 @@ function localBoxOf(object: Bounded) {
 }
 
 /** Bounded objects of the subtree: the EXACT size the box lot must carry. */
-function bornes(source: THREE.Object3D) {
+function bornes(source: HostGraphNode) {
   let n = 0;
   source.traverse((object) => {
-    if (localBoxOf(object as Bounded)) n++;
+    if (localBoxOf(object as HostBoundedNode)) n++;
   });
   return n;
 }
 
 /** Lot that carries this subtree's boxes, or `null` when it has none. */
-export async function hostBoundsLot(source: THREE.Object3D) {
+export async function hostBoundsLot(source: HostGraphNode) {
   const n = bornes(source);
   return n ? await createBoxTransformLot(n) : null;
 }
@@ -71,16 +63,15 @@ export async function hostBoundsLot(source: THREE.Object3D) {
  * goes alone, by the same `boxTransform` and on the same inputs.
  */
 export function hostWorldBounds(
-  source: HostNode,
+  source: HostGraphNode,
   into = emptyWorldBox(),
   lot?: BoxTransformLot | null,
   worlds?: HierarchyLot | null,
 ) {
   const mondes = hostWorldTree(source, worlds);
-  const racine = asHostLibrary<THREE.Object3D>(source);
-  const union = boxUnionCollector(into, lot, bornes(racine));
-  racine.traverse((object) => {
-    const box = localBoxOf(object as Bounded);
+  const union = boxUnionCollector(into, lot, bornes(source));
+  source.traverse((object) => {
+    const box = localBoxOf(object as HostBoundedNode);
     if (!box) return;
     const out = union.boxes,
       at = union.at;

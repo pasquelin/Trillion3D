@@ -24,7 +24,10 @@ test('1/4/9/12 replicas share assets, preserve associations and extend real boun
       assert.equal(copy.material, material);
       assert.deepEqual(associations.get(copy), { meshes: 7, primitives: 0 });
     }
-    const size = new THREE.Box3().setFromObject(grid).getSize(new THREE.Vector3()),
+    // The host holds the group it handed over: the engine gave back a node of its own graph.
+    const size = new THREE.Box3()
+        .setFromObject(grid as unknown as THREE.Object3D)
+        .getSize(new THREE.Vector3()),
       columns = count === 12 ? 4 : Math.sqrt(count),
       rows = count === 12 ? 3 : Math.sqrt(count);
     assert.equal(size.x, 2 * columns);

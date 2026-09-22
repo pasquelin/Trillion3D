@@ -117,8 +117,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   // pose is redrawn with it before any read: a drained pose is a lit pose.
   if (gpu.deferred && wantsContractLighting(rt) && !gpu.deferred.usesContract) {
     await gpu.deferred.settle();
-    if (run.lastCamera && !capture.secondaryCamera && !run.lost)
-      renderWebgpuPages(rt, run.lastCamera);
+    if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera);
   }
   // Texture tiles are part of preparing a pose, not of a per-image decoration: a surface read at
   // a coarse level will change when its tile arrives. `render` only admits a byte budget per
@@ -152,7 +151,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   if (
     gpuDevice &&
     gpu.colorTexture &&
-    !capture.secondaryCamera &&
+    !capture.capturing &&
     run.imageRevision > 0 &&
     capture.capturedRevision !== run.imageRevision
   )

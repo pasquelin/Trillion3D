@@ -45,7 +45,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       view.near = pose.near;
       view.far = pose.far;
       view.aspect = size.width / size.height;
-      view.lookAt(pose.target[0], pose.target[1], pose.target[2]);
+      view.lookAt({ x: pose.target[0], y: pose.target[1], z: pose.target[2] });
       view.updateProjectionMatrix();
       view.updateMatrixWorld();
       setCapturingSurface(true);

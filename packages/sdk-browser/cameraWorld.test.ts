@@ -51,7 +51,7 @@ function threeReference(camera: HostCamera) {
   const { fov, aspect, near, zoom } = camera;
   const flat = new THREE.PerspectiveCamera(fov, aspect, near, camera.far);
   flat.matrixAutoUpdate = false;
-  flat.matrix.copy(camera.matrixWorld);
+  flat.matrix.fromArray(camera.matrixWorld.elements);
   flat.matrixWorld.copy(flat.matrix);
   const projection = perspectiveProjection(new Float64Array(16), fov, aspect, near, zoom);
   flat.projectionMatrix.fromArray([...projection]);
@@ -69,7 +69,7 @@ function threeReference(camera: HostCamera) {
     v[14] + camera.far,
   ).normalize();
   planes.set([loin.normal.x, loin.normal.y, loin.normal.z, loin.constant], 16);
-  const eye = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
+  const eye = new THREE.Vector3().fromArray(camera.matrixWorld.elements, 12);
   return { view: flat.matrixWorldInverse, viewProjection, planes, projection, eye };
 }
 

@@ -34,6 +34,7 @@ const M4A = [
   'explorerScene',
   'explorerSceneApi',
   'explorerViewportApi',
+  'hostGraphObjects',
   'hostSceneHookCore',
   'hostSceneHooks',
   'hostSceneScan',
@@ -84,15 +85,15 @@ const FRONTIERE: Record<string, Record<string, string>> = {
       'the scene belongs to the host: it stays up to date FOR IT, and the engine no longer reads it',
   },
   'explorerCamera.ts': {
-    'const bounds = new THREE.Box3(':
+    'camera.updateMatrixWorld();': 'the host SETS its camera; the written pose is resolved once',
+  },
+  'hostGraphObjects.ts': {
+    'new THREE.Box3(':
       '`explorer.bounds` is returned to the host: the bench computes its trajectory from it',
     'new THREE.Vector3(flat[0], flat[1], flat[2]),': 'low bound of this box returned to the host',
     'new THREE.Vector3(flat[3], flat[4], flat[5]),': 'high bound of this box returned to the host',
-    'const center = new THREE.Vector3(framingSphere[0], framingSphere[1], framingSphere[2]);':
-      '`explorer.center` is returned to the host, and its controls want a target',
-    'const homeOffset = new THREE.Vector3().fromArray(framing.offset);':
-      'home-pose offset, which `resetHome` rewrites into the host camera',
-    'camera.updateMatrixWorld();': 'the host SETS its camera; the written pose is resolved once',
+    'new THREE.Vector3(x, y, z);':
+      '`explorer.center` and the home offset, returned to the host whose controls aim at them',
   },
   'explorerCameraApi.ts': {
     'camera.updateMatrixWorld();': 'return to the home pose: the host camera, reset',

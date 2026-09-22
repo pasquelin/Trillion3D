@@ -1,4 +1,4 @@
-import type { HostNode } from './hostResources.ts';
+import type { HostGraphNode } from './hostGraphNodes.ts';
 import {
   bumpResources,
   bumpScene,
@@ -102,7 +102,7 @@ export function createFrameGateCore(holdValues: number) {
      * instance, a light set after the fact, a node reparented or a light retargeted by the host
      * — never per frame, and never after a pose write, which changes no node's membership.
      */
-    readScene(source: HostNode, drawn: FrameGateSources) {
+    readScene(source: HostGraphNode, drawn: FrameGateSources) {
       const observe = () =>
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
       if (watchRevision !== revisions.scene) observe();
@@ -148,10 +148,12 @@ export function createFrameGateCore(holdValues: number) {
       camera: HostCamera,
       motion: CameraMotion,
       viewport: readonly [number, number] | undefined,
-      source: HostNode,
+      source: HostGraphNode,
       drawn: FrameGateSources,
+      /** Aspect ratio the image is drawn at, when a second view renders aside at its own. */
+      aspect?: number,
     ) {
-      readCameraWorld(cam, camera);
+      readCameraWorld(cam, camera, aspect ?? camera.aspect);
       pixelError = resolvePixelError(context, cam, motion);
       gate.viewChanged(cam, viewport, pixelError);
       gate.readScene(source, drawn);

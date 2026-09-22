@@ -108,7 +108,7 @@ test('a diagnostic view, or a capture from a second camera, keeps the pass out o
   rt.run.diagnostic = 'wireframe';
   assert.equal(encodeWaterPass(rt, encoder), false, 'the slice draws as a coloured blend');
   rt.run.diagnostic = 'beauty';
-  rt.capture.secondaryCamera = {} as never;
+  rt.capture.capturing = true;
   assert.equal(encodeWaterPass(rt, encoder), false, 'the capture reads the surfaces as opaque');
   assert.equal(counters.copies, 0, 'the backdrop is not even frozen');
 });

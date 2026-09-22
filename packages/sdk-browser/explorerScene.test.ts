@@ -80,8 +80,8 @@ test('exactPagesBounds yields the same box as the reference, a « coarse » page
   ]);
   const manques: THREE.Mesh[] = [],
     manquesRef: THREE.Mesh[] = [];
-  const obtenu = exactPagesBounds(source, associations, metadata, (m: THREE.Mesh) =>
-    manques.push(m),
+  const obtenu = exactPagesBounds(source, associations, metadata, (m) =>
+    manques.push(m as unknown as THREE.Mesh),
   );
   const attendu = referenceExactPagesBounds(source, associations, metadata, (m: THREE.Mesh) =>
     manquesRef.push(m),
