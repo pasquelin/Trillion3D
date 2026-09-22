@@ -21,6 +21,14 @@ impl Xorshift {
     pub(crate) fn coordinate(&mut self) -> f32 {
         (self.next() % 1_048_576) as f32 / 1024.0 - 512.0
     }
+    /// A float in `[0, 1)`, from the top 24 bits.
+    pub(crate) fn unit(&mut self) -> f32 {
+        (self.next() >> 40) as f32 / (1u64 << 24) as f32
+    }
+    /// An integer in `[low, high]`.
+    pub(crate) fn between(&mut self, low: usize, high: usize) -> usize {
+        low + self.below(high - low + 1)
+    }
 }
 
 /// Triangle soup: one vertex in two is exact duplicate, 1 in 512 degenerate.

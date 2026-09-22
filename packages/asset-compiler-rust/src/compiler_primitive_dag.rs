@@ -49,14 +49,15 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
-    attributes: &[geometry_page::Attribute],
+    carried: &[&geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
     store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
-    // Every texture set the primitive carries: the fallback DAG weld crosses no seam of any of them.
-    let uv_sets: Vec<&[f32]> = attributes
+    // Every texture set the pages carry, and only those: the fallback DAG weld crosses no seam a
+    // material samples, and a set no material reads never stalls a group.
+    let uv_sets: Vec<&[f32]> = carried
         .iter()
         .filter(|a| a.flag == geometry_page::FLAG_UV || a.flag == geometry_page::FLAG_UV1)
         .map(|a| &a.values[..])

@@ -1,5 +1,4 @@
 //! Closed and curved surfaces of the corpus: what a sphere and a torus hand the DAG.
-use super::shapes::grid_indices;
 use super::*;
 
 /// A latitude–longitude sphere of radius `radius`: `segments + 1` columns so the seam column

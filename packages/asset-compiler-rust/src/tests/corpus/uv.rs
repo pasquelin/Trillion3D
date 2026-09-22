@@ -4,7 +4,7 @@ use super::*;
 
 /// The whole sheet under one chart.
 fn one_island(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, NX, NY, amplitude);
     let uv = (0..sheet.positions.len() / 3)
@@ -27,7 +27,7 @@ fn one_island(seed: u64) -> Case {
 /// advanced once its locks were lifted; why is not explained here. The corpus accepts both causes,
 /// no other.
 fn island_per_face(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, NX, NY, amplitude);
     let triangles = sheet.indices.len() / 3;
@@ -54,7 +54,7 @@ fn island_per_face(seed: u64) -> Case {
 /// One chart per brick: every vertex is a seam corner, nothing shares a texture coordinate. Only
 /// welding the seams frees the groups: `seam-locked`.
 fn island_per_brick(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let bricks = Exploded::new(&mut rng, NX, NY, amplitude);
     let uv = (0..bricks.positions.len() / 3)
@@ -70,7 +70,7 @@ fn island_per_brick(seed: u64) -> Case {
 
 /// The sheet cut into square patches, each a tiny island of an atlas.
 fn atlas_of_islands(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let patch = rng.between(2, 5);
     let amplitude = amplitude(&mut rng);
     let bands = Banded::new(&mut rng, NX, NY, amplitude, patch);
@@ -94,7 +94,7 @@ fn atlas_of_islands(seed: u64) -> Case {
 
 /// Two halves mapped as mirror images: the UV determinant flips sign across the middle column.
 fn mirrored_halves(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let bands = Banded::new(&mut rng, NX, NY, amplitude, NX / 2);
     let uv = (0..bands.x.len())
@@ -113,7 +113,7 @@ fn mirrored_halves(seed: u64) -> Case {
 
 /// One chart repeated several times across the sheet: coordinates beyond `[0, 1]`, wrapped.
 fn tiled_beyond_unit(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let repeats = rng.between(2, 8) as f32;
     let amplitude = amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, NX, NY, amplitude);
@@ -135,7 +135,7 @@ fn tiled_beyond_unit(seed: u64) -> Case {
 /// weld that respects it merges nothing and the groups stall — a property of the layout, not a
 /// defect: coarsening it would draw a brick with its neighbour's second texture. `seam-locked`.
 fn second_set_with_own_seams(seed: u64) -> Case {
-    let mut rng = Rng::new(seed);
+    let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let bricks = Exploded::new(&mut rng, NX, NY, amplitude);
     let (mut uv0, mut uv1, mut normals) = (Vec::new(), Vec::new(), Vec::new());
@@ -157,6 +157,16 @@ fn second_set_with_own_seams(seed: u64) -> Case {
     case
 }
 
+/// The same bricks, with the second set a lightmap no material samples: its seams are drawn by
+/// nobody, so the weld ignores them, the continuous first set lets the bricks merge, and the DAG
+/// is the one the mesh builds without that set.
+pub(super) fn second_set_unread(seed: u64) -> Case {
+    let mut case = second_set_with_own_seams(seed);
+    case.name = "uv-second-set-unread";
+    case.sampled = [true, false];
+    case
+}
+
 pub(super) fn cases() -> Vec<(Generator, Expect)> {
     vec![
         (one_island as Generator, Expect::ONE_ROOT),
@@ -169,5 +179,6 @@ pub(super) fn cases() -> Vec<(Generator, Expect)> {
         (mirrored_halves, Expect::ONE_ROOT),
         (tiled_beyond_unit, Expect::ONE_ROOT),
         (second_set_with_own_seams, Expect::stalled(&["seam-locked"])),
+        (second_set_unread, Expect::ONE_ROOT),
     ]
 }
