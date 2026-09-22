@@ -1,4 +1,6 @@
 import type * as THREE from 'three';
+import { asHostLibrary } from './hostResources.ts';
+import type { HostNode } from './hostResources.ts';
 import {
   EngineError,
   HIERARCHY_ROOT,
@@ -127,8 +129,8 @@ function composent(nodes: readonly THREE.Object3D[]) {
  * World-matrix index of `source`, recomputed a first time before it is returned. `lot` is the
  * hierarchy buffer reserved for this subtree; without it, the pass is that of the tree.
  */
-export function hostWorldTree(source: THREE.Object3D, lot?: HierarchyLot | null): HostWorldTree {
-  const { nodes, index, parents } = collect(source);
+export function hostWorldTree(source: HostNode, lot?: HierarchyLot | null): HostWorldTree {
+  const { nodes, index, parents } = collect(asHostLibrary<THREE.Object3D>(source));
   const enLot = lot?.holds(nodes.length) ? lot : null;
   let tree: TransformTree | null = null,
     batched = false,

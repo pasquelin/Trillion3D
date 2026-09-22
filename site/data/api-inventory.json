@@ -43,6 +43,17 @@
       "bindingIdentity": "\"packages/sdk-core/mathTransformTree\".addTransformNode"
     },
     {
+      "name": "AlphaMode",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/materialContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/materialContract\".AlphaMode"
+    },
+    {
       "name": "AnthropicToolDefinition",
       "kind": "type",
       "definingModule": "packages/sdk-core/llm/types.ts",
@@ -248,6 +259,7 @@
         "scripts/mesure/pageMesure.ts",
         "test/appui/antialiasingTemporelPage.ts",
         "test/appui/coupeGpuTenuePage.ts",
+        "test/appui/defaultBackendCase.ts",
         "test/appui/hizDeuxPassesPage.ts",
         "test/appui/hizRigPage.ts",
         "test/appui/materialPixelsPage.ts",
@@ -1958,6 +1970,7 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/autonomousGeometry.ts",
         "packages/sdk-browser/bench/oracles/collecte-pages.ts",
         "packages/sdk-browser/cacheFormat.test.ts",
         "packages/sdk-browser/clusterBatches.ts",
@@ -2084,6 +2097,7 @@
       "classification": "public",
       "affectedConsumers": [
         "scripts/mesure/pageExplorateur.ts",
+        "test/appui/defaultBackendCase.ts",
         "test/appui/explorerStartupTargets.ts",
         "test/fixtures/publicBrowser.ts",
         "test/fixtures/publicTypesOnly.ts"
@@ -2723,6 +2737,28 @@
       "bindingIdentity": "\"packages/sdk-core/hizOracles\".hizReduceCeil"
     },
     {
+      "name": "HostAttribute",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostAttribute"
+    },
+    {
+      "name": "HostAttributes",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostAttributes"
+    },
+    {
       "name": "HostDrawCamera",
       "kind": "type",
       "definingModule": "packages/sdk-browser/cameraWorld.ts",
@@ -2750,6 +2786,72 @@
       "bindingIdentity": "\"packages/sdk-browser/webglRenderTarget\".HostDrawOutput"
     },
     {
+      "name": "HostGeometry",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostGeometry"
+    },
+    {
+      "name": "HostMaterial",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostMaterial"
+    },
+    {
+      "name": "HostMaterials",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostMaterials"
+    },
+    {
+      "name": "HostMesh",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostMesh"
+    },
+    {
+      "name": "HostNode",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostNode"
+    },
+    {
+      "name": "HostPoint",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostPoint"
+    },
+    {
       "name": "HostRetentionDelta",
       "kind": "type",
       "definingModule": "packages/sdk-browser/streamingTypes.ts",
@@ -2759,6 +2861,28 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/streamingTypes\".HostRetentionDelta"
+    },
+    {
+      "name": "HostScene",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostScene"
+    },
+    {
+      "name": "HostTexture",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/hostResources.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/hostResources\".HostTexture"
     },
     {
       "name": "hslToLinearRgb",
@@ -3064,6 +3188,17 @@
       "bindingIdentity": "\"packages/sdk-core/mathSingular\".linearPartScale"
     },
     {
+      "name": "LinearRgb",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/materialContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/materialContract\".LinearRgb"
+    },
+    {
       "name": "linearToSrgb",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathColor.ts",
@@ -3199,6 +3334,23 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/manifestBinaryLayout\".manifestBinaryRanges"
+    },
+    {
+      "name": "Material",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/materialContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/autonomousInstances.test.ts",
+        "packages/sdk-browser/autonomousInstances.ts",
+        "packages/sdk-browser/autonomousPages.test.ts",
+        "packages/sdk-browser/backendTypes.ts",
+        "packages/sdk-browser/explorerSceneApi.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/materialContract\".Material"
     },
     {
       "name": "MATH_PATH_CONTRACT",
@@ -5272,6 +5424,21 @@
       "bindingIdentity": "\"packages/sdk-core/sceneLightContracts\".ShadowViewpoint"
     },
     {
+      "name": "Side",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/materialContract.ts",
+      "currentEntryPoints": ["web-geometry (common)"],
+      "proposedEnvironments": "common, browser, node, worker",
+      "classification": "public",
+      "affectedConsumers": [
+        "packages/sdk-browser/clusterBatchMesh.ts",
+        "packages/sdk-browser/materialSide.ts",
+        "packages/sdk-browser/webglClusterMaterialBinding.ts"
+      ],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/materialContract\".Side"
+    },
+    {
       "name": "SINGULAR_DETERMINANT_WGSL",
       "kind": "value",
       "definingModule": "packages/sdk-core/mathSingular.ts",
@@ -6388,17 +6555,6 @@
       ],
       "disposition": "newly exposed",
       "bindingIdentity": "documented:packages/sdk-core/mathSingular.ts:SINGULAR_DETERMINANT"
-    },
-    {
-      "name": "Side",
-      "kind": "type",
-      "definingModule": "packages/sdk-browser/materialSide.ts",
-      "currentEntryPoints": ["web-geometry (browser condition)"],
-      "proposedEnvironments": "browser",
-      "classification": "public",
-      "affectedConsumers": ["site/content/entries/enumsRuntime.ts"],
-      "disposition": "newly exposed",
-      "bindingIdentity": "documented:packages/sdk-browser/materialSide.ts:Side"
     },
     {
       "name": "adjugateFactor",

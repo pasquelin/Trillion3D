@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostAttributes, HostTexture } from './hostResources.ts';
 import type { PageRec } from './pageSelection.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
 import { materialClassKey } from './visibilityMaterialClass.ts';
@@ -25,8 +25,8 @@ export type GeometryBlock = {
 };
 /** Atlas slots of a scene's textures, by texture; a texture the atlas does not hold reads slot 0. */
 export type MaterialLayers = {
-  mapLayer: ReadonlyMap<THREE.Texture, number>;
-  dataLayer: ReadonlyMap<THREE.Texture, number>;
+  mapLayer: ReadonlyMap<HostTexture, number>;
+  dataLayer: ReadonlyMap<HostTexture, number>;
 };
 
 /** What a page row says of its material: its map slots, its flags word, and its resolve class. */
@@ -35,7 +35,7 @@ export function rowMaterial(
   geo: GeometryBlock | undefined,
   { mapLayer, dataLayer }: MaterialLayers,
 ) {
-  const slot = (layers: ReadonlyMap<THREE.Texture, number>, texture?: THREE.Texture) =>
+  const slot = (layers: ReadonlyMap<HostTexture, number>, texture?: HostTexture) =>
     texture ? (layers.get(texture) ?? 0) : 0;
   const map = slot(mapLayer, mat.map),
     rough = slot(dataLayer, mat.roughnessMap),
@@ -66,7 +66,7 @@ export function rowMaterial(
  */
 export function sceneMaterialClasses(
   allPages: readonly PageRec[],
-  geometryBlocks: ReadonlyMap<THREE.BufferGeometry['attributes'], GeometryBlock>,
+  geometryBlocks: ReadonlyMap<HostAttributes, GeometryBlock>,
   layers: MaterialLayers,
 ) {
   const constants = createPageRowConstants();

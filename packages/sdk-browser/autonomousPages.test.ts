@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import type { ClusterManifest, Material } from '../sdk-core/index.ts';
 
 test('autonomous pages add, move and remove an instance while keeping page coverage', async () => {
   const position = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]);
@@ -76,16 +76,35 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     await backend.prepare();
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1);
-    backend.addInstance?.('copy', new THREE.Matrix4().makeTranslation(1, 0, 0));
+    backend.addInstance?.(
+      'copy',
+      new THREE.Matrix4().makeTranslation(1, 0, 0).toArray(new Float64Array(16)),
+    );
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 2);
-    backend.updateInstance?.('copy', new THREE.Matrix4().makeTranslation(2, 0, 0));
+    backend.updateInstance?.(
+      'copy',
+      new THREE.Matrix4().makeTranslation(2, 0, 0).toArray(new Float64Array(16)),
+    );
     backend.render(camera);
     const copies = backend.scene.children.filter((o) => (o as THREE.Mesh).isMesh) as THREE.Mesh[];
     assert.ok(copies.some((copy) => copy.matrix.elements[12] === 2));
-    const replacement = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
-    backend.updateMaterial?.('0/0', replacement);
-    assert.ok(copies.every((copy) => copy.material === replacement));
+    // The contract carries material parameters, not a host material: the engine builds its own.
+    const red: Material = {
+      baseColor: [1, 0, 0],
+      opacity: 1,
+      metalness: 0,
+      roughness: 1,
+      emissive: [0, 0, 0],
+      side: 'double',
+      alphaMode: 'opaque',
+      alphaCutoff: 0.5,
+    };
+    backend.updateMaterial?.('0/0', red);
+    const painted = copies.map((copy) => copy.material as THREE.MeshStandardMaterial);
+    assert.ok(painted.every((material) => material.side === THREE.DoubleSide));
+    assert.ok(painted.every((material) => material.color.getHex() === 0xff0000));
+    assert.equal(new Set(painted).size, 1);
     const replacementPage = decodeGeometryPage(encoded.data);
     replacementPage.attributes.position[0] = -0.25;
     backend.replaceGeometryPage?.('triangle-geometry.bin', replacementPage);
@@ -98,7 +117,6 @@ test('autonomous pages add, move and remove an instance while keeping page cover
     backend.removeInstance?.('copy');
     backend.render(camera);
     assert.equal(backend.metrics().submittedTriangles, 1);
-    replacement.dispose();
   } finally {
     backend.dispose();
     geometry.dispose();

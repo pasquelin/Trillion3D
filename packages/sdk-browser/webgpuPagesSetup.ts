@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { asHostLibrary } from './hostResources.ts';
 import { createBlendCopy } from './blendCopyMesh.ts';
 import { indexSourceBytes } from './webgpuPagesCatalogue.ts';
 import type { BackendContext } from './backendTypes.ts';
@@ -56,9 +57,10 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // one forward draw per source mesh (all back faces, then all front faces).
   const pagedBlendCopies = new Map<THREE.Mesh, THREE.Mesh>();
   for (const rec of allPages)
-    if (rec.transparent && rec.sourceMesh && !pagedBlendCopies.has(rec.sourceMesh)) {
-      const mesh = rec.sourceMesh,
-        copy = createBlendCopy(mesh, rec.renderOrder, rec.matrix);
+    if (rec.transparent && rec.sourceMesh) {
+      const mesh = asHostLibrary<THREE.Mesh>(rec.sourceMesh);
+      if (pagedBlendCopies.has(mesh)) continue;
+      const copy = createBlendCopy(mesh, rec.renderOrder, rec.matrix);
       copy.userData.pagedBlend = true;
       pagedBlendCopies.set(mesh, copy);
       blendCopies.push(copy);

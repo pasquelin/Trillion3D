@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { asHostLibrary, type HostNode } from './hostResources.ts';
 import type { WriteRevision } from './hostSceneHookCore.ts';
 import { hookHostNode, unhookHostNode } from './hostSceneHooks.ts';
 import { scan, snapshot, type NodeState, type WatchVerdict } from './hostSceneScan.ts';
@@ -60,7 +61,8 @@ export function createHostSceneWatch() {
      * that made the list stale is what announced it, and a node that enters the list is read
      * as-is by that same frame.
      */
-    observe(source: THREE.Object3D, drawn: WatchedSources) {
+    observe(node: HostNode, drawn: WatchedSources) {
+      const source = asHostLibrary<THREE.Object3D>(node);
       const set = new Set<THREE.Object3D>();
       source.traverse((object) => {
         if (!(object as THREE.Light).isLight) return;

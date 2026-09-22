@@ -1,3 +1,4 @@
+import type { HostTexture } from './hostResources.ts';
 import * as THREE from 'three';
 import type { VisMaterial } from './visibilityTypes.ts';
 
@@ -44,9 +45,9 @@ const WRAP_SOURCE = {
 } as const satisfies Record<keyof typeof WRAP_MAP, keyof VisMaterial>;
 
 /** Nibble of a map: no bit when clamping, one bit per axis otherwise, never both of the same axis. */
-export function wrapNibble(map: THREE.Texture | undefined) {
+export function wrapNibble(map: HostTexture | undefined) {
   if (!map) return 0;
-  const axis = (wrap: THREE.Wrapping, repeat: number, mirror: number) =>
+  const axis = (wrap: number, repeat: number, mirror: number) =>
     wrap === THREE.ClampToEdgeWrapping
       ? 0
       : wrap === THREE.MirroredRepeatWrapping
@@ -135,11 +136,7 @@ fn wrapUv(uv:vec2f,wrap:u32,texels:vec2f)->WrapTaps{
  * the taps then wrap the period. Two languages, one rule: the shader text is not shared with
  * TypeScript.
  */
-export function wrapLinear(
-  t: number,
-  size: number,
-  wrap: THREE.Wrapping,
-): [number, number, number] {
+export function wrapLinear(t: number, size: number, wrap: number): [number, number, number] {
   const repeat = wrap === THREE.RepeatWrapping;
   const p = wrap === THREE.MirroredRepeatWrapping ? t - 2 * Math.floor(t / 2) : 0;
   const c = repeat

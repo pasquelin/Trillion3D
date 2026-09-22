@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostNode } from './hostResources.ts';
 import {
   bumpResources,
   bumpScene,
@@ -86,7 +86,7 @@ export function createFrameGateCore(holdValues: number) {
      * instance, a light set after the fact, a node reparented or a light retargeted by the host
      * — never per frame, and never after a pose write, which changes no node's membership.
      */
-    readScene(source: THREE.Object3D, drawn: FrameGateSources) {
+    readScene(source: HostNode, drawn: FrameGateSources) {
       const observe = () =>
         sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
       if (watchRevision !== revisions.scene) observe();
@@ -132,7 +132,7 @@ export function createFrameGateCore(holdValues: number) {
       camera: HostCamera,
       motion: CameraMotion,
       viewport: readonly [number, number] | undefined,
-      source: THREE.Object3D,
+      source: HostNode,
       drawn: FrameGateSources,
     ) {
       readCameraWorld(cam, camera);

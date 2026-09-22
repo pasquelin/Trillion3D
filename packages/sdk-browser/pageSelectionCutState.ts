@@ -1,5 +1,5 @@
+import type { HostMaterials } from './hostResources.ts';
 import { FRUSTUM_PLANE_VALUES } from '../sdk-core/index.ts';
-import * as THREE from 'three';
 import { createConeContext, type ConeContext, type NormalCone } from './pageCone.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import { IDENTITY_ELEMENTS, type MatrixElements } from './matrixElements.ts';
@@ -12,7 +12,7 @@ export interface PageRecord extends ClusterCut {
   min?: number[];
   max?: number[];
   cone?: NormalCone;
-  material?: THREE.Material | THREE.Material[];
+  material?: HostMaterials;
   array?: Uint32Array;
 }
 

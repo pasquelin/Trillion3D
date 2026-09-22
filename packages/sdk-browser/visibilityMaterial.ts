@@ -1,3 +1,9 @@
+import {
+  asHostLibrary,
+  type HostAttributes,
+  type HostMaterials,
+  type HostTexture,
+} from './hostResources.ts';
 import * as THREE from 'three';
 import { sideOf } from './materialSide.ts';
 import { physicalExtensionReason } from './physicalMaterialGate.ts';
@@ -29,7 +35,7 @@ const DEFAULT_VIS_MATERIAL: VisMaterial = Object.freeze({
   attenuationColor: WHITE,
 });
 
-export function visMaterial(material: THREE.Material | THREE.Material[]): VisMaterial {
+export function visMaterial(material: HostMaterials): VisMaterial {
   const first = Array.isArray(material) ? material[0] : material;
   if (!first) return DEFAULT_VIS_MATERIAL;
   const color =
@@ -46,7 +52,7 @@ export function visMaterial(material: THREE.Material | THREE.Material[]): VisMat
     doubleSided: side === 'double',
     backSide: side === 'back',
     alphaTest: 'alphaTest' in first && typeof first.alphaTest === 'number' ? first.alphaTest : 0,
-    map: 'map' in first && first.map ? (first.map as THREE.Texture) : undefined,
+    map: 'map' in first && first.map ? (first.map as HostTexture) : undefined,
     metalnessMap: lit && std.metalnessMap ? std.metalnessMap : undefined,
     roughnessMap: lit && std.roughnessMap ? std.roughnessMap : undefined,
     normalMap: lit && std.normalMap ? std.normalMap : undefined,
@@ -82,15 +88,15 @@ export function visMaterial(material: THREE.Material | THREE.Material[]): VisMat
 
 /** Transmission/volume cannot be reconstructed from a visbuffer ID; keep the source mesh on the
  *  forward path. Read on the material itself: this runs per copy and per frame. */
-export function isTransmissive(material: THREE.Material | THREE.Material[]) {
+export function isTransmissive(material: HostMaterials) {
   const physical = (Array.isArray(material) ? material[0] : material) as
     THREE.MeshPhysicalMaterial | undefined;
   return !!physical?.isMeshPhysicalMaterial && physical.transmission > 0;
 }
 
-const textureReason = (texture: THREE.Texture | undefined) => {
+const textureReason = (texture: HostTexture | undefined) => {
   if (!texture) return;
-  const typed = texture as THREE.Texture & {
+  const typed = texture as HostTexture & {
     isCompressedTexture?: boolean;
     isDataTexture?: boolean;
     isDataArrayTexture?: boolean;
@@ -100,7 +106,8 @@ const textureReason = (texture: THREE.Texture | undefined) => {
   if (!texture.image) return 'texture image is unavailable';
   if (texture.channel !== 0 && texture.channel !== 1)
     return `texture channel ${texture.channel} is unsupported`;
-  if (texture.mapping !== THREE.UVMapping) return 'non-UV texture mapping is unsupported';
+  if (asHostLibrary<THREE.Texture>(texture).mapping !== THREE.UVMapping)
+    return 'non-UV texture mapping is unsupported';
 };
 
 /**
@@ -109,23 +116,24 @@ const textureReason = (texture: THREE.Texture | undefined) => {
  * the frozen backdrop: a scene copy of the transmission pass does, a paged cluster never does.
  */
 export function clusterMaterialReason(
-  material: THREE.Material | THREE.Material[],
-  attributes: THREE.BufferGeometry['attributes'],
+  material: HostMaterials,
+  attributes: HostAttributes,
   transmissive = false,
 ) {
   if (Array.isArray(material)) return 'material arrays are unsupported';
-  const standard = material as THREE.MeshStandardMaterial,
-    basic = material as THREE.MeshBasicMaterial;
+  const host = asHostLibrary<THREE.Material>(material),
+    standard = host as THREE.MeshStandardMaterial,
+    basic = host as THREE.MeshBasicMaterial;
   if (!standard.isMeshStandardMaterial && !basic.isMeshBasicMaterial)
-    return `material ${material.type} is unsupported`;
+    return `material ${host.type} is unsupported`;
   if (
-    material.alphaHash ||
-    material.blending !== THREE.NormalBlending ||
-    material.premultipliedAlpha ||
-    material.alphaToCoverage ||
-    material.clippingPlanes?.length
+    host.alphaHash ||
+    host.blending !== THREE.NormalBlending ||
+    host.premultipliedAlpha ||
+    host.alphaToCoverage ||
+    host.clippingPlanes?.length
   )
-    return `material ${material.type} uses an unsupported blend state`;
+    return `material ${host.type} uses an unsupported blend state`;
   const physical = physicalExtensionReason(standard as THREE.MeshPhysicalMaterial);
   if (physical) return physical;
   if (!transmissive && isTransmissive(material))
@@ -138,13 +146,13 @@ export function clusterMaterialReason(
     standard.alphaMap ||
     standard.flatShading ||
     standard.wireframe ||
-    material.stencilWrite
+    host.stencilWrite
   )
-    return `material ${material.type} uses an unsupported extension or raster state`;
+    return `material ${host.type} uses an unsupported extension or raster state`;
   if (standard.normalMap && standard.normalMapType !== THREE.TangentSpaceNormalMap)
     return 'object-space normal mapping is unsupported';
-  if (material.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile)
-    return `material ${material.type} carries a shader hook`;
+  if (host.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile)
+    return `material ${host.type} carries a shader hook`;
   if (!(attributes.position instanceof THREE.BufferAttribute))
     return 'position attribute is unsupported';
   const descriptor = visMaterial(material),
@@ -166,7 +174,7 @@ export function clusterMaterialReason(
     return 'texture channel 1 has no UV1 attribute';
   if (standard.isMeshStandardMaterial && !(attributes.normal instanceof THREE.BufferAttribute))
     return 'lit material has no normal attribute';
-  if (material.vertexColors && !(attributes.color instanceof THREE.BufferAttribute))
+  if (standard.vertexColors && !(attributes.color instanceof THREE.BufferAttribute))
     return 'vertex-colour material has no color attribute';
   for (const texture of maps) {
     const reason = textureReason(texture);

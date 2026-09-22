@@ -1,4 +1,5 @@
 import type { EngineCamera } from './cameraWorld.ts';
+import { asHostLibrary } from './hostResources.ts';
 import { clusterColor, hashId } from './backendCommon.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
@@ -60,7 +61,7 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
               : options.diagnostic === 'screen-error'
                 ? 0x00ff1f
                 : clusterColor(key, 0.75);
-      material = new THREE.MeshBasicMaterial({ color, side });
+      material = new THREE.MeshBasicMaterial({ color, side: asHostLibrary<THREE.Side>(side) });
       diagnosticMaterials.set(key, material);
     }
     if (options.diagnostic === 'screen-error' && options.cam) {

@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+import type { HostAttributes, HostGeometry, HostMaterials, HostMesh } from './hostResources.ts';
+import type { MatrixElements } from './matrixElements.ts';
 import type { NormalCone } from './pageCone.ts';
 import type { CullingLinks } from './pageSelectionCutForced.ts';
 
@@ -28,18 +29,18 @@ export type PageRec = {
   /** Coplanar depth layer, 0 for every cluster the compiler left alone. Always present, never
    *  undefined, so a page record keeps one shape through the selection loop. */
   depthLayer: number;
-  attributes: THREE.BufferGeometry['attributes'];
-  material: THREE.Material | THREE.Material[];
+  attributes: HostAttributes;
+  material: HostMaterials;
   transparent?: boolean;
-  sourceMesh?: THREE.Mesh;
+  sourceMesh?: HostMesh;
   sourceOrder?: number;
-  matrix: THREE.Matrix4;
+  matrix: MatrixElements;
   /** Cached winding and epoch of the world matrix that produced it (`webgpuPagesWinding`). */
   windingCw?: boolean;
   windingEpoch?: number;
   renderOrder: number;
-  geometry?: THREE.BufferGeometry;
-  mesh?: THREE.Mesh;
+  geometry?: HostGeometry;
+  mesh?: HostMesh;
   attached: boolean;
   resident?: boolean;
   cone?: NormalCone;
@@ -80,7 +81,7 @@ export type ClusterStructureIndex = {
  * screen-error band, and the hierarchy is only a traversal accelerator.
  */
 export type ClusterRoot<T> = {
-  world: THREE.Matrix4;
+  world: MatrixElements;
   pages: T[];
   /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
    *  `links`: parent of each node and leaf node of each cluster, the same shared prepare.

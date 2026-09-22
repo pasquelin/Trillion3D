@@ -9,6 +9,7 @@
 // obtained with the full page-by-page descent must be the one the pruned descent returns.
 // Both read the same f32 records: what separates them is the pruning, and nothing else.
 import test from 'node:test';
+import { asHostLibrary } from './hostResources.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { packDagSelection, packedWorldsToRenderOrigin } from './gpuDagPack.ts';
@@ -64,7 +65,11 @@ for (const parNiveaux of [false, true]) {
     for (const [nom, x, z] of POSES)
       for (const seuil of SEUILS) {
         for (let w = 0; w < roots.length; w++)
-          roots[w].world.makeTranslation((w % 2) * 6.5 - 3.25, Math.floor(w / 2) * 6.5 - 3.25, 0);
+          asHostLibrary<THREE.Matrix4>(roots[w].world).makeTranslation(
+            (w % 2) * 6.5 - 3.25,
+            Math.floor(w / 2) * 6.5 - 3.25,
+            0,
+          );
         cam.position.set(x, 0, z);
         cam.lookAt(x, 0, 0);
         cam.updateMatrixWorld();
