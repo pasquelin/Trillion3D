@@ -10,10 +10,9 @@
  * is this file, and nothing else happens here: every number arrives computed.
  */
 import * as THREE from 'three';
-import { asHostLibrary } from './hostResources.ts';
+import { asHostLibrary, type HostBox } from './hostResources.ts';
 import type { HostCamera } from './cameraWorld.ts';
 import type { ControlVector } from './cameraControlTypes.ts';
-import type { HostBox } from './hostResources.ts';
 import type { HostGraphGroup, HostGraphMesh } from './hostGraphNodes.ts';
 
 /** The camera the explorer frames its scene with, at the optics the framing computed. */
