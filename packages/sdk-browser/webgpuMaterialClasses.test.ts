@@ -105,12 +105,12 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
   });
   // A page written as a row belongs to a placement: the WebGPU layout sets it.
   const mask = Object.assign(collected.roots[0].pages[0], { placementIndex: 0 });
-  writeRow(mask, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
+  writeRow(mask, 0, 0, 0, floats, ints);
   assert.equal((ints[23] & FLAG_MASK) !== 0, true, 'the cut-out flag is set');
   assert.equal(floats[19], 0.5, 'the material alpha threshold travels with the row');
   // A blend never becomes a cut-out: its row would otherwise discard instead of blending.
   const blend = Object.assign(collected.roots[1].pages[0], { placementIndex: 1 });
-  writeRow(blend, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
+  writeRow(blend, 0, 0, 0, floats, ints);
   assert.equal((ints[23] & FLAG_MASK) !== 0, false);
   assert.equal(floats[19], 1);
 });
@@ -132,8 +132,8 @@ test('a row carries its resolve class, the census of the scene knows it before a
   const [mask, blend] = collected.roots.map((root, index) =>
     Object.assign(root.pages[0], { placementIndex: index }),
   );
-  writeRow(mask, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
-  writeRow(blend, 1, 1, 0, new Uint32Array([0, 1, 2]), floats, ints);
+  writeRow(mask, 0, 0, 0, floats, ints);
+  writeRow(blend, 1, 1, 0, floats, ints);
   const { HAS_MASK, HAS_VERTEX_NORMAL, DOUBLE_SIDED, HAS_UV } = CLASS_FEATURE;
   const cutout = HAS_MASK | HAS_VERTEX_NORMAL | DOUBLE_SIDED;
   assert.equal(ints[ROW_MATERIAL_CLASS_WORD], cutout, 'double-sided cut-out with vertex normals');

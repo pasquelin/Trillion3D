@@ -30,7 +30,6 @@ const ecrivain = (
   pageIndex: number,
   row: number,
   offsetWords: number,
-  _index: Uint32Array,
   floats: Float32Array,
   ints: Uint32Array,
 ) => {

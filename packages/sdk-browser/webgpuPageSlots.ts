@@ -49,3 +49,21 @@ export function describePageSlots(allPages: readonly PageRec[]) {
     transparentClusters,
   };
 }
+
+/**
+ * True while this cluster still waits for bytes it cannot draw without.
+ *
+ * A cluster the cache gave a quantized geometry page draws from that page alone: the pool reads it
+ * at the cluster's own address (`webgpuPagesServices.ts`) and the shaders decode it in place. Its
+ * index page is never requested, never downloaded and never held on the CPU — the only number the
+ * row ever wanted from it, the corner count, the geometry page declares itself.
+ */
+export const awaitsPageBytes = (rec: PageRec) => !rec.geometryPage && !rec.array;
+
+/** The records of `pages` whose bytes are still awaited, collected into `into`: what the host is
+ *  asked to fetch, and what an image is still missing. */
+export function awaitedPages(pages: readonly PageRec[], into: PageRec[]) {
+  into.length = 0;
+  for (let i = 0; i < pages.length; i++) if (awaitsPageBytes(pages[i])) into.push(pages[i]);
+  return into;
+}

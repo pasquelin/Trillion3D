@@ -105,8 +105,9 @@ export function ligneDePageMelangee() {
     matrix: new THREE.Matrix4(),
     url: 'defect8',
     clusterId: 'c0',
+    array: new Uint32Array([0, 1, 2]),
     triangles: 1,
-    indexBytes: 0,
+    indexBytes: 12,
     min: [0, 0, 0],
     max: [0, 0, 0],
     depthLayer: 0,
@@ -115,6 +116,6 @@ export function ligneDePageMelangee() {
     // A row-written page belongs to a placement: the WebGPU layout sets it.
     placementIndex: 0,
   };
-  ecrire(rec, 0, 0, 0, new Uint32Array([0, 1, 2]), floats, ints);
+  ecrire(rec, 0, 0, 0, floats, ints);
   return { mat, ints, floats };
 }

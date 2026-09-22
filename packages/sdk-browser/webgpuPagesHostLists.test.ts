@@ -36,6 +36,7 @@ function banc() {
     urlScratch: [] as string[],
     pendingScratch: [] as string[],
     hostPendingScratch: [] as string[],
+    awaitedScratch: [] as PageRec[],
     coverageBudgetLimited: false,
     cutHeld: false,
     cutEpoch: 0,
