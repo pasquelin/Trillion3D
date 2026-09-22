@@ -16,7 +16,10 @@ import type { MatrixElements } from './matrixElements.ts';
  * a container whose `elements` ARE the engine's view, so what a pass rewrites there the copy
  * reads — like the opaque pages of the same mesh, which carry that same pose.
  * `matrixAutoUpdate` stays false, so Three never recomposes this matrix from the copy's local
- * pose — which it does not have.
+ * pose — which it does not have, and that is what keeps this container READ-ONLY. The storage is
+ * shared both ways: a host-library call that writes THROUGH it — `copy.matrix.copy()`,
+ * `.identity()`, `.set()`, the recomposition — would write into the engine's world buffer and
+ * corrupt the pose of every page of the same mesh. Nothing on this copy may write its matrix.
  */
 export function createBlendCopy(mesh: THREE.Mesh, renderOrder: number, world: MatrixElements) {
   const copy = new THREE.Mesh(mesh.geometry, mesh.material);

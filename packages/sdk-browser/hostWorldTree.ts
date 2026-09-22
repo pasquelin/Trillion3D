@@ -20,7 +20,10 @@ import { createHierarchyLot, type HierarchyLot } from './mathBatchHierarchy.ts';
  *
  * The index covers the subtree of `source` AND the ancestor chain of its root, parents before
  * children. The structure is read ONCE, when the index is built; after that the engine's tree
- * carries the hierarchy, and a pass writes only what moved.
+ * carries the hierarchy, and a pass writes only what moved. What that saves is PRODUCTS, not
+ * reads: every pose is still read and compared at every pass, so on a scene of a few thousand
+ * nodes the pass can cost MORE than the one that recomputed everything — only a measurement of
+ * the frame says which way it went there.
  *
  * WHAT A PASS COSTS. Local poses are pushed into the tree number by number, and a number that
  * has not moved is not written: the node keeps its flags clean. `updateNodeMatrixWorld` is then
