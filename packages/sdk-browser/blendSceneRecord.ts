@@ -29,21 +29,24 @@ const linearBackground = (clearColor: number) => ({
 
 export function createBlendScene(clearColor: number, copies: readonly BlendCopy[]): BlendHostScene {
   const children = [...copies] as unknown as HostNode[];
-  return {
+  const scene: BlendHostScene = {
     name: 'web-geometry-transparent',
     visible: true,
     background: linearBackground(clearColor),
     children,
-    traverse(visit: (node: HostNode) => void) {
-      visit(this as unknown as HostNode);
+    // The walk a host makes of a display graph: the node itself, then what hangs under it. A
+    // transparent copy carries no subtree, so the list IS the walk.
+    traverse: (visit: (node: HostNode) => void) => {
+      visit(scene);
       for (const child of children) visit(child);
     },
-    remove(node: unknown) {
+    remove: (node: unknown) => {
       const at = children.indexOf(node as HostNode);
       if (at >= 0) children.splice(at, 1);
     },
-    clear() {
+    clear: () => {
       children.length = 0;
     },
   };
+  return scene;
 }

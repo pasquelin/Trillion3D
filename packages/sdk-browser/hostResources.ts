@@ -45,6 +45,10 @@ export type HostTexture = {
 
 /** One vertex attribute of a host geometry, interleaved or not: its layout and its storage. */
 export type HostAttribute = {
+  /** Raised by the host when the attribute owns its buffer instead of viewing into a shared,
+   *  interleaved one. Only the admission gate reads it: the engine's own decode is the same
+   *  either way, the autonomous WebGL2 program's binding is not. */
+  readonly isBufferAttribute?: boolean;
   readonly itemSize: number;
   readonly count: number;
   readonly normalized: boolean;
