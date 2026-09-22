@@ -112,7 +112,7 @@ struct GroupReductionInput<'a> {
     locks: &'a [bool],
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
-    /// Canonical vertex by (position, uv): fallback reduction weld.
+    /// Canonical vertex by position and every texture set: fallback reduction weld.
     weld_seam: &'a [u32],
 }
 pub const CULLING_BRANCHING: usize = 8;
@@ -153,6 +153,7 @@ pub(crate) mod bounds;
 mod build;
 pub(crate) mod clusters;
 mod culling;
+mod diagnosis;
 pub(crate) mod groups;
 pub(crate) mod reduce;
 mod tally;
@@ -165,4 +166,4 @@ use clusters::*;
 pub use culling::build_culling_bvh;
 use groups::*;
 use reduce::*;
-pub use tally::{GroupOutcome, GroupTally};
+pub use tally::{DagStall, GroupOutcome, GroupTally, StallCause};
