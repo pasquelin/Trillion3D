@@ -106,7 +106,7 @@ export function encodeShadowAtlas(
     regions,
     gpuDraw.slots,
     layout.rows.packedCount,
-    Math.max(1, setup.pageBytes / 4),
+    setup.maxCorners,
   );
   cull.counts.sample(encoder, cull.indirect, regions, run.frame);
   lights.shadowDraws = regions;

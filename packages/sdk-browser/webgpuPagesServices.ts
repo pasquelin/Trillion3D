@@ -12,6 +12,8 @@ import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutPublication } from './webgpuCutPublication.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import { readGeometryPageHeader } from './geometryPageHeader.ts';
+import { awaitsPageBytes } from './webgpuPageSlots.ts';
 import { markWebgpuLost } from './webgpuPagesLost.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
@@ -23,7 +25,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKey, slots } = rt.setup,
-    { sourceBytes, byUrl } = rt.setup;
+    { sourceBytes, byUrl, geometryUrls } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
     pageIndicesByUrl: rows.pageIndicesByUrl,
     residentOffsetWords: rows.residentOffsetWords,
@@ -58,10 +60,29 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     // Origin of the resource change: the page enters residency or leaves it.
     (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
   );
-  const read = async (key: string) =>
-    sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
+  /**
+   * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
+   * host's page reader at the address the manifest gives it, or — for a transparent cluster and
+   * for a cache that carries no geometry page — the index page the arrival already left in
+   * memory. The slot is written from one of the two, never from both.
+   */
+  const read = async (key: string) => {
+    const geometryUrl = geometryUrls.get(key);
+    if (geometryUrl === undefined)
+      return sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
+    if (!context.readGeometryPage) throw new Error('Missing geometry page reader');
+    const bytes = await context.readGeometryPage(geometryUrl);
+    // The pool uploads these words as they are and the shaders decode them in place, so nothing
+    // downstream would ever notice a forged or truncated page. The format's own gate is read
+    // here, once per admission: magic, version, grids, and counts that measure exactly this many
+    // bytes. A page that fails it is refused through the loader's error path, never uploaded.
+    readGeometryPageHeader(bytes);
+    return bytes;
+  };
   const pageSource = { read };
-  const hasBytes = (rec: PageRec) => !!(rec.array || sourceBytes.has(rec.url));
+  // A cluster drawn from its quantized page needs no index page: its slot is filled from the page
+  // reader above. Only a cluster that still draws from an index buffer waits for one.
+  const hasBytes = (rec: PageRec) => !awaitsPageBytes(rec) || sourceBytes.has(rec.url);
   /** The sets residency is decided with, and the difference the GPU readback is read as. Both
    *  outlive the image: an image that moves no page touches neither. */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });

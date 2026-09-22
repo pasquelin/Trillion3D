@@ -6,16 +6,13 @@ import { createWebgpuRowJournal } from '../../webgpuRowJournal.ts';
 import type { PageRec } from '../../pageSelectionTypes.ts';
 
 /** A row writer exactly as `webgpuPageRow.ts` types it: `createWebgpuRowCommit`'s own signature
- *  in the fixture that mounts both sides requires this exact shape. A caller whose catalogue can
- *  hold a page without an array passes a writer that itself accepts `Uint32Array | undefined` —
- *  still assignable here, since a writer that reads less is always safe to use as one that reads
- *  a plain `Uint32Array`. */
+ *  in the fixture that mounts both sides requires this exact shape. The corner count a row draws
+ *  is the writer's own business — it reads it from the record — so no index array crosses here. */
 type RowWriter = (
   rec: PageRec,
   pageIndex: number,
   row: number,
   offsetWords: number,
-  index: Uint32Array,
   floats: Float32Array,
   ints: Uint32Array,
 ) => void;
@@ -132,15 +129,7 @@ export function referenceRowCommit(rows: ReferenceRows, writePageRow: RowWriter)
         pageIndex = rows.newRowPage[row],
         rec = rows.packedRecs[row];
       if (!rec) continue;
-      writePageRow(
-        rec,
-        pageIndex,
-        row,
-        rows.residentOffsetWords[pageIndex],
-        rec.array ?? new Uint32Array(0),
-        floats,
-        ints,
-      );
+      writePageRow(rec, pageIndex, row, rows.residentOffsetWords[pageIndex], floats, ints);
     }
     if (rewrites || moved) rows.rowsChanged = true;
     for (let row = 0; row < count; row++) {

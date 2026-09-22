@@ -3,6 +3,7 @@ import { clearValueOf, createRenderEncoder } from './webgpuPagesEncoder.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from './visibilityBuffer.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
+import { FALLBACK_CLUSTER_PAGE, FALLBACK_WIREFRAME } from './webgpuPagesShaders.ts';
 import {
   bindGroupFor,
   pageRgb,
@@ -38,7 +39,9 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     uniformPacked[base + 35] = 1;
     packedInts[base + 36] = rows.pageTableInts![row * fallbackWords + 24];
     packedInts[base + 37] = rows.pageTableInts![row * fallbackWords + ROW_INDEX_WORDS];
-    packedInts[base + 38] = run.diagnostic === 'wireframe' ? 1 : 0;
+    packedInts[base + 38] =
+      (run.diagnostic === 'wireframe' ? FALLBACK_WIREFRAME : 0) |
+      (rec.geometryPage ? FALLBACK_CLUSTER_PAGE : 0);
     packedInts[base + 39] = clusterHash(rec.clusterId);
   }
   if (rows.packedCount && uniformBuffer)
@@ -69,10 +72,14 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
   voidStaleFallbackGroups(rt);
   let vertices = 0;
   for (let i = 0; i < rows.packedCount; i++) {
-    const position = rows.packedPositions[i];
+    const rec = rows.packedRecs[i]!;
+    // A cluster drawn from its quantized page reads no float position, but the binding still needs
+    // a buffer: the smallest one the engine holds stands in, and the shader never reads it. Any
+    // other cluster without its positions is skipped, as before.
+    const position = rec.geometryPage ? gpu.zeroUv : rows.packedPositions[i];
     if (!position) continue;
     const group = bindGroupFor(rt, device, position),
-      pipeline = pipelineFor(rt, rows.packedRecs[i]!);
+      pipeline = pipelineFor(rt, rec);
     if (!group || !pipeline) continue;
     const count = rows.pageTableInts![i * fallbackWords + ROW_INDEX_WORDS];
     pass.setPipeline(pipeline);
