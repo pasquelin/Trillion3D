@@ -147,3 +147,24 @@ test('a large DAG with random churn matches the oracle exactly, cut after cut', 
   }
   s.pilote([]);
 });
+
+// #297: `attach` mounts the host declaration the page was collected from, never the engine's own
+// surface record. A record carries no `visible`, and the host library drops every mesh whose
+// material lacks one: 430 meshes attached, 430 draw calls, zero triangle on screen.
+test('an attached page wears the host declaration, not the engine surface record', () => {
+  const { scene, meshes } = fakeScene();
+  const declaration = new THREE.MeshStandardMaterial();
+  const rec: PageRec = {
+    ...makeRec(0, 1),
+    geometry: new THREE.BufferGeometry(),
+    mesh: undefined,
+    declaration,
+    material: surfaceOf(declaration),
+  };
+  const shown = [rec];
+  createAutonomousGeometry(environnement(scene, [rec], shown)).sync();
+  const [attached] = [...meshes] as THREE.Mesh[];
+  assert.equal(attached.material, declaration);
+  assert.equal((attached.material as THREE.Material).visible, true);
+  declaration.dispose();
+});

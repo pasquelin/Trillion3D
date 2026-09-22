@@ -26,9 +26,10 @@ numbers. Conventions shared by every entry:
 - `interactive: true` owns CSS/DPR sizing, OrbitControls and bounded demand-driven rendering;
   absent/false preserves manual sessions. `invalidate()` requests a frame after programmatic edits.
 - With no `backends` option, interactive or not, a session draws through the engine's own path:
-  direct WebGPU where a device was granted; the autonomous `autonomous-pages-webgl` path on
-  WebGL2 alone, which since #297 decodes the cache's geometry pages and draws them itself; and a
-  named `EngineError` (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where no engine path is left.
+  direct WebGPU where a device was granted; `autonomous-pages-webgl` on WebGL2 alone, which since
+  #297 decodes the cache's geometry pages and draws them itself — from the cache's prepared scene
+  where it carries one, from `source.gltf` where it does not; and a named `EngineError`
+  (`NO_ENGINE_BACKEND`, `NO_WEBGL2`) where the machine granted neither API.
   `chooseBackends(options, metadata, gpuDevice, webgl2)` and `autonomousCacheReady(metadata)`
   expose that decision; the `backend-choice` diagnostic reports its `renderer`, `autonomous` and
   `reason` per session. Proof: `defaultBackends.test.ts`, the browser startup proof.
