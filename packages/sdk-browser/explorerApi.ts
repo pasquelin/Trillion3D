@@ -1,5 +1,5 @@
 import { DIAGNOSTICS } from '../sdk-core/index.ts';
-import type { configureExplorer } from './explorerCapabilities.ts';
+import type { ExplorerProbe } from './explorerCapabilityProbe.ts';
 import type { ExplorerRuntimeSurface } from './explorerHostRuntime.ts';
 import { createExplorerCameraApi } from './explorerCameraApi.ts';
 import { createExplorerDiagnosticApi } from './explorerDiagnosticApi.ts';
@@ -10,7 +10,7 @@ import { createExplorerTelemetryApi } from './explorerTelemetryApi.ts';
 import { createExplorerLightApi } from './explorerLightApi.ts';
 
 type Inputs = ExplorerRuntimeSurface & {
-  capabilities: Awaited<ReturnType<typeof configureExplorer>>['capabilities'];
+  capabilities: ExplorerProbe['capabilities'];
   preparationMs: number;
 };
 
