@@ -7,7 +7,7 @@ import {
   type ClusterRoot,
 } from './pageSelection.ts';
 import type { BackendContext } from './backendTypes.ts';
-import { lighting } from './backendCommon.ts';
+import { lighting } from './hostSceneObjects.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { EXACT_CPU_STEP } from './exactPagesCpu.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';

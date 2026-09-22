@@ -6,10 +6,12 @@ import { createExactPagesRequests, createExactPagesRequestData } from './exactPa
 import { createExactPagesAttachment } from './exactPagesAttachment.ts';
 import { createExactPagesResidency } from './exactPagesResidency.ts';
 import { createExactPagesMaterials } from './exactPagesMaterials.ts';
-import { DEFAULT_CLEAR_COLOR, baseCapabilities, lighting } from './backendCommon.ts';
+import { DEFAULT_CLEAR_COLOR, baseCapabilities } from './backendCommon.ts';
+import { lighting } from './hostSceneObjects.ts';
 import { CONTRACT_LIGHTS_UNSUPPORTED } from './exactPagesContractLights.ts';
 import { contractLightingApi } from './contractLightingApi.ts';
 import { collectClusterPages, type PageRec } from './pageSelection.ts';
+import { createBlendCopy } from './blendCopyMesh.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
@@ -28,7 +30,11 @@ export const exactPagesBackend: BackendFactory = (context) => {
     viewport,
     clearColor = DEFAULT_CLEAR_COLOR,
   } = context;
-  const collected = collectClusterPages(source, metadata, indices, associations);
+  // The witness draws its transparent surfaces with the host renderer: its copies are host
+  // meshes, not the engine records the collection builds by default.
+  const collected = collectClusterPages(source, metadata, indices, associations, {
+    blendCopy: createBlendCopy,
+  });
   const { roots, allPages, bootstrap, requestCount, prepared, worlds } = collected;
   // The witness draws the transparent copies with the host library it is written in: this is where
   // the engine's contract copies go back to being its meshes.
