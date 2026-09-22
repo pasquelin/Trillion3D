@@ -11,6 +11,8 @@ import {
   SECOND,
 } from './pagedQuadFixture.ts';
 import type { BackendDiagnostic } from './backendTypes.ts';
+import type { PageRec } from './pageSelection.ts';
+import { describePageSlots } from './webgpuPageSlots.ts';
 
 /** The quad as two clusters whose two widths disagree: the first draws both triangles from
  *  positions alone — six corners in the fewest bytes the format can hold them — while the second
@@ -108,4 +110,46 @@ test('a paged cluster is admitted and drawn without its index page', async () =>
   } finally {
     await disposePagedQuad(backend, fixture);
   }
+});
+
+/** A quantized page of the shape the manifest declares, at an address of its own. */
+const descriptor = (url: string) => ({
+  url,
+  sha256: '',
+  bytes: 64,
+  vertexCount: 3,
+  indexCount: 3,
+  flags: 0,
+  uncompressedBytes: 128,
+});
+/** A catalogue record reduced to what a pool slot is decided from. */
+const slotRecord = (extra: Partial<PageRec>) =>
+  ({ url: 'cluster/0', triangles: 1, indexBytes: 12, ...extra }) as unknown as PageRec;
+
+// One primitive placed twice — opaque here, `clustered-blend` there — gives two records at one
+// cluster address, and only the opaque placement carries a geometry page. That catalogue is sound:
+// the pool holds ONE slot per address and the transparent draw reads index words out of it, so the
+// address keeps its index page for both placements instead of being refused.
+test('an address a blend placement shares with an opaque one keeps its index page', () => {
+  const opaque = slotRecord({ geometryPage: descriptor('page/0.wgp') }),
+    blend = slotRecord({ transparent: true });
+  const slots = describePageSlots([opaque, blend]);
+  assert.equal(slots.sharedIndexPages, 1, 'the shared address gave its page up');
+  assert.equal(slots.geometryUrls.size, 0, 'the one slot holds index words');
+  assert.equal(opaque.geometryPage, undefined, 'the row reads the decision the slot was made on');
+  assert.equal(slots.transparentClusters, 1, 'the copy is counted transparent');
+  assert.equal(slots.fromSourceGeometry, 1);
+  assert.equal(slots.fromGeometryPage, 0);
+});
+
+// Two placements of the same kind cannot explain a disagreement: one row would decode index words
+// as a page, or a page as index words, and no reading of the catalogue says which. Refused.
+test('two opaque records that disagree on a cluster page are still refused', () => {
+  const paged = slotRecord({ geometryPage: descriptor('page/0.wgp') }),
+    plain = slotRecord({});
+  assert.throws(() => describePageSlots([paged, plain]), /CLUSTER_PAGE_DISAGREEMENT/);
+  assert.throws(
+    () => describePageSlots([paged, slotRecord({ geometryPage: descriptor('page/1.wgp') })]),
+    /CLUSTER_PAGE_DISAGREEMENT/,
+  );
 });
