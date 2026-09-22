@@ -61,12 +61,7 @@ export * from './competitors.ts';
 export * from './paths.ts';
 export * from './stats.ts';
 export * from './stageProfile.ts';
-export {
-  PAGE_DECODE_FAILURES,
-  PAGE_DECODE_PROTOCOL,
-  pageDecodeFailureCode,
-  pageDecodeWorkerCount,
-} from './pageDecodeContracts.ts';
+export * from './pageDecodeContracts.ts';
 export {
   PAGE_INTEGRATION_FAILURES,
   PAGE_INTEGRATION_PROTOCOL,
@@ -92,17 +87,6 @@ export {
   sortPages,
 } from './pageIntegrationPlan.ts';
 export type { PageIntegrationPlan } from './pageIntegrationPlan.ts';
-export type {
-  PageDecodeAnswer,
-  PageDecodeCancel,
-  PageDecodeDone,
-  PageDecodeFailed,
-  PageDecodeFailureCode,
-  PageDecodeGeometryPayload,
-  PageDecodeOp,
-  PageDecodeRequest,
-  PageDecodeShare,
-} from './pageDecodeContracts.ts';
 export * from './oracles.ts';
 export * from './mathIndex.ts';
 export { SCENE_MODEL_VERSION, SceneNode, type SceneNodeOptions } from './sceneNode.ts';

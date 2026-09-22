@@ -74,13 +74,8 @@ export {
   frustumPlanesFromMatrix,
   frustumPlanesToLocal,
 } from '../../sdk-core/mathFrustum.ts';
-export { coneRejects, dot, maxStretch } from '../../sdk-core/projectionOracles.ts';
-export {
-  clusterErrorAtDepth,
-  clusterErrorPixels,
-  screenErrorBound,
-} from '../../sdk-core/screenErrorBound.ts';
 export { composeMatrix4, composeMatrix4Batch } from '../../sdk-core/mathMatrix4Compose.ts';
+export { coneRejects, dot, maxStretch } from '../../sdk-core/projectionOracles.ts';
 export {
   copyMatrix4,
   determinantMatrix4,
