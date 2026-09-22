@@ -3,6 +3,7 @@ import type { createWebgpuResidencyMirror } from './webgpuResidencyMirror.ts';
 import type { createWebgpuRowState } from './webgpuRowState.ts';
 import type { createWebgpuRowCommit } from './webgpuRowCommit.ts';
 import { createWebgpuRowSlots } from './webgpuRowSlots.ts';
+import { rowHasGeometry } from './webgpuPageRow.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Mirror = ReturnType<typeof createWebgpuResidencyMirror>;
@@ -62,7 +63,7 @@ export function createWebgpuRowSync(
       const offsetWords = rows.residentOffsetWords[pageIndex],
         index = rec.array,
         position = rows.pagePositions[pageIndex];
-      if (offsetWords < 0 || !index || !position) continue;
+      if (offsetWords < 0 || !index || !rowHasGeometry(rec, position)) continue;
       const row = count++;
       const source = sourceRowOf(pageIndex, offsetWords);
       if (source >= 0) {

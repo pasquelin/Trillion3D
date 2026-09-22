@@ -111,8 +111,11 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     pipelineNone: gpu.pipelineNone,
     pipelineBlend: gpu.pipelineBlend,
   } = createWebgpuPagesPipelines(gpuDevice, UNIFORM_STRIDE));
+  // Only a cluster no quantized page covers still needs its primitive's float positions: what the
+  // fallback draw reads for the others is the page in their pool slot.
   for (const rec of allPages)
-    ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers, gpu);
+    if (!rec.geometryPage)
+      ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers, gpu);
   for (let i = 0; i < packedPages.length; i++)
     rows.pagePositions[i] = gpu.positionBuffers.get(packedPages[i].attributes);
   // Fresh position buffers: rank sync starts over from the catalogue.

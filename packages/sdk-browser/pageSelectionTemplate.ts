@@ -10,9 +10,10 @@ import {
 import {
   clusterErrorFields,
   cullingNodes,
+  quantizationErrorOf,
   streamPlacement,
-  structureIndex,
 } from './pageSelectionHelpers.ts';
+import { structureIndex } from './pageSelectionStructure.ts';
 import { cullingBounds } from './pageSelectionCutBounds.ts';
 import { cullingLinks, type CullingLinks } from './pageSelectionCutForced.ts';
 
@@ -83,6 +84,7 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
       const kept = held.get(primitive);
       if (kept) return kept;
       const placement = streamPlacement(primitive.streams, primitive.pages);
+      const quantizationError = quantizationErrorOf(primitive);
       const pages = primitive.pages.map((page, index) => {
         const array = indices.get(page.url);
         if (!array && !allowMissing && indices.size) throw new Error('Missing page');
@@ -92,7 +94,7 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
         if (array && array.length !== page.count) throw new Error('Incomplete cluster coverage');
         return {
           array,
-          cut: clusterErrorFields(page),
+          cut: clusterErrorFields(page, quantizationError),
           placed: placement?.[index],
           clusterId: `${primitive.mesh}/${primitive.primitive}/${page.id}`,
         };
@@ -120,9 +122,10 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
           `Primitive ${primitive.mesh}/${primitive.primitive}: clusters without a DAG error band; recompile with ${DAG_ERROR_MODEL}`,
           { mesh: primitive.mesh, primitive: primitive.primitive, expected: DAG_ERROR_MODEL },
         );
-      const culling = cullingNodes(primitive.culling, template.pages.length);
+      const quantizationError = quantizationErrorOf(primitive);
+      const culling = cullingNodes(primitive.culling, template.pages.length, quantizationError);
       const shape: Shape = {
-        structure: structureIndex(primitive.structure, primitive.pages.length),
+        structure: structureIndex(primitive.structure, primitive.pages.length, quantizationError),
         culling,
         bounds: culling
           ? cullingBounds(

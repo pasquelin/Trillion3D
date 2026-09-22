@@ -14,9 +14,9 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  let pageIndex=(id>>8u)-1u;let tri=id&0xffu;
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
- let base=page.pageOffset+tri*3u;
- let i0=indices[base];let i1=indices[base+1u];let i2=indices[base+2u];
- let p0=vertPos(page.vertexBase,i0);let p1=vertPos(page.vertexBase,i1);let p2=vertPos(page.vertexBase,i2);
+ let h=pageHeader(page);
+ let i0=pageCorner(page,h,tri*3u);let i1=pageCorner(page,h,tri*3u+1u);let i2=pageCorner(page,h,tri*3u+2u);
+ let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
  let w0=page.world*vec4f(p0,1.0);let w1=page.world*vec4f(p1,1.0);let w2=page.world*vec4f(p2,1.0);
  let c0=uni.viewProj*w0;let c1=uni.viewProj*w1;let c2=uni.viewProj*w2;
  let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
@@ -35,8 +35,8 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  let width=select(vec3f(0.005),vec3f(abs(s1.y-s2.y)+abs(s2.x-s1.x),abs(s2.y-s0.y)+abs(s0.x-s2.x),abs(s0.y-s1.y)+abs(s1.x-s0.x))/absArea,absArea>0.0);
  var ddx=vec2f(0.0);var ddy=vec2f(0.0);
  if(HAS_UV){
-  uv=vertUv(page.vertexBase,i0)*bary.x+vertUv(page.vertexBase,i1)*bary.y+vertUv(page.vertexBase,i2)*bary.z;
-  let uva=vertUv(page.vertexBase,i0);let uvb=vertUv(page.vertexBase,i1);let uvc=vertUv(page.vertexBase,i2);
+  let uva=pageUv(page,h,i0);let uvb=pageUv(page,h,i1);let uvc=pageUv(page,h,i2);
+  uv=uva*bary.x+uvb*bary.y+uvc*bary.z;
   let dxb=s1.x-s0.x;let dyb=s1.y-s0.y;let dxc=s2.x-s0.x;let dyc=s2.y-s0.y;let det=dxb*dyc-dxc*dyb;
   if(det!=0.0){
    let inv=1.0/det;let dsdx=dyc*inv;let dsdy=-dxc*inv;let dtdx=-dyb*inv;let dtdy=dxb*inv;
@@ -50,7 +50,7 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
    }
   }
  }
- let request=shadeRequest(page,pos.xy,uv,ddx,ddy,w0,w1,w2,i0,i1,i2,w0*bary.x+w1*bary.y+w2*bary.z);
+ let request=shadeRequest(page,h,pos.xy,uv,ddx,ddy,w0,w1,w2,i0,i1,i2,w0*bary.x+w1*bary.y+w2*bary.z);
  var roughSample=vec4f(1.0);
  ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
  var metalSample=vec4f(1.0);
@@ -97,9 +97,9 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
   // On a rank-2 pose, invTranspose3Apply returns the transformed FACE normal: the three
   // vertex normals fall on the same direction, and interpolation keeps it.
   let invT=invTranspose3Prep(world3);
-  var n0=uniteOuZero(invTranspose3Apply(invT,vertN(page.vertexBase,i0)))*side;
-  var n1=uniteOuZero(invTranspose3Apply(invT,vertN(page.vertexBase,i1)))*side;
-  var n2=uniteOuZero(invTranspose3Apply(invT,vertN(page.vertexBase,i2)))*side;
+  var n0=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i0)))*side;
+  var n1=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i1)))*side;
+  var n2=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i2)))*side;
   var N=uniteOuZero(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
    N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
@@ -115,8 +115,8 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
     T=normalize(t0*bary.x+t1*bary.y+t2*bary.z);
     B=normalize(normalize(cross(n0,t0)*ta.w)*bary.x+normalize(cross(n1,t1)*tb.w)*bary.y+normalize(cross(n2,t2)*tc.w)*bary.z);
    }else{
-    let uva=vertUv(page.vertexBase,i0);
-    let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,vertUv(page.vertexBase,i1)-uva,vertUv(page.vertexBase,i2)-uva);
+    let ua=pageUv(page,h,i0);
+    let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,pageUv(page,h,i1)-ua,pageUv(page,h,i2)-ua);
     T=frame.T*screenFace;B=frame.B*screenFace;
    }
    if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}

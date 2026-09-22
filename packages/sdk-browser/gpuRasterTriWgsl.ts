@@ -59,12 +59,13 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  let page=pages[pageIndex];
  if(uni.selectionEnabled!=0u&&selectionMask[uni.selectionOffset+page.selectionIndex]==0u){return t;}
  if(triangle*3u+2u>=page.indexCount){return t;}
- let ia=indices[page.pageOffset+triangle*3u];let ib=indices[page.pageOffset+triangle*3u+1u];let ic=indices[page.pageOffset+triangle*3u+2u];
- let ca=vertex(vp,page.vertexBase,ia);let cb=vertex(vp,page.vertexBase,ib);let cc=vertex(vp,page.vertexBase,ic);
+ let h=pageHeader(page);
+ let ia=pageCorner(page,h,triangle*3u);let ib=pageCorner(page,h,triangle*3u+1u);let ic=pageCorner(page,h,triangle*3u+2u);
+ let ca=vertex(vp,page,h,ia);let cb=vertex(vp,page,h,ib);let cc=vertex(vp,page,h,ic);
  if(!computeTakes(ca,cb,cc)){return t;}
  // Only a mask material clips in the raster: it alone pays the read of its three UVs.
  var ua=vec2f(0.0);var ub=vec2f(0.0);var uc=vec2f(0.0);
- if((page.flags&128u)!=0u){ua=uv(page,ia);ub=uv(page,ib);uc=uv(page,ic);}
+ if((page.flags&128u)!=0u){ua=pageUv(page,h,ia);ub=pageUv(page,h,ib);uc=pageUv(page,h,ic);}
  let cl=clipNear(ca,cb,cc,ua,ub,uc);
  if(cl.n<3u){return t;}
  let a=screen(cl.p[0]);let b=screen(cl.p[1]);let c=screen(cl.p[2]);

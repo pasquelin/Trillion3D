@@ -95,12 +95,29 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const byUrl = indexPagesByUrl(allPages);
   const uniquePages = Math.max(1, new Set(allPages.map((page) => page.url)).size);
   const scene = createBlendHostScene(clearColor, blendCopies);
-  let pageBytes = 4;
+  // What a pool slot holds for a cluster: its quantized geometry page where the cache carries
+  // one, its index page otherwise. The slot is the widest of them, so any admitted page fits.
+  const geometryUrls = new Map<string, string>();
+  let pageBytes = 4,
+    clustersWithoutGeometryPage = 0;
   for (const page of allPages) {
-    const n = page.array?.byteLength ?? page.indexBytes;
+    const geometry = page.geometryPage;
+    if (geometry) geometryUrls.set(page.url, geometry.url);
+    else if (!page.transparent) clustersWithoutGeometryPage++;
+    const n = geometry ? geometry.bytes : (page.array?.byteLength ?? page.indexBytes);
     const padded = n + (n % 4 ? 4 - (n % 4) : 0);
     if (padded > pageBytes) pageBytes = padded;
   }
+  // Said out loud, never silently: an opaque or masked cluster the cache gave no geometry page
+  // still draws from the source float buffers, and that is what those bytes are there for.
+  diag.engineDiagnostic('geometry-pages', 'Clusters drawn from their quantized page', {
+    backend: 'webgpu-page-raster',
+    clusters: allPages.length,
+    fromGeometryPage: geometryUrls.size,
+    fromSourceGeometry: clustersWithoutGeometryPage,
+    transparentClusters: allPages.length - geometryUrls.size - clustersWithoutGeometryPage,
+    slotBytes: pageBytes,
+  });
   const sourceBytes = indexSourceBytes(allPages);
   // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
   // Image targets, themselves, follow resolution with no ceiling.
@@ -157,6 +174,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     scene,
     pageBytes,
     sourceBytes,
+    // Geometry page url of every cluster drawn from one, by cluster address: what the pool reads
+    // for that slot. A cluster absent from this table is uploaded from `sourceBytes`.
+    geometryUrls,
     reserveHiz,
     textureBudget,
     textureUploadMs,
