@@ -156,7 +156,7 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
   const rt = {
     vis: { visEnabled: true, blendPipelines: [{}, {}, {}] },
     gpu,
-    capture: { secondaryCamera: undefined },
+    capture: { capturing: false },
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its resources by default.

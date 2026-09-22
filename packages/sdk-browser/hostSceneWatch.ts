@@ -1,5 +1,4 @@
-import type * as THREE from 'three';
-import { asHostLibrary, type HostNode } from './hostResources.ts';
+import type { HostGraphNode, HostLightNode } from './hostGraphNodes.ts';
 import type { WriteRevision } from './hostSceneHookCore.ts';
 import { hookHostNode, unhookHostNode } from './hostSceneHooks.ts';
 import { scan, snapshot, type NodeState, type WatchVerdict } from './hostSceneScan.ts';
@@ -16,13 +15,13 @@ export type WatchedSources = ReadonlyArray<unknown>;
 
 /** Source node of an entry, when it names one. */
 function sourceOf(entry: unknown) {
-  const shaped = entry as { sourceMesh?: THREE.Object3D } | undefined | null;
+  const shaped = entry as { sourceMesh?: HostGraphNode } | undefined | null;
   return shaped ? shaped.sourceMesh : undefined;
 }
 
 /** Walks a node's chain up to the root: an ancestor's pose is the node's. */
-function withAncestors(node: THREE.Object3D | undefined, into: Set<THREE.Object3D>) {
-  let walk: THREE.Object3D | null = node ?? null;
+function withAncestors(node: HostGraphNode | undefined, into: Set<HostGraphNode>) {
+  let walk: HostGraphNode | null = node ?? null;
   while (walk && !into.has(walk)) {
     into.add(walk);
     walk = walk.parent;
@@ -61,13 +60,13 @@ export function createHostSceneWatch() {
      * that made the list stale is what announced it, and a node that enters the list is read
      * as-is by that same frame.
      */
-    observe(node: HostNode, drawn: WatchedSources) {
-      const source = asHostLibrary<THREE.Object3D>(node);
-      const set = new Set<THREE.Object3D>();
+    observe(source: HostGraphNode, drawn: WatchedSources) {
+      const set = new Set<HostGraphNode>();
       source.traverse((object) => {
-        if (!(object as THREE.Light).isLight) return;
+        const light = object as HostLightNode;
+        if (!light.isLight) return;
         withAncestors(object, set);
-        withAncestors((object as THREE.DirectionalLight).target, set);
+        withAncestors(light.target, set);
       });
       for (const entry of drawn) withAncestors(sourceOf(entry), set);
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
