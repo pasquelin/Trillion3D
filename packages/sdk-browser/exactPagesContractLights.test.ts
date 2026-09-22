@@ -15,7 +15,7 @@ function harness(sourceLights: THREE.Light[] = []) {
   const source = new THREE.Object3D();
   for (const light of sourceLights) source.add(light);
   const store = createSceneLightStore();
-  const installed = installSceneLighting(scene, source, 0x000000);
+  const installed = installSceneLighting(scene, source);
   const contract = attachContractLights(scene, store, installed, () => {});
   return {
     scene,
