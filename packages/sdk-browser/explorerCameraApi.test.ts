@@ -75,5 +75,9 @@ test('restoreAfterCampaign restores a camera the host posed by matrix', () => {
   api.restoreAfterCampaign('webgpu-page-raster', saved);
   assert.equal(camera.matrixAutoUpdate, false);
   assert.deepEqual([...camera.matrix.elements], [...saved.matrix.elements]);
-  assert.deepEqual([...camera.matrixWorld.elements], [...saved.matrixWorld.elements]);
+  // And the world pose follows the matrix that was put back. Asserting it against
+  // `saved.matrixWorld` would prove nothing: a host that poses by matrix raises no update flag,
+  // so both sides sit at the identity the clone was taken with. The restore has to compose it.
+  assert.deepEqual([...camera.matrixWorld.elements], [...camera.matrix.elements]);
+  assert.deepEqual([camera.matrixWorld.elements[12], camera.matrixWorld.elements[14]], [3, 7]);
 });
