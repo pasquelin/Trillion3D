@@ -1,5 +1,4 @@
-import type { HostColour, HostNode, HostTraversable } from './hostResources.ts';
-import type { MatrixElements } from './matrixElements.ts';
+import type { HostColour, HostNode, HostPlaced, HostTraversable } from './hostResources.ts';
 
 /**
  * Browser boundary: the lights a source graph declares, placed in the graph an engine publishes.
@@ -8,18 +7,6 @@ import type { MatrixElements } from './matrixElements.ts';
  * the host writes on its own objects say its kind, the copy it makes of itself is its own — so
  * the placement is the engine's and the objects stay the host's.
  */
-
-/** A host object placed in a display graph: the pose the engine writes, and the world matrix
- *  the host resolves for it. */
-export type HostPlaced = {
-  visible: boolean;
-  position: { x: number; y: number; z: number };
-  quaternion: { x: number; y: number; z: number; w: number };
-  scale: { x: number; y: number; z: number };
-  readonly matrixWorld: MatrixElements;
-  readonly parent: HostPlaced | null;
-  updateWorldMatrix(ancestors: boolean, descendants: boolean): void;
-};
 
 /**
  * A host light, and the copy of it a display graph holds. The kind is read from the flags the
@@ -40,7 +27,7 @@ export type HostLight = HostPlaced & {
   penumbra?: number;
   /** Aim of a directional or a spot: the point it looks at, a node of the same graph. */
   target?: HostPlaced;
-  /** A copy of this light, the host's own: a light that aims clones its target with itself. */
+  /** A copy of this light, made by the host that owns it. */
   clone(): HostLight;
 };
 
@@ -76,7 +63,13 @@ function placeAt(into: HostPlaced, from: HostPlaced) {
  * a light, not an invented hemisphere and sun. Same rule as the contract path,
  * on every engine that draws a display graph.
  */
-export function installSceneLighting(scene: HostLightScene, source: HostTraversable) {
+export function installSceneLighting(
+  scene: HostLightScene,
+  source: HostTraversable,
+  /** An empty node of that graph: what a copied light aims at. The engine poses it, the host
+   *  makes it — the source's own target belongs to the source graph and stays there. */
+  aimNode: () => HostPlaced,
+) {
   let pairs: Array<{ original: HostLight; copy: HostLight; target?: HostPlaced }> = [];
   // Source-graph lights are cleared when another lighting contract takes over: two
   // stacked light sets would be nobody's lighting.
@@ -124,13 +117,15 @@ export function installSceneLighting(scene: HostLightScene, source: HostTraversa
     }
     pairs = [];
     for (const original of sceneLights(source)) {
-      // The host's own copy: a light that aims somewhere clones its target with it, and that
-      // clone is what is placed here — the aim is a position in this graph, never a rig. A copy
-      // that shared the source's target is left aiming at it, where the source graph resolves
-      // it: moving that node here would take it out of the graph its owner walks.
       const copy = original.clone();
-      const target = copy.target === original.target ? undefined : copy.target;
-      if (target) scene.add(target);
+      let target: HostPlaced | undefined;
+      // A light that aims gets an aim of this graph: the copy is posed here, and the source's
+      // own target stays in the graph its owner walks and resolves.
+      if (copy.target) {
+        target = aimNode();
+        copy.target = target;
+        scene.add(target);
+      }
       scene.add(copy);
       pairs.push({ original, copy, target });
     }

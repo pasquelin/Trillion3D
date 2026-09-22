@@ -1,5 +1,5 @@
 import { installSceneLighting } from './sceneLighting.ts';
-import type { HostTraversable } from './hostResources.ts';
+import type { HostPlaced, HostTraversable } from './hostResources.ts';
 import { hslToLinearRgb, type BackendCapabilities } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
@@ -71,9 +71,13 @@ export function clusterColor(id: string, saturation = 0.75) {
   hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
   return new THREE.Color(tint[0], tint[1], tint[2]);
 }
+/** An empty node of a host display graph: what a copied light aims at, made here because
+ *  making a host object is the boundary's, and posed by the placement that asked for it. */
+export const hostAimNode = () => new THREE.Object3D() as unknown as HostPlaced;
+
 /** The display graph a witness publishes: its clear colour, then the source-graph lights
- *  placed on it. Building the colour object is the boundary's, the placement is not. */
+ *  placed on it. Building the host objects is the boundary's, the placement is not. */
 export function lighting(scene: THREE.Scene, clearColor: number, source: HostTraversable) {
   scene.background = new THREE.Color(clearColor);
-  return installSceneLighting(scene, source);
+  return installSceneLighting(scene, source, hostAimNode);
 }

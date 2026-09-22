@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { installSceneLighting } from './sceneLighting.ts';
-import { lighting } from './backendCommon.ts';
+import { hostAimNode, lighting } from './backendCommon.ts';
 
 test('Three reference adapter copies the authored directional target in world space', () => {
   const source = new THREE.Group(),
@@ -15,7 +15,7 @@ test('Three reference adapter copies the authored directional target in world sp
   sun.target.position.set(4, 0, 0);
   source.add(sun.target);
   const reference = new THREE.Scene();
-  installSceneLighting(reference, source);
+  installSceneLighting(reference, source, hostAimNode);
   const copy = reference.children.find(
     (object) => object instanceof THREE.DirectionalLight,
   ) as THREE.DirectionalLight;
@@ -25,7 +25,7 @@ test('Three reference adapter copies the authored directional target in world sp
 
 test('a source without a declared light installs no light at all', () => {
   const scene = new THREE.Scene();
-  installSceneLighting(scene, new THREE.Group());
+  installSceneLighting(scene, new THREE.Group(), hostAimNode);
   assert.equal(
     scene.children.filter((object) => (object as THREE.Light).isLight).length,
     0,
@@ -38,8 +38,9 @@ test('placing the lights leaves the display background to the boundary that owns
   installSceneLighting(scene, new THREE.Group());
   assert.equal(scene.background, null, 'the light placement declares no clear colour');
   lighting(scene, 0x112233, new THREE.Group());
-  assert.deepEqual(
-    (scene.background as THREE.Color).getHex(),
+  const background: THREE.Color | null = scene.background as THREE.Color | null;
+  assert.equal(
+    background?.getHex(),
     0x112233,
     'the witness boundary sets it with the scene it publishes',
   );
@@ -51,7 +52,7 @@ test('a light that aims carries its own target: the source graph keeps the one i
   source.add(sun);
   source.add(sun.target);
   const scene = new THREE.Scene();
-  installSceneLighting(scene, source);
+  installSceneLighting(scene, source, hostAimNode);
   const copy = scene.children.find(
     (object) => object instanceof THREE.DirectionalLight,
   ) as THREE.DirectionalLight;
