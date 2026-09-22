@@ -99,8 +99,8 @@ fn a_group_and_its_replacement_cover_the_same_triangles_once() {
 }
 
 #[test]
-fn a_planar_sheet_keeps_its_exact_level_and_coarsens_without_error() {
-    // A plane simplifies losslessly, so every level shares error zero; level 0 must still be emitted.
+fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_its_step() {
+    // A plane simplifies without displacing its surface; level 0 must still be emitted.
     let w = 65usize;
     let positions: Vec<f32> = (0..w)
         .flat_map(|y| (0..w).flat_map(move |x| [x as f32, y as f32, 0.0]))
@@ -134,9 +134,17 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_without_error() {
         dag.iter().any(|c| c.level > 0),
         "a plane must still coarsen"
     );
-    assert!(dag
+    // A collapse inside a plane displaces no surface, so no level may lift it by as much as the
+    // distance between two of its own vertices, the only length the sheet carries. meshoptimizer
+    // 0.25 accumulates its error over the collapses rather than remeasuring it, so what it reports
+    // on a plane is not exactly nil; it stays two orders of magnitude under the step.
+    let step = 1.0;
+    let worst = dag
         .iter()
-        .all(|c| c.lod_error == 0.0 || !c.lod_error.is_finite()));
+        .map(|c| c.lod_error)
+        .filter(|error| error.is_finite())
+        .fold(0.0, f64::max);
+    assert!(worst < step * 1e-2, "a plane coarsened by {worst}");
 }
 
 #[test]
@@ -144,7 +152,7 @@ fn build_honours_cancellation() {
     let (positions, indices) = grid(32);
     let error = build_dag_tallied(
         &positions,
-        None,
+        &[],
         &indices,
         DagStrategy::QemEndpoints,
         &|| Err(invalid("cancelled")),

@@ -120,8 +120,32 @@ test('DAG warnings are summarised in one line when the job completes', () => {
       primitive: 0,
       warnings,
     });
-  warn(7, [{ code: 'DAG_FLAT', roots: 98, pages: 98, groups: { noCollapse: 4 } }]);
-  warn(9, [{ code: 'DAG_ROOTS', roots: 6, pages: 27, groups: { noCollapse: 1 } }]);
+  const stalls = {
+    cause: 'seam-locked' as const,
+    seamVertices: 30,
+    lockedVertices: 4,
+    uvIslands: 9,
+  };
+  warn(7, [
+    {
+      code: 'DAG_FLAT',
+      roots: 98,
+      pages: 98,
+      groups: { seamLocked: 4 },
+      rootTriangles: 12544,
+      ...stalls,
+    },
+  ]);
+  warn(9, [
+    {
+      code: 'DAG_ROOTS',
+      roots: 6,
+      pages: 27,
+      groups: { seamLocked: 1 },
+      rootTriangles: 640,
+      ...stalls,
+    },
+  ]);
   assert.doesNotMatch(out.text(), /⚠/, 'nothing is said before the end');
   progress.event({ event: 'complete', job: 'job', ratio: 1, pointer: { primitives: 2 } });
   assert.match(

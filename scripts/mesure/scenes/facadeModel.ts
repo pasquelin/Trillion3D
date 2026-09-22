@@ -6,8 +6,10 @@
 // count; the bay — one storey tall, one bay wide — is the scene's unit, and every length is
 // counted in it. Two seeds give two different blocks with the same guarantees.
 
-/** The three ways a wall lays its texture coordinates out, one per wall around the block. */
-export type UvLayout = 'per-wall' | 'per-window' | 'mirrored';
+/** The three ways a wall lays its texture coordinates out, one per wall around the block, and
+ *  `per-brick`, asked for every wall at once: each cell of the bay's cut owns its four corners and
+ *  maps the whole texture, one island per brick, so every position is a seam corner. */
+export type UvLayout = 'per-wall' | 'per-window' | 'mirrored' | 'per-brick';
 export const UV_LAYOUTS: UvLayout[] = ['per-wall', 'per-window', 'mirrored'];
 
 export interface WallMesh {
@@ -74,38 +76,55 @@ export function uvAt(layout: UvLayout, t: number, h: number, bayU: number, bayV:
   return [t, h];
 }
 
-/** The four walls of the block, in the order `UV_LAYOUTS` repeats through. */
-export function facadeWalls(plan: ReturnType<typeof facadePlan>, subdivision: number): WallMesh[] {
+/** The four walls of the block, in the order `UV_LAYOUTS` repeats through, or all `per-brick`. */
+export function facadeWalls(
+  plan: ReturnType<typeof facadePlan>,
+  subdivision: number,
+  bricks = false,
+): WallMesh[] {
   const [baysX, baysZ] = plan.bays,
     height = plan.storeys;
   const frames = wallFrames(baysX, baysZ);
   return frames.map((frame, index) => {
-    const layout = UV_LAYOUTS[index % UV_LAYOUTS.length];
+    const layout: UvLayout = bricks ? 'per-brick' : UV_LAYOUTS[index % UV_LAYOUTS.length];
     const columns = index % 2 === 0 ? baysX : baysZ;
     const open = plan.windows[index % 2];
     const positions: number[] = [],
       normals: number[] = [],
       uvs: number[] = [],
       indices: number[] = [];
+    // One vertex at `(u, v)` of the bay's cut, whose texture coordinate the layout gives.
+    const vertex = (column: number, row: number, u: number, v: number, uv?: number[]) => {
+      const bayU = u / subdivision,
+        bayV = v / subdivision,
+        t = (column + bayU) / columns,
+        h = (row + bayV) / height,
+        run = t * frame.length;
+      positions.push(
+        frame.origin[0] + frame.along[0] * run,
+        h * height,
+        frame.origin[2] + frame.along[2] * run,
+      );
+      normals.push(...frame.normal);
+      uvs.push(...(uv ?? uvAt(layout, t, h, bayU, bayV)));
+    };
     for (let row = 0; row < height; row++)
       for (let column = 0; column < columns; column++) {
         if (open[row * columns + column]) continue;
+        if (bricks) {
+          // Each cell writes its own four corners, corner `c` at `(c & 1, c >> 1)` of the cell.
+          for (let v = 0; v < subdivision; v++)
+            for (let u = 0; u < subdivision; u++) {
+              const first = positions.length / 3;
+              for (let c = 0; c < 4; c++)
+                vertex(column, row, u + (c & 1), v + (c >> 1), [c & 1, c >> 1]);
+              indices.push(first, first + 2, first + 1, first + 1, first + 2, first + 3);
+            }
+          continue;
+        }
         const base = positions.length / 3;
         for (let v = 0; v <= subdivision; v++)
-          for (let u = 0; u <= subdivision; u++) {
-            const bayU = u / subdivision,
-              bayV = v / subdivision,
-              t = (column + bayU) / columns,
-              h = (row + bayV) / height,
-              run = t * frame.length;
-            positions.push(
-              frame.origin[0] + frame.along[0] * run,
-              h * height,
-              frame.origin[2] + frame.along[2] * run,
-            );
-            normals.push(...frame.normal);
-            uvs.push(...uvAt(layout, t, h, bayU, bayV));
-          }
+          for (let u = 0; u <= subdivision; u++) vertex(column, row, u, v);
         for (let v = 0; v < subdivision; v++)
           for (let u = 0; u < subdivision; u++) {
             const a = base + v * (subdivision + 1) + u;

@@ -38,9 +38,15 @@ export {
   MAX_DEPTH_LAYER,
 } from '../../sdk-core/depthLayer.ts';
 export { createSceneRoot, SceneRoot } from '../../sdk-core/sceneRoot.ts';
-export type { DagReport, DagWarning } from '../../sdk-core/dagContracts.ts';
+export type {
+  DagReport,
+  DagStall,
+  DagStallCause,
+  DagStallSummary,
+  DagWarning,
+} from '../../sdk-core/dagContracts.ts';
 export { dagWarningsDiagnostic } from '../../sdk-core/dagWarnings.ts';
-export type { PrimitiveDagWarning } from '../../sdk-core/dagWarnings.ts';
+export type { PrimitiveDagStall, PrimitiveDagWarning } from '../../sdk-core/dagWarnings.ts';
 export type {
   GeometryPageDescriptor,
   GeometryPageFormat,
