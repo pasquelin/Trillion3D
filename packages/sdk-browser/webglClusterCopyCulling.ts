@@ -6,7 +6,7 @@ import {
   frustumExcludesBox,
 } from '../sdk-core/index.ts';
 import { multiplyMatrix4 } from './webglClusterMatrices.ts';
-import { readThreeBox } from './threeBounds.ts';
+import { readHostBox } from './hostBoxBounds.ts';
 import { isTransmissive } from './visibilityMaterial.ts';
 import { firstMaterial } from './materialSide.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
@@ -16,7 +16,7 @@ import type { WholeMesh } from './clusterBatchMesh.ts';
 type CulledCopy = {
   frustumCulled: boolean;
   matrix: { elements: ArrayLike<number> };
-  geometry: { boundingBox: Parameters<typeof readThreeBox>[1] | null; computeBoundingBox(): void };
+  geometry: { boundingBox: Parameters<typeof readHostBox>[1] | null; computeBoundingBox(): void };
 };
 /** A scene copy the owner draws: a host mesh drawn whole, culled as the host would. Its
  *  `material` is the HOST MESH's own field, not a page's `declaration`: a diagnostic mode
@@ -42,7 +42,7 @@ class WebglClusterCopyCulling {
     if (!copy.frustumCulled) return true;
     if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
     const box = this.box;
-    readThreeBox(box, copy.geometry.boundingBox!);
+    readHostBox(box, copy.geometry.boundingBox!);
     boxTransform(box, 0, box, 0, copy.matrix.elements);
     return !frustumExcludesBox(this.planes, box[0], box[1], box[2], box[3], box[4], box[5]);
   }

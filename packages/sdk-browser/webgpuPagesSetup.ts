@@ -1,6 +1,6 @@
 import type { HostMesh } from './hostResources.ts';
 import type { BlendCopy } from './blendCopyContract.ts';
-import { createBlendCopy } from './blendCopyMesh.ts';
+import { createBlendCopyRecord } from './blendCopyRecord.ts';
 import { indexSourceBytes } from './webgpuPagesCatalogue.ts';
 import { describePageSlots } from './webgpuPageSlots.ts';
 import type { BackendContext } from './backendTypes.ts';
@@ -12,7 +12,7 @@ import {
   RequestStamps,
   rootCoverage,
 } from './pageSelection.ts';
-import { createBlendHostScene } from './hostBlendScene.ts';
+import { createBlendScene } from './blendSceneRecord.ts';
 import { createHostRankDelta } from './webgpuPagesHostRanks.ts';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
 import {
@@ -64,7 +64,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     if (rec.transparent && rec.sourceMesh) {
       const mesh = rec.sourceMesh;
       if (pagedBlendCopies.has(mesh)) continue;
-      const copy = createBlendCopy(mesh, rec.renderOrder, rec.matrix, rec.material);
+      const copy = createBlendCopyRecord(mesh, rec.renderOrder, rec.matrix, rec.material);
       copy.userData.pagedBlend = true;
       pagedBlendCopies.set(mesh, copy);
       blendCopies.push(copy);
@@ -98,7 +98,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // cache stays keyed by cluster (`rec.url`), because that is the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(allPages);
   const uniquePages = Math.max(1, new Set(allPages.map((page) => page.url)).size);
-  const scene = createBlendHostScene(clearColor, blendCopies);
+  const scene = createBlendScene(clearColor, blendCopies);
   // What a pool slot holds, how wide it is, and the corner count every page draw is bounded by.
   const { geometryUrls, pageBytes, maxCorners, ...clusterSides } = describePageSlots(allPages);
   // Said out loud, never silently: an opaque or masked cluster the cache gave no geometry page

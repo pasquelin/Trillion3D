@@ -1,11 +1,10 @@
 import { invertMatrix4 } from '../sdk-core/index.ts';
-import * as THREE from 'three';
 import { checkSurfaceSize, createSurfaceBuffer, type SurfaceCapture } from './surfaceBuffer.ts';
 import { collectPendingUrls } from './pageSelection.ts';
 import { awaitedPages } from './webgpuPageSlots.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
-import { holdHostCamera, resolveCameraWorld, type HostCamera } from './cameraWorld.ts';
+import { detachedHostView, type HostCamera } from './cameraWorld.ts';
 import {
   drawResidentCut,
   renderForCapture,
@@ -104,13 +103,9 @@ export async function captureSurfaceView(
     diagnostic: run.diagnostic,
     motion: { ...run.motion },
   };
-  // Capture entry: the camera comes from the host like an image's. The detached copy keeps the
+  // Capture entry: the camera comes from the host like an image's. The detached view keeps the
   // world pose; a clone would bring it back to its local pose under a rig.
-  resolveCameraWorld(camera);
-  const view = holdHostCamera(new THREE.PerspectiveCamera(), camera);
-  view.aspect = options.width / options.height;
-  view.updateProjectionMatrix();
-  view.updateMatrixWorld();
+  const view = detachedHostView(camera, options.width / options.height);
   const started = performance.now();
   const throwIfAborted = () => {
     options.signal?.throwIfAborted();
