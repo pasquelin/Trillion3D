@@ -59,7 +59,7 @@
     "meshInstances": 1,
     "textures": 1
   },
-  "formatVersion": 4,
+  "formatVersion": 6,
   "images": [
     {
       "mimeType": "image/png",
