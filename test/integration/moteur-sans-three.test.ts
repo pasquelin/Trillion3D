@@ -118,7 +118,17 @@ test('only the declared files read the host declaration a page was collected fro
  * translation is `writeEngineCamera`, which derives the projection, the view, the
  * view-projection and the frustum planes; a file naming a host camera beside it would be a
  * second translation.
+ *
+ * `writeEngineCamera` is not looked for alone: a second translation could be written straight
+ * on the two core calls it is made of, `perspectiveProjection` and `updateCameraFrame`, and
+ * would then name no host-camera translation at all. Naming a host camera beside ANY of the
+ * three is what the rule refuses.
  */
+const COMPOSE_LA_CAMERA = [
+  /\bwriteEngineCamera\b/,
+  /\bperspectiveProjection\b/,
+  /\bupdateCameraFrame\b/,
+];
 test('`cameraWorld.ts` remains the only translation from host camera to engine camera', async () => {
   const texte = await readFile(new URL('cameraWorld.ts', browser), 'utf8');
   assert.match(texte, /export type HostCamera = \{/);
@@ -127,7 +137,8 @@ test('`cameraWorld.ts` remains the only translation from host camera to engine c
   for (const file of await sources()) {
     if (file === 'cameraWorld.ts') continue;
     const code = sansCommentaires(await readFile(new URL(file, browser), 'utf8'));
-    if (/\bHostCamera\b/.test(code) && /\bwriteEngineCamera\b/.test(code)) secondes.push(file);
+    if (/\bHostCamera\b/.test(code) && COMPOSE_LA_CAMERA.some((motif) => motif.test(code)))
+      secondes.push(file);
   }
   assert.deepEqual(
     secondes,

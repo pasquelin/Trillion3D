@@ -51,8 +51,8 @@ export function referenceCollectClusterPages(
   // `meshes` resolved the host subtree before batch 8; the witness now resolves it
   // itself, since it reads `matrixWorld` — what it computes does not change by a bit.
   source.updateMatrixWorld(true);
-  for (const source_mesh of objects(source)) {
-    const mesh = asHostLibrary<THREE.Mesh>(source_mesh);
+  for (const sourceMesh of objects(source)) {
+    const mesh = asHostLibrary<THREE.Mesh>(sourceMesh);
     const association = associations.get(mesh),
       primitive = metadata.primitives.find(
         (p) => p.mesh === association?.meshes && p.primitive === (association?.primitives ?? 0),

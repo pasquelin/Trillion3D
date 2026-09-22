@@ -13,6 +13,7 @@
  * consumes (`site/lessons/engine-scene/cameraControls.ts`); nothing outside that list is part
  * of it. The other controllers publish the same base plus what their own motion needs.
  */
+import type { HostRotation } from './hostGraphNodes.ts';
 
 /** The vector operations a controller and its host perform on a position or a target. */
 export interface ControlVector {
@@ -30,15 +31,6 @@ export interface ControlVector {
   fromArray(array: ArrayLike<number>, offset?: number): this;
 }
 
-/** The orientation a controller writes, as the host stores it: `(x, y, z, w)`. */
-interface ControlQuaternion {
-  x: number;
-  y: number;
-  z: number;
-  w: number;
-  set(x: number, y: number, z: number, w: number): unknown;
-}
-
 /**
  * The camera a controller poses: its LOCAL position and orientation, and the vertical field
  * a pan needs to turn pixels into world units. A controller never resolves a world pose —
@@ -47,7 +39,8 @@ interface ControlQuaternion {
  */
 export interface ControlCamera {
   position: ControlVector;
-  quaternion: ControlQuaternion;
+  /** The orientation the host stores, declared once in `hostGraphNodes.ts`. */
+  quaternion: HostRotation;
   fov: number;
   updateMatrixWorld(force?: boolean): void;
 }

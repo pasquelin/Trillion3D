@@ -3,6 +3,7 @@ import { devicePixels } from './backendCommon.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import type { HostCamera } from './cameraWorld.ts';
 import type { BoundTarget } from './explorerHostState.ts';
+import { hostPoint } from './hostGraphObjects.ts';
 import type { WebglSurface } from './webglSurface.ts';
 
 type Inputs = {
@@ -45,7 +46,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       view.near = pose.near;
       view.far = pose.far;
       view.aspect = size.width / size.height;
-      view.lookAt({ x: pose.target[0], y: pose.target[1], z: pose.target[2] });
+      view.lookAt(hostPoint(pose.target[0], pose.target[1], pose.target[2]));
       view.updateProjectionMatrix();
       view.updateMatrixWorld();
       setCapturingSurface(true);

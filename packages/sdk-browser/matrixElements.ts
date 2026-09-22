@@ -26,4 +26,13 @@ export function copyElements(into: { [index: number]: number }, from: ArrayLike<
  */
 export type MatrixElements = { readonly elements: ArrayLike<number> };
 
+/**
+ * The same sixteen floats, WRITABLE term by term: the pose a boundary sets back on a host node
+ * or on a host camera it restores. It is the mutable face of `MatrixElements` and lives beside
+ * it; nothing asks the host to compose them — `copyElements` writes them as they stand.
+ */
+export type HostNodeMatrix = {
+  readonly elements: { [index: number]: number; readonly length: number };
+};
+
 export { IDENTITY_MATRIX4 as IDENTITY_ELEMENTS };

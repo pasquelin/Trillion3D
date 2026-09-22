@@ -125,7 +125,9 @@ export type HostMesh = { readonly name: string; readonly parent?: HostMesh | nul
 export type HostNode = { readonly name: string; readonly visible: boolean };
 
 /** A host object placed in a display graph: the pose the engine writes on it, the world matrix
- *  the host resolves for it, and the chain a visibility walk climbs. */
+ *  the host resolves for it, and the chain a visibility walk climbs. `HostGraphNode`
+ *  (`hostGraphNodes.ts`) describes a posed node too, deliberately: this one asks the host to
+ *  resolve ONE node with its ancestors, that one a whole subtree; neither stands for the other. */
 export type HostPlaced = {
   visible: boolean;
   position: { x: number; y: number; z: number };
