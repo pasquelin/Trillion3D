@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { createAutonomousGeometry } from './autonomousGeometry.ts';
 import { referenceAutonomousSync } from './bench/oracles/backend-autonome.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
+import { surfaceOf } from './pageSurface.ts';
 
 function fakeScene() {
   const meshes = new Set<object>();
@@ -31,7 +32,8 @@ function makeRec(id: number, triangles: number): PageRec & { mesh: THREE.Mesh } 
     max: [1, 1, 1],
     depthLayer: 0,
     attributes: {} as THREE.BufferGeometry['attributes'],
-    material: {} as THREE.Material,
+    material: surfaceOf({} as unknown as THREE.Material),
+    declaration: {} as THREE.Material,
     matrix: new THREE.Matrix4(),
     renderOrder: 0,
     geometry: {} as THREE.BufferGeometry,
