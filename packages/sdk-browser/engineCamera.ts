@@ -45,6 +45,19 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
 
 /** The box an orthographic camera sees, in its own frame, before its zoom. */
 export type OrthographicBox = { left: number; right: number; top: number; bottom: number };
+/** The box `box` scaled by `zoom` about its centre, written in `into`: what the camera sees. */
+export function zoomedBox(box: OrthographicBox, zoom: number, into: OrthographicBox) {
+  const x = (box.right + box.left) / 2,
+    y = (box.top + box.bottom) / 2,
+    w = (box.right - box.left) / (2 * zoom),
+    h = (box.top - box.bottom) / (2 * zoom);
+  into.left = x - w;
+  into.right = x + w;
+  into.bottom = y - h;
+  into.top = y + h;
+  return into;
+}
+const seen: OrthographicBox = { left: 0, right: 0, top: 0, bottom: 0 };
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
  *  makes the projection orthographic; `fov` then still sizes what reads a field of view. */
 export type CameraOptics = {
@@ -89,12 +102,8 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   into.aspect = optics.aspect;
   const box = optics.orthographic;
   if (box) {
-    const zoom = optics.zoom || 1,
-      x = (box.right + box.left) / 2,
-      y = (box.top + box.bottom) / 2,
-      w = (box.right - box.left) / (2 * zoom),
-      h = (box.top - box.bottom) / (2 * zoom);
-    orthographicProjection(into.projection, x - w, x + w, y - h, y + h, optics.near, optics.far);
+    const { left, right, bottom, top } = zoomedBox(box, optics.zoom || 1, seen);
+    orthographicProjection(into.projection, left, right, bottom, top, optics.near, optics.far);
   } else
     perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom);
   updateCameraFrame(into, into.projection, into.world, into.far);

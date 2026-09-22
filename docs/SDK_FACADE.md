@@ -30,7 +30,7 @@ Resolvers that ignore `browser` therefore receive the safe common facade instead
 `api-inventory.json` is generated with the TypeScript checker. It follows aliases and transitive
 star exports, records binding identity and lists every current entry point. It also records the
 documented source-path imports that the facade newly exposes. Experimental comparison and oracle
-bindings stay classified as experimental. Issue #319 is a declared exception to "no binding is
+bindings stay classified as experimental. The world facade is a declared exception to "no binding is
 removed": `createExplorer`, `createExplorerJob` and the six backend factories left the browser
 branch for the measurement entry point above — renamed there to `openMeasuredWorld` and
 `createMeasuredWorldJob` — so a host that imported them from `web-geometry` now imports

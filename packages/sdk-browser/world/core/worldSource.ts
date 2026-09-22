@@ -9,13 +9,13 @@ import type { Cut } from './worldCuts.ts';
 import type { Batch } from './worldBatches.ts';
 import { buildWorldMirror } from './worldMirror.ts';
 import type { LoadedModel } from './loadedModel.ts';
+import type { ExplorerScene } from '../../explorerPrepare.ts';
 
 /** A page's addresses made absolute against the manifest they were read from. */
-function absolutePrimitive(primitive: Primitive, base: string, mesh: number): Primitive {
+function absolutePrimitive(primitive: Primitive, base: string): Primitive {
   const at = (url: string) => new URL(url, base).href;
   return {
     ...primitive,
-    mesh,
     pages: primitive.pages.map((page) => ({
       ...page,
       url: at(page.url),
@@ -29,6 +29,24 @@ function absolutePrimitive(primitive: Primitive, base: string, mesh: number): Pr
       : primitive.streams,
   };
 }
+
+/** Each model's primitives with absolute addresses, made once however often a session reopens. */
+const absolute = new WeakMap<LoadedModel, Primitive[]>();
+function absolutePrimitives(model: LoadedModel) {
+  let primitives = absolute.get(model);
+  if (!primitives) {
+    const { metadata, base } = model.record;
+    primitives = metadata.primitives.map((primitive) => absolutePrimitive(primitive, base));
+    absolute.set(model, primitives);
+  }
+  return primitives;
+}
+
+/** A loaded model's source graph as the mirror nests it: the host scene its loader built. */
+const modelGraph = (model: LoadedModel) =>
+  model.record.scene.source as unknown as Parameters<
+    typeof buildWorldMirror
+  >[0]['models'][number]['graph'];
 
 /** What a session is opened on: the batches placed by rows, and the models. */
 export type WorldPlan = {
@@ -46,12 +64,12 @@ export type WorldPlan = {
 export function buildWorldSource(plan: WorldPlan) {
   const { batches, models } = plan;
   const primitives: Primitive[] = [];
-  const associations = new Map<object, { meshes?: number; primitives?: number }>();
+  const associations: ExplorerScene['associations'] = new Map();
   let offset = 0;
   for (const model of models) {
-    const { metadata, base, scene: graph } = model.record;
-    for (const primitive of metadata.primitives)
-      primitives.push(absolutePrimitive(primitive, base, primitive.mesh + offset));
+    const { metadata, scene: graph } = model.record;
+    for (const primitive of absolutePrimitives(model))
+      primitives.push({ ...primitive, mesh: primitive.mesh + offset });
     for (const [node, link] of graph.associations)
       associations.set(node, { ...link, meshes: (link.meshes ?? 0) + offset });
     offset += Math.max(-1, ...metadata.primitives.map((p) => p.mesh)) + 1;
@@ -74,7 +92,7 @@ export function buildWorldSource(plan: WorldPlan) {
       rows: batch.rows!,
       name: batch.entry.material.name as string,
     })),
-    models: models.map((node) => ({ node, graph: node.record.scene.source as never })),
+    models: models.map((node) => ({ node, graph: modelGraph(node) })),
     rankOf,
   });
   for (const [twin, link] of mirror.associations) associations.set(twin, link);
@@ -101,7 +119,7 @@ export function buildWorldSource(plan: WorldPlan) {
   };
   const base =
     first?.base ?? (typeof document === 'undefined' ? 'http://localhost/' : document.baseURI);
-  const graph = mirror.root as never;
+  const graph = mirror.root;
   return {
     root: mirror.root,
     twins: mirror.twins,
@@ -110,11 +128,10 @@ export function buildWorldSource(plan: WorldPlan) {
       metadataUrl: first?.metadataUrl ?? base,
       base,
       metadata,
-      callerOwned: true,
       scene: {
         source: graph,
         sceneLightingSource: graph,
-        associations: associations as never,
+        associations,
         textureIndices: first?.scene.textureIndices ?? new Map(),
         framingLot: null,
       },

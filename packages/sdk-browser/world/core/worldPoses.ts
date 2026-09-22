@@ -2,6 +2,7 @@ import type { Object3D } from '../../../sdk-core/world/object/object3d.ts';
 import type { Mesh } from '../../../sdk-core/world/object/mesh.ts';
 import type { PlacementRows } from '../../placement/placementRows.ts';
 import type { Batch, Seat } from './worldBatches.ts';
+import { copyElements } from '../../matrixElements.ts';
 
 /** A loaded model, drawn whole through a host node posed by its world matrix alone
  *  (`worldMirror.ts`). */
@@ -11,14 +12,18 @@ export type PosedTwin = {
   matrix: { elements: { [index: number]: number } };
 };
 
-/** True when `node` is drawn: rooted under `scene`, and it and every ancestor visible. */
-export function shownUnder(node: Object3D, scene: Object3D) {
+/** True when `node` is rooted under `scene` — and, when `visibleOnly`, it and every ancestor up
+ *  to the scene visible. */
+export function rootedUnder(node: Object3D, scene: Object3D, visibleOnly = false) {
   for (let walk: Object3D | null = node; walk; walk = walk.parent) {
-    if (!walk.visible) return false;
+    if (visibleOnly && !walk.visible) return false;
     if (walk === scene) return true;
   }
   return false;
 }
+
+/** True when `node` is drawn: rooted under `scene`, and it and every ancestor visible. */
+export const shownUnder = (node: Object3D, scene: Object3D) => rootedUnder(node, scene, true);
 
 /**
  * The per-frame change list of a world: the nodes whose pose or visibility moved since the last
@@ -47,9 +52,7 @@ export function createWorldPoses() {
     touch(seat.batch, seat.row);
   };
   const writeTwin = (node: Object3D, twin: PosedTwin, shown: boolean) => {
-    const into = twin.matrix.elements,
-      from = node.matrixWorld.elements;
-    for (let i = 0; i < 16; i++) into[i] = from[i];
+    copyElements(twin.matrix.elements, node.matrixWorld.elements);
     twin.matrixAutoUpdate = false;
     twin.visible = shown;
   };

@@ -21,7 +21,7 @@ shared by every entry:
   the engine's speed-up over the reference, best of three runs on the same machine (#72, #76,
   19 Sept. 2026); they say where, not how much a frame gains.
 
-## World startup (#319)
+## World startup
 
 - `createWorld(target: HTMLCanvasElement | HTMLElement | string, options?: WorldOptions)` creates an
   empty world at once; a compiled model is loaded afterwards with `scene.load(manifestUrl)`, like

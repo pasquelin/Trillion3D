@@ -68,18 +68,21 @@ function hostOrthographic(out: number[], box: OrthographicBox, camera: Camera) {
  * every frame it is asked for, whenever the box changed, the first frame included.
  */
 export function createCanvasFit(canvas: HTMLCanvasElement, led: boolean) {
-  let sized = '';
+  let sizedWidth = 0,
+    sizedHeight = 0;
   return {
     apply(session: { resize(width: number, height: number): void }) {
       const width = Math.floor(canvas.clientWidth),
         height = Math.floor(canvas.clientHeight);
-      if (!led || width < 1 || height < 1 || sized === `${width}x${height}`) return;
-      sized = `${width}x${height}`;
+      if (!led || width < 1 || height < 1) return;
+      if (width === sizedWidth && height === sizedHeight) return;
+      sizedWidth = width;
+      sizedHeight = height;
       session.resize(width, height);
     },
     /** A new session starts from its own default buffer: the next frame fits it again. */
     reset() {
-      sized = '';
+      sizedWidth = sizedHeight = 0;
     },
   };
 }

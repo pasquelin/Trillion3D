@@ -1,4 +1,4 @@
-import { TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
+import { DEFAULT_TONE_MAPPING, TONE_MAPPING_RANK } from '../sdk-core/sceneEnvironment.ts';
 import type { HostDrawOutput } from './backendTypes.ts';
 import type { HostDrawCamera } from './cameraWorld.ts';
 import type { ObservationMeshes } from './lightingObservationMeshes.ts';
@@ -153,7 +153,11 @@ export function createObservationDraw(
     drawHostGeometry(camera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
       pass ??= new ObservationPass(gl, resources, meshes);
-      pass.draw(camera, output.toneMapped, TONE_MAPPING_RANK[output.toneMapping ?? 'aces']);
+      pass.draw(
+        camera,
+        output.toneMapped,
+        TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING],
+      );
     },
     dispose() {
       gl?.canvas.removeEventListener('webglcontextrestored', restored);

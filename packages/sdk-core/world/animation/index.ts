@@ -1,4 +1,5 @@
 import type { Object3D } from '../object/object3d.ts';
+import { normalizeQuaternion } from '../../mathQuaternion.ts';
 
 /** What a track animates: a number, a vector, a rotation or a colour. */
 export type TrackKind = 'number' | 'vector' | 'quaternion' | 'color';
@@ -36,12 +37,19 @@ function resolve(root: Object3D, path: string) {
   return owner ? { owner, field: fields[fields.length - 1] } : null;
 }
 
-/** The track's value at `t`, linearly between the two keys around it; quaternions on the arc. */
-function sample(tr: Track, t: number, out: number[]) {
+/** A track bound to what it writes: the owner and field it resolved to, the key it last stood
+ *  at, and the numbers of one sample. */
+type Binding = { owner: Record<string, unknown>; field: string; key: number; value: Float64Array };
+
+/** The track's value at `t`, linearly between the two keys around it; quaternions on the arc.
+ *  The search starts at the key the last sample stood at when `t` has not gone back past it. */
+function sample(tr: Track, t: number, bound: Binding) {
   const { times, values } = tr,
-    size = values.length / times.length;
-  let i = 0;
+    out = bound.value,
+    size = out.length;
+  let i = bound.key > 0 && times[bound.key] < t ? bound.key : 0;
   while (i < times.length - 1 && times[i + 1] < t) i++;
+  bound.key = i;
   const j = Math.min(i + 1, times.length - 1);
   const span = times[j] - times[i],
     w = span > 0 ? Math.min(1, Math.max(0, (t - times[i]) / span)) : 0;
@@ -53,10 +61,7 @@ function sample(tr: Track, t: number, out: number[]) {
   }
   for (let c = 0; c < size; c++)
     out[c] = values[i * size + c] * (1 - w) + sign * values[j * size + c] * w;
-  if (tr.kind === 'quaternion') {
-    const l = Math.hypot(out[0], out[1], out[2], out[3]) || 1;
-    for (let c = 0; c < 4; c++) out[c] /= l;
-  }
+  if (tr.kind === 'quaternion') normalizeQuaternion(out);
   return out;
 }
 
@@ -69,9 +74,21 @@ export class Action {
   playingNow = false;
   readonly mixer: Mixer;
   readonly clip: Clip;
+  /** Each track's binding, made on the first sample that finds its target. */
+  private readonly bindings = new Map<Track, Binding>();
   constructor(mixer: Mixer, clip: Clip) {
     this.mixer = mixer;
     this.clip = clip;
+  }
+  /** What `tr` writes, resolved once; null while its target is not under the root. */
+  bindingOf(tr: Track) {
+    let bound = this.bindings.get(tr);
+    if (bound) return bound;
+    const target = resolve(this.mixer.root, tr.name);
+    if (!target) return null;
+    const value = new Float64Array(tr.values.length / tr.times.length);
+    this.bindings.set(tr, (bound = { ...target, key: 0, value }));
+    return bound;
   }
   play() {
     this.playingNow = true;
@@ -115,7 +132,6 @@ export class Mixer {
   }
   /** Advances every playing action by `seconds` and writes the sampled values. */
   update(seconds: number) {
-    const out: number[] = [];
     let active = false;
     for (const action of this.actions.values()) {
       if (!action.playingNow) continue;
@@ -123,9 +139,9 @@ export class Mixer {
       if (action.loop === 'once' && action.time >= action.clip.duration) action.playingNow = false;
       active ||= action.playingNow;
       for (const tr of action.clip.tracks) {
-        const target = resolve(this.root, tr.name);
+        const target = action.bindingOf(tr);
         if (!target) continue;
-        const value = sample(tr, action.clipTime(), out);
+        const value = sample(tr, action.clipTime(), target);
         const held = target.owner[target.field] as { set?: (...v: number[]) => void } | number;
         if (typeof held === 'number')
           target.owner[target.field] = held + (value[0] - held) * action.weight;

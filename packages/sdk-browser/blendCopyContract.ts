@@ -2,9 +2,10 @@
  * The transparent draw copy, named by shape.
  *
  * A blended or transmissive surface is not drawn by the opaque path: the engine holds one copy per
- * placement — the source mesh's own pose, or each row of its instance buffer — and reads it everywhere else through this contract. The engine builds its own record
- * (`blendCopyRecord.ts`); a witness that draws its copies with a host renderer builds a host mesh
- * instead (`blendCopyMesh.ts`), and both satisfy the shape below. What the engine reads of a copy is
+ * placement — the source mesh's own pose, or each row of its instance buffer — and reads it
+ * everywhere else through this contract. The engine builds its own record (`blendCopyRecord.ts`);
+ * a witness that draws its copies with a host renderer builds a host mesh instead
+ * (`blendCopyMesh.ts`), and both satisfy the shape below. What the engine reads of a copy is
  * here and nothing more: the geometry it draws, the surface record it wears, the pose it shares with
  * the engine's world storage, and the source mesh it stands for.
  */

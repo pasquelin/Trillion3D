@@ -13,37 +13,39 @@ import type { Texture } from '../../../sdk-core/world/texture/texture.ts';
 import { hostPageSurface } from '../../hostPageObjects.ts';
 import { asHostLibrary } from '../../hostResources.ts';
 import { hostSide } from '../../materialSide.ts';
+import { TABLE_SLOTS } from '../../../sdk-core/sceneTableContracts.ts';
+import {
+  HOST_FILTER_LINEAR,
+  HOST_FILTER_LINEAR_MIP_LINEAR,
+  HOST_FILTER_LINEAR_MIP_NEAREST,
+  HOST_FILTER_NEAREST,
+  HOST_FILTER_NEAREST_MIP_LINEAR,
+  HOST_FILTER_NEAREST_MIP_NEAREST,
+  HOST_WRAP_CLAMP_TO_EDGE,
+  HOST_WRAP_MIRRORED_REPEAT,
+  HOST_WRAP_REPEAT,
+} from '../../hostSurfaceConstants.ts';
 
 const WRAP = {
-  repeat: THREE.RepeatWrapping,
-  clamp: THREE.ClampToEdgeWrapping,
-  mirror: THREE.MirroredRepeatWrapping,
+  repeat: HOST_WRAP_REPEAT,
+  clamp: HOST_WRAP_CLAMP_TO_EDGE,
+  mirror: HOST_WRAP_MIRRORED_REPEAT,
 } as const;
-const FILTER: Record<string, THREE.TextureFilter> = {
-  nearest: THREE.NearestFilter,
-  linear: THREE.LinearFilter,
-  nearestMipNearest: THREE.NearestMipmapNearestFilter,
-  linearMipNearest: THREE.LinearMipmapNearestFilter,
-  nearestMipLinear: THREE.NearestMipmapLinearFilter,
-  linearMipLinear: THREE.LinearMipmapLinearFilter,
-};
+const FILTER = {
+  nearest: HOST_FILTER_NEAREST,
+  linear: HOST_FILTER_LINEAR,
+  nearestMipNearest: HOST_FILTER_NEAREST_MIP_NEAREST,
+  linearMipNearest: HOST_FILTER_LINEAR_MIP_NEAREST,
+  nearestMipLinear: HOST_FILTER_NEAREST_MIP_LINEAR,
+  linearMipLinear: HOST_FILTER_LINEAR_MIP_LINEAR,
+} as const;
 const FORMAT: Record<string, THREE.PixelFormat> = {
   rgba: THREE.RGBAFormat,
   rgb: THREE.RGBFormat,
   r: THREE.RedFormat,
 };
 /** Material fields that hold a texture, by the name both sides give them. */
-export const HOST_MAPS = [
-  'map',
-  'normalMap',
-  'roughnessMap',
-  'metalnessMap',
-  'emissiveMap',
-  'alphaMap',
-  'aoMap',
-  'matcap',
-  'gradientMap',
-];
+export const HOST_MAPS = [...TABLE_SLOTS, 'alphaMap', 'matcap', 'gradientMap'];
 /** The maps that hold a colour: the only ones whose sRGB image is decoded. The others hold data —
  *  a direction, a roughness, an occlusion — read as stored whatever the image declares, as the
  *  WebGPU path reads them. */
@@ -59,8 +61,16 @@ const PHYSICAL = [
   'iridescence',
 ];
 
-/** The host texture of an engine texture worn in `slot`, its sampler words translated. */
-function hostTexture(texture: Texture, slot: string) {
+/** Host textures already built, by engine texture, its version and whether it is read as colour:
+ *  a texture worn by several surfaces is uploaded once. */
+export type HostTextures = Map<string, THREE.Texture>;
+
+/** The host texture of an engine texture, read as colour or as data, its sampler words
+ *  translated; built once per `built` table. */
+function hostTexture(texture: Texture, colour: boolean, built: HostTextures) {
+  const key = `${texture.id}@${texture.version}:${colour}`;
+  const held = built.get(key);
+  if (held) return held;
   const pixels = texture.image as { data: ArrayBufferView; width: number; height: number };
   const format = FORMAT[texture.format] ?? THREE.RGBAFormat;
   const host =
@@ -75,13 +85,12 @@ function hostTexture(texture: Texture, slot: string) {
   host.minFilter = FILTER[texture.minFilter] as THREE.MinificationTextureFilter;
   host.magFilter = FILTER[texture.magFilter] as THREE.MagnificationTextureFilter;
   host.colorSpace =
-    texture.colorSpace === 'srgb' && COLOUR_MAPS.has(slot)
-      ? THREE.SRGBColorSpace
-      : THREE.LinearSRGBColorSpace;
+    texture.colorSpace === 'srgb' && colour ? THREE.SRGBColorSpace : THREE.LinearSRGBColorSpace;
   host.flipY = texture.flipY;
   host.anisotropy = texture.anisotropy;
   host.name = texture.name;
   host.needsUpdate = true;
+  built.set(key, host);
   return host;
 }
 
@@ -145,14 +154,15 @@ function familySurface(
 }
 
 /** The host surface of a world material, with its maps and raster state. */
-export function hostSurface(material: Material, vertexColors: boolean) {
+export function hostSurface(material: Material, vertexColors: boolean, textures: HostTextures) {
   const Family = FAMILY[material.kind];
   const surface = (
     Family ? familySurface(Family, material, vertexColors) : physicalSurface(material, vertexColors)
   ) as THREE.Material & Record<string, unknown>;
   for (const field of HOST_MAPS) {
     const texture = material[field] as Texture | undefined;
-    if (texture?.isTexture && field in surface) surface[field] = hostTexture(texture, field);
+    if (texture?.isTexture && field in surface)
+      surface[field] = hostTexture(texture, COLOUR_MAPS.has(field), textures);
   }
   if ('flatShading' in surface) surface.flatShading = material.flatShading === true;
   surface.depthWrite = material.depthWrite;
