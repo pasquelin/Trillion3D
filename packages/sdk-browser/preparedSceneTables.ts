@@ -35,11 +35,15 @@ const pose = new Float64Array(16);
 function refuse(reason: string, context: Record<string, unknown>): never {
   throw new EngineError('PREPARED_SCENE_MISMATCH', reason, context);
 }
-/** The tables of a prepared cache. Absent or of an unknown version, they are a refusal: the
- *  cache format that carries them is the only one this runtime reads. */
+/** The tables of a prepared cache, with the size of the product read: this read is on the load
+ *  critical path of every session, so what it costs is published, not supposed. Absent or of an
+ *  unknown version, the tables are a refusal: the cache format that carries them is the only one
+ *  this runtime reads. */
 export async function loadPreparedSceneTables(base: string, signal?: AbortSignal) {
   const response = await checked(new URL(SCENE_TABLES_FILE, base).href, signal);
-  return assertSceneTables(await response.json());
+  const body = await response.arrayBuffer();
+  const tables = assertSceneTables(JSON.parse(new TextDecoder().decode(body)));
+  return { tables, bytes: body.byteLength };
 }
 
 /** Entries of one primitive, which copies are already matched, and a pose index over them: an

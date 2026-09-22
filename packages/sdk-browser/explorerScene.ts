@@ -112,11 +112,17 @@ export async function loadPreparedScene(
   // What the cache says this scene is, checked against the scene just built — before any
   // replication, which is the host's own copy of it. This batch draws nothing from the tables:
   // it proves them, and a divergence refuses the session by name rather than passing silently.
-  const tables = await loadPreparedSceneTables(base, signal);
+  const readAt = performance.now();
+  const { tables, bytes } = await loadPreparedSceneTables(base, signal);
+  const checkAt = performance.now();
+  const agreement = checkPreparedScene({ tables, source, associations, textureIndices });
   diagnose('prepared-scene', 'Cache tables checked against the loaded scene', {
     kind: 'preparation',
     scope,
-    ...checkPreparedScene({ tables, source, associations, textureIndices }),
+    ...agreement,
+    bytes,
+    readMs: checkAt - readAt,
+    checkMs: performance.now() - checkAt,
   });
   await calculEnLot;
   const replicas = options.replicaCount ?? 1;
