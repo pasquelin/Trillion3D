@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostNode } from './hostResources.ts';
 import type {
   AssetScope,
   CameraPose,
@@ -90,7 +90,7 @@ export interface ExplorerOptions {
    *  when the screen asks. Only request when every engine of the session reads the atlas,
    *  not the scene. */
   textureSource?: 'host' | 'cache';
-  sceneLighting?: THREE.Object3D;
+  sceneLighting?: HostNode;
   /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean;
   /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */

@@ -28,6 +28,11 @@ fn main() -> std::io::Result<()> {
         PathBuf::from("build.rs"),
     ]);
     files.sort();
+    // The whole source directory is watched, not each file in turn: a module added after the
+    // previous build is in no per-file watch list, so the build script would not rerun and the
+    // next build would keep the previous implementation hash — a cache key that stays still while
+    // the compiler moves.
+    println!("cargo:rerun-if-changed=src");
     let mut digest = Sha256::new();
     for path in files {
         println!("cargo:rerun-if-changed={}", path.display());

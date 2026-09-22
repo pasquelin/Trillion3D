@@ -10,6 +10,7 @@
 // weight the sampler quantises, but it must return the same colour to that level.
 // For the record only: nearest on an exact boundary, the texel depends on the 32-bit
 // rounding of u·size.
+import { importHostTexture } from '../../packages/sdk-browser/hostSurfaceImport.ts';
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { wrapNibble } from '../../packages/sdk-browser/visibilityWrapModes.ts';
@@ -27,10 +28,12 @@ import { bilan, somme } from './adressageBilan.ts';
 import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './adressageGpuPage.ts';
 
 /** The addressing nibble of a map, the one `webgpuPageRow.ts` and `webgpuBlendPrepare.ts`
- *  store in the page word, by the same function. `wrapNibble` reads a real `THREE.Texture`: a
- *  fresh one carries only the two wrap modes this bench addresses. */
+ *  store in the page word, by the same function. `wrapNibble` reads the engine record: a fresh
+ *  host texture carries only the two wrap modes this bench addresses. */
 const drapeaux = (c: AdressageCas) =>
-  wrapNibble(Object.assign(new THREE.Texture(), { wrapS: c.wrapS, wrapT: c.wrapT }));
+  wrapNibble(
+    importHostTexture(Object.assign(new THREE.Texture(), { wrapS: c.wrapS, wrapT: c.wrapT })),
+  );
 
 interface Lot {
   filtre: GPUFilterMode;

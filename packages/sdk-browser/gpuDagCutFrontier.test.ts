@@ -14,6 +14,7 @@
 // own-error floor, which packing derives from the pages and stores in the node, also drops the too-
 // coarse — nothing from the compiler, nothing from the format.
 import test from 'node:test';
+import { asHostLibrary } from './hostResources.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { packDagSelection, packedWorldsToRenderOrigin } from './gpuDagPack.ts';
@@ -55,7 +56,7 @@ function image(
 ) {
   const { roots, packed } = m;
   for (let w = 0; w < roots.length; w++)
-    roots[w].world.makeTranslation(
+    asHostLibrary<THREE.Matrix4>(roots[w].world).makeTranslation(
       (w % 4) * 6.5 - 9.75 + deplacement,
       Math.floor(w / 4) * 6.5 - 6.5,
       0,

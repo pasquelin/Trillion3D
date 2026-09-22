@@ -1,14 +1,13 @@
 import { visMaterial } from './visibilityMaterial.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
 import type { ClusterDrawMesh } from './clusterBatchMesh.ts';
-import type { Side } from './materialSide.ts';
+import type { Side } from '../sdk-core/index.ts';
 import type { WebglClusterTextures } from './webglClusterTextures.ts';
 import type { WebglClusterState } from './webglClusterState.ts';
 import type { Matrix3UniformCache } from './webglClusterUniforms.ts';
 import type { WebglClusterMaterialUniforms } from './webglClusterMaterialUniforms.ts';
 
 export type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
-const IDENTITY_MATRIX3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 const MAPS = ['map', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'emissiveMap'] as const;
 const MAP_UNIFORMS = ['baseUv', 'roughUv', 'metalUv', 'normalUv', 'aoUv', 'emissiveUv'];
 /** Units after the six material maps: the frozen backdrop colour, then its depth. */
@@ -71,8 +70,7 @@ export function bindClusterMaterial(
       unit === 3 ? [128, 128, 255, 255] : undefined,
     );
     if (!texture || (sharedMetalRough && unit === 2)) continue;
-    if (texture?.matrixAutoUpdate) texture.updateMatrix();
-    matrices.set(MAP_UNIFORMS[unit], texture?.matrix.elements ?? IDENTITY_MATRIX3);
+    matrices.set(MAP_UNIFORMS[unit], texture.transform);
   }
   uniforms.i1(23, 'mapMask', mapMask);
   uniforms.i1(24, 'sharedMetalRough', sharedMetalRough ? 1 : 0);

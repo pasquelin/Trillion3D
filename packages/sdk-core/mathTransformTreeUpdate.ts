@@ -21,6 +21,15 @@ import { ensureOrder, nextStamp, visitSubtree } from './mathTransformTreeStructu
  * rule does not reach keeps, as with it, a late world matrix.
  */
 
+/**
+ * `matrixWorldNeedsUpdate`. A node whose recomposition is cut carries a local matrix nobody
+ * recomposes, and setting that matrix marks no reach flag: a rule that starts above would walk
+ * past it. This is the mark the reference sets in that case, and the only way to set it here.
+ */
+export function markNodeWorldNeedsUpdate(tree: TransformTree, node: number) {
+  tree.flags[node] |= NODE_WORLD_NEEDS_UPDATE;
+}
+
 const composePosition = new Float64Array(3),
   composeQuaternion = new Float64Array(4),
   composeScale = new Float64Array(3);

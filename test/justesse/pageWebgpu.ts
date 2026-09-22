@@ -72,8 +72,13 @@ export async function dansPageWebgpu<A, R>(
     await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
     // `page.evaluate`'s `PageFunction<A, R>` runs `argument` through Playwright's `Unboxed<A>`,
     // which only differs from `A` when it carries a `JSHandle` — never the plain data this harness
-    // sends. TypeScript cannot verify that for a free `A`, so the boundary is cast once here.
-    const evaluate = page.evaluate as (fn: (argument: A) => R | Promise<R>, arg: A) => Promise<R>;
+    // sends. TypeScript cannot verify that for a free `A`, so the boundary is cast once here. The
+    // method is bound first: read off the page it loses its receiver, and the first probe dies on
+    // an undefined frame instead of reporting a failure.
+    const evaluate = page.evaluate.bind(page) as (
+      fn: (argument: A) => R | Promise<R>,
+      arg: A,
+    ) => Promise<R>;
     return await evaluate(fonction, argument);
   } finally {
     await browser.close();

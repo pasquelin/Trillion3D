@@ -1,8 +1,8 @@
-// hostWorldPlacements.ts: the world matrices the ENGINE holds for the drawn nodes. The container
-// is a host-library matrix — what the host attaches and what witnesses draw — but its sixteen
-// numbers come from the core: they are compared bit-for-bit (Object.is) to `matrixWorld` after
-// the reference's `updateMatrixWorld(true)`, on a scene with parents, negative and non-uniform
-// scales, and a node whose host set the matrix itself.
+// hostWorldPlacements.ts: the world matrices the ENGINE holds for the drawn nodes. The pose is
+// a VIEW on the engine transform tree's own world buffer — no host-library matrix, and nothing
+// copied per pass — and its sixteen numbers are compared bit-for-bit (Object.is) to `matrixWorld`
+// after the reference's `updateMatrixWorld(true)`, on a scene with parents, negative and
+// non-uniform scales, and a node whose host set the matrix itself.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -105,4 +105,25 @@ test("page records and cluster roots carry the engine's matrix, not the host's",
   assertBits(Array.from(monde.elements), Array.from(fixture.mesh.matrixWorld.elements));
   fixture.geometry.dispose();
   fixture.material.dispose();
+});
+
+test('the pose is a view on the engine tree: a pass rewrites it without copying anything', () => {
+  const { racine, parent, feuille } = scene();
+  const worlds = hostWorldPlacements(racine);
+  const monde = worlds.of(feuille);
+  const vue = monde.elements;
+  parent.position.set(-11, 2, 0.5);
+  worlds.refresh();
+  assert.equal(monde.elements, vue, 'the same storage, never a second buffer');
+  racine.updateMatrixWorld(true);
+  assertBits(Array.from(vue), Array.from(feuille.matrixWorld.elements));
+});
+
+test('a pass that moves nothing leaves every pose on the bits it already carried', () => {
+  const { racine, feuille, pose } = scene();
+  const worlds = hostWorldPlacements(racine);
+  const held = [feuille, pose].map((node) => Array.from(worlds.of(node).elements));
+  worlds.refresh();
+  for (const [rang, node] of [feuille, pose].entries())
+    assertBits(Array.from(worlds.of(node).elements), held[rang]);
 });

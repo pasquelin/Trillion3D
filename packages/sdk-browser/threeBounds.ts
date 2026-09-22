@@ -5,9 +5,13 @@
  */
 import { sphereFromBounds } from '../sdk-core/index.ts';
 import * as THREE from 'three';
+import type { HostPoint } from './hostResources.ts';
 
-/** Copy the six bounds of a Three.js box into a flat array. */
-export function readThreeBox(out: Float64Array, box: THREE.Box3) {
+/** A local or world box of the host, read by its two corners. */
+export type HostBox = { readonly min: HostPoint; readonly max: HostPoint };
+
+/** Copy the six bounds of a host box into a flat array. */
+export function readThreeBox(out: Float64Array, box: HostBox) {
   out[0] = box.min.x;
   out[1] = box.min.y;
   out[2] = box.min.z;

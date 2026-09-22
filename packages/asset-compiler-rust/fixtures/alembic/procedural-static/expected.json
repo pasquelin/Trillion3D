@@ -25,7 +25,7 @@
       0.25
     ]
   },
-  "formatVersion": 3,
+  "formatVersion": 5,
   "materials": [
     {
       "name": "Emissive",

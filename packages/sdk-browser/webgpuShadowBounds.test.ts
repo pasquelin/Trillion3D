@@ -12,7 +12,7 @@ import { referenceClusterSphere } from './bench/oracles/socle-math.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 function record(matrice: number[], min: number[], max: number[]) {
-  return { matrix: new THREE.Matrix4().fromArray(matrice), min, max } as PageRec;
+  return { matrix: new THREE.Matrix4().fromArray(matrice), min, max } as unknown as PageRec;
 }
 const CAS = [
   record([1, -0, 0, 0, 0, 1, -0, 0, -0, 0, 1, 0, -0, -0, -0, 1], [-0, -2, -0], [2, 0, 2]),
