@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { surfaceOf } from './pageSurface.ts';
 import {
   OPEN_CONE,
   coneContextFor,
@@ -10,6 +11,8 @@ import {
   triangleCone,
 } from './pageCone.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { leafCone } from './gpuSelection.ts';
+import { coneSkipsPage } from './pageSelectionHelpers.ts';
 
 test('a single front-facing triangle has a narrow cone along +z', () => {
   const cone = triangleCone([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2]);
@@ -84,7 +87,14 @@ test('BackSide materials are not cone-culled from behind', () => {
   behind.updateMatrixWorld();
   const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
   assert.equal(
-    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], cameraMoteur(behind).eye, material),
+    coneCullsPage(
+      cone,
+      world,
+      [-0.1, -0.1, 0],
+      [0.1, 0.1, 0],
+      cameraMoteur(behind).eye,
+      surfaceOf(material),
+    ),
     false,
   );
   material.dispose();
@@ -120,4 +130,34 @@ test('the root context yields the same reject as the per-cluster compute, and is
       coneCullsPage(cone, world, min, max, cameraMoteur(cam).eye),
       `box ${min} ${max}`,
     );
+});
+
+test('a surface switched to double-sided in place gets its page back at the cut', () => {
+  const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 };
+  const world = new THREE.Matrix4();
+  const behind = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  behind.position.set(0, 0, -5);
+  behind.lookAt(0, 0, 0);
+  behind.updateMatrixWorld();
+  const cam = cameraMoteur(behind);
+  const min = [-0.1, -0.1, 0],
+    max = [0.1, 0.1, 0];
+  const material = new THREE.MeshBasicMaterial({ side: THREE.FrontSide });
+  const surface = surfaceOf(material);
+  assert.equal(coneCullsPage(cone, world, min, max, cam.eye, surface), true, 'front-only, behind');
+  assert.equal(leafCone({ cone, material: surface }), cone);
+  // The host opens the surface on the declaration it shares with its mesh: no version is bumped,
+  // and nothing on this path refreshes the record.
+  material.side = THREE.DoubleSide;
+  assert.equal(leafCone({ cone, material: surface }), OPEN_CONE, 'the cut reopens the cone');
+  assert.equal(
+    coneCullsPage(cone, world, min, max, cam.eye, surface),
+    false,
+    'the faces stay in the image',
+  );
+  assert.equal(
+    coneSkipsPage({ cone, min, max, material: surface }, createConeContext(), world, cam, min, max),
+    false,
+  );
+  material.dispose();
 });

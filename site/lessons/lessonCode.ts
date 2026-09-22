@@ -28,7 +28,7 @@ export function lessonCode(
   position: home.target.map((value, index) =>
     value + (home.position[index] - value) * 1.25),
 });`;
-  return `import { createExplorer, webgpuPagesBackend } from 'web-geometry';
+  return `import { createExplorer } from 'web-geometry';
 
 // HTML: <canvas id="garden" style="width:100%;height:60vh;display:block"></canvas>
 const canvas = document.getElementById('garden');
@@ -36,7 +36,6 @@ const viewport = canvas.getBoundingClientRect();
 const explorer = await createExplorer(canvas, {
   manifestUrl: '${manifest ?? './assets/kinetic-garden/cache/native/full/manifest.json'}',
   scope: 'full',
-  backends: [webgpuPagesBackend],
   importedLights: ${importedLights},
   interactive: false,
   width: Math.max(1, Math.round(viewport.width)),

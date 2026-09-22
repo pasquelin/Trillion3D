@@ -1,9 +1,10 @@
 import type { EngineCamera } from './cameraWorld.ts';
 import { asHostLibrary } from './hostResources.ts';
-import { clusterColor, hashId } from './backendCommon.ts';
+import { clusterColor } from './backendCommon.ts';
+import { hashId, screenErrorColor } from './diagnosticColors.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
-import { screenErrorColor } from './diagnosticColors.ts';
-import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
+import { triangleGeometry } from './triangleDiagnostic.ts';
+import { hostDiagnostics } from './threeSceneAdapter.ts';
 import { materialSide } from './materialSide.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -20,13 +21,13 @@ type MaterialsOptions = {
 export function createExactPagesMaterials(options: MaterialsOptions) {
   const diagnosticMaterials = new Map<string, THREE.Material>();
   const materialFor = (rec: PageRec) => {
-    if (options.diagnostic === 'beauty') return rec.material;
-    const side = Array.isArray(rec.material) ? rec.material[0].side : rec.material.side;
+    if (options.diagnostic === 'beauty') return rec.declaration;
+    const side = materialSide(rec.declaration);
     if (options.diagnostic === 'wireframe') {
       const key = `wireframe:${rec.clusterId}`;
       let material = diagnosticMaterials.get(key);
       if (!material) {
-        material = createTriangleDiagnosticMaterial(side);
+        material = asHostLibrary<THREE.Material>(hostDiagnostics.triangleMaterial(side));
         diagnosticMaterials.set(key, material);
       }
       return material;
@@ -81,7 +82,11 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
   ) => {
     mesh.material = material;
     mesh.geometry =
-      options.diagnostic === 'wireframe' ? triangleGeometry(sourceGeometry, salt) : sourceGeometry;
+      options.diagnostic === 'wireframe'
+        ? asHostLibrary<THREE.BufferGeometry>(
+            triangleGeometry(sourceGeometry, hostDiagnostics, salt),
+          )
+        : sourceGeometry;
   };
   const paintBlend = () => {
     for (const copy of options.blendCopies) {
@@ -91,7 +96,9 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
         const key = `blend:${copy.uuid}`;
         let material = diagnosticMaterials.get(key);
         if (!material) {
-          material = createTriangleDiagnosticMaterial(materialSide(sourceMaterial));
+          material = asHostLibrary<THREE.Material>(
+            hostDiagnostics.triangleMaterial(materialSide(sourceMaterial)),
+          );
           diagnosticMaterials.set(key, material);
         }
         paint(copy, sourceGeometry, material, hashId(copy.uuid));

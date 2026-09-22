@@ -26,7 +26,7 @@ import { checked } from './clusterPages.ts';
 import { meshes as objects } from './sceneMeshes.ts';
 import { hostWorldChainInto } from './hostWorldChain.ts';
 import { importHostSurface, importTextureIndices } from './hostSurfaceImport.ts';
-import { materialDivergence, near } from './preparedSceneMaterials.ts';
+import { foldImageRanks, materialDivergence, near } from './preparedSceneMaterials.ts';
 import type { BackendContext } from './backendTypes.ts';
 
 /** World matrix of the mesh being checked, reused from mesh to mesh. */
@@ -121,13 +121,22 @@ type Inputs = {
   source: HostNode;
   associations: BackendContext['associations'];
   textureIndices: ReadonlyMap<HostTexture, number>;
+  imageSources?: readonly (string | null)[];
 };
 /**
  * Checks the tables against the scene the loader built, and returns what was compared. Throws on
  * the first divergence: a scene the cache describes wrongly is not opened half way.
  */
-export function checkPreparedScene({ tables, source, associations, textureIndices }: Inputs) {
+export function checkPreparedScene({
+  tables,
+  source,
+  associations,
+  textureIndices,
+  imageSources,
+}: Inputs) {
   const groups = groupsOf(tables);
+  // The table names its images by rank; the loader folded its textures on their sources.
+  const textures = foldImageRanks(tables.textures, imageSources);
   const ranks: ReadonlyMap<Texture, number> = importTextureIndices(textureIndices) ?? new Map();
   // One surface is compared once per rank and per tangent state — everything else about it is a
   // property of the rank, and a scene of ten thousand meshes wears a handful of surfaces.
@@ -156,7 +165,7 @@ export function checkPreparedScene({ tables, source, associations, textureIndice
       tables.materials[entry.material],
       surface,
       ranks,
-      tables.textures,
+      textures,
       derivative,
     );
     if (divergence)

@@ -1,6 +1,5 @@
 import { frustumExcludesBox, type FrameMetrics } from '../sdk-core/index.ts';
 import { enginePose, type EngineCamera } from './cameraWorld.ts';
-import { sideOf } from './materialSide.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -56,10 +55,9 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     if (!frustumExcludesBox(blendState.blendPlanes, box[0], box[1], box[2], box[3], box[4], box[5]))
       continue;
     outsideItems++;
-    // Only read when the declared side is double, which an empty list never is: `material` is
-    // then the element `sideOf` itself read, never `undefined`.
-    const material = Array.isArray(item.material) ? item.material[0] : item.material;
-    outsideDraws += sideOf(item.material) === 'double' && !material.forceSinglePass ? 2 : 1;
+    // The item's surface record says both: a double-sided blend is two draws unless the host
+    // declared the single pass.
+    outsideDraws += item.surface.doubleSided && !item.surface.forceSinglePass ? 2 : 1;
   }
   return {
     selection: run.gpuFrameActive ? 'gpu' : 'cpu',
