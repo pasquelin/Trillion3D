@@ -30,7 +30,11 @@ type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, '
  *  merit: a host that wants one, for a comparison view or the bench, names it in
  *  `options.backends`. A machine offering neither WebGPU nor WebGL2 fails by name. */
 export function chooseBackends(
-  options: { backends?: BackendFactory[]; autonomousGeometry?: boolean },
+  options: {
+    backends?: BackendFactory[];
+    autonomousGeometry?: boolean;
+    renderer?: 'webgpu' | 'webgl2';
+  },
   metadata: ClusterManifest,
   gpuDevice: GPUDevice | undefined,
   webgl2 = true,
@@ -61,7 +65,12 @@ export function chooseBackends(
       reason: 'the host named the backends itself',
       renderer: null,
     });
-  if (gpuDevice)
+  if (options.renderer === 'webgpu' && !gpuDevice)
+    throw new EngineError(
+      'WEBGPU_UNAVAILABLE',
+      'The renderer "webgpu" was requested, and this machine granted no WebGPU device.',
+    );
+  if (gpuDevice && options.renderer !== 'webgl2')
     return choice({
       factories: [webgpuPagesBackend],
       origin: 'default',
@@ -70,7 +79,7 @@ export function chooseBackends(
     });
   if (!webgl2)
     throw new EngineError(
-      'NO_ENGINE_BACKEND',
+      options.renderer === 'webgl2' ? 'NO_WEBGL2' : 'NO_ENGINE_BACKEND',
       'No engine path is available: this machine granted neither a WebGPU device nor a WebGL2 ' +
         'context. Name a backend in options.backends to render anyway.',
     );

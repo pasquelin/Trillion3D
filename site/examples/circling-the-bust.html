@@ -8,48 +8,26 @@
       canvas { display: block; width: 100%; height: 100%; }
       p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
     </style>
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <p>Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md</p>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, light } from '../runtime/engine.js';
 
-      // Manual rendering: the loop below draws every frame itself, so the canvas size is given.
-      const canvas = document.getElementById('view');
-      const explorer = await createExplorer(canvas, {
-        manifestUrl: '../assets/examples/bust/cache/native/full/manifest.json',
-        scope: 'full',
-        width: canvas.clientWidth,
-        height: canvas.clientHeight,
-        pixelRatio: devicePixelRatio,
-      });
-      explorer.addLight({
-        id: 'sun',
-        kind: 'directional',
-        direction: [-0.6, -0.7, -0.4],
-        color: [1, 0.93, 0.82],
-        intensity: 3.5,
-        castsShadow: true,
-      });
+      // Host-led loop: the camera orbits every frame, so the world schedules nothing.
+      const world = createWorld('view', { interactive: false, pixelRatio: devicePixelRatio });
+      await world.scene.load('../assets/examples/bust/cache/native/full/manifest.json');
+      world.scene.add(light.directional({
+        intensity: 3.5, color: [1, 0.93, 0.82], position: [12, 14, 8], target: [0, 0, 0], castShadow: true,
+      }));
 
-      // The camera circles the pedestal: one pose per frame, then the pages that pose needs,
-      // one render, and the frame flushed before the next.
-      const home = explorer.homePose();
-      async function orbit(time) {
+      // The camera circles the pedestal: one position per frame, then one render.
+      function orbit(time) {
         const angle = time / 8000;
-        explorer.setPose({
-          ...home,
-          position: [Math.sin(angle) * 1.2, 0.5, Math.cos(angle) * 1.2],
-          target: [0, 0.2, 0],
-        });
-        await explorer.awaitPages();
-        explorer.render();
-        await explorer.flush();
+        world.camera.position.set(Math.sin(angle) * 1.2, 0.5, Math.cos(angle) * 1.2);
+        world.camera.lookAt(0, 0.2, 0);
+        world.render();
         requestAnimationFrame(orbit);
       }
       requestAnimationFrame(orbit);

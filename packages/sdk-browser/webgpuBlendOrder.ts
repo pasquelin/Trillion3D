@@ -1,6 +1,7 @@
 import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { planItem } from './webgpuBlendPlan.ts';
 import { buildBlendRuns } from './webgpuBlendRuns.ts';
+import { rowParked } from './placement/placementRows.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
@@ -76,9 +77,15 @@ function rejectByFrustum(blendState: BlendState) {
   };
   for (let i = 0; i < items.length; i++) {
     const box = items[i].bounds;
-    if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5]))
+    // A parked row's item is kept out like a rejected one, without counting as rejected.
+    const parked = rowParked(items[i].placement);
+    if (
+      !parked &&
+      box &&
+      frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])
+    )
       rejected++;
-    else {
+    else if (!parked) {
       mot |= 1 << (i & 31);
       // The water pass is encoded for a surface in view, never for a scene that merely has one.
       if (items[i].transmissive) transmissiveInView++;

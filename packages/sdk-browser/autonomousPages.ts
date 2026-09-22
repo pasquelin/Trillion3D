@@ -1,4 +1,5 @@
-import { hostPageScene, releaseHostGeometry, releaseHostSurface } from './hostPageObjects.ts';
+import { hostPageScene, releaseHostSurface } from './hostPageObjects.ts';
+import { attachedPages, autonomousPlacements } from './placement/autonomousPlacements.ts';
 import { collectClusterPages, indexPagesByUrl, type PageRec } from './pageSelection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './autonomousRender.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
@@ -10,30 +11,30 @@ import { comptePagesResidentes, createAutonomousResidency } from './autonomousRe
 import { createContractLighting } from './contractLightingApi.ts';
 import { createThreeSceneDraw, hostDiagnostics } from './threeSceneAdapter.ts';
 import type { BackendFactory } from './backendTypes.ts';
+import { createBlendCopy } from './blendCopyMesh.ts';
 import type { HostMaterial } from './hostResources.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
   const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
-  const { roots, allPages, worlds } = collectClusterPages(
+  const { roots, allPages, worlds, blendCopies } = collectClusterPages(
     context.source,
     metadata,
     new Map(),
     context.associations,
-    { allowMissing: true },
+    { allowMissing: true, blendCopy: createBlendCopy },
   );
-  const baseRoots = roots.slice(),
-    basePages = allPages.slice();
-  const bootstrap = autonomousBootstrap(roots);
-  const baseBootstrap = bootstrap.slice();
+  const [baseRoots, basePages] = [roots.slice(), allPages.slice()];
+  const bootstrap = autonomousBootstrap(roots),
+    baseBootstrap = bootstrap.slice();
   const byUrl = indexPagesByUrl(allPages, (rec) => rec.url), // by page, not by stream bundle
     bootstrapUrls = new Set(bootstrap.map((page) => page.url));
   const cap =
       context.maxResidentPages ??
       context.residentPagesDefault ??
       Math.max(1024, bootstrapUrls.size),
-    scene = hostPageScene();
+    scene = hostPageScene(blendCopies);
   const shown: PageRec[] = [],
     desired: PageRec[] = [],
     pending: string[] = [],
@@ -45,7 +46,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     gate = createWebglFrameGate(),
     hostDraw = createThreeSceneDraw(context.webglContext, scene);
   // The engine's own lighting: the cache's radiometric light table where it declares one, the
-  // source graph's lights otherwise (`contractLightingApi.ts`).
+  // source graph's lights otherwise (`contractLightingApi.ts`). A transmissive surface is not
+  // paged: it is a host copy the host renderer draws whole (`hostPageScene`).
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
@@ -60,16 +62,14 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     colorMaterials,
     modifiedPages,
   });
-  const { detach, sync, storeGeometryPage, acceptGeometryPage } = geometryStore;
+  const { sync, storeGeometryPage, acceptGeometryPage } = geometryStore;
+  // The tables a placement enters: instances and instance-buffer rows append to the same.
+  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
   const { disposeOwnedMaterials, ...instances } = createAutonomousInstances({
-    roots,
+    ...tables,
     baseRoots,
-    allPages,
     basePages,
-    bootstrap,
     baseBootstrap,
-    byUrl,
-    baseMaterials,
     geometryStore,
     cap,
     sceneChanged: gate.sceneChanged,
@@ -110,7 +110,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       simplification: !!context.metadata.simplification,
       eviction: true,
       unsupported: [
-        'BLEND and transmission in autonomous mode',
+        'BLEND and transmission in a prepared autonomous scene',
         'GPU-driven selection and indirect drawing',
         'physical VRAM instrumentation',
         'global illumination',
@@ -124,7 +124,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
-      if (bootstrap.length > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      if (attachedPages(bootstrap) > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       await Promise.all(
         [...bootstrapUrls].map(async (url) => {
           context.signal?.throwIfAborted();
@@ -143,6 +143,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
+    ...autonomousPlacements({
+      ...tables,
+      blendCopies,
+      scene,
+      gate,
+      rowsWritten: geometryStore.rowsWritten,
+    }),
     ...lightingApi,
     ...residency,
     dropPage(url: string) {
@@ -174,7 +181,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         lodLevel: state.lodLevel,
         submittedTriangles: geometryStore.state.submittedTriangles,
         totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
-        drawCalls: shown.length,
+        drawCalls: attachedPages(shown),
         coverageReady: ready,
         coverageBudgetLimited: state.overBudget,
         frameHeld: state.frameHeld,
@@ -183,13 +190,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     dispose() {
       ready = false;
       hostDraw.dispose();
-      for (const rec of allPages) {
-        detach(rec);
-        if (rec.geometry) releaseHostGeometry(rec.geometry);
-        rec.geometry = undefined;
-        rec.mesh = undefined;
-        rec.array = undefined;
-      }
+      geometryStore.dispose();
       disposeOwnedMaterials();
       for (const material of colorMaterials.values()) releaseHostSurface(material);
       scene.clear();

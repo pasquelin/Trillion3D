@@ -1,4 +1,4 @@
-import { ACES_WGSL } from './deferredLightingShaders.ts';
+import { ACES_WGSL } from './toneMappingWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
 import { clusterDecodeWgsl } from './clusterDecodeWgsl.ts';
 

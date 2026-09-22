@@ -1,9 +1,9 @@
 import { EngineError } from '../sdk-core/index.ts';
 
 /** An existing canvas, or its literal document ID (without a selector prefix). */
-export type ExplorerTarget = HTMLCanvasElement | string;
+export type MeasuredWorldTarget = HTMLCanvasElement | string;
 
-export function resolveExplorerTarget(target: ExplorerTarget): HTMLCanvasElement {
+export function resolveExplorerTarget(target: MeasuredWorldTarget): HTMLCanvasElement {
   let element: unknown = target;
   if (typeof target === 'string') {
     if (!target.length) throw new EngineError('INVALID_CANVAS', 'Canvas ID must not be empty');
@@ -14,6 +14,9 @@ export function resolveExplorerTarget(target: ExplorerTarget): HTMLCanvasElement
   }
   const canvas = element as HTMLCanvasElement | null;
   if (!canvas || canvas.nodeName !== 'CANVAS' || typeof canvas.getContext !== 'function')
-    throw new EngineError('INVALID_CANVAS', 'Explorer target must be a canvas element or its ID');
+    throw new EngineError(
+      'INVALID_CANVAS',
+      'MeasuredWorld target must be a canvas element or its ID',
+    );
   return canvas;
 }

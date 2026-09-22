@@ -61,6 +61,8 @@ export const AUTORISES: Record<string, string> = {
     'boundary: the host colours, lights and nodes an engine drawn by the host renderer hangs on its display graph',
   exactPagesContractLights:
     'boundary: the contract lights of an image the host renderer draws, mapped to host lights',
+  exactPagesLightWrite:
+    'boundary: one contract light built and written as its host light, split from the file above',
   exactPagesUnlitAlbedo:
     'boundary: the unlit view of that image zeros the host material factors for the frame',
   threeBounds: 'boundary: bounds written back into a host geometry, as the library computes them',
@@ -96,6 +98,8 @@ export const DECLARATION: Record<string, string> = {
   autonomousGeometry: 'WebGL2 page path: it repaints its pages with host materials',
   autonomousInstances: 'WebGL2 page path: it repaints its instances with host materials',
   autonomousPages: 'WebGL2 page path: it keeps the base paint of each page',
+  'placement/webglPageBatches':
+    'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',
   hostPageObjects: 'boundary: the declaration it gives back to the library that draws it',
   clusterBatchUpdate: 'the WebGL2 draw record hands the declaration to the host renderer',
   clusterBatchesFixture: 'batch-witness mount',

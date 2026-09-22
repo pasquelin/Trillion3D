@@ -133,7 +133,7 @@ export function disposeWebgpuPages(
   blendState.table = undefined;
   blendState.blendGpu.length = 0;
   blendState.pagedBlendGpu.clear();
-  blendState.cpuSelectedMeshes.clear();
+  blendState.cpuSelectedPlacements.clear();
   blendState.dirtySpans.clear();
   pagedBlendCopies.clear();
   blendState.visibleBlend.length = 0;

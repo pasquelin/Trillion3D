@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type * as THREE from 'three';
 import { creerEclairageTemoin } from './mesure/pageTemoin.ts';
-import type { Explorer } from '../packages/sdk-browser/index.ts';
+import type { MeasuredWorld } from '../packages/sdk-browser/measurement.ts';
 
 const DOUCEUR = 0.02;
 
@@ -24,12 +24,12 @@ interface Backend {
 }
 
 /** A paper explorer: light store, published settings, backends to notify. */
-function explorateur(lights: LightRecord[], backends: Backend[] = []): Explorer {
+function explorateur(lights: LightRecord[], backends: Backend[] = []): MeasuredWorld {
   return {
     lights: () => lights.map((light) => ({ ...light })),
     lightSettings: { spotEdgeSoftness: DOUCEUR },
     backends,
-  } as unknown as Explorer;
+  } as unknown as MeasuredWorld;
 }
 
 const PONCTUELLE: LightRecord = {
@@ -139,6 +139,6 @@ test('moving a light does not trigger a scene refresh, adding one does', () => {
 
 test('a dist prior to contract returns null, never an invented count', () => {
   const eclairage = creerEclairageTemoin();
-  assert.strictEqual(eclairage.suivre({ backends: [] } as unknown as Explorer), null);
+  assert.strictEqual(eclairage.suivre({ backends: [] } as unknown as MeasuredWorld), null);
   assert.strictEqual(eclairage.groupe.children.length, 0);
 });

@@ -22,5 +22,15 @@ export function projectedPageError(
   const stretch = maxStretch(rec.matrix.elements) * maxStretch(cam.view);
   const scale = pixelScaleOf(cam.projection, viewport, diagnosticPixelScale);
   const focal = Math.max(scale[0], scale[1]);
-  return projectedClusterError(rec.lodError, rec.sphere, 0, view, stretch, focal, cam.near);
+  const { near, perspective } = cam;
+  return projectedClusterError(
+    rec.lodError,
+    rec.sphere,
+    0,
+    view,
+    stretch,
+    focal,
+    near,
+    perspective,
+  );
 }

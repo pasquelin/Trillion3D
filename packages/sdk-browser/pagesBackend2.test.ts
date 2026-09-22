@@ -2,7 +2,7 @@ import test from 'node:test';
 import { asHostLibrary } from './hostResources.ts';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { exactPagesBackend, referenceBackend } from './index.ts';
+import { exactPagesBackend, referenceBackend } from './measurement.ts';
 import { threeLodBackend } from './threeLod.ts';
 import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackendFixture.ts';
 import {

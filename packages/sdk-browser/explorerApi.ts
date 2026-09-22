@@ -27,6 +27,8 @@ export function createExplorerApi(inputs: Inputs) {
     canvas,
     render,
     capture,
+    captureView,
+    gpuDevice,
     dispose,
     setPose,
     awaitPages,
@@ -64,6 +66,10 @@ export function createExplorerApi(inputs: Inputs) {
     canvas,
     render,
     capture,
+    /** The composed image at a size of its own, drawn offscreen, bottom row first. */
+    captureView,
+    /** The WebGPU device the session draws on, when it has one: a world reopening keeps it. */
+    gpuDevice,
     dispose,
     setPose,
     awaitPages,

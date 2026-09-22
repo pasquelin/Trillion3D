@@ -1,6 +1,5 @@
 import { EngineError } from './cacheContracts.ts';
 import {
-  LIGHT_KIND,
   LIGHT_SETTINGS,
   SCENE_LIGHT_BUFFER_FLOATS,
   SCENE_LIGHT_FLOATS,
@@ -10,22 +9,11 @@ import {
   type SceneLightingView,
 } from './sceneLightContracts.ts';
 import { sameSceneEnvironment, sameSceneLight } from './sceneLightEqual.ts';
+import { SCENE_ENVIRONMENT_FLOATS, packEnvironment } from './sceneEnvironment.ts';
+import { LIGHT_FIELD, writeLightFields } from './sceneLightFields.ts';
 import { validateSceneEnvironment, validateSceneLight } from './sceneLightValidate.ts';
 
-/** Field of a light in the buffer, in floats from its base. Four `vec4f` per light. */
-export const LIGHT_FIELD = {
-  position: 0,
-  range: 3,
-  color: 4,
-  intensity: 7,
-  direction: 8,
-  cosCone: 11,
-  kind: 12,
-  shadowSlice: 13,
-  castsShadow: 14,
-} as const;
-/** A point tests no cone: its cosine value can never reject a direction. */
-const NO_CONE = -2;
+export { LIGHT_FIELD } from './sceneLightFields.ts';
 
 export type SceneLightStore = ReturnType<typeof createSceneLightStore>;
 
@@ -41,6 +29,8 @@ export function createSceneLightStore() {
   const ids: string[] = [];
   const indexOf = new Map<string, number>();
   const revision = new Uint32Array(LIGHT_SETTINGS.maxLights);
+  /** The environment's irradiance as the GPU reads it, behind the lights (`sceneEnvironment.ts`). */
+  const environmentPacked = new Float32Array(SCENE_ENVIRONMENT_FLOATS);
   let environment: SceneEnvironment | undefined,
     view: SceneLightingView = 'auto',
     epoch = 1;
@@ -50,30 +40,13 @@ export function createSceneLightStore() {
   const writeSlice = (slot: number, slice: number) => {
     packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice;
   };
-  const writeVector = (base: number, field: number, value: readonly number[]) => {
-    packed[base + field] = value[0];
-    packed[base + field + 1] = value[1];
-    packed[base + field + 2] = value[2];
-  };
   /** Fields declared by the host. The shadow slice is not one: the scheduler sets it. */
-  const write = (slot: number, light: SceneLight) => {
-    const base = baseOf(slot);
-    // A directional has neither position nor range: its two fields stay zero in the buffer,
-    // and the shader never reads them — it branches on the kind first.
-    writeVector(base, LIGHT_FIELD.position, light.position ?? [0, 0, 0]);
-    packed[base + LIGHT_FIELD.range] = light.range ?? 0;
-    writeVector(base, LIGHT_FIELD.color, light.color);
-    packed[base + LIGHT_FIELD.intensity] = light.intensity;
-    writeVector(base, LIGHT_FIELD.direction, light.direction ?? [0, -1, 0]);
-    packed[base + LIGHT_FIELD.cosCone] =
-      light.kind === 'spot' ? Math.cos(light.coneAngle!) : NO_CONE;
-    packed[base + LIGHT_FIELD.kind] = LIGHT_KIND[light.kind];
-    packed[base + LIGHT_FIELD.castsShadow] = light.castsShadow ? 1 : 0;
-  };
+  const write = (slot: number, light: SceneLight) => writeLightFields(packed, baseOf(slot), light);
   const records = new Map<string, SceneLight>();
   const store = {
     settings: LIGHT_SETTINGS,
     packed,
+    environmentPacked,
     revision,
     sliceOf,
     ids,
@@ -153,9 +126,7 @@ export function createSceneLightStore() {
     remove(id: string) {
       const slot = indexOf.get(id);
       if (slot === undefined)
-        throw new EngineError('UNKNOWN_SCENE_LIGHT', `unknown light ${id}`, {
-          id,
-        });
+        throw new EngineError('UNKNOWN_SCENE_LIGHT', `unknown light ${id}`, { id });
       const last = ids.length - 1;
       if (slot !== last) {
         const movedId = ids[last];
@@ -182,6 +153,7 @@ export function createSceneLightStore() {
       // Same rule as `set`: an exposure reset as-is does not stale the frame.
       if (environment && sameSceneEnvironment(environment, validated)) return;
       environment = validated;
+      packEnvironment(environment, environmentPacked);
       epoch++;
     },
     /** Records the atlas slice a light occupies, without touching the rest of its fields. The store

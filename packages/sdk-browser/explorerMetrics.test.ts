@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createExplorerMetrics } from './explorerMetrics.ts';
 import type { ClusterManifest } from '../sdk-core/index.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { MeasuredWorldOptions, RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 
 const streamer = {
@@ -22,7 +22,14 @@ const streamer = {
 const state = () => ({ loaded: 0, pageBytesRead: 0, streamingError: null });
 
 function harnais() {
-  return createExplorerMetrics({} as ClusterManifest, {} as ExplorerOptions, streamer, 0, 0, state);
+  return createExplorerMetrics(
+    {} as ClusterManifest,
+    {} as MeasuredWorldOptions,
+    streamer,
+    0,
+    0,
+    state,
+  );
 }
 
 test('drawnTriangles is null before any sampled frame: no cut has been published yet', () => {

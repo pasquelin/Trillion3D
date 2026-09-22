@@ -97,3 +97,11 @@ type ComposedMetric =
 export type BackendMetrics = Partial<
   Pick<FrameMetrics, (typeof BACKEND_METRIC_KEYS)[number] | ComposedMetric>
 >;
+/** Draw counters a WebGL2 engine adds to its metrics. */
+export type BackendDrawCounters = {
+  drawCalls?: number;
+  batchRebuilds?: number;
+  batchIndexBytesUpdated?: number;
+  pageRangeWrites?: number;
+  subDraws?: number;
+};

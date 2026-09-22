@@ -24,7 +24,7 @@ interface Resultat extends ResultatPagePreuve {
 const result = (await preuveDansLaPage(
   'webglClusterExplorerPage.ts',
   'webglClusterExplorerProof',
-  'Explorer autonomous clusters',
+  'MeasuredWorld autonomous clusters',
   'execute',
 )) as Resultat;
 console.log(JSON.stringify(result, null, 2));

@@ -7,6 +7,7 @@ import { syncRendererState } from '../site/lessons/syncRendererState.ts';
 import type { RendererLessonSession } from '../site/lessons/rendererLessonSessionTypes.ts';
 import { transformSync } from 'esbuild';
 import { loadReactComponents } from './docs/render-react.ts';
+import { sceneFillLightCode } from '../site/lessons/sceneFillLight.ts';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Playground as PlaygroundComponent } from '../site/app/gallery/Playground.tsx';
@@ -18,21 +19,22 @@ test('every integrated renderer lesson emits complete parseable host code', () =
   for (const lesson of rendererLessons) {
     const code = rendererCodeFor(lesson, rendererInitialState(lesson));
     assert.doesNotThrow(() => transformSync(code, { format: 'esm' }), lesson.id);
-    assert.match(code, /from 'web-geometry'[\s\S]*createExplorer\(canvas/);
+    assert.match(code, /from 'web-geometry'[\s\S]*createWorld\('garden'/);
     // #276: the normal call names no backend — the engine reads the machine and chooses.
     assert.doesNotMatch(code, /backends:/);
     assert.match(code, /pixelRatio: window\.devicePixelRatio/);
     assert.match(code, /new ResizeObserver/);
-    assert.match(code, /await explorer.awaitPages\(\)/);
-    assert.match(code, /interactive: false/);
-    assert.match(code, /explorer\.dispose\(\)/);
-    assert.ok(code.indexOf('await explorer.awaitPages()') < code.indexOf('explorer.render()'));
+    assert.match(code, /world\.dispose\(\)/);
+    // The scene is loaded before anything reads it, and the edit is shown before the redraw.
+    assert.ok(code.indexOf('await world.scene.load(') < code.indexOf('world.invalidate()'));
     assert.ok(lesson.manifest);
-    assert.ok(code.includes(lesson.manifest), `${lesson.id} uses its displayed manifest`);
-    if (lesson.kind === 'offline') assert.ok(code.includes(lesson.manifest));
-    assert.match(code, new RegExp(`importedLights: ${lesson.importedLights}`));
-    if (lesson.sceneLight) assert.match(code, /id: 'scene'.*kind: 'directional'/);
-    if (lesson.sceneFill) assert.match(code, /id: 'scene-fill'.*castsShadow: false/);
+    assert.ok(
+      code.includes(`world.scene.load('${lesson.manifest}')`),
+      `${lesson.id} uses its displayed manifest`,
+    );
+    if (lesson.sceneLight)
+      assert.match(code, /light\.directional\(\{[^\n]*intensity: 2\.5[^\n]*castShadow: true/);
+    assert.equal(code.includes(sceneFillLightCode()), Boolean(lesson.sceneFill), lesson.id);
   }
 });
 
@@ -81,17 +83,16 @@ test('the LOD lesson uses a compiled multi-level cache', async () => {
   ]);
   const code = rendererCodeFor(lesson, rendererInitialState(lesson));
   for (const expected of [
-    "manifestUrl: './assets/gallery/signature-architecture/cache/native/full/manifest.json'",
-    'importedLights: true',
-    'interactive: false',
+    "world.scene.load('./assets/gallery/signature-architecture/cache/native/full/manifest.json')",
     'pixelRatio: window.devicePixelRatio',
-    'pixelError: 0',
-    'position: [19,13,22]',
-    'target: [0,3,0]',
-    "explorer.setDiagnostic('beauty')",
+    'world.pixelError = 1;',
+    'world.camera.position.set(19,13,22);',
+    'world.camera.lookAt(0,3,0);',
+    "world.diagnostic.mode = 'beauty';",
   ])
     assert.ok(code.includes(expected), expected);
-  assert.doesNotMatch(code, /addLight\(/);
+  // The scene's own lights are the only ones: the lesson adds none.
+  assert.doesNotMatch(code, /scene\.add\(/);
 
   const proof = JSON.parse(
       await readFile(
@@ -119,9 +120,9 @@ test('renderer badges link only to documented API entries', () => {
   const render = (id: string) =>
     renderToStaticMarkup(createElement(Playground, { id, locale: 'en' }));
   const light = render('point-light-range');
-  assert.doesNotMatch(light, /#\/en\/api\/addLight/);
-  assert.match(light, />addLight<\/code>/);
-  assert.match(render('offline-prism'), /#\/en\/api\/createExplorer/);
+  assert.doesNotMatch(light, /#\/en\/api\/scene\.add/);
+  assert.match(light, />scene\.add\(light\.\*\)<\/code>/);
+  assert.match(render('offline-prism'), /#\/en\/api\/createWorld/);
 });
 
 test('the shadow switch uses its original theatre and keeps direct light in both states', async () => {
@@ -148,8 +149,8 @@ test('the shadow switch uses its original theatre and keeps direct light in both
   ]);
   const on = rendererCodeFor(lesson, { shadow: 1 }),
     off = rendererCodeFor(lesson, { shadow: 0 });
-  assert.match(on, /intensity: 1800.*castsShadow: true/);
-  assert.match(off, /intensity: 1800.*castsShadow: false/);
+  assert.match(on, /intensity: 1800.*castShadow: true/);
+  assert.match(off, /intensity: 1800.*castShadow: false/);
   const markup = renderToStaticMarkup(createElement(Playground, { id: lesson.id, locale: 'en' }));
   assert.match(markup, /type="checkbox"[^>]*aria-label="Cast shadow"/);
   assert.match(markup, /Cast shadow: Enabled/);
@@ -170,8 +171,7 @@ test('binary lesson controls render as accessible toggles', () => {
     createElement(Playground, { id: 'runtime-pixel-error', locale: 'en' }),
   );
   assert.match(markup, /<input[^>]*type="checkbox"[^>]*aria-label="Show detail levels"/);
-  assert.match(markup, /#38bdf8[^>]*><\/span>Exact detail/);
-  assert.match(markup, /#f59e0b[^>]*><\/span>Coarse fallback/);
+  assert.match(markup, /#38bdf8[^>]*><\/span>One colour per selected cluster/);
   assert.doesNotMatch(markup, /<input[^>]*type="range"[^>]*aria-label="Show detail levels"/);
 });
 

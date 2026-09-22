@@ -1,5 +1,5 @@
 import { maxStretch } from '../sdk-core/index.ts';
-import { projectedClusterError } from './pageSelectionMath.ts';
+import { frameClusterError } from './pageSelectionFrame.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import { forceScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
 import { markForcedGroup, type CullingLinks, type ForcedMarks } from './pageSelectionCutForced.ts';
@@ -45,31 +45,13 @@ export function drawnUnderForcing<T extends PageRecord>(s: SelectionState<T>, re
     source != null &&
     source >= 0 &&
     !forced[source] &&
-    projectedClusterError(
-      rec.lodError ?? 0,
-      rec.sphere,
-      0,
-      s.flatElements,
-      s.flatStretch,
-      s.flatFocal,
-      s.cam.near,
-    ) > s.pixelError
+    frameClusterError(s, rec.lodError ?? 0, rec.sphere, 0) > s.pixelError
   )
     return false;
   const own = rec.group;
   if (own == null || own < 0) return true;
   if (forced[own]) return false;
-  return (
-    projectedClusterError(
-      rec.parentError,
-      rec.parentSphere ?? rec.sphere,
-      0,
-      s.flatElements,
-      s.flatStretch,
-      s.flatFocal,
-      s.cam.near,
-    ) > s.pixelError
-  );
+  return frameClusterError(s, rec.parentError, rec.parentSphere ?? rec.sphere, 0) > s.pixelError;
 }
 
 /** Marks a forced group on the culling nodes its clusters walk, when the root holds
@@ -122,15 +104,8 @@ export function forceCoarse<T extends PageRecord>(
       const producer = structure.sources[structure.children[i]];
       if (producer < 0 || forced[producer]) continue;
       if (
-        projectedClusterError(
-          structure.error[producer],
-          structure.sphere,
-          producer * 4,
-          s.flatElements,
-          s.flatStretch,
-          s.flatFocal,
-          s.cam.near,
-        ) <= s.pixelError
+        frameClusterError(s, structure.error[producer], structure.sphere, producer * 4) <=
+        s.pixelError
       )
         continue;
       pending.push(producer);

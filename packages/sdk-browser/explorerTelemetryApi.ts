@@ -11,7 +11,7 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
     /**
      * Per-step profile of the active engine: one row per step, p50 and p95, CPU duration and
      * GPU duration kept separate and never added. "Unmeasured" is `null`, never `0`.
-     * Empty as long as `stageProfile: true` was not requested of `createExplorer`.
+     * Empty as long as `stageProfile: true` was not requested of `openMeasuredWorld`.
      */
     stageProfile(): StageProfile {
       const backend = active();

@@ -9,14 +9,14 @@ import { resolve } from 'node:path';
 import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { buildSite, SITE_OUTPUT } from '../../scripts/docs/site.ts';
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
 
 declare global {
   var framesRequested: number;
-  var sdk: typeof import('../../packages/sdk-browser/index.ts');
+  var sdk: typeof import('../../packages/sdk-browser/measurement.ts');
   var diagnostics: BackendDiagnostic[];
-  var explorer: Explorer;
+  var explorer: MeasuredWorld;
 }
 
 interface TargetsResult {
@@ -80,7 +80,7 @@ try {
     const sdk = await import(sdkUrl);
     window.sdk = sdk;
     window.diagnostics = [];
-    window.explorer = await sdk.createExplorer('viewer', {
+    window.explorer = await sdk.openMeasuredWorld('viewer', {
       manifestUrl: '/cache/city/manifest.json',
       scope: 'full',
       interactive: true,
@@ -94,7 +94,7 @@ try {
       controlsReused: e.controls() === e.controls(),
       coverageReady: e.backends[0].metrics().coverageReady,
     };
-  }, '/sdk/sdk-browser/index.js');
+  }, '/sdk/sdk-browser/measurement.js');
   assert.deepEqual([opened.width, opened.height], [960, 448]);
   assert.equal(opened.backend, 'webgpu-page-raster');
   assert.equal(opened.controlsReused, true);

@@ -37,7 +37,7 @@ interface Resultat extends ResultatPagePreuve {
 const result = (await preuveDansLaPage(
   'webglClusterTransmissionExplorerPage.ts',
   'webglClusterTransmissionExplorerProof',
-  'Explorer transmission over autonomous clusters',
+  'MeasuredWorld transmission over autonomous clusters',
   'execute',
 )) as Resultat;
 console.log(JSON.stringify(result, null, 2));

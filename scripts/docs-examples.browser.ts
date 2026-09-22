@@ -15,7 +15,7 @@ test('every example file renders an image on its own, and the portal page frames
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await page.goto(`http://127.0.0.1:${port}/#/en/examples/${entry.id}`);
     const source = page.locator('[data-code-block]');
-    await source.getByText("import { createExplorer } from '../runtime/engine.js';").waitFor();
+    await source.getByText("import { openMeasuredWorld } from '../runtime/engine.js';").waitFor();
     const frame = page.locator('.render-frame iframe');
     assert.equal(await frame.getAttribute('src'), entry.file);
     const [code, view] = await Promise.all([source.boundingBox(), frame.boundingBox()]);

@@ -1,4 +1,4 @@
-import { cutSelects, projectedClusterError } from './pageSelectionMath.ts';
+import { frameClusterError, frameSelects } from './pageSelectionFrame.ts';
 import {
   residentUnder,
   truncateShown,
@@ -31,7 +31,6 @@ export function rootCoverInto<T extends PageRecord>(
 
 /** Raise the threshold to a resident ancestor when group structure is unavailable. */
 export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[], start: number) {
-  const near = s.cam.near;
   let threshold = s.pixelError,
     hard = false;
   for (let round = 0; round <= ESCALATION_ROUNDS; round++) {
@@ -39,20 +38,8 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
     for (let i = 0; i < pages.length; i++) {
       const rec = pages[i];
       if (residentUnder(s, rec, s.residentMode) || !flatVisible(s, rec)) continue;
-      if (
-        !cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, near, threshold) ||
-        !flatConeKeeps(s, rec)
-      )
-        continue;
-      const parent = projectedClusterError(
-        rec.parentError,
-        rec.parentSphere ?? rec.sphere,
-        0,
-        s.flatElements,
-        s.flatStretch,
-        s.flatFocal,
-        near,
-      );
+      if (!frameSelects(s, rec, threshold) || !flatConeKeeps(s, rec)) continue;
+      const parent = frameClusterError(s, rec.parentError, rec.parentSphere ?? rec.sphere, 0);
       if (parent > 0 && Number.isFinite(parent)) {
         if (parent > threshold) {
           threshold = parent;
@@ -67,11 +54,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
   if (!hard)
     for (let i = 0; i < pages.length; i++) {
       const rec = pages[i];
-      if (
-        !flatVisible(s, rec) ||
-        !cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, near, threshold) ||
-        !flatConeKeeps(s, rec)
-      )
+      if (!flatVisible(s, rec) || !frameSelects(s, rec, threshold) || !flatConeKeeps(s, rec))
         continue;
       if (!residentUnder(s, rec, s.residentMode)) {
         hard = true;

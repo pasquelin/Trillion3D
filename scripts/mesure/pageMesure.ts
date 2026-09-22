@@ -1,10 +1,10 @@
 // What both measurement pages (`pageEclairage.ts`, `pageThreeNu.ts`) do the same: the moving
 // light on its small circle, the capture sent to Node, the bytes transferred on the network.
 // Served to the page under `/mesure/` and imported by URL, with nothing from the SDK.
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/index.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
-import type { MemoryBudgets } from '../../packages/sdk-browser/index.ts';
+import type { MemoryBudgets } from '../../packages/sdk-browser/measurement.ts';
 import type { ReglageVivant, Reseau } from './report/types.ts';
 import type { FrameMetrics } from '../../packages/sdk-core/index.ts';
 
@@ -50,7 +50,7 @@ export function reseauDepuis(depuis: number): Reseau {
  * or `null` if the engine holds no image (the Three witness, for example).
  */
 export async function poseCalme(
-  explorer: Explorer,
+  explorer: MeasuredWorld,
   pose: CameraPose,
   limite = 64,
 ): Promise<number | null> {
@@ -69,7 +69,7 @@ export async function poseCalme(
  * the number of frames until the pose holds again. `null` with no tuning requested.
  */
 export async function reglerReservoirs(
-  explorer: Explorer,
+  explorer: MeasuredWorld,
   pose: CameraPose,
   budgets: { geometryPoolBytes?: number | null; texturePoolBytes?: number | null } | null,
 ): Promise<ReglageVivant | null> {
@@ -129,7 +129,7 @@ export function filtrerMetriques(
  * previous depth, and the fingerprint would prove nothing. The loop is bounded, and the
  * remaining count is published as-is, never assumed zero.
  */
-export async function drainShadowAtlas(explorer: Explorer, capturePose: CameraPose) {
+export async function drainShadowAtlas(explorer: MeasuredWorld, capturePose: CameraPose) {
   if (typeof explorer.shadowAtlasDigest !== 'function') return null;
   let pending: number | null = null,
     drains = 0;

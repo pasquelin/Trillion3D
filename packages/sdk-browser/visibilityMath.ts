@@ -1,5 +1,5 @@
 import type { HostAttribute } from './hostResources.ts';
-import { linearToSrgb, srgbToLinear, type Texture, type WrapMode } from '../sdk-core/index.ts';
+import { srgbToLinear, type Texture, type WrapMode } from '../sdk-core/index.ts';
 import type { Projected } from './visibilityProjection.ts';
 import type { DepthCamera } from './depthConvention.ts';
 import { barycentricAt, projectVisibilityVertex, signedArea } from './visibilityProjection.ts';
@@ -87,9 +87,7 @@ export function wrapTexel(t: number, size: number, wrap: WrapMode) {
 const SRGB8_LINEAIRE = new Float64Array(256);
 for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(octet / 255);
 
-export function linearToSrgb8(c: number) {
-  return Math.max(0, Math.min(255, Math.round(linearToSrgb(c) * 255)));
-}
+export { linearToSrgb8 } from '../sdk-core/mathColor.ts';
 
 /** Rank of the texel in the image, not its components: that byte indexes the sRGB table. */
 function texelAt(image: { width: number; height: number }, map: Texture, u: number, v: number) {
