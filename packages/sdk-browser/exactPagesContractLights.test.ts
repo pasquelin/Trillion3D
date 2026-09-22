@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { LIGHT_SETTINGS, createSceneLightStore } from '../sdk-core/index.ts';
 import { attachContractLights } from './exactPagesContractLights.ts';
 import { installSceneLighting } from './sceneLighting.ts';
+import { hostAimNode } from './backendCommon.ts';
 import { unsupportedClusterLight } from './webglClusterLights.ts';
 
 /** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
@@ -15,7 +16,7 @@ function harness(sourceLights: THREE.Light[] = []) {
   const source = new THREE.Object3D();
   for (const light of sourceLights) source.add(light);
   const store = createSceneLightStore();
-  const installed = installSceneLighting(scene, source, 0x000000);
+  const installed = installSceneLighting(scene, source, hostAimNode);
   const contract = attachContractLights(scene, store, installed, () => {});
   return {
     scene,

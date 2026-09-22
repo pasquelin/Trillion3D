@@ -1,78 +1,140 @@
-import * as THREE from 'three';
-import { asHostLibrary, type HostNode } from './hostResources.ts';
+import type { HostColour, HostNode, HostPlaced, HostTraversable } from './hostResources.ts';
 
-/** Browser adapter: world-space light data, independent of material evaluation. */
-function sceneLights(source: THREE.Object3D): THREE.Light[] {
-  const lights: THREE.Light[] = [];
-  source.traverse((object) => {
-    if ((object as THREE.Light).isLight) lights.push(object as THREE.Light);
+/**
+ * Browser boundary: the lights a source graph declares, placed in the graph an engine publishes.
+ *
+ * Nothing here names a rendering library. A light is read through the shape below — the flags
+ * the host writes on its own objects say its kind, the copy it makes of itself is its own — so
+ * the placement is the engine's and the objects stay the host's.
+ */
+
+/**
+ * A host light, and the copy of it a display graph holds. The kind is read from the flags the
+ * host sets on its own objects rather than from a class: a hemisphere carries a ground colour,
+ * a point and a spot a range and a decay, a spot a cone, and a light that aims carries a target.
+ */
+export type HostLight = HostPlaced & {
+  readonly isLight: true;
+  readonly isHemisphereLight?: boolean;
+  readonly isPointLight?: boolean;
+  readonly isSpotLight?: boolean;
+  color: HostColour;
+  intensity: number;
+  groundColor?: HostColour;
+  distance?: number;
+  decay?: number;
+  angle?: number;
+  penumbra?: number;
+  /** Aim of a directional or a spot: the point it looks at, a node of the same graph. */
+  target?: HostPlaced;
+  /** A copy of this light, made by the host that owns it. */
+  clone(): HostLight;
+};
+
+/** The two writes this boundary makes on the display graph it lights. */
+export type HostLightScene = { add(node: unknown): void; remove(node: unknown): void };
+
+/** What a copied light aims at: `from` is the target the source declared, read every update;
+ *  `to` is the node of the display graph the copy points at in its place. */
+type Aim = { from: HostPlaced; to: HostPlaced };
+
+function sceneLights(source: HostTraversable): HostLight[] {
+  const lights: HostLight[] = [];
+  source.traverse((object: HostNode) => {
+    if ((object as Partial<HostLight>).isLight) lights.push(object as unknown as HostLight);
   });
   return lights;
 }
-function visible(light: THREE.Light) {
-  let node: THREE.Object3D | null = light;
+function visible(light: HostLight) {
+  let node: HostPlaced | null = light;
   while (node) {
     if (!node.visible) return false;
     node = node.parent;
   }
   return true;
 }
+/** World position of a placed object: the translation column of its resolved world matrix. */
+function placeAt(into: HostPlaced, from: HostPlaced) {
+  const elements = from.matrixWorld.elements;
+  into.position.x = elements[12];
+  into.position.y = elements[13];
+  into.position.z = elements[14];
+}
 /**
  * Copy into the render scene the lights the source graph declares, and nothing else.
  *
  * No light without a declared source (P6): a source that carries none yields a scene without
  * a light, not an invented hemisphere and sun. Same rule as the contract path,
- * on the adapters that render through Three.
+ * on every engine that draws a display graph.
  */
-export function installSceneLighting(scene: THREE.Scene, node: HostNode, clearColor: number) {
-  const source = asHostLibrary<THREE.Object3D>(node);
-  scene.background = new THREE.Color(clearColor);
-  let pairs: Array<{ original: THREE.Light; copy: THREE.Light; target?: THREE.Object3D }> = [];
+export function installSceneLighting(
+  scene: HostLightScene,
+  source: HostTraversable,
+  /** An empty node of that graph: what a copied light aims at. The engine poses it, the host
+   *  makes it — the source's own target belongs to the source graph and stays there. */
+  aimNode: () => HostPlaced,
+) {
+  /** One entry per copied light; `aim` only where the source declared a target. */
+  let pairs: Array<{ original: HostLight; copy: HostLight; aim?: Aim }> = [];
   // Source-graph lights are cleared when another lighting contract takes over: two
   // stacked light sets would be nobody's lighting.
   let enabled = true;
   const update = () => {
-    for (const { original, copy, target } of pairs) {
+    for (const { original, copy, aim } of pairs) {
       original.updateWorldMatrix(true, false);
-      copy.position.setFromMatrixPosition(original.matrixWorld);
-      copy.quaternion.identity();
-      copy.scale.set(1, 1, 1);
-      copy.color.copy(original.color);
+      placeAt(copy, original);
+      copy.quaternion.x = 0;
+      copy.quaternion.y = 0;
+      copy.quaternion.z = 0;
+      copy.quaternion.w = 1;
+      copy.scale.x = 1;
+      copy.scale.y = 1;
+      copy.scale.z = 1;
+      copy.color.r = original.color.r;
+      copy.color.g = original.color.g;
+      copy.color.b = original.color.b;
       copy.intensity = original.intensity;
       copy.visible = enabled && visible(original);
-      if (target) {
-        const sourceTarget = (original as THREE.DirectionalLight).target;
-        sourceTarget.updateWorldMatrix(true, false);
-        target.position.setFromMatrixPosition(sourceTarget.matrixWorld);
+      if (aim) {
+        aim.from.updateWorldMatrix(true, false);
+        placeAt(aim.to, aim.from);
       }
-      if (original instanceof THREE.HemisphereLight)
-        (copy as THREE.HemisphereLight).groundColor.copy(original.groundColor);
-      if (original instanceof THREE.PointLight || original instanceof THREE.SpotLight) {
-        (copy as THREE.PointLight).distance = original.distance;
-        (copy as THREE.PointLight).decay = original.decay;
+      // A ground colour is optional on both sides of the contract: a host that flags a
+      // hemisphere without one keeps the copy's own, rather than crashing the frame.
+      if (original.groundColor && copy.groundColor) {
+        copy.groundColor.r = original.groundColor.r;
+        copy.groundColor.g = original.groundColor.g;
+        copy.groundColor.b = original.groundColor.b;
       }
-      if (original instanceof THREE.SpotLight) {
-        (copy as THREE.SpotLight).angle = original.angle;
-        (copy as THREE.SpotLight).penumbra = original.penumbra;
+      if (original.isPointLight || original.isSpotLight) {
+        copy.distance = original.distance;
+        copy.decay = original.decay;
+      }
+      if (original.isSpotLight) {
+        copy.angle = original.angle;
+        copy.penumbra = original.penumbra;
       }
     }
   };
   const refresh = () => {
-    for (const { copy, target } of pairs) {
+    for (const { copy, aim } of pairs) {
       scene.remove(copy);
-      if (target) scene.remove(target);
+      if (aim) scene.remove(aim.to);
     }
     pairs = [];
     for (const original of sceneLights(source)) {
       const copy = original.clone();
-      let target: THREE.Object3D | undefined;
-      if ('target' in original) {
-        target = new THREE.Object3D();
-        (copy as THREE.DirectionalLight).target = target;
-        scene.add(target);
+      let aim: Aim | undefined;
+      // A light that aims gets an aim of this graph: the copy is posed here, and the source's
+      // own target stays in the graph its owner walks and resolves. The question is asked of
+      // the original — a host whose `clone()` drops the target would otherwise lose the aim.
+      if (original.target) {
+        aim = { from: original.target, to: aimNode() };
+        copy.target = aim.to;
+        scene.add(aim.to);
       }
       scene.add(copy);
-      pairs.push({ original, copy, target });
+      pairs.push({ original, copy, aim });
     }
     update();
   };
@@ -94,8 +156,9 @@ export function installSceneLighting(scene: THREE.Scene, node: HostNode, clearCo
 }
 
 /**
- * What a Three-rendered engine publishes of its lighting: enough to refresh it, and the view it
- * renders. With no light installed, the host composites by identity rather than exposure and ACES.
+ * What an engine drawing a display graph publishes of its lighting: enough to refresh it, and
+ * the view it renders. With no light installed, the host composites by identity rather than
+ * exposure and ACES.
  *
  * `sceneLit` is a function, not a getter: engines spread this object into theirs, and a getter
  * would be read once, at construction. A light placed afterwards — the case of every contract
