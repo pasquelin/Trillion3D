@@ -1,5 +1,6 @@
+import { EngineError } from '../sdk-core/index.ts';
 import type { HostNode } from './hostResources.ts';
-import { hostWorldTree } from './hostWorldTree.ts';
+import { hostWorldTree, type HostWorldTree } from './hostWorldTree.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 /**
@@ -27,11 +28,24 @@ export interface HostWorldPlacements {
   refresh(): void;
 }
 
+/**
+ * A pose handed out here is kept for the index's life, so it may only ever be a view that
+ * outlives a pass. A LOT pass is the one that does not qualify: it rebuilds its views whenever
+ * the module memory has grown, which would leave every pose handed out reading a dead buffer,
+ * silently. The tree below is built WITHOUT a lot, so this cannot fire — it is what makes that
+ * assumption fail loudly rather than quietly, if the construction ever changes.
+ */
+function assertStable(tree: HostWorldTree) {
+  if (tree.batched)
+    throw new EngineError('BATCHED_WORLD_VIEW', 'a lot pass cannot back a cached pose', {});
+}
+
 /** World-matrix index of `source`, ready to be read: the pass is that of the core tree
  *  (`hostWorldTree.ts`), which accepts both a node that recomposes its pose and a posed node. */
 export function hostWorldPlacements(source: HostNode): HostWorldPlacements {
   // No lot: the pass runs on the tree, whose per-node views stay valid for the index's life.
   const tree = hostWorldTree(source);
+  assertStable(tree);
   // Requested nodes, and them alone. One table, node → pose: the rank of a parallel list would
   // be a third way of saying the same thing, and one more to keep in agreement.
   const matrices = new Map<HostNode, MatrixElements>();
@@ -45,6 +59,7 @@ export function hostWorldPlacements(source: HostNode): HostWorldPlacements {
     },
     refresh() {
       tree.refresh();
+      assertStable(tree);
     },
   };
 }
