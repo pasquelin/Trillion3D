@@ -76,12 +76,12 @@ export function chooseBackends(
       reason: 'no WebGPU device; the cache carries a prepared autonomous scene',
       renderer: 'autonomous-pages-webgl',
     });
+  // One refusal, two causes, and the message names the one that applies.
+  const cause = webgl2
+    ? 'WebGPU was refused and this cache carries no prepared scene for the autonomous WebGL2 path'
+    : 'this machine granted neither a WebGPU device nor a WebGL2 context';
   throw new EngineError(
     'NO_ENGINE_BACKEND',
-    webgl2
-      ? 'No engine path is available: WebGPU was refused and this cache carries no prepared ' +
-        'scene for the autonomous WebGL2 path. Name a backend in options.backends to render anyway.'
-      : 'No engine path is available: this machine granted neither a WebGPU device nor a WebGL2 ' +
-        'context. Name a backend in options.backends to render anyway.',
+    `No engine path is available: ${cause}. Name a backend in options.backends to render anyway.`,
   );
 }
