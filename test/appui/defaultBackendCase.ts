@@ -1,6 +1,6 @@
 // Runs in the browser through Playwright serialization: one explorer per case, the image kept
 // on `window` so two cases of the same context can be compared pixel for pixel (#274).
-import type { FrameMetrics } from '../../packages/sdk-core/index.ts';
+import type { FrameMetrics, SceneLight } from '../../packages/sdk-core/index.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
 import type { ExplorerOptions } from '../../packages/sdk-browser/index.ts';
 
@@ -14,6 +14,9 @@ export type DefaultBackendCase = {
   /** rAF-driven repeats, each of `frames` rendered frames; `0` only reads the selection. */
   repeats: number;
   frames: number;
+  /** Lights declared before the first frame, as the page under proof declares them: a cache
+   *  whose own light table is empty is lit by its host or by nothing at all. */
+  lights?: SceneLight[];
 };
 
 export async function runDefaultBackendCase(input: DefaultBackendCase) {
@@ -86,6 +89,7 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
   } catch (error) {
     return report({ backend: null, error: String(error) });
   }
+  for (const light of input.lights ?? []) explorer.addLight(light);
   const pose = explorer.pointsOfInterest()[0].pose;
   explorer.setPose(pose);
   await explorer.awaitPages();
