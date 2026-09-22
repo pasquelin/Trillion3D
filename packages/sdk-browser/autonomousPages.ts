@@ -24,9 +24,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     { allowMissing: true },
   );
   const baseRoots = roots.slice(),
-    basePages = allPages.slice(),
-    bootstrap = autonomousBootstrap(roots),
-    baseBootstrap = bootstrap.slice();
+    basePages = allPages.slice();
+  const bootstrap = autonomousBootstrap(roots);
+  const baseBootstrap = bootstrap.slice();
   const byUrl = indexPagesByUrl(allPages, (rec) => rec.url), // by page, not by stream bundle
     bootstrapUrls = new Set(bootstrap.map((page) => page.url));
   const cap =
@@ -40,8 +40,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     retained: string[] = [];
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<THREE.Material, THREE.Material>();
-  const modifiedPages = new Set<string>(),
-    state = createAutonomousRenderState(),
+  const modifiedPages = new Set<string>();
+  const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     hostDraw = createThreeSceneDraw(context.webglContext, scene);
   // The engine's own lighting: the cache's radiometric light table where it declares one, the

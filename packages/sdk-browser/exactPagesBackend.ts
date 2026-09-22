@@ -54,8 +54,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
-  // Contract lights, translated into Three lights. As long as the host has neither declared a
-  // light nor asked for a view, the source graph lights alone and the image is the previous one, pixel for pixel.
+  // Contract lights, translated into Three lights, and the lighting half of the API they drive.
+  // As long as the host has neither declared a light nor asked for a view, the source graph
+  // lights alone and the image is the previous one, pixel for pixel.
   const contract = contractLightingApi(scene, context.sceneLights, sceneLights, gate.sceneChanged);
   const motion: CameraMotion = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(

@@ -1,5 +1,6 @@
 // Runs in the browser through Playwright serialization: one explorer per case, the image kept
 // on `window` so two cases of the same context can be compared pixel for pixel (#274).
+import type { FrameMetrics } from '../../packages/sdk-core/index.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
 import type { ExplorerOptions } from '../../packages/sdk-browser/index.ts';
 
@@ -41,39 +42,55 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
       : input.request === 'autonomous'
         ? { ...base, autonomousGeometry: true }
         : base;
-  const report = (
-    backend: string | null,
-    error: string | null,
-    runs: number[][],
-    cpuRuns: number[][] = [],
-    mounted: string[] = [],
-    capabilities: unknown = null,
-    metrics: Record<string, unknown> | null = null,
-  ) => {
+  /** What a case hands back, whether it rendered or failed to open at all. */
+  type Result = {
+    backend: string | null;
+    error: string | null;
+    /** Whether this context offered WebGPU at all, and the backend events it emitted. */
+    webgpu: boolean;
+    diagnostics: BackendDiagnostic[];
+    /** Every backend the session mounted, not only the active one: a witness that never draws
+     *  is still a witness the engine built. */
+    mounted: string[];
+    capabilities: unknown;
+    metrics: Pick<
+      FrameMetrics,
+      | 'selectedTriangles'
+      | 'submittedTriangles'
+      | 'clusters'
+      | 'drawCalls'
+      | 'residentPages'
+      | 'coverageReady'
+      | 'frameHeld'
+    > | null;
+    /** rAF intervals per repeat, then the engine's own CPU frame cost over the same frames. */
+    runs: number[][];
+    cpuRuns: number[][];
+  };
+  const report = (part: Partial<Result> & Pick<Result, 'backend' | 'error'>): Result => {
     canvas.remove();
     return {
-      backend,
-      error,
+      mounted: [],
+      capabilities: null,
+      metrics: null,
+      runs: [],
+      cpuRuns: [],
+      ...part,
       webgpu: !!navigator.gpu,
       diagnostics,
-      runs,
-      cpuRuns,
-      mounted,
-      capabilities,
-      metrics,
     };
   };
   let explorer: Awaited<ReturnType<typeof sdk.createExplorer>>;
   try {
     explorer = await sdk.createExplorer(canvas, options);
   } catch (error) {
-    return report(null, String(error), []);
+    return report({ backend: null, error: String(error) });
   }
   const pose = explorer.pointsOfInterest()[0].pose;
   explorer.setPose(pose);
   await explorer.awaitPages();
   // The frame's own counters: `tri = selected` is read here, on the frame that is captured.
-  const frame = explorer.render() as unknown as Record<string, number | boolean | null>;
+  const frame: FrameMetrics = explorer.render();
   await explorer.flush();
   (window.proof ??= { images: {} }).images[input.key] = Array.from(explorer.capture());
   // rAF cadence with one rendered frame per callback, on a camera that turns: a still scene
@@ -82,8 +99,8 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
   const dx = pose.position[0] - pose.target[0];
   const dz = pose.position[2] - pose.target[2];
   const turned = { ...pose, position: [...pose.position] as [number, number, number] };
-  const orbit = (frame: number) => {
-    const angle = frame * 0.001;
+  const orbit = (index: number) => {
+    const angle = index * 0.001;
     turned.position[0] = pose.target[0] + dx * Math.cos(angle) - dz * Math.sin(angle);
     turned.position[2] = pose.target[2] + dx * Math.sin(angle) + dz * Math.cos(angle);
     explorer.setPose(turned);
@@ -101,8 +118,7 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
         intervals.push(now - previous);
         previous = now;
         orbit(count);
-        const rendered = explorer.render() as { cpuFrameMs?: number | null };
-        if (typeof rendered?.cpuFrameMs === 'number') cpu.push(rendered.cpuFrameMs);
+        cpu.push((explorer.render() as FrameMetrics).cpuFrameMs);
         count += 1;
         if (count < input.frames) requestAnimationFrame(step);
         else resolve();
@@ -113,19 +129,24 @@ export async function runDefaultBackendCase(input: DefaultBackendCase) {
     cpuRuns.push(cpu.slice(20));
   }
   const backend = explorer.backend;
-  // Every backend this session mounted, not only the active one: a witness that never draws is
-  // still a witness the engine built.
-  const mounted = explorer.backends.map((one) => one.id);
-  const capabilities = explorer.backends.find((one) => one.id === backend)?.capabilities ?? null;
-  const metrics = {
-    selectedTriangles: frame.selectedTriangles ?? null,
-    submittedTriangles: frame.submittedTriangles ?? null,
-    clusters: frame.clusters ?? null,
-    drawCalls: frame.drawCalls ?? null,
-    residentPages: frame.residentPages ?? null,
-    coverageReady: frame.coverageReady ?? null,
-    frameHeld: frame.frameHeld ?? null,
-  };
+  const active = explorer.backends.find((one) => one.id === backend);
+  const result = report({
+    backend,
+    error: null,
+    mounted: explorer.backends.map((one) => one.id),
+    capabilities: active?.capabilities ?? null,
+    metrics: {
+      selectedTriangles: frame.selectedTriangles,
+      submittedTriangles: frame.submittedTriangles ?? null,
+      clusters: frame.clusters,
+      drawCalls: frame.drawCalls,
+      residentPages: frame.residentPages,
+      coverageReady: frame.coverageReady ?? null,
+      frameHeld: frame.frameHeld ?? null,
+    },
+    runs,
+    cpuRuns,
+  });
   explorer.dispose();
-  return report(backend, null, runs, cpuRuns, mounted, capabilities, metrics);
+  return result;
 }
