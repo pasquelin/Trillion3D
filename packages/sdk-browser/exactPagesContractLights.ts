@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { LIGHT_SETTINGS, type SceneLight, type SceneLightStore } from '../sdk-core/index.ts';
+import type { SceneLight, SceneLightStore } from '../sdk-core/index.ts';
 import { asHostLibrary } from './hostResources.ts';
 import type { HostDrawScene } from './hostGraphNodes.ts';
 import { baseCapabilities } from './backendCommon.ts';
 import { createUnlitAlbedo } from './exactPagesUnlitAlbedo.ts';
+import { createLight, writeLight } from './exactPagesLightWrite.ts';
 
 /** A Three-rendered engine applies the contract lights; only their shadows are missing —
  *  Three would provide them only at the cost of one map per light, six faces for a point light,
@@ -17,78 +18,9 @@ export const CONTRACT_LIGHTS_UNSUPPORTED = baseCapabilities.unsupported
   .filter((item) => !RETIRES.includes(item))
   .concat('contract scene light shadows');
 
-/**
- * Raw albedo by light: a material yields `irradiance · albedo / π` in diffuse, so an ambient
- * irradiance of π yields albedo — provided nothing takes its response away from that albedo,
- * which `createUnlitAlbedo` handles for the frame, lit-frame materials included.
- */
+/** Raw albedo by light: diffuse is `irradiance · albedo / π`, so an ambient irradiance of π
+ *  yields albedo — `createUnlitAlbedo` keeps every material's response to it that albedo. */
 const UNLIT_IRRADIANCE = Math.PI;
-/** Eye distance of a directional: it has no position, only its direction counts. */
-const SUN_DISTANCE = 1;
-
-/** Conversion of the contract linear colour, without going through sRGB: that is the working space. */
-function applyColor(light: THREE.Light, source: SceneLight) {
-  light.color.setRGB(source.color[0], source.color[1], source.color[2]);
-  light.intensity = source.intensity;
-}
-
-/**
- * Penumbra half-angle that reproduces the contract cone edge. The WebGPU path softens the
- * cone between `cos(half-angle)` and `cos(half-angle) + spotEdgeSoftness`; Three softens
- * between `cos(angle)` and `cos(angle · (1 − penumbra))`. Equating the two cosines gives this
- * penumbra — the same transition, not a neighbouring one.
- */
-function spotPenumbra(coneAngle: number) {
-  const inner = Math.acos(Math.min(1, Math.cos(coneAngle) + LIGHT_SETTINGS.spotEdgeSoftness));
-  return Math.min(1, Math.max(0, 1 - inner / coneAngle));
-}
-
-/** A fresh Three light of the requested type, with its target when it has one. */
-function createLight(source: SceneLight): THREE.Light {
-  if (source.kind === 'point') return new THREE.PointLight();
-  if (source.kind === 'spot') return new THREE.SpotLight();
-  return new THREE.DirectionalLight();
-}
-
-/**
- * Writes a contract light into its Three light. Units are the contract's, with no adjustment
- * factor: `intensity` is a radiometric intensity in W/sr for a point or a spotlight, and Three
- * with `decay = 2` and `distance = range` applies exactly the deferred-lighting shader
- * attenuation — `pow(clamp(1 − (d/range)⁴, 0, 1), 2) / d²`, term for term. A directional
- * carries an irradiance, the same everywhere, and Three does the same.
- *
- * What is not equalised and does not claim to be: the surface model. Three evaluates a
- * Cook-Torrance of its own, the WebGPU path its own; incident irradiance is the same, the
- * image is not. No shadows either — see `shadows: false` in the engine capabilities.
- */
-function writeLight(light: THREE.Light, source: SceneLight) {
-  applyColor(light, source);
-  if (source.kind === 'directional') {
-    const direction = source.direction!;
-    light.position.set(
-      -direction[0] * SUN_DISTANCE,
-      -direction[1] * SUN_DISTANCE,
-      -direction[2] * SUN_DISTANCE,
-    );
-    (light as THREE.DirectionalLight).target.position.set(0, 0, 0);
-    return;
-  }
-  const position = source.position!;
-  light.position.set(position[0], position[1], position[2]);
-  const punctual = light as THREE.PointLight;
-  punctual.distance = source.range!;
-  punctual.decay = 2;
-  if (source.kind !== 'spot') return;
-  const spot = light as THREE.SpotLight;
-  spot.angle = source.coneAngle!;
-  spot.penumbra = spotPenumbra(source.coneAngle!);
-  const direction = source.direction!;
-  spot.target.position.set(
-    position[0] + direction[0],
-    position[1] + direction[1],
-    position[2] + direction[2],
-  );
-}
 
 /**
  * Ties the contract light store to the lights displayed by a Three-rendered engine.
@@ -104,8 +36,11 @@ function createContractLights(display: HostDrawScene, store: SceneLightStore | u
   group.visible = false;
   scene.add(group);
   const ambient = new THREE.AmbientLight(0xffffff, UNLIT_IRRADIANCE);
-  ambient.visible = false;
-  group.add(ambient);
+  // The environment's irradiance (`sceneEnvironment.ts`): the host's probe reads the same nine
+  // coefficients, in the same band order, with the same cosine-lobe factors.
+  const probe = new THREE.LightProbe();
+  ambient.visible = probe.visible = false;
+  group.add(ambient, probe);
   const albedo = createUnlitAlbedo(scene);
   // The light type is kept beside it: setting a point light as a spotlight changes the Three
   // object, and comparing type strings would cost an allocation per light and per pass.
@@ -163,9 +98,11 @@ function createContractLights(display: HostDrawScene, store: SceneLightStore | u
       albedo.setEnabled(store.unlit);
       if (store.unlit) dropAll();
       else rebuild();
+      const sh = store.unlit ? undefined : store.environment?.irradiance;
+      if ((probe.visible = !!sh)) probe.sh.fromArray(sh as number[]);
       return true;
     },
-    /** True when the image comes out in real light: composition then goes through ACES (P6). */
+    /** True when the image comes out in real light: then goes through the display curve (P6). */
     get lit() {
       return governs && !!store && !store.unlit;
     },

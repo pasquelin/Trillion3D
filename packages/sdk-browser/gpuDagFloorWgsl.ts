@@ -67,7 +67,7 @@ fn pruneCrossed(w:u32)->bool{return bitcast<f32>(atomicLoad(&work[w]))>bitcast<f
 fn errorFloor(error:f32,depth:f32,radius:f32,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)||!(radius>=0.0)){return 0.0;}
- let far=depth+radius*stretch;
+ let p=uni.perspective;let far=p*(depth+radius*stretch)+(1.0-p);
  if(!(far>0.0)){return INF;}
  return (error*stretch*focal)/far;
 }

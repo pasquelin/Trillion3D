@@ -7,10 +7,12 @@ import type { BackendFactory } from './backendTypes.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 import { prepareGpuTiming, watchGpuDevice } from './webgpuPagesPrepareTiming.ts';
 import { prepareWebgpuPages } from './webgpuPagesPrepare.ts';
+import { setWebgpuBounce } from './webgpuPagesPrepareBounce.ts';
 import { reserveRootBoxes } from './mathBatchBoxes.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import { flushWebgpuPages } from './webgpuPagesFlush.ts';
 import { captureSurfaceView } from './webgpuPagesSurfaceCapture.ts';
+import { captureColorView } from './webgpuPagesColorCapture.ts';
 import {
   captureImage,
   pageUrls,
@@ -25,6 +27,7 @@ import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
 import { createArrivalSpecs } from './pageArrivalSpecs.ts';
 import { endCpuFrame, hostCpuStep } from './webgpuPagesCpuSteps.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
+import { updateWebgpuPlacements } from './placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './webgpuPagesMetrics.ts';
 import { setWebgpuMemoryBudgets } from './webgpuPagesMemory.ts';
 import { installGpuDeviceLedger } from './gpuDeviceLedger.ts';
@@ -69,6 +72,12 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     setTransform(nodeName, matrix) {
       setWebgpuTransform(rt, nodeName, matrix);
     },
+    setBounce(on) {
+      setWebgpuBounce(rt, on);
+    },
+    updatePlacements(rows, from, to) {
+      updateWebgpuPlacements(rt, rows, from, to);
+    },
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     async prepare() {
       context.signal?.throwIfAborted();
@@ -100,6 +109,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     captureSurfaceView(camera, options) {
       return captureSurfaceView(rt, camera, options);
+    },
+    captureColorView(camera, size) {
+      return captureColorView(rt, camera, size);
     },
     capture() {
       return captureImage(rt);

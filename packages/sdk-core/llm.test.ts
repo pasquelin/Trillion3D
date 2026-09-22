@@ -13,7 +13,7 @@ import {
 } from './index.ts';
 
 describe('WebGeometry LLM Module', () => {
-  it('exposes a valid JSON Schema for ExplorerOptions', () => {
+  it('exposes a valid JSON Schema for MeasuredWorldOptions', () => {
     assert.equal(EXPLORER_OPTIONS_SCHEMA.type, 'object');
     assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.manifestUrl);
     assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.geometryPoolBytes);

@@ -38,10 +38,13 @@ export const SECTIONS = [
   { id: 'guides', title: 'Guides' },
   { id: 'examples', title: 'SDK examples' },
   { id: 'demo', title: 'Live demo' },
+  { id: 'world', title: 'The world' },
+  { id: 'families', title: 'Families' },
+  { id: 'measurement', title: 'Measurement entry' },
   { id: 'enums', title: 'Constants & enums' },
   { id: 'lifecycle', title: 'Engine lifecycle' },
   { id: 'camera', title: 'Camera & projection' },
-  { id: 'host', title: 'Host camera & sides' },
+  { id: 'host', title: 'Camera bridge & sides' },
   { id: 'matrices', title: 'Matrices' },
   { id: 'vectors', title: 'Vectors' },
   { id: 'colors', title: 'Colours' },
@@ -53,9 +56,7 @@ export const SECTIONS = [
 export const REPOSITORY = 'https://github.com/pasquelin/WebGeometry';
 
 /** What each open issue delivers, as the badge of an entry in development says it. */
-export const ISSUES: Record<number, string> = {
-  79: 'Batch D — three-adapter and the migration guide',
-};
+export const ISSUES: Record<number, string> = {};
 
 export function issueUrl(issue: number) {
   return `${REPOSITORY}/issues/${issue}`;

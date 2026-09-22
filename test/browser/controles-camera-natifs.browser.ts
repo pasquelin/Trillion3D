@@ -17,7 +17,7 @@ import {
 import type { Page } from 'playwright';
 
 declare global {
-  var sdk: typeof import('../../packages/sdk-browser/index.ts');
+  var sdk: typeof import('../../packages/sdk-browser/measurement.ts');
 }
 
 const root = resolve(import.meta.dirname, '../..');
@@ -78,7 +78,7 @@ try {
   });
   await page.evaluate(async (sdkUrl) => {
     window.sdk = await import(sdkUrl);
-  }, '/sdk/sdk-browser/index.js');
+  }, '/sdk/sdk-browser/measurement.js');
   assert.equal(await page.evaluate(openProbe), 'webgpu-page-raster');
   type Gesture = Awaited<ReturnType<typeof endGesture>> & { home: number[]; moved: number[] };
   const gestures: Record<string, Gesture> = {};

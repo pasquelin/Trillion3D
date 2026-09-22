@@ -1,4 +1,7 @@
 import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
+import { ENVIRONMENT_COEFFICIENTS } from '../sdk-core/sceneEnvironment.ts';
+import { RECT_LIGHT_WGSL } from './directRectLightWgsl.ts';
+import { LTC_SIZE } from '../sdk-core/ltcTable.ts';
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -18,11 +21,16 @@ const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
 const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
 const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
-struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,}
-struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight>,}
+struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,}
+/** Every light slot, then the environment's irradiance: nine spherical-harmonic coefficients
+ *  (\`sceneEnvironment.ts\`), zero where the host declared none; then the fitted specular lobe
+ *  a rectangle is integrated with, written once (\`ltcTable.ts\`). */
+struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight,MAX_LIGHTS>,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,}
 /** The type rank is a float in the buffer: a single place knows how to reread it. */
-fn isSun(light:DirectLight)->bool{return light.params.x>KIND_SUN-0.5;}
-/** Normalized direction toward the light and attenuation; w at zero when the point is out of range. */
+fn isSun(light:DirectLight)->bool{return abs(light.params.x-KIND_SUN)<0.5;}
+${RECT_LIGHT_WGSL}
+/** Normalized direction toward the light and attenuation; w at zero when the point is out of
+ *  range. A punctual light's: a rectangle has no one direction (\`rectIrradiance\`). */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  // A directional light has neither position nor range: the same irradiance at every point, never
  // attenuated by distance. Its direction is that of propagation, so incidence is the opposite.
@@ -37,10 +45,11 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  let ratio=distance/range;
  let window=pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
  var attenuation=window/max(distance*distance,1e-4);
- if(light.params.x>KIND_SPOT-0.5){
+ if(abs(light.params.x-KIND_SPOT)<0.5){
   let cosine=dot(-L,light.directionCone.xyz);
   let edge=light.directionCone.w;
-  attenuation*=smoothstep(edge,edge+SPOT_EDGE,cosine);
+  // A declared penumbra widens the fade inward to its inner cone; never narrower than the edge.
+  attenuation*=smoothstep(edge,max(light.params.w,edge+SPOT_EDGE),cosine);
  }
  return vec4f(L,attenuation);
 }

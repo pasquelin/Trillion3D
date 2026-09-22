@@ -1,27 +1,35 @@
-import { createExplorer } from './explorer.ts';
-import type { ExplorerTarget } from './explorerTarget.ts';
-export type { ExplorerTarget } from './explorerTarget.ts';
-import type { ExplorerOptions } from './backendTypes.ts';
+// The world and its families: what a page writes (issue #319). One barrel per family folder.
+export * from './world/core/index.ts';
+export * from '../sdk-core/world/math/index.ts';
+export * from '../sdk-core/world/geometry/index.ts';
+export * from '../sdk-core/world/buffer/index.ts';
+export * from '../sdk-core/world/object/index.ts';
+export * from '../sdk-core/world/material/index.ts';
+export * from '../sdk-core/world/light/index.ts';
+export * from '../sdk-core/world/camera/index.ts';
+export * from '../sdk-core/world/animation/index.ts';
+export * from '../sdk-core/world/constants/index.ts';
+export * from './world/texture/index.ts';
+export * from './world/loader/index.ts';
+export * from './world/helper/index.ts';
+export * from './world/page/index.ts';
+export * from './world/budget/index.ts';
+export * from './world/metric/index.ts';
+export * from './world/diagnostic/index.ts';
+export * from './world/capability/index.ts';
+export * from './world/capture/index.ts';
+export * from './world/pose/index.ts';
+export * from './world/batch/index.ts';
 
-export { replicateInstances } from './replicateInstances.ts';
-export { autonomousPagesBackend } from './autonomousPages.ts';
 export { EngineProfiler, type TelemetryReport } from './telemetry.ts';
 
 export type {
   AssetScope,
-  CameraPose,
   StablePreview,
   FrameMetrics,
   ClusterManifest,
 } from '../sdk-core/index.ts';
-export type {
-  RenderBackend,
-  BackendContext,
-  BackendFactory,
-  BackendDiagnostic,
-  ExplorerOptions,
-  PointOfInterest,
-} from './backendTypes.ts';
+export type { BackendDiagnostic, PointOfInterest } from './backendTypes.ts';
 export type { DiagnosticDetail } from './backendTypes.ts';
 /** Host resources the engine reads and never builds (`hostResources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
@@ -74,50 +82,16 @@ export type {
 } from './textureLevelReader.ts';
 export type { AtlasLanes, LaneCounts, TextureCompression } from './textureBlockFormats.ts';
 export type { HostRetentionDelta, StreamPage } from './streamingTypes.ts';
-export type { MultiplyLot } from './mathBatchRuntime.ts';
+export type { BoxTransformLot, MultiplyLot } from './mathBatchRuntime.ts';
 export type { LightingCapabilities } from '../sdk-core/index.ts';
 export { framingFromBounds } from './framing.ts';
 export { presentationColorDiagnostic } from './presentationDiagnostic.ts';
-export { referenceBackend } from './referenceBackend.ts';
-export { exactPagesBackend } from './exactPagesBackend.ts';
-export { autonomousCacheReady, chooseBackends } from './defaultBackends.ts';
-export type { BackendChoice } from './defaultBackends.ts';
-export { createExplorer } from './explorer.ts';
-export type { Explorer } from './explorer.ts';
-export { runCameraPath } from './cameraPath.ts';
 export { createGpuPageCache, httpPageSource } from './gpuPages.ts';
 export type { ResidentPage } from './gpuPages.ts';
-export { threeLodBackend } from './threeLod.ts';
-export { webgpuPagesBackend } from './webgpuPages.ts';
 export { createPageStreamer } from './streamingPages.ts';
 export type { ComparisonLayout } from './comparison.ts';
 export { COMPARISON_LIBRARIES, LOD_QUALITY } from '../sdk-core/index.ts';
-/** Public browser job adapter. A completed explorer is owned by the caller; cancel/fail after construct disposes it. */
-export async function createExplorerJob(
-  id: string,
-  target: ExplorerTarget,
-  options: ExplorerOptions,
-) {
-  const { createJob } = await import('../sdk-core/index.ts');
-  return createJob(
-    id,
-    ({ signal, progress }) =>
-      createExplorer(target, {
-        ...options,
-        signal,
-        onPreparation: (event) => progress({ ...event }),
-      }),
-    { signal: options.signal },
-  );
-}
-
 export { detectCapabilities } from './capabilities.ts';
-export { createLightingExperimentBackend } from './lightingExperimentBackend.ts';
-export type {
-  LightingExperimentRenderState,
-  LightingExperimentRayDiagnostics,
-} from './lightingExperimentBackend.ts';
-
 export {
   HIERARCHY_ROOT,
   MATRIX_VALUES,

@@ -1,3 +1,5 @@
+import { geometry, type Geometry } from '../../../packages/sdk-browser/index.ts';
+
 /** An authored triangle mesh, before asset compilation: flat position/index arrays, plus the
  *  optional per-vertex attributes a recipe may attach. */
 export interface Mesh {
@@ -38,23 +40,25 @@ export function combine(parts: Mesh[]) {
   }
   return out;
 }
-export function box(center: number[] = [0, 0, 0], size: number[] = [1, 1, 1]) {
+/** Flattens an engine-built `Geometry` into the authored `Mesh` shape, so an offline recipe reads
+ *  the engine's own triangulation instead of authoring corners and faces again. */
+export function fromSolid(solid: Geometry, place: (p: number[]) => number[] = (p) => p): Mesh {
   const out = mesh();
-  const p = Array.from({ length: 8 }, (_, i) =>
-    center.map((c, k) => c + (((i >> k) & 1) - 0.5) * size[k]),
-  );
-  for (const [a, b, c, d] of [
-    [0, 4, 6, 2],
-    [1, 3, 7, 5],
-    [0, 1, 5, 4],
-    [2, 6, 7, 3],
-    [0, 2, 3, 1],
-    [4, 5, 7, 6],
-  ]) {
-    triangle(out, p[a], p[b], p[c]);
-    triangle(out, p[a], p[c], p[d]);
-  }
+  const position = solid.attributes.position.array,
+    index = solid.index;
+  const at = (i: number) => place([position[i * 3], position[i * 3 + 1], position[i * 3 + 2]]);
+  const vertexAt = (k: number) => (index ? index.array[k] : k);
+  const triangles = (index ? index.count : position.length / 3) / 3;
+  for (let t = 0; t < triangles; t++)
+    triangle(out, at(vertexAt(t * 3)), at(vertexAt(t * 3 + 1)), at(vertexAt(t * 3 + 2)));
   return out;
+}
+export function box(center: number[] = [0, 0, 0], size: number[] = [1, 1, 1]) {
+  return fromSolid(geometry.box(size[0], size[1], size[2]), (p) => [
+    p[0] + center[0],
+    p[1] + center[1],
+    p[2] + center[2],
+  ]);
 }
 export function mapPositions(source: Mesh, transform: (point: number[]) => number[]): Mesh {
   return {

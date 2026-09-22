@@ -18,7 +18,7 @@ import {
   engineImage,
 } from './materialPixelsRendu.ts';
 import type { BackendFactory, BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
-import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type * as SdkBrowser from '../../packages/sdk-browser/measurement.ts';
 import type * as SdkCore from '../../packages/sdk-core/index.ts';
 
 interface Sides {

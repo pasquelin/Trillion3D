@@ -1,16 +1,18 @@
 # Web / Electron / Node Integration
 
-- **Web**: `createExplorer(canvasOrId, { manifestUrl, scope, interactive: true })` owns controls, CSS/DPR sizing and demand-driven rendering. The application owns canvas layout and disposal. Without `interactive`, the host owns frame scheduling. See [browser startup](SDK.md#simple-browser-startup).
-- **Electron**: `prepare` in main process, `createExplorer` in renderer process. No Electron imports in the SDK.
+- **Web**: `createWorld(canvasOrId)` owns the scene, the camera, the renderer and the loop; `await world.scene.load(manifestUrl)` adds a compiled model to it, like anything else added to the scene. The application owns canvas layout and disposal. With `interactive: false`, the host owns frame scheduling (`world.render()`). See [Create a world](SDK.md#create-a-world).
+- **Electron**: `prepare` in main process, `createWorld` in renderer process. No Electron imports in the SDK.
 - **Node**: `prepare` / `createCompilationJob` / CLI `web-geometry-compile`.
 - **Other Languages**: consumption via cache format (JSON pointer + `clusters.json` + SHA-256 objects + `source.gltf`). Interface is the versioned manifest.
 
-The DOM-free `sdk-core` scene hierarchy is versioned independently as `SCENE_MODEL_VERSION` 1.
-Hosts may already build `SceneRoot` / `SceneNode` trees with stable ids, visibility and local
-transforms. Browser rendering still receives its current prepared-scene contract in this batch;
-passing a `SceneRoot` to `createExplorer` starts only when the later #78 contract-migration lot
-lands. A Three.js adapter therefore targets this public hierarchy rather than introducing another
-scene model, but cannot complete material or frame-hook conversion yet.
+The scene graph a page writes into is `world.scene` — `Object3D`-based, `scene.add(object, …)` —
+described in [Create a world](SDK.md#create-a-world) and the [families](SDK.md#families) it builds
+with. The DOM-free `sdk-core` transform foundation it is built on is versioned independently as
+`SCENE_MODEL_VERSION` 1; `SceneRoot` and `createSceneRoot` are exported by the common facade
+`web-geometry`, but are not members of the `world` object itself. No Three.js adapter ships or is planned: a host that already writes
+Three.js code writes the same shapes with this engine's families instead (portal guide, "Migration
+from Three.js") — Three.js stays a comparison witness, named only through the measurement entry
+point, never mixed with a published world (issue #79).
 
 Inside the frame, world matrices are already the engine's own. The host subtree is mirrored once
 into an engine transform tree; a pass enters only the pose numbers the host moved, so the world
@@ -19,13 +21,6 @@ and transparent copy carries is a view on that tree's world buffer. A host still
 `node.position.x` as before and still reads nothing of the engine's storage — but no host matrix
 is created, copied or composed for a drawn node any more.
 
-Manual mixed-backend fallback: `detectCapabilities('webgl')` never touches WebGPU. A session started with no `backends` option draws through the engine's own path, and which one is never implicit — the `backend-choice` diagnostic reports the `renderer` that draws, whether the session is `autonomous`, and the `reason`; `audience:'diagnostic'` events remain reserved for lab/developer monitoring.
-
-| Machine                     | Backend that renders     | Scene file read            |
-| --------------------------- | ------------------------ | -------------------------- |
-| A WebGPU device was granted | `webgpu-page-raster`     | `source.gltf`              |
-| WebGL2, cache with a prepared scene | `autonomous-pages-webgl` | `metadata.autonomousScene` |
-| WebGL2, cache without one   | `autonomous-pages-webgl` | `source.gltf`              |
-| Neither WebGPU nor WebGL2   | none — `EngineError('NO_ENGINE_BACKEND')`, and `EngineError('NO_WEBGL2')` from the capability probe before it | — |
-
-Since #297 both WebGL2 rows end in an image, drawn by the engine's own path from the cache's geometry pages and light table; where the cache carries no prepared scene — a `clustered-blend` primitive is enough for the compiler to refuse one — that path reads `source.gltf` for its materials and placements and reports `autonomous: false`. `NO_ENGINE_BACKEND` is left to the machine that granted neither API ([SDK.md](SDK.md), "Which backend renders by default"). No witness is ever mounted by default. A host that names `backends: [webgpuPagesBackend]` explicitly is still rejected with `WEBGPU_UNAVAILABLE` when no device is granted. Choose an explicit backend to select a different capability set. Use canvas elements for framework refs and shadow roots; a string is a literal document ID, not a selector.
+What draws is `createWorld`'s `renderer` option: absent, the engine takes the best path the
+machine grants; forced and missing, it is refused by name, never silently served the other. One
+line: [SDK.md, "What draws"](SDK.md#what-draws-the-renderer-option).

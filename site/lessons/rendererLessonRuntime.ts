@@ -1,24 +1,22 @@
 import { applyLightingLesson, createLightingLessonSession } from './lightingLessonRuntime.ts';
 import { applyCameraLesson } from './cameraLessonRuntime.ts';
 import { configureSceneCamera } from './engine-scene/cameraControls.ts';
-import { createLessonExplorer } from './lessonExplorer.ts';
+import { createLessonWorld, type Engine } from './lessonWorld.ts';
 import { addSceneFillLight } from './sceneFillLight.ts';
 import { applyRendererLesson } from './rendererLessonApply.ts';
 import { createRendererLessonDeadline } from './rendererLessonDeadline.ts';
 import { createReadyGate } from './rendererLessonReadyGate.ts';
 import { createShadowPageCounter } from './lessonShadowPages.ts';
-import type { Explorer } from '../../packages/sdk-browser/index.ts';
+import { isDiagnosticMode } from './engine-scene/diagnosticModes.ts';
+import type { Light, World } from '../../packages/sdk-browser/index.ts';
 import type {
   RendererLessonRuntimeOptions,
   RendererLessonSession,
-  Controls,
 } from './rendererLessonSessionTypes.ts';
 export { applyRendererLesson } from './rendererLessonApply.ts';
 
-const COLD_FRAME_LIMIT = 2400,
-  INTERACTIVE_FRAME_LIMIT = 24,
-  SETTLE_MINIMUM_MS = 2_000,
-  SETTLE_TIME_LIMIT_MS = 30_000;
+const SETTLE_TIME_LIMIT_MS = 30_000,
+  IDLE_AFTER_MS = 200;
 
 export async function createRendererLessonRuntime({
   canvas,
@@ -28,144 +26,114 @@ export async function createRendererLessonRuntime({
   signal,
 }: RendererLessonRuntimeOptions): Promise<RendererLessonSession> {
   const startup = createRendererLessonDeadline(signal, SETTLE_TIME_LIMIT_MS);
-  const importedLights =
-    lesson.importedLights ??
-    (['lod', 'memory', 'offline'].includes(lesson.kind ?? '') || lesson.runtime === 'camera-pose');
-  let explorer: Explorer;
+  // A static value import of the engine here would pull it into every route that reaches a
+  // lesson, even one whose world never mounts (a server-rendered component pass, for one).
+  const engine: Engine = await import('../../packages/sdk-browser/index.ts');
+  let world: World, bounds: Awaited<ReturnType<typeof createLessonWorld>>['bounds'];
   try {
-    const opts = { canvas, signal: startup.signal, manifest: lesson.manifest, importedLights };
-    explorer = await startup.wait(createLessonExplorer(opts));
+    ({ world, bounds } = await startup.wait(
+      createLessonWorld({
+        canvas,
+        signal: startup.signal,
+        manifest: lesson.manifest,
+        importedLights: lesson.importedLights,
+        engine,
+      }),
+    ));
   } catch (error) {
     startup.finish();
     throw error;
   }
   let disposed = false,
-    starting = true,
-    coldStart = lesson.kind === 'lod-diagnostic',
-    frame = 0,
-    remaining = 0,
-    settleNotBefore = 0,
-    previous = 0,
+    idleTimer: ReturnType<typeof setTimeout> | undefined,
     resize: ResizeObserver | undefined,
-    controls: Controls,
+    previous = 0,
     updateChain = Promise.resolve();
-  const added = { value: false },
+  const home = engine.pose.fromBounds(bounds),
+    camera = configureSceneCamera(engine.pose, world, bounds),
+    lessonLight: { current: Light | undefined } = { current: undefined },
     lighting = createLightingLessonSession(),
-    gate = createReadyGate(),
-    shadows = createShadowPageCounter();
+    shadows = createShadowPageCounter(),
+    gate = createReadyGate();
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     startup.cancel();
     gate.settleReject(new DOMException('Cancelled', 'AbortError'));
-    cancelAnimationFrame(frame);
+    clearTimeout(idleTimer);
+    unsubscribe?.();
     resize?.disconnect();
-    controls?.dispose();
-    explorer.dispose();
+    world.dispose();
     signal?.removeEventListener('abort', dispose);
   };
   startup.signal.addEventListener('abort', dispose, { once: true });
   signal?.addEventListener('abort', dispose, { once: true });
-  const draw = async () => {
-    try {
-      await startup.wait(explorer.awaitPages());
-      if (disposed) return;
-      const metrics = explorer.render(),
-        shadowPages = shadows.observe(metrics);
-      await startup.wait(explorer.flush());
-      if (disposed) return;
-      const now = performance.now(),
-        settled = now >= settleNotBefore && metrics.frameHeld && (metrics.pagesLoading ?? 0) === 0,
-        exhausted = --remaining <= 0,
-        idle = coldStart ? settled || exhausted : exhausted;
-      // Cluster and page counts are the device's own, never estimated.
-      report({
-        fps: !idle && previous ? 1000 / (now - previous) : null,
-        cpu: metrics.cpuFrameMs,
-        memory: metrics.geometryPoolAllocatedBytes,
-        triangles: metrics.drawnTriangles,
-        shadowPages,
-        shadowPending: metrics.shadowPagesPending,
-        occluded: metrics.hizRejectedClusters ?? null,
-        tested: metrics.hizTestedClusters ?? null,
-        diagnostic: explorer.diagnostic,
-        idle,
-      });
-      if (!coldStart) gate.settleResolve();
-      previous = now;
-      frame = 0;
-      if (idle) gate.settleResolve();
-      else frame = requestAnimationFrame(draw);
-    } catch (error) {
-      frame = 0;
-      gate.settleReject(error);
-      dispose();
-    }
+  // The world settles on its own (it stops drawing once the image is stable); this lesson only
+  // has to notice the gap between frames to know a settle happened.
+  const armIdle = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      report({ fps: null, memory: null, triangles: null, idle: true });
+      gate.settleResolve();
+    }, IDLE_AFTER_MS);
   };
-  const invalidate = () => {
+  const unsubscribe = world.onFrame(({ metrics }) => {
     if (disposed) return;
-    remaining = coldStart ? COLD_FRAME_LIMIT : INTERACTIVE_FRAME_LIMIT;
-    settleNotBefore = performance.now() + (coldStart ? SETTLE_MINIMUM_MS : 0);
-    previous = 0;
-    shadows.reset();
-    if (!starting && !frame) frame = requestAnimationFrame(draw);
-  };
+    clearTimeout(idleTimer);
+    const now = performance.now();
+    report({
+      fps: previous ? 1000 / (now - previous) : null,
+      cpu: metrics.cpuFrameMs,
+      memory: null,
+      triangles: metrics.selectedTriangles,
+      shadowPages: shadows.observe(metrics),
+      diagnostic: isDiagnosticMode(world.diagnostic.mode) ? world.diagnostic.mode : undefined,
+      idle: false,
+    });
+    previous = now;
+    armIdle();
+  });
   const update = async (next: Record<string, number>) => {
     if (disposed) return;
     if (lesson.runtime === 'advanced-lighting')
-      applyLightingLesson(explorer, lesson, next, lighting);
-    else if (lesson.runtime === 'camera-pose') applyCameraLesson(explorer, lesson, next);
-    else await applyRendererLesson(explorer, lesson, next, added);
-    invalidate();
+      applyLightingLesson(engine.light, world, lesson, next, lighting);
+    else if (lesson.runtime === 'camera-pose') applyCameraLesson(world, home, lesson, next);
+    else applyRendererLesson(engine.light, world, lesson, next, lessonLight);
+    shadows.reset();
+    world.invalidate();
   };
   try {
-    await startup.wait(explorer.awaitPages());
-    if (disposed) throw new DOMException('Cancelled', 'AbortError');
     gate.nextReady();
     if (lesson.sceneLight)
-      explorer.addLight({
-        id: 'scene',
-        kind: 'directional',
-        direction: [-0.4, -0.8, -0.3],
-        color: [1, 0.92, 0.78],
-        intensity: 2.5,
-        castsShadow: true,
-      });
-    if (lesson.sceneFill) addSceneFillLight(explorer);
-    controls = explorer.controls();
-    const camera = configureSceneCamera(explorer, controls);
+      world.scene.add(
+        engine.light.directional({
+          position: [4.8, 9.6, 3.6],
+          target: [0, 0, 0],
+          color: [1, 0.92, 0.78],
+          intensity: 2.5,
+          castShadow: true,
+        }),
+      );
+    if (lesson.sceneFill) addSceneFillLight(engine.light, world);
     const reset = () => {
-      camera.reset();
       if (lesson.initialPose) {
-        const home = explorer.homePose();
-        explorer.setPose({ ...home, ...lesson.initialPose });
-        controls.target.fromArray(lesson.initialPose.target);
-        controls.update();
+        world.camera.position.set(...lesson.initialPose.position);
+        world.camera.lookAt(...lesson.initialPose.target);
       } else camera.zoomOut();
-      invalidate();
+      world.invalidate();
     };
-    controls.addEventListener('change', invalidate);
+    camera.reset();
     await startup.wait(update(state));
     const resizeCanvas = () => {
       if (disposed) return;
-      const rect = canvas.getBoundingClientRect();
-      explorer.resize(Math.max(1, Math.round(rect.width)), Math.max(1, Math.round(rect.height)));
-      invalidate();
+      world.resize();
+      world.invalidate();
     };
     resize = new ResizeObserver(resizeCanvas);
     resize.observe(canvas);
     resizeCanvas();
-    starting = false;
     reset();
     await startup.wait(gate.current);
-    // The detail lesson opens on the exact cut, then on its own state, each settled in turn.
-    if (lesson.kind === 'lod-diagnostic')
-      for (const step of [{ ...state, pixelError: 0 }, state]) {
-        gate.nextReady();
-        await startup.wait(update(step));
-        await startup.wait(gate.current);
-      }
-    coldStart = false;
     startup.finish();
     return {
       update: (next) => {
@@ -181,8 +149,8 @@ export async function createRendererLessonRuntime({
       dispose,
       setDiagnostic(mode) {
         if (!disposed) {
-          explorer.setDiagnostic(mode);
-          invalidate();
+          world.diagnostic.mode = mode;
+          world.invalidate();
         }
       },
       camera: {

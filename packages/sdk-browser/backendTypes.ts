@@ -12,17 +12,20 @@ import type {
   BackendCapabilities,
   ClusterManifest,
   DiagnosticMode,
-  Material,
   SceneLightStore,
   StageProfile,
 } from '../sdk-core/index.ts';
-import type { BackendMetrics } from './backendMetricKeys.ts';
+import type { BackendDrawCounters, BackendMetrics } from './backendMetricKeys.ts';
+import type { SceneToneMapping } from '../sdk-core/sceneEnvironment.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from './webgpuPagesMemory.ts';
 import type { CpuStepSummary } from './cpuProfile.ts';
 import type { BackendDiagnostic, DiagnosticDetail } from './backendDiagnosticTypes.ts';
+import type { PlacementRows } from './placement/placementRows.ts';
+import type { BackendSceneUpdates } from './placement/backendSceneUpdates.ts';
 export type { BackendCapabilities, BackendDiagnostic, DiagnosticDetail, HostDrawOutput };
 
-export interface RenderBackend {
+type ViewSize = { width: number; height: number };
+export interface RenderBackend extends BackendSceneUpdates {
   id: string;
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
@@ -34,6 +37,8 @@ export interface RenderBackend {
   /** True when the rendered scene carries at least one declared light; false is the unlit view,
    *  whose composition is identity (P6). Read every frame: a light added later changes it. */
   sceneLit?(): boolean;
+  /** The display curve the scene chose; ACES when absent. Read every frame, like `sceneLit`. */
+  sceneToneMapping?(): SceneToneMapping;
   /** The contract light store has changed: the next frame will reread it. Absent = lights ignored. */
   refreshSceneLights?(): void;
   /** What no signature says about this engine's lighting: its shadows, and the phrase that names
@@ -61,13 +66,7 @@ export interface RenderBackend {
    *  by a lost or disposed device before the next call raises `WEBGPU_LOST`: no host composes a
    *  frame older than the device. */
   readonly presentedSurface?: HTMLCanvasElement;
-  metrics(): BackendMetrics & {
-    drawCalls?: number;
-    batchRebuilds?: number;
-    batchIndexBytesUpdated?: number;
-    pageRangeWrites?: number;
-    subDraws?: number;
-  };
+  metrics(): BackendMetrics & BackendDrawCounters;
   /** Per-step profile of the sliding window: CPU and GPU durations kept separate.
    *  Absent from an engine that does not hold one; `enabled: false` when the host did not ask. */
   stageProfile?(): StageProfile;
@@ -101,13 +100,6 @@ export interface RenderBackend {
     plan?: import('./pageIntegrationHost.ts').ArrivalPlan,
   ): void;
   acceptGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
-  replaceGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
-  /** Prepared-scene instance placed by sixteen column-major floats the engine copies. */
-  addInstance?(id: string, transform: Float64Array): void;
-  updateInstance?(id: string, transform: Float64Array): void;
-  removeInstance?(id: string): void;
-  /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
-  updateMaterial?(primitive: string, material: Material): void;
   dropPage?(url: string): void;
   syncResident?(): void;
   flush?(): Promise<void>;
@@ -115,6 +107,8 @@ export interface RenderBackend {
   pendingFrame?(): Promise<boolean>;
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
+  /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
+  captureColorView?(camera: HostCamera, size: ViewSize): Promise<Uint8Array>;
   captureSurfaceView?(
     camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
@@ -127,7 +121,9 @@ export interface BackendContext {
   source: HostGraphNode;
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
-  associations: Map<HostNode, { meshes?: number; primitives?: number }>;
+  /** Node → primitive. `placements`: the instance buffer the node's primitive is drawn at, in
+   *  place of the node's own pose (`placement/placementRows.ts`). */
+  associations: Map<HostNode, { meshes?: number; primitives?: number; placements?: PlacementRows }>;
   /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
   textureIndices?: Map<HostTexture, number>;
   /** Reader of texture levels baked in the cache; absent from a cache that has none. */
@@ -197,4 +193,4 @@ export interface BackendContext {
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
 }
 export type BackendFactory = (context: BackendContext) => RenderBackend;
-export type { ExplorerOptions, PointOfInterest } from './explorerOptions.ts';
+export type { MeasuredWorldOptions, PointOfInterest } from './explorerOptions.ts';

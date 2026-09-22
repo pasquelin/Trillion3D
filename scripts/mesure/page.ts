@@ -2,7 +2,7 @@
 // call any module function; everything reaches it through its single argument. That is the reason,
 // and the only one, why explorer creation is duplicated between `readBounds` below and
 // `measureView` in `pageEclairage.ts`, which the page imports by URL.
-import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type * as SdkBrowser from '../../packages/sdk-browser/measurement.ts';
 import type { Bounds } from './poses.ts';
 
 /** What `readBounds` needs to open a tiny explorer: the SDK and manifest it points the page at. */
@@ -16,7 +16,7 @@ export async function readBounds(options: BoundsOptions): Promise<Bounds> {
   const sdk = (await import(options.sdkUrl)) as typeof SdkBrowser;
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
-  const explorer = await sdk.createExplorer(canvas, {
+  const explorer = await sdk.openMeasuredWorld(canvas, {
     manifestUrl: options.manifestUrl,
     scope: 'full',
     width: 64,

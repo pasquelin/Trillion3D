@@ -8,7 +8,7 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
   {
     id: 'point-light-range',
     category: 'lighting',
-    functions: ['addLight', 'setLight', 'removeLight'],
+    functions: ['scene.add(light.*)', 'light.intensity =', 'scene.remove'],
     title: text('A lamp with a boundary', 'Une lampe avec une limite'),
     description: text(
       'Move the exact range where a point light stops contributing.',
@@ -31,7 +31,7 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
   {
     id: 'spot-light-cone',
     category: 'lighting',
-    functions: ['addLight', 'setLight'],
+    functions: ['scene.add(light.*)', 'light.intensity ='],
     title: text('Shape a spotlight', 'Façonner un projecteur'),
     description: text(
       'Open a real spotlight cone while its axis stays on the sculpture.',
@@ -54,7 +54,7 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
   {
     id: 'directional-shadow',
     category: 'lighting',
-    functions: ['addLight', 'setLight', 'lightingCapabilities'],
+    functions: ['scene.add(light.*)', 'light.intensity =', 'capability.lighting'],
     title: text('Turn the shadow sun', 'Tourner le soleil des ombres'),
     description: text(
       'Rotate a directional light whose cascaded shadow pages follow the camera and are cached.',
@@ -78,7 +78,7 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
   {
     id: 'camera-exposure',
     category: 'lighting',
-    functions: ['setEnvironment', 'addLight'],
+    functions: ['world.exposure', 'scene.add(light.*)'],
     title: text('Expose the same radiance', 'Exposer la même radiance'),
     description: text(
       'Change exposure before ACES without changing the light energy.',
@@ -95,7 +95,7 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
   {
     id: 'runtime-pixel-error',
     category: 'streaming',
-    functions: ['setPixelError', 'setDiagnostic'],
+    functions: ['world.pixelError', 'world.diagnostic.mode'],
     title: text(
       'Cross the observatory at any scale',
       'Traverser l’observatoire à toutes les échelles',
@@ -109,8 +109,10 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
       {
         ...range('showLevels', 'Show detail levels', 'Afficher les niveaux de détail', 0, 1, 0, 1),
         legend: [
-          { color: '#38bdf8', label: text('Exact detail', 'Détail exact') },
-          { color: '#f59e0b', label: text('Coarse fallback', 'Relais simplifié') },
+          {
+            color: '#38bdf8',
+            label: text('One colour per selected cluster', 'Une couleur par grappe sélectionnée'),
+          },
         ],
       },
     ],
@@ -139,7 +141,7 @@ export const rendererLessonBaseDefinitions: RendererLessonItem[] = [
   {
     id: 'runtime-memory-budget',
     category: 'streaming',
-    functions: ['setMemoryBudgets'],
+    functions: ['world.budget.geometryPool'],
     title: text('Resize a geometry pool', 'Redimensionner le pool géométrique'),
     description: text(
       'Apply a bounded runtime geometry budget and read back what the engine accepted.',

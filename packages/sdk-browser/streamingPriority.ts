@@ -19,10 +19,12 @@ export interface PriorityRecord {
   max: number[];
   matrix: MatrixElements;
 }
-/** What the order reads of the engine camera: its view and its near plane, nothing else. */
+/** What the order reads of the engine camera: its view, its near plane and its projection's
+ *  clip-w weight (`EngineCamera.perspective`, 1 when absent), nothing else. */
 export interface PriorityCamera {
   view: Float64Array;
   near: number;
+  perspective?: number;
 }
 
 /** Request priorities: the streamer serves the smallest number first. The root cover needs none of
@@ -85,7 +87,8 @@ export function orderPendingUrls(
 ): string[] {
   into.length = 0;
   const focal = Math.max(pixelScale[0], pixelScale[1]),
-    near = cam.near;
+    near = cam.near,
+    perspective = cam.perspective ?? 1;
   const slots = new Map<string, Slot>();
   const views = new Map<MatrixElements, { view: Float64Array; stretch: number }>();
   for (let index = 0; index < records.length; index++) {
@@ -117,11 +120,13 @@ export function orderPendingUrls(
               centre[3],
               focal,
               near,
+              perspective,
             );
       distance = Math.hypot(centre[0], centre[1], centre[2]);
     } else {
       // No cluster error: fall back on the screen footprint of the bounds, which orders the same way.
-      pixels = boundsScreenRadius(record, frame.view, frame.stretch, focal, near);
+      const lens = [frame.stretch, focal, near, perspective] as const;
+      pixels = sphereScreenRadius(boundsSphere(record, bounds), frame.view, ...lens);
       distance = Math.hypot(centre[0], centre[1], centre[2]);
     }
     const held = slots.get(key);
@@ -139,38 +144,20 @@ export function orderPendingUrls(
   for (let index = 0; index < ordered.length; index++) into.push(ordered[index].url);
   return into;
 }
-/**
- * Screen radius, in pixels, of a record's box as seen by `view`. That is the measure texture
- * priority uses: what the eye sees of a surface, not how many triangles it carries. The work
- * buffers are the module's, rewritten in place.
- */
-function boundsScreenRadius(
-  record: Pick<PriorityRecord, 'min' | 'max'>,
-  view: ArrayLike<number>,
-  stretch: number,
-  focal: number,
-  near: number,
-) {
-  return sphereScreenRadius(
-    boundsSphere(record as PriorityRecord, bounds),
-    view,
-    stretch,
-    focal,
-    near,
-  );
-}
-
-/** Screen radius of a sphere `[x, y, z, r]` as seen by `view`; `centre` keeps the projection. */
+/** Screen radius of a sphere `[x, y, z, r]` as seen by `view`, divided by the clip weight of its
+ *  distance (1 under an orthographic projection); `centre` keeps the projection. */
 function sphereScreenRadius(
   sphere: Float64Array,
   view: ArrayLike<number>,
   stretch: number,
   focal: number,
   near: number,
+  perspective: number,
 ) {
   project(view, sphere, centre);
   const distance = Math.hypot(centre[0], centre[1], centre[2]);
-  return (centre[3] * stretch * focal) / Math.max(distance, near);
+  const w = perspective * distance + (1 - perspective);
+  return (centre[3] * stretch * focal) / Math.max(w, perspective * near);
 }
 
 /** Pixels per unit of extent in view space at unit depth, from a projection and a viewport. */

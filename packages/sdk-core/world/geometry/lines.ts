@@ -1,0 +1,65 @@
+import { BufferAttribute } from '../buffer/index.ts';
+import { Geometry } from './geometry.ts';
+
+/** Every triangle edge of `geometry` once, as `[a, b]` corner pairs and the faces it borders. */
+function edgesOf(geometry: Geometry) {
+  const position = geometry.attributes.position;
+  const count = position?.count ?? 0;
+  const corners = geometry.index
+    ? Array.from(geometry.index.array)
+    : Array.from({ length: count }, (_, i) => i);
+  // Corners that share a position share an edge, whatever their other attributes.
+  const key = (v: number) => `${position.getX(v)},${position.getY(v)},${position.getZ(v)}`;
+  const edges = new Map<string, { a: number; b: number; normals: number[][] }>();
+  for (let t = 0; t + 2 < corners.length; t += 3) {
+    const tri = [corners[t], corners[t + 1], corners[t + 2]];
+    const p = tri.map((v) => [position.getX(v), position.getY(v), position.getZ(v)]);
+    const e1 = p[1].map((x, i) => x - p[0][i]),
+      e2 = p[2].map((x, i) => x - p[0][i]);
+    const n = [
+      e1[1] * e2[2] - e1[2] * e2[1],
+      e1[2] * e2[0] - e1[0] * e2[2],
+      e1[0] * e2[1] - e1[1] * e2[0],
+    ];
+    const l = Math.hypot(n[0], n[1], n[2]) || 1;
+    for (let k = 0; k < 3; k++) {
+      const [a, b] = [tri[k], tri[(k + 1) % 3]];
+      const id = [key(a), key(b)].sort().join('|');
+      const edge = edges.get(id) ?? { a, b, normals: [] };
+      edge.normals.push(n.map((x) => x / l));
+      edges.set(id, edge);
+    }
+  }
+  return edges;
+}
+
+/** Line-segment geometry of the chosen edges: two positions per segment. */
+function segments(geometry: Geometry, keep: (normals: number[][]) => boolean) {
+  const position = geometry.attributes.position;
+  const out: number[] = [];
+  for (const { a, b, normals } of edgesOf(geometry).values())
+    if (keep(normals))
+      for (const v of [a, b]) out.push(position.getX(v), position.getY(v), position.getZ(v));
+  const lines = new Geometry();
+  lines.setAttribute('position', new BufferAttribute(new Float32Array(out), 3));
+  return lines;
+}
+
+/** The edges where the surface folds by more than `thresholdAngle` degrees, and its borders. */
+export function edges(geometry: Geometry, thresholdAngle = 1) {
+  const limit = Math.cos((thresholdAngle * Math.PI) / 180);
+  return segments(
+    geometry,
+    (normals) =>
+      normals.length < 2 ||
+      normals[0][0] * normals[1][0] +
+        normals[0][1] * normals[1][1] +
+        normals[0][2] * normals[1][2] <=
+        limit,
+  );
+}
+
+/** Every edge of every triangle, once. */
+export function wireframe(geometry: Geometry) {
+  return segments(geometry, () => true);
+}

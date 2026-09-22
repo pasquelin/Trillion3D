@@ -51,7 +51,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
   } = inputs;
   const dispose = () => {
     if (state.disposed) return;
-    diagnose('dispose-start', 'Explorer disposal started', {
+    diagnose('dispose-start', 'MeasuredWorld disposal started', {
       kind: 'lifecycle',
       scope,
       backend: state.active.id,
@@ -77,14 +77,15 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     releasePageIntegration();
     overlays.forEach((material) => material.dispose());
     backends.forEach((backend) => backend.dispose());
-    disposeSource(source);
-    webglSurface?.dispose();
+    if (!session.callerOwned) disposeSource(source);
+    webglSurface?.dispose(session.callerOwned);
     try {
-      gpuDevice?.destroy();
+      // A device the caller handed in is the caller's to destroy.
+      if (gpuDevice !== session.options.gpuDevice) gpuDevice?.destroy();
     } catch {
       /* Device may already be lost. */
     }
-    diagnose('dispose-complete', 'Explorer disposal completed', { kind: 'lifecycle', scope });
+    diagnose('dispose-complete', 'MeasuredWorld disposal completed', { kind: 'lifecycle', scope });
     diagnosticChannel.flushSync();
     diagnosticChannel.close();
   };

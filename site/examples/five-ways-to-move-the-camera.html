@@ -43,79 +43,57 @@
         color: #0e1621;
       }
     </style>
-    <!-- The camera controllers below are the engine's own; both entries are here because the
-         built engine bundle still imports the library (#272), and a page missing one never
-         loads its module at all. -->
-    <script type="importmap">
-      { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
-                     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/" } }
-    </script>
   </head>
   <body>
     <canvas id="view"></canvas>
     <nav id="pick"></nav>
     <p id="hint"></p>
     <script type="module">
-      import { createExplorer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
 
-      const canvas = document.getElementById('view');
-      const explorer = await createExplorer(canvas, {
-        manifestUrl: '../assets/examples/colonnade/cache/native/full/manifest.json',
-        scope: 'full',
-        interactive: true,
-      });
-      explorer.addLight({
-        id: 'sun',
-        kind: 'directional',
-        direction: [-0.5, -0.5, -0.75],
-        color: [1, 0.95, 0.85],
-        intensity: 3,
-        castsShadow: true,
-      });
-
-      // One controller at a time: the one leaving is disposed — surface released, listeners
-      // gone — before the one arriving is asked of the session, orbit included. Two live
-      // controllers would drive the same canvas at once.
+      // `controls` is a world option at creation, and a live handle afterwards: switching kind
+      // is one assignment on `world.controls.kind`, no world disposed or remade.
       const KINDS = [
-        ['Orbit', () => explorer.controls(), 'Drag to turn, right-drag to pan, wheel to zoom.'],
-        [
-          'Flight',
-          () => explorer.flyControls(),
-          'W/S/A/D, R/F, arrows, Q/E to roll; drag to look.',
-        ],
-        [
-          'First person',
-          () => explorer.firstPersonControls(),
-          'Click to lock the pointer; W/S/A/D to walk.',
-        ],
-        [
-          'Trackball',
-          () => explorer.trackballControls(),
-          'Drag to spin freely, roll included; wheel to zoom.',
-        ],
-        [
-          'Pan-zoom',
-          () => explorer.panZoomControls(),
-          'Drag to slide the flat view; wheel to zoom, arrows to pan.',
-        ],
+        ['Orbit', 'orbit', 'Drag to turn, right-drag to pan, wheel to zoom.'],
+        ['Flight', 'fly', 'W/S/A/D, R/F, arrows, Q/E to roll; drag to look.'],
+        ['First person', 'firstPerson', 'Click to lock the pointer; W/S/A/D to walk.'],
+        ['Trackball', 'trackball', 'Drag to spin freely, roll included; wheel to zoom.'],
+        ['Pan-zoom', 'panZoom', 'Drag to slide the flat view; wheel to zoom, arrows to pan.'],
       ];
-      const home = explorer.homePose();
-      let active = null,
-        steering = false,
-        last = 0;
 
+      function buildScene(world) {
+        const sand = material.meshStandard({ color: [0.6, 0.55, 0.45], roughness: 0.9 });
+        const chalk = material.meshStandard({ color: [0.88, 0.85, 0.78], roughness: 0.7 });
+        const floor = object.mesh(geometry.box(6, 0.3, 14), sand);
+        floor.position.y = -0.15;
+        world.scene.add(floor);
+        const profile = [[0, 0], [0.42, 0], [0.42, 0.25], [0.3, 0.25], [0.28, 2.7], [0.4, 2.7], [0.42, 2.95], [0, 2.95]];
+        for (const side of [-1, 1]) {
+          for (let index = 0; index < 6; index++) {
+            const column = object.mesh(geometry.lathe(profile, 24), chalk);
+            column.position.set(side * 1.8, 0, index * 2.4 - 6);
+            world.scene.add(column);
+          }
+          const lintel = object.mesh(geometry.box(0.9, 0.4, 13.5), chalk);
+          lintel.position.set(side * 1.8, 3.15, 0);
+          world.scene.add(lintel);
+        }
+        world.scene.add(light.directional({
+          intensity: 3, color: [1, 0.95, 0.85], position: [7, 8, 11], target: [0, 0, 0], castShadow: true,
+        }));
+        world.camera.position.set(4.5, 3.6, 10);
+        world.camera.lookAt(0, 1.2, 0);
+        world.controls.target.set(0, 1.2, 0);
+      }
+
+      const world = createWorld('view', { controls: KINDS[0][1] });
+      buildScene(world);
       function use(index) {
-        const [, make, hint] = KINDS[index];
-        active?.dispose();
-        explorer.setPose(home);
-        active = make();
-        active.addEventListener('change', () => explorer.invalidate());
-        steering = typeof active.rollSpeed === 'number' || typeof active.lookSpeed === 'number';
-        if (active.target) active.update();
+        const [, controls, hint] = KINDS[index];
+        world.controls.kind = controls;
         document.getElementById('hint').textContent = hint;
         for (const [at, button] of [...document.getElementById('pick').children].entries())
           button.setAttribute('aria-pressed', String(at === index));
-        explorer.invalidate();
       }
       KINDS.forEach(([label], index) => {
         const button = document.createElement('button');
@@ -123,14 +101,6 @@
         button.onclick = () => use(index);
         document.getElementById('pick').append(button);
       });
-
-      // Only a steered controller needs a clock: the pivot ones move on their events alone.
-      function step(now) {
-        if (steering && active.update((now - last) / 1000)) explorer.invalidate();
-        last = now;
-        requestAnimationFrame(step);
-      }
-      requestAnimationFrame(step);
       use(0);
     </script>
   </body>

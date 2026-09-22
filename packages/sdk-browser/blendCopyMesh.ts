@@ -5,10 +5,11 @@ import type { MatrixElements } from './matrixElements.ts';
 import type { PageSurface } from './pageSurface.ts';
 
 /**
- * The transparent draw copy a WITNESS holds: a host mesh, because a witness hands its
- * transparent surfaces back to the host renderer that draws them. The engine path holds the
- * record of `blendCopyRecord.ts` instead and names no library; `collectClusterPages` takes this
- * builder as an option, and only `exactPagesBackend.ts` passes it.
+ * The transparent draw copy of an engine the HOST renderer draws — a witness, or the WebGL2 page
+ * path: a host mesh, because such an engine hands its transparent surfaces back to that renderer.
+ * The WebGPU path holds the record of `blendCopyRecord.ts` instead and names no library;
+ * `collectClusterPages` takes this builder as an option, which `exactPagesBackend.ts` and
+ * `autonomousPages.ts` pass.
  *
  * The placement is the ONLY thing that still ties a copy to the scene, and that is where the
  * defect lived: copying a world matrix at prepare time made it a snapshot that no later move —

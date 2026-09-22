@@ -17,6 +17,7 @@ export function projectedClusterError(
   stretch: number,
   focal: number,
   near: number,
+  perspective = 1,
 ) {
   // One extra guard over `projectedErrorAt`, which is left the projection: a missing sphere.
   // The other two stay here, before the projection's two square roots, because the most common
@@ -31,6 +32,7 @@ export function projectedClusterError(
     stretch,
     focal,
     near,
+    perspective,
   );
 }
 export function cutSelects(
@@ -40,6 +42,7 @@ export function cutSelects(
   focal: number,
   near: number,
   pixelError: number,
+  perspective = 1,
 ) {
   const sphere = rec.sphere,
     own = rec.lodError ?? 0,
@@ -52,13 +55,11 @@ export function cutSelects(
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),
       radius = sphere[3];
-    if (projectedErrorAt(own, lateral, depth, radius, stretch, focal, near) > pixelError)
-      return false;
-    return projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near) > pixelError;
+    const lens = [stretch, focal, near, perspective] as const;
+    if (projectedErrorAt(own, lateral, depth, radius, ...lens) > pixelError) return false;
+    return projectedErrorAt(parent, lateral, depth, radius, ...lens) > pixelError;
   }
-  if (projectedClusterError(own, sphere, 0, e, stretch, focal, near) > pixelError) return false;
-  return (
-    projectedClusterError(parent, rec.parentSphere ?? sphere, 0, e, stretch, focal, near) >
-    pixelError
-  );
+  const lens = [e, stretch, focal, near, perspective] as const;
+  if (projectedClusterError(own, sphere, 0, ...lens) > pixelError) return false;
+  return projectedClusterError(parent, rec.parentSphere ?? sphere, 0, ...lens) > pixelError;
 }

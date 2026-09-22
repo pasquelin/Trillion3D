@@ -3,8 +3,13 @@ import { createSceneTelemetry } from './telemetry.ts';
 import { configureSceneCamera } from './cameraControls.ts';
 import { createLightingControls } from './lightingControls.ts';
 import { addSceneFillLight } from '../sceneFillLight.ts';
-import type { Explorer } from '../../../packages/sdk-browser/index.ts';
-import type { FrameMetrics } from '../../../packages/sdk/index.ts';
+import {
+  createWorld,
+  math,
+  pose,
+  light as lightFamily,
+  type World,
+} from '../../../packages/sdk-browser/index.ts';
 import { isDiagnosticMode } from './diagnosticModes.ts';
 import type { SceneCopy } from './content.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -25,14 +30,13 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
   const light = required<HTMLInputElement>(host, '[data-scene-light]');
   const lightValue = required<HTMLElement>(host, '[data-scene-light-value]');
   const quality = required<HTMLInputElement>(host, '[data-scene-quality]');
-  const qualityValue = required<HTMLElement>(host, '[data-scene-quality-value]');
   const shadows = required<HTMLInputElement>(host, '[data-scene-shadows]');
   const status = required<HTMLElement>(host, '[data-scene-status]');
   const loading = required<HTMLElement>(host, '[data-scene-loading]');
   const controller = new AbortController();
   // Each load runs under its own generation: a failure or a loss ends the current one, so a
   // create still pending when it happens is released once it settles, never adopted.
-  let explorer: Explorer | null | undefined,
+  let world: World | null | undefined,
     disposed = false,
     generation = 0,
     camera: ReturnType<typeof configureSceneCamera> | undefined,
@@ -40,14 +44,14 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
   const events = { signal: controller.signal };
   const telemetry = createSceneTelemetry(host, copy, locale);
   const invalidate = () => {
-    if (!disposed) explorer?.invalidate();
+    if (!disposed) world?.invalidate();
   };
   /** The scene is gone: what it held is released, and the start button offers to reopen it. */
   const fail = (message: string) => {
     generation++;
     telemetry.stop();
-    explorer?.dispose();
-    explorer = null;
+    world?.dispose();
+    world = null;
     camera = lighting = undefined;
     status.textContent = message;
     loading.hidden = true;
@@ -70,50 +74,36 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
     loading.hidden = false;
     status.textContent = '';
     try {
-      const { createExplorer } = await import('../../../packages/sdk-browser/index.ts');
       if (disposed) return;
-      // The engine has already withdrawn its image on a loss: only a new explorer draws again.
-      const created = await createExplorer(canvas, {
-        manifestUrl: new URL(
-          'assets/kinetic-garden/cache/native/full/manifest.json',
-          document.baseURI,
-        ).href,
-        scope: 'full',
-        interactive: true,
-        pixelError: 0,
-        lodAdaptive: false,
-        temporalAntialiasing: true,
-        geometryPoolBytes: 16 * 1024 * 1024,
-        texturePoolBytes: 128 * 1024 * 1024,
-        maxCachedBytes: 16 * 1024 * 1024,
-        pageFetchWorkers: 2,
-        clearColor: SCENE_BACKGROUND.packed,
+      const created = createWorld(canvas, {
+        pixelRatio: window.devicePixelRatio,
         signal: controller.signal,
-        diagnosticDetail: 'trace',
-        onDiagnostic: (event) => {
-          if (superseded()) return;
-          // the frame diagnostic's context always carries FrameMetrics under this key
-          if (event.phase === 'frame') telemetry.frame(event.context.metrics as FrameMetrics);
-          else if (event.phase === 'gpu-device-lost') fail(copy.lost);
-        },
-        onEvent: (event) => {
-          if (!superseded() && event.type === 'fatal') status.textContent = copy.failed;
-        },
+        controls: 'orbit',
       });
+      created.scene.background = math.color(SCENE_BACKGROUND.packed);
+      const model = await created.scene.load(
+        new URL('assets/kinetic-garden/cache/native/full/manifest.json', document.baseURI).href,
+      );
       if (superseded()) {
         created.dispose();
         return;
       }
-      explorer = created;
-      addSceneFillLight(explorer);
+      world = created;
+      // The exact budgets shown in the displayed code (`code.ts`): keep the two in sync.
+      world.budget.geometryPool = 16 * 1024 * 1024;
+      world.budget.texturePool = 128 * 1024 * 1024;
+      addSceneFillLight(lightFamily, world);
       for (const option of mode.options)
         option.disabled =
-          isDiagnosticMode(option.value) && explorer.diagnostics[option.value]?.available === false;
-      if (mode.value !== 'beauty') explorer.setDiagnostic(selectedMode());
-      lighting = createLightingControls(explorer, light, lightValue, shadows, copy, invalidate);
-      const controls = explorer.controls();
-      camera = configureSceneCamera(explorer, controls);
+          isDiagnosticMode(option.value) && !world.diagnostic.modes.includes(option.value);
+      if (mode.value !== 'beauty') world.diagnostic.mode = selectedMode();
+      lighting = createLightingControls(model.lights, light, lightValue, shadows, copy, invalidate);
+      const bounds = model.bounds;
+      camera = configureSceneCamera(pose, world, bounds);
       camera.reset();
+      world.onFrame(({ metrics }) => {
+        if (!superseded()) telemetry.frame(world!, metrics);
+      });
       loading.hidden = true;
       start.hidden = true;
       mode.disabled = false;
@@ -121,7 +111,7 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
       zoomIn.disabled = false;
       zoomOut.disabled = false;
       light.disabled = !lighting.hasLights;
-      quality.disabled = false;
+      quality.disabled = true; // `world.pixelError` is a public property; this lesson does not wire a control to it
       shadows.disabled = !lighting.hasShadows;
       status.textContent = '';
       invalidate();
@@ -140,7 +130,7 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
     () => {
       updateGuide();
       try {
-        explorer?.setDiagnostic(selectedMode());
+        if (world) world.diagnostic.mode = selectedMode();
         invalidate();
       } catch (error) {
         status.textContent = `${copy.failed} (${errorMessage(error)})`;
@@ -149,15 +139,6 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
     events,
   );
   light.addEventListener('input', () => lighting?.apply(), events);
-  quality.addEventListener(
-    'input',
-    () => {
-      qualityValue.textContent = `${quality.value} px`;
-      explorer?.setPixelError(Number(quality.value));
-      invalidate();
-    },
-    events,
-  );
   shadows.addEventListener('change', () => lighting?.apply(), events);
   home.addEventListener(
     'click',
@@ -189,6 +170,6 @@ export function mountScene(host: ParentNode, copy: SceneCopy, locale: Locale) {
     disposed = true;
     controller.abort();
     telemetry.stop();
-    explorer?.dispose();
+    world?.dispose();
   };
 }

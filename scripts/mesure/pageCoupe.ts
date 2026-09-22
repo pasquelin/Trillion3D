@@ -11,13 +11,13 @@
  * enough to exhaust the driver — while `pages` has only two and renders the same meshes. The two
  * sources are not compared; the report says which one served.
  */
-import type * as SdkBrowser from '../../packages/sdk-browser/index.ts';
+import type * as SdkBrowser from '../../packages/sdk-browser/measurement.ts';
 import type { Coupe } from './report/types.ts';
 
 type Backend = SdkBrowser.RenderBackend & { selectedPageIds?: () => Iterable<string> };
 
 export function lireCoupe(
-  explorer: Awaited<ReturnType<typeof SdkBrowser.createExplorer>>,
+  explorer: Awaited<ReturnType<typeof SdkBrowser.openMeasuredWorld>>,
   engineId: string,
 ): Coupe {
   const backend = explorer.backends.find((candidate) => candidate.id === engineId) as
