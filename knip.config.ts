@@ -28,6 +28,7 @@ const config: KnipConfig = {
     // Full campaign and its report, launched manually.
     'scripts/mesure/campagne.ts',
     'scripts/mesure/rapportGlobal.ts',
+    'scripts/mesure/quantificationPages.ts',
     'scripts/mesure/oracle.ts',
     'scripts/mesure/fixtureLampes.ts',
     'packages/*/bench/*.perf.ts',

@@ -381,32 +381,32 @@ The host camera declares its own clip-depth convention through `camera.coordinat
 
 ### Which backend renders by default
 
-`createExplorer({ manifestUrl })` with no `backends` option renders an image wherever one can be
-drawn at all. The choice is made once, before the scene is read, from what the machine offers, and
-is reported by the `backend-choice` diagnostic: `origin` (`default` or `host`), `renderer` (the
-backend id that draws), `degraded` (true when the renderer is not the engine's own path) and the
-`reason` that decided it.
+`createExplorer({ manifestUrl })` with no `backends` option renders through the engine's own path,
+whichever one the machine allows. The choice is made once, before the scene is read, from what the
+machine offers, and is reported by the `backend-choice` diagnostic: `origin` (`default` or
+`host`), `renderer` (the backend id that draws), `autonomous` (true when the session reads the
+cache's prepared scene rather than `source.gltf`) and the `reason` that decided it.
 
-| Machine                    | Backend that renders  | Scene file read | Degraded |
-| -------------------------- | --------------------- | --------------- | -------- |
-| A WebGPU device was granted | `webgpu-page-raster`  | `source.gltf`   | no       |
-| WebGL2 only                 | `exact-cluster-pages`, a host-library witness | `source.gltf` | **yes** |
-| Neither WebGPU nor WebGL2   | none — `EngineError('NO_ENGINE_BACKEND')`, and `EngineError('NO_WEBGL2')` from the capability probe before it | — | — |
+| Machine                     | Backend that renders     | Scene file read            |
+| --------------------------- | ------------------------ | -------------------------- |
+| A WebGPU device was granted | `webgpu-page-raster`     | `source.gltf`              |
+| WebGL2, cache with a prepared scene | `autonomous-pages-webgl` | `metadata.autonomousScene` |
+| WebGL2, cache without one   | `autonomous-pages-webgl` | `source.gltf`              |
+| Neither WebGPU nor WebGL2   | none — `EngineError('NO_ENGINE_BACKEND')`, and `EngineError('NO_WEBGL2')` from the capability probe before it | — |
 
-The WebGL2-only row is temporary and disappears with #297. The engine's own WebGL2 path,
-`autonomous-pages-webgl`, produces no image today: on `site/assets/kinetic-garden`, the
-repository's only cache in the current format, its preparation stops with
-`EngineError('AUTONOMOUS_COVERAGE_MISSING')` — the prepared scene does not cover every page the
-cut requires. Rather than leave such a machine with an empty canvas, the session draws through the
-`exact-cluster-pages` witness and says in `backend-choice` that it is degraded and why. #297
-finishes that renderer, and the batch that lands it removes this fallback in the same breath, so a
-WebGL2-only machine takes `autonomous-pages-webgl` again. A host that wants the degraded path
-under its own name asks for it, as the comparison views and the bench do:
-`backends: [exactPagesBackend]`.
+Since #297 both WebGL2 rows end in an image: `autonomous-pages-webgl` decodes the cache's
+geometry pages itself, draws every page the cut selects — `submittedTriangles` equals
+`selectedTriangles` on the frame — and lights the scene from the cache's light table, radiometric
+as `lights.json` records it. The compiler writes a prepared scene only when every primitive is
+`exact-clusters`; a cache holding a `clustered-blend` primitive carries none, and the same path
+then takes its materials and placements from `source.gltf` — `autonomous: false` in
+`backend-choice`, an image rather than a refusal. `NO_ENGINE_BACKEND` is left to the machine that
+granted neither API. No witness is mounted in any row: `explorer.backends` holds the chosen path
+alone.
 
 `referenceBackend`, `exactPagesBackend` and `threeLodBackend` are the Three witnesses of the
-comparison views and the bench: they are opt-in through `options.backends`, and the degraded
-default above is the one case where the engine reaches for one on its own.
+comparison views and the bench: they are opt-in through `options.backends`, and the engine never
+reaches for one on its own.
 `chooseBackends(options, metadata, gpuDevice, webgl2)` is exported so a host can read the same
 decision before opening a session, and `autonomousCacheReady(metadata)` answers whether a cache
 carries the prepared autonomous scene.

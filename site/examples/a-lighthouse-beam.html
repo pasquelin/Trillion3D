@@ -16,14 +16,15 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createExplorer, webgpuPagesBackend } from '../runtime/engine.js';
+      import { createExplorer } from '../runtime/engine.js';
 
       // Manual rendering: the loop below draws every frame itself, so the canvas size is given.
+      // No backend is named: the engine takes its own page raster where WebGPU was granted and
+      // its own WebGL2 page path where it was not, which draws this scene without cast shadows.
       const canvas = document.getElementById('view');
       const explorer = await createExplorer(canvas, {
         manifestUrl: '../assets/examples/lighthouse/cache/native/full/manifest.json',
         scope: 'full',
-        backends: [webgpuPagesBackend],
         width: canvas.clientWidth,
         height: canvas.clientHeight,
         pixelRatio: devicePixelRatio,
