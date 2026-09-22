@@ -2,34 +2,37 @@
 // `a-lamp-in-its-glass` (examples/lantern) and `a-lighthouse-beam` (examples/lighthouse), the
 // only two of the repository's 50 caches without an `autonomousScene` — still show an image on a
 // machine without WebGPU. They take the engine's own `autonomous-pages-webgl` path with
-// `autonomous: false`: the same geometry pages, materials and placements read from `source.gltf`.
-// Recorded on both machines, same scene, camera, size and commit, with the pixels each drew.
+// `autonomous: false`: the same geometry pages, with materials and placements from `source.gltf`.
+// Recorded on both machines, same scene, camera, size and commit, with the pixels each drew and
+// what the WebGL2 image costs against the WebGPU one.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
-import { startServer, serverPort } from '../../scripts/mesure/serveur.ts';
+import { startServer } from '../../scripts/mesure/serveur.ts';
 import { launchChrome } from '../../scripts/mesure/chrome.ts';
 import { runDefaultBackendCase } from '../appui/defaultBackendCase.ts';
 import { BLEND_CACHE_SCENES as SCENES } from '../appui/blendCacheScenes.ts';
+import {
+  chosenBackend,
+  machineLabel,
+  openMachine,
+  type CaseResult,
+} from '../appui/defaultBackendMachine.ts';
 import {
   compareDefaultBackendCaptures,
   countDrawnPixels,
   defaultBackendCapturePng,
 } from '../appui/defaultBackendImages.ts';
 
-declare global {
-  var sdk: typeof import('../../packages/sdk-browser/index.ts');
-  var proof: { images: Record<string, number[]> } | undefined;
-}
-
-type CaseResult = Awaited<ReturnType<typeof runDefaultBackendCase>>;
+type Delta = ReturnType<typeof compareDefaultBackendCaptures>;
+type Read = { result: CaseResult; drawn: ReturnType<typeof countDrawnPixels>; capture: string };
 
 const root = resolve(import.meta.dirname, '../..');
 const out = resolve(root, 'benchmark-runs/blend-cache-default');
 await mkdir(out, { recursive: true });
-const chosen = (result: CaseResult) =>
-  result.diagnostics.find((event) => event.phase === 'backend-choice')?.context ?? null;
+/** The capture of a page on the WebGPU machine, carried into the other one to be compared. */
+const carriedKey = (page: string) => `webgpu-${page}`;
 
 const server = await startServer({
   port: 0,
@@ -50,29 +53,24 @@ const server = await startServer({
 const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
 try {
+  // The lights below are a copy of what each page declares; the copy is worthless if it drifts.
+  for (const scene of SCENES) {
+    const source = await readFile(resolve(root, `site/examples/${scene.page}.html`), 'utf8');
+    for (const light of scene.lights)
+      assert.ok(
+        source.includes(`id: '${light.id}'`) && source.includes(`intensity: ${light.intensity}`),
+        `${scene.page}.html no longer declares ${light.id} at intensity ${light.intensity}`,
+      );
+  }
   const machine = async (webgpu: boolean, carried: Array<[string, number[]]> = []) => {
-    const context = await browser.newContext({
-      viewport: { width: 640, height: 480 },
-      deviceScaleFactor: 1,
-    });
-    if (!webgpu)
-      // A WebGL2-only machine, simulated where the engine reads the capability: with no
-      // `navigator.gpu` no adapter and no device can be obtained.
-      await context.addInitScript(() => {
-        Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined });
-      });
-    const page = await context.newPage();
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(`http://127.0.0.1:${serverPort(server)}`);
-    await page.evaluate(async (url) => {
-      window.sdk = await import(url);
-    }, '/sdk/sdk-browser/index.js');
+    const label = machineLabel(webgpu);
+    const { context, page } = await openMachine({ browser, server, webgpu, errors });
     // Captures of the other machine, carried in so the two are compared where they both live.
     await page.evaluate((entries: Array<[string, number[]]>) => {
       const store = (window.proof ??= { images: {} });
       for (const [key, bytes] of entries) store.images[key] = bytes;
     }, carried);
-    const read: Record<string, { result: CaseResult; drawn: unknown; capture: string }> = {};
+    const read: Record<string, Read> = {};
     for (const scene of SCENES) {
       const result = (await page.evaluate(runDefaultBackendCase, {
         manifestUrl: `/cache/${scene.page}/full/manifest.json`,
@@ -82,29 +80,29 @@ try {
         frames: 0,
         lights: scene.lights,
       })) as CaseResult;
-      assert.equal(result.error, null, `${scene.page} on ${webgpu ? 'webgpu' : 'webgl2-only'}`);
+      assert.equal(result.error, null, `${scene.page} on ${label}`);
       const url = await page.evaluate(defaultBackendCapturePng, scene.page);
-      const name = `${webgpu ? 'webgpu' : 'webgl2-only'}-${scene.page}.png`;
-      await writeFile(resolve(out, name), Buffer.from(url.split(',')[1], 'base64'));
-      read[scene.page] = {
-        result,
-        drawn: await page.evaluate(countDrawnPixels, scene.page),
-        capture: name,
-      };
+      const capture = `${label}-${scene.page}.png`;
+      await writeFile(resolve(out, capture), Buffer.from(url.split(',')[1], 'base64'));
+      const drawn = (await page.evaluate(countDrawnPixels, scene.page)) as Read['drawn'];
+      read[scene.page] = { result, drawn, capture };
     }
-    const carry: Array<[string, number[]]> = [],
-      against: Record<string, ReturnType<typeof compareDefaultBackendCaptures>> = {};
-    for (const scene of SCENES) {
-      const key = `webgpu-${scene.page}`;
-      carry.push([key, await page.evaluate((one: string) => window.proof!.images[one], scene.page)]);
+    // The first machine hands its pixels to the second; the second is the one that compares.
+    const carry: Array<[string, number[]]> = [];
+    const against: Record<string, Delta> = {};
+    for (const scene of SCENES)
       if (carried.length)
         against[scene.page] = (await page.evaluate(compareDefaultBackendCaptures, [
           scene.page,
-          key,
-        ])) as ReturnType<typeof compareDefaultBackendCaptures>;
-    }
+          carriedKey(scene.page),
+        ])) as Delta;
+      else
+        carry.push([
+          carriedKey(scene.page),
+          await page.evaluate((one: string) => window.proof!.images[one], scene.page),
+        ]);
     await context.close();
-    return { read, carry, against };
+    return { label, read, carry, against };
   };
   const withGpu = await machine(true);
   const withoutGpu = await machine(false, withGpu.carry);
@@ -115,7 +113,7 @@ try {
     // The engine's own path, alone, and reading `source.gltf`: no witness, no black page.
     assert.equal(webgl.result.backend, 'autonomous-pages-webgl');
     assert.deepEqual(webgl.result.mounted, ['autonomous-pages-webgl']);
-    assert.deepEqual(chosen(webgl.result), {
+    assert.deepEqual(chosenBackend(webgl.result), {
       kind: 'configuration',
       scope: 'full',
       origin: 'default',
@@ -125,38 +123,37 @@ try {
       webgpuDevice: false,
     });
     // The canvas is not empty: a twentieth of it at least differs from the cleared background.
-    for (const side of [gpu.drawn, webgl.drawn]) {
-      const counted = side as { drawn: number; totalPixels: number };
-      assert.ok(counted.drawn > counted.totalPixels / 20, `${scene.page}: ${JSON.stringify(side)}`);
-    }
+    for (const drawn of [gpu.drawn, webgl.drawn])
+      assert.ok(drawn.drawn > drawn.totalPixels / 20, `${scene.page}: ${JSON.stringify(drawn)}`);
   }
   assert.deepEqual(errors, []);
-  const side = (name: string, run: Awaited<ReturnType<typeof machine>>) => [
-    name,
+  const side = (run: Awaited<ReturnType<typeof machine>>) =>
     Object.fromEntries(
-      SCENES.map((scene) => [
-        scene.page,
-        {
-          backend: run.read[scene.page].result.backend,
-          choice: chosen(run.read[scene.page].result),
-          mounted: run.read[scene.page].result.mounted,
-          metrics: run.read[scene.page].result.metrics,
-          drawnPixels: run.read[scene.page].drawn,
-          capture: run.read[scene.page].capture,
-          // Against the WebGPU capture of the same page: the declared cost of this path, which
-          // publishes `shadows: false` and casts none.
-          againstWebgpu: run.against[scene.page] ?? null,
-        },
-      ]),
-    ),
-  ];
+      SCENES.map((scene) => {
+        const one = run.read[scene.page];
+        return [
+          scene.page,
+          {
+            backend: one.result.backend,
+            choice: chosenBackend(one.result),
+            mounted: one.result.mounted,
+            metrics: one.result.metrics,
+            drawnPixels: one.drawn,
+            capture: one.capture,
+            // Against the WebGPU capture of the same page: the declared cost of a path that
+            // publishes `shadows: false` and casts none.
+            againstWebgpu: run.against[scene.page] ?? null,
+          },
+        ];
+      }),
+    );
   const result = {
     captureDirectory: relative(root, out),
     commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     scenes: SCENES,
-    viewport: { width: 480, height: 320, devicePixelRatio: 1 },
+    capture: { width: 480, height: 320, devicePixelRatio: 1 },
     settings: { pixelError: 0, temporalAntialiasing: false, scope: 'full' },
-    machines: Object.fromEntries([side('webgpu', withGpu), side('webgl2-only', withoutGpu)]),
+    machines: { [withGpu.label]: side(withGpu), [withoutGpu.label]: side(withoutGpu) },
   };
   await writeFile(resolve(out, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result, null, 2));
