@@ -50,7 +50,7 @@ export async function pictureOf(
     thumbnail?.sourceBufferView === undefined ? null : await embeddedOf(model, thumbnail, embedded);
   const bytes = own ?? (thumbnail && encodePng(thumbnail.width, thumbnail.height, thumbnail.rgba));
   if (!bytes) return null;
-  const directory = join(tmpdir(), 'web-geometry-decoupes');
+  const directory = join(tmpdir(), 'trillion3d-decoupes');
   await mkdir(directory, { recursive: true });
   const target = join(directory, `${pending.sha256.slice(0, 16)}.png`);
   await writeFile(target, bytes);

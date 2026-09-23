@@ -147,7 +147,7 @@ export class EngineProfiler {
 
     return [
       `═══════════════════════════════════════════════════════════════════════`,
-      ` 🚀 WEBGEOMETRY ENGINE TELEMETRY REPORT — ${fpsStr}`,
+      ` 🚀 TRILLION3D ENGINE TELEMETRY REPORT — ${fpsStr}`,
       `═══════════════════════════════════════════════════════════════════════`,
       ` ⏱️  FRAME PACE    : P50: ${p50Str} | P95: ${p95Str} | P99: ${p99Str} | Stutters: ${r.stutters ?? 0}`,
       ` 💻 CPU FRAME     : ${r.cpuFrameMs} ms | WebGPU submit: ${r.cpuSubmitMs != null ? r.cpuSubmitMs + ' ms' : '-'}`,

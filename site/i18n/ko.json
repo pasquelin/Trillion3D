@@ -682,7 +682,7 @@
     "examples": "예제 둘러보기"
   },
   "report": {
-    "comparedEngines": "Web Geometry와의 비교입니다. 손잡이를 움직이면 이미지를 비교할 수 있습니다.",
+    "comparedEngines": "trillion3D와의 비교입니다. 손잡이를 움직이면 이미지를 비교할 수 있습니다.",
     "singlesOnly": "개별 캡처입니다. 이 항목들에는 비교용 이미지가 기록되어 있지 않습니다.",
     "compareHandle": "각 이미지의 손잡이를 움직이면 두 렌더링 결과를 비교할 수 있습니다.",
     "enlarge": "확대",
@@ -818,8 +818,8 @@
       "math-js": "JavaScript 연산",
       "math-wasm": "WebAssembly 연산",
       "rebond": "간접광 활성화",
-      "three-nu": "순정 Three.js / Web Geometry",
-      "three-lod": "Three.js LOD / Web Geometry",
+      "three-nu": "순정 Three.js / trillion3D",
+      "three-lod": "Three.js LOD / trillion3D",
       "temoin-three": "텍스처 없는 SDK 대조군",
       "ombres-pages-off": "그림자 페이징 끔",
       "budget-ombres-0-25": "그림자 시간 예산: 0.25ms",
@@ -1074,8 +1074,8 @@
     },
     "measurement-entry": {
       "title": "측정 전용 진입점",
-      "description": "대조 구현, 강제 지정된 백엔드, 내부 세션에 이름으로 접근할 수 있는 유일한 곳 — 공개된 `web-geometry` 진입점을 통해서는 결코 접근할 수 없습니다.",
-      "html": "<p>페이지가 <code>web-geometry</code>를 임포트할 때는 백엔드나 대조 구현, 내부 세션이 전혀 보이지 않습니다: <code>createWorld</code>는 기기에 따라 선택된 렌더러 하나로 그리며, 강제 지정된 렌더러가 없으면 이름을 밝혀 거부합니다. 그러나 벤치, 증명, 비교 화면에서는 여전히 대조 구현을 이름으로 지정해야 합니다 — 순정 Three.js, <code>THREE.LOD</code>, 내부의 <code>openMeasuredWorld</code> 세션 같은 것들이죠. 바로 이 하나의 역할만을 맡는 것이 별도의 측정 진입점인 <code>packages/sdk-browser/src/measurement/measurement.ts</code>입니다.</p>\n<p>이 파일은 공개 진입점이 재내보내는 모든 것에 더해, 호스트가 결코 필요로 하지 않는 것까지 재내보냅니다: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(월드가 자기 자신에 대해 여는 내부 세션), 백엔드 팩토리들(<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), 그리고 <code>replicateInstances</code>와 같은 측정 전용 헬퍼들입니다. 이 중 어느 것도 공개된 월드에는 닿지 않으며, 어떤 애플리케이션에서도 임포트되지 않습니다.</p>"
+      "description": "대조 구현, 강제 지정된 백엔드, 내부 세션에 이름으로 접근할 수 있는 유일한 곳 — 공개된 `trillion3d` 진입점을 통해서는 결코 접근할 수 없습니다.",
+      "html": "<p>페이지가 <code>trillion3d</code>를 임포트할 때는 백엔드나 대조 구현, 내부 세션이 전혀 보이지 않습니다: <code>createWorld</code>는 기기에 따라 선택된 렌더러 하나로 그리며, 강제 지정된 렌더러가 없으면 이름을 밝혀 거부합니다. 그러나 벤치, 증명, 비교 화면에서는 여전히 대조 구현을 이름으로 지정해야 합니다 — 순정 Three.js, <code>THREE.LOD</code>, 내부의 <code>openMeasuredWorld</code> 세션 같은 것들이죠. 바로 이 하나의 역할만을 맡는 것이 별도의 측정 진입점인 <code>packages/sdk-browser/src/measurement/measurement.ts</code>입니다.</p>\n<p>이 파일은 공개 진입점이 재내보내는 모든 것에 더해, 호스트가 결코 필요로 하지 않는 것까지 재내보냅니다: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(월드가 자기 자신에 대해 여는 내부 세션), 백엔드 팩토리들(<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), 그리고 <code>replicateInstances</code>와 같은 측정 전용 헬퍼들입니다. 이 중 어느 것도 공개된 월드에는 닿지 않으며, 어떤 애플리케이션에서도 임포트되지 않습니다.</p>"
     },
     "createWorldJob": {
       "title": "취소 가능한 작업으로서의 월드 로드",
@@ -1084,37 +1084,37 @@
     "architecture": {
       "title": "프레임 한 장이 그려지는 과정",
       "description": "여러분의 씬에서 화면까지 가는 길: 무엇이 유지되고, 어떤 픽셀이 채워지며, 어떤 빛이 더해지는가.",
-      "html": "<ol>\n<li><strong>조각을 고른다.</strong> 모든 모델은 삼각형의 작은 패치인 <em>클러스터</em>로 이루어져 있으며, 여러 세부 단계로 저장됩니다. 매 프레임, GPU는 모델의 각 부분에 대해 화면에서 여전히 정확해 보이는 가장 거친 단계를 고릅니다.</li>\n<li><strong>어디에 무엇이 있는지 기록한다.</strong> 선택된 삼각형들은 <em>가시성 버퍼</em>에 한 번만 그려집니다: 각 픽셀에는 거기 보이는 삼각형의 번호만 기록됩니다.</li>\n<li><strong>표면을 칠한다.</strong> 그다음 각 픽셀은 자신의 삼각형이 가진 재질(색, 거칠기, 금속 여부, 노멀 맵)을 읽습니다. 같은 종류의 표면은 한데 모여 한 번의 패스로 칠해집니다.</li>\n<li><strong>빛을 더하고, 매끄럽게 다듬는다.</strong> 조명과 그림자가 더해지고, 투명한 표면은 마지막에 처리되며, <em>시간적 안티앨리어싱</em>이 지난 프레임들과 지금 프레임을 섞어 가장자리를 매끄럽게 유지합니다.</li>\n</ol>\n<p>아무것도 움직이지 않을 때는 이 과정 전체가 실행되지 않습니다: 월드는 마지막 화면을 그대로 유지합니다.</p>\n<p>전체 과정: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
+      "html": "<ol>\n<li><strong>조각을 고른다.</strong> 모든 모델은 삼각형의 작은 패치인 <em>클러스터</em>로 이루어져 있으며, 여러 세부 단계로 저장됩니다. 매 프레임, GPU는 모델의 각 부분에 대해 화면에서 여전히 정확해 보이는 가장 거친 단계를 고릅니다.</li>\n<li><strong>어디에 무엇이 있는지 기록한다.</strong> 선택된 삼각형들은 <em>가시성 버퍼</em>에 한 번만 그려집니다: 각 픽셀에는 거기 보이는 삼각형의 번호만 기록됩니다.</li>\n<li><strong>표면을 칠한다.</strong> 그다음 각 픽셀은 자신의 삼각형이 가진 재질(색, 거칠기, 금속 여부, 노멀 맵)을 읽습니다. 같은 종류의 표면은 한데 모여 한 번의 패스로 칠해집니다.</li>\n<li><strong>빛을 더하고, 매끄럽게 다듬는다.</strong> 조명과 그림자가 더해지고, 투명한 표면은 마지막에 처리되며, <em>시간적 안티앨리어싱</em>이 지난 프레임들과 지금 프레임을 섞어 가장자리를 매끄럽게 유지합니다.</li>\n</ol>\n<p>아무것도 움직이지 않을 때는 이 과정 전체가 실행되지 않습니다: 월드는 마지막 화면을 그대로 유지합니다.</p>\n<p>전체 과정: <a href=\"https://github.com/pasquelin/trillion3D/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
     },
     "occlusion-two-phase": {
       "title": "보이지 않는 것 건너뛰기",
       "description": "벽 하나가 그 뒤의 방을 공짜로 가려 주는 이유: 엔진은 지난 프레임에서 가려진 것으로 판명된 것을 그리지 않습니다.",
-      "html": "<p>어떤 마을에는 첫 줄의 집들 뒤에 수천 개의 오브젝트가 있습니다. 그것들을 모두 그린다면, 아무도 보지 못하는 픽셀을 위해 시간을 쓰는 셈이 됩니다. 그래서 엔진은 두 단계로 그립니다:</p>\n<ol>\n<li>먼저, 지난 프레임에서 보였던 것을 그립니다. 이것으로 화면 각 위치에서 가장 가까운 표면이 얼마나 가까운지에 대한 대략적인 깊이 정보를 얻습니다.</li>\n<li>그다음, 나머지 모든 조각을 그 깊이와 비교해 검사합니다. 완전히 뒤에 있는 조각은 건너뛰고, 나머지는 그립니다.</li>\n</ol>\n<p>이 검사는 확실히 가려진 것만 건너뜁니다: 판단이 틀려도 한 번 더 검사할 뿐, 픽셀이 빠지는 일은 없습니다. 설정할 항목은 없으며, 항상 켜져 있습니다.</p>\n<p>자세히: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
+      "html": "<p>어떤 마을에는 첫 줄의 집들 뒤에 수천 개의 오브젝트가 있습니다. 그것들을 모두 그린다면, 아무도 보지 못하는 픽셀을 위해 시간을 쓰는 셈이 됩니다. 그래서 엔진은 두 단계로 그립니다:</p>\n<ol>\n<li>먼저, 지난 프레임에서 보였던 것을 그립니다. 이것으로 화면 각 위치에서 가장 가까운 표면이 얼마나 가까운지에 대한 대략적인 깊이 정보를 얻습니다.</li>\n<li>그다음, 나머지 모든 조각을 그 깊이와 비교해 검사합니다. 완전히 뒤에 있는 조각은 건너뛰고, 나머지는 그립니다.</li>\n</ol>\n<p>이 검사는 확실히 가려진 것만 건너뜁니다: 판단이 틀려도 한 번 더 검사할 뿐, 픽셀이 빠지는 일은 없습니다. 설정할 항목은 없으며, 항상 켜져 있습니다.</p>\n<p>자세히: <a href=\"https://github.com/pasquelin/trillion3D/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
     },
     "cluster-format": {
       "title": "모델은 어떻게 담기는가",
       "description": "컴파일러가 써 내는 것: 압축해서 저장되고, 각각 단독으로 읽을 수 있는 작은 삼각형 페이지들.",
-      "html": "<p>컴파일러는 모델을 최대 128개의 삼각형으로 이루어진 클러스터로 자르고, 각각을 브라우저가 단독으로 읽을 수 있는 <em>페이지</em>로 저장합니다.</p>\n<ul>\n<li>위치, 텍스처 좌표, 노멀은 촘촘한 격자에 맞춰 반올림됩니다. 이 덕분에 페이지가 있는 그대로의 수치보다 몇 배나 작아지며, 반올림 오차는 1픽셀보다 훨씬 작게 유지됩니다.</li>\n<li>각 페이지는 그 반올림으로 점이 얼마나 움직였는지를 함께 적어 두어서, 엔진이 추측할 필요가 없습니다.</li>\n<li>페이지는 내용에 따라 이름이 붙습니다: 조각을 공유하는 두 모델은 그 페이지도 공유합니다.</li>\n</ul>\n<p>정확한 구조는 <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/FORMAT.md\">docs/FORMAT.md</a>에 있습니다.</p>"
+      "html": "<p>컴파일러는 모델을 최대 128개의 삼각형으로 이루어진 클러스터로 자르고, 각각을 브라우저가 단독으로 읽을 수 있는 <em>페이지</em>로 저장합니다.</p>\n<ul>\n<li>위치, 텍스처 좌표, 노멀은 촘촘한 격자에 맞춰 반올림됩니다. 이 덕분에 페이지가 있는 그대로의 수치보다 몇 배나 작아지며, 반올림 오차는 1픽셀보다 훨씬 작게 유지됩니다.</li>\n<li>각 페이지는 그 반올림으로 점이 얼마나 움직였는지를 함께 적어 두어서, 엔진이 추측할 필요가 없습니다.</li>\n<li>페이지는 내용에 따라 이름이 붙습니다: 조각을 공유하는 두 모델은 그 페이지도 공유합니다.</li>\n</ul>\n<p>정확한 구조는 <a href=\"https://github.com/pasquelin/trillion3D/blob/develop/docs/FORMAT.md\">docs/FORMAT.md</a>에 있습니다.</p>"
     },
     "water-pass": {
       "title": "물과 유리",
       "description": "투명한 재질이 그 뒤의 모습을 어떻게 휘어 보이게 하는가: 엔진은 이미 그린 화면을 다시 읽어 들입니다.",
-      "html": "<p>물이나 두꺼운 유리는 물감처럼 그대로 칠해지지 않습니다. 엔진은 먼저 불투명한 것들을 모두 그리고 그 화면의 복사본을 보관해 둔 다음, 물이나 유리의 각 픽셀에 대해, 표면에서 빛이 휘는 만큼 조금 옆으로 이동한 지점을 그 복사본에서 읽어 옵니다.</p>\n<ul>\n<li>얼마나 휘고 어떤 색을 띠는지는 임포트된 재질(굴절률, 두께, 색조)에서 정해집니다.</li>\n<li>표면은 실제 물처럼 시야각이 얕을수록 더 강하게 하늘과 조명을 반사합니다.</li>\n<li>한 가지 한계가 있습니다: 유리는 그 뒤에 있는 다른 유리를 비추지 않습니다.</li>\n</ul>\n<p>자세히: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#transparent-surfaces\">docs/ENGINE.md</a>.</p>"
+      "html": "<p>물이나 두꺼운 유리는 물감처럼 그대로 칠해지지 않습니다. 엔진은 먼저 불투명한 것들을 모두 그리고 그 화면의 복사본을 보관해 둔 다음, 물이나 유리의 각 픽셀에 대해, 표면에서 빛이 휘는 만큼 조금 옆으로 이동한 지점을 그 복사본에서 읽어 옵니다.</p>\n<ul>\n<li>얼마나 휘고 어떤 색을 띠는지는 임포트된 재질(굴절률, 두께, 색조)에서 정해집니다.</li>\n<li>표면은 실제 물처럼 시야각이 얕을수록 더 강하게 하늘과 조명을 반사합니다.</li>\n<li>한 가지 한계가 있습니다: 유리는 그 뒤에 있는 다른 유리를 비추지 않습니다.</li>\n</ul>\n<p>자세히: <a href=\"https://github.com/pasquelin/trillion3D/blob/develop/docs/ENGINE.md#transparent-surfaces\">docs/ENGINE.md</a>.</p>"
     },
     "memory-pools": {
       "title": "메모리는 어디로 가는가",
       "description": "모양용과 텍스처용, 두 가지 고정된 양의 GPU 메모리. 화면이 그보다 더 필요로 할 때 무슨 일이 일어나는가.",
-      "html": "<p>엔진은 GPU 메모리 안에 두 개의 <em>풀</em>을 유지합니다: 하나는 모양의 페이지용, 다른 하나는 텍스처의 타일용입니다. 크기는 <code>world.budget</code>(8장)으로 설정하며, 엔진은 그것을 추측하려고 기기 정보를 읽지 않습니다.</p>\n<ul>\n<li>모든 모델의 가장 거친 버전은 항상 유지되므로, 구멍이 생기는 일은 없습니다.</li>\n<li>화면이 풀이 담을 수 있는 것보다 더 많이 필요로 할 때는, 다 들어갈 때까지 더 거친 조각으로 그립니다: 세부는 줄어들어도 부분이 빠지지는 않습니다.</li>\n<li>장면이 실행되는 도중에 풀 크기를 바꾸면, 여전히 들어가는 것은 유지되고 나머지는 놓아집니다.</li>\n</ul>\n<p>자세히: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#memory\">docs/ENGINE.md</a>.</p>"
+      "html": "<p>엔진은 GPU 메모리 안에 두 개의 <em>풀</em>을 유지합니다: 하나는 모양의 페이지용, 다른 하나는 텍스처의 타일용입니다. 크기는 <code>world.budget</code>(8장)으로 설정하며, 엔진은 그것을 추측하려고 기기 정보를 읽지 않습니다.</p>\n<ul>\n<li>모든 모델의 가장 거친 버전은 항상 유지되므로, 구멍이 생기는 일은 없습니다.</li>\n<li>화면이 풀이 담을 수 있는 것보다 더 많이 필요로 할 때는, 다 들어갈 때까지 더 거친 조각으로 그립니다: 세부는 줄어들어도 부분이 빠지지는 않습니다.</li>\n<li>장면이 실행되는 도중에 풀 크기를 바꾸면, 여전히 들어가는 것은 유지되고 나머지는 놓아집니다.</li>\n</ul>\n<p>자세히: <a href=\"https://github.com/pasquelin/trillion3D/blob/develop/docs/ENGINE.md#memory\">docs/ENGINE.md</a>.</p>"
     },
     "texture-compression": {
       "title": "텍스처를 더 작게",
       "description": "텍스처는 타일로 잘려서, 화면이 필요로 하는 곳만 불러오고, 이미지가 달라지지 않는 범위 안에서만 압축됩니다.",
-      "html": "<p>텍스처란 표면에 그려지는 이미지입니다. 컴파일러는 각각을 원본 크기부터 아주 작은 크기까지 여러 단계로 준비하고, 정사각형 타일로 자릅니다. 브라우저는 화면이 실제로 보여주는 타일만, 보여주는 크기로 불러옵니다.</p>\n<p>컴파일러는 또한 타일을 GPU가 직접 읽을 수 있는 압축 포맷으로 저장할 수도 있는데, 대략 4분의 1 크기가 됩니다. 압축본이 원본과 똑같아 보일 때만 그것을 채택하고, 그렇지 않으면 타일은 비압축 상태로 남습니다. 아직 도착하지 않은 타일은 자기 자신의 더 작은 버전을 보여줄 뿐, 구멍이 생기지는 않습니다.</p>\n<p>자세히: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#virtual-textures\">docs/ENGINE.md</a>.</p>"
+      "html": "<p>텍스처란 표면에 그려지는 이미지입니다. 컴파일러는 각각을 원본 크기부터 아주 작은 크기까지 여러 단계로 준비하고, 정사각형 타일로 자릅니다. 브라우저는 화면이 실제로 보여주는 타일만, 보여주는 크기로 불러옵니다.</p>\n<p>컴파일러는 또한 타일을 GPU가 직접 읽을 수 있는 압축 포맷으로 저장할 수도 있는데, 대략 4분의 1 크기가 됩니다. 압축본이 원본과 똑같아 보일 때만 그것을 채택하고, 그렇지 않으면 타일은 비압축 상태로 남습니다. 아직 도착하지 않은 타일은 자기 자신의 더 작은 버전을 보여줄 뿐, 구멍이 생기지는 않습니다.</p>\n<p>자세히: <a href=\"https://github.com/pasquelin/trillion3D/blob/develop/docs/ENGINE.md#virtual-textures\">docs/ENGINE.md</a>.</p>"
     },
     "shadow-pages": {
       "title": "조각으로 나뉜 그림자",
       "description": "카메라가 움직일 때 그림자의 한 줄만 다시 그려지는 이유: 그림자 맵도 모델처럼 페이지로 잘려 있습니다.",
-      "html": "<p>무엇이 그림자 안에 있는지 알기 위해, 각 조명은 자신의 시점에서 장면을 <em>그림자 맵</em>(거리를 나타내는 이미지)으로 렌더링합니다. 엔진은 이 맵들을 페이지로 자릅니다.</p>\n<ul>\n<li>태양광은 카메라 근처는 정밀하고 멀리는 거친 몇 장의 맵으로 시야 전체를 덮습니다.</li>\n<li>카메라가 조금 움직이면, 새로 시야에 들어온 페이지 줄만 다시 그려지고 나머지는 유지됩니다.</li>\n<li>아직 준비되지 않은 페이지는 더 거친 맵을 빌려 쓰므로, 그림자가 빠지는 일은 없습니다.</li>\n</ul>\n<p>자세히: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#direct-lighting\">docs/ENGINE.md</a>.</p>"
+      "html": "<p>무엇이 그림자 안에 있는지 알기 위해, 각 조명은 자신의 시점에서 장면을 <em>그림자 맵</em>(거리를 나타내는 이미지)으로 렌더링합니다. 엔진은 이 맵들을 페이지로 자릅니다.</p>\n<ul>\n<li>태양광은 카메라 근처는 정밀하고 멀리는 거친 몇 장의 맵으로 시야 전체를 덮습니다.</li>\n<li>카메라가 조금 움직이면, 새로 시야에 들어온 페이지 줄만 다시 그려지고 나머지는 유지됩니다.</li>\n<li>아직 준비되지 않은 페이지는 더 거친 맵을 빌려 쓰므로, 그림자가 빠지는 일은 없습니다.</li>\n</ul>\n<p>자세히: <a href=\"https://github.com/pasquelin/trillion3D/blob/develop/docs/ENGINE.md#direct-lighting\">docs/ENGINE.md</a>.</p>"
     },
     "IDENTITY_MATRIX4": {
       "description": "열 우선(column-major) 단위 행렬. 읽기 전용이며 절대 다시 쓰이지 않습니다: 자세가 없는 노드나 루트의 자세를 나타냅니다.",

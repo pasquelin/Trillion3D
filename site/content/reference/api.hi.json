@@ -848,7 +848,7 @@
     "summary": "एक फ़ंक्शन जो एक जाँच चैनल की हर बात सुनता है।"
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "WebGeometry explorer (MeasuredWorldOptions) के लिए सभी इनिशियलाइज़ेशन विकल्पों का दस्तावेज़ बनाने वाला व्यापक JSON Schema।",
+    "summary": "trillion3D explorer (MeasuredWorldOptions) के लिए सभी इनिशियलाइज़ेशन विकल्पों का दस्तावेज़ बनाने वाला व्यापक JSON Schema।",
     "description": "LLM को 3D इंजन कॉन्फ़िगरेशन समझने, जाँचने और ठीक करने में सक्षम बनाता है।"
   },
   "EngineCamera": {
@@ -2923,7 +2923,7 @@
   "SavedScene": {
     "summary": "एक दृश्य, जैसा `scene.toJSON` लिखता है और `scene.fromJSON` पढ़ता है: सादा JSON।",
     "members": {
-      "format": "हमेशा `'web-geometry-scene'`।",
+      "format": "हमेशा `'trillion3d-scene'`।",
       "formatVersion": "इस बनावट का वर्ज़न; कोई दूसरा वर्ज़न मना कर दिया जाता है।",
       "background": "पृष्ठभूमि का रंग, या `null`।",
       "fog": "कोहरा, या `null`।",
@@ -3962,14 +3962,14 @@
       "toArray": "चारों संख्याएँ एक सूची के रूप में।"
     }
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "एक LLM से WebGeometry नियंत्रित करने के लिए उपलब्ध टूल और रनटाइम फ़ंक्शन की पूरी सूची।"
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "एक LLM से trillion3D नियंत्रित करने के लिए उपलब्ध टूल और रनटाइम फ़ंक्शन की पूरी सूची।"
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "WebGeometry के सिद्धांतों, बजट और रेंडरिंग विकल्पों पर एक LLM को मार्गदर्शन देता सिस्टम प्रॉम्प्ट।"
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "trillion3D के सिद्धांतों, बजट और रेंडरिंग विकल्पों पर एक LLM को मार्गदर्शन देता सिस्टम प्रॉम्प्ट।"
   },
-  "WebGeometryTool": {
-    "summary": "LLM के लिए सामान्य WebGeometry टूल परिभाषा।",
+  "Trillion3DTool": {
+    "summary": "LLM के लिए सामान्य trillion3D टूल परिभाषा।",
     "members": {
       "name": "टूल का नाम।",
       "description": "यह क्या करता है।",
@@ -5080,11 +5080,11 @@
     "summary": "सार्वजनिक उद्गम सीमा: उपभोक्ता कभी खुद SDK कार्यान्वयन पथ नहीं पढ़ते।",
     "description": "केवल हैश — पूरा स्रोत स्नैपशॉट में लोड नहीं किया जाता।"
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3DLlmPrompt": {
     "summary": "एक LLM को तैयार करने के लिए तैयार-से-इस्तेमाल विशेषज्ञ सिस्टम प्रॉम्प्ट बनाता है।"
   },
-  "getWebGeometryTools": {
-    "summary": "लक्ष्य LLM प्रदाता के लिए फ़ॉर्मेट किए गए WebGeometry टूल परिभाषाओं की पूरी ऐरे लौटाता है।",
+  "getTrillion3DTools": {
+    "summary": "लक्ष्य LLM प्रदाता के लिए फ़ॉर्मेट किए गए trillion3D टूल परिभाषाओं की पूरी ऐरे लौटाता है।",
     "parameters": {
       "format": "लक्ष्य फ़ॉर्मेट ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema')। डिफ़ॉल्ट: 'openai'।"
     }
@@ -6551,16 +6551,16 @@
     "description": "टेम्पलेट कंपाइलर से आता है और इंजन कैश लेआउट नहीं जानता; एक सत्य, जैसे पृष्ठों के लिए। अपने चार फ़ील्डों के बिना एक टेम्पलेट अस्वीकृत किया जाता है: एक पता जो उनके साथ भिन्न नहीं होता वह हर texture को वही छवि परोसेगा।"
   },
   "toAnthropicTool": {
-    "summary": "एक सामान्य WebGeometry टूल को Anthropic Tool Use फ़ॉर्मेट में बदलता है।"
+    "summary": "एक सामान्य trillion3D टूल को Anthropic Tool Use फ़ॉर्मेट में बदलता है।"
   },
   "toGeminiTool": {
-    "summary": "एक सामान्य WebGeometry टूल को Google Gemini Function Declaration फ़ॉर्मेट में बदलता है।"
+    "summary": "एक सामान्य trillion3D टूल को Google Gemini Function Declaration फ़ॉर्मेट में बदलता है।"
   },
   "toMcpTool": {
-    "summary": "एक सामान्य WebGeometry टूल को Model Context Protocol (MCP) फ़ॉर्मेट में बदलता है।"
+    "summary": "एक सामान्य trillion3D टूल को Model Context Protocol (MCP) फ़ॉर्मेट में बदलता है।"
   },
   "toOpenAiTool": {
-    "summary": "एक सामान्य WebGeometry टूल को OpenAI Function Calling फ़ॉर्मेट में बदलता है।"
+    "summary": "एक सामान्य trillion3D टूल को OpenAI Function Calling फ़ॉर्मेट में बदलता है।"
   },
   "toneMapping": {
     "summary": "वह वक्र जो दृश्य की रेडियंस को डिस्प्ले रेंज में लाता है: हर वक्र जिसे इंजन रैंक करता है।"
