@@ -24,17 +24,22 @@ export async function openMeasuredWorld(
     options.signal = options.signal
       ? AbortSignal.any([options.signal, lifetime.signal])
       : lifetime.signal;
-  const { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress } =
-    createExplorerSession(options);
-  progress('manifest', 0, 1, 'Reading the cache');
   const manifestUrl = source?.manifestUrl ?? options.manifestUrl;
+  const { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress, opening } =
+    createExplorerSession(options, manifestUrl);
+  progress('manifest', 0, 1, 'Reading the cache');
   const {
     metadata,
     metadataUrl,
     loadedBase: base,
   } = source
     ? { ...source, loadedBase: source.base }
-    : await loadExplorerManifest(manifestUrl, scope, signal, diagnose, diagnosticChannel);
+    : await loadExplorerManifest(manifestUrl, scope, signal, diagnose, diagnosticChannel).catch(
+        (error: unknown) => {
+          opening.done();
+          throw error;
+        },
+      );
   const resources: ExplorerResources = {};
   const backends: RenderBackend[] = [];
   const session: ExplorerSession = {
@@ -101,6 +106,8 @@ export async function openMeasuredWorld(
     diagnosticChannel.flushSync();
     diagnosticChannel.close();
     throw error;
+  } finally {
+    opening.done();
   }
 }
 export type MeasuredWorld = Awaited<ReturnType<typeof openMeasuredWorld>>;

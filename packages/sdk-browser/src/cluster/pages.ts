@@ -1,7 +1,37 @@
 import { EngineError } from '../../../sdk-core/src/index.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
-export async function checked(url: string, signal?: AbortSignal) {
-  const response = await fetch(url, { signal });
+/** A failure a second request may not meet: the network, or a server error (5xx). */
+const transient = (response: Response | undefined) => !response || response.status >= 500;
+
+/**
+ * Reads `url`, asking once more when the first request fails on the network or on a server error
+ * (a 5xx such as a busy server's 503); a refusal another request would meet again — a 404, a 403 —
+ * is not asked twice. What still fails is refused by an `EngineError` naming the address. A caller
+ * that retries on its own terms — the page streamer — asks for one `attempts`.
+ */
+export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
+  let response: Response | undefined, cause: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    signal?.throwIfAborted();
+    try {
+      response = await fetch(url, { signal });
+    } catch (error) {
+      signal?.throwIfAborted();
+      [response, cause] = [undefined, error];
+    }
+    if (!transient(response)) break;
+  }
+  // A network failure is the same refusal as an HTTP one, with no status to give.
+  if (!response)
+    throw new EngineError(
+      'RESOURCE_HTTP_ERROR',
+      `${url}: ${String(cause)} (${attempts} attempts)`,
+      {
+        url,
+        status: null,
+        contentType: null,
+      },
+    );
   if (!response.ok)
     throw new EngineError(
       'RESOURCE_HTTP_ERROR',

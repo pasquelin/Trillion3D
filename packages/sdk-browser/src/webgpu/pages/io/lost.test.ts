@@ -22,7 +22,8 @@ function runtime() {
   return { rt, announced, presenter: rt.gpu.presenter };
 }
 
-test('a lost device withdraws the surface and the held frame, then announces it once', () => {
+test('a lost device withdraws the surface and the held frame, then announces it once', (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
   const { rt, announced, presenter } = runtime();
   rt.diag.engineDiagnostic = (phase, message, details) => {
     // Announced after the withdrawal: the host already finds nothing to present.
@@ -41,13 +42,18 @@ test('a lost device withdraws the surface and the held frame, then announces it 
   ]);
   assert.equal(markWebgpuLost(rt as never, { reason: 'residency', message: 'again' }), false);
   assert.equal(announced.length, 1, 'a second cause announces nothing');
+  // Said on the console too, once: a canvas gone blank says nothing by itself.
+  assert.equal(logged.mock.callCount(), 1);
+  assert.match(String(logged.mock.calls[0].arguments[0]), /device lost \(destroyed\): gone/);
   assert.equal(presenter.disposed, 1);
 });
 
-test('a dispose withdraws the same things without announcing a loss', () => {
+test('a dispose withdraws the same things without announcing a loss', (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
   const { rt, announced, presenter } = runtime();
   assert.equal(markWebgpuLost(rt as never), true);
   assert.equal(rt.gpu.presenter, undefined);
   assert.equal(presenter.disposed, 1);
   assert.deepEqual(announced, []);
+  assert.equal(logged.mock.callCount(), 0);
 });
