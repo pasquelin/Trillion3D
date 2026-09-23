@@ -1792,9 +1792,6 @@
     "summary": "Phiên bản 4 biến các mục xem trước 16×16 cố định thành các mức lũy tiến có kích thước biến đổi: cột điểm ảnh không còn bước nhảy cố định nữa, mỗi mục tự nêu tên phạm vi byte của riêng nó.",
     "description": "Một tệp thuộc phiên bản khác bị từ chối toàn bộ: một trình đọc cắt sai phạm vi sẽ hiển thị các mức của một kết cấu này trên một kết cấu khác. Phiên bản 5 mở rộng một mục xem trước từ mười lên mười hai từ (word) — atlas mà nó phục vụ và có bao nhiêu mức được nướng sẵn dưới dạng tệp trong `textures/` — và các điểm ảnh của nó theo đúng quy tắc mip của card đồ họa; một trình đọc phiên bản 4 sẽ bước qua các mục sai cách, nên nó từ chối tệp này. Phiên bản 6 giữ nguyên mọi cột và nêu tên một trang hình học khác trong bộ mô tả hình học: trang `WGP3` đã lượng tử hóa (`geometryPage.ts`) thay cho trang `WGP2` số thực, mà một trình đọc phiên bản 6 sẽ phải từ chối từng byte một khi giải mã; từ chối cả tệp nói lên điều đó một lần cho xong. Phiên bản 7 mở rộng một mục xem trước lên mười bốn từ — cách bố trí mà mỗi họ khối giữ chuỗi, hoặc không có — và thêm hai cột: các đuôi được nén khối, họ BC rồi đến ASTC, phạm vi của mỗi mục được giữ lại theo sau các kích thước của nó; một trình đọc phiên bản 6 sẽ không biết chúng, nên nó từ chối."
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Phiên bản của bảng vật liệu mà thời gian chạy này đọc."
-  },
   "MATH_PATH_CONTRACT": {
     "summary": "Phiên bản hợp đồng của báo cáo này.",
     "description": "Một ứng dụng chủ không biết đến nó thì không đọc các trường đó."
@@ -2093,9 +2090,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: ma trận cục bộ được dựng lại từ vị trí, góc xoay, tỉ lệ."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Phiên bản của bảng node mà thời gian chạy này đọc."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Một ma trận pháp tuyến 3×3."
@@ -2604,22 +2598,6 @@
       "onProgress": "Được gọi ở mỗi sự kiện."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "Các bảng node và vật liệu mà một mô hình đã biên dịch mang theo.",
-    "members": {
-      "version": "Phiên bản sản phẩm.",
-      "nodeTableVersion": "Phiên bản bảng node.",
-      "materialTableVersion": "Phiên bản bảng vật liệu.",
-      "geometryTableVersion": "Phiên bản bố cục hình học.",
-      "scene": "Cảnh mà máy chủ mở, và các nút ở đỉnh của nó.",
-      "nodes": "Mọi nút.",
-      "lights": "Các đèn mà các nút mang.",
-      "cameras": "Các camera mà các nút mang.",
-      "materials": "Các vật liệu.",
-      "textures": "Các kết cấu.",
-      "documents": "Bố cục hình học của từng tệp cảnh đã xuất bản, theo tên của nó."
-    }
-  },
   "Primitive": {
     "summary": "Cách các tam giác mà một mesh vẽ được đọc từ hình học của nó."
   },
@@ -2798,12 +2776,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Phiên bản của sản phẩm bộ nhớ đệm \"proxy\".",
     "description": "Một proxy thuộc phiên bản khác bị từ chối, không bao giờ bị đoán."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Tên của tệp chứa các bảng node và vật liệu."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Phiên bản của sản phẩm nói chung; mỗi bảng nó mang theo được đánh phiên bản riêng theo lượt."
   },
   "SDK_VERSION": {
     "summary": "Phiên bản của gói bộ máy này."
@@ -3465,21 +3437,6 @@
       "alphaMode": "Cách đọc alpha: bỏ qua, cắt tại `alphaTest`, hoặc hòa trộn.",
       "opacity": "Alpha của hệ số màu cơ bản.",
       "extensions": "Những gì các phần mở rộng vật lý thêm vào, theo tên tham số của máy chủ: một hệ số, một màu hoặc một khoảng dưới dạng số, một bản đồ dưới dạng khe."
-    }
-  },
-  "TableNode": {
-    "summary": "Một nút của đồ thị cảnh, ở thứ hạng glTF của nó: các nút con, lưới và đèn điểm mà nó mang, và tư thế CỤC BỘ đúng như được khai báo — một ma trận, hoặc bất kỳ phép tịnh tiến, xoay và tỉ lệ nào, mỗi cái là `null` khi không nêu.",
-    "description": "Nhiều nút cùng gọi một lưới: đó chính là việc tạo thể hiện ở đây.",
-    "members": {
-      "name": "Tên của nút.",
-      "children": "Các nút con, theo thứ tự.",
-      "mesh": "Lưới mà nó vẽ.",
-      "light": "Đèn mà nó mang.",
-      "camera": "Camera mà nó mang.",
-      "matrix": "Ma trận cục bộ của nó, theo cột.",
-      "translation": "Nơi nó đứng.",
-      "rotation": "Nó được xoay thế nào, dưới dạng quaternion.",
-      "scale": "Nó được kéo giãn thế nào."
     }
   },
   "TableTexture": {
@@ -4280,10 +4237,6 @@
   "assertSceneProxy": {
     "summary": "Từ chối một bộ mô tả proxy mà động cơ này không thể đọc, trước khi một byte duy nhất được yêu cầu.",
     "description": "Một tệp kê khai không có bộ mô tả không phải là một lỗi: đó là một bộ nhớ đệm từ trước khi có tính năng dội lại, và bộ máy nói rõ điều đó thay vì đoán mò hình học mà nó không có."
-  },
-  "assertSceneTables": {
-    "summary": "Các bảng, hoặc một sự từ chối có tên.",
-    "description": "Một phiên bản không xác định không bao giờ bị đoán mò: một sản phẩm được viết bởi một trình biên dịch khác, hoặc trước khi một bảng thay đổi hình dạng, không nói lên điều gì mà trình đọc này có thể kiểm tra một cảnh dựa vào, và việc đọc nó nửa chừng sẽ biến một thay đổi định dạng thành một phép so sánh sai."
   },
   "axisAngleQuaternion": {
     "summary": "Quaternion của một phép xoay `angle` radian quanh một trục đơn vị."

@@ -1792,9 +1792,6 @@
     "summary": "Versi 4 mengubah entri pratinjau 16×16 tetap menjadi tingkat progresif yang berubah-ubah: kolom piksel tidak lagi punya stride, tiap entri menyebut rentang byte-nya sendiri.",
     "description": "Sebuah berkas dari versi lain ditolak seutuhnya: sebuah pembaca yang mengiris rentang salah akan menampilkan tingkat satu tekstur pada tekstur lain. Versi 5 melebarkan sebuah entri pratinjau dari sepuluh menjadi dua belas word — atlas yang dilayaninya dan berapa banyak tingkat dipanggang sebagai berkas di bawah `textures/` — dan pikselnya mengikuti aturan mip kartu grafis; sebuah pembaca versi-4 akan mengiris entri secara salah, jadi ia menolak berkas ini. Versi 6 menyimpan setiap kolom dan menyebut halaman geometri lain di deskriptor geometri: halaman `WGP3` terkuantisasi (`geometryPage.ts`) menggantikan halaman `WGP2` float, yang byte-nya akan ditolak sebuah pembaca versi-6 satu per satu saat penguraian; menolak berkas itu mengatakannya sekali. Versi 7 melebarkan sebuah entri pratinjau menjadi empat belas word — tata letak yang dipegang setiap keluarga blok pada rantainya, atau tidak ada — dan menambah dua kolom: ekor yang dikompresi blok, keluarga BC lalu ASTC, rentang tiap entri yang disimpan mengikuti dimensinya; sebuah pembaca versi-6 tidak akan mengetahuinya, jadi ia menolak."
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Versi tabel material yang dibaca runtime ini."
-  },
   "MATH_PATH_CONTRACT": {
     "summary": "Versi kontrak laporan ini.",
     "description": "Host yang tidak mengetahuinya tidak membaca bidang-bidangnya."
@@ -2093,9 +2090,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: matriks lokal disusun ulang dari posisi, rotasi, skala."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Versi tabel node yang dibaca runtime ini."
   },
   "NORMAL_MATRIX_VALUES": {
     "summary": "Sebuah matriks normal 3×3."
@@ -2604,22 +2598,6 @@
       "onProgress": "Dipanggil pada setiap peristiwa."
     }
   },
-  "PreparedSceneTables": {
-    "summary": "Tabel node dan material yang dibawa sebuah model terkompilasi.",
-    "members": {
-      "version": "Versi produk.",
-      "nodeTableVersion": "Versi tabel node.",
-      "materialTableVersion": "Versi tabel material.",
-      "geometryTableVersion": "Versi tata letak geometri.",
-      "scene": "Adegan yang dibuka host, dan simpul di puncaknya.",
-      "nodes": "Setiap simpul.",
-      "lights": "Cahaya yang dibawa simpul.",
-      "cameras": "Kamera yang dibawa simpul.",
-      "materials": "Material-nya.",
-      "textures": "Tekstur-teksturnya.",
-      "documents": "Tata letak geometri setiap berkas adegan yang diterbitkan, menurut namanya."
-    }
-  },
   "Primitive": {
     "summary": "Bagaimana segitiga yang digambar sebuah mesh dibaca dari geometrinya."
   },
@@ -2798,12 +2776,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Versi produk cache \"proxy\".",
     "description": "Sebuah proxy dari versi lain ditolak, tidak pernah ditebak."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Nama berkas yang menyimpan tabel node dan material."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Versi produk secara keseluruhan; setiap tabel yang dibawanya diberi versi bergiliran."
   },
   "SDK_VERSION": {
     "summary": "Versi paket mesin ini."
@@ -3465,21 +3437,6 @@
       "alphaMode": "Cara alfa dibaca: diabaikan, dipotong pada `alphaTest`, atau dicampur.",
       "opacity": "Alfa dari faktor warna dasar.",
       "extensions": "Apa yang ditambahkan ekstensi fisik, dengan nama parameter host: faktor, warna, atau rentang sebagai angka, peta sebagai slot."
-    }
-  },
-  "TableNode": {
-    "summary": "Satu simpul graf adegan, pada peringkat glTF-nya: anak-anaknya, mesh dan cahaya titik yang dibawanya, dan pose LOKAL-nya persis seperti dideklarasikan — sebuah matriks, atau mana pun dari translasi, rotasi, dan skala, masing-masing `null` bila tidak disebut.",
-    "description": "Beberapa simpul yang menyebut satu mesh yang sama: itulah instansiasi di sini.",
-    "members": {
-      "name": "Nama simpul.",
-      "children": "Anak-anaknya, berurutan.",
-      "mesh": "Mesh yang digambarnya.",
-      "light": "Cahaya yang dibawanya.",
-      "camera": "Kamera yang dibawanya.",
-      "matrix": "Matriks lokalnya, per kolom.",
-      "translation": "Di mana ia berada.",
-      "rotation": "Bagaimana ia diputar, sebagai kuaternion.",
-      "scale": "Bagaimana ia direntangkan."
     }
   },
   "TableTexture": {
@@ -4280,10 +4237,6 @@
   "assertSceneProxy": {
     "summary": "Menolak sebuah deskriptor proxy yang tidak bisa dibaca mesin ini, sebelum satu byte pun diminta.",
     "description": "Sebuah manifest tanpa deskriptor bukan galat: itu adalah cache dari sebelum pantulan, dan mesin mengatakan begitu alih-alih menebak geometri yang tidak dimilikinya."
-  },
-  "assertSceneTables": {
-    "summary": "Tabelnya, atau sebuah penolakan bernama.",
-    "description": "Sebuah versi tak dikenal tidak pernah ditebak: sebuah produk yang ditulis kompiler lain, atau sebelum sebuah tabel berubah bentuk, tidak mengatakan apa pun yang bisa diperiksa pembaca ini terhadap sebuah scene, dan membacanya separuh jalan akan mengubah perubahan format menjadi perbandingan yang salah."
   },
   "axisAngleQuaternion": {
     "summary": "Quaternion sebuah rotasi sebesar `angle` radian mengelilingi sebuah sumbu satuan."

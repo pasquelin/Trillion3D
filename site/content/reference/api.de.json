@@ -147,10 +147,6 @@
     "summary": "Verweigert einen Proxy-Deskriptor, den diese Engine nicht lesen könnte, bevor auch nur ein Byte angefordert wird.",
     "description": "Ein Manifest ohne Deskriptor ist kein Fehler: es ist ein Cache von vor der indirekten Beleuchtung, und die Engine sagt das, statt eine Geometrie zu erraten, die sie nicht hat."
   },
-  "assertSceneTables": {
-    "summary": "Die Tabellen, oder eine benannte Ablehnung.",
-    "description": "Eine unbekannte Version wird nie erraten: ein von einem anderen Compiler geschriebenes Produkt, oder eines von vor einer Formänderung einer Tabelle, sagt nichts, wogegen dieser Leser eine Szene prüfen könnte, und es halb zu lesen würde eine Formatänderung in einen falschen Vergleich verwandeln."
-  },
   "AssetScope": {
     "summary": "Wie ein Modell kompiliert wird: `'slice'` lässt es seitenweise ankommen, `'full'` behält es ganz."
   },
@@ -3622,9 +3618,6 @@
       "dispose": "Vergisst diejenigen, die es tragen: ein freigegebenes Material bemalt niemanden mehr."
     }
   },
-  "MATERIAL_TABLE_VERSION": {
-    "summary": "Die Version der Materialtabelle, die diese Engine liest."
-  },
   "MaterialParameters": {
     "summary": "Was eine Seite einem Materialmitglied geben kann; jedes Feld ist optional.",
     "members": {
@@ -4038,9 +4031,6 @@
   },
   "NODE_AUTO_UPDATE": {
     "summary": "`matrixAutoUpdate`: die lokale Matrix wird aus Position, Rotation und Größe neu zusammengesetzt."
-  },
-  "NODE_TABLE_VERSION": {
-    "summary": "Die Version der Knotentabelle, die diese Engine liest."
   },
   "nodeWorldDirection": {
     "summary": "Richtung in der Welt: die dritte normalisierte Spalte (eine Nullspalte bleibt null).",
@@ -4669,22 +4659,6 @@
     },
     "returns": "Das vom Compiler geschriebene Manifest, mit dem, was die Kompilierung gemessen hat."
   },
-  "PreparedSceneTables": {
-    "summary": "Die Knoten- und Materialtabellen, die ein kompiliertes Modell trägt.",
-    "members": {
-      "version": "Version des Produkts.",
-      "nodeTableVersion": "Version der Knotentabelle.",
-      "materialTableVersion": "Version der Materialtabelle.",
-      "geometryTableVersion": "Version des Geometrie-Layouts.",
-      "scene": "Die Szene, die der Host öffnet, und die Knoten an ihrer Spitze.",
-      "nodes": "Jeder Knoten.",
-      "lights": "Die Lichter, die die Knoten tragen.",
-      "cameras": "Die Kameras, die die Knoten tragen.",
-      "materials": "Die Materialien.",
-      "textures": "Die Texturen.",
-      "documents": "Das Geometrie-Layout jeder veröffentlichten Szenendatei, nach ihrem Namen."
-    }
-  },
   "prepareMany": {
     "summary": "Kompiliert mehrere Modelle in einem einzigen Compiler-Prozess.",
     "parameters": {
@@ -5047,12 +5021,6 @@
   "SCENE_PROXY_VERSION": {
     "summary": "Version des „Proxy“-Cache-Produkts.",
     "description": "Ein Proxy anderer Version wird abgelehnt, nie erraten."
-  },
-  "SCENE_TABLES_FILE": {
-    "summary": "Der Name der Datei, die die Knoten- und Materialtabellen enthält."
-  },
-  "SCENE_TABLES_VERSION": {
-    "summary": "Version des gesamten Produkts; jede von ihm getragene Tabelle hat ihre eigene Version."
   },
   "SceneEnvironment": {
     "summary": "Das Licht um eine Szene: Belichtung, Anzeigekurve und Licht aus allen Richtungen.",
@@ -5671,21 +5639,6 @@
       "alphaMode": "Wie Alpha gelesen wird: ignoriert, bei `alphaTest` abgeschnitten oder gemischt.",
       "opacity": "Das Alpha des Grundfarbfaktors.",
       "extensions": "Was die physikalischen Erweiterungen hinzufügen, unter den Parameternamen des Hosts: ein Faktor, eine Farbe oder ein Bereich als Zahlen, eine Map als Platz."
-    }
-  },
-  "TableNode": {
-    "summary": "Ein Knoten des Szenengraphen, an seinem glTF-Rang: seine Kinder, das Mesh und das punktförmige Licht, das er trägt, und seine LOKALE Pose genau wie deklariert — eine Matrix oder beliebige aus Verschiebung, Drehung und Skalierung, jeweils `null`, wenn nicht angegeben.",
-    "description": "Mehrere Knoten, die dasselbe Mesh nennen: Das ist hier Instanziierung.",
-    "members": {
-      "name": "Der Name des Knotens.",
-      "children": "Seine Kinder, der Reihe nach.",
-      "mesh": "Das Mesh, das er zeichnet.",
-      "light": "Das Licht, das er trägt.",
-      "camera": "Die Kamera, die er trägt.",
-      "matrix": "Seine lokale Matrix, spaltenweise.",
-      "translation": "Wo er steht.",
-      "rotation": "Wie er gedreht ist, als Quaternion.",
-      "scale": "Wie er gestreckt ist."
     }
   },
   "TableTexture": {
