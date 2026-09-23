@@ -16,8 +16,7 @@ import { forestStands, STAND_SIDE, type StandBiome, type StandVariant } from '..
  * Ground samples per side of a patch, on a lattice neighbouring patches share: no farther apart
  * than the terrain's mean vertex spacing, the finest ground the terrain mesh draws.
  */
-export const SAMPLES =
-  Math.ceil(STAND_SIDE / Math.sqrt((2 * WORLD.size ** 2) / TERRAIN_TRIANGLES)) + 1;
+const SAMPLES = Math.ceil(STAND_SIDE / Math.sqrt((2 * WORLD.size ** 2) / TERRAIN_TRIANGLES)) + 1;
 const STEP = STAND_SIDE / (SAMPLES - 1);
 
 /** The sample offsets across a patch, `[dx, dz]` from its centre, row by row. */
@@ -25,13 +24,13 @@ export const standOffsets = Array.from({ length: SAMPLES * SAMPLES }, (_, n) =>
   [Math.floor(n / SAMPLES), n % SAMPLES].map((k) => (k / (SAMPLES - 1) - 0.5) * STAND_SIDE),
 );
 
-export type StandSpot = { variant: StandVariant; x: number; z: number; y: number; yaw: number };
+type StandSpot = { variant: StandVariant; x: number; z: number; y: number; yaw: number };
 
 /** Ground heights at offsets (dx, dz) from a patch centre, as `[dx, dz, height]`. */
 type Samples = readonly (readonly [number, number, number])[];
 
 /** The best fitting variant for the patch centred at (x, z) over `samples`, or none. */
-export function fitStand(
+function fitStand(
   samples: Samples,
   variants: readonly StandVariant[],
   x: number,
