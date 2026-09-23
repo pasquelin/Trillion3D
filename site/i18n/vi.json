@@ -28,7 +28,7 @@
   "home": {
     "title": "Truyền tải thế giới 3D khổng lồ ngay trên trình duyệt",
     "start": "Bắt đầu khóa học",
-    "editor": "Open the scene editor"
+    "editor": "Mở trình chỉnh sửa cảnh"
   },
   "examples": {
     "lead": "Mỗi ví dụ là một tệp ngắn: xem nó chạy, mở mã nguồn, rồi thay đổi nó.",
@@ -531,7 +531,7 @@
           "<code>metalness</code> chạy từ 0 (nhựa, đất sét, gỗ) đến 1 (kim loại). Kim loại phản chiếu màu sắc của những gì xung quanh nó.",
           "<code>roughness</code> chạy từ 0 (nhẵn như gương, với những điểm sáng nhỏ và sắc) đến 1 (nhám như phấn, với ánh sáng dịu lan tỏa khắp nơi).",
           "Thay đổi một vật liệu bất cứ lúc nào bạn muốn: <code>chrome.roughness = 0.3</code>. Mọi mesh dùng vật liệu đó sẽ thay đổi ngay lập tức.",
-          "Kính là <code>material.meshPhysical</code> với <code>transmission: 1</code>: ánh sáng xuyên qua nó. <code>ior</code>, chiết suất, cho biết ánh sáng bị bẻ cong bao nhiêu: 1,5 cho kính cửa sổ. Xem trong <a href=\"#/en/examples/glass-on-the-table\">Glass on the table</a>."
+          "Kính là <code>material.meshPhysical</code> với <code>transmission: 1</code>: ánh sáng xuyên qua nó. <code>ior</code>, chiết suất, cho biết ánh sáng bị bẻ cong bao nhiêu: 1,5 cho kính cửa sổ. Xem trong <a href=\"#/vi/examples/glass-on-the-table\">Ly thủy tinh trên bàn</a>."
         ],
         "tryIt": "Mỗi cột giống kim loại hơn cột trước, và mỗi hàng nhám hơn. Chọn một màu cho tất cả, rồi làm cho các bóng đèn sáng hơn."
       },
@@ -554,7 +554,7 @@
           "<code>world.camera.position.set(x, y, z)</code> đặt con mắt ở một nơi nào đó; <code>world.camera.lookAt(x, y, z)</code> hướng nó về một điểm.",
           "Một <em>controller</em> biến chuyển động của chuột, ngón tay và bàn phím thành chuyển động của camera. Chọn nó khi tạo thế giới: <code>createWorld('view', { controls: 'orbit' })</code>.",
           "<code>'orbit'</code> xoay quanh một điểm: kéo để xoay, kéo bằng chuột phải để trượt, cuộn để phóng to thu nhỏ. <code>world.controls.target</code> là điểm mà nó xoay quanh.",
-          "Còn có những kiểu khác: <code>'fly'</code> (phím W A S D, xem <a href=\"#/en/examples/fly-over-a-model-town\">Fly a plane through rings</a>), <code>'firstPerson'</code> (đi bộ, xem <a href=\"#/en/examples/walk-through-a-temple\">Temple parkour</a>), <code>'trackball'</code>, <code>'panZoom'</code> cho bản đồ phẳng, và <code>'none'</code> khi chính mã của bạn tự di chuyển camera.",
+          "Còn có những kiểu khác: <code>'fly'</code> (phím W A S D, xem <a href=\"#/vi/examples/fly-over-a-model-town\">Máy bay chiến đấu trong hẻm núi</a>), <code>'character'</code> (chạy và nhảy, va vào tường, xem <a href=\"#/vi/examples/walk-through-a-temple\">Vượt chướng ngại trong đền</a>), <code>'firstPerson'</code> (đi xuyên qua mọi thứ), <code>'trackball'</code>, <code>'panZoom'</code> cho bản đồ phẳng, và <code>'none'</code> khi chính mã của bạn tự di chuyển camera.",
           "Đổi kiểu bất cứ lúc nào: <code>world.controls.kind = 'fly'</code>."
         ],
         "tryIt": "Kéo để xoay quanh chiếc đồng hồ, cuộn để nhìn gần các răng của bánh răng."
@@ -566,7 +566,7 @@
           "Thế giới vẽ một hình mới rất nhiều lần trong một giây. Mỗi hình được gọi là một <em>khung hình</em>. <code>world.onFrame(fn)</code> chạy <code>fn</code> trước mỗi khung hình.",
           "<code>fn</code> nhận vào <code>delta</code>: số giây kể từ khung hình trước. Nhân tốc độ của bạn với nó, để mọi thứ di chuyển nhanh như nhau dù trên màn hình nhanh hay chậm.",
           "Gọi <code>world.invalidate()</code> để báo \"vẽ tiếp đi\". Khi không có gì yêu cầu một khung hình mới, thế giới nghỉ ngơi: một cảnh không chuyển động thì không tốn chi phí gì cả.",
-          "Với một chuyển động gồm nhiều tư thế nối tiếp, như đi bộ, hãy dùng bộ trộn hoạt hình. <code>animation.clip</code> liệt kê các tư thế và thời điểm diễn ra; <code>animation.createMixer(robot).play(clip)</code> phát chúng và lấp đầy những khoảnh khắc ở giữa. Xem <a href=\"#/en/examples/a-robot-that-walks-and-waves\">Blending robot motions</a>."
+          "Với một chuyển động gồm nhiều tư thế nối tiếp, như đi bộ, hãy dùng bộ trộn hoạt hình. <code>animation.clip</code> liệt kê các tư thế và thời điểm diễn ra; <code>animation.createMixer(robot).play(clip)</code> phát chúng và lấp đầy những khoảnh khắc ở giữa. Xem <a href=\"#/vi/examples/a-robot-that-walks-and-waves\">Pha trộn chuyển động robot</a>."
         ],
         "tryIt": "Thay đổi độ cao và tốc độ của sóng. Nhấp đúp vào sàn để thả một viên đá mới."
       },
@@ -913,22 +913,22 @@
     "scene-editor": {
       "title": "Dựng một cảnh bằng trình chỉnh sửa",
       "description": "Thêm hình khối và ánh sáng, chọn chúng bằng chuột, di chuyển chúng bằng tay cầm, đổi màu chúng, lưu cảnh rồi mở lại — ngay trong cổng tài liệu, chỉ với API công khai.",
-      "html": "<p><a href=\"#/en/editor\">Trình chỉnh sửa cảnh</a> là một trang của cổng tài liệu này, được xây trên ba cánh cửa của bộ máy và không gì khác. Hãy bắt đầu từ một cảnh trống: <b>Thêm → Hộp</b>, rồi <b>Thêm → Ánh sáng định hướng</b>. Nhấp vào hộp: <code>world.raycast</code> tìm thấy nó dưới con trỏ, và các tay cầm của <code>controls.transform</code> hiện lên trên nó. Kéo một mũi tên để di chuyển nó — camera đứng yên khi bạn đang giữ tay cầm — nhấn <kbd>E</kbd> để xoay nó, <kbd>R</kbd> để co giãn nó. Đổi màu của nó trong bảng thuộc tính: bộ máy tô lại vật liệu ngay tại chỗ, và chi phí của khung hình vẫn hiện ở góc thống kê. <b>Lưu</b> tải xuống <code>scene.toJSON</code>; <b>Mới</b>, rồi <b>Mở</b>, dựng lại đúng cảnh đó bằng <code>scene.fromJSON</code>.</p>\n<p>Mọi bước đều hoàn tác được bằng <kbd>Ctrl</kbd>+<kbd>Z</kbd>, và cảnh được giữ trong trình duyệt giữa hai lần ghé thăm. Bản thân trang không vẽ hay di chuyển gì cả: những gì bạn thấy chính là bộ máy.</p>"
+      "html": "<p><a href=\"#/vi/editor\">Trình chỉnh sửa cảnh</a> là một trang của cổng tài liệu này, được xây trên ba cánh cửa của bộ máy và không gì khác. Hãy bắt đầu từ một cảnh trống: <b>Thêm → Hộp</b>, rồi <b>Thêm → Ánh sáng định hướng</b>. Nhấp vào hộp: <code>world.raycast</code> tìm thấy nó dưới con trỏ, và các tay cầm của <code>controls.transform</code> hiện lên trên nó. Kéo một mũi tên để di chuyển nó — camera đứng yên khi bạn đang giữ tay cầm — nhấn <kbd>E</kbd> để xoay nó, <kbd>R</kbd> để co giãn nó. Đổi màu của nó trong bảng thuộc tính: bộ máy tô lại vật liệu ngay tại chỗ, và chi phí của khung hình vẫn hiện ở góc thống kê. <b>Lưu</b> tải xuống <code>scene.toJSON</code>; <b>Mới</b>, rồi <b>Mở</b>, dựng lại đúng cảnh đó bằng <code>scene.fromJSON</code>.</p>\n<p>Mọi bước đều hoàn tác được bằng <kbd>Ctrl</kbd>+<kbd>Z</kbd>, và cảnh được giữ trong trình duyệt giữa hai lần ghé thăm. Bản thân trang không vẽ hay di chuyển gì cả: những gì bạn thấy chính là bộ máy.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Chọn một vật thể bằng con trỏ",
       "description": "`world.raycast` trả về vật thể gần nhất dưới một điểm của canvas: node mà trang đã thêm, điểm và pháp tuyến bị chạm, và khoảng cách.",
-      "html": "<p>Phép thử chạy trên CPU, trên chính hình học của cảnh: mesh tam giác được thử từng tam giác một, mô hình đã nạp được thử trên hộp bao của nó, còn đường và điểm thì không bao giờ. Các cây con bị ẩn và các dấu <code>helper</code> được bỏ qua. Xem nó trong <a href=\"#/en/examples/click-to-pick\">Nhấp để chọn</a>.</p>"
+      "html": "<p>Phép thử chạy trên CPU, trên chính hình học của cảnh: mesh tam giác được thử từng tam giác một, mô hình đã nạp được thử trên hộp bao của nó, còn đường và điểm thì không bao giờ. Các cây con bị ẩn và các dấu <code>helper</code> được bỏ qua. Xem nó trong <a href=\"#/vi/examples/click-to-pick\">Nhấp để chọn</a>.</p>"
     },
     "move-with-handles": {
       "title": "Di chuyển, xoay và co giãn bằng tay cầm",
       "description": "`controls.transform(world)` đặt tay cầm lên một vật thể; một lần kéo ghi tư thế của nó thông qua các cha của nó, và camera đứng yên trong lúc đó.",
-      "html": "<p>Các chế độ <code>translate</code>, <code>rotate</code> và <code>scale</code>, trục thế giới hoặc trục cục bộ, bước nhảy tùy chọn. Các sự kiện <code>dragStart</code> và <code>dragEnd</code> bao quanh một lần kéo — một bước hoàn tác. Xem nó trong <a href=\"#/en/examples/move-rotate-scale-gizmo\">Gizmo di chuyển, xoay, co giãn</a>.</p>"
+      "html": "<p>Các chế độ <code>translate</code>, <code>rotate</code> và <code>scale</code>, trục thế giới hoặc trục cục bộ, bước nhảy tùy chọn. Các sự kiện <code>dragStart</code> và <code>dragEnd</code> bao quanh một lần kéo — một bước hoàn tác. Xem nó trong <a href=\"#/vi/examples/move-rotate-scale-gizmo\">Gizmo di chuyển, xoay, co giãn</a>.</p>"
     },
     "save-and-open-a-scene": {
       "title": "Lưu và mở một cảnh",
       "description": "`scene.toJSON(camera)` ghi cảnh thành JSON đơn giản có phiên bản; `scene.fromJSON(json, camera)` dựng lại nó.",
-      "html": "<p>Hình khối được lưu bằng lệnh gọi đã tạo ra chúng, vật liệu bằng giá trị của chúng, mô hình đã nạp bằng địa chỉ của chúng — không bao giờ chép vào trong — còn các dấu <code>helper</code> thì hoàn toàn không được lưu. Một phiên bản định dạng khác bị từ chối kèm theo tên. Xem nó trong <a href=\"#/en/examples/save-the-scene\">Lưu cảnh</a>.</p>"
+      "html": "<p>Hình khối được lưu bằng lệnh gọi đã tạo ra chúng, vật liệu bằng giá trị của chúng, mô hình đã nạp bằng địa chỉ của chúng — không bao giờ chép vào trong — còn các dấu <code>helper</code> thì hoàn toàn không được lưu. Một phiên bản định dạng khác bị từ chối kèm theo tên. Xem nó trong <a href=\"#/vi/examples/save-the-scene\">Lưu cảnh</a>.</p>"
     }
   },
   "canvas": {
@@ -1192,7 +1192,7 @@
       "lights": "Ánh sáng và bóng đổ",
       "animation": "Hoạt ảnh",
       "loaders": "Mô hình đã tải",
-      "streaming": "Truyền phát và bộ nhớ",
+      "streaming": "Truyền tải và bộ nhớ",
       "environment": "Bầu trời và phản chiếu",
       "particles": "Điểm và hạt",
       "interaction": "Tương tác",
