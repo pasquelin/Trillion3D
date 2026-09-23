@@ -1,7 +1,6 @@
 import { createGpuTiming } from '../../../gpu/timing/timing.ts';
 import { addGpuPasses, bounceGpuMs, directLightTimings } from '../../../stage/mapping.ts';
 import { PAGES_RING } from '../state/lights.ts';
-import { markWebgpuLost } from '../io/lost.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
@@ -68,47 +67,4 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
     stats: timingStats,
   });
-}
-
-/** Sessions closing on a device the world keeps: the next session on it listens once they are done. */
-const closing = new WeakMap<GPUDevice, Promise<void>>();
-
-/**
- * Marks the backend lost on an uncaptured error or a lost device; `markWebgpuLost` announces it once.
- *
- * `uncapturederror` carries no owner: on a device the world keeps across sessions, an error left by
- * the session just closed — work it submitted, a read it had queued — would reach the listener of
- * the one opening and be taken for its own loss (#334). So a session starts listening, and makes
- * its first call, only once the one before has handed the device over (`unwatchGpuDevice`). Until
- * then the closed session's listener takes its errors, and ignores them: it is already marked lost.
- */
-export async function watchGpuDevice(
-  rt: WebgpuPagesRuntime,
-  gpuDevice: GPUDevice,
-  onGpuError: (event: GPUUncapturedErrorEvent) => void,
-) {
-  await closing.get(gpuDevice);
-  // Disposed while it waited: its own hand-over has run, nothing is left to listen for.
-  if (rt.run.lost) return;
-  gpuDevice.addEventListener?.('uncapturederror', onGpuError);
-  gpuDevice.lost
-    .then((info) => markWebgpuLost(rt, { reason: info.reason, message: info.message }))
-    .catch((error) => markWebgpuLost(rt, { reason: 'unknown', message: String(error) }));
-}
-
-/**
- * Hands the device over once the queue has run everything the closing session submitted: its
- * errors have been raised by then, on its own listener, which is removed last. Nothing per frame;
- * the next session's opening waits for one queue drain.
- */
-export function unwatchGpuDevice(
-  gpuDevice: GPUDevice,
-  onGpuError: (event: GPUUncapturedErrorEvent) => void,
-) {
-  const done = gpuDevice.queue
-    .onSubmittedWorkDone()
-    .catch(() => {}) // A lost device has nothing left to run.
-    .then(() => gpuDevice.removeEventListener?.('uncapturederror', onGpuError));
-  closing.set(gpuDevice, done);
-  return done;
 }
