@@ -16,14 +16,14 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  * handed to the live controller when it has that setting, and handed again to every controller
  * `kind` makes later. A controller without that setting ignores it — the distances bound the
  * pivot controllers (orbit, trackball, pan-zoom), the angles the orbit alone; `movementSpeed`
- * drives flight and first person, `lookSpeed`, `minPitch` and `maxPitch` first person, the
- * turn speeds, the stick inputs, `inputResponse`, `autoForward` and `pointerLook` flight,
- * `rotateSpeed` and `zoomSpeed` the pivot controllers, the body, speeds, jump and hooks the
- * character — so a page may set them before or after it picks its controller. The character's
- * `colliders` are kept the same way: the triangle tree is built once when they are set, handed
- * to every character `kind` makes, and rebuilt only on `rebuildColliders()`. A cruising flight
- * moves on every frame, so the handle asks for the first one; a
- * disabled controller, or any other kind, leaves the scene still.
+ * drives flight and first person, `lookSpeed`, `minPitch` and `maxPitch` first person and the
+ * character, the turn speeds, the stick inputs, `inputResponse`, `autoForward` and
+ * `pointerLook` flight, `rotateSpeed` and `zoomSpeed` the pivot controllers, the body, speeds,
+ * jump and hooks the character — so a page may set them before or after it picks its
+ * controller. The character's `colliders` are kept the same way: the triangle tree is built
+ * once when they are set, handed to every character `kind` makes, and rebuilt only on
+ * `rebuildColliders()`. A cruising flight moves on every frame, so the handle asks for the
+ * first one; a disabled controller, or any other kind, leaves the scene still.
  */
 export function worldControlsHandle(
   initial: WorldControls,
@@ -38,19 +38,28 @@ export function worldControlsHandle(
     collision: TriangleCollision | null = null;
   const standingTarget = new Vector3(),
     settings = { ...CONTROL_SETTINGS };
-  /** Hands the kept settings to the controller in place, where it has them; a controller that
-   *  now cruises is sent its first frame, the ones after follow from its own `change`. */
+  /** Whether the controller in place moves on its own — cruising, or a stick input held — and
+   *  so is sent its first frame; the ones after follow from its own `change`. */
+  const wake = (live: Record<string, unknown>) => {
+    if (live.autoForward === true || live.pitchInput || live.yawInput || live.rollInput)
+      invalidate();
+  };
+  /** Hands every kept setting to the controller in place, where it has them. */
   const bound = () => {
     const live = current as Record<string, unknown> | null;
     if (!live) return;
     for (const name of Object.keys(settings) as ControlSetting[])
       if (name in live) live[name] = settings[name];
     if ('collision' in live && live.collision !== collision) live.collision = collision;
-    if (live.autoForward === true) invalidate();
+    wake(live);
   };
   const setting = <K extends ControlSetting>(name: K, value: (typeof CONTROL_SETTINGS)[K]) => {
     settings[name] = value;
-    bound();
+    const live = current as Record<string, unknown> | null;
+    if (live && name in live) {
+      live[name] = value;
+      wake(live);
+    }
     // A pivot controller re-reads its pose under the new setting, and redraws if it moved.
     if (current?.target) current.update?.();
   };

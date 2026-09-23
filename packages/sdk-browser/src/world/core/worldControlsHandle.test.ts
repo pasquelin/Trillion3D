@@ -115,3 +115,22 @@ test('`world.controls` as a character falls onto its colliders, walks, jumps, an
   assert.ok(controls.velocity.y > 0 && !controls.onGround);
   controls.dispose();
 });
+
+test('`world.controls` asks for a frame when a stick input is set on a still flight', () => {
+  const camera = new Camera('perspective');
+  const surface = fixtureSurface(400);
+  let redraws = 0;
+  const controls = worldControlsHandle(
+    'fly',
+    () => camera,
+    surface.element,
+    () => redraws++,
+  );
+  controls.update(0);
+  const settled = redraws;
+  controls.movementSpeed = 2; // Nothing moves on its own: no frame.
+  assert.equal(redraws, settled);
+  controls.yawInput = 0.5;
+  assert.equal(redraws, settled + 1);
+  controls.dispose();
+});
