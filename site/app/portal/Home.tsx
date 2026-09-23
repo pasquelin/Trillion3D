@@ -27,7 +27,7 @@ export function Home({ locale }: { locale: Locale }) {
           <LinkButton variant="outline" href={routeHref({ locale, area: 'api', id: '' })}>
             {t('nav.api')}
           </LinkButton>
-          <LinkButton variant="outline" href={routeHref({ locale, area: 'editor', id: '' })}>
+          <LinkButton variant="secondary" href={routeHref({ locale, area: 'editor', id: '' })}>
             {t('home.editor')}
           </LinkButton>
         </>
