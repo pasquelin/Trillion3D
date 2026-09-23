@@ -11,35 +11,35 @@ import { IDENTITY_MATRIX4, copyMatrix4 } from '../matrix/matrix4.ts';
  * `tree.world` or `tree.worldViews` after an add.
  */
 export interface TransformTree {
-  capacity: number;
+  /** How many nodes fit before it grows. */ capacity: number;
   /** Indices served: every live node is under this bound. */
   end: number;
-  parent: Int32Array;
-  flags: Uint8Array;
-  position: Float64Array;
-  quaternion: Float64Array;
-  scale: Float64Array;
-  local: Float64Array;
-  world: Float64Array;
-  localViews: Float64Array[];
-  worldViews: Float64Array[];
+  /** Each node's parent, −1 for a root. */ parent: Int32Array;
+  /** Each node's state bits. */ flags: Uint8Array;
+  /** Positions, three per node. */ position: Float64Array;
+  /** Rotations, four per node. */ quaternion: Float64Array;
+  /** Sizes, three per node. */ scale: Float64Array;
+  /** Local matrices, sixteen per node. */ local: Float64Array;
+  /** World matrices, sixteen per node. */ world: Float64Array;
+  /** One view per node of `local`. */ localViews: Float64Array[];
+  /** One view per node of `world`. */ worldViews: Float64Array[];
   /** World-matrix recalculation count, and the parent's at the last recalculation. */
   version: Uint32Array;
-  seen: Uint32Array;
+  /** The parent's version each node last saw. */ seen: Uint32Array;
   /** Freed indices, reused before extending `end`. */
   free: Int32Array;
-  freeCount: number;
+  /** How many freed indices wait. */ freeCount: number;
   /** Update order, parents before children, and each node's rank in that order. */
   order: Int32Array;
-  orderAt: Int32Array;
-  orderCount: number;
-  orderDirty: boolean;
+  /** Each node's rank in `order`. */ orderAt: Int32Array;
+  /** Nodes in `order`. */ orderCount: number;
+  /** Whether `order` must be rebuilt. */ orderDirty: boolean;
   /** Traversal work buffers: depth, ancestor chain, buckets, stamps. */
   depth: Int32Array;
-  chain: Int32Array;
-  buckets: Int32Array;
-  stamp: Uint32Array;
-  call: number;
+  /** Ancestor chain buffer. */ chain: Int32Array;
+  /** Bucket buffer. */ buckets: Int32Array;
+  /** Stamp buffer. */ stamp: Uint32Array;
+  /** Current traversal number. */ call: number;
 }
 
 /** `matrixAutoUpdate`: the local matrix is recomposed from position, rotation, scale. */
@@ -135,6 +135,7 @@ export function addTransformNode(tree: TransformTree, parent = -1) {
   return node;
 }
 
+/** Moves one node of a transform tree to `(x, y, z)` from its parent. */
 export function setNodePosition(
   tree: TransformTree,
   node: number,
@@ -150,6 +151,7 @@ export function setNodePosition(
   tree.flags[node] |= NODE_TRS_DIRTY;
 }
 
+/** Turns one node of a transform tree to the quaternion `(x, y, z, w)`. */
 export function setNodeQuaternion(
   tree: TransformTree,
   node: number,
@@ -167,6 +169,7 @@ export function setNodeQuaternion(
   tree.flags[node] |= NODE_TRS_DIRTY;
 }
 
+/** Stretches one node of a transform tree by `(x, y, z)`. */
 export function setNodeScale(tree: TransformTree, node: number, x: number, y: number, z: number) {
   const s = tree.scale,
     at = node * 3;

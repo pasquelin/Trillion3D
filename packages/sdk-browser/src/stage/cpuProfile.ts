@@ -6,8 +6,11 @@
  * over the same images — one on the publish cadence, one a host pulls — share that row (`row`).
  */
 export type CpuStepSummary = {
+  /** Frames measured. */
   frames: number;
+  /** Time of each step: median, 95th and worst. */
   steps: Record<string, { p50: number; p95: number; max: number }>;
+  /** The slowest frames, step by step. */
   worst: Array<Record<string, number>>;
 };
 

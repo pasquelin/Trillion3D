@@ -36,18 +36,22 @@ export const PREVIEW_SOURCE_URI = 0;
 /** The atlas a preview serves: colour (`rgba8unorm-srgb`, base colour and emissive) or data
  *  (`rgba8unorm`, metal-roughness, normal, occlusion). The same texture may have one entry each. */
 export const PREVIEW_ATLAS_COLOR = 0,
+  /** The data atlas: metal-roughness, normal and occlusion maps. */
   PREVIEW_ATLAS_DATA = 1;
 /** The `{kind}` a baked level's path carries for each atlas, as `bake.rs` names them. */
 export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear'] as const;
 /** The block families a chain may be baked in, in the order of their sidecar columns and of an
  *  entry's layout words, each named by its RGBA codec; `png` is the lossless file beside them. */
 export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc'] as const;
+/** A block family a texture can be baked in. */
 export type TextureBlockFormat = (typeof PREVIEW_BLOCK_FORMATS)[number];
+/** The lossless file format beside the block families. */
 export const PREVIEW_LOSSLESS_FORMAT = 'png';
 /** What a family holds of a chain, by layout word: nothing — the chain stays lossless there —,
  *  RGBA blocks (BC7 mode 6, ASTC colour endpoint mode 12), or two-channel blocks for a normal map
  *  (BC5, ASTC luminance + alpha on two planes: X in R, Y in G or A, Z rebuilt by the shader). */
 export const PREVIEW_LAYOUT_NAMES = ['lossless', 'rgba', 'two-channel'] as const;
+/** What a block family holds of a texture: nothing, colour blocks, or two-channel blocks. */
 export type TextureLayout = (typeof PREVIEW_LAYOUT_NAMES)[number];
 /** The `{format}` of a level file in each family and block layout, as `blocks.rs` names them. */
 export const PREVIEW_LAYOUT_FILES: Record<
@@ -59,4 +63,5 @@ export const PREVIEW_LAYOUT_FILES: Record<
 };
 /** Texels along a block's side, and bytes of one block, in every format. */
 export const PREVIEW_BLOCK_SIDE = 4;
+/** Bytes of one block. */
 export const PREVIEW_BLOCK_BYTES = 16;

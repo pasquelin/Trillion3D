@@ -4,13 +4,24 @@ import type { WorldControls } from './worldCamera.ts';
 
 /** What a page may set when it creates a world; saying nothing is the normal case. */
 export interface WorldOptions {
-  /** Absent: the best path the machine grants. Forced and missing: refused by its name. */
+  /**
+   * How the world draws, `'webgpu'` or `'webgl2'`. Left out, the world takes the best the machine
+   * grants; a renderer the machine lacks is refused by its name, never swapped for the other.
+   * @defaultValue the best the machine grants
+   */
   renderer?: WorldRenderer;
-  /** True by default: the world owns the loop and pauses after 120 stable frames. */
+  /**
+   * Whether the world runs its own loop: it draws when something changes and rests after 120
+   * frames with nothing new. `false` lets the page call `world.render()` itself.
+   * @defaultValue true
+   */
   interactive?: boolean;
+  /** How many image pixels per screen pixel. @defaultValue the screen's own density */
   pixelRatio?: number;
-  /** The controller driving the camera from the canvas; `'none'` by default. */
+  /** The controller that moves the camera from the canvas; `world.controls.kind` changes it later.
+   *  @defaultValue 'none' */
   controls?: WorldControls;
+  /** Stops the world's loads when the signal is aborted. */
   signal?: AbortSignal;
 }
 

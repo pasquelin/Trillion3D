@@ -129,6 +129,7 @@ export function boxTransformUnionBatch(
  */
 export const HIERARCHY_ROOT = 0xffffffff;
 
+/** Computes the world matrices of a whole hierarchy in one pass, parents first. */
 export function hierarchyUpdateBatch(
   worldViews: readonly Float64Array[],
   positions: readonly Float64Array[],

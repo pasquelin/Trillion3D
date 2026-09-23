@@ -5,33 +5,61 @@ import type { Blending, Side } from '../constants/index.ts';
 
 /** What a page may pass to a material member; every field is optional. */
 export interface MaterialParameters {
+  /** The base colour. */
   color?: ColorInput;
+  /** A colour the surface gives off by itself, even in the dark. */
   emissive?: ColorInput;
+  /** How strongly the surface glows. */
   emissiveIntensity?: number;
+  /** How much the surface is metal: 0 is not at all, 1 is fully. */
   metalness?: number;
+  /** How rough the surface is: 0 is a mirror, 1 is fully matte. */
   roughness?: number;
+  /** How small and bright the shiny spot is. */
   shininess?: number;
+  /** How opaque the surface is: 1 hides what is behind, 0 shows it all. */
   opacity?: number;
+  /** Whether `opacity` lets what is behind show through. */
   transparent?: boolean;
+  /** Which faces are drawn: the front, the back or both. */
   side?: Side;
+  /** How the surface mixes with what is behind it. */
   blending?: Blending;
+  /** Pixels less opaque than this are not drawn at all: cut-out leaves and fences. */
   alphaTest?: number;
+  /** How much light passes through, like glass: 0 to 1. */
   transmission?: number;
+  /** How much light bends going in: 1.5 for glass, 1.33 for water. */
   ior?: number;
+  /** How thick a see-through surface is. */
   thickness?: number;
+  /** A clear varnish on top: 0 to 1. */
   clearcoat?: number;
+  /** How rough the varnish is. */
   clearcoatRoughness?: number;
+  /** A soft glow at grazing angles, like velvet. */
   sheen?: number;
+  /** Rainbow colours that change with the angle, like a soap bubble. */
   iridescence?: number;
+  /** Draws only the edges of the triangles. */
   wireframe?: boolean;
+  /** Gives each triangle one flat shade, showing its facets. */
   flatShading?: boolean;
+  /** Size of a dot, for the points material. */
   size?: number;
+  /** Whether dots get smaller with distance. */
   sizeAttenuation?: boolean;
+  /** Width of a line. */
   linewidth?: number;
+  /** Length of a dash. */
   dashSize?: number;
+  /** Length of the gap between two dashes. */
   gapSize?: number;
+  /** Whether the geometry's per-vertex `color` tints the surface. */
   vertexColors?: boolean;
+  /** Whether the surface writes its depth, hiding what is drawn after it. */
   depthWrite?: boolean;
+  /** Whether the surface hides behind what is already closer. */
   depthTest?: boolean;
   [param: string]: unknown;
 }
@@ -52,19 +80,33 @@ export const MATERIAL_BOOKKEEPING: ReadonlySet<string> = new Set([
  * write — a field, a colour, `needsUpdate` — reaches the meshes that wear it.
  */
 export class Material {
+  /** Always `true`: tells a material apart from anything else. */
   readonly isMaterial = true as const;
+  /** The base colour; change it in place with `set`. */
   color = new Color(0xffffff);
+  /** The colour the surface gives off by itself. */
   emissive = new Color(0x000000);
+  /** How strongly the surface glows. */
   emissiveIntensity = 1;
+  /** How much the surface is metal, 0 to 1. */
   metalness = 0;
+  /** How rough the surface is, 0 (mirror) to 1 (matte). */
   roughness = 1;
+  /** How opaque the surface is, 0 to 1. */
   opacity = 1;
+  /** Whether `opacity` lets what is behind show through. */
   transparent = false;
+  /** Which faces are drawn: `'front'`, `'back'` or `'double'`. */
   side: Side = 'front';
+  /** How the surface mixes with what is behind it. */
   blending: Blending = 'normal';
+  /** Pixels less opaque than this are dropped. */
   alphaTest = 0;
+  /** Whether the geometry's per-vertex colours tint the surface. */
   vertexColors = false;
+  /** Whether the surface writes its depth. */
   depthWrite = true;
+  /** Whether the surface hides behind closer things. */
   depthTest = true;
   /** Bumped by every write: what the world compares to repaint. */
   version = 0;
@@ -77,6 +119,7 @@ export class Material {
     for (const listener of this._listeners) listener();
   };
 
+  /** The kind the material was made as: `'meshStandard'`, `'meshBasic'`… */
   readonly kind: string;
   constructor(
     kind: string,
@@ -130,6 +173,7 @@ export class Material {
       alphaCutoff: this.alphaTest,
     };
   }
+  /** A new material of the same kind, with the same values. */
   clone() {
     const parameters: MaterialParameters = {};
     for (const [key, value] of Object.entries(this))
