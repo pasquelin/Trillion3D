@@ -7,7 +7,7 @@ import {
   PROXY_LAYOUT_WORD,
   PROXY_PARAM_FLOATS,
 } from '../../bounce/nodeWgsl.ts';
-import { createGpuBounceProxy } from '../../bounce/bounceProxy.ts';
+import { createGpuBounceProxy } from '../../bounce/proxy.ts';
 import { createGpuSunFarShadow } from '../../gpu/shadow/sunFarShadow.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 

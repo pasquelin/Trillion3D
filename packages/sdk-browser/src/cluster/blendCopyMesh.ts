@@ -8,8 +8,8 @@ import {
   rowParked,
   type PlacementOf,
   type PlacementRows,
-} from '../placement/placementRows.ts';
-import { growPlaced } from '../placement/placementGrowth.ts';
+} from '../placement/rows.ts';
+import { growPlaced } from '../placement/growth.ts';
 
 /**
  * The transparent draw copy of an engine the HOST renderer draws — a witness, or the WebGL2 page

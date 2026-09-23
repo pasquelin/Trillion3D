@@ -18,7 +18,7 @@ import { prepareMathBatch } from '../../math/batchState.ts';
 import type { BackendContext, MeasuredWorldOptions } from '../../backend/types.ts';
 import type { ExplorerEmitters } from '../session/session.ts';
 import { checked } from '../../cluster/pages.ts';
-import { bakedImageUrls, PLACEHOLDER_IMAGE } from '../../texture/textureSkip.ts';
+import { bakedImageUrls, PLACEHOLDER_IMAGE } from '../../texture/skip.ts';
 import { checkPreparedScene, loadPreparedSceneTables } from '../../scene/tables.ts';
 
 /** World matrix of a mesh at load, reused from mesh to mesh. */

@@ -4,10 +4,10 @@ import { computeSpanFor } from '../../diagnostic/gpuGeometry.ts';
 import { computeRasterReady } from '../pages/render/encodeVisSetup.ts';
 import type { WebgpuVisState } from '../pages/state/vis.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { SHADE_UNIFORM_BYTES, writeSunSlice } from '../../visibility/shader/shaderRequest.ts';
+import { SHADE_UNIFORM_BYTES, writeSunSlice } from '../../visibility/shader/request.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 
-/** `uni.mode` of the resolve, per diagnostic view (`../../visibility/shader/shaderShade.ts`); beauty is zero. */
+/** `uni.mode` of the resolve, per diagnostic view (`../../visibility/shader/shadeWgsl.ts`); beauty is zero. */
 const SHADE_MODE: Partial<Record<DiagnosticMode, number>> = {
   wireframe: 1,
   clusters: 2,

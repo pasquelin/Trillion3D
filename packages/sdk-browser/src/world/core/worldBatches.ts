@@ -1,11 +1,11 @@
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { growPlacementRows, type PlacementRows } from '../../placement/placementRows.ts';
+import { growPlacementRows, type PlacementRows } from '../../placement/rows.ts';
 import type { Cut } from './worldCuts.ts';
 import type { MaterialEntry } from './worldMaterials.ts';
 
 /**
  * A drawn resource: one geometry resource worn with one material entry. Its placements are the
- * rows of one instance buffer (`placementRows.ts`) the session reads in place; `owners` says
+ * rows of one instance buffer (`placement/rows.ts`) the session reads in place; `owners` says
  * which mesh holds each row, `free` which rows are parked and ready to be taken.
  */
 export type Batch = {
@@ -26,7 +26,7 @@ export type Seat = { batch: Batch; row: number };
  * The batches of a world and the rows their meshes hold. A mesh is SEATED when its batch is in
  * the open session and a row was free; one that is not waits. A batch the session holds grows in
  * place (`growHeld`): its rows are replaced by a buffer twice as large at least, the session is
- * handed both (`placementGrowth.ts`), and the waiting meshes take the new rows. A batch the
+ * handed both (`placement/growth.ts`), and the waiting meshes take the new rows. A batch the
  * session does not hold — a resource or material entry it never had — waits for the next
  * opening, which sizes every batch by the same rule.
  */

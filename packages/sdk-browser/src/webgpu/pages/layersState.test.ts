@@ -69,7 +69,7 @@ test('visSlotPipeline and visPipelineFor route a coplanar-layer slot to its own 
   );
 });
 
-// prepare/prepareVisibility.ts (orchestration: drawLayerSlots and the layer pipelines it builds)
+// prepare/visibility.ts (orchestration: drawLayerSlots and the layer pipelines it builds)
 test('a page marked with a coplanar depth layer makes prepare() build that layer’s pipelines and report it', async () => {
   installGpuGlobals();
   const scene = quadScene();

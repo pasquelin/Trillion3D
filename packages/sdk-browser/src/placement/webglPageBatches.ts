@@ -7,7 +7,7 @@ import {
 import type { HostDrawScene } from '../host/scene/graphNodes.ts';
 import type { HostGeometry, HostMaterials, HostMesh } from '../host/resources.ts';
 import type { PageRec } from '../page/selection/types.ts';
-import { grownCapacity } from './placementRows.ts';
+import { grownCapacity } from './rows.ts';
 
 type Group = { mesh: HostMesh | null; capacity: number; count: number; first: PageRec };
 

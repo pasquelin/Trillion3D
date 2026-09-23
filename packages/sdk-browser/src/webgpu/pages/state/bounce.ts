@@ -1,4 +1,4 @@
-import type { GpuBounceProbes } from '../../../bounce/bounceProbes.ts';
+import type { GpuBounceProbes } from '../../../bounce/probes.ts';
 
 /**
  * State of bouncing light: the probe grid, what the host asked of it, and what the last image

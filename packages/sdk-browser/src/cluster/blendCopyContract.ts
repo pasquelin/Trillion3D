@@ -13,7 +13,7 @@
 import type { HostAttribute, HostGeometry, HostMesh } from '../host/resources.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import type { PageSurface } from '../page/surface.ts';
-import type { PlacementOf } from '../placement/placementRows.ts';
+import type { PlacementOf } from '../placement/rows.ts';
 
 /** What the engine reads on a transparent copy. Its `geometry` is the source one, with the index
  *  it draws and its local box on demand; its `matrix` is the engine's world storage for the

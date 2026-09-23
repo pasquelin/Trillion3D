@@ -5,7 +5,7 @@
  * The engine paths read a scene as a host graph: meshes holding a geometry and a surface
  * (`host/scene/graphNodes.ts`). A world hands them one host mesh per drawn resource — a geometry
  * resource worn with one material entry — whose association carries the resource's instance
- * buffer (`placementRows.ts`): ten thousand placements of one pebble are one host mesh and ten
+ * buffer (`placement/rows.ts`): ten thousand placements of one pebble are one host mesh and ten
  * thousand rows the engine reads in place — a blended or transmissive resource too, whose rows the
  * engine draws one blended draw each. A loaded model's graph is drawn whole, through one host node
  * posed by its world matrix alone. Nothing is decided here: the triangles arrive drawn
@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import type { PlacementRows } from '../../placement/placementRows.ts';
+import type { PlacementRows } from '../../placement/rows.ts';
 import { HOST_MAPS, hostSurface, type HostTextures } from './worldSurface.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';

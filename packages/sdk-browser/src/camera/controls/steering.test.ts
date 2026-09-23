@@ -9,7 +9,7 @@ import {
   fixtureSurface,
   type FixtureCamera,
 } from './controls.fixture.ts';
-import type { SteeredCameraControls } from './controlTypes.ts';
+import type { SteeredCameraControls } from './types.ts';
 
 const round = (value: number, digits = 6) => Number(value.toFixed(digits)) + 0;
 const facing = (camera: { quaternion: { x: number; y: number; z: number; w: number } }) => {

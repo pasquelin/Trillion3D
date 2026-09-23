@@ -1,6 +1,6 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { rowParked } from '../../placement/placementRows.ts';
+import { rowParked } from '../../placement/rows.ts';
 import type { createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 

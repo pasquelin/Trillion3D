@@ -10,8 +10,8 @@ import { createPrimitiveTemplates } from './template.ts';
 import { indexPageRequests } from './requests.ts';
 import { hostWorldPlacements } from '../../host/world/placements.ts';
 import type { PageRec, ClusterRoot } from './types.ts';
-import { placementsOf } from '../../placement/placementRoots.ts';
-import type { PlacementRows } from '../../placement/placementRows.ts';
+import { placementsOf } from '../../placement/roots.ts';
+import type { PlacementRows } from '../../placement/rows.ts';
 
 export function collectClusterPages(
   source: HostGraphNode,
