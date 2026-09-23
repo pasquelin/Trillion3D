@@ -10973,7 +10973,7 @@
     "kind": "Constant",
     "title": "SHADOW_CULL_FLOATS",
     "signature": "const SHADOW_CULL_FLOATS: 20",
-    "summary": "Floats of a cull volume: centre and far plane, face axis and half-angle, then — for a box, flagged by a negative half-angle — the two other axes with their half-extents, then the word that says which casters the region draws and three of padding.",
+    "summary": "Floats of a cull volume: centre and far plane, face axis and half-angle, then — for a box, flagged by a negative half-angle — the two other axes with their half-extents, then the word that says which casters the region draws, the light-cut view that selected them, and two of padding.",
     "description": ""
   },
   {

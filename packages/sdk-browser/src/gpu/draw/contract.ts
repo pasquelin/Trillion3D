@@ -1,3 +1,4 @@
+import type { LightRowMap } from './lightRows.ts';
 import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts';
 
 export const DRAW_INDIRECT_STRIDE = 16;
@@ -51,24 +52,6 @@ export type SlotLayout = {
   rows: number[];
   tableRows: number;
 };
-/** Words ahead of a light's row list: its entry count and its sixty-four-wide group count. */
-export const LIGHT_LIST_HEAD = 4;
-/** A list entry whose page holds no row this frame: every pass skips it. */
-export const NO_ROW = 0xffffffff;
-/**
- * Where a light cut leaves the pages one view draws, in the order its mask kernel appended them:
- * the catalogue indices from word `offset` of `buffer` plus the word `offsetWord` of `work` —
- * where the view's range starts, known on the GPU alone —, their count at word `countWord` of
- * `work` and that count's sixty-four-wide group count at word `groupsWord`.
- */
-export type DrawnLog = {
-  buffer: GPUBuffer;
-  offset: number;
-  offsetWord: number;
-  work: GPUBuffer;
-  countWord: number;
-  groupsWord: number;
-};
 export type GpuDraw = {
   /**
    * `items` holds `count` packed rows of {pageIndex,bin,selectionIndex,layer,triangles}. Those five
@@ -91,17 +74,11 @@ export type GpuDraw = {
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
   ): void;
   /**
-   * A second compaction, created at the first call, over the pages a light cut drew rather than
-   * over every resident row: the light's drawn log in, the light's instance list and indirect
-   * commands out — how the shadow pass consumes the light cut, as the visibility pass consumes the
-   * camera's. `pages` is the size of the selection catalogue the log indexes. It uploads no item:
-   * the camera's encode, earlier in the same command buffer, already did.
+   * The page → row map a light cut's drawn pages are resolved through, created at the first call
+   * for a catalogue of `pages` pages (`lightRows.ts`). The rows this draw's `encode` uploads are
+   * the rows the map remaps.
    */
-  lightCompaction(pages: number): {
-    instanceBuffer: GPUBuffer;
-    indirectBuffer: GPUBuffer;
-    encode(encoder: GPUCommandEncoder, rows: number, maxVertexCount: number, log: DrawnLog): void;
-  };
+  lightRows(pages: number): LightRowMap;
   /** Draw records as the GPU holds them: what the GPU partition reads to know each
    *  row's bin, layer and triangles. */
   itemsBuffer: GPUBuffer;

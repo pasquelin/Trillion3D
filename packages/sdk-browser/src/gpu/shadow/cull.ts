@@ -4,6 +4,7 @@ import { MAX_SHADOW_REGIONS } from './atlas.ts';
 import { SHADOW_CULL_SHADER } from './cullShader.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
+import { createShadowLightCull } from './lightCull.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
@@ -28,7 +29,7 @@ const BINDING_TYPES: readonly GPUBufferBindingType[] = [
   'read-only-storage',
 ];
 
-/** Where one run's light cut left its casters, and which regions read them. */
+/** Where the CPU cut left one run's casters, and which regions read them. */
 export interface ShadowCullSource {
   spheres: GPUBuffer;
   /** One word per row: 1 for a moving placement's. */
@@ -65,7 +66,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const faceVolumes = device.createBuffer({
     label: 'WG shadow face volumes v1',
     size: MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS * 4,
-    usage: storage,
+    // A storage array for the CPU lists' cull, a uniform for the light cut's (`lightCull.ts`).
+    usage: storage | GPUBufferUsage.UNIFORM,
   });
   // One uniform per face run, at a dynamic offset: a frame writes them all before it submits.
   const uniforms = device.createBuffer({
@@ -80,9 +82,11 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   });
   const counts = createGpuShadowCullCounts(device);
   const all = [kept, indirect, faceVolumes, uniforms, offsets, drawUniform];
+  let light: Awaited<ReturnType<typeof createShadowLightCull>> | undefined;
   const release = () => {
     for (const buffer of all) buffer.destroy();
     counts.dispose();
+    light?.dispose();
   };
   try {
     // Each region's place in the shared list, and its draw slot: set once.
@@ -96,6 +100,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     device.queue.writeBuffer(offsets, 0, offsetWords);
     device.queue.writeBuffer(drawUniform, 0, drawWords);
     const module = await createCheckedShaderModule(device, SHADOW_CULL_SHADER, 'SHADOW_CULL');
+    light = await createShadowLightCull(device, { kept, indirect, faces: faceVolumes, capacity });
     const layout = device.createBindGroupLayout({
       entries: BINDING_TYPES.map((type, binding) => ({
         binding,
@@ -138,8 +143,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         device.queue.writeBuffer(indirect, 0, commands, 0, regions * COMMAND_WORDS);
       },
       /**
-       * Encodes the cull of regions `[first, first + faces)` against the list one face's light
-       * cut produced. `run` is the face's rank in the frame, its uniform slot; `rows` bounds the
+       * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for
+       * one face. `run` is the face's rank in the frame, its uniform slot; `rows` bounds the
        * list, whose true length the GPU reads in its commands.
        */
       encode(
@@ -184,6 +189,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(Math.min(rows, capacity) / 64)), faces);
         pass.end();
       },
+      /** The GPU light cut's cull: every region of the frame in one pass (`lightCull.ts`). */
+      encodeLight: light.encode,
       dispose: release,
     };
   } catch (error) {

@@ -33,8 +33,9 @@ export const DAG_VIEW_WORDS = 64;
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
 export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4;
 /** Per-view words behind `work`'s pruning words, one row of `viewCapacity` each: live count,
- *  live offset, drawn count, drawn group count (`dagWorkLayout`). */
-export const VIEW_WORD_ROWS = 4;
+ *  live offset, drawn count; then one word, the most sixty-four-wide groups any view drew — the
+ *  width of the shadow cull that reads every view's log in one dispatch (`dagWorkLayout`). */
+export const VIEW_WORD_ROWS = 3;
 /**
  * Bit of the output's flag word set when a queue or a list was full and work was dropped. The
  * views of a light cut share the camera cut's capacities — each list holds the whole catalogue,
@@ -57,15 +58,17 @@ fn slots()->u32{return views[0u].worldCount*views[0u].viewCapacity;}
 fn slotOf(w:u32)->u32{return vi*views[0u].worldCount+w;}
 /** Row \`row\` of the per-view words, for view \`v\` (\`VIEW_WORD_ROWS\`). */
 fn viewWord(row:u32,v:u32)->u32{return extraBase()+slots()*2u+row*views[0u].viewCapacity+v;}
+/** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
+fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
 fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
 fn isLightCut()->bool{return (views[0u].viewFlags&VIEW_LIGHT)!=0u;}
 /** A drawn cluster of the current view, appended at its view's own range of the drawn log — the
- *  candidate list's words, free once \`dagWanted\` has read them. Its group count follows the
- *  opening of each sixty-four slice, as the other lists' do. */
+ *  candidate list's words, free once \`dagWanted\` has read them. Opening a sixty-four slice
+ *  raises the widest view's group count. */
 fn viewDrawnAppend(i:u32){
  let r=atomicAdd(&work[viewWord(2u,vi)],1u);
  flags[candBase()+atomicLoad(&work[viewWord(1u,vi)])+r]=i;
- if((r&63u)==0u){atomicAdd(&work[viewWord(3u,vi)],1u);}
+ if((r&63u)==0u){atomicMax(&work[drawnGroupsMax()],(r>>6u)+1u);}
 }
 /** Each view's share of the drawn log starts at the live clusters of the views before it: a view
  *  draws at most what it keeps live, so the ranges never overlap and all fit the list. */

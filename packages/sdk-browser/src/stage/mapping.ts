@@ -7,6 +7,7 @@ import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
 import { REST_COMPACT_PASS } from '../gpu/raster/restCompact.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
+import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
 import type { StageAdd } from './profiler.ts';
 
@@ -60,6 +61,7 @@ const PASSES: Readonly<Record<string, readonly [stage: string, block: GpuPassBlo
     'WG transparent compaction': ['transparents', 'other'],
     [SHADOW_PASS]: ['shadows', 'other'],
     [SHADOW_LAYER_PASS]: ['shadows', 'other'],
+    [LIGHT_CUT_PASS]: ['shadowCasters', 'other'],
     'WG shadow cull': ['shadows', 'other'],
     'WG shadow page pyramids': ['shadows', 'other'],
     'WG shadow occlusion': ['shadows', 'other'],
@@ -97,6 +99,7 @@ export const WEBGPU_STAGES = [
   'geometry',
   'coplanar',
   'shadows',
+  'shadowCasters',
   'sunFarShadows',
   'lightLists',
   'bounce',

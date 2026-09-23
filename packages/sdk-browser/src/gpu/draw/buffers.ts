@@ -7,18 +7,20 @@ import {
 } from './contract.ts';
 
 /**
- * What one compaction writes: its uniform, its instance list, its indirect commands and its
- * per-group scratch. The camera has one; a light cut has its own, reading the same items. The
- * scratch covers `listCap` entries: the rows for the camera, the light's list for a light.
+ * Compact buffers: they depend only on the row count and the coplanar-layer count, never on the
+ * frame. `slotUsed` starts as one everywhere, so a caller that counts nothing still pays the full
+ * compact, exactly as before.
  */
-export function createGpuCompactionBuffers(
-  device: GPUDevice,
-  slotCap: number,
-  slots: number,
-  listCap = slotCap,
-) {
-  const groupBytes = Math.max(1, Math.ceil(listCap / WORKGROUP)) * slots * 4;
+export function createGpuDrawBuffers(device: GPUDevice, slotCap: number, layerSlots: number) {
+  const slots = slotCount(layerSlots);
+  const groupCount = Math.ceil(slotCap / WORKGROUP),
+    groupBytes = groupCount * slots * 4;
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+  const itemsBuf = device.createBuffer({ size: slotCap * DRAW_ITEM_U32 * 4, usage: storage });
+  const restBuf = device.createBuffer({
+    size: Math.max(4, Math.ceil(slotCap / 32) * 4),
+    usage: storage,
+  });
   const uniforms = device.createBuffer({
     size: UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -33,38 +35,27 @@ export function createGpuCompactionBuffers(
   });
   const groupCounts = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE });
   const groupOffsets = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE });
-  return {
-    uniforms,
-    instanceBuffer,
-    indirectBuffer,
-    groupCounts,
-    groupOffsets,
-    all: [uniforms, instanceBuffer, indirectBuffer, groupCounts, groupOffsets],
-  };
-}
-
-/**
- * Compact buffers: they depend only on the row count and the coplanar-layer count, never on the
- * frame. `slotUsed` starts as one everywhere, so a caller that counts nothing still pays the full
- * compact, exactly as before.
- */
-export function createGpuDrawBuffers(device: GPUDevice, slotCap: number, layerSlots: number) {
-  const slots = slotCount(layerSlots);
-  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
-  const itemsBuf = device.createBuffer({ size: slotCap * DRAW_ITEM_U32 * 4, usage: storage });
-  const restBuf = device.createBuffer({
-    size: Math.max(4, Math.ceil(slotCap / 32) * 4),
-    usage: storage,
-  });
-  const own = createGpuCompactionBuffers(device, slotCap, slots);
   const slotUsedBuf = device.createBuffer({ size: slots * 4, usage: storage });
   device.queue.writeBuffer(slotUsedBuf, 0, new Uint32Array(slots).fill(1));
   return {
     slots,
     itemsBuf,
     restBuf,
-    ...own,
+    uniforms,
+    instanceBuffer,
+    indirectBuffer,
+    groupCounts,
+    groupOffsets,
     slotUsedBuf,
-    all: [itemsBuf, restBuf, ...own.all, slotUsedBuf],
+    all: [
+      itemsBuf,
+      restBuf,
+      uniforms,
+      instanceBuffer,
+      indirectBuffer,
+      groupCounts,
+      groupOffsets,
+      slotUsedBuf,
+    ],
   };
 }

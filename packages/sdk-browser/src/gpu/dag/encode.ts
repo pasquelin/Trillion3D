@@ -5,6 +5,10 @@ import type { createDagResources } from './resources.ts';
 /** The cut's resources, as it encodes them. A light cut brings its own flags, work, frames, output
  *  and bind group, the views it runs this frame and its queue capacity (`lightCut.ts`); it keeps no
  *  draw flag and compacts no drawable list — each view's log goes to the light compaction. */
+/** Label of a light cut's passes: shadow work, profiled as a stage of its own and never in the
+ *  visibility block the camera's cut belongs to (`../../stage/mapping.ts`). */
+export const LIGHT_CUT_PASS = 'WG light cut';
+
 export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>> & {
   light?: { views: number; queueCap: number };
 };
@@ -73,12 +77,13 @@ function encodeOnce(
   // and never more than its queue holds.
   const views = light?.views ?? 1,
     queueCap = light?.queueCap ?? resources.nodeCount;
+  const label = light ? LIGHT_CUT_PASS : 'WG DAG selection';
   const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
   // Head word of the dispatch argument, copied outside a pass: the other two have been one since
   // the buffer was created. That is the only reason for cuts between passes.
   const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 4);
   const alone = (pipeline: GPUComputePipeline) => {
-    const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
+    const pass = encoder.beginComputePass({ label });
     pass.setBindGroup(0, bindGroup);
     pass.setPipeline(pipeline);
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
@@ -87,7 +92,7 @@ function encodeOnce(
   // A light cut sets no draw flag, so it has none to clear.
   const clearDrawn = clear && !light;
   if (clearDrawn) arm(drawnGroupsOffset);
-  const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
+  const pass = encoder.beginComputePass({ label });
   pass.setBindGroup(0, bindGroup);
   // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
   // every flag, and the prepare that follows clears the journal.
@@ -120,7 +125,7 @@ function encodeOnce(
   alone(wantedPipeline);
   if (headOnly) return;
   arm(liveGroupsOffset);
-  const live = encoder.beginComputePass({ label: 'WG DAG selection' });
+  const live = encoder.beginComputePass({ label });
   live.setBindGroup(0, bindGroup);
   // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
   // the previous one, it is no longer spoken on those it said nothing about.

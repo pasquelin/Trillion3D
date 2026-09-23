@@ -56,7 +56,9 @@ export function dagWorkLayout(blockCount: number, worldCount: number, views = 1)
     drawnGroups: base + 8,
     /** First per-view word: row `r` (`VIEW_WORD_ROWS`) of view `v` is `viewWords + r * views + v`. */
     viewWords,
-    words: viewWords + VIEW_WORD_ROWS * views,
+    /** The most sixty-four-wide groups any view drew, behind the per-view rows. */
+    drawnGroupsMax: viewWords + VIEW_WORD_ROWS * views,
+    words: viewWords + VIEW_WORD_ROWS * views + 1,
   };
 }
 

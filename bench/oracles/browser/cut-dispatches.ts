@@ -75,11 +75,12 @@ export function ressourcesAvant(
   const buffers = [
     tampon(64, packed.clusters),
     tampon(64, packed.nodes),
-    // The uniform array and the per-view words the shipped prepare resets, around the frozen descent.
+    // The uniform array, and the per-view words and widest-view word the shipped prepare resets,
+    // around the frozen descent.
     tampon(DAG_UNIFORM_BYTES, null, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
     tampon(Math.max(16, (packed.nodeCount * 2 + pageCount * 4) * 4)),
     tampon(readbackBytes),
-    tampon(Math.max(8, (base + 10 + worldCount * 2 + VIEW_WORD_ROWS) * 4)),
+    tampon(Math.max(8, (base + 10 + worldCount * 2 + VIEW_WORD_ROWS + 1) * 4)),
     tampon(64, packed.worlds),
     tampon(16, frameData),
     tampon(48, packed.pageCones),

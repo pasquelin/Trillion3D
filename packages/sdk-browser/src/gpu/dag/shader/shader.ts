@@ -129,7 +129,8 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let t=id.x;
  if(t==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
  if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);}
- if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);atomicStore(&work[viewWord(3u,t)],0u);}
+ if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
+ if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);}
  let world=views[0u].worldCount;
  if(t>=world*views[0u].viewCount){return;}
  vi=t/world;let w=t-vi*world;

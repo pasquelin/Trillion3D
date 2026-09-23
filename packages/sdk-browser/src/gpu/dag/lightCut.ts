@@ -1,4 +1,4 @@
-import { FRAME_VEC4, type DagViewUniforms } from './types.ts';
+import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
 import {
   createDagOutputScratch,
   parseDagOutput,
@@ -15,7 +15,6 @@ import {
   WORK_DROPPED,
 } from './shader/viewsWgsl.ts';
 import { OUT_FLAGS } from './layout.ts';
-import type { DrawnLog } from '../draw/contract.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
@@ -30,8 +29,8 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  *
  * ONE traversal a frame for every view it redraws (`shader/viewsWgsl.ts`): each work item carries
  * its view, each view its uniform block and its per-primitive slots, and one set of dispatches
- * serves them all. Each view's drawn clusters land in their own range of one log, which the light
- * compaction then walks view by view (`drawnLogs`).
+ * serves them all. Each view's drawn clusters land in their own range of one log, which the shadow
+ * cull then reads for every view at once (`drawnLog`).
  *
  * Its escalation and its pinned fallback live in its own `work`: a caster the light wants and
  * the cache lacks can raise the light's threshold, never the one an object on screen is drawn at.
@@ -111,16 +110,15 @@ export function createDagLightCut(resources: DagResources) {
     repeat: null,
     light,
   };
-  // Each view's drawn clusters: one log over the candidate list's words, one range per view.
-  const logBase = queueCap + pageCount * 3;
-  const drawnLogs: DrawnLog[] = Array.from({ length: capacity }, (_, v) => ({
+  // Every view's drawn clusters: one log over the candidate list's words, one range per view.
+  const drawnLog: DrawnLog = {
     buffer: flags,
-    offset: logBase,
+    offset: queueCap + pageCount * 3,
     work,
-    offsetWord: layout.viewWords + capacity + v,
-    countWord: layout.viewWords + 2 * capacity + v,
-    groupsWord: layout.viewWords + 3 * capacity + v,
-  }));
+    offsetWord: layout.viewWords + capacity,
+    countWord: layout.viewWords + 2 * capacity,
+    groupsWord: layout.drawnGroupsMax,
+  };
   const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4);
   const cutViews: DagCutViews = { count: 0, capacity, queueCap };
   const scratch = createDagOutputScratch();
@@ -130,8 +128,8 @@ export function createDagLightCut(resources: DagResources) {
   return {
     /** Catalogue pages the logs index. */
     pageCount,
-    /** Where the mask kernel logs the pages view `v` draws: what the light compaction reads. */
-    drawnLogs,
+    /** Where the mask kernel logs the pages each view draws: what the shadow cull reads. */
+    drawnLog,
     /** Encodes the frame's cut: the first `count` of `views`, in one traversal. */
     encode(
       encoder: GPUCommandEncoder,

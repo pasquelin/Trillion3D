@@ -63,3 +63,18 @@ export type PackedDag = {
   rootCount: number;
   pageUrls: string[];
 };
+
+/**
+ * Where a light cut leaves the pages its views draw, in the order its mask kernel appended them:
+ * catalogue indices from word `offset` of `buffer`, view `v`'s range starting `work[offsetWord + v]`
+ * words further and holding `work[countWord + v]` of them — both known on the GPU alone —, and
+ * `work[groupsWord]` the most sixty-four-wide groups any view drew.
+ */
+export type DrawnLog = {
+  buffer: GPUBuffer;
+  offset: number;
+  work: GPUBuffer;
+  offsetWord: number;
+  countWord: number;
+  groupsWord: number;
+};
