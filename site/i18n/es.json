@@ -28,7 +28,7 @@
   "home": {
     "title": "Transmite mundos 3D enormes en el navegador",
     "start": "Empezar el curso",
-    "editor": "Open the scene editor"
+    "editor": "Abrir el editor de escena"
   },
   "examples": {
     "lead": "Cada ejemplo es un archivo corto: míralo funcionar, abre su código, cámbialo.",
