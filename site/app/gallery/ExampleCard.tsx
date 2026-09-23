@@ -2,6 +2,8 @@ import type { Locale } from '../../content/locale.ts';
 import type { CatalogExample } from '../../content/catalog.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Card } from '../ui/Card.tsx';
+import { Note } from '../ui/Text.tsx';
+import { t } from '../../content/i18n/index.ts';
 import { routeHref } from '../portal/routes.ts';
 import { GeometryPreview } from './WebGPUCanvas.tsx';
 import { themeLabel, themeOf } from './lessonThemes.ts';
@@ -92,5 +94,28 @@ export function ExampleCard({ example, locale = 'en', href, badge }: ExampleCard
         </span>
       </Card>
     </a>
+  );
+}
+
+interface PendingProps {
+  title: string;
+  locale: Locale;
+  /** The engine feature the example waits for, when it waits for one. */
+  missing?: string;
+}
+
+/** An example still to come: its title, "in progress", and — when it waits for the engine — the
+ * feature it waits for. It opens nothing. */
+export function PendingExampleCard({ title, locale, missing }: PendingProps) {
+  return (
+    <div aria-disabled="true">
+      <Card className="h-full border-dashed opacity-80">
+        <Badge tone="neutral" soft size="sm">
+          {t(locale, 'examples.inProgress')}
+        </Badge>
+        <h2 className="card-title text-lg">{title}</h2>
+        {missing && <Note>{`${t(locale, 'examples.waitsFor')} ${missing}`}</Note>}
+      </Card>
+    </div>
   );
 }

@@ -32,7 +32,9 @@ export function DefinitionTable({ rows }: { rows: { name: string; value: ReactNo
       <tbody>
         {rows.map((row) => (
           <tr key={row.name}>
-            <td className="align-top font-mono font-semibold">{row.name}</td>
+            <td className="max-w-xs align-top font-mono font-semibold whitespace-nowrap">
+              {row.name}
+            </td>
             <td>{row.value}</td>
           </tr>
         ))}

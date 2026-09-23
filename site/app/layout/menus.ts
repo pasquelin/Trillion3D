@@ -6,20 +6,18 @@ import { REPORT_SECTIONS } from '../../reports/presentation.ts';
 import type { PortalEntry } from '../../content/model.ts';
 import { readyThemes, thumbnailOf } from '../examples/list.ts';
 import { expandEntryLinks } from '../portal/entryLinks.ts';
-import { entryRoute, routeHref } from '../portal/routes.ts';
+import { entryRoute, LEARN_SECTIONS, routeHref } from '../portal/routes.ts';
 import type { PortalRoute } from '../portal/routes.ts';
 import { search } from '../portal/search.ts';
 import type { ExampleGroup } from './ExampleList.tsx';
 import type { SidebarMenuGroup } from './SidebarMenu.tsx';
-
-const LEARN = ['guides', 'examples'];
 
 /** An entry's first sentence: what it is, in one line. */
 export const summaryOf = (description: string) => description.split(/(?<=[.!?])\s/)[0];
 
 /** One group per entry section: Learn's guides, or the API reference's families. */
 function entryGroups(entries: PortalEntry[], route: PortalRoute, learn: boolean) {
-  return SECTIONS.filter(({ id }) => LEARN.includes(id) === learn)
+  return SECTIONS.filter(({ id }) => LEARN_SECTIONS.includes(id) === learn)
     .map((section) => ({
       id: section.id,
       title: t(route.locale, `section.${section.id}`),
@@ -64,7 +62,7 @@ const SYMBOL = /^[A-Za-z_$][\w$.]*(\(\))?$/;
 /** The API reference's index: one item per entry that names symbols — its names and its own
  * first sentence —, family by family; an entry titled by a sentence is a guide, and stays out. */
 export function apiIndex(entries: PortalEntry[], route: PortalRoute) {
-  return SECTIONS.filter(({ id }) => !LEARN.includes(id))
+  return SECTIONS.filter(({ id }) => !LEARN_SECTIONS.includes(id))
     .map((section) => ({
       id: section.id,
       title: t(route.locale, `section.${section.id}`),

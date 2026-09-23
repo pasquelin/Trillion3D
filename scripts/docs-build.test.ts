@@ -26,7 +26,7 @@ test('the site build writes every bundle of the published tree', async () => {
   }
 });
 
-test('the statics are copied as served, sources excluded, up-to-date copies left alone', async () => {
+test('the statics are copied as served, sources excluded, up-to-date copies left alone, removed ones removed', async () => {
   const temporary = await mkdtemp(join(tmpdir(), 'wg-site-statics-'));
   const source = join(temporary, 'site');
   const out = join(temporary, 'out');
@@ -42,7 +42,13 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await writeFile(join(source, 'reports/contract.ts'), 'export {};');
     await writeFile(join(source, 'reports/campaign/report.json'), '{}');
     await writeFile(join(source, 'assets/manifest.json'), '{}');
+    // What an earlier build copied and the sources no longer have: a removed example, a page.
+    await mkdir(join(out, 'examples'), { recursive: true });
+    await writeFile(join(out, 'examples/removed.html'), '');
+    await writeFile(join(out, 'report.html'), '');
     await copyStatics(source, out);
+    await assert.rejects(stat(join(out, 'examples/removed.html')));
+    await assert.rejects(stat(join(out, 'report.html')));
     assert.equal(await readFile(join(out, 'index.html'), 'utf8'), '<!doctype html>');
     assert.equal((await stat(join(out, '.nojekyll'))).size, 0);
     assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');

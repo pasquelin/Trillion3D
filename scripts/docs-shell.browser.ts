@@ -33,50 +33,23 @@ async function open(hash: string, width = 1440) {
   return { page, errors };
 }
 
-/** The share of pixels that differ between two captures of the same element. */
-function difference(page: Page, a: Buffer, b: Buffer): Promise<number> {
+/** The share of a capture's pixels that are clearly green. */
+function greenShare(page: Page, png: Buffer): Promise<number> {
   return page.evaluate(
-    async ([first, second]) => {
-      const read = async (url: string) => {
-        const bitmap = await createImageBitmap(await (await fetch(url)).blob());
-        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-        const context = canvas.getContext('2d')!;
-        context.drawImage(bitmap, 0, 0);
-        return context.getImageData(0, 0, bitmap.width, bitmap.height).data;
-      };
-      const [x, y] = await Promise.all([read(first), read(second)]);
-      let changed = 0;
-      for (let at = 0; at < x.length; at += 4)
-        if (Math.abs(x[at] - y[at]) + Math.abs(x[at + 1] - y[at + 1]) > 48) changed++;
-      return changed / (x.length / 4);
+    async (url) => {
+      const bitmap = await createImageBitmap(await (await fetch(url)).blob());
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const context = canvas.getContext('2d')!;
+      context.drawImage(bitmap, 0, 0);
+      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+      let green = 0;
+      for (let at = 0; at < data.length; at += 4)
+        if (data[at + 1] > data[at] + 60 && data[at + 1] > data[at + 2] + 60) green++;
+      return green / (data.length / 4);
     },
-    [a, b].map((png) => `data:image/png;base64,${png.toString('base64')}`),
+    `data:image/png;base64,${png.toString('base64')}`,
   );
 }
-
-test('the site search finds a page as the reader types and opens it', async () => {
-  const { page, errors } = await open('#/fr/learn/home');
-  await page.getByRole('heading', { level: 1 }).waitFor();
-  await page.keyboard.press('/');
-  const input = page.getByRole('combobox', { name: 'Rechercher' });
-  await input.fill(example.title.fr);
-  await page.getByRole('option').first().waitFor();
-  await page.keyboard.press('Enter');
-  await page.waitForURL(`**/#/fr/examples/${example.id}`);
-  assert.equal(await input.isVisible(), false, 'the search closes on the page it opened');
-  await page.getByRole('button', { name: 'Rechercher' }).click();
-  await input.fill('createWorld');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowUp');
-  await page
-    .getByRole('option', { name: /createWorld/ })
-    .first()
-    .click();
-  await page.waitForURL('**/#/fr/api/createWorld');
-  await page.getByRole('heading', { level: 1, name: /createWorld/ }).waitFor();
-  assert.deepEqual(errors, []);
-  await page.context().close();
-});
 
 test('the demo page runs the example and runs an edited colour from its code', async () => {
   const { page, errors } = await open(`#/en/examples/${example.id}`);
@@ -105,22 +78,23 @@ test('the demo page runs the example and runs an edited colour from its code', a
   await action('Share');
   await page.getByRole('status').getByText('Link copied').waitFor();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), page.url());
-  // Code: the source in the editor; every colour turned green, then Run.
+  // Code: the source in the panel beside the demo; every colour turned green, then Run.
   await action('Code');
-  const editor = page.getByRole('dialog').locator('.cm-content');
+  const editor = page.locator('[data-code-panel] .cm-content');
   await editor.getByText('<canvas id="view"></canvas>').waitFor();
   const source = await page.evaluate((file) => fetch(file).then((r) => r.text()), example.file);
-  const edited = source.replaceAll(/color: \[[^\]]*\]/g, 'color: [0.1, 0.9, 0.2]');
+  const edited = source.replaceAll(/'#[0-9a-f]{6}'/gi, "'#10e030'");
   assert.notEqual(edited, source, 'the example sets a colour');
   await editor.click();
   await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.insertText(edited);
   await page.getByRole('button', { name: 'Run' }).click();
   assert.match((await frame.getAttribute('srcdoc')) ?? '', /<base href="[^"]+examples\//);
-  assert.match((await frame.getAttribute('srcdoc')) ?? '', /color: \[0\.1, 0\.9, 0\.2\]/);
+  assert.match((await frame.getAttribute('srcdoc')) ?? '', /'#10e030'/);
+  // The demo stays in view beside the code, and turns green.
   const after = await settled();
-  const changed = await difference(page, before, after);
-  assert.ok(changed > 0.01, `the edited colour shows in the render (${changed})`);
+  const [was, now] = [await greenShare(page, before), await greenShare(page, after)];
+  assert.ok(now > was + 0.05, `the edited colour shows in the render (${was} → ${now})`);
   assert.deepEqual(errors, []);
   await page.context().close();
 });

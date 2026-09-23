@@ -1,9 +1,11 @@
 import { t } from '../content/i18n/index.ts';
-import { issueUrl, REPOSITORY } from '../content/model.ts';
+import { issueUrl } from '../content/model.ts';
 import { demoFor } from '../demos/registry.ts';
 import { ApiDemo } from './ApiDemo.tsx';
 import { DocPage } from './layout/DocPage.tsx';
+import { Collapse } from './ui/Collapse.tsx';
 import { summaryOf } from './layout/menus.ts';
+import { LEARN_SECTIONS } from './portal/routes.ts';
 import { CodeBlock } from './ui/CodeBlock.tsx';
 import { Card } from './ui/Card.tsx';
 import { Alert } from './ui/Alert.tsx';
@@ -23,21 +25,36 @@ function LiveDemo({ demo, locale }: { demo: DemoDef; locale: Locale }) {
   );
 }
 
-/** One guide or API entry: its description, its prose, its signature, its example, its values. */
+/** The text past the summary: the rest of the description, then the entry's prose. */
+function Details({ rest, html }: { rest: string; html?: string }) {
+  return (
+    <>
+      {rest && (
+        <Paragraph>
+          <Inline text={rest} />
+        </Paragraph>
+      )}
+      {html && <Prose html={html} />}
+    </>
+  );
+}
+
+/**
+ * One guide or API entry. A guide reads as text: its description, its prose, then its code. An
+ * API entry keeps one order: its summary, the signature, the example, the members, then the long
+ * description, folded under Details.
+ */
 export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: Locale }) {
   const demo = demoFor(entry.id);
   const summary = summaryOf(entry.description);
   const rest = entry.description.slice(summary.length).trim();
+  const guide = LEARN_SECTIONS.includes(entry.section);
+  const details = <Details rest={rest} html={entry.html} />;
   return (
     <DocPage
       eyebrow={t(locale, `kind.${entry.kind}`)}
       title={entry.title || entry.id}
       lead={<Inline text={summary} />}
-      actions={
-        entry.module && (
-          <TextLink href={`${REPOSITORY}/blob/develop/${entry.module}`}>{entry.module}</TextLink>
-        )
-      }
     >
       {entry.issue && (
         <Alert tone="warning">
@@ -47,12 +64,7 @@ export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: L
           </span>
         </Alert>
       )}
-      {rest && (
-        <Paragraph>
-          <Inline text={rest} />
-        </Paragraph>
-      )}
-      {entry.html && <Prose html={entry.html} />}
+      {guide && details}
       {entry.signature && (
         <CodeBlock code={entry.signature} locale={locale} label={t(locale, 'entry.signature')} />
       )}
@@ -74,6 +86,9 @@ export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: L
             }))}
           />
         </Card>
+      )}
+      {!guide && (rest || entry.html) && (
+        <Collapse title={t(locale, 'entry.details')}>{details}</Collapse>
       )}
       {(entry.replaces || entry.proof) && (
         <Card title={t(locale, 'entry.proof')}>

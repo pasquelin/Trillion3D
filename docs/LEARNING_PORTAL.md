@@ -55,15 +55,17 @@ dispose them before the next route. `docs/` holds the repository documentation o
   imports the built engine as `../runtime/engine.js`, loads a compiled scene from `../assets/` and
   runs as-is from the built site — or copied into a user's project, paths adjusted. The list is
   `site/content/gallery-roadmap.json`: the themes, then one entry per example with `id`, a
-  bilingual `title`, its `theme` and its `file`, empty until the example exists. The Examples area
-  shows the ready ones only (an entry with a `file`): its sidebar lists them theme by theme with
-  their thumbnail and a filter box, its landing page is one card per example with its settled
-  render (`site/assets/examples/thumbnails/<id>.png`, captured by
-  `scripts/docs-examples-thumbnails.ts`). One example is the file on `DemoPage`: the iframe fills
-  the content area under a one-line banner, and one DaisyUI floating action button carries Code (a
-  modal with the source in the code editor: Run loads the edited source as the iframe's `srcdoc`
-  with a `<base href>` at the file's address, so `../runtime/engine.js` and `../assets/` resolve;
-  Reset returns to the file; Copy), Share (copies the page link), Controls, Fullscreen and Restart.
+  bilingual `title`, its `theme` and its `file`, empty until the example exists. The Examples area's
+  sidebar lists the ready ones (an entry with a `file`) theme by theme, each a card with its
+  thumbnail, under a filter box; its landing page shows every entry theme by theme — a ready one
+  as a card with its settled render (`site/assets/examples/thumbnails/<id>.png`, captured by
+  `scripts/docs-examples-thumbnails.ts`) that opens it, one still to come as an "in progress"
+  card that opens nothing and names the engine feature it waits for. One example is the file on
+  `DemoPage`: the iframe fills the content area, and one DaisyUI floating action button carries
+  Code (the source in the code editor, in a panel beside the demo, which keeps running: Run — or
+  ⌘/Ctrl+Enter — loads the edited source as the iframe's `srcdoc` with a `<base href>` at the
+  file's address, so `../runtime/engine.js` and `../assets/` resolve; Reset returns to the file;
+  Copy; Close), Share (copies the page link), Controls, Fullscreen and Restart.
   The compiled scenes live under `site/assets/examples/`, each `<scene>/source` beside its
   `cache`, built by `scripts/docs-examples-assets.ts` with this checkout's native compiler; the
   models that some scenes import, and their licences, are listed in

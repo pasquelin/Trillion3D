@@ -52,7 +52,7 @@ export const SECTIONS = [
   { id: 'batches', title: 'Batch math' },
 ];
 
-export const REPOSITORY = 'https://github.com/pasquelin/WebGeometry';
+const REPOSITORY = 'https://github.com/pasquelin/WebGeometry';
 
 /** What each open issue delivers, as the badge of an entry in development says it. */
 export const ISSUES: Record<number, string> = {};
