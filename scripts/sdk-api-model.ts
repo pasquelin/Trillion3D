@@ -146,5 +146,9 @@ export async function writeGenerated(path: string, content: string): Promise<voi
   const formatted = await prettier.format(content, { ...prettierConfig, filepath: absolute });
   mkdirSync(dirname(absolute), { recursive: true });
   if (!process.argv.includes('--check')) writeFileSync(absolute, formatted);
-  else if (readFileSync(absolute, 'utf8') !== formatted) throw new Error(`${path} is stale`);
+  else if (readFileSync(absolute, 'utf8') !== formatted) {
+    const [was, now] = [readFileSync(absolute, 'utf8').split('\n'), formatted.split('\n')];
+    const at = was.findIndex((line, index) => line !== now[index]);
+    throw new Error(`${path} is stale at line ${at + 1}:\n- ${was[at]}\n+ ${now[at]}`);
+  }
 }
