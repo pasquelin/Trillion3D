@@ -118,7 +118,7 @@
       const sun = light.directional({ castShadow: true });
       const sky = light.hemisphere({ groundColor: '#6d6154' });
       world.scene.add(sun, sky);
-      world.camera.position.set(-30, 26, 38);
+      world.camera.position.set(-12, 24, 40);
       world.controls.target.set(0, 2.5, 0);
       world.controls.update();
       world.controls.minDistance = 8;
@@ -173,7 +173,9 @@
       const stop = () => (gliding = false);
       world.canvas.addEventListener('pointerdown', stop);
       world.canvas.addEventListener('wheel', stop, { passive: true });
-      const FROM = [-30, 26, 38], TO = [-16, 7, 21];
+      // Both ends look in through the open south side of the square, between the trees, so the
+      // carousel and the two lamps hold the middle of the frame and no house wall stands close.
+      const FROM = [-12, 24, 40], TO = [-7, 8.5, 23];
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         time += step;

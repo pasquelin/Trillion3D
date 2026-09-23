@@ -342,8 +342,8 @@
         look = [held[2] - (event.clientX - held[0]) * 0.005, Math.max(-1, Math.min(0.9, held[3] - (event.clientY - held[1]) * 0.005))];
       });
 
-      // The opening: seen from high above the park, the camera drops into the second car while
-      // the train waits at the station, then the chain takes it up.
+      // The opening: seen from high above the park, the camera drops into the front row of the
+      // first car while the train waits at the station, then the chain takes it up.
       let travel = 6, wait = 3.2;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
@@ -356,7 +356,8 @@
           const a = (k / 16) * Math.PI * 2 + (travel / 600) * Math.PI;
           cabin.position.set(hub[0] + Math.cos(a) * 20, hub[1] + Math.sin(a) * 20, hub[2]);
         });
-        const rider = poseAt(track, travel - 3.3);
+        // The rider sits in the front row of the first car: nothing of the train stands ahead.
+        const rider = poseAt(track, travel);
         speedShown(`${Math.round(speed * 3.6)} km/h`);
         felt(`${((speed * speed * rider.bend + G * rider.u[1]) / G).toFixed(1)} g`);
         if (!held) look = look.map((value) => value * Math.exp(-step * 3));
@@ -364,7 +365,8 @@
           const { p, t, u } = rider;
           let ahead = turn(t, u, look[0]);
           ahead = turn(ahead, unit(cross(ahead, u)), look[1] - 0.1);
-          const eye = plus(plus(p, u, 1.4), t, 0.45), target = plus(eye, ahead, 6);
+          // The eyes, 1.35 m above the car's frame: over the lap bar, just in front of the seat back.
+          const eye = plus(plus(p, u, 1.35), t, 0.35), target = plus(eye, ahead, 6);
           if (intro < 1) {
             intro = Math.min(1, intro + step / 3.2);
             const e = intro * intro * (3 - 2 * intro), mix = (a, b) => a.map((value, i) => value + (b[i] - value) * e);

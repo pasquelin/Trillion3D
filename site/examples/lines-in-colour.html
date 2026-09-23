@@ -31,10 +31,10 @@
       // never repeats, and its path draws a shape. Each rule is followed step by step (fourth
       // order Runge–Kutta), the first steps dropped while the point finds its shape.
       const FIGURES = {
-        'Lorenz butterfly': { speed: ([x, y, z]) => [10 * (y - x), x * (28 - z) - y, x * y - (8 / 3) * z], start: [0.1, 0, 0], dt: 0.004, steps: 14000 },
-        'Aizawa shell': { speed: ([x, y, z]) => [(z - 0.7) * x - 3.5 * y, 3.5 * x + (z - 0.7) * y, 0.6 + 0.95 * z - z ** 3 / 3 - (x * x + y * y) * (1 + 0.25 * z) + 0.1 * z * x ** 3], start: [0.1, 0, 0], dt: 0.008, steps: 14000 },
-        'Thomas knot': { speed: ([x, y, z]) => [Math.sin(y) - 0.19 * x, Math.sin(z) - 0.19 * y, Math.sin(x) - 0.19 * z], start: [1.1, 1.1, -0.01], dt: 0.05, steps: 14000 },
-        'Halvorsen propeller': { speed: ([x, y, z]) => [-1.89 * x - 4 * y - 4 * z - y * y, -1.89 * y - 4 * z - 4 * x - z * z, -1.89 * z - 4 * x - 4 * y - x * x], start: [-1.48, -1.51, 2.04], dt: 0.004, steps: 14000 },
+        'Lorenz butterfly': { speed: ([x, y, z]) => [10 * (y - x), x * (28 - z) - y, x * y - (8 / 3) * z], start: [0.1, 0, 0], dt: 0.008, steps: 7000 },
+        'Aizawa shell': { speed: ([x, y, z]) => [(z - 0.7) * x - 3.5 * y, 3.5 * x + (z - 0.7) * y, 0.6 + 0.95 * z - z ** 3 / 3 - (x * x + y * y) * (1 + 0.25 * z) + 0.1 * z * x ** 3], start: [0.1, 0, 0], dt: 0.016, steps: 7000 },
+        'Thomas knot': { speed: ([x, y, z]) => [Math.sin(y) - 0.19 * x, Math.sin(z) - 0.19 * y, Math.sin(x) - 0.19 * z], start: [1.1, 1.1, -0.01], dt: 0.1, steps: 7000 },
+        'Halvorsen propeller': { speed: ([x, y, z]) => [-1.89 * x - 4 * y - 4 * z - y * y, -1.89 * y - 4 * z - 4 * x - z * z, -1.89 * z - 4 * x - 4 * y - x * x], start: [-1.48, -1.51, 2.04], dt: 0.008, steps: 7000 },
       };
       function trace({ speed, start, dt, steps }) {
         let p = start;
@@ -70,11 +70,18 @@
           const ink = material.line({ linewidth: (WIDTH * whole) / size(run) });
           const line = object.line(geometry.createBuffer({ position: buffer.float32(new Float32Array(run.flat()), 3) }), ink);
           line.visible = false;
-          figure.add(line);
           return { line, ink };
         });
-        return [name, { points, pieces }];
+        return [name, { points, pieces, joined: false }];
       }));
+      // The world cuts every line into small prisms before it draws them, a cost that grows with
+      // the segments: the scene opens on the first figure alone, and the other three join it a
+      // second later — or at once, when one of them is picked.
+      const join = (drawing) => {
+        if (drawing.joined) return;
+        drawing.joined = true;
+        for (const { line } of drawing.pieces) figure.add(line);
+      };
 
       // Below the figure, a dark glossy floor; the pen that draws is a small light, and the floor
       // shows where it goes.
@@ -117,6 +124,7 @@
         if (key === undefined || key === 'figure') {
           for (const { pieces } of Object.values(drawings)) for (const { line } of pieces) line.visible = false;
           current = drawings[values.figure];
+          join(current);
           restart();
         }
         if (key === undefined || key === 'palette')
@@ -126,9 +134,11 @@
       }, world);
       shown = readout('Coloured pieces');
 
-      let turn = 0;
+      let turn = 0, waited = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
+        waited += step;
+        if (waited > 1) Object.values(drawings).forEach(join);
         const { points, pieces } = current;
         // About twelve seconds for a whole figure at the usual pace.
         drawn = Math.min(points.length - 1, drawn + (step * ui.pace * points.length) / 12);
