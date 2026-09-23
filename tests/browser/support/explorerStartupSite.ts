@@ -3,7 +3,8 @@ import { resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { routeThree } from '../../kit/server/threeRoute.ts';
 
-/** Verify the first chapter's code in both locales and at both widths, then the createWorld entry. */
+/** Verify the first chapter's code in both locales and at both widths, then the createWorld and
+ *  world.invalidate entries. */
 export async function startupSite(page: Page, base: string, out: string) {
   await routeThree(page);
   for (const locale of ['en', 'fr']) {
@@ -37,7 +38,12 @@ export async function startupSite(page: Page, base: string, out: string) {
     await page.goto(`${base}/site/index.html#/${locale}/api/createWorld`);
     await page.locator('main [data-code-block]').last().waitFor();
     assert.match((await page.locator('main').textContent()) ?? '', /createWorld\(target: /);
-    const row = page.locator('main tr').filter({ hasText: 'invalidate()' });
-    assert.match((await row.textContent()) ?? '', /draw again|redessiner/);
+    // The world's methods are entries of their own since the portal's reference was regrouped.
+    await page.goto(`${base}/site/index.html#/${locale}/api/world.invalidate`);
+    await page.locator('main [data-code-block]').first().waitFor();
+    assert.match(
+      (await page.locator('main').textContent()) ?? '',
+      /Asks for a new frame|Demande une nouvelle image/,
+    );
   }
 }

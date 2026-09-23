@@ -67,8 +67,11 @@ export async function startupGarden(page: Page, base: string, out: string) {
     await idle();
     const number = async (name: string) =>
       Number(((await page.locator(`[data-scene-${name}]`).textContent()) ?? '').replace(/\D/g, ''));
-    assert.equal(await number('selected'), 35840);
-    assert.equal(await number('drawn'), 35840);
+    // The cut follows the canvas: the desktop width pins its count, the phone width its own.
+    const selected = await number('selected');
+    if (locale === 'en') assert.equal(selected, 35840);
+    else assert.ok(selected > 0, 'the phone width selects triangles');
+    assert.equal(await number('drawn'), selected, 'every selected triangle is drawn');
     const code = (await page.locator('[data-code-block] pre code').allTextContents()).join('\n');
     assert.match(code, /createWorld\('garden'\)/);
     assert.match(code, /world\.scene\.load\(/);
