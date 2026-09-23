@@ -18,7 +18,7 @@
 /** Most triangles a leaf holds. A leaf test costs a few dozen operations per triangle and a
  *  node test six comparisons, so a handful per leaf balances them; the value sets the cost of
  *  a query, never its result. */
-export const LEAF_TRIANGLES = 4;
+const LEAF_TRIANGLES = 4;
 
 export interface TriangleTree {
   /** Nine numbers per triangle — three corners — in leaf order. */
