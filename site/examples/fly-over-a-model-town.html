@@ -123,7 +123,7 @@
     <div id="banner" data-hud data-example-overlay><h1></h1><p></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { isCapture, play, seeded, stats, words } from '../runtime/kit.js';
+      import { isCapture, play, seeded, stats, whiteNoise, words } from '../runtime/kit.js';
       const say = words();
 
       // MOUSE AIM, as PC flight games fly: the mouse moves an aim circle through the sky, not the
@@ -1303,8 +1303,7 @@
           oscillator.start();
           return oscillator;
         });
-        const noise = context.createBuffer(1, context.sampleRate * 2, context.sampleRate), samples = noise.getChannelData(0);
-        for (let k = 0; k < samples.length; k++) samples[k] = Math.random() * 2 - 1;
+        const noise = whiteNoise(context, 2);
         const looped = (type, frequency, gain) => {
           const source = context.createBufferSource(), band = context.createBiquadFilter();
           Object.assign(source, { buffer: noise, loop: true });

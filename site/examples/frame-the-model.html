@@ -137,20 +137,12 @@
       radius = readout('radius');
       distance = readout('distance');
 
-      // Double-click: a ray from the eye through the pointer, tested against every object's
-      // sphere; the nearest one hit is framed.
+      // Double-click: the engine casts the ray through the pointer; the exhibit holding the
+      // nearest surface it meets is framed.
       world.canvas.addEventListener('dblclick', (event) => {
-        const rect = world.canvas.getBoundingClientRect(), tan = Math.tan((world.camera.fov * Math.PI) / 360);
-        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1, y = 1 - ((event.clientY - rect.top) / rect.height) * 2;
-        const ray = math.vector3(x * tan * (rect.width / rect.height), y * tan, -1).applyQuaternion(world.camera.getWorldQuaternion()).normalize();
-        const eye = world.camera.getWorldPosition();
-        let best = null, nearest = Infinity;
-        for (const node of exhibits.children) {
-          const { centre, radius: r } = bounds(node), o = [centre[0] - eye.x, centre[1] - eye.y, centre[2] - eye.z];
-          const along = o[0] * ray.x + o[1] * ray.y + o[2] * ray.z, miss = Math.hypot(...o) ** 2 - along * along;
-          if (along > 0 && miss < r * r && along < nearest) (best = node, nearest = along);
-        }
-        if (best) frame(best, ui.margin);
+        let hit = world.raycast({ x: event.offsetX, y: event.offsetY }, { objects: [exhibits] })?.object;
+        while (hit && hit.parent !== exhibits) hit = hit.parent;
+        if (hit) frame(hit, ui.margin);
       });
       // A hand on the view stops the flight where it is, and the drift.
       const takeOver = () => ((flight = null), (drift = false));
