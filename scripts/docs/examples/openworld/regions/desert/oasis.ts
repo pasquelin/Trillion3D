@@ -10,6 +10,7 @@ import type { Settlement, Vec3 } from '../../plan/contract.ts';
 import { between, hash01, STAND_SIDE } from '../../props/index.ts';
 import { facing, placeLit, teleport, type Build } from './build.ts';
 import { GROVE } from './catalog.ts';
+import { standOffsets } from '../stands.ts';
 import type { Point } from './geometry2.ts';
 import { corners } from './site.ts';
 import { flattest, nearest, street } from './streets.ts';
@@ -87,7 +88,22 @@ function groves(b: Build, seed: number, [cx, cz]: Point, edge: number) {
       const [x, z] = [(i + 0.5) * STAND_SIDE, (j + 0.5) * STAND_SIDE],
         r = Math.hypot(x - cx, z - cz);
       if (r < edge + STAND_SIDE || r > outer) continue;
-      b.site.place(GROVE, x, z, (Math.floor(hash01(seed + 5, i, j) * 4) * Math.PI) / 2);
+      const grove = b.site.place(
+        GROVE,
+        x,
+        z,
+        (Math.floor(hash01(seed + 5, i, j) * 4) * Math.PI) / 2,
+      );
+      // A grove stands on the lowest ground under its whole square, not only under its corners.
+      if (grove)
+        grove.position = [
+          x,
+          Math.min(
+            grove.position[1],
+            ...standOffsets.map(([dx, dz]) => b.plan.height(x + dx, z + dz)),
+          ),
+          z,
+        ];
     }
 }
 

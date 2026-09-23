@@ -146,7 +146,10 @@ export class Site {
     const [sx, sy, sz] = axes(scale),
       shape = corners(fp, x, z, yaw, sx, sz);
     if (!this.free(shape, clearance)) return undefined;
-    const { min, max } = this.ground(shape);
+    const ground = this.ground(shape),
+      // The centre may sit in a hollow the corner grid misses: the node stands on the lowest.
+      min = Math.min(ground.min, this.plan.height(x, z)),
+      max = ground.max;
     // Nothing stands in the sea, nor on ground steeper than its plinth absorbs.
     if (min < WORLD.seaLevel + 0.5 || max - min > fp.plinth * sy) return undefined;
     const instance: Instance = {

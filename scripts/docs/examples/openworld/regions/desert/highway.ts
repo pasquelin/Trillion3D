@@ -37,21 +37,20 @@ function insideRun(road: Road, { minX, minZ, maxX, maxZ }: Bounds, margin: numbe
   return best;
 }
 
-/** The highway through the region: the plan's highway with the longest run inside it. */
-function mainHighway(b: Build) {
+/** The plan's highways through the region, the longest run inside it first. */
+function highways(b: Build) {
   const runs = b.plan.roads
     .filter((r) => r.class === 'highway')
     .map((road) => ({ road, run: insideRun(road, b.site.bounds, 150) }))
     .filter(({ run }) => run.length > 1);
-  runs.sort((p, q) => lengthOf(q.run) - lengthOf(p.run));
-  return runs[0];
+  return runs.sort((p, q) => lengthOf(q.run) - lengthOf(p.run));
 }
 
 /** Stations along `run` from `start` (a share of its length) outward, both sides. */
 function* candidates(run: readonly Vec3[], start: number) {
   const length = lengthOf(run);
-  for (let k = 0; k < 40; k++) {
-    const share = start + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.02;
+  for (let k = 0; k < 180; k++) {
+    const share = start + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.005;
     if (share < 0.05 || share > 0.95) continue;
     for (const side of [1, -1]) yield { s: along(run, share * length), side };
   }
@@ -64,7 +63,15 @@ const alongRoad = (s: Station) => Math.atan2(-s.tz, s.tx);
 
 /** The filling station: forecourt, shop, price sign, lamps, a car spawn and a teleport. */
 function fillingStation(b: Build, road: Road, run: readonly Vec3[]) {
-  const hw = road.width / 2;
+  // Beside the road first; on steep ground the forecourt steps back to the nearest flat.
+  for (const gap of [0, 30, 60, 120, 240]) {
+    const side = stationAt(b, road.width / 2 + gap, run);
+    if (side) return side;
+  }
+  return 0;
+}
+
+function stationAt(b: Build, hw: number, run: readonly Vec3[]) {
   for (const { s, side } of candidates(run, 0.5)) {
     const yaw = faceRoad(s, side),
       [fx, fz] = offset(s, side * (hw + 16));
@@ -178,9 +185,12 @@ function billboards(b: Build, road: Road, run: readonly Vec3[], side: number) {
 
 /** Everything along the highway; returns it (and the station's side) for the town's link road. */
 export function roadside(b: Build) {
-  const main = mainHighway(b);
+  const all = highways(b),
+    main = all[0];
   if (!main) return undefined;
-  const side = fillingStation(b, main.road, main.run);
+  // The station takes the first highway with a roadside flat enough for its forecourt.
+  let side = 0;
+  for (const { road, run } of all) if ((side = fillingStation(b, road, run))) break;
   truckStop(b, main.road, main.run, side);
   powerLine(b, main.road, main.run, side ? -side : 1);
   billboards(b, main.road, main.run, side || 1);
