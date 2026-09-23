@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A mesh built by hand</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, buffer, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // A star-cut gem written corner by corner: a rim that zig-zags between an outer and an inner
+      // radius, one apex above it and one below. `triangles` lists every face as three corners.
+      function gemTriangles(points, waist, height) {
+        const rim = [];
+        for (let k = 0; k < points * 2; k++) {
+          const angle = (k / (points * 2)) * Math.PI * 2, radius = k % 2 ? waist : 1;
+          rim.push([Math.cos(angle) * radius, 0, Math.sin(angle) * radius]);
+        }
+        const top = [0, height, 0], bottom = [0, -height * 0.7, 0], triangles = [];
+        rim.forEach((corner, k) => {
+          const next = rim[(k + 1) % rim.length];
+          triangles.push([top, next, corner], [bottom, corner, next]);
+        });
+        return triangles;
+      }
+
+      const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+      const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+      const unit = (v) => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+
+      // The triangles into buffers. Sharp: every face owns its three corners and one normal, so
+      // the light breaks at each edge. Smooth: a corner shared by several faces is written once,
+      // its normal the average of theirs, and the index says which corners make each triangle.
+      function gem(points, waist, height, sharp) {
+        const positions = [], normals = [], index = [], seen = new Map();
+        for (const face of gemTriangles(points, waist, height)) {
+          const normal = unit(cross(sub(face[1], face[0]), sub(face[2], face[0])));
+          for (const corner of face) {
+            const key = sharp ? null : corner.map((v) => v.toFixed(5)).join();
+            let at = key === null ? undefined : seen.get(key);
+            if (at === undefined) {
+              at = positions.length / 3;
+              positions.push(...corner);
+              normals.push(0, 0, 0);
+              if (key !== null) seen.set(key, at);
+            }
+            for (let axis = 0; axis < 3; axis++) normals[at * 3 + axis] += normal[axis];
+            index.push(at);
+          }
+        }
+        for (let at = 0; at < normals.length; at += 3) normals.splice(at, 3, ...unit(normals.slice(at, at + 3)));
+        return geometry.createBuffer({
+          position: buffer.float32(positions, 3),
+          normal: buffer.float32(normals, 3),
+          index: buffer.uint32(index, 1),
+        });
+      }
+
+      const world = createWorld('view', { controls: 'orbit' });
+      const plinth = object.mesh(geometry.cylinder(3.2, 3.4, 0.4, 96), material.meshStandard({ color: '#2b2f3a', roughness: 0.35, metalness: 0.2 }));
+      plinth.position.y = -0.2;
+      world.scene.add(plinth);
+
+      // One geometry, drawn nine times: the big gem in the middle and a ring of small ones.
+      const heart = material.meshStandard({ color: '#3fb6ff', roughness: 0.12, metalness: 0.1 });
+      const big = object.mesh(gem(6, 0.55, 1.2, true), heart);
+      big.position.y = 1.9;
+      big.scale.setScalar(1.1);
+      world.scene.add(big);
+      const ring = Array.from({ length: 8 }, (_, index) => {
+        const colour = math.color().setHSL(index / 8, 0.75, 0.55);
+        const small = object.mesh(big.geometry, material.meshStandard({ color: colour, roughness: 0.15, metalness: 0.1 }));
+        small.scale.setScalar(0.34);
+        world.scene.add(small);
+        return small;
+      });
+
+      world.scene.add(light.directional({ intensity: 3.2, color: '#fff1e0', position: [4, 9, 5], castShadow: true }));
+      world.scene.add(light.point({ intensity: 40, color: '#ff7aa8', position: [-4, 2.5, -2], distance: 14 }));
+      world.scene.add(light.point({ intensity: 40, color: '#5ad1ff', position: [4, 1.5, -3], distance: 14 }));
+      world.scene.add(light.hemisphere({ color: '#8fa8d8', groundColor: '#2a1f1a', intensity: 0.6 }));
+      world.camera.position.set(0, 2.9, 7.6);
+      world.camera.lookAt(0, 1.2, 0);
+      world.controls.target.set(0, 1.2, 0);
+
+      let vertices = null, faces = null, shape = null;
+      const ui = controls({
+        mouse: 'Drag to turn around the gems; tick sharp facets off to share the corners',
+        points: [3, 12, 6, 1],
+        waist: [0.15, 1, 0.55],
+        height: [0.3, 2, 1.2],
+        sharpFacets: true,
+        colour: '#3fb6ff',
+        spin: true,
+      }, (values, key) => {
+        if (key === 'colour' || key === undefined) heart.color.set(values.colour);
+        if (key !== 'colour' && key !== 'spin') {
+          // A new geometry for every mesh that wears it: the world reads the swap.
+          shape = gem(values.points, values.waist, values.height, values.sharpFacets);
+          big.geometry = shape;
+          for (const small of ring) small.geometry = shape;
+          count();
+        }
+        world.invalidate();
+      }, world);
+
+      // What was written by hand: every corner once in smooth mode, three per face when sharp.
+      function count() {
+        vertices?.(String(shape.attributes.position.count));
+        faces?.(String(shape.index.count / 3));
+      }
+      vertices = readout('Vertices written');
+      faces = readout('Triangles');
+      count();
+
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        time += delta;
+        big.rotation.set(0.25, time * 0.5, 0);
+        ring.forEach((small, index) => {
+          const angle = time * 0.3 + (index / 8) * Math.PI * 2;
+          small.position.set(Math.cos(angle) * 2.4, 0.55 + Math.sin(time * 1.5 + index) * 0.15, Math.sin(angle) * 2.4);
+          small.rotation.y = -time * 1.2 + index;
+        });
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
