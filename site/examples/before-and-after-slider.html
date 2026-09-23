@@ -90,15 +90,18 @@
         finished: { clay: false, sun: 'golden', shadows: true },
       };
       const SUNS = {
-        golden: { color: '#ffb466', intensity: 3.4, position: [-16, 5.5, 11] },
+        // Behind the camera's first place and high enough that the houses' shadows fall behind
+        // them, not across the square.
+        golden: { color: '#ffbd78', intensity: 3.4, position: [16, 12, 14] },
         noon: { color: '#fff6ea', intensity: 3.6, position: [3, 22, 4] },
-        off: { color: '#ffffff', intensity: 0, position: [-16, 5.5, 11] },
+        off: { color: '#ffffff', intensity: 0, position: [16, 12, 14] },
       };
 
       function courtyard(world) {
         world.scene.background = math.color('#f2c49b');
         const paint = (color, roughness = 0.8, metalness = 0, extra = {}) => material.meshStandard({ color, roughness, metalness, ...extra });
-        const clay = paint('#d8d2c8', 0.9);
+        // Clay: one light grey, matte, on every mesh — the shapes and the light alone.
+        const clay = paint('#e4e0d9', 0.9);
         const P = {
           paving: paint('#b99f83', 0.85), inlay: paint('#8d6f57', 0.8), path: paint('#a8896c', 0.85),
           stone: paint('#e2d6c2', 0.7), water: paint('#2d6f8e', 0.08, 0.1), spray: paint('#bfe6fb', 0.1),
@@ -196,7 +199,9 @@
       const before = createWorld('before');
       const afterScene = courtyard(world), beforeScene = courtyard(before);
       afterScene.look('finished');
-      world.camera.position.set(17, 9, 17);
+      // High enough that the line of sight passes over the orange trees and the cypresses: the
+      // fountain holds the middle, where the split crosses it, with the houses behind.
+      world.camera.position.set(15, 14, 15);
       world.camera.lookAt(0, 2.2, 0);
       world.controls.target.set(0, 2.2, 0);
       world.controls.minDistance = 8;
