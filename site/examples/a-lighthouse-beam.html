@@ -81,7 +81,7 @@
         beam.angle = values.beamWidth;
         beam.color.set(values.colour);
         world.invalidate();
-      });
+      }, world);
       let angle = -1.3;
       world.onFrame(({ delta }) => {
         angle += (delta * ui.turnsPerMinute * Math.PI * 2) / 60;
