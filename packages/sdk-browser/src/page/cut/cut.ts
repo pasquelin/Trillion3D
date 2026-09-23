@@ -50,8 +50,8 @@ export function selectVisiblePages<T extends PageRecord>(
   const budget = options.pageBudget && options.pageBudget > 0 ? options.pageBudget : 0;
   const { viewMatrix } = selectionScratch;
   // World frustum planes are those image entry set, in the host's depth convention: an image
-  // computes them once, for all of its consumers, and nothing is copied here.
-  // A plane a shadow caster needs open is opened on a copy: the camera's own stay whole.
+  // computes them once, for all of its consumers. A plane a shadow caster needs open is opened
+  // on a copy, so the camera's own stay whole for the others.
   const open = options.openPlanes ?? 0;
   const worldPlanes = open ? rootPlanes : cam.planes;
   if (open) {

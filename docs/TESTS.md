@@ -120,21 +120,16 @@ node tests/browser/test-gpu.ts tests/browser/probes/reflection-cone.ts   # run s
 `test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
 inherited rather than the ones it caused, and the baseline lives here so the next batch compares
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
-`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of #281: **2 fail** of
-64, always these two —
-- `explorer-startup`: the portal checks pass, then the geometry-garden lesson opens its world
-  (`scene.load` resolves, the controls enable, a manual `world.render()` returns metrics), yet
-  the world never schedules a frame: the canvas keeps its default 300 × 150 buffer under a CSS box
-  of 488 × 20 px, `invalidate()` requests no animation frame in 1.5 s, `onFrame` never fires and
-  no console error is logged, so the selected-triangle counter stays empty;
-- `shadow-camera-stop`: at the stop, with 198 shadow pages pending under the 0.01 ms budget,
-  57 705 of 876 096 pixels (6.6 %, bound 5 %) shade otherwise than at rest — lit arches far from
-  the camera read as shadowed. Publishing the current extent's matrix with the wrap origin of an
-  undrawn slid cascade moved this by under 0.2 % and was not kept; the cause is not isolated.
+`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23, head of the second #281 batch:
+**0 fail** of 64. The last two failures were engine defects, fixed there: the geometry-garden
+lesson never opened its session (`explorer-startup`), because a world whose first change had
+nothing to draw kept a finished reopen as if it were still running; and a settled frame leaked
+light at the street stop (`shadow-camera-stop`), because the cut the shadow maps draw from dropped
+every caster out of view.
 
 Before #281 the same reading gave 10 fail (`origin/develop` at `ea7e3ecf4` and the head of #322,
-54 pass / 10 fail each). A batch that leaves exactly these two failing has changed nothing
-here; one that adds a third owns it. The pass count
+54 pass / 10 fail each), then 2 after its first batch. A batch that leaves this at zero has
+changed nothing here; one that adds a failure owns it. The pass count
 moves with the number of proof files and means nothing on its own. Re-read the baseline on your
 own machine before leaning on it — the failures are not portable, only the method is.
 
