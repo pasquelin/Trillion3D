@@ -28,7 +28,7 @@ export const EROSION_CELL = (2 * WORLD.tile) / HEIGHT_SAMPLES;
 export const SHORE = 2;
 const HALF = WORLD.size / 2;
 
-export type ErosionSettings = {
+type ErosionSettings = {
   /** Time step, seconds: the pipe model's stability bound. */
   dt: number;
   /** Cells a slope at the angle of repose needs to climb the whole relief. */
@@ -53,7 +53,7 @@ export type ErosionSettings = {
  *   compression (a few minutes of simulated flow stand for the ages that cut the valleys); it is
  *   not derived from the terrain. Sensitivity: the depth of the cuts grows about with it.
  */
-export function erosionSettings(cell: number, relief: number): ErosionSettings {
+function erosionSettings(cell: number, relief: number): ErosionSettings {
   const span = Math.ceil(relief / (cell * REPOSE)),
     steps = 2 * span;
   return {
