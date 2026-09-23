@@ -106,8 +106,14 @@ export function useFrameFocus(host: RefObject<HTMLElement | null>, mode?: FrameK
     const bind = (frame: HTMLIFrameElement) => {
       const doc = frame.contentDocument;
       if (!doc || bindings.has(doc)) return;
-      // A restarted demo starts free: the frame it replaces may have gone without a blur.
+      // A restarted demo starts free: the frame it replaces may have gone without a blur. The
+      // documents gone with it are let go, so no replaced run stays reachable from here.
       setHeld(false);
+      for (const [old, unbind] of bindings)
+        if (!old.defaultView) {
+          unbind();
+          bindings.delete(old);
+        }
       bindings.set(doc, bindFrame(frame, mode === 'load' && !typing(), setHeld));
     };
     for (const frame of node.querySelectorAll('iframe')) {
