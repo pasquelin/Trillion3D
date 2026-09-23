@@ -1,6 +1,6 @@
 //! End-to-end checks of the executable's protocol: events on stderr, pointer(s) on stdout, exit codes.
 mod common;
-use common::{fixture, lines};
+use common::{fixture, lines, run_ok};
 use serde_json::Value;
 use std::{
     fs,
@@ -11,8 +11,8 @@ use std::{
 #[test]
 fn single_job_prints_a_pointer_and_streams_events() {
     let (root, obj, cache) = fixture("single");
-    let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
-        .args([
+    let output = run_ok(
+        Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler")).args([
             obj.to_str().unwrap(),
             cache.to_str().unwrap(),
             "full",
@@ -21,14 +21,7 @@ fn single_job_prints_a_pointer_and_streams_events() {
             "64",
             "/assets/",
             "none",
-        ])
-        .stdin(Stdio::null())
-        .output()
-        .expect("run");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
+        ]),
     );
     let stdout = lines(&String::from_utf8_lossy(&output.stdout));
     assert_eq!(stdout.len(), 1);

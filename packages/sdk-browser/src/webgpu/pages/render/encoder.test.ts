@@ -6,9 +6,10 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { camera, quadBackend } from '../testScenes.fixture.ts';
+import { camera, disposeQuadRun, quadBackend } from '../testScenes.fixture.ts';
 
-test("encoding-submit: the traced pose is the engine camera's, not the host camera's local pose", async () => {
+/** The quad backend on a mock GPU, tracing every diagnostic into `events`. */
+function tracedQuad() {
   installGpuGlobals();
   const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
   const { device } = mockGpu();
@@ -16,6 +17,11 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
     diagnosticDetail: 'trace' as never,
     onDiagnostic: (event) => events.push(event),
   });
+  return { events, fixture, backend };
+}
+
+test("encoding-submit: the traced pose is the engine camera's, not the host camera's local pose", async () => {
+  const { events, fixture, backend } = tracedQuad();
   try {
     await backend.prepare();
     // Rig nobody else walks: the local host camera stays at the origin, only the rig carries the
@@ -43,9 +49,7 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
       assert.deepEqual(pose.position, attendu);
     }
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });
 
@@ -53,13 +57,7 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
 // guard that hid `submittedTriangles` — the value it protected never waited for a GPU readback, so
 // it is always a number once an image has been submitted, never `null`.
 test('encoding-submit: drawnTriangles publishes run.drawnTriangles, never null once the image is submitted', async () => {
-  installGpuGlobals();
-  const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
-  const { device } = mockGpu();
-  const { fixture, backend } = quadBackend(device, {
-    diagnosticDetail: 'trace' as never,
-    onDiagnostic: (event) => events.push(event),
-  });
+  const { events, fixture, backend } = tracedQuad();
   try {
     await backend.prepare();
     const cam = camera();
@@ -78,8 +76,6 @@ test('encoding-submit: drawnTriangles publishes run.drawnTriangles, never null o
       assert.equal(event.context.drawnTriangles, backend.metrics().drawnTriangles);
     }
   } finally {
-    backend.dispose();
-    fixture.geometry.dispose();
-    fixture.material.dispose();
+    disposeQuadRun(backend, fixture);
   }
 });

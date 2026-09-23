@@ -1,8 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { webgpuPagesBackend } from '../pages.ts';
-import { collectClusterPages } from '../../../page/selection/selection.ts';
-import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import {
   MODE_DEPTH_OCCLUDER,
   MODE_DEPTH_REST,
@@ -10,8 +7,7 @@ import {
   rasterEntry,
 } from '../../../gpu/raster/contract.ts';
 import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { quadScene, camera } from '../testScenes.fixture.ts';
+import { quadScene, camera, disposeQuadRun, flushedGpuScene } from '../testScenes.fixture.ts';
 
 // The compute raster is created only under `raster-calcul` or `raster-hybride`: the cut then goes
 // to compute — binning, occluder depth, the rest, identifiers — between the hardware passes that
@@ -19,21 +15,10 @@ import { quadScene, camera } from '../testScenes.fixture.ts';
 test('the raster-calcul variant hands the whole cut to the compute raster', async () => {
   installGpuGlobals();
   const fixture = quadScene();
-  const { source, metadata, indices, associations } = fixture;
-  const collected = collectClusterPages(source, metadata, indices, associations);
-  const packed = packDagSelection(collected.roots);
-  const { device, draws, computes, buffers } = mockGpu(undefined, packed);
-  const backend = webgpuPagesBackend({
-    ...fixture,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
+  const { draws, computes, buffers, packed, backend } = await flushedGpuScene(fixture, {
     diagnosticDetail: 'trace',
     diagnosticGpuVariant: 'raster-calcul',
   });
-  await backend.prepare();
-  backend.render(camera());
-  await backend.flush?.();
   draws.length = 0;
   computes.length = 0;
   backend.render(camera());
@@ -51,7 +36,5 @@ test('the raster-calcul variant hands the whole cut to the compute raster', asyn
   assert.equal(draws.filter((draw) => draw.entryPoint === 'vs').length, 2);
   // This raster takes the whole cut: it is not the reference's, and it does not claim to be.
   assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'));
-  backend.dispose();
-  fixture.geometry.dispose();
-  fixture.material.dispose();
+  disposeQuadRun(backend, fixture);
 });

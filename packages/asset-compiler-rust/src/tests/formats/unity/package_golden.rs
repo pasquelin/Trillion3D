@@ -55,30 +55,16 @@ fn package_digest(dir: &Path, run: &GoldenRun) -> Value {
 /// to the next without the scene moving.
 fn scene_digest(run: &GoldenRun) -> Value {
     let (manifest, _) = run.prepared("unity");
-    json!({
-      "formatVersion": run.result["formatVersion"],
-      "plugin": manifest["source"]["plugin"],
-      "files": manifest["source"]["files"],
-      "counts": manifest["source"]["counts"],
-      "unsupported": manifest["unsupported"],
-      "notes": manifest["notes"],
-      "manifestBinaryVersion": run.slim["binary"]["version"],
-      "sidecarSha256": hash(&run.binary),
-      "primitives": run.result["primitives"].as_array().expect("primitives").len(),
-      "selectedNodes": run.result["selectedNodes"],
-      "totalNodes": run.result["totalNodes"],
-      "selectedTriangles": run.result["selectedTriangles"],
-      "sourceTriangles": run.result["sourceTriangles"],
-    })
-}
-
-/// The `unitypackage` → inner driver chain, as the container published it in the report.
-fn chain_report(run: &GoldenRun) -> Value {
-    run.reports
-        .iter()
-        .find(|report| report["phase"] == "archive" && report["step"] == "routed")
-        .map(|report| report["chain"].clone())
-        .expect("the container publishes the driver chain")
+    compiled_identity(
+        run,
+        json!({
+          "plugin": manifest["source"]["plugin"],
+          "files": manifest["source"]["files"],
+          "counts": manifest["source"]["counts"],
+          "unsupported": manifest["unsupported"],
+          "notes": manifest["notes"],
+        }),
+    )
 }
 
 #[test]

@@ -5,24 +5,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts';
-import { dagFixture, wideCamera } from './dag.fixture.ts';
-import { dagCulling } from './helpers.fixture.ts';
+import { selectVisiblePages, type PageRec } from './selection.ts';
+import { wideCamera } from './dag.fixture.ts';
+import { culledDagRoots, HELD_EXACT_ASK } from './helpers.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-
-const ASK = { pixelError: 0, viewport: [1280, 720] as [number, number], holdResident: true };
-
-function racines() {
-  const fixture = dagFixture();
-  fixture.metadata.primitives[0].culling = dagCulling();
-  const { roots } = collectClusterPages(
-    fixture.source,
-    fixture.metadata,
-    fixture.indices,
-    fixture.associations,
-  );
-  return { fixture, roots };
-}
 
 /** A camera that sees none of the model: its cut is empty. */
 function ailleurs() {
@@ -34,15 +20,25 @@ function ailleurs() {
 }
 
 test('reused lists keep nothing from the previous cut, shorter or empty', () => {
-  const { fixture, roots } = racines();
+  const { fixture, roots } = culledDagRoots();
   const shown: PageRec[] = [],
     wanted: PageRec[] = [];
-  const large = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK, wanted }, shown);
+  const large = selectVisiblePages(
+    roots,
+    cameraMoteur(wideCamera()),
+    { ...HELD_EXACT_ASK, wanted },
+    shown,
+  );
   const pleine = large.shown.length;
   assert.ok(pleine > 0);
   assert.equal(large.wanted.length, pleine);
 
-  const vide = selectVisiblePages(roots, cameraMoteur(ailleurs()), { ...ASK, wanted }, shown);
+  const vide = selectVisiblePages(
+    roots,
+    cameraMoteur(ailleurs()),
+    { ...HELD_EXACT_ASK, wanted },
+    shown,
+  );
   assert.equal(vide.shown.length, 0);
   assert.equal(vide.wanted.length, 0);
   assert.equal(shown.length, 0);
@@ -53,7 +49,12 @@ test('reused lists keep nothing from the previous cut, shorter or empty', () => 
   assert.equal(vide.displayedTriangles, 0);
 
   // And the list returns to its full length without keeping a trace of the empty pass.
-  const encore = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK, wanted }, shown);
+  const encore = selectVisiblePages(
+    roots,
+    cameraMoteur(wideCamera()),
+    { ...HELD_EXACT_ASK, wanted },
+    shown,
+  );
   assert.equal(encore.shown.length, pleine);
   assert.deepEqual(
     encore.shown.map((page) => page.url),

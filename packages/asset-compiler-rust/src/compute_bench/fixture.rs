@@ -2,12 +2,12 @@
 //! produced before and after the optimisations; two identical runs have exactly
 //! the same fingerprints.
 use super::report::{mesures_dir, today};
+use crate::compile;
 use crate::compiler_validate::hash;
-use crate::{compile, Options};
+use crate::tests::golden::{golden_dir, golden_options};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
-use std::sync::{atomic::AtomicBool, Arc};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 
 const NAMES: [&str; 5] = [
     "three-stack",
@@ -49,29 +49,8 @@ fn stable(mut manifest: Value) -> Value {
 }
 
 fn compile_one(name: &str) -> (f64, Value) {
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/formats/coplanar")
-        .join(name);
-    let root = std::env::temp_dir().join(format!(
-        "wg-banc-{name}-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    let options = Options {
-        source: dir.join(format!("{name}.gltf")),
-        cache: root.join("cache"),
-        resource_base: "/assets".into(),
-        scope: "full".into(),
-        triangle_budget: 1_000_000,
-        threads: 1,
-        ram_budget_mb: 64,
-        simplification: "none".into(),
-        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
-        cancelled: Arc::new(AtomicBool::new(false)),
-    };
+    let dir = golden_dir("coplanar").join(name);
+    let (options, root) = golden_options(&dir.join(format!("{name}.gltf")), name);
     let started = Instant::now();
     let result = compile(&options, |_| {}).unwrap_or_else(|e| panic!("{name} : {e}"));
     let ms = started.elapsed().as_secs_f64() * 1000.0;

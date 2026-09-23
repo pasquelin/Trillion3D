@@ -4,32 +4,15 @@ import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
-
-// `window.scene` only exists in the page this harness evaluates code in, never in Node; declared
-// here so the `page.evaluate` callbacks below (type-checked, though they run in the browser) see it.
-declare global {
-  interface Window {
-    scene: MeasuredWorld;
-  }
-}
+import { openGalleryScene, sdkMounts } from '../support/renderHarness.ts';
 
 const root = resolve(import.meta.dirname, '../../..'),
-  output = resolve(root, 'benchmark-runs/mountain-terrain'),
-  mountDirectories = {
-    '/sdk/': 'dist',
-    '/vendor/three/': 'node_modules/three',
-    '/vendor/meshoptimizer/': 'node_modules/meshoptimizer',
-    '/site/': 'site',
-  };
+  output = resolve(root, 'benchmark-runs/mountain-terrain');
 await mkdir(output, { recursive: true });
 const server = await startServer({
   port: 0,
   captures: new Map(),
-  mounts: Object.entries(mountDirectories).map(([prefix, directory]) => ({
-    prefix,
-    dir: resolve(root, directory),
-  })),
+  mounts: [...sdkMounts(root), { prefix: '/site/', dir: resolve(root, 'site') }],
 });
 const browser = await launchChrome({ headless: true }),
   errors: string[] = [];
@@ -40,35 +23,15 @@ try {
   });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${serverPort(server)}`);
-  await page.evaluate(async (sdkUrl) => {
-    document.body.replaceChildren();
-    document.body.style.margin = '0';
-    const canvas = document.createElement('canvas');
-    canvas.id = 'terrain-proof';
-    canvas.style.cssText = 'width:900px;height:620px;display:block';
-    document.body.append(canvas);
-    const { openMeasuredWorld, webgpuPagesBackend } = await import(sdkUrl);
-    window.scene = await openMeasuredWorld('terrain-proof', {
-      manifestUrl: '/site/assets/gallery/offline/terrain/cache/native/full/manifest.json',
-      scope: 'full',
-      importedLights: true,
-      interactive: false,
-      backends: [webgpuPagesBackend],
-      width: 900,
-      height: 620,
-      pixelRatio: devicePixelRatio,
-      temporalAntialiasing: false,
-      geometryPoolBytes: 16 * 1024 * 1024,
-      geometryPoolCeilingBytes: 64 * 1024 * 1024,
-      texturePoolBytes: 64 * 1024 * 1024,
-    });
-    await window.scene.awaitPages();
-    window.scene.setPose({
-      ...window.scene.homePose(),
-      position: [10.5, 8.2, 12.5],
-      target: [0, 1.1, 0],
-    });
-  }, '/sdk/sdk-browser/measurement.js');
+  await openGalleryScene(page, {
+    id: 'terrain-proof',
+    width: 900,
+    height: 620,
+    manifestUrl: '/site/assets/gallery/offline/terrain/cache/native/full/manifest.json',
+    texturePoolBytes: 64 * 1024 * 1024,
+    position: [10.5, 8.2, 12.5],
+    target: [0, 1.1, 0],
+  });
   const sample = await page.evaluate(async () => {
     let metrics;
     for (let frame = 0; frame < 64; frame++) {

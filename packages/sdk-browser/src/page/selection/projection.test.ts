@@ -20,11 +20,9 @@ import {
   referenceProjectCentre,
   referenceProjectedClusterError,
 } from '../../../../../bench/oracles/browser/cut-budget.ts';
+import { obliqueCamera } from './dag.fixture.ts';
 
-const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.25, 500);
-camera.position.set(3, 2, 9);
-camera.lookAt(0, 0, 0);
-camera.updateMatrixWorld();
+const camera = obliqueCamera();
 const view = camera.matrixWorldInverse.elements;
 const STRETCH = 1.25,
   FOCAL = 640,

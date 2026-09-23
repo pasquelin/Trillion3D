@@ -129,6 +129,8 @@ pub(in crate::tests) fn mat_blanc(name: &str, floats: &str) -> String {
     mat(name, floats, "    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}\n")
 }
 
+// A plain triangle; the sparse-accessor model of `sparse.rs` only opens on the same header.
+// jscpd:ignore-start
 /// A binary glTF of a single triangle, whose nodes are those the case asks for.
 fn glb(nodes: Value) -> Vec<u8> {
     let mut bin = Vec::new();
@@ -154,6 +156,7 @@ fn glb(nodes: Value) -> Vec<u8> {
     });
     encode_glb(&gltf, &bin)
 }
+// jscpd:ignore-end
 
 /// The node of this name in the intermediate scene.
 pub(in crate::tests) fn node_named<'a>(gltf: &'a Value, name: &str) -> Option<&'a Value> {

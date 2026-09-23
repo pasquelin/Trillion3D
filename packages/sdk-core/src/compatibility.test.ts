@@ -9,6 +9,23 @@ import {
   FORMAT_VERSION,
   compareImages,
 } from './index.ts';
+
+/** One exact root page over the unit box, named by its id. */
+const page = (id: number) => ({
+  id,
+  url: `${id}`,
+  sha256: 'x',
+  bytes: 12,
+  count: 3,
+  min: [0, 0, 0],
+  max: [1, 1, 1],
+  role: 'exact' as const,
+  level: 0,
+  lodError: 0,
+  sphere: [0, 0, 0, 1],
+  parentError: null,
+  parentSphere: null,
+});
 test('Public core imports without DOM and rejects unknown format with a structured code', () => {
   assert.equal(typeof (globalThis as { document?: unknown }).document, 'undefined');
   assertFormat(FORMAT_VERSION);
@@ -22,21 +39,6 @@ test('Public core imports without DOM and rejects unknown format with a structur
   );
 });
 test('a cache without a cluster DAG is refused by name, with the primitive that lacks one', () => {
-  const page = (id: number) => ({
-    id,
-    url: `${id}`,
-    sha256: 'x',
-    bytes: 12,
-    count: 3,
-    min: [0, 0, 0],
-    max: [1, 1, 1],
-    role: 'exact' as const,
-    level: 0,
-    lodError: 0,
-    sphere: [0, 0, 0, 1],
-    parentError: null,
-    parentSphere: null,
-  });
   const base = {
     schema: FORMAT_VERSION,
     formatVersion: FORMAT_VERSION,
@@ -114,23 +116,7 @@ test('cache readers accept the current format and the clustered BLEND one explic
         primitive: 0,
         pass: 'clustered-blend',
         clusterStrategy: 'dag-groups' as const,
-        pages: [
-          {
-            id: 0,
-            url: '0',
-            sha256: 'x',
-            bytes: 12,
-            count: 3,
-            min: [0, 0, 0],
-            max: [1, 1, 1],
-            role: 'exact' as const,
-            level: 0,
-            lodError: 0,
-            sphere: [0, 0, 0, 1],
-            parentError: null,
-            parentSphere: null,
-          },
-        ],
+        pages: [page(0)],
       },
     ],
   };

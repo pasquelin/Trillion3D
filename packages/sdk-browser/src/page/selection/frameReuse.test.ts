@@ -9,6 +9,21 @@ import {
 import { blendFixture, camera } from './blend.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 
+/** Two frames of one view agree on what they show, want and reject. */
+function assertSameCut(first: SelectionResult<PageRec>, second: SelectionResult<PageRec>) {
+  assert.deepEqual(
+    first.shown.map((p) => p.url),
+    second.shown.map((p) => p.url),
+    'same shown set',
+  );
+  assert.deepEqual(
+    first.wanted.map((p) => p.url),
+    second.wanted.map((p) => p.url),
+    'same wanted set',
+  );
+  assert.equal(first.frustumRejected, second.frustumRejected, 'same frustum reject');
+}
+
 test('a cut frame reuses its flat table, result and arrays: it allocates nothing', () => {
   const fixture = blendFixture();
   const { roots } = collectClusterPages(
@@ -100,17 +115,7 @@ test('two successive calls with the same camera select the same set of clusters'
     { pixelError: 100, viewport: [960, 540], holdResident: true },
     shown2,
   );
-  assert.deepEqual(
-    first.shown.map((p) => p.url),
-    second.shown.map((p) => p.url),
-    'same shown set',
-  );
-  assert.deepEqual(
-    first.wanted.map((p) => p.url),
-    second.wanted.map((p) => p.url),
-    'same wanted set',
-  );
-  assert.equal(first.frustumRejected, second.frustumRejected, 'same frustum reject');
+  assertSameCut(first, second);
   assert.equal(first.lodLevel, second.lodLevel, 'same LOD level');
   fixture.geometry.dispose();
   fixture.material.dispose();
@@ -133,17 +138,7 @@ test('selection working arrays are reused from one frame to the next', () => {
   const hint: PageRec[] = [];
   const first = selectVisiblePages(roots, cameraMoteur(cam), ask, hint);
   const second = selectVisiblePages(roots, cameraMoteur(cam), ask, hint);
-  assert.deepEqual(
-    first.shown.map((p) => p.url),
-    second.shown.map((p) => p.url),
-    'same shown set',
-  );
-  assert.deepEqual(
-    first.wanted.map((p) => p.url),
-    second.wanted.map((p) => p.url),
-    'same wanted set',
-  );
-  assert.equal(first.frustumRejected, second.frustumRejected, 'same frustum reject');
+  assertSameCut(first, second);
   fixture.geometry.dispose();
   fixture.material.dispose();
 });

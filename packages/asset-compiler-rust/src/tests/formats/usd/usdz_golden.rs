@@ -61,24 +61,6 @@ fn digest(dir: &Path, run: &GoldenRun) -> Value {
     // Triangle count tells which package delivered, without guessing.
           "deuxCouchesTriangles":
             compile_golden_source(&dir.join("deux-scenes.usdz"), "usdz-deux-scenes").result["sourceTriangles"],
-          "scene": {
-            "formatVersion": run.result["formatVersion"],
-            "manifestBinaryVersion": run.slim["binary"]["version"],
-            "sidecarSha256": hash(&run.binary),
-            "primitives": run.result["primitives"].as_array().expect("primitives").len(),
-            "selectedNodes": run.result["selectedNodes"],
-            "totalNodes": run.result["totalNodes"],
-            "selectedTriangles": run.result["selectedTriangles"],
-            "sourceTriangles": run.result["sourceTriangles"],
-          },
+          "scene": compiled_identity(run, json!({})),
         })
-}
-
-/// `usdz` -> internal driver chain, as container published in report.
-fn chain_report(run: &GoldenRun) -> Value {
-    run.reports
-        .iter()
-        .find(|report| report["phase"] == "archive" && report["step"] == "routed")
-        .map(|report| report["chain"].clone())
-        .expect("the container publishes the driver chain")
 }
