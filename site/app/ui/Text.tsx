@@ -24,12 +24,3 @@ export function Section({ title, children }: { title: ReactNode; children: React
     </section>
   );
 }
-
-/** A picture across the page that opens what it shows, at the renders' 16:10. */
-export function Figure({ href, src, alt }: { href: string; src: string; alt: string }) {
-  return (
-    <a className="block max-w-3xl overflow-hidden rounded-box" href={href}>
-      <img className="aspect-[16/10] w-full object-cover" src={src} alt={alt} loading="lazy" />
-    </a>
-  );
-}
