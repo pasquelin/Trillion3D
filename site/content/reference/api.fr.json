@@ -1674,15 +1674,7 @@
   },
   "FirstPersonCameraControls": {
     "summary": "PREMIÈRE PERSONNE, pointeur bloqué : le pointeur tourne la tête, les touches font marcher.",
-    "description": "L’horizon reste droit — lacet autour du haut du monde, tangage borné à `[minPitch, maxPitch]`, jamais de roulis — et la marche suit le lacet seul, donc lever les yeux ne soulève pas le marcheur du sol. C’EST À L’HÔTE DE DEMANDER LE BLOCAGE. Un navigateur n’accorde le blocage du pointeur que pendant un geste, donc le contrôleur le demande sur `pointerdown` et publie `lock()`, `unlock()` et `locked()` pour un hôte qui préfère choisir son moment ; un blocage dont l’utilisateur s’échappe arrête simplement le regard. Touches, par `KeyboardEvent.code` : W/S avant et arrière, A/D de côté, Espace et Maj gauche pour monter et descendre.",
-    "members": {
-      "lookSpeed": "Radians tournés par pixel de mouvement du pointeur.",
-      "minPitch": "Le plus bas que regarde la tête, en radians sous l’horizon comptés négatifs (0 est l’horizon) ; par défaut juste avant la verticale vers le bas. Remonte-le pour qu’un marcheur ne regarde jamais dans son propre corps.",
-      "maxPitch": "Le plus haut que regarde la tête, en radians au-dessus de l’horizon ; par défaut juste avant le zénith.",
-      "locked": "Si le pointeur est bloqué dans la vue.",
-      "lock": "Bloque le pointeur dans la vue.",
-      "unlock": "Libère le pointeur."
-    }
+    "description": "L’horizon reste droit — lacet autour du haut du monde, tangage borné à `[minPitch, maxPitch]`, jamais de roulis — et la marche suit le lacet seul, donc lever les yeux ne soulève pas le marcheur du sol. C’EST À L’HÔTE DE DEMANDER LE BLOCAGE. Un navigateur n’accorde le blocage du pointeur que pendant un geste, donc le contrôleur le demande sur `pointerdown` et publie `lock()`, `unlock()` et `locked()` pour un hôte qui préfère choisir son moment ; un blocage dont l’utilisateur s’échappe arrête simplement le regard. Touches, par `KeyboardEvent.code` : W/S avant et arrière, A/D de côté, Espace et Maj gauche pour monter et descendre."
   },
   "FloatBatch": {
     "summary": "Les tableaux de nombres qu’un lot lit et écrit."
@@ -6332,7 +6324,26 @@
       "autoForward": "Vol seulement : avance à `movementSpeed` sans touche, W plus vite, S jusqu’à l’arrêt.",
       "update": "Fait avancer un contrôleur piloté sur `delta` secondes ; un contrôleur à pivot relit sa pose.",
       "follow": "La caméra du monde a changé : le contrôleur la suit.",
-      "dispose": "Arrête le contrôleur et retire ses écouteurs du canevas."
+      "dispose": "Arrête le contrôleur et retire ses écouteurs du canevas.",
+      "colliders": "Personnage seulement : les maillages que le corps heurte — un objet ou une liste, descendants compris — ou `null`. Les poser construit un arbre de triangles statique depuis leurs triangles en espace monde tels qu’ils sont maintenant : un passage sur les triangles et une construction en `O(T log T)`, environ 52 octets gardés par triangle. Les modèles compilés ne sont pas encore lus : donne-leur une doublure en maillage simple.",
+      "rebuildColliders": "Personnage seulement : reconstruit l’arbre de collision, après que les collisionneurs ont bougé ou changé.",
+      "velocity": "Personnage seulement : la vitesse du corps en mètres par seconde, une copie ; zéro sinon.",
+      "onGround": "Personnage seulement : si les pieds sont sur un sol ; `false` pour tout autre contrôleur.",
+      "walkSpeed": "Personnage seulement : mètres par seconde à pied ; 4,5 par défaut, une course régulière.",
+      "sprintSpeed": "Personnage seulement : mètres par seconde avec Maj enfoncée ; 7 par défaut.",
+      "jumpSpeed": "Personnage seulement : vitesse vers le haut au départ d’un saut, en m/s ; `sqrt(2 g h)` atteint `h`, 1,1 m par défaut.",
+      "gravity": "Personnage seulement : accélération vers le bas, en m/s² ; 9,80665 par défaut.",
+      "airControl": "Personnage seulement : à quelle vitesse les touches dirigent en l’air, en fraction de la réponse au sol ; 0,3 par défaut, 0 est balistique.",
+      "responseTime": "Personnage seulement : secondes pour atteindre 95 % de la vitesse voulue, ou pour s’arrêter, au sol ; un pas de marche (1 / 1,8 s) par défaut.",
+      "capsuleRadius": "Personnage seulement : rayon du corps, en mètres ; une demi-largeur d’épaules (0,23 m) par défaut.",
+      "capsuleHeight": "Personnage seulement : hauteur du corps, en mètres ; 1,75 par défaut.",
+      "eyeHeight": "Personnage seulement : hauteur de la caméra au-dessus des pieds, en mètres ; 1,64 par défaut.",
+      "stepHeight": "Personnage seulement : plus haut rebord monté sans sauter, en mètres ; la hauteur du genou (0,5 m) par défaut.",
+      "maxSlope": "Personnage seulement : sol le plus raide où l’on tient, en radians depuis l’horizontale ; 45° par défaut.",
+      "coyoteTime": "Personnage seulement : secondes après avoir quitté un bord pendant lesquelles un saut est encore accordé ; 0,1 par défaut.",
+      "jumpBuffer": "Personnage seulement : secondes pendant lesquelles un saut pressé avant l’atterrissage est gardé pour l’atterrissage ; 0,1 par défaut.",
+      "onLand": "Personnage seulement : appelée à l’atterrissage avec la vitesse de descente en m/s ; `null` par défaut.",
+      "onJump": "Personnage seulement : appelée quand le corps quitte le sol sur un saut ; `null` par défaut."
     }
   },
   "world.renderer": {
@@ -6407,7 +6418,8 @@
     "summary": "Arrête le monde et rend tout ce qu’il a pris : mémoire GPU, boucle, contrôles."
   },
   "WorldControls": {
-    "summary": "Les façons dont une page peut diriger la caméra à la souris et au clavier, ou `'none'`."
+    "summary": "Les façons dont une page peut diriger la caméra à la souris et au clavier, ou `'none'`.",
+    "description": "`'firstPerson'` déplace une caméra ; `'character'` déplace un corps — masse, gravité, sauts, collisions avec `world.controls.colliders` — et regarde par ses yeux."
   },
   "WorldFrameMetrics": {
     "summary": "Les mesures d’une image, avec les noms sous lesquels une page les lit ; `null` là où le chemin ne compte pas.",
@@ -6606,6 +6618,71 @@
       "z": "Le troisième nombre.",
       "w": "Le quatrième nombre.",
       "set": "Écrit les quatre nombres."
+    }
+  },
+  "Capsule": {
+    "summary": "UNE CAPSULE DEBOUT face à un arbre de triangles : la phase étroite du corps du personnage.",
+    "description": "La capsule se tient sur `feet` — le point le plus bas de sa sphère du bas — et réunit tous les points à moins de `radius` du segment vertical qui va de `feet + radius` à `feet + height - radius`. Une passe trouve chaque triangle plus proche que `radius` de ce segment et confie aussitôt chaque recouvrement à `push` (`CapsuleContact`). L’appelant déplace `feet` ; le triangle suivant de la passe est mesuré depuis la capsule déplacée, donc deux murs qui se rejoignent dans un coin sont quittés tous deux en une passe.",
+    "members": {
+      "feet": "Le point le plus bas, en espace monde ; `push` le déplace.",
+      "radius": "Rayon du corps, en mètres.",
+      "height": "Hauteur des pieds au sommet de la tête, en mètres ; au moins deux rayons."
+    }
+  },
+  "CapsuleContact": {
+    "summary": "Un recouvrement entre une capsule et une surface.",
+    "description": "Les tableaux sont réutilisés : un `push` ne les lit que pendant l’appel.",
+    "members": {
+      "normal": "Direction unitaire qui sort de la surface vers la capsule : le chemin de sortie.",
+      "surface": "Normale unitaire de la surface elle-même, du côté de la capsule. Elle diffère de `normal` quand la capsule touche une arête ou un coin : elle dit à quelle face appartient cette arête.",
+      "point": "Le point touché de la surface, en espace monde.",
+      "depth": "De combien la capsule est entrée dans la surface le long de `normal`, > 0."
+    }
+  },
+  "CapsulePush": {
+    "summary": "Répond à un contact, en général en sortant les `feet` de la capsule."
+  },
+  "CharacterCameraControls": {
+    "summary": "UN PERSONNAGE, vu par ses yeux : un corps avec une masse qui marche, court, saute et tombe, et heurte les triangles du monde comme une capsule debout.",
+    "description": "Le pointeur tourne la tête comme en première personne (`look.ts`). Les touches, par `KeyboardEvent.code` pour que chaque disposition de clavier joue les mêmes touches : W/S ou les flèches haut et bas pour avancer et reculer, A/D ou les flèches de côté pour se décaler, Maj pour sprinter, Espace pour sauter. Le corps ne démarre ni ne s’arrête d’un coup : il prend de la vitesse et freine en `responseTime`, garde son élan en l’air, tombe sous `gravity`, monte les rebords jusqu’à `stepHeight`, glisse le long des murs et tient sur les pentes jusqu’à `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La caméra est l’œil, à `eyeHeight` au-dessus des pieds. Un hôte qui déplace lui-même la caméra y téléporte le corps, au repos. Un personnage immobile — au sol, sans vitesse, sans touche — n’émet rien, donc la scène reste immobile.",
+    "members": {
+      "velocity": "La vitesse du corps en mètres par seconde, en direct : `[x, y, z]`, y vers le haut.",
+      "onGround": "Si les pieds sont sur un sol.",
+      "onLand": "Appelée à l’atterrissage avec la vitesse de descente, en mètres par seconde : un son, une secousse.",
+      "onJump": "Appelée quand le corps quitte le sol sur un saut.",
+      "collision": "Ce que le corps heurte — les collisionneurs du monde, ou le monde d’un moteur physique par la même jointure (`CharacterCollision`). `null` marche à plat là où se tient le corps, sans jamais tomber.",
+      "update": "Vit `delta` secondes ; renvoie si la caméra a bougé, et émet `change` quand c’est le cas."
+    }
+  },
+  "CharacterCollision": {
+    "summary": "LA JOINTURE ENTRE UN PERSONNAGE ET LE MONDE QU’IL HEURTE.",
+    "description": "Le corps du personnage (`characterBody.ts`) ne lit jamais de triangles : il déplace sa capsule par morceaux plus courts que son rayon et, après chacun, demande ce que la capsule recouvre et par où sortir ; et un marcheur demande où est le sol sous ses pieds. Tout le reste — vitesse, gravité, marches, pentes, sauts — appartient au corps. Un moteur physique implémente cette interface pour mettre un personnage dans son monde : il répond au recouvrement depuis ses propres formes et sa propre phase large, et le corps y marche sans changement. L’implémentation par défaut est l’arbre de triangles statique de `triangleCollision`.",
+    "members": {
+      "resolveCapsule": "Trouve ce que `capsule` recouvre et appelle `push(contact)` pour chaque recouvrement, aussitôt (`CapsuleContact` : le chemin de sortie, la surface, le point touché, la profondeur). `push` déplace `capsule.feet` ; une implémentation mesure chaque recouvrement suivant depuis la capsule déplacée, donc un coin est quitté en un appel. Renvoie si quelque chose se recouvrait.",
+      "groundBelow": "Descend la sphère du bas de la capsule tout droit, d’au plus `depth`, et renvoie la distance parcourue avant qu’elle se pose sur une surface qu’`accepts` retient — le plus haut de ces appuis ; négative quand la capsule s’y enfonce déjà et doit remonter. `null` quand il n’y en a aucune. `capsule.feet` reste où il était. `accepts` voit chaque contact candidat : `point`, `normal` du point vers le centre de la sphère, `surface` la face tournée vers le haut."
+    }
+  },
+  "HeadSettings": {
+    "summary": "LA TÊTE D’UN MARCHEUR, pointeur bloqué : le pointeur la tourne, l’horizon reste droit — lacet autour du haut du monde, tangage borné à `[minPitch, maxPitch]`, jamais de roulis.",
+    "description": "Partagée par chaque contrôleur qui regarde par les yeux d’une personne. C’EST À L’HÔTE DE DEMANDER LE BLOCAGE. Un navigateur n’accorde le blocage du pointeur que pendant un geste, donc la tête le demande sur `pointerdown` et publie `lock()`, `unlock()` et `locked()` pour un hôte qui préfère choisir son moment ; un blocage dont l’utilisateur s’échappe arrête simplement le regard, et un glisser sans blocage tourne toujours la tête.",
+    "members": {
+      "lookSpeed": "Radians tournés par pixel de mouvement du pointeur.",
+      "minPitch": "Le plus bas que regarde la tête, en radians sous l’horizon comptés négatifs (0 est l’horizon) ; par défaut juste avant la verticale vers le bas. Remonte-le pour qu’un marcheur ne regarde jamais dans son propre corps.",
+      "maxPitch": "Le plus haut que regarde la tête, en radians au-dessus de l’horizon ; par défaut juste avant le zénith."
+    }
+  },
+  "PersonHead": {
+    "summary": "Ce que publie un contrôleur qui regarde par les yeux d’une personne : la tête et son blocage.",
+    "members": {
+      "locked": "Si le pointeur est bloqué dans la vue.",
+      "lock": "Bloque le pointeur dans la vue.",
+      "unlock": "Libère le pointeur."
+    }
+  },
+  "TriangleCollision": {
+    "summary": "Le monde de collision par défaut : un arbre de triangles statique.",
+    "members": {
+      "tree": "L’arbre qui répond : son `triangleCount` et ses `bytes` sont le coût du monde."
     }
   }
 }
