@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scattered on a surface</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #04060c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // A sequence in [0, 1) from a seed: the same planet on every run.
+      function random(seed) {
+        let state = seed >>> 0;
+        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
+      }
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#04060c');
+
+      // The relief: smooth noise summed over five octaves, read on the direction from the centre.
+      const lattice = (i, j, k) => {
+        let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(k, 2147483647);
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+      };
+      const smooth = (t) => t * t * (3 - 2 * t);
+      function noise(x, y, z) {
+        const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z);
+        const u = smooth(x - i), v = smooth(y - j), w = smooth(z - k);
+        const mix = (a, b, t) => a + (b - a) * t;
+        const plane = (dk) => mix(mix(lattice(i, j, k + dk), lattice(i + 1, j, k + dk), u), mix(lattice(i, j + 1, k + dk), lattice(i + 1, j + 1, k + dk), u), v);
+        return mix(plane(0), plane(1), w) * 2 - 1;
+      }
+      const elevation = (x, y, z) => {
+        let sum = 0, amplitude = 0.6, scale = 1.4;
+        for (let octave = 0; octave < 5; octave++, amplitude *= 0.5, scale *= 2.1) sum += amplitude * noise(x * scale + 11, y * scale, z * scale - 7);
+        return sum;
+      };
+      // Below zero is sea floor, kept shallow; above, the land rises faster the higher it goes, so
+      // the plains stay low and a few peaks stand tall.
+      const RADIUS = 3;
+      const radiusAt = (x, y, z) => {
+        const e = elevation(x, y, z);
+        return RADIUS * (1 + (e < 0 ? 0.06 * e : 0.14 * e + 0.2 * e * e));
+      };
+
+      // The planet's skin: a twenty-sided ball split six times over, every corner pushed out to the
+      // radius its direction reads.
+      const t = (1 + Math.sqrt(5)) / 2;
+      const ICOSAHEDRON = [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1];
+      const TWENTY = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1];
+      const corners = Array.from({ length: 12 }, (_, k) => {
+        const p = ICOSAHEDRON.slice(k * 3, k * 3 + 3), length = Math.hypot(...p);
+        return p.map((value) => value / length);
+      });
+      let faces = TWENTY;
+      for (let split = 0; split < 6; split++) {
+        const middles = new Map(), next = [];
+        const middle = (a, b) => {
+          const key = a < b ? a * 1e6 + b : b * 1e6 + a;
+          if (!middles.has(key)) {
+            const p = corners[a].map((value, axis) => value + corners[b][axis]), length = Math.hypot(...p);
+            middles.set(key, corners.push(p.map((value) => value / length)) - 1);
+          }
+          return middles.get(key);
+        };
+        for (let f = 0; f < faces.length; f += 3) {
+          const [a, b, c] = [faces[f], faces[f + 1], faces[f + 2]], ab = middle(a, b), bc = middle(b, c), ca = middle(c, a);
+          next.push(a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca);
+        }
+        faces = next;
+      }
+      const surface = corners.map(([x, y, z]) => {
+        const r = radiusAt(x, y, z);
+        return [x * r, y * r, z * r];
+      });
+      // Each corner's normal: the sum of the faces around it, each weighted by its area.
+      const normals = surface.map(() => [0, 0, 0]);
+      for (let f = 0; f < faces.length; f += 3) {
+        const [a, b, c] = [faces[f], faces[f + 1], faces[f + 2]].map((k) => surface[k]);
+        const u = b.map((value, axis) => value - a[axis]), v = c.map((value, axis) => value - a[axis]);
+        const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+        for (let k = 0; k < 3; k++) normals[faces[f + k]].forEach((_, axis, sum) => (sum[axis] += n[axis]));
+      }
+
+      // Four bands by height above the sea — sand, grass, rock, snow — each its own mesh, its own
+      // colour. A triangle across a boundary is cut along it, so a band ends on its contour line.
+      const SEA = RADIUS;
+      const LEVELS = [-Infinity, SEA + 0.03, SEA + 0.18, SEA + 0.34, Infinity];
+      const vertex = (k) => {
+        const [x, y, z] = surface[k], n = normals[k], length = Math.hypot(...n);
+        return [x, y, z, n[0] / length, n[1] / length, n[2] / length, Math.hypot(x, y, z)];
+      };
+      const cross = (p, q, level) => {
+        const share = (level - p[6]) / (q[6] - p[6]);
+        return p.map((value, axis) => value + (q[axis] - value) * share);
+      };
+      const clip = (polygon, level, keepAbove) => {
+        const kept = [], inside = (p) => (keepAbove ? p[6] >= level : p[6] <= level);
+        polygon.forEach((p, index) => {
+          const q = polygon[(index + 1) % polygon.length];
+          if (inside(p)) kept.push(p);
+          if (inside(p) !== inside(q)) kept.push(cross(p, q, level));
+        });
+        return kept;
+      };
+      const bands = LEVELS.slice(1).map(() => ({ position: [], normal: [] }));
+      for (let f = 0; f < faces.length; f += 3) {
+        const triangle = [vertex(faces[f]), vertex(faces[f + 1]), vertex(faces[f + 2])];
+        bands.forEach((band, index) => {
+          let polygon = triangle;
+          if (index > 0) polygon = clip(polygon, LEVELS[index], true);
+          if (index < bands.length - 1 && polygon.length) polygon = clip(polygon, LEVELS[index + 1], false);
+          for (let k = 1; k + 1 < polygon.length; k++)
+            for (const p of [polygon[0], polygon[k], polygon[k + 1]]) band.position.push(p[0], p[1], p[2]), band.normal.push(p[3], p[4], p[5]);
+        });
+      }
+      const planet = object.group();
+      ['#d9c48f', '#4f8a3a', '#7a6a5c', '#f2f4f8'].forEach((colour, index) => {
+        const { position, normal } = bands[index];
+        const skin = geometry.createBuffer({
+          position: buffer.float32(new Float32Array(position), 3),
+          normal: buffer.float32(new Float32Array(normal), 3),
+          index: buffer.uint32(Array.from({ length: position.length / 3 }, (_, k) => k)),
+        });
+        planet.add(object.mesh(skin, material.meshStandard({ color: colour, roughness: index === 3 ? 0.5 : 0.9 })));
+      });
+      const ocean = object.mesh(geometry.sphere(1, 128, 64), material.meshStandard({ color: '#1d5f8a', roughness: 0.18, metalness: 0.1 }));
+      planet.add(ocean);
+
+      // The candidates: ten thousand spots spread evenly over the ball. Each keeps its height and
+      // its slope — the angle between the ground's normal and straight up from the centre.
+      const next = random(3), CANDIDATES = 10000, step = 0.004;
+      const candidates = Array.from({ length: CANDIDATES }, () => {
+        const y = next() * 2 - 1, around = next() * Math.PI * 2, ring = Math.sqrt(1 - y * y);
+        const d = [ring * Math.cos(around), y, ring * Math.sin(around)];
+        const side = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+        const e1 = [d[1] * side[2] - d[2] * side[1], d[2] * side[0] - d[0] * side[2], d[0] * side[1] - d[1] * side[0]];
+        const l1 = Math.hypot(...e1);
+        const a = e1.map((value) => value / l1), b = [d[1] * a[2] - d[2] * a[1], d[2] * a[0] - d[0] * a[2], d[0] * a[1] - d[1] * a[0]];
+        const point = (s, t) => {
+          const q = d.map((value, axis) => value + a[axis] * s + b[axis] * t), length = Math.hypot(...q), r = radiusAt(...q.map((value) => value / length));
+          return q.map((value) => (value / length) * r);
+        };
+        const here = point(0, 0), pa = point(step, 0), pb = point(0, step);
+        const u = pa.map((value, axis) => value - here[axis]), v = pb.map((value, axis) => value - here[axis]);
+        const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], length = Math.hypot(...n);
+        const slope = (Math.acos(Math.abs(n[0] * d[0] + n[1] * d[1] + n[2] * d[2]) / length) * 180) / Math.PI;
+        return { d, r: Math.hypot(...here), slope, size: 0.7 + next() * 0.7 };
+      });
+
+      // Trees and rocks, a pool of each, placed on the candidates the rules accept; each stands
+      // straight up from the centre, its two angles read from its direction.
+      const leaves = [material.meshStandard({ color: '#2f6b34', roughness: 0.8 }), material.meshStandard({ color: '#3f7f2c', roughness: 0.8 })];
+      const bark = material.meshStandard({ color: '#5a3d2a', roughness: 0.9 }), stone = material.meshStandard({ color: '#8a8580', roughness: 0.85 });
+      const crown = geometry.cone(0.07, 0.22, 10).translate(0, 0.17, 0), trunk = geometry.cylinder(0.012, 0.016, 0.07, 6).translate(0, 0.035, 0);
+      const pebble = geometry.polyhedron(ICOSAHEDRON, TWENTY, 0.05);
+      const upright = (node, [x, y, z]) => {
+        node.rotation.order = 'YXZ';
+        node.rotation.set(Math.acos(y), Math.atan2(x, z), 0);
+      };
+      const TREES = 3500, ROCKS = 700;
+      const trees = Array.from({ length: TREES }, (_, k) => {
+        const tree = object.group();
+        tree.add(object.mesh(crown, leaves[k % 2]), object.mesh(trunk, bark));
+        tree.visible = false;
+        planet.add(tree);
+        return tree;
+      });
+      const rocks = Array.from({ length: ROCKS }, () => {
+        const rock = object.mesh(pebble, stone);
+        rock.visible = false;
+        planet.add(rock);
+        return rock;
+      });
+      world.scene.add(planet);
+
+      // Clouds drift round the planet a little faster than it turns.
+      const clouds = object.group(), puff = geometry.sphere(0.16, 16, 10), white = material.meshStandard({ color: '#ffffff', roughness: 1 });
+      for (let k = 0; k < 18; k++) {
+        const holder = object.group();
+        holder.rotation.set(next() * Math.PI, next() * Math.PI * 2, 0);
+        for (let p = 0; p < 4; p++) {
+          const blob = object.mesh(puff, white);
+          blob.position.set((p - 1.5) * 0.17, 4 + next() * 0.05, (next() - 0.5) * 0.12);
+          blob.scale.set(1.2, 0.5, 0.8);
+          holder.add(blob);
+        }
+        clouds.add(holder);
+      }
+      world.scene.add(clouds);
+
+      // Stars: a far shell of small points.
+      const sky = [];
+      for (let k = 0; k < 1500; k++) {
+        const y = next() * 2 - 1, around = next() * Math.PI * 2, ring = Math.sqrt(1 - y * y);
+        sky.push(ring * Math.cos(around) * 80, y * 80, ring * Math.sin(around) * 80);
+      }
+      world.scene.add(object.points(geometry.createBuffer({ position: buffer.float32(new Float32Array(sky), 3) }), material.points({ color: '#dfe6ff', size: 0.22 })));
+
+      // A low sun from one side — the terminator crosses the planet — and a faint blue fill so the
+      // night side keeps its shapes.
+      world.scene.add(
+        light.directional({ color: '#fff0d8', intensity: 3.4, position: [9, 3, 5], castShadow: true }),
+        light.hemisphere({ color: '#5a78c8', groundColor: '#1a1420', intensity: 0.45 }),
+      );
+      world.camera.position.set(0, 2.6, 8.8);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+      world.controls.minDistance = 4.5;
+      world.controls.maxDistance = 20;
+
+      // The rules, read again whenever a control moves: a tree on dry land below the snow and on a
+      // slope no steeper than allowed; a rock only where it is steep.
+      let planted = null, refused = null, sprout = 0, grown = 0.001;
+      const scatter = ({ trees: wanted, rocks: stones, steepest, seaLevel }) => {
+        const sea = SEA + seaLevel;
+        ocean.scale.setScalar(sea);
+        let t = 0, r = 0, no = 0;
+        for (const spot of candidates) {
+          const dry = spot.r > sea + 0.02;
+          if (dry && t < wanted && spot.slope <= steepest && spot.r < LEVELS[3]) {
+            const tree = trees[t++];
+            tree.position.set(...spot.d.map((value) => value * (spot.r - 0.01)));
+            upright(tree, spot.d);
+            tree.userData.size = spot.size;
+            tree.scale.setScalar(spot.size * grown);
+            tree.visible = true;
+          } else if (dry && r < stones && spot.slope > steepest * 0.6) {
+            const rock = rocks[r++];
+            rock.position.set(...spot.d.map((value) => value * spot.r));
+            upright(rock, spot.d);
+            rock.scale.set(spot.size, spot.size * 0.6, spot.size);
+            rock.visible = true;
+          } else no++;
+        }
+        for (let k = t; k < TREES; k++) trees[k].visible = false;
+        for (let k = r; k < ROCKS; k++) rocks[k].visible = false;
+        planted(String(t));
+        refused(String(no));
+      };
+      const ui = controls({
+        mouse: 'Drag to turn around the planet; raise the steepest slope and the forest climbs the mountains',
+        trees: [0, TREES, 2600, 10],
+        rocks: [0, ROCKS, 300, 10],
+        steepest: [2, 60, 22, 1],
+        seaLevel: [-0.2, 0.3, 0, 0.005],
+        spin: true,
+      }, (values, key) => {
+        if (key !== undefined && key !== 'spin') scatter(values);
+        world.invalidate();
+      }, world);
+      planted = readout('Trees planted');
+      refused = readout('Spots refused');
+      scatter(ui);
+
+      // The opening: the camera comes in from deep space while the forest sprouts.
+      const from = [0, 9, 26], to = [0, 2.6, 8.8];
+      let intro = 0, turn = 0;
+      world.canvas.addEventListener('pointerdown', () => (intro = 1));
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        if (sprout < 1) {
+          sprout = Math.min(1, sprout + step / 3);
+          grown = Math.max(0.001, 1 - (1 - sprout) ** 3);
+          for (const tree of trees) if (tree.visible) tree.scale.setScalar(tree.userData.size * grown);
+        }
+        if (intro < 1) {
+          intro = Math.min(1, intro + step / 3.5);
+          const ease = 1 - (1 - intro) ** 3;
+          world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * ease));
+          world.camera.lookAt(0, 0, 0);
+        }
+        if (ui.spin) turn += step * 0.08;
+        planet.rotation.set(0.35, turn, 0);
+        clouds.rotation.set(0.35, turn * 1.6, 0);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

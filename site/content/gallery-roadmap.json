@@ -207,8 +207,7 @@
         "fr": "Repères dans la scène"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/helpers-to-see-the-scene.html"
     },
     {
       "id": "edges-and-wireframe",
@@ -226,8 +225,7 @@
         "fr": "Lignes en couleur"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/lines-in-colour.html"
     },
     {
       "id": "dashed-lines",
@@ -264,8 +262,7 @@
         "fr": "Surfaces courbes"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/curved-surfaces.html"
     },
     {
       "id": "instances-in-colour",
@@ -283,8 +280,7 @@
         "fr": "Copies le long d’un chemin"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/copies-along-a-path.html"
     },
     {
       "id": "scattered-on-a-surface",
@@ -293,8 +289,7 @@
         "fr": "Semés sur une surface"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/scattered-on-a-surface.html"
     },
     {
       "id": "a-world-of-blocks",
@@ -303,8 +298,7 @@
         "fr": "Un monde de cubes"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-world-of-blocks.html"
     },
     {
       "id": "a-city-from-rules",
@@ -322,8 +316,7 @@
         "fr": "Une molécule"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-molecule.html"
     },
     {
       "id": "blobs-that-merge",
@@ -332,8 +325,7 @@
         "fr": "Des gouttes qui fusionnent"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/blobs-that-merge.html"
     },
     {
       "id": "thick-lines",
