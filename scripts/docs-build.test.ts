@@ -12,7 +12,6 @@ test('the site build writes every bundle of the published tree', async () => {
     await buildBundles(root, temporary);
     for (const file of [
       'css/site.css',
-      'js/engine.js',
       'runtime/portal.js',
       'runtime/engine.js',
       'runtime/kit.js',

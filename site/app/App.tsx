@@ -1,10 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Entry } from './Entry.tsx';
 import { Chapter } from './course/Chapter.tsx';
-import { EngineExample } from './engine-scene/index.tsx';
-import { examples as lessons } from '../content/catalog.ts';
 import { readyExampleIds } from './examples/list.ts';
-import { resolvePage, routeHref } from './portal/routes.ts';
+import { resolvePage } from './portal/routes.ts';
 import { ApiIndex } from './portal/ApiIndex.tsx';
 import { NotFound } from './portal/NotFound.tsx';
 import { Home } from './portal/Home.tsx';
@@ -15,31 +13,22 @@ import { PortalContext } from './layout/PortalContext.ts';
 import { Shell } from './layout/Shell.tsx';
 import type { PortalRoute, ResolvedPage } from './portal/routes.ts';
 
-// The areas a route may never visit load on demand: the examples, the lessons gallery, the
-// lessons and their code editor, the reports and their presentation — none of them on the home
-// page.
-const Gallery = lazy(() => import('./gallery/Gallery.tsx').then((m) => ({ default: m.Gallery })));
+// The areas a route may never visit load on demand: the examples and their code editor, the
+// reports and their presentation — none of them on the home page.
 const Examples = lazy(() =>
   import('./examples/Examples.tsx').then((m) => ({ default: m.Examples })),
 );
 const Example = lazy(() => import('./examples/Example.tsx').then((m) => ({ default: m.Example })));
-const Playground = lazy(() =>
-  import('./gallery/Playground.tsx').then((m) => ({ default: m.Playground })),
-);
 const ThreeMigration = lazy(() =>
   import('./migration/ThreeMigration.tsx').then((m) => ({ default: m.ThreeMigration })),
 );
 const Report = lazy(() => import('./reports/Report.tsx').then((m) => ({ default: m.Report })));
 
-const LESSON_IDS = lessons.map(({ id }) => id);
-
 /** Every area's chunk, fetched once the first page is up, so that no later click waits on one. */
 const preloadAreas = () =>
   Promise.all([
-    import('./gallery/Gallery.tsx'),
     import('./examples/Examples.tsx'),
     import('./examples/Example.tsx'),
-    import('./gallery/Playground.tsx'),
     import('./reports/Report.tsx'),
   ]);
 
@@ -50,14 +39,6 @@ function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
   if (page.kind === 'api-index') return <ApiIndex />;
   if (page.kind === 'examples') return <Examples locale={locale} />;
   if (page.kind === 'example') return <Example id={page.id} locale={locale} />;
-  if (page.kind === 'gallery') return <Gallery locale={locale} />;
-  if (page.kind === 'engine-scene') return <EngineExample locale={locale} />;
-  if (page.kind === 'lesson') {
-    const open = (id: string) => {
-      location.hash = routeHref({ locale, area: 'lessons', id });
-    };
-    return <Playground id={page.id} locale={locale} onSelect={open} />;
-  }
   if (page.kind === 'entry' && page.entry.id === 'three-migration')
     return <ThreeMigration entry={page.entry} locale={locale} />;
   if (page.kind === 'entry' && page.entry.chapter)
@@ -78,7 +59,7 @@ export function App() {
     return { route: { ...route, id }, entries };
   }, [entries, route]);
   const page = useMemo(
-    () => resolvePage(portal.route, entries, LESSON_IDS, readyExampleIds),
+    () => resolvePage(portal.route, entries, readyExampleIds),
     [portal.route, entries],
   );
   return (
