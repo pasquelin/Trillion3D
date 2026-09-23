@@ -14,7 +14,7 @@ export const ZERO_DIRECT = [0, 0, 0, 1, TONE_MAPPING_RANK.aces, 0, 0, 0] as cons
 
 export function createDeferredView(device: GPUDevice) {
   const buffer = device.createBuffer({
-    label: 'WG deferred view v1',
+    label: 'Trillion3D deferred view v1',
     size: DEFERRED_VIEW_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });

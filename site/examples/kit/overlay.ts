@@ -33,7 +33,7 @@ const panels = new Set<HTMLElement>();
 // A page, not a test importing the kit in Node, has messages to hear.
 globalThis.addEventListener?.('message', (event) => {
   const data = event.data as { type?: unknown; visible?: unknown } | null;
-  if (event.source !== parent || data?.type !== 'wg:controls') return;
+  if (event.source !== parent || data?.type !== 'trillion3d:controls') return;
   visible = Boolean(data.visible);
   for (const panel of panels) panel.hidden = !visible;
 });

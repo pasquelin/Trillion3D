@@ -34,7 +34,7 @@ export const COMPARISON_LIBRARIES: readonly CompetitorRecord[] = [
   },
   {
     id: 'exact-cluster-pages',
-    name: 'trillion3D clusters',
+    name: 'Trillion3D clusters',
     status: 'integrated',
     license: 'MIT',
     maintained: 'yes — this SDK',

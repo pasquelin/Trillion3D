@@ -133,6 +133,6 @@ export async function rasterGpu(charge: Omit<ChargeRaster, 'shader'>): Promise<R
   return await dansPageWebgpu(
     executer,
     { ...charge, shader: RASTER },
-    { titre: 'trillion3D rasterisation' },
+    { titre: 'Trillion3D rasterisation' },
   );
 }

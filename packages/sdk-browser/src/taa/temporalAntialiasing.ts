@@ -55,12 +55,12 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
   ]);
   const motion = createPlacementMotion(device, roots);
   const uniform = device.createBuffer({
-    label: 'WG TAA view v1',
+    label: 'Trillion3D TAA view v1',
     size: TAA_VIEW_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const sampler = device.createSampler({
-    label: 'WG TAA history sampler',
+    label: 'Trillion3D TAA history sampler',
     magFilter: 'linear',
     minFilter: 'linear',
     addressModeU: 'clamp-to-edge',
@@ -129,7 +129,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       height = h;
       for (let i = 0; i < 2; i++) {
         const texture = device.createTexture({
-          label: `WG TAA history ${i}`,
+          label: `Trillion3D TAA history ${i}`,
           size: { width: w, height: h },
           format: 'rgba16float',
           usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,

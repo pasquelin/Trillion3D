@@ -17,12 +17,12 @@ export type BlendOverdraw = ReturnType<typeof createBlendOverdraw>;
 export function createBlendOverdraw(device: GPUDevice) {
   const set = device.createQuerySet({ type: 'occlusion', count: QUERIES });
   const resolve = device.createBuffer({
-    label: 'WG overdraw resolve',
+    label: 'Trillion3D overdraw resolve',
     size: BYTES,
     usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
   });
   const read = device.createBuffer({
-    label: 'WG overdraw readback',
+    label: 'Trillion3D overdraw readback',
     size: BYTES,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });

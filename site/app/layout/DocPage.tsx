@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 /** The site's name: the home's title, and the end of every other page's. */
-export const SITE_NAME = 'trillion3D';
+export const SITE_NAME = 'Trillion3D';
 
 interface DocPageProps extends Omit<ComponentPropsWithoutRef<'article'>, 'title'> {
   /** A short line above the title: the area or the kind of page. */

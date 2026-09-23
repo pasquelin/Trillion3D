@@ -47,7 +47,7 @@ export function createMockCommandEncoderFactory(inputs: {
       }>;
       depthStencilAttachment?: { depthLoadOp?: string };
     }) => {
-      if (visPassFails && desc?.label === 'WG visibility primary') {
+      if (visPassFails && desc?.label === 'Trillion3D visibility primary') {
         visPassFails = false;
         throw new Error('VIS_FAIL');
       }

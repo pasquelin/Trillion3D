@@ -67,14 +67,14 @@ function encodeOnce(
   // the buffer was created. That is the only reason for cuts between passes.
   const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 4);
   const alone = (pipeline: GPUComputePipeline) => {
-    const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
+    const pass = encoder.beginComputePass({ label: 'Trillion3D DAG selection' });
     pass.setBindGroup(0, bindGroup);
     pass.setPipeline(pipeline);
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
     pass.end();
   };
   if (clear) arm(drawnGroupsOffset);
-  const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
+  const pass = encoder.beginComputePass({ label: 'Trillion3D DAG selection' });
   pass.setBindGroup(0, bindGroup);
   // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
   // every flag, and the prepare that follows clears the journal.
@@ -107,7 +107,7 @@ function encodeOnce(
   alone(wantedPipeline);
   if (headOnly) return;
   arm(liveGroupsOffset);
-  const live = encoder.beginComputePass({ label: 'WG DAG selection' });
+  const live = encoder.beginComputePass({ label: 'Trillion3D DAG selection' });
   live.setBindGroup(0, bindGroup);
   // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
   // the previous one, it is no longer spoken on those it said nothing about.

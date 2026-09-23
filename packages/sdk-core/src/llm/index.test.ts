@@ -12,7 +12,7 @@ import {
   toMcpTool,
 } from '../index.ts';
 
-describe('trillion3D LLM Module', () => {
+describe('Trillion3D LLM Module', () => {
   it('exposes a valid JSON Schema for MeasuredWorldOptions', () => {
     assert.equal(EXPLORER_OPTIONS_SCHEMA.type, 'object');
     assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.manifestUrl);
@@ -97,7 +97,7 @@ describe('trillion3D LLM Module', () => {
 
   it('generates an expert system prompt guide', () => {
     const prompt = getTrillion3dLlmPrompt();
-    assert.ok(prompt.includes('trillion3D'));
+    assert.ok(prompt.includes('Trillion3D'));
     assert.ok(prompt.includes('Nanite'));
     assert.ok(prompt.includes('TAA'));
     assert.ok(prompt.includes('Lumen'));
