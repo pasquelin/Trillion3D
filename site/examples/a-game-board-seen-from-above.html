@@ -131,9 +131,15 @@
         mouse: 'Drag to slide the board · scroll or pinch to zoom · arrow keys to pan',
         play: true,
         speed: [0.3, 3, 1],
-        follow: false,
+        follow: () => (following = !following),
         replay: reset,
       }, world);
+      // Follow glides the view over the moving piece until the viewer slides the board: a press on
+      // the canvas or an arrow key stops it, and the button starts it again from there. The wheel
+      // does not: a zoom only changes the height the view glides at.
+      let following = false;
+      world.canvas.addEventListener('pointerdown', () => (following = false));
+      addEventListener('keydown', (event) => event.key.startsWith('Arrow') && (following = false));
       const moveShown = readout('Move');
       const aim = math.vector3();
       world.onFrame(({ delta }) => {
@@ -159,12 +165,13 @@
         if (hop.item) {
           const [x0, z0] = at(hop.from), [x1, z1] = at(hop.to), t = Math.max(0, hop.t);
           hop.item.position.set(x0 + (x1 - x0) * t, Math.sin(t * Math.PI) * 0.9, z0 + (z1 - z0) * t);
-          // Follow: the view glides over the moving piece, at whatever zoom the viewer chose.
-          if (ui.follow) {
+          // Target and camera move together: the pan-zoom reads its pose back from both.
+          if (following) {
             const target = world.controls.target;
             aim.set(hop.item.position.x - target.x, 0, hop.item.position.z - target.z).multiplyScalar(Math.min(1, delta * 3));
             target.add(aim);
             world.camera.position.add(aim);
+            world.controls.update();
           }
         }
         world.invalidate();

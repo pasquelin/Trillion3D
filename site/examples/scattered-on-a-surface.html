@@ -224,7 +224,7 @@
       world.camera.lookAt(0, 0, 0);
       world.controls.target.set(0, 0, 0);
       world.controls.minDistance = 4.5;
-      world.controls.maxDistance = 20;
+      world.controls.maxDistance = 28; // the opening starts 27.5 away: the orbit never clamps it
 
       // The rules, read again whenever a control moves: a tree on dry land below the snow and on a
       // slope no steeper than allowed; a rock only where it is steep.
@@ -273,7 +273,9 @@
       // The opening: the camera comes in from deep space while the forest sprouts.
       const from = [0, 9, 26], to = [0, 2.6, 8.8];
       let intro = 0, turn = 0;
-      world.canvas.addEventListener('pointerdown', () => (intro = 1));
+      // The viewer's hand wins: a press or a wheel on the canvas ends the opening where it is.
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         if (sprout < 1) {
@@ -285,7 +287,8 @@
           intro = Math.min(1, intro + step / 3.5);
           const ease = 1 - (1 - intro) ** 3;
           world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * ease));
-          world.camera.lookAt(0, 0, 0);
+          // The orbit turns the camera to its target and reads the pose back: no snap after.
+          world.controls.update();
         }
         if (ui.spin) turn += step * 0.08;
         planet.rotation.set(0.35, turn, 0);

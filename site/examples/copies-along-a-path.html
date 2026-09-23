@@ -159,10 +159,15 @@
         ride: false,
       }, (values, key) => {
         if (key === undefined || key === 'copies' || key === 'twist') layout(values);
-        if (key === 'ride' && !values.ride) {
-          world.camera.position.set(...OVERVIEW);
-          world.camera.lookAt(...LOOK);
-          world.controls.target.set(...LOOK);
+        // The ride holds the camera, so the orbit lets go of it for the whole ride: a drag cannot
+        // fight the train, nor the orbit's limits bend the view. Off the train, the overview comes
+        // back as one pose — camera and target together — before the orbit takes it again.
+        if (key === 'ride') {
+          if (!values.ride) {
+            world.camera.position.set(...OVERVIEW);
+            world.controls.target.set(...LOOK);
+          }
+          world.controls.enabled = !values.ride;
         }
         world.invalidate();
       }, world);
@@ -188,7 +193,6 @@
           const eye = pose(travel + 0.8 / LENGTH).at, ahead = pose(travel + 4 / LENGTH).at;
           world.camera.position.set(eye.x, eye.y + 0.75, eye.z);
           world.camera.lookAt(ahead.x, ahead.y + 0.45, ahead.z);
-          world.controls.target.set(ahead.x, ahead.y + 0.45, ahead.z);
         }
         world.invalidate();
       });
