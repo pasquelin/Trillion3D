@@ -1374,24 +1374,24 @@
       "description": "Один канал на элемент, с точными кривыми из `packages/sdk-core/src/math/primitives/color.ts`: эталон умножает на округлённые константы, и разница — невидимая при 8 битах — ограничивается один раз, в бенчмарке, который их сталкивает."
     },
     "scene-editor": {
-      "title": "Build a scene with the editor",
-      "description": "Add shapes and lights, pick them with the mouse, move them with handles, recolour them, save the scene and open it again — in the portal, on the public API alone.",
-      "html": "<p>The <a href=\"#/ru/examples/scene-editor\">scene editor</a> is a page of this portal built on three doors of the engine and nothing else. Start from an empty scene: <b>Add → Box</b>, then <b>Add → Directional light</b>. Click the box: <code>world.raycast</code> finds it under the pointer, and the handles of <code>controls.transform</code> appear on it. Drag an arrow to move it — the camera rests while a handle is held — press <kbd>E</kbd> to turn it, <kbd>R</kbd> to scale it. Change its colour in the inspector: the engine repaints the material in place, the frame's cost stays in the stats corner. <b>Save</b> downloads <code>scene.toJSON</code>; <b>New</b>, then <b>Open</b>, builds the same scene again with <code>scene.fromJSON</code>.</p>\n<p>Every step is undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>, and the scene is kept in the browser between two visits. Nothing is drawn or moved by the page itself: what you see is the engine.</p>"
+      "title": "Собрать сцену в редакторе",
+      "description": "Добавлять фигуры и источники света, выбирать их мышью, двигать ручками, перекрашивать, сохранять сцену и открывать её снова — в портале, только на публичном API.",
+      "html": "<p><a href=\"#/ru/examples/scene-editor\">Редактор сцен</a> — страница этого портала, построенная на трёх дверях движка и ни на чём больше. Начните с пустой сцены: <b>Add → Box</b>, затем <b>Add → Directional light</b>. Щёлкните по коробке: <code>world.raycast</code> находит её под указателем, и на ней появляются ручки <code>controls.transform</code>. Потяните стрелку, чтобы сдвинуть её — камера стоит, пока ручка удерживается, — нажмите <kbd>E</kbd>, чтобы повернуть, <kbd>R</kbd>, чтобы масштабировать. Измените её цвет в инспекторе: движок перекрашивает материал на месте, а стоимость кадра остаётся в углу статистики. <b>Save</b> скачивает <code>scene.toJSON</code>; <b>New</b>, затем <b>Open</b> заново строит ту же сцену через <code>scene.fromJSON</code>.</p>\n<p>Каждый шаг отменяется через <kbd>Ctrl</kbd>+<kbd>Z</kbd>, а сцена хранится в браузере между двумя визитами. Страница сама ничего не рисует и не двигает: вы видите движок.</p>"
     },
     "pick-with-the-pointer": {
-      "title": "Pick an object with the pointer",
-      "description": "`world.raycast` returns the nearest object under a canvas point: the node the page added, the point and normal hit, the distance.",
-      "html": "<p>The test runs on the CPU over the scene's own geometry: triangle meshes triangle by triangle, a loaded model on its box, lines and points never. Hidden subtrees and <code>helper</code> marks are skipped. See it in <a href=\"#/ru/examples/click-to-pick\">Click to pick</a>.</p>"
+      "title": "Выбрать объект указателем",
+      "description": "`world.raycast` возвращает ближайший объект под точкой canvas: узел, добавленный страницей, точку и нормаль попадания, расстояние.",
+      "html": "<p>Проверка идёт на CPU по собственной геометрии сцены: треугольные меши — треугольник за треугольником, загруженная модель — по её боксу, линии и точки — никогда. Скрытые поддеревья и метки <code>helper</code> пропускаются. Смотрите в <a href=\"#/ru/examples/click-to-pick\">Click to pick</a>.</p>"
     },
     "move-with-handles": {
-      "title": "Move, turn and scale with handles",
-      "description": "`controls.transform(world)` puts handles on one object; a drag writes its pose through its parents, and the camera rests meanwhile.",
-      "html": "<p>Modes <code>translate</code>, <code>rotate</code> and <code>scale</code>, world or local axes, optional steps. The events <code>dragStart</code> and <code>dragEnd</code> frame one drag — one undo step. See it in <a href=\"#/ru/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
+      "title": "Двигать, вращать и масштабировать ручками",
+      "description": "`controls.transform(world)` ставит ручки на объект; перетаскивание записывает его позу через родителей, а камера тем временем стоит.",
+      "html": "<p>Режимы <code>translate</code>, <code>rotate</code> и <code>scale</code>, мировые или локальные оси, необязательные шаги. События <code>dragStart</code> и <code>dragEnd</code> обрамляют одно перетаскивание — один шаг отмены. Смотрите в <a href=\"#/ru/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
     },
     "save-and-open-a-scene": {
-      "title": "Save and open a scene",
-      "description": "`scene.toJSON(camera)` writes the scene as plain versioned JSON; `scene.fromJSON(json, camera)` builds it again.",
-      "html": "<p>Shapes are stored by the call that built them, materials by their values, loaded models by their address — never inlined — and <code>helper</code> marks not at all. Another format version is refused by name. See it in <a href=\"#/ru/examples/save-the-scene\">Save the scene</a>.</p>"
+      "title": "Сохранить и открыть сцену",
+      "description": "`scene.toJSON(camera)` записывает сцену как простой версионированный JSON; `scene.fromJSON(json, camera)` строит её заново.",
+      "html": "<p>Фигуры сохраняются вызовом, который их построил, материалы — своими значениями, загруженные модели — своим адресом (никогда не встраиваются), а метки <code>helper</code> — никак. Другая версия формата отклоняется с указанием имени. Смотрите в <a href=\"#/ru/examples/save-the-scene\">Save the scene</a>.</p>"
     }
   },
   "canvas": {
