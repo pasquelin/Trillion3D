@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#9cc8f0');
@@ -68,7 +68,7 @@
             }
           }
         // Trees on the grass: a trunk, and a crown of leaves wider at its foot than at its top.
-        const next = ((state) => () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296)(seed * 977);
+        const next = seeded(seed * 977);
         for (let x = 3; x < W - 3; x++)
           for (let z = 3; z < W - 3; z++) {
             const h = heights[x + W * z];

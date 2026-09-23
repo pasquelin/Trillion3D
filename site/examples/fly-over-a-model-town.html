@@ -123,7 +123,7 @@
     <div id="banner" data-hud data-example-overlay><h1></h1><p></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { isCapture, play, stats } from '../runtime/kit.js';
+      import { isCapture, play, seeded, stats } from '../runtime/kit.js';
 
       // MOUSE AIM, as PC flight games fly: the mouse moves an aim circle through the sky, not the
       // jet; an instructor turns the jet onto it — bank towards it, pull, level the wings — by
@@ -146,12 +146,8 @@
         const t = clamp((x - a) / (b - a), 0, 1);
         return t * t * (3 - 2 * t);
       };
-      // A sequence in [0, 1) from a seed: the same valley on every run.
-      function random(seed) {
-        let state = seed >>> 0;
-        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
-      }
-      const next = random(7);
+      // A seeded sequence (the kit's `seeded`): the same valley on every run.
+      const next = seeded(7);
       // THE CANYON: a gorge on an arc of 1100 m around (1100, -600), from just north of the
       // runway round the north-eastern peaks and back into the valley in the south-east. It is
       // cut into the terrain, so the walls are the mountains themselves.
