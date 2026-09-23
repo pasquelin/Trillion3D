@@ -6144,7 +6144,7 @@
         "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/math.ts",
         "packages/sdk-browser/src/camera/controls/pivot.ts",
-        "packages/sdk-browser/src/camera/controls/steering.test.ts",
+        "packages/sdk-browser/src/camera/controls/steering.fixture.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
       "disposition": "retained",
