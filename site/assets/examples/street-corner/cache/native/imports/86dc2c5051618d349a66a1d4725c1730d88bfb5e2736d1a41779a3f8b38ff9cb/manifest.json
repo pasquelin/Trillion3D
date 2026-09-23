@@ -1,0 +1,119 @@
+{
+  "formatVersion": 1,
+  "notes": [],
+  "runtime": {
+    "bytes": 8157,
+    "file": "model.gltf",
+    "meshNodes": 3,
+    "sha256": "8459fd70099a4ea2a3da181d5b4deb252278740a477213543d33a0a433e560ba",
+    "sidecars": [
+      {
+        "file": "model.bin",
+        "sha256": "379314567be3482cc6152470d3beb99bba2b26421838ac46b6f6d514569b82de"
+      }
+    ],
+    "trianglesAcrossNodes": 636
+  },
+  "source": {
+    "external": [
+      {
+        "file": "corner.mtl",
+        "kind": "material-library",
+        "sha256": "153c819392c498ed77006c748c58dbc74f3051bca535f3bb5faa61cfc0a51d48",
+        "truncated": false
+      },
+      {
+        "file": "lantaarn.mtl",
+        "kind": "material-library",
+        "sha256": "5dacd662b42eb18bce201b98bd74f8a2900d0cbb0ba333944f2a07ca564721d5",
+        "truncated": false
+      },
+      {
+        "file": "windows.mtl",
+        "kind": "material-library",
+        "sha256": "7c9a8779df437a9ff76b2725eec2379fad329fc4a246eb6a71a8f0388ae2cb62",
+        "truncated": false
+      }
+    ],
+    "files": [
+      {
+        "ascii": true,
+        "bytes": 8752,
+        "creator": "",
+        "fbxVersion": 0,
+        "file": "corner.obj",
+        "format": "obj",
+        "hiddenNodes": 0,
+        "lights": 0,
+        "lodGroups": 0,
+        "materials": 5,
+        "meshNodes": 1,
+        "meshes": 1,
+        "ms": 0.7317089999999999,
+        "originalUnitMeters": 1.0,
+        "parseMs": 0.43762500000000004,
+        "sha256": "1d3eed4d3bac2b920ad9d980cb69c2e874c7c57110e3dc4c1a7025ad02738b9a",
+        "textures": 0,
+        "triangles": 120,
+        "unitMeters": 1.0
+      },
+      {
+        "ascii": true,
+        "bytes": 54779,
+        "creator": "",
+        "fbxVersion": 0,
+        "file": "lantaarn.obj",
+        "format": "obj",
+        "hiddenNodes": 0,
+        "lights": 0,
+        "lodGroups": 0,
+        "materials": 1,
+        "meshNodes": 1,
+        "meshes": 1,
+        "ms": 0.621542,
+        "originalUnitMeters": 1.0,
+        "parseMs": 0.297375,
+        "sha256": "e874cbd98fbdee31d62bafc4355785f4d5327b2a50a0931d1fd0f2b186fa0759",
+        "textures": 1,
+        "triangles": 264,
+        "unitMeters": 1.0
+      },
+      {
+        "ascii": true,
+        "bytes": 18053,
+        "creator": "",
+        "fbxVersion": 0,
+        "file": "windows.obj",
+        "format": "obj",
+        "hiddenNodes": 0,
+        "lights": 0,
+        "lodGroups": 0,
+        "materials": 4,
+        "meshNodes": 1,
+        "meshes": 1,
+        "ms": 0.433875,
+        "originalUnitMeters": 1.0,
+        "parseMs": 0.183333,
+        "sha256": "ccf56a1b75fee4d9ac927e9579088bc759d3f48eb38cb7ee536e2e8433077239",
+        "textures": 0,
+        "triangles": 252,
+        "unitMeters": 1.0
+      }
+    ],
+    "images": 1,
+    "importMs": 3.143458,
+    "key": "86dc2c5051618d349a66a1d4725c1730d88bfb5e2736d1a41779a3f8b38ff9cb",
+    "lights": 0,
+    "materials": 10,
+    "meshes": 3,
+    "path": "source",
+    "plugin": {
+      "name": "obj",
+      "version": "obj-ufbx-0.11.3-gltf-7"
+    }
+  },
+  "status": "ready",
+  "unsupported": {
+    "material-ambient-color": 1
+  }
+}

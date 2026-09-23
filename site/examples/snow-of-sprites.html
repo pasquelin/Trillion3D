@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Snow of sprites</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e1626;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, texture, math, buffer } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      const next = seeded(12);
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0e1626');
+      world.camera.far = 400;
+
+      // Three flake pictures drawn on a canvas, white on a see-through ground: a six-armed
+      // crystal, a soft round flake and a small bright grain.
+      function flake(draw) {
+        const size = 64, canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const context = canvas.getContext('2d');
+        context.translate(size / 2, size / 2);
+        draw(context, size / 2);
+        return texture.canvas(canvas);
+      }
+      const soft = (context, radius, core) => {
+        const glow = context.createRadialGradient(0, 0, 0, 0, 0, radius);
+        glow.addColorStop(0, `rgba(255,255,255,${core})`);
+        glow.addColorStop(1, 'rgba(255,255,255,0)');
+        context.fillStyle = glow;
+        context.fillRect(-radius, -radius, radius * 2, radius * 2);
+      };
+      const PICTURES = [
+        flake((context, radius) => {
+          soft(context, radius * 0.7, 0.35);
+          context.strokeStyle = '#ffffff';
+          context.lineCap = 'round';
+          context.lineWidth = 3;
+          for (let arm = 0; arm < 6; arm++) {
+            context.rotate(Math.PI / 3);
+            context.beginPath();
+            context.moveTo(0, 0);
+            context.lineTo(0, -radius * 0.88);
+            for (const at of [0.4, 0.62])
+              for (const side of [-1, 1]) {
+                context.moveTo(0, -radius * at);
+                context.lineTo(side * radius * 0.22, -radius * (at + 0.2));
+              }
+            context.stroke();
+          }
+        }),
+        flake((context, radius) => soft(context, radius, 1)),
+        flake((context, radius) => soft(context, radius * 0.55, 1)),
+      ];
+      // One sprite material per picture, faint to bright: the flakes blend by plain opacity.
+      const FLAKES = PICTURES.map((map, k) => material.sprite({ map, transparent: true, opacity: [0.95, 0.8, 0.9][k], depthWrite: false }));
+
+      // The village: a snowed field, drifts, a cabin with lit windows, a lamp post, a snowman and
+      // a ring of pines with snow on every tier, under the moon.
+      const paint = (color, extra = {}) => material.meshStandard({ color, roughness: 0.85, ...extra });
+      const snow = paint('#eef3fb', { roughness: 0.95 }), wood = paint('#7a4f36'), dark = paint('#4a3020');
+      const add = (shape, matter, [x, y, z], turn = [0, 0, 0], scale = [1, 1, 1]) => {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(x, y, z);
+        mesh.rotation.set(...turn);
+        mesh.scale.set(...scale);
+        world.scene.add(mesh);
+        return mesh;
+      };
+      add(geometry.circle(42, 96), snow, [0, 0, 0], [-Math.PI / 2, 0, 0]);
+      const mound = geometry.sphere(1, 32, 16);
+      for (let k = 0; k < 9; k++) {
+        const angle = (k / 9) * Math.PI * 2 + next(), reach = 20 + next() * 10;
+        add(mound, snow, [Math.cos(angle) * reach, -0.4, Math.sin(angle) * reach], [0, 0, 0], [4 + next() * 4, 1.2 + next() * 1.6, 4 + next() * 4]);
+      }
+      // The cabin: walls, a pitched roof under a blanket of snow, a chimney, a door, two windows.
+      add(geometry.box(4, 2.6, 3), wood, [0, 1.3, 0]);
+      add(geometry.extrude(math.shape([[-2, 0], [2, 0], [0, 1.45]]), { depth: 3, bevelEnabled: false }), wood, [0, 2.6, -1.5]);
+      for (const side of [-1, 1]) {
+        add(geometry.box(2.7, 0.18, 3.6), dark, [side * 1.05, 3.35, 0], [0, 0, -side * 0.62]);
+        add(geometry.box(2.6, 0.16, 3.5), snow, [side * 1.15, 3.49, 0], [0, 0, -side * 0.62]);
+      }
+      add(geometry.box(0.5, 1.4, 0.5), paint('#6b6570'), [1.1, 3.6, 0.6]);
+      add(geometry.box(0.8, 1.6, 0.08), dark, [-1.1, 0.8, 1.52]);
+      const lit = paint('#ffd08a', { emissive: '#ffb45a', emissiveIntensity: 2.2 });
+      for (const x of [0.4, 1.3]) add(geometry.box(0.6, 0.6, 0.06), lit, [x, 1.5, 1.52]);
+      // The lamp post by the path, and the snowman who guards it.
+      const iron = paint('#2c2f38', { roughness: 0.5, metalness: 0.4 });
+      add(geometry.cylinder(0.07, 0.1, 3, 12), iron, [3.6, 1.5, 3.2]);
+      add(geometry.sphere(0.24, 24, 16), paint('#ffe6b0', { emissive: '#ffd08a', emissiveIntensity: 3 }), [3.6, 3.15, 3.2]);
+      const ball = geometry.sphere(1, 32, 16);
+      [[0.62, 0.6], [0.44, 1.5], [0.3, 2.14]].forEach(([r, y]) => add(ball, snow, [-3.2, y, 3.4], [0, 0, 0], [r, r, r]));
+      add(geometry.cone(0.06, 0.34, 12), paint('#ff7a1c'), [-3.2, 2.14, 3.85], [Math.PI / 2, 0, 0]);
+      for (const x of [-0.1, 0.1]) add(geometry.sphere(0.04, 12, 8), paint('#2a2a30'), [-3.2 + x, 2.24, 3.66]);
+      // Pines on a ring round the clearing, each three tiers of green, each tier tipped with snow.
+      const needles = [paint('#1f4d3c'), paint('#245842')], trunk = geometry.cylinder(0.14, 0.2, 1, 10), tier = geometry.cone(1, 1, 16);
+      for (let k = 0; k < 36; k++) {
+        const angle = next() * Math.PI * 2, reach = 7 + next() * 11, size = 0.8 + next() * 0.7;
+        const [x, z] = [Math.cos(angle) * reach, Math.sin(angle) * reach];
+        if (z > 3 && Math.abs(x) < 5) continue;
+        add(trunk, dark, [x, 0.5 * size, z], [0, 0, 0], [size, size, size]);
+        for (let level = 0; level < 3; level++) {
+          const r = (1.5 - level * 0.4) * size, h = 1.6 * size, y = (1 + level * 1.05) * size + h / 2;
+          add(tier, needles[k % 2], [x, y, z], [0, next() * 3, 0], [r, h, r]);
+          add(tier, snow, [x, y + h * 0.3, z], [0, 0, 0], [r * 0.45, h * 0.42, r * 0.45]);
+        }
+      }
+      // The moon, and far stars in the upper sky.
+      add(geometry.sphere(5, 48, 24), material.meshBasic({ color: '#f3efdc' }), [-70, 55, -90]);
+      const stars = [];
+      for (let k = 0; k < 1600; k++) {
+        const y = 0.08 + next() * 0.92, around = next() * Math.PI * 2, ring = Math.sqrt(1 - y * y), r = 150 + next() * 30;
+        stars.push(ring * Math.cos(around) * r, y * r, ring * Math.sin(around) * r);
+      }
+      world.scene.add(object.points(geometry.createBuffer({ position: buffer.float32(new Float32Array(stars), 3) }), material.points({ color: '#dfe6ff', size: 0.4 })));
+
+      // Cold moonlight from the side, a blue sky fill that keeps every face readable, and the
+      // warm glow of the windows and the lamp — every light still.
+      world.scene.add(
+        light.hemisphere({ color: '#9fb4e8', groundColor: '#454b66', intensity: 1.1 }),
+        light.directional({ color: '#c9d8ff', intensity: 1.6, position: [-16, 16, 6], castShadow: true }),
+        light.point({ color: '#ffb060', intensity: 25, distance: 12, position: [0.8, 1.6, 2.6] }),
+        light.point({ color: '#ffcf8a', intensity: 30, distance: 14, position: [3.6, 2.9, 3.2] }),
+      );
+
+      // The snow: a pool of sprites, all in the scene from the start, falling through a box round
+      // the clearing and coming back in at its top. Each drifts on its own sway and turns slowly.
+      const BOX = 16, TOP = 16, POOL = 1500;
+      const flakes = Array.from({ length: POOL }, (_, k) => {
+        const sprite = object.sprite(FLAKES[k % 3]);
+        const size = [0.22, 0.16, 0.08][k % 3] * (0.7 + next() * 0.6);
+        sprite.scale.set(size, size, size);
+        sprite.visible = false;
+        world.scene.add(sprite);
+        return { sprite, x: (next() * 2 - 1) * BOX, y: next() * TOP, z: (next() * 2 - 1) * BOX, fall: 0.6 + next() * 0.8, sway: 0.2 + next() * 0.5, rate: 0.6 + next() * 1.2, phase: next() * 6.3, spin: (next() - 0.5) * 2 };
+      });
+
+      world.camera.position.set(11, 4.2, 15);
+      world.camera.lookAt(0, 1.6, 0);
+      world.controls.target.set(0, 1.6, 0);
+      world.controls.minDistance = 4;
+      world.controls.maxDistance = 38;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // How hard it snows: how many flakes, how fast they fall and how much the wind pushes them.
+      // A heavier fall lets new flakes in at the top of the box, so they arrive falling.
+      const WEATHER = { 'steady snow': [900, 1, 1], 'light flurry': [350, 0.7, 0.6], blizzard: [1500, 2.2, 2.8] };
+      let falling = 0, pace = 1, gusts = 1, counter = null;
+      const ui = controls({
+        mouse: 'Drag to walk round the cabin; turn it into a blizzard and the flakes thicken and fly sideways',
+        weather: Object.keys(WEATHER),
+        wind: [-3, 3, 0.6],
+      }, (values) => {
+        const [count] = WEATHER[values.weather];
+        for (let k = falling; k < count; k++) {
+          flakes[k].y = TOP + next() * TOP;
+          flakes[k].sprite.visible = true;
+        }
+        for (let k = count; k < falling; k++) flakes[k].sprite.visible = false;
+        falling = count;
+        counter?.(String(count));
+        world.invalidate();
+      }, world);
+      counter = readout('flakesFalling');
+      counter(String(falling));
+      // The first flakes are already on their way when the page opens.
+      for (let k = 0; k < falling; k++) flakes[k].y = next() * TOP;
+
+      // The opening: the camera comes down through the falling snow to the cabin.
+      const from = [0, 22, 4], to = [11, 4.2, 15];
+      let intro = 0, time = 0;
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
+      const facing = math.quaternion(), turn = math.quaternion(), axis = math.vector3(0, 0, 1);
+      const wrap = (value) => ((((value + BOX) % (2 * BOX)) + 2 * BOX) % (2 * BOX)) - BOX;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        const [, fallTo, gustTo] = WEATHER[ui.weather], ease = 1 - Math.exp(-step * 1.5);
+        pace += (fallTo - pace) * ease;
+        gusts += (gustTo - gusts) * ease;
+        const push = ui.wind * gusts * (1 + 0.35 * Math.sin(time * 0.7));
+        if (intro < 1) {
+          intro = Math.min(1, intro + step / 4);
+          const e = 1 - (1 - intro) ** 3;
+          world.camera.position.set(...from.map((value, k) => value + (to[k] - value) * e));
+          world.controls.update();
+        }
+        // A sprite is a square: each one is turned to face the camera, then about its own centre.
+        facing.copy(world.camera.quaternion);
+        for (let k = 0; k < falling; k++) {
+          const f = flakes[k];
+          f.y -= f.fall * pace * step;
+          f.x = wrap(f.x + push * (0.6 + 0.4 * f.fall) * step);
+          f.z = wrap(f.z + push * 0.3 * step);
+          if (f.y < 0) f.y += TOP;
+          f.sprite.position.set(f.x + Math.sin(time * f.rate + f.phase) * f.sway, f.y, f.z + Math.cos(time * f.rate * 0.8 + f.phase) * f.sway * 0.6);
+          f.sprite.quaternion.copy(facing).multiply(turn.setFromAxisAngle(axis, time * f.spin + f.phase));
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

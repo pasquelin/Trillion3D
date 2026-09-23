@@ -1,3 +1,4 @@
+import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { DIAGNOSTICS, diagnosticValue } from '../../reports/diagnostics.ts';
@@ -12,24 +13,24 @@ interface DiagnosticsProps {
 }
 
 export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
-  const language = locale === 'fr' ? 1 : 0;
+  const t = useWords(locale);
   return (
     <>
       {DIAGNOSTICS.map((group) => (
-        <section className="grid min-w-0 grid-cols-1 gap-3" key={group.title[0]}>
-          <h3 className="text-lg font-semibold">{group.title[language]}</h3>
+        <section className="grid min-w-0 grid-cols-1 gap-3" key={group.id}>
+          <h3 className="text-lg font-semibold">{t(`report.diagnostics.${group.id}`)}</h3>
           <Table>
             <thead>
               <tr>
-                <th scope="col">{group.title[language]}</th>
+                <th scope="col">{t(`report.diagnostics.${group.id}`)}</th>
                 <th scope="col">{readingName(a, locale)}</th>
                 {b && <th scope="col">{readingName(b, locale)}</th>}
               </tr>
             </thead>
             <tbody>
-              {group.fields.map(([path, en, fr, unit]) => (
+              {group.fields.map(([id, path, unit]) => (
                 <tr key={path}>
-                  <th scope="row">{language ? fr : en}</th>
+                  <th scope="row">{t(`report.diagnostics.${id}`)}</th>
                   {[a, b]
                     .filter((r): r is ReportRecord => Boolean(r))
                     .map((record, i) => (

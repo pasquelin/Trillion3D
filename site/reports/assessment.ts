@@ -21,16 +21,6 @@ export function assessment(record: ReportRecord, metric: MetricKey) {
       : ({ tone: 'success', code: 'covered' } as const);
   return { tone: 'neutral', code: 'noTarget' } as const;
 }
-export const ASSESSMENT_LABELS = {
-  within: ['Within budget', 'Dans le budget'],
-  near: ['Near the limit', 'Proche de la limite'],
-  over: ['Over budget', 'Budget dépassé'],
-  missing: ['Not measured', 'Non mesuré'],
-  incomplete: ['Incomplete run', 'Exécution incomplète'],
-  holes: ['Uncovered triangles', 'Triangles non couverts'],
-  covered: ['No uncovered triangles', 'Aucun triangle non couvert'],
-  noTarget: ['No target defined', 'Pas de seuil défini'],
-};
 
 type EngineTone = 'primary' | 'secondary' | 'accent' | 'info' | 'neutral';
 const ENGINE_TONES: Record<string, EngineTone> = {

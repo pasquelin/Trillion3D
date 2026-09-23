@@ -1,14 +1,22 @@
 import { useRef } from 'react';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { usePortal } from '../layout/PortalContext.ts';
 import { Dropdown } from '../ui/Dropdown.tsx';
 import { LIGHTS, SHAPES, type AddKind } from './objects.ts';
+import { manifestOf, MODELS, type ModelId } from './starter.ts';
 import type { Editor } from './useEditor.ts';
 
-/** The public cooked models the Models menu loads, each committed under `site/assets/examples`. */
-const MODELS = ['bust', 'crates', 'hall', 'street-corner'] as const;
-const manifestOf = (id: string) =>
-  new URL(`assets/examples/${id}/cache/native/full/manifest.json`, document.baseURI).href;
+/** The dictionary words (`editor.<word>`) naming the menus' items. */
+type ItemWord =
+  | 'new'
+  | 'openFile'
+  | 'save'
+  | 'undo'
+  | 'redo'
+  | 'duplicate'
+  | 'delete'
+  | `add.${AddKind}`
+  | `model.${ModelId}`;
 
 /** Hands the scene to the person as a JSON file. */
 function download(json: string) {
@@ -21,23 +29,25 @@ function download(json: string) {
 }
 
 /**
- * The editor's menu bar: File (new, open a JSON file, save one), Add (the shapes, a group, the
- * lights), Edit (undo, redo, duplicate, delete) and Models (a public cooked model, loaded).
+ * The editor's menus, first in its bar: File (new, open a JSON file, save one), Add (the shapes,
+ * a group, the lights), Edit (undo, redo, duplicate, delete) and Models (a public cooked model,
+ * loaded).
  */
 export function MenuBar({ editor }: { editor: Editor }) {
   const { locale } = usePortal().route;
+  const t = useWords(locale);
   const { session, actions, failed } = editor;
   const file = useRef<HTMLInputElement>(null);
   const kinds: AddKind[] = [...(Object.keys(SHAPES) as AddKind[]), 'group', ...LIGHTS];
   const none = !session.selected;
-  const item = (key: string, onSelect: () => void, disabled = false) => ({
+  const item = (key: ItemWord, onSelect: () => void, disabled = false) => ({
     key,
-    label: t(locale, `editor.${key}`),
+    label: t(`editor.${key}`),
     onSelect,
     disabled,
   });
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <>
       <input
         ref={file}
         type="file"
@@ -53,7 +63,7 @@ export function MenuBar({ editor }: { editor: Editor }) {
         }}
       />
       <Dropdown
-        label={t(locale, 'editor.menu.file')}
+        label={t('editor.menu.file')}
         items={[
           item('new', actions.newScene),
           item('openFile', () => file.current?.click()),
@@ -67,11 +77,11 @@ export function MenuBar({ editor }: { editor: Editor }) {
         ]}
       />
       <Dropdown
-        label={t(locale, 'editor.menu.add')}
+        label={t('editor.menu.add')}
         items={kinds.map((kind) => item(`add.${kind}`, () => actions.add(kind)))}
       />
       <Dropdown
-        label={t(locale, 'editor.menu.edit')}
+        label={t('editor.menu.edit')}
         items={[
           item('undo', session.undo, !session.history.canUndo),
           item('redo', session.redo, !session.history.canRedo),
@@ -80,14 +90,14 @@ export function MenuBar({ editor }: { editor: Editor }) {
         ]}
       />
       <Dropdown
-        label={t(locale, 'editor.menu.models')}
+        label={t('editor.menu.models')}
         items={MODELS.map((id) =>
           item(
             `model.${id}`,
-            () => void actions.loadSample(manifestOf(id), t(locale, `editor.model.${id}`)),
+            () => void actions.loadSample(manifestOf(id), t(`editor.model.${id}`)),
           ),
         )}
       />
-    </div>
+    </>
   );
 }

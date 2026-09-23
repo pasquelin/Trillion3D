@@ -1,23 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createOrbitCameraControls } from './orbitControls.ts';
 import { createTrackballCameraControls } from './trackballControls.ts';
 import { createPanZoomCameraControls } from './panZoomControls.ts';
-import { fixtureCamera, fixtureDrag, fixturePinch, fixtureSurface } from './controls.fixture.ts';
-
-/** Rounded, and `+ 0` so a negative zero reads as the zero a reader expects. */
-const round = (value: number, digits = 6) => Number(value.toFixed(digits)) + 0;
-const at = (camera: { position: { x: number; y: number; z: number } }) =>
-  [round(camera.position.x), round(camera.position.y), round(camera.position.z)] as const;
-
-function orbit(distance = 10) {
-  const camera = fixtureCamera(0, 0, distance),
-    surface = fixtureSurface(400);
-  const controls = createOrbitCameraControls(camera, surface.element);
-  let changes = 0;
-  controls.addEventListener('change', () => changes++);
-  return { camera, surface, controls, changes: () => changes };
-}
+import {
+  at,
+  fixtureCamera,
+  fixtureDrag,
+  fixtureOrbit as orbit,
+  fixturePinch,
+  fixtureSurface,
+  round,
+} from './controls.fixture.ts';
 
 test('orbit clamps the distance the host asked for, and emits once for it', () => {
   const { camera, controls, changes } = orbit(10);

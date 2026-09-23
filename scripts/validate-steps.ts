@@ -7,8 +7,8 @@
 //              or a lint mistake should be reported, not after the Rust suite;
 //   typescript the `tsc` build and the gates that read its products;
 //   native     the Rust crates, and the unit suite, which needs both the compiled compiler
-//              (`scripts/docs-fossil-cache.test.ts` skips itself without it) and `dist/`
-//              (`tests/integration/extensions-dts.test.ts`). `build` is seven seconds and is
+//              (`tests/integration/shared-cache-format.test.ts` skips part of itself without it)
+//              and `dist/` (`tests/integration/extensions-dts.test.ts`). `build` is seven seconds and is
 //              repeated here rather than making the job wait on another one.
 //
 // The CI skips the `*:native` gates when it has restored the binaries built from these exact
@@ -29,6 +29,7 @@ export const VALIDATE_GROUPS = {
     'check:docs-three',
     'check:sdk-facade',
     'check:api-reference',
+    'check:i18n',
   ],
   typescript: [
     'build',

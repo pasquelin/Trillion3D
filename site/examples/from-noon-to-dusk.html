@@ -55,12 +55,15 @@
       world.camera.lookAt(0, 0.6, 0);
       world.controls.target.set(0, 0.6, 0);
 
-      const ui = controls({ speed: [0, 3, 0.8], hour: [6, 20, 12, 0.5], adaptEyes: true }, world);
+      const ui = controls({ speed: [0, 3, 0.8], hour: [6, 20, 12, 0.5], adaptEyes: true }, () => world.invalidate(), world);
       // The sun rises in the east at six and sets in the west at twenty. Near the horizon it
       // reddens and its light thins; `exposure` then rises like an eye adapting to the dusk.
-      let hour = ui.hour, from = ui.hour;
+      let hour = ui.hour, from = null, adapted = null;
       world.onFrame(({ delta }) => {
+        // Stopped, the sun moves only when the hour or the eyes are changed.
         if (ui.hour !== from) hour = from = ui.hour;
+        else if (!ui.speed && ui.adaptEyes === adapted) return;
+        adapted = ui.adaptEyes;
         hour += delta * ui.speed; // hours per second
         if (hour > 20) hour = 6;
         const arc = ((hour - 6) / 14) * Math.PI, height = Math.sin(arc);
