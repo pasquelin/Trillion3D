@@ -10,6 +10,8 @@ import { CITY } from './surfaces.ts';
 
 const { craneYellow, darkMetal, steel } = SURFACES;
 
+/** Where the quays start, metres inland of the first sea point. */
+export const ROOT = -20;
 export const QUAY = { width: 50, length: 300, deck: 3, depth: 22 } as const;
 
 export function quay(): PropMesh {
