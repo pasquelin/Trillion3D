@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A robot that walks, waves and dances</title>
+    <meta name="thumbnail" content="2.3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101722;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, animation, math } from '../runtime/engine.js';
+      import { controls, banner } from '../runtime/kit.js';
+
+      banner('A robot that walks, waves and dances', 'Each slider weighs one motion: mix them. Drag to turn around the robot.');
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#101722');
+
+      // The robot is a tree of named groups: each joint is a group turned by the clips.
+      const paint = material.meshStandard({ color: '#f2b134', metalness: 0.3, roughness: 0.35 });
+      const steel = material.meshStandard({ color: '#3b4250', metalness: 0.9, roughness: 0.3 });
+      const eyes = material.meshStandard({ color: '#000000', emissive: '#6ff7ff', emissiveIntensity: 8 });
+      function part(name, shape, matter, at, parent) {
+        const joint = object.group();
+        joint.name = name;
+        joint.position.set(...at);
+        if (shape) joint.add(object.mesh(shape, matter));
+        parent.add(joint);
+        return joint;
+      }
+      function limb(name, at, parent, length) {
+        const joint = part(name, null, null, at, parent);
+        const bone = object.mesh(geometry.capsule(0.13, length, 8, 24), steel);
+        bone.position.y = -length / 2 - 0.1;
+        const hand = object.mesh(geometry.sphere(0.17, 24, 16), paint);
+        hand.position.y = -length - 0.2;
+        joint.add(bone, hand);
+        return joint;
+      }
+      const robot = object.group();
+      const hips = part('hips', geometry.box(0.9, 1.1, 0.55), paint, [0, 1.55, 0], robot);
+      const head = part('head', geometry.box(0.7, 0.55, 0.6), paint, [0, 0.9, 0], hips);
+      for (const side of [-1, 1]) {
+        const eye = object.mesh(geometry.sphere(0.07, 16, 12), eyes);
+        eye.position.set(side * 0.16, 0.05, 0.3);
+        head.add(eye);
+      }
+      limb('armL', [-0.6, 0.45, 0], hips, 0.8);
+      limb('armR', [0.6, 0.45, 0], hips, 0.8);
+      limb('legL', [-0.25, -0.55, 0], hips, 0.7);
+      limb('legR', [0.25, -0.55, 0], hips, 0.7);
+      world.scene.add(robot);
+
+      // Three clips, each a list of keyed tracks: `node.property.axis`, times, values.
+      const swing = (name, times, values) => animation.numberTrack(name, times, values);
+      const walk = animation.clip('walk', 1, [
+        swing('legL.rotation.x', [0, 0.5, 1], [0.6, -0.6, 0.6]),
+        swing('legR.rotation.x', [0, 0.5, 1], [-0.6, 0.6, -0.6]),
+        swing('armL.rotation.x', [0, 0.5, 1], [-0.5, 0.5, -0.5]),
+        swing('armR.rotation.x', [0, 0.5, 1], [0.5, -0.5, 0.5]),
+        swing('hips.position.y', [0, 0.25, 0.5, 0.75, 1], [1.55, 1.63, 1.55, 1.63, 1.55]),
+      ]);
+      const wave = animation.clip('wave', 0.8, [
+        swing('armR.rotation.z', [0, 0.4, 0.8], [2.3, 2.8, 2.3]),
+        swing('head.rotation.z', [0, 0.4, 0.8], [-0.15, 0.1, -0.15]),
+      ]);
+      const dance = animation.clip('dance', 1.2, [
+        swing('hips.rotation.y', [0, 0.3, 0.9, 1.2], [0, 0.5, -0.5, 0]),
+        swing('armL.rotation.z', [0, 0.6, 1.2], [-0.4, -2.4, -0.4]),
+        swing('head.rotation.x', [0, 0.3, 0.6, 0.9, 1.2], [0, 0.25, 0, 0.25, 0]),
+      ]);
+      const mixer = animation.createMixer(robot);
+      const actions = { walk: mixer.play(walk), wave: mixer.play(wave), dance: mixer.play(dance) };
+
+      // A stage: a dark floor, rings of tiles, a spotlight that follows the robot.
+      const floor = object.mesh(geometry.cylinder(9, 9, 0.2, 128), material.meshStandard({ color: '#1d2430', roughness: 0.8 }));
+      floor.position.y = -0.1;
+      world.scene.add(floor);
+      for (let ring = 1; ring <= 3; ring++) {
+        const band = object.mesh(geometry.ring(ring * 2.4 - 0.05, ring * 2.4 + 0.05, 128), material.meshStandard({ color: '#000000', emissive: '#2b6cff', emissiveIntensity: 2 }));
+        band.rotation.x = -Math.PI / 2;
+        band.position.y = 0.01;
+        world.scene.add(band);
+      }
+      const spot = light.spot({ color: '#fff4e0', intensity: 400, distance: 20, angle: 0.4, penumbra: 0.5, castShadow: true, position: [3, 9, 4] });
+      world.scene.add(spot, light.directional({ intensity: 0.4, color: '#8fb4ff', position: [-5, 6, -4] }));
+      world.camera.position.set(0, 3.6, 9.5);
+      world.camera.lookAt(0, 1.4, 0);
+      world.controls.target.set(0, 1.4, 0);
+
+      const ui = controls({ walk: [0, 1, 1], wave: [0, 1, 1], dance: [0, 1, 0], speed: [0.1, 2, 1], colour: '#f2b134' }, (values) => {
+        for (const [name, action] of Object.entries(actions)) {
+          action.weight = values[name];
+          action.timeScale = values.speed;
+        }
+        paint.color.set(values.colour);
+      });
+      // Walking moves the robot round the stage, as far as its walk weighs.
+      let heading = 0;
+      world.onFrame(({ delta }) => {
+        heading += delta * ui.speed * ui.walk * 0.35;
+        robot.position.set(Math.sin(heading) * 2.4, 0, Math.cos(heading) * 2.4);
+        robot.rotation.y = heading + Math.PI / 2;
+        spot.target.position.set(robot.position.x, 0, robot.position.z);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

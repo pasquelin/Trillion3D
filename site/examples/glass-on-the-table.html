@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Glass on the table</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e1621;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, banner } from '../runtime/kit.js';
+
+      banner('Glass on the table', 'Glass bends the light that crosses it. Move the refraction index: 1 is air, 1.5 glass, 2.4 diamond.');
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0e1621');
+
+      // A checkered table and a striped wall behind it, so the glass has something to bend.
+      const tiles = [material.meshStandard({ color: '#f2efe6', roughness: 0.6 }), material.meshStandard({ color: '#27313f', roughness: 0.6 })];
+      for (let row = 0; row < 12; row++)
+        for (let column = 0; column < 12; column++) {
+          const tile = object.mesh(geometry.box(0.5, 0.1, 0.5), tiles[(row + column) % 2]);
+          tile.position.set((column - 5.5) * 0.5, -0.05, (row - 5.5) * 0.5);
+          world.scene.add(tile);
+        }
+      const stripes = ['#e0663c', '#f2b134', '#3cb4a0', '#3c6ee0', '#a04ad0'].map((colour) => material.meshStandard({ color: colour, roughness: 0.7 }));
+      for (let band = 0; band < 15; band++) {
+        const stripe = object.mesh(geometry.box(0.4, 3, 0.1), stripes[band % stripes.length]);
+        stripe.position.set((band - 7) * 0.4, 1.5, -3.05);
+        world.scene.add(stripe);
+      }
+
+      // Three shapes of the same glass: `transmission` lets light through, `ior` sets how much
+      // it bends, `thickness` how far it travels inside.
+      const glass = material.meshPhysical({ color: '#ffffff', roughness: 0.02, transmission: 1, ior: 1.5, thickness: 1 });
+      const pieces = [
+        [geometry.sphere(0.6, 64, 32), [-1.4, 0.6, 0]],
+        [geometry.torusKnot(0.38, 0.14, 200, 32), [0, 0.75, 0.3]],
+        [geometry.cylinder(0.5, 0.5, 1.2, 64), [1.4, 0.6, 0]],
+      ].map(([shape, at]) => {
+        const piece = object.mesh(shape, glass);
+        piece.position.set(...at);
+        world.scene.add(piece);
+        return piece;
+      });
+      world.scene.add(light.directional({ intensity: 3, color: '#fff4e6', position: [3, 8, 5], castShadow: true }));
+      world.scene.add(light.point({ intensity: 20, color: '#9ec2ff', position: [-3, 3, 2], distance: 12 }));
+      world.camera.position.set(0, 2.2, 4.6);
+      world.camera.lookAt(0, 0.5, 0);
+      world.controls.target.set(0, 0.5, 0);
+
+      const ui = controls({ refraction: [1, 2.4, 1.5], thickness: [0, 3, 1], tint: '#ffffff', spin: true }, (values) => {
+        glass.ior = values.refraction;
+        glass.thickness = values.thickness;
+        glass.color.set(values.tint);
+      });
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        for (const piece of pieces) piece.rotation.y += delta * 0.6;
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

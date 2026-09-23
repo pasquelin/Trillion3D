@@ -29,6 +29,13 @@
       }
     },
     {
+      "id": "animation",
+      "title": {
+        "en": "Animation",
+        "fr": "Animation"
+      }
+    },
+    {
       "id": "loaders",
       "title": {
         "en": "Loaded models",
@@ -43,59 +50,22 @@
       }
     },
     {
-      "id": "animation",
-      "title": {
-        "en": "Animation",
-        "fr": "Animation"
-      }
-    },
-    {
-      "id": "interaction",
-      "title": {
-        "en": "Interaction",
-        "fr": "Interaction"
-      }
-    },
-    {
-      "id": "post-processing",
-      "title": {
-        "en": "Post-processing",
-        "fr": "Post-traitement"
-      }
-    },
-    {
       "id": "performance",
       "title": {
         "en": "Performance and budgets",
         "fr": "Performance et budgets"
       }
-    },
-    {
-      "id": "integration",
-      "title": {
-        "en": "Integration",
-        "fr": "Intégration"
-      }
     }
   ],
   "entries": [
     {
-      "id": "cube-on-its-corner",
+      "id": "shapes-on-a-turntable",
       "title": {
-        "en": "A cube balanced on one corner",
-        "fr": "Un cube en équilibre sur un coin"
+        "en": "Shapes on a turntable",
+        "fr": "Des formes sur un plateau tournant"
       },
       "theme": "geometry",
-      "file": "examples/cube-on-its-corner.html"
-    },
-    {
-      "id": "still-life-of-primitives",
-      "title": {
-        "en": "A still life of primitives",
-        "fr": "Une nature morte de primitives"
-      },
-      "theme": "geometry",
-      "file": "examples/still-life-of-primitives.html"
+      "file": "examples/shapes-on-a-turntable.html"
     },
     {
       "id": "a-field-of-pebbles",
@@ -152,15 +122,6 @@
       "file": "examples/a-mesh-simplified-on-demand.html"
     },
     {
-      "id": "boxes-culled-by-the-frustum",
-      "title": {
-        "en": "Ten thousand boxes culled by the frustum",
-        "fr": "Dix mille boîtes triées par le frustum"
-      },
-      "theme": "geometry",
-      "file": "examples/boxes-culled-by-the-frustum.html"
-    },
-    {
       "id": "from-clay-to-chrome",
       "title": {
         "en": "From clay to chrome",
@@ -168,6 +129,24 @@
       },
       "theme": "materials",
       "file": "examples/from-clay-to-chrome.html"
+    },
+    {
+      "id": "glass-on-the-table",
+      "title": {
+        "en": "Glass on the table",
+        "fr": "Du verre sur la table"
+      },
+      "theme": "materials",
+      "file": "examples/glass-on-the-table.html"
+    },
+    {
+      "id": "a-neon-sign",
+      "title": {
+        "en": "A neon sign that glows",
+        "fr": "Une enseigne au néon qui luit"
+      },
+      "theme": "materials",
+      "file": "examples/a-neon-sign.html"
     },
     {
       "id": "painted-and-textured",
@@ -197,42 +176,6 @@
       "file": "examples/leaves-cut-by-alpha.html"
     },
     {
-      "id": "glass-on-the-table",
-      "title": {
-        "en": "Glass on the table",
-        "fr": "Du verre sur la table"
-      },
-      "theme": "materials",
-      "file": ""
-    },
-    {
-      "id": "a-neon-sign",
-      "title": {
-        "en": "A neon sign that glows",
-        "fr": "Une enseigne au néon qui luit"
-      },
-      "theme": "materials",
-      "file": "examples/a-neon-sign.html"
-    },
-    {
-      "id": "brushed-metal",
-      "title": {
-        "en": "Brushed metal, anisotropic",
-        "fr": "Métal brossé, anisotrope"
-      },
-      "theme": "materials",
-      "file": ""
-    },
-    {
-      "id": "car-paint-under-clear-coat",
-      "title": {
-        "en": "Car paint under a clear coat",
-        "fr": "Peinture de carrosserie sous vernis"
-      },
-      "theme": "materials",
-      "file": ""
-    },
-    {
       "id": "a-colour-ramp-in-linear-light",
       "title": {
         "en": "A colour ramp in linear light",
@@ -242,22 +185,13 @@
       "file": "examples/a-colour-ramp-in-linear-light.html"
     },
     {
-      "id": "sundial-in-the-afternoon",
+      "id": "from-noon-to-dusk",
       "title": {
-        "en": "A sundial in the late afternoon",
-        "fr": "Un cadran solaire en fin d’après-midi"
+        "en": "From noon to dusk",
+        "fr": "De midi au crépuscule"
       },
       "theme": "lights",
-      "file": "examples/sundial-in-the-afternoon.html"
-    },
-    {
-      "id": "street-lamp-at-night",
-      "title": {
-        "en": "A street lamp at night",
-        "fr": "Un lampadaire la nuit"
-      },
-      "theme": "lights",
-      "file": "examples/street-lamp-at-night.html"
+      "file": "examples/from-noon-to-dusk.html"
     },
     {
       "id": "crates-under-a-spotlight",
@@ -271,11 +205,20 @@
     {
       "id": "a-ring-of-lamps",
       "title": {
-        "en": "A ring of lamps on one budget",
-        "fr": "Un anneau de lampes sur un budget"
+        "en": "Sixty-four lamps at once",
+        "fr": "Soixante-quatre lampes à la fois"
       },
       "theme": "lights",
       "file": "examples/a-ring-of-lamps.html"
+    },
+    {
+      "id": "street-lamp-at-night",
+      "title": {
+        "en": "A street lamp, day and night",
+        "fr": "Un réverbère, de jour et de nuit"
+      },
+      "theme": "lights",
+      "file": "examples/street-lamp-at-night.html"
     },
     {
       "id": "two-lamps-that-mix",
@@ -296,24 +239,6 @@
       "file": "examples/a-lamp-in-its-glass.html"
     },
     {
-      "id": "from-noon-to-dusk",
-      "title": {
-        "en": "Exposure from noon to dusk",
-        "fr": "L’exposition de midi au crépuscule"
-      },
-      "theme": "lights",
-      "file": "examples/from-noon-to-dusk.html"
-    },
-    {
-      "id": "light-off-a-red-wall",
-      "title": {
-        "en": "Light bouncing off a red wall",
-        "fr": "La lumière rebondit sur un mur rouge"
-      },
-      "theme": "lights",
-      "file": "examples/light-off-a-red-wall.html"
-    },
-    {
       "id": "a-lighthouse-beam",
       "title": {
         "en": "A lighthouse beam sweeping the shore",
@@ -332,22 +257,13 @@
       "file": "examples/lights-from-the-scene-file.html"
     },
     {
-      "id": "soft-shadows-from-a-wide-lamp",
+      "id": "five-ways-to-move-the-camera",
       "title": {
-        "en": "Soft shadows from a wide lamp",
-        "fr": "Des ombres douces sous une lampe large"
-      },
-      "theme": "lights",
-      "file": ""
-    },
-    {
-      "id": "circling-the-bust",
-      "title": {
-        "en": "Circling the marble bust",
-        "fr": "Tourner autour du buste de marbre"
+        "en": "Five ways to move the camera",
+        "fr": "Cinq façons de déplacer la caméra"
       },
       "theme": "camera",
-      "file": "examples/circling-the-bust.html"
+      "file": "examples/five-ways-to-move-the-camera.html"
     },
     {
       "id": "zoom-down-the-colonnade",
@@ -359,58 +275,22 @@
       "file": "examples/zoom-down-the-colonnade.html"
     },
     {
-      "id": "a-dolly-along-the-canal",
+      "id": "a-robot-that-walks-and-waves",
       "title": {
-        "en": "A dolly along the canal",
-        "fr": "Un travelling le long du canal"
+        "en": "A robot that walks, waves and dances",
+        "fr": "Un robot qui marche, salue et danse"
       },
-      "theme": "camera",
-      "file": ""
+      "theme": "animation",
+      "file": "examples/a-robot-that-walks-and-waves.html"
     },
     {
-      "id": "the-near-plane-cuts-a-wall",
+      "id": "a-wave-across-a-grid",
       "title": {
-        "en": "The near plane cuts through a wall",
-        "fr": "Le plan proche tranche un mur"
+        "en": "A wave across a grid of cubes",
+        "fr": "Une vague sur une grille de cubes"
       },
-      "theme": "camera",
-      "file": ""
-    },
-    {
-      "id": "an-elevation-of-the-house",
-      "title": {
-        "en": "An orthographic elevation of the house",
-        "fr": "Une élévation orthographique de la maison"
-      },
-      "theme": "camera",
-      "file": ""
-    },
-    {
-      "id": "a-recorded-fly-through",
-      "title": {
-        "en": "A recorded fly-through, replayed",
-        "fr": "Un survol enregistré, rejoué"
-      },
-      "theme": "camera",
-      "file": ""
-    },
-    {
-      "id": "two-views-of-one-scene",
-      "title": {
-        "en": "Two views of one scene",
-        "fr": "Deux vues d’une même scène"
-      },
-      "theme": "camera",
-      "file": ""
-    },
-    {
-      "id": "the-home-pose",
-      "title": {
-        "en": "The home pose and the points of interest",
-        "fr": "La pose d’accueil et les points d’intérêt"
-      },
-      "theme": "camera",
-      "file": ""
+      "theme": "animation",
+      "file": "examples/a-wave-across-a-grid.html"
     },
     {
       "id": "marble-bust-on-its-pedestal",
@@ -422,63 +302,9 @@
       "file": "examples/marble-bust-on-its-pedestal.html"
     },
     {
-      "id": "an-obj-with-its-materials",
-      "title": {
-        "en": "An OBJ with its material library",
-        "fr": "Un OBJ avec sa bibliothèque de matériaux"
-      },
-      "theme": "loaders",
-      "file": ""
-    },
-    {
-      "id": "an-fbx-with-its-lights",
-      "title": {
-        "en": "An FBX that brings its lights",
-        "fr": "Un FBX qui apporte ses lumières"
-      },
-      "theme": "loaders",
-      "file": ""
-    },
-    {
-      "id": "a-folder-merged-into-one-scene",
-      "title": {
-        "en": "A folder of files merged into one scene",
-        "fr": "Un dossier de fichiers fondus en une scène"
-      },
-      "theme": "loaders",
-      "file": ""
-    },
-    {
-      "id": "a-scene-with-its-own-cameras",
-      "title": {
-        "en": "A scene file with its own cameras",
-        "fr": "Un fichier de scène avec ses propres caméras"
-      },
-      "theme": "loaders",
-      "file": ""
-    },
-    {
-      "id": "compiled-on-the-fly",
-      "title": {
-        "en": "A model compiled on the fly",
-        "fr": "Un modèle compilé à la volée"
-      },
-      "theme": "loaders",
-      "file": ""
-    },
-    {
-      "id": "what-the-compiler-refused",
-      "title": {
-        "en": "What the compiler refused, and why",
-        "fr": "Ce que le compilateur a refusé, et pourquoi"
-      },
-      "theme": "loaders",
-      "file": ""
-    },
-    {
       "id": "observatory-streamed",
       "title": {
-        "en": "An observatory streamed by clusters",
+        "en": "An observatory streamed in clusters",
         "fr": "Un observatoire streamé par grappes"
       },
       "theme": "streaming",
@@ -487,290 +313,20 @@
     {
       "id": "memory-on-a-budget",
       "title": {
-        "en": "A city on a fixed memory budget",
-        "fr": "Une ville sous un budget mémoire fixe"
-      },
-      "theme": "streaming",
-      "file": ""
-    },
-    {
-      "id": "a-walk-through-the-city",
-      "title": {
-        "en": "A city that streams as you walk",
-        "fr": "Une ville qui se charge à mesure qu’on marche"
-      },
-      "theme": "streaming",
-      "file": ""
-    },
-    {
-      "id": "from-coarse-to-exact",
-      "title": {
-        "en": "From the coarse cover to the exact cut",
-        "fr": "De la couverture grossière à la coupe exacte"
-      },
-      "theme": "streaming",
-      "file": ""
-    },
-    {
-      "id": "texture-tiles-arriving",
-      "title": {
-        "en": "Texture tiles arriving frame by frame",
-        "fr": "Des tuiles de texture qui arrivent image par image"
-      },
-      "theme": "streaming",
-      "file": ""
-    },
-    {
-      "id": "the-first-frame",
-      "title": {
-        "en": "What the first frame shows",
-        "fr": "Ce que montre la première image"
-      },
-      "theme": "streaming",
-      "file": ""
-    },
-    {
-      "id": "pages-kept-in-the-cache",
-      "title": {
-        "en": "The pages the cache keeps",
-        "fr": "Les pages que le cache garde"
-      },
-      "theme": "streaming",
-      "file": ""
-    },
-    {
-      "id": "a-crane-that-swings",
-      "title": {
-        "en": "A crane that swings its load",
-        "fr": "Une grue qui balance sa charge"
-      },
-      "theme": "animation",
-      "file": ""
-    },
-    {
-      "id": "a-carousel",
-      "title": {
-        "en": "A carousel of wooden horses",
-        "fr": "Un manège de chevaux de bois"
-      },
-      "theme": "animation",
-      "file": ""
-    },
-    {
-      "id": "a-pendulum-clock",
-      "title": {
-        "en": "A pendulum clock",
-        "fr": "Une horloge à balancier"
-      },
-      "theme": "animation",
-      "file": ""
-    },
-    {
-      "id": "doors-that-open",
-      "title": {
-        "en": "Doors that open as you approach",
-        "fr": "Des portes qui s’ouvrent à l’approche"
-      },
-      "theme": "animation",
-      "file": ""
-    },
-    {
-      "id": "a-wave-across-a-grid",
-      "title": {
-        "en": "A wave running across a grid",
-        "fr": "Une vague qui parcourt une grille"
-      },
-      "theme": "animation",
-      "file": ""
-    },
-    {
-      "id": "pick-under-the-cursor",
-      "title": {
-        "en": "Pick the object under the cursor",
-        "fr": "Désigner l’objet sous le curseur"
-      },
-      "theme": "interaction",
-      "file": ""
-    },
-    {
-      "id": "drag-a-crate",
-      "title": {
-        "en": "Drag a crate across the floor",
-        "fr": "Tirer une caisse sur le sol"
-      },
-      "theme": "interaction",
-      "file": ""
-    },
-    {
-      "id": "hover-to-highlight",
-      "title": {
-        "en": "Hover to highlight a part",
-        "fr": "Survoler pour surligner une pièce"
-      },
-      "theme": "interaction",
-      "file": ""
-    },
-    {
-      "id": "measure-a-distance",
-      "title": {
-        "en": "Measure a distance between two points",
-        "fr": "Mesurer une distance entre deux points"
-      },
-      "theme": "interaction",
-      "file": ""
-    },
-    {
-      "id": "a-rubber-band-selection",
-      "title": {
-        "en": "Select with a rubber band",
-        "fr": "Sélectionner au lasso rectangulaire"
-      },
-      "theme": "interaction",
-      "file": ""
-    },
-    {
-      "id": "five-ways-to-move-the-camera",
-      "title": {
-        "en": "Five ways to move the camera",
-        "fr": "Cinq façons de déplacer la caméra"
-      },
-      "theme": "interaction",
-      "file": "examples/five-ways-to-move-the-camera.html"
-    },
-    {
-      "id": "bloom-on-the-neon",
-      "title": {
-        "en": "Bloom on the neon sign",
-        "fr": "Halo lumineux sur l’enseigne au néon"
-      },
-      "theme": "post-processing",
-      "file": ""
-    },
-    {
-      "id": "antialiasing-on-and-off",
-      "title": {
-        "en": "Temporal antialiasing, on and off",
-        "fr": "L’antialiasing temporel, avec et sans"
-      },
-      "theme": "post-processing",
-      "file": ""
-    },
-    {
-      "id": "fog-by-depth",
-      "title": {
-        "en": "Fog thickening with depth",
-        "fr": "Un brouillard qui s’épaissit avec la profondeur"
-      },
-      "theme": "post-processing",
-      "file": ""
-    },
-    {
-      "id": "outline-the-selection",
-      "title": {
-        "en": "Outline the selected object",
-        "fr": "Détourer l’objet sélectionné"
-      },
-      "theme": "post-processing",
-      "file": ""
-    },
-    {
-      "id": "grain-and-vignette",
-      "title": {
-        "en": "Film grain and a vignette",
-        "fr": "Grain de pellicule et vignettage"
-      },
-      "theme": "post-processing",
-      "file": ""
-    },
-    {
-      "id": "a-hundred-thousand-instances",
-      "title": {
-        "en": "A hundred thousand instances",
-        "fr": "Cent mille instances"
+        "en": "Memory on a budget",
+        "fr": "La mémoire sous budget"
       },
       "theme": "performance",
-      "file": ""
+      "file": "examples/memory-on-a-budget.html"
     },
     {
-      "id": "hidden-behind-a-wall",
+      "id": "boxes-culled-by-the-frustum",
       "title": {
-        "en": "Hidden behind a wall: occlusion",
-        "fr": "Caché derrière un mur : l’occlusion"
+        "en": "Ten thousand boxes culled by the frustum",
+        "fr": "Dix mille boîtes triées par le frustum"
       },
       "theme": "performance",
-      "file": ""
-    },
-    {
-      "id": "a-frame-budget-meter",
-      "title": {
-        "en": "A frame budget meter",
-        "fr": "Un compteur de budget par image"
-      },
-      "theme": "performance",
-      "file": ""
-    },
-    {
-      "id": "shadows-redrawn-per-frame",
-      "title": {
-        "en": "Shadow pages redrawn per frame",
-        "fr": "Les pages d’ombre redessinées par image"
-      },
-      "theme": "performance",
-      "file": ""
-    },
-    {
-      "id": "the-cost-of-a-pixel-error",
-      "title": {
-        "en": "The cost of one pixel of error",
-        "fr": "Le coût d’un pixel d’erreur"
-      },
-      "theme": "performance",
-      "file": ""
-    },
-    {
-      "id": "inside-a-component",
-      "title": {
-        "en": "Inside a component: mount and dispose",
-        "fr": "Dans un composant : monter et libérer"
-      },
-      "theme": "integration",
-      "file": ""
-    },
-    {
-      "id": "two-canvases-one-engine",
-      "title": {
-        "en": "Two canvases, one engine",
-        "fr": "Deux canevas, un moteur"
-      },
-      "theme": "integration",
-      "file": ""
-    },
-    {
-      "id": "a-capture-saved-to-disk",
-      "title": {
-        "en": "A capture saved to disk",
-        "fr": "Une capture enregistrée sur disque"
-      },
-      "theme": "integration",
-      "file": ""
-    },
-    {
-      "id": "drawn-inside-a-host-scene",
-      "title": {
-        "en": "Drawn inside a host renderer's scene",
-        "fr": "Dessiné dans la scène d’un rendu hôte"
-      },
-      "theme": "integration",
-      "file": ""
-    },
-    {
-      "id": "listening-to-the-diagnostics",
-      "title": {
-        "en": "Listening to the diagnostics channel",
-        "fr": "À l’écoute du canal de diagnostics"
-      },
-      "theme": "integration",
-      "file": ""
+      "file": "examples/boxes-culled-by-the-frustum.html"
     }
   ]
 }
