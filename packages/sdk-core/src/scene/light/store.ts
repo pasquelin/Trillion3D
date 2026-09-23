@@ -15,6 +15,7 @@ import { validateSceneEnvironment, validateSceneLight } from './validate.ts';
 
 export { LIGHT_FIELD } from './fields.ts';
 
+/** The lights of a scene as the GPU reads them, packed and kept up to date. */
 export type SceneLightStore = ReturnType<typeof createSceneLightStore>;
 
 /**
@@ -45,17 +46,23 @@ export function createSceneLightStore() {
   const records = new Map<string, SceneLight>();
   const store = {
     settings: LIGHT_SETTINGS,
+    /** Every light, packed for the GPU. */
     packed,
     environmentPacked,
+    /** Bumped on every change. */
     revision,
     sliceOf,
+    /** Each slot's light name. */
     ids,
+    /** How many lights. */
     get count() {
       return ids.length;
     },
+    /** Bumped when the set of lights changes. */
     get epoch() {
       return epoch;
     },
+    /** The scene's environment. */
     get environment() {
       return environment;
     },
@@ -72,6 +79,7 @@ export function createSceneLightStore() {
     get unlit() {
       return view === 'unlit' || (view === 'auto' && ids.length === 0);
     },
+    /** Sets what the host asks to see. */
     setView(next: SceneLightingView) {
       if (view === next) return;
       view = next;
@@ -82,9 +90,11 @@ export function createSceneLightStore() {
     light(id: string) {
       return records.get(id);
     },
+    /** The slot of a light. */
     slotOf(id: string) {
       return indexOf.get(id) ?? -1;
     },
+    /** Adds a light. */
     add(light: SceneLight) {
       const validated = validateSceneLight(light);
       if (indexOf.has(validated.id))
@@ -109,6 +119,7 @@ export function createSceneLightStore() {
       epoch++;
       return slot;
     },
+    /** Changes a light. */
     set(id: string, patch: Partial<Omit<SceneLight, 'id'>>) {
       const slot = indexOf.get(id);
       const current = records.get(id);
@@ -123,6 +134,7 @@ export function createSceneLightStore() {
       write(slot, merged);
       epoch++;
     },
+    /** Removes a light. */
     remove(id: string) {
       const slot = indexOf.get(id);
       if (slot === undefined)
@@ -148,6 +160,7 @@ export function createSceneLightStore() {
       header[0] = ids.length;
       epoch++;
     },
+    /** Sets the environment. */
     setEnvironment(next: SceneEnvironment) {
       const validated = validateSceneEnvironment(next);
       // Same rule as `set`: an exposure reset as-is does not stale the frame.

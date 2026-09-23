@@ -1,10 +1,13 @@
 import type { BackendDiagnostic, DiagnosticDetail } from '../backend/types.ts';
 
+/** A function that hears each thing a diagnostic channel reports. */
 export type DiagnosticObserver = (diagnostic: BackendDiagnostic) => void;
 
+/** How much a diagnostic channel says. */
 export interface DiagnosticChannelOptions {
   /** Explicitly disable delivery while retaining a cheap no-op emitter. */
   enabled?: boolean;
+  /** A summary, or every detail. */
   detail?: DiagnosticDetail;
   /** Maximum number of pending diagnostic records. */
   maxBuffer?: number;
@@ -14,16 +17,25 @@ export interface DiagnosticChannelOptions {
   now?: () => number;
 }
 
+/** A line the engine reports its findings on, until it is closed. */
 export interface DiagnosticChannel {
+  /** Whether it reports. */
   readonly enabled: boolean;
+  /** How much it says. */
   readonly detail: DiagnosticDetail;
+  /** The session it belongs to. */
   readonly sessionId: string;
+  /** Reports one finding. */
   emit(diagnostic: BackendDiagnostic): void;
+  /** Delivers what waits. */
   flush(): Promise<void>;
   /** Drain outside a measured/render call when a synchronous teardown needs delivery. */
   flushSync(): void;
+  /** Stops it. */
   close(): void;
+  /** Findings waiting. */
   pending(): number;
+  /** Findings dropped. */
   dropped(): number;
 }
 

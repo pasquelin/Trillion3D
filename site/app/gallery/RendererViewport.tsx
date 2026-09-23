@@ -6,9 +6,10 @@ import type {
   RendererLessonSession,
   RendererMetrics,
 } from '../../lessons/rendererLessonSessionTypes.ts';
-import { Canvas } from '../components/Canvas.tsx';
-import { Alert, Select } from '../components/UI.tsx';
-import { Stat, StatGroup } from '../components/Stats.tsx';
+import { Canvas } from '../ui/Canvas.tsx';
+import { Alert } from '../ui/Alert.tsx';
+import { Select } from '../ui/Input.tsx';
+import { Stat, StatGroup } from '../ui/Stats.tsx';
 import { createRendererLessonRuntime } from '../../lessons/rendererLessonRuntime.ts';
 import { syncRendererState } from '../../lessons/syncRendererState.ts';
 import { DIAGNOSTIC_MODES, isDiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';

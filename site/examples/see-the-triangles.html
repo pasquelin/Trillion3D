@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>See the triangles</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #beauty {
+        display: none;
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50%;
+      }
+      .split #view {
+        width: 50%;
+      }
+      .split #beauty {
+        display: block;
+      }
+      p {
+        position: absolute;
+        bottom: 0;
+        margin: 0.5rem;
+        color: #cbd5e1;
+        font: 12px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <canvas id="beauty"></canvas>
+    <p>Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md</p>
+    <script type="module">
+      import { createWorld, light } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const lit = (world) => {
+        world.scene.add(light.directional({ intensity: 3.5, color: '#ffeedd', position: [12, 14, 8], castShadow: true }));
+        world.scene.add(light.directional({ intensity: 0.8, color: '#8ca6e6', position: [-14, 4, 10] }));
+      };
+      // The scanned bust, drawn as its triangles: each one its own colour.
+      const world = createWorld('view', { controls: 'orbit' });
+      await world.scene.load('../assets/examples/bust/cache/native/full/manifest.json');
+      lit(world);
+      world.camera.position.set(0.36, 0.34, 0.64);
+      world.camera.lookAt(0, 0.25, 0);
+      world.controls.target.set(0, 0.25, 0);
+
+      // The same bust, lit, in a second world beside the first, following its camera.
+      let beauty = null;
+      async function openBeauty() {
+        beauty = createWorld('beauty');
+        await beauty.scene.load('../assets/examples/bust/cache/native/full/manifest.json');
+        lit(beauty);
+      }
+
+      // `world.diagnostic.mode` swaps the image for a view of the engine's own work;
+      // `world.pixelError` is how many pixels a coarser version may be off before a finer one
+      // is drawn: 0 draws the exact triangles, more draws fewer and bigger ones.
+      controls({
+        mouse: 'Scroll out and in: far away the bust needs fewer, bigger triangles',
+        view: ['triangles', 'clusters', 'lod', 'pages', 'beauty'],
+        pixelError: [0, 16, 0, 0.5],
+        sideBySide: false,
+      }, (values) => {
+        world.diagnostic.mode = values.view;
+        world.pixelError = values.pixelError;
+        document.body.classList.toggle('split', values.sideBySide);
+        if (values.sideBySide && !beauty) openBeauty();
+        if (beauty) beauty.pixelError = values.pixelError;
+        world.invalidate();
+      }, world);
+      const triangles = readout('Triangles drawn'), pages = readout('Pages in memory');
+      world.onFrame(({ metrics }) => {
+        triangles(metrics.selectedTriangles?.toLocaleString('en') ?? '?');
+        pages(String(metrics.residentPages ?? '?'));
+        if (!beauty) return;
+        beauty.camera.position.copy(world.camera.position);
+        beauty.camera.quaternion.copy(world.camera.quaternion);
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

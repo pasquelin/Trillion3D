@@ -1,7 +1,7 @@
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { externalEngine } from './external-engine.ts';
+import { externalEngine, PROGRAM_TEXT } from './external-engine.ts';
 
 /** Compile maintained TSX for server-rendered component contract tests. */
 export async function loadReactComponents(relativePath: string): Promise<Record<string, unknown>> {
@@ -16,6 +16,7 @@ export async function loadReactComponents(relativePath: string): Promise<Record<
     platform: 'node',
     packages: 'external',
     plugins: [externalEngine],
+    loader: PROGRAM_TEXT,
     logLevel: 'silent',
   });
   const module = { exports: {} };

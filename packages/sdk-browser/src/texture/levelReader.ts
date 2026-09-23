@@ -10,11 +10,16 @@ import { checked } from '../cluster/pages.ts';
 export type TextureLevel = ImageBitmap | Uint8Array;
 /** A level to read: its address, and the format the session samples. */
 export type TextureLevelRequest = {
+  /** Fingerprint of the source image. */
   sha256: string;
+  /** Which atlas. */
   atlas: number;
+  /** Which level. */
   level: number;
+  /** Which format. */
   format: TextureLevelFormat;
 };
+/** A function that fetches one baked texture level. */
 export type TextureLevelReader = (request: TextureLevelRequest) => Promise<TextureLevel>;
 
 /** Host bytes a level holds: the bitmap's texels, or the blocks. */

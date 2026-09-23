@@ -2,64 +2,53 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>The lights the scene file brought</title>
+    <title>Lights from the file</title>
+    <meta name="thumbnail" content="3" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
-      #lamps { top: 0; bottom: auto; display: flex; flex-direction: column; gap: 0.25rem; }
-      #lamps div { display: flex; gap: 0.4rem; align-items: center; }
-      #lamps span { width: 9rem; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <div id="lamps"></div>
     <script type="module">
       import { createWorld } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      // No `light.*` call here. The scene file declares three lamps (`KHR_lights_punctual`); the
+      // No `light.*` call here. The scene file declares its lamps (`KHR_lights_punctual`); the
       // compiler read them, converted candela to the engine's radiometric unit, and the loaded
-      // model carries them on `lights`. Each is a live light the scene already holds: moving,
-      // recolouring or dimming one is the same assignment as any light added by hand, and taking
-      // one out is the same `scene.remove` a hand-built light would take.
+      // model carries them on `lights`, live lights like any other.
       const model = await world.scene.load('../assets/examples/hall/cache/native/full/manifest.json');
       world.camera.position.set(0, 3.6, 8.5);
       world.camera.lookAt(0, 1.2, -1);
       world.controls.target.set(0, 1.2, -1);
-      world.invalidate();
 
-      const list = document.getElementById('lamps');
+      // One on/off toggle, one power slider and one colour per lamp, declared from the file.
+      const specs = {};
       model.lights.forEach((lamp, index) => {
-        const row = document.createElement('div');
-        const label = document.createElement('span');
-        label.textContent = `lamp ${index} (${lamp.kind}): ${lamp.intensity.toFixed(2)} W/sr`;
-        const range = document.createElement('input');
-        range.type = 'range';
-        range.min = '0';
-        range.max = String(lamp.intensity * 2);
-        range.step = String(lamp.intensity / 50);
-        range.value = String(lamp.intensity);
-        range.oninput = () => {
-          lamp.intensity = Number(range.value);
-          label.textContent = `lamp ${index} (${lamp.kind}): ${lamp.intensity.toFixed(2)} W/sr`;
-          world.invalidate();
-        };
-        const toggle = document.createElement('input');
-        toggle.type = 'checkbox';
-        toggle.checked = true;
-        toggle.title = 'lit';
-        toggle.onchange = () => {
-          // The lamp is a child of the model, not of the scene directly: hiding it, not
-          // re-parenting it, is what turns it off without detaching it from the model.
-          lamp.visible = toggle.checked;
-          range.disabled = !toggle.checked;
-          world.invalidate();
-        };
-        row.append(label, range, toggle);
-        list.append(row);
+        specs[`lamp${index + 1}`] = true;
+        specs[`power${index + 1}`] = [0, lamp.intensity * 3, lamp.intensity];
+        specs[`colour${index + 1}`] = `#${lamp.color.getHexString()}`;
       });
+      controls(specs, (values) => {
+        model.lights.forEach((lamp, index) => {
+          // A lamp is a child of the model: hiding it, not removing it, turns it off.
+          lamp.visible = values[`lamp${index + 1}`];
+          lamp.intensity = values[`power${index + 1}`];
+          lamp.color.set(values[`colour${index + 1}`]);
+        });
+        world.invalidate();
+      }, world);
     </script>
   </body>
 </html>

@@ -1,5 +1,5 @@
-import { Alert } from '../components/UI.tsx';
-import { Collapse } from '../components/Collapse.tsx';
+import { Alert } from '../ui/Alert.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
 import { reportCopy } from '../../reports/copy.ts';
 import type { Locale } from '../../content/locale.ts';
 
@@ -13,7 +13,7 @@ export function SceneNotice({ note, locale }: SceneNoticeProps) {
   if (!note) return null;
   return (
     <Alert tone="warning" className="grid-cols-1">
-      <div className="grid w-full gap-2 min-w-0">
+      <div className="grid w-full grid-cols-1 gap-2 min-w-0">
         <p>
           {note.includes('export omitted')
             ? reportCopy(locale).sourceTextures

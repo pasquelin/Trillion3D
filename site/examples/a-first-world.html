@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A first world</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // A world draws into the canvas above; `orbit` lets the mouse turn around the scene.
+      const world = createWorld('view', { controls: 'orbit' });
+
+      // Something to look at: one cube.
+      const paint = material.meshStandard({ color: '#3c8ce0' });
+      world.scene.add(object.mesh(geometry.box(1, 1, 1), paint));
+
+      // A sun, and a little light from everywhere: without a light, everything stays black.
+      world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4] }));
+      world.scene.add(light.ambient({ intensity: 0.3 }));
+
+      // Where the eye stands, and what it looks at.
+      world.camera.position.set(1.5, 1.2, 2.2);
+      world.camera.lookAt(0, 0, 0);
+
+      controls({ colour: '#3c8ce0' }, ({ colour }) => {
+        paint.color.set(colour);
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

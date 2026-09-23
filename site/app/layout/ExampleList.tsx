@@ -1,0 +1,41 @@
+import { Thumbnail } from '../ui/Thumbnail.tsx';
+
+interface ExampleLink {
+  key: string;
+  label: string;
+  href: string;
+  thumbnail: string;
+  active: boolean;
+}
+
+export interface ExampleGroup {
+  id: string;
+  title: string;
+  items: ExampleLink[];
+}
+
+/** The Examples sidebar's list: theme by theme, one card per example — its render the width of
+ * the sidebar, its title under it on at most two lines, the current one outlined. */
+export function ExampleList({ groups }: { groups: ExampleGroup[] }) {
+  return (
+    <div className="grid grid-cols-1 gap-6">
+      {groups.map((group) => (
+        <section key={group.id} className="grid grid-cols-1 gap-3">
+          <h2 className="text-xs font-bold uppercase tracking-widest opacity-60">{group.title}</h2>
+          <ul className="grid grid-cols-1 gap-3">
+            {group.items.map((item) => (
+              <li key={item.key}>
+                <Thumbnail
+                  href={item.href}
+                  src={item.thumbnail}
+                  label={item.label}
+                  active={item.active}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}

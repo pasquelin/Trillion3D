@@ -2,36 +2,44 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>An observatory streamed by clusters</title>
+    <title>Streamed clusters</title>
+    <meta name="thumbnail" content="5" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p id="status"></p>
     <script type="module">
       import { createWorld, pose } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      // The source triangles are cut into clusters at compile time: the engine streams what the
-      // frame needs and refines the cut as you orbit. The sun comes with the scene file.
+      // The compiler cut the model into clusters of triangles, and each cluster into coarser
+      // versions of itself. Every frame the engine picks, for each part of the view, the
+      // coarsest version whose error stays under `pixelError` pixels on screen.
       const model = await world.scene.load('../assets/gallery/signature-architecture/cache/native/full/manifest.json');
       const framing = pose.fromBounds(model.bounds);
       world.camera.set(framing);
       world.controls.target.set(...framing.target);
-      world.invalidate();
+      world.camera.position.lerp(world.controls.target, 0.4);
 
-      // `metadata` is the compiled totals; `awaitPages` resolves once the frame's own cut is
-      // fully resident, at which point the counter below stops moving.
-      const status = document.getElementById('status');
-      world.onFrame(({ metrics }) => {
-        const text = `${model.metadata.sourceTriangles?.toLocaleString('en') ?? '?'} source triangles compiled into ${model.metadata.clusters ?? '?'} clusters — ${metrics.residentPages ?? '?'} pages resident`;
-        if (status.textContent !== text) status.textContent = text;
-      });
-      await world.awaitPages();
+      // `world.diagnostic.mode` swaps the image for a view of the engine's own work.
+      controls({ view: ['clusters', 'beauty', 'pages', 'lod', 'triangles'], pixelError: [0, 16, 0, 0.5] }, (values) => {
+        world.diagnostic.mode = values.view;
+        world.pixelError = values.pixelError;
+      }, world);
+      world.invalidate();
     </script>
   </body>
 </html>

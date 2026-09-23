@@ -1,4 +1,4 @@
-import { Table } from '../components/Table.tsx';
+import { Table } from '../ui/Table.tsx';
 import { METRICS, METRIC_KEYS, metricValue, formatValue } from '../../reports/metrics.ts';
 import { metricLabel, reportCopy } from '../../reports/copy.ts';
 import { missingMetric } from '../../reports/availability.ts';
@@ -18,7 +18,7 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
   const c = reportCopy(locale),
     fr = locale === 'fr';
   return (
-    <section className="grid min-w-0 gap-3">
+    <section className="grid min-w-0 grid-cols-1 gap-3">
       <h4 className="font-semibold">
         {readingName(a, locale)} / {readingName(b, locale)}
       </h4>

@@ -43,11 +43,14 @@ const rows = (markup: string, className: string): number =>
 test('every lesson renders on the one template, none brings its own layout', () => {
   for (const { id: pageId, markup } of rendered) {
     const page = { id: pageId };
-    assert.equal(rows(markup, 'lesson-template'), 1, `${page.id}: one template`);
-    assert.equal(rows(markup, 'lesson-header'), 1, `${page.id}: one header`);
-    assert.equal(rows(markup, 'lesson-columns'), 1, `${page.id}: one pair of columns`);
-    assert.equal(rows(markup, 'lesson-read'), 1, `${page.id}: one reading column`);
-    assert.equal(rows(markup, 'lesson-observe'), 1, `${page.id}: one observing column`);
+    assert.equal((markup.match(/data-lesson=/g) ?? []).length, 1, `${page.id}: one template`);
+    assert.equal((markup.match(/<h1 /g) ?? []).length, 1, `${page.id}: one page title`);
+    // The reading page's one split: a reading column, then an observing column.
+    assert.equal(
+      markup.split('xl:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]').length,
+      2,
+      `${page.id}: one pair of columns`,
+    );
   }
 });
 

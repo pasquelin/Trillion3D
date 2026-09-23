@@ -15,6 +15,8 @@ export async function buildRuntime(root: string, outdir: string) {
       engine: 'packages/sdk-browser/src/index.ts',
       pageDecodeWorker: 'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
       pageIntegrationWorker: 'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
+      // The examples' own panels, imported beside the engine; they touch nothing of it.
+      kit: 'site/examples/kit/index.ts',
     },
     outdir,
     bundle: true,

@@ -17,18 +17,27 @@
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */
 export const TONE_MAPPING_RANK = {
+  /** No curve. */
   none: 0,
+  /** Exposure, then cut off. */
   linear: 1,
+  /** A smooth squeeze. */
   reinhard: 2,
+  /** The film look. */
   cineon: 3,
+  /** The film industry's curve. */
   aces: 4,
+  /** Natural colours in bright light. */
   agx: 5,
+  /** The least colour change. */
   neutral: 6,
 } as const;
+/** The name of a display curve the engine knows. */
 export type SceneToneMapping = keyof typeof TONE_MAPPING_RANK;
 /** The display curve of a scene that names none, or declares no environment at all. */
 export const DEFAULT_TONE_MAPPING: SceneToneMapping = 'aces';
 
+/** The light around a scene: exposure, display curve and light from every direction. */
 export interface SceneEnvironment {
   /** Multiplier of linear radiance, applied before the curve. */
   exposure: number;
@@ -45,6 +54,7 @@ export interface SceneEnvironment {
 /** Coefficients of the irradiance, and the floats they take in a GPU buffer: one `vec4` each.
  *  Written as literals, like the factors below, so a bundle that reads none of them keeps none. */
 export const ENVIRONMENT_COEFFICIENTS = 9;
+/** Floats of the environment in the GPU buffer. */
 export const SCENE_ENVIRONMENT_FLOATS = 36;
 
 /**
