@@ -5,9 +5,10 @@ import { spawnSync } from 'node:child_process';
 const root = resolve(import.meta.dirname, '..');
 const scene = resolve(root, 'site/assets/kinetic-garden');
 await writeGarden(resolve(scene, 'source'));
-const executable =
+const executable = resolve(
   process.env.TRILLION3D_COMPILER ??
-  resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
+    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler'),
+);
 const result = spawnSync(
   executable,
   ['source/garden.gltf', 'cache', 'full', '150000', '2', '256', '../../../../source/', 'none'],

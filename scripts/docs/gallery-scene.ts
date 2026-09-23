@@ -11,9 +11,10 @@ import { join, resolve } from 'node:path';
  *  budgets every gallery scene uses, and returns the compiler's exit status. The compiler is
  *  `TRILLION3D_COMPILER`, or the release build; one that cannot start throws. */
 export function compileGalleryScene(root: string, directory: string, simplification: string) {
-  const compiler =
+  const compiler = resolve(
     process.env.TRILLION3D_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
+      resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler'),
+  );
   const result = spawnSync(
     compiler,
     [

@@ -1,5 +1,0 @@
-#?RADIANCE
-# Corpus Trillion3D, CC0-1.0
-FORMAT=32-bit_rle_rgbe
-
--Y 2 +X 4
