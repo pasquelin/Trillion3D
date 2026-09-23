@@ -140,8 +140,8 @@ const TEXT: Record<string, ChapterText> = {
 
 /** French overlay for the nine course chapters. */
 export const courseFr: LocaleOverlay = Object.fromEntries(
-  courseEntries(TEXT, WORDS, 'fr').map(({ id, title, description, html }) => [
+  courseEntries(TEXT, WORDS, 'fr').map(({ id, title, description, chapter }) => [
     id,
-    { title, description, html },
+    { title, description, chapter },
   ]),
 );

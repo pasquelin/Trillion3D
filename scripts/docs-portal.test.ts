@@ -11,8 +11,7 @@ import {
 import { search } from '../site/app/portal/search.ts';
 import { searchIndex } from '../site/app/portal/searchIndex.ts';
 import { readyEntries } from '../site/app/examples/list.ts';
-import { rawEntries } from '../site/app/portal/data.ts';
-import { localizeEntries } from '../site/content/i18n/index.ts';
+import { entriesIn, rawEntries } from '../site/app/portal/data.ts';
 import { canonicalEntryId, expandEntryLinks } from '../site/app/portal/entryLinks.ts';
 import type { PortalEntry } from '../site/content/model.ts';
 
@@ -90,7 +89,7 @@ test('search is accent-insensitive, requires every word, and ranks title matches
 });
 
 test('the site search reads every guide, API entry, ready example and lesson in the language', () => {
-  const entries = localizeEntries(rawEntries, 'fr');
+  const entries = entriesIn('fr');
   const index = searchIndex(entries, 'fr');
   assert.equal(new Set(index.map(({ key }) => key)).size, index.length);
   for (const entry of entries) assert.ok(index.some(({ key }) => key === `entry:${entry.id}`));
@@ -176,9 +175,7 @@ test('localized prose titles keep canonical routes and old encoded links still r
 
 test('every bilingual API menu link resolves to its source entry', () => {
   for (const locale of ['en', 'fr'] as const) {
-    const entries = localizeEntries(rawEntries, locale).filter(
-      ({ section }) => !LEARN_SECTIONS.includes(section),
-    );
+    const entries = entriesIn(locale).filter(({ section }) => !LEARN_SECTIONS.includes(section));
     for (const link of expandEntryLinks(entries)) {
       assert.equal(canonicalEntryId(entries, link.id), link.entry.id, `${locale}:${link.id}`);
       assert.equal(

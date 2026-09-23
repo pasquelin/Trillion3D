@@ -37,6 +37,17 @@ export interface PortalMember {
   desc: string;
 }
 
+/** A course chapter's page, in one language: the example it builds, its steps and code, what to
+ *  try, the chapter after it, and the headings they sit under. `steps` and `tryIt` are HTML. */
+export interface CourseChapter {
+  example: string;
+  steps: string[];
+  code: string[];
+  tryIt: string;
+  next: { href: string; label: string };
+  words: { picture: string; steps: string; code: string; tryIt: string; open: string };
+}
+
 /** One documented item, as the content files declare it. */
 export interface PortalEntry {
   id: string;
@@ -58,6 +69,7 @@ export interface PortalEntry {
   valuesTitle?: string;
   replaces?: string;
   proof?: string;
+  chapter?: CourseChapter;
 }
 
 /** What a written page adds to a generated entry, by its id: a longer text, an example, the

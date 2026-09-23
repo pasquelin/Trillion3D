@@ -10,7 +10,7 @@ import { CodeBlock } from './ui/CodeBlock.tsx';
 import { Card } from './ui/Card.tsx';
 import { Alert } from './ui/Alert.tsx';
 import { Inline, Prose } from './ui/Prose.tsx';
-import { DefinitionTable } from './ui/Table.tsx';
+import { Members, Parameters, Returns } from './EntryFields.tsx';
 import { Note, Paragraph, TextLink } from './ui/Text.tsx';
 import type { DemoDef } from '../demos/kit.ts';
 import type { Locale } from '../content/locale.ts';
@@ -41,13 +41,19 @@ function Details({ rest, html }: { rest: string; html?: string }) {
 
 /**
  * One guide or API entry. A guide reads as text: its description, its prose, then its code. An
- * API entry keeps one order: its summary, the signature, the example, the members, then the long
- * description, folded under Details.
+ * API entry keeps one order: its summary, the signature, the parameters, what it returns, the
+ * example, the members, then the long description, folded under Details.
  */
 export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: Locale }) {
   const demo = demoFor(entry.id);
   const summary = entrySummary(entry);
-  const rest = entry.description.slice(summary.length).trim();
+  // The description past the summary, when the summary is its first sentence; all of it when the
+  // summary is a line of its own.
+  const rest = (
+    entry.description.startsWith(summary)
+      ? entry.description.slice(summary.length)
+      : entry.description
+  ).trim();
   const guide = LEARN_SECTIONS.includes(entry.section);
   const details = <Details rest={rest} html={entry.html} />;
   return (
@@ -68,25 +74,13 @@ export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: L
       {entry.signature && (
         <CodeBlock code={entry.signature} locale={locale} label={t(locale, 'entry.signature')} />
       )}
+      <Parameters entry={entry} locale={locale} />
+      <Returns entry={entry} locale={locale} />
       {entry.example && (
         <CodeBlock code={entry.example} locale={locale} label={t(locale, 'entry.example')} />
       )}
+      <Members entry={entry} locale={locale} />
       {demo && <LiveDemo demo={demo} locale={locale} />}
-      {(entry.values?.length ?? 0) > 0 && (
-        <Card
-          title={
-            entry.valuesTitle ??
-            t(locale, entry.kind === 'Type' ? 'entry.values' : 'entry.arguments')
-          }
-        >
-          <DefinitionTable
-            rows={(entry.values ?? []).map((value) => ({
-              name: value.name,
-              value: <Inline text={value.desc} />,
-            }))}
-          />
-        </Card>
-      )}
       {!guide && (rest || entry.html) && (
         <Collapse title={t(locale, 'entry.details')}>{details}</Collapse>
       )}
