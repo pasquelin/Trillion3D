@@ -27,5 +27,10 @@ them credits the author. Nothing else of that bank was taken: the items without 
 source, and its `imagerie/` sheets, are not redistributable; the `jeep` by Psionic ships only in
 formats the compiler does not read (`.3ds`, `.ms3d`).
 
+`a-model-from-obj/source/` holds a chess set on a table written for these examples as one plain
+OBJ file and its `.mtl` (released under [CC0](https://creativecommons.org/publicdomain/zero/1.0/)):
+turned pieces, an extruded knight's head, a board of 64 squares, a chess clock. It is compiled as
+it stands, with the same compiler arguments as the scenes above, and nothing is added to it.
+
 The streaming and memory examples reuse `site/assets/gallery/signature-architecture/`, an original
 scene of the lessons.
