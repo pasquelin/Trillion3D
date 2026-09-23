@@ -34,7 +34,8 @@ dispose them before the next route. `docs/` holds the repository documentation o
   `Entry.tsx` renders API entries, `ApiDemo.tsx` the pure demo models.
 
 - `site/i18n/<language>.json` holds every word of the portal, one file per language, English the
-  reference and the fallback: a `meta` block (`lang`, `name`, `abbr`, `hreflang`, `rtl`), the
+  reference and the fallback: a `meta` block (`lang`, `name`, `abbr`, `hreflang`, `rtl`, and `flag`, the ISO 3166 region
+  whose SVG of the MIT `flag-icons` package the build copies to `flags/` for the language selector), the
   interface namespaces, then the content — the course (`course`), the written text of the guides
   and notes (`written`), the examples' titles, themes and awaited features (`gallery`) and the
   demo canvas labels. The languages are the files of the folder: `site/content/i18n/languages.inline.ts`
