@@ -90,7 +90,7 @@ test('only declared files import the host library', async () => {
 // `packages/sdk-browser/src/host/resources.ts` declares the crossing; the same closed list says who may call it, so the
 // doc of `asHostLibrary` stays a rule and not a hope.
 test('only the declared boundary files cross back through `asHostLibrary`', async () => {
-  const fuites = await horsListe(TRAVERSE, 'packages/sdk-browser/src/host/resources.ts');
+  const fuites = await horsListe(TRAVERSE, 'host/resources.ts');
   assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`);
 });
 
@@ -145,7 +145,7 @@ const COMPOSE_LA_CAMERA = [
   /\bperspectiveProjection\b/,
   /\bupdateCameraFrame\b/,
 ];
-test('`packages/sdk-browser/src/camera/world.ts` remains the only translation from host camera to engine camera', async () => {
+test('`camera/world.ts` remains the only translation from host camera to engine camera', async () => {
   const texte = await readFile(new URL('camera/world.ts', browser), 'utf8');
   assert.match(texte, /export type HostCamera = \{/);
   assert.match(texte, /export function readCameraWorld\(/);
@@ -159,7 +159,7 @@ test('`packages/sdk-browser/src/camera/world.ts` remains the only translation fr
   assert.deepEqual(
     secondes,
     [],
-    'a host camera becomes an engine camera in `packages/sdk-browser/src/camera/world.ts` alone',
+    'a host camera becomes an engine camera in `camera/world.ts` alone',
   );
   const moteur = await readFile(new URL('camera/engineCamera.ts', browser), 'utf8');
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'])
