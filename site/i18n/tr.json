@@ -1,0 +1,1072 @@
+{
+  "meta": {
+    "name": "Türkçe",
+    "abbr": "TR",
+    "hreflang": "tr",
+    "rtl": false
+  },
+  "nav": {
+    "primary": "Ana gezinme",
+    "learn": "Öğren",
+    "sandbox": "Canlı dene",
+    "examples": "Örnekler",
+    "api": "API referansı",
+    "reports": "Ölçümler"
+  },
+  "search": {
+    "placeholder": "Rehberlerde, API'de ve örneklerde ara",
+    "label": "Ara",
+    "short": "Ara…"
+  },
+  "sidebar": {
+    "navigation": "Belge gezinmesi",
+    "noResults": "Hiçbir şey bulunamadı.",
+    "filterExamples": "Örnekleri filtrele"
+  },
+  "home": {
+    "title": "Tarayıcıda devasa 3D dünyaları akıtın",
+    "start": "Kursu başlat"
+  },
+  "examples": {
+    "lead": "Her örnek kısa bir dosyadır: çalışırken izleyin, kodunu açın, değiştirin.",
+    "inProgress": "Yapım aşamasında",
+    "waitsFor": "Motoru bekliyor:",
+    "waitingEngine": "Motor bekleniyor"
+  },
+  "api": {
+    "title": "Motor referansı",
+    "lead": "Sorumluluğa göre gruplanmış herkese açık fonksiyonlar, tipler ve sabitler."
+  },
+  "reports": {
+    "campaign": "Kampanya"
+  },
+  "actions": {
+    "openMenu": "Menüyü aç",
+    "closeMenu": "Menüyü kapat",
+    "switchLanguage": "Dili değiştir",
+    "theme": "Temayı değiştir",
+    "close": "Kapat",
+    "skip": "İçeriğe geç"
+  },
+  "common": {
+    "inDevelopment": "Geliştirme aşamasında"
+  },
+  "entry": {
+    "signature": "İmza",
+    "values": "Değerler",
+    "arguments": "Bağımsız değişkenler",
+    "example": "Örnek",
+    "replaces": "Yerini alır",
+    "proof": "Kanıt",
+    "parameters": "Parametreler",
+    "returns": "Döndürür",
+    "members": "Üyeler",
+    "name": "Ad",
+    "type": "Tip",
+    "default": "Varsayılan",
+    "meaning": "Ne yapar",
+    "details": "Ayrıntılar",
+    "live": "Şu anda çalışıyor",
+    "liveHint": "Kontrolleri hareket ettirin: bu değerler, bu tarayıcıda çalışan motor fonksiyonundan geliyor."
+  },
+  "kind": {
+    "Function": "Fonksiyon",
+    "Constant": "Sabit",
+    "Type": "Tip",
+    "Guide": "Rehber",
+    "Chapter": "Kurs",
+    "Example": "Örnek"
+  },
+  "demo": {
+    "loading": "Sahne hazırlanıyor…",
+    "actions": "Demo eylemleri",
+    "code": "Kod",
+    "share": "Paylaş",
+    "controls": "Kontroller",
+    "fullscreen": "Tam ekran",
+    "restart": "Yeniden başlat",
+    "linkCopied": "Bağlantı kopyalandı",
+    "copyFailed": "Bağlantı kopyalanamadı",
+    "demoControls": "Demo kontrolleri",
+    "keyboardHint": "Klavyeyi kullanmak için demoya tıklayın"
+  },
+  "sandbox": {
+    "title": "Canlı dene",
+    "start": "Bir örnekten başla",
+    "open": "Sandbox'ta aç"
+  },
+  "section": {
+    "course": "Kurs",
+    "guides": "Rehberler",
+    "internals": "Nasıl çalışır",
+    "world": "Dünya",
+    "constants": "Sabitler",
+    "math-utilities": "Matematik araçları",
+    "node": "Düğüm ve derleme",
+    "types": "Tipler ve hatalar"
+  },
+  "code": {
+    "copied": "Kopyalandı",
+    "copyFailed": "Kopyalama başarısız",
+    "copy": "Kodu kopyala",
+    "run": "Çalıştır",
+    "reset": "Sıfırla",
+    "editor": "Kod düzenleyici",
+    "runnable": "Çalıştırılabilir kod"
+  },
+  "learning": {
+    "input": "Girdi",
+    "output": "Motor çıktısı",
+    "try": "Ne denenmeli",
+    "changes": "Ne değişiyor"
+  },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "lead": "Bu adres portaldaki hiçbir sayfayla eşleşmiyor.",
+    "wayBack": "Geri dönüş yolunu bul",
+    "home": "Ana sayfaya dön",
+    "examples": "Örnekleri keşfet"
+  },
+  "report": {
+    "comparedEngines": "Web Geometry ile karşılaştırıldı. Görselleri karşılaştırmak için tutamacı hareket ettirin.",
+    "singlesOnly": "Tekil çekimler: bu görünümler için hiçbir karşılaştırma görseli kaydedilmedi.",
+    "compareHandle": "İki render'ı karşılaştırmak için her görseldeki tutamacı hareket ettirin.",
+    "enlarge": "Büyüt",
+    "families": {
+      "engines": "Motorlar",
+      "drawing": "Çizim yöntemleri",
+      "lighting": "Aydınlatma",
+      "single": "Tekil çekimler"
+    },
+    "comparisonType": "Görsel karşılaştırma tipi",
+    "experiment": "Deney",
+    "engineColors": "Her motor tüm grafiklerde kendi rengini korur. Süreler için: daha kısa bir çubuk daha az zaman demektir.",
+    "green": "Yeşil: ≤ 13,33 ms",
+    "yellow": "Sarı: ≤ 16,67 ms",
+    "red": "Kırmızı: > 16,67 ms",
+    "timingColors": "CPU / GPU / senkronize render zamanlama renkleri: %20 pay, bütçeye yakın, bütçe üstü. 60 fps hedefi için bir işaret, ölçülen FPS değil. Sayısal hedefi olmayan miktarlar nötr kalır.",
+    "differenceNote": "Gözlenen fark = ikinci değer eksi ilk değer. Bu, yalnızca bu ölçümleri betimler; eksiksiz bir protokol ve tekrarlanan koşular olmadan tekrarlanabilir bir kazanım kanıtlamaz.",
+    "difference": "Gözlenen fark",
+    "notCalculable": "Hesaplanamaz",
+    "sceneLimit": "Bu sahnenin belgelenmiş bir sınırlaması var.",
+    "originalNote": "Orijinal kampanya notu",
+    "status": {
+      "complete": "Tamamlandı",
+      "failed": "Başarısız veya eksik",
+      "missing": "Ölçüm dosyası yok"
+    },
+    "viewpoint": "Bakış noktası",
+    "sceneReading": "eşik: 1 px · medyan değerler · daha kısa süre = daha iyi",
+    "exactFigures": "Tam sayılar, p95 ve karşılaştırma sınırları",
+    "notRecorded": "Kaydedilmedi",
+    "yes": "Evet",
+    "no": "Hayır",
+    "allValues": "Kaydedilen her değer, filtresiz",
+    "allValuesLead": "Ölçüm başına bir sütun, kaynak alan başına bir satır. Ayarlar, köken, tam dağılımlar ve her sayaç ayrıntılarda mevcuttur. Koşuları karşılaştırmak için yatayda kaydırın. Teknik adlar kaynak dosyalarla birebir eşleşir; baytlar bayt olarak kalır.",
+    "sourceField": "Kaynak alan",
+    "repeatCapture": "tekrar çekim",
+    "primaryReading": "birincil ölçüm",
+    "cutTitle": "Çekimin üçgenleri nereden geliyor",
+    "cutUnknown": "üçgen · bilinmeyen sayfa:",
+    "cutNote": "Sabitlenmiş çekim kesiti; ölçülen son hareketli kareden farklı olabilir.",
+    "notMeasured": "Ölçülmedi",
+    "missing": "Eksik ölçümler",
+    "measurement": "Ölçüm",
+    "case": "Durum",
+    "explanation": "Açıklama",
+    "runsAndSources": "Koşular ve kaynaklar",
+    "readFigures": "Sayıları nasıl okumalıyım?",
+    "counts": "{{readings}} ölçüm · {{runs}} koşu",
+    "view": "Görünüm",
+    "threshold": "Ayrıntı eşiği",
+    "computeDrawing": "compute ile çizim",
+    "detail": "Ayrıntı",
+    "title": "Ölçülen motor",
+    "loading": "Ölçümler yükleniyor…",
+    "unavailable": "Ölçümler yüklenemedi. Veri bağlantısını kontrol edin veya yeniden deneyin.",
+    "empty": "Henüz yayımlanmış bir kampanya yok.",
+    "download": "Kampanya verisini indir",
+    "p95": "p50 medyandır. p95, örneklenen kare sürelerinin %95'inin bu değere eşit veya altında olduğu anlamına gelir. Hiçbiri tekrarlanan koşular arasındaki değişkenliği betimlemez.",
+    "timing": "CPU gönderimi, GPU zarfı ve ekran yenileme aralığı ayrı saatlerdir. Bunları asla toplamayın. GPU geçişi zaman damgaları işin nerede olduğunu gösterir; toplamları kare süresi değildir.",
+    "sourceTextures": "Kaynak sınırlaması: bu sahne dışa aktarımı çoğu dokuyu atladı. Görsel sonuçları tam malzeme sadakatini kanıtlamaz.",
+    "runs": "Koşular",
+    "reading": "Ölçüm",
+    "scene": "Sahne",
+    "source": "Kaynak ölçümler",
+    "unknown": "Bu kampanyada mevcut değil",
+    "protocol": "Kaydedilen koşullar",
+    "references": "Yayımlanmış referans noktaları",
+    "referenceNote": "Yayımlanmış masaüstü motor rakamları kendi donanımlarını, sahnelerini ve protokollerini kullanır. Yukarıdaki karşılaştırmalara dahil değildirler.",
+    "referenceLink": "Kaynakları ve sınırlamaları oku",
+    "commit": "Depo commit'i",
+    "date": "Ölçüm tarihi",
+    "browser": "Tarayıcı",
+    "machine": "Makine veya tarayıcı",
+    "display": "Ekran sınırı (Hz)",
+    "method": "Zamanlama yöntemi",
+    "assetKey": "Varlık parmak izi",
+    "canvas": "Çözünürlük / DPR",
+    "idle": "Tutulan kare: görsel yeniden kullanıldı. Sıfır çizim sayısı boş bir sahne anlamına gelmez.",
+    "cpuSteps": "CPU aşamaları",
+    "gpuPasses": "GPU geçişleri (yalnızca tanı)",
+    "detailsNote": "Aydınlatma, yerleşiklik, akış, çözünürlük ve sadakat konularında tam tanı için kaynak dosyayı kullanın.",
+    "sections": {
+      "overview": "Özet",
+      "compare": "Karşılaştırmalar",
+      "evidence": "Render'lar",
+      "experiments": "Çözünürlük ve seçenekler",
+      "detail": "CPU / GPU",
+      "all-values": "Tam sayılar",
+      "references": "Referanslar"
+    },
+    "metrics": {
+      "textureBudget": "Kaydedilen doku bütçesi",
+      "gpu": "GPU kare zarfı",
+      "cpu": "CPU gönderimi",
+      "cadence": "Ekran yenileme aralığı",
+      "sync": "Senkronize render + bekleme",
+      "triangles": "Çizilen üçgenler",
+      "selected": "Seçilen üçgenler",
+      "uncovered": "Kapsanmayan üçgenler",
+      "geometry": "Geometri tahsisi",
+      "textures": "Yerleşik dokular",
+      "pool": "Doku havuzu",
+      "calls": "Çizim çağrıları",
+      "preparation": "Hazırlık"
+    },
+    "assessment": {
+      "within": "Bütçe içinde",
+      "near": "Sınıra yakın",
+      "over": "Bütçe üstü",
+      "missing": "Ölçülmedi",
+      "incomplete": "Eksik koşu",
+      "holes": "Kapsanmayan üçgenler",
+      "covered": "Kapsanmayan üçgen yok",
+      "noTarget": "Hedef tanımlanmadı"
+    },
+    "views": {
+      "generale": "Genel görünüm",
+      "sol": "Sokak seviyesi",
+      "rue": "Sokak köşesi",
+      "detail": "Yakın çekim"
+    },
+    "runNames": {
+      "raster-1248": "Aynı görseli çizmenin iki yolu · 1248 × 702",
+      "raster-2496": "Aynı görseli çizmenin iki yolu · 2496 × 1404",
+      "mobile": "Hareketli kamera · güneş ve gölgeler",
+      "fixe": "Sabit kamera · tutulan görsel",
+      "sans-lumiere": "Işıksız görsel",
+      "soleil-sans-ombres": "Gölgesiz güneş",
+      "aa-off": "Zamansal kenar yumuşatma olmadan",
+      "profil-off": "Profilleme olmadan",
+      "textures-host": "Kaynak dokular",
+      "isolation": "Kaynaklar arası izolasyon",
+      "math-js": "JavaScript hesaplamaları",
+      "math-wasm": "WebAssembly hesaplamaları",
+      "rebond": "Dolaylı aydınlatma etkin",
+      "three-nu": "Saf Three.js / Web Geometry",
+      "three-lod": "Three.js LOD / Web Geometry",
+      "temoin-three": "Dokusuz SDK tanığı",
+      "ombres-pages-off": "Sayfalı gölgeler devre dışı",
+      "budget-ombres-0-25": "Gölge zaman bütçesi: 0,25 ms",
+      "budget-3000": "Geometri bütçesi: 3000 sayfa",
+      "webgl": "WebGL render motoru",
+      "webgl2": "WebGL 2 render motoru",
+      "lampe-mobile": "Hareketli ışık",
+      "visible": "Görünür tarayıcı penceresi"
+    },
+    "runPatterns": {
+      "imageWidth": "Görsel genişliği {{width}} px",
+      "threshold": "eşik {{threshold}} px",
+      "lights": "{{count}} ışık",
+      "withoutShadows": "gölgesiz",
+      "sceneCopies": "{{count}} sahne kopyası"
+    },
+    "diagnostics": {
+      "shadows": "Gölgeler ve dolaylı aydınlatma",
+      "shadowPagesRedrawn": "Yeniden çizilen gölge sayfaları",
+      "shadowPagesPending": "Bekleyen gölge sayfaları",
+      "shadowDelay": "En yüksek gölge gecikmesi",
+      "probesUpdated": "Güncellenen problar",
+      "raysPerFrame": "Kare başına ışın",
+      "residency": "Yerleşiklik ve akış",
+      "residentPages": "Yerleşik sayfalar",
+      "requestedPages": "İstenen sayfalar",
+      "budgetThreshold": "Bütçe eşiği",
+      "texturesPending": "Bekleyen dokular",
+      "texturesEvicted": "Tahliye edilen dokular",
+      "gpuAllocations": "İzlenen GPU tahsisleri",
+      "lighting": "Aydınlatma ve görsel işi",
+      "lightsActive": "Etkin ışıklar",
+      "trianglesSubmitted": "Gönderilen üçgenler, tüm geçişler",
+      "opaqueTrianglesSubmitted": "Gönderilen opak üçgenler",
+      "trianglesOccluded": "Gizlenme ile elenen üçgenler",
+      "pagesDecodedWasm": "Çözülen sayfalar (Wasm)"
+    },
+    "missingWhy": {
+      "noReading": "Ölçüm eksik",
+      "noClusters": "Uygulanamaz: bu render motoru cluster seçmiyor",
+      "gpuIsolated": "İzole GPU süresi ölçülmedi; render + bekleme'ye bakın",
+      "syncMissing": "Render + bekleme ölçülmedi; GPU zarfına bakın",
+      "cadence": "Ekran yenileme aralığı kaydedilmedi",
+      "notRecorded": "Bu ölçümde kaydedilmedi"
+    }
+  },
+  "findings": {
+    "lead": "Sokak seviyesinde görünüm, hareketli kamera, 1 px eşik. İki sahne çok farklı durumlar gösteriyor.",
+    "over": "Render süresi hedef zaman bütçesini aşıyor.",
+    "noGpu": "GPU süresi ölçülmedi.",
+    "under": "Medyan GPU süresi 16,67 ms'nin altında kalıyor.",
+    "gpuTime": "GPU süresi",
+    "medianPerFrame": "Kare başına medyan",
+    "cpuTime": "CPU süresi",
+    "measuredSeparately": "Ayrı ayrı ölçüldü",
+    "overDetail": "GPU, her 16,67 ms'de bir kareyi hedeflemek için çok fazla zaman alıyor. Geçişleri ve aşamaları CPU/GPU sekmesinde ayrıntılıdır.",
+    "noGpuDetail": "Bu ölçüm GPU hızını belirlemeye yetmiyor.",
+    "underDetail": "GPU bu işarete göre pay sahibi, ama bu, görüntülenen kare hızını ölçmez.",
+    "textures": "Yerleşik dokular:",
+    "texturesNote": "Bu tahsis, toplam fiziksel GPU belleği değildir.",
+    "missingTitle": "Sonuç çıkarmadan önce eksik olanlar",
+    "runsOutOf": "{{total}} koşudan {{failed}} tanesi",
+    "someFailed": "eksik veya tamamlanmamış, bu yüzden karşılaştırmalar her durumu kapsamıyor.",
+    "noneFailed": "eksik veya tamamlanmamış: tüm koşular mevcut.",
+    "noMachine": "Bazı ölçümler için makine kimliği eksik.",
+    "noDpr": "Bazı ölçümler için DPR eksik.",
+    "campaignOnly": "Gözlenen farklar bu kampanyayı betimler, tekrarlanabilir performans garanti etmez.",
+    "readTimings": "Zamanlamalar nasıl okunur",
+    "timingsNote": "60 fps hedefi için kare başına zaman bütçesi 16,67 ms'dir. CPU ve GPU ayrı ayrı ölçülür ve toplanmamalıdır. p50 medyandır; p95, örneklerin %95'inin altında kaldığı süredir. Koşular arası değişkenlik ölçülmedi."
+  },
+  "references": {
+    "clusterTriangles": "Cluster başına üçgen",
+    "groupClusters": "Grup başına cluster",
+    "streamingPage": "Akış sayfası",
+    "geometryPool": "Varsayılan geometri havuzu (ikincil kaynak)",
+    "triangleFormat": "Üçgen başına bellek formatı",
+    "gpuVisibility": "GPU görünürlüğü, PS5 demosu",
+    "gpuMaterials": "GPU malzemeleri, PS5 demosu",
+    "cpu": "CPU, PS5 demosu"
+  },
+  "conditions": {
+    "frames": "Ölçülen kareler",
+    "warmup": "Isınma kareleri",
+    "movingCamera": "Hareketli kamera",
+    "sun": "Güneş",
+    "lights": "Ek ışıklar",
+    "lightShadows": "Gölgeler etkin",
+    "bounce": "Dolaylı aydınlatma",
+    "temporalAntialiasing": "Zamansal kenar yumuşatma",
+    "stageProfile": "Profilleme etkin",
+    "visible": "Görünür tarayıcı penceresi",
+    "shadowBudgetMs": "Gölge bütçesi",
+    "geometryPoolBytes": "Geometri havuzu bütçesi",
+    "texturePoolBytes": "Doku havuzu bütçesi"
+  },
+  "profile": {
+    "cpu": "CPU · görseli hazırla",
+    "cpuOverall": "Toplam CPU süresi",
+    "gpu": "GPU · görseli çiz",
+    "conditions": "Hareketli kamera, güneş ve gölgeler.",
+    "work": "Ölçülen iş",
+    "cpuNote": "Çubuk, ölçülen toplam süreyi gösterir. Aşama medyanları bu toplamı vermez.",
+    "reused": "Bu görsel yeniden kullanıldı, render işinin bir kısmından kaçınıldı.",
+    "coarseClock": "Kaba saat: 0 ms bir aşamanın bedava olduğunu kanıtlamaz. Tam okumalar ayrıntılardadır.",
+    "gpuNote": "Bu aşamalar GPU'nun nerede çalıştığını gösterir. Zamanlamaları çakışır: bunları toplamayın.",
+    "noTimings": "Bu aşamalar için kaydedilmiş bir zamanlama yok.",
+    "exact": "Tam değerler ve ölçüm koşulları"
+  },
+  "experiments": {
+    "resolution": "Çözünürlük ve hata eşiği",
+    "lights": "Işıklar, gölgeler ve yansıma",
+    "execution": "Sabit kare, kenar yumuşatma ve çalıştırma seçenekleri",
+    "memory": "Bellek, örnekler ve diğer render motorları"
+  },
+  "evidence": {
+    "computeDrawing": "Compute ile çizim",
+    "standardDrawing": "Standart çizim",
+    "left": "Sol",
+    "right": "Sağ",
+    "slide": "Görselleri karşılaştırmak için kaydırın",
+    "figures": "Sayılar ve orijinal görseller",
+    "original": "orijinal görsel",
+    "repeatability": "Tekrarlanabilirlik: tekrar çekimler arasındaki farklı pikseller",
+    "differentPixels": "İki görsel arasındaki farklı pikseller",
+    "notSpeed": "Bu görsel fark hızı ölçmez."
+  },
+  "course": {
+    "words": {
+      "steps": "Adım adım",
+      "code": "Kod",
+      "tryIt": "Deneyin",
+      "open": "Tam boyutta açın, kodun tamamını okuyun ve değiştirin",
+      "previous": "Önceki bölüm",
+      "next": "Sonraki bölüm",
+      "end": "Şimdi örneklere göz atın",
+      "navigation": "Bölüm gezinmesi"
+    },
+    "chapters": {
+      "create-a-world": {
+        "title": "Bir dünya yaratın",
+        "description": "Dünya, 3D sahnenizin yaşadığı yerdir. Tek bir çağrı onu oluşturur ve sayfanızdaki bir canvas'a çizer.",
+        "steps": [
+          "Motoru edinin. Henüz npm'de değil: depoyu klonlayın, içinde <code>pnpm install</code> ve <code>pnpm run build</code> çalıştırın, sonra bu klasörden projenize ekleyin.",
+          "Sayfanıza bir <code>&lt;canvas&gt;</code> koyun. Canvas, bir programın çizebileceği sayfa üzerindeki bir dikdörtgendir. Ona bir genişlik ve yükseklik verin.",
+          "Canvas id'siyle <code>createWorld</code> çağırın. Bir dünya elde edersiniz: bir <em>sahne</em> (çizilecek şeylerin listesi), bir <em>kamera</em> (onlara bakan göz) ve görseli çizen her şey.",
+          "Bakılacak bir şey olsun diye bir küp ve bir ışık ekleyin. Sonraki bölümler bu satırları teker teker açıklıyor.",
+          "Sayfanız kapandığında, belleği geri vermek için <code>world.dispose()</code> çağırın."
+        ],
+        "tryIt": "Küpün etrafında dönmek için görseli sürükleyin. Panelden başka bir renk seçin."
+      },
+      "add-a-shape": {
+        "title": "Bir şekil ekleyin",
+        "description": "Gördüğünüz her şey bir mesh'tir: üzerinde bir malzeme olan bir şekil. Şekli `geometry` ile oluşturun, `object.mesh` ile bir mesh'e sarın ve sahneye ekleyin.",
+        "steps": [
+          "Bir şekil, ya da <em>geometri</em>, sadece dış hattır: köşeleri ve yüzleri. <code>geometry.box(1, 1, 1)</code> bir metre kenarlı bir küptür, <code>geometry.sphere(0.75)</code> bir toptur. Ayrıca silindirler, koniler, halkalar, tor'lar ve daha fazlası vardır.",
+          "Bir <em>mesh</em>, bir şekil artı bir malzemedir: <code>object.mesh(shape, material)</code>. Malzeme, bir sonraki bölümün konusudur.",
+          "Bir mesh'i <code>position</code> ile konumlandırın, <code>rotation</code> ile döndürün ve <code>scale</code> ile boyutlandırın. Dönüşler radyan cinsindendir: tam bir tur <code>Math.PI * 2</code> eder.",
+          "<code>object.group()</code> birden çok mesh'i tutar, böylece birlikte hareket ederler, tıpkı döner tablanın tablası gibi.",
+          "<code>world.scene.add(mesh)</code> çağırana kadar hiçbir şey görünmez."
+        ],
+        "tryIt": "Şekillerin rengini değiştirin, dönüşü durdurun ya da hızlandırın."
+      },
+      "give-it-a-material": {
+        "title": "Ona bir malzeme verin",
+        "description": "Bir malzeme, bir yüzeyin neden yapıldığını söyler: rengi, metal olup olmadığı, ne kadar pürüzlü olduğu. `material.meshStandard` neredeyse her şeyi kapsar.",
+        "steps": [
+          "<code>color</code>, bir web rengi gibi yazılan boyadır: <code>'#e8a25a'</code>.",
+          "<code>metalness</code>, 0'dan (plastik, kil, tahta) 1'e (metal) kadar gider. Bir metal, yansıttığı şeylerin renklerini gösterir.",
+          "<code>roughness</code>, 0'dan (ayna gibi pürüzsüz, küçük keskin parıltılarla) 1'e (tebeşir gibi pürüzlü, her yerde yumuşak ışıkla) kadar gider.",
+          "Bir malzemeyi istediğiniz zaman değiştirin: <code>chrome.roughness = 0.3</code>. Onu kullanan her mesh anında değişir.",
+          "Cam, <code>transmission: 1</code> ile <code>material.meshPhysical</code>'dır: ışık içinden geçer. <code>ior</code>, kırılma indisi, ışığı ne kadar büktüğünü söyler: pencere camı için 1,5. <a href=\"#/tr/examples/glass-on-the-table\">Masadaki cam</a> örneğinde görün."
+        ],
+        "tryIt": "Her sütun bir öncekinden daha metalik, ve her satır daha pürüzlü. Hepsi için bir renk seçin ve lambaları daha parlak yapın."
+      },
+      "light-it": {
+        "title": "Aydınlatın",
+        "description": "Işık olmadan her şey siyahtır. `light` ailesiyle ışıklar ekleyin ve gölge düşürmelerine izin verin.",
+        "steps": [
+          "<code>light.directional</code> güneştir: tüm ışınları aynı yöne gider, ve <code>position</code> nereden parladığını söyler.",
+          "<code>light.point</code> bir ampuldür: her yöne parlar ve <code>distance</code> ile sönümlenir. <code>light.spot</code> bir el fenerdir: bir ışık konisi.",
+          "<code>light.ambient</code>, her yerden gelen yumuşak bir ışıktır. Bunun bir azı, gölgelerin zifiri karanlık olmasını engeller.",
+          "<code>castShadow: true</code> ekleyin ve ışığın vurduğu şey bir gölge düşürsün.",
+          "<code>intensity</code>, bir ışığın ne kadar güçlü olduğudur, <code>color</code> ise rengidir. Bunları istediğiniz zaman değiştirin: <code>sun.intensity = 1</code>."
+        ],
+        "tryIt": "Saati hareket ettirin: güneş gökyüzünü geçer, alacakaranlıkta kırmızıya döner, ve her gölge onunla birlikte döner."
+      },
+      "move-the-camera": {
+        "title": "Kamerayı hareket ettirin",
+        "description": "Kamera, dünyadaki gözünüzdür. Onu kodda konumlandırın, sonra okuyucunun `world.controls` ile hareket ettirmesine izin verin.",
+        "steps": [
+          "<code>world.camera.position.set(x, y, z)</code> gözü bir yere koyar; <code>world.camera.lookAt(x, y, z)</code> onu bir noktaya doğru çevirir.",
+          "Bir <em>kontrolcü</em>, fareyi, parmakları ve klavyeyi kamera hareketlerine dönüştürür. Dünyayı oluştururken onu seçin: <code>createWorld('view', { controls: 'orbit' })</code>.",
+          "<code>'orbit'</code> bir nokta etrafında dolanır: döndürmek için sürükleyin, kaydırmak için sağ tıkla sürükleyin, yakınlaştırmak için kaydırın. <code>world.controls.target</code>, etrafında dolandığı noktadır.",
+          "Başkaları da var: <code>'fly'</code> (W A S D tuşları, bkz. <a href=\"#/tr/examples/fly-over-a-model-town\">Halkaların içinden bir uçak uçurma</a>), <code>'firstPerson'</code> (yürüme, bkz. <a href=\"#/tr/examples/walk-through-a-temple\">Bir tapınakta parkur</a>), <code>'trackball'</code>, düz bir harita için <code>'panZoom'</code>, ve kendi kodunuz kamerayı hareket ettirdiğinde <code>'none'</code>.",
+          "İstediğiniz zaman değiştirin: <code>world.controls.kind = 'fly'</code>."
+        ],
+        "tryIt": "Saatin etrafında dönmek için sürükleyin, dişlilerin dişlerine yakından bakmak için kaydırın."
+      },
+      "animate": {
+        "title": "Canlandırın",
+        "description": "Şeylerin hareket etmesini sağlamak için, `world.onFrame` ile dünyaya her görselden önce çalışacak bir fonksiyon verin.",
+        "steps": [
+          "Dünya, saniyede birçok kez yeni bir görsel çizer. Her görsel bir <em>kare</em>dir. <code>world.onFrame(fn)</code>, her birinden önce <code>fn</code>'i çalıştırır.",
+          "<code>fn</code>, <code>delta</code>'yı alır: son kareden bu yana geçen saniyeler. Hızlarınızı bununla çarpın, ve şeyler hızlı bir ekranda da yavaş bir ekranda da aynı hızda hareket eder.",
+          "\"Yeniden çiz\" demek için <code>world.invalidate()</code> çağırın. Hiçbir şey yeni bir kare istemediğinde, dünya dinlenir: hareket etmeyen bir sahnenin hiçbir maliyeti yoktur.",
+          "Yürüme gibi pozlardan oluşan bir hareket için animasyon karıştırıcısını kullanın. <code>animation.clip</code> pozları ve ne zaman gerçekleştiklerini listeler; <code>animation.createMixer(robot).play(clip)</code> onları oynatır ve aralarındaki anları doldurur. Bkz. <a href=\"#/tr/examples/a-robot-that-walks-and-waves\">Bir robotun hareketlerini harmanlama</a>."
+        ],
+        "tryIt": "Dalganın yüksekliğini ve hızını değiştirin. Yeni bir taş düşürmek için zemine çift tıklayın."
+      },
+      "load-a-compiled-model": {
+        "title": "Derlenmiş bir model yükleyin",
+        "description": "Bir 3D programda yapılan bir model bir kez derlenir, sonra tek bir satır onu dünyanıza ekler. Motor daha sonra yalnızca kameranın ihtiyaç duyduğu parçaları yükler.",
+        "steps": [
+          "Çoğu 3D program, 3D modeller için ortak format olan <em>glTF</em> dosyaları (<code>.gltf</code> ya da <code>.glb</code>) dışa aktarır.",
+          "Derleyici, modeli <em>cluster</em> adı verilen küçük parçalara — yaklaşık yüz üçgenlik yamalara — keser ve her birini birkaç ayrıntı seviyesinde kaydeder. Bir terminalde bir kez çalıştırın: model, çıktı klasörü, tüm modeli tutmak için <code>full</code>, bir üçgen bütçesi ve klasörün sunulacağı web adresi.",
+          "Çıktı klasörünü web sunucunuza, o adrese koyun.",
+          "Sayfada, <code>await world.scene.load(url)</code> modeli ekler. Kamerayı çerçevelemek için modeli, <code>bounds</code> içindeki boyutuyla birlikte geri verir.",
+          "Model hiçbir zaman bütünüyle indirilmez. Motor, kameranın gördüğü parçaları, yaklaştıkça daha ince olacak şekilde getirir. Buna <em>akış</em> (streaming) denir."
+        ],
+        "tryIt": "Lambayı kafanın etrafında döndürün, kaldırın, rengini değiştirin."
+      },
+      "stay-within-memory": {
+        "title": "Bellek sınırları içinde kalın",
+        "description": "Büyük bir modelin belleğe tamamen sığması gerekmez. Motora sabit bir miktar verirsiniz, ve o, görünümün en çok ihtiyaç duyduğunu bu miktarın içinde tutar.",
+        "steps": [
+          "Görseli çizen çip olan <em>GPU</em>'nun kendi belleği vardır, ve bir web sayfası bunun ne kadarının boş olduğunu soramaz. Bu yüzden miktarı kendiniz seçersiniz.",
+          "<code>world.budget.geometryPool</code> şekiller için bellektir; <code>world.budget.texturePool</code>, <em>doku</em> adı verilen, yüzeylere boyanmış görseller için bellektir. İkisi de bayt cinsinden sayılır.",
+          "Görünüm bütçeden fazlasını istediğinde, hiçbir şey bozulmaz: uzak ve küçük parçalar, her şey sığana kadar daha az üçgenle çizilir. Görsel bütün kalır, sadece daha az ayrıntılı olur.",
+          "Motorun gerçekte ne tuttuğunu görmek için değeri geri okuyun.",
+          "Parçaları <code>world.diagnostic.mode = 'clusters'</code> ile görün: her cluster kendi rengini alır."
+        ],
+        "tryIt": "Belleği azaltın: parçalar büyür, bina bütün kalır. Onları görmek için görünümü <code>clusters</code>'a değiştirin."
+      },
+      "your-own-scene": {
+        "title": "Kendi sahneniz",
+        "description": "Artık her parçayı biliyorsunuz. Bu bölüm, kopyalayıp kendinize göre uyarlayabileceğiniz küçük bir sahnede hepsini bir araya getiriyor.",
+        "steps": [
+          "1. bölümdeki gibi başlayın: bir canvas ve <code>orbit</code> kontrolcüsüyle <code>createWorld</code>.",
+          "2. ve 3. bölümlerdeki gibi şekiller ve malzemelerle inşa edin: bir ada, bir ev, bir ağaç ve bir yel değirmeni.",
+          "Gölge düşüren bir güneşle aydınlatın (4. bölüm) ve güneşi saatle birlikte hareket ettirin.",
+          "Kanatları <code>world.onFrame</code> içinde döndürün (6. bölüm). Bunlar tek bir gruptaki dört kutudur, bu yüzden grubu döndürmek hepsini döndürür.",
+          "Tam kodu açın, bir sayıyı değiştirin, Çalıştır'a basın: sahne artık sizin. Sonra kendi modelinizi yükleyin (7. bölüm)."
+        ],
+        "tryIt": "Saati, rüzgârı ve çatının rengini değiştirin."
+      }
+    }
+  },
+  "written": {
+    "three-migration": {
+      "title": "Three.js'ten geçiş",
+      "description": "Solda eksiksiz bir Three.js programı, sağda aynı sahneyi bölüm bölüm çizen motor programı."
+    },
+    "measurement-entry": {
+      "title": "Ölçüm giriş noktası",
+      "description": "Bir tanığın, zorlanmış bir backend'in ya da dahili bir oturumun hâlâ adlandırılabildiği yer — asla yayımlanmış `web-geometry` girişi üzerinden değil.",
+      "html": "<p>Bir sayfa <code>web-geometry</code>'yi içe aktarır ve hiçbir zaman bir backend, bir tanık ya da dahili bir oturum görmez: <code>createWorld</code>, makineden seçilen ya da zorlanmış ve mevcut olmadığında adıyla reddedilen tek bir render motoruyla çizer. Bench, kanıtlar ve karşılaştırma görünümlerinin yine de bir tanık adlandırması gerekir — saf Three.js, <code>THREE.LOD</code>, dahili <code>openMeasuredWorld</code> oturumu — ve bu, ayrı ölçüm giriş noktasının, <code>packages/sdk-browser/src/measurement/measurement.ts</code>'in tek işidir.</p>\n<p>Yayımlanan girişin yaptığı her şeyi, artı bir host'un hiçbir zaman ihtiyaç duymadığı şeyleri yeniden dışa aktarır: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (bir dünyanın kendi üzerinde açtığı dahili oturum), backend fabrikaları (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>) ve <code>replicateInstances</code> gibi yalnızca ölçüme özgü yardımcılar. Bunların hiçbiri yayımlanmış bir dünyaya ulaşmaz, ve hiçbiri bir uygulama tarafından içe aktarılmaz.</p>"
+    },
+    "createWorldJob": {
+      "title": "İptal edilebilir bir görev olarak dünya yükleme",
+      "description": "Bir dünyanın kendine ait özel bir görev sarmalayıcısı yoktur: `scene.load` sıradan bir promise'tir, ve genel `createJob` yardımcısı, bir host derlemenin kullandığı aynı görev sözleşmesine ihtiyaç duyduğunda onu ilerlemeli, iptal edilebilir bir göreve dönüştürür."
+    },
+    "architecture": {
+      "title": "Bir kare nasıl çizilir",
+      "description": "Sahnenizden görsele giden yol: korunan parçalar, doldurulan pikseller, eklenen ışık.",
+      "html": "<ol>\n<li><strong>Parçaları seçin.</strong> Her model, birkaç ayrıntı seviyesinde saklanan küçük üçgen yamalarından, <em>cluster</em>'lardan oluşur. Her karede, GPU, modelin her parçası için ekranda hâlâ tam görünen en kaba seviyeyi seçer.</li>\n<li><strong>Kimin nerede olduğunu yazın.</strong> Seçilen üçgenler bir <em>görünürlük tamponuna</em> bir kez çizilir: her piksel için, yalnızca gösterdiği üçgenin numarası.</li>\n<li><strong>Yüzeyleri boyayın.</strong> Sonra, her piksel kendi üçgeninin malzemesini okur: renk, pürüzlülük, metal, normal haritası. Aynı türden yüzeyler tek bir geçişte birlikte boyanır.</li>\n<li><strong>Aydınlatın, sonra yumuşatın.</strong> Işıklar ve gölgeler eklenir, saydam yüzeyler en sona gelir, ve <em>zamansal kenar yumuşatma</em>, kenarların pürüzsüz kalması için her kareyi öncekilerle harmanlar.</li>\n</ol>\n<p>Hiçbir şey hareket etmediğinde, bunların hiçbiri çalışmaz: dünya son görseli korur.</p>\n<p>Yolun tamamı: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
+    },
+    "occlusion-two-phase": {
+      "title": "Gizlenenin atlanması",
+      "description": "Bir duvar arkasındaki odayı neden bedavaya gizler: motor, önceki karenin gizli olduğunu kanıtladığı şeyi çizmez.",
+      "html": "<p>Bir kasabada, evlerin ilk sırasının arkasında binlerce nesne vardır. Onları çizmek, kimsenin görmediği pikseller için zaman harcamak demektir. Bu yüzden motor iki geçişte çizer:</p>\n<ol>\n<li>Önce, önceki karede görünür olan şey. Bu, derinliğin kaba bir resmini verir: ekranın her noktasında en yakın yüzeyin ne kadar uzakta olduğu.</li>\n<li>Sonra diğer her parça bu derinliğe karşı test edilir. Tamamen arkada olan bir parça atlanır; geri kalanı çizilir.</li>\n</ol>\n<p>Test yalnızca kesinlikle gizli olanı atlar: yanlış bir tahmin ikinci bir teste mal olur, asla eksik bir piksele değil. Ayarlanacak hiçbir şey yok; her zaman etkindir.</p>\n<p>Ayrıntılı olarak: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
+    },
+    "cluster-format": {
+      "title": "Modeller nasıl paketlenir",
+      "description": "Derleyicinin yazdığı şey: küçük üçgen sayfaları, kompakt biçimde saklanır, her biri tek başına okunabilir.",
+      "html": "<p>Derleyici bir modeli en fazla yüz yirmi sekiz üçgenlik cluster'lara keser ve her birini tarayıcının tek başına okuyabileceği bir <em>sayfa</em> olarak kaydeder.</p>\n<ul>\n<li>Pozisyonlar, doku koordinatları ve normaller ince ızgaralara yuvarlanır. Bu, bir sayfayı düz sayılardan kat kat küçültür, ve yuvarlama bir pikselin çok altında kalır.</li>\n<li>Her sayfa, yuvarlamasının bir noktayı ne kadar hareket ettirdiğini söyler, böylece motor hiçbir zaman tahmin yürütmek zorunda kalmaz.</li>\n<li>Sayfalar içeriklerine göre adlandırılır: bir parçayı paylaşan iki model, sayfasını da paylaşır.</li>\n</ul>\n<p>Tam düzen <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/FORMAT.md\">docs/FORMAT.md</a>'de.</p>"
+    },
+    "water-pass": {
+      "title": "Su ve cam",
+      "description": "Saydam bir malzeme arkasındaki şeyi nasıl büker: motor zaten çizdiği görseli yeniden okur.",
+      "html": "<p>Su ve kalın cam, boya gibi çizilmez. Motor önce her katı şeyi çizer, bu görselin bir kopyasını tutar, sonra her su ya da cam pikseli için, ışığın yüzeyden geçerken büküldüğü gibi, kopyayı biraz kenara kaymış olarak okur.</p>\n<ul>\n<li>Ne kadar büküldüğü ve hangi rengi aldığı, içe aktarılan malzemeden gelir: kırılma indisi, kalınlığı ve tonu.</li>\n<li>Yüzey ayrıca gökyüzünü ve ışıkları yansıtır, gerçek su gibi, sıyırma açısında daha fazla.</li>\n<li>Bir sınırlama: bir cam, arkasındaki başka bir camı göstermez.</li>\n</ul>\n<p>Ayrıntılı olarak: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#transparent-surfaces\">docs/ENGINE.md</a>.</p>"
+    },
+    "memory-pools": {
+      "title": "Bellek nereye gider",
+      "description": "Biri şekiller, biri dokular için olan iki sabit GPU bellek miktarı, ve bir görünüm daha fazlasını istediğinde ne olur.",
+      "html": "<p>Motor, GPU belleğinde iki <em>havuz</em> tutar: biri şekil sayfaları için, biri doku parçaları için. Boyutlarını <code>world.budget</code> ile siz belirlersiniz (8. bölüm); motor bunu tahmin etmek için hiçbir zaman makineyi sorgulamaz.</p>\n<ul>\n<li>Her modelin en kaba sürümü her zaman içeride kalır, bu yüzden asla bir boşluk oluşmaz.</li>\n<li>Bir görünüm bir havuzun tuttuğundan fazlasını istediğinde, motor her şey sığana kadar daha kaba parçalarla çizer: daha az ayrıntı, ama asla eksik bir parça değil.</li>\n<li>Sahne çalışırken bir havuzu değiştirmek, hâlâ sığanı korur ve geri kalanını serbest bırakır.</li>\n</ul>\n<p>Ayrıntılı olarak: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#memory\">docs/ENGINE.md</a>.</p>"
+    },
+    "texture-compression": {
+      "title": "Daha küçük dokular",
+      "description": "Dokular parçalara kesilir, yalnızca görselin ihtiyaç duyduğu yerde yüklenir, ve görseli değiştirmediğinde sıkıştırılır.",
+      "html": "<p>Bir doku, bir yüzeye boyanmış bir görseldir. Derleyici her birini tam boyuttan minicik boyuta kadar her boyutta hazırlar ve kare parçalara keser. Tarayıcı yalnızca görselin gösterdiği parçaları, gösterdiği boyutta yükler.</p>\n<p>Derleyici ayrıca parçaları, GPU'nun doğrudan okuduğu, yaklaşık dört kat daha küçük sıkıştırılmış bir formatta saklayabilir. Sıkıştırılmış sürümü yalnızca orijinaliyle aynı görünüyorsa tutar; aksi halde parça sıkıştırılmamış kalır. Henüz gelmemiş bir parça, bir boşluk değil, kendi küçültülmüş bir sürümünü gösterir.</p>\n<p>Ayrıntılı olarak: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#virtual-textures\">docs/ENGINE.md</a>.</p>"
+    },
+    "shadow-pages": {
+      "title": "Parçalar halinde gölgeler",
+      "description": "Hareketli bir kamera neden gölgelerinin yalnızca bir şeridini yeniden çizer: gölge haritası, modeller gibi sayfalara kesilir.",
+      "html": "<p>Neyin gölgede olduğunu bilmek için, her ışık sahneyi kendi bakış açısından bir <em>gölge haritasına</em> render eder: bir mesafeler görseli. Motor bu haritaları sayfalara keser.</p>\n<ul>\n<li>Güneş, görünümü birkaç haritayla kaplar, kameraya yakın yerde ince, uzakta daha kaba.</li>\n<li>Kamera biraz hareket ettiğinde, yalnızca görünüme giren sayfa şeridi yeniden çizilir; diğerleri korunur.</li>\n<li>Henüz hazır olmayan bir sayfa daha kaba haritayı ödünç alır, böylece bir gölge asla eksik olmaz.</li>\n</ul>\n<p>Ayrıntılı olarak: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#direct-lighting\">docs/ENGINE.md</a>.</p>"
+    },
+    "IDENTITY_MATRIX4": {
+      "description": "Column-major sırada birim matris, yalnızca okunur ve asla yazılmaz: bir düğümün ya da pozu olmayan bir kökün duruşu.",
+      "values": ["On altı sayı, column-major sırada."]
+    },
+    "DiagnosticMode": {
+      "description": "Bir karenin çizdiği şey. Kullanılabilirlik, gerçek pipeline çıktılarını betimler, asla sentetik katmanları değil: `DIAGNOSTICS`, her mod için, etkin render motorunun onu üretip üretemeyeceğini ve neden üretemediğini bildirir.",
+      "values": [
+        "glTF malzemelerinden gelen aydınlatılmış görsel.",
+        "Gönderilen her üçgen için tek düz bir renk — GL_LINES değil, `MeshBasicMaterial.wireframe` değil.",
+        "Kararlı primitif/sayfa kimliği, cluster başına bir renk; hem WebGL2 hem WebGPU.",
+        "Seviye 0 cluster'lar, bu karede gerçekten seçilen daha kaba DAG indirgemelerine karşı.",
+        "Kesitin kullandığı şekliyle, cluster küresi üzerinden izdüşürülen cluster başına hata.",
+        "Malzeme sınıfı başına bir renk: pikseli çözen sınıf geçişi. Yalnızca WebGPU görünürlük yolunda.",
+        "Seçilen görünür sayfalar; reddedilen hiyerarşi düğümleri sayılır, çizilmez.",
+        "Bağlı indeks sayfaları; eksik sayfalar çizilmez. Fiziksel VRAM değildir.",
+        "Kullanılamaz: doku mip yerleşikliği enstrümante edilmemiştir.",
+        "Kullanılamaz: fragman sayacı yok."
+      ]
+    },
+    "LodQualityId": {
+      "description": "Çalışma zamanı LOD ön ayarları. `pixelError`, tam cluster seçiminin tükettiği ekran-uzayı eşiğidir; `0` tam yaprakları korur.",
+      "values": [
+        "Maksimum kaynak ayrıntısı — `pixelError: 0`, kaynak anizotropisi.",
+        "Yüksek kalite — `pixelError: 1`, maksimum anizotropi.",
+        "Dengeli — `pixelError: 4`.",
+        "Adaptif — `pixelError: 2`, `adaptivePixelError(base, speed, radius)` ile kamera hızıyla artar; sabit bir görünüm tabanı korur."
+      ]
+    },
+    "ScreenErrorVariant": {
+      "description": "Kesitin eşikle karşılaştırdığı cluster hatasının hangi izdüşümü olduğu. Tüm sayfa için modül durumu, CPU metriği tarafından okunur ve seçim shader'ı derlendiğinde onun içine gömülür; bir bench'in her tarafı kendi sayfasında çalışır. Formülün herkese açık kaynağı: Karis, Stubbe ve Wihlidal, SIGGRAPH 2021, \"Advances in Real-Time Rendering in Games\".",
+      "values": [
+        "Bizimki (varsayılan): hatayı asla düşük tahmin etmeyen bir sınır.",
+        "Karşılaştırma bench'i için yayımlanmış formül."
+      ]
+    },
+    "MathPathMode": {
+      "description": "Bir yığının hangi yolda çalıştığı. `auto` ölçümle karar verir: regülatör her tarafta eleman başına nanosaniyenin hareketli medyanını tutar ve o üstünlükte bir seri çalıştırmadan sonra geçiş yapar, JS referans ve yedek yol olarak kalır. `MATH_PATH_CONTRACT`, yayımlanan raporu sürümler.",
+      "values": [
+        "Ölçümle karar (varsayılan).",
+        "Bir kampanya için dayatılmış JavaScript yolu.",
+        "O işlem için varsa dayatılmış WebAssembly çekirdeği."
+      ]
+    },
+    "JobStatus": {
+      "description": "`createJob` tarafından oluşturulan bir görevin — bir derleme, bir dünya yaratımının — yaşam döngüsü. İptal edilmiş ya da başarısız olmuş bir görev, sahip olduğu sonucu serbest bırakır.",
+      "values": [
+        "Oluşturuldu, henüz başlatılmadı.",
+        "Çalışıyor; `progress` olayları bir aşama ve bir sayı taşır.",
+        "Çözüldü; `result` değeri tutar.",
+        "Kendi `AbortSignal`'ı ile iptal edildi.",
+        "Bir hata fırlattı; `error`, `{ code, message }` tutar."
+      ]
+    },
+    "CapabilityTier": {
+      "description": "Ölçülen maliyetlerden yola çıkarak güvenlik politikasının bir oturumun ne çalıştırabileceğine karar verdiği şey. Bir `SafetyDecision`, seviyeyi, özelliğin etkin olup olmadığını, nedenini ve ne zaman değiştiğini taşır.",
+      "values": [
+        "Ölçülen her maliyet bütçe içinde.",
+        "Bir bütçe aşıldı: özellik azaltıldı.",
+        "Güvenli yol, özellik devre dışı."
+      ]
+    },
+    "GpuTimingMethod": {
+      "description": "Bir aşama profilinin GPU sürelerinin nasıl alındığı. Geçiş başına bir süre nerede olduğunu söyler, asla ne kadar olduğunu değil: tile-based bir GPU'da geçişler çakışır ve bir geçiş komşularını içine alır. Kare toplamı `gpuImageMs`'tir, zarf — aşama süreleri bunun içine toplanmaz.",
+      "values": ["Yerel WebGPU zaman damgası sorguları.", "O yol için WebGL2 uzantısı."]
+    },
+    "ColumnKind": {
+      "description": "İkili manifestin bir sütununun depolanması. `COLUMN_KIND`, her sütun adını kendi türüne eşler, böylece bir okuyucu yardımcı baytlar üzerinde hangi görünümü alacağını bilir.",
+      "values": [
+        "Sınırlar, küreler, hatalar, culling düğümleri.",
+        "İşaretli indeksler — sayfa tam sayıları, grup seviyeleri.",
+        "İşaretsiz sayaçlar ve ofsetler.",
+        "Ham baytlar — SHA nesneleri, önizleme pikselleri."
+      ]
+    },
+    "Side-common": {
+      "description": "Bir yüzeyin hangi yüzlerinin çizildiği — her rasterizasyon, koni, pipeline ve karışım planı kararı buna karşı karşılaştırılır. `packages/sdk-browser/src/scene/materialSide.ts`'ten iki okuyucu bununla bir host arasında durur: `sideOf(material: HostMaterials): Side`, bir host malzemesinin bildirdiği şeyi, içe aktarma sınırında bir kez, host sabitlerini adlandıran tek yerde okur; `materialSide(material: HostMaterials): number`, hâlâ host kütüphanesiyle oluşturulan tanı malzemeleri için o host sabitini olduğu gibi döndürür.",
+      "values": [
+        "Yalnızca ön yüzler (boş bir malzeme dizisi bunu verir).",
+        "Yalnızca arka yüzler.",
+        "Her ikisi de, yapraklar, kumaş ve ince kesitler için."
+      ]
+    },
+    "prepare": {
+      "description": "Bir kaynak sahneyi, tarayıcının okuduğu önbelleğe derler. Yerel derleyiciyi — üretim yolunu — çalıştırır ve diskten okunan manifestoyu, `metrics`'i yalnızca göstericinin tuttuğu şeyle (`wallMs`, `pruneMs`) tamamlanmış olarak döndürür. Ürünü zaten önbellekte olan bir kaynak yeniden derlenmez: klasör dosya dosya doğrulanır ve korunur, ve `reused` neyin doğrulandığını söyler (görev derlediğinde `null`). `resourceBaseUrl` zorunludur: tarayıcının sayfaları ve dokuları getireceği URL'dir. Her okuyucunun kendi kaynağıyla ne yaptığı — dışbükeyse yelpaze şeklinde, değilse kulak kesme (ear clipping) ile kesilen çokgen yüzleri — `docs/COMPILER.md`'dedir."
+    },
+    "prepareMany": {
+      "description": "Tek bir derleyici sürecinde birden çok modeli hazırlar. Derleyici aynı anda `workers` görev çalıştırır ve `ramBudgetMb`'yi aralarında böler. Yığın özetiyle çözülür — yalnızca göstericiler, diskten yeniden hiçbir şey okunmaz."
+    },
+    "createJob": {
+      "description": "Bekleyen herhangi bir işlemi motorun görev sözleşmesine sarar: bir anlık görüntü (`JobStatus`, ilerleme, sonuç, hata), abonelik, ve görevin sahip olduğunu serbest bırakan bir iptal. İşlemin kendi sahibi üzerinden (RAF, geri okuma, …) iptali desteklemesi gerekir."
+    },
+    "detectCapabilities": {
+      "description": "Bir dünya oluşturulmadan önce bu makinenin gerçekte desteklediği şey: `{ tier, renderer, adapter, extensions, reason }`. Neden her zaman verilir, böylece desteklenmeyen bir özellik varsayılmak yerine bildirilir. Bir dünyanın okuduğu herkese açık sarmalayıcı `capability.detect()`'tir — `{ webgpu, webgl2, ... }`, aynı sondaj için daha basit bir biçim. WebGL2 sondajı önbelleğe alınır."
+    },
+    "perspectiveProjection": {
+      "description": "Derece cinsinden dikey `fov`, `aspect` oranı, `near` yakın düzlemi, `zoom` yakınlaştırması olan bir kameranın perspektif izdüşümü. **Ters çevrilmiş derinlik, sonsuz uzak düzlem**: `near` 1'e izdüşürülür, sonsuz ise 0'a. Buraya hiçbir uzak düzlem girmez, dolayısıyla ona bölme de yoktur — derinlik hassasiyetini sağlayan da budur."
+    },
+    "createCameraFrame": {
+      "description": "Bir kamera karesinin matrisleri, bir kez tahsis edilir ve her karede yeniden yazılır: `view` (kameranın dünya matrisinin tersi), `viewProjection`, ve bu frustum'un altı normalize edilmiş düzlemi olan `planes`."
+    },
+    "updateCameraFrame": {
+      "description": "Kareyi yeniden yazar: view = `world`'ün tersi (referanstaki gibi, tekil bir dünya matrisi için sıfır), view-projection = `projection · view`, ve bu frustum'un altı düzlemi. Tek bir derinlik kuralı üçünden de geçer. `far`, **host tarafından bildirilen** düzlemdir: izdüşümün hiçbiri yoktur — sonsuzdur, ters derinliğin bütün amacı da budur — ama frustum onu korur, aksi halde bir kare aniden kameranın göstermediği her nesneyi kazanırdı. Atlanmışsa ya da sonlu değilse, uzak düzlem sınırsız kalır."
+    },
+    "worldToRenderOrigin": {
+      "description": "`world`'ü, öteleme değeri `origin`'e geri getirilmiş olarak yazar. Çıkarma, girdilerin hassasiyetinde — motorun dünya matrislerinin double'ında — gerçekleşir, ve tek hassasiyetli bir tampona yazmak bunun **ardından**, asla öncesinde yuvarlar: keskin bir görsel ile titreyen bir görseli ayıran tek şey budur. `at`, yazılan on altı sayının ilkinin konumudur, böylece birçok matris tutan bir tampon, her karede matris başına bir görünüm dilimlenmeden doldurulur."
+    },
+    "matrixAtRenderOrigin": {
+      "description": "`m · T(origin)`'i yazar: `origin`'e göre verilen bir noktaya uygulanan aynı matris. Yalnızca dördüncü sütun değişir, ve bu, yazma yuvarlaması öncesinde girdilerin hassasiyetinde hesaplanan `m · (origin, 1)`'e eşittir."
+    },
+    "viewToRenderOrigin": {
+      "description": "`view`'ı ötelemesi olmadan yazar: render karesinin başlangıcına konumlandırılmış, aynı yönelime sahip bir kameranın görünümü — göreli dünyanın gözün ötelemesini zaten taşıdığı `worldToRenderOrigin`'in tam karşılığı."
+    },
+    "createEngineCamera": {
+      "description": "Bir `EngineCamera`: bir kamera karesi artı `world`, `projection`, `eye`, `near`, `far`, `fov`, `aspect`, her tampon bir kez tahsis edilmiş olarak. Bu, motorun kendi kamerasıdır — hiçbir host nesnesi çalışma zamanına geçmez."
+    },
+    "writeEngineCamera": {
+      "description": "Bir karenin okuduğu her şey, zaten ayarlanmış `into.world`'den ve bildirilen optikten türetilir."
+    },
+    "defaultEngineCamera": {
+      "description": "fov 50, aspect 1, near 0.1, far 2000, zoom 1 ile başlangıç noktasındaki kamera — ilk kareden önce çağrılan oracle'ların yedek değeri."
+    },
+    "readCameraWorld": {
+      "description": "Host kamerasının atalarını çözer, dünya matrisini kopyalar, sonra `writeEngineCamera`'yı uygular. Bir host kamerasından gelen kare başına tek öteleme; `HostCamera`, bir host'un render kütüphanesinin bir tipi değil, bir biçimdir — poz, optik, dünya matrisi, host'un kendi izdüşümü. `aspect`, görünümün kameranın bildirdiğinden farklı olduğunda çizildiği orandır: bir yüzey yakalaması, aynı kamerayı, yazdığı yüzeyin biçiminde, ayrı olarak render eder. Kesim derinliği kuralı motorun kendisine aittir, ters derinlikte ve sonsuz uzak düzlemle bildirilen optikten oluşturulur; host'a ait hiçbir şey burada okunmaz."
+    },
+    "holdCameraWorld": {
+      "description": "Bir motor kamerasının bit bit kopyası, hiçbir şey yeniden hesaplanmaz."
+    },
+    "enginePose": {
+      "description": "Çizilen karenin pozisyonu ve dönüşü, motor kamerasından okunur."
+    },
+    "multiplyMatrix4": {
+      "description": "`out = a · b`. Otuz iki girdinin tümü ilk yazımdan önce okunur, bu yüzden `out`, `a` ya da `b` olabilir. Her terim, başlangıç sıfırı olmayan dört çarpımın toplamıdır — `0`'dan başlayan bir toplam, negatif bir sıfırın işaretini değiştirirdi. **Girdide ve çıktıda tek bir tampon türü, `Float64Array`**: sıradan bir dizi geçiren bir çağıran, kırk sekiz erişim noktasını polimorfik yapardı, ve her sıcak döngü bunu öderdi, bu yüzden bir host matrisinden başlayan bir çağıran önce onu kopyalar."
+    },
+    "invertMatrix4": {
+      "description": "Kofaktörlerle `out = m⁻¹`. Tam olarak sıfır bir determinant, referanstaki gibi sıfır matrisini verir — bu durumu ayırt etmesi gereken bir çağıran, çıktıyı değil determinantı test eder. Bu eşik, motorun tekillik kuralıyla değil, referansla eşliktir; o kural yalnızca bir normalin taşındığı yerde geçerlidir. On altı girdinin tümü ilk yazımdan önce okunur, bu yüzden `out`, `m` olabilir."
+    },
+    "composeMatrix4": {
+      "description": "`out = T · R · S`, kuaterniyon `(x, y, z, w)` sırasıyla. Son satır tam olarak `(0, 0, 0, 1)` yazılır; kuaterniyon çarpımları, referanstaki gibi, ikiyle çarpılarak değil, toplamayla (`x + x`) ikiye katlanır."
+    },
+    "decomposeMatrix4": {
+      "description": "Tersi: bir sütunun ölçeği kendi uzunluğudur, ve negatif bir determinant, kaynakta hangi eksen ters çevrilmiş olursa olsun, yalnızca `x` ekseni tarafından taşınır. Kesilmiş (shear) bir matrisin böyle bir ayrıştırması yoktur — döndürülen döndürme, o zaman sütunları normalize edilmiş matrisinkidir, ve yeniden birleştirmek artık `m`'i vermez; bu, referansınkiyle özdeş ve bench tarafından ölçülmüş bir farktır."
+    },
+    "copyMatrix4": {
+      "description": "`m`'nin on altı sayısını, her birini kendi ofsetinde olacak şekilde `out`'a kopyalar. `TypedArray.set` yerine bir döngü: bir görünümde `set`, yerel bir çağrıya mal olur, ve çıktılar her zaman tipli değildir — bir host matrisi, buradaki tek dönüşüm olan tek hassasiyetli bir GPU tamponu."
+    },
+    "determinantMatrix4": {
+      "description": "Referanstaki gibi son satır boyunca açılan 4×4 determinant, ve yalnızca doğrusal kısmın (3×3 blok) ilk sütun boyunca açılan determinantı. İkincisinin işareti, dönüşümün yönelimi ters çevirip çevirmediğini, dolayısıyla bir çizimin hangi yüzü elemesi (cull) gerektiğini söyler. İkincisi birincinin açılımı değildir: göreli fark birkaç ulp'tir, ve işaretler yalnızca hiçbir yuvarlamanın karar vermediği tekil bir matrisin yakınında farklılaşabilir."
+    },
+    "normalMatrix3": {
+      "description": "Column-major sırada dokuz sayı üzerinde `out = transpose(inverse(m'nin 3×3 bloğu))`: kesme ve düzgün olmayan ölçek dahil, `m` tarafından dönüştürülen bir yüzeyin normallerini taşıyan matris. Ters, kofaktörler ve çarpım sırası dahil referansınkidir, sonra hiçbir kayan nokta işlemi olmadan devrik alınır. **Tekil bir matriste, referansın sıfır matrisi değil, bölünmemiş adjoint'i yazar**: tekil bir poz bir yüzeyi silmez, onu bir düzlem üzerine düzleştirir, ve yerel bir normale uygulanan adjoint, işaret dahil, dönüştürülmüş kenarların vektörel çarpımı*dır* — sonra her tüketici normalize eder. Yalnızca sıfır, sonsuz ya da NaN bir ölçek, dokuz sıfır olarak ayrı yazılır."
+    },
+    "linearPartScale": {
+      "description": "Motorun tek tekillik kuralı, WGSL çekirdeğinin biçiminde. Ölçek, doğrusal kısmın dokuz teriminin mutlak değerlerinin toplamıdır; determinant, ham determinantın küpüne bölünerek değil, çarpımdan **önce bu ölçeğe bölünmüş** sütunlar üzerinden hesaplanır — `t³`, kuralın tam olarak karar vermesi gereken yerde, 1e103'ün üstünde taşar ve 1e-103'ün altında kaybolur. `adjugateFactor` sonra düzgün bir matris için `1 / determinant` (referans bitleri), tekil biri için `1` (adjoint olduğu gibi), ve ölçek sonlu ve kesinlikle pozitif olmadığında, adjoint'in kendisinin sıfırla değiştirilmesi gereken `null` döndürür. `SINGULAR_DETERMINANT_WGSL`, shader'ın yazdığı aynı eşiktir: bir sayı, iki dil."
+    },
+    "basisMatrix4": {
+      "description": "`u`, `v`, `n` sütunları, sonra başlangıç noktası, son satır `(0, 0, 0, 1)`; ve `center`'a yerleştirilmiş düzgün bir ölçek `s`. İkisi de host kütüphanesinin iki çağrılık bir dizisini tek bir yazımla değiştirir."
+    },
+    "dotVector3": {
+      "description": "`aAt` ve `bAt`'te okunan üç bileşen üzerinde `a · b`: bir tampon artı bir ofset, asla bir görünüm değil — onu binlerce vektör üzerinde bir döngü içinde ucuza kullanılabilir yapan da budur."
+    },
+    "crossVector3": {
+      "description": "`out = a × b`. Altı bileşenin tümü ilk yazımdan önce okunur, bu yüzden `out`, `a` ya da `b` olabilir."
+    },
+    "lengthSqVector3": {
+      "description": "`x² + y² + z²`, referansın sırasında toplanan üç kare. Bunun `Math.sqrt`'i, referansın `length()`'i, bit bit."
+    },
+    "normalizeVector3": {
+      "description": "Yerinde `v / ‖v‖` — her bileşen `1 / (length || 1)` ile çarpılır, bu yüzden sıfır bir vektör değişmeden kalır."
+    },
+    "scaleVector3": {
+      "description": "Yerinde çarpılan üç bileşen; bir ofsete yazılan `out = a · s`; ve `out += a · s`."
+    },
+    "transformAffinePoint": {
+      "description": "Perspektif bölmesi olmadan `M · (x, y, z, 1)` — son satırı `(0, 0, 0, 1)` olan afin bir matrisin biçimi. Böyle bir matris ve sonlu bir nokta için, bu, `1 / w` çarpanı o zaman 1 olan izdüşümsel dönüşümün bit bit aynısıdır. Koordinatlar parametre olarak geldiğinden, `out`, girdi vektörü olabilir."
+    },
+    "transformHomogeneousPoint": {
+      "description": "Bölme olmadan dört homojen bileşen: `M` bir view-projection olduğunda kesim uzayındaki nokta. Çağıran, sıfır ya da sonlu olmayan durumu eledikten sonra dördüncüye böler."
+    },
+    "transformDirectionVector3": {
+      "description": "Bir yöne uygulanan afin bir 4×4'ün 3×3 bloğu, ardından referans normalizasyonu — herhangi bir yön için olduğu gibi öteleme yok sayılır. Ve dokuz sayıda column-major olarak saklanan bir 3×3 matris için `M · (x, y, z)`."
+    },
+    "srgbToLinear": {
+      "description": "Tam sRGB eğrisi — 0.04045'in altında `c / 12.92`, üstünde `((c + 0.055) / 1.055)^2.4` — ve tersi, negatifler üsse yükseltmeden önce sıfıra sabitlenmiş olarak."
+    },
+    "hslToLinearRgb": {
+      "description": "Ton, doygunluk ve parlaklığın `out[o..o+2]`'ye yazılan üç doğrusal bileşene dönüştürülmesi. Referansın `setHSL`'i terim terim: sarmalanmış ton, `[0, 1]`'e sabitlenmiş doygunluk ve parlaklık, gri olarak döndürülen sıfır doygunluk, sonra parçalı rampa. Hiçbir aktarım eğrisi uygulanmaz — referansın çalışma alanı zaten doğrusaldır."
+    },
+    "boxUnion": {
+      "description": "Bir kutu, `o`'dan itibaren doğrusal olarak saklanan altı sayıdır: üç alt sınır, üç üst sınır. Boş bir kutunun alt sınırları `+Infinity`'de, üst sınırları `-Infinity`'dedir; bir NaN sınır kutuyu boş yapmaz. Genişletme ve birleştirme, sınırları parametre olarak alır, bu yüzden çağrı başına hiçbir geçici nesne oluşturulmaz."
+    },
+    "boxTransform": {
+      "description": "`box`'ın `m` altındaki görüntüsünü çevreleyen kutu: sekiz dönüştürülmüş köşesinin birleşimi. Boş bir kutu, sınırlar dahil, olduğu gibi kalır, ve `out`, `box` olabilir — sınırlar ilk yazımdan önce okunur. `boxCornersInto`, bu sekiz köşeyi doğrusal olarak, yirmi dört sayı olarak yazar: köşe `i`, bit 1 ayarlıysa `x`'te, bit 2 için `y`'de, bit 4 için `z`'de üst sınırı alır; her köşe homojen dönüşüm `(m·p) / (m₃·p)`'dir."
+    },
+    "sphereFromBounds": {
+      "description": "Bir kutunun sınırlayıcı küresi, `o`'dan itibaren doğrusal olarak yazılır: merkez `x, y, z`, sonra yarıçap. Merkez `(min + max) * 0.5`'tir, yarıçap köşegenin yarısıdır. Boş bir kutu — alt sınırının altındaki bir üst sınır — boş küreyi, sıfır merkezi ve `-1` yarıçapını verir. Bu, NaN, işaretli sıfırlar ve sonsuzluklar dahil, referansın kutu aritmetiğinin terim terim aynısıdır."
+    },
+    "frustumPlanesFromMatrix": {
+      "description": "Bir kesim matrisinin frustum'unun altı düzlemi — bir view-projection, ya da kamera uzayındaki düzlemler için yalnızca bir izdüşüm. Birincisi bunları normalize eder, bu yüzden `a·x + b·y + c·z + d` işaretli bir mesafedir; ikincisi, yalnızca işaretin karar verdiği, karekök ya da bölme olmadan satırların ham toplamlarını ve farklarını bırakır: normalize etmenin yuvarlamayı kaydıracağı, tam kesim testinin biçimi. Bozulmuş bir matris, hata fırlatmadan NaN ya da sonsuz düzlemler verir."
+    },
+    "frustumFarPlane": {
+      "description": "İzdüşümünün hiçbirine sahip olmadığı bir frustum'un uzak düzlemi. Motorun izdüşümü sonsuzdur: derinlik satırı artık hiçbir şeyi sınırlamaz, bu yüzden uzak düzlem, üçüncü satırı kamera uzayındaki derinliği veren **view** matrisinden okunur — bir nokta `far + z >= 0` olduğunda içeridedir. Sonlu olmayan bir `far`, yerinde sıfır düzlemi, gerçekten sınırsız bir uzak düzlem bırakır. `frustumPlanesToLocal`, düzlemleri bir dönüşümün yerel uzayına taşır, böylece yerel bir kutu dönüştürülmeden test edilir."
+    },
+    "frustumExcludesBox": {
+      "description": "Kutu frustum'a karşı: birincisi, bir düzlem sekiz köşenin tümünü arkasında bıraktığında doğrudur. İkincisi üç durum döndürür — 0 dışarıda, 1 üzerinde, 2 tamamen içeride — iki geçişte, birincisi yalnızca eler, ikincisi \"üzerinde\"yi \"içeride\"den ayırmak için en geride kalan köşeyi okur. Tamamen içeride olan bir alt ağaç, altındaki her kutu için bir testten tasarruf sağlar."
+    },
+    "boxConeRejects": {
+      "description": "Bir dünya noktasından görüldüğünde, yerel bir kutunun normal konisi tarafından elenmesi: kutu küresiyle değiştirilir, koni ekseni normal matris tarafından taşınır ve normalize edilir, karar, sınırlanmış nokta çarpımından, koni açısından ve kürenin perspektif açılımından çıkarılır. Sütunları `CONE_LENGTH_RATIO` içinde aynı uzunlukta ve `CONE_ORTHO_EPS` içinde ortogonal olduğunda bir dönüşüm konformdur; `HALF_PI`'ye eşit ya da büyük açılı bir koni asla elemez, ve testin reddettiği bir parametre de elemez. `_WGSL` varyantları shader metnindekiyle aynı sabitlerdir, böylece CPU aynası ve GPU geçişi asla ayrışmaz."
+    },
+    "createTransformTree": {
+      "description": "Motorun veri odaklı dönüşüm hiyerarşisi: bir düğüm, doğrusal dizilerdeki bir indekstir — ebeveyn, bayraklar, pozisyon, kuaterniyon `(x, y, z, w)`, ölçek, yerel matris, dünya matrisi. `localViews[i]` ve `worldViews[i]`, büyümede oluşturulan ve asla bir güncelleme sırasında oluşturulmayan on altı sayılık görünümlerdir: GPU tüm tamponu okur, bir çekirdek bir düğümün görünümünü okur. Yeni bir düğüm, referansın yeni nesnesidir: sıfır pozisyon, birim döndürme, ölçek 1, birim matrisler, otomatik güncelleme. Bir büyüme her diziyi değiştirir, bu yüzden bir çağıran, bir ekleme sonrasında `tree.world` ya da `tree.worldViews`'i yeniden okur."
+    },
+    "setNodePosition": {
+      "description": "Yazmalar, neyi değiştirdiklerini işaretleyen setter'lardan geçer — bu işaret, bir güncellemenin kimi ziyaret edeceğine karar vermek için okuduğu şeydir. Otomatik güncelleme altında, bir sonraki güncelleme, referansın `matrix`'i üzerine yazdığı gibi, yerel matrisi pozdan yeniden oluşturur; `setNodeAutoUpdate(tree, node, false)`, bir çağıranın yazdığı matrisi korur."
+    },
+    "reparentTransformNode": {
+      "description": "`node`'u, referansın `add`'i gibi `parent`'ın (`-1`: bir kök) altına ekler — matrisler bir sonraki güncellemeye kadar hareket etmez — ve `parent`, `node` ya da onun soyundan biriyse hata fırlatır. Kaldırma, düğümü ve tüm soyunu alır, indeksleri daha sonra yeniden kullanılır; bir alt ağacı korurken ayırmak için, onu `-1`'e yeniden ebeveynler."
+    },
+    "updateNodeMatrixWorld": {
+      "description": "Düğüm ve tüm alt ağacı, önce ebeveynler. Bir düğüme, otomatik güncelleniyorsa, işaretliyse, ya da `force` verilmişse ulaşılır. Ziyaret edilen bir düğümün zaman damgası `2 · traversal + reached`'tir, bu yüzden tek bir okuma, bir çocuğa alt ağaçta olup olmadığını ve ebeveyninin ona ne geçirdiğini söyler. İkinci biçim, istendiğinde, atalar arasında kökten de dolaşır."
+    },
+    "nodeWorldPosition": {
+      "description": "Dünya matrisinden okumalar: öteleme sütunu; negatif bir determinantın yalnızca `x` tarafından taşındığı, kendi ayrıştırmasından dönüş ve ölçek; `cameraForward` olduğunda ters çevrilen, bir yön olarak normalize edilmiş üçüncü sütun — bir kamera ve bir ışık kendi `−z`'lerine doğru bakar. `nodeWorldMirrorsFaces`, dünya matrisi yönelimi ters çevirdiğinde doğrudur, ve çizim o zaman ön ve arka yüzlerini değiştirir; olduğu gibi okur, güncellemeden, ve sıfır ya da NaN bir determinant hiçbir şeyi ters çevirmez."
+    },
+    "lookAtNode": {
+      "description": "`node`'u dünya noktası `(x, y, z)`'ye doğru çevirir. `viewer`, kendi `−z`'sine doğru bakan bir kamera ya da ışık için doğrudur, kendi `+z`'sini sunan bir nesne için yanlıştır. `up`, referansta `(0, 1, 0)` olan düğümün yukarısıdır. Atalar ve düğüm önce güncellenir."
+    },
+    "multiplyMatrix4Batch": {
+      "description": "`n` çarpım `out[i] = a[i] · b[i]`, üç taraf da on altı sayılık alt görünümler olarak verilir. Alt görünümler bir kez oluşturulur, asla kare başına değil; bir WebAssembly çekirdeği aynı formülü terim terim tekrarlar, ve regülatör hangi yolun daha hızlı ölçüldüğünü seçer."
+    },
+    "boxTransformBatch": {
+      "description": "`n` matrisle dönüştürülen `n` kutu: `out[i] = boxTransform(boxes[i], mats[i])`. `out` ve `boxes` eleman başına altı sayı taşır, `mats` on altılık bir alt görünüm."
+    },
+    "hierarchyUpdateBatch": {
+      "description": "Tek bir geçişte güncellenen tüm bir hiyerarşi: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur, sonra bunu ebeveyninin dünya matrisiyle çarpar — `packages/sdk-core/src/math/transform-tree/update.ts`'in dolaşımı, doğrusal tamponlar üzerinde aynı sırada aynı iki formül. `parents[i]`, zaten güncellenmiş bir düğümü indekslemek **zorundadır**, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil, başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki yolda da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onları ayrıştıramaz. `local`, her eleman için yeniden kullanılan tek bir taslak matristir."
+    },
+    "createPathGovernor": {
+      "description": "Adlandırılmış her işlem için JS ile WebAssembly arasında karar veren şey: eleman başına nanosaniyenin hareketli medyanları, yalnızca o üstünlükte beş ardışık çalıştırmadan sonra bir geçiş, ve medyanını güncellemek için diğer yolu tekrarlayan ellide bir çalıştırma. Beşten az örnekte hiçbir şeye karar verilmez — tek bir değer medyanı oluştururdu. `metrics()`, her işlem için `path`, `jsNsPerElement`, `wasmNsPerElement`, geçiş sayısını ve ölçümün dayandığı saat çözünürlüğünü yayımlar."
+    },
+    "frustumKeepsBoxBatch": {
+      "description": "Bir frustum'un yirmi dört float'ına karşı altı sayılık (önce min sonra max) `n` kutu: `kept[i]`, kutu kesiştiğinde ya da tamamen içindeyken 1'dir, ve korunan sayı döndürülür — `frustumExcludesBox`'ın tersi, referansın yanıt verdiği kutupluluk. Küre yığını, `sphereFromBounds`'ın yaptığı gibi, kutu başına `SPHERE_VALUES` sayı, merkez sonra köşeye kadar yarıçap yazar. İki döngü de `packages/sdk-core/src/math/batch/culling.ts`'de yaşar."
+    },
+    "boxUnionBatch": {
+      "description": "`n` kutuyla, ya da önce her biri kendi matrisiyle dönüştürülmüş `n` kutuyla genişletilen `into` — bir geçiş, bir taslak kutu, hiçbir tahsis yok. İkisi de `boxUnion`'ı tekrarlar, ikincisi öncesinde `boxTransform` ile: tek bir çağrıda tüm bir sahnenin dünya sınırları."
+    },
+    "invertMatrix4Batch": {
+      "description": "`n` ters, `NORMAL_MATRIX_VALUES` sayılık `n` normal matris, `n` `T · R · S` birleşimi, `n` ayrıştırma. Sıfır determinantlı bir matris birim matrise ters çevrilir ve `singular[i]`'de işaretlenir — bir yığının ortasında asla bir hata fırlatılmaz. `composeMatrix4Batch`, her şeyi ya doğrusal ya da alt görünümler olarak alır, ve döngüden önce biçime karar verir. Dört döngü de `packages/sdk-core/src/math/batch/transforms.ts`'de yaşar."
+    },
+    "transformPointsBatch": {
+      "description": "Tek bir afin matrisle, ya da nokta başına bir matrisle üç sayılık `n` nokta; üst 3×3 ile ve sonra normalize edilmiş, öteleme yok sayılmış `n` yön. Bunlar `transformAffinePoint` ve `transformDirectionVector3`'ü tekrarlar."
+    },
+    "srgbToLinearBatch": {
+      "description": "Eleman başına bir kanal, `packages/sdk-core/src/math/primitives/color.ts`'nin tam eğrileriyle: referans yuvarlanmış sabitlerle çarpar, ve 8 bitte görünmez olan fark, onları karşı karşıya getiren bench'te bir kez sınırlanır."
+    }
+  },
+  "canvas": {
+    "phrases": {
+      "kept": "tutuldu",
+      "rejected": "elendi",
+      "note": "not",
+      "yes": "evet",
+      "no": "hayır",
+      "scale": "ölçek",
+      "length": "uzunluk",
+      "radius": "yarıçap",
+      "determinant": "determinant",
+      "determinant 1": "determinant 1",
+      "near": "yakın",
+      "far": "uzak",
+      "beauty": "beauty",
+      "wireframe": "wireframe",
+      "clusters": "clusters",
+      "lod": "lod",
+      "screen-error": "screen-error",
+      "materials": "materials",
+      "visibility": "visibility",
+      "pages": "pages",
+      "texture-mip": "texture-mip",
+      "overdraw": "overdraw",
+      "high": "high",
+      "balanced": "balanced",
+      "adaptive": "adaptive",
+      "switches": "geçişler",
+      "arbitration": "hakemlik",
+      "box 0": "kutu 0",
+      "box 1": "kutu 1",
+      "box 2": "kutu 2",
+      "box 3": "kutu 3",
+      "what the engine returns": "motorun döndürdüğü şey",
+      "what the arrays hold": "dizilerin tuttuğu şey",
+      "what the test read": "testin okuduğu şey",
+      "what those numbers are": "bu sayıların ne olduğu",
+      "what the two determinants say": "iki determinantın söylediği şey",
+      "the matrix under test": "test edilen matris",
+      "the six planes it rewrote": "yeniden yazdığı altı düzlem",
+      "the six normalised planes (a, b, c, d)": "altı normalize edilmiş düzlem (a, b, c, d)",
+      "the buffer": "tampon",
+      "the zero vector": "sıfır vektörü",
+      "in place": "yerinde",
+      "the curve, both ways": "eğri, iki yönde",
+      "the same value, encoded and linear": "aynı değer, kodlanmış ve doğrusal",
+      "the same point, both ways": "aynı nokta, iki şekilde",
+      "the point before and after, from above": "önce ve sonra nokta, yukarıdan",
+      "from above": "yukarıdan",
+      "camera speed (m/s)": "kamera hızı (m/s)",
+      "field of view (°)": "görüş açısı (°)",
+      "near plane": "yakın düzlem",
+      "aspect ratio": "en boy oranı",
+      "declared far plane": "bildirilen uzak düzlem",
+      "camera heading (rad)": "kamera yönü (rad)",
+      "distance of the scene from the origin (m)": "sahnenin başlangıç noktasına uzaklığı (m)",
+      "rotation of the matrix (rad)": "matrisin dönüşü (rad)",
+      "scale of the matrix": "matrisin ölçeği",
+      "uniform scale": "düzgün ölçek",
+      "rotation (rad)": "dönüş (rad)",
+      "translation x": "öteleme x",
+      "destination offset (matrices)": "hedef ofseti (matrisler)",
+      "turn of the basis (rad)": "tabanın dönüşü (rad)",
+      "encoded sRGB value": "kodlanmış sRGB değeri",
+      "hue": "ton",
+      "saturation": "doygunluk",
+      "lightness": "parlaklık",
+      "scalar": "skaler",
+      "nodes in the batch": "yığındaki düğümler",
+      "products in the batch": "yığındaki çarpımlar",
+      "boxes in the batch": "yığındaki kutular",
+      "boxes tested": "test edilen kutular",
+      "kept by the frustum": "frustum tarafından tutuldu",
+      "rejected by the frustum": "frustum tarafından elendi",
+      "behind the camera, by construction": "yapı gereği, kameranın arkasında",
+      "first survivor, view-space z": "ilk hayatta kalan, görünüm-uzayı z",
+      "cull, then transform the survivors: two calls, no allocation between them": "önce ele, sonra hayatta kalanları dönüştür: iki çağrı, aralarında hiçbir tahsis yok",
+      "root position x": "kök pozisyonu x",
+      "root rotation (rad)": "kök dönüşü (rad)",
+      "target x": "hedef x",
+      "target z": "hedef z",
+      "second box, x": "ikinci kutu, x",
+      "second box, z": "ikinci kutu, z",
+      "cone half-angle (rad)": "koni yarı açısı (rad)",
+      "cone axis, heading (rad)": "koni ekseni, yön (rad)",
+      "viewer distance": "izleyici mesafesi",
+      "JS nanoseconds per element": "eleman başına JS nanosaniyesi",
+      "Wasm nanoseconds per element": "eleman başına Wasm nanosaniyesi",
+      "executions observed": "gözlenen çalıştırmalar",
+      "contract version": "sözleşme sürümü",
+      "path chosen": "seçilen yol",
+      "not decided yet": "henüz karar verilmedi",
+      "read and never written": "okunur, asla yazılmaz",
+      "the constant itself, read from the engine": "motordan okunan sabitin kendisi",
+      "reversed depth, infinite far plane": "ters çevrilmiş derinlik, sonsuz uzak düzlem",
+      "the constants the engine writes": "motorun yazdığı sabitler",
+      "the translation, written into a single-precision buffer": "tek hassasiyetli bir tampona yazılan öteleme",
+      "world matrix, rounded as-is": "olduğu gibi yuvarlanmış dünya matrisi",
+      "error carried into the image": "görsele taşınan hata",
+      "nodes served": "hizmet verilen düğümler",
+      "root world position": "kökün dünya pozisyonu",
+      "after the first update": "ilk güncellemeden sonra",
+      "root moved, nothing updated yet": "kök hareket etti, henüz hiçbir şey güncellenmedi",
+      "its forward direction": "onun ileri yönü",
+      "under the root": "kökün altında",
+      "reparented to the world": "dünyaya yeniden ebeveynlendi",
+      "allocations during the call": "çağrı sırasındaki tahsisler",
+      "largest difference on the last element": "son elemandaki en büyük fark",
+      "this frame": "bu kare",
+      "a box beyond the declared far plane": "bildirilen uzak düzlemin ötesindeki bir kutu",
+      "a box three metres ahead": "üç metre ileride bir kutu",
+      "B · A — the product does not commute": "B · A — çarpım değişmeli değildir",
+      "a pose written is a pose marked; the update decides whom to visit": "yazılan bir poz işaretlenmiş bir pozdur; güncelleme kimin ziyaret edileceğine karar verir",
+      "a still view keeps the base; a moving view may coarsen": "sabit bir görünüm tabanı korur; hareketli bir görünüm kabalaşabilir",
+      "a viewer turned toward the target": "hedefe doğru çevrilmiş bir izleyici",
+      "angle between them": "aralarındaki açı",
+      "height of a": "a'nın yüksekliği",
+      "point x": "nokta x",
+      "point z": "nokta z",
+      "lower bounds": "alt sınırlar",
+      "upper bounds": "üst sınırlar",
+      "cone axis": "koni ekseni",
+      "half-angle": "yarı açı",
+      "encoded for the screen": "ekran için kodlanmış",
+      "linear rgb": "doğrusal rgb",
+      "linearToSrgb of that": "bunun linearToSrgb'i",
+      "boxUnion of the unit box and the one you move": "birim kutu ile hareket ettirdiğinizin boxUnion'ı",
+      "sphereFromBounds of that union": "o birleşimin sphereFromBounds'ı",
+      "the unit box carried by that matrix": "o matris tarafından taşınan birim kutu",
+      "the union of the eight transformed corners, never the eight of the result": "sekiz dönüştürülmüş köşenin birleşimi, asla sonucun sekiz köşesi değil",
+      "one buffer holds many matrices; no view is sliced per frame": "bir tampon birçok matris tutar; kare başına hiçbir görünüm dilimlenmez",
+      "one chain of nodes, parents before children, in one call": "tek bir çağrıda, ebeveynler çocuklardan önce, tek bir düğüm zinciri",
+      "none: the buffers are the caller’s": "hiçbiri: tamponlar çağıranındır",
+      "the unit function stays the oracle; the WebAssembly kernel repeats it term by term": "birim fonksiyon oracle olarak kalır; WebAssembly çekirdeği onu terim terim tekrarlar",
+      "the governor, after those executions": "o çalıştırmalardan sonra regülatör",
+      "the kernel leads by enough, for long enough, to be worth the switch": "çekirdek, geçişe değecek kadar uzun süre yeterince önde",
+      "the reads of one node": "bir düğümün okumaları",
+      "the sign alone decides, with no square root: the exact clip test": "yalnızca işaret karar verir, karekök olmadan: tam kesim testi",
+      "the subtraction happens in double; only the write rounds": "çıkarma double'da gerçekleşir; yalnızca yazma yuvarlar",
+      "the curve over the whole range": "tüm aralık boyunca eğri",
+      "m · m⁻¹ — the identity, up to the last bits": "m · m⁻¹ — son bitlere kadar birim matris",
+      "round-trip error": "gidiş-dönüş hatası",
+      "non-zero values": "sıfır olmayan değerler",
+      "positive: the draw keeps its front faces": "pozitif: çizim ön yüzlerini korur",
+      "kept: the cone may still face the viewer": "tutuldu: koni hâlâ izleyiciye bakıyor olabilir",
+      "rejected — the projection has no far plane, the frustum keeps the one the host declared": "elendi — izdüşümün uzak düzlemi yok, frustum host'un bildirdiğini korur",
+      "threshold at this speed": "bu hızdaki eşik",
+      "translation x of A": "A'nın öteleme x'i",
+      "the same (1, 2, 3), three ways": "aynısı (1, 2, 3), üç şekilde",
+      "composeMatrix4(out, position, quaternion, scale)": "composeMatrix4(out, position, quaternion, scale)",
+      "column-major; the translation is [12..14]": "column-major; öteleme [12..14]'te",
+      "scale of B": "B'nin ölçeği",
+      "normalMatrix3(out, m) — nine numbers, column-major": "normalMatrix3(out, m) — dokuz sayı, column-major",
+      "the engine's singularity rule": "motorun tekillik kuralı",
+      "regular: the inverse-transpose, at the reference bits": "düzgün: referans bitlerinde, ters-devrik",
+      "uniformScaleMatrix4(out, s, center) — the centre stays put": "uniformScaleMatrix4(out, s, center) — merkez yerinde kalır",
+      "a and b, seen from above (x to the right, z down)": "yukarıdan görülen a ve b (x sağa, z aşağı)",
+      "its length": "onun uzunluğu",
+      "a, b and their cross product, from above": "yukarıdan a, b ve onların vektörel çarpımı",
+      "Math.sqrt of it — the reference length, bit for bit": "bunun Math.sqrt'i — referansın length'i, bit bit",
+      "length of the normalised vector": "normalize edilmiş vektörün uzunluğu",
+      "all three at zero: nothing changes — the divisor is `length || 1`": "üçü de sıfırda: hiçbir şey değişmez — bölen `length || 1`'dir",
+      "addScaledVector3(out, a, s) onto (1, 1, 1)": "(1, 1, 1) üzerine addScaledVector3(out, a, s)",
+      "transformDirectionVector3 — normalised, translation ignored": "transformDirectionVector3 — normalize edilmiş, öteleme yok sayılmış",
+      "applyMatrix3Vector3 on the 3×3 block — not normalised": "3×3 blok üzerinde applyMatrix3Vector3 — normalize edilmemiş",
+      "the world from above, each box coloured by what the engine decided": "yukarıdan dünya, her kutu motorun kararına göre renklendirilmiş",
+      "frustumClipBox — 0 outside, 1 straddling, 2 entirely inside": "frustumClipBox — 0 dışarıda, 1 üzerinde, 2 tamamen içeride",
+      "clipPlanesFromMatrix — the same planes, unnormalised": "clipPlanesFromMatrix — aynı düzlemler, normalize edilmemiş",
+      "the tree from above: the root and its children, after one update": "yukarıdan ağaç: bir güncellemeden sonra kök ve çocukları",
+      "the child, before and after the root moves": "kök hareket etmeden önce ve sonra çocuk",
+      "the child, attached then detached": "önce eklenen sonra ayrılan çocuk",
+      "matrices do not move until the next update, like the reference `add`": "referansın `add`'i gibi, matrisler bir sonraki güncellemeye kadar hareket etmez",
+      "the batch against the unit function it repeats": "tekrarladığı birim fonksiyona karşı yığın",
+      "frame.view — the inverse of the camera world matrix": "frame.view — kameranın dünya matrisinin tersi",
+      "DIAGNOSTICS — the engine says which modes it can produce, and why not": "DIAGNOSTICS — motor hangi modları üretebileceğini, ve neden üretemediğini söyler",
+      "LOD_QUALITY, as the engine holds it": "LOD_QUALITY, motorun tuttuğu şekliyle",
+      "near 1, clear 0": "yakın 1, temiz 0",
+      "negative: the transform mirrors, and the draw swaps front and back": "negatif: dönüşüm aynalar, ve çizim önü ve arkayı değiştirir",
+      "null — the adjugate itself is replaced by zero": "null — adjoint'in kendisi sıfırla değiştirilir",
+      "singular: the adjugate as-is, so the flattened surface keeps a normal": "tekil: adjoint olduğu gibi, böylece düzleştirilmiş yüzey bir normal korur",
+      "no finite scale: nine zeros": "sonlu ölçek yok: dokuz sıfır",
+      "rejected: every normal of that cluster faces away from the viewer": "elendi: o cluster'ın her normali izleyiciden uzağa bakıyor",
+      "JS keeps the work: under five samples, or the lead is not a burst": "JS işi elinde tutar: beşten az örnek, ya da üstünlük tutarlı değil",
+      "nodeWorldDirection (object, +z)": "nodeWorldDirection (object, +z)",
+      "nodeWorldDirection (viewer, −z)": "nodeWorldDirection (viewer, −z)",
+      "root": "kök",
+      "forward": "ileri",
+      "the colour": "renk",
+      "4 of 4 boxes survive the six planes": "4 kutudan 4'ü altı düzlemden sağ çıkıyor",
+      "Adaptive mode — pixelError 2, anisotropy source, adaptive": "Adaptif mod — pixelError 2, kaynak anizotropisi, adaptif",
+      "Balanced quality — pixelError 4, anisotropy source": "Dengeli kalite — pixelError 4, kaynak anizotropisi",
+      "High quality — pixelError 1, anisotropy maximum": "Yüksek kalite — pixelError 1, maksimum anizotropi",
+      "Maximum source detail — pixelError 0, anisotropy source": "Maksimum kaynak ayrıntısı — pixelError 0, kaynak anizotropisi",
+      "COLUMN_KIND — every column of the binary manifest, by storage": "COLUMN_KIND — ikili manifestin her sütunu, depolamaya göre",
+      "adaptivePixelError(base, speed, radius) on the adaptive preset": "adaptif ön ayarda adaptivePixelError(base, speed, radius)",
+      "an angle at or above π/2 never rejects": "π/2'ye eşit ya da büyük bir açı asla elemez",
+      "after updateNodeMatrixWorld(tree, root)": "updateNodeMatrixWorld(tree, root)'tan sonra",
+      "available — Attached index pages; missing pages are not drawn; not physical VRAM": "kullanılabilir — bağlı indeks sayfaları; eksik sayfalar çizilmez; fiziksel VRAM değildir",
+      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "kullanılabilir — gönderilen her üçgen için dolu benzersiz renk, GL_LINES wireframe değil",
+      "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "kullanılabilir — seviye 0 cluster'lar, bu karede gerçekten seçilen daha kaba DAG indirgemelerine karşı",
+      "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "kullanılabilir — kesitin kullandığı şekliyle, cluster küresi üzerinden izdüşürülen cluster başına ekran hatası",
+      "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "kullanılabilir — seçilen görünür sayfalar; reddedilen hiyerarşi düğümleri sayılır, çizilmez",
+      "available — Stable primitive/page ID, exact-cluster backend only": "kullanılabilir — kararlı primitif/sayfa ID'si, yalnızca tam cluster backend'i",
+      "available — glTF materials": "kullanılabilir — glTF malzemeleri",
+      "unavailable — No fragment counter": "kullanılamaz — fragman sayacı yok",
+      "unavailable — Texture mip residency not instrumented": "kullanılamaz — doku mip yerleşikliği enstrümante edilmemiş",
+      "child 0 world position": "çocuk 0'ın dünya pozisyonu",
+      "child 1 world position": "çocuk 1'in dünya pozisyonu",
+      "child 2 world position": "çocuk 2'nin dünya pozisyonu",
+      "column 0": "sütun 0",
+      "column 1": "sütun 1",
+      "column 2": "sütun 2",
+      "out = a, aliased": "out = a, takma adlı",
+      "clock resolution the measurement rests on (ms)": "ölçümün dayandığı saat çözünürlüğü (ms)",
+      "decomposeMatrix4 of that matrix — the round trip": "o matrisin decomposeMatrix4'ü — gidiş-dönüş",
+      "depth against distance: it falls from 1 at the near plane toward 0 at infinity": "mesafeye karşı derinlik: yakın düzlemde 1'den sonsuzda 0'a düşer",
+      "depth at the near plane (0.1 m)": "yakın düzlemdeki derinlik (0,1 m)",
+      "depth at 1 m": "1 m'deki derinlik",
+      "depth at 10 m": "10 m'deki derinlik",
+      "depth at 100 m": "100 m'deki derinlik",
+      "depth at 1000 m": "1000 m'deki derinlik",
+      "depth at 100000 m": "100000 m'deki derinlik",
+      "direction of a (rad)": "a'nın yönü (rad)",
+      "direction of b (rad)": "b'nin yönü (rad)",
+      "radius of what is on screen (m)": "ekrandaki şeyin yarıçapı (m)",
+      "rotation about y (rad)": "y etrafında dönüş (rad)",
+      "rotation of A (rad)": "A'nın dönüşü (rad)",
+      "the direction (1, 0, 0) under that matrix": "o matris altındaki (1, 0, 0) yönü",
+      "the identity written at offset 16 of one large buffer": "büyük bir tamponun 16 ofsetine yazılan birim matris",
+      "x of the last node — the sum 0 + 1 + … + (n − 1)": "son düğümün x'i — 0 + 1 + … + (n − 1) toplamı",
+      "transformHomogeneousPoint — four components": "transformHomogeneousPoint — dört bileşen",
+      "matrixAtRenderOrigin — the same matrix, applied at the origin": "matrixAtRenderOrigin — başlangıç noktasında uygulanan aynı matris",
+      "viewToRenderOrigin — the view without its translation": "viewToRenderOrigin — ötelemesi olmayan görünüm",
+      "worldToRenderOrigin, subtracted first": "worldToRenderOrigin, önce çıkarılmış",
+      "before": "önce",
+      "after": "sonra",
+      "left": "sol",
+      "right": "sağ",
+      "top": "üst",
+      "bottom": "alt",
+      "centre": "merkez",
+      "surface": "yüzey",
+      "target": "hedef",
+      "viewer": "izleyici",
+      "expected": "beklenen",
+      "orientation": "yönelim",
+      "products": "çarpımlar",
+      "nodes": "düğümler"
+    },
+    "patterns": {
+      "singular": "determinant {{value}}: referanstaki gibi on altı sıfır — determinantı test edin, asla çıktıyı değil"
+    }
+  }
+}
