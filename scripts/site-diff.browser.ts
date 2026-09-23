@@ -14,7 +14,7 @@ import type { Browser, Page } from 'playwright';
 import { routeThree } from '../tests/kit/server/threeRoute.ts';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { createDocsServer, listen } from './docs-serve.ts';
-import { examples } from '../site/content/catalog.ts';
+import { readyExampleIds } from '../site/app/examples/list.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { entryRoute, routeHref } from '../site/app/portal/routes.ts';
 import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
@@ -29,9 +29,8 @@ export function portalRoutes() {
   for (const locale of LOCALES) {
     routes.push(routeHref({ locale, area: 'learn', id: 'home' }));
     for (const entry of rawEntries) routes.push(entryRoute(entry, locale));
-    for (const { id } of examples) routes.push(routeHref({ locale, area: 'lessons', id }));
-    routes.push(routeHref({ locale, area: 'lessons', id: '' }));
-    routes.push(routeHref({ locale, area: 'lessons', id: 'engine-scene' }));
+    for (const id of readyExampleIds) routes.push(routeHref({ locale, area: 'examples', id }));
+    routes.push(routeHref({ locale, area: 'examples', id: '' }));
     routes.push(routeHref({ locale, area: 'api', id: '' }));
     routes.push(routeHref({ locale, area: 'reports', id: '' }));
     routes.push(routeHref({ locale, area: 'learn', id: 'no-such-page' }));

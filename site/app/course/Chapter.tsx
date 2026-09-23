@@ -2,18 +2,17 @@ import { useWords } from '../i18n.ts';
 import { entrySummary } from '../../content/model.ts';
 import type { CourseChapter, PortalEntry } from '../../content/model.ts';
 import type { Locale } from '../../content/locale.ts';
-import { thumbnailOf } from '../examples/list.ts';
 import { DocPage } from '../layout/DocPage.tsx';
 import { routeHref } from '../portal/routes.ts';
 import { Actions, LinkButton } from '../ui/Button.tsx';
 import { CodeBlock } from '../ui/CodeBlock.tsx';
 import { Inline, Prose, Steps } from '../ui/Prose.tsx';
 import { RenderFrame } from '../ui/RenderFrame.tsx';
-import { Figure, Section, TextLink } from '../ui/Text.tsx';
+import { Section, TextLink } from '../ui/Text.tsx';
 
 /**
- * One chapter of the course: a picture of what it builds, the steps, the few lines of code, the
- * example live to change, then the button to the next chapter.
+ * One chapter of the course: the steps, the few lines of code, the example live to change across
+ * the page, then the button to the next chapter.
  */
 export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
   const t = useWords(locale);
@@ -28,9 +27,6 @@ export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale 
       title={title}
       lead={<Inline text={entrySummary(entry)} />}
     >
-      <Section title={words.picture}>
-        <Figure href={example} src={thumbnailOf(chapter.example)} alt={title} />
-      </Section>
       <Section title={words.steps}>
         <Steps steps={chapter.steps} />
       </Section>

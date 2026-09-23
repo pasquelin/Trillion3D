@@ -16,10 +16,10 @@ import { canonicalEntryId, expandEntryLinks } from '../site/app/portal/entryLink
 import type { PortalEntry } from '../site/content/model.ts';
 
 test('canonical routes preserve locale, area, and multi-part identifier', () => {
-  assert.deepEqual(parseRoute('#/fr/lessons/matrix-compose'), {
+  assert.deepEqual(parseRoute('#/fr/api/geometry/matrix4'), {
     locale: 'fr',
-    area: 'lessons',
-    id: 'matrix-compose',
+    area: 'api',
+    id: 'geometry/matrix4',
   });
   assert.equal(
     routeHref({ locale: 'en', area: 'learn', id: 'quick start' }),
@@ -36,22 +36,26 @@ test('the removed legacy routes no longer lead anywhere', () => {
   // The pre-portal hashes open the home page instead of being redirected.
   for (const hash of ['#matrices/multiply-matrix4', '#demo/webgpu-demo', '#examples', '#guides/x'])
     assert.deepEqual(parseRoute(hash, 'fr'), { locale: 'fr', area: 'learn', id: 'home' });
-  // The Playground area and the empty demo section are gone: their addresses find no page.
-  for (const hash of ['#/en/playground/compose-transform', '#/en/demo/webgpu-demo']) {
+  // The Playground and Lessons areas and the empty demo section are gone: their addresses find
+  // no page.
+  for (const hash of [
+    '#/en/playground/compose-transform',
+    '#/en/lessons/matrix-inverse',
+    '#/en/demo/webgpu-demo',
+  ]) {
     const route = parseRoute(hash);
     assert.equal(route.area, 'learn');
-    assert.equal(resolvePage(route, rawEntries, ['compose-transform']).kind, 'not-found', hash);
+    assert.equal(resolvePage(route, rawEntries).kind, 'not-found', hash);
   }
   assert.ok(!rawEntries.some(({ section }) => section === 'demo'));
 });
 
-test('the header marks the area of the route, the lessons under Learn', () => {
+test('the header marks the area of the route', () => {
   const current = (hash: string) =>
     navLinks(parseRoute(hash))
       .filter((link) => link.current)
       .map(({ area, href }) => `${area} ${href}`);
   assert.deepEqual(current('#/fr/learn/create-a-world'), ['learn #/fr/learn/home']);
-  assert.deepEqual(current('#/en/lessons/rotate'), ['learn #/en/learn/home']);
   assert.deepEqual(current('#/en/examples/cube'), ['examples #/en/examples']);
   assert.deepEqual(current('#/en/api/createWorld'), ['api #/en/api']);
   assert.deepEqual(current('#/fr/reports/september-18/compare'), ['reports #/fr/reports']);
@@ -88,7 +92,7 @@ test('search is accent-insensitive, requires every word, and ranks title matches
   assert.equal(search(items, 'texture').length, 0);
 });
 
-test('the site search reads every guide, API entry, ready example and lesson in the language', () => {
+test('the site search reads every guide, API entry and ready example in the language', () => {
   const entries = entriesIn('fr');
   const index = searchIndex(entries, 'fr');
   assert.equal(new Set(index.map(({ key }) => key)).size, index.length);
@@ -97,10 +101,9 @@ test('the site search reads every guide, API entry, ready example and lesson in 
   const [example] = search(index, ready.title.fr);
   assert.equal(example.href, `#/fr/examples/${ready.id}`);
   assert.equal(example.kind, 'Exemple');
-  assert.ok(index.some(({ href }) => href.startsWith('#/fr/lessons/')));
 });
 
-test('page resolution distinguishes entries, lessons, and unknown addresses', () => {
+test('page resolution distinguishes entries, examples, and unknown addresses', () => {
   const entries: PortalEntry[] = [
     { id: 'create-a-world', section: 'course', kind: 'Chapter', description: '' },
     { id: 'matrix4', section: 'matrices', kind: 'Type', description: '' },
@@ -108,10 +111,6 @@ test('page resolution distinguishes entries, lessons, and unknown addresses', ()
   ];
   const locale = 'en' as const;
   assert.equal(resolvePage({ locale, area: 'learn', id: 'create-a-world' }, entries).kind, 'entry');
-  assert.equal(
-    resolvePage({ locale, area: 'lessons', id: 'rotate' }, entries, ['rotate']).kind,
-    'lesson',
-  );
   assert.equal(resolvePage({ locale, area: 'learn', id: 'architecture' }, entries).kind, 'entry');
   assert.equal(
     resolvePage({ locale, area: 'examples', id: 'architecture' }, entries).kind,
@@ -123,13 +122,10 @@ test('page resolution distinguishes entries, lessons, and unknown addresses', ()
   );
   assert.equal(resolvePage({ locale, area: 'examples', id: '' }, entries).kind, 'examples');
   assert.equal(
-    resolvePage({ locale, area: 'examples', id: 'cube' }, entries, [], ['cube']).kind,
+    resolvePage({ locale, area: 'examples', id: 'cube' }, entries, ['cube']).kind,
     'example',
   );
-  assert.equal(
-    resolvePage({ locale, area: 'examples', id: 'cube' }, entries, ['cube']).kind,
-    'not-found',
-  );
+  assert.equal(resolvePage({ locale, area: 'examples', id: 'cube' }, entries).kind, 'not-found');
   assert.equal(resolvePage({ locale, area: 'api', id: 'missing' }, entries).kind, 'not-found');
   assert.equal(resolvePage({ locale, area: 'api', id: '' }, entries).kind, 'api-index');
 });

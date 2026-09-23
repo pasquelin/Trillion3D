@@ -12,7 +12,7 @@ dispose them before the next route. `docs/` holds the repository documentation o
   - **primitives**, `ui/`: each DaisyUI component wrapped once — `Button` (and `LinkButton`,
     `Actions`), `Card`, `Badge`, `Alert`, `Modal`, `Fab`, `Tabs`, `Table`, `Input` (fields and
     `SearchInput`), `CodeBlock`, `RenderFrame`, `Grid`, `List`, `Split`, `Text`, `Toast`, `Icon`,
-    and the richer pieces built on them (charts, stats, the code editor, the lesson controls).
+    and the richer pieces built on them (charts, stats, code blocks).
     `CodeBlock.tsx` owns one inner scrolling region for all numbered lines and copies the original
     source string; `highlighter.ts` wraps Highlight.js with the TypeScript grammar;
   - **layouts**, `layout/`: `Shell.tsx` (the header, one sidebar per area, the page, the site
@@ -26,18 +26,15 @@ dispose them before the next route. `docs/` holds the repository documentation o
   hooks `useTheme`, `useDrawer` and `useSearchShortcut`. Strings come from `t()`, imported where
   they are used. `portal/routes.ts` is the only place that translates URLs into page kinds: every
   link carries the locale as `#/en/...` or `#/fr/...`; the areas are Learn, Examples, API
-  reference and Measurements (the lessons live under Learn), and a hash without a locale opens the
-  home page. `portal/data.ts` gathers the content entries, `portal/searchIndex.ts` builds what the
-  site search reads — every guide, API entry, ready example and lesson in the current language —
+  reference and Measurements, and a hash without a locale opens the home page. `portal/data.ts` gathers the content entries, `portal/searchIndex.ts` builds what the
+  site search reads — every guide, API entry and ready example in the current language —
   and `layout/SearchModal.tsx` shows it (the header button, `/` or ⌘K; arrows and Enter).
-  `Entry.tsx` renders API entries, `ApiDemo.tsx` the pure demo models, `engine-scene/` the real
-  WebGPU preview behind a ref effect; `code/` runs an edited lesson snippet off the UI thread.
+  `Entry.tsx` renders API entries, `ApiDemo.tsx` the pure demo models.
 
 - `site/i18n/<language>.json` holds every word of the portal, one file per language, English the
   reference and the fallback: a `meta` block (`lang`, `name`, `abbr`, `hreflang`, `rtl`), the
   interface namespaces, then the content — the course (`course`), the written text of the guides
-  and notes (`written`), the lesson catalogue (`catalog`), the gallery showcase and the demo canvas
-  labels. The languages are the files of the folder: `site/content/i18n/languages.inline.ts` reads
+  and notes (`written`) and the demo canvas labels. The languages are the files of the folder: `site/content/i18n/languages.inline.ts` reads
   it, and the portal build runs that module and bundles its result (`scripts/docs/inline-modules.ts`),
   so adding a language is adding its file (and its `api.<language>.json`, below). `site/app/i18n.ts`
   is the one i18next instance: the language comes from the route (`#/<language>/…`), then the
@@ -48,19 +45,8 @@ dispose them before the next route. `docs/` holds the repository documentation o
   written notes that complete a generated API entry, without their words; `reference/` the
   generated API reference and its translations (see "The API reference" below), `model.ts` the
   entry shape and the sections, `i18n/` the dictionary helpers (`localizeEntries()` gives an entry
-  its words, keeping its technical fields), `catalog.ts` the lesson catalogue, `gallery-roadmap.json`
-  the list of examples (see below).
-- `site/lessons/` owns what drives the engine: the playground scenarios, evaluation, canvas
-  drawings and 3D geometry (`scenarios.ts`, `evaluate*.ts`, `draw*.ts`, `sceneGeometry*.ts`),
-  `webgpuRenderer.ts` which mounts the shared, disposable 3D illustrations (geometry is derived
-  from evaluated SDK results, 2D diagrams remain complementary), the renderer, lighting, camera
-  and occlusion lessons with their runtimes, `offline/` for the compiled offline examples, and
-  `engine-scene/` for the WebGPU scene lifecycle, camera controls, diagnostic modes and pure
-  bilingual copy. Each catalogue item declares the API functions it demonstrates;
-  `apiScenario()` connects an API page to its related lesson. The lesson runtimes
-  import the browser SDK by its source entry, `packages/sdk-browser/src/index.ts`, so the type checker
-  sees the engine's own types; the build keeps that import external and resolves it to the
-  `runtime/engine.js` bundle beside `portal.js`.
+  its words, keeping its technical fields), `gallery-roadmap.json` the list of examples (see
+  below).
 - `site/examples/` owns the examples: one standalone HTML file per example, `<id>.html`, which
   imports the built engine as `../runtime/engine.js`, loads a compiled scene from `../assets/` and
   runs as-is from the built site — or copied into a user's project, paths adjusted. The list is
@@ -88,16 +74,15 @@ dispose them before the next route. `docs/` holds the repository documentation o
 
 - `site/demos/` contains the pure per-entry demonstration models; `kit.ts` declares their controls
   and result views, `registry.ts` maps entry ids to demos, and `engine.ts` is the one list of what
-  the demos import from the engine — bundled as `js/engine.js`, the module the code editor's
-  snippets import, so every demo and every edited snippet executes the engine itself.
+  the demos import from the engine, so every demo executes the engine itself.
 - `site/reports/` owns the report contract (`contract.ts`), metric semantics, comparison
   eligibility and bilingual labels, beside the measurement records it reads (`index.json`, one
   folder per campaign).
 - `site/styles/` holds `tailwind.css` and `portal.css`, which keeps only the design tokens and the
   primitives' own rules; `site/assets/`, `site/data/` and `site/index.html` are served as they are.
 
-Types are declared where the data is: the entry shape in `content/model.ts`, the catalogue item in
-`content/catalog.ts`, the scenarios and lessons in `lessons/`, the demo model in `demos/kit.ts`,
+Types are declared where the data is: the entry shape in `content/model.ts`, the demo model in
+`demos/kit.ts`,
 the report in `reports/contract.ts`; components import them and declare their own props inline.
 `tsconfig.site.json` checks the whole folder with `strict` and `allowJs` off (`check:site-types`),
 and `check:no-js` refuses any JavaScript source under `site/`.
@@ -114,9 +99,8 @@ pnpm docs:serve
 `build:docs` runs `scripts/docs-build.ts`, which writes the whole published tree into
 `dist/site/`: it compiles `site/styles/tailwind.css` with Tailwind and DaisyUI into `css/site.css`
 after scanning the handwritten HTML and TypeScript for class names, bundles the browser SDK and its
-workers into `runtime/`, the demo maths into `js/engine.js` and the React portal into
-`runtime/portal.js` with the areas `App.tsx` imports on demand — the examples, the lessons
-gallery, the lessons and their code editor, the reports — as `runtime/portal-<hash>.js` chunks
+workers into `runtime/` and the React portal into `runtime/portal.js` with the areas `App.tsx`
+imports on demand — the examples, the reports — as `runtime/portal-<hash>.js` chunks
 beside it, then copies the statics (pages, examples, assets, data, reports) — files only when
 missing or older. Nothing under `site/` is a build product and nothing built is committed: the
 docs server, the browser proofs and the Pages workflow (`.github/workflows/pages.yml`, on every
@@ -172,18 +156,6 @@ packages; none stays external or is loaded from a CDN.
    `<meta name="thumbnail" content="3">` (1.5 when it declares none).
 4. Run `node --test scripts/docs-examples.test.ts`, then the browser proofs
    `node --test scripts/docs-examples.browser.ts` and `node --test scripts/docs-shell.browser.ts`.
-
-## Adding a lesson
-
-1. Add its id, bilingual title and description, category and demonstrated function ids to
-   `site/content/catalog.ts`.
-2. Under `site/lessons/`, add controls and presets to `scenarios.ts`, evaluation to
-   `evaluate.ts`, 3D geometry to `sceneGeometry.ts`, 2D explanation to `draw.ts` and its displayed
-   source to `code.ts`. Split detail modules when a maintained file approaches 200 lines.
-3. Add every visible sentence to both languages in the relevant catalogue, guidance or control-label
-   module; keep API names and code unchanged.
-4. Run `node --test scripts/docs-gallery.test.ts`. Confirm that the API pages for the declared
-   functions link to the new lesson and that changing language preserves the example route.
 
 ## The API reference
 
@@ -253,8 +225,7 @@ Memory figures must name their scope: owned visualization buffers, engine geomet
 pages or cache bytes. Configured budgets are limits, not measured memory consumption. WebGPU does
 not expose total physical GPU memory consumption to this application.
 
-The gallery's procedural 3D illustrations explain SDK calculations; the compiled garden executes
-the streaming pipeline. Neither proves a speedup over another renderer. Comparative claims require
+The examples execute the streaming pipeline; they do not prove a speedup over another renderer. Comparative claims require
 the repository measurement harness described in `bench/runner/README.md`, identical input, camera,
 quality and resource budgets, plus resolution, DPR, commit, display cap and run-to-run spread.
 A bench witness is never imported by a portal example or demo: it is
