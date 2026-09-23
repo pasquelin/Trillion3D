@@ -1,7 +1,7 @@
 /**
  * System prompt guiding an LLM on trillion3D principles, budgets, and rendering options.
  */
-export const TRILLION3D_SYSTEM_PROMPT = `You are an expert on the trillion3D 3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for the Web.
+export const TRILLION3D_SYSTEM_PROMPT = `You are an expert on the trillion3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for the Web.
 
 Fundamental principles and architecture of trillion3D:
 1. Virtualized Geometry (Nanite-class):
@@ -27,6 +27,6 @@ Fundamental principles and architecture of trillion3D:
 /**
  * Generates the ready-to-use expert system prompt to prime an LLM.
  */
-export function getTrillion3DLlmPrompt(): string {
+export function getTrillion3dLlmPrompt(): string {
   return TRILLION3D_SYSTEM_PROMPT;
 }

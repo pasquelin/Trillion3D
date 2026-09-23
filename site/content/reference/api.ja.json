@@ -3831,7 +3831,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "trillion3Dの原則、予算、描画オプションについてLLMを導くシステムプロンプト。"
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "LLM向けの、汎用的なtrillion3Dツール定義。",
     "members": {
       "name": "ツールの名前。",
@@ -5068,10 +5068,10 @@
     "summary": "公開された出所の境界: 利用者はSDKの実装パス自体を決して読まない。",
     "description": "ハッシュのみ; 完全なソースはスナップショットに読み込まれない。"
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "LLMを準備するための、すぐに使えるエキスパートシステムプロンプトを生成する。"
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "対象のLLMプロバイダー向けにフォーマットされた、trillion3Dツール定義の完全な配列を返す。",
     "parameters": {
       "format": "対象フォーマット('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema')。デフォルト: 'openai'。"

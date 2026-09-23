@@ -3968,7 +3968,7 @@
   "TRILLION3D_SYSTEM_PROMPT": {
     "summary": "trillion3D के सिद्धांतों, बजट और रेंडरिंग विकल्पों पर एक LLM को मार्गदर्शन देता सिस्टम प्रॉम्प्ट।"
   },
-  "Trillion3DTool": {
+  "Trillion3dTool": {
     "summary": "LLM के लिए सामान्य trillion3D टूल परिभाषा।",
     "members": {
       "name": "टूल का नाम।",
@@ -5080,10 +5080,10 @@
     "summary": "सार्वजनिक उद्गम सीमा: उपभोक्ता कभी खुद SDK कार्यान्वयन पथ नहीं पढ़ते।",
     "description": "केवल हैश — पूरा स्रोत स्नैपशॉट में लोड नहीं किया जाता।"
   },
-  "getTrillion3DLlmPrompt": {
+  "getTrillion3dLlmPrompt": {
     "summary": "एक LLM को तैयार करने के लिए तैयार-से-इस्तेमाल विशेषज्ञ सिस्टम प्रॉम्प्ट बनाता है।"
   },
-  "getTrillion3DTools": {
+  "getTrillion3dTools": {
     "summary": "लक्ष्य LLM प्रदाता के लिए फ़ॉर्मेट किए गए trillion3D टूल परिभाषाओं की पूरी ऐरे लौटाता है।",
     "parameters": {
       "format": "लक्ष्य फ़ॉर्मेट ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema')। डिफ़ॉल्ट: 'openai'।"

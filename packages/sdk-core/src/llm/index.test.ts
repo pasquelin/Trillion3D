@@ -4,8 +4,8 @@ import {
   EXPLORER_OPTIONS_SCHEMA,
   COMPILER_OPTIONS_SCHEMA,
   TRILLION3D_RUNTIME_TOOLS,
-  getTrillion3DTools,
-  getTrillion3DLlmPrompt,
+  getTrillion3dTools,
+  getTrillion3dLlmPrompt,
   toOpenAiTool,
   toAnthropicTool,
   toGeminiTool,
@@ -47,7 +47,7 @@ describe('trillion3D LLM Module', () => {
   });
 
   it('formats tools correctly for OpenAI Function Calling', () => {
-    const openaiTools = getTrillion3DTools('openai');
+    const openaiTools = getTrillion3dTools('openai');
     assert.equal(openaiTools.length, TRILLION3D_RUNTIME_TOOLS.length);
     for (const tool of openaiTools) {
       assert.equal(tool.type, 'function');
@@ -58,7 +58,7 @@ describe('trillion3D LLM Module', () => {
   });
 
   it('formats tools correctly for Anthropic Tool Use', () => {
-    const anthropicTools = getTrillion3DTools('anthropic');
+    const anthropicTools = getTrillion3dTools('anthropic');
     assert.equal(anthropicTools.length, TRILLION3D_RUNTIME_TOOLS.length);
     for (const tool of anthropicTools) {
       assert.ok(tool.name);
@@ -68,7 +68,7 @@ describe('trillion3D LLM Module', () => {
   });
 
   it('formats tools correctly for Gemini Function Declarations', () => {
-    const geminiTools = getTrillion3DTools('gemini');
+    const geminiTools = getTrillion3dTools('gemini');
     assert.equal(geminiTools.length, TRILLION3D_RUNTIME_TOOLS.length);
     for (const tool of geminiTools) {
       assert.ok(tool.name);
@@ -78,7 +78,7 @@ describe('trillion3D LLM Module', () => {
   });
 
   it('formats tools correctly for Model Context Protocol (MCP)', () => {
-    const mcpTools = getTrillion3DTools('mcp');
+    const mcpTools = getTrillion3dTools('mcp');
     assert.equal(mcpTools.length, TRILLION3D_RUNTIME_TOOLS.length);
     for (const tool of mcpTools) {
       assert.ok(tool.name);
@@ -96,7 +96,7 @@ describe('trillion3D LLM Module', () => {
   });
 
   it('generates an expert system prompt guide', () => {
-    const prompt = getTrillion3DLlmPrompt();
+    const prompt = getTrillion3dLlmPrompt();
     assert.ok(prompt.includes('trillion3D'));
     assert.ok(prompt.includes('Nanite'));
     assert.ok(prompt.includes('TAA'));
