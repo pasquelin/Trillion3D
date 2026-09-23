@@ -2,7 +2,7 @@
 
 The learning portal is a React application whose sources live under `site/`, one TypeScript folder
 organised by role, and whose published tree is built into `dist/site/`, which git ignores. It uses
-hash routes so the same files work on GitHub Pages and with the local documentation server.
+hash routes so the same files work on the public site and with the local documentation server.
 `site/app/main.tsx` is the composition root; route components own their interactive effects and
 dispose them before the next route. `docs/` holds the repository documentation only.
 
@@ -111,24 +111,45 @@ workers into `runtime/` and the React portal into `runtime/portal.js` with the a
 imports on demand — the examples, the reports — as `runtime/portal-<hash>.js` chunks
 beside it, then copies the statics (pages, examples, assets, data, reports) — files only when
 missing or older. Nothing under `site/` is a build product and nothing built is committed: the
-docs server, the browser proofs and the Pages workflow (`.github/workflows/pages.yml`, on every
-push to `main`) build the same tree from the same function, `buildSite()` in
+docs server, the browser proofs and the site workflow (`.github/workflows/pages.yml`, see
+[Deploy](#deploy)) build the same tree from the same function, `buildSite()` in
 `scripts/docs/site.ts`.
 
 `docs:serve` runs `scripts/docs-serve.ts`: it builds, then serves only `dist/site/` on
 `http://127.0.0.1:4177`. This matches the published paths and adds no development framework or
 fallback route.
 
-### Build products: never committed, built by Pages
+### Build products: never committed, built by CI
 
 `dist/site/` is ignored by git and tracked on no branch: every consumer builds it on demand
 (`docs:serve` and the browser proofs under `scripts/` and `tests/browser/renders/` build the whole tree; the
 unit tests import the sources directly, the demos through `site/demos/engine.ts`, so no runner
 builds anything), and `check:docs-bundles` in `validate` (`node scripts/docs-build.ts --untracked`)
-fails when git tracks any file of it. The repository's Pages source is "GitHub Actions":
-`.github/workflows/pages.yml` runs on every push to `main`, installs the dependencies, runs
-`build:docs` and deploys `dist/site/` as the Pages artifact. A release (`develop` → `main`)
-therefore publishes the site built from the merged sources, without committing it.
+fails when git tracks any file of it. A release (`develop` → `main`) therefore publishes the site
+built from the merged sources, without committing it.
+
+The site address is one constant, `SITE_URL` in `scripts/docs/site.ts`: the build writes the
+portal's canonical link and a `robots.txt` that allows everything from it. The portal routes by
+hash, so its root is the only address to list and no sitemap is written.
+
+### Deploy
+
+`.github/workflows/pages.yml` builds the site on every pull request that touches it, and
+publishes it to https://www.trillion3d.com on every push to `main`. A manual run publishes only
+when asked, and only from `main`:
+
+```sh
+gh workflow run pages.yml -f deploy=true --ref main
+```
+
+The deploy job refuses an output without `index.html` or `runtime/portal.js`, or with fewer files
+than the build copies, pre-compresses the text files beside their originals, sends the tree over
+SSH with `rsync --delete-delay --delay-updates`, then checks that the site root and the portal
+bundle answer. It reads four repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`,
+`DEPLOY_TARGET` and `DEPLOY_SSH_PORT`. The server side — web server, HTTPS, the redirect of the
+bare domain to `www`, and the deploy key restricted to the web root — is set up by the maintainer.
+GitHub Pages is no longer deployed: its last deployment is removed by turning Pages off in the
+repository settings, which leaves https://www.trillion3d.com the one public address.
 
 The runtime bundle is self-contained: every dependency is bundled at build time from the installed
 packages; none stays external or is loaded from a CDN.
