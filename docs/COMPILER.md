@@ -1,6 +1,6 @@
 # The native compiler — `web-geometry-compiler`
 
-One executable does all of the preparation work: it reads a source model through one driver per format — glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII, Unity scenes and packages, ZIP, and a dozen image formats ([FORMATS.md](../packages/asset-compiler-rust/FORMATS.md)) — builds the cluster hierarchy and writes the cache described in [FORMAT.md](FORMAT.md). Everything else — the Node adapter, an Electron host, a shell script — only launches it, forwards a few paths and options, and listens to what it says. No external application is needed: every driver is compiled into the binary.
+One executable does all of the preparation work: it reads a source model through one driver per format — glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII, Unity scenes and packages, ZIP, and a dozen image formats ([Input formats](#input-formats)) — builds the cluster hierarchy and writes the cache described in [FORMAT.md](FORMAT.md). Everything else — the Node adapter, an Electron host, a shell script — only launches it, forwards a few paths and options, and listens to what it says. No external application is needed: every driver is compiled into the binary.
 
 Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.rs` compiles, `import.rs` imports, `main.rs` is the command line). Build with `pnpm run build:native`; the binary lands in `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
 
@@ -16,6 +16,8 @@ Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.
 - [Cancellation](#cancellation)
 - [FBX and OBJ import](#fbx-and-obj-import)
 - [USD and USDZ import](#usd-and-usdz-import)
+- [Input formats](#input-formats)
+- [Adding a format](#adding-a-format)
 - [Cache layout](#cache-layout)
 - [Cutouts declared as blend](#cutouts-declared-as-blend)
 - [Memory and threads](#memory-and-threads)
@@ -402,6 +404,124 @@ case, keeps the ear path for the same reason. What is not a theorem is the float
 ring with corners within rounding of collinear could in principle be read convex here and cut
 otherwise by the ears. What it saves is the scan of the living corners per triangle: a convex
 polygon of `n` corners cost `n²` corner tests and now costs `n`.
+
+## Input formats
+
+Fidelity rule: no loss is added without a bound. A texture received lossless keeps its lossless levels in the cache; the block-compressed family cooked beside them is kept only where the quality gate of [FORMAT.md](FORMAT.md#textures) holds its loss under a declared, measured bound; a texture received already compressed for the GPU keeps its compressed format when the machine supports it, and is decoded only as a fallback.
+
+Goal: a single Rust executable accepting whatever marketplaces deliver (FAB, Unity Asset Store, Quixel, Sketchfab) without third-party tools. Fidelity first: no lossy format is re-encoded, sources are never modified.
+
+Legal policy: no proprietary format, unless established legal reading. This page is not legal advice; verdicts come from documentary analysis (Directive 2009/24/EC art. 1, 5 § 3, 6; CJEU SAS Institute C‑406/10; 17 USC § 102(b); SAS v. WPL, 4th Cir. 2017 on contract scope). Repository rules: reader written from public specifications or permissive libraries whose license is respected, never any editor code or SDK reused, never any protection bypass, provenance of each reader documented, redistributable test suites.
+
+### Architecture: one driver per format
+
+The compiler knows no format. It routes each source to a driver (interpretation plugin) registered in a static registry, on the model of a device driver:
+
+- **one driver per format, without exception, including existing ones**: `gltf`, `fbx`, `obj` for scenes; `png`, `jpeg` for images; then `tga`, `tiff`, `dds`, `exr`, `hdr`, `ktx2`, `webp`, `psd`, `bmp`, `gif`, `zip`, `unitypackage`, `unity`, `usd`, `alembic`, `blend`, `ma`;
+- each driver is a Rust module with its name, version, detection (extension, magic number, folder structure), named report and minimal golden test; two drivers can share an internal library (ufbx for `fbx` and `obj`, the `image` crate for images) but remain two entries in the registry;
+- adding or removing a format = adding or removing a module and a registry line, without touching core or CLI;
+- two versioned contracts: scene driver (produces glTF intermediate scene + bin + report) and image driver (produces RGBA8, or RGBA linear float for EXR and HDR); driver and contract versions enter the cache identity;
+- selected driver (name, version) is recorded in the manifest and report for provenance;
+- an unknown or ambiguous source is rejected with the list of accepted formats, never interpreted by default;
+- instructions for writing a driver are in [Adding a format](#adding-a-format).
+
+### Safe
+
+| Format                  | Base                                                    | State | Path                                                                                                                                                                                                                                                                                                                                                            | Priority |
+| ----------------------- | ------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| glTF / GLB              | Khronos standard                                        | done  | —                                                                                                                                                                                                                                                                                                                                                               | —        |
+| OBJ / MTL               | published specification                                 | done  | MTL read and audited (golden [`tests/fixtures/formats/obj`](../tests/fixtures/formats/README.md#obj)). Dependency limit: ufbx stores `Tr` and `illum` as raw properties without ever interpreting them — transparency written `Tr` instead of `d` does not output, and illumination model is ignored                                                                                                                | P2       |
+| PNG, classic JPEG       | standards                                               | done  | —                                                                                                                                                                                                                                                                                                                                                               | —        |
+| TGA                     | published specification                                 | done  | —                                                                                                                                                                                                                                                                                                                                                               | —        |
+| TIFF (declared profiles)| published specification                                 | done  | —                                                                                                                                                                                                                                                                                                                                                               | —        |
+| OpenEXR, Radiance HDR   | documented, BSD-3                                       | done  | `exr` crate 1.74.2 for OpenEXR; HDR written here from spec, without crate                                                                                                                                                                                                                                                                                       | —        |
+| USD / USDZ              | public AOUSD, OpenUSD under TOST 1.0                    | done  | `openusd` crate 0.7.0 (MIT, pure Rust, no C++); `usd` renders Xform/Scope, triangulated Mesh, GeomSubset → materials, instances, UsdPreviewSurface and UsdUVTexture, `metersPerUnit`/`upAxis` on root, first time sample; `usdz` is stored and aligned ZIP container. Subdivision, PointInstancer, curves, volumes and skel counted in report                 | —        |
+| Alembic                 | open, BSD-3                                             | done  | static geometry only; Ogawa reader written here from spec, without crate                                                                                                                                                                                                                                                                                        | —        |
+| `.blend`                | documented SDNA; reading a .blend does not impose GPL   | done  | SDNA reader written here; meshes, UVs, instances, Principled BSDF                                                                                                                                                                                                                                                                                               | —        |
+| PSD / PSB               | specification published by Adobe for third-party readers| done  | flattened composite only, to RGBA8; reader written here from spec, without crate; RGB and 8-bit grayscale, raw or PackBits, PSD and PSB                                                                                                                                                                                                                      | P3       |
+| BMP, GIF                | open                                                    | done  | `image` features; lossless only — BMP masks with >8 bits per channel and animated GIF rejected by name                                                                                                                                                                                                                                                          | P3       |
+| ZIP                     | open                                                    | done  | —                                                                                                                                                                                                                                                                                                                                                               | —        |
+
+### Conditionally Safe — condition written in code
+
+| Format                                     | Condition                                                                                      | State | Path                                                                                                                                                                                                                                                                                                                                                                                                                 | Priority |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| FBX                                        | MIT ufbx, frozen version, notices kept, never Autodesk SDK                                     | done  | —                                                                                                                                                                                                                                                                                                                                                                                                                    | —        |
+| Unity `.unity`, `.prefab`, `.mat`, `.meta` | YAML subset documented by Unity; data only, never Unity scripts or code                        | done  | —                                                                                                                                                                                                                                                                                                                                                                                                                    | —        |
+| `.unitypackage`                            | tar.gz archive; each file retains its license                                                  | done  | —                                                                                                                                                                                                                                                                                                                                                                                                                    | —        |
+| DDS                                        | container documented by Microsoft; codecs declared one by one                                  | done  | —                                                                                                                                                                                                                                                                                                                                                                                                                    | —        |
+| KTX2, Basis Universal                      | Khronos; `basisu` Apache-2; codecs listed one by one                                           | done  | KTX2 only; ETC1S/BasisLZ and UASTC LDR by `basisu`, Zstandard by `ruzstd`, uncompressed R8G8B8A8, BC1–BC5, BC7, ETC2, EAC, ASTC 4×4; KTX 1.0 no                                                                                                                                                                                                                                                                  | —        |
+| WebP                                       | public specification; pure Rust decoder `image-webp`, libwebp patent license                   | done  | lossless only, lossy stream and animation rejected by name                                                                                                                                                                                                                                                                                                                                                           | —        |
+| Maya ASCII `.ma`                           | documented format; data only, no script executed                                               | done  | reader written here from public MEL command docs, without crate; subset `createNode`, `setAttr`, `connectAttr`, `currentUnit`, `parent`; `transform`, `mesh`, `lambert`/`phong`/`blinn`/`standardSurface`, `file`/`place2dTexture`/`bump2d`, `shadingEngine` by face groups. Any other command — `python`, `eval`, `source`, unknown — counted by name, never executed | —        |
+
+### To Avoid — No Native Import
+
+`.uasset` / `.umap`, `.max`, `.mb` (binary), native SpeedTree, Substance `.sbsar`, CAD (`.step`, `.3dm`), point clouds, HEIC. Request export in one of listed formats.
+
+### Content Licenses — Independent of Format
+
+- FAB Standard License: use with other tools and engines permitted, standalone asset redistribution prohibited; historical licenses apply for some items, keep purchase EULA.
+- Quixel Megascans under Epic Engine plan: restricted to Epic Engine, unusable in WebGeometry.
+- Unity Asset Store: use in other engines permitted, but not a product whose purpose is raw asset distribution; model library distributor is not a finished game.
+- Sketchfab: per-download license (CC-BY requires attribution and change notice).
+- Demos and public repo tests: assets with full rights owned or under redistributable license.
+
+## Adding a format
+
+Paths below are relative to `packages/asset-compiler-rust/`. The compiler knows no input format. It knows **drivers**: one per format, each in its module, all listed in a static registry. Adding a format means adding a module and a line; removing a format means removing both. Core does not change.
+
+What the driver must produce is always the same: the **intermediate scene**, a glTF 2.0 and its binary, which `compile` alone knows how to read. Images follow the same model, toward RGBA8 or, for high dynamic range formats, toward RGBA linear float.
+
+The policy — which formats are admitted, which are rejected, under what conditions and under what license — is in [Input formats](#input-formats).
+It takes precedence over this section: a driver outside this list will not be merged.
+
+### A Scene Driver
+
+1. A module in `src/plugins/scene/<format>.rs`, named after the format, never after the library reading it. Two formats read by the same library remain two drivers, two names, two versions; shared code goes in a neighboring module, like `ufbx_driver.rs` for FBX and OBJ.
+2. `impl Plugin`: `name` (the format in lowercase), `version` (changing it invalidates caches, it names the library and its version), `extensions` (lowercase, without leading dot).
+3. `impl ScenePlugin`: `accepts_head` recognizes the format header — `false` for a text format without one —, `prepare` returns `PreparedScene::InPlace` for direct input or `request.converted(directory)` for what the driver wrote into `request.cache`.
+4. One line in `scene::PLUGINS`.
+
+A **project** driver — `unity` being the first — additionally claims an entire folder via `project_inputs` and then takes precedence over file drivers found underneath, whose files become its inputs rather than competing sources; two projects for the same folder remain ambiguous.
+
+`prepare` receives all files from the folder claimed by this driver: it decides whether to accept one or several, and rejects with `SOURCE_FORMAT_AMBIGUOUS` when it only wants one.
+It checks `request.cancelled` at each bounded work boundary, publishes its progress via `request.progress`, and never writes alongside the source — only under `request.cache`.
+
+Filling glTF tables (nodes, meshes, materials, accessors, images) is shared in `src/import/tables.rs` (`SceneTables`); emitting a primitive from deduplicated vertices is shared in `src/import/primitive.rs` (`Vertices`). A driver building its geometry uses these two modules rather than rewriting its own table filling.
+
+Images do not follow the scene into the cache: they stay where the driver read them. The root where relative image URIs resolve is therefore `scene::image_root(request.source)` — the source folder, or the extracted folder for a container —, and `request.converted` attaches it to the converted scene so the compiler re-reads the same bytes. A driver resolving an image calls this function; it does not write a second version.
+
+### A Container Driver
+
+An archive is not a scene: it is a container for a source. A container is an ordinary scene driver — `zip` being the first — that extracts under `request.cache`, traverses a single root folder, then **routes the extracted folder through the router** and returns what the selected scene driver returns. The router's rules apply as-is: unknown or ambiguous means rejection.
+
+What does not depend on the archive format lives in `scene/archive.rs` — named ceilings (entries and uncompressed bytes), rejection of output outside extraction folder, extraction key, composition with the router. ZIP reading itself is shared in `scene/archive/zip_reader.rs`, used by `zip` and `usdz` (an uncompressed, aligned ZIP). A second container adds its reading module, not a second version of all this.
+Protections are non-negotiable: no absolute paths or `..`, no symlinks followed, no encrypted archives opened, and a named rejection — never half an extraction.
+
+### An Image Driver
+
+1. A module in `src/plugins/image/<format>.rs`, same naming rule.
+2. `impl Plugin`, then `impl ImageDecoder`: `mime`, `accepts_head` (the format's magic number) and `decode`, which returns `DecodedImage` under the received allocation ceiling.
+3. One line in `image::DECODERS`.
+
+An impossible decode returns a report reason — a stable string like `image-decode-failed` — never a compilation error: an unreadable texture lets the engine fall back to its default white.
+The decoder never returns an empty image and never panics.
+
+`DecodedImage` has two variants since `image-plugin-2`: `Rgba8`, and `RgbaF32` for high dynamic range formats. **A driver never converts one to the other**: bringing float down to 8-bit requires tone mapping, i.e., loss that the source did not have. The consumer decides via a `match` and a named reason — `image-float-unsupported` for previews, which are RGBA8 sRGB. A float driver checks the allocation ceiling at **sixteen bytes per pixel** before allocating, via `float_budget`, and the rejection carries its own format name.
+
+### What to Provide With It
+
+- **A minimal golden fixture**: the smallest file of the format owned or redistributable, under [`tests/fixtures/formats/`](../tests/fixtures/formats/README.md), with its `expected.json`, compiled by the shared harness (`src/tests/golden.rs`) — never by a custom harness. `GoldenRun::prepared_dir` finds a driver's prepared directory and `scene_digest` extracts the comparable triplet for `expected.json`; use these rather than re-reading produced files yourself.
+- **One test per driver behavior**: what it recognizes, what it rejects, what it reports. Router and registry tests already exist: do not duplicate them per format. To read a decode result, use `rgba8()` or `rgba_f32()` from `src/plugins/tests.rs` — never an irrefutable `let` on a `DecodedImage` variant: the contract has two outputs, and a test assuming one must state so via a call that panics on the other.
+- **Provenance**: where the spec comes from, which library, which license. Place it in the module header and commit message.
+
+### Forbidden
+
+- Reusing code or an editor SDK, even if available: reader written from public specification or permissive library whose license is respected and preserved.
+- Bypassing encryption, protection or license check of a format.
+- Re-encoding a lossy source, modifying or writing alongside original files.
+- Placing anything format-specific in `main.rs`, `cli_batch.rs` or `compiler_args.rs`: the CLI is thin, naming no format.
+- Adding an empty driver "for later": a format without a reader has no module.
 
 ## Cache layout
 
