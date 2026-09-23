@@ -33,11 +33,14 @@
       "CPU frame": "CPU karesi",
       "page hooks": "sayfa kodu",
       "engine CPU": "motor CPU"
+    },
+    "failure": {
+      "title": "Bu örnek bir hata yüzünden durdu"
     }
   },
   "a-city-from-rules": {
+    "banner": "Etrafta uçmak için sürükle. Bir kaydırıcıyı oynat, şehir yeniden kurulsun.",
     "controls": {
-      "mouse": "Etrafta uçmak için sürükle; her ayar şehri kendi kurallarıyla yeniden kurar",
       "blocks": "Bloklar",
       "maxHeight": "En fazla yükseklik",
       "density": "Yoğunluk",
@@ -52,8 +55,8 @@
     }
   },
   "a-cloud-of-points": {
+    "banner": "Bulutun etrafında dönmek için sürükle. Başka bir şekil seç ve değişmesini izle.",
     "controls": {
-      "mouse": "Bulutun etrafında dönmek için sürükle; başka bir şekil seç, eskisi dönerek kaybolurken yenisi açılır",
       "shape": "Şekil",
       "spin": "Dönüş"
     },
@@ -71,6 +74,7 @@
     }
   },
   "a-colour-ramp-in-linear-light": {
+    "banner": "Bir renk seç ve ışığın onu karanlıktan aydınlığa götürmesini izle.",
     "controls": {
       "colour": "Renk",
       "glow": "Parıltı",
@@ -78,6 +82,7 @@
     }
   },
   "a-field-of-pebbles": {
+    "banner": "Etrafa bakmak için sürükle. Güneşi oynat ve çakılların gölgelerini izle.",
     "controls": {
       "sunTurn": "Güneşin dönüşü",
       "sunHeight": "Güneşin yüksekliği",
@@ -86,13 +91,14 @@
     }
   },
   "a-first-world": {
+    "banner": "Küpün etrafında dönmek için sürükle. Ona yeni bir renk seç.",
     "controls": {
       "colour": "Renk"
     }
   },
   "a-game-board-seen-from-above": {
+    "banner": "Tahtayı kaydırmak için sürükle. Yakınlaştırmak için kaydır ya da iki parmakla sıkıştır.",
     "controls": {
-      "mouse": "Tahtayı kaydırmak için sürükle · yakınlaştırmak için tekerlek ya da iki parmak · kaymak için ok tuşları",
       "play": "Oyna",
       "speed": "Hız",
       "follow": "Takip et",
@@ -106,6 +112,7 @@
     }
   },
   "a-lamp-in-its-glass": {
+    "banner": "Etrafa bakmak için sürükle. Feneri salla ve ışığın hareketini izle.",
     "controls": {
       "swing": "Sallanma",
       "lamp": "Lamba",
@@ -114,6 +121,7 @@
     }
   },
   "a-lighthouse-beam": {
+    "banner": "Etrafa bakmak için sürükle. Işın daha hızlı ya da daha geniş dönsün.",
     "controls": {
       "turnsPerMinute": "Dakikadaki tur",
       "beamWidth": "Işın genişliği",
@@ -121,8 +129,8 @@
     }
   },
   "a-long-shadowed-street": {
+    "banner": "Sokağa bakmak için sürükle. Gölgeleri uzatmak için saati kaydır.",
     "controls": {
-      "mouse": "Caddeye bakmak için sürükle, ilerlemek için tekerlek; saati kaydır, gölgeler sokağa uzanıp cephelere tırmansın",
       "hour": "Saat",
       "traffic": "Trafik",
       "flyAgain": "Yeniden uç"
@@ -133,8 +141,8 @@
     }
   },
   "a-matcap-sculpture": {
+    "banner": "Heykelin etrafında dolaşmak için sürükle. Işığı seninle birlikte döner.",
     "controls": {
-      "mouse": "Heykelin etrafında dolaşmak için sürükle: ışığı seninle döner, çünkü resmin içinde yaşar",
       "matcap": "Matcap",
       "sculpture": "Heykel",
       "gallery": "Galeri",
@@ -157,8 +165,8 @@
     }
   },
   "a-mesh-built-by-hand": {
+    "banner": "Taşların etrafında dönmek için sürükle. Her biri nokta nokta yapıldı.",
     "controls": {
-      "mouse": "Taşların etrafında dönmek için sürükle; köşeleri paylaşmak için keskin yüzleri kapat",
       "points": "Noktalar",
       "waist": "Bel",
       "height": "Yükseklik",
@@ -172,8 +180,8 @@
     }
   },
   "a-model-from-obj": {
+    "banner": "Tahtanın etrafında dönmek için sürükle. Yaklaşmak için kaydır.",
     "controls": {
-      "mouse": "Tahtanın etrafında dönmek için sürükle, yaklaşmak için tekerlek: OBJ neye dönüştü, gör",
       "view": "Görünüm",
       "sunAngle": "Güneş açısı",
       "sunHeight": "Güneşin yüksekliği",
@@ -192,8 +200,8 @@
     }
   },
   "a-model-from-usdz": {
+    "banner": "Satranç takımının etrafında dolaşmak için sürükle. Taşlara doğru kaydır.",
     "controls": {
-      "mouse": "Tahtanın etrafında dolaşmak için sürükle; taşlara inmek için tekerleği kullan",
       "view": "Görünüm",
       "turn": "Döndür"
     },
@@ -216,8 +224,8 @@
     }
   },
   "a-molecule": {
+    "banner": "Molekülün etrafında dönmek için sürükle. Başkasını seç ve atomların uçuşunu izle.",
     "controls": {
-      "mouse": "Molekülün etrafında dönmek için sürükle; başkasını seç, atomları yeni yerlerine uçsun",
       "molecule": "Molekül",
       "style": "Stil",
       "spin": "Dönüş"
@@ -241,6 +249,7 @@
     }
   },
   "a-neon-sign": {
+    "banner": "Etrafa bakmak için sürükle. Neonu parlat ve yanıp söndür.",
     "controls": {
       "star": "Yıldız",
       "wave": "Dalga",
@@ -261,6 +270,7 @@
     }
   },
   "a-ring-of-lamps": {
+    "banner": "Etrafa bakmak için sürükle. Lamba ekle ve onları döndür.",
     "controls": {
       "lamps": "Lambalar",
       "speed": "Hız",
@@ -269,6 +279,7 @@
     }
   },
   "a-robot-that-walks-and-waves": {
+    "banner": "Etrafa bakmak için sürükle. Yürümeyi, el sallamayı ve dansı karıştır.",
     "controls": {
       "walk": "Yürü",
       "wave": "Dalga",
@@ -278,6 +289,7 @@
     }
   },
   "a-scene-of-your-own": {
+    "banner": "Etrafa bakmak için sürükle. Saati, rüzgârı ve çatıyı değiştir.",
     "controls": {
       "hour": "Saat",
       "wind": "Rüzgâr",
@@ -285,8 +297,8 @@
     }
   },
   "a-softbox-panel": {
+    "banner": "Etrafta dolaşmak için sürükle. Parlamayı yumuşatmak için ışık panelini büyüt.",
     "controls": {
-      "mouse": "Setin etrafında dolaşmak için sürükle; paneli büyüt ve parlamaların yumuşamasını izle",
       "panelWidth": "Panel genişliği",
       "power": "Güç",
       "colour": "Renk",
@@ -298,6 +310,7 @@
     }
   },
   "a-staircase-from-one-step": {
+    "banner": "Etrafa bakmak için sürükle. Basamakları değiştir, merdiven yeniden kurulsun.",
     "controls": {
       "climb": "Tırmanış",
       "turnPerStep": "Basamak başına dönüş",
@@ -305,6 +318,7 @@
     }
   },
   "a-terrain-from-a-height-map": {
+    "banner": "Dağların üstünde uçmak için sürükle. Günün saatini kaydır.",
     "controls": {
       "hour": "Saat",
       "sunColour": "Güneş rengi",
@@ -312,8 +326,8 @@
     }
   },
   "a-texture-turned-and-tiled": {
+    "banner": "Etrafa bakmak için sürükle. Resmi duvarlarda döndür ve tekrarla.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle; arkadaki panel karonun boyandığı hâli",
       "tile": "Karo",
       "wrap": "Kenar",
       "tilesAcross": "Yan yana karo",
@@ -342,8 +356,8 @@
     }
   },
   "a-tube-along-a-spline": {
+    "banner": "Etrafa bakmak için sürükle. Boncuklar tüp boyunca kayar.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle; boncuklar borunun izlediği eğri üzerinde gider",
       "path": "Yol",
       "radius": "Yarıçap",
       "sides": "Kenarlar",
@@ -364,6 +378,7 @@
     }
   },
   "a-vase-turned-on-the-lathe": {
+    "banner": "Etrafa bakmak için sürükle. Bir vazonun enini ve boyunu değiştir.",
     "controls": {
       "width": "Genişlik",
       "height": "Yükseklik",
@@ -372,8 +387,8 @@
     }
   },
   "a-video-on-a-screen": {
+    "banner": "Odaya bakmak için sürükle. Ekranda gerçek bir video oynuyor.",
     "controls": {
-      "mouse": "Odaya bakmak için sürükle; ekran gerçek bir video öğesi oynatır",
       "playing": "Oynuyor",
       "openVideo": "Video aç"
     },
@@ -387,8 +402,8 @@
     }
   },
   "a-video-panorama": {
+    "banner": "Her yöne bakmak için sürükle. İstersen kendi videonu aç.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle; sen basana kadar görünüm kendi kendine döner",
       "playing": "Oynuyor",
       "fieldOfView": "Görüş alanı",
       "openVideo": "Video aç"
@@ -402,8 +417,8 @@
     }
   },
   "a-wall-of-cameras": {
+    "banner": "Büyük görmek için küçük bir ekrana tıkla. Her kameranın neye baktığını seç.",
     "controls": {
-      "mouse": "Büyük ekrana almak için bir kameraya tıkla; kameralara neyi izleyeceklerini söyle",
       "watch": "İzle"
     },
     "choices": {
@@ -431,6 +446,7 @@
     }
   },
   "a-wave-across-a-grid": {
+    "banner": "Etrafa bakmak için sürükle. Küp dalgasını daha yüksek ya da hızlı yap.",
     "controls": {
       "height": "Yükseklik",
       "speed": "Hız",
@@ -440,8 +456,8 @@
     }
   },
   "a-world-of-blocks": {
+    "banner": "Adanın etrafında uçmak için sürükle. Vadileri su basması için denizi yükselt.",
     "controls": {
-      "mouse": "Adanın etrafında uçmak için sürükle; denizi yükselt ve vadilerin dolmasını izle",
       "seed": "Tohum",
       "seaLevel": "Deniz seviyesi",
       "hour": "Saat",
@@ -452,8 +468,8 @@
     }
   },
   "before-and-after-slider": {
+    "banner": "Karşılaştırmak için yuvarlak düğmeyi sürükle. Döndürmek için resmi sürükle.",
     "controls": {
-      "mouse": "Ayırıcıyı taşımak için yuvarlak düğmeyi sürükle; meydanın etrafında dönmek için resmi sürükle",
       "before": "Önce"
     },
     "choices": {
@@ -473,8 +489,8 @@
     }
   },
   "blobs-that-merge": {
+    "banner": "Lambanın etrafında dolaşmak için sürükle. Isıt, damlalar birbirine karışsın.",
     "controls": {
-      "mouse": "Lambanın etrafında dolaşmak için sürükle; yapışkanlığı artır, damlalar birbirine karışsın",
       "stickiness": "Yapışkanlık",
       "heat": "Isı",
       "wax": "Balmumu"
@@ -484,6 +500,7 @@
     }
   },
   "bricks-with-a-normal-map": {
+    "banner": "Etrafa bakmak için sürükle. Lambayı oynat ve tuğlaların pürüzlerini izle.",
     "controls": {
       "sweep": "Tarama",
       "lamp": "Lamba",
@@ -492,9 +509,7 @@
     }
   },
   "click-to-pick": {
-    "controls": {
-      "help": "Bir şekle tıkla: yanar ve panel ışının ona nerede değdiğini söyler."
-    },
+    "banner": "Bir şekle tıkla. Işıldar ve panel nereye dokunduğunu söyler.",
     "readouts": {
       "picked": "Seçilen",
       "point": "Nokta",
@@ -511,8 +526,8 @@
     }
   },
   "colours-on-the-vertices": {
+    "banner": "Gezegeni döndürmek için sürükle. Her köşenin kendi rengi var.",
     "controls": {
-      "mouse": "Gezegeni döndürmek için sürükle; her köşenin kendi rengi var",
       "palette": "Palet",
       "seaLevel": "Deniz seviyesi",
       "relief": "Kabartma",
@@ -528,8 +543,8 @@
     }
   },
   "compressed-textures": {
+    "banner": "Çeşmenin etrafında dolaşmak için sürükle. Ayrıntıların gelmesi için yaklaş.",
     "controls": {
-      "mouse": "Çeşmenin etrafında dolaşmak için sürükle; bir karoya in ve ayrıntıların gelmesini izle",
       "sunTurn": "Güneşin dönüşü",
       "sunHeight": "Güneşin yüksekliği"
     },
@@ -548,8 +563,8 @@
     }
   },
   "copies-along-a-path": {
+    "banner": "Parka bakmak için sürükle. Bir tünel olana kadar kopya ekle.",
     "controls": {
-      "mouse": "Parka bakmak için sürükle; kemerler tünele dönene kadar kopyaları artır",
       "copies": "Kopyalar",
       "twist": "Burgu",
       "speed": "Hız",
@@ -560,6 +575,7 @@
     }
   },
   "crates-under-a-spotlight": {
+    "banner": "Etrafa bakmak için sürükle. Spot ışığının açısını ve rengini değiştir.",
     "controls": {
       "angle": "Açı",
       "softness": "Yumuşaklık",
@@ -571,8 +587,8 @@
     }
   },
   "create-and-dispose": {
+    "banner": "Etrafta dolaşmak için sürükle. Parçaların sürekli çıkıp kaybolmasını izle.",
     "controls": {
-      "mouse": "Çeşmenin etrafında dolaşmak için sürükle · yaklaşmak için tekerlek",
       "perSecond": "Saniyede",
       "copies": "Kopyalar",
       "burst": "Patlama",
@@ -595,8 +611,8 @@
     }
   },
   "curved-surfaces": {
+    "banner": "Etrafta dolaşmak için sürükle. Her eğrideki üçgenleri görmek için ızgarayı azalt.",
     "controls": {
-      "mouse": "Galeride dolaşmak için sürükle; her eğriyi oluşturan üçgenleri görmek için ızgarayı küçült",
       "grid": "Izgara",
       "facets": "Yüzeycikler",
       "turntable": "Döner tabla"
@@ -614,8 +630,8 @@
     }
   },
   "dashed-lines": {
+    "banner": "Güneşin etrafında dönmek için sürükle. Çizgileri ve boşlukları değiştir.",
     "controls": {
-      "mouse": "Güneşin etrafında dönmek için sürükle; çizgiyi ve boşluğu değiştir, her yörünge uysun",
       "lines": "Çizgiler",
       "dash": "Çizgi",
       "gap": "Boşluk",
@@ -632,8 +648,8 @@
     }
   },
   "detail-by-pixel-error": {
+    "banner": "Caddede yürümek için sürükle. Bir vazoya yaklaş, sonra uzaklaş.",
     "controls": {
-      "mouse": "Caddede dolaşmak için sürükle; bir vazoya çok yaklaş, sonra çok uzaklaş",
       "pixelError": "Piksel hatası",
       "view": "Görünüm"
     },
@@ -656,8 +672,8 @@
     }
   },
   "edges-and-wireframe": {
+    "banner": "Etrafa bakmak için sürükle. Sadece keskin kenarlar kalsın diye eşiği yükselt.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle; yalnızca keskin kıvrımları tutmak için eşiği yükselt",
       "view": "Görünüm",
       "threshold": "Eşik",
       "lines": "Çizgiler",
@@ -678,8 +694,8 @@
     }
   },
   "every-image-format": {
+    "banner": "Şövalelerin yanından geçmek için sürükle. Kaliteyi düşür ve yakından bak.",
     "controls": {
-      "mouse": "Şövaleler boyunca yürümek için sürükle; kaliteyi düşür ve JPEG ile WebP'ye yakından bak",
       "quality": "Kalite",
       "lookAt": "Bak"
     },
@@ -720,8 +736,8 @@
     }
   },
   "flat-shadows-on-the-floor": {
+    "banner": "Güneş saatinin etrafında dolaşmak için sürükle. Gölgeleri döndürmek için saati kaydır.",
     "controls": {
-      "mouse": "Güneş saatinin etrafında dolaşmak için sürükle; saati kaydır, her gölge güneşle dönsün",
       "hour": "Saat",
       "darkness": "Karanlık",
       "timeLapse": "Hızlandırılmış",
@@ -735,6 +751,7 @@
     }
   },
   "fly-over-a-model-town": {
+    "banner": "Jeti halkaların içinden geçir. Kalkmak için gazı artır.",
     "choices": {
       "view": {
         "cockpit": "Kokpit",
@@ -800,8 +817,8 @@
     }
   },
   "four-ways-to-blend": {
+    "banner": "Yandan bakmak için sürükle. Her panel renkleri kendi yoluyla karıştırır.",
     "controls": {
-      "mouse": "Soldan sağa: normal, toplama, çıkarma, çarpma; yandan görmek için sürükle",
       "inks": "Mürekkepler",
       "opacity": "Opaklık",
       "circle": "Dön"
@@ -815,8 +832,8 @@
     }
   },
   "frame-the-model": {
+    "banner": "Yakınlaşmak için bir nesneye çift tıkla. Döndürmek için sürükle.",
     "controls": {
-      "mouse": "Çerçevelemek için bir nesneye çift tıkla; döndürmek için sürükle, yakınlaştırmak için tekerlek",
       "model": "Nesne",
       "margin": "Pay",
       "drift": "Sürüklenme"
@@ -845,8 +862,8 @@
     }
   },
   "from-a-grain-to-a-planet": {
+    "banner": "Bir kum tanesinden koca gezegene yakınlaşmak için kaydır.",
     "controls": {
-      "mouse": "Bir kum tanesinden tüm gezegene kadar yakınlaşmak için tekerleği kullan; döndürmek için sürükle",
       "toTheGrain": "Kum tanesine",
       "toTheBeach": "Plaja",
       "toTheIsland": "Adaya",
@@ -867,6 +884,7 @@
     }
   },
   "from-clay-to-chrome": {
+    "banner": "Etrafa bakmak için sürükle. Aynı rengi kil, metal ve krom olarak gör.",
     "controls": {
       "colour": "Renk",
       "lamps": "Lambalar",
@@ -874,6 +892,7 @@
     }
   },
   "from-noon-to-dusk": {
+    "banner": "Etrafa bakmak için sürükle. Saati öğleden geceye kaydır.",
     "controls": {
       "speed": "Hız",
       "hour": "Saat",
@@ -881,6 +900,7 @@
     }
   },
   "glass-on-the-table": {
+    "banner": "Etrafa bakmak için sürükle. Camın ışığı nasıl büktüğünü değiştir.",
     "controls": {
       "refraction": "Kırılma",
       "thickness": "Kalınlık",
@@ -889,8 +909,8 @@
     }
   },
   "helpers-to-see-the-scene": {
+    "banner": "Etrafta dolaşmak için sürükle. Sade resmi görmek için yardımcıları kapat.",
     "controls": {
-      "mouse": "Setin etrafında dolaşmak için sürükle; çekimi olduğu gibi görmek için yardımcıları kapat",
       "helpers": "Yardımcılar",
       "dolly": "Kaydırma",
       "bulb": "Ampul"
@@ -908,8 +928,8 @@
     }
   },
   "inside-a-panorama": {
+    "banner": "Dönmek için sürükle. Yaklaşmak için kaydır. Başka bir gökyüzü seç.",
     "controls": {
-      "mouse": "Döndürmek için sürükle · yaklaşmak için tekerlek",
       "sky": "Gökyüzü",
       "fieldOfView": "Görüş alanı"
     },
@@ -925,8 +945,8 @@
     }
   },
   "inside-the-g-buffer": {
+    "banner": "Etrafta dolaşmak için sürükle. Resmin içine bakmak için bir arabellek seç.",
     "controls": {
-      "mouse": "Sahanın etrafında dolaşmak için sürükle · karenin içine bakmak için bir tampon seç",
       "buffer": "Tampon",
       "turning": "Dönüyor"
     },
@@ -954,8 +974,8 @@
     }
   },
   "instances-in-colour": {
+    "banner": "Galaksiyi eğmek için sürükle. İçine dalmak için kaydır.",
     "controls": {
-      "mouse": "Gökadayı eğmek için sürükle; içine dalmak için tekerlek",
       "count": "Sayı",
       "arms": "Kollar",
       "twist": "Burgu",
@@ -969,8 +989,8 @@
     }
   },
   "keyframes-by-hand": {
+    "banner": "Masanın etrafında dönmek için sürükle. Lambanın anahtardan anahtara zıplamasını izle.",
     "controls": {
-      "mouse": "Masanın etrafında dönmek için sürükle; bir zıplamanın anahtarlarını lambanın soluk kopyaları olarak göster",
       "timing": "Zamanlama",
       "onionSkin": "Soğan kabuğu",
       "speed": "Hız"
@@ -997,8 +1017,8 @@
     }
   },
   "labels-that-follow": {
+    "banner": "Güneşin etrafında dönmek için sürükle. Etiketler gezegenlerle gider.",
     "controls": {
-      "mouse": "Güneşin etrafında dönmek için sürükle, yaklaşmak için tekerlek; etiketler gezegenlerle birlikte gider",
       "show": "Göster",
       "speed": "Hız",
       "lineThemUp": "Sıraya diz"
@@ -1034,6 +1054,7 @@
     }
   },
   "leaves-cut-by-alpha": {
+    "banner": "Etrafa bakmak için sürükle. Eşiği kaydır ve yaprak kenarlarını izle.",
     "controls": {
       "branches": "Dallar",
       "leaves": "Yapraklar",
@@ -1042,6 +1063,7 @@
     }
   },
   "letters-carved-in-relief": {
+    "banner": "Etrafa bakmak için sürükle. Işığı oyulmuş harflerin üstünde gezdir.",
     "controls": {
       "rake": "Eğim",
       "warm": "Sıcak",
@@ -1050,8 +1072,8 @@
     }
   },
   "light-from-a-probe": {
+    "banner": "Bahçenin etrafında dönmek için sürükle. Bir yer seç ve ışığını gör.",
     "controls": {
-      "mouse": "Bahçede dolaşmak için sürükle; bir yer seç, heykeller onun ışığını alsın",
       "place": "Yer",
       "turn": "Döndür",
       "strength": "Güç",
@@ -1071,8 +1093,8 @@
     }
   },
   "light-in-real-units": {
+    "banner": "Meydanda dolaşmak için sürükle. Öğleden ay ışığına bir an seç.",
     "controls": {
-      "mouse": "Meydanda dolaşmak için sürükle; bir an seç ve kameranın 100 000 lükstan mehtaplı bir geceye kadar alışmasını izle",
       "moment": "An",
       "lampLumens": "Lamba lümeni",
       "autoExposure": "Otomatik pozlama",
@@ -1100,6 +1122,7 @@
     }
   },
   "lights-from-the-scene-file": {
+    "banner": "Etrafa bakmak için sürükle. Bu lambalar model dosyasının içinden geldi.",
     "controls": {
       "lamp": "Lamba",
       "power": "Güç",
@@ -1107,8 +1130,8 @@
     }
   },
   "lines-in-colour": {
+    "banner": "Döndürmek için sürükle. Başka bir kural seç ve kalemin onu çizmesini izle.",
     "controls": {
-      "mouse": "Şeklin etrafında dönmek için sürükle; başka bir kural seç, kalem onu baştan çizsin",
       "figure": "Şekil",
       "palette": "Palet",
       "pace": "Tempo",
@@ -1134,6 +1157,7 @@
     }
   },
   "marble-bust-on-its-pedestal": {
+    "banner": "Büstün etrafında dönmek için sürükle. Lambayı başının etrafında gezdir.",
     "controls": {
       "lampTurn": "Lamba dönüşü",
       "lampHeight": "Lamba yüksekliği",
@@ -1146,6 +1170,7 @@
     }
   },
   "memory-on-a-budget": {
+    "banner": "Etrafa bakmak için sürükle. Daha az bellek ver ve neyin net kaldığını gör.",
     "controls": {
       "memory": "Bellek",
       "view": "Görünüm"
@@ -1159,13 +1184,14 @@
     }
   },
   "migrating-from-three": {
+    "banner": "Büstün, sandığın ve cam topun etrafında dönmek için sürükle.",
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; sandık: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
     }
   },
   "move-rotate-scale-gizmo": {
+    "banner": "Nesneyi taşımak, döndürmek ya da büyütmek için bir tutamacı sürükle. Etrafa bakmak için yanında sürükle.",
     "controls": {
-      "help": "Bir tutamacı sürükle. Kamerayı döndürmek için yanında sürükle.",
       "mode": "Mod",
       "axes": "Eksenler",
       "snap": "Yapıştır"
@@ -1187,8 +1213,8 @@
     }
   },
   "no-hitch-on-first-draw": {
+    "banner": "Etrafa bakmak için sürükle. Grafik iki resim arasındaki süreyi gösterir.",
     "controls": {
-      "mouse": "Galeriye bakmak için sürükle · grafik kareler arasındaki süredir",
       "turning": "Dönüyor",
       "revealAgain": "Yeniden göster"
     },
@@ -1203,8 +1229,8 @@
     }
   },
   "normals-and-depth-seen": {
+    "banner": "Etrafta dolaşmak için sürükle. İşleyicinin ne sakladığını görmek için görünümü değiştir.",
     "controls": {
-      "mouse": "Sahanın etrafında dolaşmak için sürükle; yüzeyleri çizicinin sakladığı gibi görmek için görünümü değiştir",
       "see": "Gör",
       "spin": "Dönüş"
     },
@@ -1225,6 +1251,7 @@
     }
   },
   "observatory-streamed": {
+    "banner": "Etrafa bakmak için sürükle. Modelin nasıl bölündüğünü görmek için görünümü değiştir.",
     "controls": {
       "view": "Görünüm",
       "pixelError": "Piksel hatası"
@@ -1240,8 +1267,8 @@
     }
   },
   "one-clip-many-objects": {
+    "banner": "Stadyumun etrafında dönmek için sürükle. Dalganın seyircilerden nasıl geçtiğini seç.",
     "controls": {
-      "mouse": "Arenanın etrafında dönmek için sürükle; tek animasyonun taraftarlara nasıl dağıtılacağını seç",
       "pattern": "Desen",
       "speed": "Hız"
     },
@@ -1258,8 +1285,8 @@
     }
   },
   "orbit-around-a-clockwork": {
+    "banner": "Döndürmek için sürükle. Kaydırmak için sağ tuşla sürükle. Dişlilere yakınlaşmak için kaydır.",
     "controls": {
-      "mouse": "Bir ürün görüntüleyici: döndürmek için sürükle · kaydırmak için sağ tuşla sürükle · dişlere yaklaşmak için tekerlek",
       "view": "Görünüm",
       "speed": "Hız",
       "brass": "Pirinç"
@@ -1274,6 +1301,7 @@
     }
   },
   "painted-and-textured": {
+    "banner": "Etrafa bakmak için sürükle. Şekillerin boyasını ve damalarını değiştir.",
     "controls": {
       "checks": "Kareler",
       "paint": "Boya",
@@ -1282,8 +1310,8 @@
     }
   },
   "reading-pixels-back": {
+    "banner": "Etrafa bakmak için sürükle. Küçük resim, sayı olarak geri okunan görüntüdür.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle · sağ alttaki resim, sayılara geri okunan görünümdür",
       "sunHeight": "Güneşin yüksekliği",
       "live": "Canlı",
       "turning": "Dönüyor",
@@ -1300,8 +1328,8 @@
     }
   },
   "ride-a-roller-coaster": {
+    "banner": "Trende başını çevirmek için sürükle. Parka bakmak için treni durdur.",
     "controls": {
-      "mouse": "Trendeyken başını çevirmek için sürükle. Parkın etrafında dönmek için treni durdur",
       "ride": "Bin",
       "loops": "Takla"
     },
@@ -1311,8 +1339,8 @@
     }
   },
   "save-the-scene": {
+    "banner": "Kuleyi yık, sonra kaydedilen sahneyi yeniden aç.",
     "controls": {
-      "help": "Kuleyi yık, sonra kaydedilmiş sahneyi yeniden aç.",
       "knockDown": "Yık",
       "save": "Kaydet",
       "open": "Aç"
@@ -1325,8 +1353,8 @@
     }
   },
   "scattered-on-a-surface": {
+    "banner": "Gezegeni döndürmek için sürükle. Orman dağlara tırmansın.",
     "controls": {
-      "mouse": "Gezegenin etrafında dönmek için sürükle; en dik eğimi artır, orman dağlara tırmansın",
       "trees": "Ağaçlar",
       "rocks": "Kayalar",
       "steepest": "En dik",
@@ -1339,8 +1367,8 @@
     }
   },
   "see-the-triangles": {
+    "banner": "Dışarı ve içeri kaydır. Uzaktan büst daha az ve daha büyük üçgen ister.",
     "controls": {
-      "mouse": "Tekerlekle uzaklaş ve yaklaş: uzaktan büst daha az ama daha büyük üçgene ihtiyaç duyar",
       "view": "Görünüm",
       "pixelError": "Piksel hatası",
       "sideBySide": "Yan yana"
@@ -1363,8 +1391,8 @@
     }
   },
   "select-with-a-box": {
+    "banner": "Seçmek için bir kutu çiz. Shift ekler, Alt çıkarır. Etrafa bakmak için dön moduna geç.",
     "controls": {
-      "help": "Seç: bir kutu sürükle; Shift ekler, Alt çıkarır. Döndür: bahçenin üstünde uçmak için sürükle",
       "mouse": "Fare",
       "selectAll": "Hepsini seç",
       "clear": "Temizle"
@@ -1380,8 +1408,8 @@
     }
   },
   "several-views-one-page": {
+    "banner": "Döndürmek için büyük görünümü sürükle. Küçükleri kaydır ve sürükle.",
     "controls": {
-      "mouse": "Döndürmek için büyük görünümü sürükle; küçüklerde yakınlaştırmak ve kaydırmak için tekerlek ve sürükle, sıfırlamak için çift tıkla",
       "explode": "Parçala",
       "windFrom": "Rüzgârın yönü",
       "windSpeed": "Rüzgâr hızı"
@@ -1397,8 +1425,8 @@
     }
   },
   "shadows-from-the-sun": {
+    "banner": "Bahçede dolaşmak için sürükle. Gölgeleri döndürmek için saati kaydır.",
     "controls": {
-      "mouse": "Bahçede dolaşmak için sürükle; saati kaydır, her gölge dönsün, dikilitaşın ucu saat taşlarının üzerinde yürüsün",
       "hour": "Saat",
       "day": "Gün",
       "latitude": "Enlem",
@@ -1430,8 +1458,8 @@
     }
   },
   "shapes-cut-and-extruded": {
+    "banner": "Etrafa bakmak için sürükle. Düz şekli görmek için derinliği sıfır yap.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle; sıfır derinlik düz kesilmiş şekli bırakır",
       "depth": "Derinlik",
       "bevel": "Pah",
       "bevelSize": "Pah boyutu",
@@ -1444,6 +1472,7 @@
     }
   },
   "shapes-on-a-turntable": {
+    "banner": "Etrafa bakmak için sürükle. Rengi ve dönüşü değiştir.",
     "controls": {
       "colour": "Renk",
       "speed": "Hız",
@@ -1451,8 +1480,8 @@
     }
   },
   "side-by-side-stereo": {
+    "banner": "Döndürmek için soldaki resmi sürükle. İki nokta bir olana kadar gözlerini şaşı yap.",
     "controls": {
-      "mouse": "Döndürmek için soldaki resmi sürükle; iki nokta tek olana kadar şaşı bak",
       "viewing": "Bakış",
       "separation": "Aralık",
       "speed": "Hız"
@@ -1469,8 +1498,8 @@
     }
   },
   "sky-and-ground-light": {
+    "banner": "Aşağıdan ve yukarıdan bakmak için sürükle. Gökyüzünü değiştirmek için bir yer seç.",
     "controls": {
-      "mouse": "Alttan ve üstten bakmak için sürükle; her yer üst yüzleri gökyüzüyle, alt yüzleri toprağıyla boyar",
       "place": "Yer",
       "skyStrength": "Gökyüzü gücü",
       "sun": "Güneş",
@@ -1492,8 +1521,8 @@
     }
   },
   "smooth-edges-over-time": {
+    "banner": "Tellere bakmak için sürükle. Yumuşatmayı kapat ve basamakları gör.",
     "controls": {
-      "mouse": "Tellere bakmak için sürükle; yumuşatmayı kapat ve basamaklara bölünmelerini izle",
       "smoothing": "Yumuşatma",
       "circle": "Dön"
     },
@@ -1506,8 +1535,8 @@
     }
   },
   "snow-of-sprites": {
+    "banner": "Kulübenin etrafında dolaşmak için sürükle. Karı tipiye çevir.",
     "controls": {
-      "mouse": "Kulübenin etrafında dolaşmak için sürükle; tipiye çevir, kar taneleri yoğunlaşıp yana uçsun",
       "weather": "Hava",
       "wind": "Rüzgâr"
     },
@@ -1523,8 +1552,8 @@
     }
   },
   "sound-made-visible": {
+    "banner": "Bir melodi duymak için sahneye tıkla",
     "controls": {
-      "mouse": "Sahnenin etrafında dolaşmak için sürükle; çubuklar notalar, inciler dalganın kendisi",
       "layout": "Düzen",
       "height": "Yükseklik",
       "playMelody": "Melodiyi çal",
@@ -1539,20 +1568,20 @@
       }
     },
     "words": {
-      "hint": "Bir melodi duymak için sahneye tıkla",
       "listening": "Mikrofon dinleniyor: şarkı söyle, ıslık çal, el çırp",
       "refused": "Mikrofon reddedildi: yerine melodi çalıyor",
       "silence": "Sessizlik. Melodiyi yeniden duymak için sahneye tıkla"
     }
   },
   "spin-an-astrolabe": {
+    "banner": "Onu her yöne, baş aşağı bile döndürmek için sürükle. Yakınlaşmak için kaydır.",
     "controls": {
-      "mouse": "Onu her yöne, baş aşağı bile döndürmek için sürükle · yakınlaştırmak için tekerlek",
       "turning": "Dönüyor",
       "sun": "Güneş"
     }
   },
   "street-lamp-at-night": {
+    "banner": "Etrafa bakmak için sürükle. Geceyi aç ve sokak lambasını yak.",
     "controls": {
       "night": "Gece",
       "bounce": "Sekme",
@@ -1564,8 +1593,8 @@
     }
   },
   "ten-thousand-objects": {
+    "banner": "Gezegenin etrafında dönmek için sürükle. Kaya halkasının içine kaydır.",
     "controls": {
-      "mouse": "Gezegenin etrafında dönmek için sürükle; bir kaya görüntüyü doldurana kadar tekerlekle halkaya gir",
       "view": "Görünüm",
       "pixelError": "Piksel hatası",
       "drift": "Sürüklenme"
@@ -1589,8 +1618,8 @@
     }
   },
   "texture-filters-compared": {
+    "banner": "Şeritler boyunca bakmak için sürükle. Her şerit resmi kendi yoluyla yumuşatır.",
     "controls": {
-      "mouse": "Şeritler boyunca bakmak için sürükle; soldan sağa: en yakın, doğrusal, üç doğrusal, anizotropik",
       "picture": "Resim",
       "anisotropy": "Anizotropi"
     },
@@ -1605,8 +1634,8 @@
     }
   },
   "the-material-family": {
+    "banner": "Etrafta dolaşmak için sürükle. Işığı geceye çevir ve hâlâ neyin parladığını gör.",
     "controls": {
-      "mouse": "Ailenin etrafında dolaşmak için sürükle; ışığı geceye çevir ve hangi türlerin hâlâ parladığını gör",
       "light": "Işık",
       "shape": "Şekil",
       "lookAt": "Bak",
@@ -1657,8 +1686,8 @@
     }
   },
   "the-webcam-as-a-texture": {
+    "banner": "Kameranı kullanmak için düğmeye bas. Duvar boyunca bakmak için sürükle.",
     "controls": {
-      "mouse": "Duvar boyunca bakmak için sürükle; kameran yalnızca düğmeye bastığında istenir",
       "useMyCamera": "Kameramı kullan",
       "layout": "Düzen",
       "mirror": "Ayna"
@@ -1680,8 +1709,8 @@
     }
   },
   "toon-shading": {
+    "banner": "Adanın etrafında dönmek için sürükle. Gölgelendirmeyi çizgi film şeritlerine çevir.",
     "controls": {
-      "mouse": "Adanın etrafında dönmek için sürükle; gölgelendirmeyi değiştir ve ışığın bantlar hâlinde düşmesini izle",
       "shading": "Gölgelendirme",
       "outlines": "Dış hatlar",
       "sun": "Güneş",
@@ -1696,8 +1725,8 @@
     }
   },
   "turn-toward-a-target": {
+    "banner": "Etrafa bakmak için sürükle. Dronu yönetmek için işaretçiyi aç.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle; imleci aç ve dronu yönlendir, her çanak takip eder",
       "turn": "Döndür",
       "turnSpeed": "Dönüş hızı",
       "followPointer": "İmleci takip et"
@@ -1714,8 +1743,8 @@
     }
   },
   "two-lenses-one-scene": {
+    "banner": "Kasabanın etrafında dönmek için sürükle. Merceği değiştir ve sokakları izle.",
     "controls": {
-      "mouse": "Şehrin etrafında dönmek için sürükle; merceği değiştir ve sokakların düzleşmesini izle",
       "lens": "Mercek",
       "fieldOfView": "Görüş alanı",
       "isometric": "İzometrik",
@@ -1736,8 +1765,8 @@
     }
   },
   "uvs-of-every-shape": {
+    "banner": "Etrafa bakmak için sürükle. Bir harf ve bir rakam her kareye ad verir.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle; bir harf ve bir rakam resmin her karesine ad verir",
       "pattern": "Desen",
       "repeat": "Tekrar",
       "slide": "Kaydır",
@@ -1752,6 +1781,7 @@
     }
   },
   "walk-through-a-temple": {
+    "banner": "Oyna'ya bas, sonra W A S D ile koş ve Boşluk ile zıpla.",
     "controls": {
       "keys": "Motorun karakter kontrolü: menüdeki Oyna bakmak için fareyi kilitler, koşmak için W A S D (AZERTY'de Z Q S D), hızlı koşmak için Shift, zıplamak için Boşluk, Esc fareyi bırakır. Sayfa yeniden koşmak için R, sesi kapatmak için M ekler.",
       "look": "Bakış",
@@ -1778,8 +1808,8 @@
     }
   },
   "waves-of-points": {
+    "banner": "Alanın etrafında dönmek için sürükle. Dalgaları değiştirmek için bir desen seç.",
     "controls": {
-      "mouse": "Alanın etrafında dönmek için sürükle; bir desen seç, şamandıraların altındaki dalgalar biçim değiştirsin",
       "pattern": "Desen",
       "height": "Yükseklik",
       "speed": "Hız"
@@ -1798,8 +1828,8 @@
     }
   },
   "what-hides-what": {
+    "banner": "Etrafa bakmak için sürükle. Çitler altın düğümleri saklıyor.",
     "controls": {
-      "mouse": "Etrafa bakmak için sürükle; çitler çıkmaz sokakların sonundaki altın düğümleri gizler",
       "hedgeHeight": "Çit yüksekliği",
       "view": "Görünüm",
       "aboveOrInside": "Üstten ya da içeriden"
@@ -1821,12 +1851,14 @@
     }
   },
   "zoom-down-the-colonnade": {
+    "banner": "Dolly zoom'a bas ve sütunların uzamasını izle.",
     "controls": {
       "fieldOfView": "Görüş alanı",
       "dollyZoom": "Dolly zoom"
     }
   },
   "openworld": {
+    "banner": "W A S D ile yürü. Binmek için bir arabanın ya da uçağın yanında E'ye bas.",
     "controls": {
       "keys": "WASD yürü · Shift koş · Boşluk zıpla · C çömel · E arabaya veya uçağa bin ya da in",
       "teleport": "Işınlan",

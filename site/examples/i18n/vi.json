@@ -33,11 +33,14 @@
       "CPU frame": "khung CPU",
       "page hooks": "mã của trang",
       "engine CPU": "CPU của engine"
+    },
+    "failure": {
+      "title": "Ví dụ này đã dừng vì một lỗi"
     }
   },
   "a-city-from-rules": {
+    "banner": "Kéo để bay quanh. Kéo một thanh trượt và thành phố tự xây lại.",
     "controls": {
-      "mouse": "Kéo để bay quanh; mỗi thiết lập dựng lại thành phố theo quy tắc của nó",
       "blocks": "Khu phố",
       "maxHeight": "Độ cao tối đa",
       "density": "Mật độ",
@@ -52,8 +55,8 @@
     }
   },
   "a-cloud-of-points": {
+    "banner": "Kéo để xoay quanh đám mây. Chọn hình khác và xem nó biến đổi.",
     "controls": {
-      "mouse": "Kéo để bay quanh đám mây; chọn hình khác, hình cũ cuộn lại biến mất trong khi hình mới mở ra",
       "shape": "Hình dạng",
       "spin": "Xoay"
     },
@@ -71,6 +74,7 @@
     }
   },
   "a-colour-ramp-in-linear-light": {
+    "banner": "Chọn một màu và xem ánh sáng đưa nó từ tối sang sáng.",
     "controls": {
       "colour": "Màu",
       "glow": "Phát sáng",
@@ -78,6 +82,7 @@
     }
   },
   "a-field-of-pebbles": {
+    "banner": "Kéo để nhìn quanh. Di chuyển mặt trời và xem bóng của những viên sỏi.",
     "controls": {
       "sunTurn": "Hướng mặt trời",
       "sunHeight": "Độ cao mặt trời",
@@ -86,13 +91,14 @@
     }
   },
   "a-first-world": {
+    "banner": "Kéo để xoay quanh khối lập phương. Chọn cho nó một màu mới.",
     "controls": {
       "colour": "Màu"
     }
   },
   "a-game-board-seen-from-above": {
+    "banner": "Kéo để trượt bàn cờ. Cuộn hoặc chụm hai ngón để phóng to.",
     "controls": {
-      "mouse": "Kéo để trượt bàn cờ · con lăn hoặc chụm tay để thu phóng · phím mũi tên để di chuyển",
       "play": "Chơi",
       "speed": "Tốc độ",
       "follow": "Đi theo",
@@ -106,6 +112,7 @@
     }
   },
   "a-lamp-in-its-glass": {
+    "banner": "Kéo để nhìn quanh. Đung đưa chiếc đèn lồng và xem ánh sáng di chuyển.",
     "controls": {
       "swing": "Đung đưa",
       "lamp": "Đèn",
@@ -114,6 +121,7 @@
     }
   },
   "a-lighthouse-beam": {
+    "banner": "Kéo để nhìn quanh. Cho tia sáng quay nhanh hơn hoặc rộng hơn.",
     "controls": {
       "turnsPerMinute": "Vòng mỗi phút",
       "beamWidth": "Độ rộng chùm sáng",
@@ -121,8 +129,8 @@
     }
   },
   "a-long-shadowed-street": {
+    "banner": "Kéo để nhìn dọc con phố. Kéo giờ để bóng dài ra.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh đại lộ, con lăn để tiến; kéo giờ và bóng đổ dài ra trên phố rồi leo lên mặt tiền",
       "hour": "Giờ",
       "traffic": "Giao thông",
       "flyAgain": "Bay lại"
@@ -133,8 +141,8 @@
     }
   },
   "a-matcap-sculpture": {
+    "banner": "Kéo để đi quanh bức tượng. Ánh sáng của nó xoay theo bạn.",
     "controls": {
-      "mouse": "Kéo để đi quanh bức tượng: ánh sáng xoay theo bạn, vì nó sống trong bức ảnh",
       "matcap": "Matcap",
       "sculpture": "Tượng",
       "gallery": "Phòng trưng bày",
@@ -157,8 +165,8 @@
     }
   },
   "a-mesh-built-by-hand": {
+    "banner": "Kéo để xoay quanh những viên đá quý. Mỗi viên được dựng từng điểm một.",
     "controls": {
-      "mouse": "Kéo để xoay quanh viên đá quý; tắt mặt cắt sắc để các góc dùng chung",
       "points": "Điểm",
       "waist": "Eo",
       "height": "Chiều cao",
@@ -172,8 +180,8 @@
     }
   },
   "a-model-from-obj": {
+    "banner": "Kéo để xoay quanh bàn cờ. Cuộn để lại gần.",
     "controls": {
-      "mouse": "Kéo để đi quanh bàn cờ, con lăn để lại gần: xem OBJ đã thành gì",
       "view": "Chế độ xem",
       "sunAngle": "Góc mặt trời",
       "sunHeight": "Độ cao mặt trời",
@@ -192,8 +200,8 @@
     }
   },
   "a-model-from-usdz": {
+    "banner": "Kéo để đi quanh bộ cờ vua. Cuộn xuống tới các quân cờ.",
     "controls": {
-      "mouse": "Kéo để đi quanh bàn cờ; dùng con lăn xuống tới các quân cờ",
       "view": "Chế độ xem",
       "turn": "Xoay"
     },
@@ -216,8 +224,8 @@
     }
   },
   "a-molecule": {
+    "banner": "Kéo để xoay quanh phân tử. Chọn phân tử khác và xem các nguyên tử bay.",
     "controls": {
-      "mouse": "Kéo để xoay quanh phân tử; chọn phân tử khác và các nguyên tử bay tới chỗ mới",
       "molecule": "Phân tử",
       "style": "Kiểu",
       "spin": "Xoay"
@@ -241,6 +249,7 @@
     }
   },
   "a-neon-sign": {
+    "banner": "Kéo để nhìn quanh. Làm cho đèn neon sáng và nhấp nháy.",
     "controls": {
       "star": "Ngôi sao",
       "wave": "Sóng",
@@ -261,6 +270,7 @@
     }
   },
   "a-ring-of-lamps": {
+    "banner": "Kéo để nhìn quanh. Thêm đèn và cho chúng quay.",
     "controls": {
       "lamps": "Đèn",
       "speed": "Tốc độ",
@@ -269,6 +279,7 @@
     }
   },
   "a-robot-that-walks-and-waves": {
+    "banner": "Kéo để nhìn quanh. Trộn đi bộ, vẫy tay và nhảy múa.",
     "controls": {
       "walk": "Đi bộ",
       "wave": "Sóng",
@@ -278,6 +289,7 @@
     }
   },
   "a-scene-of-your-own": {
+    "banner": "Kéo để nhìn quanh. Đổi giờ, gió và mái nhà.",
     "controls": {
       "hour": "Giờ",
       "wind": "Gió",
@@ -285,8 +297,8 @@
     }
   },
   "a-softbox-panel": {
+    "banner": "Kéo để đi quanh. Làm tấm đèn to hơn để ánh bóng dịu đi.",
     "controls": {
-      "mouse": "Kéo để đi quanh phim trường; phóng to tấm đèn và xem chỗ lóa mềm đi",
       "panelWidth": "Chiều rộng tấm đèn",
       "power": "Công suất",
       "colour": "Màu",
@@ -298,6 +310,7 @@
     }
   },
   "a-staircase-from-one-step": {
+    "banner": "Kéo để nhìn quanh. Đổi bậc thang và cầu thang tự dựng lại.",
     "controls": {
       "climb": "Leo lên",
       "turnPerStep": "Góc xoay mỗi bậc",
@@ -305,6 +318,7 @@
     }
   },
   "a-terrain-from-a-height-map": {
+    "banner": "Kéo để bay trên núi. Kéo giờ trong ngày.",
     "controls": {
       "hour": "Giờ",
       "sunColour": "Màu mặt trời",
@@ -312,8 +326,8 @@
     }
   },
   "a-texture-turned-and-tiled": {
+    "banner": "Kéo để nhìn quanh. Xoay và lặp lại bức hình trên tường.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh; tấm phía sau là viên gạch đúng như khi được vẽ",
       "tile": "Gạch",
       "wrap": "Mép",
       "tilesAcross": "Số gạch theo chiều ngang",
@@ -342,8 +356,8 @@
     }
   },
   "a-tube-along-a-spline": {
+    "banner": "Kéo để nhìn quanh. Những hạt cườm chạy dọc theo ống.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh; các hạt chạy trên đường cong mà ống đi theo",
       "path": "Đường đi",
       "radius": "Bán kính",
       "sides": "Cạnh",
@@ -364,6 +378,7 @@
     }
   },
   "a-vase-turned-on-the-lathe": {
+    "banner": "Kéo để nhìn quanh. Đổi độ rộng và chiều cao của một chiếc bình.",
     "controls": {
       "width": "Chiều rộng",
       "height": "Chiều cao",
@@ -372,8 +387,8 @@
     }
   },
   "a-video-on-a-screen": {
+    "banner": "Kéo để nhìn quanh căn phòng. Màn hình chiếu một video thật.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh phòng; màn hình phát một phần tử video thật",
       "playing": "Đang phát",
       "openVideo": "Mở video"
     },
@@ -387,8 +402,8 @@
     }
   },
   "a-video-panorama": {
+    "banner": "Kéo để nhìn khắp xung quanh. Mở video của riêng bạn nếu muốn.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh; cảnh tự quay cho tới khi bạn nhấn",
       "playing": "Đang phát",
       "fieldOfView": "Trường nhìn",
       "openVideo": "Mở video"
@@ -402,8 +417,8 @@
     }
   },
   "a-wall-of-cameras": {
+    "banner": "Bấm vào một màn hình nhỏ để xem nó lớn. Chọn thứ mỗi camera quay.",
     "controls": {
-      "mouse": "Bấm vào một camera để đưa lên màn hình lớn; bảo các camera phải theo dõi gì",
       "watch": "Theo dõi"
     },
     "choices": {
@@ -431,6 +446,7 @@
     }
   },
   "a-wave-across-a-grid": {
+    "banner": "Kéo để nhìn quanh. Làm con sóng khối lập phương cao hơn hoặc nhanh hơn.",
     "controls": {
       "height": "Chiều cao",
       "speed": "Tốc độ",
@@ -440,8 +456,8 @@
     }
   },
   "a-world-of-blocks": {
+    "banner": "Kéo để bay quanh hòn đảo. Dâng nước biển để làm ngập thung lũng.",
     "controls": {
-      "mouse": "Kéo để bay quanh đảo; dâng mực nước biển và xem thung lũng ngập nước",
       "seed": "Hạt giống",
       "seaLevel": "Mực nước biển",
       "hour": "Giờ",
@@ -452,8 +468,8 @@
     }
   },
   "before-and-after-slider": {
+    "banner": "Kéo núm tròn để so sánh. Kéo bức hình để xoay.",
     "controls": {
-      "mouse": "Kéo núm tròn để dời đường chia; kéo bức ảnh để xoay quanh quảng trường",
       "before": "Trước"
     },
     "choices": {
@@ -473,8 +489,8 @@
     }
   },
   "blobs-that-merge": {
+    "banner": "Kéo để đi quanh chiếc đèn. Làm nóng nó và các giọt hòa vào nhau.",
     "controls": {
-      "mouse": "Kéo để đi quanh chiếc đèn; tăng độ dính và các giọt tan vào nhau",
       "stickiness": "Độ dính",
       "heat": "Nhiệt",
       "wax": "Sáp"
@@ -484,6 +500,7 @@
     }
   },
   "bricks-with-a-normal-map": {
+    "banner": "Kéo để nhìn quanh. Di chuyển đèn và xem các chỗ gồ ghề của viên gạch.",
     "controls": {
       "sweep": "Quét",
       "lamp": "Đèn",
@@ -492,9 +509,7 @@
     }
   },
   "click-to-pick": {
-    "controls": {
-      "help": "Bấm vào một hình: nó sáng lên, và bảng cho biết tia chạm vào nó ở đâu."
-    },
+    "banner": "Bấm vào một hình. Nó sáng lên và bảng cho biết bạn chạm vào đâu.",
     "readouts": {
       "picked": "Đã chọn",
       "point": "Điểm",
@@ -511,8 +526,8 @@
     }
   },
   "colours-on-the-vertices": {
+    "banner": "Kéo để xoay hành tinh. Mỗi góc mang một màu riêng.",
     "controls": {
-      "mouse": "Kéo để xoay hành tinh; mỗi đỉnh mang màu riêng của nó",
       "palette": "Bảng màu",
       "seaLevel": "Mực nước biển",
       "relief": "Độ nổi",
@@ -528,8 +543,8 @@
     }
   },
   "compressed-textures": {
+    "banner": "Kéo để đi quanh đài phun nước. Lại gần để xem chi tiết hiện ra.",
     "controls": {
-      "mouse": "Kéo để đi quanh đài phun nước; lăn xuống một viên gạch và xem chi tiết của nó tới",
       "sunTurn": "Hướng mặt trời",
       "sunHeight": "Độ cao mặt trời"
     },
@@ -548,8 +563,8 @@
     }
   },
   "copies-along-a-path": {
+    "banner": "Kéo để nhìn quanh công viên. Thêm bản sao cho tới khi thành đường hầm.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh công viên; tăng số bản sao cho tới khi các vòm khép thành đường hầm",
       "copies": "Bản sao",
       "twist": "Xoắn",
       "speed": "Tốc độ",
@@ -560,6 +575,7 @@
     }
   },
   "crates-under-a-spotlight": {
+    "banner": "Kéo để nhìn quanh. Đổi góc và màu của đèn rọi.",
     "controls": {
       "angle": "Góc",
       "softness": "Độ mềm",
@@ -571,8 +587,8 @@
     }
   },
   "create-and-dispose": {
+    "banner": "Kéo để đi quanh. Xem các mảnh liên tục xuất hiện rồi biến mất.",
     "controls": {
-      "mouse": "Kéo để đi quanh đài phun nước · con lăn để lại gần",
       "perSecond": "Mỗi giây",
       "copies": "Bản sao",
       "burst": "Loạt bắn",
@@ -595,8 +611,8 @@
     }
   },
   "curved-surfaces": {
+    "banner": "Kéo để đi quanh. Giảm lưới để thấy các tam giác trong mỗi đường cong.",
     "controls": {
-      "mouse": "Kéo để đi trong phòng trưng bày; giảm lưới để thấy các tam giác tạo nên mỗi đường cong",
       "grid": "Lưới",
       "facets": "Mặt cắt",
       "turntable": "Bàn xoay"
@@ -614,8 +630,8 @@
     }
   },
   "dashed-lines": {
+    "banner": "Kéo để xoay quanh mặt trời. Đổi nét gạch và khoảng hở.",
     "controls": {
-      "mouse": "Kéo để xoay quanh mặt trời; đổi nét và khoảng trống, mọi quỹ đạo đổi theo",
       "lines": "Đường",
       "dash": "Nét",
       "gap": "Khoảng trống",
@@ -632,8 +648,8 @@
     }
   },
   "detail-by-pixel-error": {
+    "banner": "Kéo để đi dọc đại lộ. Lại gần một chiếc bình, rồi lùi ra xa.",
     "controls": {
-      "mouse": "Kéo để đi dọc đại lộ; lại gần một chiếc bình, rồi đi thật xa",
       "pixelError": "Sai số điểm ảnh",
       "view": "Chế độ xem"
     },
@@ -656,8 +672,8 @@
     }
   },
   "edges-and-wireframe": {
+    "banner": "Kéo để nhìn quanh. Tăng ngưỡng để chỉ giữ các cạnh sắc.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh; tăng ngưỡng để chỉ giữ các nếp gấp sắc",
       "view": "Chế độ xem",
       "threshold": "Ngưỡng",
       "lines": "Đường",
@@ -678,8 +694,8 @@
     }
   },
   "every-image-format": {
+    "banner": "Kéo để đi dọc các giá vẽ. Giảm chất lượng và nhìn thật gần.",
     "controls": {
-      "mouse": "Kéo để đi dọc các giá vẽ; giảm chất lượng và nhìn gần JPEG và WebP",
       "quality": "Chất lượng",
       "lookAt": "Nhìn vào"
     },
@@ -720,8 +736,8 @@
     }
   },
   "flat-shadows-on-the-floor": {
+    "banner": "Kéo để đi quanh đồng hồ mặt trời. Kéo giờ để xoay các bóng.",
     "controls": {
-      "mouse": "Kéo để đi quanh đồng hồ mặt trời; kéo giờ và mọi bóng đổ xoay cùng mặt trời",
       "hour": "Giờ",
       "darkness": "Độ tối",
       "timeLapse": "Tua nhanh",
@@ -735,6 +751,7 @@
     }
   },
   "fly-over-a-model-town": {
+    "banner": "Lái máy bay xuyên qua các vòng. Tăng ga để cất cánh.",
     "choices": {
       "view": {
         "cockpit": "Buồng lái",
@@ -800,8 +817,8 @@
     }
   },
   "four-ways-to-blend": {
+    "banner": "Kéo để nhìn từ bên cạnh. Mỗi tấm trộn màu theo cách riêng.",
     "controls": {
-      "mouse": "Từ trái sang phải: bình thường, cộng, trừ, nhân; kéo để xem từ bên cạnh",
       "inks": "Mực",
       "opacity": "Độ mờ đục",
       "circle": "Xoay quanh"
@@ -815,8 +832,8 @@
     }
   },
   "frame-the-model": {
+    "banner": "Bấm đúp vào một vật để phóng tới nó. Kéo để xoay.",
     "controls": {
-      "mouse": "Bấm đúp vào một vật để đưa vào khung; kéo để xoay, con lăn để thu phóng",
       "model": "Vật",
       "margin": "Lề",
       "drift": "Trôi"
@@ -845,8 +862,8 @@
     }
   },
   "from-a-grain-to-a-planet": {
+    "banner": "Cuộn để phóng từ một hạt cát tới cả hành tinh.",
     "controls": {
-      "mouse": "Lăn chuột để thu phóng từ một hạt cát tới cả hành tinh; kéo để xoay",
       "toTheGrain": "Tới hạt cát",
       "toTheBeach": "Tới bãi biển",
       "toTheIsland": "Tới hòn đảo",
@@ -867,6 +884,7 @@
     }
   },
   "from-clay-to-chrome": {
+    "banner": "Kéo để nhìn quanh. Xem cùng một màu dưới dạng đất sét, kim loại và crôm.",
     "controls": {
       "colour": "Màu",
       "lamps": "Đèn",
@@ -874,6 +892,7 @@
     }
   },
   "from-noon-to-dusk": {
+    "banner": "Kéo để nhìn quanh. Kéo giờ từ trưa tới đêm.",
     "controls": {
       "speed": "Tốc độ",
       "hour": "Giờ",
@@ -881,6 +900,7 @@
     }
   },
   "glass-on-the-table": {
+    "banner": "Kéo để nhìn quanh. Đổi cách thủy tinh bẻ cong ánh sáng.",
     "controls": {
       "refraction": "Khúc xạ",
       "thickness": "Độ dày",
@@ -889,8 +909,8 @@
     }
   },
   "helpers-to-see-the-scene": {
+    "banner": "Kéo để đi quanh. Tắt các công cụ trợ giúp để xem bức hình trơn.",
     "controls": {
-      "mouse": "Kéo để đi quanh phim trường; tắt các trợ giúp để thấy cảnh quay đúng như nó là",
       "helpers": "Trợ giúp",
       "dolly": "Lia máy",
       "bulb": "Bóng đèn"
@@ -908,8 +928,8 @@
     }
   },
   "inside-a-panorama": {
+    "banner": "Kéo để xoay. Cuộn để lại gần. Chọn một bầu trời khác.",
     "controls": {
-      "mouse": "Kéo để xoay · con lăn để lại gần",
       "sky": "Bầu trời",
       "fieldOfView": "Trường nhìn"
     },
@@ -925,8 +945,8 @@
     }
   },
   "inside-the-g-buffer": {
+    "banner": "Kéo để đi quanh. Chọn một bộ đệm để nhìn vào bên trong bức hình.",
     "controls": {
-      "mouse": "Kéo để đi quanh sân · chọn một bộ đệm để nhìn vào bên trong khung hình",
       "buffer": "Bộ đệm",
       "turning": "Đang xoay"
     },
@@ -954,8 +974,8 @@
     }
   },
   "instances-in-colour": {
+    "banner": "Kéo để nghiêng thiên hà. Cuộn để lao vào trong.",
     "controls": {
-      "mouse": "Kéo để nghiêng thiên hà; lăn chuột để lặn vào trong",
       "count": "Số lượng",
       "arms": "Nhánh",
       "twist": "Xoắn",
@@ -969,8 +989,8 @@
     }
   },
   "keyframes-by-hand": {
+    "banner": "Kéo để xoay quanh bàn làm việc. Xem chiếc đèn nhảy từ khóa này sang khóa khác.",
     "controls": {
-      "mouse": "Kéo để xoay quanh bàn; hiện các khóa của một cú nhảy thành bản sao mờ của chiếc đèn",
       "timing": "Nhịp",
       "onionSkin": "Da hành",
       "speed": "Tốc độ"
@@ -997,8 +1017,8 @@
     }
   },
   "labels-that-follow": {
+    "banner": "Kéo để xoay quanh Mặt Trời. Các nhãn đi theo các hành tinh.",
     "controls": {
-      "mouse": "Kéo để xoay quanh Mặt Trời, con lăn để lại gần; nhãn tên đi theo các hành tinh",
       "show": "Hiện",
       "speed": "Tốc độ",
       "lineThemUp": "Xếp thẳng hàng"
@@ -1034,6 +1054,7 @@
     }
   },
   "leaves-cut-by-alpha": {
+    "banner": "Kéo để nhìn quanh. Kéo ngưỡng và xem mép lá.",
     "controls": {
       "branches": "Cành",
       "leaves": "Lá",
@@ -1042,6 +1063,7 @@
     }
   },
   "letters-carved-in-relief": {
+    "banner": "Kéo để nhìn quanh. Rọi ánh sáng qua những chữ được chạm khắc.",
     "controls": {
       "rake": "Độ nghiêng",
       "warm": "Ấm",
@@ -1050,8 +1072,8 @@
     }
   },
   "light-from-a-probe": {
+    "banner": "Kéo để xoay quanh khu vườn. Chọn một nơi và xem ánh sáng của nó.",
     "controls": {
-      "mouse": "Kéo để đi quanh khu vườn; chọn một nơi và các bức tượng mang ánh sáng của nơi đó",
       "place": "Nơi",
       "turn": "Xoay",
       "strength": "Cường độ",
@@ -1071,8 +1093,8 @@
     }
   },
   "light-in-real-units": {
+    "banner": "Kéo để đi quanh quảng trường. Chọn một lúc, từ trưa tới ánh trăng.",
     "controls": {
-      "mouse": "Kéo để đi quanh quảng trường; chọn một thời điểm và xem camera thích nghi, từ 100 000 lux tới đêm trăng",
       "moment": "Thời điểm",
       "lampLumens": "Quang thông đèn",
       "autoExposure": "Phơi sáng tự động",
@@ -1100,6 +1122,7 @@
     }
   },
   "lights-from-the-scene-file": {
+    "banner": "Kéo để nhìn quanh. Những chiếc đèn này có sẵn trong tệp mô hình.",
     "controls": {
       "lamp": "Đèn",
       "power": "Công suất",
@@ -1107,8 +1130,8 @@
     }
   },
   "lines-in-colour": {
+    "banner": "Kéo để xoay. Chọn quy tắc khác và xem cây bút vẽ nó.",
     "controls": {
-      "mouse": "Kéo để xoay quanh hình; chọn quy tắc khác và cây bút vẽ lại từ đầu",
       "figure": "Hình",
       "palette": "Bảng màu",
       "pace": "Nhịp độ",
@@ -1134,6 +1157,7 @@
     }
   },
   "marble-bust-on-its-pedestal": {
+    "banner": "Kéo để xoay quanh bức tượng bán thân. Di chuyển đèn quanh đầu tượng.",
     "controls": {
       "lampTurn": "Hướng đèn",
       "lampHeight": "Độ cao đèn",
@@ -1146,6 +1170,7 @@
     }
   },
   "memory-on-a-budget": {
+    "banner": "Kéo để nhìn quanh. Cho ít bộ nhớ hơn và xem thứ gì vẫn sắc nét.",
     "controls": {
       "memory": "Bộ nhớ",
       "view": "Chế độ xem"
@@ -1159,13 +1184,14 @@
     }
   },
   "migrating-from-three": {
+    "banner": "Kéo để xoay quanh bức tượng, cái thùng và quả cầu thủy tinh.",
     "words": {
       "credit": "Marble Bust 01 của Rico Cilliers, Poly Haven, CC0; thùng gỗ của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
     }
   },
   "move-rotate-scale-gizmo": {
+    "banner": "Kéo một tay cầm để di chuyển, xoay hoặc phóng to vật. Kéo bên cạnh để nhìn quanh.",
     "controls": {
-      "help": "Kéo một tay cầm. Kéo bên cạnh để xoay camera.",
       "mode": "Chế độ",
       "axes": "Trục",
       "snap": "Bám lưới"
@@ -1187,8 +1213,8 @@
     }
   },
   "no-hitch-on-first-draw": {
+    "banner": "Kéo để nhìn quanh. Biểu đồ cho thấy thời gian giữa các khung hình.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh phòng trưng bày · biểu đồ là thời gian giữa các khung hình",
       "turning": "Đang xoay",
       "revealAgain": "Hiện lại"
     },
@@ -1203,8 +1229,8 @@
     }
   },
   "normals-and-depth-seen": {
+    "banner": "Kéo để đi quanh. Đổi chế độ xem để thấy trình kết xuất lưu gì.",
     "controls": {
-      "mouse": "Kéo để đi quanh sân; đổi chế độ xem để thấy bề mặt như trình kết xuất lưu chúng",
       "see": "Xem",
       "spin": "Xoay"
     },
@@ -1225,6 +1251,7 @@
     }
   },
   "observatory-streamed": {
+    "banner": "Kéo để nhìn quanh. Đổi chế độ xem để thấy mô hình được cắt ra sao.",
     "controls": {
       "view": "Chế độ xem",
       "pixelError": "Sai số điểm ảnh"
@@ -1240,8 +1267,8 @@
     }
   },
   "one-clip-many-objects": {
+    "banner": "Kéo để xoay quanh sân vận động. Chọn cách làn sóng chạy qua khán giả.",
     "controls": {
-      "mouse": "Kéo để xoay quanh sân vận động; chọn cách chia một đoạn hoạt hình cho các cổ động viên",
       "pattern": "Mẫu",
       "speed": "Tốc độ"
     },
@@ -1258,8 +1285,8 @@
     }
   },
   "orbit-around-a-clockwork": {
+    "banner": "Kéo để xoay. Kéo chuột phải để trượt. Cuộn để phóng to các bánh răng.",
     "controls": {
-      "mouse": "Trình xem sản phẩm: kéo để xoay · kéo chuột phải để trượt · lăn chuột để phóng to răng bánh xe",
       "view": "Chế độ xem",
       "speed": "Tốc độ",
       "brass": "Đồng thau"
@@ -1274,6 +1301,7 @@
     }
   },
   "painted-and-textured": {
+    "banner": "Kéo để nhìn quanh. Đổi màu sơn và ô caro trên các hình.",
     "controls": {
       "checks": "Ô vuông",
       "paint": "Sơn",
@@ -1282,8 +1310,8 @@
     }
   },
   "reading-pixels-back": {
+    "banner": "Kéo để nhìn quanh. Bức hình nhỏ là cảnh được đọc lại thành các con số.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh · ảnh góc dưới bên phải là khung nhìn được đọc lại thành số",
       "sunHeight": "Độ cao mặt trời",
       "live": "Trực tiếp",
       "turning": "Đang xoay",
@@ -1300,8 +1328,8 @@
     }
   },
   "ride-a-roller-coaster": {
+    "banner": "Kéo để quay đầu khi đi tàu lượn. Tắt tàu lượn để ngắm công viên.",
     "controls": {
-      "mouse": "Khi đang đi tàu, kéo để quay đầu. Tắt tàu để bay quanh công viên",
       "ride": "Đi tàu",
       "loops": "Vòng lộn"
     },
@@ -1311,8 +1339,8 @@
     }
   },
   "save-the-scene": {
+    "banner": "Làm đổ tòa tháp, rồi mở lại cảnh đã lưu.",
     "controls": {
-      "help": "Làm đổ tòa tháp, rồi mở lại cảnh đã lưu.",
       "knockDown": "Làm đổ",
       "save": "Lưu",
       "open": "Mở"
@@ -1325,8 +1353,8 @@
     }
   },
   "scattered-on-a-surface": {
+    "banner": "Kéo để xoay hành tinh. Để khu rừng leo lên núi.",
     "controls": {
-      "mouse": "Kéo để xoay quanh hành tinh; tăng độ dốc lớn nhất và rừng leo lên núi",
       "trees": "Cây",
       "rocks": "Đá",
       "steepest": "Dốc nhất",
@@ -1339,8 +1367,8 @@
     }
   },
   "see-the-triangles": {
+    "banner": "Cuộn ra và vào. Ở xa, bức tượng cần ít tam giác hơn và to hơn.",
     "controls": {
-      "mouse": "Lăn chuột ra xa rồi lại gần: từ xa, tượng bán thân cần ít tam giác hơn, to hơn",
       "view": "Chế độ xem",
       "pixelError": "Sai số điểm ảnh",
       "sideBySide": "Cạnh nhau"
@@ -1363,8 +1391,8 @@
     }
   },
   "select-with-a-box": {
+    "banner": "Kéo một khung để chọn. Shift thêm vào, Alt bớt ra. Chuyển sang quay người để nhìn quanh.",
     "controls": {
-      "help": "Chọn: kéo một khung; Shift thêm, Alt bỏ. Xoay: kéo để bay quanh khu vườn",
       "mouse": "Chuột",
       "selectAll": "Chọn tất cả",
       "clear": "Xóa chọn"
@@ -1380,8 +1408,8 @@
     }
   },
   "several-views-one-page": {
+    "banner": "Kéo khung nhìn lớn để xoay nó. Cuộn và kéo các khung nhỏ.",
     "controls": {
-      "mouse": "Kéo khung lớn để xoay; lăn chuột và kéo ở khung nhỏ để thu phóng và trượt, bấm đúp để đặt lại",
       "explode": "Tách rời",
       "windFrom": "Gió từ",
       "windSpeed": "Tốc độ gió"
@@ -1397,8 +1425,8 @@
     }
   },
   "shadows-from-the-sun": {
+    "banner": "Kéo để đi quanh khu vườn. Kéo giờ để xoay các bóng.",
     "controls": {
-      "mouse": "Kéo để đi quanh khu vườn; kéo giờ và mọi bóng đổ xoay, đỉnh tháp đá bước trên các phiến đá giờ",
       "hour": "Giờ",
       "day": "Ngày",
       "latitude": "Vĩ độ",
@@ -1430,8 +1458,8 @@
     }
   },
   "shapes-cut-and-extruded": {
+    "banner": "Kéo để nhìn quanh. Đặt độ sâu bằng không để xem hình phẳng.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh; độ sâu bằng không để lại hình cắt phẳng",
       "depth": "Độ sâu",
       "bevel": "Vát cạnh",
       "bevelSize": "Kích thước vát",
@@ -1444,6 +1472,7 @@
     }
   },
   "shapes-on-a-turntable": {
+    "banner": "Kéo để nhìn quanh. Đổi màu và độ xoay.",
     "controls": {
       "colour": "Màu",
       "speed": "Tốc độ",
@@ -1451,8 +1480,8 @@
     }
   },
   "side-by-side-stereo": {
+    "banner": "Kéo bức hình bên trái để xoay. Nhìn lác mắt cho tới khi hai chấm thành một.",
     "controls": {
-      "mouse": "Kéo trên ảnh bên trái để xoay; nhìn lác cho tới khi hai chấm thành một",
       "viewing": "Cách nhìn",
       "separation": "Khoảng tách",
       "speed": "Tốc độ"
@@ -1469,8 +1498,8 @@
     }
   },
   "sky-and-ground-light": {
+    "banner": "Kéo để nhìn từ dưới lên và từ trên xuống. Chọn một nơi để đổi bầu trời của nó.",
     "controls": {
-      "mouse": "Kéo để nhìn từ dưới và từ trên; mỗi nơi tô mặt trên bằng bầu trời và mặt dưới bằng mặt đất của nó",
       "place": "Nơi",
       "skyStrength": "Cường độ bầu trời",
       "sun": "Mặt Trời",
@@ -1492,8 +1521,8 @@
     }
   },
   "smooth-edges-over-time": {
+    "banner": "Kéo để nhìn các sợi dây. Tắt làm mịn và xem các bậc răng cưa.",
     "controls": {
-      "mouse": "Kéo để nhìn các sợi dây; tắt làm mượt và xem chúng vỡ thành bậc thang",
       "smoothing": "Làm mượt",
       "circle": "Xoay quanh"
     },
@@ -1506,8 +1535,8 @@
     }
   },
   "snow-of-sprites": {
+    "banner": "Kéo để đi quanh căn nhà gỗ. Biến tuyết thành bão tuyết.",
     "controls": {
-      "mouse": "Kéo để đi quanh căn nhà gỗ; biến nó thành bão tuyết và bông tuyết dày lên, bay ngang",
       "weather": "Thời tiết",
       "wind": "Gió"
     },
@@ -1523,8 +1552,8 @@
     }
   },
   "sound-made-visible": {
+    "banner": "Bấm vào sân khấu để nghe một giai điệu",
     "controls": {
-      "mouse": "Kéo để đi quanh sân khấu; các thanh là cao độ, các hạt ngọc là chính sóng âm",
       "layout": "Bố cục",
       "height": "Chiều cao",
       "playMelody": "Chơi giai điệu",
@@ -1539,20 +1568,20 @@
       }
     },
     "words": {
-      "hint": "Bấm vào sân khấu để nghe một giai điệu",
       "listening": "Đang nghe micro: hãy hát, huýt sáo, vỗ tay",
       "refused": "Micro bị từ chối: giai điệu sẽ phát thay thế",
       "silence": "Im lặng. Bấm vào sân khấu để nghe lại giai điệu"
     }
   },
   "spin-an-astrolabe": {
+    "banner": "Kéo để xoay nó theo mọi hướng, cả lộn ngược. Cuộn để phóng to.",
     "controls": {
-      "mouse": "Kéo để quay nó theo mọi hướng, cả lộn ngược · con lăn để thu phóng",
       "turning": "Đang xoay",
       "sun": "Mặt Trời"
     }
   },
   "street-lamp-at-night": {
+    "banner": "Kéo để nhìn quanh. Bật đêm và thắp đèn đường.",
     "controls": {
       "night": "Đêm",
       "bounce": "Ánh sáng dội",
@@ -1564,8 +1593,8 @@
     }
   },
   "ten-thousand-objects": {
+    "banner": "Kéo để xoay quanh hành tinh. Cuộn vào trong vành đá.",
     "controls": {
-      "mouse": "Kéo để xoay quanh hành tinh; lăn chuột vào vành đai cho tới khi một tảng đá lấp đầy khung nhìn",
       "view": "Chế độ xem",
       "pixelError": "Sai số điểm ảnh",
       "drift": "Trôi"
@@ -1589,8 +1618,8 @@
     }
   },
   "texture-filters-compared": {
+    "banner": "Kéo để nhìn dọc các làn. Mỗi làn làm mịn bức hình theo cách riêng.",
     "controls": {
-      "mouse": "Kéo để nhìn dọc các làn; từ trái sang phải: gần nhất, tuyến tính, tam tuyến tính, dị hướng",
       "picture": "Ảnh",
       "anisotropy": "Dị hướng"
     },
@@ -1605,8 +1634,8 @@
     }
   },
   "the-material-family": {
+    "banner": "Kéo để đi quanh. Chuyển ánh sáng sang đêm và xem thứ gì vẫn sáng.",
     "controls": {
-      "mouse": "Kéo để đi quanh gia đình; chuyển ánh sáng sang đêm và xem loại nào vẫn sáng",
       "light": "Ánh sáng",
       "shape": "Hình dạng",
       "lookAt": "Nhìn vào",
@@ -1657,8 +1686,8 @@
     }
   },
   "the-webcam-as-a-texture": {
+    "banner": "Bấm nút để dùng camera của bạn. Kéo để nhìn dọc bức tường.",
     "controls": {
-      "mouse": "Kéo để nhìn dọc bức tường; camera của bạn chỉ được hỏi khi bạn nhấn nút",
       "useMyCamera": "Dùng camera của tôi",
       "layout": "Bố cục",
       "mirror": "Lật gương"
@@ -1680,8 +1709,8 @@
     }
   },
   "toon-shading": {
+    "banner": "Kéo để xoay quanh hòn đảo. Đổi cách đổ bóng thành dải hoạt hình.",
     "controls": {
-      "mouse": "Kéo để xoay quanh đảo; đổi cách tô bóng và xem ánh sáng rơi thành dải",
       "shading": "Tô bóng",
       "outlines": "Viền",
       "sun": "Mặt Trời",
@@ -1696,8 +1725,8 @@
     }
   },
   "turn-toward-a-target": {
+    "banner": "Kéo để nhìn quanh. Bật con trỏ để lái máy bay không người lái.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh; bật con trỏ và điều khiển drone, mọi chảo ăng-ten đi theo",
       "turn": "Xoay",
       "turnSpeed": "Tốc độ xoay",
       "followPointer": "Theo con trỏ"
@@ -1714,8 +1743,8 @@
     }
   },
   "two-lenses-one-scene": {
+    "banner": "Kéo để xoay quanh thị trấn. Đổi ống kính và ngắm các con phố.",
     "controls": {
-      "mouse": "Kéo để xoay quanh thị trấn; đổi ống kính và xem đường phố thẳng ra",
       "lens": "Ống kính",
       "fieldOfView": "Trường nhìn",
       "isometric": "Đẳng cự",
@@ -1736,8 +1765,8 @@
     }
   },
   "uvs-of-every-shape": {
+    "banner": "Kéo để nhìn quanh. Một chữ cái và một chữ số đặt tên cho mỗi ô.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh; một chữ cái và một chữ số đặt tên cho mỗi ô của bức ảnh",
       "pattern": "Mẫu",
       "repeat": "Lặp lại",
       "slide": "Trượt",
@@ -1752,6 +1781,7 @@
     }
   },
   "walk-through-a-temple": {
+    "banner": "Nhấn Chơi, rồi chạy bằng W A S D và nhảy bằng phím cách.",
     "controls": {
       "keys": "Điều khiển nhân vật của engine: nút Chơi trong menu khóa chuột để nhìn, W A S D để chạy (Z Q S D trên AZERTY), Shift để chạy nhanh, phím cách để nhảy, Esc thả chuột. Trang thêm R để chạy lại, M để tắt tiếng.",
       "look": "Nhìn",
@@ -1778,8 +1808,8 @@
     }
   },
   "waves-of-points": {
+    "banner": "Kéo để xoay quanh cánh đồng. Chọn một mẫu để đổi các con sóng.",
     "controls": {
-      "mouse": "Kéo để xoay quanh cánh đồng; chọn một mẫu và sóng đổi hình dạng dưới các phao",
       "pattern": "Mẫu",
       "height": "Chiều cao",
       "speed": "Tốc độ"
@@ -1798,8 +1828,8 @@
     }
   },
   "what-hides-what": {
+    "banner": "Kéo để nhìn quanh. Hàng rào cây che những nút thắt vàng.",
     "controls": {
-      "mouse": "Kéo để nhìn quanh; hàng rào cây che các nút thắt mạ vàng ở cuối ngõ cụt",
       "hedgeHeight": "Chiều cao hàng rào",
       "view": "Chế độ xem",
       "aboveOrInside": "Trên cao hoặc bên trong"
@@ -1821,12 +1851,14 @@
     }
   },
   "zoom-down-the-colonnade": {
+    "banner": "Nhấn Zoom dolly và xem các cột giãn ra.",
     "controls": {
       "fieldOfView": "Trường nhìn",
       "dollyZoom": "Zoom dolly"
     }
   },
   "openworld": {
+    "banner": "Đi bằng W A S D. Nhấn E gần ô tô hoặc máy bay để lên.",
     "controls": {
       "keys": "WASD đi bộ · Shift chạy · Space nhảy · C cúi · E lên hoặc xuống ô tô hay máy bay",
       "teleport": "Dịch chuyển",

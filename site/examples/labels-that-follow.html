@@ -181,7 +181,6 @@
       let aligning = -1;
 
       const ui = controls({
-        mouse: 'Drag to turn around the Sun, wheel to come closer; the labels ride on the planets',
         show: Object.keys(FACTS),
         speed: [0, 4, 1],
         lineThemUp: () => ((aligning = 0), world.invalidate()),

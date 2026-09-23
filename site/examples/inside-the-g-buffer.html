@@ -89,7 +89,7 @@
         'material ids': [(m) => m.lit, 'materials'],
       };
       const holds = readout('eachPixelHolds');
-      const ui = controls({ mouse: 'Drag to walk around the court · pick a buffer to look inside the frame', buffer: Object.keys(VIEWS), turning: true }, (values, key) => {
+      const ui = controls({ buffer: Object.keys(VIEWS), turning: true }, (values, key) => {
         if (key === 'turning') return world.invalidate();
         const [wear, mode] = VIEWS[values.buffer];
         for (const entry of meshes) entry.piece.material = wear(entry);

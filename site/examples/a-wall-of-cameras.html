@@ -299,7 +299,6 @@
       cells.forEach(({ cell }, k) => setTimeout(() => cell.classList.add('live'), 500 + k * 450));
 
       controls({
-        mouse: 'Click a feed to put it on the big screen; tell the cameras what to watch',
         watch: ['patrol', 'car', 'balloon'],
       }, (values) => (state.watch = values.watch), worlds[0]);
       const seen = readout('camerasSeeingCar');

@@ -69,25 +69,6 @@
         opacity: 1;
         transition: opacity 0.18s;
       }
-      #banner {
-        top: 38%;
-        left: 50%;
-        width: calc(100% - 32px);
-        transform: translate(-50%, -50%);
-        text-align: center;
-        text-shadow: 0 2px 8px #000;
-        transition: opacity 0.4s;
-      }
-      #banner b {
-        display: block;
-        font-size: 56px;
-        color: #ffd27a;
-      }
-      #banner span {
-        display: block;
-        margin-top: 6px;
-        font-size: 18px;
-      }
     </style>
   </head>
   <body>
@@ -95,10 +76,9 @@
     <div id="hud" class="layer" data-example-overlay data-hud><span id="orbs"></span><span id="clock"></span><span id="sound" data-words="sound"></span></div>
     <div id="dot" class="layer" data-example-overlay data-hud></div>
     <div id="veil" class="layer" data-example-overlay></div>
-    <div id="banner" class="layer" data-example-overlay data-hud></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { brownNoise, controls, hash, play, whiteNoise, words } from '../runtime/kit.js';
+      import { announce, brownNoise, controls, hash, play, whiteNoise, words } from '../runtime/kit.js';
       const say = words();
 
       // ── The course: data, nothing of the engine inside. The temple is built at life size, in
@@ -484,7 +464,7 @@
       // ── The heads-up display and the keys. Walking, sprinting and jumping are the controller's;
       // the page adds R and M.
       const $ = (id) => document.getElementById(id);
-      const [hud, orbsShown, clockShown, soundShown, veil, banner] = ['hud', 'orbs', 'clock', 'sound', 'veil', 'banner'].map($);
+      const [hud, orbsShown, clockShown, soundShown, veil] = ['hud', 'orbs', 'clock', 'sound', 'veil'].map($);
       const KEYS = [
         { action: 'run', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
         { action: 'look', keys: ['Mouse'] },
@@ -494,10 +474,6 @@
         { action: 'sound', keys: ['M'] },
         { action: 'pause', keys: ['Esc'] },
       ];
-      function announce(title, line = '') {
-        banner.style.opacity = title ? 1 : 0;
-        if (title) banner.innerHTML = `<b>${title}</b><span>${line}</span>`;
-      }
       // R and M are letters, not places: read by the character they type on any layout.
       addEventListener('keydown', (event) => {
         if (event.repeat) return;

@@ -37,9 +37,9 @@
       function noise(x, y, z) {
         const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z);
         const u = ease.smooth(x - i), v = ease.smooth(y - j), w = ease.smooth(z - k);
-        const mix = (a, b, t) => a + (b - a) * t;
-        const plane = (dk) => mix(mix(lattice(i, j, k + dk), lattice(i + 1, j, k + dk), u), mix(lattice(i, j + 1, k + dk), lattice(i + 1, j + 1, k + dk), u), v);
-        return mix(plane(0), plane(1), w) * 2 - 1;
+        const { lerp } = math;
+        const plane = (dk) => lerp(lerp(lattice(i, j, k + dk), lattice(i + 1, j, k + dk), u), lerp(lattice(i, j + 1, k + dk), lattice(i + 1, j + 1, k + dk), u), v);
+        return lerp(plane(0), plane(1), w) * 2 - 1;
       }
       const elevation = (x, y, z) => {
         let sum = 0, amplitude = 0.6, scale = 1.4;
@@ -250,7 +250,6 @@
         refused(String(no));
       };
       const ui = controls({
-        mouse: 'Drag to turn around the planet; raise the steepest slope and the forest climbs the mountains',
         trees: [0, TREES, 2600, 10],
         rocks: [0, ROCKS, 300, 10],
         steepest: [2, 60, 22, 1],
