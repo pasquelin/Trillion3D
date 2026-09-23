@@ -6305,6 +6305,11 @@
       "maxPolarAngle": "Orbite seulement : plus grand angle polaire ; `Math.PI / 2` garde la caméra au-dessus du sol.",
       "minAzimuthAngle": "Orbite seulement : début de l’arc d’azimut permis, en radians de +Z vers +X.",
       "maxAzimuthAngle": "Orbite seulement : fin de cet arc ; elle peut être plus petite que `minAzimuthAngle`.",
+      "movementSpeed": "Vol et première personne : unités du monde par seconde à pleine touche ; 1 par défaut.",
+      "lookSpeed": "Première personne seulement : radians dont la vue tourne par pixel de mouvement du pointeur.",
+      "rollSpeed": "Vol seulement : radians par seconde dont les touches font tanguer, lacer et rouler.",
+      "rotateSpeed": "Orbite et trackball : vitesse à laquelle le glissé tourne ; 1 par défaut.",
+      "zoomSpeed": "Contrôleurs à pivot : vitesse à laquelle la molette et le pincement zooment ; 1 par défaut.",
       "update": "Fait avancer un contrôleur piloté sur `delta` secondes ; un contrôleur à pivot relit sa pose.",
       "follow": "La caméra du monde a changé : le contrôleur la suit.",
       "dispose": "Arrête le contrôleur et retire ses écouteurs du canevas."
