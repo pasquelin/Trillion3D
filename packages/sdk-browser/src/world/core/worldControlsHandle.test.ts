@@ -25,3 +25,25 @@ test('`world.controls` hands its limits to the orbit it drives, and keeps them f
   assert.equal(Number(camera.position.y.toFixed(6)) + 0, 0);
   controls.dispose();
 });
+
+test('`world.controls` keeps its speeds across `kind`, and first person walks at `movementSpeed`', () => {
+  const camera = new Camera('perspective');
+  const surface = fixtureSurface(400);
+  const controls = worldControlsHandle(
+    'orbit',
+    () => camera,
+    surface.element,
+    () => {},
+  );
+  // Set on a controller that has no walk: harmless, and kept for the one that comes next.
+  controls.movementSpeed = 5;
+  controls.kind = 'firstPerson';
+  controls.kind = 'fly';
+  controls.kind = 'firstPerson';
+  assert.equal(controls.movementSpeed, 5);
+  controls.update(0);
+  surface.key('keydown', { code: 'KeyW' });
+  controls.update(1);
+  assert.equal(Number(camera.position.length().toFixed(6)), 5);
+  controls.dispose();
+});
