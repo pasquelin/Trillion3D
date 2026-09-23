@@ -16,13 +16,12 @@ import { createBlendScene } from '../../../cluster/blendSceneRecord.ts';
 import { createHostRankDelta } from '../io/hostRanks.ts';
 import { RASTER_BACKGROUND } from '../../../page/raster.ts';
 import {
-  DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
-  geometryPoolFor,
   textureTransferBytesFor,
   textureUploadMsFor,
   type TexturePools,
 } from '../../residency/memoryBudgets.ts';
+import { sessionGeometryPool } from '../../residency/sessionPool.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -121,23 +120,19 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   });
   const sourceBytes = indexSourceBytes(allPages);
   // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
-  // Image targets, themselves, follow resolution with no ceiling.
-  const poolFor = (budgetBytes: number, ceilingSlots?: number) =>
-    geometryPoolFor({
-      budgetBytes,
+  // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page are
+  // sized once, to the ceiling the geometry pool can reach mid-session (`setMemoryBudgets`).
+  const geometry = sessionGeometryPool(
+    {
       pageBytes,
       uniquePages,
       rootPages: bootstrapUrls.size,
       maxResidentPages,
-      ceilingSlots,
       limits: gpuDevice?.limits,
-    });
-  const geometryPool = poolFor(context.geometryPoolBytes ?? DEFAULT_GEOMETRY_POOL_BUDGET);
-  // Ceiling the pool can reach mid-session (`setMemoryBudgets`): tables sized by drawable page are
-  // sized once, to that ceiling. With no declared ceiling, it is the starting budget.
-  const cap = poolFor(
-    Math.max(geometryPool.budgetBytes, context.geometryPoolCeilingBytes ?? 0),
-  ).slots;
+    },
+    context.geometryPoolBytes,
+    context.geometryPoolCeilingBytes,
+  );
   // The texture pools are prepare's to draw, once the catalogue says which family the session
   // samples and which lane each texture takes; until then only the budget is held.
   const texturePoolBudget = context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
@@ -171,7 +166,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // What the host pins, held from one image to the next and published as a rank delta.
     hostRanks: createHostRankDelta(requestCount, requestUrls),
     // Ceiling of tables sized by drawable page: the slots the pool can reach mid-session.
-    cap,
+    cap: geometry.ceilingSlots,
     scene,
     pageBytes,
     // Largest corner count of the catalogue: the ceiling of every page draw and of the compute
@@ -186,9 +181,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     textureUploadMs,
     // The two pools as they are held; `setMemoryBudgets` replaces them with another drawn from the
     // same rule, `slots` follows.
-    geometryPool,
+    geometryPool: geometry.pool,
     // The same pool for another budget, under the session ceiling.
-    geometryPoolFor: (budgetBytes: number) => poolFor(budgetBytes, cap),
+    geometryPoolFor: geometry.poolFor,
     texturePoolBudget,
     /** The family, the encoding and the lane pools, set by prepare; `setMemoryBudgets` redraws. */
     texturePools: undefined as TexturePools | undefined,
