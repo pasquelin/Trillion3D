@@ -25,7 +25,7 @@ import {
   FlakyNodeWorker,
   NodeDomWorker,
   withNodeWorkerShim,
-} from './bench/oracles/pageDecodeNodeWorker.ts';
+} from '../../bench/oracles/browser/pageDecodeNodeWorker.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { PageDecodeAnswer, PageDecodeDone } from '../sdk-core/index.ts';
 

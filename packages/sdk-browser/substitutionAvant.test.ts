@@ -1,5 +1,5 @@
 // What reconstructing the pre-batch form is worth, in the reproduction benches of
-// defects 6 and 9 (`test/justesse/inverse-transposee-petite-echelle.ts` and
+// defects 6 and 9 (`tests/browser/probes/inverse-transposee-petite-echelle.ts` and
 // `normale-eclairage-petite-echelle.ts`).
 //
 // THE PREVIOUS STATE, for the record: both benches rebuilt the pre-batch shader with
@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 import { INVERSE_TRANSPOSE_BEFORE_WGSL, INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
-import { substitueFormeAvant } from '../../test/justesse/substitutionAvant.ts';
+import { substitueFormeAvant } from '../../tests/browser/probes/substitutionAvant.ts';
 
 const ORIGINE = 'packages/sdk-browser/inverseTransposeWgsl.ts';
 const SEUIL_ABSOLU = 'abs(det)<1e-20';

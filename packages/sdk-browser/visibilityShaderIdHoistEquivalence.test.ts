@@ -12,7 +12,7 @@ import {
   LARGE_SCALE,
   type Mat4,
   type Vec4,
-} from './bench/oracles/mat4HoistOracle.ts';
+} from '../../bench/oracles/browser/mat4HoistOracle.ts';
 
 // The hardware fallback draws the WHOLE opaque cut: the compute raster having taken triangles
 // of all sizes, the threshold that used to drop the small ones no longer exists, and no triangle

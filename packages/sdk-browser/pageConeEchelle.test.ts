@@ -1,7 +1,7 @@
 // Defect 1 (cone reject at small scale): `isConformal` must judge on purely relative length and
 // orthogonality ratios, never on an additive tolerance which, at small scale, hides a real
 // anisotropic deformation. The first test retakes the trigger case of
-// `test/justesse/cone-echelle-non-uniforme.ts`; the following cover degenerate 3×3s, then
+// `tests/browser/probes/cone-echelle-non-uniforme.ts`; the following cover degenerate 3×3s, then
 // confirm that reject remains possible for any uniform scale and rotation, as before this batch.
 import test from 'node:test';
 import assert from 'node:assert/strict';

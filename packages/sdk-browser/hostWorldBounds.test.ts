@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { emptyWorldBox, hostWorldBounds } from './hostWorldBounds.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
+import { assertBits } from '../../tests/kit/assert/bits.ts';
 
 /** The same box, flattened, as `Box3.setFromObject` computes it. */
 function referenceBox(source: THREE.Object3D) {

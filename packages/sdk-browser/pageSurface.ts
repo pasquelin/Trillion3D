@@ -20,7 +20,7 @@
  * one surface shares a single record and comparing two surfaces is comparing two references. The
  * host declaration itself stays reachable where a host boundary needs to hand it back to the
  * library that owns it — `PageRec.declaration` — and the closed list of
- * `test/integration/moteur-sans-three.test.ts` says who may read that field.
+ * `tests/integration/moteur-sans-three.test.ts` says who may read that field.
  */
 import type { Side } from '../sdk-core/index.ts';
 import type { HostMaterials } from './hostResources.ts';

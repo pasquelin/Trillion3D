@@ -5,7 +5,7 @@ import { createWebgpuTilePool, type TilePoolOptions } from './webgpuTilePool.ts'
 import { resizeTileAtlas } from './webgpuTileAtlasResize.ts';
 import { tailId, tileId } from './webgpuTileIds.ts';
 import { tileLayout, TILE_PITCH, TILES_PER_LAYER, POOL_LAYER_SIDE } from './textureTiles.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { poolEncoding } from './textureBlockFormats.ts';
 
 installGpuGlobals();

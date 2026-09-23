@@ -6,8 +6,8 @@ import { exactPagesBackend } from './exactPagesBackend.ts';
 import { createArrivalQueue } from './arrivalQueue.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 
 test('paged transparent commands disappear outside the view and return with both faces on CPU and GPU cuts', async () => {

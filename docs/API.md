@@ -15,7 +15,7 @@ shared by every entry:
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is.
 - **Same bits as the reference**, proven by `pnpm run perf:core`
-  (`packages/sdk-core/bench/three-vs-core-*.perf.ts`): each line runs the host library and
+  (`bench/perf/core/three-vs-core-*.perf.ts`): each line runs the host library and
   the engine on the same seeded inputs, compares bit for bit and refuses an engine slower than
   the reference. The two declared exceptions are named where they apply. The ratios quoted are
   the engine's speed-up over the reference, best of three runs on the same machine (#72, #76,
@@ -112,7 +112,7 @@ the adaptive threshold and the shadow range.
 | `writeEngineCamera(into, { fov, aspect, near, far, zoom })`                | everything a frame reads, derived from `into.world` already set and the optics                                                                    | `updateProjectionMatrix` + `updateMatrixWorld`          | `engineCamera.test.ts`: same bits as a host camera read through `readCameraWorld`       |
 | `defaultEngineCamera()`                                                    | the camera at the origin with fov 50, aspect 1, near 0.1, far 2000, zoom 1 — the fallback of oracles called before the first frame                | `new PerspectiveCamera()`                               | `engineCamera.test.ts`                                                                  |
 | `holdCameraWorld(into, from)`                                              | bit-for-bit copy of an engine camera, nothing recomputed                                                                                          | `PerspectiveCamera.copy`                                | `cameraWorld.test.ts`                                                                   |
-| `readCameraWorld(into, hostCamera)`                                        | resolves the host camera's ancestors, copies its world matrix, then `writeEngineCamera` — the only translation from a host camera, once per frame | `updateWorldMatrix` + the reads above                   | `cameraWorld.test.ts` under a hostile rig; `test/integration/moteur-sans-three.test.ts` |
+| `readCameraWorld(into, hostCamera)`                                        | resolves the host camera's ancestors, copies its world matrix, then `writeEngineCamera` — the only translation from a host camera, once per frame | `updateWorldMatrix` + the reads above                   | `cameraWorld.test.ts` under a hostile rig; `tests/integration/moteur-sans-three.test.ts` |
 | `enginePose(cam)`                                                          | `{ position, quaternion }` of the drawn frame, from the engine camera                                                                             | `getWorldPosition`, `getWorldQuaternion`                | `cameraWorld.test.ts`                                                                   |
 
 ### Sides — `packages/sdk-browser/materialSide.ts`
@@ -137,10 +137,10 @@ could spare it, and the lot that removes the WebGL composition host is where tha
 
 | Function                                       | Computes                                                                                                                                                                                                       | Replaces                                                                         | Proof                                                                                               |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `prepareWebgpuPresentation(device, gpuCanvas)` | the engine's presenter on the host canvas, or on one it creates when the host gave none                                                                                                                        | `new CanvasTexture` + `new ShaderMaterial` + a blit mesh added to the host scene | `test/browser/presentation-composee.browser.ts`, `explorerComposeSurface.test.ts`                   |
-| `RenderBackend.presentedSurface`               | the canvas an engine presented into, published on the contract; such an engine does not use `scene` for display, and an engine drawing on the host surface publishes none                                      | `scene.children.find((o) => o.userData.blit).material.uniforms.image.value`      | `test/browser/presentation-composee.browser.ts`, `explorerComposeSurface.test.ts`                   |
-| `createCanvasBlit(gl)`                         | a full-screen copy program on the caller's context: uploads a canvas and draws it over the viewport, rows reversed once, and reads the source in the encoding the destination writes so nothing converts twice | `WebGLRenderer.render` of a blit mesh, `copyFramebufferToTexture`                | `test/browser/presentation-composee.browser.ts`: 12 288 channels to each destination, not one apart |
-| `createBackendPresenter(host)`                 | the one place that puts an engine's image on the host surface: copies a presented surface into the bound framebuffer and answers true, or answers false for an engine that hands over a scene                  | `WebGLRenderer.render(backend.scene, camera)` on the WebGPU path                 | `explorerComposeSurface.test.ts`, `test/browser/presentation-composee.browser.ts`                   |
+| `prepareWebgpuPresentation(device, gpuCanvas)` | the engine's presenter on the host canvas, or on one it creates when the host gave none                                                                                                                        | `new CanvasTexture` + `new ShaderMaterial` + a blit mesh added to the host scene | `tests/browser/renders/presentation-composee.browser.ts`, `explorerComposeSurface.test.ts`                   |
+| `RenderBackend.presentedSurface`               | the canvas an engine presented into, published on the contract; such an engine does not use `scene` for display, and an engine drawing on the host surface publishes none                                      | `scene.children.find((o) => o.userData.blit).material.uniforms.image.value`      | `tests/browser/renders/presentation-composee.browser.ts`, `explorerComposeSurface.test.ts`                   |
+| `createCanvasBlit(gl)`                         | a full-screen copy program on the caller's context: uploads a canvas and draws it over the viewport, rows reversed once, and reads the source in the encoding the destination writes so nothing converts twice | `WebGLRenderer.render` of a blit mesh, `copyFramebufferToTexture`                | `tests/browser/renders/presentation-composee.browser.ts`: 12 288 channels to each destination, not one apart |
+| `createBackendPresenter(host)`                 | the one place that puts an engine's image on the host surface: copies a presented surface into the bound framebuffer and answers true, or answers false for an engine that hands over a scene                  | `WebGLRenderer.render(backend.scene, camera)` on the WebGPU path                 | `explorerComposeSurface.test.ts`, `tests/browser/renders/presentation-composee.browser.ts`                   |
 
 ## Batch E2 — WebGL2 surface foundation (#108)
 
@@ -150,7 +150,7 @@ claimed by this stage.
 
 | Function                                 | Computes                                                                                               | Replaces                                                                                             | Proof                                                           |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `createWebglSurface(canvas, lifecycle?)` | WebGL2 context, DPR-aware drawing-buffer size, loss/restoration state, and idempotent context disposal | implicit context creation and context loss in `new WebGLRenderer` / `WebGLRenderer.forceContextLoss` | `webglSurface.test.ts`, `test/browser/webgl-surface.browser.ts` |
+| `createWebglSurface(canvas, lifecycle?)` | WebGL2 context, DPR-aware drawing-buffer size, loss/restoration state, and idempotent context disposal | implicit context creation and context loss in `new WebGLRenderer` / `WebGLRenderer.forceContextLoss` | `webglSurface.test.ts`, `tests/browser/renders/webgl-surface.browser.ts` |
 
 ## Batch E3 — autonomous opaque cluster drawing (#113)
 
@@ -204,7 +204,7 @@ own program.
 
 | Function or contract                                         | Computes                                                                                                                                                                      | Replaces                                                                            | Proof                                                                                 |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `configureExplorer(session, inputs)`                         | the engine surface, created and sized from the options, as the only WebGL2 resource of the session; no renderer returned                                                      | `new THREE.WebGLRenderer({ canvas, context })` at capability time                   | `test/browser/*.browser.ts` on the WebGL path, unchanged; `moteur-sans-three.test.ts` |
+| `configureExplorer(session, inputs)`                         | the engine surface, created and sized from the options, as the only WebGL2 resource of the session; no renderer returned                                                      | `new THREE.WebGLRenderer({ canvas, context })` at capability time                   | `tests/browser/renders/*.browser.ts` on the WebGL path, unchanged; `moteur-sans-three.test.ts` |
 | `prepareExplorerWebglSurface({ canvas, size, onLifecycle })` | the surface created and sized, defaults applied, before any adapter exists                                                                                                    | `resizeExplorerWebglHost` with the renderer as the sizing callback                  | `webglSurface.test.ts`, `explorerViewportApi.test.ts`                                 |
 | `WebglSurface.lost`                                          | the loss itself, read on the context, not only its event — which is queued behind the frame that hit the dead context                                                         | `renderer.getContext().isContextLost()`                                             | `webglSurface.test.ts`: a loss the context knows before its event arrives             |
 | `handleExplorerRenderError(error, { webglSurface })`         | `CONTEXT_LOST` when the engine surface is lost, drawing nothing; the baseline fallback otherwise                                                                              | `renderer.getContext().isContextLost()`                                             | `explorerRenderFallback.test.ts`                                                      |
@@ -225,7 +225,7 @@ capture is byte-identical (four engines, two lightings, a resize); every held fr
 `exact-cluster-pages` — black before, the copy refused on the engine's alpha-less drawing buffer
 — is now its capture, byte for byte; every comparison layout — the clear colour before, the
 shader never compiled — shows each side as that engine's single view, byte for byte. Envelope,
-`scripts/mesure/banc.ts`, same scene, general view, moving camera, 1280 × 720, DPR 1, 0 px, 60
+`bench/runner/banc.ts`, same scene, general view, moving camera, 1280 × 720, DPR 1, 0 px, 60
 frames, `--profil on`, `--avant` = `develop` c34c0b74, six runs before and after — runs 1 – 3 on
 b32ebbc3 under a load average of 8 – 11, runs 4 – 6 on the reviewed head 0fc25233 under 20 – 26,
 another session validating on the machine — Apple M2 Max, Chrome 153 headless, display cap
@@ -279,7 +279,7 @@ The blended scene copy — none in the bench scenes, `submittedTriangles` equals
 `develop`. Declared, not measured: a lit blended copy (`MeshStandardMaterial`, transparent, not
 transmissive) is now shaded by the engine's single lighting model instead of the host renderer; no
 bench scene carries one and the browser proof uses an unlit material, so its pixel difference is
-not captured here. Envelope, `scripts/mesure/banc.ts`, general view, moving camera, 1280 × 720, DPR 1,
+not captured here. Envelope, `bench/runner/banc.ts`, general view, moving camera, 1280 × 720, DPR 1,
 0 px, 60 frames, `--profil on`, the two sides on one cache compiled by this commit's native
 compiler (WGP3, manifest 6, 150 000 triangles, 51 366 resident pages, 10.07 M submitted
 triangles — not the cache of batch E7's numbers, so the frame is not comparable with them), three
@@ -310,7 +310,7 @@ difference sits inside the after-side spread. **No gain is claimed**: the batch 
 
 The engine's signatures no longer carry a type of the rendering library the host draws with, with
 one exception this lot left behind and lot 2 below closed: `render(camera: HostCamera)` of
-`backendTypes.ts`, whose `HostCamera` was the host's perspective camera (`cameraWorld.ts`). Two contracts replace the resource types, and the closed list of `test/integration/moteur-sans-three.test.ts` lost
+`backendTypes.ts`, whose `HostCamera` was the host's perspective camera (`cameraWorld.ts`). Two contracts replace the resource types, and the closed list of `tests/integration/moteur-sans-three.test.ts` lost
 the fifteen files that named it: `backendTypes.ts`, `explorerOptions.ts`, `explorerSceneApi.ts`,
 `gpuDagTypes.ts`, `gpuSelection.ts`, `materialSide.ts`, `pageCone.ts`, `pageSelectionCutState.ts`,
 `pageSelectionHelpers.ts`, `pageSelectionTypes.ts`, `visibilityTypes.ts`, `webgpuBlendState.ts`,
@@ -331,7 +331,7 @@ the host's controls write — its three fields and the matrix that is their othe
 it declares, the world matrix its own resolution fills, and the projection its own renderer
 composed. The engine reads no inverse off it: the view a host draw needs is inverted into the
 buffer the engine owns (`invertMatrix4`), so nothing of a frame writes on the host's camera. Sixteen files left the closed list of
-`test/integration/moteur-sans-three.test.ts` with that: `cameraWorld.ts`, `exactPagesBounds.ts`,
+`tests/integration/moteur-sans-three.test.ts` with that: `cameraWorld.ts`, `exactPagesBounds.ts`,
 `explorerBackends.ts`, `explorerCamera.ts`, `explorerDisposeSource.ts`, `hostSceneHooks.ts`,
 `hostSceneScan.ts`, `hostSceneWatch.ts`, `hostWorldBounds.ts`, `hostWorldChain.ts`,
 `hostWorldMatrices.ts`, `hostWorldPose.ts`, `hostWorldTree.ts`, `replicateInstances.ts`,

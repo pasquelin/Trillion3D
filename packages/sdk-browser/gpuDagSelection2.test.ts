@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuDagSelection } from './gpuDagSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
-import { installGpuGlobals, mockDagDevice } from './gpuDagSelectionFixture.ts';
+import { mockDagDevice } from './gpuDagSelectionFixture.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { kernelUniforms, packed } from './gpuDagSelectionTestHelpers.ts';
 
 test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {

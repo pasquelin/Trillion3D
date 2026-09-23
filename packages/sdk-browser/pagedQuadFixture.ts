@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { encodeGeometryPage } from '../page-codec/geometryPage.ts';
 import { dagRoots } from './webgpuPagesTestDag.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { QUAD_MANIFEST, quadScene } from './pagesBackendScenes.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import type { BackendDiagnostic } from './backendTypes.ts';

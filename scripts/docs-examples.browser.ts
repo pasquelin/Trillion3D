@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { launchChrome } from './mesure/chrome.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { openExample } from './docs/examples/capture.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };

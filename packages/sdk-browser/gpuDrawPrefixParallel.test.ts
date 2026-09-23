@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { drawShader } from './gpuDrawShader.ts';
 import { slotCount } from './gpuDraw.ts';
-import { prefixParallel, prefixSerial } from './bench/oracles/gpuDrawPrefixOracle.ts';
+import { prefixParallel, prefixSerial } from '../../bench/oracles/browser/gpuDrawPrefixOracle.ts';
 
 // D3: the indirect-draw prefix moved from a serial walk (one thread) to spreading slots over
 // the sixty-four threads of a workgroup. This file pins both halves of the proof: the shipped

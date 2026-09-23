@@ -7,10 +7,10 @@
 // WHAT THIS FILE HOLDS, AND HOW. It no longer reads shader text with regex patterns: a suite of
 // `assert.match` on WGSL breaks on first reformat and guarantees no arithmetic. It tests
 // CALCULATION — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n)) — on f32 model from
-// `test/justesse/inverseTransposeF32.ts`: rotation tracked across all scales, singular poses —
+// `tests/browser/probes/inverseTransposeF32.ts`: rotation tracked across all scales, singular poses —
 // flattened then collapsed — and threshold crossed on both sides.
-// This model is not the shader: `test/browser/normal-transform-arithmetique.browser.ts` executes text
-// shipped in Chromium WebGPU on EXACTELY these cases (`test/justesse/normalTransformCas.ts`) and
+// This model is not the shader: `tests/browser/renders/normal-transform-arithmetique.browser.ts` executes text
+// shipped in Chromium WebGPU on EXACTELY these cases (`tests/browser/probes/normalTransformCas.ts`) and
 // mandates rendering what model renders — which is also where non-compiling shader fails proof.
 // Only text checks remaining here cover COMPILATION and single writing: duplicate declaration
 // would not compile, and two arithmetic copies would drift — exactly Bug 9. CRITERION judging
@@ -26,7 +26,7 @@ import {
   verdictNormale,
   xformNormalAvantLeLot,
   xformNormalModele,
-} from '../../test/justesse/inverseTransposeF32.ts';
+} from '../../tests/browser/probes/inverseTransposeF32.ts';
 import {
   APLATIES,
   CAS,
@@ -35,7 +35,7 @@ import {
   EFFONDREES,
   REGULIERE_MINUSCULE,
   SEUIL,
-} from '../../test/justesse/normalTransformCas.ts';
+} from '../../tests/browser/probes/normalTransformCas.ts';
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
 const verdict = (cas: { vraie: number[] }, rendue: number[]) =>
