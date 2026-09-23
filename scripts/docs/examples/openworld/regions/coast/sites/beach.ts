@@ -82,7 +82,8 @@ function along(
 }
 
 export function beachResort(layout: Layout, avoid?: Vec3): Resort | undefined {
-  const s = longestBeach(layout, avoid);
+  // Away from the lighthouse when the coast is long enough; on a short coast, its longest beach.
+  const s = longestBeach(layout, avoid) ?? longestBeach(layout);
   if (!s) return undefined;
   const f = shoreFrame(layout.map, s),
     line = promenade(layout, f),
