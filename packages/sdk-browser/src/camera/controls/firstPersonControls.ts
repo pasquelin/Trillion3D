@@ -87,7 +87,9 @@ export function createFirstPersonCameraControls(
     minPitch: FIRST_PERSON_PITCH[0],
     maxPitch: FIRST_PERSON_PITCH[1],
     locked: () => owner.pointerLockElement === surface,
-    lock: () => void surface.requestPointerLock?.(),
+    // A refused lock (asked too soon after Escape, or from a detached surface) is not an error:
+    // the next press asks again.
+    lock: () => void Promise.resolve(surface.requestPointerLock?.()).catch(() => {}),
     unlock: () => api.locked() && owner.exitPointerLock?.(),
     update(delta = 0) {
       sample();
