@@ -55,25 +55,7 @@ await world.scene.load('/cache/city/manifest.json');
     id: 'three-migration',
     title: 'Migration from Three.js',
     description:
-      'What a page that already writes Three.js code changes, call by call, to write directly against the world.',
-    html: `<p>A page that already builds a Three.js scene does not wrap it in an adapter: it writes the same shapes with this engine's own families, and the world owns the scene, the camera, the renderer and the loop from the first call. Three.js itself stays a comparison witness only, reached through the measurement entry point for the bench and the proofs — never mixed with a published world.</p>
-<div class="overflow-x-auto my-4"><table class="table table-zebra table-sm"><thead><tr><th>Three.js</th><th>This engine</th></tr></thead><tbody>
-<tr><td><code>new THREE.WebGLRenderer()</code> + <code>new THREE.Scene()</code> + <code>new THREE.PerspectiveCamera(...)</code></td><td><code>createWorld('id')</code> — one call owns the renderer, the scene and the camera</td></tr>
-<tr><td><code>new THREE.Mesh(g, m)</code></td><td><code>object.mesh(g, m)</code></td></tr>
-<tr><td><code>new THREE.BoxGeometry(w, h, d)</code></td><td><code>geometry.box(w, h, d)</code></td></tr>
-<tr><td><code>new THREE.MeshStandardMaterial({ ... })</code></td><td><code>material.meshStandard({ ... })</code></td></tr>
-<tr><td><code>new THREE.DirectionalLight(color, intensity)</code></td><td><code>light.directional({ color, intensity })</code></td></tr>
-<tr><td><code>new THREE.Vector3(...)</code> / <code>Matrix4</code> / <code>Quaternion</code> / <code>Color</code></td><td><code>math.vector3(...)</code> / <code>math.matrix4()</code> / <code>math.quaternion()</code> / <code>math.color(...)</code></td></tr>
-<tr><td><code>new THREE.TextureLoader().load(url, cb)</code></td><td><code>await loader.texture(url)</code></td></tr>
-<tr><td><code>THREE.DoubleSide</code></td><td><code>side.double</code></td></tr>
-<tr><td><code>renderer.setAnimationLoop(fn)</code></td><td><code>world.onFrame(fn)</code>; <code>world.invalidate()</code> after a change the world would not otherwise see</td></tr>
-<tr><td><code>camera.updateProjectionMatrix()</code></td><td>nothing to call — every setter (<code>camera.fov = …</code>, <code>camera.near = …</code>) applies its own consequence</td></tr>
-<tr><td><code>new GLTFLoader().load(url, cb)</code></td><td><code>await world.scene.load(manifestUrl)</code>, once the source is compiled — the model then streams by pages instead of loading whole</td></tr>
-<tr><td><code>THREE.LOD</code> / <code>THREE.InstancedMesh</code> / <code>THREE.BatchedMesh</code></td><td>nothing: the DAG cut, one per frame, is what these exist to approximate (deliberately absent: a whole-mesh renderer needs them, a page-streamed one does not)</td></tr>
-</tbody></table></div>
-<h3 class="text-lg font-bold mt-4">Where the two really differ</h3>
-<p>What the engine computes for itself reads the same physical inputs as Three.js, with two declared exceptions: the sRGB conversion is the exact curve rather than Three's rounded constants (gap ≤ 1e-11, invisible at 8 bits), and the camera's projection is reversed-depth with an infinite far plane (<code>near</code> maps to 1, infinity to 0) — the same optics read back a different depth value.</p>
-<p>The flat-array batch kernels a host driving thousands of objects by hand might reach for (<code>batch.multiplyMatrix4</code>, <code>batch.transformPoints</code>, …) are a public family, exported by <code>web-geometry</code> like any other: they are catalogued batch by batch in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md#maths-reference">docs/SDK.md</a>.</p>`,
+      'On the left a complete Three.js program, on the right the engine program that draws the same scene, section by section.',
   },
   {
     ...GUIDE,

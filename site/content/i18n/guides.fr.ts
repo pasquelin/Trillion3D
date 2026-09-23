@@ -108,25 +108,7 @@ export const guidesFr: LocaleOverlay = {
   'three-migration': {
     title: 'Migration depuis Three.js',
     description:
-      'Ce qu’une page qui écrit déjà du Three.js change, appel par appel, pour écrire directement contre le monde.',
-    html: `<p>Une page qui construit déjà une scène Three.js ne l’enveloppe pas dans un adaptateur : elle écrit les mêmes formes avec les familles propres à ce moteur, et le monde possède la scène, la caméra, le moteur de rendu et la boucle dès le premier appel. Three.js lui-même reste un témoin de comparaison, atteint par le point d’entrée de mesure pour le banc et les preuves — jamais mélangé à un monde publié.</p>
-<div class="overflow-x-auto my-4"><table class="table table-zebra table-sm"><thead><tr><th>Three.js</th><th>Ce moteur</th></tr></thead><tbody>
-<tr><td><code>new THREE.WebGLRenderer()</code> + <code>new THREE.Scene()</code> + <code>new THREE.PerspectiveCamera(...)</code></td><td><code>createWorld('id')</code> — un seul appel possède le moteur de rendu, la scène et la caméra</td></tr>
-<tr><td><code>new THREE.Mesh(g, m)</code></td><td><code>object.mesh(g, m)</code></td></tr>
-<tr><td><code>new THREE.BoxGeometry(w, h, d)</code></td><td><code>geometry.box(w, h, d)</code></td></tr>
-<tr><td><code>new THREE.MeshStandardMaterial({ ... })</code></td><td><code>material.meshStandard({ ... })</code></td></tr>
-<tr><td><code>new THREE.DirectionalLight(color, intensity)</code></td><td><code>light.directional({ color, intensity })</code></td></tr>
-<tr><td><code>new THREE.Vector3(...)</code> / <code>Matrix4</code> / <code>Quaternion</code> / <code>Color</code></td><td><code>math.vector3(...)</code> / <code>math.matrix4()</code> / <code>math.quaternion()</code> / <code>math.color(...)</code></td></tr>
-<tr><td><code>new THREE.TextureLoader().load(url, cb)</code></td><td><code>await loader.texture(url)</code></td></tr>
-<tr><td><code>THREE.DoubleSide</code></td><td><code>side.double</code></td></tr>
-<tr><td><code>renderer.setAnimationLoop(fn)</code></td><td><code>world.onFrame(fn)</code> ; <code>world.invalidate()</code> après un changement que le monde ne verrait pas de lui-même</td></tr>
-<tr><td><code>camera.updateProjectionMatrix()</code></td><td>rien à appeler — chaque propriété (<code>camera.fov = …</code>, <code>camera.near = …</code>) applique sa propre conséquence</td></tr>
-<tr><td><code>new GLTFLoader().load(url, cb)</code></td><td><code>await world.scene.load(manifestUrl)</code>, une fois la source compilée — le modèle se diffuse ensuite par pages au lieu de charger en entier</td></tr>
-<tr><td><code>THREE.LOD</code> / <code>THREE.InstancedMesh</code> / <code>THREE.BatchedMesh</code></td><td>rien : la coupe du DAG, une par image, est ce que ces classes existent pour approcher (délibérément absentes : un rendu par maillage entier en a besoin, un rendu par pages non)</td></tr>
-</tbody></table></div>
-<h3 class="text-lg font-bold mt-4">Où les deux diffèrent vraiment</h3>
-<p>Ce que le moteur calcule lui-même lit les mêmes entrées physiques que Three.js, avec deux écarts déclarés : la conversion sRGB suit la courbe exacte plutôt que les constantes arrondies de Three (écart ≤ 1e-11, invisible sur 8 bits), et la projection de la caméra est à profondeur inversée avec un plan lointain infini (<code>near</code> devient 1, l’infini devient 0) — les mêmes optiques relisent une profondeur différente.</p>
-<p>Les noyaux de calcul par lots sur tableaux plats qu’un hôte pilotant des milliers d’objets à la main pourrait chercher (<code>batch.multiplyMatrix4</code>, <code>batch.transformPoints</code>, …) sont une famille publique, exportée par <code>web-geometry</code> comme les autres : ils sont catalogués lot par lot dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md#maths-reference">docs/SDK.md</a>.</p>`,
+      'À gauche un programme Three.js complet, à droite le programme du moteur qui dessine la même scène, section par section.',
   },
   'cluster-format': {
     title: 'Pages de grappes quantifiées',
