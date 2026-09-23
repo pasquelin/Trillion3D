@@ -62,10 +62,12 @@
 
       // A new picture drawn on the same canvas reaches the surface once the texture is told so.
       const ui = controls({ checks: [2, 24, 8, 1], paint: '#e0663c', second: '#f2efe6', spin: true }, (values, key) => {
-        if (key === 'spin') return;
-        paintChecks(values.checks, values.second, values.paint);
-        checks.needsUpdate = true;
-        painted.color.set(values.paint);
+        // Spin back on, the frame that turns the shapes must be asked for.
+        if (key !== 'spin') {
+          paintChecks(values.checks, values.second, values.paint);
+          checks.needsUpdate = true;
+          painted.color.set(values.paint);
+        }
         world.invalidate();
       }, world);
       world.onFrame(({ delta }) => {
