@@ -6,7 +6,7 @@
 use super::*;
 
 /// Leaf: full disc with 3-pixel softened edge, empty background.
-fn feuille_png() -> Vec<u8> {
+fn sheet_png() -> Vec<u8> {
     let image = image::RgbaImage::from_fn(64, 64, |x, y| {
         let (dx, dy) = (x as f32 - 31.5, y as f32 - 31.5);
         let rayon = (dx * dx + dy * dy).sqrt();
@@ -24,7 +24,7 @@ fn feuille_png() -> Vec<u8> {
 fn scene_feuillage() -> (PathBuf, Options) {
     let (root, mut options) = cube_fixture();
     let source = options.source.clone();
-    fs::write(source.join("feuille.png"), feuille_png()).expect("texture");
+    fs::write(source.join("feuille.png"), sheet_png()).expect("texture");
     let mut gltf = read_json(&source.join("cube.gltf"));
     gltf["materials"] = json!([{"alphaMode":"BLEND","name":"feuillage",
         "pbrMetallicRoughness":{"baseColorTexture":{"index":0}}}]);
@@ -44,7 +44,7 @@ fn scene_feuillage() -> (PathBuf, Options) {
     (root, options)
 }
 
-fn feuille_de_reponses(options: &Options) -> Value {
+fn answer_sheet(options: &Options) -> Value {
     read_json(&options.cache.join(crate::cutout::DECISIONS_FILE))
 }
 
@@ -52,10 +52,10 @@ fn feuille_de_reponses(options: &Options) -> Value {
 // or not. Sheet carries measurement and proposal, answer null:
 // until decided, blend remains blend.
 #[test]
-fn chaque_modele_repart_avec_sa_feuille() {
+fn each_model_leaves_with_its_sheet() {
     let (_root, options) = scene_feuillage();
     let result = compile(&options, |_| {}).expect("compile");
-    let sheet = feuille_de_reponses(&options);
+    let sheet = answer_sheet(&options);
     let (_, entry) = sheet["textures"]
         .as_object()
         .expect("textures")
@@ -82,10 +82,10 @@ fn chaque_modele_repart_avec_sa_feuille() {
 // instead of per-item call. Published `source.gltf` carries reclassified material:
 // that is what the engine reads to shade.
 #[test]
-fn une_reponse_enregistree_fait_passer_le_feuillage_en_decoupe() {
+fn a_recorded_answer_turns_the_foliage_to_cutout() {
     let (_root, options) = scene_feuillage();
     let first = compile(&options, |_| {}).expect("first compile");
-    let mut sheet = feuille_de_reponses(&options);
+    let mut sheet = answer_sheet(&options);
     for (_, entry) in sheet["textures"]
         .as_object_mut()
         .expect("textures")

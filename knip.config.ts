@@ -35,10 +35,16 @@ const config: KnipConfig = {
     'bench/runner/lampFixture.ts',
     'bench/perf/*/*.perf.ts',
     'bench/runner/perf/*.ts',
-    // Every test module: probes, render proofs and the pages they serve by URL. The shared kit is
-    // not an entry: an export no test imports is reported.
-    'tests/**/*.{ts,mts}',
-    '!tests/kit/**',
+    // Tests by rule: unit and integration tests, the browser proof runners (render proofs and
+    // kebab-case probes), the pages and modules they serve by URL, and the public-API fixtures
+    // the type-check test compiles by path. Kit, support and fixture helpers are not entries: an
+    // export no test imports is reported.
+    'tests/**/*.test.ts',
+    'tests/browser/renders/*.browser.ts',
+    'tests/browser/probes/*-*.ts',
+    'tests/browser/**/*Page.ts',
+    'tests/browser/support/drawRun.ts',
+    'tests/fixtures/public*.{ts,mts}',
   ],
   project: [
     'site/**/*.{ts,tsx}',

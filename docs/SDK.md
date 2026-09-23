@@ -497,7 +497,7 @@ only reads the host graph at a scene revision) — and `blendWorldMs` is zero, a
 (`transparentPrepareMs`, `transparentEncodeMs`) under which the frustum × box loops of
 `packages/sdk-browser/src/webgpu/blend/order.ts` and `packages/sdk-browser/src/webgpu/blend/selection.ts` run — on the transparent path only, and only
 where a scene has transparents. `invertMatrix4` (`packages/sdk-browser/src/webgpu/pages/render/transform.ts`,
-`packages/sdk-browser/src/lighting/observation/meshes.ts` at the lighting experiment's creation) and `boxTransform` +
+`tests/kit/lighting/meshes.ts` at the lighting experiment's creation) and `boxTransform` +
 `boxUnion` (`packages/sdk-browser/src/math/batchBoxes.ts`, `packages/sdk-browser/src/webgpu/pages/render/transform.ts`, `packages/sdk-browser/src/page/selection/collect.ts` at setup)
 run at a host write or at `prepare()`, never per image; `normalMatrix3` (`packages/sdk-browser/src/page/cone/cone.ts`) at prepare, and in the CPU
 visibility oracle (`packages/sdk-browser/src/visibility/shader/shadingNormal.ts`) that no frame calls; `sphereFromBounds`

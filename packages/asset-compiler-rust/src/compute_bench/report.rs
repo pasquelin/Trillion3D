@@ -71,7 +71,7 @@ fn shell(command: &str, args: &[&str]) -> Value {
         .unwrap_or(Value::Null)
 }
 
-pub(crate) fn mesures_dir() -> PathBuf {
+pub(crate) fn measures_dir() -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../.mesure/out/calculs")
         .components()
@@ -104,7 +104,7 @@ pub(crate) fn write_fragment_g(rows: &[Row]) {
 
 pub(crate) fn write(rows: &[Row]) {
     let date = today();
-    let dir = mesures_dir();
+    let dir = measures_dir();
     let entries: Vec<Value> = rows
         .iter()
         .map(|row| {

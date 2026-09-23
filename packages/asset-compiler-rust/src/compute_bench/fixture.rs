@@ -1,7 +1,7 @@
 //! Byte-by-byte fingerprint of everything the compiler writes. The same file is
 //! produced before and after the optimisations; two identical runs have exactly
 //! the same fingerprints.
-use super::report::{mesures_dir, today};
+use super::report::{measures_dir, today};
 use crate::compile;
 use crate::compiler_validate::hash;
 use crate::tests::golden::{golden_dir, golden_options};
@@ -85,7 +85,7 @@ pub(crate) fn run() -> (f64, String) {
         total += ms;
         records.push(record);
     }
-    let path = mesures_dir().join(format!("calculs-natif-{}-fixtures-{label}.json", today()));
+    let path = measures_dir().join(format!("calculs-natif-{}-fixtures-{label}.json", today()));
     let payload = json!({"label":label,"totalMs":total,"fixtures":records});
     let _ = std::fs::write(
         &path,

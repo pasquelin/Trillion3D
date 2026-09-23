@@ -1,10 +1,10 @@
-import { invertMatrix4, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
+import { invertMatrix4, multiplyMatrix4 } from '../../../packages/sdk-core/src/index.ts';
 import type { LightingExperimentRenderState } from './contracts.ts';
 import type { ObservationResources } from './resources.ts';
 import { createObservationTransforms } from './transforms.ts';
-import { hostWorldTree } from '../../host/world/tree.ts';
-import { geometryBytes, meshes } from '../../scene/meshes.ts';
-import type { WholeMesh } from '../../cluster/batchMesh.ts';
+import { hostWorldTree } from '../../../packages/sdk-browser/src/host/world/tree.ts';
+import { geometryBytes, meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts';
+import type { WholeMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 
 /** What the engine draws for one observed surface: the host geometry, read where the host
  *  holds it, and an owned placement — no host mesh, no clone. */

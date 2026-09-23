@@ -87,7 +87,7 @@ pub(crate) fn row() -> Row {
         },
         empreinte,
     )
-    .ecarte(
+    .spread(
         "same numbers, no measurable gain: the native compiler already inlines and factors \
          the recomputed bounds, so the candidate did not enter the library",
     )

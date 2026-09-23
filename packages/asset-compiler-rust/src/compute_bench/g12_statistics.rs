@@ -14,7 +14,7 @@ fn reference_stats(errors: &mut [f64]) -> (f64, f64, f64) {
 }
 
 /// Errors of a level: duplicates, signed zeros, NaN and infinities sown in.
-fn erreurs(seed: u64, count: usize) -> Vec<f64> {
+fn errors(seed: u64, count: usize) -> Vec<f64> {
     let mut rng = Xorshift::new(seed);
     let poison = [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -0.0, 0.0];
     (0..count)
@@ -45,7 +45,7 @@ pub(crate) fn row() -> Row {
     let niveaux: Vec<Vec<f64>> = [8000usize, 2000, 500, 120, 30, 8, 2, 1]
         .iter()
         .enumerate()
-        .map(|(i, count)| erreurs(0xC12 + i as u64, *count))
+        .map(|(i, count)| errors(0xC12 + i as u64, *count))
         .collect();
     compare(
         "G12 error statistics of a level",
@@ -74,8 +74,8 @@ mod tests {
     /// `reference_stats` (the full sort from before lot G) and `level_error_stats`
     /// (the partial selection) must yield the same triplet bit for bit, on hostile
     /// levels: a single element, an even count, duplicates, and the poison (NaN,
-    /// infinities, signed zeros) already sown by `erreurs`.
-    fn memes_stats(valeurs: Vec<f64>, label: &str) {
+    /// infinities, signed zeros) already sown by `errors`.
+    fn same_stats(valeurs: Vec<f64>, label: &str) {
         let attendu = reference_stats(&mut valeurs.clone());
         let obtenu = level_error_stats(&mut valeurs.clone());
         let identiques = attendu.0.to_bits() == obtenu.0.to_bits()
@@ -85,29 +85,29 @@ mod tests {
     }
 
     #[test]
-    fn un_seul_element_est_son_propre_minimum_median_et_maximum() {
-        memes_stats(vec![42.5], "un seul element");
-        memes_stats(vec![f64::NAN], "un seul element NaN");
-        memes_stats(vec![-0.0], "un seul element -0.0");
+    fn a_single_element_is_its_own_minimum_median_and_maximum() {
+        same_stats(vec![42.5], "un seul element");
+        same_stats(vec![f64::NAN], "un seul element NaN");
+        same_stats(vec![-0.0], "un seul element -0.0");
     }
 
     #[test]
     fn two_elements_pick_the_same_upper_half_as_median() {
-        memes_stats(vec![3.0, 1.0], "two decreasing elements");
-        memes_stats(vec![1.0, 1.0], "two equal elements");
-        memes_stats(vec![f64::INFINITY, f64::NEG_INFINITY], "two infinities");
+        same_stats(vec![3.0, 1.0], "two decreasing elements");
+        same_stats(vec![1.0, 1.0], "two equal elements");
+        same_stats(vec![f64::INFINITY, f64::NEG_INFINITY], "two infinities");
     }
 
     #[test]
     fn duplicates_and_poison_do_not_diverge_the_triplet() {
-        memes_stats(vec![5.0, 5.0, 5.0, 5.0, 5.0], "only duplicates");
-        memes_stats(erreurs(0xA11, 7), "seven, poison included");
-        memes_stats(erreurs(0xA22, 8), "eight, even, poison included");
-        memes_stats(erreurs(0xA33, 211), "full poison period");
+        same_stats(vec![5.0, 5.0, 5.0, 5.0, 5.0], "only duplicates");
+        same_stats(errors(0xA11, 7), "seven, poison included");
+        same_stats(errors(0xA22, 8), "eight, even, poison included");
+        same_stats(errors(0xA33, 211), "full poison period");
     }
 
     #[test]
     fn a_large_level_with_heavy_poison_remains_identical() {
-        memes_stats(erreurs(0xA44, 6000), "six thousand, poison included");
+        same_stats(errors(0xA44, 6000), "six thousand, poison included");
     }
 }

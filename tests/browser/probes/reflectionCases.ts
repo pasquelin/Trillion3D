@@ -35,7 +35,7 @@ export function pageVisible(cas: Cas) {
 }
 
 /** `viewProj` matrix of the shared camera, column-major, as the engine assembles it. */
-export function viewProjection(): number[] {
+function viewProjection(): number[] {
   camera.updateWorldMatrix(true, false);
   return [
     ...new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
