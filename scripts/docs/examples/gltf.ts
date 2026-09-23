@@ -22,17 +22,11 @@ function bounds(values: readonly number[], size: number) {
 }
 
 /**
- * The buffer views, accessors and primitives of workshop surfaces, in one binary chunk list;
- * `uv` adds the texture coordinates the workshop recorded, for a material that reads a map.
+ * Packs flat attribute and index arrays into one binary chunk list: the views and accessors of
+ * buffer `buffer`, numbered from `firstView` and `firstAccessor`. Every value is four bytes, so
+ * each view starts aligned.
  */
-function surfacesBuffers(
-  surfaces: Iterable<[number, Mesh]>,
-  buffer: number,
-  firstView: number,
-  firstAccessor: number,
-  firstMaterial: number,
-  uv = false,
-) {
+export function bufferPacker(buffer: number, firstView = 0, firstAccessor = 0) {
   const views: BufferView[] = [],
     accessors: Accessor[] = [],
     chunks: Buffer[] = [];
@@ -57,16 +51,17 @@ function surfacesBuffers(
     });
     return firstAccessor + accessors.length - 1;
   };
-  const primitives: Primitive[] = [...surfaces].map(([material, mesh]) => ({
-    material: firstMaterial + material,
+  /** One primitive of `mesh` drawn with `material`; `uv` adds its texture coordinates. */
+  const primitive = (mesh: Mesh, material: number, uv = mesh.uvs.length > 0): Primitive => ({
+    material,
     attributes: {
       POSITION: accessor(mesh.positions, 3),
       NORMAL: accessor(mesh.normals, 3),
       ...(uv ? { TEXCOORD_0: accessor(mesh.uvs, 2) } : {}),
     },
     indices: accessor(mesh.indices, 1),
-  }));
-  return { views, accessors, primitives, chunks, byteLength };
+  });
+  return { views, accessors, chunks, primitive, byteLength: () => byteLength };
 }
 
 /** A material row: name, base colour, metalness, roughness, then any glTF field of its own. */
@@ -95,14 +90,15 @@ export async function appendSurfacesGltf(
   materials: readonly MaterialRow[],
   surfaces: Iterable<[number, Mesh]>,
 ) {
-  const { views, accessors, primitives, chunks, byteLength } = surfacesBuffers(
-    surfaces,
-    gltf.buffers.length,
-    gltf.bufferViews.length,
-    gltf.accessors.length,
-    gltf.materials.length,
-  );
-  gltf.buffers.push({ uri: 'setting.bin', byteLength });
+  const { views, accessors, chunks, primitive, byteLength } = bufferPacker(
+      gltf.buffers.length,
+      gltf.bufferViews.length,
+      gltf.accessors.length,
+    ),
+    primitives = [...surfaces].map(([index, mesh]) =>
+      primitive(mesh, gltf.materials.length + index, false),
+    );
+  gltf.buffers.push({ uri: 'setting.bin', byteLength: byteLength() });
   gltf.bufferViews.push(...views);
   gltf.accessors.push(...accessors);
   gltf.materials.push(...materials.map(material));

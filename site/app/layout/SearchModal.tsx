@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { search } from '../portal/search.ts';
 import { searchIndex } from '../portal/searchIndex.ts';
 import { Badge } from '../ui/Badge.tsx';
@@ -15,6 +15,7 @@ const LIMIT = 50;
 function SearchPanel({ onClose }: { onClose: () => void }) {
   const { route, entries } = usePortal();
   const { locale } = route;
+  const t = useWords(locale);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const list = useId();
@@ -40,8 +41,8 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
         size="lg"
         data-autofocus
         value={query}
-        placeholder={t(locale, 'search.placeholder')}
-        aria-label={t(locale, 'search.label')}
+        placeholder={t('search.placeholder')}
+        aria-label={t('search.label')}
         role="combobox"
         aria-expanded
         aria-controls={list}
@@ -75,7 +76,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
-      {results.length === 0 && <Note role="status">{t(locale, 'sidebar.noResults')}</Note>}
+      {results.length === 0 && <Note role="status">{t('sidebar.noResults')}</Note>}
     </div>
   );
 }
@@ -84,13 +85,14 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
  * the reader types, walked with the arrow keys and opened with Enter. */
 export function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { route } = usePortal();
+  const t = useWords(route.locale);
   return (
     <Modal
       open={open}
       onClose={onClose}
       size="wide"
-      title={t(route.locale, 'search.label')}
-      closeLabel={t(route.locale, 'actions.close')}
+      title={t('search.label')}
+      closeLabel={t('actions.close')}
     >
       <SearchPanel onClose={onClose} />
     </Modal>

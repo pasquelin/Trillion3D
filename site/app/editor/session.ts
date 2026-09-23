@@ -1,10 +1,13 @@
 import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
-import type { Engine } from '../../lessons/lessonWorld.ts';
-import { SCENE_BACKGROUND } from '../../lessons/scenePalette.ts';
 import { createHistory, type Command } from './history.ts';
 import { isWithin, poseCommand, poseOf, samePose, type Pose } from './commands.ts';
 import { writeAutosave } from './storage.ts';
 
+/** The engine's public module, as the editor loads it on demand. */
+export type Engine = typeof import('../../../packages/sdk-browser/src/index.ts');
+
+/** The portal's stage (`--stage` in `portal.css`), the background every render sits on. */
+const STAGE = 0x0e1621;
 /** Edits the history keeps: a UI capacity (how far back a person steps), not a memory budget —
  *  each command holds a few numbers, or an object that was removed. */
 const HISTORY_CAPACITY = 100;
@@ -19,7 +22,7 @@ const SNAP = { translate: 0.5, rotate: Math.PI / 12, scale: 0.1 };
 export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed: () => void) {
   const world = engine.createWorld(canvas, { controls: 'orbit' });
   const { scene } = world;
-  scene.background = engine.math.color(SCENE_BACKGROUND.packed);
+  scene.background = engine.math.color(STAGE);
   world.camera.position.set(5, 4, 7);
   world.camera.lookAt(0, 0.5, 0);
   world.controls.target?.set(0, 0.5, 0);
@@ -65,8 +68,10 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
     refreshOutline();
     changed();
   };
+  let disposed = false;
+  // A load that settles after the editor closed has a disposed world: nothing of it is saved.
   const saved = () => {
-    writeAutosave(() => JSON.stringify(scene.toJSON(world.camera)));
+    if (!disposed) writeAutosave(() => JSON.stringify(scene.toJSON(world.camera)));
   };
   /** What follows every edit, done, undone or redone. */
   const edited = () => {
@@ -149,6 +154,7 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
       changed();
     },
     dispose() {
+      disposed = true;
       gizmo.dispose();
       world.dispose();
     },

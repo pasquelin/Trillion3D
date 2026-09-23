@@ -1,0 +1,1829 @@
+{
+  "kit": {
+    "panel": {
+      "controls": "设置"
+    },
+    "menu": {
+      "play": "开始",
+      "resume": "继续",
+      "restart": "重新开始",
+      "controls": "设置",
+      "back": "返回",
+      "paused": "已暂停",
+      "again": "再点一次继续"
+    },
+    "keys": {
+      "Mouse": "鼠标",
+      "Right button": "右键",
+      "Wheel": "滚轮",
+      "Shift": "Shift",
+      "Space": "空格",
+      "Esc": "Esc"
+    },
+    "stats": {
+      "FPS": "帧/秒",
+      "FPS (held)": "帧/秒（停住）",
+      "triangles": "三角形",
+      "triangles (scene)": "三角形（场景）",
+      "draw calls": "绘制调用",
+      "pages": "页",
+      "geometry pool": "几何体存储",
+      "lights": "灯光",
+      "GPU frame": "GPU 帧",
+      "CPU frame": "CPU 帧",
+      "page hooks": "页面代码",
+      "engine CPU": "引擎 CPU"
+    }
+  },
+  "a-city-from-rules": {
+    "controls": {
+      "mouse": "拖动来四处飞行；每个设置都会按规则重新建造城市",
+      "blocks": "街区",
+      "maxHeight": "最高高度",
+      "density": "密度",
+      "parks": "公园",
+      "seed": "种子",
+      "hour": "时刻",
+      "traffic": "交通"
+    },
+    "readouts": {
+      "buildings": "建筑",
+      "parks": "公园"
+    }
+  },
+  "a-cloud-of-points": {
+    "controls": {
+      "mouse": "拖动来绕着云转；换一个形状，旧的会卷走消失，新的慢慢展开",
+      "shape": "形状",
+      "spin": "旋转"
+    },
+    "choices": {
+      "shape": {
+        "spiral galaxy": "旋涡星系",
+        "globular cluster": "球状星团",
+        "ring nebula": "环状星云",
+        "Lorenz attractor": "洛伦兹吸引子"
+      }
+    },
+    "readouts": {
+      "points": "点",
+      "colourGroups": "颜色组"
+    }
+  },
+  "a-colour-ramp-in-linear-light": {
+    "controls": {
+      "colour": "颜色",
+      "glow": "发光",
+      "exposure": "曝光"
+    }
+  },
+  "a-field-of-pebbles": {
+    "controls": {
+      "sunTurn": "太阳方向",
+      "sunHeight": "太阳高度",
+      "first": "第一个",
+      "last": "最后一个"
+    }
+  },
+  "a-first-world": {
+    "controls": {
+      "colour": "颜色"
+    }
+  },
+  "a-game-board-seen-from-above": {
+    "controls": {
+      "mouse": "拖动来移动棋盘 · 滚轮或双指缩放 · 方向键平移",
+      "play": "开始",
+      "speed": "速度",
+      "follow": "跟随",
+      "replay": "重播"
+    },
+    "readouts": {
+      "move": "走法"
+    },
+    "words": {
+      "takes": "吃子"
+    }
+  },
+  "a-lamp-in-its-glass": {
+    "controls": {
+      "swing": "摆动",
+      "lamp": "灯",
+      "power": "功率",
+      "glass": "玻璃"
+    }
+  },
+  "a-lighthouse-beam": {
+    "controls": {
+      "turnsPerMinute": "每分钟转数",
+      "beamWidth": "光束宽度",
+      "colour": "颜色"
+    }
+  },
+  "a-long-shadowed-street": {
+    "controls": {
+      "mouse": "拖动来环顾大街，滚轮前进；拖动时间，影子会在街上拉长并爬上墙面",
+      "hour": "时刻",
+      "traffic": "交通",
+      "flyAgain": "再飞一次"
+    },
+    "readouts": {
+      "sunHeight": "太阳高度",
+      "shadow30MHouse": "30 米高房子的影子"
+    }
+  },
+  "a-matcap-sculpture": {
+    "controls": {
+      "mouse": "拖动来绕着雕塑走：它的光会跟着你转，因为光就在图片里",
+      "matcap": "Matcap",
+      "sculpture": "雕塑",
+      "gallery": "展厅",
+      "turn": "转动"
+    },
+    "choices": {
+      "matcap": {
+        "red clay": "红黏土",
+        "chrome": "铬",
+        "gold": "金",
+        "jade": "玉",
+        "pearl": "珍珠",
+        "obsidian": "黑曜石"
+      },
+      "sculpture": {
+        "knot": "结",
+        "rings": "圆环",
+        "vase": "花瓶"
+      }
+    }
+  },
+  "a-mesh-built-by-hand": {
+    "controls": {
+      "mouse": "拖动来绕着宝石转；关掉锐利切面，让角落共用",
+      "points": "点",
+      "waist": "腰身",
+      "height": "高度",
+      "sharpFacets": "锐利切面",
+      "colour": "颜色",
+      "spin": "旋转"
+    },
+    "readouts": {
+      "verticesWritten": "写入的顶点",
+      "triangles": "三角形"
+    }
+  },
+  "a-model-from-obj": {
+    "controls": {
+      "mouse": "拖动来绕着棋盘转，滚轮靠近：看看 OBJ 变成了什么",
+      "view": "视图",
+      "sunAngle": "太阳角度",
+      "sunHeight": "太阳高度",
+      "turn": "转动"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "triangles": "三角形",
+        "clusters": "簇",
+        "lod": "细节层级"
+      }
+    },
+    "words": {
+      "credit": "为这些示例制作的国际象棋，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "a-model-from-usdz": {
+    "controls": {
+      "mouse": "拖动来绕着棋盘走；用滚轮下到棋子旁边",
+      "view": "视图",
+      "turn": "转动"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "materials": "材质",
+        "clusters": "簇",
+        "triangles": "三角形"
+      }
+    },
+    "readouts": {
+      "source": "来源",
+      "boardWidth": "棋盘宽度",
+      "partsPlaced": "放置的零件",
+      "triangles": "三角形"
+    },
+    "words": {
+      "credit": "为这个示例用代码制作的国际象棋，CC0；文件是 assets/examples/a-model-from-usdz/source/chess-set.usdz — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "a-molecule": {
+    "controls": {
+      "mouse": "拖动来绕着分子转；换一个，它的原子会飞到新位置",
+      "molecule": "分子",
+      "style": "样式",
+      "spin": "旋转"
+    },
+    "choices": {
+      "molecule": {
+        "C60 buckyball": "C60 富勒烯",
+        "carbon nanotube": "碳纳米管",
+        "diamond crystal": "钻石晶体",
+        "DNA double helix": "DNA 双螺旋"
+      },
+      "style": {
+        "ball and stick": "球棍",
+        "space filling": "空间填充",
+        "sticks": "棍"
+      }
+    },
+    "readouts": {
+      "atoms": "原子",
+      "bonds": "化学键"
+    }
+  },
+  "a-neon-sign": {
+    "controls": {
+      "star": "星星",
+      "wave": "波浪",
+      "glow": "发光",
+      "pulse": "闪烁",
+      "exposure": "曝光",
+      "toneMapping": "色调映射"
+    },
+    "choices": {
+      "toneMapping": {
+        "aces": "aces",
+        "agx": "agx",
+        "neutral": "中性",
+        "reinhard": "reinhard",
+        "cineon": "cineon",
+        "linear": "线性"
+      }
+    }
+  },
+  "a-ring-of-lamps": {
+    "controls": {
+      "lamps": "灯",
+      "speed": "速度",
+      "power": "功率",
+      "shadows": "阴影"
+    }
+  },
+  "a-robot-that-walks-and-waves": {
+    "controls": {
+      "walk": "走路",
+      "wave": "波浪",
+      "dance": "跳舞",
+      "speed": "速度",
+      "colour": "颜色"
+    }
+  },
+  "a-scene-of-your-own": {
+    "controls": {
+      "hour": "时刻",
+      "wind": "风",
+      "roof": "屋顶"
+    }
+  },
+  "a-softbox-panel": {
+    "controls": {
+      "mouse": "拖动来绕着布景走；把面板变大，看高光变柔和",
+      "panelWidth": "面板宽度",
+      "power": "功率",
+      "colour": "颜色",
+      "swing": "摆动"
+    },
+    "readouts": {
+      "panel": "面板",
+      "radiance": "辐射亮度"
+    }
+  },
+  "a-staircase-from-one-step": {
+    "controls": {
+      "climb": "爬升",
+      "turnPerStep": "每级转角",
+      "lantern": "灯笼"
+    }
+  },
+  "a-terrain-from-a-height-map": {
+    "controls": {
+      "hour": "时刻",
+      "sunColour": "太阳颜色",
+      "exposure": "曝光"
+    }
+  },
+  "a-texture-turned-and-tiled": {
+    "controls": {
+      "mouse": "拖动来环顾四周；后面的面板就是画好的瓷砖原样",
+      "tile": "瓷砖",
+      "wrap": "边缘",
+      "tilesAcross": "横向瓷砖数",
+      "turn": "转动",
+      "slideAcross": "横向滑动",
+      "slideUp": "向上滑动",
+      "flow": "流动"
+    },
+    "choices": {
+      "wrap": {
+        "repeat": "重复",
+        "mirror": "镜像",
+        "clamp": "夹住"
+      },
+      "tile": {
+        "terracotta": "赤陶",
+        "azulejo": "葡式瓷砖",
+        "jade": "玉"
+      }
+    },
+    "readouts": {
+      "tilesTurn": "瓷砖、转角"
+    },
+    "words": {
+      "up": "上"
+    }
+  },
+  "a-tube-along-a-spline": {
+    "controls": {
+      "mouse": "拖动来环顾四周；珠子沿着管子走的曲线滑行",
+      "path": "路径",
+      "radius": "半径",
+      "sides": "边数",
+      "slices": "切片",
+      "speed": "速度",
+      "beads": "珠子",
+      "paint": "颜料"
+    },
+    "choices": {
+      "path": {
+        "knot": "结",
+        "coaster": "过山车",
+        "spiral": "螺旋"
+      }
+    },
+    "readouts": {
+      "triangles": "三角形"
+    }
+  },
+  "a-vase-turned-on-the-lathe": {
+    "controls": {
+      "width": "宽度",
+      "height": "高度",
+      "gloss": "光泽",
+      "spin": "旋转"
+    }
+  },
+  "a-video-on-a-screen": {
+    "controls": {
+      "mouse": "拖动来环顾房间；屏幕播放的是真正的视频元素",
+      "playing": "正在播放",
+      "openVideo": "打开视频"
+    },
+    "readouts": {
+      "playing": "正在播放",
+      "videoTime": "视频时间"
+    },
+    "words": {
+      "yourFile": "你的文件",
+      "testCard": "测试图"
+    }
+  },
+  "a-video-panorama": {
+    "controls": {
+      "mouse": "拖动来环顾四周；在你按下之前，画面会自己转",
+      "playing": "正在播放",
+      "fieldOfView": "视野",
+      "openVideo": "打开视频"
+    },
+    "readouts": {
+      "playing": "正在播放"
+    },
+    "words": {
+      "yourFile": "你的文件",
+      "duskOverSea": "海上黄昏"
+    }
+  },
+  "a-wall-of-cameras": {
+    "controls": {
+      "mouse": "点击一个监控画面把它放上大屏幕；告诉摄像头要看什么",
+      "watch": "监视"
+    },
+    "choices": {
+      "watch": {
+        "patrol": "巡逻",
+        "car": "汽车",
+        "balloon": "气球"
+      }
+    },
+    "readouts": {
+      "camerasSeeingCar": "看到汽车的摄像头"
+    },
+    "words": {
+      "cam": "CAM",
+      "northGate": "北门",
+      "fountain": "喷泉",
+      "eastRoad": "东路",
+      "clockTower": "钟楼",
+      "cafe": "咖啡馆",
+      "southCorner": "南角",
+      "noSignal": "无信号",
+      "patrol": "巡逻中",
+      "car": "追踪汽车",
+      "balloon": "追踪气球"
+    }
+  },
+  "a-wave-across-a-grid": {
+    "controls": {
+      "height": "高度",
+      "speed": "速度",
+      "ripples": "波纹",
+      "inner": "内圈",
+      "outer": "外圈"
+    }
+  },
+  "a-world-of-blocks": {
+    "controls": {
+      "mouse": "拖动来绕着小岛飞；升高海面，看山谷被淹没",
+      "seed": "种子",
+      "seaLevel": "海平面",
+      "hour": "时刻",
+      "clouds": "云"
+    },
+    "readouts": {
+      "facesDrawn": "绘制的面"
+    }
+  },
+  "before-and-after-slider": {
+    "controls": {
+      "mouse": "拖动圆形旋钮移动分界线；拖动画面绕着广场转",
+      "before": "之前"
+    },
+    "choices": {
+      "before": {
+        "clay": "黏土",
+        "no shadows": "无阴影",
+        "no sun": "无太阳",
+        "noon sun": "正午太阳"
+      }
+    },
+    "words": {
+      "clay": "黏土",
+      "no shadows": "无阴影",
+      "no sun": "无太阳",
+      "noon sun": "正午太阳",
+      "finished": "完成"
+    }
+  },
+  "blobs-that-merge": {
+    "controls": {
+      "mouse": "拖动来绕着灯走；调高黏度，液滴会互相融在一起",
+      "stickiness": "黏度",
+      "heat": "热度",
+      "wax": "蜡"
+    },
+    "readouts": {
+      "piecesWax": "蜡块"
+    }
+  },
+  "bricks-with-a-normal-map": {
+    "controls": {
+      "sweep": "扫动",
+      "lamp": "灯",
+      "colour": "颜色",
+      "bricks": "砖块"
+    }
+  },
+  "click-to-pick": {
+    "controls": {
+      "help": "点击一个形状：它会亮起来，面板会告诉你射线碰到了哪里。"
+    },
+    "readouts": {
+      "picked": "选中",
+      "point": "点",
+      "distance": "距离"
+    },
+    "words": {
+      "nothing": "没有",
+      "box": "盒子",
+      "sphere": "球",
+      "cone": "圆锥",
+      "torus": "圆环",
+      "cylinder": "圆柱",
+      "knot": "结"
+    }
+  },
+  "colours-on-the-vertices": {
+    "controls": {
+      "mouse": "拖动来转动星球；每个顶点都有自己的颜色",
+      "palette": "调色板",
+      "seaLevel": "海平面",
+      "relief": "起伏",
+      "spin": "旋转"
+    },
+    "choices": {
+      "palette": {
+        "earth": "地球",
+        "lava": "熔岩",
+        "ice": "冰",
+        "candy": "糖果"
+      }
+    }
+  },
+  "compressed-textures": {
+    "controls": {
+      "mouse": "拖动来绕着喷泉走；向下滚到一块瓷砖，看它的细节到来",
+      "sunTurn": "太阳方向",
+      "sunHeight": "太阳高度"
+    },
+    "readouts": {
+      "texturesBlocks": "块压缩纹理",
+      "allFullDetail": "全部最高细节",
+      "poolFormat": "存储格式",
+      "tilesHeld": "保留的图块",
+      "heldGpu": "保存在 GPU 上"
+    },
+    "words": {
+      "credit": "为这个示例用代码画的庭院和纹理，CC0 — 见 assets/examples/CREDITS.md",
+      "someOf": "{all} 中的 {some}",
+      "notPlain": "{held} MiB，而不是 {plain}",
+      "notMeasured": "这里没有测量"
+    }
+  },
+  "copies-along-a-path": {
+    "controls": {
+      "mouse": "拖动来环顾公园；增加副本，直到拱门连成隧道",
+      "copies": "副本",
+      "twist": "扭转",
+      "speed": "速度",
+      "ride": "乘坐"
+    },
+    "readouts": {
+      "archesPlaced": "放置的拱门"
+    }
+  },
+  "crates-under-a-spotlight": {
+    "controls": {
+      "angle": "角度",
+      "softness": "柔和度",
+      "colour": "颜色",
+      "power": "功率"
+    },
+    "words": {
+      "credit": "木箱模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "create-and-dispose": {
+    "controls": {
+      "mouse": "拖动来绕着喷泉走 · 滚轮靠近",
+      "perSecond": "每秒",
+      "copies": "副本",
+      "burst": "一阵喷发",
+      "clearAll": "全部清除"
+    },
+    "choices": {
+      "copies": {
+        "share": "共用形状",
+        "fresh": "每次新建形状"
+      }
+    },
+    "readouts": {
+      "piecesAlive": "存在的碎片",
+      "created": "已创建",
+      "disposed": "已释放",
+      "gpuMemory": "GPU 内存"
+    },
+    "words": {
+      "notMeasured": "没有测量"
+    }
+  },
+  "curved-surfaces": {
+    "controls": {
+      "mouse": "拖动来逛展厅；把网格调小，就能看到组成每条曲面的三角形",
+      "grid": "网格",
+      "facets": "切面",
+      "turntable": "转台"
+    },
+    "readouts": {
+      "triangles": "三角形",
+      "facingYou": "面向你的"
+    },
+    "words": {
+      "Klein bottle": "克莱因瓶",
+      "Möbius strip": "莫比乌斯带",
+      "Seashell": "贝壳",
+      "Dini's twist": "迪尼曲面",
+      "Enneper saddle": "恩内佩尔马鞍"
+    }
+  },
+  "dashed-lines": {
+    "controls": {
+      "mouse": "拖动来绕着太阳转；改变线段和间隙，每条轨道都会跟着变",
+      "lines": "线条",
+      "dash": "线段",
+      "gap": "间隙",
+      "spin": "旋转"
+    },
+    "choices": {
+      "lines": {
+        "dashed": "虚线",
+        "solid": "实线"
+      }
+    },
+    "readouts": {
+      "dashesBluePlanetOrbit": "蓝色行星轨道上的线段"
+    }
+  },
+  "detail-by-pixel-error": {
+    "controls": {
+      "mouse": "拖动来走过大道；靠近一个花瓶，再远远离开",
+      "pixelError": "像素误差",
+      "view": "视图"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "lod": "细节层级",
+        "screen-error": "屏幕误差",
+        "triangles": "三角形"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "绘制的三角形",
+      "shareAvenue": "大道所占比例",
+      "trianglesAvenue": "大道中的三角形"
+    },
+    "words": {
+      "credit": "为这个示例用代码制作的花瓶大道，CC0 — 见 assets/examples/CREDITS.md",
+      "notCounted": "这里没有计数"
+    }
+  },
+  "edges-and-wireframe": {
+    "controls": {
+      "mouse": "拖动来环顾四周；提高阈值，只留下锐利的折痕",
+      "view": "视图",
+      "threshold": "阈值",
+      "lines": "线条",
+      "spin": "旋转"
+    },
+    "choices": {
+      "view": {
+        "surface and edges": "表面和边",
+        "edges": "边",
+        "wireframe": "线框",
+        "surface and wireframe": "表面和线框",
+        "surface": "表面"
+      }
+    },
+    "readouts": {
+      "edgeSegments": "边线段",
+      "wireframeSegments": "线框线段"
+    }
+  },
+  "every-image-format": {
+    "controls": {
+      "mouse": "拖动来沿着画架走；降低质量，近看 JPEG 和 WebP",
+      "quality": "质量",
+      "lookAt": "看向"
+    },
+    "choices": {
+      "lookAt": {
+        "allEight": "全部八个",
+        "PNG": "PNG",
+        "JPEG": "JPEG",
+        "WebP": "WebP",
+        "GIF": "GIF",
+        "BMP": "BMP",
+        "SVG": "SVG",
+        "Canvas": "Canvas",
+        "Raw pixels": "原始像素"
+      }
+    },
+    "readouts": {
+      "PNG": "PNG",
+      "JPEG": "JPEG",
+      "WebP": "WebP",
+      "GIF": "GIF",
+      "BMP": "BMP",
+      "SVG": "SVG",
+      "Canvas": "Canvas",
+      "Raw pixels": "原始像素"
+    },
+    "words": {
+      "samePicture": "512 × 512 · 同一张图",
+      "lossless": "无损",
+      "lossy": "有损",
+      "colours256": "256 色",
+      "uncompressed": "未压缩",
+      "shapes": "形状，加载时绘制",
+      "painted": "在页面中绘制",
+      "bytes": "内存中的字节",
+      "inMemory": "内存中 {size} · {note}",
+      "sentAs": "以 {type} 发送"
+    }
+  },
+  "flat-shadows-on-the-floor": {
+    "controls": {
+      "mouse": "拖动来绕着日晷走；拖动时间，每个影子都会跟着太阳转",
+      "hour": "时刻",
+      "darkness": "暗度",
+      "timeLapse": "延时",
+      "motion": "运动"
+    },
+    "readouts": {
+      "shadowLength": "影子长度"
+    },
+    "words": {
+      "timesHeight": "高度的 {times} 倍"
+    }
+  },
+  "fly-over-a-model-town": {
+    "choices": {
+      "view": {
+        "cockpit": "座舱",
+        "exterior": "外部"
+      },
+      "mode": {
+        "arcade": "街机 — 飞机朝你瞄准的方向飞；不会失速，会自己拉起来",
+        "expert": "专家 — 鼠标就是操纵杆；会失速和尾旋"
+      },
+      "sensitivity": {
+        "Low": "低",
+        "Medium": "中",
+        "High": "高"
+      },
+      "invert": {
+        "off": "关",
+        "on": "开"
+      },
+      "sound": {
+        "on": "开",
+        "off": "关"
+      }
+    },
+    "game": {
+      "title": "战斗机",
+      "goal": "起飞，然后尽快穿过峡谷里的十个金环。用鼠标瞄准：飞机会跟上。",
+      "keys": {
+        "aim": "瞄准（街机）或操纵杆（专家）",
+        "fineAim": "精细瞄准（按住）",
+        "throttle": "加油门、减油门",
+        "afterburner": "加力（按住）",
+        "roll": "滚转（街机模式下优先于瞄准）",
+        "rudder": "方向舵",
+        "airBrake": "减速板（按住）",
+        "lookAround": "环顾四周（按住）",
+        "view": "座舱或外部视角",
+        "zoom": "缩放外部视角",
+        "startOver": "从头开始",
+        "pause": "暂停"
+      },
+      "options": {
+        "view": "视图",
+        "mode": "模式",
+        "sensitivity": "鼠标灵敏度",
+        "invert": "反转 Y",
+        "sound": "声音"
+      }
+    },
+    "words": {
+      "testMode": "测试模式 — 鼠标未锁定",
+      "rings": "圆环 {passed}/{all}",
+      "complete": "航线完成",
+      "flyAgain": "{time} — 按 R 再飞一次",
+      "stall": "失速",
+      "pullUp": "拉起",
+      "turnBack": "掉头",
+      "crashed": "坠毁",
+      "backToRunway": "回到跑道…",
+      "backToRing": "回到最后一个圆环…",
+      "throttleUp": "W — 加油门（AZERTY 键盘上是 Z）",
+      "rolling": "滑跑 — {knots} 节",
+      "liftOff": "鼠标向上 — 起飞"
+    }
+  },
+  "four-ways-to-blend": {
+    "controls": {
+      "mouse": "从左到右：正常、相加、相减、相乘；拖动从侧面看它们",
+      "inks": "墨水",
+      "opacity": "不透明度",
+      "circle": "环绕"
+    },
+    "choices": {
+      "inks": {
+        "red, green, blue": "红、绿、蓝",
+        "cyan, magenta, yellow": "青、品红、黄",
+        "warm and cool": "暖色和冷色"
+      }
+    }
+  },
+  "frame-the-model": {
+    "controls": {
+      "mouse": "双击一个物体来取景；拖动旋转，滚轮缩放",
+      "model": "物体",
+      "margin": "边距",
+      "drift": "漂移"
+    },
+    "choices": {
+      "model": {
+        "everything": "全部",
+        "the gold ring": "金戒指",
+        "the vase": "花瓶",
+        "the king": "国王",
+        "the arch": "拱门",
+        "the obelisk": "方尖碑"
+      }
+    },
+    "readouts": {
+      "framing": "取景",
+      "radius": "半径",
+      "distance": "距离"
+    },
+    "words": {
+      "the gold ring": "金戒指",
+      "the vase": "花瓶",
+      "the king": "国王",
+      "the arch": "拱门",
+      "the obelisk": "方尖碑"
+    }
+  },
+  "from-a-grain-to-a-planet": {
+    "controls": {
+      "mouse": "用滚轮从一粒沙子一直缩放到整个星球；拖动旋转",
+      "toTheGrain": "去看沙粒",
+      "toTheBeach": "去海滩",
+      "toTheIsland": "去小岛",
+      "toThePlanet": "去星球"
+    },
+    "readouts": {
+      "viewWidth": "视野宽度",
+      "youSee": "你看到"
+    },
+    "words": {
+      "grains of sand": "沙粒",
+      "sand and shells": "沙子和贝壳",
+      "pebbles": "鹅卵石",
+      "the beach": "海滩",
+      "the coast": "海岸",
+      "the island": "小岛",
+      "the planet": "星球"
+    }
+  },
+  "from-clay-to-chrome": {
+    "controls": {
+      "colour": "颜色",
+      "lamps": "灯",
+      "swing": "摆动"
+    }
+  },
+  "from-noon-to-dusk": {
+    "controls": {
+      "speed": "速度",
+      "hour": "时刻",
+      "adaptEyes": "眼睛适应"
+    }
+  },
+  "glass-on-the-table": {
+    "controls": {
+      "refraction": "折射",
+      "thickness": "厚度",
+      "tint": "色调",
+      "spin": "旋转"
+    }
+  },
+  "helpers-to-see-the-scene": {
+    "controls": {
+      "mouse": "拖动来绕着布景走；关掉辅助工具，看镜头原本的样子",
+      "helpers": "辅助工具",
+      "dolly": "推拉镜头",
+      "bulb": "灯泡"
+    },
+    "choices": {
+      "helpers": {
+        "everything": "全部",
+        "lights and camera": "灯光和摄像机",
+        "shapes and bounds": "形状和边界",
+        "nothing": "没有"
+      }
+    },
+    "readouts": {
+      "helpersShown": "显示的辅助工具"
+    }
+  },
+  "inside-a-panorama": {
+    "controls": {
+      "mouse": "拖动来转动 · 滚轮靠近",
+      "sky": "天空",
+      "fieldOfView": "视野"
+    },
+    "choices": {
+      "sky": {
+        "dawn": "黎明",
+        "noon": "正午",
+        "dusk": "黄昏"
+      }
+    },
+    "words": {
+      "credit": "全景图是这个页面打开时用代码画出来的：什么都不用下载。"
+    }
+  },
+  "inside-the-g-buffer": {
+    "controls": {
+      "mouse": "拖动来绕着球场走 · 选一个缓冲区看看画面里面",
+      "buffer": "缓冲区",
+      "turning": "旋转"
+    },
+    "choices": {
+      "buffer": {
+        "beauty": "成品",
+        "albedo": "基础颜色",
+        "normals": "法线",
+        "depth": "深度",
+        "triangle ids": "三角形编号",
+        "material ids": "材质编号"
+      }
+    },
+    "readouts": {
+      "eachPixelHolds": "每个像素保存"
+    },
+    "words": {
+      "beauty": "有光照的画面",
+      "albedo": "基础颜色，在任何光照之前",
+      "normals": "从摄像机看，表面朝向哪里",
+      "depth": "距离：近亮，远暗",
+      "triangle ids": "哪个三角形盖住这个像素",
+      "material ids": "哪种材质给这个像素上色",
+      "notOffered": "这个渲染器不提供"
+    }
+  },
+  "instances-in-colour": {
+    "controls": {
+      "mouse": "拖动来倾斜星系；用滚轮潜进去",
+      "count": "数量",
+      "arms": "旋臂",
+      "twist": "扭转",
+      "core": "核心",
+      "rim": "边缘",
+      "spin": "旋转"
+    },
+    "readouts": {
+      "placementsDrawn": "绘制的副本",
+      "materials": "材质"
+    }
+  },
+  "keyframes-by-hand": {
+    "controls": {
+      "mouse": "拖动来绕着书桌转；把一次跳跃的关键帧显示成台灯的淡色副本",
+      "timing": "节奏",
+      "onionSkin": "洋葱皮",
+      "speed": "速度"
+    },
+    "choices": {
+      "timing": {
+        "eased": "缓动",
+        "linear": "线性"
+      }
+    },
+    "readouts": {
+      "lastKey": "最后的关键帧"
+    },
+    "words": {
+      "rest": "休息",
+      "crouch": "蹲下",
+      "launch": "起跳",
+      "apex": "最高点",
+      "land": "落地",
+      "absorb": "缓冲",
+      "look up": "抬头看",
+      "turn": "转身",
+      "waking up": "正在醒来"
+    }
+  },
+  "labels-that-follow": {
+    "controls": {
+      "mouse": "拖动来绕着太阳转，滚轮靠近；标签跟着行星一起走",
+      "show": "显示",
+      "speed": "速度",
+      "lineThemUp": "排成一排"
+    },
+    "choices": {
+      "show": {
+        "distance to the Sun": "到太阳的距离",
+        "year": "一年",
+        "moons": "卫星",
+        "names only": "只显示名字"
+      }
+    },
+    "words": {
+      "Sun": "太阳",
+      "Mercury": "水星",
+      "Venus": "金星",
+      "Earth": "地球",
+      "Moon": "月球",
+      "Mars": "火星",
+      "Jupiter": "木星",
+      "Saturn": "土星",
+      "Uranus": "天王星",
+      "Neptune": "海王星",
+      "fromEarth": "距地球 384 400 千米",
+      "ourStar": "我们的恒星",
+      "au": "{au} 天文单位",
+      "month": "一个月有 27 天",
+      "year": "一年有 {days} 天",
+      "planets": "8 颗行星",
+      "earthsMoon": "地球的卫星",
+      "oneMoon": "1 颗卫星",
+      "moons": "{moons} 颗卫星"
+    }
+  },
+  "leaves-cut-by-alpha": {
+    "controls": {
+      "branches": "树枝",
+      "leaves": "树叶",
+      "cutoff": "裁剪阈值",
+      "sun": "太阳"
+    }
+  },
+  "letters-carved-in-relief": {
+    "controls": {
+      "rake": "斜光",
+      "warm": "暖",
+      "cool": "冷",
+      "letters": "字母"
+    }
+  },
+  "light-from-a-probe": {
+    "controls": {
+      "mouse": "拖动来逛花园；选一个地方，雕塑就会带上那里的光",
+      "place": "地点",
+      "turn": "转动",
+      "strength": "强度",
+      "keyLight": "主光",
+      "spin": "旋转"
+    },
+    "choices": {
+      "place": {
+        "desert at sunset": "日落时的沙漠",
+        "forest clearing": "林中空地",
+        "neon alley": "霓虹小巷",
+        "snowfield": "雪地"
+      }
+    },
+    "readouts": {
+      "meanLight": "平均光照"
+    }
+  },
+  "light-in-real-units": {
+    "controls": {
+      "mouse": "拖动来走过广场；选一个时刻，看摄像机如何适应，从 10 万勒克斯到月夜",
+      "moment": "时刻",
+      "lampLumens": "路灯流明",
+      "autoExposure": "自动曝光",
+      "exposureValue": "曝光值",
+      "turning": "旋转"
+    },
+    "choices": {
+      "moment": {
+        "clear noon": "晴朗正午",
+        "overcast": "阴天",
+        "golden hour": "黄金时刻",
+        "sunset": "日落",
+        "blue hour": "蓝调时刻",
+        "moonlit night": "月夜"
+      }
+    },
+    "readouts": {
+      "sun": "太阳",
+      "sky": "天空",
+      "eachLamp": "每盏路灯",
+      "exposureValue": "曝光值"
+    },
+    "words": {
+      "off": "关"
+    }
+  },
+  "lights-from-the-scene-file": {
+    "controls": {
+      "lamp": "灯",
+      "power": "功率",
+      "colour": "颜色"
+    }
+  },
+  "lines-in-colour": {
+    "controls": {
+      "mouse": "拖动来绕着图形转；换一条规则，笔会从头开始画",
+      "figure": "图形",
+      "palette": "调色板",
+      "pace": "速度",
+      "redraw": "重画",
+      "spin": "旋转"
+    },
+    "choices": {
+      "figure": {
+        "Lorenz butterfly": "洛伦兹蝴蝶",
+        "Aizawa shell": "相泽贝壳",
+        "Thomas knot": "托马斯结",
+        "Halvorsen propeller": "哈尔沃森螺旋桨"
+      },
+      "palette": {
+        "aurora": "极光",
+        "sunset": "日落",
+        "embers": "余烬",
+        "ice": "冰"
+      }
+    },
+    "readouts": {
+      "colouredPieces": "上色的段数"
+    }
+  },
+  "marble-bust-on-its-pedestal": {
+    "controls": {
+      "lampTurn": "台灯方向",
+      "lampHeight": "台灯高度",
+      "colour": "颜色",
+      "exposure": "曝光",
+      "circle": "环绕"
+    },
+    "words": {
+      "credit": "Marble Bust 01，作者 Rico Cilliers，Poly Haven，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "memory-on-a-budget": {
+    "controls": {
+      "memory": "内存",
+      "view": "视图"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "lod": "细节层级",
+        "clusters": "簇"
+      }
+    }
+  },
+  "migrating-from-three": {
+    "words": {
+      "credit": "Marble Bust 01，作者 Rico Cilliers，Poly Haven，CC0；木箱作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "move-rotate-scale-gizmo": {
+    "controls": {
+      "help": "拖动一个手柄。在旁边拖动来转动摄像机。",
+      "mode": "模式",
+      "axes": "坐标轴",
+      "snap": "吸附"
+    },
+    "choices": {
+      "mode": {
+        "translate": "移动",
+        "rotate": "旋转",
+        "scale": "缩放"
+      },
+      "axes": {
+        "world": "世界",
+        "local": "本地"
+      }
+    },
+    "readouts": {
+      "position": "位置",
+      "drags": "拖动次数"
+    }
+  },
+  "no-hitch-on-first-draw": {
+    "controls": {
+      "mouse": "拖动来环顾展厅 · 图表是帧与帧之间的时间",
+      "turning": "旋转",
+      "revealAgain": "再显示一次"
+    },
+    "readouts": {
+      "worstFrameBefore": "之前最差的帧",
+      "worstFrameAfter": "之后最差的帧"
+    },
+    "words": {
+      "note": "十四个表面，每个都有不同的材质或设置，全部出现在同一帧里。图表画出帧与帧之间的时间；金线是它们出现的那一刻。",
+      "measuring": "测量中",
+      "hidden": "隐藏"
+    }
+  },
+  "normals-and-depth-seen": {
+    "controls": {
+      "mouse": "拖动来绕着球场走；切换视图，看渲染器是怎样存储这些表面的",
+      "see": "查看",
+      "spin": "旋转"
+    },
+    "choices": {
+      "see": {
+        "lit": "有光照",
+        "normals": "法线",
+        "depth": "深度"
+      }
+    },
+    "readouts": {
+      "colourMeans": "颜色表示"
+    },
+    "words": {
+      "lit": "光和材质",
+      "normals": "朝向：右红，上绿，朝你蓝",
+      "depth": "距离：近白，远暗"
+    }
+  },
+  "observatory-streamed": {
+    "controls": {
+      "view": "视图",
+      "pixelError": "像素误差"
+    },
+    "choices": {
+      "view": {
+        "clusters": "簇",
+        "beauty": "成品",
+        "pages": "页",
+        "lod": "细节层级",
+        "triangles": "三角形"
+      }
+    }
+  },
+  "one-clip-many-objects": {
+    "controls": {
+      "mouse": "拖动来绕着体育场转；选择同一段动画怎样分给球迷",
+      "pattern": "图案",
+      "speed": "速度"
+    },
+    "choices": {
+      "pattern": {
+        "stadium wave": "人浪",
+        "ripple outwards": "向外的波纹",
+        "all at once": "同时"
+      }
+    },
+    "readouts": {
+      "clips": "动画片段",
+      "fansPlayingIt": "播放它的球迷"
+    }
+  },
+  "orbit-around-a-clockwork": {
+    "controls": {
+      "mouse": "产品查看器：拖动旋转 · 右键拖动平移 · 滚轮放大齿轮的齿",
+      "view": "视图",
+      "speed": "速度",
+      "brass": "黄铜"
+    },
+    "choices": {
+      "view": {
+        "three-quarter": "四分之三",
+        "front": "正面",
+        "side": "侧面",
+        "top": "顶面"
+      }
+    }
+  },
+  "painted-and-textured": {
+    "controls": {
+      "checks": "方格",
+      "paint": "颜料",
+      "second": "第二",
+      "spin": "旋转"
+    }
+  },
+  "reading-pixels-back": {
+    "controls": {
+      "mouse": "拖动来环顾四周 · 右下角的图是读回成数字的画面",
+      "sunHeight": "太阳高度",
+      "live": "实时",
+      "turning": "旋转",
+      "savePng": "保存 PNG"
+    },
+    "readouts": {
+      "meanColour": "平均颜色",
+      "brightest": "最亮",
+      "readBack": "读回用时"
+    },
+    "words": {
+      "hover": "把鼠标移到图上读一个像素",
+      "pixel": "像素 {x}, {y}：{colour}"
+    }
+  },
+  "ride-a-roller-coaster": {
+    "controls": {
+      "mouse": "坐在过山车上时，拖动来转头。关掉过山车就能绕着公园转",
+      "ride": "乘坐",
+      "loops": "环"
+    },
+    "readouts": {
+      "speed": "速度",
+      "gForce": "G 力"
+    }
+  },
+  "save-the-scene": {
+    "controls": {
+      "help": "把塔推倒，然后再打开保存的场景。",
+      "knockDown": "推倒",
+      "save": "保存",
+      "open": "打开"
+    },
+    "readouts": {
+      "saved": "已保存"
+    },
+    "words": {
+      "bytes": "{bytes} 字节"
+    }
+  },
+  "scattered-on-a-surface": {
+    "controls": {
+      "mouse": "拖动来绕着星球转；提高最陡坡度，森林就会爬上山",
+      "trees": "树",
+      "rocks": "岩石",
+      "steepest": "最陡",
+      "seaLevel": "海平面",
+      "spin": "旋转"
+    },
+    "readouts": {
+      "treesPlanted": "种下的树",
+      "spotsRefused": "被拒绝的位置"
+    }
+  },
+  "see-the-triangles": {
+    "controls": {
+      "mouse": "用滚轮拉远再拉近：离得远时，胸像需要更少、更大的三角形",
+      "view": "视图",
+      "pixelError": "像素误差",
+      "sideBySide": "并排"
+    },
+    "choices": {
+      "view": {
+        "triangles": "三角形",
+        "clusters": "簇",
+        "lod": "细节层级",
+        "pages": "页",
+        "beauty": "成品"
+      }
+    },
+    "readouts": {
+      "trianglesDrawn": "绘制的三角形",
+      "pagesMemory": "内存中的页"
+    },
+    "words": {
+      "credit": "Marble Bust 01，作者 Rico Cilliers，Poly Haven，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "select-with-a-box": {
+    "controls": {
+      "help": "选择：拖出一个框；Shift 添加，Alt 移除。转动：拖动来飞过花园",
+      "mouse": "鼠标",
+      "selectAll": "全选",
+      "clear": "清除"
+    },
+    "choices": {
+      "mouse": {
+        "select": "选择",
+        "turn": "转身"
+      }
+    },
+    "readouts": {
+      "selected": "已选中"
+    }
+  },
+  "several-views-one-page": {
+    "controls": {
+      "mouse": "拖动大视图来转动它；在小视图上用滚轮和拖动来缩放和平移，双击复位",
+      "explode": "拆开",
+      "windFrom": "风从",
+      "windSpeed": "风速"
+    },
+    "readouts": {
+      "sailTurnsMinute": "每分钟叶片转数"
+    },
+    "words": {
+      "perspective": "透视",
+      "top": "顶视",
+      "front": "正视",
+      "side": "侧视，从东边"
+    }
+  },
+  "shadows-from-the-sun": {
+    "controls": {
+      "mouse": "拖动来逛花园；拖动时间，每个影子都会转，方尖碑的尖顶在它的时刻石上走动",
+      "hour": "时刻",
+      "day": "日期",
+      "latitude": "纬度",
+      "sails": "风帆"
+    },
+    "choices": {
+      "day": {
+        "summer solstice": "夏至",
+        "spring equinox": "春分",
+        "winter solstice": "冬至"
+      }
+    },
+    "readouts": {
+      "sunHeight": "太阳高度",
+      "sunBearing": "太阳方位",
+      "obeliskShadow": "方尖碑的影子"
+    },
+    "words": {
+      "S": "南",
+      "SW": "西南",
+      "W": "西",
+      "NW": "西北",
+      "N": "北",
+      "NE": "东北",
+      "E": "东",
+      "SE": "东南",
+      "belowHorizon": "在地平线以下",
+      "bearing": "{point}（从北方起 {degrees}°）"
+    }
+  },
+  "shapes-cut-and-extruded": {
+    "controls": {
+      "mouse": "拖动来环顾四周；深度为零时留下平平的剪纸形状",
+      "depth": "深度",
+      "bevel": "倒角",
+      "bevelSize": "倒角大小",
+      "bevelSegments": "倒角段数",
+      "curveSegments": "曲线段数",
+      "spin": "旋转"
+    },
+    "readouts": {
+      "triangles": "三角形"
+    }
+  },
+  "shapes-on-a-turntable": {
+    "controls": {
+      "colour": "颜色",
+      "speed": "速度",
+      "spin": "旋转"
+    }
+  },
+  "side-by-side-stereo": {
+    "controls": {
+      "mouse": "在左边的图上拖动来转动；把眼睛往中间看，直到两个点变成一个",
+      "viewing": "观看方式",
+      "separation": "间距",
+      "speed": "速度"
+    },
+    "choices": {
+      "viewing": {
+        "cross-eyed": "斗鸡眼",
+        "parallel": "平行"
+      }
+    },
+    "words": {
+      "leftEye": "左眼",
+      "rightEye": "右眼"
+    }
+  },
+  "sky-and-ground-light": {
+    "controls": {
+      "mouse": "拖动从下面和上面看；每个地方都用它的天空给顶面上色，用它的地面给底面上色",
+      "place": "地点",
+      "skyStrength": "天空强度",
+      "sun": "太阳",
+      "float": "漂浮"
+    },
+    "choices": {
+      "place": {
+        "meadow at noon": "正午的草地",
+        "snowfield": "雪地",
+        "red desert": "红色沙漠",
+        "sunset beach": "日落海滩",
+        "tropical lagoon": "热带泻湖",
+        "overcast city": "阴天的城市"
+      }
+    },
+    "readouts": {
+      "skyFromAbove": "从上方看天空",
+      "groundFromBelow": "从下方看地面"
+    }
+  },
+  "smooth-edges-over-time": {
+    "controls": {
+      "mouse": "拖动来看电线；关掉平滑，看它们碎成台阶",
+      "smoothing": "平滑",
+      "circle": "环绕"
+    },
+    "readouts": {
+      "temporalAntialiasing": "时间性抗锯齿"
+    },
+    "words": {
+      "on": "开",
+      "off": "关"
+    }
+  },
+  "snow-of-sprites": {
+    "controls": {
+      "mouse": "拖动来绕着小木屋走；把它变成暴风雪，雪花会变密并横着飞",
+      "weather": "天气",
+      "wind": "风"
+    },
+    "choices": {
+      "weather": {
+        "steady snow": "稳定的雪",
+        "light flurry": "小雪",
+        "blizzard": "暴风雪"
+      }
+    },
+    "readouts": {
+      "flakesFalling": "飘落的雪花"
+    }
+  },
+  "sound-made-visible": {
+    "controls": {
+      "mouse": "拖动来绕着舞台走；柱子是音高，珍珠是声波本身",
+      "layout": "布局",
+      "height": "高度",
+      "playMelody": "播放旋律",
+      "useMicrophone": "使用麦克风",
+      "silence": "安静"
+    },
+    "choices": {
+      "layout": {
+        "ring": "圆环",
+        "wall": "墙",
+        "spiral": "螺旋"
+      }
+    },
+    "words": {
+      "hint": "点击舞台听一段旋律",
+      "listening": "正在听麦克风：唱歌、吹口哨、拍手吧",
+      "refused": "麦克风被拒绝了：改为播放旋律",
+      "silence": "安静。点击舞台再听一次旋律"
+    }
+  },
+  "spin-an-astrolabe": {
+    "controls": {
+      "mouse": "拖动来往任何方向转它，倒过来也行 · 滚轮缩放",
+      "turning": "旋转",
+      "sun": "太阳"
+    }
+  },
+  "street-lamp-at-night": {
+    "controls": {
+      "night": "夜晚",
+      "bounce": "反弹光",
+      "sun": "太阳",
+      "lamp": "灯"
+    },
+    "words": {
+      "credit": "路灯模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "ten-thousand-objects": {
+    "controls": {
+      "mouse": "拖动来绕着星球转；用滚轮钻进星环，直到一块岩石占满画面",
+      "view": "视图",
+      "pixelError": "像素误差",
+      "drift": "漂移"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "clusters": "簇",
+        "lod": "细节层级"
+      }
+    },
+    "readouts": {
+      "objectsScene": "场景中的物体",
+      "trianglesFile": "文件中的三角形",
+      "trianglesDrawn": "绘制的三角形"
+    },
+    "words": {
+      "credit": "为这个示例用代码制作的星球和小卫星，CC0 — 见 assets/examples/CREDITS.md",
+      "million": "{count} 百万",
+      "notCounted": "这里没有计数"
+    }
+  },
+  "texture-filters-compared": {
+    "controls": {
+      "mouse": "拖动来沿着跑道看；从左到右：最近点、线性、三线性、各向异性",
+      "picture": "图片",
+      "anisotropy": "各向异性"
+    },
+    "choices": {
+      "picture": {
+        "checker": "棋盘格",
+        "lettering": "文字"
+      }
+    },
+    "readouts": {
+      "fourthLaneAnisotropy": "第四条跑道的各向异性"
+    }
+  },
+  "the-material-family": {
+    "controls": {
+      "mouse": "拖动来绕着这一家走；把光调成夜晚，看哪些种类还在发亮",
+      "light": "光",
+      "shape": "形状",
+      "lookAt": "看向",
+      "spin": "旋转"
+    },
+    "choices": {
+      "lookAt": {
+        "the whole family": "全家",
+        "all": "全家",
+        "meshBasic": "meshBasic",
+        "meshLambert": "meshLambert",
+        "meshPhong": "meshPhong",
+        "meshStandard": "meshStandard",
+        "meshPhysical": "meshPhysical",
+        "meshToon": "meshToon",
+        "meshNormal": "meshNormal",
+        "meshMatcap": "meshMatcap"
+      },
+      "light": {
+        "golden hour": "黄金时刻",
+        "midday": "正午",
+        "night": "夜晚"
+      },
+      "shape": {
+        "knot": "结",
+        "sphere": "球",
+        "vase": "花瓶",
+        "ring": "圆环"
+      }
+    },
+    "readouts": {
+      "looking": "正在看",
+      "litByLamps": "被灯照亮"
+    },
+    "words": {
+      "meshBasic": "一种平平的颜色，看不见任何灯",
+      "meshLambert": "像粉笔一样哑光：漫射光，没有光泽",
+      "meshPhong": "塑料：太阳反射的地方有一个亮点",
+      "meshStandard": "金属度和粗糙度，常用的选择",
+      "meshPhysical": "标准加玻璃：光能穿过去",
+      "meshToon": "卡通：光分成两条平平的色带",
+      "meshNormal": "每个点朝向哪里，用颜色表示",
+      "meshMatcap": "被一张发亮小球的图片照亮，而不是被灯照亮",
+      "allKinds": "全部八种",
+      "yes": "是",
+      "no": "否",
+      "fiveOfEight": "八个中的五个"
+    }
+  },
+  "the-webcam-as-a-texture": {
+    "controls": {
+      "mouse": "拖动来沿着墙看；只有按下按钮时才会请求你的摄像头",
+      "useMyCamera": "使用我的摄像头",
+      "layout": "布局",
+      "mirror": "镜像"
+    },
+    "choices": {
+      "layout": {
+        "video wall": "视频墙",
+        "one per screen": "每屏一个"
+      }
+    },
+    "readouts": {
+      "source": "来源"
+    },
+    "words": {
+      "noCamera": "没有摄像头",
+      "yourCamera": "你的摄像头",
+      "refused": "摄像头被拒绝（{error}）",
+      "paintedSignal": "画出来的信号"
+    }
+  },
+  "toon-shading": {
+    "controls": {
+      "mouse": "拖动来绕着小岛转；切换着色方式，看光分成一条条色带",
+      "shading": "着色",
+      "outlines": "轮廓",
+      "sun": "太阳",
+      "wind": "风"
+    },
+    "choices": {
+      "shading": {
+        "toon": "卡通",
+        "matte": "哑光",
+        "physical": "物理"
+      }
+    }
+  },
+  "turn-toward-a-target": {
+    "controls": {
+      "mouse": "拖动来环顾四周；打开指针，操控无人机，每个天线都会跟着转",
+      "turn": "转动",
+      "turnSpeed": "转动速度",
+      "followPointer": "跟随指针"
+    },
+    "choices": {
+      "turn": {
+        "steadily": "匀速",
+        "at once": "一下子",
+        "on a spring": "像弹簧一样"
+      }
+    },
+    "readouts": {
+      "dishesLocked": "锁定的天线"
+    }
+  },
+  "two-lenses-one-scene": {
+    "controls": {
+      "mouse": "拖动来绕着小镇转；换一个镜头，看街道变直",
+      "lens": "镜头",
+      "fieldOfView": "视野",
+      "isometric": "等轴",
+      "drift": "漂移"
+    },
+    "choices": {
+      "lens": {
+        "perspective": "透视",
+        "orthographic": "正交"
+      }
+    },
+    "readouts": {
+      "lens": "镜头"
+    },
+    "words": {
+      "orthographic": "正交，{height} 米高",
+      "perspective": "{degrees}° 透视"
+    }
+  },
+  "uvs-of-every-shape": {
+    "controls": {
+      "mouse": "拖动来环顾四周；一个字母和一个数字给图片的每一格起名字",
+      "pattern": "图案",
+      "repeat": "重复",
+      "slide": "滑动",
+      "spin": "旋转"
+    },
+    "choices": {
+      "pattern": {
+        "test card": "测试图",
+        "checks": "方格",
+        "arrows": "箭头"
+      }
+    }
+  },
+  "walk-through-a-temple": {
+    "controls": {
+      "keys": "引擎的角色控制：菜单里的“开始”会锁定鼠标用来看，W A S D 跑（AZERTY 键盘上是 Z Q S D），Shift 冲刺，空格跳，Esc 放开鼠标。这个页面还加了 R 重新跑，M 静音。",
+      "look": "视角",
+      "runAgain": "重新跑"
+    },
+    "game": {
+      "title": "神庙跑酷",
+      "goal": "一路收集五个宝珠，到达金色神像。岩浆会把你送回最后一个亮起的检查点。",
+      "keys": {
+        "run": "跑",
+        "look": "视角",
+        "sprint": "冲刺",
+        "jump": "跳",
+        "runAgain": "重新跑",
+        "sound": "声音开关",
+        "pause": "暂停"
+      }
+    },
+    "words": {
+      "checkpoint": "检查点",
+      "finished": "{taken} / {orbs} 个宝珠 · 按 R 重新跑",
+      "muted": "M 静音",
+      "sound": "M 有声"
+    }
+  },
+  "waves-of-points": {
+    "controls": {
+      "mouse": "拖动来绕着场地转；选一个图案，浮标下的波浪会改变形状",
+      "pattern": "图案",
+      "height": "高度",
+      "speed": "速度"
+    },
+    "choices": {
+      "pattern": {
+        "ocean swell": "海浪涌动",
+        "rain of stones": "石头雨",
+        "interference": "干涉",
+        "standing wave": "驻波",
+        "whirlpool": "漩涡"
+      }
+    },
+    "readouts": {
+      "points": "点"
+    }
+  },
+  "what-hides-what": {
+    "controls": {
+      "mouse": "拖动来环顾四周；树篱把金色的结藏在死胡同尽头",
+      "hedgeHeight": "树篱高度",
+      "view": "视图",
+      "aboveOrInside": "上方或里面"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "visibility": "可见性"
+      }
+    },
+    "readouts": {
+      "gildedKnots": "金色的结",
+      "clustersTested": "测试的簇",
+      "clustersHidden": "隐藏的簇",
+      "trianglesHidden": "隐藏的三角形"
+    },
+    "words": {
+      "notCounted": "这里没有计数"
+    }
+  },
+  "zoom-down-the-colonnade": {
+    "controls": {
+      "fieldOfView": "视野",
+      "dollyZoom": "滑动变焦"
+    }
+  }
+}

@@ -6,7 +6,6 @@ import type { KnipConfig } from 'knip';
 const config: KnipConfig = {
   entry: [
     'site/app/main.tsx',
-    'site/demos/engine.ts',
     'site/examples/kit/index.ts',
     // The open world's play layer and its simulation worker, built as runtime entries.
     'site/examples/kit/openworld/index.ts',
@@ -61,8 +60,9 @@ const config: KnipConfig = {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // Rust is a platform tool; DaisyUI is loaded by Tailwind.
-  ignoreDependencies: ['daisyui'],
+  // Rust is a platform tool; DaisyUI is loaded by Tailwind; the site build copies SVG files of
+  // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
+  ignoreDependencies: ['daisyui', 'flag-icons'],
   ignoreBinaries: ['rustc'],
   // These specifiers are harness server URLs resolved by the browser, not local Node modules.
   ignoreUnresolved: ['/runner/witnessPage.ts'],

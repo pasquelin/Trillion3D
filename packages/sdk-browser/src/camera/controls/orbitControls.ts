@@ -1,7 +1,13 @@
 import { createChangeGate, createControlBase } from './base.ts';
 import { pivotControlsApi, trackPivotGestures } from './pivot.ts';
 import { controlPose, readVector, writeVector } from './pose.ts';
-import { dollyDistance, orbitOrientation, panOffset, pixelWorldScale } from './math.ts';
+import {
+  clampAzimuth,
+  dollyDistance,
+  orbitOrientation,
+  panOffset,
+  pixelWorldScale,
+} from './math.ts';
 import {
   clampNumber,
   fromSpherical,
@@ -21,11 +27,50 @@ import type { ControlCamera, PivotCameraControls } from './types.ts';
  * into spherical coordinates, and ends by writing them out again. A host that moves the
  * camera itself — the portal's zoom buttons do — is therefore understood on the next
  * `update()`, and the round trip is what `math.test.ts` pins down.
+ *
+ * THE ANGLES ARE BOUNDED like the distance, on every drag and every `update()`: the polar
+ * angle between `minPolarAngle` and `maxPolarAngle`, the azimuth on the arc from
+ * `minAzimuthAngle` to `maxAzimuthAngle`. Their names and meanings are the ones web 3D
+ * libraries commonly use, so a page that already sets them keeps its numbers.
  */
+export interface OrbitCameraControls extends PivotCameraControls {
+  /**
+   * Smallest polar angle, in radians from straight up: `0` lets the camera look straight
+   * down. The pole itself stays out of reach, where the azimuth would stop being defined.
+   */
+  minPolarAngle: number;
+  /** Largest polar angle, in radians from straight up: `Math.PI / 2` keeps it above the ground. */
+  maxPolarAngle: number;
+  /**
+   * Start of the arc of azimuth allowed, in radians from +Z towards +X; unlimited at
+   * `-Infinity`. Only a pair of finite bounds narrower than a full turn holds the camera.
+   */
+  minAzimuthAngle: number;
+  /** End of that arc; unlimited at `Infinity`. It may be smaller than `minAzimuthAngle`. */
+  maxAzimuthAngle: number;
+  /**
+   * Radians per second the camera turns around `target` on its own, azimuth from +Z towards +X;
+   * 0, the default, holds it still. The turn is integrated by `update(delta)`, and it stops for
+   * good at the first press or wheel notch on the surface: the viewer has taken the camera.
+   */
+  autoRotate: number;
+  /** As the pivot's `update()`, with the seconds `autoRotate` turns over; 0 by default. */
+  update(delta?: number): boolean;
+}
+
+/** An orbit's default angle limits and turn, which `world.controls` keeps as its own. */
+export const ORBIT_DEFAULTS = {
+  minPolarAngle: 0,
+  maxPolarAngle: Math.PI,
+  minAzimuthAngle: -Infinity,
+  maxAzimuthAngle: Infinity,
+  autoRotate: 0,
+};
+
 export function createOrbitCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
-): PivotCameraControls {
+): OrbitCameraControls {
   const pose = controlPose(camera),
     base = createControlBase();
   const position = new Float64Array(3),
@@ -33,8 +78,12 @@ export function createOrbitCameraControls(
     offset = new Float64Array(3),
     spherical = new Float64Array(3),
     orientation = new Float64Array(4),
+    facing = new Float64Array(4),
     pan = new Float64Array(3),
-    moved = new Float64Array(6);
+    moved = new Float64Array(6),
+    bounds = new Float64Array(6),
+    applied = new Float64Array(6);
+  let posed = false;
   const gate = createChangeGate(base, 6);
   const height = () => surface.clientHeight || 1;
   const sample = () => {
@@ -43,10 +92,40 @@ export function createOrbitCameraControls(
     for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i];
     toSpherical(spherical, offset);
   };
+  const readBounds = () => {
+    bounds[0] = api.minDistance;
+    bounds[1] = api.maxDistance;
+    bounds[2] = api.minPolarAngle;
+    bounds[3] = api.maxPolarAngle;
+    bounds[4] = api.minAzimuthAngle;
+    bounds[5] = api.maxAzimuthAngle;
+  };
+  /**
+   * Whether the sampled pose — position and orientation — is the one last written, under the
+   * bounds it was written with; a host that only turned the camera is aimed back at the target.
+   * Re-clamping it would not be a no-op: an angle read back from a pose on a bound lands one
+   * ULP to either side of it, and a still scene would emit on every `update()`.
+   */
+  const still = () => {
+    readBounds();
+    if (!posed) return false;
+    for (let i = 0; i < 3; i++)
+      if (position[i] !== moved[i] || center[i] !== moved[3 + i]) return false;
+    for (let i = 0; i < 6; i++) if (bounds[i] !== applied[i]) return false;
+    return pose.readOrientation(facing).every((value, i) => value === orientation[i]);
+  };
   const apply = () => {
+    readBounds();
+    applied.set(bounds);
+    posed = true;
     const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON);
     spherical[0] = clampNumber(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far);
-    spherical[2] = clampNumber(spherical[2], POLAR_EPSILON, Math.PI - POLAR_EPSILON);
+    spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle);
+    spherical[2] = clampNumber(
+      spherical[2],
+      Math.max(api.minPolarAngle, POLAR_EPSILON),
+      Math.min(api.maxPolarAngle, Math.PI - POLAR_EPSILON),
+    );
     fromSpherical(offset, spherical);
     for (let i = 0; i < 3; i++) position[i] = center[i] + offset[i];
     pose.write(position, orbitOrientation(orientation, spherical));
@@ -75,10 +154,22 @@ export function createOrbitCameraControls(
     spherical[0] = dollyDistance(spherical[0], steps, api.zoomSpeed);
     apply();
   };
-  const api = pivotControlsApi(base, pose, () => {
+  let spinning = true;
+  const update = (delta = 0) => {
     sample();
+    const turn = spinning ? api.autoRotate * Math.max(0, delta) : 0;
+    if (turn) spherical[1] += turn;
+    else if (still()) return false;
     return apply();
+  };
+  // Unbounded angles by default: only the poles are out of reach.
+  const api: OrbitCameraControls = Object.assign(pivotControlsApi(base, pose, update), {
+    ...ORBIT_DEFAULTS,
+    update,
   });
+  const interrupt = () => void (spinning = false);
+  base.listen(surface, 'pointerdown', interrupt);
+  base.listen(surface, 'wheel', interrupt);
   // A wheel notch is 5 % of the distance.
   trackPivotGestures(
     surface,

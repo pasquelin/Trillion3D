@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react';
 import { ReadingLegend } from './ReadingLegend.tsx';
-import { reportCopy } from '../../reports/copy.ts';
 import { sceneName } from '../../reports/presentation.ts';
 import { useReports } from './useReports.ts';
 import { Alert } from '../ui/Alert.tsx';
 import { DocPage } from '../layout/DocPage.tsx';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { TextLink } from '../ui/Text.tsx';
 import { Collapse } from '../ui/Collapse.tsx';
 import { SceneReport } from './SceneReport.tsx';
@@ -25,14 +24,15 @@ interface ReportProps {
 export function Report({ route }: ReportProps) {
   const [campaign, active = 'overview'] = route.id.split('/');
   const state = useReports(campaign);
-  const locale = route.locale,
-    c = reportCopy(locale),
-    fr = locale === 'fr';
+  const locale = route.locale;
+  const t = useWords(locale);
   if (!state.report)
     return (
-      <DocPage title={c.title}>
+      <DocPage title={t('report.title')}>
         <Alert tone={state.error ? 'warning' : 'info'}>
-          {c[state.loading ? 'loading' : state.error ? 'unavailable' : 'empty']}
+          {t(
+            state.loading ? 'report.loading' : state.error ? 'report.unavailable' : 'report.empty',
+          )}
         </Alert>
       </DocPage>
     );
@@ -43,10 +43,10 @@ export function Report({ route }: ReportProps) {
     overview: () => (
       <>
         <Findings {...props} />
-        <Collapse title={fr ? 'Exécutions et sources' : 'Runs and sources'}>
+        <Collapse title={t('report.runsAndSources')}>
           <CampaignRuns {...props} />
           <TextLink href={`reports/${report.id}/report.json`} download>
-            {c.download}
+            {t('report.download')}
           </TextLink>
         </Collapse>
       </>
@@ -54,9 +54,9 @@ export function Report({ route }: ReportProps) {
     compare: () => (
       <>
         <ReadingLegend locale={locale} engines />
-        <Collapse title={fr ? 'Comment lire les chiffres ?' : 'How do I read the figures?'}>
+        <Collapse title={t('report.readFigures')}>
           <p>
-            {c.p95} {c.timing}
+            {t('report.p95')} {t('report.timing')}
           </p>
         </Collapse>
         {scenes.map((scene) => (
@@ -79,9 +79,9 @@ export function Report({ route }: ReportProps) {
   };
   return (
     <DocPage
-      title={c.title}
-      eyebrow={`${t(locale, 'reports.campaign')} ${report.id}`}
-      lead={`${report.records.length} ${fr ? 'mesures' : 'readings'} · ${report.runs.length} ${fr ? 'exécutions' : 'runs'} · ${scenes.map(sceneName).join(' / ')}`}
+      title={t('report.title')}
+      eyebrow={`${t('reports.campaign')} ${report.id}`}
+      lead={`${t('report.counts', { readings: report.records.length, runs: report.runs.length })} · ${scenes.map(sceneName).join(' / ')}`}
     >
       {(Object.hasOwn(content, active) ? content[active] : content.overview)()}
     </DocPage>

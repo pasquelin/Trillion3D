@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Helpers in the scene</title>
+    <meta name="thumbnail" content="4" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #14161c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, helper, camera } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#14161c');
+      const matte = (color, roughness = 0.7, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+
+      // A small film set: a studio sweep curving from the floor up into a backdrop, a sculpture on
+      // its plinth, a few props, a spotlight on its stand and a film camera on a dolly track.
+      const floor = object.mesh(geometry.cylinder(9, 9, 0.2, 96), matte('#3b3d45', 0.85));
+      floor.position.y = -0.1;
+      const sweep = object.mesh(geometry.lathe([[7.2, 6.5], [7.2, 1.4], [7.05, 0.8], [6.7, 0.35], [6.2, 0.1], [5.6, 0.01]], 64, 2.1, 3.4), matte('#d8d2c8', 0.9));
+      world.scene.add(floor, sweep);
+      const plinth = object.mesh(geometry.cylinder(0.7, 0.8, 0.8, 48), matte('#ece6dc', 0.4));
+      plinth.position.y = 0.4;
+      const knot = object.mesh(geometry.torusKnot(0.55, 0.17, 220, 24), matte('#e0663c', 0.3, 0.2));
+      knot.position.y = 1.55;
+      const ball = object.mesh(geometry.sphere(0.6, 64, 32), matte('#2f8f83', 0.25));
+      ball.position.set(-2.4, 0.6, -0.8);
+      const vase = object.mesh(geometry.lathe([[0.001, 0], [0.42, 0], [0.62, 0.45], [0.4, 1.1], [0.28, 1.4], [0.38, 1.62]], 64), matte('#f2b134', 0.35));
+      vase.position.set(2.3, 0, -1.2);
+      world.scene.add(plinth, knot, ball, vase);
+
+      // The spotlight: a stand, a housing turned toward the sculpture, and the light inside it.
+      const SPOT = [-3.4, 3.3, 1.6], AIM = [0, 1.5, 0];
+      const spot = light.spot({ color: '#dfe8ff', intensity: 160, distance: 5.5, angle: 0.36, penumbra: 0.45, position: SPOT });
+      spot.lookAt(...AIM);
+      const metal = matte('#2a2c33', 0.4, 0.7);
+      const pole = object.mesh(geometry.cylinder(0.05, 0.05, SPOT[1], 16), metal);
+      pole.position.set(SPOT[0], SPOT[1] / 2, SPOT[2]);
+      const housing = object.mesh(geometry.cylinder(0.14, 0.26, 0.5, 32), metal);
+      housing.position.set(...SPOT);
+      // Its narrow end points away from the target: the direction's two angles, yaw then pitch.
+      const back = SPOT.map((value, axis) => value - AIM[axis]), reach = Math.hypot(...back);
+      housing.rotation.order = 'YXZ';
+      housing.rotation.set(Math.acos(back[1] / reach), Math.atan2(back[0], back[2]), 0);
+      world.scene.add(spot, pole, housing);
+
+      // The film camera: a body, two reels and a lens on a head that rides a track and keeps the
+      // sculpture in frame. A real camera of the engine travels with it; its helper draws what it sees.
+      const rig = object.group(), dark = matte('#1c1d22', 0.5, 0.5);
+      const body = object.mesh(geometry.box(0.34, 0.36, 0.6), dark);
+      body.position.y = 1.55;
+      const lens = object.mesh(geometry.cylinder(0.1, 0.12, 0.3, 24), matte('#0c0c10', 0.2, 0.8));
+      lens.rotation.set(Math.PI / 2, 0, 0);
+      lens.position.set(0, 1.55, -0.42);
+      const reels = [0.12, -0.18].map((z) => {
+        const reel = object.mesh(geometry.cylinder(0.2, 0.2, 0.06, 32), dark);
+        reel.position.set(0, 1.93, z);
+        return reel;
+      });
+      const stand = object.mesh(geometry.cylinder(0.04, 0.06, 1.3, 12), metal);
+      stand.position.y = 0.8;
+      const cart = object.mesh(geometry.box(0.8, 0.14, 0.6), metal);
+      cart.position.y = 0.12;
+      rig.add(body, lens, ...reels, stand, cart);
+      for (const x of [-0.25, 0.25]) {
+        const rail = object.mesh(geometry.box(0.06, 0.05, 7.4), metal);
+        rail.position.set(4.1 + x, 0.025, 0);
+        world.scene.add(rail);
+      }
+      world.scene.add(rig);
+      const filming = camera.perspective({ fov: 30, near: 0.35, far: 3.4, aspect: 16 / 9 });
+
+      // Light: a low golden key raking across the set, casting long shadows; a cool fill from
+      // the sky; a small magenta bulb circling the sculpture.
+      const sun = light.directional({ color: '#ffc27a', intensity: 3, position: [6.2, 3.6, 3.4], castShadow: true });
+      sun.lookAt(0, 0, 0);
+      const sky = light.hemisphere({ color: '#8fb0ff', groundColor: '#3a2e28', intensity: 0.6, position: [0, 5.2, 0] });
+      const bulb = light.point({ color: '#ff5ab4', intensity: 10, distance: 6 });
+      const glass = object.mesh(geometry.sphere(0.09, 24, 12), material.meshStandard({ color: '#000000', emissive: '#ff5ab4', emissiveIntensity: 4 }));
+      world.scene.add(sun, sky, bulb, glass);
+
+      // The helpers, by family. Each is geometry like the rest: lines drawn with a line material,
+      // an arrow's head a small cone. They stand clear of every surface, a line never lies on a face.
+      const lifted = (node, y) => ((node.position.y = y), node);
+      // A box outline a touch larger than the object's box, grown about its centre.
+      const outline = (target, colour) => {
+        const lines = helper.box(target, colour), bounds = math.box3().setFromObject(target), grow = 1.06;
+        lines.scale.setScalar(grow);
+        lines.position.set(...['x', 'y', 'z'].map((axis) => ((bounds.min[axis] + bounds.max[axis]) / 2) * (1 - grow)));
+        return lines;
+      };
+      const normals = [];
+      for (let k = 0; k < 10; k++) {
+        const phi = Math.acos(1 - ((k + 0.5) / 10) * 1.6), theta = k * 2.4;
+        const out = math.vector3(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
+        const from = math.vector3(-2.4 + out.x * 0.64, 0.6 + out.y * 0.64, -0.8 + out.z * 0.64);
+        normals.push(helper.arrow(out, from, 0.45, '#7ef0d8'));
+      }
+      const families = {
+        grid: [lifted(helper.grid(16, 32, '#8a8f9c', '#4c505c'), 0.03), lifted(helper.polarGrid(1.6, 16, 4, '#c9b27a'), 0.05)],
+        axes: [lifted(helper.axes(2.2), 0.06)],
+        bounds: [outline(knot, '#ffd24a'), outline(ball, '#ffd24a'), outline(vase, '#ffd24a')],
+        normals,
+        lights: [helper.directionalLight(sun, 0.8), helper.spotLight(spot), helper.pointLight(bulb, 0.3), helper.hemisphereLight(sky, 0.5)],
+        camera: [helper.camera(filming)],
+      };
+      // A line is drawn as a thin prism, as thick as a share of its own size: each helper's width
+      // is set so that every line, a short arrow or the whole grid, reads about as thick.
+      for (const mark of Object.values(families).flat()) {
+        mark.traverse((node) => {
+          if (node.primitive !== 'lineSegments') return;
+          node.geometry.computeBoundingBox();
+          node.material.linewidth = (0.018 * 1024) / (node.geometry.boundingBox.getSize(math.vector3()).length() || 1);
+        });
+        mark.visible = false;
+        world.scene.add(mark);
+      }
+
+      world.camera.position.set(6.8, 4.6, 9.4);
+      world.camera.lookAt(0, 1.2, 0);
+      world.controls.target.set(0, 1.2, 0);
+      world.controls.minDistance = 4;
+      world.controls.maxDistance = 16;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.minAzimuthAngle = -0.5;
+      world.controls.maxAzimuthAngle = 1.8;
+
+      // The opening reveals the helpers one family after the other; the choice then takes over.
+      const ORDER = ['grid', 'axes', 'bounds', 'normals', 'lights', 'camera'];
+      const CHOICES = { everything: ORDER, 'lights and camera': ['lights', 'camera'], 'shapes and bounds': ['grid', 'axes', 'bounds', 'normals'], nothing: [] };
+      let revealed = 0, count = null;
+      const show = (names) => {
+        for (const [name, marks] of Object.entries(families)) for (const mark of marks) mark.visible = names.includes(name);
+        count?.(String(names.reduce((sum, name) => sum + families[name].length, 0)));
+        world.invalidate();
+      };
+      const ui = controls({
+        mouse: 'Drag to walk around the set; switch the helpers off to see the shot as it is',
+        helpers: Object.keys(CHOICES),
+        dolly: true,
+        bulb: true,
+      }, (values, key) => {
+        if (key === 'helpers') {
+          revealed = ORDER.length;
+          show(CHOICES[values.helpers]);
+        }
+        bulb.intensity = values.bulb ? 10 : 0;
+        glass.visible = values.bulb;
+        world.invalidate();
+      }, world);
+      count = readout('helpersShown');
+      count('0');
+
+      let time = 0, dolly = 0, clock = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        if (revealed < ORDER.length && time > 0.8 + revealed * 0.55) show(ORDER.slice(0, ++revealed));
+        // The bulb circles the sculpture; its helper follows it.
+        const turn = time * 0.7;
+        bulb.position.set(Math.cos(turn) * 1.7, 2.1 + 0.3 * Math.sin(turn * 2), Math.sin(turn) * 1.7);
+        glass.position.copy(bulb.position);
+        // The dolly rides its track, the head turned toward the sculpture, the reels running.
+        if (ui.dolly) dolly += step * 0.35;
+        clock += step * 4;
+        const z = Math.sin(dolly) * 3, yaw = Math.atan2(4.1, z);
+        rig.position.set(4.1, 0, z);
+        rig.rotation.set(0, yaw, 0);
+        reels.forEach((reel) => reel.rotation.set(clock, 0, Math.PI / 2));
+        // The engine's camera sits in the lens, looking where the rig looks: down its own -z.
+        filming.position.set(4.1 - Math.sin(yaw) * 0.55, 1.55, z - Math.cos(yaw) * 0.55);
+        filming.rotation.set(0, yaw, 0);
+        for (const mark of [...families.lights, ...families.camera]) mark.update();
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
