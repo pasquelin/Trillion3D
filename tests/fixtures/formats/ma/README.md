@@ -47,5 +47,5 @@ key changes from one run to the next without the scene moving. `case` and `rule`
 the test strips them before comparing. To regenerate it:
 
 ```sh
-cargo test --lib regenere_la_fixture_ma -- --ignored
+cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --lib regenerate_the_ma_fixture -- --ignored
 ```

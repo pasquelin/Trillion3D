@@ -120,13 +120,14 @@ node tests/browser/test-gpu.ts tests/browser/probes/reflection-cone.ts   # run s
 `test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
 inherited rather than the ones it caused, and the baseline lives here so the next batch compares
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
-`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-22: **7 fail**, and always these
-seven files — `scene-webgpu` (then named after the private scene it read), `explorer-startup`,
-`materiaux-temoin`, `observatory`,
-`partition-gpu-conservatrice`, `rendu-clusters-webgl`, `shadow-camera-stop`. Seven, not the six
-an older note quoted. Two readings, one commit apart: `origin/develop` at `005b5c445`, 52 pass /
-7 fail; the head of #297, which adds one proof file, 53 pass / 7 fail. A batch that leaves exactly
-these seven failing has changed nothing here; one that adds an eighth owns it. The pass count
+`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23: **10 fail**, and always these
+ten, in nine proof files — `blend-cache-default`, `explorer-startup`, `witness-materials`,
+`normal-transform-arithmetic`, `lighting-normal-small-scale` (two cases),
+`lighting-normal-refused-substitutions`, `observatory`, `webgl-cluster-render`,
+`shadow-camera-stop`. Two readings, the same day: `origin/develop` at `ea7e3ecf4`, 54 pass /
+10 fail; the head of #322, which only moves and renames the proof files, 54 pass / 10 fail, each
+failing on the same assertion. A batch that leaves exactly these ten failing has changed nothing
+here; one that adds an eleventh owns it. The pass count
 moves with the number of proof files and means nothing on its own. Re-read the baseline on your
 own machine before leaning on it — the failures are not portable, only the method is.
 

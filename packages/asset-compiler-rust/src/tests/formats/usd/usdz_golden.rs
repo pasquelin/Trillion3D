@@ -40,7 +40,7 @@ fn a_packaged_scene_compiles_to_the_same_thing_as_the_layer_outside_the_package(
 
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
-fn regenere_la_fixture_usdz() {
+fn regenerate_the_usdz_fixture() {
     let dir = golden_dir("usdz");
     let run = compile_golden_source(&dir.join("scene.usdz"), "usdz-paquet");
     write_expected(&dir, digest(&dir, &run), CASE, RULE);

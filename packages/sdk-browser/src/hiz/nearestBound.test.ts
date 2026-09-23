@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEPTH_LAYER_BIAS_UNITS } from '../../../sdk-core/src/index.ts';
-import { hizNearestBound } from './nearestBound.ts';
+import { hizNearestBound } from './nearestBound.fixture.ts';
 import { hizRejects, type HizBounds, type HizPyramid } from './hiz.ts';
 
 const f32 = new Float32Array(1),

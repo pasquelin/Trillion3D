@@ -359,7 +359,7 @@ closed list with this lot — `packages/sdk-browser/src/visibility/math.ts`, `pa
 `packages/sdk-browser/src/webgpu/blend/prepare.ts`, `packages/sdk-browser/src/webgpu/core/materialTextures.ts`, `packages/sdk-browser/src/webgpu/pages/helpers.ts`,
 `packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts`, `packages/sdk-browser/src/webgpu/pages/prepare/setup.ts` — and three boundaries joined it:
 `packages/sdk-browser/src/host/surfaceImport.ts` (the reading), `packages/sdk-browser/src/host/surfaceGate.ts` (the admission gate on a host
-declaration) and `hostBlendScene.ts` (the display graph the backend publishes) — all three left it
+declaration) and `packages/sdk-browser/src/cluster/blendSceneRecord.ts` (the display graph the backend publishes) — all three left it
 again in lot 5 below. Colour handling
 of `packages/sdk-browser/src/webgpu/pages/helpers.ts` now runs on `packages/sdk-core/src/math/primitives/color.ts`, whose transfer curve differs from the host
 library's rounded constants by the gap measured in #72; no beauty pass reads that path.

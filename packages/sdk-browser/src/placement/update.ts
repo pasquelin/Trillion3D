@@ -1,5 +1,10 @@
-import { BOX_VALUES, boxEmpty, boxIsEmpty, boxTransform } from '../../../sdk-core/src/index.ts';
-import { unionBoxInto } from '../math/boxUnionInto.ts';
+import {
+  BOX_VALUES,
+  boxEmpty,
+  boxIsEmpty,
+  boxTransform,
+  boxUnionBatch,
+} from '../../../sdk-core/src/index.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PlacementRows } from './rows.ts';
 
@@ -59,7 +64,7 @@ export function followPlacementRows<T>(
     const entry = list[index];
     if (!entry) continue;
     const { root, rank } = entry;
-    if (root.worldBox && !root.parked) unionBoxInto(moved, root.worldBox);
+    if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
     const parked = rows.live[index] === 0;
     if (parked !== !!root.parked) {
       root.parked = parked;
@@ -67,7 +72,7 @@ export function followPlacementRows<T>(
     }
     if (root.worldBox && root.localBox)
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
-    if (root.worldBox && !parked) unionBoxInto(moved, root.worldBox);
+    if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1);
   }
   if (boxIsEmpty(moved, 0)) return null;
   for (let axis = 0; axis < 3; axis++) {

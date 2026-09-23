@@ -1,7 +1,7 @@
 // Refutation, cluster by cluster, of the transparent occlusion test's rejects.
 //
 // The reference is not transcribed: it is production code itself — `projectCornersInto`
-// (packages/sdk-browser/src/hiz/corners.ts) in double precision, `hizNearestBound` (packages/sdk-browser/src/hiz/nearestBound.ts) for the lift and
+// (packages/sdk-browser/src/hiz/corners.ts) in double precision, `hizNearestBound` (packages/sdk-browser/src/hiz/nearestBound.fixture.ts) for the lift and
 // layer bias, `buildHizPyramid` then `hizRejectsFlat` (packages/sdk-browser/src/hiz/depth.ts, packages/sdk-browser/src/hiz/occlusion.ts) for the
 // readout. The readout depth is what the GPU actually left at the end of the opaque pass,
 // reread at full resolution.
@@ -14,7 +14,7 @@ import {
   HIZ_BOUNDS_VALUES,
   projectCornersInto,
 } from '../../../packages/sdk-browser/src/hiz/corners.ts';
-import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.ts';
+import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.fixture.ts';
 import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts';
 import { hizRejectsFlat } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
 import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/webgpu/transparent/occlusionAudit.ts';

@@ -2,7 +2,6 @@ import {
   BOX_VALUES,
   MATRIX_VALUES,
   boxTransform,
-  boxUnion,
   boxUnionBatch,
 } from '../../../sdk-core/src/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './batchRuntime.ts';
@@ -67,7 +66,7 @@ export function boxUnionCollector(
         return;
       }
       boxTransform(seule, 0, seule, 0, world);
-      boxUnion(into, 0, seule[0], seule[1], seule[2], seule[3], seule[4], seule[5]);
+      boxUnionBatch(into, seule, 1);
     },
     /** Runs batch if available, then returns union. */
     ferme() {

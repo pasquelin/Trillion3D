@@ -5,7 +5,7 @@ import type { EngineCamera } from '../camera/world.ts';
  * Fingerprint of an image view: the sixteen numbers of the view, the sixteen of the projection,
  * the near plane and the viewport. Two holds used to compare exactly that and copy it each for
  * their own — the view revision of the engines rendered by Three (`viewRevision.ts`) and the
- * hold of the Hi-Z screen rectangles (`../hiz/projectionHold.ts`) — with two `Float64Array(16)` and
+ * hold of the Hi-Z screen rectangles (`../hiz/projectionHold.fixture.ts`) — with two `Float64Array(16)` and
  * the same sequence of comparisons. A single write; what distinguishes one hold from the other,
  * far-plane range and quality threshold on one side, table age on the other, stays with it.
  *

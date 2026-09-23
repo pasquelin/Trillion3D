@@ -67,3 +67,51 @@ test('copies in two packages, in tests, in inline test modules or in methods are
   assert.ok(isTestModule('/tests/formats/golden.rs') && isTestModule('/qem_tests.rs'));
   assert.ok(!isTestModule('/qem.rs'));
 });
+
+test('TypeScript copies the old line patterns missed are red', () => {
+  const copies = [
+    'export async function load(url: string): Promise<{ ok: boolean }> {\n  return { ok: url !== "" };\n}\n',
+    'const scale: (v: number) => number = (v) => v * 2;\n',
+    'function pick({ a, b }: { a: number; b: number }, [c]: number[] = [0]): { sum: number } {\n  return { sum: a + b + c };\n}\n',
+  ];
+  for (const copy of copies) {
+    const groups = duplicateHelpers(
+      new Map([
+        ['packages/sdk-core/src/a.ts', copy],
+        ['packages/sdk-core/src/b.ts', `// moved\n${copy}`],
+      ]),
+    );
+    assert.equal(groups.length, 1, copy);
+  }
+});
+
+test('a Rust copy with a signature over several lines is red', () => {
+  const copy =
+    'pub(crate) fn blend(\n    a: &[f32; 4],\n    b: &[f32; 4],\n) -> [f32; 4] {\n    [a[0] + b[0], 0.0, 0.0, "}".len() as f32]\n}\n';
+  const groups = duplicateHelpers(
+    new Map([
+      ['packages/asset-compiler-rust/src/a.rs', copy],
+      ['packages/asset-compiler-rust/src/b.rs', copy],
+    ]),
+  );
+  assert.equal(groups.length, 1);
+});
+
+test('associated functions, cfg(test) items and cfg(test) modules are not helpers', () => {
+  const unit = 'packages/asset-compiler-rust/src';
+  const groups = duplicateHelpers(
+    new Map([
+      [`${unit}/lib.rs`, `mod a;\n#[cfg(test)]\nmod bench;\n${SHARED}`],
+      [
+        `${unit}/a.rs`,
+        `impl P {\n    fn new() -> Self {\n        P\n    }\n}\n#[cfg(test)]\n${SHARED}`,
+      ],
+      [`${unit}/b.rs`, 'impl P {\n    fn new() -> Self {\n        P\n    }\n}\n'],
+      [`${unit}/bench.rs`, SHARED],
+      [`${unit}/bench/inputs.rs`, SHARED],
+      ['packages/sdk-core/src/a.ts', 'async function f(x: number) {\n  return x;\n}\n'],
+      ['packages/sdk-core/src/b.ts', 'function f(x: number) {\n  return x;\n}\n'],
+    ]),
+  );
+  assert.deepEqual(groups, []);
+});

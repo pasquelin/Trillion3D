@@ -366,7 +366,7 @@
         "tests/browser/support/waterPassPage.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/diagnostic/diagnosticTypes\".BackendDiagnostic"
+      "bindingIdentity": "\"packages/sdk-browser/src/diagnostic/types\".BackendDiagnostic"
     },
     {
       "name": "barycentric",
@@ -460,7 +460,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/coplanar-layers.perf.ts",
-        "packages/sdk-browser/src/hiz/nearestBound.ts"
+        "packages/sdk-browser/src/hiz/nearestBound.fixture.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lod/depthLayer\".biasedDepthBits"
@@ -521,10 +521,10 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/oracles/core/bounce-probes.ts",
-        "packages/sdk-browser/src/bounce/probes.ts",
-        "packages/sdk-browser/src/bounce/surface.ts",
         "packages/sdk-browser/src/bounce/gridWgsl.ts",
         "packages/sdk-browser/src/bounce/probeWgsl.ts",
+        "packages/sdk-browser/src/bounce/probes.ts",
+        "packages/sdk-browser/src/bounce/surface.ts",
         "packages/sdk-browser/src/bounce/surfaceWgsl.ts",
         "packages/sdk-browser/src/bounce/traceWgsl.ts",
         "packages/sdk-browser/src/bounce/uniform.ts",
@@ -807,8 +807,6 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/volumeBoxCases.ts",
-        "packages/sdk-browser/src/math/batchBoxes.ts",
-        "packages/sdk-browser/src/math/boxUnionInto.ts",
         "packages/sdk-browser/src/page/selection/template.ts",
         "packages/sdk-browser/src/webgpu/shadow/bounds.ts"
       ],
@@ -824,7 +822,9 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-batch-volumes.perf.ts",
-        "packages/sdk-browser/src/math/batchBoxes.ts"
+        "packages/sdk-browser/src/math/batchBoxes.ts",
+        "packages/sdk-browser/src/placement/update.ts",
+        "packages/sdk-browser/src/webgpu/pages/render/transform.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/batch/batch\".boxUnionBatch"
@@ -1092,7 +1092,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/controlTypes\".ChangeListener"
+      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/types\".ChangeListener"
     },
     {
       "name": "Clip",
@@ -1237,6 +1237,7 @@
         "packages/sdk-browser/src/webgpu/pages/render/pageRaster.test.ts",
         "packages/sdk-browser/src/webgpu/pages/render/visCompactPipeline.test.ts",
         "packages/sdk-browser/src/webgpu/pages/slotReclaim.test.ts",
+        "packages/sdk-browser/src/webgpu/pages/testOccluder.fixture.ts",
         "packages/sdk-browser/src/webgpu/pages/testScenes.fixture.ts",
         "packages/sdk-browser/src/world/camera/camera.test.ts",
         "packages/sdk-browser/src/world/camera/camera.ts",
@@ -1244,10 +1245,10 @@
         "packages/sdk-browser/src/world/core/worldSource.ts",
         "packages/sdk-browser/src/world/diagnostic/metrics.test.ts",
         "packages/sdk-browser/src/world/diagnostic/metrics.ts",
-        "packages/sdk-browser/src/world/scene/scene.test.ts",
-        "packages/sdk-browser/src/world/scene/scene.ts",
         "packages/sdk-browser/src/world/scene/finiteTransform.test.ts",
         "packages/sdk-browser/src/world/scene/load.test.ts",
+        "packages/sdk-browser/src/world/scene/scene.test.ts",
+        "packages/sdk-browser/src/world/scene/scene.ts",
         "packages/sdk-browser/src/world/session/backendsTextureLevels.test.ts",
         "packages/sdk-browser/src/world/session/manifest.ts",
         "packages/sdk-browser/src/world/session/pageSources.ts",
@@ -1591,7 +1592,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/controlTypes\".ControlVector"
+      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/types\".ControlVector"
     },
     {
       "name": "copyMatrix4",
@@ -2327,7 +2328,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/diagnostic/diagnosticTypes\".DiagnosticDetail"
+      "bindingIdentity": "\"packages/sdk-browser/src/diagnostic/types\".DiagnosticDetail"
     },
     {
       "name": "DiagnosticMode",
@@ -2353,8 +2354,8 @@
         "packages/sdk-browser/src/webgpu/visibility/uniforms.ts",
         "packages/sdk-browser/src/world/api/diagnosticApi.ts",
         "packages/sdk-browser/src/world/api/selectionApi.ts",
-        "packages/sdk-browser/src/world/render/hostState.ts",
-        "packages/sdk-browser/src/world/render/fallback.ts"
+        "packages/sdk-browser/src/world/render/fallback.ts",
+        "packages/sdk-browser/src/world/render/hostState.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/runtime/diagnostics\".DiagnosticMode"
@@ -2495,8 +2496,8 @@
         "packages/sdk-browser/src/world/core/worldTarget.ts",
         "packages/sdk-browser/src/world/loader/modelFormat.ts",
         "packages/sdk-browser/src/world/render/draw.ts",
-        "packages/sdk-browser/src/world/scene/scene.ts",
         "packages/sdk-browser/src/world/scene/finiteTransform.test.ts",
+        "packages/sdk-browser/src/world/scene/scene.ts",
         "packages/sdk-browser/src/world/scene/transformUnstableParent.test.ts",
         "packages/sdk-browser/src/world/session/capabilityProbe.ts",
         "packages/sdk-browser/src/world/session/interactive.ts",
@@ -2811,7 +2812,7 @@
         "packages/sdk-browser/src/page/selection/math.test.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/math/frustum/frustumBox\".frustumClipBox"
+      "bindingIdentity": "\"packages/sdk-core/src/math/frustum/box\".frustumClipBox"
     },
     {
       "name": "frustumExcludesBox",
@@ -2834,7 +2835,7 @@
         "tests/browser/probes/inverseTransposeCases.ts"
       ],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-core/src/math/frustum/frustumBox\".frustumExcludesBox"
+      "bindingIdentity": "\"packages/sdk-core/src/math/frustum/box\".frustumExcludesBox"
     },
     {
       "name": "frustumFarPlane",
@@ -4624,8 +4625,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/flyControls.ts",
+        "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
       "disposition": "retained",
@@ -4730,8 +4731,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/flyControls.ts",
+        "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
       "disposition": "retained",
@@ -5376,7 +5377,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/controlTypes\".PivotCameraControls"
+      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/types\".PivotCameraControls"
     },
     {
       "name": "PixelImage",
@@ -5398,7 +5399,7 @@
       "classification": "public",
       "affectedConsumers": [],
       "disposition": "retained",
-      "bindingIdentity": "\"packages/sdk-browser/src/placement/placementRows\".PlacementRows"
+      "bindingIdentity": "\"packages/sdk-browser/src/placement/rows\".PlacementRows"
     },
     {
       "name": "Plane",
@@ -5899,8 +5900,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/bounce/probes.ts",
         "packages/sdk-browser/src/bounce/gridWgsl.ts",
+        "packages/sdk-browser/src/bounce/probes.ts",
         "packages/sdk-browser/src/lighting/deferred/setup.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/bounce.ts"
       ],
@@ -5970,8 +5971,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/bounce/proxy.ts",
         "packages/sdk-browser/src/bounce/nodeWgsl.ts",
+        "packages/sdk-browser/src/bounce/proxy.ts",
         "packages/sdk-browser/src/webgpu/residency/residentProxyBuffer.test.ts"
       ],
       "disposition": "retained",
@@ -6153,11 +6154,11 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/camera/controls/firstPersonControls.ts",
         "packages/sdk-browser/src/camera/controls/math.test.ts",
         "packages/sdk-browser/src/camera/controls/math.ts",
         "packages/sdk-browser/src/camera/controls/pivot.ts",
         "packages/sdk-browser/src/camera/controls/steering.test.ts",
-        "packages/sdk-browser/src/camera/controls/firstPersonControls.ts",
         "packages/sdk-browser/src/camera/controls/trackballControls.ts"
       ],
       "disposition": "retained",
@@ -6486,9 +6487,9 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
+        "packages/sdk-browser/src/bounce/limits.ts",
         "packages/sdk-browser/src/bounce/probes.ts",
         "packages/sdk-browser/src/bounce/proxy.ts",
-        "packages/sdk-browser/src/bounce/limits.ts",
         "packages/sdk-browser/src/scene/proxyLoad.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/bounce.ts",
         "packages/sdk-browser/src/webgpu/pages/prepare/sunFar.ts",

@@ -76,5 +76,5 @@ bare layer is the real subject, and it is checked on the intermediate scene and 
 `rule` are prose only, the test strips them before comparing. To regenerate it:
 
 ```sh
-cargo test --lib regenere_la_fixture_usdz -- --ignored
+cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --lib regenerate_the_usdz_fixture -- --ignored
 ```

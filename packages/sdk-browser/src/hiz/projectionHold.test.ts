@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createProjectionHold } from './projectionHold.ts';
+import { createProjectionHold } from './projectionHold.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 
 function camera() {

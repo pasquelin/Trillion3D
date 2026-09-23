@@ -5,7 +5,7 @@ image descriptor is refused by name, never flattened onto a frame chosen by defa
 fixture follows that cut — three files the driver reads, two it must refuse. The golden
 `src/plugins/tests/gif.rs` decodes the first set and compares the RGBA8 pixels **one by one** against a
 reference written in the clear in the test: a 4 × 2 pixel image whose eight values are known.
-The golden `src/tests/bmp_gif_golden.rs` takes `palette-globale.gif` through the whole compiler and
+The golden `src/tests/textures/bmp_gif_golden.rs` takes `palette-globale.gif` through the whole compiler and
 pins the bytes of its previews in `expected.json`.
 
 ## What the driver reads

@@ -51,3 +51,14 @@ test('the public facade conservatively follows common, browser, and Node changes
   ])
     assert.deepEqual(relatedTests(files, new Set([changed])), ['tests/integration/public.test.ts']);
 });
+
+test('a test or bench file change also runs the inventory of docs/TESTS.md', () => {
+  const files = new Map([
+    ['scripts/tests-inventory.test.ts', "import './tests-inventory.ts';"],
+    ['scripts/tests-inventory.ts', ''],
+  ]);
+  assert.deepEqual(relatedTests(files, new Set(['bench/perf/core/new.perf.ts'])), [
+    'scripts/tests-inventory.test.ts',
+  ]);
+  assert.deepEqual(relatedTests(files, new Set(['packages/sdk-core/src/leaf.ts'])), []);
+});

@@ -65,7 +65,7 @@ driver does not claim at all.
 ## The scene
 
 `scene.gltf` and `scene.bin` are the quad from `../../tests/fixtures/formats/hdr/`, its base colour replaced by
-`rgb-brut.psd`. `src/tests/psd_golden.rs` compiles it through the shared harness and compares every byte
+`rgb-brut.psd`. `src/tests/textures/psd_golden.rs` compiles it through the shared harness and compares every byte
 of its progressive previews against `expected.json`: an eight-bit-per-channel composite enters there like
 any other RGBA8 source, with no rejection in the report. Regeneration of the expected is described in
 the header of that test.

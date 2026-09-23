@@ -1,5 +1,4 @@
 import type { HostMesh } from '../../../host/resources.ts';
-import { unionBoxInto } from '../../../math/boxUnionInto.ts';
 import type { HostGraphNode } from '../../../host/scene/graphNodes.ts';
 import {
   BOX_VALUES,
@@ -11,6 +10,7 @@ import {
   determinantMatrix4,
   invertMatrix4,
   multiplyMatrix4,
+  boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts';
 import { assertFiniteTransform } from '../../../host/world/matrices.ts';
 import { hostWorldChainInto } from '../../../host/world/chain.ts';
@@ -99,7 +99,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   boxEmpty(moved, 0);
   for (const root of layout.selectionRoots)
     if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node))
-      unionBoxInto(moved, root.worldBox);
+      boxUnionBatch(moved, root.worldBox, 1);
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
   // scale under a rotation produces — does not decompose into it, and `updateMatrixWorld` would
@@ -130,7 +130,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   for (const root of layout.selectionRoots) {
     if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
     if (!enLot) boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
-    unionBoxInto(moved, root.worldBox);
+    boxUnionBatch(moved, root.worldBox, 1);
   }
   layout.rows.tableEpoch++;
   // Origin of the scene change: this subtree's world matrices have just been rewritten. Only

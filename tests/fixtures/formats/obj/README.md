@@ -48,5 +48,5 @@ durations appear in it: a golden pins a scene, never a clock. `case` and `rule` 
 prose only, the test strips them before comparing. To regenerate it:
 
 ```sh
-cargo test --lib regenere_la_fixture_obj -- --ignored
+cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --lib regenerate_the_obj_fixture -- --ignored
 ```

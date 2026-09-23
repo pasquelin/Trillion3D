@@ -57,6 +57,23 @@ test('a community without witnesses takes its folder and dominant node', () => {
   assert.equal(assignNames(graph(), {}, process.cwd()).labels.get(3), 'image · png');
 });
 
+test('the fallback name comes from the most connected node, not the least', () => {
+  const g = graph();
+  g.links = [
+    { source: 'b', target: 'a' },
+    { source: 'b', target: 'c' },
+  ];
+  assert.equal(assignNames(g, {}, process.cwd()).labels.get(7), 'hiz · depth');
+});
+
+test('a file at the repository root counts under the root folder', () => {
+  const g: Graph = {
+    nodes: [{ id: 'r', label: 'README.md', community: 1, source_file: 'README.md' }],
+    links: [],
+  };
+  assert.equal(assignNames(g, {}, process.cwd()).labels.get(1), 'root · README');
+});
+
 test('too weak an overlap does not take the name', () => {
   const witnesses = { 'PNG decoding': ['x', 'unknown1', 'unknown2', 'unknown3', 'unknown4'] };
   assert.equal(assignNames(graph(), witnesses, process.cwd()).recovered, 0);

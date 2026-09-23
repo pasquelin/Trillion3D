@@ -3,7 +3,7 @@
 // drawn twice — by the engine on its context, by the host renderer on its own canvas.
 import * as THREE from 'three';
 import { experimentScene, hostSource, renderState } from './lightingObservationScene.ts';
-import { createLightingExperimentBackend } from '../../../packages/sdk-browser/src/lighting/observation/experimentBackend.ts';
+import { createLightingExperimentBackend } from '../../../packages/sdk-browser/src/lighting/observation/experimentBackend.fixture.ts';
 import { createObservationResources } from '../../../packages/sdk-browser/src/lighting/observation/resources.ts';
 import { createObservationMeshes } from '../../../packages/sdk-browser/src/lighting/observation/meshes.ts';
 import { createObservationDraw } from '../../../packages/sdk-browser/src/lighting/observation/draw.ts';
