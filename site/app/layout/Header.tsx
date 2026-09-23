@@ -3,7 +3,7 @@ import { LANGUAGES } from '../../content/i18n/dictionary.ts';
 import { useTheme } from '../hooks/useTheme.ts';
 import { Button, NavLink } from '../ui/Button.tsx';
 import { Icon } from '../ui/Icon.tsx';
-import { LinkMenu } from '../ui/LinkMenu.tsx';
+import { LinkDropdown } from '../ui/LinkDropdown.tsx';
 import { navLinks, routeHref } from '../portal/routes.ts';
 import { usePortal } from './PortalContext.ts';
 
@@ -88,13 +88,13 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
           </span>
           <kbd className="kbd kbd-sm text-base-content">/</kbd>
         </Button>
-        <LinkMenu
+        <LinkDropdown
           className="font-mono text-neutral-content"
           label={t('actions.switchLanguage')}
           items={languages}
         >
           {t('meta.abbr')}
-        </LinkMenu>
+        </LinkDropdown>
         <Button
           circle
           className="text-neutral-content"

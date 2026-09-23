@@ -8,9 +8,12 @@ import { box, spline } from './solids.ts';
  */
 type Profile = readonly (readonly [number, number])[];
 
+/** How finely a piece is turned: sides round the axis, profile samples per control point. */
+type Turning = { segments: number; density: number };
+
 /** A smooth turned piece: the profile densified along a spline, then revolved. */
-function turned(points: Profile, segments = 48) {
-  const profile = spline(points, (points.length - 1) * 4).map(([r, y]): [number, number] => [
+function turned(points: Profile, { segments, density }: Turning) {
+  const profile = spline(points, (points.length - 1) * density).map(([r, y]): [number, number] => [
     Math.max(r, 0),
     y,
   ]);
@@ -57,7 +60,7 @@ const HEAD = pairs([
 ]);
 
 /** The turned rook, four merlons on its rim, each turned to face out along its radius. */
-function rook() {
+function rook(turning: Turning) {
   const merlons = [0, 1, 2, 3].map((k) => {
     const angle = (k * Math.PI) / 2 + Math.PI / 4,
       [cx, cz] = [1.13 * Math.cos(angle), 1.13 * Math.sin(angle)],
@@ -71,12 +74,12 @@ function rook() {
     }
     return solid(positions, merlon.indices);
   });
-  return merge([turned(ROOK), ...merlons]);
+  return merge([turned(ROOK, turning), ...merlons]);
 }
 
-function king() {
+function king(turning: Turning) {
   return merge([
-    turned(KING),
+    turned(KING, turning),
     moved(box(0.36, 1.3, 0.36), [0, 8.1, 0]),
     moved(box(1, 0.36, 0.36), [0, 8.25, 0]),
   ]);
@@ -109,8 +112,8 @@ function earClip(polygon: Profile) {
 }
 
 /** The turned foot, and the horse's head in profile, 1.5 cm thick, its rim bevelled. */
-function knight() {
-  const foot = turned(pairs(BASE, [1.1, 1.1, 0.9, 1.3, 0, 1.3])),
+function knight(turning: Turning) {
+  const foot = turned(pairs(BASE, [1.1, 1.1, 0.9, 1.3, 0, 1.3]), turning),
     n = HEAD.length,
     [half, bevel] = [0.75, 0.22];
   // The outline inset along each corner's bisector, for the bevelled faces.
@@ -171,14 +174,14 @@ function knight() {
   ]);
 }
 
-/** The six prototypes, by the name the USD layer gives them. */
-export function chessPieces(): Record<string, Mesh> {
+/** The six shapes, by the name the USD layer gives them, turned as finely as `turning` says. */
+export function chessPieces(turning: Turning = { segments: 48, density: 4 }): Record<string, Mesh> {
   return {
-    Pawn: turned(PAWN),
-    Rook: rook(),
-    Knight: knight(),
-    Bishop: turned(BISHOP),
-    Queen: turned(QUEEN),
-    King: king(),
+    Pawn: turned(PAWN, turning),
+    Rook: rook(turning),
+    Knight: knight(turning),
+    Bishop: turned(BISHOP, turning),
+    Queen: turned(QUEEN, turning),
+    King: king(turning),
   };
 }

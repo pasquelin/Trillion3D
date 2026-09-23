@@ -78,3 +78,16 @@ test('orbit resting on a bound stays still: `update()` emits nothing, polar or w
   polar.controls.maxPolarAngle = 1;
   assert.equal(polar.controls.update(), true);
 });
+
+test('orbit aims a camera the host only turned back at its target on `update()`', () => {
+  const { camera, controls } = orbit(10);
+  controls.update();
+  camera.quaternion.set(0, 1, 0, 0); // Turned to look away, the position left alone.
+  controls.update();
+  assert.deepEqual(
+    [camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w].map((v) =>
+      round(v),
+    ),
+    [0, 0, 0, 1],
+  );
+});

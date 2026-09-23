@@ -1085,7 +1085,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["packages/sdk-browser/src/world/core/worldControlsHandle.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/collision/capsule\".CapsuleContact"
     },
@@ -1151,7 +1151,11 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/camera/controls/characterControls.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/camera/controls/characterControls.ts",
+        "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
+        "packages/sdk-browser/src/world/core/worldControlsHandle.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/collision/characterCollision\".CharacterCollision"
     },
@@ -8110,7 +8114,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/core/worldControlsHandle.ts"],
+      "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/collision/characterCollision\".TriangleCollision"
     },

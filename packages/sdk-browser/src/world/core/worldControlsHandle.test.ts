@@ -5,6 +5,8 @@ import { fixtureDrag, fixtureSurface } from '../../camera/controls/controls.fixt
 import { worldControlsHandle } from './worldControlsHandle.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { box } from '../../../../sdk-core/src/world/geometry/basic.ts';
+import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
+import type { CapsuleContact } from '../../../../sdk-core/src/collision/capsule.ts';
 
 test('`world.controls` hands its limits to the orbit it drives, and keeps them for the next', () => {
   const camera = new Camera('perspective');
@@ -113,5 +115,74 @@ test('`world.controls` as a character falls onto its colliders, walks, jumps, an
   live(0.1);
   assert.equal(jumps, 1);
   assert.ok(controls.velocity.y > 0 && !controls.onGround);
+  controls.dispose();
+});
+
+test('`world.controls` asks for a frame when a stick input is set on a still flight', () => {
+  const camera = new Camera('perspective');
+  const surface = fixtureSurface(400);
+  let redraws = 0;
+  const controls = worldControlsHandle(
+    'fly',
+    () => camera,
+    surface.element,
+    () => redraws++,
+  );
+  controls.update(0);
+  const settled = redraws;
+  controls.movementSpeed = 2; // Nothing moves on its own: no frame.
+  assert.equal(redraws, settled);
+  controls.yawInput = 0.5;
+  assert.equal(redraws, settled + 1);
+  controls.dispose();
+});
+
+/** A physics backend's world reduced to its seam: an endless floor at y = 0. */
+function endlessFloor(): CharacterCollision & { asked: number } {
+  const contact: CapsuleContact = {
+    normal: new Float64Array([0, 1, 0]),
+    surface: new Float64Array([0, 1, 0]),
+    point: new Float64Array(3),
+    depth: 0,
+  };
+  const world = {
+    asked: 0,
+    resolveCapsule(capsule: { feet: Float64Array }, push: (contact: CapsuleContact) => void) {
+      world.asked++;
+      if (capsule.feet[1] >= 0) return false;
+      contact.point.set([capsule.feet[0], 0, capsule.feet[2]]);
+      contact.depth = -capsule.feet[1];
+      push(contact);
+      return true;
+    },
+    groundBelow(
+      capsule: { feet: Float64Array },
+      depth: number,
+      accepts: (contact: CapsuleContact) => boolean,
+    ) {
+      contact.point.set([capsule.feet[0], 0, capsule.feet[2]]);
+      return capsule.feet[1] <= depth && accepts(contact) ? capsule.feet[1] : null;
+    },
+  };
+  return world;
+}
+
+test('`world.controls.colliders` takes a CharacterCollision as it is, and the body stands on it', () => {
+  const camera = new Camera('perspective');
+  camera.position.set(0, 3, 0);
+  const surface = fixtureSurface(400);
+  const controls = worldControlsHandle(
+    'character',
+    () => camera,
+    surface.element,
+    () => {},
+  );
+  const floor = endlessFloor();
+  controls.colliders = floor;
+  assert.equal(controls.colliders, floor);
+  for (let i = 0; i < 120; i++) controls.update(1 / 60);
+  assert.ok(floor.asked > 0, 'the world was asked');
+  assert.equal(controls.onGround, true);
+  assert.ok(Math.abs(camera.position.y - controls.eyeHeight) < 1e-6, `eye at ${camera.position.y}`);
   controls.dispose();
 });

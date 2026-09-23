@@ -159,10 +159,10 @@
           intro = Math.min(1, intro + step / 3.5);
           const e = 1 - (1 - intro) ** 3;
           world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * e));
-          world.controls.target.set(0, -0.3, 0);
           world.controls.update();
         }
-        world.invalidate();
+        // At speed zero, once the field has risen and a new pattern has taken over, all stands still.
+        if (ui.speed || rise < 1 || blend < 1 || intro < 1) world.invalidate();
       });
     </script>
   </body>
