@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Orbit a clockwork</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // The gear train, in two planes: front (z 0.3) and back (z -0.3). A gear's pitch radius is
+      // MODULE × teeth / 2; two gears that mesh stand exactly the sum of their radii apart, and a
+      // gear on another gear's axle (same x, y) turns with it. `drives` names the gear it is turned by.
+      const MODULE = 0.08;
+      const GEARS = [
+        { "id": "great", "teeth": 30, "plane": 0.3, "x": -0.9, "y": 1.8 },
+        { "id": "pinion", "teeth": 10, "plane": 0.3, "x": 0.7, "y": 1.8, "drives": "great" },
+        { "id": "third", "teeth": 24, "plane": -0.3, "x": 0.7, "y": 1.8, "axle": "pinion" },
+        { "id": "fourth", "teeth": 12, "plane": -0.3, "x": 1.42, "y": 3.0471, "drives": "third" },
+        { "id": "escape", "teeth": 15, "plane": 0.3, "x": 1.42, "y": 3.0471, "axle": "fourth" }
+      ];
+
+      // `orbit`: the camera circles a point, `world.controls.target`, and never loses the horizon.
+      const world = createWorld('view', { controls: 'orbit' });
+      const brass = material.meshStandard({ color: '#d4a24c', metalness: 0.8, roughness: 0.3 });
+      const steel = material.meshStandard({ color: '#aab3bd', metalness: 0.85, roughness: 0.25 });
+      const wood = material.meshStandard({ color: '#4a2e1c', roughness: 0.6 });
+      function part(shape, matter, [x, y, z], turn = [0, 0, 0]) {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(x, y, z);
+        mesh.rotation.set(...turn);
+        world.scene.add(mesh);
+        return mesh;
+      }
+      // The frame: a wooden back board on a base, two brass pillars and a front bridge.
+      part(geometry.box(4.6, 4.4, 0.12), wood, [0.1, 2.3, -0.65]);
+      part(geometry.box(5.2, 0.3, 1.8), wood, [0.1, 0.15, 0]);
+      for (const x of [-2.1, 2.3]) part(geometry.cylinder(0.07, 0.07, 4, 16), brass, [x, 2.3, 0.55]);
+      part(geometry.box(4.5, 0.1, 0.06), brass, [0.1, 4.2, 0.55]);
+
+      // A gear: a disc and its teeth, cut clear of each other, on an axle through both planes.
+      const radius = (gear) => (MODULE * gear.teeth) / 2;
+      function gear(spec, matter) {
+        const group = object.group();
+        group.position.set(spec.x, spec.y, spec.plane);
+        const r = radius(spec);
+        group.add(object.mesh(geometry.cylinder(r - MODULE, r - MODULE, 0.1, 64), matter));
+        group.children[0].rotation.x = Math.PI / 2;
+        for (let index = 0; index < spec.teeth; index++) {
+          const angle = (index / spec.teeth) * Math.PI * 2;
+          const tooth = object.mesh(geometry.box(MODULE * 2, MODULE * 1.3, 0.1), matter);
+          tooth.position.set(Math.cos(angle) * r, Math.sin(angle) * r, 0);
+          tooth.rotation.z = angle;
+          group.add(tooth);
+        }
+        world.scene.add(group);
+        part(geometry.cylinder(0.05, 0.05, 1.2, 16), steel, [spec.x, spec.y, 0], [Math.PI / 2, 0, 0]);
+        return group;
+      }
+      // Each gear's turn follows from the one before: meshing flips the direction and scales by the
+      // tooth ratio, an axle keeps it. `phase` sets a meshing pair's teeth between each other's.
+      const gears = new Map();
+      for (const spec of GEARS) {
+        const from = gears.get(spec.drives ?? spec.axle);
+        let ratio = 1, phase = 0;
+        if (spec.drives) {
+          const toward = Math.atan2(spec.y - from.spec.y, spec.x - from.spec.x);
+          ratio = -from.ratio * (from.spec.teeth / spec.teeth);
+          phase = toward + Math.PI - Math.PI / spec.teeth + (toward - from.phase) * (from.spec.teeth / spec.teeth);
+        } else if (from) ratio = from.ratio;
+        gears.set(spec.id, { spec, ratio, phase, mesh: gear(spec, spec.plane > 0 ? brass : steel) });
+      }
+
+      // The pendulum hangs in front of everything; each swing lets the escape wheel slip one tooth.
+      const escape = gears.get('escape');
+      const pendulum = object.group();
+      pendulum.position.set(escape.spec.x, 3.95, 0.8);
+      const rod = object.mesh(geometry.cylinder(0.025, 0.025, 2.9, 8), steel);
+      rod.position.y = -1.45;
+      const bob = object.mesh(geometry.cylinder(0.32, 0.32, 0.1, 48), brass);
+      bob.rotation.x = Math.PI / 2;
+      bob.position.y = -2.95;
+      const anchor = object.mesh(geometry.box(0.9, 0.08, 0.08), steel);
+      anchor.position.y = -0.5;
+      pendulum.add(rod, bob, anchor);
+      world.scene.add(pendulum);
+
+      world.scene.add(light.spot({ position: [3, 6, 5], intensity: 300, distance: 18, angle: 0.55, penumbra: 0.4, castShadow: true, color: '#fff1dc' }));
+      world.scene.add(light.point({ position: [-3, 3, 3], intensity: 30, distance: 12, color: '#6fa8ff' }));
+      world.scene.add(light.ambient({ intensity: 0.25, color: '#8fb4ff' }));
+      world.camera.position.set(2.4, 3, 6.2);
+      world.camera.lookAt(0.2, 2.2, 0);
+      world.controls.target.set(0.2, 2.2, 0);
+
+      const ui = controls({
+        mouse: 'Drag to turn around · right-drag to slide · scroll to zoom in on the teeth',
+        speed: [0, 3, 1], brass: '#d4a24c',
+      }, (values) => {
+        brass.color.set(values.brass);
+        world.invalidate();
+      }, world);
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        time += delta * ui.speed;
+        const swing = Math.sin(time * Math.PI);
+        pendulum.rotation.z = swing * 0.12;
+        // One tooth of the escape wheel per swing, eased in at the tick.
+        const ticks = Math.floor(time) + Math.min(1, (time % 1) * 6);
+        const turn = (-ticks * Math.PI * 2) / escape.spec.teeth / escape.ratio;
+        for (const { mesh, ratio, phase } of gears.values()) mesh.rotation.z = phase + turn * ratio;
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

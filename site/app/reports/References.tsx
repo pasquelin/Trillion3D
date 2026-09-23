@@ -1,5 +1,5 @@
-import { Table } from '../components/Table.tsx';
-import { Section } from '../components/Section.tsx';
+import { Table } from '../ui/Table.tsx';
+import { Card } from '../ui/Card.tsx';
 import { reportCopy } from '../../reports/copy.ts';
 import type { Locale } from '../../content/locale.ts';
 
@@ -26,7 +26,7 @@ export function References({ locale }: ReferencesProps) {
     [fr ? 'CPU, démonstration PS5' : 'CPU, PS5 demo', '0.05 ms'],
   ];
   return (
-    <Section id="report-references" title={c.references}>
+    <Card id="report-references" title={c.references}>
       <p>{c.referenceNote}</p>
       <p>
         Unreal Engine · SIGGRAPH 2021 · <em>A Deep Dive into Nanite Virtualized Geometry</em>
@@ -44,6 +44,6 @@ export function References({ locale }: ReferencesProps) {
       <a className="link" href="REFERENCE.md">
         {c.referenceLink}
       </a>
-    </Section>
+    </Card>
   );
 }

@@ -3,10 +3,10 @@ import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
-import type { ProgressiveList as ProgressiveListComponent } from '../site/app/components/ProgressiveList.tsx';
+import type { ProgressiveList as ProgressiveListComponent } from '../site/app/ui/ProgressiveList.tsx';
 
 const { ProgressiveList: GenericProgressiveList } = (await loadReactComponents(
-  'site/app/components/ProgressiveList.tsx',
+  'site/app/ui/ProgressiveList.tsx',
 )) as { ProgressiveList: typeof ProgressiveListComponent };
 // `createElement` cannot infer a generic component's type parameter the way JSX does; an
 // instantiation expression monomorphizes it once for this test's `string` items.

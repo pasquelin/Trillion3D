@@ -4,10 +4,10 @@ import { missingMetric } from '../../reports/availability.ts';
 import { METRICS, metricValue, formatValue } from '../../reports/metrics.ts';
 import { metricLabel } from '../../reports/copy.ts';
 import { recordLabel, runOf } from '../../reports/presentation.ts';
-import { ChartGrid } from '../components/ChartGrid.tsx';
-import { BarChart } from '../components/BarChart.tsx';
-import { Collapse } from '../components/Collapse.tsx';
-import { Table } from '../components/Table.tsx';
+import { ChartGrid } from '../ui/ChartGrid.tsx';
+import { BarChart } from '../ui/BarChart.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
+import { Table } from '../ui/Table.tsx';
 import type { Report, ReportRecord } from '../../reports/types.ts';
 import type { MetricKey } from '../../reports/metrics.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -43,7 +43,7 @@ export function MetricCharts({
     records.filter((r) => metricValue(r, key) === null).map((r) => ({ key, record: r })),
   );
   return (
-    <div className="grid min-w-0 gap-4">
+    <div className="grid min-w-0 grid-cols-1 gap-4">
       <ChartGrid columns={columns}>
         {metrics.map((key) => {
           return (

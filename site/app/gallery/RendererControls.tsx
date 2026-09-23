@@ -4,10 +4,10 @@ import type {
   RendererLessonControl,
   RendererLessonItem,
 } from '../../lessons/rendererLessonTypes.ts';
-import type { LessonControl } from '../components/LessonControls.tsx';
-import { LessonControls } from '../components/LessonControls.tsx';
+import type { LessonControl } from '../ui/LessonControls.tsx';
+import { LessonControls } from '../ui/LessonControls.tsx';
 import { experimentPicker } from './experimentPicker.ts';
-import { Button } from '../components/UI.tsx';
+import { Button } from '../ui/Button.tsx';
 
 export const controlValue = (
   item: RendererLessonControl,

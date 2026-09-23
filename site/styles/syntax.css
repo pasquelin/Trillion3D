@@ -1,11 +1,8 @@
 .code-scroll {
   overflow: auto;
   max-height: min(55dvh, 38rem);
-  scrollbar-width: none;
+  scrollbar-width: thin;
   padding-bottom: 1rem;
-}
-.code-scroll::-webkit-scrollbar {
-  display: none;
 }
 /* Syntax colors use the active DaisyUI theme's semantic palette. */
 .code-lines {
@@ -72,16 +69,16 @@
   min-height: 12rem;
   max-height: min(55dvh, 38rem);
   overflow: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
   font-family: var(--font-mono);
-}
-.code-editor-input .cm-scroller::-webkit-scrollbar {
-  display: none;
 }
 .code-editor-input .cm-gutters {
   background: var(--color-base-300);
   color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
   border: 0;
+}
+.code-editor-input .cm-editor.cm-focused {
+  outline: none;
 }
 .code-editor-input .cm-cursor {
   border-left-color: var(--color-base-content);

@@ -99,7 +99,7 @@ export const enumsFr: LocaleOverlay = {
       { desc: 'Octets bruts : objets SHA et pixels d’aperçu.' },
     ],
   },
-  Side: {
+  'Side-common': {
     description:
       'Faces dessinées d’une surface. Chaque décision de raster, cône, pipeline et mélange compare cette valeur. `sideOf` lit la déclaration du matériau hôte à la frontière d’import ; `materialSide` redonne la constante hôte pour les matériaux de diagnostic.',
     values: [

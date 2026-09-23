@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { SceneNotice } from './SceneNotice.tsx';
-import { Section } from '../components/Section.tsx';
-import { Collapse } from '../components/Collapse.tsx';
-import { Tabs } from '../components/Tabs.tsx';
+import { Card } from '../ui/Card.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
+import { Tabs } from '../ui/Tabs.tsx';
 import { sceneName, runOf } from '../../reports/presentation.ts';
 import { viewName } from '../../reports/names.ts';
 import { MetricCharts } from './MetricCharts.tsx';
@@ -28,7 +28,7 @@ export function SceneReport({ scene, report, locale }: SceneReportProps) {
   );
   const views = [...new Set((records.length ? records : fallback).map((r) => r.view))];
   return (
-    <Section title={sceneName(scene)}>
+    <Card title={sceneName(scene)}>
       <SceneNotice
         note={report.records.find((r) => r.scene === scene && r.sceneNote)?.sceneNote}
         locale={locale}
@@ -53,7 +53,7 @@ export function SceneReport({ scene, report, locale }: SceneReportProps) {
               (r): r is ReportRecord => Boolean(r),
             );
             return (
-              <div className="grid min-w-0 gap-4">
+              <div className="grid min-w-0 grid-cols-1 gap-4">
                 <p>
                   {web?.canvas?.width} × {web?.canvas?.height} ·{' '}
                   {fr
@@ -101,6 +101,6 @@ export function SceneReport({ scene, report, locale }: SceneReportProps) {
           },
         }))}
       />
-    </Section>
+    </Card>
   );
 }

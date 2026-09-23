@@ -2,6 +2,7 @@ import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { detectCapabilities } from '../../measurement/capabilities.ts';
 import { requestExplorerDevice } from '../session/gpuDevice.ts';
 
+/** The two ways a world can draw: WebGPU, or WebGL2 when WebGPU is missing. */
 export type WorldRenderer = 'webgpu' | 'webgl2';
 
 /**
