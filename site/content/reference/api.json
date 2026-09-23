@@ -15822,7 +15822,7 @@
     "section": "world",
     "kind": "Type",
     "title": "WorldFrameMetrics",
-    "signature": "type WorldFrameMetrics",
+    "signature": "type WorldFrameMetrics = FrameMetrics & {\n  gpuFrameMs: number | null;\n  /** Clusters the occlusion test found hidden this frame; `null` where the path does not count them. */\n  hizCulled: number | null;\n}",
     "summary": "A frame's metrics, with the names a page reads them by; `null` where the path does not count.",
     "members": [
       {
@@ -16349,11 +16349,6 @@
         "name": "hizCulled",
         "type": "number | null",
         "desc": "Clusters the occlusion test found hidden this frame; `null` where the path does not count them."
-      },
-      {
-        "name": "shadowPagesResident",
-        "type": "number | null",
-        "desc": "Shadow pages held in memory this frame; `null` where the path has none."
       }
     ],
     "description": ""

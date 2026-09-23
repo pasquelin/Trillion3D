@@ -5,8 +5,6 @@ export type WorldFrameMetrics = FrameMetrics & {
   gpuFrameMs: number | null;
   /** Clusters the occlusion test found hidden this frame; `null` where the path does not count them. */
   hizCulled: number | null;
-  /** Shadow pages held in memory this frame; `null` where the path has none. */
-  shadowPagesResident: number | null;
 };
 
 /** What a frame hook receives: seconds since the last frame and since the world began. The
@@ -22,13 +20,12 @@ export interface FrameInfo {
   metrics: WorldFrameMetrics;
 }
 
-/** The engine's metrics under a page's names: the GPU frame, the clusters the occlusion test
- *  rejected, the shadow pages the pool holds. */
+/** The engine's metrics under a page's names: the GPU frame and the clusters the occlusion test
+ *  rejected. */
 function named(m: FrameMetrics): WorldFrameMetrics {
   return Object.assign(m, {
     gpuFrameMs: m.gpuMs,
     hizCulled: m.hizRejectedClusters ?? null,
-    shadowPagesResident: m.shadowPoolPages ?? null,
   });
 }
 
@@ -53,7 +50,6 @@ export const NOT_DRAWN: Readonly<WorldFrameMetrics> = Object.freeze({
   pageBytesRead: 0,
   gpuFrameMs: null,
   hizCulled: null,
-  shadowPagesResident: null,
 });
 
 /** The per-frame hooks of a world, run in the order they were added, after each drawn frame. */

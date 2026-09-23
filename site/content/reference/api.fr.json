@@ -6452,7 +6452,6 @@
       "geometryPoolSaturated": "Pages demandées par l’image actuelle au-delà du nombre d’emplacements du réservoir.",
       "texturePoolClamp": "Raison de la limite du réservoir de textures : `minimum`, `device-limit`.",
       "hizCulled": "Clusters que le test d’occultation a trouvés cachés à cette image ; `null` là où le chemin ne les compte pas.",
-      "shadowPagesResident": "Pages d’ombre gardées en mémoire à cette image ; `null` là où le chemin n’en a pas.",
       "shadowPagesRequested": "Pages d’ombre virtuelles que l’image a lues, telles que son dernier rapport de demandes les nomme : ce que marquent les récepteurs vus par la caméra.",
       "shadowPagesCached": "Parmi elles, les pages lues directement dans le pool : à jour, sans dessin.",
       "shadowPoolPages": "Pages physiques du pool fixe qui portent une page virtuelle.",
