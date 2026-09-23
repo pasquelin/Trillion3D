@@ -62,6 +62,7 @@ test('labels and printed values read as a person would write them', () => {
   assert.equal(printed(0.5, 0.01), '0.50');
   assert.equal(printed(400, 10), '400');
   assert.equal(printed(3, 1), '3');
+  assert.equal(printed(16.25, 0.25), '16.25');
 });
 
 test('the stats corner shows only what was measured, and never a dash or a zero', () => {
@@ -92,6 +93,8 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
       ['triangles (scene)', '12'],
     ],
   );
+  // A frame that measured no triangle at all shows none: never the scene's count in its place.
+  assert.deepEqual(statLines({ ...unmeasured, selectedTriangles: 0, sceneTriangles: 12 }), []);
 });
 
 test('the stats corner sits at the bottom left or, moved, at the top left', () => {
@@ -99,10 +102,11 @@ test('the stats corner sits at the bottom left or, moved, at the top left', () =
   assert.equal(statsCorners['top-left'], 'top-3 left-3');
 });
 
-test('the scene count reads indexed and plain geometries of the visible nodes', () => {
+test('the scene count reads indexed and plain geometries of the visible meshes, not points or lines', () => {
   const nodes = [
     { geometry: { index: { count: 36 } } },
     { geometry: { attributes: { position: { count: 9 } } } },
+    { primitive: 'points', geometry: { attributes: { position: { count: 300 } } } },
     {},
   ];
   assert.equal(sceneTriangles({ traverseVisible: (visit) => nodes.forEach(visit) }), 15);
@@ -152,7 +156,7 @@ test('a picked video file replaces the stream, and the file played before is rel
   const released: string[] = [];
   t.mock.method(URL, 'revokeObjectURL', (address: string) => released.push(address));
   const picker = new EventTarget() as EventTarget & { files: File[] | null };
-  const video = { srcObject: {} as unknown, src: '', play: async () => {} };
+  const video = { srcObject: {} as unknown, src: '', paused: false, play: async () => {} };
   const names: string[] = [];
   playPickedVideo(picker as never, video as never, (name) => names.push(name));
   for (const name of ['first.mp4', 'second.mp4']) {

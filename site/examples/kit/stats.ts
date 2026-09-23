@@ -14,6 +14,8 @@ interface FrameCounters {
 /** A node of the scene as far as counting its triangles goes. */
 interface SceneNode {
   visible?: boolean;
+  /** What the geometry draws: `triangles` for a mesh, points or lines otherwise. */
+  primitive?: string;
   geometry?: { index?: { count: number } | null; attributes?: { position?: { count: number } } };
   traverseVisible?: (visit: (node: SceneNode) => void) => void;
 }
@@ -35,14 +37,15 @@ const count = (value: number) => Math.round(value).toLocaleString('en');
 /**
  * The lines the corner shows, label then value. A counter the engine did not measure has no
  * line at all, never a dash or a zero; the triangles fall back to the scene's own count, named
- * so, when the frame reports none; a still image keeps its last rate, marked held.
+ * so, when the frame does not measure them; a still image keeps its last rate, marked held.
  */
 export function statLines(sample: StatsSample): [string, string][] {
   const lines: [string, string][] = [];
   if (sample.fps !== null)
     lines.push(['FPS', `${Math.round(sample.fps)}${sample.held ? ' held' : ''}`]);
   if (sample.selectedTriangles) lines.push(['triangles', count(sample.selectedTriangles)]);
-  else if (sample.sceneTriangles) lines.push(['triangles (scene)', count(sample.sceneTriangles)]);
+  else if (sample.selectedTriangles == null && sample.sceneTriangles)
+    lines.push(['triangles (scene)', count(sample.sceneTriangles)]);
   if (sample.drawCalls) lines.push(['draw calls', count(sample.drawCalls)]);
   if (sample.residentPages) lines.push(['pages', count(sample.residentPages)]);
   if (sample.geometryPoolBytes)
@@ -52,12 +55,13 @@ export function statLines(sample: StatsSample): [string, string][] {
   return lines;
 }
 
-/** Triangles of the visible meshes built in the scene: indexed, or three vertices each. */
+/** Triangles of the visible meshes built in the scene: indexed, or three vertices each. Points
+ *  and lines draw no triangle. */
 export function sceneTriangles(scene: SceneNode): number {
   let total = 0;
   scene.traverseVisible?.((node) => {
     const shape = node.geometry;
-    if (shape)
+    if (shape && (node.primitive ?? 'triangles') === 'triangles')
       total += Math.floor((shape.index?.count ?? shape.attributes?.position?.count ?? 0) / 3);
   });
   return total;
@@ -100,7 +104,7 @@ export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bo
     const held = drawn.length < 2;
     if (!held) fps = ((drawn.length - 1) * 1000) / (drawn[drawn.length - 1] - drawn[0]);
     const sample: StatsSample = { ...last, fps, held: held && fps !== null, sceneTriangles: null };
-    if (!last.selectedTriangles) sample.sceneTriangles = sceneTriangles(world.scene);
+    if (last.selectedTriangles == null) sample.sceneTriangles = sceneTriangles(world.scene);
     const lines = [...statLines(sample), ...profiled],
       key = lines.join('\n');
     if (key === shown) return;
