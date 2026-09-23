@@ -132,7 +132,6 @@
       const lux = (value) => (value >= 100 ? Math.round(value).toLocaleString(language()) : value.toPrecision(2)) + ' lx';
       let target = 15, ev = 10, shown = { sun: null, sky: null, lamp: null, ev: null };
       const ui = controls({
-        mouse: 'Drag to walk round the square; pick a moment and watch the camera adapt, from 100,000 lux down to a moonlit night',
         moment: Object.keys(MOMENTS),
         lampLumens: [0, 20000, 8000, 100],
         autoExposure: true,

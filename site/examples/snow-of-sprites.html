@@ -164,7 +164,6 @@
       const WEATHER = { 'steady snow': [900, 1, 1], 'light flurry': [350, 0.7, 0.6], blizzard: [1500, 2.2, 2.8] };
       let falling = 0, pace = 1, gusts = 1, counter = null;
       const ui = controls({
-        mouse: 'Drag to walk round the cabin; turn it into a blizzard and the flakes thicken and fly sideways',
         weather: Object.keys(WEATHER),
         wind: [-3, 3, 0.6],
       }, (values) => {

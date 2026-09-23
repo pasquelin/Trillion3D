@@ -303,7 +303,6 @@
       // the new pictures, only once the new files are decoded.
       let waiting = 0, asked = 0;
       controls({
-        mouse: 'Drag to walk along the easels; lower the quality and look closely at JPEG and WebP',
         quality: [0.02, 1, QUALITY, 0.01],
         lookAt: ['allEight', ...FORMATS.map(({ name }) => name)],
       }, (values, key) => {

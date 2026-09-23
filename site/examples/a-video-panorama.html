@@ -99,7 +99,6 @@
       const picker = document.getElementById('file');
       playPickedVideo(picker, video, () => source(say('yourFile')));
       const ui = controls({
-        mouse: 'Drag to look around; the view turns on its own until you press',
         playing: true,
         fieldOfView: [40, 110, 75, 1],
         openVideo: () => picker.click(),

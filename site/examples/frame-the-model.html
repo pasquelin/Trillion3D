@@ -138,7 +138,6 @@
       };
       const pick = (label) => exhibits.getObjectByName(label);
       const ui = controls({
-        mouse: 'Double-click an object to frame it; drag to turn, wheel to zoom',
         model: ['everything', ...exhibits.children.map((node) => node.name)],
         margin: [1, 2, 1.1, 0.05],
         drift: true,
