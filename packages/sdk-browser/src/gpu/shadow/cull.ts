@@ -1,5 +1,5 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../draw/draw.ts';
+import { DRAW_INDIRECT_STRIDE, MAX_DRAW_SLOTS, PAGE_BIND_ALIGN } from '../draw/draw.ts';
 import { MAX_SHADOW_REGIONS } from './atlas.ts';
 import { SHADOW_CULL_SHADER } from './cullShader.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
@@ -45,6 +45,13 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     // `COPY_SRC` for the periodic sample of the kept counts, a diagnostic outside the pass.
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
+  // The main compact's commands as it posted them, before occlusion truncates the tested half:
+  // what casts a shadow cannot depend on what the camera sees of it.
+  const sourceIndirect = device.createBuffer({
+    label: 'WG shadow source indirect v1',
+    size: MAX_DRAW_SLOTS * DRAW_INDIRECT_STRIDE,
+    usage: storage,
+  });
   const faceVolumes = device.createBuffer({
     label: 'WG shadow face volumes v1',
     size: MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS * 4,
@@ -62,7 +69,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const counts = createGpuShadowCullCounts(device);
-  const all = [kept, indirect, faceVolumes, uniforms, live, offsets, drawUniform];
+  const all = [kept, indirect, sourceIndirect, faceVolumes, uniforms, live, offsets, drawUniform];
   const release = () => {
     for (const buffer of all) buffer.destroy();
     counts.dispose();
@@ -108,6 +115,14 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       volumes,
       /** Periodic sample of what the region culls kept, read after submission. */
       counts,
+      /**
+       * Keeps the main compact's commands before the occlusion test truncates them: the tested
+       * half loses its rejected suffix there, and a caster hidden from the camera still casts.
+       * Encoded between the compact and the visibility passes, every frame the compact runs.
+       */
+      keepSourceCounts(encoder: GPUCommandEncoder, compactIndirect: GPUBuffer) {
+        encoder.copyBufferToBuffer(compactIndirect, 0, sourceIndirect, 0, compactIndirect.size);
+      },
       /** Pushes the volumes of the first `faces` faces: one write, never one per face. */
       flushVolumes(faces: number) {
         if (faces) device.queue.writeBuffer(faceVolumes, 0, volumes, 0, faces * SHADOW_CULL_FLOATS);
@@ -119,7 +134,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
        */
       encode(
         encoder: GPUCommandEncoder,
-        sources: { spheres: GPUBuffer; source: GPUBuffer; sourceIndirect: GPUBuffer },
+        sources: { spheres: GPUBuffer; source: GPUBuffer },
         faces: number,
         slots: number,
         rows: number,
@@ -131,7 +146,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         const buffers = [
           sources.spheres,
           sources.source,
-          sources.sourceIndirect,
+          sourceIndirect,
           kept,
           indirect,
           uniforms,

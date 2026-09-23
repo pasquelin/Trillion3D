@@ -33,7 +33,7 @@ export const SUBSTITUTIONS = {
   nulle: 'vec3f(0.0,0.0,0.0)',
 };
 
-/** Fixed view, albedo and hemisphere: only the normal's orientation changes from case to case. */
+/** Fixed view and albedo: only the normal's orientation changes from case to case. */
 const SHADER_ECLAIRAGE = (transform = NORMAL_TRANSFORM_WGSL, substitution = 'N') => `
 struct Cas{world:mat4x4f,normale:vec4f,vraie:vec4f,lumiere:vec4f,matiere:vec4f,}
 @group(0) @binding(0) var<storage, read> cas:array<Cas>;
@@ -47,9 +47,9 @@ fn eprouve(N:vec3f)->vec3f{return ${substitution};}
  let c=cas[i];
  let N=eprouve(xformNormal(c.world,c.normale.xyz));
  let V=vec3f(0.0,0.0,1.0);
- let rgb=vec3f(0.8,0.7,0.6);let sky=vec3f(0.6,0.7,0.9);let ground=vec3f(0.2,0.18,0.15);
- let lit=standardLighting(rgb,c.matiere.x,c.matiere.y,N,V,c.lumiere,sky,ground,1.0);
- let vrai=standardLighting(rgb,c.matiere.x,c.matiere.y,uniteOuZero(c.vraie.xyz),V,c.lumiere,sky,ground,1.0);
+ let rgb=vec3f(0.8,0.7,0.6);
+ let lit=standardLighting(rgb,c.matiere.x,c.matiere.y,N,V,c.lumiere);
+ let vrai=standardLighting(rgb,c.matiere.x,c.matiere.y,uniteOuZero(c.vraie.xyz),V,c.lumiere);
  out[i*3u]=vec4f(N,0.0);
  out[i*3u+1u]=vec4f(lit,0.0);
  out[i*3u+2u]=vec4f(vrai,0.0);
