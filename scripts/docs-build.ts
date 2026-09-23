@@ -3,8 +3,8 @@
  *   node scripts/docs-build.ts              writes dist/site/
  *   node scripts/docs-build.ts --untracked  fails when git tracks any file of it
  *
- * Nothing built is committed: every consumer builds the tree on demand and the Pages workflow
- * builds it from main at deploy (docs/LEARNING_PORTAL.md).
+ * Nothing built is committed: every consumer builds the tree on demand and the site
+ * deployment builds it from main (docs/LEARNING_PORTAL.md).
  */
 import { buildSite, trackedOutput } from './docs/site.ts';
 
