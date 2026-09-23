@@ -52,9 +52,9 @@ fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:v
  if(p.sel>=MAP_CHOICES&&HAS_MASK){
   let uva=pageUv(page,h,i0);
   let g=cascadeGradient(p.sel-MAP_CHOICES,w0,w1,w2,pageUv(page,h,i1)-uva,pageUv(page,h,i2)-uva,wp);
-  if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,${quartet('base')},g.xy,g.zw,p.next);}
+  if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,${quartet('base')},g.xy,g.zw,p.next,p.along);}
  }
- return mapRequest(p.sel,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,page.wrapModes,ddx,ddy,p.next);
+ return mapRequest(p.sel,vec2u(page.mapIndex,page.emissiveIndex),vec4u(page.roughnessIndex,page.metalnessIndex,page.normalIndex,page.aoIndex),uv,page.wrapModes,ddx,ddy,p.next,p.along);
 }`;
 
 /**

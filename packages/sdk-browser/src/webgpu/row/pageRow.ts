@@ -1,5 +1,6 @@
 import type { HostAttributes } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
+import type { PageSurface } from '../../page/surface.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { createPageRowConstants } from './pageRowConstants.ts';
 import {
@@ -48,13 +49,15 @@ const rowIndexCount = (rec: PageRec) => rec.geometryPage?.indexCount ?? rec.arra
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
   markRowDirty: (row: number) => void;
+  /** A surface at its first row, and again whenever its version moved: its maps' sampling follows. */
+  surfaceChanged?: (surface: PageSurface) => void;
 };
 
 /** Serializes one drawable cluster row after its occupant, slot, or input epoch changes. */
 export function createPageRowWriter(resources: PageRowResources) {
   const { geometryBlocks, markRowDirty } = resources;
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
-  const constants = createPageRowConstants();
+  const constants = createPageRowConstants(resources.surfaceChanged);
   // Filled again at every row write, never allocated again.
   const block = emptyGeometryBlock();
   return (
