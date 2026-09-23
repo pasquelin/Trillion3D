@@ -62,6 +62,7 @@
 
       // The planet's skin: a twenty-sided ball split six times over, every corner pushed out to the
       // radius its direction reads.
+      const cross = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
       const t = (1 + Math.sqrt(5)) / 2;
       const ICOSAHEDRON = [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1];
       const TWENTY = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1];
@@ -95,7 +96,7 @@
       for (let f = 0; f < faces.length; f += 3) {
         const [a, b, c] = [faces[f], faces[f + 1], faces[f + 2]].map((k) => surface[k]);
         const u = b.map((value, axis) => value - a[axis]), v = c.map((value, axis) => value - a[axis]);
-        const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+        const n = cross(u, v);
         for (let k = 0; k < 3; k++) normals[faces[f + k]].forEach((_, axis, sum) => (sum[axis] += n[axis]));
       }
 
@@ -107,7 +108,7 @@
         const [x, y, z] = surface[k], n = normals[k], length = Math.hypot(...n);
         return [x, y, z, n[0] / length, n[1] / length, n[2] / length, Math.hypot(x, y, z)];
       };
-      const cross = (p, q, level) => {
+      const crossing = (p, q, level) => {
         const share = (level - p[6]) / (q[6] - p[6]);
         return p.map((value, axis) => value + (q[axis] - value) * share);
       };
@@ -116,7 +117,7 @@
         polygon.forEach((p, index) => {
           const q = polygon[(index + 1) % polygon.length];
           if (inside(p)) kept.push(p);
-          if (inside(p) !== inside(q)) kept.push(cross(p, q, level));
+          if (inside(p) !== inside(q)) kept.push(crossing(p, q, level));
         });
         return kept;
       };
@@ -151,16 +152,15 @@
         const y = next() * 2 - 1, around = next() * Math.PI * 2, ring = Math.sqrt(1 - y * y);
         const d = [ring * Math.cos(around), y, ring * Math.sin(around)];
         const side = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-        const e1 = [d[1] * side[2] - d[2] * side[1], d[2] * side[0] - d[0] * side[2], d[0] * side[1] - d[1] * side[0]];
-        const l1 = Math.hypot(...e1);
-        const a = e1.map((value) => value / l1), b = [d[1] * a[2] - d[2] * a[1], d[2] * a[0] - d[0] * a[2], d[0] * a[1] - d[1] * a[0]];
+        const e1 = cross(d, side), l1 = Math.hypot(...e1);
+        const a = e1.map((value) => value / l1), b = cross(d, a);
         const point = (s, t) => {
           const q = d.map((value, axis) => value + a[axis] * s + b[axis] * t), length = Math.hypot(...q), r = radiusAt(...q.map((value) => value / length));
           return q.map((value) => (value / length) * r);
         };
         const here = point(0, 0), pa = point(step, 0), pb = point(0, step);
         const u = pa.map((value, axis) => value - here[axis]), v = pb.map((value, axis) => value - here[axis]);
-        const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], length = Math.hypot(...n);
+        const n = cross(u, v), length = Math.hypot(...n);
         const slope = (Math.acos(Math.abs(n[0] * d[0] + n[1] * d[1] + n[2] * d[2]) / length) * 180) / Math.PI;
         return { d, r: Math.hypot(...here), slope, size: 0.7 + next() * 0.7 };
       });

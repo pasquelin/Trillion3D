@@ -92,9 +92,10 @@
       world.camera.lookAt(0, 0.9, 0);
       world.controls.target.set(0, 0.9, 0);
 
-      // Every change rebuilds the five solids from their outlines: depth pushes the flat shape
-      // back, the bevel rounds its rims, curve segments decide how smooth each curve becomes.
-      let triangles = null, count = 0;
+      // A change rebuilds the five solids from their outlines: depth pushes the flat shape back,
+      // the bevel rounds its rims, curve segments decide how smooth each curve becomes. The
+      // rebuild waits for the next frame, so a dragged slider rebuilds once a frame, not once a step.
+      let stale = false;
       const ui = controls({
         mouse: 'Drag to look around; a depth of zero leaves the flat cut-out shape',
         depth: [0, 1, 0.35],
@@ -104,8 +105,12 @@
         curveSegments: [2, 40, 16, 1],
         spin: true,
       }, (values, key) => {
-        if (key === 'spin') return;
-        count = 0;
+        if (key !== undefined && key !== 'spin') stale = true;
+        world.invalidate();
+      }, world);
+      const triangles = readout('Triangles');
+      function rebuild(values) {
+        let count = 0;
         outlines.forEach(({ draw }, index) => {
           const solid = values.depth === 0
             ? geometry.shape(draw(), values.curveSegments)
@@ -122,11 +127,12 @@
           pieces[index].geometry = solid;
           count += solid.index ? solid.index.count / 3 : solid.attributes.position.count / 3;
         });
-        triangles?.(count.toLocaleString('en'));
-        world.invalidate();
-      }, world);
-      triangles = readout('Triangles');
-      triangles(count.toLocaleString('en'));
+        triangles(count.toLocaleString('en'));
+      }
+      rebuild(ui);
+      world.beforeFrame(() => {
+        if (stale) (stale = false), rebuild(ui);
+      });
 
       let time = 0;
       world.onFrame(({ delta }) => {
