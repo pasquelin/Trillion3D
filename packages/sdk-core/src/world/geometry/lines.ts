@@ -42,7 +42,11 @@ function segments(geometry: Geometry, keep: (normals: number[][]) => boolean) {
   return lines;
 }
 
-/** The edges where the surface folds by more than `thresholdAngle` degrees, and its borders. */
+/**
+ * The edges where the surface folds by more than `thresholdAngle` degrees, and its borders.
+ * @param geometry - The shape whose edges are drawn.
+ * @param thresholdAngle - Least angle between two faces, in degrees, for their shared edge to show.
+ */
 export function edges(geometry: Geometry, thresholdAngle = 1) {
   const limit = Math.cos((thresholdAngle * Math.PI) / 180);
   return segments(
@@ -56,7 +60,10 @@ export function edges(geometry: Geometry, thresholdAngle = 1) {
   );
 }
 
-/** Every edge of every triangle, once. */
+/**
+ * Every edge of every triangle, once.
+ * @param geometry - The shape whose triangle edges are drawn.
+ */
 export function wireframe(geometry: Geometry) {
   return segments(geometry, () => true);
 }

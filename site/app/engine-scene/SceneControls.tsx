@@ -1,7 +1,7 @@
 import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
-import { LessonControls } from '../components/LessonControls.tsx';
-import { Button } from '../components/UI.tsx';
+import { LessonControls } from '../ui/LessonControls.tsx';
+import { Button } from '../ui/Button.tsx';
 import { DIAGNOSTIC_MODES } from '../../lessons/engine-scene/diagnosticModes.ts';
 
 interface SceneControlsProps {

@@ -1,9 +1,9 @@
 import { readingGroups } from '../../reports/sources.ts';
-import { Table } from '../components/Table.tsx';
+import { Table } from '../ui/Table.tsx';
 import { flattenFields } from '../../reports/availability.ts';
 import { recordLabel, sceneName } from '../../reports/presentation.ts';
 import { viewName } from '../../reports/names.ts';
-import { Collapse } from '../components/Collapse.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
 import type { Report, ReportSource } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
@@ -26,7 +26,7 @@ function cell(value: unknown, locale: Locale): string {
 export function AllReadings({ report, sources, locale }: AllReadingsProps) {
   const groups = readingGroups(sources);
   return (
-    <section className="grid min-w-0 gap-4" id="report-all-values">
+    <section className="grid min-w-0 grid-cols-1 gap-4" id="report-all-values">
       <h2>
         {locale === 'fr' ? 'Tous les chiffres, sans filtre' : 'Every recorded value, unfiltered'}
       </h2>

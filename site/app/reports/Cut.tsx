@@ -1,4 +1,4 @@
-import { Table } from '../components/Table.tsx';
+import { Table } from '../ui/Table.tsx';
 import { formatValue } from '../../reports/metrics.ts';
 import type { CutAnalysis, CutRow } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -16,7 +16,7 @@ export function Cut({ analysis, locale }: CutProps) {
     ['DAG', analysis.byLevel],
   ];
   return (
-    <section className="grid min-w-0 gap-3">
+    <section className="grid min-w-0 grid-cols-1 gap-3">
       <h3 className="text-lg font-semibold">
         {fr ? 'Origine des triangles de la capture' : 'Where capture triangles come from'}
       </h3>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Select } from '../components/UI.tsx';
+import { Select } from '../ui/Input.tsx';
 import { viewName } from '../../reports/names.ts';
-import { Section } from '../components/Section.tsx';
+import { Card } from '../ui/Card.tsx';
 import { runOf, sceneName } from '../../reports/presentation.ts';
 import { ProfileReading } from './ProfileReading.tsx';
 import type { Report, ReportRecord } from '../../reports/types.ts';
@@ -65,12 +65,12 @@ export function Profiles({ report, locale }: ProfilesProps) {
   return (
     <>
       {[...new Set(records.map((r) => r.scene))].map((scene) => (
-        <Section key={scene} title={sceneName(scene)}>
+        <Card key={scene} title={sceneName(scene)}>
           <SceneProfiles
             records={records.filter((r) => r.scene === scene)}
             {...{ report, locale }}
           />
-        </Section>
+        </Card>
       ))}
     </>
   );

@@ -1,4 +1,4 @@
-import { Table } from '../components/Table.tsx';
+import { Table } from '../ui/Table.tsx';
 import { reportCopy } from '../../reports/copy.ts';
 import { runName } from '../../reports/names.ts';
 import type { Report } from '../../reports/types.ts';
@@ -19,7 +19,7 @@ const STATUS: Record<RunStatus, [string, string]> = {
 export function CampaignRuns({ report, locale }: CampaignRunsProps) {
   const c = reportCopy(locale);
   return (
-    <section className="grid min-w-0 gap-3">
+    <section className="grid min-w-0 grid-cols-1 gap-3">
       <h3 className="text-lg font-semibold">
         {c.runs} · {report.runs.length}
       </h3>

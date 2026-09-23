@@ -10,17 +10,23 @@ export type StageQuantiles = { p50: number; p95: number } | null;
 
 /** A profile row: a stage, its CPU duration and its GPU duration. */
 export interface StageProfileEntry {
+  /** The step's short name. */
   stage: string;
+  /** The step's name for a person. */
   label: string;
+  /** CPU time spread. */
   cpuMs: StageQuantiles;
+  /** GPU time spread. */
   gpuMs: StageQuantiles;
   /** Why a column is `null`, when the reason is known. */
   cpuReason?: string;
+  /** Why GPU time is missing. */
   gpuReason?: string;
   /** Stage-specific counters (redrawn shadow faces, shadow draw calls, ...). */
   counts?: Readonly<Record<string, number>>;
 }
 
+/** How the GPU is timed: WebGPU timestamps, or the WebGL2 timer query. */
 export type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2';
 
 /**
@@ -31,18 +37,27 @@ export type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webg
  * split a frame into passes.
  */
 export interface StageProfile {
+  /** Format version. */
   version: 1;
+  /** Whether profiling runs. */
   enabled: boolean;
+  /** The renderer profiled. */
   backend: string;
   /** CPU frames and GPU samples actually retained by the span. */
   cpuFrames: number;
+  /** GPU samples taken. */
   gpuSamples: number;
+  /** Frames in the sliding span. */
   windowFrames: number;
+  /** How the GPU was timed. */
   gpuMethod: GpuTimingMethod | null;
+  /** Why GPU time is missing. */
   gpuReason: string | null;
+  /** GPU time of whole images. */
   gpuImageMs: StageQuantiles;
   /** CPU cost of the profile itself, per frame. This is what must be subtracted to be fair. */
   overheadMs: StageQuantiles;
+  /** Each step. */
   stages: StageProfileEntry[];
 }
 
@@ -74,6 +89,7 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   frame: 'Whole frame',
 });
 
+/** The name a person reads for a frame step. */
 export const stageLabel = (stage: string) => STAGE_LABELS[stage] ?? stage;
 
 /** p50 and p95 of a series, or `null` if it is empty: nothing is inferred from a missing series. */

@@ -100,6 +100,7 @@ export interface CameraFrame {
   planes: Float64Array;
 }
 
+/** A camera frame's matrices and planes, made once and rewritten each frame. */
 export function createCameraFrame(): CameraFrame {
   return {
     view: new Float64Array(16),

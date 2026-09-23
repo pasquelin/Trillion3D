@@ -1,124 +1,77 @@
 import { t } from '../content/i18n/index.ts';
-import { issueUrl, REPOSITORY } from '../content/model.ts';
+import { issueUrl } from '../content/model.ts';
 import { demoFor } from '../demos/registry.ts';
-import { apiScenario } from '../lessons/apiScenario.ts';
-import { engineDiagnosticsCode, engineExampleCode } from '../lessons/engine-scene/code.ts';
-import { examples } from '../content/catalog.ts';
-import { EngineExample } from './engine-scene/index.tsx';
-import { GeometryPreview } from './gallery/WebGPUCanvas.tsx';
 import { ApiDemo } from './ApiDemo.tsx';
-import { CodeBlock } from './components/CodeBlock.tsx';
-import { ExampleLayout } from './components/ExampleLayout.tsx';
-import { Card, Alert } from './components/UI.tsx';
-import { Inline, Prose, Table } from './components/Prose.tsx';
+import { DocPage } from './layout/DocPage.tsx';
+import { Collapse } from './ui/Collapse.tsx';
+import { entrySummary } from '../content/model.ts';
+import { LEARN_SECTIONS } from './portal/routes.ts';
+import { CodeBlock } from './ui/CodeBlock.tsx';
+import { Card } from './ui/Card.tsx';
+import { Alert } from './ui/Alert.tsx';
+import { Inline, Prose } from './ui/Prose.tsx';
+import { DefinitionTable } from './ui/Table.tsx';
+import { Note, Paragraph, TextLink } from './ui/Text.tsx';
 import type { DemoDef } from '../demos/kit.ts';
 import type { Locale } from '../content/locale.ts';
 import type { PortalEntry } from '../content/model.ts';
 
-const ENGINE_SCENE_IDS = ['example-world', 'createWorld', 'example-diagnostics'];
-
 function LiveDemo({ demo, locale }: { demo: DemoDef; locale: Locale }) {
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold">{t(locale, 'entry.live')}</h2>
-        <p className="mt-1 text-sm opacity-70">{t(locale, 'entry.liveHint')}</p>
-      </div>
+    <Card title={t(locale, 'entry.live')}>
+      <Note>{t(locale, 'entry.liveHint')}</Note>
       <ApiDemo demo={demo} locale={locale} />
-    </section>
+    </Card>
   );
 }
 
-function Example({
-  entry,
-  locale,
-  demo,
-}: {
-  entry: PortalEntry;
-  locale: Locale;
-  demo: DemoDef | null;
-}) {
-  if (!entry.example) return null;
-  if (ENGINE_SCENE_IDS.includes(entry.id)) {
-    const diagnostics = entry.id === 'example-diagnostics';
-    return (
-      <EngineExample
-        locale={locale}
-        diagnostic={diagnostics ? 'clusters' : 'beauty'}
-        code={diagnostics ? engineDiagnosticsCode : engineExampleCode}
-      />
-    );
-  }
-  const scenario = apiScenario(entry.id, entry.section);
-  const code = (
-    <CodeBlock code={entry.example} locale={locale} label={t(locale, 'entry.example')} />
-  );
-  if (!scenario) return code;
-  const example = examples.find(({ id }) => id === scenario);
-  if (!example) return code;
+/** The text past the summary: the rest of the description, then the entry's prose. */
+function Details({ rest, html }: { rest: string; html?: string }) {
   return (
-    <ExampleLayout
-      left={
-        <div className="grid gap-6">
-          {code}
-          {demo && <LiveDemo demo={demo} locale={locale} />}
-        </div>
-      }
-      right={
-        <Card title={example.title[locale]}>
-          <GeometryPreview id={scenario} locale={locale} related />
-          <p>
-            {locale === 'fr'
-              ? 'Cet exemple associé illustre le concept avec ses propres paramètres.'
-              : 'This related example illustrates the concept using its own parameters.'}
-          </p>
-          <a className="btn btn-primary" href={`#/${locale}/playground/${scenario}`}>
-            {locale === 'fr' ? 'Tester les paramètres' : 'Try the parameters'}
-          </a>
-        </Card>
-      }
-    />
+    <>
+      {rest && (
+        <Paragraph>
+          <Inline text={rest} />
+        </Paragraph>
+      )}
+      {html && <Prose html={html} />}
+    </>
   );
 }
 
+/**
+ * One guide or API entry. A guide reads as text: its description, its prose, then its code. An
+ * API entry keeps one order: its summary, the signature, the example, the members, then the long
+ * description, folded under Details.
+ */
 export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: Locale }) {
   const demo = demoFor(entry.id);
-  const embedsDemo =
-    demo &&
-    entry.example &&
-    !ENGINE_SCENE_IDS.includes(entry.id) &&
-    apiScenario(entry.id, entry.section);
+  const summary = entrySummary(entry);
+  const rest = entry.description.slice(summary.length).trim();
+  const guide = LEARN_SECTIONS.includes(entry.section);
+  const details = <Details rest={rest} html={entry.html} />;
   return (
-    <article className="space-y-6">
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="badge badge-soft badge-primary">{t(locale, `kind.${entry.kind}`)}</span>
-          {entry.module && (
-            <a className="link text-sm" href={`${REPOSITORY}/blob/develop/${entry.module}`}>
-              {entry.module}
-            </a>
-          )}
-        </div>
-        <h1 className="text-3xl font-bold break-words">{entry.title || entry.id}</h1>
-        <p>
-          <Inline text={entry.description} />
-        </p>
-      </header>
+    <DocPage
+      eyebrow={t(locale, `kind.${entry.kind}`)}
+      title={entry.title || entry.id}
+      lead={<Inline text={summary} />}
+    >
       {entry.issue && (
         <Alert tone="warning">
           <span>
             {t(locale, 'common.inDevelopment')}:{' '}
-            <a className="link" href={issueUrl(entry.issue)}>
-              #{entry.issue}
-            </a>
+            <TextLink href={issueUrl(entry.issue)}>#{entry.issue}</TextLink>
           </span>
         </Alert>
       )}
-      {entry.html && <Prose html={entry.html} />}
+      {guide && details}
       {entry.signature && (
         <CodeBlock code={entry.signature} locale={locale} label={t(locale, 'entry.signature')} />
       )}
-      <Example entry={entry} locale={locale} demo={demo} />
+      {entry.example && (
+        <CodeBlock code={entry.example} locale={locale} label={t(locale, 'entry.example')} />
+      )}
+      {demo && <LiveDemo demo={demo} locale={locale} />}
       {(entry.values?.length ?? 0) > 0 && (
         <Card
           title={
@@ -126,21 +79,17 @@ export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: L
             t(locale, entry.kind === 'Type' ? 'entry.values' : 'entry.arguments')
           }
         >
-          <Table>
-            <tbody>
-              {entry.values?.map((value) => (
-                <tr key={value.name}>
-                  <td className="font-mono font-semibold align-top">{value.name}</td>
-                  <td>
-                    <Inline text={value.desc} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <DefinitionTable
+            rows={(entry.values ?? []).map((value) => ({
+              name: value.name,
+              value: <Inline text={value.desc} />,
+            }))}
+          />
         </Card>
       )}
-      {demo && !embedsDemo && <LiveDemo demo={demo} locale={locale} />}
+      {!guide && (rest || entry.html) && (
+        <Collapse title={t(locale, 'entry.details')}>{details}</Collapse>
+      )}
       {(entry.replaces || entry.proof) && (
         <Card title={t(locale, 'entry.proof')}>
           {entry.replaces && (
@@ -152,6 +101,6 @@ export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: L
           {entry.proof && <p>{entry.proof}</p>}
         </Card>
       )}
-    </article>
+    </DocPage>
   );
 }

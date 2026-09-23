@@ -2,46 +2,75 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A neon sign that glows</title>
+    <title>Neon sign</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      const dark = material.meshStandard({ color: [0.12, 0.12, 0.14], roughness: 0.9 });
-      const wall = object.mesh(geometry.box(6, 3.4, 0.2), dark);
-      wall.position.set(0, 1.5, -0.2);
-      const floor = object.mesh(geometry.box(6, 0.2, 3.4), dark);
-      floor.position.set(0, -0.1, 1.5);
+      const wall = object.mesh(geometry.box(9, 5, 0.2), material.meshStandard({ color: '#6b5a58', roughness: 0.85 }));
+      wall.position.set(0, 2.5, -0.2);
+      const floor = object.mesh(geometry.box(9, 0.2, 5), material.meshStandard({ color: '#4a4d57', roughness: 0.5 }));
+      floor.position.set(0, -0.1, 2.3);
+      world.scene.add(wall, floor);
 
-      // The tube emits: its material carries an emissive colour at a strength of six, added to
-      // the image whatever the lighting.
-      const tubeRadius = 0.04;
-      const glass = material.meshStandard({
-        color: [1, 0.4, 0.7], roughness: 0.3, emissive: [1, 0.25, 0.6], emissiveIntensity: 6,
+      // A tube follows a curve. Its material emits: colour times strength is added to the image
+      // whatever lights it. What it throws on the wall is a point light of the same colour.
+      function neon(points, closed, colour, centre) {
+        const tube = material.meshStandard({ color: '#000000', emissive: colour, emissiveIntensity: 8 });
+        world.scene.add(object.mesh(geometry.tube(math.curve(points, closed), 240, 0.045, 12, closed), tube));
+        const glow = light.point({ position: centre, color: colour, intensity: 3, distance: 9, radius: 0.05, castShadow: true });
+        world.scene.add(glow);
+        return { tube, glow };
+      }
+      const star = Array.from({ length: 10 }, (_, index) => {
+        const angle = (index / 10) * Math.PI * 2, reach = index % 2 ? 0.45 : 1.1;
+        return [-1.6 + Math.sin(angle) * reach, 3 + Math.cos(angle) * reach, 0];
       });
-      const ring = object.mesh(geometry.torus(0.7, tubeRadius, 12, 48), glass);
-      ring.position.set(-1, 1.6, 0);
-      const bar = object.mesh(geometry.cylinder(tubeRadius, tubeRadius, 2.2, 12), glass);
-      bar.rotation.z = Math.PI / 2;
-      bar.position.set(1.4, 1.6, 0);
-      world.scene.add(wall, floor, ring, bar);
+      const wave = Array.from({ length: 24 }, (_, index) => [0.2 + index * 0.15, 2.6 + Math.sin(index * 0.8) * 0.35, 0]);
+      const signs = [neon(star, true, '#ff3d9a', [-1.6, 3, 0.9]), neon(wave, false, '#2de2ff', [1.9, 2.6, 0.9])];
 
-      // What it throws on the wall and the floor is a point light of the same colour at the
-      // centre of the sign, its radius the tube's own. No bloom is drawn.
-      world.scene.add(light.point({
-        position: [0.4, 1.6, 0.35], color: [1, 0.25, 0.6], intensity: 3, distance: 8, radius: tubeRadius, castShadow: true,
-      }));
-      world.camera.position.set(1.2, 1.7, 4.2);
-      world.camera.lookAt(0.2, 1.4, 0);
-      world.controls.target.set(0.2, 1.4, 0);
+      world.camera.position.set(1.2, 2.2, 7);
+      world.camera.lookAt(0, 2, 0);
+      world.controls.target.set(0, 2, 0);
+
+      const ui = controls({
+        star: '#ff3d9a', wave: '#2de2ff', glow: [0, 20, 8], pulse: true,
+        exposure: [0.2, 4, 1], toneMapping: ['aces', 'agx', 'neutral', 'reinhard', 'cineon', 'linear'],
+      }, (values) => {
+        signs.forEach(({ tube, glow }, index) => {
+          const colour = index ? values.wave : values.star;
+          tube.emissive.set(colour);
+          tube.emissiveIntensity = glow.intensity = values.glow;
+          glow.color.set(colour);
+        });
+        world.exposure = values.exposure;
+        world.toneMapping = values.toneMapping;
+      }, world);
+      // The light each sign throws on the wall breathes; the tubes' own material stays as set,
+      // so nothing but a light changes from frame to frame.
+      world.onFrame(({ time }) => {
+        if (!ui.pulse) return;
+        signs.forEach(({ glow }, index) => (glow.intensity = ui.glow * (0.75 + 0.25 * Math.sin(time * 2 + index * 2))));
+        world.invalidate();
+      });
       world.invalidate();
     </script>
   </body>

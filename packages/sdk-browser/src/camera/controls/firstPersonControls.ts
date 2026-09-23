@@ -20,8 +20,11 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
 export interface FirstPersonCameraControls extends SteeredCameraControls {
   /** Radians turned per pixel of pointer motion. */
   lookSpeed: number;
+  /** Whether the pointer is locked to the view. */
   locked(): boolean;
+  /** Locks the pointer to the view. */
   lock(): void;
+  /** Frees the pointer. */
   unlock(): void;
 }
 

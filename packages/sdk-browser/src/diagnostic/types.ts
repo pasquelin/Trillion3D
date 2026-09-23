@@ -5,13 +5,20 @@
  */
 export type DiagnosticDetail = 'summary' | 'trace';
 
+/** One thing a renderer noticed, reported on a diagnostic channel. */
 export type BackendDiagnostic = {
+  /** The step it happened in. */
   phase: string;
+  /** Words for a person to read. */
   message: string;
+  /** Facts about it. */
   context: Record<string, unknown>;
   /** Added by the host collector; optional for standalone backend consumers. */
   sequence?: number;
+  /** The session it came from. */
   sessionId?: string;
+  /** When it was queued. */
   queuedAt?: number;
+  /** When it was made. */
   createdAt?: number;
 };

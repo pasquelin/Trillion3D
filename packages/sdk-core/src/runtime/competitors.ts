@@ -1,16 +1,26 @@
 /** Inventory of web-relevant geometry/LOD libraries. Status describes integration fairness, not marketing coverage. */
 export type CompetitorStatus =
   'integrated' | 'compatible-not-integrated' | 'incompatible' | 'abandoned' | 'not-comparable';
+/** Another engine the benchmarks compare against, and why. */
 export interface CompetitorRecord {
+  /** Its short name. */
   id: string;
+  /** Its name. */
   name: string;
+  /** Whether it is compared. */
   status: CompetitorStatus;
+  /** Its licence. */
   license: string;
+  /** When it was last updated. */
   maintained: string;
+  /** What it covers. */
   scope: string;
+  /** Why it is, or is not, compared. */
   reason: string;
+  /** Its web page. */
   homepage: string;
 }
+/** The engines the benchmarks were checked against, each with its status and reason. */
 export const COMPARISON_LIBRARIES: readonly CompetitorRecord[] = [
   {
     id: 'three-webgl-reference',

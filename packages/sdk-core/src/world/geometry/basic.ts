@@ -34,7 +34,15 @@ function sheet(
   });
 }
 
-/** A box centred on the origin, each face its own sheet so edges stay sharp. */
+/**
+ * A box centred on the origin, each face its own sheet so edges stay sharp.
+ * @param width - Size along x.
+ * @param height - Size along y.
+ * @param depth - Size along z.
+ * @param ws - Slices along the width.
+ * @param hs - Slices along the height.
+ * @param ds - Slices along the depth.
+ */
 export function box(width = 1, height = 1, depth = 1, ws = 1, hs = 1, ds = 1) {
   const b = new GeometryBuilder();
   const w = width / 2,
@@ -49,20 +57,37 @@ export function box(width = 1, height = 1, depth = 1, ws = 1, hs = 1, ds = 1) {
   return b.build();
 }
 
-/** A rectangle in the `xy` plane, facing `+z`. */
+/**
+ * A rectangle in the `xy` plane, facing `+z`.
+ * @param width - Size along x.
+ * @param height - Size along y.
+ * @param ws - Slices along the width.
+ * @param hs - Slices along the height.
+ */
 export function plane(width = 1, height = 1, ws = 1, hs = 1) {
   const b = new GeometryBuilder();
   sheet(b, [0, 0, 1], [1, 0, 0], [0, 1, 0], [width, height, 0], [ws, hs]);
   return b.build();
 }
 
-/** A sphere, `ws` meridians and `hs` parallels, the poles on the `y` axis (`sphereArrays`). */
+/**
+ * A sphere, `ws` meridians and `hs` parallels, the poles on the `y` axis (`sphereArrays`).
+ * @param radius - Distance from the centre to the surface.
+ * @param ws - Slices around, like the lines on a globe.
+ * @param hs - Slices from pole to pole.
+ */
 export function sphere(radius = 1, ws = 32, hs = 16) {
   const arrays = sphereArrays([0, 0, 0], radius, ws, hs);
   return fromArrays(arrays.positions, arrays.normals, arrays.uv, arrays.indices);
 }
 
-/** A disc in the `xy` plane, facing `+z`: one fan around the centre. */
+/**
+ * A disc in the `xy` plane, facing `+z`: one fan around the centre.
+ * @param radius - Distance from the centre to the edge.
+ * @param segments - Straight pieces around the edge.
+ * @param thetaStart - Angle where the disc starts, in radians.
+ * @param thetaLength - How much of a full turn it covers, in radians.
+ */
 export function circle(radius = 1, segments = 32, thetaStart = 0, thetaLength = TAU) {
   const b = new GeometryBuilder();
   const count = Math.max(3, Math.floor(segments));
@@ -75,7 +100,13 @@ export function circle(radius = 1, segments = 32, thetaStart = 0, thetaLength = 
   return b.build();
 }
 
-/** A flat annulus in the `xy` plane, facing `+z`. */
+/**
+ * A flat annulus in the `xy` plane, facing `+z`.
+ * @param inner - Radius of the hole.
+ * @param outer - Radius of the outside edge.
+ * @param segments - Straight pieces around.
+ * @param phiSegments - Rings from the hole to the edge.
+ */
 export function ring(inner = 0.5, outer = 1, segments = 32, phiSegments = 1) {
   const b = new GeometryBuilder();
   b.grid(Math.max(3, Math.floor(segments)), Math.max(1, Math.floor(phiSegments)), (u, v) => {
@@ -88,7 +119,15 @@ export function ring(inner = 0.5, outer = 1, segments = 32, phiSegments = 1) {
   return b.build();
 }
 
-/** A frustum of cone: `radiusTop` at `+height/2`, `radiusBottom` at `-height/2`, capped unless open. */
+/**
+ * A frustum of cone: `radiusTop` at `+height/2`, `radiusBottom` at `-height/2`, capped unless open.
+ * @param radiusTop - Radius at the top.
+ * @param radiusBottom - Radius at the bottom.
+ * @param height - Height along y.
+ * @param radialSegments - Straight pieces around.
+ * @param heightSegments - Slices along the height.
+ * @param openEnded - Leaves the top and bottom open when true.
+ */
 export function cylinder(
   radiusTop = 1,
   radiusBottom = 1,
@@ -127,7 +166,14 @@ export function cylinder(
   return b.build();
 }
 
-/** A cone standing on the `xz` plane's centre, apex at `+height/2`. */
+/**
+ * A cone standing on the `xz` plane's centre, apex at `+height/2`.
+ * @param radius - Radius of the base.
+ * @param height - Height along y.
+ * @param radialSegments - Straight pieces around.
+ * @param heightSegments - Slices along the height.
+ * @param open - Leaves the base open when true.
+ */
 export function cone(
   radius = 1,
   height = 1,

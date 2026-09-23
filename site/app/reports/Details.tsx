@@ -1,9 +1,9 @@
-import { Table } from '../components/Table.tsx';
+import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { Cut } from './Cut.tsx';
 import { reportCopy } from '../../reports/copy.ts';
 import { formatValue } from '../../reports/metrics.ts';
-import { Alert } from '../components/UI.tsx';
+import { Alert } from '../ui/Alert.tsx';
 import type { Report, ReportRecord, TimingStat } from '../../reports/types.ts';
 import type { Locale } from '../../content/locale.ts';
 
@@ -23,7 +23,7 @@ interface TimingsProps {
 function Timings({ title, rows, locale }: TimingsProps) {
   if (!rows?.length) return null;
   return (
-    <section className="grid min-w-0 gap-3">
+    <section className="grid min-w-0 grid-cols-1 gap-3">
       <h3 className="text-lg font-semibold">{title}</h3>
       <Table>
         <thead>
@@ -62,7 +62,7 @@ export function Details({ record, report, locale, label }: DetailsProps) {
     [c.canvas, record.canvas ? JSON.stringify(record.canvas) : null],
   ];
   return (
-    <div className="grid min-w-0 gap-4 [&_dd]:break-all">
+    <div className="grid min-w-0 grid-cols-1 gap-4 [&_dd]:break-all">
       <h3 className="text-lg font-semibold">{readingName(record, locale)}</h3>
       {record.data.imageTenue && <Alert>{c.idle}</Alert>}
       <dl>

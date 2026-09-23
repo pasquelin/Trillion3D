@@ -156,6 +156,7 @@ function validateRect(light: SceneLight, validated: SceneLight): SceneLight {
   validated.size = [size[0], size[1]];
   return validated;
 }
+/** Checks the scene's exposure, curve and surrounding light. */
 export function validateSceneEnvironment(environment: SceneEnvironment): SceneEnvironment {
   if (!finite(environment?.exposure) || environment.exposure <= 0)
     throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'exposure must be > 0', {

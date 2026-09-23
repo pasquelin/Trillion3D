@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { Locale } from '../../content/locale.ts';
 import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
-import { CodeBlock } from '../components/CodeBlock.tsx';
-import { LessonTemplate } from '../components/LessonTemplate.tsx';
+import { CodeBlock } from '../ui/CodeBlock.tsx';
+import { LessonTemplate } from '../gallery/LessonTemplate.tsx';
 import { engineExampleCode } from '../../lessons/engine-scene/code.ts';
 import { sceneCopy } from '../../lessons/engine-scene/content.ts';
 import { mountScene } from '../../lessons/engine-scene/lifecycle.ts';

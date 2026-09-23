@@ -22,31 +22,32 @@ export type PageDecodeOp = 'verify' | 'decode' | 'cut';
 
 /** One page a `cut` wrote: its index and geometry bytes, their digests, and its descriptor. */
 export interface PageCutPage {
-  index: ArrayBuffer;
-  geometry: ArrayBuffer;
-  indexSha256: string;
-  geometrySha256: string;
-  count: number;
-  start: number;
-  min: number[];
-  max: number[];
-  sphere: number[];
-  vertexCount: number;
-  indexCount: number;
-  flags: number;
-  uncompressedBytes: number;
+  /** The triangle indices. */ index: ArrayBuffer;
+  /** The vertex bytes. */ geometry: ArrayBuffer;
+  /** Fingerprint of the indices. */ indexSha256: string;
+  /** Fingerprint of the vertices. */ geometrySha256: string;
+  /** Triangles in the page. */ count: number;
+  /** Its first source triangle. */ start: number;
+  /** Lowest corner. */ min: number[];
+  /** Highest corner. */ max: number[];
+  /** Bounding ball. */ sphere: number[];
+  /** Vertices in the page. */ vertexCount: number;
+  /** Indices in the page. */ indexCount: number;
+  /** Which attributes it carries. */ flags: number;
+  /** Its size once unpacked. */ uncompressedBytes: number;
 }
 /** What a `cut` returns: its pages, and the position grid they were quantized on. */
 export interface PageCutPayload {
-  pages: PageCutPage[];
-  positionExponent: number;
-  maxPositionError: number;
+  /** The pages written. */ pages: PageCutPage[];
+  /** Grid step of positions, as a power of two. */ positionExponent: number;
+  /** Largest position error on that grid. */ maxPositionError: number;
 }
 
+/** A message asking a worker to check, unpack or cut a page. */
 export interface PageDecodeRequest {
-  protocol: number;
-  id: number;
-  op: PageDecodeOp;
+  /** Message format version. */ protocol: number;
+  /** Request number. */ id: number;
+  /** What to do. */ op: PageDecodeOp;
   /** Transferred with the message: the sender is no longer the owner. */
   source: ArrayBuffer;
   /** Ceiling of decoded bytes of a geometry page; ignored by `verify`. */
@@ -61,44 +62,44 @@ export interface PageDecodeRequest {
  * only the byte path does.
  */
 export interface PageDecodeShare {
-  protocol: number;
-  id: 0;
-  op: 'share';
-  buffer: SharedArrayBuffer;
-  slot: number;
-  slots: number;
+  /** Message format version. */ protocol: number;
+  /** Always 0. */ id: 0;
+  /** Always `'share'`. */ op: 'share';
+  /** The shared memory. */ buffer: SharedArrayBuffer;
+  /** This worker's slot. */ slot: number;
+  /** Slots in all. */ slots: number;
 }
 
 /** Cancellation of a request still in the queue. Work already started runs to completion then answers
  *  `PAGE_DECODE_CANCELLED`: the executor has no interrupt point in the middle of a decode. */
 export interface PageDecodeCancel {
-  protocol: number;
-  id: number;
-  op: 'cancel';
+  /** Message format version. */ protocol: number;
+  /** The request to cancel. */ id: number;
+  /** Always `'cancel'`. */ op: 'cancel';
 }
 
 /** A decoded page as one buffer of `decodedBytes`: the 32-bit indices, then the floats of each
  *  attribute `names` lists, in the decode write order — that order is what yields a
  *  field-for-field identical `Record`. */
 export interface PageDecodeGeometryPayload {
-  block: ArrayBuffer;
-  names: string[];
-  vertexCount: number;
-  flags: number;
-  decodedBytes: number;
+  /** Indices, then attributes. */ block: ArrayBuffer;
+  /** The attributes, in order. */ names: string[];
+  /** Vertices. */ vertexCount: number;
+  /** Which attributes it carries. */ flags: number;
+  /** Size of `block`. */ decodedBytes: number;
   /** The page header's largest position displacement, in object units. */
   quantizationError: number;
 }
 
-export interface PageDecodeDone {
-  protocol: number;
-  id: number;
-  ok: true;
+/** A worker's answer when a page request succeeded. */ export interface PageDecodeDone {
+  /** Message format version. */ protocol: number;
+  /** The request answered. */ id: number;
+  /** Always `true`. */ ok: true;
   /** `verify`: the lowercase hexadecimal digest. `decode`: `null`. */
   sha256: string | null;
   /** `verify`: the source buffer returned. `decode`: `null`, the source is consumed. */
   source: ArrayBuffer | null;
-  decoded: PageDecodeGeometryPayload | null;
+  /** `decode`: the unpacked page. */ decoded: PageDecodeGeometryPayload | null;
   /** `cut`: the pages, their bytes transferred. Absent otherwise. */
   cut?: PageCutPayload;
   /** True when the WebAssembly-compiled decoder did the work, false for the
@@ -125,16 +126,18 @@ export const PAGE_DECODE_FAILURES = [
   'PAGE_DECODE_UNAVAILABLE',
   'PAGE_DECODE_WORKER',
 ] as const;
+/** The name of a way a page request can fail. */
 export type PageDecodeFailureCode = (typeof PAGE_DECODE_FAILURES)[number];
 
-export interface PageDecodeFailed {
-  protocol: number;
-  id: number;
-  ok: false;
-  code: PageDecodeFailureCode;
+/** A worker's answer when a page request failed. */ export interface PageDecodeFailed {
+  /** Message format version. */ protocol: number;
+  /** The request answered. */ id: number;
+  /** Always `false`. */ ok: false;
+  /** Why it failed. */ code: PageDecodeFailureCode;
   /** The original message, as-is: the caller raises the same `Error` as the synchronous path. */
   message: string;
 }
+/** A worker's answer to a page request: done or failed. */
 export type PageDecodeAnswer = PageDecodeDone | PageDecodeFailed;
 
 /** The named rejection that matches a message, or `PAGE_DECODE_FAILED` for everything else. */

@@ -2,54 +2,78 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A spiral staircase from one step</title>
+    <title>Spiral staircase</title>
+    <meta name="thumbnail" content="3" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      const oak = material.meshStandard({ color: [0.6, 0.42, 0.24], roughness: 0.65 });
-      const plaster = material.meshStandard({ color: [0.8, 0.78, 0.72], roughness: 0.85 });
-
-      const base = object.mesh(geometry.box(6, 0.3, 6), plaster);
+      const oak = material.meshStandard({ color: '#a8703c', roughness: 0.55 });
+      const plaster = material.meshStandard({ color: '#d9d3c7', roughness: 0.85 });
+      const base = object.mesh(geometry.cylinder(2.2, 2.2, 0.3, 64), plaster);
       base.position.y = -0.15;
-      const column = object.mesh(geometry.cylinder(0.2, 0.2, 7.2, 32), plaster);
-      column.position.y = 3.6;
+      const column = object.mesh(geometry.cylinder(0.2, 0.2, 7, 32), plaster);
+      column.position.y = 3.5;
       world.scene.add(base, column);
 
-      // One step mesh — a tread and its baluster — placed thirty-six times, each one turned a
-      // twenty-second of a turn further and raised one riser higher.
-      const sector = (Math.PI * 2) / 22;
+      // One step — a tread and its baluster — as a group; each copy is raised one riser higher and
+      // turned a little further round the column.
       function step() {
         const group = object.group();
-        const tread = object.mesh(geometry.box(1.25, 0.18, 0.24), oak);
+        const tread = object.mesh(geometry.box(1.25, 0.18, 0.3), oak);
         tread.position.x = 0.2 + 1.25 / 2;
         const baluster = object.mesh(geometry.box(0.05, 1, 0.05), oak);
         baluster.position.set(1.38, 0.5, 0);
         group.add(tread, baluster);
         return group;
       }
-      for (let index = 0; index < 36; index++) {
+      const flights = Array.from({ length: 36 }, (_, index) => {
         const flight = step();
         flight.position.y = 0.18 + index * 0.18;
-        flight.rotation.y = index * sector;
         world.scene.add(flight);
-      }
+        return flight;
+      });
+      // A lantern climbs the stairs: a glowing bulb and its point light, whose shadows of the
+      // balusters sweep round the column.
+      const bulb = object.mesh(geometry.sphere(0.07, 16, 12), material.meshStandard({ color: '#000000', emissive: '#ffb45e', emissiveIntensity: 8 }));
+      const lantern = light.point({ color: '#ffb45e', intensity: 10, distance: 8, radius: 0.07, castShadow: true });
+      world.scene.add(bulb, lantern, light.ambient({ intensity: 0.3, color: '#8fb4ff' }));
+      world.scene.add(light.directional({ intensity: 0.8, color: '#8fa8e0', position: [-6, 10, 4] }));
+      world.camera.position.set(5.6, 6.2, 6.8);
+      world.camera.lookAt(0, 3.2, 0);
+      world.controls.target.set(0, 3.2, 0);
 
-      world.scene.add(light.directional({
-        intensity: 3, color: [1, 0.97, 0.92], position: [7, 16, 9], target: [0, 3.3, 0], castShadow: true,
-      }));
-      world.camera.position.set(5.6, 5.2, 6.4);
-      world.camera.lookAt(0, 3.3, 0);
-      world.controls.target.set(0, 3.3, 0);
-      world.invalidate();
+      const ui = controls({ climb: [0, 6, 2], turnPerStep: [5, 30, 16, 1], lantern: '#ffb45e' }, (values) => {
+        flights.forEach((flight, index) => (flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180));
+        lantern.color.set(values.lantern);
+        world.invalidate();
+      }, world);
+      let at = 0;
+      world.onFrame(({ delta }) => {
+        at = (at + delta * ui.climb) % 34;
+        const turn = (at * ui.turnPerStep * Math.PI) / 180;
+        const position = [Math.cos(turn) * 1.1, 0.75 + at * 0.18, -Math.sin(turn) * 1.1];
+        bulb.position.set(...position);
+        lantern.position.set(...position);
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

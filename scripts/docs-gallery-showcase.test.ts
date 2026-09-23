@@ -28,12 +28,11 @@ test('showcase leads with a large observatory and exposes both live pilots', () 
   assert.equal((html.match(/role="listitem"/g) ?? []).length, 2);
 });
 
-test('showcase remains above the unchanged searchable catalogue', () => {
+test('showcase remains above the unchanged catalogue', () => {
   const html = render(Gallery, 'fr'),
     showcase = html.indexOf('data-gallery-showcase'),
     catalogueTabs = html.indexOf('role="tablist"');
   assert.ok(showcase >= 0);
   assert.ok(catalogueTabs > showcase);
   assert.match(html, /91 352 triangles originaux/);
-  assert.match(html, /Rechercher 58 leçons/);
 });
