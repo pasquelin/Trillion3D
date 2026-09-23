@@ -1,5 +1,5 @@
 //! Golden of the TGA driver: each profile of the format, decoded from a real file of
-//! `fixtures/tga/`, must yield exactly the same RGBA8 pixels — written in the open here.
+//! `tests/fixtures/formats/tga/`, must yield exactly the same RGBA8 pixels — written in the open here.
 //! Origin, compression and depth are ways of writing the same image, never of changing it.
 use super::super::image as registry;
 use super::fixture;

@@ -1,0 +1,14 @@
+use super::*;
+pub(in crate::tests) mod driver;
+pub(in crate::tests) mod faces;
+pub(in crate::tests) mod fidelity;
+pub(in crate::tests) mod golden;
+pub(in crate::tests) mod inheritance;
+pub(in crate::tests) mod lamps;
+pub(in crate::tests) mod material;
+pub(in crate::tests) mod opacity;
+pub(in crate::tests) mod refusal;
+pub(in crate::tests) mod report;
+pub(in crate::tests) mod surface;
+pub(in crate::tests) mod textures;
+pub(in crate::tests) mod usdz_golden;

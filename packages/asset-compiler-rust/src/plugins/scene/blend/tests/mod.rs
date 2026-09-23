@@ -2,19 +2,19 @@
 //! which the repository holds no specimen, cutting an n-gon on geometry posed by hand, and the
 //! defects reproduced by patching the CC0 fixture through the SDNA it itself carries — `surgery`
 //! for the patch, `fidelite`, `matiere` and `normales` for what it proves. The golden scene is
-//! compared in `src/tests/blend_golden.rs`.
+//! compared in `src/tests/formats/blend_golden.rs`.
 use super::*;
-use crate::tests::ngones::{rendered_area, U_RING};
+use crate::tests::ngons::{rendered_area, U_RING};
 
-mod bornes;
-mod fidelite;
-mod lampes;
-mod matiere;
-mod normales;
-mod sortie;
+mod bounds;
+mod fidelity;
+mod lamps;
+mod material;
+mod output;
 mod surgery;
-mod transparence;
+mod transparency;
 mod uri;
+mod vertex_normals;
 
 /// Writes a minimal Blender file in the old layout, from the format description: a twelve-byte
 /// header, thirty-two-bit-field blocks, a `DNA1` of a single structure and a data block typed by

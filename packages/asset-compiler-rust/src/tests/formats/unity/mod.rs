@@ -1,0 +1,10 @@
+use super::*;
+pub(in crate::tests) mod driver;
+pub(in crate::tests) mod fidelity;
+pub(in crate::tests) mod golden;
+pub(in crate::tests) mod instances;
+pub(in crate::tests) mod meshes;
+pub(in crate::tests) mod package_golden;
+pub(in crate::tests) mod project;
+pub(in crate::tests) mod properties;
+pub(in crate::tests) mod sparse;

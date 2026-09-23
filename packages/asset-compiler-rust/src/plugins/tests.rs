@@ -36,7 +36,7 @@ fn declared(pilote: &str, name: &str, max_alloc: u64) -> (image::Transfer, Vec<&
     (decoded.transfer, decoded.notes)
 }
 
-/// RGBA8 image the registry yields for a fixture of `fixtures/<pilote>/`: this driver claims it
+/// RGBA8 image the registry yields for a fixture of `tests/fixtures/formats/<pilote>/`: this driver claims it
 /// by its bytes, and it has the expected dimensions.
 fn decoded_rgba8(pilote: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> ::image::RgbaImage {
     let bytes = fixture(pilote, name);
@@ -88,10 +88,10 @@ fn rgba_f32(decoded: image::ImageDecoded) -> (u32, u32, Vec<f32>) {
     }
 }
 
-/// Bytes of a real corpus file, stored in `fixtures/<folder>/`.
+/// Bytes of a real corpus file, stored in `tests/fixtures/formats/<folder>/`.
 fn fixture(folder: &str, name: &str) -> Vec<u8> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures")
+        .join("../../tests/fixtures/formats")
         .join(folder)
         .join(name);
     fs::read(path).unwrap_or_else(|error| panic!("{folder}/{name}: {error}"))

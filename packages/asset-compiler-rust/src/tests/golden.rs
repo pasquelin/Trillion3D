@@ -27,10 +27,10 @@ impl Drop for GoldenRun {
     }
 }
 
-/// Folder of a golden fixture, named by its path under `fixtures/`.
+/// Folder of a golden fixture, named by its path under `tests/fixtures/formats/`.
 pub(super) fn golden_dir(relative: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures")
+        .join("../../tests/fixtures/formats")
         .join(relative)
 }
 

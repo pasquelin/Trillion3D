@@ -1,4 +1,4 @@
-//! Golden of the Radiance HDR driver: files of `fixtures/hdr/`, written here from the public
+//! Golden of the Radiance HDR driver: files of `tests/fixtures/formats/hdr/`, written here from the public
 //! specification, must yield exactly the float values written in the open below. Raw line, old
 //! compression and new compression are three ways of writing the same line — the golden proves
 //! it by comparing their pixels to the same reference.

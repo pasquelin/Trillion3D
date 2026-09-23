@@ -1,8 +1,8 @@
 //! Batch calculation kernels of the math foundation, in f64, to the bits of the JavaScript version.
 //!
 //! Each function reproduces term by term, parentheses included, the floating-point operation order
-//! of its counterpart in `packages/sdk-core/`: `mathMatrix4.ts::multiplyMatrix4` and
-//! `mathBox.ts::boxTransform` (which calls `boxCornersInto`, `boxEmpty` and `boxExpandByPoint`).
+//! of its counterpart in `packages/sdk-core/`: `packages/sdk-core/src/math/matrix/matrix4.ts::multiplyMatrix4` and
+//! `packages/sdk-core/src/math/primitives/box.ts::boxTransform` (which calls `boxCornersInto`, `boxEmpty` and `boxExpandByPoint`).
 //!
 //! Equality is structural, not hoped for. WebAssembly has no fused multiply-add instruction:
 //! neither the base set nor `simd128` carries one, and `relaxed-simd`, the only extension that
@@ -15,7 +15,7 @@
 //! propagate NaN where the latter discard it, and JavaScript distinguishes `-0` from `+0` where
 //! Rust does not promise to. Both are rewritten here.
 
-/// Floats of a box laid out flat, like `BOX_VALUES` in `mathBox.ts`.
+/// Floats of a box laid out flat, like `BOX_VALUES` in `packages/sdk-core/src/math/primitives/box.ts`.
 pub const BOX_VALUES: usize = 6;
 /// Floats of a column-major 4×4 matrix.
 pub const MATRIX_VALUES: usize = 16;
