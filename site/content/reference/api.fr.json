@@ -6299,6 +6299,12 @@
       "kind": "Quel contrôleur dirige la caméra ; donne un autre nom pour changer.",
       "enabled": "Si le contrôleur écoute la souris et le clavier.",
       "target": "Le point autour duquel tourne un contrôleur à pivot.",
+      "minDistance": "Distance minimale à laquelle un contrôleur à pivot amène la caméra de `target`.",
+      "maxDistance": "Distance maximale à laquelle un contrôleur à pivot éloigne la caméra de `target`.",
+      "minPolarAngle": "Orbite seulement : plus petit angle polaire, en radians depuis la verticale.",
+      "maxPolarAngle": "Orbite seulement : plus grand angle polaire ; `Math.PI / 2` garde la caméra au-dessus du sol.",
+      "minAzimuthAngle": "Orbite seulement : début de l’arc d’azimut permis, en radians de +Z vers +X.",
+      "maxAzimuthAngle": "Orbite seulement : fin de cet arc ; elle peut être plus petite que `minAzimuthAngle`.",
       "update": "Fait avancer un contrôleur piloté sur `delta` secondes ; un contrôleur à pivot relit sa pose.",
       "follow": "La caméra du monde a changé : le contrôleur la suit.",
       "dispose": "Arrête le contrôleur et retire ses écouteurs du canevas."
