@@ -5,7 +5,9 @@ import type { ControlBase } from './base.ts';
  * five controllers differ by what they DO with a drag, never by how they receive it.
  *
  * POINTERS. `pointerdown` captures the pointer on the surface, so a drag that leaves the
- * canvas keeps arriving; `pointerup` and `pointercancel` release it. One pointer reports a
+ * canvas keeps arriving; `pointerup` and `pointercancel` release it. A locked pointer is never
+ * captured (it has no position to leave the canvas with), and a capture the browser refuses —
+ * a pointer already gone, a lock taken meanwhile — is skipped, never thrown. One pointer reports a
  * drag with the button that started it; two report a pinch — the ratio of the distance
  * between them and the pixel motion of their midpoint — which is how a touch surface zooms
  * and pans at once. Nothing is polled: a controller that receives no event does no work.
@@ -25,6 +27,17 @@ export interface DragHandlers {
 }
 
 type Point = { x: number; y: number };
+
+/** Captures or releases `pointerId` on `surface` when the browser allows it, silently otherwise. */
+function capture(surface: HTMLElement, pointerId: number, on: boolean) {
+  if (on && surface.ownerDocument?.pointerLockElement) return;
+  try {
+    if (on) surface.setPointerCapture?.(pointerId);
+    else surface.releasePointerCapture?.(pointerId);
+  } catch {
+    // `InvalidStateError` or `NotFoundError`: the pointer is locked or no longer active.
+  }
+}
 
 export function trackPointers(surface: HTMLElement, base: ControlBase, handlers: DragHandlers) {
   const pointers = new Map<number, Point>();
@@ -47,14 +60,14 @@ export function trackPointers(surface: HTMLElement, base: ControlBase, handlers:
   surface.style.touchAction = 'none';
   base.undo(() => {
     surface.style.touchAction = scrolling;
-    for (const pointerId of pointers.keys()) surface.releasePointerCapture?.(pointerId);
+    for (const pointerId of pointers.keys()) capture(surface, pointerId, false);
     pointers.clear();
   });
   base.listen<PointerEvent>(surface, 'pointerdown', (event) => {
     if (pointers.size === 0) button = event.button;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.size === 2) span = distance();
-    surface.setPointerCapture?.(event.pointerId);
+    capture(surface, event.pointerId, true);
     event.preventDefault();
     handlers.down?.(event);
   });
@@ -79,7 +92,7 @@ export function trackPointers(surface: HTMLElement, base: ControlBase, handlers:
   });
   const release = (event: PointerEvent) => {
     if (!pointers.delete(event.pointerId)) return;
-    surface.releasePointerCapture?.(event.pointerId);
+    capture(surface, event.pointerId, false);
     if (pointers.size < 2) span = 0;
     if (pointers.size === 0) handlers.up?.();
   };

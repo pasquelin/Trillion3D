@@ -48,3 +48,27 @@ test('first person stops a downward look at `minPitch`', () => {
   controls.update(0);
   assert.equal(round(facing(camera)[1]), round(-Math.SQRT1_2));
 });
+
+test('first person never captures a locked pointer, and a refused capture or lock never throws', async () => {
+  const { surface, controls } = steered(createFirstPersonCameraControls);
+  const press = (pointerId: number) =>
+    surface.fire('pointerdown', { pointerId, button: 0, clientX: 0, clientY: 0 });
+  press(1);
+  surface.fire('pointerup', { pointerId: 1 });
+  press(2);
+  assert.deepEqual([controls.locked(), [...surface.captured]], [true, []]);
+  controls.unlock();
+  const refused = (name: string) => () => {
+    throw new DOMException('refused', name);
+  };
+  const element = surface.element as unknown as Record<string, unknown>;
+  Object.assign(element, {
+    setPointerCapture: refused('InvalidStateError'),
+    releasePointerCapture: refused('NotFoundError'),
+    requestPointerLock: () => Promise.reject(new DOMException('too soon', 'SecurityError')),
+  });
+  press(3);
+  surface.fire('pointerup', { pointerId: 3 });
+  await new Promise((settled) => setTimeout(settled, 0));
+  assert.equal(controls.locked(), false);
+});
