@@ -1,0 +1,13 @@
+{
+  "chain": [
+    {
+      "name": "usdz",
+      "version": "usdz-aousd-1.0-zip-8.6.0-extract-1"
+    },
+    {
+      "name": "usd",
+      "version": "usd-openusd-0.7.0-gltf-8"
+    }
+  ],
+  "status": "ready"
+}
