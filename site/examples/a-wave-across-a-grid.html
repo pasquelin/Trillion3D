@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A wave across a grid of cubes</title>
+    <meta name="thumbnail" content="3.2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b1020;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, banner } from '../runtime/kit.js';
+
+      const info = banner('A wave across a grid of cubes', 'Double-click the floor to drop a stone. Drag to turn, scroll to zoom.');
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#0b1020');
+
+      // One box shape shared by every cube, and a palette of twelve materials from the centre
+      // outwards: the engine groups what shares a shape and a material into one draw.
+      const SIDE = 48, GAP = 0.36;
+      const cube = geometry.box(0.28, 1, 0.28);
+      const palette = Array.from({ length: 12 }, () => material.meshStandard({ roughness: 0.35, metalness: 0.2 }));
+      const cubes = [];
+      for (let row = 0; row < SIDE; row++)
+        for (let column = 0; column < SIDE; column++) {
+          const x = (column - SIDE / 2 + 0.5) * GAP, z = (row - SIDE / 2 + 0.5) * GAP;
+          const band = Math.min(11, Math.floor((Math.hypot(x, z) / (SIDE * GAP * 0.72)) * 12));
+          const mesh = object.mesh(cube, palette[band]);
+          mesh.position.set(x, 0, z);
+          world.scene.add(mesh);
+          cubes.push(mesh);
+        }
+      world.scene.add(light.directional({ intensity: 2.5, color: '#fff3e6', position: [8, 12, 6], castShadow: true }));
+      world.scene.add(light.directional({ intensity: 0.5, color: '#7aa2ff', position: [-8, 5, -6] }));
+      world.camera.position.set(3, 10, 15);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+
+      // The palette runs from one colour to the other, through linear light.
+      const ui = controls({ height: [0, 3, 1.4], speed: [0, 3, 1], ripples: [1, 8, 3, 1], inner: '#ff4f7b', outer: '#2fd4ff' }, (values) => {
+        const from = math.color(values.inner), to = math.color(values.outer);
+        palette.forEach((matter, band) => matter.color.copy(from).lerp(to, band / 11));
+      });
+
+      // Every frame each cube's height reads the distance to the last stone dropped.
+      let stone = [0, 0], time = 0;
+      world.onFrame(({ delta }) => {
+        time += delta * ui.speed;
+        for (const mesh of cubes) {
+          const distance = Math.hypot(mesh.position.x - stone[0], mesh.position.z - stone[1]);
+          const wave = Math.sin(distance * ui.ripples - time * 4) * Math.exp(-distance * 0.12);
+          mesh.scale.y = 0.2 + ui.height * (1 + wave);
+          mesh.position.y = mesh.scale.y / 2;
+        }
+        info.status(`${cubes.length.toLocaleString('en')} cubes, one shape, twelve materials`);
+        world.invalidate();
+      });
+
+      // A double-click is a ray from the camera through the pointer, stopped by the floor (y = 0).
+      world.canvas.addEventListener('dblclick', (event) => {
+        const box = world.canvas.getBoundingClientRect(), camera = world.camera;
+        const slope = Math.tan((camera.fov * Math.PI) / 360);
+        const x = ((event.clientX - box.left) / box.width) * 2 - 1, y = 1 - ((event.clientY - box.top) / box.height) * 2;
+        const ray = math.vector3(x * slope * (box.width / box.height), y * slope, -1).applyQuaternion(camera.quaternion);
+        if (ray.y >= 0) return;
+        const reach = -camera.position.y / ray.y;
+        stone = [camera.position.x + ray.x * reach, camera.position.z + ray.z * reach];
+        time = 0;
+      });
+    </script>
+  </body>
+</html>
