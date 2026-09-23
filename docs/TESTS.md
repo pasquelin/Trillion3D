@@ -33,11 +33,14 @@ The counts are read from the tree by `node scripts/tests-inventory.ts --write`, 
 One rule: **a unit test sits next to the file it tests; every other kind of test lives under
 `tests/`**, one folder per nature — `integration/` for architecture and public contracts,
 `browser/` for what runs in Chromium, `fixtures/` for test data, `kit/` for the shared test tools
-(one fake GPU device family, one static server, one bit-exact comparison, one hostile-value list).
+(one fake GPU device family in `gpu/`, one static server and the fixture route in `server/`, one
+bit-exact comparison and one hostile-value list in `assert/`).
 A module used only by tests is named `*.fixture.ts` and stays out of the build. Benchmarks measure
 speed, never correctness, and live under `bench/`, outside every published package. The golden
-fixtures of the native compiler are under `tests/fixtures/formats/`; the compiler's own tests stay in
-its crate (`packages/asset-compiler-rust/src/tests/`, by topic, and `tests/` for the CLI).
+fixtures of the native compiler are under `tests/fixtures/formats/`, each folder described in
+[its README](../tests/fixtures/formats/README.md); the local corpus of source formats stays off git.
+The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/tests/`, by topic, and
+`tests/` for the CLI).
 
 ## 2. The Four Commands
 
@@ -65,7 +68,9 @@ contains a hyphen; other files in the folder are its support modules, never run 
 
 Both folders are discovered **by rule, never by a hand-curated list**: every
 `tests/browser/renders/*.browser.ts` is executed, and names follow the same convention as probes and
-benchmarks — explicit kebab-case, e.g. `held-gpu-cut`, `lighting-normal-small-scale`.
+benchmarks — explicit kebab-case, e.g. `held-gpu-cut`, `lighting-normal-small-scale`. Both run
+together via `pnpm run test:gpu` (`tests/browser/test-gpu.ts`), and `tests/browser/test-gpu.test.ts`
+keeps **launched ∪ skipped == disk** in each: no file can silently stop running.
 
 Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`tests/browser/test-gpu.ts`) with its
 category and reason, and the command prints it before starting — never in silence:
@@ -168,7 +173,7 @@ the reference's `for` loop over 200 000 elements against one batch call. A line 
 reference's median and the batch's, the ratio, then the verdict — bit for bit, or within the
 tolerance the line declares once (the sRGB curves), and under the ceiling the line declares where
 the two sides do not compute the same thing (`Matrix4.invert`, `NormalMatrix3`: the engine keeps
-its singularity policy). `docs/API.md` § "Batch math for hosts" carries the ratios of one
+its singularity policy). `docs/SDK.md` § "Batch functions" carries the ratios of one
 published run.
 
 ## 3. Baselines and Report

@@ -5,7 +5,7 @@
 //! recognises and what it refuses.
 use super::*;
 
-/// The CC0 project and its scene, as `tests/fixtures/formats/unity/README.md` describes them.
+/// The CC0 project and its scene, as `tests/fixtures/formats/README.md` § "unity" describes them.
 fn fixture() -> PathBuf {
     golden_dir("unity/cc0-import-project")
         .join("Assets")
