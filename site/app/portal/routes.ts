@@ -14,6 +14,9 @@ function decodeId(value: string) {
 const AREAS = ['learn', 'sandbox', 'examples', 'api', 'reports'] as const;
 type NavArea = (typeof AREAS)[number];
 
+/** The header's links: the areas, and the scene editor after Examples, whose page it is. */
+const NAV_LINKS = ['learn', 'sandbox', 'examples', 'editor', 'api', 'reports'] as const;
+
 export interface PortalRoute {
   locale: Locale;
   area: NavArea;
@@ -38,17 +41,29 @@ const isArea = (value: string | undefined): value is NavArea =>
   value !== undefined && AREA_SET.has(value);
 /** The scene editor's page, under Examples beside the examples it is not one of. */
 export const EDITOR_ID = 'scene-editor';
+export const isEditorRoute = ({ area, id }: PortalRoute) => area === 'examples' && id === EDITOR_ID;
+export const editorHref = (locale: Locale) =>
+  routeHref({ locale, area: 'examples', id: EDITOR_ID });
 
 /** The entry sections read in Learn, as guides; the others are the API reference. */
 export const LEARN_SECTIONS = ['course', 'guides', 'internals'];
 
-/** The header's links for `route`: each area's first page, the route's own area current. */
-export const navLinks = (route: PortalRoute) =>
-  AREAS.map((area) => ({
-    area,
-    href: routeHref({ locale: route.locale, area, id: area === 'learn' ? 'home' : '' }),
-    current: route.area === area,
+/**
+ * The header's links for `route`: each area's first page and the scene editor, the one the route
+ * shows current; the editor's route marks the editor, not Examples.
+ */
+export function navLinks(route: PortalRoute) {
+  const { locale } = route;
+  const here = isEditorRoute(route) ? 'editor' : route.area;
+  return NAV_LINKS.map((link) => ({
+    link,
+    href:
+      link === 'editor'
+        ? editorHref(locale)
+        : routeHref({ locale, area: link, id: link === 'learn' ? 'home' : '' }),
+    current: here === link,
   }));
+}
 
 /** Whether the area has a sidebar on wide screens: the sandbox takes the whole width. */
 export const hasSidebar = (route: PortalRoute) => route.area !== 'sandbox';
