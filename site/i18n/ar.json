@@ -3,7 +3,8 @@
     "name": "العربية",
     "abbr": "AR",
     "hreflang": "ar",
-    "rtl": true
+    "rtl": true,
+    "flag": "sa"
   },
   "nav": {
     "primary": "التنقل الرئيسي",
