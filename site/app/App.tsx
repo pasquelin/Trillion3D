@@ -27,6 +27,9 @@ const Example = lazy(() => import('./examples/Example.tsx').then((m) => ({ defau
 const Playground = lazy(() =>
   import('./gallery/Playground.tsx').then((m) => ({ default: m.Playground })),
 );
+const ThreeMigration = lazy(() =>
+  import('./migration/ThreeMigration.tsx').then((m) => ({ default: m.ThreeMigration })),
+);
 const Report = lazy(() => import('./reports/Report.tsx').then((m) => ({ default: m.Report })));
 
 const LESSON_IDS = lessons.map(({ id }) => id);
@@ -56,6 +59,8 @@ function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
     };
     return <Playground id={page.id} locale={locale} onSelect={open} />;
   }
+  if (page.kind === 'entry' && page.entry.id === 'three-migration')
+    return <ThreeMigration entry={page.entry} locale={locale} />;
   if (page.kind === 'entry') return <Entry entry={page.entry} locale={locale} />;
   return <NotFound locale={locale} />;
 }
