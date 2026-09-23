@@ -559,8 +559,6 @@
   },
   "editor": {
     "title": "シーンエディター",
-    "group": "ツール",
-    "showcase": "シーンエディターを開く",
     "loading": "エディターを準備しています…",
     "canvas": "シーンビュー：オブジェクトをクリックして選び、ドラッグしてカメラを回します",
     "menu": {
@@ -590,7 +588,7 @@
       "ambient": "環境光"
     },
     "model": {
-      "bust": "大理石の胸像",
+      "marble-bust": "大理石の胸像",
       "crates": "木箱",
       "hall": "ホール",
       "street-corner": "街角"
@@ -603,6 +601,8 @@
       "world": "ワールドの軸",
       "local": "オブジェクトの軸"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "スナップ",
     "outliner": "シーン",
     "empty": "シーンは空です：「追加」メニューからオブジェクトを追加してください。",
@@ -642,13 +642,6 @@
       "radialSegments": "周りの分割数",
       "tubularSegments": "チューブの分割数"
     },
-    "stats": "エンジンの統計",
-    "cpu": "CPU フレーム (ms)",
-    "gpu": "GPU フレーム (ms)",
-    "triangles": "Triangles",
-    "pages": "常駐ページ",
-    "sessions": "開いたセッション",
-    "statsHint": "最後に描いたフレームから読みます。止まっているシーンは何も描きません。",
     "error": {
       "format": "このファイルには、このエディターが読めないシーン形式が入っています。",
       "read": "シーンを読み込めませんでした："
@@ -1377,7 +1370,7 @@
     "scene-editor": {
       "title": "エディターでシーンを組み立てる",
       "description": "形状とライトを追加し、マウスで選び、ハンドルで動かし、色を変え、シーンを保存してもう一度開く — ポータルの中で、公開 API だけで。",
-      "html": "<p><a href=\"#/ja/examples/scene-editor\">シーンエディター</a>は、エンジンの 3 つの扉だけで作られたこのポータルのページです。空のシーンから始めます: <b>Add → Box</b>、続いて <b>Add → Directional light</b>。ボックスをクリックすると、<code>world.raycast</code> がポインターの下にそれを見つけ、<code>controls.transform</code> のハンドルが現れます。矢印をドラッグして動かします — ハンドルを掴んでいる間カメラは止まります — <kbd>E</kbd> で回転、<kbd>R</kbd> で拡大縮小。インスペクターで色を変えると、エンジンはマテリアルをその場で塗り直し、フレームのコストは統計の隅に表示されたままです。<b>Save</b> は <code>scene.toJSON</code> をダウンロードし、<b>New</b> の後 <b>Open</b> で <code>scene.fromJSON</code> により同じシーンが再構築されます。</p>\n<p>どの操作も <kbd>Ctrl</kbd>+<kbd>Z</kbd> で元に戻せ、シーンは次の訪問までブラウザーに保存されます。ページ自身は何も描かず、何も動かしません: 見えているのはエンジンです。</p>"
+      "html": "<p><a href=\"#/ja/editor\">シーンエディター</a>は、エンジンの 3 つの扉だけで作られたこのポータルのページです。空のシーンから始めます: <b>Add → Box</b>、続いて <b>Add → Directional light</b>。ボックスをクリックすると、<code>world.raycast</code> がポインターの下にそれを見つけ、<code>controls.transform</code> のハンドルが現れます。矢印をドラッグして動かします — ハンドルを掴んでいる間カメラは止まります — <kbd>E</kbd> で回転、<kbd>R</kbd> で拡大縮小。インスペクターで色を変えると、エンジンはマテリアルをその場で塗り直し、フレームのコストは統計の隅に表示されたままです。<b>Save</b> は <code>scene.toJSON</code> をダウンロードし、<b>New</b> の後 <b>Open</b> で <code>scene.fromJSON</code> により同じシーンが再構築されます。</p>\n<p>どの操作も <kbd>Ctrl</kbd>+<kbd>Z</kbd> で元に戻せ、シーンは次の訪問までブラウザーに保存されます。ページ自身は何も描かず、何も動かしません: 見えているのはエンジンです。</p>"
     },
     "pick-with-the-pointer": {
       "title": "ポインターでオブジェクトを選ぶ",
