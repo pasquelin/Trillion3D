@@ -85,7 +85,13 @@ export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
           </Suspense>
         </CodeSurface>
       )}
-      <RenderFrame fill ref={view} pending={demo.pending} loadingLabel={t('demo.loading')}>
+      <RenderFrame
+        fill
+        ref={view}
+        pending={demo.pending}
+        loadingLabel={t('demo.loading')}
+        keyboard={{ mode: 'load', hint: t('demo.keyboardHint') }}
+      >
         {/* The sandbox runs nothing before the source has arrived. */}
         {(!editing || edits.shown) && (
           <iframe
@@ -95,6 +101,7 @@ export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
               ? { srcDoc: sandboxDocument(edits.shown, new URL(file, document.baseURI).href) }
               : { src: file })}
             title={title}
+            allow="fullscreen"
             onLoad={() => demo.loaded(demo.run)}
           />
         )}

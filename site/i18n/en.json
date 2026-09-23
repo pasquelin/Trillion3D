@@ -86,7 +86,8 @@
     "restart": "Restart",
     "linkCopied": "Link copied",
     "copyFailed": "The link could not be copied",
-    "demoControls": "Demo controls"
+    "demoControls": "Demo controls",
+    "keyboardHint": "Click the demo to use the keyboard"
   },
   "sandbox": {
     "title": "Try it live",
