@@ -7,19 +7,25 @@ export function mockDagDevice(
   packed: PackedDag,
   options: { failMap?: boolean; mapGate?: Promise<void> } = {},
 ) {
-  type Buf = { size: number; usage: number; data: Uint8Array };
+  type Buf = { size: number; usage: number; data: Uint8Array; destroyed: boolean };
   let bind: { entries: Array<{ binding: number; resource: { buffer: Buf } }> } | undefined;
   let pipeline: { entryPoint: string } | undefined,
     uniformWriteCount = 0,
-    copyCount = 0;
+    copyCount = 0,
+    destroyedMaps = 0;
   const device = {
     limits: { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
     createBuffer: ({ size, usage }: { size: number; usage: number }) => ({
       size,
       usage,
       data: new Uint8Array(size),
-      destroy() {},
+      destroyed: false,
+      destroy(this: Buf) {
+        this.destroyed = true;
+      },
       mapAsync: async function (this: Buf) {
+        // A real device raises a validation error, seen by every listener on the device.
+        if (this.destroyed) destroyedMaps++;
         if (options.failMap) throw new Error('MAP_FAILED');
         await options.mapGate;
       },
@@ -127,5 +133,7 @@ export function mockDagDevice(
     uniformWrites: () => uniformWriteCount,
     /** Copies to a READABLE slot: one per due readback, never one per send. */
     readbackCopies: () => copyCount,
+    /** Mappings asked of a destroyed buffer: each one a device-wide validation error. */
+    destroyedMaps: () => destroyedMaps,
   };
 }

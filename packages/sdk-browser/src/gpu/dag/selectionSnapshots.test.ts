@@ -69,3 +69,19 @@ test('a residency republished identically does not drop the held cut', async () 
   selection.dispose();
   fixture.geometry.dispose();
 });
+
+test('a readback queued behind another never maps a buffer the disposal destroyed', async () => {
+  const { release, fixture, dag, uniforms, device, destroyedMaps } = gatedDag();
+  const selection = await createGpuDagSelection(device, dag);
+  assert.ok(selection);
+  // Two snapshots in flight: the second slot's read waits behind the first, held by the gate.
+  selection.dispatch(uniforms);
+  selection.dispatch({ ...uniforms, pixelError: uniforms.pixelError + 1 });
+  // The world reopens its session here: the old one is disposed with both reads still pending,
+  // and the device it shared goes on to the next session (#334).
+  selection.dispose();
+  release();
+  await selection.flush();
+  assert.equal(destroyedMaps(), 0);
+  fixture.geometry.dispose();
+});

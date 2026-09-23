@@ -96,6 +96,13 @@ export function createDagDispatch(
       state.pending = state.pending
         .catch(() => {})
         .then(async () => {
+          // A read queued behind the other slot's may start after `dispose` destroyed its buffer:
+          // mapping it then is a validation error on the device, which the world shares with the
+          // session opened next — and that session would take it as its own loss (#334).
+          if (state.disposed) {
+            state.mapped[i] = false;
+            return;
+          }
           try {
             await readback[i].mapAsync(GPUMapMode.READ);
             const bytes = readback[i].getMappedRange();
