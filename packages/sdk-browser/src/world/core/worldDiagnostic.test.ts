@@ -55,16 +55,18 @@ test('a mode written before the session opens is put on it; one it refuses leave
 test('a session that fails to open is named on the handle until one opens', (t) => {
   const logged = t.mock.method(console, 'error', () => {});
   const diagnostic = worldDiagnostic(() => null);
-  assert.equal(diagnostic.handle.error, null);
+  // Read through a function: a direct read after the null check narrows the getter to `never`.
+  const error = () => diagnostic.handle.error;
+  assert.equal(error(), null);
   diagnostic.failed(new Error('WEBGPU_LOST'));
-  assert.equal(diagnostic.handle.error?.code, 'WEBGPU_LOST');
+  assert.equal(error()?.code, 'WEBGPU_LOST');
   assert.equal(logged.mock.callCount(), 1);
   diagnostic.failed(new TypeError('x is undefined'));
-  assert.equal(diagnostic.handle.error?.code, 'SESSION_OPEN_FAILED');
-  assert.equal(diagnostic.handle.error?.details.cause, 'x is undefined');
+  assert.equal(error()?.code, 'SESSION_OPEN_FAILED');
+  assert.equal(error()?.details.cause, 'x is undefined');
   const named = new EngineError('PAGE_BUDGET', 'too many pages');
   diagnostic.failed(named);
-  assert.equal(diagnostic.handle.error, named);
+  assert.equal(error(), named);
   diagnostic.apply(session().opened);
-  assert.equal(diagnostic.handle.error, null);
+  assert.equal(error(), null);
 });
