@@ -53,8 +53,9 @@ export function labelOf(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-/** The kit's own word at `kit.<group>.<key>`, else the key humanised. */
-export const kitWord = (group: string, key: string) => lookup(['kit', group, key]) ?? labelOf(key);
+/** The kit's own word at `kit.<group>.<key>`, else `fallback`: the key humanised by default. */
+export const kitWord = (group: string, key: string, fallback = labelOf(key)) =>
+  lookup(['kit', group, key]) ?? fallback;
 
 /** The example's word at `<id>.<group>.<key>…`, else `fallback`: a label, a choice, a readout. */
 export const exampleWord = (fallback: string, ...path: string[]) =>

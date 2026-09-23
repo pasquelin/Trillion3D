@@ -18,6 +18,8 @@ const edge = new Float64Array(6),
   candidate = new Float64Array(6),
   normal = new Float64Array(3);
 
+const unit = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value);
+
 /** The parameter in `[0, 1]` of the point of segment `(a, b)` closest to `p`, `a` for a point segment. */
 function segmentParameter(p: Numbers, a: Numbers, aAt: number, b: Numbers, bAt: number) {
   const dx = b[bAt] - a[aAt],
@@ -26,22 +28,17 @@ function segmentParameter(p: Numbers, a: Numbers, aAt: number, b: Numbers, bAt: 
   const length = dx * dx + dy * dy + dz * dz;
   if (length === 0) return 0;
   const t = ((p[0] - a[aAt]) * dx + (p[1] - a[aAt + 1]) * dy + (p[2] - a[aAt + 2]) * dz) / length;
-  return t < 0 ? 0 : t > 1 ? 1 : t;
+  return unit(t);
 }
 
 /**
  * The point of triangle `v[at..at+9]` closest to `p`, written to `out`; returns the squared
- * distance. Inside its three edges the plane's projection is the answer; outside, the nearest
- * point of the nearest edge. A degenerate triangle is its edges alone.
+ * distance, `normal` and `area` being what `triangleNormal` wrote for it. Inside its edges the
+ * plane's projection is the answer; outside, the nearest point of the nearest edge.
  */
-function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number) {
-  const area = triangleNormal(normal, v, at);
+function closestOnTriangle(out: Float64Array, p: Numbers, v: Numbers, at: number, area: number) {
   if (area > 0) {
-    const h =
-      ((p[0] - v[at]) * normal[0] +
-        (p[1] - v[at + 1]) * normal[1] +
-        (p[2] - v[at + 2]) * normal[2]) /
-      area;
+    const h = planeSide(p, 0, v, at) / area;
     for (let k = 0; k < 3; k++) out[k] = p[k] - h * normal[k];
     if (insideTriangle(out[0], out[1], out[2], v, at, normal)) return h * h * area;
   }
@@ -129,18 +126,17 @@ function closestBetweenSegments(out: Float64Array, first: Numbers, second: Numbe
     f = d2x * rx + d2y * ry + d2z * rz,
     c = d1x * rx + d1y * ry + d1z * rz,
     b = d1x * d2x + d1y * d2y + d1z * d2z;
-  const clamp = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value);
   let s = 0,
     t = 0;
   if (a === 0 && e === 0) s = t = 0;
-  else if (a === 0) t = clamp(f / e);
-  else if (e === 0) s = clamp(-c / a);
+  else if (a === 0) t = unit(f / e);
+  else if (e === 0) s = unit(-c / a);
   else {
     const denominator = a * e - b * b;
-    s = denominator > 0 ? clamp((b * f - c * e) / denominator) : 0;
+    s = denominator > 0 ? unit((b * f - c * e) / denominator) : 0;
     t = (b * s + f) / e;
-    if (t < 0) [t, s] = [0, clamp(-c / a)];
-    else if (t > 1) [t, s] = [1, clamp((b - c) / a)];
+    if (t < 0) [t, s] = [0, unit(-c / a)];
+    else if (t > 1) [t, s] = [1, unit((b - c) / a)];
   }
   for (let k = 0; k < 3; k++) {
     out[k] = first[k] + s * (first[3 + k] - first[k]);
@@ -160,11 +156,12 @@ export function closestSegmentTriangle(
   v: Numbers,
   at: number,
 ) {
-  if (pierces(out, segment, v, at)) return 0;
+  const area = triangleNormal(normal, v, at);
+  if (pierces(out, segment, v, at, area)) return 0;
   let best = Infinity;
   for (let end = 0; end < 6; end += 3) {
     for (let k = 0; k < 3; k++) tail[k] = segment[end + k];
-    const distance = closestOnTriangle(onEdge, tail, v, at);
+    const distance = closestOnTriangle(onEdge, tail, v, at, area);
     if (distance < best) {
       best = distance;
       for (let k = 0; k < 3; k++) [out[k], out[3 + k]] = [tail[k], onEdge[k]];
@@ -185,16 +182,18 @@ export function closestSegmentTriangle(
 
 /** Whether the segment passes through the triangle: its ends on opposite sides of the plane,
  *  the crossing inside the edges. The crossing is then written to both halves of `out`. */
-function pierces(out: Float64Array, segment: Numbers, v: Numbers, at: number) {
-  if (triangleNormal(normal, v, at) === 0) return false;
-  const side = (k: number) =>
-    (segment[k] - v[at]) * normal[0] +
-    (segment[k + 1] - v[at + 1]) * normal[1] +
-    (segment[k + 2] - v[at + 2]) * normal[2];
-  const d0 = side(0),
-    d1 = side(3);
+function pierces(out: Float64Array, segment: Numbers, v: Numbers, at: number, area: number) {
+  if (area === 0) return false;
+  const d0 = planeSide(segment, 0, v, at),
+    d1 = planeSide(segment, 3, v, at);
   if (d0 * d1 > 0 || d0 === d1) return false;
   const t = d0 / (d0 - d1);
   for (let k = 0; k < 3; k++) out[k] = out[3 + k] = segment[k] + t * (segment[3 + k] - segment[k]);
   return insideTriangle(out[0], out[1], out[2], v, at, normal);
+}
+
+/** The signed, unnormalised height of point `p[k..k+3]` above the plane of `normal`. */
+function planeSide(p: Numbers, k: number, v: Numbers, at: number) {
+  const n = normal;
+  return (p[k] - v[at]) * n[0] + (p[k + 1] - v[at + 1]) * n[1] + (p[k + 2] - v[at + 2]) * n[2];
 }
