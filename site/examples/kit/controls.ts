@@ -81,9 +81,11 @@ export function describe(specs: Record<string, ControlSpec>) {
   return { controls, values };
 }
 
-/** A slider's value as printed beside it: as many decimals as its step carries. */
+/** A slider's value as printed beside it: as many decimals as its step carries, three at most. */
 export function printed(value: number, step: number): string {
-  const decimals = Math.max(0, Math.min(3, -Math.floor(Math.log10(step))));
+  let decimals = 0;
+  while (decimals < 3 && Math.abs(step * 10 ** decimals - Math.round(step * 10 ** decimals)) > 1e-9)
+    decimals++;
   return value.toFixed(decimals);
 }
 
