@@ -124,16 +124,32 @@ export function trackWheel(
   );
 }
 
+/** Whether an event's target takes typed keys itself: a field, a list or an editor. */
+function editable(target: EventTarget | null) {
+  const element = target as { tagName?: string; isContentEditable?: boolean } | null;
+  return /^(INPUT|TEXTAREA|SELECT)$/.test(element?.tagName ?? '') || !!element?.isContentEditable;
+}
+
 /**
  * The keys held down, by `KeyboardEvent.code` so a layout cannot change the mapping. The
  * listeners sit on the document that owns the surface: a key pressed while the canvas has no
- * focus still steers, as a viewer expects, and `dispose()` takes them back off.
+ * focus still steers, as a viewer expects, and `dispose()` takes them back off. The keys of
+ * `used` — the ones the controller steers with — keep their default action from the page (Space
+ * and the arrows would scroll it), unless typed into a field, a list or an editor.
  */
-export function trackKeys(surface: HTMLElement, base: ControlBase, onChange: () => void) {
-  const pressed = new Set<string>();
+export function trackKeys(
+  surface: HTMLElement,
+  base: ControlBase,
+  onChange: () => void,
+  used: readonly KeyAxis[],
+) {
+  const pressed = new Set<string>(),
+    steering = new Set(used.flat(2));
   const document = surface.ownerDocument;
   base.listen<KeyboardEvent>(document, 'keydown', (event) => {
-    if (event.metaKey || event.ctrlKey || pressed.has(event.code)) return;
+    if (event.metaKey || event.ctrlKey) return;
+    if (steering.has(event.code) && !editable(event.target)) event.preventDefault();
+    if (pressed.has(event.code)) return;
     pressed.add(event.code);
     onChange();
   });
