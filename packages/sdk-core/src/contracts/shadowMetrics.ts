@@ -25,6 +25,8 @@ export interface ShadowFrameMetrics {
    *  This is the cost per shadow light, split from the rest. Null on an engine that draws no shadow. */
   shadowFacesDrawn?: number | null;
   shadowDrawCalls?: number | null;
+  /** Cluster cuts run from the lights: one per redrawn face, zero on a still frame. */
+  shadowLightCuts?: number | null;
   /** What page invalidation produced: pages redrawn by the frame, pages left in
    *  the queue for lack of budget, and the lag in milliseconds of the oldest of them. Zero
    *  everywhere is the normal value of a still scene; `null` on an engine without a shadow atlas. */

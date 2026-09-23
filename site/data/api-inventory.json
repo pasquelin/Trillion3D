@@ -3703,6 +3703,7 @@
         "packages/sdk-browser/src/webgpu/pages/io/surfaceCapture.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeBlend.ts",
         "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
+        "packages/sdk-browser/src/webgpu/shadow/cpuCasters.ts",
         "tests/kit/lighting/meshes.ts"
       ],
       "disposition": "retained",
@@ -6081,7 +6082,10 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts"],
+      "affectedConsumers": [
+        "packages/sdk-browser/src/webgpu/pages/render/encodeShadows.ts",
+        "packages/sdk-browser/src/webgpu/shadow/runs.fixture.ts"
+      ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/light-shadow/volume\".regionRect"
     },
@@ -8058,7 +8062,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/browser/support/hierarchyReplayEngine.ts",
-        "packages/sdk-browser/src/camera/engineCamera.ts"
+        "packages/sdk-browser/src/camera/engineCamera.ts",
+        "packages/sdk-browser/src/webgpu/shadow/cpuCasters.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/camera\".updateCameraFrame"

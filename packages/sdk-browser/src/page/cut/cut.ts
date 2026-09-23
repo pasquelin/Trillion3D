@@ -1,4 +1,5 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
+import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { selectFlat } from './select.ts';
 import {
   IDENTITY_WORLD,
@@ -34,6 +35,8 @@ export function selectVisiblePages<T extends PageRecord>(
     pageBudget?: number;
     wanted?: T[];
     result?: SelectionResult<T>;
+    /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
+    light?: LightPages;
   },
   into?: T[],
 ): SelectionResult<T> {
@@ -55,6 +58,7 @@ export function selectVisiblePages<T extends PageRecord>(
   state.wanted = wanted;
   state.shown = shown;
   state.isResident = options.isResident;
+  state.light = options.light;
   // The residency rule depends only on the request: stating it here takes two re-reads of the
   // state and one indirect call out of the per-cluster loop, without touching the answer.
   state.residentMode = residentModeOf(hold, options.isResident);
@@ -132,6 +136,7 @@ export function selectVisiblePages<T extends PageRecord>(
   result.pixelError = state.pixelError;
   // The reused state keeps no hold on this image's scene.
   state.isResident = undefined;
+  state.light = undefined;
   state.flatStructure = undefined;
   state.flatForced = undefined;
   state.flatForcedList = undefined;

@@ -1,5 +1,5 @@
 import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './contract.ts';
-import { createGpuDrawBuffers } from './buffers.ts';
+import { createGpuCompactionBuffers, createGpuDrawBuffers } from './buffers.ts';
 import type { GpuDraw } from './contract.ts';
 import { dropValidation, openValidation, validationError } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
@@ -21,8 +21,8 @@ export async function createGpuDraw(
   try {
     const allocated = createGpuDrawBuffers(device, slotCap, layerSlots);
     const SLOTS = allocated.slots;
-    const { itemsBuf, restBuf, uniforms, instanceBuffer, indirectBuffer } = allocated;
-    const { groupCounts, groupOffsets, slotUsedBuf } = allocated;
+    const { itemsBuf, restBuf, instanceBuffer, indirectBuffer } = allocated;
+    const { groupOffsets, slotUsedBuf } = allocated;
     buffers.push(...allocated.all);
     openValidation(device);
     const layout = device.createBindGroupLayout({ entries: drawBindEntries() });
@@ -48,42 +48,37 @@ export async function createGpuDraw(
       for (const buffer of buffers) buffer.destroy();
       return undefined;
     }
-    const makeBindGroup = (maskBuffer: GPUBuffer) =>
-      device.createBindGroup({
-        layout,
-        entries: [
-          { binding: 0, resource: { buffer: itemsBuf } },
-          { binding: 1, resource: { buffer: uniforms } },
-          { binding: 2, resource: { buffer: instanceBuffer } },
-          { binding: 3, resource: { buffer: indirectBuffer } },
-          { binding: 4, resource: { buffer: groupCounts } },
-          { binding: 5, resource: { buffer: groupOffsets } },
-          { binding: 6, resource: { buffer: maskBuffer } },
-          { binding: 7, resource: { buffer: restBuf } },
-          { binding: 8, resource: { buffer: slotUsedBuf } },
-        ],
-      });
-    let boundMask = itemsBuf,
-      bindGroup = makeBindGroup(boundMask);
-    const uniData = new Uint32Array(UNIFORM_BYTES / 4);
-    return {
-      encode(encoder, items, count, itemsFrom, itemsTo, maxVertexCount, selection) {
-        if (disposed) return;
-        const n = Math.min(count, slotCap);
-        // The range the row table just rewrote, and it alone: a frame that sees neither a page
-        // arrival nor an eviction sends not one byte of record.
-        const last = Math.min(itemsTo, n - 1);
-        if (last >= itemsFrom)
-          device.queue.writeBuffer(
+    type Own = ReturnType<typeof createGpuCompactionBuffers>;
+    /** One compaction over the shared items, into `own`: the camera's, or a light cut's. */
+    const compaction = (own: Own) => {
+      const makeBindGroup = (maskBuffer: GPUBuffer) =>
+        device.createBindGroup({
+          layout,
+          entries: [
             itemsBuf,
-            itemsFrom * DRAW_ITEM_U32 * 4,
-            items.buffer as ArrayBuffer,
-            items.byteOffset + itemsFrom * DRAW_ITEM_U32 * 4,
-            (last - itemsFrom + 1) * DRAW_ITEM_U32 * 4,
-          );
-        // Only the groups the frame's items reach are counted and prefixed. The groups past them hold zero
-        // by construction and nothing reads them, so bounding the serial prefix by the live count is exact.
-        const liveGroups = Math.max(1, Math.ceil(n / WORKGROUP));
+            own.uniforms,
+            own.instanceBuffer,
+            own.indirectBuffer,
+            own.groupCounts,
+            own.groupOffsets,
+            maskBuffer,
+            restBuf,
+            slotUsedBuf,
+          ].map((buffer, binding) => ({ binding, resource: { buffer } })),
+        });
+      let boundMask = itemsBuf,
+        bindGroup = makeBindGroup(boundMask);
+      const uniData = new Uint32Array(UNIFORM_BYTES / 4);
+      return (
+        encoder: GPUCommandEncoder,
+        count: number,
+        maxVertexCount: number,
+        selection?: { maskBuffer: GPUBuffer; maskOffset: number },
+      ) => {
+        // Only the groups the frame's items reach are counted and prefixed. The groups past them
+        // hold zero by construction and nothing reads them, so bounding the serial prefix by the
+        // live count is exact.
+        const liveGroups = Math.max(1, Math.ceil(Math.min(count, slotCap) / WORKGROUP));
         uniData[0] = count;
         uniData[1] = maxVertexCount;
         uniData[2] = slotCap;
@@ -95,7 +90,7 @@ export async function createGpuDraw(
           boundMask = mask;
           bindGroup = makeBindGroup(mask);
         }
-        device.queue.writeBuffer(uniforms, 0, uniData);
+        device.queue.writeBuffer(own.uniforms, 0, uniData);
         const pass = encoder.beginComputePass({ label: 'WG draw compaction' });
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(countPipeline);
@@ -105,6 +100,39 @@ export async function createGpuDraw(
         pass.setPipeline(scatterPipeline);
         pass.dispatchWorkgroups(liveGroups);
         pass.end();
+      };
+    };
+    const compact = compaction(allocated);
+    let light: ReturnType<GpuDraw['lightCompaction']> | undefined;
+    return {
+      encode(encoder, items, count, itemsFrom, itemsTo, maxVertexCount, selection) {
+        if (disposed) return;
+        // The range the row table just rewrote, and it alone: a frame that sees neither a page
+        // arrival nor an eviction sends not one byte of record.
+        const last = Math.min(itemsTo, Math.min(count, slotCap) - 1);
+        if (last >= itemsFrom)
+          device.queue.writeBuffer(
+            itemsBuf,
+            itemsFrom * DRAW_ITEM_U32 * 4,
+            items.buffer as ArrayBuffer,
+            items.byteOffset + itemsFrom * DRAW_ITEM_U32 * 4,
+            (last - itemsFrom + 1) * DRAW_ITEM_U32 * 4,
+          );
+        compact(encoder, count, maxVertexCount, selection);
+      },
+      lightCompaction() {
+        if (light) return light;
+        const own = createGpuCompactionBuffers(device, slotCap, SLOTS);
+        buffers.push(...own.all);
+        const encode = compaction(own);
+        light = {
+          instanceBuffer: own.instanceBuffer,
+          indirectBuffer: own.indirectBuffer,
+          encode: (encoder, count, maxVertexCount, selection) => {
+            if (!disposed) encode(encoder, count, maxVertexCount, selection);
+          },
+        };
+        return light;
       },
       itemsBuffer: itemsBuf,
       restBitsBuffer: restBuf,

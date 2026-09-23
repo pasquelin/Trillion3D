@@ -55,6 +55,8 @@ export function dropGpuSelection(rt: WebgpuPagesRuntime) {
   rt.run.gate.resourcesChanged();
   rt.run.gpuSelection?.dispose();
   rt.run.gpuSelection = undefined;
+  // The light cut shares the selection's buffers, and leaves with them.
+  rt.lights.lightCut = undefined;
   rt.capabilities.gpuDriven = false;
 }
 

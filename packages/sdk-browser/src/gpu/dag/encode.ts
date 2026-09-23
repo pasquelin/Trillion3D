@@ -2,7 +2,11 @@ import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
 import { ESCALATION_ROUNDS } from '../../page/selection/types.ts';
 import type { createDagResources } from './resources.ts';
 
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
+/** The cut's resources, as one view encodes them: a light cut brings its own flags, work, output
+ *  and bind group, and reads no compacted drawable list (`lightCut.ts`). */
+export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>> & {
+  drawnList?: boolean;
+};
 
 /**
  * Cut kernels, encoded in order. Each dispatch waits for the previous — the GPU empties its queue
@@ -22,7 +26,7 @@ type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
  * level's stage hugs its queue. An arming is therefore traded against threads, and the trade only
  * pays if the bound is tight.
  */
-export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagResources) {
+export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagView) {
   // A DIAGNOSTIC variant alone re-encodes the cut. The repeat PRECEDES the cut that counts: each
   // kernel restarts from the clear, the final state is therefore that of a single run, and the
   // frame delta measures what the repeat actually cost — waits between dispatches included, which
@@ -37,7 +41,7 @@ export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagResou
 
 function encodeOnce(
   encoder: GPUCommandEncoder,
-  resources: DagResources,
+  resources: DagView,
   headOnly: boolean,
   clear: boolean,
 ) {
@@ -122,7 +126,7 @@ function encodeOnce(
   runLive(maskPipeline);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
-  if (residentCut) {
+  if (residentCut && resources.drawnList !== false) {
     live.setPipeline(drawPrefixPipeline);
     live.dispatchWorkgroups(1);
     runLive(drawScatterPipeline);

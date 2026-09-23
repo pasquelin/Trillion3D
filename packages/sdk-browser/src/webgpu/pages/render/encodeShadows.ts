@@ -75,7 +75,8 @@ export function planShadowRegions(
   nowMs: number,
 ) {
   const { lights } = rt,
-    { shadows, cull, plan, store, faceMatrices } = lights;
+    { shadows, cull, plan, store, faceMatrices, runs } = lights;
+  runs.reset();
   lights.shadowsUpdated = 0;
   lights.shadowFaces = 0;
   lights.sunCascades = 0;
@@ -90,6 +91,8 @@ export function planShadowRegions(
   const view = shadowViewpointOf(cam);
   const count = plan.plan(store, view, frame, nowMs);
   const { regions, slices } = plan;
+  // The light cuts measure their error at the camera's threshold, budget included.
+  const pixelError = Math.max(rt.run.gate.pixelError, rt.run.budgetPixelError);
   let lastSlice = -1,
     lastFace = -1;
   for (let region = 0; region < count; region++) {
@@ -106,6 +109,9 @@ export function planShadowRegions(
       shiftX = regions.shiftXOf(region),
       shiftY = regions.shiftYOf(region);
     const matrixBase = region * 16;
+    // A new face closes the previous one's run while its view is still the last composed.
+    const newFace = slice !== lastSlice || face !== lastFace;
+    if (newFace) runs.close(cam.eye, pixelError);
     // The matrix and the volume are the extent's: the region rectangle is read in extent pages,
     // the physical rectangle minus the translation the draw applies.
     const planes = writeFace(
@@ -119,6 +125,8 @@ export function planShadowRegions(
       side,
       regionRect(rectScratch, rows, x0 - shiftX, x1 - shiftX, y0 - shiftY, y1 - shiftY),
     );
+    if (newFace) runs.open(region, side, rows, planes.near);
+    runs.add(x0 - shiftX, x1 - shiftX, y0 - shiftY, y1 - shiftY, rectScratch);
     shadows.writeRegion(
       region,
       slice,
@@ -145,7 +153,7 @@ export function planShadowRegions(
     regionViewport[viewport + 2] = slices.rects[rect + 2];
     // Regions of the same face follow each other: a change of slice/face pair is one more redrawn
     // face, and that is what the profile publishes next to the pages.
-    if (slice !== lastSlice || face !== lastFace) {
+    if (newFace) {
       lastSlice = slice;
       lastFace = face;
       lights.shadowFaces++;
@@ -159,6 +167,7 @@ export function planShadowRegions(
       );
     }
   }
+  runs.close(cam.eye, pixelError);
   if (count) shadows.flushRegions(count);
   writeDrawnMasks(lights);
   shadows.flushSlices();
@@ -166,4 +175,21 @@ export function planShadowRegions(
   lights.shadowRegions = count;
   lights.shadowPages = regions.pages;
   return count;
+}
+
+/**
+ * Plans the image's shadow regions once. The CPU cut plans them before it writes its rows —
+ * the light cuts' casters need rows too —, and the direct-lighting pass then reads the same plan.
+ * An unlit view, or a scene without light, plans nothing and leaves no run behind.
+ */
+export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+  const { lights, run } = rt,
+    { store } = lights;
+  if (!store.count || store.unlit) {
+    lights.runs.reset();
+    return 0;
+  }
+  if (lights.plannedFrame === run.frame) return lights.shadowRegions;
+  lights.plannedFrame = run.frame;
+  return planShadowRegions(rt, cam, run.frame, performance.now());
 }

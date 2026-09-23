@@ -8,6 +8,7 @@ import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
+import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { ESCALATION_SLACK } from '../../../page/selection/types.ts';
 import {
@@ -21,7 +22,8 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
 // \`perspective\` is the projection's clip-w weight, 1 perspective and 0 orthographic (\`viewPoint\`).
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,pad1:u32,pad2:u32,}
+// \`viewFlags\`, \`pageRows\`, \`pageMask\`, \`clipScale\` and \`clipPad\` serve a light cut alone (\`pagesWgsl.ts\`): a camera sends zeros.
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,drawnTriangles:atomic<u32>,uncoveredTriangles:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
@@ -102,7 +104,7 @@ fn coneCache(index:u32)->u32{return uni.nodeCount+uni.clusterCount+index;}
 fn coneRejected(index:u32)->bool{return flags[coneCache(index)]!=0u;}
 fn visible(index:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
- return !outsideFrustum(cluster.worldIndex*FRAME,boxMin(index),boxMax(index));
+ return !outsideFrustum(cluster.worldIndex*FRAME,boxMin(index),boxMax(index))&&!pageMissed(cluster.worldIndex,boxMin(index),boxMax(index));
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*uni.cameraStretch;}
 /** Raise the primitive's threshold to the replacement band, or demand the pinned cover.
@@ -121,7 +123,7 @@ fn escalate(world:u32,parentPixels:f32){
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let w=id.x;
- if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
+ if(w==0u){if((uni.viewFlags&VIEW_APPEND)==0u){atomicStore(&out.count,0u);}atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetTotaux();resetCounters();}
  if(w<blockCount()){atomicStore(&work[blockBase()+w],0u);}
  if(w>=uni.worldCount){return;}
  // The primitive's root opens the descent: one thread, one root, no counter to contend for.
@@ -169,4 +171,5 @@ ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_FLOOR_WGSL}
+${DAG_PAGES_WGSL}
 ${DAG_RECORD_WGSL}`;

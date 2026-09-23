@@ -8,13 +8,10 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { startServer, serverPort } from '../../kit/server/staticServer.ts';
-import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { resolveMounts } from '../../../bench/runner/options.ts';
-import { ENGINES } from '../../../bench/runner/sideOptions.ts';
 import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/scene.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
+import { openBenchPage } from '../support/benchPage.ts';
 
 // `window.scene`/`settle`/`stopped`/`pose` only exist in the page this harness evaluates code
 // in, never in Node; declared here so the `page.evaluate` callbacks below (type-checked, though
@@ -28,45 +25,18 @@ declare global {
   }
 }
 
-const root = resolve(import.meta.dirname, '../../..');
 const output = measureOutput('shadow-camera-stop');
 const WIDTH = 1248,
   HEIGHT = 702;
 await mkdir(output, { recursive: true });
 // The bench scene and its trajectory (`.mesure/assets/`, off git), the engine of this tree.
-const server = await startServer({
-  port: 0,
-  captures: new Map(),
-  mounts: [...resolveMounts(root, []), { prefix: '/sdk/', dir: resolve(root, 'dist') }],
-});
-// The bench's flags: GPU timestamps are what the shadow budget measures itself against.
-const browser = await launchChrome({ headless: true, args: ENGINES.webgpu.flags });
-const errors: string[] = [];
+const { root, page, errors, urls, close } = await openBenchPage(WIDTH, HEIGHT);
 try {
-  const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT } });
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${serverPort(server)}/`);
   const stop = await page.evaluate(
-    async ({ sdkUrl, posesUrl, manifestUrl, width, height }) => {
-      const canvas = document.createElement('canvas');
-      canvas.id = 'stop';
-      canvas.style.cssText = `width:${width}px;height:${height}px;display:block`;
-      document.body.style.margin = '0';
-      document.body.append(canvas);
-      const { openMeasuredWorld, webgpuPagesBackend } = await import(sdkUrl);
+    async ({ sdkUrl, posesUrl, worldUrl, manifestUrl, size }) => {
+      const { openBenchWorld, settleWorld } = await import(worldUrl);
       const { poseAt, VIEWS } = await import(posesUrl);
-      const scene = await openMeasuredWorld('stop', {
-        manifestUrl,
-        scope: 'full',
-        interactive: false,
-        backends: [webgpuPagesBackend],
-        width,
-        height,
-        pixelRatio: 1,
-        pixelError: 1,
-        maxResidentPages: 100000,
-        textureSource: 'cache',
-        temporalAntialiasing: false,
+      const scene: MeasuredWorld = await openBenchWorld('stop', sdkUrl, manifestUrl, size, {
         shadowBudgetMs: 0.01,
         clearColor: 0x2a303c,
       });
@@ -82,15 +52,7 @@ try {
       });
       await scene.awaitPages();
       // The bench's still pose: rendered and flushed until the frame is held, pages awaited.
-      window.settle = async (pose: unknown) => {
-        for (let i = 0; i < 128; i++) {
-          const metrics = scene.render(pose);
-          await scene.flush();
-          await scene.awaitPages();
-          if (metrics.frameHeld) return true;
-        }
-        return false;
-      };
+      window.settle = async (pose: unknown) => !!(await settleWorld(scene, pose));
       const frame = () => new Promise((next) => requestAnimationFrame(next));
       // The street of the bench: from the `sol` view, `STEPS` trajectory frames along it.
       const START = 6,
@@ -114,15 +76,9 @@ try {
       }
       window.stopped = new Uint8Array(scene.capture());
       window.pose = pose(STEPS);
-      return { settledStart, pending, pendingAtCapture: metrics.shadowPagesPending ?? 0 };
+      return { settledStart, pending, pendingAtCapture: metrics?.shadowPagesPending ?? 0 };
     },
-    {
-      sdkUrl: '/sdk/sdk-browser/src/measurement/measurement.js',
-      posesUrl: '/runner/poses.ts',
-      manifestUrl: assetsManifest(DEFAULT_SCENE, true),
-      width: WIDTH,
-      height: HEIGHT,
-    },
+    { ...urls, manifestUrl: assetsManifest(DEFAULT_SCENE, true), size: [WIDTH, HEIGHT] },
   );
   await page.screenshot({ path: resolve(output, 'stopped.png') });
   const settled = await page.evaluate(async () => {
@@ -167,15 +123,14 @@ try {
   console.log(JSON.stringify(proof));
   // Pages awaiting a redraw keep their depth: the stopped frame shades as the settled one,
   // but for the texture detail that lands at rest and the silhouettes a change of detail moves.
-  // On the public scene 15 of 876 096 pixels differ (#281). Read as "never drawn", those pages
-  // sent the whole street to the proxy: 16.6 %, the road black. A cut that dropped the casters
-  // out of view gave 6.6 %: the settled frame then leaked light the stopped one still held.
+  // On the public scene 13 of 876 096 pixels differ (#10, #26). Read as "never drawn", those
+  // pages sent the whole street to the proxy: 16.6 %, the road black. Casters taken from the
+  // camera's cut, which drops them out of view, gave 6.6 %: the settled frame then leaked light.
   const differing = sample.lighter + sample.darker;
   assert.ok(
     differing < sample.pixels / 20,
     `${differing} pixels shaded otherwise than at rest (of ${sample.pixels})`,
   );
 } finally {
-  await browser.close();
-  await new Promise((done) => server.close(done));
+  await close();
 }

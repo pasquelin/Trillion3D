@@ -1,3 +1,4 @@
+import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { FRUSTUM_PLANE_VALUES } from '../../../../sdk-core/src/index.ts';
 import { createConeContext, type ConeContext, type NormalCone } from '../cone/cone.ts';
 import type { EngineCamera } from '../../camera/world.ts';
@@ -45,6 +46,8 @@ export interface SelectionState<T extends PageRecord> {
   /** This root declares that each of its pages carries its box: under a node entirely inside
    *  the frustum, the per-cluster path then reads neither `min` nor `max`. */
   flatBoxes: boolean;
+  /** A light's cut: its redrawn pages (`boxMissesLightPages`), and no cone test. */
+  light?: LightPages;
   /** Residency rule of this cut, resolved once: `RESIDENT_ALL` when nothing is held
    *  (everything is deemed resident), `RESIDENT_ASK` when the host supplies its answer,
    *  `RESIDENT_ARRAY` when residency is the page's index array. The per-cluster path reads this
@@ -167,6 +170,7 @@ const reusedState: SelectionState<PageRecord> = {
   flatCone: createConeContext(),
   flatCones: true,
   flatBoxes: false,
+  light: undefined,
   residentMode: RESIDENT_ALL,
   flatExact: false,
   flatUseForcing: false,

@@ -10,6 +10,9 @@ import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from '../../../gpu/shadow/atl
 import { ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts';
 import type { GpuShadowCull } from '../../../gpu/shadow/cull.ts';
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts';
+import { createShadowRuns, type ShadowRuns } from '../../shadow/runs.ts';
+import type { CpuCasterLists } from '../../shadow/cpuCasters.ts';
+import type { DagLightCut } from '../../../gpu/dag/lightCut.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -32,6 +35,16 @@ export interface WebgpuLightState {
   uploadedEpoch: number;
   /** Face matrices of the image, one per updated face. */
   faceMatrices: Float32Array;
+  /** The image's redrawn faces, one light cut each (`../../shadow/runs.ts`). */
+  runs: ShadowRuns;
+  /** Image whose shadow regions are planned: a plan is made once per image (`planImageShadows`). */
+  plannedFrame: number;
+  /** Light cuts the last image ran: one per redrawn face, zero on a still frame. */
+  lightRuns: number;
+  /** The GPU cut seen from the lights, once a frame has drawn a shadow under the GPU cut. */
+  lightCut: DagLightCut | undefined;
+  /** The casters the CPU cut selected from the light, when it draws the image (`cpuCasters.ts`). */
+  cpuCasters: CpuCasterLists | undefined;
   /** Contract lights kept by the last image, and lights whose map was redrawn. The wait queue and its
    *  lag are read on the scheduler (`plan.counts`). */
   lightsActive: number;
@@ -74,6 +87,11 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     shadowGroupsKey: [],
     uploadedEpoch: 0,
     faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),
+    runs: createShadowRuns(),
+    plannedFrame: -1,
+    lightRuns: 0,
+    lightCut: undefined,
+    cpuCasters: undefined,
     lightsActive: 0,
     shadowsUpdated: 0,
     shadowFaces: 0,

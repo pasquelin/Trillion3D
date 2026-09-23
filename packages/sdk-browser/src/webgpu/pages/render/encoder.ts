@@ -17,6 +17,13 @@ export const createRenderEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
 export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   (rt.timing.frameEncoder = newEncoder(rt, device));
 
+/** The light cuts' requests rode in the image's command buffer: read them, or give the slot back. */
+function settleShadowRequests(rt: WebgpuPagesCore, submitted: boolean) {
+  const settle = rt.timing.shadowRequests;
+  rt.timing.shadowRequests = undefined;
+  settle?.(submitted);
+}
+
 /** Drops the open command buffer and settles the selection whose readback would have ridden in it. */
 export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   const { timing } = rt;
@@ -25,6 +32,7 @@ export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   const settle = timing.frameSelection;
   timing.frameSelection = undefined;
   settle?.(false);
+  settleShadowRequests(rt, false);
   timing.gpuTiming?.cancelUnsubmitted();
 }
 
@@ -65,6 +73,7 @@ export function submitColorCopy(
   // Same for the far-shadow counts: their copy is mapped only once submitted.
   rt.sunFar.gpu?.submitted();
   rt.lights.cull?.counts.submitted();
+  settleShadowRequests(rt, true);
   run.imageRevision++;
   if (owned) {
     timing.frameEncoder = undefined;

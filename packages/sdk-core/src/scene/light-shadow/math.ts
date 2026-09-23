@@ -16,7 +16,8 @@ import { LIGHT_SETTINGS } from '../light/contracts.ts';
  * where a `Float32Array` to `Float32Array` copy changed nothing. Same bits, then.
  */
 const arrondi = Math.fround;
-const projScratch = new Float64Array(16);
+/** Projection of the last composed face, in double: what a light-view cut reads its texel scale from. */
+export const faceProjection = new Float64Array(16);
 /** Planes of a face and half-field of its projection. Only one is live at a time: the caller reads it
  *  before composing the next face, so the object is reused and nothing is allocated per frame. */
 const planes = { near: 0, far: 0, halfFov: 0 };
@@ -38,12 +39,12 @@ export function shadowProjection(fov: number, range: number) {
     far = Math.max(near * 1.001, range);
   const f = 1 / Math.tan(fov / 2),
     depth = near / (far - near);
-  projScratch.fill(0);
-  projScratch[0] = arrondi(f);
-  projScratch[5] = arrondi(f);
-  projScratch[10] = arrondi(depth);
-  projScratch[11] = -1;
-  projScratch[14] = arrondi(far * depth);
+  faceProjection.fill(0);
+  faceProjection[0] = arrondi(f);
+  faceProjection[5] = arrondi(f);
+  faceProjection[10] = arrondi(depth);
+  faceProjection[11] = -1;
+  faceProjection[14] = arrondi(far * depth);
   planes.near = near;
   planes.far = far;
   planes.halfFov = fov / 2;
@@ -57,10 +58,10 @@ export function shadowProjection(fov: number, range: number) {
  * aperture to publish: both come out zero.
  */
 export function shadowOrthographic(halfExtent: number, far: number) {
-  orthographicProjection(projScratch, -halfExtent, halfExtent, -halfExtent, halfExtent, 0, far);
-  projScratch[0] = arrondi(projScratch[0]);
-  projScratch[5] = arrondi(projScratch[5]);
-  projScratch[10] = arrondi(projScratch[10]);
+  orthographicProjection(faceProjection, -halfExtent, halfExtent, -halfExtent, halfExtent, 0, far);
+  faceProjection[0] = arrondi(faceProjection[0]);
+  faceProjection[5] = arrondi(faceProjection[5]);
+  faceProjection[10] = arrondi(faceProjection[10]);
   planes.near = 0;
   planes.far = far;
   planes.halfFov = 0;
@@ -132,8 +133,9 @@ function shadowView(
   out[15] = 1;
 }
 
-const viewScratch = new Float64Array(16),
-  faceScratch = new Float64Array(16);
+/** View of the last composed face, in double: the frame a light-view cut measures its error in. */
+export const faceView = new Float64Array(16);
+const faceScratch = new Float64Array(16);
 
 /**
  * View then projection, composed into `out`: the only path by which a face gets its matrix.
@@ -145,10 +147,10 @@ export function composeFace(
   eye: readonly [number, number, number],
   forward: readonly [number, number, number],
 ) {
-  shadowView(viewScratch, eye, forward);
+  shadowView(faceView, eye, forward);
   // Composed aside then copied: `multiplyMatrix4` only writes the sixteen constant indices, and the
   // copy into the GPU buffer is the only single-precision conversion. One face per light and
   // per frame; the offset was not worth sixteen computed indices in the hottest product.
-  multiplyMatrix4(faceScratch, projScratch, viewScratch);
+  multiplyMatrix4(faceScratch, faceProjection, faceView);
   copyMatrix4(out, faceScratch, base);
 }

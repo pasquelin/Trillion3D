@@ -12,7 +12,9 @@ import {
   SELECTION_HEADER_WORDS,
   selectionListCap,
 } from './layout.ts';
-import type { SelectionResult, SelectionUniforms } from '../core/selection.ts';
+import type { SelectionResult } from '../core/selection.ts';
+import type { DagViewUniforms } from './types.ts';
+import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -32,11 +34,16 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
   seaux: new Uint32Array(REQUEST_PRIORITY_MAX + 1),
 });
 
+/**
+ * `append`: this run's requests add to those the output already holds (`VIEW_APPEND`) — the
+ * light cuts of one frame share one readback. A camera never appends.
+ */
 export function writeDagUniforms(
   target: Float32Array,
   packed: PackedDag,
-  uniforms: SelectionUniforms,
+  uniforms: DagViewUniforms,
   residentCut: boolean,
+  append = false,
 ) {
   target.fill(0);
   target.set(uniforms.planes, 0);
@@ -62,6 +69,15 @@ export function writeDagUniforms(
   ints[52] = selectionListCap(packed.pageCount);
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[53] = uniforms.perspective ?? 1;
+  // A light cut's view: its kind, then the face pages it draws into (`shader/pagesWgsl.ts`).
+  const light = uniforms.light;
+  ints[54] = (append ? VIEW_APPEND : 0) | (light ? VIEW_LIGHT | VIEW_PAGES : 0);
+  if (!light) return;
+  ints[55] = light.rows;
+  ints[56] = light.mask[0];
+  ints[57] = light.mask[1];
+  target[58] = light.clipScale;
+  target[59] = light.clipPad;
 }
 
 /** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none. */

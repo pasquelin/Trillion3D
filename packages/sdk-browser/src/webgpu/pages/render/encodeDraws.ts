@@ -1,3 +1,4 @@
+import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { projectedPageError } from '../../../page/selection/selection.ts';
 import { screenErrorRatio } from '../../../diagnostic/colors.ts';
@@ -72,8 +73,13 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   // The render matrix carries temporal-antialiasing jitter; the camera knows nothing of it.
   viewProj.set(taaRenderMatrix(rt, cam));
   ensurePageTable(rt, device);
-  if (!run.gpuFrameActive) rt.services.syncRowsFromCut();
-  else if (run.rowsSyncedFrame !== run.frame) {
+  if (!run.gpuFrameActive) {
+    // The CPU cut selects its shadow casters from the lights before it writes its rows: those the
+    // camera does not draw take rows behind the camera's.
+    const shadows = vis.visEnabled && vis.gpuDraw ? selectCpuCasters(rt, device, cam) : undefined;
+    run.cameraRows = rt.services.syncRowsFromCut(shadows);
+    if (shadows) writeCpuCasters(rt, device);
+  } else if (run.rowsSyncedFrame !== run.frame) {
     rt.services.syncRows();
     run.rowsSyncedFrame = run.frame;
   }

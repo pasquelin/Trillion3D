@@ -103,7 +103,7 @@ fn levelStep(src:u32,s:u32){
  if(i==0xffffffffu){return;}
  let node=nodes[i];
  let w=node.worldIndex;
- if(outsideFrustum(w*FRAME,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+ if(outsideFrustum(w*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  // Too FINE: no replacement of the subtree is coarse enough yet, the manifest carries it.
  // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages.
  // A subtree that carries a cluster nothing replaces is exempt from the second — the pinned fallback

@@ -1,6 +1,15 @@
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../../page/cone/cone.ts';
 import type { PageSurface } from '../../page/surface.ts';
+import type { SelectionUniforms } from '../core/selection.ts';
+import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
+
+/**
+ * The view one run of the kernel serves: a camera's uniforms, or a shadow face's with `light`, the
+ * pages it redraws this frame (`lightCut.ts`). A box covering none of them is dropped, and no
+ * normal cone rejects, since every face of a caster writes depth.
+ */
+export type DagViewUniforms = SelectionUniforms & { light?: LightPages };
 
 /** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
  *  sphere, the floor and a flags word (`packNodes.ts`). */

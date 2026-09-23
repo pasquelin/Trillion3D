@@ -50,6 +50,7 @@ const ensurer = (tracking: ReturnType<typeof createWebgpuPageTracking>, cache: u
     isLost: () => false,
     traceEnabled: false,
     traceDiagnostic: () => {},
+    shadowPages: () => [],
   });
 
 test('a full pool stops the burst without dropping the image; any other error bubbles up', async () => {
@@ -67,4 +68,67 @@ test('a full pool stops the burst without dropping the image; any other error bu
     ensurer(tracking, saturatedCache(['a', 'b', 'c'], 'WEBGPU_LOST'))([pages[3]], 2, 2),
     /WEBGPU_LOST/,
   );
+});
+
+/** A pool of `slots` pages evicting its oldest unpinned page, as the GPU page cache does. */
+function lruCache(slots: number) {
+  const resident = new Map<string, { key: string }>(),
+    pins = new Set<string>();
+  return {
+    resident,
+    pins,
+    get: (url: string) => resident.get(url),
+    async load(url: string) {
+      if (resident.size >= slots) {
+        const victim = [...resident.keys()].find((key) => !pins.has(key));
+        if (victim === undefined) throw new Error('ALL_PAGES_PINNED');
+        resident.delete(victim);
+      }
+      resident.set(url, { key: url });
+    },
+    pin: (url: string) => pins.add(url),
+    touch(url: string) {
+      const page = resident.get(url);
+      if (!page) return false;
+      resident.delete(url);
+      resident.set(url, page);
+      return true;
+    },
+    unpinnedSlots: () => slots - pins.size,
+  };
+}
+
+test('shadow casters fill only what the camera leaves: never pinned, never evicting its pages', async () => {
+  const pages = ['cam0', 'cam1', 'cam2', 'old', 'sh0', 'sh1', 'sh2'].map(pageOf);
+  const [cam0, cam1, cam2, , sh0, sh1, sh2] = pages;
+  const tracking = createWebgpuPageTracking(pages);
+  for (const page of [cam0, cam1]) tracking.wanted.add(tracking.keyOf(page), page);
+  const cache = lruCache(4);
+  await cache.load('old');
+  await cache.load('sh0');
+  let lower = [sh0, sh1, sh2];
+  const ensure = createWebgpuResidentEnsurer({
+    getCache: () => cache as never,
+    tracking,
+    bootstrapKey: new Uint8Array(tracking.keyCount),
+    hasBytes: () => true,
+    isLost: () => false,
+    traceEnabled: false,
+    traceDiagnostic: () => {},
+    shadowPages: () => lower,
+  });
+  await ensure([cam0, cam1], 1, 1);
+  // The camera's two pages took the two free slots and are pinned; `old` and `sh0` remain.
+  // Two unpinned slots, one of them already a caster: one more caster enters, in `old`'s slot.
+  assert.deepEqual([...cache.resident.keys()].sort(), ['cam0', 'cam1', 'sh0', 'sh1']);
+  assert.deepEqual([...cache.pins].sort(), ['cam0', 'cam1'], 'no caster is pinned');
+  // The camera wants a third page: it takes a caster's slot, and the casters still wanted keep
+  // theirs — the one left over is not evicted for another caster.
+  tracking.wanted.add(tracking.keyOf(cam2), cam2);
+  lower = [sh1, sh2];
+  await ensure([cam0, cam1, cam2], 2, 2);
+  assert.ok(cache.get('cam2'), 'the camera page entered');
+  assert.equal(cache.get('sh0'), undefined, 'by the slot of a caster');
+  assert.ok(cache.get('sh1'), 'the caster still wanted stays');
+  assert.equal(cache.get('sh2'), undefined, 'and no other caster takes its place');
 });

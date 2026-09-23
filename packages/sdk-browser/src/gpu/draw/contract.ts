@@ -72,6 +72,22 @@ export type GpuDraw = {
     maxVertexCount: number,
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
   ): void;
+  /**
+   * A second compaction over the same items, created at the first call: a light cut's mask in,
+   * the light's instance list and indirect commands out — how the shadow pass consumes the light
+   * cut, as the visibility pass consumes the camera's. It uploads no item: the camera's encode,
+   * earlier in the same command buffer, already did.
+   */
+  lightCompaction(): {
+    instanceBuffer: GPUBuffer;
+    indirectBuffer: GPUBuffer;
+    encode(
+      encoder: GPUCommandEncoder,
+      count: number,
+      maxVertexCount: number,
+      selection?: { maskBuffer: GPUBuffer; maskOffset: number },
+    ): void;
+  };
   /** Draw records as the GPU holds them: what the GPU partition reads to know each
    *  row's bin, layer and triangles. */
   itemsBuffer: GPUBuffer;

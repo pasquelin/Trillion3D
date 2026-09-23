@@ -8,14 +8,14 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       69 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    332 *.test.ts
+  sdk-core/src/       70 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    335 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        21 *.test.ts — architecture, boundaries, public contracts
-  browser/renders/    42 *.browser.ts — rendering in real Chromium
+  browser/renders/    43 *.browser.ts — rendering in real Chromium
   browser/probes/     20 GPU probes + 32 support modules
-  browser/support/    68 pages and cases served to the render proofs
+  browser/support/    70 pages and cases served to the render proofs
   kit/                28 shared test tools: fake GPU devices, servers, assertions
   fixtures/           12 test data builders; formats/ holds the compiler goldens
 bench/
@@ -129,8 +129,8 @@ against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, C
 **0 fail** of 64. The last two failures were engine defects, fixed there: the geometry-garden
 lesson never opened its session (`explorer-startup`), because a world whose first change had
 nothing to draw kept a finished reopen as if it were still running; and a settled frame leaked
-light at the street stop (`shadow-camera-stop`), because the cut the shadow maps draw from dropped
-every caster out of view.
+light at the street stop (`shadow-camera-stop`), because the cut the shadow maps drew from — the
+camera's — dropped every caster out of view; casters are now selected from the light (#10, #26).
 
 Before #281 the same reading gave 10 fail (`origin/develop` at `ea7e3ecf4` and the head of #322,
 54 pass / 10 fail each), then 2 after its first batch. A batch that leaves this at zero has

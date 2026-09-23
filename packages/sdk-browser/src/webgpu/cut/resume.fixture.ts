@@ -110,6 +110,8 @@ export function banc(panne?: 'debordement' | 'envoi') {
       diagnosticFailure: (code: string) => codes.push(code),
     },
     context: {},
+    // No light cut ran: the lower residency tier receives nothing.
+    lights: {},
     layout: { rows, drawSlots: 4 },
     setup: { gpuDevice: {}, viewport: VIEWPORT, clearColor: 0, slots: 10 },
     timing: { marks: {} },

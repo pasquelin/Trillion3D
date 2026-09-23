@@ -1,5 +1,6 @@
 import { coneSkipsPage } from '../selection/helpers.ts';
 import { frustumClipBox } from '../../../../sdk-core/src/index.ts';
+import { boxMissesLightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { frameClusterError, frameSelects } from '../selection/frame.ts';
 import { cutSelectsAtZero } from '../selection/projection.ts';
 import { drawnUnderForcing } from './logic.ts';
@@ -75,6 +76,13 @@ function take<T extends PageRecord>(
       return;
     }
   } else if (!boxes && (!rec.min || !rec.max)) return;
+  if (
+    s.light &&
+    boxMissesLightPages(s.light, rec.min!, rec.max!, s.flatElements, s.cam.perspective)
+  ) {
+    s.frustumRejected++;
+    return;
+  }
   if (
     !settled &&
     !(forcing

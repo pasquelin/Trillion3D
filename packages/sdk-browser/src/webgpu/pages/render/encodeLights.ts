@@ -4,7 +4,7 @@ import {
   TONE_MAPPING_RANK,
 } from '../../../../../sdk-core/src/scene/core/environment.ts';
 import { PAGES_RING, noteShadowFrame, uploadSceneLights } from '../state/lights.ts';
-import { planShadowRegions } from './encodeShadows.ts';
+import { planImageShadows } from './encodeShadows.ts';
 import { encodeShadowAtlas } from './encodeShadowPass.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
@@ -51,7 +51,7 @@ export function encodeDirectLights(
   const frame = rt.run.frame,
     nowMs = performance.now(),
     pagesSlot = frame % PAGES_RING;
-  const regions = planShadowRegions(rt, cam, frame, nowMs);
+  const regions = planImageShadows(rt, cam);
   // The pass timer comes back late: the image must leave behind how many pages it redrew, or the
   // sample would not know what it is numbering.
   lights.pagesByFrame[pagesSlot] = lights.shadowPages;

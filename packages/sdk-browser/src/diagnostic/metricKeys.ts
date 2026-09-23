@@ -74,6 +74,7 @@ export const BACKEND_METRIC_KEYS = [
   'shadowsUpdated',
   'shadowFacesDrawn',
   'shadowDrawCalls',
+  'shadowLightCuts',
   'shadowPagesDrawn',
   'shadowPagesTotal',
   'shadowPagesPending',

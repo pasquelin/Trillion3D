@@ -191,6 +191,22 @@ resident proxy (`proxy.bin`), traced by the same bounded traversal the bounce us
 unaccumulated; the `sun-far-shadow` diagnostic publishes its bounds. Without a proxy, far surfaces
 stay lit: the last cascade is never stretched.
 
+**Shadow casters are selected from the light.** Each face a frame redraws runs the cluster cut on its
+own view: the camera's kernels, pipelines, clusters and residency bits, with flags, counters and output
+of its own (`gpu/dag/lightCut.ts`). Its planes bound the pages the scheduler gave the face, and a node
+or cluster that covers none of those pages is dropped: the L-shaped strip a cascade redraws when the
+camera moves diagonally selects the strip, not its bounding square. Its error is counted in the face's
+texels — per metre for a cascade, at unit depth for a lamp — against the camera's pixel threshold, and
+the normal cone is off, since the shadow raster culls no face. The light's mask is compacted over the
+same draw items as the camera's, and each region culls that list. The camera's cut, its escalation and
+its pinned fallback are untouched: a caster the light wants and the pool lacks raises the light's own
+threshold. What the light cuts request is a second residency tier, loaded after the camera's pages into
+slots no one holds and never pinned: a camera page evicts it, never the reverse. The CPU cut does the
+same, reading the face as a camera (`webgpu/shadow/cpuCasters.ts`); its casters take rows behind its
+own. A still frame runs no light cut; the camera cut moving stales no shadow page. On Sponza with the
+sun, a moving camera runs at most four light cuts a frame, one per cascade, about one on average (#10,
+#26).
+
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's
 footprint selects, in the visibility raster and in the shadow pass alike, and the material

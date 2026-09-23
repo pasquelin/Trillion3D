@@ -25,7 +25,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  let cluster=clusters[i];
  if(!visible(i,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
  liveAppend(i);
- let rejected=coneRejects(i,cluster);
+ let rejected=(uni.viewFlags&VIEW_LIGHT)==0u&&coneRejects(i,cluster);
  flags[coneCache(i)]=select(0u,1u,rejected);
  let w=cluster.worldIndex;
  let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();

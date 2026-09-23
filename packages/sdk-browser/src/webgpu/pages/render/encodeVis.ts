@@ -73,10 +73,11 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const { twoPass } = encodeWebgpuPartition(rt, encoder, cam, useIndirect);
   // Row words restat the rows: uploading their range is what consumes the change flag.
   if (useIndirect) {
+    // The camera draws its own rows: under the CPU cut, the light casters it adds sit behind them.
     vis.gpuDraw!.encode(
       encoder,
       layout.drawItemWords,
-      rows.packedCount,
+      run.gpuFrameActive ? rows.packedCount : run.cameraRows,
       words.from,
       words.to,
       maxVertexCount,
@@ -84,8 +85,6 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     );
     clearDrawItemWords(words);
     rows.rowsChanged = false;
-    // Shadow casters read the compact's commands before the visibility passes truncate them.
-    rt.lights.cull?.keepSourceCounts(encoder, vis.gpuDraw!.indirectBuffer);
   }
   // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
   // when it exists, blends its own between its passes — small triangles under the reference split,

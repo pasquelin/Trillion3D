@@ -3,6 +3,7 @@ import { SHADOW_PASS } from '../../../gpu/shadow/atlas.ts';
 import { visBindEntries } from '../../core/bindEntries.ts';
 import { regionScissor, regionViewport } from './encodeShadows.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { encodeShadowCasters } from '../../shadow/casters.ts';
 
 /**
  * Bind group of a region: the visibility-buffer raster's, three bindings aside — the instance list
@@ -71,9 +72,9 @@ function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: nu
 }
 
 /**
- * Shadow depth pass: first per-region cull, which keeps from the image's instance list only the
- * clusters touching the light range and the region volume; then one render pass for all regions, and
- * one indirect draw per region.
+ * Shadow depth pass: first the casters of each redrawn face, selected from the light and culled
+ * per region (`encodeShadowCasters`); then one render pass for all regions, and one indirect draw
+ * per region.
  *
  * **The viewport stays that of the whole face; only the scissor bounds the region.** That is the
  * whole rule: a vertex lands on exactly the same texel as in a full redraw, and the scissor only
@@ -87,26 +88,14 @@ export function encodeShadowAtlas(
   encoder: GPUCommandEncoder,
   regions: number,
 ) {
-  const { lights, vis, run, layout, setup } = rt,
-    { shadows, cull, spheres } = lights,
-    { gpuDraw } = vis;
+  const { lights, vis, run } = rt,
+    { shadows, cull } = lights;
   lights.shadowDraws = 0;
-  if (!regions || !shadows || !cull || !spheres || !gpuDraw || !vis.visBindGroupLayout)
-    return false;
+  lights.lightRuns = 0;
+  if (!regions || !shadows || !cull || !vis.visBindGroupLayout) return false;
   const first = shadowRegionGroup(rt, device, 0);
   if (!first) return false;
-  cull.flushVolumes(regions);
-  cull.encode(
-    encoder,
-    {
-      spheres: spheres.buffer,
-      source: gpuDraw.instanceBuffer,
-    },
-    regions,
-    gpuDraw.slots,
-    layout.rows.packedCount,
-    setup.maxCorners,
-  );
+  if (!encodeShadowCasters(rt, encoder, regions)) return false;
   cull.counts.sample(encoder, cull.indirect, regions, run.frame);
   lights.shadowDraws = regions;
   const drawsBefore = run.gpuDrawCalls;

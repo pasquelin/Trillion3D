@@ -10,6 +10,7 @@ import { createWebgpuPinUpdater } from '../residency/pinUpdater.ts';
 import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
+import { createShadowTier } from '../residency/shadowTier.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
@@ -114,6 +115,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   });
+  const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size);
+  const shadowTier = createShadowTier({
+    packedPages,
+    keyCount: tracking.keyCount,
+    keyOf: tracking.keyOf,
+    room,
+  });
   const ensureResident = createWebgpuResidentEnsurer({
     getCache: () => gpu.cache,
     tracking,
@@ -123,11 +131,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
+    shadowPages: () => shadowTier.pages,
   });
   const residency = createWebgpuResidencyQueue({
     tracking,
     sets: residencySets,
-    room: () => Math.max(0, rt.setup.slots - bootstrapUrls.size),
+    room,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
     updatePins,
@@ -148,6 +157,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     bootstrapState,
     ensureResident,
     residency,
+    shadowTier,
     queueCutResidency: residency.queueCutResidency,
     ...publication,
   };

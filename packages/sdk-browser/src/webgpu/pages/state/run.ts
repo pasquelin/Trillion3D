@@ -59,6 +59,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   cpuHizCounts: HizCounts;
   cpuHizCounted: boolean;
   rowsSyncedFrame: number;
+  /** Rows the CPU cut draws on screen; the light casters it adds sit behind them. */
+  cameraRows: number;
   motion: CameraMotion;
   selectionUniforms: SelectionUniforms;
   /** Result of the CPU cut, reused image after image so the cut allocates nothing. */
@@ -158,6 +160,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     cpuHizCounts: createHizCounts(),
     cpuHizCounted: false,
     rowsSyncedFrame: -1,
+    cameraRows: 0,
     motion: {},
     selectionUniforms: createSelectionUniforms(),
     selectResult: createSelectionResult(),
