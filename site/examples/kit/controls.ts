@@ -178,6 +178,7 @@ export function controls<const Specs extends Record<string, ControlSpec>>(
   title.textContent = 'Controls';
   const rows = document.createElement('div');
   rows.className = 'flex flex-col gap-2 px-3 pb-3';
+  rows.dataset.rows = '';
   for (const control of declared)
     rows.append(field(control, values, () => onChange(live, control.key as never)));
   box.append(title, rows);
