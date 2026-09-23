@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, pointerOnPlane } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
 
@@ -68,13 +68,9 @@
 
       // A double-click is a ray from the camera through the pointer, stopped by the floor (y = 0).
       world.canvas.addEventListener('dblclick', (event) => {
-        const box = world.canvas.getBoundingClientRect(), camera = world.camera;
-        const slope = Math.tan((camera.fov * Math.PI) / 360);
-        const x = ((event.clientX - box.left) / box.width) * 2 - 1, y = 1 - ((event.clientY - box.top) / box.height) * 2;
-        const ray = math.vector3(x * slope * (box.width / box.height), y * slope, -1).applyQuaternion(camera.quaternion);
-        if (ray.y >= 0) return;
-        const reach = -camera.position.y / ray.y;
-        stone = [camera.position.x + ray.x * reach, camera.position.z + ray.z * reach];
+        const floor = pointerOnPlane(world, event);
+        if (!floor) return;
+        stone = floor;
         time = 0;
       });
     </script>
