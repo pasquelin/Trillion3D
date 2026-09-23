@@ -2,7 +2,7 @@ import { signedArea, type Projected } from './projection.ts';
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
 import { refreshSurface, surfaceSide } from '../page/surface.ts';
 import { DEPTH_CLEAR, depthNearer } from '../camera/depthConvention.ts';
-import { triangleAt, perspectiveBary, wrapTexel } from './math.ts';
+import { triangleAt, perspectiveBary, mapTexel } from './math.ts';
 import {
   assertVisibilityPageTriangles,
   packVisibilityId,
@@ -112,9 +112,7 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
               : 0;
             const rgba = textureRgba(mat.map!);
             if (!rgba) return true;
-            const tx = wrapTexel(u, rgba.width, mat.map!.wrapS),
-              ty = wrapTexel(v, rgba.height, mat.map!.wrapT);
-            return rgba.data[(ty * rgba.width + tx) * 4 + 3] / 255 >= mat.alphaTest;
+            return rgba.data[mapTexel(rgba, mat.map!, u, v) + 3] / 255 >= mat.alphaTest;
           },
         );
         continue;
