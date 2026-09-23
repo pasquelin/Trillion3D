@@ -1,7 +1,7 @@
+import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { Cut } from './Cut.tsx';
-import { reportCopy } from '../../reports/copy.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import { Alert } from '../ui/Alert.tsx';
 import type { Report, ReportRecord, TimingStat } from '../../reports/types.ts';
@@ -48,45 +48,45 @@ function Timings({ title, rows, locale }: TimingsProps) {
 }
 
 export function Details({ record, report, locale, label }: DetailsProps) {
-  const c = reportCopy(locale);
+  const t = useWords(locale);
   if (!record) return null;
   const run = report.runs.find((item) => item.id === record.runId);
   const fields: [string, string | number | boolean | null | undefined][] = [
-    [c.commit, record.commit],
-    [c.date, run?.startedAt ? new Date(run.startedAt).toLocaleString(locale) : null],
-    [c.browser, record.provenance?.browser],
-    [c.machine, record.provenance?.machine?.cpu],
-    [c.display, record.provenance?.displayCapHz],
-    [c.method, record.gpuMethod],
-    [c.assetKey, record.assetKey],
-    [c.canvas, record.canvas ? JSON.stringify(record.canvas) : null],
+    [t('report.commit'), record.commit],
+    [t('report.date'), run?.startedAt ? new Date(run.startedAt).toLocaleString(locale) : null],
+    [t('report.browser'), record.provenance?.browser],
+    [t('report.machine'), record.provenance?.machine?.cpu],
+    [t('report.display'), record.provenance?.displayCapHz],
+    [t('report.method'), record.gpuMethod],
+    [t('report.assetKey'), record.assetKey],
+    [t('report.canvas'), record.canvas ? JSON.stringify(record.canvas) : null],
   ];
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4 [&_dd]:break-all">
       <h3 className="text-lg font-semibold">{readingName(record, locale)}</h3>
-      {record.data.imageTenue && <Alert>{c.idle}</Alert>}
+      {record.data.imageTenue && <Alert>{t('report.idle')}</Alert>}
       <dl>
         {fields.map(([title, value]) => (
           <div key={title}>
             <dt>{title}</dt>
-            <dd>{value ?? c.unknown}</dd>
+            <dd>{value ?? t('report.unknown')}</dd>
           </div>
         ))}
       </dl>
       <Timings
-        title={c.cpuSteps}
+        title={t('report.cpuSteps')}
         locale={locale}
         rows={record.data.profilParEtape?.stages?.map((s) => [s.stage, s.cpuMs])}
       />
       <Timings
-        title={c.gpuPasses}
+        title={t('report.gpuPasses')}
         locale={locale}
         rows={record.data.passesGpu?.passes?.map((p) => [p.name, p.gpuMs])}
       />
       <Cut analysis={record.data.cutAnalysis} locale={locale} />
-      <p>{c.detailsNote}</p>
+      <p>{t('report.detailsNote')}</p>
       <a className="btn btn-outline btn-sm" href={`reports/${report.id}/${run?.source}`} download>
-        {c.source} · {label}
+        {t('report.source')} · {label}
       </a>
     </div>
   );

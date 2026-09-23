@@ -13,7 +13,6 @@ import { search } from '../portal/search.ts';
 import type { ExampleGroup } from './ExampleList.tsx';
 import type { SidebarMenuGroup } from './SidebarMenu.tsx';
 import { wordsOf } from '../i18n.ts';
-import { fromPair } from '../reports/fromPair.ts';
 
 /** A section's title: its `section.<id>` in the dictionary, or a family's own name. */
 const sectionTitle = (id: string, locale: Locale) =>
@@ -113,11 +112,12 @@ export function examplesMenu(route: PortalRoute, query = ''): ExampleGroup[] {
 /** Measurements: the parts of the current campaign's report. */
 export function reportMenu(route: PortalRoute): SidebarMenuGroup[] {
   const [campaign = '', active = 'overview'] = route.id.split('/');
-  const items = REPORT_SECTIONS.map(([id, en, fr]) => ({
+  const t = wordsOf(route.locale);
+  const items = REPORT_SECTIONS.map((id) => ({
     key: id,
-    label: fromPair([en, fr], route.locale),
+    label: t(`report.sections.${id}`),
     href: routeHref({ ...route, id: `${campaign}/${id}` }),
     active: id === active,
   }));
-  return [{ id: 'report', title: wordsOf(route.locale)('nav.reports'), items }];
+  return [{ id: 'report', title: t('nav.reports'), items }];
 }
