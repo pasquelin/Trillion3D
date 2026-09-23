@@ -1,5 +1,6 @@
+import { withRecipe } from './geometry.ts';
 import { crossVector3 } from '../../math/primitives/vector.ts';
-import { GeometryBuilder, normalize } from './builder.ts';
+import { GeometryBuilder, normalize, pieces } from './builder.ts';
 import type { Curve } from '../math/curves.ts';
 
 type V3 = [number, number, number];
@@ -20,15 +21,16 @@ export function torus(
   tubularSegments = 48,
   arc = TAU,
 ) {
+  [radialSegments, tubularSegments] = [pieces(radialSegments, 2), pieces(tubularSegments, 3)];
   const b = new GeometryBuilder();
-  b.grid(Math.max(3, tubularSegments), Math.max(2, radialSegments), (u, v) => {
+  b.grid(tubularSegments, radialSegments, (u, v) => {
     const a = u * arc,
       t = v * TAU;
     const n: V3 = [Math.cos(t) * Math.cos(a), Math.cos(t) * Math.sin(a), Math.sin(t)];
     const c: V3 = [radius * Math.cos(a), radius * Math.sin(a), 0];
     return { p: [c[0] + tube * n[0], c[1] + tube * n[1], c[2] + tube * n[2]], n, uv: [u, v] };
   });
-  return b.build();
+  return withRecipe(b.build(), 'torus', [radius, tube, radialSegments, tubularSegments, arc]);
 }
 
 /**
@@ -53,7 +55,9 @@ export function torusKnot(
       r = radius * (2 + Math.cos((q / p) * u)) * 0.5;
     return [r * Math.cos(u), r * Math.sin(u), radius * Math.sin((q / p) * u) * 0.5];
   };
-  return sweep(at, tubularSegments, radialSegments, () => tube, true);
+  [tubularSegments, radialSegments] = [pieces(tubularSegments, 2), pieces(radialSegments, 3)];
+  const built = sweep(at, tubularSegments, radialSegments, () => tube, true);
+  return withRecipe(built, 'torusKnot', [radius, tube, tubularSegments, radialSegments, p, q]);
 }
 
 /**
@@ -98,7 +102,7 @@ export function lathe(
   const profile = points.map((point) => ('x' in point ? [point.x, point.y] : [point[0], point[1]]));
   const last = profile.length - 1;
   const b = new GeometryBuilder();
-  b.grid(Math.max(1, segments), last, (u, v) => {
+  b.grid(pieces(segments, 1), last, (u, v) => {
     const i = Math.round(v * last),
       phi = phiStart + u * phiLength;
     const [x, y] = profile[i],
@@ -120,7 +124,8 @@ export function lathe(
  */
 export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
   const profile: [number, number][] = [];
-  const caps = Math.max(1, Math.floor(capSegments));
+  const caps = (capSegments = pieces(capSegments, 1));
+  radialSegments = pieces(radialSegments, 1);
   for (let i = 0; i <= caps; i++) {
     const a = -Math.PI / 2 + (i / caps) * (Math.PI / 2);
     profile.push([radius * Math.cos(a), -length / 2 + radius * Math.sin(a)]);
@@ -129,7 +134,12 @@ export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments 
     const a = (i / caps) * (Math.PI / 2);
     profile.push([radius * Math.cos(a), length / 2 + radius * Math.sin(a)]);
   }
-  return lathe(profile, radialSegments);
+  return withRecipe(lathe(profile, radialSegments), 'capsule', [
+    radius,
+    length,
+    capSegments,
+    radialSegments,
+  ]);
 }
 
 /** Rings of radius `radiusAt(s)` along `centre(s)`, `s ∈ [0, 1]`, framed by parallel transport. */
@@ -140,7 +150,7 @@ function sweep(
   radiusAt: (s: number) => number,
   closed: boolean,
 ) {
-  const count = Math.max(2, Math.floor(tubularSegments));
+  const count = pieces(tubularSegments, 2);
   const points = Array.from({ length: count + 1 }, (_, i) =>
     centre(closed ? (i % count) / count : i / count),
   );
@@ -162,7 +172,7 @@ function sweep(
     normals.push(normalize(n[0] - along * t[0], n[1] - along * t[1], n[2] - along * t[2]));
   }
   const b = new GeometryBuilder();
-  b.grid(count, Math.max(3, Math.floor(radialSegments)), (u, v) => {
+  b.grid(count, pieces(radialSegments, 3), (u, v) => {
     const i = Math.round(u * count),
       angle = v * TAU,
       r = radiusAt(u);

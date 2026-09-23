@@ -98,6 +98,7 @@ const SCENE_FAMILIES = [
   'texture',
   'loader',
   'helper',
+  'controls',
   'animation',
   'buffer',
 ];

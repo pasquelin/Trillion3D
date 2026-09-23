@@ -102,6 +102,14 @@ export function createExplorerSceneApi(inputs: Inputs) {
       active.setBounce?.(on);
       return !!active.setBounce;
     },
+    /** Host surfaces rewritten in place are read again; false when the active path cannot, and
+     *  only a new session will draw them. */
+    refreshMaterials() {
+      check();
+      const active = getActive();
+      active.refreshMaterials?.();
+      return !!active.refreshMaterials;
+    },
     updateMaterial(primitive: string, material: Material) {
       check();
       const active = getActive();
