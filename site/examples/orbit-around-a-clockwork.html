@@ -103,16 +103,28 @@
 
       world.scene.add(light.spot({ position: [3, 6, 5], intensity: 300, distance: 18, angle: 0.55, penumbra: 0.4, castShadow: true, color: '#fff1dc' }));
       world.scene.add(light.point({ position: [-3, 3, 3], intensity: 30, distance: 12, color: '#6fa8ff' }));
-      world.scene.add(light.ambient({ intensity: 0.25, color: '#8fb4ff' }));
-      world.camera.position.set(2.4, 3, 6.2);
-      world.camera.lookAt(0.2, 2.2, 0);
-      world.controls.target.set(0.2, 2.2, 0);
+      world.scene.add(light.hemisphere({ color: '#d8e4ff', groundColor: '#4a3a30', intensity: 0.6 }));
+      // A showroom plinth under the piece.
+      part(geometry.cylinder(3.4, 3.6, 0.2, 96), material.meshStandard({ color: '#20242c', roughness: 0.4 }), [0.1, -0.1, 0]);
+
+      // A product viewer: the camera circles the clock's middle; the view list puts it back on a
+      // studied angle, as a shop page does, and the orbit carries on from there.
+      const CENTRE = [0.2, 2.2, 0];
+      const VIEWS = { 'three-quarter': [2.4, 3, 6.2], front: [0.2, 2.2, 6.6], side: [6.6, 2.4, 0.2], top: [0.2, 8.6, 0.6] };
+      const look = (at) => {
+        world.camera.position.set(...at);
+        world.camera.lookAt(...CENTRE);
+        world.controls.target.set(...CENTRE);
+      };
+      look(VIEWS['three-quarter']);
 
       const ui = controls({
-        mouse: 'Drag to turn around · right-drag to slide · scroll to zoom in on the teeth',
+        mouse: 'A product viewer: drag to turn around · right-drag to slide · scroll to zoom in on the teeth',
+        view: Object.keys(VIEWS),
         speed: [0, 3, 1], brass: '#d4a24c',
-      }, (values) => {
-        brass.color.set(values.brass);
+      }, (values, key) => {
+        if (key === 'view') look(VIEWS[values.view]);
+        if (key === 'brass' || key === undefined) brass.color.set(values.brass);
         world.invalidate();
       }, world);
       let time = 0;

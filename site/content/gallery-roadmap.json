@@ -1434,8 +1434,8 @@
     {
       "id": "a-game-board-seen-from-above",
       "title": {
-        "en": "A game board from above",
-        "fr": "Plateau de jeu vu d’en haut"
+        "en": "A chess opening from above",
+        "fr": "Une ouverture d’échecs vue d’en haut"
       },
       "theme": "camera",
       "file": "examples/a-game-board-seen-from-above.html"
@@ -1452,8 +1452,8 @@
     {
       "id": "fly-over-a-model-town",
       "title": {
-        "en": "Fly over a model town",
-        "fr": "Survoler une ville miniature"
+        "en": "Fly a plane through rings",
+        "fr": "Piloter un avion à travers des anneaux"
       },
       "theme": "camera",
       "file": "examples/fly-over-a-model-town.html"
@@ -1461,8 +1461,8 @@
     {
       "id": "walk-through-a-temple",
       "title": {
-        "en": "Walk through a temple",
-        "fr": "Marcher dans un temple"
+        "en": "Temple parkour",
+        "fr": "Parkour dans un temple"
       },
       "theme": "camera",
       "file": "examples/walk-through-a-temple.html"
