@@ -19,7 +19,7 @@ export const worldGuidesFr: LocaleOverlay = {
 </ul>
 <p><strong>Rien ne se passe dans une scène immobile.</strong> Le monde ne redessine que tant que le contrôleur déplace la pose, ou que l’hôte appelle <code>invalidate()</code> ; une orbite posée ou une touche relâchée ne coûte rien.</p>
 <p><strong><code>world.controls</code> est une poignée vivante, pas un choix figé.</strong> L’option <code>controls</code> ne fixe que ce avec quoi le monde démarre ; <code>world.controls.kind</code> relit ou change à tout moment quel contrôleur pilote la caméra — le précédent est libéré et le suivant construit sur la caméra propre au monde. <code>world.controls.enabled</code> le coupe sans le perdre, et <code>world.controls.target</code> est le point autour duquel un contrôleur à pivot tourne.</p>
-<p>Les contrôles vivent sur le monde pour deux raisons : ils lisent l’entrée sur le canevas que le monde possède déjà — un second écouteur doublerait les gestes — et ils suivent <code>world.camera</code> quand elle est remplacée, si bien qu’un hôte ne reconstruit jamais son contrôleur à la main. Exemple en direct : <a class="link link-primary" href="#/fr/examples/five-ways-to-move-the-camera">Cinq façons de déplacer la caméra</a>.</p>`,
+<p>Les contrôles vivent sur le monde pour deux raisons : ils lisent l’entrée sur le canevas que le monde possède déjà — un second écouteur doublerait les gestes — et ils suivent <code>world.camera</code> quand elle est remplacée, si bien qu’un hôte ne reconstruit jamais son contrôleur à la main. Exemple en direct : <a class="link link-primary" href="#/fr/examples/walk-through-a-temple">Marcher dans un temple</a>.</p>`,
   },
   'families-reference': {
     title: 'Chaque famille, une ligne',
