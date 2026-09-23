@@ -6,8 +6,8 @@ import { directLightTimings } from '../../../stage/mapping.ts';
 import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
-import { unwatchGpuDevice } from '../prepare/timing.ts';
 import { abandonFrameEncoder } from '../render/encoder.ts';
+import type { GpuDeviceClaim } from '../../../gpu/core/deviceOwners.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -107,15 +107,13 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
 }
 
 /** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
-export function disposeWebgpuPages(
-  rt: WebgpuPagesRuntime,
-  onGpuError: (event: GPUUncapturedErrorEvent) => void,
-) {
+export function disposeWebgpuPages(rt: WebgpuPagesRuntime, claim?: GpuDeviceClaim) {
   const { gpu, vis, capture, timing, blendState, services } = rt,
-    { gpuDevice, scene, pagedBlendCopies } = rt.setup;
-  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included. Its
-  // listener stays until the device is handed over, and ignores what it hears: it is marked lost.
+    { scene, pagedBlendCopies } = rt.setup;
+  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
+  // Let go before its objects are destroyed: from here, an error naming them is a closed session's.
+  claim?.release();
   // A command buffer left open is never submitted: nothing encoded in it reaches what goes below.
   abandonFrameEncoder(rt);
   rt.run.gate.release();
@@ -174,7 +172,5 @@ export function disposeWebgpuPages(
   gpu.cache = undefined;
   scene.clear();
   rt.diag.drainTraceNow();
-  return Promise.all([closing, gpuDevice && unwatchGpuDevice(gpuDevice, onGpuError)]).then(
-    () => {},
-  );
+  return Promise.resolve(closing).then(() => {});
 }

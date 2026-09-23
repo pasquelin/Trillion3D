@@ -5,7 +5,7 @@ import { readTransparentOcclusionAudit } from '../transparent/occlusionAudit.ts'
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
-import { prepareGpuTiming, watchGpuDevice } from './prepare/timing.ts';
+import { prepareGpuTiming } from './prepare/timing.ts';
 import { prepareWebgpuPages } from './prepare/prepare.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
 import { reserveRootBoxes } from '../../math/batchBoxes.ts';
@@ -32,6 +32,7 @@ import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './io/lost.ts';
+import { claimGpuDevice, type GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
 
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
@@ -43,10 +44,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   // Integer record of a request, set once per address: that is all off-thread integration
   // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
-  // An uncaptured error abandons the device: what follows would draw on a state no one knows.
-  // It is reported once, as the loss it is, with the error's text.
-  const onGpuError = (event: GPUUncapturedErrorEvent) =>
-    markWebgpuLost(rt, { reason: 'uncaptured-error', message: String(event.error.message) });
+  // The device this session holds, until it is disposed: the errors it raises reach it alone.
+  let claim: GpuDeviceClaim | undefined;
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
     capabilities: rt.capabilities,
@@ -89,9 +88,15 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       context.signal?.throwIfAborted();
       const { gpuDevice } = setup;
       if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
-      // Before any call on it: a device the world keeps is taken once the last session let it go.
-      await watchGpuDevice(rt, gpuDevice, onGpuError);
-      context.signal?.throwIfAborted();
+      // Disposed before it prepared: a claim now would never be released.
+      if (run.lost) throw new Error('WEBGPU_LOST');
+      // Claimed before any call on it, and before the ledger wraps the same creations. An
+      // uncaptured error abandons the device: what follows would draw on a state no one knows. It
+      // is reported once, as the loss it is, with the error's text.
+      claim = claimGpuDevice(gpuDevice, {
+        error: (message) => markWebgpuLost(rt, { reason: 'uncaptured-error', message }),
+        lost: (info) => markWebgpuLost(rt, info),
+      });
       // The allocation ledger is installed before the first one: everything that follows is counted in it.
       installGpuDeviceLedger(gpuDevice);
       prepareGpuTiming(rt, gpuDevice);
@@ -186,7 +191,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       return readShadowAtlasDigest(device, rt.lights.shadows);
     },
     dispose() {
-      return disposeWebgpuPages(rt, onGpuError);
+      return disposeWebgpuPages(rt, claim);
     },
   };
   return backend;

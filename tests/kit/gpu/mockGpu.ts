@@ -1,6 +1,7 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
+import { untaggedLabel } from '../../../packages/sdk-browser/src/gpu/core/deviceOwners.ts';
 
 export function mockGpu(
   limits: Record<string, number> = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
@@ -48,7 +49,9 @@ export function mockGpu(
     // No block family: every lane pool is RGBA8, as on a software adapter.
     features: new Set<string>(),
     lost,
-    createBuffer: ({ size, usage, label }: { size: number; usage: number; label?: string }) => {
+    createBuffer: (descriptor: { size: number; usage: number; label?: string }) => {
+      const { size, usage } = descriptor,
+        label = untaggedLabel(descriptor.label);
       const data = new Uint8Array(size);
       const buffer = {
         size,
@@ -66,7 +69,7 @@ export function mockGpu(
       return buffer;
     },
     createTexture: ({
-      label,
+      label: tagged,
       size,
       format,
       usage,
@@ -78,7 +81,7 @@ export function mockGpu(
     }) => {
       const views: Array<{ dimension?: string } | undefined> = [];
       const tex = {
-        label,
+        label: untaggedLabel(tagged),
         width: size.width,
         height: size.height,
         depthOrArrayLayers: size.depthOrArrayLayers ?? 1,
