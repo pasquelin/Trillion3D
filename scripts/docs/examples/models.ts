@@ -28,7 +28,7 @@ async function copyModel(
 async function bust(models: string, directory: string) {
   const source = resolve(models, 'marble-bust');
   await cp(resolve(source, 'textures'), resolve(directory, 'textures'), { recursive: true });
-  await copyFile(resolve(source, 'marble_bust_01.bin'), resolve(directory, 'marble_bust_01.bin'));
+  await copyModel(models, 'marble-bust', ['marble_bust_01.bin'], directory);
   const shop = theatreWorkshop();
   shop.box(0, [0, -1.15, 0], [4, 0.3, 4]);
   shop.box(0, [0, 0.3, -1.85], [4, 3.2, 0.3]);
