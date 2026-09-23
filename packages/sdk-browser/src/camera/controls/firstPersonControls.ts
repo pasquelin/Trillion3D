@@ -64,6 +64,6 @@ export function createFirstPersonCameraControls(
     },
   };
   const head = createHead(pose, surface, base, api);
-  const keys = trackKeys(surface, base, () => base.emit());
+  const keys = trackKeys(surface, base, () => base.emit(), [STRAFE, RISE, ADVANCE]);
   return api;
 }

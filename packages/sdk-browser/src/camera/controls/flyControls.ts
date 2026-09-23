@@ -139,7 +139,14 @@ export function createFlyCameraControls(
       return gate(moved);
     },
   };
-  const keys = trackKeys(surface, base, () => base.emit());
+  const keys = trackKeys(surface, base, () => base.emit(), [
+    PITCH,
+    YAW,
+    ROLL,
+    STRAFE,
+    RISE,
+    ADVANCE,
+  ]);
   trackPointers(surface, base, {
     down: () => (held = true),
     up: () => (held = false),
