@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
+import { QUIET_FOCUS } from './Input.tsx';
 
 interface DropdownItem {
   key: string;
@@ -76,13 +77,15 @@ export function Dropdown({
       open={open}
       onKeyDown={onKeyDown}
     >
-      {/* The state alone opens and closes the list: the summary's own toggle is cancelled. */}
+      {/* The state alone opens and closes the list: the summary's own toggle is cancelled. Focus
+          shows as a background tint, never the browser's own outline: a native `summary` keeps
+          focus after a click, which would otherwise ring every menu the person has last opened. */}
       <summary
         onClick={(event) => {
           event.preventDefault();
           setOpen(!open);
         }}
-        className={`list-none [&::-webkit-details-marker]:hidden ${triggerClassName}`}
+        className={`list-none [&::-webkit-details-marker]:hidden h-8 ${QUIET_FOCUS} focus-visible:bg-base-content/10 ${open ? 'bg-base-content/10' : ''} ${triggerClassName}`}
         aria-label={ariaLabel}
       >
         {label}
