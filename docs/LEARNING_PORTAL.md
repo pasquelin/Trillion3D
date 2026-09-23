@@ -110,14 +110,23 @@ packages; none stays external or is loaded from a CDN.
 
 1. Write `site/examples/<id>.html`: one file, a `<canvas id="view">`, no import map, and a module
    script that imports `createWorld` and the families it needs (`object`, `geometry`, `material`,
-   `light`, …) from `../runtime/engine.js`. Keep it as short as the feature allows; no controls, no
-   copy.
+   `light`, …) from `../runtime/engine.js`. Keep it as short as the feature allows, and make it
+   something to play with. From `../runtime/kit.js` (sources in `site/examples/kit/`, bundled beside
+   the engine): `banner(title, tip)` says what you see and what to try, and returns `status(text)`
+   for a live line; `controls({ light: [0, 10, 3], colour: '#88aaff', spin: true, view: ['a', 'b'],
+   reset: () => {} }, onChange)` draws a panel of sliders (`[min, max, value, step?]`), colour
+   pickers, toggles, choices and buttons, and calls `onChange(values, key)` once at start and after
+   every change. The page hosting the example hides or shows that panel by posting
+   `{ type: 'wg:controls', visible }` to its frame.
 2. A scene of primitives is built in code, with `geometry.*`, directly in the example's HTML. A
    scene built around an imported model is added to `scripts/docs/examples/models.ts`, credited in
    `site/assets/examples/CREDITS.md`, then run `pnpm build:native` and
    `node scripts/docs-examples-assets.ts <scene>`.
-3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, and
-   capture its thumbnail: `node scripts/docs-examples-thumbnails.ts <id>`.
+3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, in
+   learning order within its theme, and capture its thumbnail:
+   `node scripts/docs-examples-thumbnails.ts <id>`. The capture hides the kit's panels and the
+   credit line and waits for the example's most telling moment, the seconds it declares in
+   `<meta name="thumbnail" content="3">` (1.5 when it declares none).
 4. Run `node --test scripts/docs-examples.test.ts`, then the browser proof
    `node --test scripts/docs-examples.browser.ts`.
 
