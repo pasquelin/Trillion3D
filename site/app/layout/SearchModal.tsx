@@ -6,6 +6,7 @@ import { searchIndex } from '../portal/searchIndex.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { SearchInput } from '../ui/Input.tsx';
 import { Modal } from '../ui/Modal.tsx';
+import { Note } from '../ui/Text.tsx';
 import { usePortal } from './PortalContext.ts';
 
 const LIMIT = 50;
@@ -74,11 +75,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
-      {results.length === 0 && (
-        <p className="p-2 text-sm opacity-70" role="status">
-          {t(locale, 'sidebar.noResults')}
-        </p>
-      )}
+      {results.length === 0 && <Note role="status">{t(locale, 'sidebar.noResults')}</Note>}
     </div>
   );
 }

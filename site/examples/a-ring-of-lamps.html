@@ -58,6 +58,7 @@
         lamps.forEach(({ glow, bulb }, index) => {
           glow.visible = bulb.visible = index < values.lamps;
           glow.intensity = values.power;
+          // Off by default: each moving lamp that casts a shadow redraws its shadow map every frame.
           glow.castShadow = values.shadows;
         });
       });

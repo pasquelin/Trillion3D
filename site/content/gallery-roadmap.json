@@ -1984,6 +1984,15 @@
       }
     },
     {
+      "id": "see-the-triangles",
+      "title": {
+        "en": "See the triangles",
+        "fr": "Voir les triangles"
+      },
+      "theme": "streaming",
+      "file": "examples/see-the-triangles.html"
+    },
+    {
       "id": "observatory-streamed",
       "title": {
         "en": "Streamed clusters",

@@ -5,9 +5,9 @@ export function Note({ className = '', ...props }: ComponentPropsWithoutRef<'p'>
   return <p className={`text-sm opacity-70 ${className}`} {...props} />;
 }
 
-/** A paragraph of running text, kept to a readable measure. */
+/** A paragraph of running text. */
 export function Paragraph(props: ComponentPropsWithoutRef<'p'>) {
-  return <p className="max-w-prose leading-relaxed" {...props} />;
+  return <p className="leading-relaxed" {...props} />;
 }
 
 /** The DaisyUI link: a link inside text. */
