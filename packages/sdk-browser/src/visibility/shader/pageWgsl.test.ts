@@ -126,7 +126,17 @@ test('atlas reads receive their map nibble and mix four taps', () => {
     DATA_SAMPLE_WGSL,
   })) {
     assert.match(bloc, /,uv:vec2f,wrap:u32/, `${nom} must receive its map nibble`);
-    assert.match(bloc, /if\(!t\.couture\)\{return /, `${nom} must keep the unique read`);
+    // #360, #361: the texture's transform and filter word reach every read, blended and shadow alike.
+    assert.match(
+      bloc,
+      /let r=(color|data)Read\(slot,s,uv,ddx,ddy\);/,
+      `${nom} must read its sampling`,
+    );
+    assert.match(
+      bloc,
+      /if\(!t\.couture\|\|r\.nearest\)\{return /,
+      `${nom} must keep the unique read`,
+    );
     assert.match(
       bloc,
       /mix\(mix\(s00,s10,t\.poids\.x\),mix\(s01,s11,t\.poids\.x\),t\.poids\.y\)/,

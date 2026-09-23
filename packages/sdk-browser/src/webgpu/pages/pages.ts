@@ -7,6 +7,7 @@ import type { BackendFactory } from '../../backend/types.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
 import { prepareGpuTiming, watchGpuDevice } from './prepare/timing.ts';
 import { prepareWebgpuPages } from './prepare/prepare.ts';
+import { resampleWebgpuTextures } from './prepare/textures.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
 import { reserveRootBoxes } from '../../math/batchBoxes.ts';
 import { renderWebgpuPages } from './render/render.ts';
@@ -81,6 +82,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     refreshMaterials() {
       // Every row is written again at the next frame, and the writer rereads each surface whose
       // version moved (`row/pageRowConstants.ts`); only values changed, so no resolve class did.
+      // A texture's sampling lives in its header, not in the row: it is sent now.
+      resampleWebgpuTextures(rt);
       rt.layout.rows.tableEpoch++;
       run.gate.sceneMoved();
     },
