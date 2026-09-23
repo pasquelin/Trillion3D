@@ -123,7 +123,7 @@ fn shadowOffset(word:u32,p:vec2i)->vec2f{
 fn shadowCompare(offset:vec2f,t:vec2f,reference:f32)->f32{
  return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/SHADOW_ATLAS,reference);
 }
-/** Offset of the neighbour page \`p\` if it is readable, with \`true\`; else the home page's. */
+/** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
 fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec2f)->vec3f{
  let word=shadowPageWord(m,p);
  if(word==0u){return vec3f(home,0.0);}
@@ -140,7 +140,7 @@ fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec2f)->vec3f{
  * bilinear weight across the seam, \`saturate(0.5 + distance to the seam)\`, multiplies one
  * hardware comparison in that page, clamped to its last texel centre on that axis, the other axis
  * still filtered by the sampler. A tap is thus two comparisons beside one edge, four at a corner,
- * with no branch per tap. A neighbour not readable is read at the home page's nearest texel.
+ * which the pixel decides once for all its taps. A neighbour not readable is read at the home page's nearest texel.
  */
 fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)->f32{
  let first=vec2f(home)*SHADOW_PAGE;
