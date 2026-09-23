@@ -405,7 +405,6 @@
       "gltf-material-variants": "more glTF extensions: material variants",
       "compressed-mesh-input": "more glTF extensions: Draco, meshopt, quantisation",
       "a-medical-scan": "volume rendering",
-      "save-the-scene": "scene export",
       "a-city-from-3d-tiles": "3D Tiles input",
       "rendering-in-a-worker": "OffscreenCanvas worker rendering",
       "a-video-panorama": "live video textures",
@@ -435,14 +434,12 @@
       "flames-and-a-tornado": "custom shader materials",
       "point-clouds-from-a-scan": "point-cloud import",
       "gaussian-splats": "gaussian splat rendering",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) and transform gizmo",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "positional audio",
       "smooth-edges-over-time": "the temporal antialiasing setting",
@@ -558,6 +555,103 @@
     "title": "在线试用",
     "start": "从一个示例开始",
     "open": "在沙盒中打开"
+  },
+  "editor": {
+    "title": "Scene editor",
+    "group": "Tools",
+    "showcase": "Open the scene editor",
+    "loading": "Preparing the editor…",
+    "canvas": "Scene view: click an object to select it, drag to turn the camera",
+    "menu": {
+      "file": "File",
+      "add": "Add",
+      "edit": "Edit",
+      "models": "Models"
+    },
+    "new": "New",
+    "openFile": "Open…",
+    "save": "Save",
+    "undo": "Undo",
+    "redo": "Redo",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "add": {
+      "box": "Box",
+      "sphere": "Sphere",
+      "cylinder": "Cylinder",
+      "cone": "Cone",
+      "torus": "Torus",
+      "plane": "Plane",
+      "group": "Group",
+      "point": "Point light",
+      "spot": "Spot light",
+      "directional": "Directional light",
+      "ambient": "Ambient light"
+    },
+    "model": {
+      "bust": "Marble bust",
+      "crates": "Crates",
+      "hall": "Hall",
+      "street-corner": "Street corner"
+    },
+    "tools": "Transform tools",
+    "translate": "Move (W)",
+    "rotate": "Rotate (E)",
+    "scale": "Scale (R)",
+    "space": {
+      "world": "World axes",
+      "local": "Local axes"
+    },
+    "snap": "Snap",
+    "outliner": "Scene",
+    "empty": "The scene is empty: add an object from the Add menu.",
+    "show": "Show",
+    "hide": "Hide",
+    "rename": "Rename",
+    "dropRoot": "Drag a row onto another to put it inside; drop it here to bring it back to the top.",
+    "inspector": "Properties",
+    "nothing": "Select an object to edit it.",
+    "name": "Name",
+    "position": "Position",
+    "rotation": "Rotation (°)",
+    "scaleField": "Scale",
+    "geometry": "Shape",
+    "material": "Material",
+    "color": "Colour",
+    "metalness": "Metalness",
+    "roughness": "Roughness",
+    "emissive": "Emissive",
+    "opacity": "Opacity",
+    "light": "Light",
+    "intensity": "Intensity",
+    "range": "Range (0: no limit)",
+    "shadow": "Casts shadows",
+    "param": {
+      "width": "Width",
+      "height": "Height",
+      "depth": "Depth",
+      "radius": "Radius",
+      "radiusTop": "Top radius",
+      "radiusBottom": "Bottom radius",
+      "tube": "Tube radius",
+      "arc": "Arc (radians)",
+      "widthSegments": "Width segments",
+      "heightSegments": "Height segments",
+      "depthSegments": "Depth segments",
+      "radialSegments": "Radial segments",
+      "tubularSegments": "Tube segments"
+    },
+    "stats": "Engine statistics",
+    "cpu": "CPU frame (ms)",
+    "gpu": "GPU frame (ms)",
+    "triangles": "Triangles",
+    "pages": "Pages resident",
+    "sessions": "Sessions opened",
+    "statsHint": "Read from the last frame drawn; a still scene draws none.",
+    "error": {
+      "format": "This file holds a scene format this editor does not read.",
+      "read": "The scene could not be read:"
+    }
   },
   "section": {
     "course": "课程",
@@ -1275,6 +1369,26 @@
     },
     "srgbToLinearBatch": {
       "description": "每个元素处理一个通道,使用 `packages/sdk-core/src/math/primitives/color.ts` 里的精确曲线:参考实现乘的是经过舍入的常量,这个差距(在 8 位精度下不可见)已经在与它对决的基准测试中被一次性界定清楚。"
+    },
+    "scene-editor": {
+      "title": "用编辑器搭建场景",
+      "description": "添加形状和灯光,用鼠标选中它们,用手柄移动,重新着色,保存场景并再次打开 —— 在门户中,仅用公开 API。",
+      "html": "<p><a href=\"#/zh/examples/scene-editor\">场景编辑器</a>是本门户的一个页面,只建立在引擎的三扇门之上,别无其他。从空场景开始:<b>Add → Box</b>,然后 <b>Add → Directional light</b>。点击盒子:<code>world.raycast</code> 在指针下找到它,<code>controls.transform</code> 的手柄随即出现在上面。拖动箭头来移动它 —— 按住手柄时相机保持不动 —— 按 <kbd>E</kbd> 旋转,按 <kbd>R</kbd> 缩放。在检查器中更改颜色:引擎就地重绘材质,帧的开销留在统计角落里。<b>Save</b> 下载 <code>scene.toJSON</code>;<b>New</b> 之后 <b>Open</b>,用 <code>scene.fromJSON</code> 重新构建同一个场景。</p>\n<p>每一步都可以用 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销,场景在两次访问之间保存在浏览器中。页面本身不绘制也不移动任何东西:您看到的是引擎。</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "用指针选取对象",
+      "description": "`world.raycast` 返回画布上某点下方最近的对象:页面添加的节点、击中的点和法线、距离。",
+      "html": "<p>测试在 CPU 上针对场景自身的几何体进行:三角形网格逐个三角形,已加载的模型按其包围盒,线和点从不参与。隐藏的子树和 <code>helper</code> 标记会被跳过。请在 <a href=\"#/zh/examples/click-to-pick\">Click to pick</a> 中查看。</p>"
+    },
+    "move-with-handles": {
+      "title": "用手柄移动、旋转和缩放",
+      "description": "`controls.transform(world)` 在一个对象上放置手柄;拖动通过其父级写入它的姿态,期间相机保持不动。",
+      "html": "<p>模式有 <code>translate</code>、<code>rotate</code> 和 <code>scale</code>,世界轴或局部轴,可选步长。<code>dragStart</code> 和 <code>dragEnd</code> 事件框定一次拖动 —— 一个撤销步骤。请在 <a href=\"#/zh/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a> 中查看。</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "保存和打开场景",
+      "description": "`scene.toJSON(camera)` 将场景写为纯粹的、带版本的 JSON;`scene.fromJSON(json, camera)` 将其重建。",
+      "html": "<p>形状按构建它们的调用保存,材质按其数值保存,已加载的模型按其地址保存 —— 从不内嵌 —— 而 <code>helper</code> 标记完全不保存。其他格式版本会被点名拒绝。请在 <a href=\"#/zh/examples/save-the-scene\">Save the scene</a> 中查看。</p>"
     }
   },
   "canvas": {

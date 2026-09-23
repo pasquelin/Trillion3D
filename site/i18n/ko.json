@@ -405,7 +405,6 @@
       "gltf-material-variants": "more glTF extensions: material variants",
       "compressed-mesh-input": "more glTF extensions: Draco, meshopt, quantisation",
       "a-medical-scan": "volume rendering",
-      "save-the-scene": "scene export",
       "a-city-from-3d-tiles": "3D Tiles input",
       "rendering-in-a-worker": "OffscreenCanvas worker rendering",
       "a-video-panorama": "live video textures",
@@ -435,14 +434,12 @@
       "flames-and-a-tornado": "custom shader materials",
       "point-clouds-from-a-scan": "point-cloud import",
       "gaussian-splats": "gaussian splat rendering",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) and transform gizmo",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "positional audio",
       "smooth-edges-over-time": "the temporal antialiasing setting",
@@ -558,6 +555,103 @@
     "title": "바로 해보기",
     "start": "예제로 시작하기",
     "open": "샌드박스에서 열기"
+  },
+  "editor": {
+    "title": "Scene editor",
+    "group": "Tools",
+    "showcase": "Open the scene editor",
+    "loading": "Preparing the editor…",
+    "canvas": "Scene view: click an object to select it, drag to turn the camera",
+    "menu": {
+      "file": "File",
+      "add": "Add",
+      "edit": "Edit",
+      "models": "Models"
+    },
+    "new": "New",
+    "openFile": "Open…",
+    "save": "Save",
+    "undo": "Undo",
+    "redo": "Redo",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "add": {
+      "box": "Box",
+      "sphere": "Sphere",
+      "cylinder": "Cylinder",
+      "cone": "Cone",
+      "torus": "Torus",
+      "plane": "Plane",
+      "group": "Group",
+      "point": "Point light",
+      "spot": "Spot light",
+      "directional": "Directional light",
+      "ambient": "Ambient light"
+    },
+    "model": {
+      "bust": "Marble bust",
+      "crates": "Crates",
+      "hall": "Hall",
+      "street-corner": "Street corner"
+    },
+    "tools": "Transform tools",
+    "translate": "Move (W)",
+    "rotate": "Rotate (E)",
+    "scale": "Scale (R)",
+    "space": {
+      "world": "World axes",
+      "local": "Local axes"
+    },
+    "snap": "Snap",
+    "outliner": "Scene",
+    "empty": "The scene is empty: add an object from the Add menu.",
+    "show": "Show",
+    "hide": "Hide",
+    "rename": "Rename",
+    "dropRoot": "Drag a row onto another to put it inside; drop it here to bring it back to the top.",
+    "inspector": "Properties",
+    "nothing": "Select an object to edit it.",
+    "name": "Name",
+    "position": "Position",
+    "rotation": "Rotation (°)",
+    "scaleField": "Scale",
+    "geometry": "Shape",
+    "material": "Material",
+    "color": "Colour",
+    "metalness": "Metalness",
+    "roughness": "Roughness",
+    "emissive": "Emissive",
+    "opacity": "Opacity",
+    "light": "Light",
+    "intensity": "Intensity",
+    "range": "Range (0: no limit)",
+    "shadow": "Casts shadows",
+    "param": {
+      "width": "Width",
+      "height": "Height",
+      "depth": "Depth",
+      "radius": "Radius",
+      "radiusTop": "Top radius",
+      "radiusBottom": "Bottom radius",
+      "tube": "Tube radius",
+      "arc": "Arc (radians)",
+      "widthSegments": "Width segments",
+      "heightSegments": "Height segments",
+      "depthSegments": "Depth segments",
+      "radialSegments": "Radial segments",
+      "tubularSegments": "Tube segments"
+    },
+    "stats": "Engine statistics",
+    "cpu": "CPU frame (ms)",
+    "gpu": "GPU frame (ms)",
+    "triangles": "Triangles",
+    "pages": "Pages resident",
+    "sessions": "Sessions opened",
+    "statsHint": "Read from the last frame drawn; a still scene draws none.",
+    "error": {
+      "format": "This file holds a scene format this editor does not read.",
+      "read": "The scene could not be read:"
+    }
   },
   "section": {
     "course": "코스",
@@ -1278,6 +1372,26 @@
     },
     "srgbToLinearBatch": {
       "description": "요소마다 채널 하나씩, `packages/sdk-core/src/math/primitives/color.ts`의 정확한 곡선을 사용합니다: 참조 구현은 반올림된 상수를 곱하며, 그 차이(8비트에서는 보이지 않음)는 그것과 겨루는 벤치에서 한 번에 경계가 정해져 있습니다."
+    },
+    "scene-editor": {
+      "title": "에디터로 장면 만들기",
+      "description": "도형과 조명을 추가하고, 마우스로 고르고, 핸들로 옮기고, 색을 바꾸고, 장면을 저장했다가 다시 여세요 — 포털 안에서, 공개 API만으로.",
+      "html": "<p><a href=\"#/ko/examples/scene-editor\">장면 에디터</a>는 엔진의 세 가지 문 위에만 지어진 이 포털의 페이지입니다. 빈 장면에서 시작하세요: <b>Add → Box</b>, 그다음 <b>Add → Directional light</b>. 박스를 클릭하면 <code>world.raycast</code>가 포인터 아래에서 그것을 찾고, <code>controls.transform</code>의 핸들이 나타납니다. 화살표를 끌어 옮기세요 — 핸들을 잡고 있는 동안 카메라는 멈춥니다 — <kbd>E</kbd>로 회전, <kbd>R</kbd>로 크기 조절. 인스펙터에서 색을 바꾸면 엔진이 머티리얼을 그 자리에서 다시 칠하고, 프레임 비용은 통계 구석에 표시됩니다. <b>Save</b>는 <code>scene.toJSON</code>을 내려받고, <b>New</b> 다음 <b>Open</b>은 <code>scene.fromJSON</code>으로 같은 장면을 다시 만듭니다.</p>\n<p>모든 단계는 <kbd>Ctrl</kbd>+<kbd>Z</kbd>로 되돌릴 수 있고, 장면은 다음 방문까지 브라우저에 보관됩니다. 페이지는 스스로 아무것도 그리거나 움직이지 않습니다: 보이는 것은 엔진입니다.</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "포인터로 객체 고르기",
+      "description": "`world.raycast`는 캔버스 점 아래에서 가장 가까운 객체를 반환합니다: 페이지가 추가한 노드, 맞은 점과 법선, 거리.",
+      "html": "<p>검사는 CPU에서 장면 자체의 지오메트리에 대해 수행됩니다: 삼각형 메시는 삼각형 단위로, 불러온 모델은 그 박스로, 선과 점은 전혀 하지 않습니다. 숨겨진 하위 트리와 <code>helper</code> 표시는 건너뜁니다. <a href=\"#/ko/examples/click-to-pick\">Click to pick</a>에서 확인하세요.</p>"
+    },
+    "move-with-handles": {
+      "title": "핸들로 이동, 회전, 크기 조절하기",
+      "description": "`controls.transform(world)`는 객체 하나에 핸들을 붙입니다. 드래그는 부모를 거쳐 자세를 기록하고, 그동안 카메라는 멈춥니다.",
+      "html": "<p><code>translate</code>, <code>rotate</code>, <code>scale</code> 모드, 월드 축 또는 로컬 축, 선택적인 단위. <code>dragStart</code>와 <code>dragEnd</code> 이벤트가 한 번의 드래그 — 한 번의 실행 취소 단계 — 를 감쌉니다. <a href=\"#/ko/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>에서 확인하세요.</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "장면 저장하고 열기",
+      "description": "`scene.toJSON(camera)`는 장면을 평범한 버전 있는 JSON으로 쓰고, `scene.fromJSON(json, camera)`가 그것을 다시 만듭니다.",
+      "html": "<p>도형은 그것을 만든 호출로, 머티리얼은 값으로, 불러온 모델은 주소로 저장되며 — 절대 포함되지 않습니다 — <code>helper</code> 표시는 전혀 저장되지 않습니다. 다른 형식 버전은 이름을 밝혀 거부됩니다. <a href=\"#/ko/examples/save-the-scene\">Save the scene</a>에서 확인하세요.</p>"
     }
   },
   "canvas": {
