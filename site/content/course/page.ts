@@ -1,4 +1,4 @@
-import { CHAPTERS } from './courseCode.ts';
+import { CHAPTERS } from './code.ts';
 import type { Locale } from '../locale.ts';
 import type { PortalEntry } from '../model.ts';
 
