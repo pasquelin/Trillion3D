@@ -1257,6 +1257,27 @@
       "fansPlayingIt": "Fans qui la jouent"
     }
   },
+  "openworld": {
+    "controls": {
+      "keys": "ZQSD marcher · Maj courir · Espace sauter · C s'accroupir · E monter ou descendre d'une voiture ou d'un avion",
+      "teleport": "Téléport",
+      "timeOfDay": "Heure",
+      "daySpeed": "Vitesse du jour",
+      "pause": "Pause",
+      "rain": "Pluie",
+      "geometryMB": "Géométrie Mo",
+      "textureMB": "Textures Mo",
+      "view": "Vue"
+    },
+    "choices": {
+      "teleport": {
+        "—": "—"
+      }
+    },
+    "readouts": {
+      "streaming": "Streaming"
+    }
+  },
   "orbit-around-a-clockwork": {
     "controls": {
       "mouse": "Une vitrine de produit : fais glisser pour tourner · clic droit pour glisser · molette pour zoomer sur les dents",

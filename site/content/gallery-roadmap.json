@@ -906,6 +906,11 @@
       "file": "examples/save-the-scene.html"
     },
     {
+      "id": "openworld",
+      "theme": "streaming",
+      "file": "examples/openworld.html"
+    },
+    {
       "id": "see-the-triangles",
       "theme": "streaming",
       "file": "examples/see-the-triangles.html"
