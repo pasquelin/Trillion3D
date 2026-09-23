@@ -19,7 +19,8 @@ export type TransformSnap = {
 };
 
 /** A drag as it began: the handle, the object's world position and turn and its own scale, the
- *  unit view direction toward the object, and the pointer's first ray. */
+ *  unit view direction toward the object, the pointer's first ray, the view's world up and the
+ *  handles' world length — the view's own unit a uniform scale is read in. */
 export type DragStart = {
   mode: TransformMode;
   handle: TransformHandle;
@@ -29,6 +30,8 @@ export type DragStart = {
   scale: Vector3;
   view: Vector3;
   from: Ray;
+  up: Vector3;
+  reach: number;
 };
 
 /** The object's pose a drag asks for: world position and turn, and its own scale. */
@@ -117,8 +120,11 @@ export function dragTransform(
     pose.scale[name] = s === 0 ? start.scale[name] : s;
   };
   if (handle === 'xyz') {
-    const factor = v1.length() / (v0.length() || Infinity);
-    for (const name of ['x', 'y', 'z'] as const) scaled(factor || 1, name);
+    // Read on the screen's up, whatever point of the centre was pressed: a drag up by the
+    // handles' length multiplies the size by e, as far down divides it by e.
+    const up = start.up.clone().addScaledVector(normal, -start.up.dot(normal)).normalize();
+    const factor = Math.exp(moved.dot(up) / start.reach);
+    for (const name of ['x', 'y', 'z'] as const) scaled(factor, name);
     return pose;
   }
   for (const name of axes) {

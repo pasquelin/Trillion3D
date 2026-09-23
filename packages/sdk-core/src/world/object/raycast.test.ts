@@ -5,6 +5,8 @@ import { geometry } from '../geometry/index.ts';
 import { Ray } from '../math/volumes.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Camera } from '../camera/camera.ts';
+import { Box3 } from '../math/box3.ts';
+import { Object3D } from './object3d.ts';
 
 const down = (x: number, z: number) => new Ray(new Vector3(x, 10, z), new Vector3(0, -1, 0));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
@@ -51,4 +53,32 @@ test('lines are never hit; a camera ray through the centre goes down the view', 
   assert.deepEqual(ray.direction.toArray(), [0, 0, -1]);
   const [hit] = raycast(object.mesh(geometry.box(1, 1, 1)), ray);
   assert.ok(near(hit.distance, 4.5));
+});
+
+test('a root under a hidden ancestor is never hit', () => {
+  const hidden = object.group(),
+    box = object.mesh(geometry.box(2, 2, 2));
+  hidden.add(box);
+  hidden.visible = false;
+  assert.equal(raycast(box, down(0, 0)).length, 0);
+});
+
+test('a ray of any length gives distances in world units', () => {
+  const long = new Ray(new Vector3(0, 10, 0), new Vector3(0, -4, 0));
+  const [hit] = raycast(object.mesh(geometry.box(2, 2, 2)), long);
+  assert.ok(near(hit.distance, 9) && near(hit.point.y, 1));
+});
+
+test('a box-only node is hit where the ray enters it, or at the origin from inside', () => {
+  /** A node that has a box and no triangles: what a loaded model is to the CPU. */
+  class Boxed extends Object3D {
+    override localBounds() {
+      return new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
+    }
+  }
+  const model = new Boxed();
+  assert.ok(near(raycast(model, down(0, 0))[0].distance, 9), 'entered at the top face');
+  const [inside] = raycast(model, new Ray(new Vector3(0, 0.5, 0), new Vector3(0, -1, 0)));
+  assert.ok(near(inside.distance, 0) && near(inside.point.y, 0.5), 'the origin, not the far side');
+  assert.ok(near(inside.normal.y, 1), 'the normal faces back along the ray');
 });

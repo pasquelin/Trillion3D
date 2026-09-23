@@ -10,7 +10,7 @@ import type { TransformMode, TransformSnap, TransformSpace } from './transformMa
 /** What a transform control needs of a world: `createWorld` returns one. */
 export type TransformHost = {
   /** The canvas the pointer presses on. */
-  readonly canvas: HTMLElement;
+  readonly canvas: HTMLCanvasElement;
   /** The scene the handles are added to. */
   readonly scene: Object3D;
   /** The camera the canvas is seen through. */
@@ -83,7 +83,11 @@ export function createTransformControls(
     // `press` fits the handles first: `at` and `turn` are the object's world pose now.
     start: (handle, from) => {
       const pose = { position: at.clone(), quaternion: turn.clone(), scale: object!.scale.clone() };
-      return { ...pose, mode, handle, space, from, view: from.direction.clone() };
+      const up = new Vector3(0, 1, 0).applyQuaternion(
+        host.camera.getWorldQuaternion(still.clone()),
+      );
+      const view = from.direction.clone();
+      return { ...pose, mode, handle, space, from, view, up, reach: root.scale.x };
     },
     snap: () => controls.snap,
     fit,
@@ -112,15 +116,18 @@ export function createTransformControls(
     get space() {
       return space;
     },
-    /** Puts the handles on `target`, and in the scene. @param target - The object to move. */
+    /** Puts the handles on `target`, and in the scene; a drag under way ends first (`dragEnd`).
+     *  @param target - The object to move. */
     attach(target: Object3D) {
+      if (target !== object) drag.end();
       object = target;
       if (root.parent !== host.scene) host.scene.add(root);
       fit();
       return controls;
     },
-    /** Takes the handles off their object, and out of the scene. */
+    /** Takes the handles off their object, and out of the scene; a drag under way ends first. */
     detach() {
+      drag.end();
       object = null;
       root.removeFromParent();
       return controls;

@@ -8,8 +8,8 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 <!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/src/       70 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    337 *.test.ts
+  sdk-core/src/       71 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    338 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        21 *.test.ts — architecture, boundaries, public contracts

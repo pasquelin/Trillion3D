@@ -33,16 +33,30 @@ export const valueCommand = <T>(apply: (value: T) => void, before: T, after: T):
 export const poseCommand = (object: Object3D, before: Pose, after: Pose) =>
   valueCommand((pose: Pose) => applyPose(object, pose), before, after);
 
-/** `object` put under `parent`: an object added, or, reversed, removed. */
+/** `object` put under `parent`: an object added. */
 export const attachCommand = (object: Object3D, parent: Object3D): Command => ({
   undo: () => parent.remove(object),
   redo: () => parent.add(object),
 });
 
-export const reversed = (command: Command): Command => ({
-  undo: command.redo,
-  redo: command.undo,
-});
+/**
+ * `object` taken off its parent. Undone, it goes back at the rank it had among its siblings —
+ * the later ones are put back after it — and `reselect` hears it: a deletion undone gives the
+ * selection back with the object.
+ */
+export function removeCommand(object: Object3D, reselect: (node: Object3D) => void): Command {
+  const parent = object.parent!,
+    rank = parent.children.indexOf(object);
+  return {
+    undo: () => {
+      const later = parent.children.slice(rank);
+      if (later.length) parent.remove(...later);
+      parent.add(object, ...later);
+      reselect(object);
+    },
+    redo: () => parent.remove(object),
+  };
+}
 
 /**
  * `object` moved under `parent`, where it keeps the place it had in the world: its new local pose
