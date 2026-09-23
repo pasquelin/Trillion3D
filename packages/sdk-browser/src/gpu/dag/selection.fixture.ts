@@ -2,6 +2,7 @@ import { evaluateDagSelectionKernel, type PackedDag } from './selection.ts';
 import { bytesOf, compactDrawnPages } from '../../../../../tests/kit/gpu/globals.ts';
 import { readDagUniforms } from '../../../../../tests/kit/gpu/mockCompute.ts';
 import { SELECTION_HEADER_WORDS, residentBase, residentBit } from './layout.ts';
+import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
 
 export function mockDagDevice(
   packed: PackedDag,
@@ -116,7 +117,7 @@ export function mockDagDevice(
         size?: number,
       ) {
         buffer.data.set(bytesOf(data, dataOffset, size), offset);
-        if (buffer.size === 256) uniformWriteCount++;
+        if (buffer.size === DAG_UNIFORM_BYTES) uniformWriteCount++;
       },
       submit() {},
       onSubmittedWorkDone: async () => {},

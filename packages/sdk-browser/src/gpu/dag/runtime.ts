@@ -104,9 +104,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (next.byteLength !== packed.worlds.byteLength)
         throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED');
       if (!worldsChanged(previousWorlds, next)) return false;
-      // The object-to-view stretch is the primitive's own; recompute it whenever its placement moves.
-      // A moving frame origin only moves translations: no stretch then moves, and the frame
-      // buffer is not rewritten. Read before the mirror copy.
+      // The object-to-view stretch is the primitive's own, recomputed when its placement moves; a
+      // moving frame origin moves no stretch and rewrites no frame. Read before the mirror copy.
       const stretched = refreshWorldStretch(previousWorlds, next, packed, frameData);
       previousWorlds.set(next);
       packed.worlds.set(next);
@@ -117,7 +116,10 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         next.byteOffset,
         next.byteLength,
       );
-      if (stretched) device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
+      if (stretched) {
+        device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
+        resources.frameWrites.count++;
+      }
       state.worldRevision++;
       state.last = null;
       state.lastSubmitted = undefined;
@@ -133,6 +135,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       const at = (w * FRAME_VEC4 + 6) * 4 + 1;
       frameInts[at] = node;
       device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
+      resources.frameWrites.count++;
       // The cut is another one from here: computed again and read back, as after a move.
       state.worldRevision++;
       state.last = null;

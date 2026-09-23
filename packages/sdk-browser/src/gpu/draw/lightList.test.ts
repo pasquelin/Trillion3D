@@ -15,7 +15,7 @@ test('the light compaction dispatches from the drawn log alone, whatever the res
   const light = draw.lightCompaction(4096);
   const buffer = device.createBuffer({ size: 64, usage: 0 }),
     work = device.createBuffer({ size: 64, usage: 0 });
-  const log: DrawnLog = { buffer, offset: 3, work, countWord: 5, groupsWord: 6 };
+  const log: DrawnLog = { buffer, offset: 3, offsetWord: 4, work, countWord: 5, groupsWord: 6 };
   const calls: string[] = [];
   const copies: Array<{ src: unknown; srcOffset: number }> = [];
   const pass = {

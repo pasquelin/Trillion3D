@@ -34,7 +34,12 @@ import { ouvrirAppareil } from './webgpuDevice.ts';
 import { commandes, mediane, scene } from './cutDispatchesScene.ts';
 import type { ExecuterParams, ExecuterResultat } from './cutDispatchesTypes.ts';
 
-const SHADER_AVANT = DAG_SELECTION_SHADER.replace(DAG_LEVEL_WGSL, DAG_LEVEL_WGSL_AVANT);
+// The frozen descent reads the camera's block under its old name: the shipped shader binds one
+// block per view, and a camera is view 0 (\`viewsWgsl.ts\`).
+const SHADER_AVANT = DAG_SELECTION_SHADER.replace(
+  DAG_LEVEL_WGSL,
+  DAG_LEVEL_WGSL_AVANT.replaceAll('uni.', 'views[0u].'),
+);
 
 export async function executer({
   feuilles,

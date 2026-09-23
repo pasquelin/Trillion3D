@@ -24,10 +24,10 @@ import { SELECTION_HEADER_WORDS } from '../layout.ts';
  */
 export const DAG_COMPACT_WGSL = `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
-fn drawFlag(i:u32)->u32{return flags[uni.nodeCount+i];}
-fn blockCount()->u32{return (uni.clusterCount+BLOCK-1u)/BLOCK;}
+fn drawFlag(i:u32)->u32{return flags[views[0u].queueCap+i];}
+fn blockCount()->u32{return (views[0u].clusterCount+BLOCK-1u)/BLOCK;}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
-fn blockBase()->u32{return uni.worldCount*2u;}
+fn blockBase()->u32{return slots()*2u;}
 var<workgroup> laneTotals:array<u32,64>;
 @compute @workgroup_size(64)
 fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
@@ -46,19 +46,19 @@ fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
   cursor=cursor+n;
  }
  // The last thread has summed every total again, empty slice or not: that is the total.
- if(lane==63u){out.pages[uni.listCap]=cursor;if(cursor>uni.listCap){atomicOr(&out.overflow,1u);}}
+ if(lane==63u){out.pages[views[0u].listCap]=cursor;if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
 }
 @compute @workgroup_size(64)
 fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=liveCount()){return;}
  // Only live clusters carry a non-zero draw flag; those of the block that are not in the list
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
- let i=liveAt(s);if(drawFlag(i)==0u){return;}
+ let i=entryIndex(liveAt(s));if(drawFlag(i)==0u){return;}
  let b=i/BLOCK;let begin=b*BLOCK;
  var rank=0u;
  for(var j=begin;j<i;j++){rank=rank+drawFlag(j);}
  let off=atomicLoad(&work[blockBase()+blockCount()+b]);
- let at=off+rank;if(at>=uni.listCap){atomicOr(&out.overflow,1u);return;}
- out.pages[uni.listCap+HEAD+at]=i;
+ let at=off+rank;if(at>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
+ out.pages[views[0u].listCap+HEAD+at]=i;
 }
 `;

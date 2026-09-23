@@ -14,7 +14,10 @@ import {
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
 import type { DagViewUniforms } from './types.ts';
-import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
+import { VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
+
+/** The views one cut runs, the views its buffers hold, and the capacity of each descent queue. */
+export type DagCutViews = { count: number; capacity: number; queueCap: number };
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -35,15 +38,16 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
 });
 
 /**
- * `append`: this run's requests add to those the output already holds (`VIEW_APPEND`) — the
- * light cuts of one frame share one readback. A camera never appends.
+ * One view's block of the uniform array (`shader/viewsWgsl.ts`). `views` says how many views the
+ * cut runs and how many its buffers were sized for, and the capacity of each descent queue: a
+ * camera runs one view on buffers sized for one, whose queues hold every node.
  */
 export function writeDagUniforms(
   target: Float32Array,
   packed: PackedDag,
   uniforms: DagViewUniforms,
   residentCut: boolean,
-  append = false,
+  views?: DagCutViews,
 ) {
   target.fill(0);
   target.set(uniforms.planes, 0);
@@ -70,8 +74,11 @@ export function writeDagUniforms(
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[53] = uniforms.perspective ?? 1;
   // A light cut's view: its kind, then the face pages it draws into (`shader/pagesWgsl.ts`).
+  ints[60] = views?.count ?? 1;
+  ints[61] = views?.capacity ?? 1;
+  ints[62] = views?.queueCap ?? packed.nodeCount;
   const light = uniforms.light;
-  ints[54] = (append ? VIEW_APPEND : 0) | (light ? VIEW_LIGHT | VIEW_PAGES : 0);
+  ints[54] = light ? VIEW_LIGHT | VIEW_PAGES : 0;
   if (!light) return;
   ints[55] = light.rows;
   ints[56] = light.mask[0];

@@ -1,8 +1,20 @@
-import { SELECTION_UNIFORM_BYTES } from '../core/selection.ts';
-import type { DagViewUniforms } from './types.ts';
-import { createDagOutputScratch, parseDagOutput, writeDagUniforms } from './uniforms.ts';
+import { FRAME_VEC4, type DagViewUniforms } from './types.ts';
+import {
+  createDagOutputScratch,
+  parseDagOutput,
+  writeDagUniforms,
+  type DagCutViews,
+} from './uniforms.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
+import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
+import {
+  DAG_MAX_VIEWS,
+  DAG_UNIFORM_BYTES,
+  DAG_VIEW_WORDS,
+  WORK_DROPPED,
+} from './shader/viewsWgsl.ts';
+import { OUT_FLAGS } from './layout.ts';
 import type { DrawnLog } from '../draw/contract.ts';
 import type { createDagResources } from './resources.ts';
 
@@ -10,28 +22,33 @@ type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagLightCut = ReturnType<typeof createDagLightCut>;
 
 /**
- * The same cluster cut, seen from a light: the kernels, the pipelines, the clusters, the
- * hierarchy, the placements and the residency bits are the camera cut's, shared; only what one
- * view writes is its own — draw flags, working counters, output and dispatch argument. A shadow
- * face selects its casters with it exactly as the camera selects its surfaces, in its own texels
- * and against its own pages (`DagViewUniforms.light`).
+ * The same cluster cut, seen from the lights: the kernels, the pipelines, the clusters, the
+ * hierarchy, the placements and the residency bits are the camera cut's, shared; only what the
+ * light views write is their own — flags, working counters, per-primitive planes, output and
+ * dispatch argument. A shadow view selects its casters with it exactly as the camera selects its
+ * surfaces, in its own texels and against its own pages (`DagViewUniforms.light`).
  *
- * The per-placement planes its prepare step writes land in the shared `frames` buffer, over the
- * camera's: safe because only the kernels read them, and every camera run prepares its own again
- * before reading them — a camera frame that reuses its cut runs no kernel at all.
+ * ONE traversal a frame for every view it redraws (`shader/viewsWgsl.ts`): each work item carries
+ * its view, each view its uniform block and its per-primitive slots, and one set of dispatches
+ * serves them all. Each view's drawn clusters land in their own range of one log, which the light
+ * compaction then walks view by view (`drawnLogs`).
  *
  * Its escalation and its pinned fallback live in its own `work`: a caster the light wants and
  * the cache lacks can raise the light's threshold, never the one an object on screen is drawn at.
  *
- * A frame runs it once per redrawn face, one after the other in the same command buffer, each
- * run's result consumed before the next begins. The uniforms of each run are written before the
- * buffer is submitted, so each run has its own uniform block — `runs` of them, the most faces a
- * frame redraws. Its requests accumulate over the frame's runs (`VIEW_APPEND`) and come back in
- * one readback. Allocated once, when a scene first draws a shadow: a scene without one pays nothing.
+ * Its budget is fixed at creation, whatever the views a frame runs: the lists and queues are the
+ * camera cut's — each list the whole catalogue, each queue every node, or one root per slot when
+ * the slots outnumber the nodes —, and the per-primitive words one row per view. What several views
+ * together keep beyond the catalogue is dropped and said (`WORK_DROPPED`, `takeDropped`). Allocated
+ * once, when a scene first draws a shadow: a scene without one pays nothing.
  */
-export function createDagLightCut(resources: DagResources, runs: number) {
-  const { device, packed, residentCut, nodeCount, outputBytes, readbackBytes, buffers } = resources;
-  const { pageCount, blockCount, worldCount } = resources;
+export function createDagLightCut(resources: DagResources) {
+  const { device, packed, residentCut, pageCount, nodeCount, outputBytes, readbackBytes } =
+    resources;
+  const { worldCount, blockCount, buffers } = resources;
+  const capacity = DAG_MAX_VIEWS,
+    queueCap = Math.max(nodeCount, worldCount * capacity),
+    layout = dagWorkLayout(blockCount, worldCount, capacity);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const own = (descriptor: GPUBufferDescriptor) => {
     const buffer = device.createBuffer(descriptor);
@@ -39,12 +56,25 @@ export function createDagLightCut(resources: DagResources, runs: number) {
     buffers.push(buffer);
     return buffer;
   };
-  const flags = own({ label: 'WG light cut flags', size: resources.flags.size, usage: storage });
+  const flags = own({
+    label: 'WG light cut flags',
+    size: (queueCap * LEVEL_QUEUES + pageCount * 4) * 4,
+    usage: storage,
+  });
   const work = own({
     label: 'WG light cut work',
-    size: resources.work.size,
+    size: layout.words * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });
+  // One row of per-primitive planes per view; the root and stretch words the kernel reads sit in
+  // the first row, as the camera's frames hold them.
+  const frames = own({
+    label: 'WG light cut frames',
+    size: capacity * worldCount * FRAME_VEC4 * 16,
+    usage: storage,
+  });
+  device.queue.writeBuffer(frames, 0, resources.frameData);
+  let frameWrites = resources.frameWrites.count;
   const output = own({
     label: 'WG light cut output',
     size: readbackBytes,
@@ -56,51 +86,70 @@ export function createDagLightCut(resources: DagResources, runs: number) {
     size: outputBytes,
     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
   });
-  const uniformData = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
-  const views: DagView[] = [];
-  for (let run = 0; run < runs; run++) {
-    const uniforms = own({
-      size: SELECTION_UNIFORM_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
-    const bound = [resources.clusters, resources.nodes, uniforms, flags, output, work];
-    bound.push(resources.worlds, resources.frames, resources.pageCones);
-    const bindGroup = device.createBindGroup({
+  const uniforms = own({
+    size: DAG_UNIFORM_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  const bound = [resources.clusters, resources.nodes, uniforms, flags, output, work];
+  bound.push(resources.worlds, frames, resources.pageCones);
+  const light = { views: 0, queueCap };
+  const view: DagView = {
+    ...resources,
+    uniforms,
+    flags,
+    output,
+    work,
+    frames,
+    dispatchArgs,
+    liveGroupsOffset: layout.liveGroups * 4,
+    candGroupsOffset: layout.candGroups * 4,
+    drawnGroupsOffset: layout.drawnGroups * 4,
+    bindGroup: device.createBindGroup({
       layout: resources.layout,
       entries: bound.map((buffer, binding) => ({ binding, resource: { buffer } })),
-    });
-    views.push({
-      ...resources,
-      uniforms,
-      flags,
-      output,
-      work,
-      dispatchArgs,
-      bindGroup,
-      repeat: null,
-      drawnList: false,
-    });
-  }
+    }),
+    repeat: null,
+    light,
+  };
+  // Each view's drawn clusters: one log over the candidate list's words, one range per view.
+  const logBase = queueCap + pageCount * 3;
+  const drawnLogs: DrawnLog[] = Array.from({ length: capacity }, (_, v) => ({
+    buffer: flags,
+    offset: logBase,
+    work,
+    offsetWord: layout.viewWords + capacity + v,
+    countWord: layout.viewWords + 2 * capacity + v,
+    groupsWord: layout.viewWords + 3 * capacity + v,
+  }));
+  const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4);
+  const cutViews: DagCutViews = { count: 0, capacity, queueCap };
   const scratch = createDagOutputScratch();
   let mapped = false,
+    dropped = false,
     requests: readonly number[] | null = null;
-  const counters = dagWorkLayout(blockCount, worldCount);
   return {
-    /** Catalogue pages the log indexes. */
+    /** Catalogue pages the logs index. */
     pageCount,
-    /** Where `dagMask` logs the pages the light draws: what the light compaction reads. */
-    drawnLog: {
-      buffer: flags,
-      offset: nodeCount + pageCount * 3,
-      work,
-      countWord: counters.drawnCounter,
-      groupsWord: counters.drawnGroups,
-    } satisfies DrawnLog,
-    /** Encodes run `run` of the frame; the first run of a frame starts the request list over. */
-    encode(encoder: GPUCommandEncoder, run: number, uniforms: DagViewUniforms) {
-      const view = views[run];
-      writeDagUniforms(uniformData, packed, uniforms, residentCut, run > 0);
-      device.queue.writeBuffer(view.uniforms, 0, uniformData);
+    /** Where the mask kernel logs the pages view `v` draws: what the light compaction reads. */
+    drawnLogs,
+    /** Encodes the frame's cut: the first `count` of `views`, in one traversal. */
+    encode(
+      encoder: GPUCommandEncoder,
+      views: ArrayLike<{ uniforms: DagViewUniforms }>,
+      count: number,
+    ) {
+      if (count > capacity) throw new Error(`${count} light views, at most ${capacity}`);
+      cutViews.count = light.views = count;
+      for (let v = 0; v < count; v++) {
+        const block = uniformData.subarray(v * DAG_VIEW_WORDS, (v + 1) * DAG_VIEW_WORDS);
+        writeDagUniforms(block, packed, views[v].uniforms, residentCut, cutViews);
+      }
+      device.queue.writeBuffer(uniforms, 0, uniformData, 0, count * DAG_VIEW_WORDS);
+      // A placement's stretch or a parked root changed on the camera's side: the first row follows.
+      if (frameWrites !== resources.frameWrites.count) {
+        frameWrites = resources.frameWrites.count;
+        encoder.copyBufferToBuffer(resources.frames, 0, frames, 0, resources.frameData.byteLength);
+      }
       encodeDagKernels(encoder, view);
     },
     /**
@@ -122,6 +171,8 @@ export function createDagLightCut(resources: DagResources, runs: number) {
             const bytes = readback.getMappedRange();
             const parsed = parseDagOutput(bytes, 0, bytes.byteLength, 0, scratch);
             requests = parsed ? parsed.pageIds.slice() : null;
+            if ((new Uint32Array(bytes, 0, OUT_FLAGS + 1)[OUT_FLAGS] & WORK_DROPPED) !== 0)
+              dropped = true;
             readback.unmap();
           })
           .catch(() => {})
@@ -130,10 +181,16 @@ export function createDagLightCut(resources: DagResources, runs: number) {
           });
       };
     },
-    /** The pages the last read frame's light cuts asked for, highest priority first. */
+    /** The pages the last read frame's light cut asked for, highest priority first. */
     takeRequests() {
       const taken = requests;
       requests = null;
+      return taken;
+    },
+    /** Whether a read frame dropped work since the last call: its lists or queues were full. */
+    takeDropped() {
+      const taken = dropped;
+      dropped = false;
       return taken;
     },
   };

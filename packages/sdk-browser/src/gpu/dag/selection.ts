@@ -27,14 +27,13 @@ const lightCuts = new WeakMap<
 >();
 
 /**
- * The same cut seen from a light (`lightCut.ts`), on the resources of `selection`: created at
- * the first call with `runs` run slots, kept for the life of the selection, whose dispose
- * releases it.
+ * The same cut seen from the lights (`lightCut.ts`), on the resources of `selection`: created at
+ * the first call, kept for the life of the selection, whose dispose releases it.
  */
-export function lightCutOf(selection: GpuSelection, runs: number) {
+export function lightCutOf(selection: GpuSelection) {
   const entry = lightCuts.get(selection);
   if (!entry) return undefined;
-  return (entry.cut ??= createDagLightCut(entry.resources, runs));
+  return (entry.cut ??= createDagLightCut(entry.resources));
 }
 
 export async function createGpuDagSelection(

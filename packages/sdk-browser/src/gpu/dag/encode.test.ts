@@ -34,3 +34,25 @@ test('the dispatch argument is copied outside a pass, between two cut passes', (
   ]);
   assert.deepEqual(passes, new Array(3).fill('WG DAG selection'));
 });
+
+test('every light view of a frame shares one traversal: the same commands as one view', () => {
+  // Three views as three runs paid three times the waits between dispatches; one run over the
+  // three pays them once. Each level still dispatches the threads its bound allows per view, and
+  // never more than its queue holds.
+  const views = 3,
+    queueCap = 1000;
+  const light = { ...ressources(true, 5), light: { views, queueCap } };
+  const { encoder, copies, passes, lancements } = encodeurTemoin();
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, light);
+  assert.equal(passes.length + copies.length, 5, 'no clear of draw flags a light never sets');
+  const flat = (noyau: string) => lancements.filter((l) => l.noyau === noyau).map((l) => l.groupes);
+  assert.deepEqual(flat('dagPrepare'), [1], 'one thread per slot: two primitives × three views');
+  assert.deepEqual(
+    [...flat('dagLevel0'), ...flat('dagLevel1'), ...flat('dagLevel2')].sort(),
+    [1, 1, 2, 8, 16].sort(),
+    'stages [2, 9, 40, 150, 600] per view, three views, capped at 1000 queued nodes',
+  );
+  const noyaux = lancements.map((l) => l.noyau);
+  assert.ok(!noyaux.includes('dagClearDrawn') && !noyaux.includes('dagDrawPrefix'));
+  assert.ok(noyaux.indexOf('dagViewOffsets') < noyaux.indexOf('dagEscalate'));
+});

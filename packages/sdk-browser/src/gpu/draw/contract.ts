@@ -56,13 +56,15 @@ export const LIGHT_LIST_HEAD = 4;
 /** A list entry whose page holds no row this frame: every pass skips it. */
 export const NO_ROW = 0xffffffff;
 /**
- * Where a light cut leaves the pages it draws, in the order its mask kernel appended them: the
- * catalogue indices from word `offset` of `buffer`, their count at word `countWord` of `work` and
- * that count's sixty-four-wide group count at word `groupsWord`.
+ * Where a light cut leaves the pages one view draws, in the order its mask kernel appended them:
+ * the catalogue indices from word `offset` of `buffer` plus the word `offsetWord` of `work` —
+ * where the view's range starts, known on the GPU alone —, their count at word `countWord` of
+ * `work` and that count's sixty-four-wide group count at word `groupsWord`.
  */
 export type DrawnLog = {
   buffer: GPUBuffer;
   offset: number;
+  offsetWord: number;
   work: GPUBuffer;
   countWord: number;
   groupsWord: number;

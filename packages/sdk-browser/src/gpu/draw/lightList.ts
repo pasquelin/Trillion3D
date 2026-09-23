@@ -16,7 +16,7 @@ import { LIGHT_LIST_HEAD, NO_ROW, WORKGROUP, type DrawnLog } from './contract.ts
 const lightListShader = (
   slots: number,
 ) => `struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}
-struct Uniforms{rows:u32,first:u32,last:u32,logBase:u32,countWord:u32,pad0:u32,pad1:u32,pad2:u32,}
+struct Uniforms{rows:u32,first:u32,last:u32,logBase:u32,countWord:u32,offsetWord:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @group(0) @binding(2) var<storage, read> drawn:array<u32>;
@@ -40,7 +40,7 @@ fn listHead(){
 @compute @workgroup_size(64)
 fn gatherRows(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=work[uni.countWord]){return;}
- let page=drawn[uni.logBase+s];
+ let page=drawn[uni.logBase+work[uni.offsetWord]+s];
  let row=rowOf[page];
  var kept=${NO_ROW}u;
  if(row<uni.rows&&items[row].selectionIndex==page){kept=row;}
@@ -77,7 +77,6 @@ export function createLightList(
   const args = make(24, STORAGE | GPUBufferUsage.INDIRECT);
   const gatherArgs = make(12, GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST);
   device.queue.writeBuffer(gatherArgs, 0, new Uint32Array([0, 1, 1]));
-  const uniforms = make(32, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   const module = device.createShaderModule({ code: lightListShader(slots) });
   const read = { type: 'read-only-storage' } as const,
     write = { type: 'storage' } as const;
@@ -95,7 +94,24 @@ export function createLightList(
   // Every row the map may name is unwritten: the first light run maps them all.
   let pendingFrom = 0,
     pendingTo = NO_ROW - 1;
-  let boundLog: DrawnLog | undefined, bindGroup: GPUBindGroup | undefined;
+  // One uniform block and bind group per log — per light view —: the views of one frame are
+  // encoded before the buffer runs, each reading its own words.
+  const bound = new Map<DrawnLog, { uniforms: GPUBuffer; bindGroup: GPUBindGroup }>();
+  const bindingOf = (log: DrawnLog) => {
+    let entry = bound.get(log);
+    if (entry) return entry;
+    const uniforms = make(32, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+    const buffers = [itemsBuf, uniforms, log.buffer, log.work, rowOf, list, args];
+    entry = {
+      uniforms,
+      bindGroup: device.createBindGroup({
+        layout: bindLayout,
+        entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
+      }),
+    };
+    bound.set(log, entry);
+    return entry;
+  };
   return {
     list,
     args,
@@ -106,14 +122,7 @@ export function createLightList(
       pendingTo = Math.max(pendingTo, to);
     },
     encode(encoder: GPUCommandEncoder, rows: number, log: DrawnLog) {
-      if (log !== boundLog) {
-        boundLog = log;
-        const bound = [itemsBuf, uniforms, log.buffer, log.work, rowOf, list, args];
-        bindGroup = device.createBindGroup({
-          layout: bindLayout,
-          entries: bound.map((buffer, binding) => ({ binding, resource: { buffer } })),
-        });
-      }
+      const { uniforms, bindGroup } = bindingOf(log);
       const mapping = pendingTo >= pendingFrom && rows > pendingFrom;
       uniData[0] = rows;
       if (mapping) {
@@ -122,11 +131,11 @@ export function createLightList(
       }
       uniData[3] = log.offset;
       uniData[4] = log.countWord;
-      // The runs of one frame write the same words: the queue applies them all before the buffer runs.
+      uniData[5] = log.offsetWord;
       device.queue.writeBuffer(uniforms, 0, uniData);
       encoder.copyBufferToBuffer(log.work, log.groupsWord * 4, gatherArgs, 0, 4);
       const pass = encoder.beginComputePass({ label: 'WG light row list' });
-      pass.setBindGroup(0, bindGroup!);
+      pass.setBindGroup(0, bindGroup);
       if (mapping) {
         pass.setPipeline(mapPipeline);
         pass.dispatchWorkgroups(Math.ceil((uniData[2] - uniData[1] + 1) / WORKGROUP));

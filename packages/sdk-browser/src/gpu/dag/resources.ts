@@ -7,6 +7,7 @@ import { FRAME_VEC4, type PackedDag } from './types.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
+import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
 import { SELECTION_HEADER_WORDS, selectionListCap } from './layout.ts';
 
 export async function createDagResources(
@@ -59,7 +60,7 @@ export async function createDagResources(
       usage: STORAGE,
     });
     const uniforms = device.createBuffer({
-      size: UNIFORM_BYTES,
+      size: DAG_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     // Descent queue 0, then draw flags, then the cone rejection kept by `dagWanted` for the four
@@ -97,7 +98,7 @@ export async function createDagResources(
     });
     const frames = device.createBuffer({
       size: Math.max(16, frameData.byteLength),
-      usage: STORAGE,
+      usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const pageCones = device.createBuffer({
       label: 'WG DAG page cones',
@@ -170,6 +171,8 @@ export async function createDagResources(
       drawnGroupsOffset,
       uniformData,
       frameData,
+      /** Writes into \`frames\`: a light cut copies its per-primitive words again when this moves. */
+      frameWrites: { count: 0 },
       buffers,
       clusters,
       nodes,

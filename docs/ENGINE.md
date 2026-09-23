@@ -227,9 +227,16 @@ pages a frame on `develop`, and the frame after the motion is 0 px from a fresh 
 same pose.
 
 **Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
-level, a lamp face at one mip — form a run, and each run runs the cluster cut on its own view: the
-camera's kernels, pipelines, clusters and residency bits, with flags, counters and output of its own
-(`gpu/dag/lightCut.ts`). Its window is the square that bounds its pages, cut in eight by eight cells
+level, a lamp face at one mip — form a run, and every run of the frame is selected by ONE traversal
+of the cluster cut: the camera's kernels, pipelines, clusters and residency bits, with flags,
+counters and output of its own (`gpu/dag/lightCut.ts`). Each work item — a queued node, a candidate
+page, a live cluster — carries its view's index; each view reads its own uniform block and owns its
+own per-primitive threshold, fallback and planes (`gpu/dag/shader/viewsWgsl.ts`); the frame pays the
+waits between the cut's dispatches once, not once per view. Each view's drawn clusters land in their
+own range of one log, which the light compaction walks view by view. Its budget is fixed: the lists
+and queues are the camera cut's size whatever the view count (at most `shadowPagesPerFrame`, since a
+view holds at least one drawn page); work several views together push past them is dropped and
+reported (`light-cut-work-dropped`). A run's window is the square that bounds its pages, cut in eight by eight cells
 of whole pages; a node or cluster that covers no cell a drawn page lies in is dropped. Its error is
 counted in the view's texels against the camera's pixel threshold — a texel of the level a pixel
 reads is at most that pixel —, and the normal cone is off, since the shadow raster culls no face. The

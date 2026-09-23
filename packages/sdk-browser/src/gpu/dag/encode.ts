@@ -2,10 +2,11 @@ import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
 import { ESCALATION_ROUNDS } from '../../page/selection/types.ts';
 import type { createDagResources } from './resources.ts';
 
-/** The cut's resources, as one view encodes them: a light cut brings its own flags, work, output
- *  and bind group, and reads no compacted drawable list (`lightCut.ts`). */
+/** The cut's resources, as it encodes them. A light cut brings its own flags, work, frames, output
+ *  and bind group, the views it runs this frame and its queue capacity (`lightCut.ts`); it keeps no
+ *  draw flag and compacts no drawable list — each view's log goes to the light compaction. */
 export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>> & {
-  drawnList?: boolean;
+  light?: { views: number; queueCap: number };
 };
 
 /**
@@ -65,7 +66,13 @@ function encodeOnce(
     maskPipeline,
     drawPrefixPipeline,
     drawScatterPipeline,
+    viewOffsetsPipeline,
+    light,
   } = resources;
+  // Every view's work items share each dispatch: a level's bound is its stage's nodes per view,
+  // and never more than its queue holds.
+  const views = light?.views ?? 1,
+    queueCap = light?.queueCap ?? resources.nodeCount;
   const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
   // Head word of the dispatch argument, copied outside a pass: the other two have been one since
   // the buffer was created. That is the only reason for cuts between passes.
@@ -77,17 +84,19 @@ function encodeOnce(
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
     pass.end();
   };
-  if (clear) arm(drawnGroupsOffset);
+  // A light cut sets no draw flag, so it has none to clear.
+  const clearDrawn = clear && !light;
+  if (clearDrawn) arm(drawnGroupsOffset);
   const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
   pass.setBindGroup(0, bindGroup);
   // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
   // every flag, and the prepare that follows clears the journal.
-  if (clear) {
+  if (clearDrawn) {
     pass.setPipeline(clearDrawnPipeline);
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   }
   pass.setPipeline(preparePipeline);
-  pass.dispatchWorkgroups(groups(Math.max(worldCount, blockCount)));
+  pass.dispatchWorkgroups(groups(Math.max(worldCount * views, blockCount)));
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that. Nothing else cut the
   // descent but the dispatch argument, and there is no more of it.
@@ -97,13 +106,13 @@ function encodeOnce(
   // included — pass 0 reads it there and rejects it —, where stage zero only counts roots that
   // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge.
   pass.setPipeline(levelPipelines[0]);
-  pass.dispatchWorkgroups(groups(worldCount));
+  pass.dispatchWorkgroups(groups(worldCount * views));
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
   // nodes, an upper bound the layout knows.
   for (let level = 1; level < levelSizes.length; level++) {
     pass.setPipeline(levelPipelines[level % levelPipelines.length]);
-    pass.dispatchWorkgroups(groups(levelSizes[level]));
+    pass.dispatchWorkgroups(groups(Math.min(levelSizes[level] * views, queueCap)));
   }
   pass.end();
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
@@ -119,6 +128,11 @@ function encodeOnce(
     live.setPipeline(pipeline);
     live.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   };
+  // Each view's share of the drawn log, once every view's live clusters are counted.
+  if (light) {
+    live.setPipeline(viewOffsetsPipeline);
+    live.dispatchWorkgroups(1);
+  }
   if (residentCut) {
     for (let round = 0; round < ESCALATION_ROUNDS; round++) runLive(escalatePipeline);
     runLive(checkPipeline);
@@ -126,7 +140,7 @@ function encodeOnce(
   runLive(maskPipeline);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
-  if (residentCut && resources.drawnList !== false) {
+  if (residentCut && !light) {
     live.setPipeline(drawPrefixPipeline);
     live.dispatchWorkgroups(1);
     runLive(drawScatterPipeline);

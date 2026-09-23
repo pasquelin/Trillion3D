@@ -18,8 +18,13 @@ export function streamCutResidency(
     { rows } = rt.layout,
     marks = rt.timing.marks;
   // What the light cuts asked for last time they reported: the lower tier, served after this cut.
-  const asked = rt.lights.lightCut?.takeRequests();
+  const lightCut = rt.lights.lightCut,
+    asked = lightCut?.takeRequests();
   if (asked) services.shadowTier.offerIds(asked);
+  if (lightCut?.takeDropped())
+    rt.diag.engineDiagnostic('light-cut-work-dropped', 'The light cut dropped casters', {
+      views: rt.lights.lightRuns,
+    });
   // Never throttled: this cut meets the budget by growing its screen error.
   services.queueCutResidency(false);
   // Enumerate the bounded resident candidates once. GPU selection and compaction

@@ -1,4 +1,3 @@
-import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { lightCutOf } from '../../gpu/dag/selection.ts';
 import type { ShadowCullSource } from '../../gpu/shadow/cull.ts';
@@ -7,14 +6,14 @@ import type { ShadowCullSource } from '../../gpu/shadow/cull.ts';
 const source = {} as ShadowCullSource;
 
 /**
- * The frame's shadow casters, selected FROM THE LIGHT: each redrawn face runs its own cut, and the
- * regions of that face cull only what that cut kept.
+ * The frame's shadow casters, selected FROM THE LIGHT: each redrawn view — a sun level or a lamp
+ * face — has its own cut, and the regions of that view cull only what its cut kept.
  *
- * Under the GPU cut, a face's run is the camera's kernels on the light's view
- * (`../../gpu/dag/lightCut.ts`), then the draw compaction on the light's mask — the same two
- * steps that turn the camera's cut into the visibility pass's instances — then the region cull on
- * that list. Face after face in one command buffer: each run's list is consumed before the next
- * run writes it. The runs' streaming requests ride back in one copy, read after submission.
+ * Under the GPU cut, every view's cut is ONE run of the camera's kernels over all the frame's
+ * views (`../../gpu/dag/lightCut.ts`); then, view after view, the draw compaction on that view's
+ * log — the same step that turns the camera's cut into the visibility pass's instances — and the
+ * region cull on that list, each view's list consumed before the next view's is written. The
+ * cut's streaming requests ride back in one copy, read after submission.
  *
  * Under the CPU cut, the same selection has already run on the CPU (`cpuCasters.ts`), and each
  * face's list waits at its own place in one buffer: only the region cull runs here.
@@ -34,7 +33,7 @@ export function encodeShadowCasters(
   const rows = layout.rows.packedCount;
   cull.begin(regions, setup.maxCorners);
   const selection = run.gpuFrameActive ? run.gpuSelection : undefined;
-  const light = selection && lightCutOf(selection, MAX_SHADOW_REGIONS);
+  const light = selection && lightCutOf(selection);
   lights.lightCut = light;
   if (light) {
     const compaction = gpuDraw.lightCompaction(light.pageCount);
@@ -44,10 +43,10 @@ export function encodeShadowCasters(
     source.indirect = compaction.indirectBuffer;
     source.indirectBase = 0;
     source.commands = gpuDraw.slots;
+    if (runs.count) light.encode(encoder, runs.list, runs.count);
     for (let r = 0; r < runs.count; r++) {
       const face = runs.list[r];
-      light.encode(encoder, r, face.uniforms);
-      compaction.encode(encoder, rows, setup.maxCorners, light.drawnLog);
+      compaction.encode(encoder, rows, setup.maxCorners, light.drawnLogs[r]);
       cull.encode(encoder, source, r, face.first, face.count, rows);
     }
     lights.lightRuns = runs.count;
