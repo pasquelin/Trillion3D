@@ -7,6 +7,7 @@ import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs
 import { extname, relative, resolve } from 'node:path';
 import { gitPathsSync } from '../git-paths.ts';
 import { buildFlags } from './build-flags.ts';
+import { withMeasurement } from './measurement.ts';
 import { buildPortal } from './build-portal.ts';
 import { buildRuntime } from './build-runtime.ts';
 import { buildStyles } from './build-styles.ts';
@@ -51,7 +52,15 @@ async function copyTree(source: string, target: string) {
     await prune(target, names);
     return;
   }
-  if (SOURCE_EXTENSIONS.has(extname(source)) || (await unchanged(source, target))) return;
+  if (SOURCE_EXTENSIONS.has(extname(source))) return;
+  /* Pages are written and not copied, every time: the measurement tag comes from this build
+     and not from the page, so a page whose own source has not moved must still pick up a
+     change made there. The freshness check above compares sizes, which the tag shifts. */
+  if (extname(source) === '.html') {
+    await writeFile(target, withMeasurement(await readFile(source, 'utf8')));
+    return;
+  }
+  if (await unchanged(source, target)) return;
   await copyFile(source, target);
 }
 
@@ -76,7 +85,10 @@ async function writeMetadata(source: string, out: string) {
   const canonical = `    <link rel="canonical" href="${SITE_URL}" />\n  </head>`;
   const written = page.replace(/[ \t]*<\/head>/, canonical);
   if (written === page) throw new Error('site/index.html has no </head>');
-  await writeFile(resolve(out, 'index.html'), written);
+  /* The measurement is applied here too: this function rewrites the page from its SOURCE, after
+     `copyTree` has copied it, so the most visited page of the site would otherwise be the only
+     one published without it. */
+  await writeFile(resolve(out, 'index.html'), withMeasurement(written));
   await writeFile(resolve(out, 'robots.txt'), 'User-agent: *\nAllow: /\n');
 }
 
