@@ -12,7 +12,9 @@ export interface TexturePreview {
   texture: number;
   /** Index in its images array, where the source uri is read when present. */
   image: number;
+  /** Width in pixels. */
   width: number;
+  /** Height in pixels. */
   height: number;
   /** 0 when bytes came from an image uri, 1 when they came from sourceBufferView. */
   sourceKind: number;

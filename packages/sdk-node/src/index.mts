@@ -44,7 +44,16 @@ export type {
 } from './compiler/contracts.ts';
 export { createTerminalProgress, createBatchProgress } from './cli/progress.mts';
 export { reviewCutouts } from './cutout/review.mts';
-/** Native is the production path. The host supplies an executable explicitly or through the environment. */
+/**
+ * Compiles a source model into the cache a page loads. Native is the production path: the host
+ * supplies the executable explicitly or through the environment.
+ * @param input - A folder with a `manifest.json` or one glTF/GLB, or a `.gltf`, `.glb`, `.fbx`, `.obj` file.
+ * @param output - The cache folder; the source is never overwritten.
+ * @param scope - `'slice'` streams the model in pages, `'full'` keeps it whole.
+ * @param budget - How many triangles the cache may keep.
+ * @param options - Where the page loads files from, and how the compiler runs.
+ * @returns The manifest the compiler wrote, with what the run measured.
+ */
 export async function prepare(
   input: string,
   output: string,
@@ -95,9 +104,11 @@ function withFinalMetrics(manifest: CompilationResult, pointer: CompilationPoint
   return { ...pointer.metrics, ...(manifest.metrics as Record<string, unknown> | undefined) };
 }
 /**
- * Prepares many models in one compiler process. `jobs` entries: {id, source, cache, scope, triangles,
- * resourceBaseUrl, simplification, threads, ramBudgetMb}. The compiler runs `workers` jobs at a time and
- * splits `ramBudgetMb` between them. Resolves with the batch summary (pointers only, nothing read from disk).
+ * Compiles many models in one compiler process. The compiler runs `workers` jobs at a time and
+ * splits `ramBudgetMb` between them.
+ * @param jobs - The models to compile, at least one; each names its `resourceBaseUrl`.
+ * @param options - How many jobs run at once, the memory they share, and who hears the events.
+ * @returns How each job ended: pointers only, nothing read back from disk.
  */
 export async function prepareMany(
   jobs: BatchJob[],

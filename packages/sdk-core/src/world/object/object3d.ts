@@ -11,13 +11,12 @@ import type { Box3 } from '../math/box3.ts';
 
 /** What a node reports to the world it hangs in: a pose moved, the tree changed, a content changed. */
 export interface SceneLink {
-  pose(node: Object3D): void;
-  structure(node: Object3D): void;
-  content(node: Object3D): void;
+  /** A node moved. */ pose(node: Object3D): void;
+  /** A node gained or lost children. */ structure(node: Object3D): void;
+  /** A node's shape or material changed. */ content(node: Object3D): void;
 }
 
-/** The one transform hierarchy every scene object is a node of (`scene/core/node.ts`): a node made
- *  on its own is a detached root of it, and `add` reparents it there. */
+/** The transform hierarchy every scene object is a node of; a new node is a detached root of it. */
 const space = createSceneRoot({ id: 'world-objects' });
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
 const aim = new Vector3(),
@@ -26,23 +25,21 @@ const aim = new Vector3(),
   inverse = new Matrix4(),
   at = new Float64Array(4);
 
-/**
- * A node of the scene, as a page writes it: `position`, `rotation`, `quaternion` and `scale` are
- * live values whose writes land in the engine's transform tree, and reach the world it is in.
- */
+/** A node of the scene, as a page writes it: `position`, `rotation`, `quaternion` and `scale` are
+ *  live values whose writes land in the engine's transform tree, and reach the world it is in. */
 export class Object3D extends SceneNode {
-  readonly isObject3D = true as const;
-  type = 'Object3D';
-  name = '';
-  readonly position = new Vector3();
-  readonly rotation = new Euler();
-  readonly quaternion = new Quaternion();
-  readonly scale = new Vector3(1, 1, 1);
-  readonly up = new Vector3(0, 1, 0);
-  castShadow = false;
-  receiveShadow = false;
-  renderOrder = 0;
-  userData: Record<string, unknown> = {};
+  /** Always `true`: tells a scene node apart. */ readonly isObject3D = true as const;
+  /** The kind of node: `'Mesh'`, `'Group'`… */ type = 'Object3D';
+  /** A name to find the node by. */ name = '';
+  /** Where the node stands, from its parent. */ readonly position = new Vector3();
+  /** How the node is turned, as three angles. */ readonly rotation = new Euler();
+  /** How the node is turned, as a quaternion. */ readonly quaternion = new Quaternion();
+  /** How the node is stretched on each axis. */ readonly scale = new Vector3(1, 1, 1);
+  /** Which way is up for `lookAt`. */ readonly up = new Vector3(0, 1, 0);
+  /** Whether the node casts shadows. */ castShadow = false;
+  /** Whether shadows fall on the node. */ receiveShadow = false;
+  /** Drawing order among see-through things. */ renderOrder = 0;
+  /** Free room for the page's own data. */ userData: Record<string, unknown> = {};
   /** The world this node is drawn by; set on attach, cleared on detach. */
   _link: SceneLink | null = null;
   private readonly local = new Matrix4();
@@ -69,7 +66,7 @@ export class Object3D extends SceneNode {
     });
     listen(this.rotation, () => this.quaternion.setFromEuler(this.rotation));
   }
-  override get visible() {
+  /** Whether the node and its children are drawn. */ override get visible() {
     return super.visible;
   }
   override set visible(value: boolean) {
@@ -96,7 +93,7 @@ export class Object3D extends SceneNode {
   protected get looksDownNegativeZ() {
     return false;
   }
-  override add(...objects: Object3D[]) {
+  /** Makes objects children of this node. */ override add(...objects: Object3D[]) {
     for (const object of objects) {
       if (object === this) continue;
       super.add(object);
@@ -105,7 +102,7 @@ export class Object3D extends SceneNode {
     this._link?.structure(this);
     return this;
   }
-  override remove(...objects: Object3D[]) {
+  /** Takes children off this node. */ override remove(...objects: Object3D[]) {
     for (const object of objects) {
       if (object.parent !== this) continue;
       super.remove(object);
@@ -114,23 +111,24 @@ export class Object3D extends SceneNode {
     this._link?.structure(this);
     return this;
   }
-  removeFromParent() {
+  /** Takes the node off its parent. */ removeFromParent() {
     this.parent?.remove(this);
     return this;
   }
-  override clear() {
+  /** Takes every child off this node. */ override clear() {
     return this.remove(...this.children);
   }
-  traverse(fn: (node: Object3D) => void) {
+  /** Calls `fn` on this node and all below it. */ traverse(fn: (node: Object3D) => void) {
     fn(this);
     for (const child of this.children) child.traverse(fn);
   }
+  /** Calls `fn` on each visible node from here down. */
   traverseVisible(fn: (node: Object3D) => void) {
     if (!this.visible) return;
     fn(this);
     for (const child of this.children) child.traverseVisible(fn);
   }
-  getObjectByName(name: string): Object3D | undefined {
+  /** The first node below with this name. */ getObjectByName(name: string): Object3D | undefined {
     if (this.name === name) return this;
     for (const child of this.children) {
       const found = child.getObjectByName(name);
@@ -150,39 +148,41 @@ export class Object3D extends SceneNode {
     lookAtNode(tree, this.index, aim.x, aim.y, aim.z, this.up.elements, this.looksDownNegativeZ);
     this.quaternion.fromArray(tree.quaternion, this.index * 4);
   }
+  /** Turns the node around `axis` by `angle` radians. */
   rotateOnAxis(axis: { x: number; y: number; z: number }, angle: number) {
     this.quaternion.multiply(turn.setFromAxisAngle(axis, angle));
     return this;
   }
-  rotateX(angle: number) {
+  /** Turns the node around its own x axis. */ rotateX(angle: number) {
     return this.rotateOnAxis({ x: 1, y: 0, z: 0 }, angle);
   }
-  rotateY(angle: number) {
+  /** Turns the node around its own y axis. */ rotateY(angle: number) {
     return this.rotateOnAxis({ x: 0, y: 1, z: 0 }, angle);
   }
-  rotateZ(angle: number) {
+  /** Turns the node around its own z axis. */ rotateZ(angle: number) {
     return this.rotateOnAxis({ x: 0, y: 0, z: 1 }, angle);
   }
+  /** Moves the node along its own `axis`. */
   translateOnAxis(axis: { x: number; y: number; z: number }, distance: number) {
     along.set(axis.x, axis.y, axis.z).applyQuaternion(this.quaternion);
     this.position.addScaledVector(along, distance);
     return this;
   }
-  getWorldPosition(out = new Vector3()) {
+  /** Where the node stands in the world. */ getWorldPosition(out = new Vector3()) {
     return out.fromArray(read.nodeWorldPosition(at, this.state.tree, this.index));
   }
-  getWorldQuaternion(out = new Quaternion()) {
+  /** How the node is turned in the world. */ getWorldQuaternion(out = new Quaternion()) {
     return out.fromArray(read.nodeWorldQuaternion(at, this.state.tree, this.index));
   }
-  getWorldDirection(out = new Vector3()) {
+  /** The way the node faces in the world. */ getWorldDirection(out = new Vector3()) {
     const d = read.nodeWorldDirection(at, this.state.tree, this.index, this.looksDownNegativeZ);
     return out.set(d[0], d[1], d[2]);
   }
-  localToWorld(v: Vector3) {
+  /** A point of the node's frame, in the world. */ localToWorld(v: Vector3) {
     this.updateWorldMatrix(true, false);
     return v.applyMatrix4(this.matrixWorld);
   }
-  worldToLocal(v: Vector3) {
+  /** A point of the world, in the node's frame. */ worldToLocal(v: Vector3) {
     this.updateWorldMatrix(true, false);
     return v.applyMatrix4(inverse.copy(this.matrixWorld).invert());
   }
@@ -194,6 +194,6 @@ export class Object3D extends SceneNode {
 
 /** A node that only groups others. */
 export class Group extends Object3D {
-  readonly isGroup = true as const;
-  override type = 'Group';
+  /** Always `true`: tells a group apart. */ readonly isGroup = true as const;
+  /** The kind of node, `'Group'`. */ override type = 'Group';
 }

@@ -82,13 +82,13 @@ export type CameraMotion = { last?: Float64Array; lastMs?: number };
 export type HostCamera = {
   /** LOCAL pose, as the host stores it: what its controls write, never what a frame reads. */
   readonly position: ControlVector;
-  readonly quaternion: HostRotation;
+  /** How it is turned. */ readonly quaternion: HostRotation;
   /** Optics the host declares; the engine composes its own projection from them. */
   fov: number;
-  aspect: number;
-  near: number;
-  far: number;
-  zoom: number;
+  /** Width over height. */ aspect: number;
+  /** Nearest distance. */ near: number;
+  /** Farthest distance. */ far: number;
+  /** Magnification. */ zoom: number;
   /** The box an orthographic camera sees; absent or null for a perspective one. */
   orthographic?: OrthographicBox | null;
   /** False when the host poses the camera by matrix: `matrix` IS the pose and nothing
@@ -96,24 +96,26 @@ export type HostCamera = {
   matrixAutoUpdate: boolean;
   /** LOCAL matrix, the other face of the pose: what a restore puts back beside the three fields. */
   readonly matrix: HostNodeMatrix;
-  readonly matrixWorld: MatrixElements;
+  /** Its world matrix. */ readonly matrixWorld: MatrixElements;
   /** Projection in the HOST's depth convention, finite far plane included. The engine composes
    *  its own (`engineCamera.ts`) and reads this one only for a draw the host renderer owns. */
   readonly projectionMatrix: MatrixElements;
   /** Its inverse, which the host renderer keeps beside it and hands its own shaders. */
   readonly projectionMatrixInverse?: MatrixElements;
+  /** Updates its world matrix. */
   updateWorldMatrix(ancestors: boolean, descendants: boolean): void;
-  updateMatrixWorld(force?: boolean): void;
-  updateProjectionMatrix(): void;
-  lookAt(target: ControlVector): void;
+  /** Updates its world matrix, children too. */ updateMatrixWorld(force?: boolean): void;
+  /** Rebuilds its projection. */ updateProjectionMatrix(): void;
+  /** Turns it toward a point. */ lookAt(target: ControlVector): void;
   /** A view of its own the host keeps — the pose a measurement campaign comes back to. */
   clone(): HostCamera;
 };
+/** The matrices a host draws a frame with, as the engine hands them over. */
 export type HostDrawCamera = {
-  projection: Float32Array;
-  world: Float64Array;
-  view: Float64Array;
-  eye: Float32Array;
+  /** The projection. */ projection: Float32Array;
+  /** The camera's world matrix. */ world: Float64Array;
+  /** The view matrix. */ view: Float64Array;
+  /** Where the eye is. */ eye: Float32Array;
 };
 export const createHostDrawCamera = (): HostDrawCamera => ({
   projection: new Float32Array(16),

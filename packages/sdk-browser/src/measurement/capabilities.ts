@@ -8,6 +8,7 @@ let cachedWebgl:
       adapter: null;
     }
   | undefined;
+/** Checks what this machine can draw with, and says why when it cannot. */
 export async function detectCapabilities(
   mode: 'webgl' | 'webgpu',
   _canvas: HTMLCanvasElement,

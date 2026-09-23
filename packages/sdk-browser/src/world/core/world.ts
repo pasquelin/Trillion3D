@@ -14,11 +14,11 @@ import { advanceMixers } from '../../../../sdk-core/src/world/animation/index.ts
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
 
-/**
- * Creates a world on `target` — a canvas, an element to draw inside, or the ID of either — at
- * once. The world owns the scene, the camera, the renderer and the loop: preparing the renderer
- * is its own business (`world.ready`), and what a page adds or loads before is drawn once it is.
- */
+/** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
+ * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
+ * @param options - How the world draws and listens; saying nothing is the normal case.
+ * @example const world = createWorld('viewer', { controls: 'orbit' });
+ * await world.scene.load('/cache/city/manifest.json'); */
 export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const canvas = resolveWorldTarget(target);
   const frames = createWorldFrames();
@@ -105,14 +105,14 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     return runtime.explorer;
   };
   const world = {
-    canvas,
-    ready,
-    scene,
-    controls,
-    get renderer() {
+    /** The canvas the world draws into. */ canvas,
+    /** A promise that settles once the world knows how it will draw. */ ready,
+    /** The scene: everything added to it is drawn. */ scene,
+    /** The mouse and keyboard controller that moves the camera. */ controls,
+    /** `'webgpu'` or `'webgl2'`: how the world draws; `null` before `ready`. */ get renderer() {
       return renderer;
     },
-    get camera() {
+    /** The camera the image is seen through; set another to switch. */ get camera() {
       return camera;
     },
     set camera(next: Camera) {
@@ -158,20 +158,22 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (session && !session.setBounce(on)) runtime.renew();
       invalidate();
     },
-    budget: worldBudget(
+    /** The world's memory pools, read and set in bytes. */ budget: worldBudget(
       pools,
       () => runtime.explorer,
       () => frames.last,
     ),
     diagnostic: diagnostic.handle,
-    onFrame: frames.add,
-    loop: frames.add,
-    invalidate,
+    /** Runs a function before every frame, with the frame's time. */ onFrame: frames.add,
+    /** Another name for `onFrame`. */ loop: frames.add,
+    /** Asks for a new frame after a change the world could not see. */ invalidate,
     /** Draws one frame now, whoever leads the loop. */
     render() {
       live();
       runtime.render();
     },
+    /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
+     *  @param width - New width, CSS pixels. @param height - New height, CSS pixels. */
     resize(width = canvas.clientWidth, height = canvas.clientHeight) {
       live()?.resize(Math.floor(width), Math.floor(height));
       invalidate();
@@ -180,7 +182,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     stageProfile: () => live()?.stageProfile() ?? null,
     /** Resolves once the pages the current view reads are resident (`awaitViewPages`). */
     awaitPages: () => awaitViewPages(runtime, live),
-    dispose() {
+    /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (disposed) return;
       disposed = true;
       controls.dispose();
@@ -194,5 +196,5 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   return world;
 }
 
-export type World = ReturnType<typeof createWorld>;
+/** What `createWorld` returns: one view. */ export type World = ReturnType<typeof createWorld>;
 export type { FrameInfo, WorldTarget, WorldRenderer, LoadOptions, WorldOptions };

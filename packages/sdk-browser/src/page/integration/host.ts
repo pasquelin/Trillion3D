@@ -5,10 +5,15 @@ import type { PageIntegrationAnswer } from '../../../../sdk-core/src/index.ts';
 
 /** What a planned arrival returns to the main thread: integers, already in the record's order. */
 export type ArrivalPlan = {
+  /** The bundle that arrived. */
   url: string;
+  /** Where each cluster goes in the pack. */
   slices: Int32Array;
+  /** How many clusters. */
   count: number;
+  /** The page ranks it moves. */
   pages: Int32Array;
+  /** How many pages. */
   pageCount: number;
 };
 

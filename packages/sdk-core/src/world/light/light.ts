@@ -6,17 +6,29 @@ import { listen } from '../math/observed.ts';
 
 /** What a page may pass to a light member. */
 export interface LightParameters {
+  /** The light's colour. */
   color?: ColorInput;
+  /** How strong the light is. */
   intensity?: number;
+  /** Where the light stands. */
   position?: Vec3Input;
+  /** The point a directional or spot light shines at. */
   target?: Vec3Input;
+  /** Whether objects in this light cast shadows. */
   castShadow?: boolean;
+  /** How far a point or spot light reaches; 0 means no limit. */
   distance?: number;
+  /** How fast the light fades with distance; 2 is how real light fades. */
   decay?: number;
+  /** Half the opening of a spot light's cone, in radians. */
   angle?: number;
+  /** How soft a spot light's edge is, from 0 (sharp) to 1. */
   penumbra?: number;
+  /** The colour a hemisphere light gives from below. */
   groundColor?: ColorInput;
+  /** Width of a rectangle light. */
   width?: number;
+  /** Height of a rectangle light. */
   height?: number;
   /** Radius of the emitting sphere of a point or spot light: its soft shadow's size. */
   radius?: number;
@@ -47,23 +59,35 @@ const point = new Vector3();
  * may move or parent like any other; `lookAt` moves it.
  */
 export class Light extends Object3D {
+  /** Always `true`: tells a light apart from any other object. */
   readonly isLight = true as const;
+  /** The light's colour; change it in place with `set`. */
   readonly color: Color;
+  /** A hemisphere light's colour from below. */
   readonly groundColor: Color;
+  /** The node a directional or spot light shines at; move it to aim the light. */
   readonly target = new Object3D();
   /** A probe's coefficients (`LightParameters.sh`); written in place, then `needsUpdate`. */
   sh: number[] | null = null;
   readonly _values: Record<LightNumber, number>;
+  /** How strong the light is; a write reaches the world at once. */
   declare intensity: number;
+  /** How far a point or spot light reaches; 0 means no limit. */
   declare distance: number;
+  /** How fast the light fades with distance. */
   declare decay: number;
+  /** Half the opening of a spot light's cone, in radians. */
   declare angle: number;
+  /** How soft a spot light's edge is, from 0 to 1. */
   declare penumbra: number;
+  /** Width of a rectangle light. */
   declare width: number;
+  /** Height of a rectangle light. */
   declare height: number;
   /** Radius of the emitting sphere; `emitterRadius` in the engine's store. */
   declare radius: number;
 
+  /** Which kind of light this is: `'point'`, `'spot'`, `'directional'`… */
   readonly kind: string;
   constructor(kind: string, p: LightParameters = {}) {
     super();
@@ -148,14 +172,22 @@ export function lightFromRecord(record: SceneLight): Light {
   return node;
 }
 
-/** The `light` family: each kind placed as a node of the scene. */
+/** A member building one kind of light. */
 const kind = (name: string) => (p?: LightParameters) => new Light(name, p);
+/** The `light` family: each kind placed as a node of the scene. */
 export const light = {
+  /** A light that reaches everything evenly, from no direction. */
   ambient: kind('ambient'),
+  /** A light from very far away, like the sun: every ray goes the same way. */
   directional: kind('directional'),
+  /** A light from one point, like a bulb, shining every way. */
   point: kind('point'),
+  /** A light from one point, shining through a cone, like a torch. */
   spot: kind('spot'),
+  /** A sky colour from above and a ground colour from below. */
   hemisphere: kind('hemisphere'),
+  /** A glowing rectangle, like a window or a screen. */
   rectArea: kind('rectArea'),
+  /** Light measured around a point and given back to what is near it. */
   probe: kind('probe'),
 };

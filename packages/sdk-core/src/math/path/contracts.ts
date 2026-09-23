@@ -20,9 +20,11 @@ export interface MathPathOperation {
   path: MathPath | null;
   /** Sliding median of duration per element, in nanoseconds; `null` if unmeasured. */
   jsNsPerElement: number | null;
+  /** WebAssembly time per element. */
   wasmNsPerElement: number | null;
   /** Executions retained in each median. */
   jsSamples: number;
+  /** WebAssembly samples. */
   wasmSamples: number;
   /** Switches decided since the start of the session. */
   switches: number;
@@ -32,7 +34,9 @@ export interface MathPathOperation {
 
 /** Governor state for the whole session. */
 export interface MathPathMetrics {
+  /** Contract version. */
   contract: number;
+  /** The mode asked. */
   mode: MathPathMode;
   /** The WebAssembly module is loaded, at the right contract version. */
   wasmAvailable: boolean;
@@ -44,5 +48,6 @@ export interface MathPathMetrics {
   clockCoarse: boolean;
   /** Why the WebAssembly path is not playable, or `null` when it is. */
   unavailableReason: string | null;
+  /** Each operation. */
   operations: Record<string, MathPathOperation>;
 }

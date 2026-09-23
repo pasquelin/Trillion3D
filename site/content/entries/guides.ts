@@ -99,7 +99,7 @@ await world.scene.load('/cache/city/manifest.json');
   },
   {
     ...GUIDE,
-    section: 'families',
+    section: 'guides',
     id: 'families-reference',
     title: 'Every family, one line each',
     description:
@@ -131,7 +131,7 @@ await world.scene.load('/cache/city/manifest.json');
   },
   {
     ...GUIDE,
-    section: 'measurement',
+    section: 'guides',
     id: 'measurement-entry',
     title: 'The measurement entry point',
     description:

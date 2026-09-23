@@ -72,4 +72,18 @@ world.budget.texturePool = 256 * 1024 * 1024;
 const { residentPages } = metric.frame(world);
 console.log(residentPages);`,
   },
+  {
+    ...GUIDE,
+    id: 'createWorldJob',
+    title: 'A world load as a cancellable job',
+    description:
+      'A world has no dedicated job wrapper of its own: `scene.load` is a plain promise, and the generic `createJob` helper turns it into a cancellable one with progress when a host needs the same job contract compilation uses.',
+    example: `const job = createJob('city-world', async ({ signal }) => {
+  const world = createWorld('viewer', { signal });
+  await world.scene.load('/cache/city/manifest.json', { signal });
+  return world;
+});
+job.subscribe(() => console.log(job.getSnapshot().progress));
+const world = await job.promise;`,
+  },
 ];

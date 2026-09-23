@@ -13,10 +13,16 @@ export interface SceneNodeOptions {
   visible?: boolean;
 }
 
+/** What every node of one scene shares: its transform tree and its indexes. */
 export type SceneState = {
+  /** The transform tree. */
   tree: TransformTree;
+  /** Nodes by slot. */
   nodes: Map<number, SceneNode>;
+  /** Nodes by name. */
   ids: Map<string, SceneNode>;
+  /** The next free name number. */
   nextId: number;
+  /** The scene root. */
   root?: SceneRoot;
 };

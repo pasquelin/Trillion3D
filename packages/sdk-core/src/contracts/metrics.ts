@@ -10,9 +10,9 @@ export type { GpuMemoryFrameMetrics } from './gpuMemory.ts';
 
 /** One timed GPU pass. `gpuMs` is null when the device returned no usable pair of timestamps. */
 export interface GpuPassTiming {
-  name: string;
-  gpuMs: number | null;
-  reason?: string;
+  /** The pass's name. */ name: string;
+  /** GPU time of the pass. */ gpuMs: number | null;
+  /** Why it went unmeasured. */ reason?: string;
 }
 /**
  * GPU durations of one image, pass by pass, as the device itself reported them. `totalMs` is the sum
@@ -21,11 +21,11 @@ export interface GpuPassTiming {
  * which lags the current one because the readback never blocks an image.
  */
 export interface GpuPassTimings {
-  frame: number;
-  totalMs: number | null;
-  passes: GpuPassTiming[];
-  truncated: boolean;
-  error?: string;
+  /** The image described. */ frame: number;
+  /** Sum of the passes. */ totalMs: number | null;
+  /** Each pass. */ passes: GpuPassTiming[];
+  /** Whether passes were left out. */ truncated: boolean;
+  /** Why timing failed. */ error?: string;
 }
 /**
  * GPU duration of one image: the sum of its per-submission spans, each span being the earliest pass
@@ -37,12 +37,12 @@ export interface GpuPassTimings {
  * timestamp query.
  */
 export type GpuFrameMs = number | null;
-export interface FrameMetrics
+/** What one frame cost and held: times, triangles, pages, memory. */ export interface FrameMetrics
   extends ShadowFrameMetrics, OcclusionFrameMetrics, TextureFrameMetrics, GpuMemoryFrameMetrics {
-  rafIntervalMs: number | null;
-  cpuFrameMs: number;
-  cpuSubmitMs: number | null;
-  gpuMs: number | null;
+  /** Time between two frames. */ rafIntervalMs: number | null;
+  /** CPU time of the frame. */ cpuFrameMs: number;
+  /** CPU time to send the work. */ cpuSubmitMs: number | null;
+  /** GPU time of the frame. */ gpuMs: number | null;
   /** Draw calls of this frame, as the engine counted them. `null` when it has not counted
    *  them: a zero would read as a frame with no draw. */
   drawCalls: number | null;
@@ -55,9 +55,9 @@ export interface FrameMetrics
   /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them.
    *  `null` when the engine has not counted them: a zero would read as an empty frame. */
   triangles: number | null;
-  clusters: number | null;
-  selectedTriangles: number | null;
-  residentPages: number | null;
+  /** Clusters drawn. */ clusters: number | null;
+  /** Triangles the cut selected. */ selectedTriangles: number | null;
+  /** Pages held in memory. */ residentPages: number | null;
   /** Submitted triangles: on the WebGPU-by-pages path, every drawable row — occlusion
    *  rejects after submit —, held by the table, hence exact and of this frame. */
   submittedTriangles?: number | null;
@@ -69,14 +69,14 @@ export interface FrameMetrics
   /** Pages actually evicted from the cache that feeds the drawn geometry: the backend's own GPU page
    *  cache when it owns one, the host page streamer otherwise. This is the cache pressure signal. */
   cacheEvictions?: number | null;
-  geometryAllocationBytes: number | null;
-  vramBytes: number | null;
-  pageLoads: number;
-  pageBytesRead: number;
-  pagesRequested?: number | null;
-  pagesLoading?: number | null;
-  cacheHits?: number | null;
-  cacheMisses?: number | null;
+  /** Bytes of geometry memory. */ geometryAllocationBytes: number | null;
+  /** Bytes of GPU memory. */ vramBytes: number | null;
+  /** Pages loaded so far. */ pageLoads: number;
+  /** Page bytes read so far. */ pageBytesRead: number;
+  /** Pages asked for. */ pagesRequested?: number | null;
+  /** Pages on their way. */ pagesLoading?: number | null;
+  /** Page reads served from cache. */ cacheHits?: number | null;
+  /** Page reads that missed the cache. */ cacheMisses?: number | null;
   /**
    * What the cut discarded without keeping. On the GPU DAG cut, which walks the
    * culling hierarchy level by level, these are the nodes discarded by the descent — outside the
@@ -86,7 +86,7 @@ export interface FrameMetrics
    * The CPU cut, for its part, counts its own tested nodes and its own rejects.
    */
   frustumRejected?: number | null;
-  lodLevel?: number | null;
+  /** Detail level of the cut. */ lodLevel?: number | null;
   /**
    * WebGPU transparent counters. `transparentDrawCalls` counts every draw, both halves of a two-pass
    * material included; `transparentSubmittedTriangles` counts the triangles of the transparent cut
@@ -95,9 +95,9 @@ export interface FrameMetrics
    * Null when unavailable.
    */
   transparentMeshes?: number | null;
-  transparentFrustumRejected?: number | null;
-  transparentDrawCalls?: number | null;
-  transparentSubmittedTriangles?: number | null;
+  /** See-through clusters outside the view. */ transparentFrustumRejected?: number | null;
+  /** See-through draw calls. */ transparentDrawCalls?: number | null;
+  /** See-through triangles sent. */ transparentSubmittedTriangles?: number | null;
   /** Complete initial GPU fallback is available; null on backends without this guarantee. */
   coverageReady?: boolean | null;
   /** Requested detail cannot coexist with the pinned fallback within the GPU page budget. */
@@ -172,7 +172,7 @@ export interface FrameMetrics
    *  JavaScript decoder. Both yield the same bytes; this counter only says which one
    *  ran, hence whether the `.wasm` resource was found and instantiated by this host. */
   pagesDecodedWasm?: number | null;
-  pageDecodeMs?: number | null;
+  /** Time spent decoding pages. */ pageDecodeMs?: number | null;
   /** State of the compute-path governor (`../math/path/governor.ts`): current path of each
    *  batch operation, medians of both paths, switches. `null` on a host that has not opened
    *  a batch — unmeasured, not "JavaScript path". */
@@ -186,14 +186,15 @@ export interface FrameMetrics
    * as long as no arrival has been planned — unmeasured, not zero.
    */
   pagesPlannedOffThread?: number | null;
-  pagePlanMs?: number | null;
+  /** Time spent planning arrivals. */ pagePlanMs?: number | null;
 }
+/** What a renderer can do: materials, hierarchy, GPU-driven work. */
 export interface BackendCapabilities {
-  renderer: string;
-  materials: string;
-  hierarchy: boolean;
-  gpuDriven: boolean;
-  simplification: boolean;
-  eviction: boolean;
-  unsupported: string[];
+  /** Its name. */ renderer: string;
+  /** Which materials it draws. */ materials: string;
+  /** Whether it reads the hierarchy. */ hierarchy: boolean;
+  /** Whether the GPU picks what to draw. */ gpuDriven: boolean;
+  /** Whether it simplifies. */ simplification: boolean;
+  /** Whether it evicts pages. */ eviction: boolean;
+  /** What it cannot do. */ unsupported: string[];
 }
