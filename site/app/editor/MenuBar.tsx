@@ -50,7 +50,8 @@ function download(json: string) {
   link.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
   link.download = 'scene.json';
   link.click();
-  URL.revokeObjectURL(link.href);
+  // Revoked on the next task: some browsers start the download after `click` returns.
+  setTimeout(() => URL.revokeObjectURL(link.href), 0);
 }
 
 /**

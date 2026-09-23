@@ -39,7 +39,13 @@ export function sceneActions(
     },
     /** Moves `node` under `parent`, keeping where it stands; never under itself. */
     reparent(node: Object3D, parent: Object3D) {
-      if (node.parent === parent || isWithin(parent, node)) return;
+      if (
+        !node.parent ||
+        !isWithin(node, scene) ||
+        node.parent === parent ||
+        isWithin(parent, node)
+      )
+        return;
       session.run(reparentCommand(node, parent));
     },
     rename(node: Object3D, next: string) {

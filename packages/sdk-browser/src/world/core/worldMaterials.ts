@@ -7,8 +7,7 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 /** The parameters a session reads as values — a page-table row's colour and numbers, a host
  *  surface's uniforms — and so the only ones written in place: none of them changes a shader, a
  *  resolve class or which pass draws the surface. */
-const VALUES = ['color', 'emissive', 'emissiveIntensity', 'metalness', 'roughness'];
-const VALUE_FIELDS = new Set(VALUES);
+const VALUES = new Set(['color', 'emissive', 'emissiveIntensity', 'metalness', 'roughness']);
 
 /** One parameter value as a key: a texture by identity and version, a colour or a vector by its
  *  numbers, anything else by its own value. */
@@ -25,7 +24,7 @@ function valueKey(value: unknown): string {
  *  which is what two materials must share for one to be repainted into the other's entry. */
 function materialKey(material: Material, values = true) {
   const fields = Object.keys(material)
-    .filter((name) => !MATERIAL_BOOKKEEPING.has(name) && (values || !VALUE_FIELDS.has(name)))
+    .filter((name) => !MATERIAL_BOOKKEEPING.has(name) && (values || !VALUES.has(name)))
     .sort()
     .map((name) => `${name}=${valueKey(material[name])}`);
   return fields.join(';');

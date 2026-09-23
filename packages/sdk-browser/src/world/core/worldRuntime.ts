@@ -126,9 +126,11 @@ export function createWorldRuntime(inputs: Inputs) {
       if (contents.reopenNeeded() || (!session && !reopens.running)) requestReopen();
       // A material written on its values alone repaints the surface already built (#335).
       const painted = contents.repainted().filter((entry) => drawn?.repaint(entry.material));
-      if (painted.length && session && !session.refreshMaterials()) requestReopen();
+      // A reopen requested above disposed `session` at once: the next one is built repainted.
+      if (painted.length && session && explorer === session && !session.refreshMaterials())
+        requestReopen();
     }
-    if (!session) return;
+    if (!session || explorer !== session) return;
     if (poses.pending)
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),

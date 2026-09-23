@@ -1,7 +1,7 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { raycast } from '../../../../sdk-core/src/world/object/raycast.ts';
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
-import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
+import { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { createControlBase } from '../../camera/controls/base.ts';
 import { canvasRay } from '../core/worldRaycast.ts';
 import type { buildTransformHandles } from './transformHandles.ts';
@@ -14,6 +14,9 @@ import {
   type TransformSnap,
 } from './transformMath.ts';
 
+/** Scratch values of a pointer move; a press keeps its own copy of the ray. */
+const moveRay = new Ray(),
+  parentTurn = new Quaternion();
 /** The colour of the handle being dragged. */
 const ACTIVE = 0xffff00;
 /** The material a handle wears: its axis, the axis a plane square faces, or the centre's. */
@@ -46,17 +49,15 @@ export function trackTransformDrag(
   let drag: { start: DragStart; pointer: number } | null = null;
   const rayAt = (event: PointerEvent) => {
     const box = host.canvas.getBoundingClientRect();
-    return canvasRay(host.camera, host.canvas, {
-      x: event.clientX - box.left,
-      y: event.clientY - box.top,
-    });
+    const at = { x: event.clientX - box.left, y: event.clientY - box.top };
+    return canvasRay(host.camera, host.canvas, at, moveRay);
   };
   /** Writes a world pose on the object: the local pose that places it so under its parents. */
   const apply = (object: Object3D, { position, quaternion, scale }: DragPose) => {
     const parent = object.parent;
     if (parent) {
       parent.worldToLocal(position);
-      quaternion.premultiply(parent.getWorldQuaternion(new Quaternion()).invert());
+      quaternion.premultiply(parent.getWorldQuaternion(parentTurn).invert());
     }
     object.position.copy(position);
     object.quaternion.copy(quaternion);

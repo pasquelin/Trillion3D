@@ -31,7 +31,8 @@ export function bindInput(session: Session, actions: SceneActions, canvas: HTMLC
     session.select(hit?.object ?? null);
   };
   const key = (event: KeyboardEvent) => {
-    if (typing(event.target)) return;
+    // A shortcut mid-drag would edit under the drag, whose undo step began before it.
+    if (typing(event.target) || session.gizmo.dragging) return;
     const name = event.key.toLowerCase();
     if (event.ctrlKey || event.metaKey) {
       const redo = (name === 'z' && event.shiftKey) || name === 'y';

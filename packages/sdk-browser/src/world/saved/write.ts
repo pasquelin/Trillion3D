@@ -28,8 +28,10 @@ type SceneLike = Object3D & {
 /** A linear colour, or a point a light aims at. */
 type Triple = [number, number, number];
 const rgb = (c: Color): Triple => [c.r, c.g, c.b];
-/** A plain copy of JSON-shaped data: what the page stored in `userData` or a parameter. */
-const plain = (value: unknown) => JSON.parse(JSON.stringify(value ?? {}));
+/** A plain copy of JSON-shaped data: what the page stored in `userData` or a parameter; a
+ *  `null` stays `null` (a cleared parameter), `undefined` stays unset. */
+const plain = (value: unknown) =>
+  value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 
 /** The shape: its family call while it still holds, its vertices otherwise. */
 function saveGeometry(g: Geometry): SavedGeometry {

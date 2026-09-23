@@ -6,6 +6,7 @@ import type {
   Object3D,
 } from '../../../packages/sdk-browser/src/index.ts';
 import type { Engine } from '../../lessons/lessonWorld.ts';
+import { applyPose } from './commands.ts';
 
 /** The shapes the Add menu builds, each with the first arguments of its family call named. */
 export const SHAPES = {
@@ -98,9 +99,7 @@ export function duplicate(engine: Engine, source: Object3D): Object3D | null {
     copy = make({ color, intensity, distance, decay, angle, penumbra, castShadow });
   } else copy = engine.object.group();
   copy.name = source.name;
-  copy.position.copy(source.position);
-  copy.quaternion.copy(source.quaternion);
-  copy.scale.copy(source.scale);
+  applyPose(copy, source);
   copy.visible = source.visible;
   copy.castShadow = source.castShadow;
   copy.receiveShadow = source.receiveShadow;

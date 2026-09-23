@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { t } from '../../content/i18n/index.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -34,31 +34,41 @@ export function useEditor(
 ) {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [, setVersion] = useState(0);
+  // Read at each use: a change of language renames what comes next, never reopens the world.
+  const language = useRef(locale);
+  language.current = locale;
   useEffect(() => {
     let release: (() => void) | null = null,
       gone = false;
     const failed = (error: unknown) => {
-      if (!gone) fail(failureText(locale, error));
+      if (!gone) fail(failureText(language.current, error));
     };
     void import('../../../packages/sdk-browser/src/index.ts')
       .then(async (engine) => {
         const target = canvas.current;
         if (gone || !target) return;
         const session = createSession(engine, target, () => setVersion((count) => count + 1));
-        const actions = sceneActions(session, (kind) => t(locale, `editor.add.${kind}`), failed);
+        const actions = sceneActions(
+          session,
+          (kind) => t(language.current, `editor.add.${kind}`),
+          failed,
+        );
         const unbind = bindInput(session, actions, target);
         release = () => {
           unbind();
           session.dispose();
         };
-        setEditor({ session, actions, failed });
+        // The panels open once the saved scene is back: an edit made while it loads would be
+        // saved over it, then swept away with the history when it arrives.
         await actions.restore();
+        if (!gone) setEditor({ session, actions, failed });
       })
       .catch(failed);
     return () => {
       gone = true;
       release?.();
+      setEditor(null);
     };
-  }, [canvas, locale, fail]);
+  }, [canvas, fail]);
   return editor;
 }

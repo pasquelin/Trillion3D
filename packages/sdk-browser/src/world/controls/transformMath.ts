@@ -90,9 +90,11 @@ export function dragTransform(
               start,
               (['x', 'y', 'z'] as const).find((c) => !handle.includes(c))!,
             );
+  const size = normal.lengthSq();
+  if (!Number.isFinite(size) || size === 0) return null;
   const a = onPlane(start.from, normal, p0),
     b = onPlane(to, normal, p0);
-  if (!a || !b || !Number.isFinite(normal.lengthSq()) || normal.lengthSq() === 0) return null;
+  if (!a || !b) return null;
   const moved = b.clone().sub(a);
   if (mode === 'translate') {
     if (handle === 'xyz') return { ...pose, position: p0.clone().add(moved) };
