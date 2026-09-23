@@ -13,7 +13,7 @@ const root = resolve(import.meta.dirname, '..'),
   examples = resolve(root, 'site/assets/examples'),
   only = process.argv.slice(2).find((argument) => !argument.startsWith('-')),
   compiler =
-    process.env.WG_COMPILER ??
+    process.env.TRILLION3D_COMPILER ??
     resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
 
 const names = Object.keys(modelScenes).filter((name) => !only || name === only);

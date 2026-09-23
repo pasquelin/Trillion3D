@@ -8,12 +8,13 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 let auditSearch: string | undefined,
   auditEnabled = false;
 
-/** Opt-in audit, no per-frame trace: add `wgFrameAudit=1` to the host URL. */
+/** Opt-in audit, no per-frame trace: add `trillion3dFrameAudit=1` to the host URL. */
 export function frameCostAuditEnabled() {
   const search = typeof location === 'undefined' ? undefined : location.search;
   if (search !== auditSearch) {
     auditSearch = search;
-    auditEnabled = search !== undefined && new URLSearchParams(search).get('wgFrameAudit') === '1';
+    auditEnabled =
+      search !== undefined && new URLSearchParams(search).get('trillion3dFrameAudit') === '1';
   }
   return auditEnabled;
 }

@@ -11,7 +11,7 @@ import { existingChangedFiles } from './check-changed.ts';
 import { consumerImports } from './sdk-api-model.ts';
 
 test('ignored personal content stays outside shared checks and force-addition is rejected', () => {
-  const root = mkdtempSync(join(tmpdir(), 'wg-local-files-'));
+  const root = mkdtempSync(join(tmpdir(), 'trillion3d-local-files-'));
   const git = (...args: string[]) => execFileSync('git', args, { cwd: root, stdio: 'pipe' });
   try {
     git('init', '-q');

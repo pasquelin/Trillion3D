@@ -60,7 +60,7 @@ fn an_ogawa_file_routes_to_the_alembic_plugin() {
         plugins::scene::Routed::Manifest => panic!("routed to the manifest"),
     };
     assert_eq!(routed(&fixture().join("scene.abc")), "alembic");
-    let dir = std::env::temp_dir().join(format!("wg-alembic-route-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("trillion3d-alembic-route-{}", std::process::id()));
     fs::create_dir_all(&dir).expect("dir");
     fs::copy(fixture().join("scene.abc"), dir.join("nameless")).expect("copy");
     assert_eq!(routed(&dir.join("nameless")), "alembic", "header alone");

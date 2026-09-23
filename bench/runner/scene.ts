@@ -4,10 +4,10 @@ import { existsSync, readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
 // Bench assets, read-only: `<scene>/` (sources) and `<scene>-derived/` (compiled cache, see
-// `README.md` § Assets) under `.mesure/assets/` of the repo, off git. `WG_ASSETS` points at
+// `README.md` § Assets) under `.mesure/assets/` of the repo, off git. `TRILLION3D_ASSETS` points at
 // another folder — a frozen copy, or that of another worktree.
-export const ASSETS = process.env.WG_ASSETS
-  ? resolve(process.env.WG_ASSETS)
+export const ASSETS = process.env.TRILLION3D_ASSETS
+  ? resolve(process.env.TRILLION3D_ASSETS)
   : resolve(import.meta.dirname, '../../.mesure/assets');
 
 /** Harness fallback when no named cache gives it a scene. */

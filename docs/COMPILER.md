@@ -138,7 +138,7 @@ A glTF document renders one scene (glTF 2.0 §3.5). The compiler takes the scene
 
 ## The three streams
 
-The process talks through stdin, stdout and stderr only. There is no socket, no temporary protocol file, and the only environment variable it reads, `WG_CACHE_LOCK_WAIT_MS`, merely shortens the wait for a busy cache: milliseconds, `0` refusing at once with `CACHE_LOCKED`, anything unreadable ignored and the 30 s default kept.
+The process talks through stdin, stdout and stderr only. There is no socket, no temporary protocol file, and the only environment variable it reads, `TRILLION3D_CACHE_LOCK_WAIT_MS`, merely shortens the wait for a busy cache: milliseconds, `0` refusing at once with `CACHE_LOCKED`, anything unreadable ignored and the 30 s default kept.
 
 | Stream | Content                                            | Size                                    |
 | ------ | -------------------------------------------------- | --------------------------------------- |

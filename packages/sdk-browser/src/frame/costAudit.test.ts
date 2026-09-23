@@ -23,7 +23,7 @@ test('opt-in audit: bounded snapshot, deferred, without changing the selection o
     assert.equal(gpuFrameCostSnapshot({} as WebgpuPagesRuntime), undefined);
     await Promise.resolve();
     assert.equal(output.length, 0);
-    setSearch('?wgFrameAudit=1');
+    setSearch('?trillion3dFrameAudit=1');
     const item = {
       bounds: [10, 0, 0, 11, 1, 1],
       surface: surfaceOf(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
@@ -64,7 +64,7 @@ test('gpuFrameCostSnapshot: the published pose is the engine camera’s (run.gat
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
   Object.defineProperty(globalThis, 'location', {
     configurable: true,
-    value: { search: '?wgFrameAudit=1' },
+    value: { search: '?trillion3dFrameAudit=1' },
   });
   try {
     // Two-level rig nobody else walks: the local host camera stays trivial, only the rig carries
@@ -102,7 +102,7 @@ test('an item that declares no material is counted as one draw, the host default
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
   Object.defineProperty(globalThis, 'location', {
     configurable: true,
-    value: { search: '?wgFrameAudit=1' },
+    value: { search: '?trillion3dFrameAudit=1' },
   });
   try {
     // An empty material array declares nothing: the side read is the host default, front, and the
