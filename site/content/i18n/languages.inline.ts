@@ -5,6 +5,8 @@ interface LanguageMeta {
   name: string;
   abbr: string;
   hreflang: string;
+  /** The ISO 3166 region code of the flag the selector shows beside it (`scripts/docs/build-flags.ts`). */
+  flag: string;
   rtl: boolean;
 }
 
