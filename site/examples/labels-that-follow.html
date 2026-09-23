@@ -180,11 +180,11 @@
         mouse: 'Drag to turn around the Sun, wheel to come closer; the labels ride on the planets',
         show: Object.keys(FACTS),
         speed: [0, 4, 1],
-        lineThemUp: () => (aligning = 0),
-      }, world);
+        lineThemUp: () => ((aligning = 0), world.invalidate()),
+      }, () => world.invalidate(), world);
 
       const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-      let starts = [];
+      let starts = [], placed = false;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
         if (opening >= 0 && opening < 1) {
@@ -195,6 +195,8 @@
         }
         // An inner planet goes round faster (Kepler: the year grows as the orbit's power 1.5);
         // the button eases every planet onto one line from the Sun, then lets them go again.
+        const moving = (opening >= 0 && opening < 1) || aligning >= 0 || ui.speed > 0 || !placed;
+        placed = true;
         if (aligning === 0) starts = bodies.map(({ angle }) => angle);
         if (aligning >= 0) {
           aligning = Math.min(1, aligning + step / 2.5);
@@ -204,12 +206,16 @@
           });
           if (aligning === 1) aligning = -1;
         } else for (const body of bodies) body.angle += step * ui.speed * 0.9 * (5 / body.orbit) ** 1.5;
-        for (const body of bodies) body.mesh.position.set(body.orbit * Math.cos(body.angle), 0, -body.orbit * Math.sin(body.angle));
-        rings.position.copy(saturn.mesh.position);
         moon.angle += step * ui.speed * 3.2;
-        moon.mesh.position.set(earth.mesh.position.x + moon.orbit * Math.cos(moon.angle), 0.25 * Math.sin(moon.angle), earth.mesh.position.z - moon.orbit * Math.sin(moon.angle));
+        // Still planets are not moved again, and ask for no new frame; the labels still follow
+        // the camera's own moves.
+        if (moving) {
+          for (const body of bodies) body.mesh.position.set(body.orbit * Math.cos(body.angle), 0, -body.orbit * Math.sin(body.angle));
+          rings.position.copy(saturn.mesh.position);
+          moon.mesh.position.set(earth.mesh.position.x + moon.orbit * Math.cos(moon.angle), 0.25 * Math.sin(moon.angle), earth.mesh.position.z - moon.orbit * Math.sin(moon.angle));
+          world.invalidate();
+        }
         placeLabels(ui.show);
-        world.invalidate();
       });
     </script>
   </body>

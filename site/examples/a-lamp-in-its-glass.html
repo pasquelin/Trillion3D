@@ -93,7 +93,11 @@
         world.invalidate();
       }, world);
       // A pendulum: the angle swings, the lamp follows the bulb it hangs from.
+      // With no swing it comes to rest once, and a still cellar asks for no new frame.
+      let resting = false;
       world.onFrame(({ time }) => {
+        if (resting && !ui.swing) return;
+        resting = !ui.swing;
         const angle = Math.sin(time * 1.6) * ui.swing, reach = CHAIN + 0.2;
         lantern.rotation.z = angle;
         lamp.position.set(HOOK[0] + Math.sin(angle) * reach, HOOK[1] - Math.cos(angle) * reach, HOOK[2]);

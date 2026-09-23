@@ -148,6 +148,7 @@
         molecule.add(mesh);
         return mesh;
       });
+      molecule.rotation.set(0.25, 0, 0);
       world.scene.add(molecule);
 
       // A dark stage below catches the shadow; a warm key, two coloured rims and a cool fill.
@@ -235,8 +236,10 @@
       let turn = 0;
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
-        if (ui.spin) turn += step * 0.25;
-        molecule.rotation.set(0.25, turn, 0);
+        if (ui.spin) {
+          turn += step * 0.25;
+          molecule.rotation.set(0.25, turn, 0);
+        }
         const moving = flight < 1.6, reshaping = morph < 1;
         if (moving) flight = Math.min(1.6, flight + step / 1.4);
         if (reshaping) morph = Math.min(1, morph + step / 0.6);
@@ -253,7 +256,8 @@
           // The bonds grow once the last atom has landed.
           placeBonds(Math.min(1, Math.max(0, (flight - 1.45) / 0.15)));
         }
-        world.invalidate();
+        // A molecule assembled and not turning asks for no new frame.
+        if (ui.spin || moving || reshaping) world.invalidate();
       });
     </script>
   </body>
