@@ -11,6 +11,10 @@ import { listenWorldNotices } from './worldNotices.ts';
  * (`worldNotices.ts`) until the channel is closed; the audits are the session's own proofs.
  */
 export const diagnostic = {
+  /**
+   * Opens a channel that tells its observers each thing the engine notices.
+   * @param p - Whether it says a summary or everything.
+   */
   createChannel(p: { detail?: 'summary' | 'full' } = {}) {
     const observers = new Set<(d: { kind: string; message: string }) => void>();
     const deliver = (d: BackendDiagnostic) => {
@@ -34,7 +38,10 @@ export const diagnostic = {
       },
     });
   },
-  /** The clear colour asked against the pixels the view shows (`presentationColorDiagnostic`). */
+  /**
+   * The clear colour asked against the pixels the view shows (`presentationColorDiagnostic`).
+   * @param world - The world to check.
+   */
   presentationColor(world: { scene: { background: unknown } }) {
     const session = sessionOf(world);
     const { width, height } = session.canvas;
@@ -42,7 +49,19 @@ export const diagnostic = {
     const clear = background?.getHex?.() ?? DEFAULT_CLEAR_COLOR;
     return presentationColorDiagnostic(session.capture(), width, height, clear);
   },
+  /**
+   * Checks how the frame split its work between passes.
+   * @param world - The world to check.
+   */
   partitionAudit: (world: object) => sessionOf(world).partitionAudit(),
+  /**
+   * Checks which see-through surfaces the occlusion test kept or dropped.
+   * @param world - The world to check.
+   */
   transparentOcclusion: (world: object) => sessionOf(world).transparentOcclusionAudit(),
+  /**
+   * A summary of what the shadow atlas holds this frame.
+   * @param world - The world to check.
+   */
   shadowAtlas: (world: object) => sessionOf(world).shadowAtlasDigest(),
 };

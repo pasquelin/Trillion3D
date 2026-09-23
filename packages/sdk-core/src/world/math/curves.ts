@@ -3,8 +3,11 @@ import { Vector3, readVec3, type Vec3Input } from './vector3.ts';
 
 /** A parametric curve over `t ∈ [0, 1]`. */
 export abstract class Curve {
+  /** Always `true`: tells a curve apart from anything else. */
   readonly isCurve = true as const;
+  /** The point at `t`, from 0 (the start) to 1 (the end). */
   abstract getPoint(t: number, out?: Vector3): Vector3;
+  /** Points spread along the curve, `divisions + 1` of them. */
   getPoints(divisions = 5) {
     const points: Vector3[] = [];
     for (let i = 0; i <= divisions; i++) points.push(this.getPoint(i / divisions));
@@ -17,6 +20,7 @@ export abstract class Curve {
       b = this.getPoint(Math.min(1, t + h));
     return out.subVectors(b, a).normalize();
   }
+  /** How long the curve is, measured over `divisions` pieces. */
   getLength(divisions = 200) {
     let length = 0,
       last = this.getPoint(0);
@@ -31,13 +35,16 @@ export abstract class Curve {
 
 /** A smooth curve through every point: centripetal Catmull–Rom, closed on request. */
 export class SplineCurve extends Curve {
+  /** The points the curve passes through. */
   points: Vector3[];
+  /** Whether the curve comes back to its first point. */
   closed: boolean;
   constructor(points: Vector3[], closed = false) {
     super();
     this.points = points;
     this.closed = closed;
   }
+  /** The point at `t` on the smooth curve. */
   getPoint(t: number, out = new Vector3()) {
     const n = this.points.length;
     if (n === 1) return out.copy(this.points[0]);
@@ -69,6 +76,7 @@ export class SplineCurve extends Curve {
 
 /** Straight segments through every point, parameterised by arc length. */
 export class Path extends Curve {
+  /** The corners of the path. */
   readonly points: Vector3[];
   constructor(points: (Vec3Input | readonly [number, number])[] = []) {
     super();
@@ -82,6 +90,7 @@ export class Path extends Curve {
   override getPoints() {
     return this.points.map((p) => p.clone());
   }
+  /** The point at `t` along the straight pieces, by length. */
   getPoint(t: number, out = new Vector3()) {
     const pts = this.points;
     if (pts.length < 2) return out.copy(pts[0] ?? new Vector3());
@@ -98,6 +107,7 @@ export class Path extends Curve {
 
 /** A closed outline in the plane, with holes: what `geometry.shape` fills and `extrude` sweeps. */
 export class Shape {
+  /** Always `true`: tells a shape apart from anything else. */
   readonly isShape = true as const;
   /** Outlines cut out of this one: shapes or paths, read in the plane. */
   readonly holes: (Shape | Path)[] = [];
@@ -111,18 +121,21 @@ export class Shape {
       for (const [x, y] of points.slice(1)) this.lineTo(x, y);
     }
   }
+  /** Starts the outline at `(x, y)`. */
   moveTo(x: number, y: number) {
     this.cursor = new Vector2(x, y);
     const at = this.cursor.clone();
     this.commands.push((_, out) => out.push(at));
     return this;
   }
+  /** Draws a straight line to `(x, y)`. */
   lineTo(x: number, y: number) {
     const to = new Vector2(x, y);
     this.cursor = to;
     this.commands.push((_, out) => out.push(to.clone()));
     return this;
   }
+  /** Draws a curve to `(x, y)`, bent toward one control point. */
   quadraticCurveTo(cx: number, cy: number, x: number, y: number) {
     const from = this.cursor.clone();
     this.cursor = new Vector2(x, y);
@@ -140,6 +153,7 @@ export class Shape {
     });
     return this;
   }
+  /** Draws a curve to `(x, y)`, bent toward two control points. */
   bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number) {
     const from = this.cursor.clone();
     this.cursor = new Vector2(x, y);
