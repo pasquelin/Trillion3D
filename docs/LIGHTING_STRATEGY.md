@@ -51,8 +51,8 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
   exact sum, 0 px A/A. Envelope 39.9 → 17.9 ms GPU on a moving camera; the grain left in motion
   is declared in [ENGINE.md](ENGINE.md#direct-lighting). What remains of L2: a spatial denoise before the history,
   where the reference has one.
-- **L3** — shadows in virtual pages from the hardware raster only the pages seen,
-  cached. The compute raster is off, on measurement.
+- **L3** — shadows in virtual pages from the hardware raster: only the pages seen,
+  cached. The compute raster stays off; measurement kept it off.
 - **L4** — baked global distance field, walked in compute, reading the proxy's surface cache.
 - **L5** — screen probes gathering L1 and L4, filtered by temporal history; world probes
   for the far field; bounce on by default when its budget holds.
