@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#1a1512');
@@ -148,8 +149,8 @@
         if (key === 'facets') for (const { matter } of pieces) matter.flatShading = values.facets;
         world.invalidate();
       }, world);
-      triangles = readout('Triangles');
-      facing = readout('Facing you');
+      triangles = readout('triangles');
+      facing = readout('facingYou');
       count(ui.grid);
 
       // The opening: each surface grows out of its plinth in turn, with a little overshoot.
@@ -165,7 +166,7 @@
           const off = (index / SURFACES.length) * TAU + turn - bearing;
           return Math.abs(Math.atan2(Math.sin(off), Math.cos(off)));
         };
-        facing(SURFACES[SURFACES.reduce((best, _, index) => (gap(index) < gap(best) ? index : best), 0)].name);
+        facing(say(SURFACES[SURFACES.reduce((best, _, index) => (gap(index) < gap(best) ? index : best), 0)].name));
         pieces.forEach(({ sculpture }, index) => {
           const grow = Math.min(1, Math.max(0, (time - 0.6 - index * 0.35) / 0.9));
           const pop = grow < 1 ? 1 - (1 - grow) ** 3 + Math.sin(grow * Math.PI) * 0.18 : 1;

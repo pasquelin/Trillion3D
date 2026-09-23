@@ -25,7 +25,8 @@
       // samples; until then the floor shows its tile once, upright. The texture's placement is the
       // subject: the "flow" toggle slides its offset every frame, on purpose.
       import { createWorld, geometry, material, object, light, math, texture, wrap } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       // One tile, painted by this page: a glazed square with a compass rose, the word "UP" and
       // a notch in one corner, so every turn, slide and mirror of the picture can be read on it.
@@ -66,7 +67,7 @@
         pen.fillStyle = ink;
         pen.font = 'bold 64px system-ui';
         pen.textAlign = 'center';
-        pen.fillText('UP', SIZE / 2, 96);
+        pen.fillText(say('up'), SIZE / 2, 96);
         pen.beginPath();
         pen.moveTo(16, SIZE - 16);
         pen.lineTo(96, SIZE - 16);
@@ -129,7 +130,7 @@
         placed?.(`${values.tilesAcross} × ${values.tilesAcross}, ${values.turn}°`);
         world.invalidate();
       }, world);
-      placed = readout('Tiles, turn');
+      placed = readout('tilesTurn');
       placed(`${ui.tilesAcross} × ${ui.tilesAcross}, ${ui.turn}°`);
 
       // Flow: the tiles slide across the floor like a conveyor, a quarter tile a second.

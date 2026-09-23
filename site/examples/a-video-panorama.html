@@ -25,7 +25,8 @@
       // Waits for #362: a texture made from a video shows each new frame of the video by itself,
       // without a change to its material; until then the panorama stands still.
       import { createWorld, geometry, material, object, texture, side } from '../runtime/engine.js';
-      import { controls, playPickedVideo, readout } from '../runtime/kit.js';
+      import { controls, playPickedVideo, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       // A 360° video: every direction at once, the turn around the viewer across, from straight up
       // to straight down along. This page films one of its own — dusk over the sea, clouds
@@ -96,7 +97,7 @@
       world.controls.maxPolarAngle = Math.PI - 0.05;
 
       const picker = document.getElementById('file');
-      playPickedVideo(picker, video, () => source('your file'));
+      playPickedVideo(picker, video, () => source(say('yourFile')));
       const ui = controls({
         mouse: 'Drag to look around; the view turns on its own until you press',
         playing: true,
@@ -107,8 +108,8 @@
         world.camera.fov = values.fieldOfView;
         world.invalidate();
       }, world);
-      const source = readout('Playing');
-      source('dusk over the sea');
+      const source = readout('playing');
+      source(say('duskOverSea'));
 
       // The page films its dusk while it plays, and the view pans slowly until the first press or
       // wheel on the canvas.

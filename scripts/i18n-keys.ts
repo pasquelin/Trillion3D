@@ -1,7 +1,8 @@
 // The key parity of the portal's languages: each dictionary of `site/i18n/` gives exactly the keys
-// the English one gives, and each other language translates exactly the text of the generated API
-// reference that English shows (`site/content/reference/api.<language>.json`). A key given on one
-// side only is a page that would show a raw key, or a word nothing reads.
+// the English one gives, each other language translates exactly the text of the generated API
+// reference that English shows (`site/content/reference/api.<language>.json`), and each gives
+// the examples' words (`site/examples/i18n/<language>.json`) with English's keys and `{blanks}`.
+// A key given on one side only is a page that would show a raw key, or a word nothing reads.
 import generated from '../site/content/reference/api.json' with { type: 'json' };
 import { DEFAULT_LANGUAGE } from '../site/content/i18n/dictionary.ts';
 import { existsSync } from 'node:fs';
@@ -23,6 +24,12 @@ const REFERENCE_TRANSLATIONS = readJsonFolder<Record<string, ReferenceText>>(
   /^api\.(.+)\.json$/,
 );
 
+/** The examples' words (`site/examples/kit/words.ts`), by language code. */
+const EXAMPLE_WORDS = readJsonFolder<object>(
+  new URL('../site/examples/i18n/', import.meta.url),
+  /^(.+)\.json$/,
+);
+
 /** One file whose keys differ from English's, and how. */
 export interface KeyMismatch {
   file: string;
@@ -30,11 +37,16 @@ export interface KeyMismatch {
   extra: string[];
 }
 
-/** The leaf keys of a JSON value, `a.b.0`: what a translation must give, whatever its words. */
-export function leafKeys(value: unknown, prefix = ''): string[] {
-  if (value === null || typeof value !== 'object') return [prefix];
+/** The leaf keys of a JSON value, `a.b.0`: what a translation must give, whatever its words;
+ *  each followed by what `describe` says of its text. */
+export function leafKeys(
+  value: unknown,
+  prefix = '',
+  describe: (text: unknown) => string = () => '',
+): string[] {
+  if (value === null || typeof value !== 'object') return [prefix + describe(value)];
   return Object.entries(value).flatMap(([key, child]) =>
-    leafKeys(child, prefix ? `${prefix}.${key}` : key),
+    leafKeys(child, prefix ? `${prefix}.${key}` : key, describe),
   );
 }
 
@@ -70,6 +82,22 @@ const flagMismatch = (code: string): KeyMismatch[] => {
       ];
 };
 
+/** The `{blanks}` of a text in name order, whatever order a language writes them in: ` {m} {n}`. */
+const blanks = (text: unknown) =>
+  [...String(text).matchAll(/\{\w+\}/g)]
+    .map(([blank]) => ` ${blank}`)
+    .sort()
+    .join('');
+
+/** The examples' dictionary of `code` against English's: its keys, and the blanks of each word. */
+function exampleMismatch(code: string): KeyMismatch[] {
+  const file = `site/examples/i18n/${code}.json`;
+  const given = EXAMPLE_WORDS[code];
+  if (!given) return [{ file, missing: [file], extra: [] }];
+  const english = leafKeys(EXAMPLE_WORDS[DEFAULT_LANGUAGE], '', blanks);
+  return compareKeys(file, english, leafKeys(given, '', blanks));
+}
+
 /** Every file of a language whose keys are not English's, or whose flag is not served: none
  *  when the languages agree. */
 export function keyMismatches(): KeyMismatch[] {
@@ -79,6 +107,7 @@ export function keyMismatches(): KeyMismatch[] {
   return [
     ...languages.flatMap((code) => [
       ...flagMismatch(code),
+      ...exampleMismatch(code),
       ...compareKeys(`site/i18n/${code}.json`, english, leafKeys(DICTIONARIES[code])),
       ...(code === DEFAULT_LANGUAGE
         ? []

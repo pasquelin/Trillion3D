@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { describe, labelOf, printed } from '../site/examples/kit/controls.ts';
+import { describe, printed } from '../site/examples/kit/controls.ts';
+import { labelOf } from '../site/examples/kit/words.ts';
 import { sceneTriangles, statLines, statsCorners } from '../site/examples/kit/statsLines.ts';
 import { profileLines, profileWindow } from '../site/examples/kit/profile.ts';
 
@@ -87,7 +88,7 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
   assert.deepEqual(
     statLines({ ...unmeasured, fps: 60, held: true, selectedTriangles: null, sceneTriangles: 12 }),
     [
-      ['FPS', '60 held'],
+      ['FPS (held)', '60'],
       ['triangles (scene)', '12'],
     ],
   );
@@ -96,8 +97,8 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
 });
 
 test('the stats corner sits at the bottom left or, moved, at the top left', () => {
-  assert.equal(statsCorners['bottom-left'], 'bottom-3 left-3');
-  assert.equal(statsCorners['top-left'], 'top-3 left-3');
+  assert.equal(statsCorners['bottom-left'], 'bottom-3 start-3');
+  assert.equal(statsCorners['top-left'], 'top-3 start-3');
 });
 
 test('the scene count reads indexed and plain geometries of the visible meshes, not points or lines', () => {

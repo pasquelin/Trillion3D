@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
 import { thumbnailDelay } from './docs/examples/capture.ts';
+import exampleWords from '../site/examples/i18n/en.json' with { type: 'json' };
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
 import type { ExampleList as ExampleListComponent } from '../site/app/layout/ExampleList.tsx';
 import { examplesMenu } from '../site/app/layout/menus.ts';
@@ -65,9 +66,14 @@ test('every example is one standalone HTML file that imports the built engine', 
     const manifest = html.match(/scene\.load\('\.\.\/(assets\/[^']+)'\)/)?.[1];
     if (!manifest) continue;
     await access(new URL(manifest, site));
-    // A scene built around an imported model credits its author on the page.
-    if (Object.keys(modelScenes).some((scene) => manifest.startsWith(`assets/examples/${scene}/`)))
-      assert.match(html, /<p>[^<]*\b(CC0|CC BY 3\.0)\b[^<]*CREDITS\.md<\/p>/, entry.id);
+    // A scene built around an imported model credits its author on the page, in its words.
+    if (
+      Object.keys(modelScenes).some((scene) => manifest.startsWith(`assets/examples/${scene}/`))
+    ) {
+      assert.match(html, /<p data-words="credit"><\/p>/, entry.id);
+      const credit = (exampleWords as Record<string, { words?: { credit?: string } }>)[entry.id];
+      assert.match(credit?.words?.credit ?? '', /\b(CC0|CC BY 3\.0)\b.*CREDITS\.md$/, entry.id);
+    }
   }
 });
 
@@ -91,7 +97,10 @@ test('an example is its file, live, on the demo page; the index shows what is re
   const [entry] = ready;
   const page = renderToStaticMarkup(createElement(Example, { id: entry.id, locale: 'en' }));
   assert.match(page, new RegExp(`<h1[^>]*>.*${exampleTitle(entry.id, 'en')}</h1>`));
-  assert.match(page, new RegExp(`<div class="render-frame[^"]*"[^>]*><iframe src="${entry.file}"`));
+  assert.match(
+    page,
+    new RegExp(`<div class="render-frame[^"]*"[^>]*><iframe src="${entry.file}\\?lang=en"`),
+  );
   assert.match(page, /role="status"[^>]*>.*Preparing the scene/s);
   // One floating button carries the actions; the source waits behind Code, in its modal.
   assert.equal((page.match(/class="fab"/g) ?? []).length, 1);

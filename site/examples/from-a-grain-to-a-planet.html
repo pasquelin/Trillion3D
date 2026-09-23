@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#0b1024');
@@ -301,7 +302,7 @@
         toTheIsland: () => fly(5000),
         toThePlanet: () => fly(FAR),
       }, world);
-      const shown = readout('View width'), seen = readout('You see');
+      const shown = readout('viewWidth'), seen = readout('youSee');
       const width = (metres) => (metres < 0.01 ? `${(metres * 1000).toFixed(1)} mm` : metres < 1 ? `${(metres * 100).toFixed(1)} cm` : metres < 1000 ? `${metres.toFixed(metres < 10 ? 1 : 0)} m` : `${(metres / 1000).toFixed(1)} km`);
       const SCALES = [[0.012, 'grains of sand'], [0.15, 'sand and shells'], [3, 'pebbles'], [60, 'the beach'], [900, 'the coast'], [9000, 'the island'], [Infinity, 'the planet']];
 
@@ -325,7 +326,7 @@
         }
         const across = 2 * distance * Math.tan((world.camera.fov * Math.PI) / 360);
         shown(width(across));
-        seen(SCALES.find(([limit]) => across < limit)[1]);
+        seen(say(SCALES.find(([limit]) => across < limit)[1]));
         // Between journeys only the viewer's own moves ask for a frame.
         if (journey) world.invalidate();
       });

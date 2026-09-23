@@ -92,13 +92,14 @@
   </head>
   <body>
     <canvas id="view"></canvas>
-    <div id="hud" class="layer" data-example-overlay data-hud><span id="orbs"></span><span id="clock"></span><span id="sound">M sound</span></div>
+    <div id="hud" class="layer" data-example-overlay data-hud><span id="orbs"></span><span id="clock"></span><span id="sound" data-words="sound"></span></div>
     <div id="dot" class="layer" data-example-overlay data-hud></div>
     <div id="veil" class="layer" data-example-overlay></div>
     <div id="banner" class="layer" data-example-overlay data-hud></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, play } from '../runtime/kit.js';
+      import { controls, play, words } from '../runtime/kit.js';
+      const say = words();
 
       // ── The course: data, nothing of the engine inside. The temple is built at life size, in
       // metres, for the engine's character and its human defaults: a 3.5 m/s jog, a 6.5 m/s
@@ -492,16 +493,15 @@
       const $ = (id) => document.getElementById(id);
       const [hud, orbsShown, clockShown, soundShown, veil, banner] = ['hud', 'orbs', 'clock', 'sound', 'veil', 'banner'].map($);
       const KEYS = [
-        { action: 'Run', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
-        { action: 'Look', keys: ['Mouse'] },
-        { action: 'Sprint', keys: ['Shift'] },
-        { action: 'Jump', keys: ['Space'] },
-        { action: 'Run again', keys: ['R'] },
-        { action: 'Sound on or off', keys: ['M'] },
-        { action: 'Pause', keys: ['Esc'] },
+        { action: 'run', keys: ['W', 'A', 'S', 'D'], azerty: ['Z', 'Q', 'S', 'D'] },
+        { action: 'look', keys: ['Mouse'] },
+        { action: 'sprint', keys: ['Shift'] },
+        { action: 'jump', keys: ['Space'] },
+        { action: 'runAgain', keys: ['R'] },
+        { action: 'sound', keys: ['M'] },
+        { action: 'pause', keys: ['Esc'] },
       ];
-      const GOAL = 'Reach the golden idol, grabbing the five orbs on the way. The lava sends you back to the last glowing checkpoint.';
-      function say(title, line = '') {
+      function announce(title, line = '') {
         banner.style.opacity = title ? 1 : 0;
         if (title) banner.innerHTML = `<b>${title}</b><span>${line}</span>`;
       }
@@ -517,7 +517,7 @@
       const volume = () => master && master.gain.setTargetAtTime(muted || !game.running ? 0 : 0.8, audio.currentTime, 0.02);
       function toggleSound() {
         muted = !muted;
-        soundShown.textContent = muted ? 'M muted' : 'M sound';
+        soundShown.textContent = say(muted ? 'muted' : 'sound');
         volume();
       }
       // The kit's menu and pause: the game runs only while the mouse is locked to the canvas.
@@ -525,8 +525,6 @@
       // no running, no looking, no clock, the body still — and the sound falls silent; the kit's
       // menu hides the page's display (marked `data-hud`) until the run goes on.
       const game = play(world, {
-        title: 'Temple parkour',
-        goal: GOAL,
         keys: KEYS,
         onRestart: restart,
         onPause: () => volume(),
@@ -562,7 +560,7 @@
         Object.assign(world.controls, PACE);
         spawn(checkpoint.platform);
         veil.classList.remove('on');
-        say('');
+        announce('');
         world.invalidate();
       }
       restart();
@@ -671,8 +669,8 @@
             checkpoint = reached;
             lit(reached, true);
             sound.bell();
-            say('Checkpoint');
-            setTimeout(() => state === 'run' && say(''), 1200);
+            announce(say('checkpoint'));
+            setTimeout(() => state === 'run' && announce(''), 1200);
           }
           if (me.feet < LAVA) {
             [state, burnt] = ['dead', time];
@@ -683,7 +681,7 @@
             [state, finished] = ['done', time - (started ?? time)];
             Object.assign(world.controls, { walkSpeed: 0, sprintSpeed: 0 });
             sound.win();
-            say(`${finished.toFixed(1)} s`, `${taken} / ${orbs.length} orbs · R to run again`);
+            announce(`${finished.toFixed(1)} s`, say('finished', { taken, orbs: orbs.length }));
           }
         } else if (state === 'dead' && time - burnt > 0.7) {
           spawn(checkpoint.platform);

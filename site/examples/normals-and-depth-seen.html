@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#0e1118');
@@ -91,12 +92,6 @@
       world.controls.maxDistance = 30;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
-      // What each view shows, in words: the colour a pixel gets and why.
-      const MEANING = {
-        lit: 'light and material',
-        normals: 'facing: right red, up green, toward you blue',
-        depth: 'distance: near white, far dark',
-      };
       let meaning = null, view = 'lit', shownExposure = 1;
       const ui = controls({
         mouse: 'Drag to walk round the court; switch the view to see the surfaces as the renderer stores them',
@@ -110,11 +105,11 @@
         // The two views of data are shown as they are stored: no film curve bending them.
         world.toneMapping = view === 'lit' ? 'aces' : 'none';
         world.exposure = shownExposure = 1;
-        meaning?.(MEANING[view]);
+        meaning?.(say(view));
         world.invalidate();
       }, world);
-      meaning = readout('Colour means');
-      meaning(MEANING[view]);
+      meaning = readout('colourMeans');
+      meaning(say(view));
 
       // The opening: the camera glides down from high above to the court. A press or a wheel on
       // the canvas hands the camera to the viewer at once.
