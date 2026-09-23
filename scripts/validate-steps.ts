@@ -5,7 +5,8 @@
 // The groups follow what each gate needs, not what it looks at:
 //   quick      the sources alone — it answers in well under a minute, which is when a formatting
 //              or a lint mistake should be reported, not after the Rust suite;
-//   typescript the `tsc` build and the gates that read its products;
+//   typescript the `tsc` build, the site build (`build:docs`, without the open world's twenty-minute
+//              cook, which only the site workflow runs) and the gates that read their products;
 //   native     the Rust crates, and the unit suite, which needs both the compiled compiler
 //              (`tests/integration/shared-cache-format.test.ts` skips part of itself without it)
 //              and `dist/` (`tests/integration/extensions-dts.test.ts`). `build` is seven seconds and is
@@ -36,6 +37,7 @@ export const VALIDATE_GROUPS = {
     'check:dts',
     'check:structure',
     'check:docs-bundles',
+    'build:docs',
     'check:site-types',
     'check:tools-types',
   ],
