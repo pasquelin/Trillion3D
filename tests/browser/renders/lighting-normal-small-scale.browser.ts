@@ -28,24 +28,20 @@ const cas = ECHELLES.flatMap((s) =>
 );
 
 const gpu = await eclairageGpu(cas);
+assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
+assert.deepEqual(gpu.compilation ?? [], []);
+assert.deepEqual(gpu.erreurs ?? [], []);
 const lignes = cas.map((c, i) => ecart(c, gpu.lignes[i]));
 console.log(
   JSON.stringify(
     {
       adaptateur: gpu.adaptateur ?? null,
-      compilation: gpu.compilation ?? [],
-      erreurs: gpu.erreurs ?? [],
-      indisponible: gpu.indisponible ?? null,
       lignes,
     },
     null,
     2,
   ),
 );
-
-assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
-assert.deepEqual(gpu.compilation ?? [], []);
-assert.deepEqual(gpu.erreurs ?? [], []);
 
 for (const ligne of lignes) {
   assert.ok(

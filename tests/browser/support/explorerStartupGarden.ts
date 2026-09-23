@@ -69,8 +69,8 @@ export async function startupGarden(page: Page, base: string, out: string) {
     assert.equal(await number('selected'), 35840);
     assert.equal(await number('drawn'), 35840);
     const code = (await page.locator('[data-code-block] pre code').allTextContents()).join('\n');
-    assert.match(code, /openMeasuredWorld\('garden'/);
-    assert.match(code, /interactive: true/);
+    assert.match(code, /createWorld\('garden'\)/);
+    assert.match(code, /world\.scene\.load\(/);
     assert.doesNotMatch(code, /querySelector|requestAnimationFrame|ResizeObserver/);
     for (const view of [
       'clusters',
