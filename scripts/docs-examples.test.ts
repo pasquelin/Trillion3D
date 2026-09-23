@@ -62,7 +62,7 @@ test('an example declares the moment its thumbnail is taken, or gets the settled
   assert.throws(() => thumbnailDelay('<meta name="thumbnail" content="60" />'), /0 to 20 s/);
 });
 
-test('an example is its file, live, on the demo page; the area lists the ready examples only', async () => {
+test('an example is its file, live, on the demo page; the index shows what is ready and what is to come', async () => {
   const { Example } = (await loadReactComponents('site/app/examples/Example.tsx')) as {
     Example: typeof ExampleComponent;
   };
@@ -96,8 +96,16 @@ test('an example is its file, live, on the demo page; the area lists the ready e
   assert.equal(filtered[0].key, entry.id);
   assert.deepEqual(examplesMenu(route, 'no example is called this'), []);
   const index = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
-  for (const { id, file, title } of roadmap.entries) {
-    assert.equal(index.includes(`>${title.en}</h2>`), Boolean(file), id);
-    assert.equal(index.includes(`assets/examples/thumbnails/${id}.png`), Boolean(file), id);
+  // The index shows every entry: a ready one as a card that opens it, one still to come as an
+  // "in progress" card that opens nothing, with the engine feature it waits for.
+  for (const entry of roadmap.entries) {
+    assert.ok(index.includes(`>${entry.title.en}</h2>`), entry.id);
+    assert.equal(index.includes(`href="#/en/examples/${entry.id}"`), Boolean(entry.file), entry.id);
+    assert.equal(index.includes(`thumbnails/${entry.id}.png`), Boolean(entry.file), entry.id);
+    if ('missing' in entry && entry.missing)
+      assert.ok(index.includes(`Waits for the engine: ${entry.missing.en}`), entry.id);
   }
+  const pending = roadmap.entries.filter(({ file }) => !file).length;
+  assert.equal((index.match(/aria-disabled="true"/g) ?? []).length, pending);
+  assert.equal((index.match(/>In progress</g) ?? []).length, pending);
 });

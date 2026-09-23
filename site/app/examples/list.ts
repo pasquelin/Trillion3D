@@ -10,5 +10,11 @@ export const readyThemes = roadmap.themes
   .map((theme) => ({ theme, entries: readyEntries.filter((entry) => entry.theme === theme.id) }))
   .filter(({ entries }) => entries.length > 0);
 
+/** Every entry of the list, theme by theme: the ready examples, and those still to come. */
+export const themedEntries = roadmap.themes.map((theme) => ({
+  theme,
+  entries: roadmap.entries.filter((entry) => entry.theme === theme.id),
+}));
+
 /** The thumbnail an example's card and menu row show: its settled render. */
 export const thumbnailOf = (id: string) => `./assets/examples/thumbnails/${id}.png`;
