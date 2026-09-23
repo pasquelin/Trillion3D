@@ -81,7 +81,7 @@ async function streetCorner(models: string, directory: string) {
       door: [0.2, 0.12, 0.08],
     },
   );
-  const lights = [
+  const fittings = [
     ...cornerWindow([2.4, 1.4, -3], 'z', 1, [1.8, 1.4], true),
     ...cornerWindow([-1.2, 3.7, -3], 'z', 1, [1.1, 1.3], true),
     ...cornerWindow([2.4, 3.7, -3], 'z', 1, [1.1, 1.3], false),
@@ -95,7 +95,7 @@ async function streetCorner(models: string, directory: string) {
     [[-0.55, 3.95, -1.9], [0.12, 0.12, 0.12], 'bulb'],
   ] satisfies BoxRow[];
   const windows = resolve(directory, 'windows.obj');
-  await writeBoxesObj(windows, lights, {});
+  await writeBoxesObj(windows, fittings, {});
   await writeFile(
     windows.replace(/\.obj$/, '.mtl'),
     [
