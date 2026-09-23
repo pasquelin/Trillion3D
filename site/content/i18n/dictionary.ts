@@ -1,6 +1,6 @@
 import { DICTIONARIES } from './languages.inline.ts';
 import type { Dictionary } from './languages.inline.ts';
-import type { Locale, Localized } from '../locale.ts';
+import type { Locale } from '../locale.ts';
 
 /** The language every other one is checked against, and the one a missing language falls to. */
 export const DEFAULT_LANGUAGE = 'en';
@@ -17,12 +17,6 @@ export const isLanguage = (code: string | undefined) =>
 
 export const dictionaryOf = (locale: Locale): Dictionary =>
   isLanguage(locale) ? DICTIONARIES[locale] : DICTIONARIES[DEFAULT_LANGUAGE];
-
-/** One text in every language, as `read` finds it in each dictionary. */
-export const localized = (read: (dictionary: Dictionary) => string) =>
-  Object.fromEntries(
-    Object.entries(DICTIONARIES).map(([code, dictionary]) => [code, read(dictionary)]),
-  ) as Localized;
 
 /** The word `table` gives `key`, when it gives one: a table keyed by ids the code does not fix. */
 export const wordFor = (table: Record<string, string>, key: string) =>

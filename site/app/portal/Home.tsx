@@ -17,20 +17,16 @@ const FLAGSHIPS = [
   'a-terrain-from-a-height-map',
 ];
 
-/** Examples kept off the home while a defect of the engine shows in them. */
-const HELD_BACK = ['a-robot-that-walks-and-waves'];
-
 /** The home is the gallery: one line on what the engine does, where to start, then every ready
  * example as a picture that opens it — the flagships large. */
 export function Home({ locale }: { locale: Locale }) {
   const t = useWords(locale);
-  const shown = readyEntries.filter(({ id }) => !HELD_BACK.includes(id));
   // Each flagship, then four of the others: a large tile and the four small ones beside it
   // fill one band of the mosaic.
-  const others = shown.filter(({ id }) => !FLAGSHIPS.includes(id));
+  const others = readyEntries.filter(({ id }) => !FLAGSHIPS.includes(id));
   const ordered = [
     ...FLAGSHIPS.flatMap((id, index) => [
-      ...shown.filter((entry) => entry.id === id),
+      ...readyEntries.filter((entry) => entry.id === id),
       ...others.slice(index * 4, index * 4 + 4),
     ]),
     ...others.slice(FLAGSHIPS.length * 4),

@@ -35,14 +35,3 @@ export function Badge({
 }: ComponentPropsWithoutRef<'span'> & Look) {
   return <span className={`${look({ tone, soft, size, mono })} ${className}`} {...props} />;
 }
-
-/** A badge that is a link: the label leads to the page it names. */
-export function LinkBadge({
-  tone,
-  soft,
-  size,
-  mono,
-  ...props
-}: ComponentPropsWithoutRef<'a'> & Look) {
-  return <a className={look({ tone, soft, size, mono })} {...props} />;
-}

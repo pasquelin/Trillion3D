@@ -10,8 +10,6 @@ export const ROUTES = [
   'api/perspectiveProjection',
   'examples',
   'examples/cube-on-its-corner',
-  'lessons',
-  'lessons/matrix-inverse',
   'reports',
   'nowhere',
 ];
