@@ -4,7 +4,7 @@
  * site is found by searching the relief, so a new seed or a new region refinement moves it to
  * ground that suits it.
  */
-import { WORLD, type Bounds, type RegionName, type Settlement, type Vec3 } from './contract.ts';
+import { type Bounds, type RegionName, type Settlement, type Vec3 } from './contract.ts';
 import type { Lake, Platform } from './carve.ts';
 import { REGION_BOUNDS } from './layout.ts';
 import { hash2 } from './noise.ts';
