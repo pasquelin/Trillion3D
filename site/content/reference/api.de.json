@@ -1346,7 +1346,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Der Proxy, neu gelesen und erneut geprüft, bevor auch nur ein Strahl ihn berührt.",
-    "description": "Anordnung, Little-Endian: `u32 'WGPX' · u32 Version · u32 Dreiecke · u32 Knoten`, dann die Scheitelpunkte in der Welt, die Albedos, die exakten Grenzen der Knoten und ihre vier Kinder, aneinandergereiht. Jeder Abschnitt hat eine vom Header vorgegebene Länge; eine Datei anderer Größe wird pauschal abgelehnt, weil ein Knoten, der ein fehlendes Dreieck benennen würde, den Shader irgendetwas lesen ließe."
+    "description": "Anordnung, Little-Endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, dann die Scheitelpunkte in der Welt, die Albedos, die exakten Grenzen der Knoten und ihre vier Kinder, aneinandergereiht. Jeder Abschnitt hat eine vom Header vorgegebene Länge; eine Datei anderer Größe wird pauschal abgelehnt, weil ein Knoten, der ein fehlendes Dreieck benennen würde, den Shader irgendetwas lesen ließe."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, zerlegt in `position`, `quaternion`, `scale`."
@@ -2181,7 +2181,7 @@
     }
   },
   "helper.box": {
-    "summary": "Der Umriss der Box um ein Objekt.",
+    "summary": "Der Umriss der Box um ein Objekt, oder einer Box selbst — die eigene `geometry.boundingBox` einer Form, mit ihrem Mesh zu positionieren.",
     "parameters": {
       "target": "Das zu umgebende Objekt.",
       "color": "Farbe der Linien."
@@ -2887,7 +2887,7 @@
       "spotEdgeSoftness": "Breite des weichgezeichneten Randes des Kegels eines Spots, in Kosinuseinheiten: gegen den Treppeneffekt.",
       "sunCascades": "Kaskaden eines Richtungslichts: mindestens drei, nie mehr als die Flächen einer Kachel.",
       "sunShadowFarFraction": "Anteil des Kamera-Sichtkegels, den die Kaskaden von der Nahebene zur Ferne abdecken. Darüber hinaus bleibt eine Oberfläche beleuchtet, ohne geworfenen Schatten: eine benannte Näherung, in der Diagnose veröffentlicht.",
-      "sunCascadeRatioMax": "Verhältnis zwischen zwei aufeinanderfolgenden Grenzen der Kaskadenaufteilung: an einer Naht ändert sich die Texeldichte um genau dieses Verhältnis, und nichts anderes entscheidet über den Schärfesprung zwischen Kaskaden. Der Mindestwert der Nahebene ergibt sich daraus — `Schattenentfernung / Verhältnis^Kaskaden`.",
+      "sunCascadeRatioMax": "Verhältnis zwischen zwei aufeinanderfolgenden Grenzen der Kaskadenaufteilung: an einer Naht ändert sich die Texeldichte um genau dieses Verhältnis, und nichts anderes entscheidet über den Schärfesprung zwischen Kaskaden. Der Mindestwert der Nahebene ergibt sich daraus — `shadow distance / ratio^cascades`.",
       "sunFarShadowOffsetMetres": "Versatz des Ursprungs des fernen Schattenstrahls entlang der Normale, in Metern. Er dient nur dazu, die Ebene der beleuchteten Oberfläche zu verlassen; das wahre Mittel gegen Selbstverschattung ist der Start entlang des Strahls, weiter unten.",
       "sunFarShadowStartCells": "Start des fernen Schattenstrahls entlang seiner eigenen Richtung, in Zellen des Proxys. Der beleuchtete Punkt kommt von der feinen Geometrie, das Hindernis vom groben Proxy: wo der Proxy über der wahren Oberfläche liegt, würde ein von null gestarteter Strahl die Oberfläche berühren, die er beleuchtet. Eine Proxy-Zelle ist die Skala, unter der der Proxy nichts aussagt; von dort zu starten vermeidet diesen falschen Kontakt, ohne einen Schatten zu erfinden. Die Folge ist benannt: ein Hindernis weniger als eine Zelle entlang des Strahls trägt keinen fernen Schatten, und dieser bleibt bei den Kaskaden.",
       "sunCascadeDepthScale": "Rückzug der Nahebene einer Kaskade, in Radien ihrer Kugel: was über der Kaskade liegt, zwischen ihr und der Sonne, muss in die Karte eintreten, um dort seinen Schatten zu werfen. Die Ausdehnung fügt auf jeder Seite zwei Radien hinzu, der Spielraum, den der Tiefenanker der Kugel lässt (`../light-shadow/sunFaces.ts`).",
@@ -6684,7 +6684,7 @@
   },
   "CharacterCameraControls": {
     "summary": "EIN CHARAKTER, gesehen durch seine Augen: ein Körper mit Masse, der geht, läuft, springt und fällt, und mit den Dreiecken der Welt als aufrechte Kapsel kollidiert.",
-    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf und bremst über `responseTime`, behält seinen Schwung in der Luft, fällt unter `gravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste — sendet nichts, sodass die Szene ruhig bleibt.",
+    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf über `responseTime` und bremst über `stopTime`, behält seinen Schwung in der Luft, steigt unter `gravity` und fällt unter `fallGravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen, wippt mit dem Schritt um `headBob` und taucht bei der Landung ab um `landingDip` (`sdk-core/src/collision/characterEye.ts`); beide wirken auf das Auge nach dem Schritt des Körpers und bewegen nie den Körper selbst. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste, kein Abtauchen übrig — sendet nichts, sodass die Szene ruhig bleibt.",
     "members": {
       "velocity": "Die Geschwindigkeit des Körpers in Metern pro Sekunde, live: `[x, y, z]`, y nach oben.",
       "onGround": "Ob die Füße auf einem Boden stehen.",
