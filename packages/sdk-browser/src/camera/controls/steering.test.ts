@@ -47,6 +47,39 @@ test('flight integrates the keys held over the time step it is given', () => {
   assert.deepEqual(at(camera), [0, 0, -2]);
 });
 
+test('cruising flight moves at `movementSpeed` with no key; W adds, S halts, never backwards', () => {
+  const { camera, surface, controls } = steered(createFlyCameraControls);
+  controls.movementSpeed = 2;
+  controls.update(0);
+  assert.equal(controls.update(1), false); // Off by default: no key, no motion.
+  controls.autoForward = true;
+  assert.equal(controls.update(0.5), true);
+  assert.deepEqual(at(camera), [0, 0, -1]);
+  surface.key('keydown', { code: 'KeyW' });
+  controls.update(0.5);
+  assert.deepEqual(at(camera), [0, 0, -3]);
+  surface.key('keyup', { code: 'KeyW' });
+  surface.key('keydown', { code: 'KeyS' });
+  assert.equal(controls.update(1), false);
+  assert.deepEqual(at(camera), [0, 0, -3]);
+  surface.key('keyup', { code: 'KeyS' });
+  controls.autoForward = false;
+  assert.equal(controls.update(1), false);
+  assert.deepEqual(at(camera), [0, 0, -3]);
+});
+
+test('flight with `pointerLook` off keeps its orientation through a drag', () => {
+  const { camera, surface, controls } = steered(createFlyCameraControls);
+  controls.pointerLook = false;
+  controls.update(0);
+  fixtureDrag(surface, 200, 100);
+  assert.equal(controls.update(0), false);
+  assert.deepEqual(
+    [...facing(camera)].map((v) => round(v)),
+    [0, 0, -1],
+  );
+});
+
 test('flight strafes, rises and rolls on its own axes', () => {
   const { camera, surface, controls } = steered(createFlyCameraControls);
   controls.movementSpeed = 1;
@@ -137,4 +170,14 @@ test('first person turns the head with the pointer and lets the lock go on dispo
   controls.dispose();
   assert.equal(controls.locked(), false);
   assert.equal(surface.listeners(), 0);
+});
+
+test('first person stops a downward look at `minPitch`', () => {
+  const { camera, surface, controls } = steered(createFirstPersonCameraControls);
+  controls.minPitch = -Math.PI / 4;
+  controls.update(0);
+  surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+  surface.fire('pointermove', { pointerId: 1, movementX: 0, movementY: 100000 });
+  controls.update(0);
+  assert.equal(round(facing(camera)[1]), round(-Math.SQRT1_2));
 });
