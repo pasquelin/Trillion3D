@@ -12,7 +12,7 @@
 //!
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
-//!   -- --ignored regenere_les_fixtures_bmp_et_gif --nocapture
+//!   -- --ignored regenerate_the_bmp_and_gif_fixtures --nocapture
 //! npx prettier --write tests/fixtures/formats/bmp/expected.json \
 //!   tests/fixtures/formats/gif/expected.json
 //! ```
@@ -57,7 +57,7 @@ fn les_apercus_des_deux_formats_herites_suivent_leur_expected_json() {
 
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
-fn regenere_les_fixtures_bmp_et_gif() {
+fn regenerate_the_bmp_and_gif_fixtures() {
     for (format, case) in FIXTURES {
         let dir = golden_dir(format);
         let run = compile_golden(&dir, "scene");

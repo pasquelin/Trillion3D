@@ -25,7 +25,7 @@ fn the_ma_fixture_compiles_to_its_golden_expected_json() {
 
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
-fn regenere_la_fixture_ma() {
+fn regenerate_the_ma_fixture() {
     let dir = golden_dir("ma");
     let run = compile_golden_source(&fixture(&dir), "ma-minuscule");
     write_expected(&dir, digest(&run), CASE, RULE);

@@ -52,8 +52,8 @@ are prose only, the test strips them before comparing.
 The scene, its images and its expected all come from the same code, `../../../../packages/asset-compiler-rust/src/tests/textures/previews_source.rs`:
 
 ```
-cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
-  -- --ignored regenere_la_fixture_des_apercus --nocapture
+cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --lib \
+  regenerate_the_previews_fixture -- --ignored --nocapture
 npx prettier --write tests/fixtures/formats/previews/atlas-couleur/expected.json
 ```
 

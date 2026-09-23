@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { AUTORISES, DECLARATION, PUBLIC_FAMILIES } from './engine-without-three-lists.ts';
+import { AUTORISES, DECLARATION } from './engine-without-three-lists.ts';
 
 const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
 const root = new URL('../../', import.meta.url);
@@ -44,7 +44,7 @@ const TRAVERSE = /\basHostLibrary\s*[<(]/;
  *  design — they are what the engine is compared against. */
 const sources = async () =>
   (await readdir(browser, { recursive: true })).filter(
-    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !PUBLIC_FAMILIES.test(name),
+    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
   );
 
 /** Every source under `base`, keyed by its path from `base` behind `prefix`. */

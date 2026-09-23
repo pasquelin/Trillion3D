@@ -3,7 +3,7 @@
 Eight tiny files, one per writing of the format that the `bmp` driver must read **losslessly**,
 plus three that it must refuse by name. The golden `src/plugins/tests/bmp.rs` decodes them and
 compares the RGBA8 pixels **one by one** against a reference written in the clear in the test: a
-4 × 2 pixel image whose eight values are known. The golden `src/tests/bmp_gif_golden.rs` takes one
+4 × 2 pixel image whose eight values are known. The golden `src/tests/textures/bmp_gif_golden.rs` takes one
 of them through the whole compiler and pins the bytes of its previews in `expected.json`.
 
 ## What the driver reads

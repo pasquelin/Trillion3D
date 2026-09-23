@@ -6,7 +6,7 @@ import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
 
-/** Compiler oracle binary, built by `pnpm run build:oracle`: a measurement tool, not the compiler. */
+/** Compiler oracle binary, built by `pnpm run build:native`: a measurement tool, not the compiler. */
 const ORACLE_BIN = 'packages/asset-compiler-rust/target/release/web-geometry-oracle';
 /** True when binary exists: without it, campaign stops before opening browser. */
 export const oracleBuilt = (root: string) => existsSync(join(root, ORACLE_BIN));

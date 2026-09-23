@@ -26,6 +26,7 @@ export const VALIDATE_GROUPS = {
     'check:unused',
     'check:no-js',
     'check:links',
+    'check:sdk-facade',
   ],
   typescript: [
     'build',

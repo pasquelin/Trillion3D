@@ -40,4 +40,4 @@ or unbounded allocation. Same CC0-1.0 licence, notice in `LICENSE.txt`.
 No file written by a Blender older than the named-attribute layout, nor by a
 32-bit Blender or on a big-endian machine. The matching rejections are therefore proved on
 a minimal file written in the test from the format description
-(`src/plugins/scene/blend/tests.rs`), never on a committed fixture.
+(`src/plugins/scene/blend/tests/surgery.rs`), never on a committed fixture.

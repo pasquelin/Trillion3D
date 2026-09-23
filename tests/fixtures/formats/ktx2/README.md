@@ -31,7 +31,7 @@ all declare an sRGB `transferFunction` and no flag: their texels do not move.
 
 `scene.gltf`, `scene.bin` and `expected.json` are the compiled golden: three quads, one opaque
 material and one texture per file of the first half of the table, taken through the whole compiler.
-Their regeneration is described in the header of `src/tests/ktx2_golden.rs`.
+Their regeneration is described in the header of `src/tests/textures/ktx2_golden.rs`.
 
 ## Provenance and licence
 
