@@ -35,7 +35,7 @@
       // slider counts it in KiB. The engine keeps what fits and draws the rest coarser, raising
       // the screen error until the view fits.
       const KiB = 1024;
-      controls({ memory: [64, 2560, 768, 64], view: ['lod', 'beauty', 'clusters'] }, (values) => {
+      controls({ memory: [64, 2560, 768, 64], view: ['beauty', 'lod', 'clusters'] }, (values) => {
         world.budget.geometryPool = values.memory * KiB;
         world.diagnostic.mode = values.view;
         world.invalidate();

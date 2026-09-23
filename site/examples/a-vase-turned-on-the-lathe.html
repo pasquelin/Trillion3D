@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A turned vase</title>
+    <title>Vases on the wheel</title>
     <meta name="thumbnail" content="2" />
     <style>
       html,
@@ -25,36 +25,45 @@
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
-      const table = object.mesh(geometry.cylinder(1.6, 1.6, 0.2, 96), material.meshStandard({ color: '#5a3a24', roughness: 0.5 }));
-      table.position.y = -0.1;
-      world.scene.add(table);
+      const bench = object.mesh(geometry.box(8, 0.3, 2.4), material.meshStandard({ color: '#5a3a24', roughness: 0.5 }));
+      bench.position.y = -0.15;
+      world.scene.add(bench);
 
-      // The profile climbs the outer wall, crosses the lip and comes down the inner wall, a constant
-      // thickness inside: `geometry.lathe` turns it around the vertical axis into one smooth shell.
-      const outerRadiusAt = (y) => 0.32 + 0.4 * Math.sin((y / 1.9) * Math.PI) ** 1.4 - 0.12 * Math.max(0, y - 1.5);
-      const profile = [[0, 0]];
-      for (let step = 0; step <= 30; step++) profile.push([outerRadiusAt((step / 30) * 1.9), (step / 30) * 1.9]);
-      profile.push([0.5, 1.95], [0.42, 1.95]);
-      for (let step = 30; step >= 0; step--) profile.push([Math.max(0, outerRadiusAt((step / 30) * 1.9) - 0.03), (step / 30) * 1.9]);
-      profile.push([0, 0]);
-      const glaze = material.meshStandard({ roughness: 0.25 });
-      const vase = object.mesh(geometry.lathe(profile, 96), glaze);
-      world.scene.add(vase);
+      // A vase is one profile — out along the outer wall, over the lip, back down inside — that
+      // `geometry.lathe` turns around the vertical axis.
+      function profile(belly, neck, height) {
+        const radius = (y) => 0.18 + belly * Math.sin((y / height) * Math.PI) ** 1.4 - neck * Math.max(0, y / height - 0.7);
+        const points = [[0, 0]];
+        for (let step = 0; step <= 30; step++) points.push([radius((step / 30) * height), (step / 30) * height]);
+        points.push([radius(height) + 0.05, height + 0.04], [radius(height) - 0.02, height + 0.04]);
+        for (let step = 30; step >= 0; step--) points.push([Math.max(0, radius((step / 30) * height) - 0.03), (step / 30) * height]);
+        points.push([0, 0]);
+        return points;
+      }
+      const glazes = ['#2f8f83', '#e0663c', '#f2b134', '#3c6ee0', '#a04ad0'].map((colour) => material.meshStandard({ color: colour, roughness: 0.2 }));
+      const shapes = [[0.3, 0.2, 1.6], [0.22, 0.05, 2.1], [0.36, 0.4, 1.3], [0.18, 0.1, 2.4], [0.28, 0.3, 1.8]];
+      const vases = shapes.map(([width, pinch, height], index) => {
+        const vase = object.mesh(geometry.lathe(profile(width, pinch, height), 96), glazes[index]);
+        vase.position.x = (index - 2) * 1.5;
+        world.scene.add(vase);
+        return vase;
+      });
+      world.scene.add(light.directional({ intensity: 3, color: '#fff1dc', position: [5, 8, 7], castShadow: true }));
+      world.scene.add(light.point({ intensity: 30, color: '#7fb0ff', position: [-3, 2.5, -2], distance: 12 }));
+      world.scene.add(light.point({ intensity: 30, color: '#ff9a6a', position: [4, 1.5, -2], distance: 12 }));
+      world.camera.position.set(0, 2.2, 6.2);
+      world.camera.lookAt(0, 1, 0);
+      world.controls.target.set(0, 1, 0);
 
-      world.scene.add(light.directional({ intensity: 3, color: '#fff1dc', position: [6, 8, 6], castShadow: true }));
-      world.scene.add(light.point({ intensity: 8, color: '#7fb0ff', position: [-2.5, 1.5, -1.5], distance: 8 }));
-      world.camera.position.set(2.1, 1.6, 2.8);
-      world.camera.lookAt(0, 0.95, 0);
-      world.controls.target.set(0, 0.95, 0);
-
-      const ui = controls({ glaze: '#6fb89a', gloss: [0, 1, 0.75], spin: true }, (values) => {
-        glaze.color.set(values.glaze);
-        glaze.roughness = 1 - values.gloss;
+      // Width and height stretch every vase: a scale on the object, the shape stays the same.
+      const ui = controls({ width: [0.5, 1.6, 1], height: [0.5, 1.5, 1], gloss: [0, 1, 0.8], spin: true }, (values) => {
+        for (const vase of vases) vase.scale.set(values.width, values.height, values.width);
+        for (const glaze of glazes) glaze.roughness = 1 - values.gloss;
         world.invalidate();
       });
       world.onFrame(({ delta }) => {
         if (!ui.spin) return;
-        vase.rotation.y += delta * 0.4;
+        for (const vase of vases) vase.rotation.y += delta * 0.8;
         world.invalidate();
       });
     </script>

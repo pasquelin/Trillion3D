@@ -25,7 +25,8 @@
       import { controls } from '../runtime/kit.js';
 
       // The normal map of a brick wall: courses of bricks, every second one offset by half a brick,
-      // each brick a slab standing out of the mortar. Each pixel stores which way that relief faces.
+      // each brick a slab standing out of the mortar. Each pixel stores which way that relief faces:
+      // red leans right, green leans up the picture, whose first row is its top.
       function brickNormals(rows, columns, size = 512) {
         const height = (u, v) => {
           const course = Math.floor(v * rows), shift = course % 2 ? 0.5 / columns : 0;
@@ -39,7 +40,7 @@
             const u = px / size, v = py / size;
             const dx = (height(u + step, v) - height(u - step, v)) * 4, dy = (height(u, v + step) - height(u, v - step)) * 4;
             const length = Math.hypot(dx, dy, 1);
-            [0.5 - dx / length / 2, 0.5 + dy / length / 2, 0.5 + 1 / length / 2, 1].forEach((value, channel) => {
+            [0.5 - dx / length / 2, 0.5 - dy / length / 2, 0.5 + 1 / length / 2, 1].forEach((value, channel) => {
               pixels[(py * size + px) * 4 + channel] = Math.round(Math.min(1, Math.max(0, value)) * 255);
             });
           }
@@ -54,10 +55,10 @@
       world.scene.add(wall, floor);
       // A lamp close to the wall, sliding along it: its light grazes the bricks.
       const lamp = light.point({ intensity: 14, color: '#ffc27a', distance: 8, radius: 0.05 });
-      world.scene.add(lamp, light.ambient({ intensity: 0.08, color: '#8fb4ff' }));
-      world.camera.position.set(0.9, 1.6, 3.1);
-      world.camera.lookAt(0, 1.45, 0);
-      world.controls.target.set(0, 1.45, 0);
+      world.scene.add(lamp, light.ambient({ intensity: 0.35, color: '#8fb4ff' }));
+      world.camera.position.set(1.2, 1.7, 5.2);
+      world.camera.lookAt(0, 1.4, 0);
+      world.controls.target.set(0, 1.4, 0);
 
       const ui = controls({ sweep: true, lamp: [-3, 3, -1.2], colour: '#ffc27a', bricks: '#a4533a' }, (values) => {
         lamp.color.set(values.colour);
