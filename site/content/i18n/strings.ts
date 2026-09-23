@@ -1,4 +1,6 @@
 import type { Locale } from '../locale.ts';
+import { editorEn } from './editor.en.ts';
+import { editorFr } from './editor.fr.ts';
 
 /** UI copy for the frame around the docs: the shell, the home page, entries and the demo page. */
 export const STRINGS: Record<Locale, Record<string, string>> = {
@@ -56,6 +58,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     'demo.restart': 'Restart',
     'demo.linkCopied': 'Link copied',
     'demo.copyFailed': 'The link could not be copied',
+    ...editorEn,
   },
   fr: {
     'nav.primary': 'Navigation principale',
@@ -112,5 +115,6 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     'demo.restart': 'Relancer',
     'demo.linkCopied': 'Lien copié',
     'demo.copyFailed': 'Le lien n’a pas pu être copié',
+    ...editorFr,
   },
 };

@@ -16,9 +16,9 @@ import { Shell } from './layout/Shell.tsx';
 import type { PortalEntry } from '../content/model.ts';
 import type { PortalRoute, ResolvedPage } from './portal/routes.ts';
 
-// The areas a route may never visit load on demand: the examples, the lessons gallery, the
-// lessons and their code editor, the reports and their presentation — none of them on the home
-// page.
+// The areas a route may never visit load on demand: the examples, the scene editor, the lessons
+// gallery, the lessons and their code editor, the reports and their presentation — none of them
+// on the home page.
 const Gallery = lazy(() => import('./gallery/Gallery.tsx').then((m) => ({ default: m.Gallery })));
 const Examples = lazy(() =>
   import('./examples/Examples.tsx').then((m) => ({ default: m.Examples })),
@@ -29,6 +29,9 @@ const Playground = lazy(() =>
 );
 const ThreeMigration = lazy(() =>
   import('./migration/ThreeMigration.tsx').then((m) => ({ default: m.ThreeMigration })),
+);
+const SceneEditor = lazy(() =>
+  import('./editor/SceneEditor.tsx').then((m) => ({ default: m.SceneEditor })),
 );
 const Report = lazy(() => import('./reports/Report.tsx').then((m) => ({ default: m.Report })));
 
@@ -42,6 +45,7 @@ const preloadAreas = () =>
     import('./examples/Example.tsx'),
     import('./gallery/Playground.tsx'),
     import('./reports/Report.tsx'),
+    import('./editor/SceneEditor.tsx'),
   ]);
 
 function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
@@ -51,6 +55,7 @@ function Page({ page, route }: { page: ResolvedPage; route: PortalRoute }) {
   if (page.kind === 'api-index') return <ApiIndex />;
   if (page.kind === 'examples') return <Examples locale={locale} />;
   if (page.kind === 'example') return <Example id={page.id} locale={locale} />;
+  if (page.kind === 'editor') return <SceneEditor />;
   if (page.kind === 'gallery') return <Gallery locale={locale} />;
   if (page.kind === 'engine-scene') return <EngineExample locale={locale} />;
   if (page.kind === 'lesson') {
