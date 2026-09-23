@@ -1578,6 +1578,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Questo percorso di disegno non sa fare questo cambiamento nella scena.",
       "BATCHED_WORLD_VIEW": "Questo percorso di disegno non sa fare questo cambiamento nella scena.",
       "RAYCAST_NO_VIEW": "È stato chiesto un punto dell'immagine a un canvas senza dimensioni: non c'è un'immagine attraverso cui mirare.",
+      "SESSION_OPEN_FAILED": "La sessione del mondo non si è potuta aprire (`world.diagnostic.error`): WebGPU ha perso il suo dispositivo, oppure il motivo è in `details.cause`.",
+      "WEBGPU_LOST": "La sessione del mondo non si è potuta aprire (`world.diagnostic.error`): WebGPU ha perso il suo dispositivo, oppure il motivo è in `details.cause`.",
       "UNSUPPORTED_SCENE_FORMAT": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "SCENE_NOT_SAVABLE": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare."
     }
@@ -6396,6 +6398,7 @@
     "members": {
       "mode": "La modalità di vista: `'beauty'` per l'immagine normale, o una modalità che mostra come lavora il motore.",
       "sessions": "Le sessioni che il mondo ha aperto finora: una modifica che ne riapre una si vede qui.",
+      "error": "Perché l’ultima sessione non si è potuta aprire, come errore del motore con un nome (`code`: `WEBGPU_LOST`, oppure `SESSION_OPEN_FAILED` con le parole in `details.cause`); `null` appena una sessione si apre.",
       "modes": "Ogni modalità di vista offerta dal motore di rendering attuale."
     }
   },
