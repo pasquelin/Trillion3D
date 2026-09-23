@@ -13,7 +13,7 @@ test('the pointer meets the ground under the ray through it, and never behind th
     canvas: { getBoundingClientRect: () => box },
     camera: { fov: 90, position: { x: 3, y: 10, z: -2 }, quaternion: down },
   };
-  const [x, z] = pointerOnPlane(world, { clientX: 100, clientY: 50 }) ?? [];
+  const [x, z] = pointerOnPlane(world, { clientX: 100, clientY: 50 }) ?? [NaN, NaN];
   assert.ok(Math.abs(x - 3) < 1e-9 && Math.abs(z + 2) < 1e-9);
   // The plane at the eye's height, or one looked away from, is never met.
   assert.equal(pointerOnPlane(world, { clientX: 100, clientY: 50 }, 10), null);
