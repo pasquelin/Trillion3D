@@ -588,7 +588,7 @@
       "ambient": "環境光"
     },
     "model": {
-      "bust": "大理石の胸像",
+      "marble-bust": "大理石の胸像",
       "crates": "木箱",
       "hall": "ホール",
       "street-corner": "街角"
@@ -601,6 +601,8 @@
       "world": "ワールドの軸",
       "local": "オブジェクトの軸"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "スナップ",
     "outliner": "シーン",
     "empty": "シーンは空です：「追加」メニューからオブジェクトを追加してください。",
@@ -640,13 +642,6 @@
       "radialSegments": "周りの分割数",
       "tubularSegments": "チューブの分割数"
     },
-    "stats": "エンジンの統計",
-    "cpu": "CPU フレーム (ms)",
-    "gpu": "GPU フレーム (ms)",
-    "triangles": "Triangles",
-    "pages": "常駐ページ",
-    "sessions": "開いたセッション",
-    "statsHint": "最後に描いたフレームから読みます。止まっているシーンは何も描きません。",
     "error": {
       "format": "このファイルには、このエディターが読めないシーン形式が入っています。",
       "read": "シーンを読み込めませんでした："

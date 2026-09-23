@@ -52,6 +52,10 @@ export const navLinks = (route: PortalRoute) =>
 export const hasSidebar = (route: PortalRoute) =>
   route.area !== 'sandbox' && route.area !== 'editor';
 
+/** Whether the page meets the header and the window's edges, its own bars glued under the
+ *  header: the editor, a tool rather than a page to read. */
+export const isEdgeToEdge = (route: PortalRoute) => route.area === 'editor';
+
 /**
  * Reads `#/<locale>/<area>/<id>`. A hash without a locale opens the home page in
  * `fallbackLocale`; an unknown area keeps its whole path as the id, which then resolves to no page.

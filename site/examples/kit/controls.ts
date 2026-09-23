@@ -1,6 +1,7 @@
 import { hideable, overlay } from './overlay.ts';
 import { perFrame } from './perFrame.ts';
-import { stats, type StatsWorld } from './stats.ts';
+import { stats } from './stats.ts';
+import type { StatsWorld } from './statsLines.ts';
 
 /**
  * What an example declares for one control, the kind read from the value itself:

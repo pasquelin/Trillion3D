@@ -588,7 +588,7 @@
       "ambient": "Luce ambientale"
     },
     "model": {
-      "bust": "Busto di marmo",
+      "marble-bust": "Busto di marmo",
       "crates": "Casse",
       "hall": "Sala",
       "street-corner": "Angolo di strada"
@@ -601,6 +601,8 @@
       "world": "Assi del mondo",
       "local": "Assi dell’oggetto"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Aggancio",
     "outliner": "Scena",
     "empty": "La scena è vuota: aggiungi un oggetto dal menu Aggiungi.",
@@ -640,13 +642,6 @@
       "radialSegments": "Segmenti attorno",
       "tubularSegments": "Segmenti del tubo"
     },
-    "stats": "Statistiche del motore",
-    "cpu": "Fotogramma CPU (ms)",
-    "gpu": "Fotogramma GPU (ms)",
-    "triangles": "Triangles",
-    "pages": "Pagine residenti",
-    "sessions": "Sessioni aperte",
-    "statsHint": "Letto sull’ultimo fotogramma disegnato; una scena ferma non ne disegna nessuno.",
     "error": {
       "format": "Questo file contiene un formato di scena che questo editor non legge.",
       "read": "Impossibile leggere la scena:"

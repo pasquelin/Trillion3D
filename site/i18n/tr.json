@@ -588,7 +588,7 @@
       "ambient": "Ortam ışığı"
     },
     "model": {
-      "bust": "Mermer büst",
+      "marble-bust": "Mermer büst",
       "crates": "Sandıklar",
       "hall": "Salon",
       "street-corner": "Sokak köşesi"
@@ -601,6 +601,8 @@
       "world": "Dünya eksenleri",
       "local": "Nesne eksenleri"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Yapıştır",
     "outliner": "Sahne",
     "empty": "Sahne boş: Ekle menüsünden bir nesne ekleyin.",
@@ -640,13 +642,6 @@
       "radialSegments": "Çevre bölümleri",
       "tubularSegments": "Boru bölümleri"
     },
-    "stats": "Motor istatistikleri",
-    "cpu": "CPU karesi (ms)",
-    "gpu": "GPU karesi (ms)",
-    "triangles": "Triangles",
-    "pages": "Bellekteki sayfalar",
-    "sessions": "Açılan oturumlar",
-    "statsHint": "Çizilen son kareden okunur; hareketsiz bir sahne hiç kare çizmez.",
     "error": {
       "format": "Bu dosya, bu düzenleyicinin okuyamadığı bir sahne biçimi içeriyor.",
       "read": "Sahne okunamadı:"

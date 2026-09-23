@@ -588,7 +588,7 @@
       "ambient": "Luz ambiente"
     },
     "model": {
-      "bust": "Busto de mármore",
+      "marble-bust": "Busto de mármore",
       "crates": "Caixotes",
       "hall": "Salão",
       "street-corner": "Esquina"
@@ -601,6 +601,8 @@
       "world": "Eixos do mundo",
       "local": "Eixos do objeto"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Encaixe",
     "outliner": "Cena",
     "empty": "A cena está vazia: adicione um objeto pelo menu Adicionar.",
@@ -640,13 +642,6 @@
       "radialSegments": "Segmentos ao redor",
       "tubularSegments": "Segmentos do tubo"
     },
-    "stats": "Estatísticas do motor",
-    "cpu": "Quadro de CPU (ms)",
-    "gpu": "Quadro de GPU (ms)",
-    "triangles": "Triangles",
-    "pages": "Páginas residentes",
-    "sessions": "Sessões abertas",
-    "statsHint": "Lido no último quadro desenhado; uma cena parada não desenha nenhum.",
     "error": {
       "format": "Este arquivo contém um formato de cena que este editor não lê.",
       "read": "Não foi possível ler a cena:"

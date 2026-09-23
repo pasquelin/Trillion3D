@@ -588,7 +588,7 @@
       "ambient": "Umgebungslicht"
     },
     "model": {
-      "bust": "Marmorbüste",
+      "marble-bust": "Marmorbüste",
       "crates": "Kisten",
       "hall": "Halle",
       "street-corner": "Straßenecke"
@@ -601,6 +601,8 @@
       "world": "Weltachsen",
       "local": "Objektachsen"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Einrasten",
     "outliner": "Szene",
     "empty": "Die Szene ist leer: Füge ein Objekt über das Menü Hinzufügen hinzu.",
@@ -640,13 +642,6 @@
       "radialSegments": "Segmente rundherum",
       "tubularSegments": "Rohrsegmente"
     },
-    "stats": "Engine-Statistiken",
-    "cpu": "CPU-Bild (ms)",
-    "gpu": "GPU-Bild (ms)",
-    "triangles": "Triangles",
-    "pages": "Geladene Seiten",
-    "sessions": "Geöffnete Sitzungen",
-    "statsHint": "Gelesen am zuletzt gezeichneten Bild; eine stillstehende Szene zeichnet keines.",
     "error": {
       "format": "Diese Datei enthält ein Szenenformat, das dieser Editor nicht lesen kann.",
       "read": "Die Szene konnte nicht gelesen werden:"

@@ -588,7 +588,7 @@
       "ambient": "环境光"
     },
     "model": {
-      "bust": "大理石半身像",
+      "marble-bust": "大理石半身像",
       "crates": "木箱",
       "hall": "大厅",
       "street-corner": "街角"
@@ -601,6 +601,8 @@
       "world": "世界坐标轴",
       "local": "物体坐标轴"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "吸附",
     "outliner": "场景",
     "empty": "场景是空的：从“添加”菜单添加一个物体。",
@@ -640,13 +642,6 @@
       "radialSegments": "环绕分段",
       "tubularSegments": "管分段"
     },
-    "stats": "引擎统计",
-    "cpu": "CPU 帧 (ms)",
-    "gpu": "GPU 帧 (ms)",
-    "triangles": "Triangles",
-    "pages": "驻留页",
-    "sessions": "已打开的会话",
-    "statsHint": "从最后画出的一帧读取；静止的场景不画任何帧。",
     "error": {
       "format": "这个文件里的场景格式，本编辑器读不了。",
       "read": "无法读取场景："

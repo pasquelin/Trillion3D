@@ -51,8 +51,9 @@ const isModel = (node: Object3D) => (node as { isLoadedModel?: boolean }).isLoad
 export const materialOf = (node: Object3D) =>
   isMesh(node) && !Array.isArray(node.material) ? (node.material as Material) : null;
 
-/** A new object of `kind`, named `name`: a shape in a material of its own, a light, a group. */
-export function build(engine: Engine, kind: AddKind, name: string): Object3D {
+/** A new object of `kind`, named `name`: a shape in a material of its own (built from `size`, or
+ *  from the first size the Add menu gives it), a light, a group. */
+export function build(engine: Engine, kind: AddKind, name: string, size?: number[]): Object3D {
   let node: Object3D;
   if (kind === 'group') node = engine.object.group();
   else if (kind in FIRST_LIGHT) {
@@ -65,7 +66,7 @@ export function build(engine: Engine, kind: AddKind, name: string): Object3D {
       roughness: 0.6,
       side: shape === 'plane' ? 'double' : 'front',
     });
-    node = engine.object.mesh(shapeBuilder(engine, shape)!(...FIRST_SIZE[shape]), matter);
+    node = engine.object.mesh(shapeBuilder(engine, shape)!(...(size ?? FIRST_SIZE[shape])), matter);
     // A plane lies on the grid, a solid stands on it.
     if (shape === 'plane') node.rotation.x = -Math.PI / 2;
     else node.position.y = shape === 'torus' ? 0.2 : 0.5;

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { QUIET_FOCUS } from './Input.tsx';
 
 interface ColorFieldProps {
   label: string;
@@ -31,12 +32,12 @@ export function ColorField({ label, value, onLive, onCommit }: ColorFieldProps) 
     if (input.current && input.current.value !== value) input.current.value = value;
   }, [value]);
   return (
-    <label className="input input-sm w-full min-w-0">
+    <label className={`input input-sm w-full min-w-0 px-2 ${QUIET_FOCUS}`}>
       <span className="label">{label}</span>
       <input
         ref={input}
         type="color"
-        className="min-w-0"
+        className={`min-w-0 ${QUIET_FOCUS}`}
         defaultValue={value}
         onInput={(event) => onLive(event.currentTarget.value)}
       />

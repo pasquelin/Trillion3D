@@ -2,7 +2,8 @@ import type { Color, Light, Material, Object3D } from '../../../packages/sdk-bro
 import { useWords } from '../i18n.ts';
 import { usePortal } from '../layout/PortalContext.ts';
 import { ColorField } from '../ui/ColorField.tsx';
-import { Field, NumberField, Toggle } from '../ui/Input.tsx';
+import { Field, ToggleField } from '../ui/Input.tsx';
+import { NumberField } from '../ui/NumberField.tsx';
 import { valueCommand } from './commands.ts';
 import { isLight, materialOf } from './objects.ts';
 import type { Editor } from './useEditor.ts';
@@ -80,15 +81,13 @@ function LightFields({ light, run }: { light: Light; run: Commit }) {
       })}
       {reaches && numberField(t('editor.range'), light, 'distance', run, undefined, { step: 1 })}
       {light.kind !== 'ambient' && (
-        <label className="label cursor-pointer gap-2">
-          <Toggle
-            checked={light.castShadow}
-            onChange={(event) =>
-              run(valueCommand(setShadow, light.castShadow, event.currentTarget.checked))
-            }
-          />
-          {t('editor.shadow')}
-        </label>
+        <ToggleField
+          label={t('editor.shadow')}
+          checked={light.castShadow}
+          onChange={(event) =>
+            run(valueCommand(setShadow, light.castShadow, event.currentTarget.checked))
+          }
+        />
       )}
     </Field>
   );

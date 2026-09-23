@@ -588,7 +588,7 @@
       "ambient": "Lumière ambiante"
     },
     "model": {
-      "bust": "Buste en marbre",
+      "marble-bust": "Buste en marbre",
       "crates": "Caisses",
       "hall": "Salle",
       "street-corner": "Coin de rue"
@@ -601,6 +601,8 @@
       "world": "Axes du monde",
       "local": "Axes de l’objet"
     },
+    "pedestal": "Piédestal",
+    "panels": "Panneaux",
     "snap": "Magnétisme",
     "outliner": "Scène",
     "empty": "La scène est vide : ajoutez un objet depuis le menu Ajouter.",
@@ -640,13 +642,6 @@
       "radialSegments": "Segments autour",
       "tubularSegments": "Segments du tube"
     },
-    "stats": "Statistiques du moteur",
-    "cpu": "Image CPU (ms)",
-    "gpu": "Image GPU (ms)",
-    "triangles": "Triangles",
-    "pages": "Pages résidentes",
-    "sessions": "Sessions ouvertes",
-    "statsHint": "Lu sur la dernière image dessinée ; une scène immobile n’en dessine aucune.",
     "error": {
       "format": "Ce fichier contient un format de scène que cet éditeur ne lit pas.",
       "read": "La scène n’a pas pu être lue :"

@@ -4,6 +4,13 @@
 @source '../index.html';
 @source '../js/**/*.js';
 @source '../react/**/*.{ts,tsx}';
+/* The three axes, x red, y green, z blue: the hues the transform handles draw them in, dark
+   enough that a white letter reads on them in either theme. */
+@theme {
+  --color-axis-x: oklch(55% 0.2 27);
+  --color-axis-y: oklch(52% 0.16 145);
+  --color-axis-z: oklch(52% 0.2 262);
+}
 @plugin 'daisyui' {
   themes:
     light --default,

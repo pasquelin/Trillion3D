@@ -50,6 +50,11 @@ async function bust(models: string, directory: string) {
   );
 }
 
+/** The marble bust alone, nothing around it: an object to place in a scene of one's own. */
+async function marbleBust(models: string, directory: string) {
+  await cp(resolve(models, 'marble-bust'), directory, { recursive: true });
+}
+
 /**
  * A street corner closed on four sides, so a camera turning inside it never looks at the back of
  * a wall: two facades meet at the corner behind a raised pavement and its kerb, a road runs a step
@@ -158,6 +163,7 @@ const inCode =
 
 export const modelScenes = {
   bust,
+  'marble-bust': marbleBust,
   'street-corner': streetCorner,
   crates,
   'a-model-from-obj': inCode(writeChessObj),

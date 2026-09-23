@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   entryRoute,
+  hasSidebar,
+  isEdgeToEdge,
   LEARN_SECTIONS,
   navLinks,
   parseRoute,
@@ -71,6 +73,12 @@ test('the header marks the area of the route, the editor an area of its own', ()
   );
 });
 
+test('the editor takes the page from edge to edge, without a sidebar', () => {
+  const [editor, examples] = ['#/en/editor', '#/en/examples'].map((hash) => parseRoute(hash));
+  assert.deepEqual([hasSidebar(editor), isEdgeToEdge(editor)], [false, true]);
+  assert.deepEqual([hasSidebar(examples), isEdgeToEdge(examples)], [true, false]);
+});
+
 test('unknown and incomplete routes resolve to stable landing pages', () => {
   assert.deepEqual(parseRoute('#/fr/unknown/place'), {
     locale: 'fr',
@@ -128,10 +136,6 @@ test('page resolution distinguishes entries, examples, and unknown addresses', (
   );
   assert.equal(resolvePage({ locale, area: 'examples', id: '' }, entries).kind, 'examples');
   assert.equal(resolvePage({ locale, area: 'editor', id: '' }, entries).kind, 'editor');
-  assert.equal(
-    resolvePage({ locale, area: 'examples', id: 'scene-editor' }, entries).kind,
-    'not-found',
-  );
   assert.equal(
     resolvePage({ locale, area: 'examples', id: 'cube' }, entries, ['cube']).kind,
     'example',

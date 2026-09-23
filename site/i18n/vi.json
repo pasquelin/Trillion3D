@@ -130,7 +130,7 @@
       "ambient": "Ánh sáng môi trường"
     },
     "model": {
-      "bust": "Tượng bán thân bằng đá cẩm thạch",
+      "marble-bust": "Tượng bán thân bằng đá cẩm thạch",
       "crates": "Thùng gỗ",
       "hall": "Sảnh",
       "street-corner": "Góc phố"
@@ -143,6 +143,8 @@
       "world": "Trục thế giới",
       "local": "Trục của vật thể"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Hít lưới",
     "outliner": "Cảnh",
     "empty": "Cảnh đang trống: hãy thêm một vật thể từ menu Thêm.",
@@ -182,13 +184,6 @@
       "radialSegments": "Số đoạn quanh trục",
       "tubularSegments": "Số đoạn của ống"
     },
-    "stats": "Thống kê bộ máy",
-    "cpu": "Khung hình CPU (ms)",
-    "gpu": "Khung hình GPU (ms)",
-    "triangles": "Tam giác",
-    "pages": "Trang đang nạp",
-    "sessions": "Phiên đã mở",
-    "statsHint": "Đọc từ khung hình vẽ gần nhất; một cảnh đứng yên không vẽ khung hình nào.",
     "error": {
       "format": "Tệp này chứa một định dạng cảnh mà trình chỉnh sửa này không đọc được.",
       "read": "Không đọc được cảnh:"

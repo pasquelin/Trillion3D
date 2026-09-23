@@ -588,7 +588,7 @@
       "ambient": "주변광"
     },
     "model": {
-      "bust": "대리석 흉상",
+      "marble-bust": "대리석 흉상",
       "crates": "나무 상자",
       "hall": "홀",
       "street-corner": "길모퉁이"
@@ -601,6 +601,8 @@
       "world": "월드 축",
       "local": "물체 축"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "스냅",
     "outliner": "장면",
     "empty": "장면이 비어 있습니다: 추가 메뉴에서 물체를 추가하세요.",
@@ -640,13 +642,6 @@
       "radialSegments": "둘레 분할 수",
       "tubularSegments": "관 분할 수"
     },
-    "stats": "엔진 통계",
-    "cpu": "CPU 프레임 (ms)",
-    "gpu": "GPU 프레임 (ms)",
-    "triangles": "Triangles",
-    "pages": "메모리에 있는 페이지",
-    "sessions": "열린 세션",
-    "statsHint": "마지막으로 그린 프레임에서 읽습니다. 움직이지 않는 장면은 아무것도 그리지 않습니다.",
     "error": {
       "format": "이 파일에는 이 편집기가 읽을 수 없는 장면 형식이 들어 있습니다.",
       "read": "장면을 읽을 수 없습니다:"
