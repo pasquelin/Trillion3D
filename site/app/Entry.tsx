@@ -5,7 +5,7 @@ import { demoFor } from '../demos/registry.ts';
 import { ApiDemo } from './ApiDemo.tsx';
 import { DocPage } from './layout/DocPage.tsx';
 import { Collapse } from './ui/Collapse.tsx';
-import { entrySummary } from '../content/model.ts';
+import { entryRest, entrySummary } from '../content/model.ts';
 import { LEARN_SECTIONS } from './portal/routes.ts';
 import { CodeBlock } from './ui/CodeBlock.tsx';
 import { Card } from './ui/Card.tsx';
@@ -46,17 +46,11 @@ function Details({ rest, html }: { rest: string; html?: string }) {
  * API entry keeps one order: its summary, the signature, the parameters, what it returns, the
  * example, the members, then the long description, folded under Details.
  */
-export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: Locale }) {
+export function Entry({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
   const t = useWords(locale);
   const demo = demoFor(entry.id);
   const summary = entrySummary(entry);
-  // The description past the summary, when the summary is its first sentence; all of it when the
-  // summary is a line of its own.
-  const rest = (
-    entry.description.startsWith(summary)
-      ? entry.description.slice(summary.length)
-      : entry.description
-  ).trim();
+  const rest = entryRest(entry);
   const guide = LEARN_SECTIONS.includes(entry.section);
   const details = <Details rest={rest} html={entry.html} />;
   return (
