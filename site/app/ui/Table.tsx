@@ -4,11 +4,19 @@ interface TableProps {
   children: ReactNode;
   label?: string;
   wide?: boolean;
+  /** Small type, as wide as its figures rather than its column: a matrix, a short grid. */
+  compact?: boolean;
   className?: string;
 }
 
 /** Shared, horizontally scrollable DaisyUI table; striping is consistent across the site. */
-export function Table({ children, label, wide = false, className = '' }: TableProps) {
+export function Table({
+  children,
+  label,
+  wide = false,
+  compact = false,
+  className = '',
+}: TableProps) {
   return (
     <div
       className="min-w-0 max-w-full overflow-x-auto"
@@ -17,7 +25,7 @@ export function Table({ children, label, wide = false, className = '' }: TablePr
       tabIndex={label ? 0 : undefined}
     >
       <table
-        className={`table table-zebra w-full tabular-nums [&_small]:block [&_small]:text-base-content/70 ${wide ? '[&_th]:min-w-56 [&_td]:min-w-56 [&_td]:max-w-96 [&_td]:break-words [&_th]:whitespace-normal' : ''} ${className}`}
+        className={`table table-zebra ${compact ? 'table-xs w-auto' : 'w-full'} tabular-nums [&_small]:block [&_small]:text-base-content/70 ${wide ? '[&_th]:min-w-56 [&_td]:min-w-56 [&_td]:max-w-96 [&_td]:break-words [&_th]:whitespace-normal' : ''} ${className}`}
       >
         {children}
       </table>

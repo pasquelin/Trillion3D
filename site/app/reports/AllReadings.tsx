@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { useWords } from '../i18n.ts';
 import { readingGroups } from '../../reports/sources.ts';
+import { Section } from '../ui/Text.tsx';
 import { Table } from '../ui/Table.tsx';
 import { flattenFields } from '../../reports/availability.ts';
 import { recordLabel, sceneName } from '../../reports/presentation.ts';
@@ -27,8 +28,7 @@ export function AllReadings({ report, sources, locale }: AllReadingsProps) {
   const t = useWords(locale);
   const groups = readingGroups(sources);
   return (
-    <section className="grid min-w-0 grid-cols-1 gap-4" id="report-all-values">
-      <h2>{t('report.allValues')}</h2>
+    <Section id="report-all-values" title={t('report.allValues')}>
       <p>{t('report.allValuesLead')}</p>
       {[...groups].map(([key, records]) => {
         const maps: Map<string, unknown>[] = records.map((r) => flattenFields(r.complete));
@@ -68,6 +68,6 @@ export function AllReadings({ report, sources, locale }: AllReadingsProps) {
           </Collapse>
         );
       })}
-    </section>
+    </Section>
   );
 }
