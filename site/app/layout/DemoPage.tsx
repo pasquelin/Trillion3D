@@ -1,6 +1,7 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useWords } from '../i18n.ts';
+import { Alert } from '../ui/Alert.tsx';
 import { Button, LinkButton } from '../ui/Button.tsx';
 import { CodeBlock } from '../ui/CodeBlock.tsx';
 import { CodeSurface } from '../ui/CodeSurface.tsx';
@@ -90,20 +91,30 @@ export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
         ref={view}
         pending={demo.pending}
         loadingLabel={t('demo.loading')}
-        keyboard={{ mode: 'load', hint: t('demo.keyboardHint') }}
+        keyboard={demo.failed ? undefined : { mode: 'load', hint: t('demo.keyboardHint') }}
       >
-        {/* The sandbox runs nothing before the source has arrived. */}
-        {(!editing || edits.shown) && (
-          <iframe
-            key={demo.run}
-            ref={demo.frame}
-            {...(editing
-              ? { srcDoc: sandboxDocument(edits.shown, new URL(file, document.baseURI).href) }
-              : { src: file })}
-            title={title}
-            allow="fullscreen"
-            onLoad={() => demo.loaded(demo.run)}
-          />
+        {/* A failed read says so, and offers to try again; the sandbox runs nothing before the
+            source has arrived. */}
+        {demo.failed ? (
+          <Alert tone="error" role="alert" className="absolute inset-x-4 top-4 z-20">
+            <span>{t('demo.loadFailed')}</span>
+            <Button size="sm" onClick={demo.retry}>
+              {t('demo.retry')}
+            </Button>
+          </Alert>
+        ) : (
+          (!editing || edits.shown) && (
+            <iframe
+              key={demo.run}
+              ref={demo.frame}
+              {...(editing
+                ? { srcDoc: sandboxDocument(edits.shown, new URL(file, document.baseURI).href) }
+                : { src: file })}
+              title={title}
+              allow="fullscreen"
+              onLoad={() => demo.loaded(demo.run)}
+            />
+          )
         )}
       </RenderFrame>
       <Fab

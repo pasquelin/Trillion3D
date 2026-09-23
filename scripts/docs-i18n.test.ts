@@ -6,14 +6,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
 import { compareKeys, describeMismatches, keyMismatches } from './i18n-keys.ts';
 import { entrySummary } from '../site/content/model.ts';
-import { DICTIONARIES } from '../site/content/i18n/languages.inline.ts';
-import { DEFAULT_LANGUAGE, LANGUAGES } from '../site/content/i18n/dictionary.ts';
+import { DEFAULT_LANGUAGE, dictionaryOf, LANGUAGES } from '../site/content/i18n/dictionary.ts';
 import { localizeDemoText } from '../site/content/i18n/canvas.ts';
 import { NOTES } from '../site/content/entries/reference.ts';
-import { entriesIn, rawEntries } from '../site/app/portal/data.ts';
+import { entriesIn, loadEntries } from '../site/app/portal/data.ts';
 import type { Header as HeaderComponent } from '../site/app/layout/Header.tsx';
 
 const CODES = LANGUAGES.map(({ code }) => code);
+// Every language's words and reference translation, as a page in it reads them first.
+await Promise.all(CODES.map(loadEntries));
+const english = entriesIn(DEFAULT_LANGUAGE);
 
 test('every language gives exactly the keys English gives', () => {
   const mismatches = keyMismatches();
@@ -40,8 +42,8 @@ test('the languages are the files of site/i18n, English first', () => {
 test('another language keeps every entry and its technical contract, and translates its text', () => {
   for (const locale of CODES.filter((code) => code !== DEFAULT_LANGUAGE)) {
     const localized = entriesIn(locale);
-    assert.equal(localized.length, rawEntries.length);
-    rawEntries.forEach((source, index) => {
+    assert.equal(localized.length, english.length);
+    english.forEach((source, index) => {
       const entry = localized[index];
       for (const field of ['id', 'signature', 'module', 'example', 'exports'] as const)
         assert.equal(entry[field], source[field], `${source.id}.${field}`);
@@ -59,17 +61,17 @@ test('another language keeps every entry and its technical contract, and transla
 });
 
 test('a language without a dictionary reads the English entries', () => {
-  const words = ({ title, description, html }: (typeof rawEntries)[number]) => ({
+  const words = ({ title, description, html }: (typeof english)[number]) => ({
     title,
     description,
     html,
   });
-  assert.deepEqual(entriesIn('xx').map(words), rawEntries.map(words));
+  assert.deepEqual(entriesIn('xx').map(words), english.map(words));
 });
 
 test('a written table explains each word its note names, in order', () => {
   const written: Record<string, { title?: string; description?: string; values?: string[] }> =
-    DICTIONARIES[DEFAULT_LANGUAGE].written;
+    dictionaryOf(DEFAULT_LANGUAGE).written;
   for (const note of NOTES.values())
     assert.equal(written[note.id]?.values?.length, note.valueNames?.length, note.id);
 });
