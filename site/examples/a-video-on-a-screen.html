@@ -61,7 +61,7 @@
       video.loop = true;
       video.playsInline = true;
       video.srcObject = studio.captureStream(30);
-      video.play();
+      video.play().catch(() => {});
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#0c0d12');
@@ -111,7 +111,7 @@
         playing: true,
         openVideo: () => picker.click(),
       }, (values, key) => {
-        if (key === 'playing') values.playing ? video.play() : video.pause();
+        if (key === 'playing') values.playing ? video.play().catch(() => {}) : video.pause();
         world.invalidate();
       }, world);
       const source = readout('playing');

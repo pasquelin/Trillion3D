@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "这个示例因为一个错误停下了"
+    },
+    "banner": {
+      "close": "关闭"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "拖动来移动棋盘。滚动或双指捏合来缩放。",
+    "banner": "拖动来移动棋盘。滚动或双指捏合来缩放。方向键平移。",
     "controls": {
       "play": "开始",
       "speed": "速度",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "拖动顺着街道看。拖动时间，影子会变长。",
+    "banner": "拖动顺着街道看。拖动时间，影子会变长。滚轮前进。",
     "controls": {
       "hour": "时刻",
       "traffic": "交通",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "拖动绕着宝石转。每一颗都是一个点一个点搭出来的。",
+    "banner": "拖动绕着宝石转。每一颗都是一个点一个点搭出来的。关掉锐利切面，让角落共用。",
     "controls": {
       "points": "点",
       "waist": "腰身",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "拖动四处看看。把墙上的图旋转、重复。",
+    "banner": "拖动四处看看。把墙上的图旋转、重复。后面的面板就是画好的瓷砖原样。",
     "controls": {
       "tile": "瓷砖",
       "wrap": "边缘",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "拖动环顾四周。想的话可以打开你自己的视频。",
+    "banner": "拖动环顾四周。想的话可以打开你自己的视频。在你按下之前，画面会自己转。",
     "controls": {
       "playing": "正在播放",
       "fieldOfView": "视野",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "拖动四处走走。看零件不停地出现又消失。",
+    "banner": "拖动四处走走。看零件不停地出现又消失。滚轮靠近。",
     "controls": {
       "perSecond": "每秒",
       "copies": "副本",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "拖动从侧面看。每块板用自己的方式混合颜色。",
+    "banner": "拖动从侧面看。每块板用自己的方式混合颜色。从左到右：正常、相加、相减、相乘。",
     "controls": {
       "inks": "墨水",
       "opacity": "不透明度",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "双击一个物体就能拉近。拖动来转动。",
+    "banner": "双击一个物体就能拉近。拖动来转动。滚轮缩放。",
     "controls": {
       "model": "物体",
       "margin": "边距",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "滚动，从一粒沙缩放到整个星球。",
+    "banner": "滚动，从一粒沙缩放到整个星球。拖动来旋转。",
     "controls": {
       "toTheGrain": "去看沙粒",
       "toTheBeach": "去海滩",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "拖动绕着书桌转。看台灯从一个关键帧跳到另一个。",
+    "banner": "拖动绕着书桌转。看台灯从一个关键帧跳到另一个。把一次跳跃的关键帧显示成台灯的淡色副本。",
     "controls": {
       "timing": "节奏",
       "onionSkin": "洋葱皮",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "拖动绕着太阳转。标签跟着行星走。",
+    "banner": "拖动绕着太阳转。标签跟着行星走。滚轮靠近。",
     "controls": {
       "show": "显示",
       "speed": "速度",
@@ -1408,7 +1411,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "拖动大画面来转动。小画面可以滚动和拖动。",
+    "banner": "拖动大画面来转动。小画面可以滚动和拖动。这样来缩放和平移，双击复位。",
     "controls": {
       "explode": "拆开",
       "windFrom": "风从",
@@ -1552,7 +1555,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "点击舞台听一段旋律",
+    "banner": "点击舞台听一段旋律。拖动绕着舞台走：柱子是音高，珍珠是声波本身。",
     "controls": {
       "layout": "布局",
       "height": "高度",
@@ -1618,7 +1621,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "拖动沿着跑道看。每条跑道用自己的方式让画面变平滑。",
+    "banner": "拖动沿着跑道看。每条跑道用自己的方式让画面变平滑。从左到右：最近点、线性、三线性、各向异性。",
     "controls": {
       "picture": "图片",
       "anisotropy": "各向异性"

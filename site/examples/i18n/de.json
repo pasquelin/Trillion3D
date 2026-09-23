@@ -36,6 +36,9 @@
     },
     "failure": {
       "title": "Dieses Beispiel ist bei einem Fehler stehen geblieben"
+    },
+    "banner": {
+      "close": "Schließen"
     }
   },
   "a-city-from-rules": {
@@ -97,7 +100,7 @@
     }
   },
   "a-game-board-seen-from-above": {
-    "banner": "Ziehe, um das Brett zu verschieben. Scrolle oder kneife zum Zoomen.",
+    "banner": "Ziehe, um das Brett zu verschieben. Scrolle oder kneife zum Zoomen. Pfeiltasten zum Bewegen.",
     "controls": {
       "play": "Spielen",
       "speed": "Tempo",
@@ -129,7 +132,7 @@
     }
   },
   "a-long-shadowed-street": {
-    "banner": "Ziehe, um die Straße entlangzusehen. Schiebe die Uhrzeit, um die Schatten zu dehnen.",
+    "banner": "Ziehe, um die Straße entlangzusehen. Schiebe die Uhrzeit, um die Schatten zu dehnen. Mausrad zum Gehen.",
     "controls": {
       "hour": "Uhrzeit",
       "traffic": "Verkehr",
@@ -165,7 +168,7 @@
     }
   },
   "a-mesh-built-by-hand": {
-    "banner": "Ziehe, um die Edelsteine zu umkreisen. Jeder ist Punkt für Punkt gebaut.",
+    "banner": "Ziehe, um die Edelsteine zu umkreisen. Jeder ist Punkt für Punkt gebaut. Schalte scharfe Facetten aus, damit sich die Ecken teilen.",
     "controls": {
       "points": "Punkte",
       "waist": "Taille",
@@ -326,7 +329,7 @@
     }
   },
   "a-texture-turned-and-tiled": {
-    "banner": "Ziehe, um dich umzusehen. Drehe und wiederhole das Bild an den Wänden.",
+    "banner": "Ziehe, um dich umzusehen. Drehe und wiederhole das Bild an den Wänden. Das Panel hinten zeigt die Fliese, wie sie gemalt ist.",
     "controls": {
       "tile": "Fliese",
       "wrap": "Rand",
@@ -402,7 +405,7 @@
     }
   },
   "a-video-panorama": {
-    "banner": "Ziehe, um dich rundherum umzusehen. Öffne dein eigenes Video, wenn du magst.",
+    "banner": "Ziehe, um dich rundherum umzusehen. Öffne dein eigenes Video, wenn du magst. Die Ansicht dreht sich von allein, bis du drückst.",
     "controls": {
       "playing": "Läuft",
       "fieldOfView": "Sichtfeld",
@@ -587,7 +590,7 @@
     }
   },
   "create-and-dispose": {
-    "banner": "Ziehe, um herumzugehen. Sieh zu, wie Teile ständig erscheinen und verschwinden.",
+    "banner": "Ziehe, um herumzugehen. Sieh zu, wie Teile ständig erscheinen und verschwinden. Mausrad zum Näherkommen.",
     "controls": {
       "perSecond": "Pro Sekunde",
       "copies": "Kopien",
@@ -817,7 +820,7 @@
     }
   },
   "four-ways-to-blend": {
-    "banner": "Ziehe, um von der Seite zu schauen. Jedes Feld mischt Farben auf seine Art.",
+    "banner": "Ziehe, um von der Seite zu schauen. Jedes Feld mischt Farben auf seine Art. Von links nach rechts: normal, additiv, subtraktiv, multipliziert.",
     "controls": {
       "inks": "Tinten",
       "opacity": "Deckkraft",
@@ -832,7 +835,7 @@
     }
   },
   "frame-the-model": {
-    "banner": "Doppelklicke auf ein Objekt, um heranzuzoomen. Ziehe zum Drehen.",
+    "banner": "Doppelklicke auf ein Objekt, um heranzuzoomen. Ziehe zum Drehen. Mausrad zum Zoomen.",
     "controls": {
       "model": "Objekt",
       "margin": "Rand",
@@ -862,7 +865,7 @@
     }
   },
   "from-a-grain-to-a-planet": {
-    "banner": "Scrolle, um vom Sandkorn bis zum ganzen Planeten zu zoomen.",
+    "banner": "Scrolle, um vom Sandkorn bis zum ganzen Planeten zu zoomen. Ziehe zum Drehen.",
     "controls": {
       "toTheGrain": "Zum Sandkorn",
       "toTheBeach": "Zum Strand",
@@ -989,7 +992,7 @@
     }
   },
   "keyframes-by-hand": {
-    "banner": "Ziehe, um den Schreibtisch zu umkreisen. Sieh die Lampe von Schlüssel zu Schlüssel hüpfen.",
+    "banner": "Ziehe, um den Schreibtisch zu umkreisen. Sieh die Lampe von Schlüssel zu Schlüssel hüpfen. Zeige die Schlüsselbilder eines Sprungs als blasse Kopien der Lampe.",
     "controls": {
       "timing": "Timing",
       "onionSkin": "Zwiebelhaut",
@@ -1017,7 +1020,7 @@
     }
   },
   "labels-that-follow": {
-    "banner": "Ziehe, um die Sonne zu umkreisen. Die Schilder fahren auf den Planeten mit.",
+    "banner": "Ziehe, um die Sonne zu umkreisen. Die Schilder fahren auf den Planeten mit. Mausrad zum Näherkommen.",
     "controls": {
       "show": "Zeigen",
       "speed": "Tempo",
@@ -1408,7 +1411,7 @@
     }
   },
   "several-views-one-page": {
-    "banner": "Ziehe die große Ansicht, um sie zu drehen. Scrolle und ziehe die kleinen.",
+    "banner": "Ziehe die große Ansicht, um sie zu drehen. Scrolle und ziehe die kleinen. Sie zoomen und verschieben sich; Doppelklick zum Zurücksetzen.",
     "controls": {
       "explode": "Auseinander",
       "windFrom": "Wind aus",
@@ -1552,7 +1555,7 @@
     }
   },
   "sound-made-visible": {
-    "banner": "Klicke auf die Bühne, um eine Melodie zu hören",
+    "banner": "Klicke auf die Bühne, um eine Melodie zu hören. Ziehe, um um die Bühne zu gehen: Die Balken sind die Tonhöhen, die Perlen die Welle selbst.",
     "controls": {
       "layout": "Anordnung",
       "height": "Höhe",
@@ -1618,7 +1621,7 @@
     }
   },
   "texture-filters-compared": {
-    "banner": "Ziehe, um die Bahnen entlangzusehen. Jede Bahn glättet das Bild auf ihre Art.",
+    "banner": "Ziehe, um die Bahnen entlangzusehen. Jede Bahn glättet das Bild auf ihre Art. Von links nach rechts: nächster, linear, trilinear, anisotrop.",
     "controls": {
       "picture": "Bild",
       "anisotropy": "Anisotropie"
