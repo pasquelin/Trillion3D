@@ -1437,8 +1437,8 @@
     {
       "id": "fly-over-a-model-town",
       "title": {
-        "en": "Fly a plane through rings",
-        "fr": "Piloter un avion à travers des anneaux"
+        "en": "A fighter jet in the canyon",
+        "fr": "Un chasseur dans le canyon"
       },
       "theme": "camera",
       "file": "examples/fly-over-a-model-town.html"

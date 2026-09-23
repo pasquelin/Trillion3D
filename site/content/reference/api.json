@@ -4011,6 +4011,21 @@
         "desc": "Seconds a turn key takes to reach full deflection, and a released one to come back to none: the turn rate ramps like a stick moved by hand. 0, the default, is on or off at once. A stick still travelling moves the camera, so the frames go on until it is centred."
       },
       {
+        "name": "pitchInput",
+        "type": "number",
+        "desc": "STICK, for a program that flies the camera: the pitch deflection in [-1, 1], nose up positive as ArrowUp. Added to the keys and bounded to full deflection, it ramps over `inputResponse` like a key, so a page's autopilot or mouse-aim instructor steers through the same rates as the player. 0 by default."
+      },
+      {
+        "name": "yawInput",
+        "type": "number",
+        "desc": "The yaw deflection in [-1, 1], left positive as ArrowLeft; as `pitchInput`."
+      },
+      {
+        "name": "rollInput",
+        "type": "number",
+        "desc": "The roll deflection in [-1, 1], left positive as Q; as `pitchInput`."
+      },
+      {
         "name": "dragToLook",
         "type": "boolean",
         "desc": "Whether dragging turns the view."
@@ -4026,7 +4041,7 @@
         "desc": "CRUISE, off by default: the camera flies forward at `movementSpeed` with no key held, as a plane does. W then adds `movementSpeed` (twice as fast) and S takes it away (the camera hangs in place); it never flies backwards. Nothing moves until the next `update`, so a host that redraws on `change` asks for one frame when it turns cruise on."
       }
     ],
-    "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held or a drag is pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
+    "description": "Keys translate along its own axes and turn it about them, roll included; a drag looks around. Nothing is integrated until the host calls `update(delta)` with the seconds elapsed, and `update` returns — and emits — only when a key is held, a stick input set or a drag pending, so a released stick leaves the scene still. `autoForward` is the one exception: a cruising camera moves on every `update`, and asks for the next frame by emitting `change` each time. KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down, arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held; set false and the pointer looks as soon as it moves over the surface; set `pointerLook` false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier must be released before the key that follows it counts."
   },
   {
     "id": "FrameInfo",
@@ -15631,6 +15646,21 @@
         "name": "inputResponse",
         "type": "number",
         "desc": "Flight only: seconds a turn key takes to full deflection and back; 0 is instant."
+      },
+      {
+        "name": "pitchInput",
+        "type": "number",
+        "desc": "Flight only: pitch stick in [-1, 1] (nose up), added to the arrow keys; 0 by default."
+      },
+      {
+        "name": "yawInput",
+        "type": "number",
+        "desc": "Flight only: yaw stick in [-1, 1] (left), added to the arrow keys; 0 by default."
+      },
+      {
+        "name": "rollInput",
+        "type": "number",
+        "desc": "Flight only: roll stick in [-1, 1] (left), added to Q and E; 0 by default."
       },
       {
         "name": "rotateSpeed",

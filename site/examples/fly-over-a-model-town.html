@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Fly a jet through a canyon</title>
+    <title>A fighter jet in the canyon</title>
     <meta name="thumbnail" content="3" />
     <style>
       html,
@@ -19,7 +19,7 @@
         height: 100%;
         outline: none;
       }
-      /* The head-up display: thin green lines and figures over the whole view, glowing a little. */
+      /* The head-up display: thin green lines and figures, glowing a little. */
       #hud {
         position: fixed;
         inset: 0;
@@ -40,10 +40,13 @@
       }
       #hud .box {
         fill: #00140a;
-        fill-opacity: 0.55;
+        fill-opacity: 0.45;
+      }
+      #hud .small {
+        font-size: 11px;
       }
       #hud .big {
-        font-size: 28px;
+        font-size: 20px;
         letter-spacing: 0.12em;
       }
       #hud .blink {
@@ -54,39 +57,13 @@
           opacity: 0.15;
         }
       }
-      #toast {
-        opacity: 0;
-        font-size: 30px;
-        letter-spacing: 0.14em;
-        transform-box: fill-box;
-        transform-origin: center;
-      }
-      #toast.show {
-        animation: toast 1.9s ease-out forwards;
-      }
-      @keyframes toast {
-        0% {
-          opacity: 0;
-          transform: scale(1.5);
-        }
-        12% {
-          opacity: 1;
-          transform: scale(1);
-        }
-        75% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0;
-        }
-      }
-      /* The big messages: the prompt at the start, a crash, the time at the finish. */
+      /* The big messages: the take-off hint, a crash, the time at the finish. */
       #banner {
         position: fixed;
         left: 50%;
-        top: 24%;
+        top: 18%;
         transform: translate(-50%, -50%);
-        width: min(90vw, 900px);
+        width: min(90vw, 760px);
         text-align: center;
         color: #3cff7a;
         pointer-events: none;
@@ -95,76 +72,51 @@
       }
       #banner h1 {
         margin: 0;
-        font-size: clamp(28px, 6vw, 64px);
+        font-size: clamp(22px, 4.5vw, 48px);
         font-weight: 500;
         letter-spacing: 0.08em;
       }
       #banner p {
-        margin: 10px 0 0;
-        font-size: clamp(13px, 1.8vw, 18px);
+        margin: 8px 0 0;
+        font-size: clamp(12px, 1.6vw, 16px);
         letter-spacing: 0.04em;
       }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <svg id="hud"></svg>
-    <div id="banner"><h1></h1><p></p></div>
+    <svg id="hud" data-hud data-example-overlay></svg>
+    <div id="banner" data-hud data-example-overlay><h1></h1><p></p></div>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, play, stats } from '../runtime/kit.js';
+      import { play, stats } from '../runtime/kit.js';
 
-      // What flies is the engine's own `fly` controller: six degrees of freedom, no up axis kept
-      // and no bound on a turn, so a loop or a roll goes all the way round; every key is read by
-      // its place on the keyboard (`KeyboardEvent.code`), so a French keyboard flies the same. In
-      // cruise (`autoForward`) it flies on by itself at `movementSpeed`; with `pointerLook` off
-      // the mouse never turns it. The page sets that speed from a throttle, keeps a slow jet on
-      // the runway or lets it stall, and draws around it: the jet riding the camera, the head-up
-      // display, the canyon, the rings, the sound.
+      // MOUSE AIM, as PC flight games fly: the mouse moves an aim circle through the sky, not the
+      // jet; an instructor turns the jet onto it — bank towards it, pull, level the wings — by
+      // setting the stick inputs of the engine's own `fly` controller each step, which turns the
+      // jet at its rates and cruises it forward (`autoForward`) at the airspeed the page computes.
+      // The page adds the physics the controller does not know: thrust, gravity along the path,
+      // the stall, the runway, the gear, the crash.
       const world = createWorld('view', { controls: 'fly' });
       const HORIZON = '#f6c592';
       world.scene.background = math.color(HORIZON);
-      const camera = world.camera;
-      [camera.near, camera.far, camera.fov] = [0.3, 12000, 62];
-      const deg = Math.PI / 180, G = 9.81;
-      // Speeds in metres per second: the slowest a flying jet goes, where the wing stalls, where
-      // it lifts off, full military power and full afterburner (Mach 1.2).
-      const MIN_AIR = 45, STALL = 68, TAKEOFF = 75, MIL = 300, MAX_SPEED = 410, MACH = 340, AB_TOP = 1.15;
-      // Turn rates: a fighter rolls fast, pitches hard and barely yaws.
-      const ROLL_RATE = 270 * deg, PITCH_RATE = 30 * deg, YAW_RATE = 8 * deg;
-      Object.assign(world.controls, {
-        pointerLook: false,
-        autoForward: true,
-        movementSpeed: 0,
-        rollSpeed: ROLL_RATE,
-        pitchSpeed: PITCH_RATE,
-        yawSpeed: YAW_RATE,
-        inputResponse: 0.15,
-      });
-      const canvas = document.getElementById('view');
+      const camera = world.camera, canvas = document.getElementById('view');
+      [camera.near, camera.far, camera.fov] = [0.5, 12000, 62];
+      Object.assign(world.controls, { pointerLook: false, autoForward: true, movementSpeed: 0, inputResponse: 0.08 });
 
+      // FLIGHT-WORLD-START — the valley as numbers, shared with the proof run in Node.
+      const deg = Math.PI / 180;
+      const clamp = (x, a = -1, b = 1) => Math.min(b, Math.max(a, x));
+      const smooth = (a, b, x) => {
+        const t = clamp((x - a) / (b - a), 0, 1);
+        return t * t * (3 - 2 * t);
+      };
       // A sequence in [0, 1) from a seed: the same valley on every run.
       function random(seed) {
         let state = seed >>> 0;
         return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
       }
       const next = random(7);
-      const clamp = (x, a = -1, b = 1) => Math.min(b, Math.max(a, x));
-      const smooth = (a, b, x) => {
-        const t = clamp((x - a) / (b - a), 0, 1);
-        return t * t * (3 - 2 * t);
-      };
-      const matte = (color, roughness = 0.85) => material.meshStandard({ color, roughness });
-      // Sky, distant ranges, sun and trails are see-through materials: drawn after the valley,
-      // they cast no shadow, so the dome around everything never hides the sun.
-      const sheer = (color, opacity = 1) => material.meshBasic({ color, transparent: true, opacity, depthWrite: false, side: 'double' });
-      function place(shape, matter, [x, y, z], parent = world.scene) {
-        const mesh = object.mesh(shape, matter);
-        mesh.position.set(x, y, z);
-        parent.add(mesh);
-        return mesh;
-      }
-
       // THE CANYON: a gorge on an arc of 1100 m around (1100, -600), from just north of the
       // runway round the north-eastern peaks and back into the valley in the south-east. It is
       // cut into the terrain, so the walls are the mountains themselves.
@@ -177,11 +129,10 @@
         if (a <= GORGE.to) return Math.abs(Math.hypot(dx, dz) - GORGE.r);
         return Math.min(...[GORGE.from, GORGE.to].map((end) => Math.hypot(x - gorgeAt(end)[0], z - gorgeAt(end)[1])));
       }
-
       // THE VALLEY, in metres. A long flat floor with the runway and the town levelled, a river
       // winding through it, and a ring of peaks — ridges, shoulders and summits stacked — around.
       const riverX = (z) => 170 + 80 * Math.sin(z / 300);
-      const RUNWAY = [-30, 30, -560, 560], TOWN = [300, 720, -680, -120], WATER = -2.5;
+      const RUNWAY = [-30, 30, -560, 560], TOWN = [300, 720, -680, -120], WATER = -2.5, SIZE = 5400;
       const levelled = (x, z, [x0, x1, z0, z1]) => 1 - smooth(0, 80, Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1)));
       const PEAKS = Array.from({ length: 18 }, (_, index) => {
         const angle = (index / 18) * Math.PI * 2 + next() * 0.3, far = 1650 + next() * 650;
@@ -198,13 +149,262 @@
         height += (Math.min(height, GORGE.floor) - height) * cut;
         return height - (1 - rise) * 7 * Math.exp(-(((x - riverX(z)) / 38) ** 2));
       }
-      // Sampled every 36 m over 5.4 km, the normal from the slope. Each triangle takes a band by
-      // its height and steepness — meadow, forest floor, rock, snow — and each band is one mesh.
-      const SIZE = 5400, CELLS = 150, STEP = SIZE / CELLS;
+      // A point of the terrain with its normal, from the slope.
       const sample = (x, z) => {
         const nx = (terrain(x - 4, z) - terrain(x + 4, z)) / 8, nz = (terrain(x, z - 4) - terrain(x, z + 4)) / 8, length = Math.hypot(nx, 1, nz);
         return [x, terrain(x, z), z, nx / length, 1 / length, nz / length];
       };
+      // The course: ten rings down the canyon, one every 30° of its arc.
+      const COURSE = Array.from({ length: 10 }, (_, index) => {
+        const [x, z] = gorgeAt(index * 30 * deg);
+        return [Math.round(x), [60, 62, 65, 68, 70, 70, 68, 68, 72, 85][index], Math.round(z)];
+      });
+      const HOOP = 30;
+      // The ground under a point: a roof, the runway, the water or the terrain, and whether a
+      // jet may touch down there. Off the map there is none.
+      function groundAt(x, z, roofs = []) {
+        for (const [bx, bz, hx, hz, top] of roofs) if (Math.abs(x - bx) < hx && Math.abs(z - bz) < hz) return [top, false];
+        if (Math.abs(x) < 17 && Math.abs(z) < 550) return [0.15, true];
+        if (Math.max(Math.abs(x), Math.abs(z)) > SIZE / 2) return [-Infinity, false];
+        const [, height, , , up] = sample(x, z);
+        return height < WATER ? [WATER, false] : [height, up > 0.97];
+      }
+      // FLIGHT-WORLD-END
+
+      // FLIGHT-MODEL-START — the jet as numbers: no DOM and no engine object, so the proof run in
+      // Node flies the very same code through the very same controller.
+      const G = 9.81, GEAR = 1.95;
+      // Speeds in metres per second: the slowest a flying jet goes, where the wing stalls, where
+      // it lifts off, what idle holds in the air, full military power, full afterburner, Mach 1.
+      const MIN_AIR = 50, STALL = 72, ROTATE = 78, IDLE_AIR = 60, MIL = 280, AB_SPEED = 400, MACH = 340;
+      // Turn rates at full stick: a fighter rolls fast, pitches hard (never past 12 g) and barely yaws.
+      const PITCH_RATE = 80 * deg, ROLL_RATE = 240 * deg, YAW_RATE = 20 * deg, GROUND_YAW = 12 * deg, MAX_G = 12;
+      // The aim turns this many radians per pixel of mouse at sensitivity 1.
+      const AIM_PER_PX = 0.0025;
+      // How much the controls bite: little near the stall, fully from 150 m/s.
+      const authority = (v) => 0.25 + 0.75 * smooth(MIN_AIR, 150, v);
+      const pitchLimit = (S) => (S.onGround ? 10 * deg : Math.min(PITCH_RATE * authority(S.v), (MAX_G * G) / Math.max(S.v, 1)));
+      // Quaternions as [x, y, z, w], the engine's order; a turn `b` after `a` is `qmul(a, b)`.
+      const qmul = (a, b) => [
+        a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+        a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+        a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+        a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
+      ];
+      const qaxis = (x, y, z, angle) => [x * Math.sin(angle / 2), y * Math.sin(angle / 2), z * Math.sin(angle / 2), Math.cos(angle / 2)];
+      const qconj = ([x, y, z, w]) => [-x, -y, -z, w];
+      const qnorm = (q) => q.map((v) => v / Math.hypot(...q));
+      const qblend = (a, b, t) => qnorm(a.map((v, i) => v + ((a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3] < 0 ? -b[i] : b[i]) - v) * t));
+      function rotate([x, y, z, w], [vx, vy, vz]) {
+        const tx = 2 * (y * vz - z * vy), ty = 2 * (z * vx - x * vz), tz = 2 * (x * vy - y * vx);
+        return [vx + w * tx + y * tz - z * ty, vy + w * ty + z * tx - x * tz, vz + w * tz + x * ty - y * tx];
+      }
+      const wrap = (angle) => angle - 2 * Math.PI * Math.round(angle / (2 * Math.PI));
+      // The attitude read off the axes, in radians: no angle is integrated, so it holds upside
+      // down and through the vertical. Bank is positive with the right wing down.
+      function attitude(q) {
+        const forward = rotate(q, [0, 0, -1]), up = rotate(q, [0, 1, 0]), right = rotate(q, [1, 0, 0]);
+        return {
+          forward, up, right,
+          pitch: Math.asin(clamp(forward[1])),
+          bank: Math.atan2(-right[1], up[1]),
+          heading: (Math.atan2(forward[0], -forward[2]) + 2 * Math.PI) % (2 * Math.PI),
+        };
+      }
+      const level = (heading, pitch = 0) => qmul(qaxis(0, 1, 0, -heading), qaxis(1, 0, 0, pitch));
+      function createFlight() {
+        return {
+          pos: [0, 0, 0], q: [0, 0, 0, 1], aim: [0, 0, 0, 1], v: 0, throttle: 0, burner: false, braking: false,
+          onGround: true, gearDown: true, stalling: false, crashed: false, load: 1, vel: [0, 0, 0], rates: [0, 0, 0],
+          stick: [0, 0, 0], rest: 0, lookYaw: 0, lookPitch: 0, mouseX: 0, mouseY: 0,
+        };
+      }
+      // On the runway's southern threshold, nose north (-z), engine idle.
+      const park = (S) => Object.assign(S, createFlight(), { pos: [0, 0.15 + GEAR, 480] });
+      // In the air at `at`, level towards `toward`, cruising: where a crash sends the jet back to.
+      function launch(S, at, toward, speed) {
+        const q = level(Math.atan2(toward[0] - at[0], at[2] - toward[2]));
+        Object.assign(S, createFlight(), { pos: at.slice(), q, aim: q, v: speed, throttle: 0.6, onGround: false, gearDown: false });
+        S.vel = rotate(q, [0, 0, -speed]);
+      }
+      // The mouse moves the aim: sideways about the vertical while the aim is upright, about its
+      // own up axis once over the top, and up and down about its own right axis — so the circle
+      // always goes the way the hand does, and pushing on through the zenith flies a loop. At
+      // rest and not steep, the aim rolls itself back upright.
+      function aimBy(S, dx, dy, dt) {
+        const upright = rotate(S.aim, [0, 1, 0])[1] > 0.2;
+        S.aim = upright ? qmul(qaxis(0, 1, 0, -dx), S.aim) : qmul(S.aim, qaxis(0, 1, 0, -dx));
+        S.aim = qnorm(qmul(S.aim, qaxis(1, 0, 0, -dy)));
+        const { pitch, bank } = attitude(S.aim);
+        if (Math.abs(pitch) < 60 * deg && (upright || S.rest > 0.5)) S.aim = qnorm(qmul(S.aim, qaxis(0, 0, 1, bank * (1 - Math.exp(-dt * 3)))));
+      }
+      // THE INSTRUCTOR: the stick that brings the nose onto the aim. Far off, it banks the aim
+      // over the canopy and pulls; close, it levels the wings and nudges with pitch and rudder.
+      // Rates measured last step damp each axis, so the nose settles instead of swinging.
+      function instructor(S) {
+        const [x, y, z] = rotate(qconj(S.q), rotate(S.aim, [0, 0, -1]));
+        const off = Math.acos(clamp(-z)), { bank, pitch: climb } = attitude(S.q), a = authority(S.v);
+        const w = clamp(off / (12 * deg), 0, 1), [pitchRate, yawRate, rollRate] = S.rates;
+        const pitch = clamp(Math.atan2(y, -z) / (8 * deg) - (0.5 * pitchRate) / pitchLimit(S), -0.5, 1);
+        const yaw = clamp(-Math.atan2(x, -z) / (4 * deg), -1, 1) * (1 - w) - (0.3 * yawRate) / (YAW_RATE * a);
+        const wingsLevel = clamp(-wrap(bank) / (30 * deg)) * clamp(3 * Math.cos(climb), 0, 1);
+        const rollRight = wingsLevel + (clamp(4 * x) - wingsLevel) * w;
+        return [pitch, yaw, clamp(-rollRight - (0.12 * rollRate) / (ROLL_RATE * a))];
+      }
+      // The stick for this step, signed as the controller's keys are: nose up, left, left.
+      function steer(S, input, dt) {
+        const keys = input.keys, key = (code) => (keys.has(code) ? 1 : 0);
+        const k = AIM_PER_PX * input.sensitivity, dx = S.mouseX * k, dy = S.mouseY * k * (input.invert ? -1 : 1);
+        S.mouseX = S.mouseY = 0;
+        S.rest = dx || dy ? 0 : S.rest + dt;
+        let stick = [0, 0, 0];
+        if (input.freeLook) {
+          // Looking around: the mouse turns the head, the jet holds its aim.
+          S.lookYaw = clamp(S.lookYaw - dx, -2.8, 2.8);
+          S.lookPitch = clamp(S.lookPitch - dy, -1.3, 1.3);
+        } else {
+          [S.lookYaw, S.lookPitch] = [S.lookYaw, S.lookPitch].map((angle) => angle * Math.exp(-dt * 5));
+          if (!input.realistic) aimBy(S, dx, dy, dt);
+          // Realistic: the mouse is the stick itself — its speed is the pitch and roll rate.
+          else stick = [clamp(-dy / dt / pitchLimit(S)), 0, clamp((-3 * dx) / dt / (ROLL_RATE * authority(S.v)))];
+        }
+        if (input.realistic) S.aim = S.q.slice();
+        else stick = instructor(S);
+        const roll = key('KeyA') - key('KeyD');
+        if (roll) stick = [0, 0, roll]; // The instructor lets go while the player rolls.
+        stick[1] = clamp(stick[1] + key('KeyQ') - key('KeyE'));
+        if (S.onGround) stick = [S.v >= ROTATE ? clamp(stick[0], 0, 0.6) : 0, key('KeyQ') - key('KeyE'), 0];
+        return (S.stick = stick);
+      }
+      // What the controller does not know: engine and gravity along the path, the stall, the
+      // ground, the gear, and the load the turn puts on the pilot.
+      function physics(S, input, dt, ground, from, before) {
+        const keys = input.keys, turn = qmul(qconj(before), S.q), s = (turn[3] < 0 ? -2 : 2) / dt;
+        S.rates = [turn[0] * s, turn[1] * s, turn[2] * s];
+        S.throttle = clamp(S.throttle + ((keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0)) * 0.6 * dt, 0, 1);
+        S.burner = keys.has('ShiftLeft') || keys.has('ShiftRight');
+        S.braking = keys.has('Space');
+        // Too slow in the air, the wing stalls: the nose falls about the horizontal line across
+        // it and the jet sinks, until the dive gives the speed back.
+        const lost = S.onGround ? 0 : clamp((STALL - S.v) / (STALL - MIN_AIR), 0, 1), nose = attitude(S.q).forward;
+        S.stalling = lost > 0;
+        const across = Math.hypot(nose[0], nose[2]);
+        if (S.stalling && across > 1e-3 && nose[1] > -0.8) S.q = qnorm(qmul(qaxis(nose[2] / across, 0, -nose[0] / across, 1.2 * (0.35 + lost) * dt), S.q));
+        if (S.stalling) S.pos[1] -= 16 * lost * dt;
+        // The engine pulls towards the speed its throttle sets; a climb costs speed, a dive
+        // gives it, a hard turn bleeds it, the air brake takes it. It never hovers.
+        const idle = S.onGround ? 0 : IDLE_AIR, target = S.burner ? AB_SPEED : idle + (MIL - idle) * S.throttle;
+        let accel = clamp((target - S.v) / 3.5, -10, 5 + 11 * S.throttle + (S.burner ? 12 : 0));
+        if (!S.onGround) accel -= G * attitude(S.q).forward[1] + 1.2 * Math.max(0, S.load - 2);
+        if (S.braking) accel -= S.onGround ? 15 : 30;
+        S.v = clamp(S.v + accel * dt, S.onGround ? 0 : MIN_AIR, AB_SPEED * 1.1);
+        // Touching the ground: roll on the runway and flat meadows with the wheels down, gently
+        // and upright; anything else is a crash. On the ground the jet stays level until it has
+        // the speed to lift its nose.
+        const [floor, landable] = ground(S.pos[0], S.pos[2]), agl = S.pos[1] - GEAR - floor, sink = (from[1] - S.pos[1]) / dt;
+        if (agl < 0) {
+          if (!(landable && S.gearDown && (S.onGround || sink < 6) && attitude(S.q).up[1] > 0.9)) return void (S.crashed = true);
+          S.pos[1] = floor + GEAR;
+          S.onGround = true;
+        } else if (agl > 0.3) S.onGround = false;
+        if (S.onGround) {
+          const { heading, pitch } = attitude(S.q);
+          S.q = level(heading, S.v < ROTATE ? 0 : clamp(pitch, 0, 15 * deg));
+        }
+        if (S.gearDown && agl > 25) S.gearDown = false;
+        else if (!S.gearDown && agl < 60 && S.v < 110) S.gearDown = true;
+        const vel = S.pos.map((p, i) => (p - from[i]) / dt), up = attitude(S.q).up;
+        const lift = up.reduce((sum, u, i) => sum + u * ((vel[i] - S.vel[i]) / dt + (i === 1 ? G : 0)), 0);
+        S.load += (lift / G - S.load) * (1 - Math.exp(-dt * 4));
+        S.vel = vel;
+      }
+      // One step: the stick and the speeds handed to the controller, the controller's own
+      // integration of the jet's pose (`integrate`), then the physics. Returns where it came from.
+      function advance(S, integrate, controls, camera, input, dt, ground) {
+        if (!(dt > 0)) return null;
+        const from = S.pos.slice(), before = S.q.slice(), a = authority(S.v), stick = steer(S, input, dt);
+        const settings = {
+          movementSpeed: S.v, pitchSpeed: pitchLimit(S), yawSpeed: S.onGround ? GROUND_YAW : YAW_RATE * a, rollSpeed: ROLL_RATE * a,
+          pitchInput: stick[0], yawInput: stick[1], rollInput: stick[2],
+        };
+        for (const [name, value] of Object.entries(settings)) if (controls[name] !== value) controls[name] = value;
+        camera.position.set(...S.pos);
+        camera.quaternion.set(...S.q);
+        integrate(dt);
+        S.pos = [camera.position.x, camera.position.y, camera.position.z];
+        S.q = qnorm([camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w]);
+        physics(S, input, dt, ground, from, before);
+        return from;
+      }
+      // Whether the path from `a` to `b` passes within `radius` of `centre`.
+      function passes(a, b, centre, radius) {
+        const along = b.map((v, i) => v - a[i]), length = along.reduce((s, v) => s + v * v, 0);
+        const t = length ? clamp(along.reduce((s, v, i) => s + v * (centre[i] - a[i]), 0) / length, 0, 1) : 0;
+        return Math.hypot(...a.map((v, i) => v + along[i] * t - centre[i])) < radius;
+      }
+      // FLIGHT-MODEL-END
+
+      // COCKPIT-START — the seat, in metres from the pilot's eye (x right, y up, -z ahead).
+      // The eye sits in the jet 1.05 m over its axis and 5 m ahead of its middle, under the canopy.
+      const EYE = [0, 1.05, -5];
+      const qFromTo = (a, b) => qnorm([a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0], 1 + a[0] * b[0] + a[1] * b[1] + a[2] * b[2]]);
+      const part = (kind, size, at, q = [0, 0, 0, 1]) => ({ kind, size, at, q });
+      function strut(kind, from, to, width) {
+        const d = to.map((v, i) => v - from[i]), length = Math.hypot(...d);
+        return part(kind, [width, length, width], from.map((v, i) => (v + to[i]) / 2), qFromTo([0, 1, 0], d.map((v) => v / length)));
+      }
+      // A low glare shield over the panel and its two screens, thin windscreen pillars at the
+      // sides, the canopy rails, and the head-up display's glass on two posts: the outside keeps
+      // the view (the proof measures how much).
+      const COCKPIT = [
+        part('shield', [0.8, 0.04, 0.3], [0, -0.3, -0.8]),
+        part('panel', [0.8, 0.34, 0.04], [0, -0.49, -0.66]),
+        ...[-1, 1].flatMap((side) => [
+          strut('frame', [side * 0.4, -0.26, -0.78], [side * 0.3, 0.45, -0.5], 0.022),
+          part('frame', [0.03, 0.03, 0.3], [side * 0.45, -0.31, -0.7]),
+          part('frame', [0.01, 0.13, 0.01], [side * 0.31, -0.215, -0.735]),
+          part('frame', [0.01, 0.34, 0.01], [side * 0.31, 0.02, -0.74]),
+          part('bezel', [0.17, 0.14, 0.012], [side * 0.19, -0.41, -0.638]),
+          part('screen', [0.15, 0.12, 0.002], [side * 0.19, -0.41, -0.631]),
+        ]),
+        part('frame', [0.63, 0.01, 0.01], [0, 0.19, -0.74]),
+        part('glass', [0.62, 0.34, 0.003], [0, 0.02, -0.74]),
+      ];
+      // The glass's corners: the head-up display draws inside what they project to.
+      const COMBINER = [[-0.305, -0.145, -0.74], [0.305, -0.145, -0.74], [-0.305, 0.185, -0.74], [0.305, 0.185, -0.74]];
+      const MFD = [-0.19, 0.19].map((x) => [x, -0.41, -0.629]);
+      const corners = ({ size, at, q }) => [0, 1, 2, 3, 4, 5, 6, 7].map((k) => rotate(q, size.map((s, i) => (k >> i) & 1 ? s / 2 : -s / 2)).map((v, i) => v + at[i]));
+      // The near plane: half the closest depth any cockpit corner reaches ahead of the eye, so
+      // no part of the seat is ever cut.
+      const COCKPIT_NEAR = 0.5 * Math.min(...COCKPIT.flatMap((p) => corners(p).map((c) => -c[2]).filter((depth) => depth > 0)));
+      const COCKPIT_FOV = 76;
+      // The nose ahead of the canopy, the jet's own profile (radius, then distance forward).
+      const NOSE = [[0.82, 6.0], [0.64, 7.6], [0.5, 8.6], [0.3, 9.6], [0.1, 10.3], [0.001, 10.6]];
+      // A world point on the screen, in pixels from its centre (y down); null behind the eye.
+      function project(point, eye, turn, f) {
+        const [x, y, z] = rotate(qconj(turn), point.map((v, i) => v - eye[i]));
+        return z < -1e-6 ? [(f * x) / -z, (-f * y) / -z] : null;
+      }
+      // The pitch ladder is conformal: the rung for elevation `e` lies on the vertical through
+      // the centre, f·tan(pitch - e) below it, the whole ladder turned by -bank — exactly where
+      // that elevation projects, at any attitude.
+      const rungOffset = (pitch, elevation, f) => f * Math.tan(pitch - elevation);
+      // COCKPIT-END
+
+      const matte = (color, roughness = 0.85) => material.meshStandard({ color, roughness });
+      // Sky, distant ranges, sun and trails are see-through materials: drawn after the valley,
+      // they cast no shadow, so the dome around everything never hides the sun.
+      const sheer = (color, opacity = 1) => material.meshBasic({ color, transparent: true, opacity, depthWrite: false, side: 'double' });
+      function place(shape, matter, [x, y, z], parent = world.scene) {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(x, y, z);
+        parent.add(mesh);
+        return mesh;
+      }
+
+      // The terrain sampled every 36 m over 5.4 km. Each triangle takes a band by its height
+      // and steepness — meadow, forest floor, rock, snow — and each band is one mesh.
+      const CELLS = 150, STEP = SIZE / CELLS;
       const grid = [];
       for (let i = 0; i <= CELLS; i++) for (let j = 0; j <= CELLS; j++) grid.push(sample(i * STEP - SIZE / 2, j * STEP - SIZE / 2));
       const bands = [[], [], [], []];
@@ -239,8 +439,8 @@
       place(geometry.box(30, 14, 24), matte('#b9b2a4', 0.7), [-70, 7, 380]);
       place(geometry.box(32, 1, 26), matte('#7a3b2e', 0.6), [-70, 14.5, 380]);
 
-      // The town: blocks of five colours with dark roofs, a church tower in the middle. Each block
-      // is kept as ground for the jet: a roof it cannot land on.
+      // The town: blocks of five colours with dark roofs, a church tower in the middle. Each
+      // block is kept as ground for the jet: a roof it cannot land on.
       const walls = ['#e6dac4', '#c9785a', '#8fa3b8', '#d9b86a', '#b9c7a3'].map((colour) => matte(colour, 0.7));
       const roofs = matte('#4a3d3a', 0.55), block = geometry.box(1, 1, 1), buildings = [];
       for (let x = 330; x <= 690; x += 34)
@@ -254,6 +454,7 @@
       place(geometry.box(12, 46, 12), walls[0], [510, 23, -400]);
       place(geometry.cone(8.5, 26, 4), roofs, [510, 59, -400]).rotation.y = Math.PI / 4;
       buildings.push([510, -400, 6, 6, 72]);
+      const ground = (x, z) => groundAt(x, z, buildings);
 
       // Forests on the lower slopes, none on the canyon floor, and round trees along the river.
       const pines = [matte('#2f5a33', 0.9), matte('#3b6a38', 0.9)], pine = geometry.cone(4, 14, 7);
@@ -285,14 +486,14 @@
       place(geometry.sphere(420, 32, 16), sheer('#ffd9a0', 0.35), [toSun.x, toSun.y, toSun.z]).renderOrder = -19;
       place(geometry.sphere(160, 32, 16), sheer('#fff4d6'), [toSun.x, toSun.y, toSun.z]).renderOrder = -18;
       [[3300, 520, '#8d8fa6'], [4300, 760, '#aaa6b6'], [5400, 980, '#c9b8b4']].forEach(([radius, tall, colour], layer) => {
-        const corners = [], cuts = [], SEGMENTS = 220;
+        const points = [], cuts = [], SEGMENTS = 220;
         for (let k = 0; k <= SEGMENTS; k++) {
           const a = (k / SEGMENTS) * Math.PI * 2, s = layer * 2.1;
           const top = tall * (0.45 + 0.3 * Math.abs(Math.sin(a * 5 + s)) + 0.18 * Math.sin(a * 13 + 2 * s) + 0.1 * Math.sin(a * 31 + s) + 0.08 * next());
-          corners.push(Math.sin(a) * radius, -200, Math.cos(a) * radius, Math.sin(a) * radius, top, Math.cos(a) * radius);
+          points.push(Math.sin(a) * radius, -200, Math.cos(a) * radius, Math.sin(a) * radius, top, Math.cos(a) * radius);
           if (k < SEGMENTS) cuts.push(2 * k, 2 * k + 1, 2 * k + 3, 2 * k, 2 * k + 3, 2 * k + 2);
         }
-        const ridge = geometry.createBuffer({ position: buffer.float32(new Float32Array(corners), 3), index: buffer.uint32(cuts) });
+        const ridge = geometry.createBuffer({ position: buffer.float32(new Float32Array(points), 3), index: buffer.uint32(cuts) });
         ridge.computeVertexNormals();
         // The farthest range is drawn first, the nearer ones over it.
         place(ridge, sheer(colour), [0, 0, 0]).renderOrder = -15 - layer;
@@ -308,13 +509,9 @@
       for (const [x, y, z] of banks)
         for (let k = 0; k < 7; k++) place(puff, vapour, [x + (next() - 0.5) * 120, y + (next() - 0.5) * 30, z + (next() - 0.5) * 80]).scale.setScalar(22 + next() * 24);
 
-      // The course: ten rings down the canyon, one every 30° of its arc. Each is gold until flown
-      // through, then its green twin shows instead — two meshes, never a material changed.
-      const COURSE = Array.from({ length: 10 }, (_, index) => {
-        const [x, z] = gorgeAt(index * 30 * deg);
-        return [Math.round(x), [60, 62, 65, 68, 70, 70, 68, 68, 72, 85][index], Math.round(z)];
-      });
-      const HOOP = 30, hoop = geometry.torus(HOOP, 2.2, 14, 72);
+      // The rings, gold until flown through, then their green twins show instead — two meshes,
+      // never a material changed.
+      const hoop = geometry.torus(HOOP, 2.2, 14, 72);
       const gold = material.meshStandard({ color: '#ffc23a', metalness: 0.7, roughness: 0.3, emissive: '#6b4a00' });
       const green = material.meshStandard({ color: '#3ddc84', roughness: 0.4, emissive: '#0f5a2c' });
       const rings = COURSE.map(([x, y, z], index) => {
@@ -322,39 +519,27 @@
         ring.position.set(x, y, z);
         world.scene.add(ring);
         ring.lookAt(nx, ny, nz);
-        return { ring, todo: place(hoop, gold, [0, 0, 0], ring), passed: place(hoop, green, [0, 0, 0], ring) };
+        return { centre: [x, y, z], done: false, todo: place(hoop, gold, [0, 0, 0], ring), passed: place(hoop, green, [0, 0, 0], ring) };
       });
-      // Every ring reachable: from one ring, the next lies outside the circle the jet turns on
-      // at its pitch rate — the chord d against 2 r sin θ, θ the turn it asks — and the ring
-      // clears the canyon floor. The check is printed with its margins.
-      function reach(speed) {
-        const radius = speed / PITCH_RATE;
-        return COURSE.slice(0, -2).map((a, k) => {
-          const [b, c] = [COURSE[k + 1], COURSE[k + 2]], u = b.map((v, i) => v - a[i]), w = c.map((v, i) => v - b[i]);
-          const d = Math.hypot(...w), turn = Math.acos(clamp(u.reduce((s, v, i) => s + v * w[i], 0) / (Math.hypot(...u) * d)));
-          return { ring: k + 3, turn: +(turn / deg).toFixed(1), chord: Math.round(d), radius: Math.round(radius), margin: +(d / (2 * radius * Math.sin(turn))).toFixed(2), floor: Math.round(c[1] - HOOP - terrain(c[0], c[2])) };
-        });
-      }
-      for (const speed of [150, 250]) console.table(reach(speed).map((row) => ({ speed, ...row })));
 
-      // THE JET, in metres, nose along -z like the camera: a twin-engine, twin-tail fighter. The
-      // round parts are turned on the lathe (profile: radius, then distance forward), the flat
-      // ones are outlines pushed thin; control surfaces hang on their hinges and move with the keys.
+      // THE JET, in metres, nose along -z: a twin-engine, twin-tail fighter. The round parts are
+      // turned on the lathe (profile: radius, then distance forward), the flat ones are outlines
+      // pushed thin; control surfaces hang on their hinges and move with the stick.
       const jet = object.group();
       const skin = material.meshStandard({ color: '#9aa1a9', metalness: 0.25, roughness: 0.55 });
       const camo = material.meshStandard({ color: '#6f767f', metalness: 0.25, roughness: 0.6 });
       const radome = material.meshStandard({ color: '#586068', metalness: 0.2, roughness: 0.5 });
       const metal = material.meshStandard({ color: '#4b4b50', metalness: 0.85, roughness: 0.35 });
       const glass = material.meshPhysical({ color: '#2c2a1e', metalness: 0.5, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03 });
-      const ordnance = matte('#dcdcd6', 0.5), soot = material.meshBasic({ color: '#120c0a' }), tyre = matte('#1c1c1c', 0.9), strut = matte('#c8c8c8', 0.4);
+      const ordnance = matte('#dcdcd6', 0.5), soot = material.meshBasic({ color: '#120c0a' }), tyre = matte('#1c1c1c', 0.9), strutMat = matte('#c8c8c8', 0.4);
       function lathed(profile, matter, at, parent = jet, [width, height] = [1, 1]) {
         const mesh = place(geometry.lathe(profile, 32), matter, at, parent);
         mesh.rotation.x = -Math.PI / 2;
         mesh.scale.set(width, 1, height);
         return mesh;
       }
-      // A flat part from its outline: lying (span, forward) or standing (forward, height); a point
-      // of four numbers is a curve (control point, then end point).
+      // A flat part from its outline: lying (span, forward) or standing (forward, height); a
+      // point of four numbers is a curve (control point, then end point).
       function panel(points, depth, matter, [x, y, z], parent = jet, standing = false) {
         const outline = math.shape().moveTo(...points[0]);
         for (const point of points.slice(1)) point.length === 4 ? outline.quadraticCurveTo(...point) : outline.lineTo(...point);
@@ -376,10 +561,10 @@
       lathed([[0.64, 7.6], [0.5, 8.6], [0.3, 9.6], [0.1, 10.3], [0.001, 10.6]], radome, [0, 0, 0], jet, [1.25, 0.85]);
       place(geometry.cylinder(0.03, 0.03, 0.9, 6), metal, [0, 0, -11], jet).rotation.x = Math.PI / 2;
       lathed([[0.001, -6.0], [0.35, -4.0], [0.5, -1.0], [0.5, 1.5], [0.4, 3.0], [0.001, 4.2]], skin, [0, 0.55, 0], jet, [1.3, 0.9]);
-      const canopy = lathed([[0.001, 3.2], [0.3, 3.6], [0.5, 4.6], [0.52, 5.6], [0.4, 6.5], [0.18, 7.1], [0.001, 7.3]], glass, [0, 0.75, 0], jet, [1, 1.1]);
+      lathed([[0.001, 3.2], [0.3, 3.6], [0.5, 4.6], [0.52, 5.6], [0.4, 6.5], [0.18, 7.1], [0.001, 7.3]], glass, [0, 0.75, 0], jet, [1, 1.1]);
       lathed([[0.001, -3.0], [0.3, -2.4], [0.45, -1.0], [0.45, 1.5], [0.3, 2.8], [0.001, 3.4]], skin, [0, -1.0, 0]);
-      // Two engines: nacelles with their dark intakes, flared nozzles with their dark throats, and the afterburner
-      // flames — an orange cone around a pale core, shown and stretched only in afterburner.
+      // Two engines: nacelles with their dark intakes, flared nozzles with their dark throats,
+      // and the afterburner flames — an orange cone around a pale core, shown only in afterburner.
       const plume = material.meshBasic({ color: '#ff7b25', transparent: true, opacity: 0.7, depthWrite: false }), core = material.meshBasic({ color: '#ffe7a3' });
       const flames = [-1, 1].map((side) => {
         lathed([[0.6, -8.3], [0.74, -7.4], [0.8, -5.5], [0.8, -1.0], [0.74, 1.2], [0.66, 2.0]], skin, [side * 1.05, -0.2, 0], jet, [1, 0.9]);
@@ -439,7 +624,7 @@
       const gear = object.group();
       jet.add(gear);
       for (const [x, z, radius] of [[0, -6.3, 0.25], [-1.9, 1.2, 0.35], [1.9, 1.2, 0.35]]) {
-        place(geometry.cylinder(0.07, 0.07, 1.1, 8), strut, [x, -1.3 + radius / 2, z], gear);
+        place(geometry.cylinder(0.07, 0.07, 1.1, 8), strutMat, [x, -1.3 + radius / 2, z], gear);
         place(geometry.cylinder(radius, radius, 0.22, 16), tyre, [x, -1.95 + radius, z], gear).rotation.z = Math.PI / 2;
       }
       // The vapour cone of the sound barrier: a pale cone around the jet, shown for a moment.
@@ -447,18 +632,49 @@
       vapourCone.rotation.x = -Math.PI / 2;
       vapourCone.visible = false;
       world.scene.add(jet);
-      const GEAR = 1.95, TIPS = [math.vector3(-6.4, -0.3, 3.9), math.vector3(6.4, -0.3, 3.9)];
+      const TIPS = [[-6.4, -0.3, 3.9], [6.4, -0.3, 3.9]];
 
-      // Wing-tip trails, pulled by hard turns: a pool of thin strips reused every frame, never made
-      // or dropped in flight.
+      // Wing-tip vapour, pulled by hard turns: a pool of thin strips reused every frame, never
+      // made or dropped in flight.
       const TRAIL = 22, streak = geometry.box(0.25, 0.06, 3.2), mist = sheer('#ffffff', 0.45);
       const trails = TIPS.map(() => Array.from({ length: TRAIL }, () => place(streak, mist, [0, -500, 0])));
-      const history = Array.from({ length: TRAIL }, () => ({ at: TIPS.map(() => math.vector3()), turn: math.quaternion() }));
+      const history = Array.from({ length: TRAIL }, () => ({ at: TIPS.map(() => [0, -500, 0]), turn: [0, 0, 0, 1] }));
 
-      // THE HEAD-UP DISPLAY, in SVG over the view: a pitch ladder that turns and slides with the
-      // attitude, the waterline where the nose points, the flight-path marker where the jet goes,
-      // heading, speed (knots) and altitude (feet) tapes, Mach, g, throttle, warnings. Every write
-      // below happens only when what it shows changes.
+      // THE COCKPIT, the seat the pilot's eye sits in: built from the parts above, riding the
+      // jet. From inside, the jet's own hull is hidden; its nose is drawn from the same profile.
+      const cockpit = object.group();
+      const seatMats = { shield: matte('#1b1d20', 0.9), panel: matte('#24272b', 0.8), frame: matte('#34383d', 0.6), bezel: matte('#111214', 0.7), screen: material.meshBasic({ color: '#03110a' }), glass: sheer('#b8ffd0', 0.06) };
+      for (const { kind, size, at, q } of COCKPIT) place(geometry.box(...size), seatMats[kind], at, cockpit).quaternion.set(...q);
+      const nose = object.group();
+      nose.position.set(-EYE[0], -EYE[1], -EYE[2]);
+      cockpit.add(nose);
+      lathed(NOSE.slice(0, 2), skin, [0, 0, 0], nose, [1.25, 0.85]);
+      lathed(NOSE.slice(1), radome, [0, 0, 0], nose, [1.25, 0.85]);
+      place(geometry.cylinder(0.03, 0.03, 0.9, 6), metal, [0, 0, -11], nose).rotation.x = Math.PI / 2;
+      // Two glowing screens: the attitude on the left (a horizon bar that turns and slides under
+      // a fixed jet symbol), the map on the right (heading up: the canyon, the rings, the next one).
+      const glow = material.meshBasic({ color: '#3cff7a' }), dim = material.meshBasic({ color: '#1d7a3e' }), amber = material.meshBasic({ color: '#ffb13b' });
+      const [attitudeScreen, mapScreen] = MFD.map((at) => {
+        const screen = object.group();
+        screen.position.set(...at);
+        cockpit.add(screen);
+        return screen;
+      });
+      const horizonBar = place(geometry.box(0.11, 0.0035, 0.001), glow, [0, 0, 0], attitudeScreen);
+      for (const [x, y, w, h] of [[-0.024, 0, 0.026, 0.004], [0.024, 0, 0.026, 0.004], [0, -0.004, 0.004, 0.008]]) place(geometry.box(w, h, 0.001), amber, [x, y, 0.001], attitudeScreen);
+      const dot = geometry.box(0.004, 0.004, 0.001);
+      const canyonDots = Array.from({ length: 40 }, () => place(dot, dim, [0, 0, 0], mapScreen));
+      const ringDots = rings.map(() => place(geometry.box(0.007, 0.007, 0.001), glow, [0, 0, 0.0005], mapScreen));
+      const nextDot = place(geometry.box(0.011, 0.011, 0.001), amber, [0, 0, 0.001], mapScreen);
+      for (const side of [-1, 1]) place(geometry.box(0.004, 0.016, 0.001), amber, [side * 0.004, -0.036, 0.001], mapScreen).rotation.z = side * 0.5;
+      world.scene.add(cockpit);
+      const GORGE_DOTS = canyonDots.map((_, k) => gorgeAt(GORGE.from + ((GORGE.to - GORGE.from) * k) / (canyonDots.length - 1)));
+
+      // THE HEAD-UP DISPLAY, in SVG over the view. In the cockpit it lives on the glass: a
+      // conformal pitch ladder, the nose's waterline, the flight-path marker, the aim circle,
+      // heading on top, speed (knots) and altitude (feet) on thin tapes at the sides, G and Mach
+      // small. Outside, only the aim circle, the nose cross, speed and altitude. Rings and time
+      // sit in the top-right corner. Every write happens only when what it shows changes.
       const NS = 'http://www.w3.org/2000/svg', hudRoot = document.getElementById('hud');
       function svg(tag, attributes = {}, parent = hudRoot) {
         const element = document.createElementNS(NS, tag);
@@ -476,137 +692,139 @@
         if (name === 'text') element.textContent = value;
         else element.setAttribute(name, value);
       }
+      const place2d = (element, [x, y]) => put(element, 'transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+      const box = (element, [x, y, width, height]) => ['x', 'y', 'width', 'height'].forEach((name, k) => put(element, name, [x, y, width, height][k].toFixed(1)));
       const defs = svg('defs');
       const clipRect = (id) => svg('rect', {}, svg('clipPath', { id }, defs));
       const clips = { ladder: clipRect('ladder'), speed: clipRect('speed'), alt: clipRect('alt'), heading: clipRect('heading') };
-      const centre = svg('g');
-      // The pitch ladder: a rung every 5°, solid above the horizon and dashed below, its ends
-      // bent towards the horizon; the zenith is a ring, the nadir a cross. It is the whole great
-      // circle through the nose and the zenith: past 90° it goes on over the top, down the far
-      // side, where each rung shows its own elevation turned upside down — so the ladder slides
-      // on through a loop instead of jumping when the nose passes the vertical.
-      const ladder = svg('g', {}, svg('g', { 'clip-path': 'url(#ladder)' }, centre)), rungs = [];
+      const centre = svg('g'), inside = svg('g', {}, centre), outside = svg('g', {}, centre);
+      const ladder = svg('g', {}, svg('g', { 'clip-path': 'url(#ladder)' }, inside)), rungs = [];
+      // A rung every 5° along the whole great circle through the nose and the zenith: past 90°
+      // it goes on over the top, down the far side, each rung showing its elevation upside down.
       for (let p = -175; p <= 180; p += 5) {
         const elevation = p > 90 ? 180 - p : p < -90 ? -180 - p : p, rung = svg('g', {}, ladder), mark = svg('g', { transform: Math.abs(p) > 90 ? 'rotate(180)' : null }, rung);
-        if (elevation === 0) svg('path', { d: 'M -300 0 H -44 M 44 0 H 300' }, mark);
+        if (elevation === 0) svg('path', { d: 'M -260 0 H -40 M 40 0 H 260' }, mark);
         else if (elevation === 90) svg('circle', { r: 9 }, mark);
         else if (elevation === -90) svg('path', { d: 'M -8 -8 L 8 8 M -8 8 L 8 -8' }, mark);
         else {
-          const tick = elevation > 0 ? 8 : -8;
-          svg('path', { d: `M -72 ${tick} V 0 H -26 M 26 0 H 72 V ${tick}`, 'stroke-dasharray': elevation < 0 ? '9 6' : null }, mark);
-          label(-78, 4, 'end', mark).textContent = Math.abs(elevation);
-          label(78, 4, 'start', mark).textContent = Math.abs(elevation);
+          const tick = elevation > 0 ? 7 : -7;
+          svg('path', { d: `M -62 ${tick} V 0 H -24 M 24 0 H 62 V ${tick}`, 'stroke-dasharray': elevation < 0 ? '8 5' : null }, mark);
+          label(-67, 4, 'end', mark, { class: 'small' }).textContent = Math.abs(elevation);
+          label(67, 4, 'start', mark, { class: 'small' }).textContent = Math.abs(elevation);
         }
-        rungs.push([p, rung]);
+        rungs.push([p * deg, rung]);
       }
-      svg('path', { d: 'M -34 0 H -18 L -9 10 L 0 0 L 9 10 L 18 0 H 34' }, centre);
-      const pathMarker = svg('g', {}, centre);
-      svg('circle', { r: 7 }, pathMarker);
-      svg('path', { d: 'M -22 0 H -7 M 7 0 H 22 M 0 -7 V -15' }, pathMarker);
-      // Tapes: a strip of marks slid behind a clipped window, the value boxed at its middle, the
-      // readouts under it.
-      function tapeOf(clip, from, to, every, major, perUnit, sign) {
-        const tape = svg('g', {}, centre), strip = svg('g', {}, svg('g', { 'clip-path': `url(#${clip})` }, tape)), anchor = sign < 0 ? 'end' : 'start';
+      const waterline = svg('path', { d: 'M -28 0 H -14 L -7 8 L 0 0 L 7 8 L 14 0 H 28' }, inside);
+      const pathMarker = svg('g', {}, inside);
+      svg('circle', { r: 6 }, pathMarker);
+      svg('path', { d: 'M -18 0 H -6 M 6 0 H 18 M 0 -6 V -13' }, pathMarker);
+      const aimMarks = [inside, outside].map((parent) => {
+        const mark = svg('g', {}, parent);
+        svg('circle', { r: 12 }, mark);
+        svg('circle', { r: 1.5 }, mark);
+        return mark;
+      });
+      const noseCross = svg('path', { d: 'M -9 0 H 9 M 0 -9 V 9' }, outside);
+      // Tapes: a strip of marks slid behind a clipped window, the value boxed at its middle.
+      function tapeOf(clip, from, to, every, major, perUnit, sign, unit) {
+        const tape = svg('g', {}, inside), strip = svg('g', {}, svg('g', { 'clip-path': `url(#${clip})` }, tape)), anchor = sign < 0 ? 'end' : 'start';
         for (let value = from; value <= to; value += every) {
           const y = -value * perUnit;
-          svg('path', { d: `M 0 ${y} H ${sign * (value % major ? 6 : 12)}` }, strip);
-          if (!(value % major)) label(sign * 16, y + 4, anchor, strip).textContent = value;
+          svg('path', { d: `M 0 ${y} H ${sign * (value % major ? 5 : 10)}` }, strip);
+          if (!(value % major)) label(sign * 13, y + 4, anchor, strip, { class: 'small' }).textContent = value;
         }
-        svg('rect', { class: 'box', x: sign < 0 ? -70 : 12, y: -13, width: 58, height: 26 }, tape);
-        const value = label(sign * 18, 5, anchor, tape, { style: 'font-size:15px' });
-        return { tape, strip, value, lines: [0, 1, 2, 3].map(() => label(sign * 12, 0, anchor, tape)), title: label(sign * 12, 0, anchor, tape) };
+        svg('rect', { class: 'box', x: sign < 0 ? -58 : 8, y: -11, width: 50, height: 22 }, tape);
+        const value = label(sign * 13, 5, anchor, tape);
+        const title = label(sign * 8, 0, anchor, tape, { class: 'small' });
+        title.textContent = unit;
+        return { tape, strip, value, title, clip };
       }
       const KT = 1.943844, FT = 3.28084, SPEED_PX = 2.2, ALT_PX = 0.22, HEADING_PX = 4;
-      const speedTape = tapeOf('speed', 0, 900, 10, 50, SPEED_PX, -1), altTape = tapeOf('alt', -500, 15000, 100, 500, ALT_PX, 1);
-      speedTape.title.textContent = 'KT';
-      altTape.title.textContent = 'FT';
-      const headingTape = svg('g', {}, centre), headingStrip = svg('g', {}, svg('g', { 'clip-path': 'url(#heading)' }, headingTape));
+      const speedTape = tapeOf('speed', 0, 900, 10, 50, SPEED_PX, -1, 'KT'), altTape = tapeOf('alt', -500, 20000, 100, 500, ALT_PX, 1, 'FT');
+      const headingTape = svg('g', {}, inside), headingStrip = svg('g', {}, svg('g', { 'clip-path': 'url(#heading)' }, headingTape));
       for (let h = -180; h <= 540; h += 5) {
-        svg('path', { d: `M ${h * HEADING_PX} 4 V ${h % 10 ? 10 : 14}` }, headingStrip);
-        if (!(h % 10)) label(h * HEADING_PX, -4, 'middle', headingStrip).textContent = String(((h + 360) % 360) / 10).padStart(2, '0');
+        svg('path', { d: `M ${h * HEADING_PX} 2 V ${h % 10 ? 6 : 10}` }, headingStrip);
+        if (!(h % 10)) label(h * HEADING_PX, -4, 'middle', headingStrip, { class: 'small' }).textContent = String(((h + 360) % 360) / 10).padStart(2, '0');
       }
-      svg('path', { d: 'M -6 26 L 0 18 L 6 26' }, headingTape);
-      const headingValue = label(0, 42, 'middle', headingTape);
-      const status = [label(0, 0, 'end', centre), label(0, 0, 'end', centre)];
-      const warning = label(0, 0, 'middle', centre, { class: 'big blink' });
-      const toast = label(0, 0, 'middle', centre, { id: 'toast' });
-      let W = 0, H = 0, BW = 0, BH = 0, ladderScale = 0;
-      function layout() {
-        [W, H] = [innerWidth, innerHeight];
-        [BW, BH] = [Math.min(W * 0.34, 340), Math.min(H * 0.34, 260)];
-        hudRoot.setAttribute('viewBox', `0 0 ${W} ${H}`);
-        centre.setAttribute('transform', `translate(${W / 2} ${H / 2})`);
-        const tall = BH * 0.8;
-        const boxes = { ladder: [-BW * 0.8, -BH, BW * 1.6, BH * 2], speed: [-70, -tall, 70, tall * 2], alt: [0, -tall, 70, tall * 2], heading: [-150, -16, 300, 32] };
-        for (const [name, [x, y, width, height]] of Object.entries(boxes)) for (const [key, value] of Object.entries({ x, y, width, height })) clips[name].setAttribute(key, value);
-        speedTape.tape.setAttribute('transform', `translate(${-BW} 0)`);
-        altTape.tape.setAttribute('transform', `translate(${BW} 0)`);
-        for (const { lines, title } of [speedTape, altTape]) {
-          lines.forEach((line, k) => line.setAttribute('y', tall + 20 + k * 17));
-          title.setAttribute('y', -tall - 8);
-        }
-        headingTape.setAttribute('transform', `translate(0 ${-BH - 44})`);
-        status.forEach((line, k) => (line.setAttribute('x', BW + 70), line.setAttribute('y', -BH - 50 + k * 17)));
-        warning.setAttribute('y', BH * 0.55);
-        toast.setAttribute('y', -BH * 0.45);
-        ladderScale = 0;
-      }
-      addEventListener('resize', layout);
-      layout();
-      // The attitude from the camera's turn, read off its axes: no angle is ever integrated or
-      // bounded, so it holds upside down and through the vertical. Kept free of the page, so a
-      // test can run it alone.
-      // HUD-MATH-START
-      const attitude = (x, y, z, w) => {
-        const toDeg = 180 / Math.PI;
-        const forward = [-2 * (x * z + w * y), -2 * (y * z - w * x), -(1 - 2 * (x * x + y * y))];
-        const rightY = 2 * (x * y + w * z), upY = 1 - 2 * (x * x + z * z);
-        return {
-          pitch: Math.asin(Math.min(1, Math.max(-1, forward[1]))) * toDeg,
-          bank: Math.atan2(-rightY, upY) * toDeg,
-          heading: (((Math.atan2(forward[0], -forward[2]) * toDeg) % 360) + 360) % 360,
-        };
-      };
-      // HUD-MATH-END
-      const clockOf = (seconds) => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(1).padStart(4, '0')}`;
-      function drawHud({ pitch, bank, heading, speed, altitude, radar, mach, marker, alert, clock }) {
-        // Degrees to pixels at the middle of the view, so the ladder lies on the world there.
-        const k = (H / 2 / Math.tan((camera.fov * deg) / 2)) * deg;
-        if (Math.abs(k - ladderScale) > ladderScale * 0.005) {
-          ladderScale = k;
-          for (const [p, rung] of rungs) rung.setAttribute('transform', `translate(0 ${(-p * k).toFixed(1)})`);
-        }
-        put(ladder, 'transform', `rotate(${(-bank).toFixed(2)}) translate(0 ${(pitch * k).toFixed(1)})`);
-        put(pathMarker, 'visibility', marker ? 'visible' : 'hidden');
-        if (marker) put(pathMarker, 'transform', `translate(${clamp(marker[0] * k, -BW * 0.75, BW * 0.75).toFixed(1)} ${clamp(marker[1] * k, -BH, BH).toFixed(1)})`);
-        const knots = speed * KT, feet = altitude * FT;
-        put(speedTape.strip, 'transform', `translate(0 ${(knots * SPEED_PX).toFixed(1)})`);
-        put(speedTape.value, 'text', String(Math.round(knots)));
-        put(altTape.strip, 'transform', `translate(0 ${(feet * ALT_PX).toFixed(1)})`);
-        put(altTape.value, 'text', String(Math.round(feet)));
-        put(headingStrip, 'transform', `translate(${(-heading * HEADING_PX).toFixed(1)} 0)`);
-        put(headingValue, 'text', String(Math.round(heading) % 360).padStart(3, '0'));
-        put(speedTape.lines[0], 'text', `M ${mach.toFixed(2)}`);
-        put(speedTape.lines[1], 'text', `G ${load.toFixed(1)}  ${maxLoad.toFixed(1)}`);
-        put(speedTape.lines[2], 'text', `THR ${Math.round(Math.min(1, throttle) * 100)}%`);
-        put(speedTape.lines[3], 'text', throttle > 1 ? 'AB' : '');
-        put(altTape.lines[0], 'text', radar < 1500 ? `R ${Math.round(radar * FT)}` : '');
-        put(altTape.lines[1], 'text', gearDown ? 'GEAR' : '');
-        put(status[0], 'text', `RINGS ${through}/${rings.length}`);
-        put(status[1], 'text', clock);
-        put(warning, 'text', alert);
-      }
-      function announce(name) {
-        toast.textContent = name;
-        toast.classList.remove('show');
-        toast.getBoundingClientRect();
-        toast.classList.add('show');
-      }
+      svg('path', { d: 'M -5 20 L 0 13 L 5 20' }, headingTape);
+      const readouts = [0, 1].map(() => label(0, 0, 'start', inside, { class: 'small' }));
+      const statuses = [0, 1].map(() => label(0, 0, 'end', inside, { class: 'small' }));
+      const warningInside = label(0, 0, 'middle', inside, { class: 'big blink' });
+      const outsideSpeed = label(0, 0, 'end', outside), outsideAlt = label(0, 0, 'start', outside), warningOutside = label(0, 0, 'middle', outside, { class: 'big blink' });
+      const corner = [0, 1].map(() => label(0, 0, 'end'));
       const banner = (title, line = '') => (put(document.querySelector('#banner h1'), 'text', title), put(document.querySelector('#banner p'), 'text', line));
+      const clockOf = (seconds) => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(1).padStart(4, '0')}`;
 
-      // SOUND, started by the first click, as browsers ask: the engine's roar that follows the
-      // throttle, a rumble in afterburner, the wind that grows with speed, a boom through the sound
-      // barrier, a chime per ring, a horn with the warnings.
+      // The display for one view. `f` is the focal length in pixels; `eye` and `turn` the camera.
+      function drawHud(f, seat, eye, turn, W, H, alert) {
+        put(hudRoot, 'viewBox', `0 0 ${W} ${H}`);
+        put(centre, 'transform', `translate(${W / 2} ${H / 2})`);
+        corner.forEach((line, k) => (put(line, 'x', W - 16), put(line, 'y', 26 + k * 18)));
+        put(corner[0], 'text', `RINGS ${passedCount}/${rings.length}`);
+        put(corner[1], 'text', clockOf(finished ?? elapsed));
+        const { forward } = attitude(S.q), far = (direction) => S.pos.map((p, i) => p + direction[i] * 2000);
+        const aimAt = project(far(rotate(S.aim, [0, 0, -1])), eye, turn, f), noseAt = project(far(forward), eye, turn, f);
+        const knots = S.v * KT, feet = (S.pos[1] - GEAR) * FT;
+        const inCockpit = view === 'cockpit', glass = COMBINER.map((c) => project(rotate(S.q, c).map((v, i) => v + seat[i]), eye, turn, f));
+        const onGlass = inCockpit && glass.every(Boolean);
+        put(inside, 'visibility', onGlass ? 'visible' : 'hidden');
+        put(outside, 'visibility', inCockpit ? 'hidden' : 'visible');
+        if (onGlass) {
+          const [l, r] = [Math.min(...glass.map((c) => c[0])), Math.max(...glass.map((c) => c[0]))];
+          const [t, b] = [Math.min(...glass.map((c) => c[1])), Math.max(...glass.map((c) => c[1]))];
+          const inset = (point, m = 14) => point && [clamp(point[0], l + m, r - m), clamp(point[1], t + m, b - m)];
+          // The ladder from the camera's own attitude: conformal with the real horizon.
+          const seen = attitude(turn);
+          box(clips.ladder, [l + 62, t + 30, r - l - 124, b - t - 30]);
+          put(ladder, 'transform', `rotate(${(-seen.bank / deg).toFixed(2)})`);
+          for (const [p, rung] of rungs) {
+            const near = Math.abs(seen.pitch - p) < 70 * deg;
+            put(rung, 'visibility', near ? 'visible' : 'hidden');
+            if (near) put(rung, 'transform', `translate(0 ${rungOffset(seen.pitch, p, f).toFixed(1)})`);
+          }
+          place2d(waterline, inset(noseAt) ?? [0, 0]);
+          const moving = Math.hypot(...S.vel) > 5 && project(S.pos.map((p, i) => p + S.vel[i] * 40), eye, turn, f);
+          put(pathMarker, 'visibility', moving ? 'visible' : 'hidden');
+          if (moving) place2d(pathMarker, inset(moving));
+          put(aimMarks[0], 'visibility', aimAt ? 'visible' : 'hidden');
+          if (aimAt) place2d(aimMarks[0], inset(aimAt));
+          const tall = (b - t) * 0.36, middle = (t + b) / 2 + 8;
+          place2d(speedTape.tape, [l + 58, middle]);
+          place2d(altTape.tape, [r - 58, middle]);
+          for (const { clip, title, tape } of [speedTape, altTape]) {
+            box(clips[clip], [tape === speedTape.tape ? -58 : 0, -tall, 58, 2 * tall]);
+            put(title, 'y', (-tall - 6).toFixed(1));
+          }
+          put(speedTape.strip, 'transform', `translate(0 ${(knots * SPEED_PX).toFixed(1)})`);
+          put(speedTape.value, 'text', String(Math.round(knots)));
+          put(altTape.strip, 'transform', `translate(0 ${(feet * ALT_PX).toFixed(1)})`);
+          put(altTape.value, 'text', String(Math.round(feet)));
+          const half = Math.min(120, (r - l) / 2 - 70);
+          place2d(headingTape, [0, t + 14]);
+          box(clips.heading, [-half, -14, 2 * half, 28]);
+          put(headingStrip, 'transform', `translate(${((-attitude(S.q).heading / deg) * HEADING_PX).toFixed(1)} 0)`);
+          [`G ${S.load.toFixed(1)}`, `M ${(S.v / MACH).toFixed(2)}`].forEach((text, k) => (put(readouts[k], 'text', text), put(readouts[k], 'x', l + 8), put(readouts[k], 'y', b - 22 + k * 14)));
+          [[S.burner ? 'AB' : '', S.braking ? 'BRK' : ''].filter(Boolean).join(' '), S.gearDown ? 'GEAR' : ''].forEach((text, k) => (put(statuses[k], 'text', text), put(statuses[k], 'x', r - 8), put(statuses[k], 'y', b - 22 + k * 14)));
+          put(warningInside, 'text', alert);
+          put(warningInside, 'y', (b - 42).toFixed(1));
+        } else if (!inCockpit) {
+          put(aimMarks[1], 'visibility', aimAt ? 'visible' : 'hidden');
+          if (aimAt) place2d(aimMarks[1], aimAt);
+          put(noseCross, 'visibility', noseAt ? 'visible' : 'hidden');
+          if (noseAt) place2d(noseCross, noseAt);
+          const side = Math.min(W * 0.3, 280);
+          put(outsideSpeed, 'text', `${Math.round(knots)} KT`);
+          put(outsideAlt, 'text', `${Math.round(feet)} FT`);
+          place2d(outsideSpeed, [-side, H * 0.06]);
+          place2d(outsideAlt, [side, H * 0.06]);
+          put(warningOutside, 'text', alert);
+          put(warningOutside, 'y', (-H * 0.2).toFixed(1));
+        }
+      }
+
+      // SOUND, started by Play, as browsers ask: the engine's roar that follows the throttle, a
+      // rumble in afterburner, the wind that grows with speed, a boom through the sound barrier,
+      // a chime per ring, a horn with the warnings.
       let audio = null, muted = false;
       function startSound() {
         if (audio) return;
@@ -674,376 +892,279 @@
         burst.connect(low).connect(gain).connect(out);
         burst.start(now);
         burst.stop(now + 1.7);
-        const thump = context.createOscillator(), thumpGain = context.createGain();
-        thump.frequency.setValueAtTime(55, now);
-        thump.frequency.exponentialRampToValueAtTime(28, now + 0.8);
-        thumpGain.gain.setValueAtTime(0.9, now);
-        thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-        thump.connect(thumpGain).connect(out);
-        thump.start(now);
-        thump.stop(now + 1);
       }
-      function sound(speed, burning, horn, time) {
+      function sound(horn, time) {
         if (!audio) return;
-        const { context, drone, filter, engines, band, wind, rumble, hornGain } = audio, now = context.currentTime, power = Math.min(1, throttle);
-        const pitch = 55 + 85 * power + speed * 0.06 + (burning ? 18 : 0);
+        const { context, drone, filter, engines, band, wind, rumble, hornGain } = audio, now = context.currentTime, power = S.burner ? 1 : S.throttle;
+        const pitch = 55 + 85 * power + S.v * 0.06 + (S.burner ? 18 : 0);
         engines.forEach((oscillator, k) => oscillator.frequency.setTargetAtTime(pitch * (k ? 0.5 : 1), now, 0.1));
-        filter.frequency.setTargetAtTime(burning ? 1800 : 900, now, 0.2);
-        drone.gain.setTargetAtTime(0.03 + 0.11 * power + (burning ? 0.07 : 0), now, 0.1);
-        rumble.gain.setTargetAtTime(burning ? 0.6 : 0.12 * power, now, 0.15);
-        band.frequency.setTargetAtTime(300 + speed * 3, now, 0.2);
-        wind.gain.setTargetAtTime(Math.min(0.3, (speed / 250) ** 2 * 0.3), now, 0.2);
+        filter.frequency.setTargetAtTime(S.burner ? 1800 : 900, now, 0.2);
+        drone.gain.setTargetAtTime(0.03 + 0.11 * power + (S.burner ? 0.07 : 0), now, 0.1);
+        rumble.gain.setTargetAtTime(S.burner ? 0.6 : 0.12 * power, now, 0.15);
+        band.frequency.setTargetAtTime(300 + S.v * 3, now, 0.2);
+        wind.gain.setTargetAtTime(Math.min(0.3, (S.v / 250) ** 2 * 0.3), now, 0.2);
         hornGain.gain.setTargetAtTime(horn && (time * 4) % 1 < 0.5 ? 0.06 : 0, now, 0.01);
       }
 
-      // The panel: the keys, on both keyboard layouts, and the sound.
-      const KEY_LINE = 'Shift throttle (afterburner past 100 %) · X throttle down · S air brake · ↑ ↓ pitch · Q E roll (A E on AZERTY) · ← → rudder';
-      controls({
-        fly: 'Our fly controller in cruise: the jet flies on by itself, six degrees of freedom, no bound on a turn (loops and rolls go all the way round), keys read by their place so AZERTY flies the same; the mouse does nothing',
-        throttle: 'Shift (or W, Z on AZERTY) throttle up, held at 100 % for afterburner · X throttle down · S air brake',
-        stick: '↑ ↓ pitch · Q E roll (A E on AZERTY) · ← → rudder',
-        slide: 'A D slide (Q D on AZERTY) · R F rise and sink',
-        view: 'C chase or cockpit view · Enter to start over · Esc to pause',
-        sound: true,
-      }, (values) => {
-        muted = !values.sound;
-        if (audio) audio.out.gain.value = muted ? 0 : 0.8;
+      // THE GAME. `S` is the jet, `pilot` what the player holds; the view is the cockpit or the
+      // exterior, whose camera follows the aim so the jet is seen catching up with it.
+      const S = createFlight();
+      const pilot = { keys: new Set(), sensitivity: 1, invert: false, realistic: false, freeLook: false };
+      const SENSITIVITY = { Low: 0.6, Medium: 1, High: 1.6 };
+      let view = 'cockpit', chosenView = 'cockpit', phase = 'flying', crashTime = 0, passedCount = 0, lastRing = null;
+      let airborne = false, elapsed = 0, finished = null, time = 0, zoom = 22, prevMach = 0, coneAge = Infinity, lastTrail = 0, headYaw = 0;
+      let chaseTurn = [0, 0, 0, 1];
+      function restart() {
+        for (const ring of rings) [ring.done, ring.todo.visible, ring.passed.visible] = [false, true, false];
+        [passedCount, lastRing, airborne, elapsed, finished, phase] = [0, null, false, 0, null, 'flying'];
+        park(S);
+        chaseTurn = S.aim.slice();
+        banner('');
+        world.invalidate();
+      }
+      function respawn() {
+        const ahead = rings.findIndex((ring) => !ring.done);
+        if (lastRing === null) park(S);
+        else launch(S, COURSE[lastRing], COURSE[ahead < 0 ? (lastRing + 1) % COURSE.length : ahead], 170);
+        chaseTurn = S.aim.slice();
+        phase = 'flying';
+        banner('');
+      }
+      function flyThrough(from) {
+        rings.forEach((ring, index) => {
+          if (ring.done || !passes(from, S.pos, ring.centre, HOOP - 3)) return;
+          [ring.done, ring.todo.visible, ring.passed.visible] = [true, false, true];
+          [passedCount, lastRing] = [passedCount + 1, index];
+          chime();
+          if (passedCount === rings.length) {
+            finished = elapsed;
+            banner('COURSE COMPLETE', `${clockOf(finished)} — R to fly again`);
+          }
+        });
+      }
+      // Where the exterior camera stands before the first Play: three-quarters ahead of the jet
+      // waiting on the runway.
+      function menuShot() {
+        camera.position.set(S.pos[0] - 16, S.pos[1] + 3.5, S.pos[2] - 20);
+        camera.lookAt(S.pos[0], S.pos[1] + 0.5, S.pos[2]);
+      }
+      restart();
+      menuShot();
+
+      // The keys the page reads by their place on the keyboard (`KeyboardEvent.code`), so an
+      // AZERTY keyboard flies the same. They are taken before the controller sees them: its
+      // own keys would slide, rise and turn the jet outside the flight model.
+      const OWN = new Set(['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyQ', 'KeyE', 'KeyR', 'KeyF', 'KeyV', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+      for (const type of ['keydown', 'keyup'])
+        addEventListener(type, (event) => {
+          if (OWN.has(event.code)) event.stopPropagation();
+          if (type === 'keyup') return void pilot.keys.delete(event.code);
+          if (free && event.code === 'Escape') return freeRelease();
+          if (!game.running || event.metaKey || event.ctrlKey) return;
+          if (event.code === 'Space') event.preventDefault();
+          if (event.repeat) return;
+          pilot.keys.add(event.code);
+          if (event.code === 'KeyC') setView(view === 'cockpit' ? 'exterior' : 'cockpit');
+          if (event.code === 'KeyR') restart();
+        }, true);
+      // The mouse: its motion under the lock (`movementX/Y`), summed until the next step.
+      addEventListener('mousemove', (event) => {
+        if (!game.running) return;
+        S.mouseX += clamp(event.movementX, -250, 250);
+        S.mouseY += clamp(event.movementY, -250, 250);
       });
+      addEventListener('wheel', (event) => game.running && (zoom = clamp(zoom * Math.exp(event.deltaY * 0.001), 12, 70)), { passive: true });
+      function setView(next) {
+        view = next;
+        chaseTurn = S.aim.slice();
+      }
+
+      // TEST MODE, `?input=free`: an automated browser cannot be granted a pointer lock, so Play
+      // "locks" nothing and the mouse's plain `mousemove` deltas steer instead; Escape pauses. A
+      // player never needs it; it changes nothing else.
+      const free = new URLSearchParams(location.search).get('input') === 'free';
+      let freeHeld = false;
+      const lockWatchers = [];
+      const freeDoc = {
+        get pointerLockElement() {
+          return freeHeld ? freeCanvas : null;
+        },
+        get hidden() {
+          return document.hidden;
+        },
+        defaultView: window,
+        addEventListener: (type, listener) => (type === 'pointerlockchange' ? lockWatchers.push(listener) : document.addEventListener(type, listener)),
+      };
+      const freeCanvas = { isConnected: true, ownerDocument: freeDoc, requestPointerLock: () => ((freeHeld = true), lockWatchers.forEach((watch) => watch({}))) };
+      const freeRelease = () => ((freeHeld = false), lockWatchers.forEach((watch) => watch({})));
+
+      // The menu: Play locks the mouse; Escape, a lost focus or a hidden tab pauses behind it.
+      const game = play(
+        { canvas: free ? freeCanvas : canvas, controls: world.controls, invalidate: () => world.invalidate() },
+        {
+          title: 'Fighter jet',
+          goal: 'Take off, then fly the canyon through the ten gold rings as fast as you can. Point with the mouse: the jet follows.',
+          keys: [
+            { action: 'Aim — the jet turns to follow', keys: ['Mouse'] },
+            { action: 'Throttle up, down', keys: ['W', 'S'], azerty: ['Z', 'S'] },
+            { action: 'Afterburner (hold)', keys: ['Shift'] },
+            { action: 'Roll (overrides the aim)', keys: ['A', 'D'], azerty: ['Q', 'D'] },
+            { action: 'Rudder', keys: ['Q', 'E'], azerty: ['A', 'E'] },
+            { action: 'Air brake (hold)', keys: ['Space'] },
+            { action: 'Look around (hold)', keys: ['V'] },
+            { action: 'Cockpit or exterior view', keys: ['C'] },
+            { action: 'Zoom the exterior view', keys: ['Wheel'] },
+            { action: 'Start over', keys: ['R'] },
+            { action: 'Pause', keys: ['Esc'] },
+          ],
+          options: [
+            { id: 'view', label: 'View', choices: ['Cockpit', 'Exterior'] },
+            { id: 'instructor', label: 'Instructor', choices: ['Arcade', 'Realistic'] },
+            { id: 'sensitivity', label: 'Mouse sensitivity', choices: Object.keys(SENSITIVITY), value: 'Medium' },
+            { id: 'invert', label: 'Invert Y', choices: ['Off', 'On'] },
+            { id: 'sound', label: 'Sound', choices: ['On', 'Off'] },
+          ],
+          onStart: () => setView(chosenView),
+          onPause() {
+            pilot.keys.clear();
+            void audio?.context.suspend();
+          },
+          onResume() {
+            startSound();
+            void audio?.context.resume();
+          },
+          onRestart: restart,
+          onOption(id, value) {
+            if (id === 'view') setView((chosenView = value === 'Cockpit' ? 'cockpit' : 'exterior'));
+            if (id === 'instructor') pilot.realistic = value === 'Realistic';
+            if (id === 'sensitivity') pilot.sensitivity = SENSITIVITY[value];
+            if (id === 'invert') pilot.invert = value === 'On';
+            if (id === 'sound') muted = value === 'Off';
+            if (audio) audio.out.gain.value = muted ? 0 : 0.8;
+          },
+        },
+        free ? freeDoc : document,
+      );
       stats(world, 'top-left');
 
-      // THE FLIGHT. The jet rides the camera the controller moves: ahead of and below it in the
-      // chase view, under the pilot's eye in the cockpit — always in the camera's own frame, so
-      // the chase follows through a loop without flipping. Phases: an orbit around the parked
-      // jet, the ease into the chase, flight, a crash, the slow fly-by after the last ring.
-      const CHASE = math.vector3(0, -4.2, -26), COCKPIT = math.vector3(0, -1.25, 5.2);
-      const PARK = math.vector3(0, 0.15 + GEAR, 480);
-      let offset = CHASE, phase, phaseTime, throttle = 0, airspeed = 0, onGround = true, gearDown = true;
-      let through = 0, started = false, finished = null, elapsed = 0, crashAt = 0;
-      let load = 1, maxLoad = 1, prevMach = 0, coneAge = Infinity, flightTime = 0, lastTrail = 0, cumPitch = 0, cumRoll = 0, knife = 0;
-      const held = new Set(), from = { at: math.vector3(), turn: math.quaternion() }, marks = [];
-      const shake = math.vector3(), last = math.vector3(), velocity = math.vector3(), before = math.vector3(), accel = math.vector3();
-      const scratch = math.vector3(), axis = math.vector3(), nose = math.vector3(), up = math.vector3(), right = math.vector3();
-      const spin = math.quaternion(), aim = math.quaternion(), level = math.quaternion(), prevTurn = math.quaternion(), step = math.quaternion();
-      const surfaces = { roll: 0, pitch: 0, yaw: 0 };
-      // The controller steers only when the phase lets it and the game runs (the pointer locked).
-      let steer = false, running = false;
-      const steering = (on) => {
-        steer = on;
-        const enabled = steer && running;
-        if (world.controls.enabled !== enabled) world.controls.enabled = enabled;
-      };
-      const easeFrom = (next) => {
-        [phase, phaseTime] = [next, 0];
-        from.at.copy(camera.position);
-        from.turn.copy(camera.quaternion);
-      };
-      function setGear(down) {
-        gearDown = down;
-        gear.visible = down;
-      }
-      function resetManeuvers() {
-        prevTurn.copy(camera.quaternion);
-        marks.length = 0;
-        knife = 0;
-      }
-      function park() {
-        // On the runway threshold, level, nose north (-z), the camera behind it.
-        camera.quaternion.set(0, 0, 0, 1);
-        camera.position.copy(PARK).sub(offset);
-        jet.position.copy(PARK);
-        jet.quaternion.set(0, 0, 0, 1);
-        last.copy(PARK);
-        velocity.set(0, 0, 0);
-        [throttle, airspeed, onGround, load, prevMach] = [0, 0, true, 1, 0];
-        world.controls.movementSpeed = 0;
-        setGear(true);
-        resetManeuvers();
-      }
-      function orbit(time) {
-        const angle = time * 0.25;
-        camera.position.set(PARK.x + Math.sin(angle) * 34, PARK.y + 7, PARK.z + Math.cos(angle) * 34);
-        camera.lookAt(PARK.x, PARK.y + 1, PARK.z);
-      }
-      function startOver() {
-        for (const ring of rings) [ring.todo.visible, ring.passed.visible] = [true, false];
-        [through, started, finished, elapsed, offset, maxLoad] = [0, false, null, 0, CHASE, 1];
-        [phase, phaseTime] = ['intro', 0];
-        canopy.visible = true;
-        steering(false);
-        park();
-        orbit(0);
-        banner('Press Shift to start', 'Hold Shift: full throttle, then afterburner · at 150 kt, ↑ lifts off · keyboard only');
-      }
-
-      // The game runs only while the pointer is locked to the canvas: before the first click,
-      // after Escape, on a lost focus or a hidden tab, the kit's `play` pauses it — the
-      // controller, the simulation, the clock and the sound. It switches `enabled` on the
-      // handle given here, which the phases share.
-      play(
-        { canvas, invalidate: () => world.invalidate(), controls: { get enabled() { return running; }, set enabled(on) { running = on; steering(steer); } } },
-        {
-          title: 'Click to fly',
-          keys: KEY_LINE,
-          onPause: () => (held.clear(), audio?.context.suspend()),
-          onResume: () => (startSound(), audio?.context.resume()),
-        },
-      );
-      startOver();
-
-      // The keys, read before the controller sees them: W and S are the page's own (throttle and
-      // air brake), so the controller's forward boost and stop never reach it — a jet in the air
-      // never hangs still.
-      const ownKey = (event) => (event.code === 'KeyW' || event.code === 'KeyS') && event.stopPropagation();
-      addEventListener('keydown', (event) => {
-        ownKey(event);
-        if (!running || event.metaKey || event.ctrlKey) return;
-        held.add(event.code);
-        if (event.code === 'Enter' || event.code === 'NumpadEnter') startOver();
-        if (event.code === 'KeyC' && phase === 'flying') {
-          // The camera jumps so that the jet stays where it is.
-          const other = offset === CHASE ? COCKPIT : CHASE;
-          camera.position.add(scratch.copy(offset).sub(other).applyQuaternion(camera.quaternion));
-          offset = other;
-          canopy.visible = offset === CHASE;
-        }
-        if ((event.code.startsWith('Shift') || event.code === 'KeyW') && phase === 'intro') {
-          easeFrom('boarding');
-          banner('', 'Hold Shift to 150 kt, then ↑ to lift off');
-        }
-      }, true);
-      addEventListener('keyup', (event) => (ownKey(event), held.delete(event.code)), true);
-
-      // The ground under a point: a roof, the runway, the water or the terrain, and whether a
-      // jet may touch down there.
-      function ground(x, z) {
-        for (const [bx, bz, hx, hz, top] of buildings) if (Math.abs(x - bx) < hx && Math.abs(z - bz) < hz) return [top, false];
-        if (Math.abs(x) < 17 && Math.abs(z) < 550) return [0.15, true];
-        if (Math.max(Math.abs(x), Math.abs(z)) > SIZE / 2) return [-Infinity, false];
-        const [, height, , , up] = sample(x, z);
-        return height < WATER ? [WATER, false] : [height, up > 0.97];
-      }
-      function crash(time) {
-        [phase, crashAt] = ['crashed', time];
-        steering(false);
-        banner('Crashed!', 'Back to the runway…');
-      }
-      // A ring is flown through when the path of this frame passes close to its centre.
-      function passes(centre) {
-        const along = scratch.copy(jet.position).sub(last), length = along.lengthSq();
-        const t = length ? clamp(axis.copy(centre).sub(last).dot(along) / length, 0, 1) : 0;
-        return axis.copy(last).addScaledVector(along, t).distanceTo(centre) < HOOP - 3;
-      }
-      // Named manoeuvres, from the attitude history: the pitch and roll the jet has turned
-      // through (its own axes, summed), its height and its heading, sampled five times a second.
-      const upright = (mark) => mark.uy > 0.8 && Math.abs(mark.fy) < 0.3;
-      function maneuvers({ pitch, bank }) {
-        const now = { t: flightTime, pitch: cumPitch, roll: cumRoll, y: jet.position.y, fx: nose.x, fz: nose.z, fy: nose.y, uy: up.y };
-        marks.push(now);
-        while (marks[0].t < now.t - 20) marks.shift();
-        let named = null;
-        for (const mark of marks) {
-          const turned = (now.pitch - mark.pitch) / deg, rolled = (now.roll - mark.roll) / deg;
-          const reversed = (mark.fx * now.fx + mark.fz * now.fz) / (Math.hypot(mark.fx, mark.fz) * Math.hypot(now.fx, now.fz) || 1) < -0.7;
-          if (Math.abs(turned) >= 340 && Math.abs(rolled) < 70) named = turned > 0 ? 'LOOP!' : 'OUTSIDE LOOP!';
-          else if (Math.abs(rolled) >= 340) named = 'BARREL ROLL!';
-          else if (upright(mark) && upright(now) && reversed && Math.abs(turned) > 140 && Math.abs(turned) < 240)
-            named = now.y - mark.y > 60 ? 'IMMELMANN!' : now.y - mark.y < -60 ? 'SPLIT-S!' : null;
-          if (named) break;
-        }
-        knife = Math.abs(Math.abs(bank) - 90) < 20 && Math.abs(pitch) < 20 ? knife + 1 : 0;
-        if (knife === 12) named ??= 'KNIFE EDGE!';
-        if (!named) return;
-        announce(named);
-        marks.length = 0;
-        marks.push(now);
-      }
-
-      world.onFrame(({ delta, time }) => {
-        if (!running) return;
-        const dt = Math.min(delta, 0.1);
-        camera.position.sub(shake);
-        phaseTime += dt;
-        last.copy(jet.position);
-        // THE ENGINE. The throttle sets the speed the engine pulls to, past 100 % the afterburner;
-        // the jet takes seconds to reach it, loses speed climbing and gains it diving, and never
-        // drops below its slowest in the air. The controller cruises at that speed.
-        const push = held.has('ShiftLeft') || held.has('ShiftRight') || held.has('KeyW');
-        throttle = clamp(throttle + (push - held.has('KeyX')) * 0.4 * dt, 0, AB_TOP);
-        const burning = throttle > 1;
-        nose.set(0, 0, -1).applyQuaternion(camera.quaternion);
-        up.set(0, 1, 0).applyQuaternion(camera.quaternion);
-        right.set(1, 0, 0).applyQuaternion(camera.quaternion);
+      // THE STEP. The world steps its controller just before it draws; the flight rides that
+      // very step, so the jet, the cockpit, the camera and the display are placed on the pose
+      // about to be drawn, never a frame late. The controller integrates the jet's pose, then
+      // the camera is moved to the view.
+      const integrate = world.controls.update;
+      world.controls.update = (delta) => {
+        const dt = Math.min(delta, 0.05);
+        if (!game.running) return integrate.call(world.controls, delta);
+        time += dt;
+        pilot.freeLook = pilot.keys.has('KeyV');
         if (phase === 'flying') {
-          const idle = onGround ? 0 : MIN_AIR;
-          const target = burning ? MIL + ((MAX_SPEED - MIL) * (throttle - 1)) / (AB_TOP - 1) : idle + (MIL - idle) * throttle;
-          let pull = clamp((target - airspeed) / 4, -14, 2 + 10 * throttle);
-          if (!onGround) pull -= G * nose.y;
-          if (held.has('KeyS')) pull -= 20;
-          airspeed = clamp(airspeed + pull * dt, idle, MAX_SPEED * 1.05);
-        }
-        if (Math.abs(world.controls.movementSpeed - airspeed) > 0.01) world.controls.movementSpeed = airspeed;
+          const from = advance(S, (step) => integrate.call(world.controls, step), world.controls, camera, pilot, dt, ground);
+          if (S.crashed) [phase, crashTime] = ['crashed', 0];
+          else if (from) flyThrough(from);
+          airborne ||= !S.onGround;
+        } else if ((crashTime += dt) > 1.6) respawn();
+        if (airborne && finished === null) elapsed += dt;
+        present(dt);
+      };
+      world.onFrame(() => game.running && world.invalidate());
 
-        if (phase === 'intro') orbit(time);
-        else if (phase === 'boarding' || phase === 'returning') {
-          // From wherever the camera was, it eases into the chase view behind the jet.
-          const t = smooth(0, 1.6, phaseTime);
-          aim.copy(jet.quaternion);
-          scratch.copy(offset).applyQuaternion(aim).multiplyScalar(-1).add(jet.position);
-          camera.position.lerpVectors(from.at, scratch, t);
-          camera.quaternion.copy(from.turn).slerp(aim, t);
-          if (t === 1) {
-            [phase, phaseTime] = ['flying', 0];
-            started = true;
-            steering(true);
-            resetManeuvers();
-          }
-        } else if (phase === 'crashed' && time - crashAt > 2.2) {
-          park();
-          banner('', 'Hold Shift to 150 kt, then ↑ to lift off');
-          [phase, phaseTime] = ['flying', 0];
-          steering(true);
-        } else if (phase === 'flyby') {
-          // Slow motion: the jet flies on at a quarter of its speed, the camera watches it pass.
-          jet.position.addScaledVector(velocity, dt * 0.25);
-          camera.lookAt(jet.position);
-          if (phaseTime > 4.5) easeFrom('returning');
-        }
-        let stalling = false, floor = phase === 'flying' ? 0 : ground(jet.position.x, jet.position.z)[0];
-        if (phase === 'flying') {
-          // The jet where the controller put the camera, its turn eased a little behind.
-          jet.position.copy(scratch.copy(offset).applyQuaternion(camera.quaternion).add(camera.position));
-          jet.quaternion.slerp(camera.quaternion, offset === CHASE ? 1 - Math.exp(-dt * 12) : 1);
-          // Touching the ground: roll on the runway and flat meadows, crash anywhere else, or
-          // when coming down too hard, too tilted or with the wheels up.
-          const lower = (by) => ((camera.position.y -= by), (jet.position.y -= by));
-          let landable;
-          [floor, landable] = ground(jet.position.x, jet.position.z);
-          const under = jet.position.y - GEAR - floor;
-          if (under < 0) {
-            if (!landable || velocity.y < -7 || up.y < 0.85 || !gearDown) crash(time);
-            else lower(under);
-          }
-          if (phase === 'flying' && onGround && airspeed < TAKEOFF) {
-            // Below take-off speed a jet rolls: held on the ground, its nose eased back level.
-            lower(Math.max(0, under));
-            level.setFromAxisAngle(axis.set(0, 1, 0), Math.atan2(-nose.x, -nose.z));
-            camera.quaternion.slerp(level, 1 - Math.exp(-dt * 8));
-          } else if (phase === 'flying' && !onGround && airspeed < STALL) {
-            // Too slow in the air: the wing stalls, the nose falls towards the ground and the
-            // jet sinks, until the dive gives it its speed back.
-            stalling = true;
-            const lost = clamp((STALL - airspeed) / (STALL - MIN_AIR), 0, 1);
-            axis.copy(nose).cross(scratch.set(0, -1, 0));
-            if (axis.length() > 1e-3) camera.quaternion.premultiply(spin.setFromAxisAngle(axis.normalize(), 1.3 * lost * dt));
-            lower(22 * lost * dt);
-          }
-          // The gear folds away once clear of the ground, and comes down slow and low.
-          const clearance = jet.position.y - GEAR - floor;
-          onGround = clearance < 0.3;
-          if (gearDown && clearance > 25) (setGear(false), banner(''));
-          else if (!gearDown && clearance < 80 && airspeed < 110) setGear(true);
-        }
-        // Velocity and g from the jet's own motion, smoothed a little.
-        if (dt > 0 && phase !== 'flyby') {
-          before.copy(velocity);
-          velocity.lerp(scratch.copy(jet.position).sub(last).divideScalar(dt), 1 - Math.exp(-dt * 10));
-          accel.copy(velocity).sub(before).divideScalar(dt);
-          accel.y += G;
-          load += (accel.dot(up) / G - load) * (1 - Math.exp(-dt * 4));
-          if (phase === 'flying') maxLoad = Math.max(maxLoad, load);
-        }
-        // Rings, then the finish.
-        if (phase === 'flying')
-          for (const ring of rings)
-            if (ring.todo.visible && passes(ring.ring.position)) {
-              [ring.todo.visible, ring.passed.visible] = [false, true];
-              through += 1;
-              chime();
-              if (through < rings.length) continue;
-              finished = elapsed;
-              [phase, phaseTime] = ['flyby', 0];
-              steering(false);
-              camera.position.copy(axis.set(34, 10, -110).applyQuaternion(jet.quaternion).add(jet.position));
-              banner(clockOf(finished), 'All ten rings! Enter to fly again');
-            }
-        if (started && finished === null && (phase === 'flying' || phase === 'crashed')) elapsed += dt;
-        // The control surfaces follow the keys: ailerons for the roll, the stabilators for the
-        // pitch (and a little of the roll), the rudders for the yaw.
-        const ease = 1 - Math.exp(-dt * 12);
-        surfaces.roll += (held.has('KeyQ') - held.has('KeyE') - surfaces.roll) * ease;
-        surfaces.pitch += (held.has('ArrowUp') - held.has('ArrowDown') - surfaces.pitch) * ease;
-        surfaces.yaw += (held.has('ArrowLeft') - held.has('ArrowRight') - surfaces.yaw) * ease;
-        ailerons.forEach((pivot, side) => (pivot.rotation.x = (side ? 0.35 : -0.35) * surfaces.roll));
-        stabs.forEach((pivot, side) => (pivot.rotation.x = -0.3 * surfaces.pitch + (side ? 0.1 : -0.1) * surfaces.roll));
-        rudders.forEach((pivot) => (pivot.rotation.y = -0.4 * surfaces.yaw));
-        // Afterburner flames, stretched with the throttle and flickering; the vapour cone and the
-        // boom going through Mach 1.
-        const flame = burning && (phase === 'flying' || phase === 'flyby');
-        flames.forEach((group, side) => {
-          if (group.visible !== flame) group.visible = flame;
-          if (flame) group.scale.set(1 + 0.05 * Math.sin(time * 47 + side), 1 + 0.05 * Math.sin(time * 53 + side), (0.7 + (0.3 * (throttle - 1)) / (AB_TOP - 1)) * (0.9 + 0.1 * Math.sin(time * 61 + side)));
+      // Everything the step shows: the jet and its surfaces, the cockpit and its screens, the
+      // effects, the camera for the view, the display, the sound.
+      function present(dt) {
+        const cockpitView = view === 'cockpit', { heading, pitch, bank } = attitude(S.q);
+        jet.visible = !cockpitView && phase === 'flying';
+        cockpit.visible = cockpitView && phase === 'flying';
+        jet.position.set(...S.pos);
+        jet.quaternion.set(...S.q);
+        const eye = S.pos.map((p, i) => p + rotate(S.q, EYE)[i]);
+        cockpit.position.set(...eye);
+        cockpit.quaternion.set(...S.q);
+        gear.visible = S.gearDown;
+        const [pitchStick, yawStick, rollStick] = S.stick;
+        ailerons.forEach((pivot, side) => (pivot.rotation.x = (side ? 0.35 : -0.35) * rollStick));
+        stabs.forEach((pivot, side) => (pivot.rotation.x = -0.3 * pitchStick + (side ? 0.1 : -0.1) * rollStick));
+        rudders.forEach((pivot) => (pivot.rotation.y = -0.4 * yawStick));
+        flames.forEach((flame, side) => {
+          if (flame.visible !== S.burner) flame.visible = S.burner;
+          if (S.burner) flame.scale.set(1 + 0.05 * Math.sin(time * 47 + side), 1 + 0.05 * Math.sin(time * 53 + side), 0.9 + 0.1 * Math.sin(time * 61 + side));
         });
-        const mach = airspeed / MACH;
-        if (phase === 'flying' && prevMach < 1 && mach >= 1) (boom(), (coneAge = 0));
+        const mach = S.v / MACH;
+        if (prevMach < 1 && mach >= 1) (boom(), (coneAge = 0));
         prevMach = mach;
         coneAge += dt;
         if (vapourCone.visible !== coneAge < 1.4) vapourCone.visible = coneAge < 1.4;
         if (coneAge < 1.4) vapourCone.scale.setScalar(0.7 + 0.5 * (coneAge / 1.4));
-        // Wing-tip trails in a hard pull: one sample every 1/30 s, the oldest shrinking away.
+        // Wing-tip vapour in a hard pull: a sample every 1/30 s, the oldest shrinking away.
         if (time - lastTrail > 1 / 30) {
           lastTrail = time;
           const oldest = history.pop();
-          TIPS.forEach((tip, side) => oldest.at[side].copy(tip).applyQuaternion(jet.quaternion).add(jet.position));
-          oldest.turn.copy(jet.quaternion);
+          TIPS.forEach((tip, side) => (oldest.at[side] = S.pos.map((p, i) => p + rotate(S.q, tip)[i])));
+          oldest.turn = S.q.slice();
           history.unshift(oldest);
         }
-        const streaming = phase === 'flying' && load > 4;
+        const streaming = phase === 'flying' && S.load > 5;
         trails.forEach((strips, side) =>
           strips.forEach((strip, k) => {
             if (strip.visible !== streaming) strip.visible = streaming;
             if (!streaming) return;
-            strip.position.copy(history[k].at[side]);
-            strip.quaternion.copy(history[k].turn);
+            strip.position.set(...history[k].at[side]);
+            strip.quaternion.set(...history[k].turn);
             strip.scale.setScalar(1 - k / TRAIL);
           }),
         );
-        // The turn the jet made this frame, in its own axes, for the named manoeuvres.
-        const q = camera.quaternion, turn = attitude(q.x, q.y, q.z, q.w);
-        if (phase === 'flying' && !onGround) {
-          step.copy(prevTurn).invert().multiply(q);
-          const sign = step.w < 0 ? -2 : 2;
-          [cumPitch, cumRoll, flightTime] = [cumPitch + sign * step.x, cumRoll + sign * step.z, flightTime + dt];
-          if (flightTime - (marks.at(-1)?.t ?? -1) >= 0.2) maneuvers(turn);
-        }
-        prevTurn.copy(q);
-        // The head-up display, from the camera's turn and the jet's motion.
-        const altitude = jet.position.y - GEAR, radar = altitude - floor, speed = velocity.length(), along = velocity.dot(nose);
-        const ahead = scratch.copy(jet.position).addScaledVector(velocity, 2.5), aloft = phase === 'flying' && !onGround;
-        const pullUp = aloft && velocity.y < -5 && radar / -velocity.y < 5;
-        const terrainAhead = aloft && !gearDown && ground(ahead.x, ahead.z)[0] > ahead.y - GEAR - 15;
-        const outside = Math.max(Math.abs(jet.position.x), Math.abs(jet.position.z)) > 2450;
-        drawHud({
-          ...turn,
-          speed: phase === 'flying' ? airspeed : speed,
-          altitude,
-          radar,
-          mach,
-          marker: speed > 5 && along > 0 ? [Math.atan2(velocity.dot(right), along) / deg, -Math.atan2(velocity.dot(up), along) / deg] : null,
-          alert: pullUp ? 'PULL UP' : stalling ? 'STALL' : terrainAhead ? 'TERRAIN' : outside ? 'TURN BACK' : '',
-          clock: clockOf(finished ?? elapsed),
+        // The screens: the horizon bar turned by the bank and slid by the pitch; the map turned
+        // heading up, 1500 m to its half-height.
+        const slide = -clamp(pitch / (30 * deg)) * 0.05;
+        horizonBar.rotation.z = bank;
+        horizonBar.position.set(-Math.sin(bank) * slide, Math.cos(bank) * slide, 0);
+        const toMap = ([x, z], mesh) => {
+          const dx = x - S.pos[0], dz = z - S.pos[2], across = dx * Math.cos(heading) + dz * Math.sin(heading), along = dx * Math.sin(heading) - dz * Math.cos(heading);
+          const at = [(across * 0.045) / 1500, (along * 0.045) / 1500 - 0.03];
+          mesh.visible = Math.abs(at[0]) < 0.07 && Math.abs(at[1]) < 0.056;
+          if (mesh.visible) mesh.position.set(at[0], at[1], mesh.position.z);
+        };
+        canyonDots.forEach((mesh, k) => toMap(GORGE_DOTS[k], mesh));
+        const ahead = rings.findIndex((ring) => !ring.done);
+        rings.forEach((ring, k) => {
+          if (ring.done || k === ahead) ringDots[k].visible = false;
+          else toMap([ring.centre[0], ring.centre[2]], ringDots[k]);
         });
-        sound(phase === 'flying' ? airspeed : speed, burning, pullUp || stalling || terrainAhead, time);
-        // The sense of speed: a wider view the faster the jet goes and a kick in afterburner, a
-        // light shake at high speed or rolling on the runway — taken back out before the
-        // controller reads the pose.
-        const fov = phase === 'flyby' ? 38 : 62 + 10 * Math.min(1, airspeed / MAX_SPEED) + (burning ? 6 : 0);
-        camera.fov += (fov - camera.fov) * (1 - Math.exp(-dt * 3));
-        const rolling = onGround ? 0.04 * Math.min(1, airspeed / 40) : 0;
-        const rough = phase === 'flying' ? 0.05 * smooth(250, 410, airspeed) + (burning ? 0.03 : 0) + rolling : 0;
-        shake.set(Math.sin(time * 37) * rough, Math.sin(time * 43 + 1) * rough, 0).applyQuaternion(camera.quaternion);
-        camera.position.add(shake);
-        world.invalidate();
-      });
+        if (ahead < 0) nextDot.visible = false;
+        else toMap([COURSE[ahead][0], COURSE[ahead][2]], nextDot);
+        // The camera. Cockpit: the eye, turned a little towards the aim (the pilot looks into
+        // the turn) and by the free look, shaken by the load, the afterburner, the runway and
+        // the stall. Exterior: behind and above the jet along the aim, easing after it, pulled
+        // back with speed and the wheel.
+        const [aimX, , aimZ] = rotate(qconj(S.q), rotate(S.aim, [0, 0, -1]));
+        headYaw += (clamp(-Math.atan2(aimX, -aimZ) * 0.3, -12 * deg, 12 * deg) - headYaw) * (1 - Math.exp(-dt * 4));
+        const look = qmul(qaxis(0, 1, 0, S.lookYaw), qaxis(1, 0, 0, S.lookPitch));
+        const rough = 0.0025 * Math.max(0, S.load - 3) + (S.burner ? 0.002 : 0) + (S.onGround ? 0.003 * Math.min(1, S.v / 80) : 0) + (S.stalling ? 0.004 : 0);
+        const shake = rotate(S.q, [Math.sin(time * 41) * rough, Math.sin(time * 37 + 1) * rough, 0]);
+        let eyeAt, turn;
+        if (cockpitView) {
+          turn = qmul(S.q, qmul(qaxis(0, 1, 0, headYaw), look));
+          eyeAt = eye.map((p, i) => p + shake[i]);
+          [camera.near, camera.fov] = [COCKPIT_NEAR, COCKPIT_FOV + 4 * smooth(100, 400, S.v)];
+        } else {
+          chaseTurn = qblend(chaseTurn, qmul(S.aim, look), 1 - Math.exp(-dt * 8));
+          turn = chaseTurn;
+          const back = rotate(turn, [0, 3.4, zoom * (1 + 0.3 * smooth(100, 400, S.v))]);
+          eyeAt = S.pos.map((p, i) => p + back[i] + shake[i] * 4);
+          [camera.near, camera.fov] = [0.5, 60 + 10 * smooth(100, 400, S.v) + (S.burner ? 5 : 0)];
+        }
+        camera.position.set(...eyeAt);
+        camera.quaternion.set(...turn);
+        // Warnings, the take-off hint, the display.
+        const [floor] = ground(S.pos[0], S.pos[2]), radar = S.pos[1] - GEAR - floor, sinking = -S.vel[1];
+        const pullUp = !S.onGround && sinking > 5 && radar / sinking < 5, overTheEdge = Math.max(Math.abs(S.pos[0]), Math.abs(S.pos[2])) > 2450;
+        const alert = phase === 'crashed' ? '' : S.stalling ? 'STALL' : pullUp ? 'PULL UP' : overTheEdge ? 'TURN BACK' : '';
+        if (phase === 'crashed') banner('CRASHED', lastRing === null ? 'Back to the runway…' : 'Back to the last ring…');
+        else if (!airborne) banner('', S.throttle < 0.5 ? 'W — throttle up (Z on AZERTY)' : S.v < ROTATE ? `Rolling — ${Math.round(S.v * KT)} kt` : 'Mouse up — lift off');
+        else if (finished === null) banner('');
+        const H = innerHeight;
+        drawHud(H / 2 / Math.tan((camera.fov * deg) / 2), eye, eyeAt, turn, innerWidth, H, alert);
+        sound(Boolean(alert) && phase !== 'crashed', time);
+      }
     </script>
   </body>
 </html>
