@@ -58,7 +58,7 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (lights.spheres && lights.spheres.rows === drawSlots) return lights.spheres;
   lights.spheres?.buffer.destroy();
   const buffer = device.createBuffer({
-    label: 'WG cluster spheres v1',
+    label: 'Trillion3D cluster spheres v1',
     size: Math.max(1, drawSlots) * CLUSTER_SPHERE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

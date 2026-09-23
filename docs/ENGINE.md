@@ -3,7 +3,7 @@
 How a world draws. A page writes against [SDK.md](SDK.md) and reads what follows through the `world`
 families (`metric.frame(world)`, `world.diagnostic.mode`, `capability.lighting(world)`, …). Two
 functions below are public, for a standalone host that drives pages or diagnostics itself:
-`createGpuPageCache` and `createDiagnosticChannel`, exported by `web-geometry`. Every other internal
+`createGpuPageCache` and `createDiagnosticChannel`, exported by `trillion3d`. Every other internal
 name — `openMeasuredWorld`, backend ids, session options — is reachable only through the measurement
 entry point (`packages/sdk-browser/src/measurement/measurement.ts`), for the bench, the proofs and the
 comparison views ([SDK.md, "Entry points"](SDK.md#entry-points)).
@@ -126,7 +126,7 @@ instead of one program that tests every feature per pixel. A class is the set of
 resolve would branch on — UV, base map, alpha cut-out, roughness, metalness, occlusion, emissive and
 normal maps, vertex normals, double-sidedness, tangents — an eleven-bit word carried by every page
 row. Pipelines are compiled at preparation, never on the frame that first draws a class. Each frame
-the `WG material depth` pass writes every pixel's class as an exact depth value, then one full-screen
+the `Trillion3D material depth` pass writes every pixel's class as an exact depth value, then one full-screen
 triangle per present class runs under `depthCompare: 'equal'`, so the hardware keeps that class's
 pixels and its fragment stage reads only the maps it has. The `material-classes-ready` diagnostic
 lists the classes; the `materials` view colours each pixel by its class. Not done: screen tiles per
@@ -136,7 +136,7 @@ class, so a class present anywhere costs one full-screen triangle.
 
 The visibility buffer cannot be multisampled; edges are recovered temporally. Each image is
 projected with a sub-pixel jitter (Halton (2,3), eight positions, a clip-space translation of the
-render matrix only) and resolved by `WG temporal antialiasing` between the transparent pass and
+render matrix only) and resolved by `Trillion3D temporal antialiasing` between the transparent pass and
 composition: the image is refiltered on its 3×3 neighbours with a one-pixel Blackman-Harris window,
 the history is read where the unjittered centre was in the previous image, clamped to the YCoCg box
 of the neighbours and blended in, each side weighted by its inverse luminance. Two `rgba16float`
@@ -227,7 +227,7 @@ changing, neither pass is encoded: a still scene pays nothing.
 The deferred resolve adds the interpolated irradiance of the eight surrounding probes, weighted by
 the cell, the surface's facing and each probe's measured mean distances, which close leaks through a
 wall; where no level reaches, the term is zero. Against the compiler's path tracer
-(`web-geometry-oracle`) on a control room, the mean error is 18.6 %, above the 10 % target. The
+(`trillion3d-oracle`) on a control room, the mean error is 18.6 %, above the 10 % target. The
 bounce is **off by default**: its stage costs about 1.1 ms, above the one-millisecond bar. Emission,
 transparency and specular are not bounced. `setLightingView('bounce')` outputs the indirect
 irradiance alone, the quantity `bench/runner/oracle.ts` compares.

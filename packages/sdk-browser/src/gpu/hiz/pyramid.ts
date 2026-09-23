@@ -11,7 +11,7 @@ export function encodeHizPyramid(
   uniformBytes: number,
   workgroup: number,
 ) {
-  const pass = encoder.beginComputePass({ label: 'WG HiZ pyramid' });
+  const pass = encoder.beginComputePass({ label: 'Trillion3D HiZ pyramid' });
   pass.setPipeline(copyPipeline);
   pass.setBindGroup(0, bindGroup, [0]);
   pass.dispatchWorkgroups(

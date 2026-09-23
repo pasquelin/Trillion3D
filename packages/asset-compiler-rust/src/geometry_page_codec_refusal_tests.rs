@@ -2,8 +2,8 @@
 //! attributes no page may carry.
 
 use crate::geometry_page::{encode, Attribute, FLAG_NORMAL, FLAG_UV};
-use web_geometry_page_codec as codec;
-use web_geometry_page_codec::HEADER_BYTES;
+use trillion3d_page_codec as codec;
+use trillion3d_page_codec::HEADER_BYTES;
 
 const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
 

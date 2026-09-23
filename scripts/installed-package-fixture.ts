@@ -45,7 +45,7 @@ export interface InstalledFixture {
 /** The temporary root, logs and `run`/`write`/`bundle` helpers shared by every stage of the
  * installed-package proof: one fixture directory, one `pnpm pack` archive installed into it. */
 export function createInstalledFixture(root: string): InstalledFixture {
-  const fixture = mkdtempSync(join(tmpdir(), 'web-geometry-installed-'));
+  const fixture = mkdtempSync(join(tmpdir(), 'trillion3d-installed-'));
   const logs: LogEntry[] = [];
 
   const run: Run = (command, args, cwd = root, environment = process.env) => {

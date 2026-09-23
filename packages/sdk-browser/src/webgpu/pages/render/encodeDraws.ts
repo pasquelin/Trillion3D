@@ -27,7 +27,7 @@ export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer);
   vis.pageTable?.destroy();
   vis.pageTable = device.createBuffer({
-    label: 'WG page table',
+    label: 'Trillion3D page table',
     size: bytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

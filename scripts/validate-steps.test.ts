@@ -5,12 +5,12 @@ import { NATIVE_STEPS, VALIDATE_GROUPS, VALIDATE_STEPS, stepsToRun } from './val
 
 test('validate runs every gate by default, native ones included', () => {
   assert.deepEqual(stepsToRun({}), VALIDATE_STEPS);
-  assert.deepEqual(stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '' }), VALIDATE_STEPS);
+  assert.deepEqual(stepsToRun({ TRILLION3D_SKIP_NATIVE: '' }), VALIDATE_STEPS);
   assert.deepEqual(NATIVE_STEPS, ['lint:native', 'build:native', 'test:native']);
 });
 
-test('WEB_GEOMETRY_SKIP_NATIVE=1 drops exactly the Rust steps and keeps their order', () => {
-  const steps = stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '1' });
+test('TRILLION3D_SKIP_NATIVE=1 drops exactly the Rust steps and keeps their order', () => {
+  const steps = stepsToRun({ TRILLION3D_SKIP_NATIVE: '1' });
   assert.deepEqual(
     steps,
     VALIDATE_STEPS.filter((step) => !step.endsWith(':native')),
@@ -52,9 +52,9 @@ test('an unknown group stops the run instead of silently checking nothing', () =
 });
 
 test('restored binaries drop the Rust gates, and keep the suite that drives them', () => {
-  assert.deepEqual(stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '1' }, 'native'), ['build', 'test']);
+  assert.deepEqual(stepsToRun({ TRILLION3D_SKIP_NATIVE: '1' }, 'native'), ['build', 'test']);
   assert.deepEqual(
-    stepsToRun({ WEB_GEOMETRY_SKIP_NATIVE: '1' }, 'quick'),
+    stepsToRun({ TRILLION3D_SKIP_NATIVE: '1' }, 'quick'),
     VALIDATE_GROUPS.quick,
     'the source gates never depend on the Rust binaries',
   );

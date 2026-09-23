@@ -23,12 +23,12 @@ export const sdkMounts = (root: string): Mount[] => [
 ];
 
 /** Compiles the `three-stack` coplanar golden into `<out>/cache` with the native compiler
- *  (`WG_COMPILER`, or the release build), and returns the mounts that serve it. */
+ *  (`TRILLION3D_COMPILER`, or the release build), and returns the mounts that serve it. */
 export function threeStackMounts(root: string, out: string): Mount[] {
   const fixture = resolve(root, 'tests/fixtures/formats/coplanar/three-stack');
   const compiler =
-    process.env.WG_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+    process.env.TRILLION3D_COMPILER ??
+    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
   execFileSync(compiler, [fixture, resolve(out, 'cache'), 'full', '150000', '/fixture/'], {
     stdio: 'pipe',
   });

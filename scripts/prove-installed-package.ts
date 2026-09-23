@@ -44,7 +44,7 @@ try {
     'package.json',
     `${JSON.stringify(
       {
-        name: 'web-geometry-installed-proof',
+        name: 'trillion3d-installed-proof',
         private: true,
         type: 'module',
         packageManager: source.packageManager,
@@ -75,7 +75,7 @@ try {
     const executable = join(
       root,
       'packages/asset-compiler-rust/target/release',
-      `web-geometry-compiler${process.platform === 'win32' ? '.exe' : ''}`,
+      `trillion3d-compiler${process.platform === 'win32' ? '.exe' : ''}`,
     );
     const compile = (name: string, variant: number) =>
       compileInstalledScene({ fixture, executable, run, pnpm, name, variant });

@@ -44,7 +44,7 @@ export async function createGpuHiz(
     // Tested boxes and the frame state belong to the GPU partition, which does not exist yet:
     // until `attach`, the bind group points at this idle buffer, which nothing reads.
     const idle = device.createBuffer({
-      label: 'WG HiZ idle bounds v1',
+      label: 'Trillion3D HiZ idle bounds v1',
       size: TESTED_U32 * 4,
       usage: GPUBufferUsage.STORAGE,
     });
@@ -160,7 +160,7 @@ export async function createGpuHiz(
         );
         // The compacted box count lives in the state: the dispatch covers every drawable row
         // and threads past the count leave at the first test.
-        const pass = encoder.beginComputePass({ label: 'WG HiZ test' });
+        const pass = encoder.beginComputePass({ label: 'Trillion3D HiZ test' });
         pass.setPipeline(testPipeline);
         pass.setBindGroup(0, bindGroup, [testSlot * UNIFORM_BYTES]);
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(rows / TEST_WORKGROUP)));

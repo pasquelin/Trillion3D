@@ -29,7 +29,7 @@ interface PackageManifest {
 }
 
 test('the packed distribution is self-contained at its declared boundaries', () => {
-  const root = mkdtempSync(join(tmpdir(), 'web-geometry-package-'));
+  const root = mkdtempSync(join(tmpdir(), 'trillion3d-package-'));
   try {
     const archive = pack(root);
     assert.ok(archive, 'pnpm pack did not report an archive');
@@ -60,7 +60,7 @@ test('the packed distribution is self-contained at its declared boundaries', () 
     assert.ok(statSync(join(root, 'package/dist/sdk-node/src/cli/cli.mjs')).mode & 0o111);
 
     const consumer = join(root, 'consumer');
-    const installed = join(consumer, 'node_modules/web-geometry');
+    const installed = join(consumer, 'node_modules/trillion3d');
     mkdirSync(join(consumer, 'node_modules'), { recursive: true });
     renameSync(join(root, 'package'), installed);
     const probe = spawnSync(
@@ -68,7 +68,7 @@ test('the packed distribution is self-contained at its declared boundaries', () 
       [
         '--input-type=module',
         '--eval',
-        "const sdk=await import('web-geometry');const p=await sdk.getSdkProvenance();if(!sdk.hierarchyUpdateBatch||!sdk.prepare||!p.files['dist/sdk/node.mjs'])process.exit(2);for(const path of ['/core','/node','/browser'])try{await import('web-geometry'+path);process.exit(3)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(4)}",
+        "const sdk=await import('trillion3d');const p=await sdk.getSdkProvenance();if(!sdk.hierarchyUpdateBatch||!sdk.prepare||!p.files['dist/sdk/node.mjs'])process.exit(2);for(const path of ['/core','/node','/browser'])try{await import('trillion3d'+path);process.exit(3)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(4)}",
       ],
       { cwd: consumer, encoding: 'utf8' },
     );

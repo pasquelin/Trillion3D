@@ -108,7 +108,7 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
       formatVersion,
     });
   if (value.status !== 'ready')
-    throw new EngineError('INVALID_CACHE', 'Unsupported Web Geometry cache', {
+    throw new EngineError('INVALID_CACHE', 'Unsupported Trillion3D cache', {
       status: value.status ?? null,
     });
   if (value.scope !== scope)

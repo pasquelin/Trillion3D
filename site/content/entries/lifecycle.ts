@@ -4,7 +4,7 @@ import type { EntryNote } from '../model.ts';
 export const LIFECYCLE: EntryNote[] = [
   {
     id: 'prepare',
-    example: `import { prepare } from 'web-geometry';
+    example: `import { prepare } from 'trillion3d';
 
 const result = await prepare('scenes/city', 'cache/city', 'full', 150000, {
   resourceBaseUrl: '/cache/city/',
@@ -15,7 +15,7 @@ console.log(result.metrics.wallMs);`,
   },
   {
     id: 'prepareMany',
-    example: `import { createBatchProgress, prepareMany } from 'web-geometry';
+    example: `import { createBatchProgress, prepareMany } from 'trillion3d';
 
 const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgress() });`,
   },
