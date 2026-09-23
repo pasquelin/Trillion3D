@@ -11,6 +11,7 @@
     "learn": "Aprender",
     "sandbox": "Testar ao vivo",
     "examples": "Exemplos",
+    "editor": "Editor",
     "api": "Referência da API",
     "reports": "Medições"
   },
@@ -558,8 +559,6 @@
   },
   "editor": {
     "title": "Scene editor",
-    "group": "Tools",
-    "showcase": "Open the scene editor",
     "loading": "Preparing the editor…",
     "canvas": "Scene view: click an object to select it, drag to turn the camera",
     "menu": {
@@ -1379,7 +1378,7 @@
     "scene-editor": {
       "title": "Construir uma cena com o editor",
       "description": "Adicionar formas e luzes, escolhê-las com o mouse, movê-las com alças, recolori-las, salvar a cena e reabri-la — no portal, apenas com a API pública.",
-      "html": "<p>O <a href=\"#/pt/examples/scene-editor\">editor de cenas</a> é uma página deste portal construída sobre três portas do motor e nada mais. Comece com uma cena vazia: <b>Add → Box</b>, depois <b>Add → Directional light</b>. Clique na caixa: <code>world.raycast</code> a encontra sob o ponteiro, e as alças de <code>controls.transform</code> aparecem sobre ela. Arraste uma seta para movê-la — a câmera fica parada enquanto uma alça é segurada — pressione <kbd>E</kbd> para girá-la, <kbd>R</kbd> para escalá-la. Mude sua cor no inspetor: o motor repinta o material no lugar, e o custo da imagem fica no canto das estatísticas. <b>Save</b> baixa <code>scene.toJSON</code>; <b>New</b>, depois <b>Open</b>, reconstrói a mesma cena com <code>scene.fromJSON</code>.</p>\n<p>Cada passo é desfeito com <kbd>Ctrl</kbd>+<kbd>Z</kbd>, e a cena é guardada no navegador entre duas visitas. A página não desenha nem move nada por si mesma: o que você vê é o motor.</p>"
+      "html": "<p>O <a href=\"#/pt/editor\">editor de cenas</a> é uma página deste portal construída sobre três portas do motor e nada mais. Comece com uma cena vazia: <b>Add → Box</b>, depois <b>Add → Directional light</b>. Clique na caixa: <code>world.raycast</code> a encontra sob o ponteiro, e as alças de <code>controls.transform</code> aparecem sobre ela. Arraste uma seta para movê-la — a câmera fica parada enquanto uma alça é segurada — pressione <kbd>E</kbd> para girá-la, <kbd>R</kbd> para escalá-la. Mude sua cor no inspetor: o motor repinta o material no lugar, e o custo da imagem fica no canto das estatísticas. <b>Save</b> baixa <code>scene.toJSON</code>; <b>New</b>, depois <b>Open</b>, reconstrói a mesma cena com <code>scene.fromJSON</code>.</p>\n<p>Cada passo é desfeito com <kbd>Ctrl</kbd>+<kbd>Z</kbd>, e a cena é guardada no navegador entre duas visitas. A página não desenha nem move nada por si mesma: o que você vê é o motor.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Escolher um objeto com o ponteiro",

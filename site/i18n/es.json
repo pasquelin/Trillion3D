@@ -11,6 +11,7 @@
     "learn": "Aprender",
     "sandbox": "Pruébalo en vivo",
     "examples": "Ejemplos",
+    "editor": "Editor",
     "api": "Referencia de la API",
     "reports": "Mediciones"
   },
@@ -558,8 +559,6 @@
   },
   "editor": {
     "title": "Scene editor",
-    "group": "Tools",
-    "showcase": "Open the scene editor",
     "loading": "Preparing the editor…",
     "canvas": "Scene view: click an object to select it, drag to turn the camera",
     "menu": {
@@ -1376,7 +1375,7 @@
     "scene-editor": {
       "title": "Construir una escena con el editor",
       "description": "Añadir formas y luces, elegirlas con el ratón, moverlas con tiradores, cambiarles el color, guardar la escena y volver a abrirla — en el portal, solo con la API pública.",
-      "html": "<p>El <a href=\"#/es/examples/scene-editor\">editor de escenas</a> es una página de este portal construida sobre tres puertas del motor y nada más. Empiece por una escena vacía: <b>Add → Box</b>, luego <b>Add → Directional light</b>. Haga clic en la caja: <code>world.raycast</code> la encuentra bajo el puntero, y los tiradores de <code>controls.transform</code> aparecen sobre ella. Arrastre una flecha para moverla — la cámara se queda quieta mientras se sujeta un tirador — pulse <kbd>E</kbd> para girarla, <kbd>R</kbd> para escalarla. Cambie su color en el inspector: el motor repinta el material en su sitio, y el coste de la imagen queda en la esquina de estadísticas. <b>Save</b> descarga <code>scene.toJSON</code>; <b>New</b> y luego <b>Open</b> reconstruye la misma escena con <code>scene.fromJSON</code>.</p>\n<p>Cada paso se deshace con <kbd>Ctrl</kbd>+<kbd>Z</kbd>, y la escena se guarda en el navegador entre dos visitas. La página no dibuja ni mueve nada por sí misma: lo que ve es el motor.</p>"
+      "html": "<p>El <a href=\"#/es/editor\">editor de escenas</a> es una página de este portal construida sobre tres puertas del motor y nada más. Empiece por una escena vacía: <b>Add → Box</b>, luego <b>Add → Directional light</b>. Haga clic en la caja: <code>world.raycast</code> la encuentra bajo el puntero, y los tiradores de <code>controls.transform</code> aparecen sobre ella. Arrastre una flecha para moverla — la cámara se queda quieta mientras se sujeta un tirador — pulse <kbd>E</kbd> para girarla, <kbd>R</kbd> para escalarla. Cambie su color en el inspector: el motor repinta el material en su sitio, y el coste de la imagen queda en la esquina de estadísticas. <b>Save</b> descarga <code>scene.toJSON</code>; <b>New</b> y luego <b>Open</b> reconstruye la misma escena con <code>scene.fromJSON</code>.</p>\n<p>Cada paso se deshace con <kbd>Ctrl</kbd>+<kbd>Z</kbd>, y la escena se guarda en el navegador entre dos visitas. La página no dibuja ni mueve nada por sí misma: lo que ve es el motor.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Elegir un objeto con el puntero",
