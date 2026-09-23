@@ -22,25 +22,23 @@ export async function startupSite(page: Page, base: string, out: string) {
         'portal stylesheet is active',
       );
       const text = (await code.locator('pre code').allTextContents()).join('\n');
-      assert.match(text, /openMeasuredWorld\('viewer'/);
-      assert.match(text, /interactive: true/);
-      assert.match(text, /scope: 'full'/);
+      assert.match(text, /createWorld\('viewer'\)/);
+      assert.match(text, /world\.scene\.load\('\/cache\/city\/manifest\.json'\)/);
       assert.doesNotMatch(text, /querySelector|requestAnimationFrame/);
-      assert.match((await page.locator('main').textContent()) ?? '', /interactive: true/);
+      assert.match(
+        (await page.locator('main').textContent()) ?? '',
+        /pauses once the image has held|se met en pause une fois l’image tenue/,
+      );
       await page.screenshot({
         path: resolve(out, `docs-${locale}-${width}.png`),
         fullPage: true,
         animations: 'disabled',
       });
     }
-    await page.goto(`${base}/site/index.html#/${locale}/api/createMeasuredWorldJob`);
+    await page.goto(`${base}/site/index.html#/${locale}/api/createWorld`);
     await page.locator('main [data-code-block]').last().waitFor();
-    const text = (await page.locator('main').textContent()) ?? '';
-    assert.match(text, /target: MeasuredWorldTarget/);
-    assert.match(text, /await createMeasuredWorldJob/);
-    await page.goto(`${base}/site/index.html#/${locale}/api/openMeasuredWorld`);
-    await page.locator('main [data-code-block]').last().waitFor();
+    assert.match((await page.locator('main').textContent()) ?? '', /createWorld\(target: /);
     const row = page.locator('main tr').filter({ hasText: 'invalidate()' });
-    assert.match((await row.textContent()) ?? '', /camera|caméra/);
+    assert.match((await row.textContent()) ?? '', /draw again|redessiner/);
   }
 }

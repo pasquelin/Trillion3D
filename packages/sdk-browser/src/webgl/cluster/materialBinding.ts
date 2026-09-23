@@ -1,5 +1,6 @@
 import { visMaterial } from '../../visibility/shader/material.ts';
-import type { VisMaterial } from '../../visibility/types.ts';
+import { importHostTexture } from '../../host/surfaceImport.ts';
+import type { HostTexture } from '../../host/resources.ts';
 import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
 import type { Side } from '../../../../sdk-core/src/index.ts';
 import type { WebglClusterTextures } from './textures.ts';
@@ -33,9 +34,10 @@ export function bindClusterMaterial(
   const { uniforms, matrices, textures, state } = binding;
   const source = material as { opacity: number },
     mat = visMaterial(material);
-  // An unlit material keeps its occlusion map and strength on the host object alone.
-  const basic = material as { aoMap?: VisMaterial['aoMap'] | null; aoMapIntensity?: number },
-    aoMap = mat.aoMap ?? (!mat.lit ? (basic.aoMap ?? undefined) : undefined),
+  // An unlit material keeps its occlusion map and strength on the host object alone: its map is
+  // imported here, as the boundary imports every other, into the engine record the binding reads.
+  const basic = material as { aoMap?: HostTexture | null; aoMapIntensity?: number },
+    aoMap = mat.aoMap ?? (!mat.lit && basic.aoMap ? importHostTexture(basic.aoMap) : undefined),
     aoIntensity = mat.aoMap ? mat.aoIntensity : (basic.aoMapIntensity ?? 1);
   uniforms.f4(
     0,

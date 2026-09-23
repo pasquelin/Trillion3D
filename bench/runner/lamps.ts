@@ -79,7 +79,7 @@ function gridLights(
  * northeast at approximately 40° above the horizon — an arbitrary afternoon, chosen once and never
  * per scene —, its color is neutral, and it projects a shadow. No value here depends on the measurement set.
  */
-const SUN: SceneLight = {
+export const SUN: SceneLight = {
   id: 'banc-soleil',
   kind: 'directional',
   direction: [-0.5, -0.64, -0.58],
