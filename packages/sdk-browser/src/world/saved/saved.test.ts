@@ -67,14 +67,19 @@ test('another format version is refused, and the scene is left as it was', async
   assert.equal(scene.children.length, 1);
 });
 
-test('a model that cannot be loaded leaves the scene as it was', async () => {
-  const scene = new Scene(async () => {
-    throw new Error('unreachable');
+test('a model that cannot be loaded leaves the scene as it was, late arrivals included', async () => {
+  const scene = new Scene(async (url) => {
+    if (url === 'broken') throw new Error('unreachable');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const model = new Object3D() as unknown as LoadedModel;
+    scene.add(model);
+    return model;
   });
   const kept = object.group();
   scene.add(kept);
   const saved = scene.toJSON();
-  saved.children.push({ ...saved.children[0], kind: 'model', model: { url: 'x' } });
+  const model = (url: string) => ({ ...saved.children[0], kind: 'model' as const, model: { url } });
+  saved.children.push(model('late'), model('broken'));
   await assert.rejects(scene.fromJSON(saved), /unreachable/);
   assert.deepEqual(scene.children, [kept]);
 });
