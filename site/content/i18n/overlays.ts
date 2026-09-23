@@ -6,16 +6,25 @@ import { guidesFr } from './guides.fr.ts';
 import { lifecycleFr } from './lifecycle.fr.ts';
 import { internalsFr } from './internals.fr.ts';
 import { matrixFr } from './matrix.fr.ts';
-import { referenceFr } from './reference.fr.ts';
 import { treeFr } from './tree.fr.ts';
 import { vectorFr } from './vector.fr.ts';
 import { worldGuidesFr } from './worldGuides.fr.ts';
 
 import type { LocaleOverlay } from './entryOverlay.ts';
 
-/** Every French entry overlay, by entry id: what `localizeEntries` applies over the English source.
- *  A written overlay completes the generated one of the same id rather than replacing it. */
-export const FRENCH: LocaleOverlay = [
+/** The written French overlays, by entry id, merged over `base`: a written overlay completes the
+ *  generated one of the same id rather than replacing it. */
+export const withWrittenFrench = (base: LocaleOverlay): LocaleOverlay =>
+  WRITTEN.reduce<LocaleOverlay>(
+    (merged, overlays) => {
+      for (const [id, overlay] of Object.entries(overlays))
+        merged[id] = { ...merged[id], ...overlay };
+      return merged;
+    },
+    { ...base },
+  );
+
+const WRITTEN: LocaleOverlay[] = [
   boundsFr,
   cameraFr,
   courseFr,
@@ -27,11 +36,7 @@ export const FRENCH: LocaleOverlay = [
   treeFr,
   vectorFr,
   worldGuidesFr,
-].reduce<LocaleOverlay>(
-  (merged, overlays) => {
-    for (const [id, overlay] of Object.entries(overlays))
-      merged[id] = { ...merged[id], ...overlay };
-    return merged;
-  },
-  { ...referenceFr },
-);
+];
+
+/** The written French overlays alone: what the guides need, without the generated reference. */
+export const WRITTEN_FRENCH = withWrittenFrench({});
