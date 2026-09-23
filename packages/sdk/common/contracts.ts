@@ -22,17 +22,6 @@ export type {
 } from '../../sdk-core/src/contracts/material.ts';
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts';
 export {
-  assertSceneTables,
-  MATERIAL_TABLE_VERSION,
-  NODE_TABLE_VERSION,
-  SCENE_TABLES_FILE,
-  SCENE_TABLES_VERSION,
-} from '../../sdk-core/src/scene/core/tableContracts.ts';
-export type {
-  PreparedSceneTables,
-  TableNode,
-} from '../../sdk-core/src/scene/core/tableContracts.ts';
-export {
   biasedDepthBits,
   DEPTH_LAYER_BIAS_UNITS,
   depthLayerUnits,

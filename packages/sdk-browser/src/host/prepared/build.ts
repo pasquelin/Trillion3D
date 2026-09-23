@@ -4,7 +4,8 @@
  * No glTF is parsed and no loader runs — the host objects are made by the files beside this one,
  * each under the rules the host loader applied, so the scene is the one it built.
  */
-import type { ClusterManifest, PreparedSceneTables } from '../../../../sdk-core/src/index.ts';
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { checked } from '../../cluster/pages.ts';
 import { tableDocument } from '../../scene/tables.ts';
