@@ -76,14 +76,17 @@ export function boats(
   const water = (points: Xz[]) =>
       points.every((p) => placer.site.plan.height(p[0], p[1]) < -1 && inBounds(placer.site, p)),
     path = (points: Xz[]): Vec3[] => points.map(([x, z]) => [x, 0, z]);
-  const basin = [
-    [100, -30],
-    [260, -30],
-    [290, 0],
-    [260, 30],
-    [100, 30],
-    [80, 0],
-  ].map(([a, b]) => world(root + a, b));
+  // The basin loop at full size, else shrunk toward the quay until it floats.
+  const basinAt = (k: number) =>
+    [
+      [100, -30],
+      [260, -30],
+      [290, 0],
+      [260, 30],
+      [100, 30],
+      [80, 0],
+    ].map(([a, b]) => world(root + a * k, b * k));
+  const basin = [1, 0.7, 0.5, 0.35].map(basinAt).find(water) ?? basinAt(1);
   for (const [n, loop] of [basin, [...basin].reverse()].entries())
     if (water(loop))
       placer.movers.push({
@@ -96,11 +99,14 @@ export function boats(
       });
   for (let n = 0; n < 3; n++) {
     const phase = hash01(seed, 40 + n) * Math.PI * 2,
-      ring = Array.from({ length: 16 }, (_, k) => {
-        const t = phase + (k * Math.PI) / 8;
-        return world(700 + Math.cos(t) * 250, Math.sin(t) * 250 * (n % 2 ? 1 : -1));
-      });
-    if (water(ring))
+      rings = [1, 0.6, 0.4].map((k) =>
+        Array.from({ length: 16 }, (_, j) => {
+          const t = phase + (j * Math.PI) / 8;
+          return world(k * (700 + Math.cos(t) * 250), k * Math.sin(t) * 250 * (n % 2 ? 1 : -1));
+        }),
+      ),
+      ring = rings.find(water);
+    if (ring)
       placer.movers.push({
         kind: 'path',
         name: `city/sailboat-${n}`,
@@ -109,6 +115,41 @@ export function boats(
         speed: 4,
         loop: true,
       });
+  }
+  if (!placer.movers.some((m) => m.kind === 'path')) openWaterLoops(placer, water, path);
+}
+
+/**
+ * When the harbour frame finds no water (a port squeezed inland), the boats loop over the widest
+ * open water of the region: circles round the sea point farthest from any shore.
+ */
+function openWaterLoops(placer: Placer, water: (p: Xz[]) => boolean, path: (p: Xz[]) => Vec3[]) {
+  const { minX, minZ, maxX, maxZ } = placer.site.bounds,
+    circle = ([cx, cz]: Xz, r: number): Xz[] =>
+      Array.from({ length: 16 }, (_, k) => [
+        cx + Math.cos((k * Math.PI) / 8) * r,
+        cz + Math.sin((k * Math.PI) / 8) * r,
+      ]);
+  let best: { at: Xz; r: number } | undefined;
+  for (let x = minX + 50; x < maxX; x += 100)
+    for (let z = minZ + 50; z < maxZ; z += 100)
+      for (const r of [300, 200, 120, 60])
+        if ((!best || r > best.r) && water(circle([x, z], r))) best = { at: [x, z], r };
+  if (!best) return;
+  const loops = [
+    ['motorboat', best.r * 0.5, 6],
+    ['sailboat', best.r * 0.9, 4],
+  ] as const;
+  for (const [model, r, speed] of loops) {
+    const ring = circle(best.at, r);
+    placer.movers.push({
+      kind: 'path',
+      name: `city/${model}-open`,
+      model,
+      points: path([...ring, ring[0]]),
+      speed,
+      loop: true,
+    });
   }
 }
 
