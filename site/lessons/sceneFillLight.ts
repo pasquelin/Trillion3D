@@ -1,4 +1,4 @@
-import type { light as lightFamily, World } from '../../packages/sdk-browser/index.ts';
+import type { light as lightFamily, World } from '../../packages/sdk-browser/src/index.ts';
 
 // direction [0.45, -0.35, 0.8], carried as a position/target pair ten units out: the light travels
 // from that position toward the origin, the same ray the old direction vector described.

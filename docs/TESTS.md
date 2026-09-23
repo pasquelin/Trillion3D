@@ -1,47 +1,51 @@
 # Tests and Performance Benchmarks
 
 One command per intent, one location per nature of test. Everything below is verified:
-counts reflect the repository tree, and `test/test-gpu.test.ts` tracks the probe list.
+counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks the probe list.
 
 ## 1. Directory Tree
 
+<!-- tests-inventory:begin -->
 ```
 packages/
-  sdk-core/            57 *.test.ts      — unit tests, placed alongside source
-    bench/
-      *.perf.ts          6 performance benchmarks
-      socle.ts           single entry point for benchmarks
-      socle/              mesure.ts, rapport.ts, ecart.ts, ulp.ts, baseline.ts
-      oracles/            reference implementations, copied verbatim
-  sdk-browser/        244 *.test.ts
-    bench/
-      *.perf.ts         38 performance benchmarks
-      oracles/            package oracles
-      appui/              28 support modules: scenes, replays, test cases
-  sdk-node/             5 *.test.ts
-test/
-  integration/         15 *.test.ts     — architecture, boundaries, export contracts,
-                                        documentation portal
-  browser/             32 *.browser.ts  — rendering in real Chromium (all launched)
-  justesse/            18 GPU probes + 25 support modules
-  appui/               27 shared modules: fixtures server, served pages
-  fixtures/            scenes and test data
-  assets/              corpus of source formats, off-git (66 MB, ignored by git)
-  test-gpu.ts         hardware test runner, with its own test
-scripts/
-  mesure/perf/          agrege.ts (report), baseline-save.ts (baselines)
+  sdk-core/src/       68 *.test.ts — unit tests, next to their source
+  sdk-browser/src/    331 *.test.ts
+  sdk-node/src/       10 *.test.ts
+tests/
+  integration/        21 *.test.ts — architecture, boundaries, public contracts
+  browser/renders/    42 *.browser.ts — rendering in real Chromium
+  browser/probes/     20 GPU probes + 32 support modules
+  browser/support/    68 pages and cases served to the render proofs
+  kit/                28 shared test tools: fake GPU devices, servers, assertions
+  fixtures/           12 test data builders; formats/ holds the compiler goldens
+bench/
+  core/               14 modules: measure, report, diff, ulp, baseline
+  perf/core/          15 *.perf.ts
+  perf/browser/       38 *.perf.ts + 32 support modules
+  oracles/            46 reference implementations, copied verbatim
+  runner/             81 modules: the measurement harness (README)
 ```
+<!-- tests-inventory:end -->
 
-One rule: **unit tests live next to their source**, everything else lives under `test/`, organized by
-nature. A benchmark belongs in the package whose code it measures, referenced by relative path.
+The counts are read from the tree by `node scripts/tests-inventory.ts --write`, and
+`scripts/tests-inventory.test.ts` fails when this page and the tree disagree.
+
+One rule: **a unit test sits next to the file it tests; every other kind of test lives under
+`tests/`**, one folder per nature — `integration/` for architecture and public contracts,
+`browser/` for what runs in Chromium, `fixtures/` for test data, `kit/` for the shared test tools
+(one fake GPU device family, one static server, one bit-exact comparison, one hostile-value list).
+A module used only by tests is named `*.fixture.ts` and stays out of the build. Benchmarks measure
+speed, never correctness, and live under `bench/`, outside every published package. The golden
+fixtures of the native compiler are under `tests/fixtures/formats/`; the compiler's own tests stay in
+its crate (`packages/asset-compiler-rust/src/tests/`, by topic, and `tests/` for the CLI).
 
 ## 2. The Four Commands
 
 | Command             | What it runs                                                                  |
 | ------------------- | ----------------------------------------------------------------------------- |
-| `pnpm test`         | 306 unit tests, 10 integration tests and script tests                         |
-| `pnpm run test:gpu` | 18 GPU correctness probes followed by runnable rendering proofs, sequentially |
-| `pnpm run perf:all` | 44 benchmarks, then the aggregated report                                     |
+| `pnpm test`         | every unit, integration, kit, bench-runner and script test                    |
+| `pnpm run test:gpu` | the GPU correctness probes, then every rendering proof, sequentially          |
+| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report                  |
 | `pnpm run validate` | full pre-merge validation gate                                                |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
@@ -54,16 +58,16 @@ any graphics device and run anywhere.
 
 ### GPU Correctness Probes
 
-`test/justesse/` verifies what the graphics device actually calculates: WGSL shader precision, error
+`tests/browser/probes/` verifies what the graphics device actually calculates: WGSL shader precision, error
 floors, projection matrices, texel coordinates, readbacks. A probe is a file whose name
 contains a hyphen; other files in the folder are its support modules, never run alone.
-`test/browser/` renders frames in real Chromium and compares them.
+`tests/browser/renders/` renders frames in real Chromium and compares them.
 
 Both folders are discovered **by rule, never by a hand-curated list**: every
-`test/browser/*.browser.ts` is executed, and names follow the same convention as probes and
-benchmarks — explicit kebab-case, e.g. `coupe-gpu-tenue`, `normale-eclairage-petite-echelle`.
+`tests/browser/renders/*.browser.ts` is executed, and names follow the same convention as probes and
+benchmarks — explicit kebab-case, e.g. `held-gpu-cut`, `lighting-normal-small-scale`.
 
-Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`test/test-gpu.ts`) with its
+Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`tests/browser/test-gpu.ts`) with its
 category and reason, and the command prints it before starting — never in silence:
 
 - **montage** (setup) — the proof is valid, but the machine is not ready: assets in `.mesure/assets/`
@@ -76,7 +80,7 @@ category and reason, and the command prints it before starting — never in sile
 ### Site proofs
 
 The learning portal under `site/` has its own proofs, run on demand in system Chrome. The four
-`scripts/docs-*.browser.ts` and `test/browser/explorer-startup.browser.ts` build the site into
+`scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
 `dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
 (entries and examples in both locales, gallery, API index, reports, engine scene, not found),
@@ -89,26 +93,26 @@ nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame
 (`scene-webgpu`) reads the compiled cache of `DEFAULT_SCENE` (`sponza-derived`) under
 `.mesure/assets/`, off git, and a sibling worktree has none of its own: point `WG_ASSETS` at the
 shared folder. Without it the proof stops by name on the cache it could not find, and
-`pnpm run test:gpu` fails with it — loudly, never in silence. `node scripts/mesure/assets.ts`
-fetches and compiles every scene the proofs read (`scripts/mesure/README.md` § Assets). The material proof (`materiaux-temoin`) needs no asset:
-its fixtures are built in the page and served from `test/appui/`, the SDK from `dist/`, so
+`pnpm run test:gpu` fails with it — loudly, never in silence. `node bench/runner/assets.ts`
+fetches and compiles every scene the proofs read (`bench/runner/README.md` § Assets). The material proof (`witness-materials`) needs no asset:
+its fixtures are built in the page and served from `tests/browser/support/`, the SDK from `dist/`, so
 `pnpm run build` precedes it.
 
-`test/justesse/scenes-publiques.ts` needs no GPU and no browser: it opens the compiled caches of
+`tests/browser/probes/public-scenes.ts` needs no GPU and no browser: it opens the compiled caches of
 the public scenes and asserts what each one guarantees — a DAG that climbs above level 0 wherever a
 primitive holds more than one cluster, a mirrored mapping that locks no vertex — in a tenth of a
 second. It reads the caches, never builds them: without
-`node scripts/mesure/assets.ts` and a facade (`node scripts/mesure/scenes/facade.ts --seed 7`,
-then `node scripts/mesure/assets.ts --only facade-7`) it fails by name on the cache it could not
+`node bench/runner/assets.ts` and a facade (`node bench/runner/scenes/facade.ts --seed 7`,
+then `node bench/runner/assets.ts --only facade-7`) it fails by name on the cache it could not
 find.
 
-`test/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
+`tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
 never execute without notice.
 
 ```bash
 pnpm run test:gpu                                  # run all
-node test/test-gpu.ts test/justesse/reflexion-cone.ts   # run single target
+node tests/browser/test-gpu.ts tests/browser/probes/reflection-cone.ts   # run single target
 ```
 
 #### Known failures of `test:gpu`, and where they were read
@@ -116,13 +120,14 @@ node test/test-gpu.ts test/justesse/reflexion-cone.ts   # run single target
 `test:gpu` drives a real GPU, so its result belongs to a machine: a batch declares the failures it
 inherited rather than the ones it caused, and the baseline lives here so the next batch compares
 against something written down. Read on an Apple M2 Max (Mac14,6), macOS 27.0, Chrome headless,
-`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-22: **7 fail**, and always these
-seven files — `scene-webgpu` (then named after the private scene it read), `explorer-startup`,
-`materiaux-temoin`, `observatory`,
-`partition-gpu-conservatrice`, `rendu-clusters-webgl`, `shadow-camera-stop`. Seven, not the six
-an older note quoted. Two readings, one commit apart: `origin/develop` at `005b5c445`, 52 pass /
-7 fail; the head of #297, which adds one proof file, 53 pass / 7 fail. A batch that leaves exactly
-these seven failing has changed nothing here; one that adds an eighth owns it. The pass count
+`WG_ASSETS` pointed at the shared `.mesure/assets/`, 2026-09-23: **10 fail**, and always these
+ten, in nine proof files — `blend-cache-default`, `explorer-startup`, `witness-materials`,
+`normal-transform-arithmetic`, `lighting-normal-small-scale` (two cases),
+`lighting-normal-refused-substitutions`, `observatory`, `webgl-cluster-render`,
+`shadow-camera-stop`. Two readings, the same day: `origin/develop` at `ea7e3ecf4`, 54 pass /
+10 fail; the head of #322, which only moves and renames the proof files, 54 pass / 10 fail, each
+failing on the same assertion. A batch that leaves exactly these ten failing has changed nothing
+here; one that adds an eleventh owns it. The pass count
 moves with the number of proof files and means nothing on its own. Re-read the baseline on your
 own machine before leaning on it — the failures are not portable, only the method is.
 
@@ -144,7 +149,7 @@ declared performance ceiling.
 
 Three verdict types, never silence:
 
-- **✓ / ✗** — bitwise equality (`ecart.ts`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or declared
+- **✓ / ✗** — bitwise equality (`diff.ts`: `-0`, `NaN`, typed arrays, `Map`, `Set`), or declared
   tolerance (`differences` + `tolere`, counted in ULPs by `ulp.ts`).
 - **published diff** (`ecartPublie`) — the benchmark measures a _rejected_ candidate and quantifies
   the displacement instead of expecting equality that does not apply. This is the case for C1
@@ -154,7 +159,7 @@ Three verdict types, never silence:
 
 `mesure()` refuses to run if the file reported as measured by a benchmark does not exist.
 
-**The reference-library duels** (`packages/sdk-core/bench/three-vs-core-*.perf.ts`,
+**The reference-library duels** (`bench/perf/core/three-vs-core-*.perf.ts`,
 `pnpm run perf:core`) put the host library and the engine on the same seeded inputs and refuse an
 engine that differs by a bit or runs slower. The four `three-vs-core-batch-*.perf.ts` files —
 `volumes` (frustum, spheres, unions, points, directions), `matrices` (invert, normal, compose),
@@ -169,7 +174,7 @@ published run.
 ## 3. Baselines and Report
 
 `pnpm run perf:all` outputs a fragment per domain into `.mesure/perf/`, then
-`scripts/mesure/perf/agrege.ts` aggregates them into a single table under
+`bench/runner/perf/aggregate.ts` aggregates them into a single table under
 `.mesure/out/perf/perf-<date>.md` and `.json`.
 
 `pnpm run perf:baseline` converts fragments into baselines under `.mesure/baselines/`, one per domain,
@@ -185,7 +190,7 @@ The report flags any machine load higher than 4: above this threshold, timings a
 
 Timers run in the process that just executed the oracle, following warmup. This is sufficient to
 track regressions between batches on the same machine; it is not a campaign measurement. A publishable
-campaign is run with the `scripts/mesure/` harness (see its README), on a quiet machine, comparing
+campaign is run with the `bench/runner/` harness (see its README), on a quiet machine, comparing
 identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
@@ -193,7 +198,8 @@ identical budgets, scenes, and poses.
 | Command                       | Role                                                                     |
 | ----------------------------- | ------------------------------------------------------------------------ |
 | `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                |
-| `pnpm run check:duplicates`   | No duplicated blocks ≥ 12 lines and ≥ 100 tokens                         |
+| `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                           |
+| `pnpm run check:helpers`      | No small helper copied into a second module of the same package          |
 | `pnpm run check:structure`    | Package boundary isolation, sdk-core typed without DOM                   |
 | `pnpm run check:unused`       | Dead exports and files (`knip`)                                          |
 | `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript               |

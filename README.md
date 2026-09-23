@@ -15,7 +15,7 @@
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://pasquelin.github.io/WebGeometry/)** · **[Live report ↗](https://pasquelin.github.io/WebGeometry/report.html)** · **[Why](#why-web-geometry)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](scripts/mesure/README.md)** · **[The reference in numbers](docs/REFERENCE_UE5.md)** · **[Roadmap](#roadmap)**
+**[Documentation ↗](https://pasquelin.github.io/WebGeometry/)** · **[Live report ↗](https://pasquelin.github.io/WebGeometry/report.html)** · **[Why](#why-web-geometry)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE_UE5.md)** · **[Roadmap](#roadmap)**
 
 </div>
 
@@ -145,18 +145,18 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 | [`packages/sdk-core`](packages/sdk-core)                       | Platform-independent TypeScript contracts and policies           |
 | [`packages/sdk-node`](packages/sdk-node)                       | Native process and filesystem integration                        |
 | [`packages/sdk-browser`](packages/sdk-browser)                 | Browser rendering and GPU resource adapters                      |
-| [`scripts/mesure`](scripts/mesure)                             | The bench: one harness, campaigns and the HTML report            |
-| [`test`](test)                                                 | Public package integration tests and GPU proofs                  |
+| [`bench/runner`](bench/runner)                             | The bench: one harness, campaigns and the HTML report            |
+| [`tests`](tests)                                               | Public package integration tests and GPU proofs                  |
 
 ## Measuring
 
 Nothing is optimised before it is measured, and no claim outlives its measurement.
 
 ```sh
-node scripts/mesure/banc.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
+node bench/runner/bench.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
      --vues generale,sol,rue --images 60 --pixelError 0,1
-node scripts/mesure/campagne.ts        # the whole campaign
-node scripts/mesure/rapportGlobal.ts   # one HTML report
+node bench/runner/campaign.ts        # the whole campaign
+node bench/runner/summaryGlobal.ts   # one HTML report
 ```
 
 - One harness for every lot: Playwright drives the machine's Chrome, nothing else is needed on
@@ -169,7 +169,7 @@ node scripts/mesure/rapportGlobal.ts   # one HTML report
   difference is read on the frame envelope only.
 - `0 px`, `tri = selected` and A/A noise are the default proof for geometry and lighting.
 
-See [scripts/mesure/README.md](scripts/mesure/README.md) and [docs/TESTS.md](docs/TESTS.md).
+See [bench/runner/README.md](bench/runner/README.md) and [docs/TESTS.md](docs/TESTS.md).
 
 ## Quality bar
 
@@ -177,7 +177,8 @@ See [scripts/mesure/README.md](scripts/mesure/README.md) and [docs/TESTS.md](doc
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm run check:changed`    | format, lint, line limit, duplicates and the unit tests reached by imports from the changed files                                                                                                                                                                             |
 | `pnpm run check:lines`      | **200 physical lines per source file**, JS/TS/Rust, no legacy exception                                                                                                                                                                                                       |
-| `pnpm run check:duplicates` | no repeated block ≥ 12 lines and ≥ 100 tokens across JS/TS/Rust                                                                                                                                                                                                               |
+| `pnpm run check:duplicates` | no repeated block ≥ 8 lines and ≥ 64 tokens across JS/TS/Rust                                                                                                                                                                                                                  |
+| `pnpm run check:helpers`    | no small helper copied, name, signature and body alike, into a second module of one package                                                                                                                                                                                    |
 | `pnpm run check:structure`  | core/adapter boundaries; `sdk-core` type-checks without DOM                                                                                                                                                                                                                   |
 | `pnpm run validate`         | everything above plus Clippy, unused code/files/dependencies, TS and native builds, declarations, links, and all JS/TS/Rust tests — the CI gate ([`quality.yml`](.github/workflows/quality.yml)), which skips the Rust steps when the sources are unchanged since a green run |
 | `pnpm run test:gpu`         | browser proofs on a real GPU                                                                                                                                                                                                                                                  |

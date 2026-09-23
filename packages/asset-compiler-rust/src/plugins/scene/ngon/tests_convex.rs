@@ -3,7 +3,7 @@
 use super::convex::fan_is_exact;
 use super::tests::{cut, flat_ring, loaded};
 use super::Ngon;
-use crate::tests::ngones::U_RING;
+use crate::tests::ngons::U_RING;
 
 /// A cutter holding the ring, projected in its plane, with the walk sense of that plane.
 fn projected(ring: &[[f64; 3]]) -> (Ngon, f64) {

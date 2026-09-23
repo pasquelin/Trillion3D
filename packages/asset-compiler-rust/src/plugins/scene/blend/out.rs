@@ -4,7 +4,7 @@
 //! copy: it creates them. Each array goes into the binary through an aligned view, and the
 //! accessor that names it carries the bounds glTF requires of positions.
 use super::*;
-use crate::plugins::scene::SceneOutput;
+use crate::plugins::scene::{scene_output_fields, SceneOutput};
 
 /// The glTF component type of a single float, and that of a 32-bit unsigned integer.
 const FLOAT: u32 = 5126;
@@ -92,15 +92,7 @@ impl Out {
 }
 
 impl SceneOutput for Out {
-    fn nodes(&self) -> &[Value] {
-        &self.nodes
-    }
-    fn counts(&self) -> &BTreeMap<&'static str, usize> {
-        &self.counts
-    }
-    fn key(&self) -> String {
-        hash(self.key_material.as_bytes())
-    }
+    scene_output_fields!();
     fn write(
         self,
         plugin: &dyn ScenePlugin,

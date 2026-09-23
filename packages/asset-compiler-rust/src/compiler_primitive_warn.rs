@@ -143,7 +143,7 @@ mod tests {
     // the group count per outcome and the cause of its stalls; requested exact
     // clusters (`none`) are not one.
     #[test]
-    fn une_primitive_sans_niveau_grossier_est_un_avertissement_nomme() {
+    fn a_primitive_without_a_coarse_level_is_a_named_warning() {
         let warnings = warn(98, 0, 98, 98, &[stalled(4)]);
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0]["code"], "DAG_FLAT");
@@ -164,7 +164,7 @@ mod tests {
     // Behaviour: too many roots on a primitive of at least eight clusters is a
     // warning, a single root on fifteen pages is not one, and a small primitive is not judged.
     #[test]
-    fn trop_de_racines_est_un_avertissement_au_dela_du_huitieme_des_pages() {
+    fn too_many_roots_is_a_warning_beyond_an_eighth_of_the_pages() {
         let ok = warn(8, 3, 15, 1, &[]);
         assert!(ok.is_empty(), "{ok:?}");
         let stopped = warn(8, 1, 12, 4, &[stalled(1)]);

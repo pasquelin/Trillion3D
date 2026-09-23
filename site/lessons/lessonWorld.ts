@@ -1,10 +1,10 @@
-import type { Box3, World } from '../../packages/sdk-browser/index.ts';
+import type { Box3, World } from '../../packages/sdk-browser/src/index.ts';
 import { SCENE_BACKGROUND } from './scenePalette.ts';
 
 /** The browser SDK's exports, loaded once by the caller and threaded in: a static value import
  *  here would pull the engine bundle into every route that reaches a lesson, even one that never
  *  mounts a world (`docs-gallery.test.ts`'s server-rendered pass never does). */
-export type Engine = typeof import('../../packages/sdk-browser/index.ts');
+export type Engine = typeof import('../../packages/sdk-browser/src/index.ts');
 
 export async function createLessonWorld({
   canvas,

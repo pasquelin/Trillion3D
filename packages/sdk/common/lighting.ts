@@ -3,23 +3,23 @@ export {
   BOUNCE_PROBES_PER_FRAME,
   BOUNCE_SETTINGS,
   PROBE_FLOATS,
-} from '../../sdk-core/bounceContracts.ts';
-export { bounceBatchOf, createBounceBudget } from '../../sdk-core/bounceBudget.ts';
-export type { BounceBudget } from '../../sdk-core/bounceBudget.ts';
-export { createBounceCascades } from '../../sdk-core/bounceCascades.ts';
-export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/bounceCascades.ts';
-export { createBounceOccupancy } from '../../sdk-core/bounceOccupancy.ts';
-export type { BounceOccupancy } from '../../sdk-core/bounceOccupancy.ts';
-export { cloneSceneLight } from '../../sdk-core/sceneLightClone.ts';
-export { createDefaultLightingSceneLights } from '../../sdk-core/lightingSceneControls.ts';
-export { createLightingScene } from '../../sdk-core/lightingExperimentScene.ts';
-export { createSceneLightStore } from '../../sdk-core/sceneLightStore.ts';
-export type { SceneLightStore } from '../../sdk-core/sceneLightStore.ts';
-export { createShadowPlan } from '../../sdk-core/sceneLightShadowPlan.ts';
-export type { ShadowPlan } from '../../sdk-core/sceneLightShadowPlan.ts';
-export { createTransport } from '../../sdk-core/lightingTransport.ts';
-export { desiredFaceSide, SHADOW_FACE_SIDES } from '../../sdk-core/sceneLightShadowAtlas.ts';
-export { exportLightingGltf } from '../../sdk-core/lightingSceneGltf.ts';
+} from '../../sdk-core/src/bounce/contracts.ts';
+export { bounceBatchOf, createBounceBudget } from '../../sdk-core/src/bounce/budget.ts';
+export type { BounceBudget } from '../../sdk-core/src/bounce/budget.ts';
+export { createBounceCascades } from '../../sdk-core/src/bounce/cascades.ts';
+export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/src/bounce/cascades.ts';
+export { createBounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts';
+export type { BounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts';
+export { cloneSceneLight } from '../../sdk-core/src/scene/light/clone.ts';
+export { createDefaultLightingSceneLights } from '../../sdk-core/src/lighting/scene/controls.ts';
+export { createLightingScene } from '../../sdk-core/src/lighting/scene/experimentScene.ts';
+export { createSceneLightStore } from '../../sdk-core/src/scene/light/store.ts';
+export type { SceneLightStore } from '../../sdk-core/src/scene/light/store.ts';
+export { createShadowPlan } from '../../sdk-core/src/scene/light-shadow/plan.ts';
+export type { ShadowPlan } from '../../sdk-core/src/scene/light-shadow/plan.ts';
+export { createTransport } from '../../sdk-core/src/lighting/transport/transport.ts';
+export { desiredFaceSide, SHADOW_FACE_SIDES } from '../../sdk-core/src/scene/light-shadow/atlas.ts';
+export { exportLightingGltf } from '../../sdk-core/src/lighting/scene/gltf.ts';
 export {
   faceCountOf,
   POINT_FACE_AXES,
@@ -28,9 +28,9 @@ export {
   SHADOW_FACE_MASK_WORD,
   SHADOW_SLICE_FLOATS,
   writeFace,
-} from '../../sdk-core/sceneLightShadowFaces.ts';
-export { forEachShadowFace } from '../../sdk-core/sceneLightShadowCasters.ts';
-export { LIGHT_FIELD } from '../../sdk-core/sceneLightFields.ts';
+} from '../../sdk-core/src/scene/light-shadow/faces.ts';
+export { forEachShadowFace } from '../../sdk-core/src/scene/light-shadow/casters.ts';
+export { LIGHT_FIELD } from '../../sdk-core/src/scene/light/fields.ts';
 export {
   LIGHT_KIND,
   LIGHT_SETTINGS,
@@ -40,21 +40,21 @@ export {
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
   SCENE_LIGHT_VERSION,
-} from '../../sdk-core/sceneLightContracts.ts';
+} from '../../sdk-core/src/scene/light/contracts.ts';
 export type {
   SceneLight,
   SceneLightingView,
   ShadowViewpoint,
-} from '../../sdk-core/sceneLightContracts.ts';
-export type { LightingCapabilities } from '../../sdk-core/sceneLightCapabilities.ts';
+} from '../../sdk-core/src/scene/light/contracts.ts';
+export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts';
 export type {
   LightingSceneLight,
   Patch,
   Scene,
   Surface,
   Vec3,
-} from '../../sdk-core/lightingSceneTypes.ts';
-export { pageRowsOf, SHADOW_PAGE } from '../../sdk-core/sceneLightShadowPages.ts';
+} from '../../sdk-core/src/lighting/scene/types.ts';
+export { pageRowsOf, SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/pages.ts';
 export {
   PROXY_CHILD_WORDS,
   PROXY_CHILDREN,
@@ -64,19 +64,22 @@ export {
   SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
-} from '../../sdk-core/proxyContracts.ts';
+} from '../../sdk-core/src/contracts/proxy.ts';
 export type {
   SceneProxy,
   SceneProxyColumns,
   SceneProxyDescriptor,
-} from '../../sdk-core/proxyContracts.ts';
-export { RECTS_PER_SLICE } from '../../sdk-core/sceneLightShadowSlices.ts';
-export { regionRect } from '../../sdk-core/sceneLightShadowVolume.ts';
-export { solveTransportOracle } from '../../sdk-core/lightingTransportOracle.ts';
+} from '../../sdk-core/src/contracts/proxy.ts';
+export { RECTS_PER_SLICE } from '../../sdk-core/src/scene/light-shadow/slices.ts';
+export { regionRect } from '../../sdk-core/src/scene/light-shadow/volume.ts';
+export { solveTransportOracle } from '../../sdk-core/src/lighting/transport/oracle.ts';
 export type {
   TransportOptions,
   TransportProgress,
   TransportResult,
   TransportSnapshot,
-} from '../../sdk-core/lightingTransportContracts.ts';
-export { validateSceneEnvironment, validateSceneLight } from '../../sdk-core/sceneLightValidate.ts';
+} from '../../sdk-core/src/lighting/transport/contracts.ts';
+export {
+  validateSceneEnvironment,
+  validateSceneLight,
+} from '../../sdk-core/src/scene/light/validate.ts';

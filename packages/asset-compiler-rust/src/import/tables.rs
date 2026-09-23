@@ -6,7 +6,7 @@
 //! compiler reads. Format-independent: only population depends on format.
 //! Nothing written alongside source.
 use super::*;
-use crate::plugins::scene::SceneOutput;
+use crate::plugins::scene::{scene_output_fields, SceneOutput};
 mod media;
 pub(crate) use media::readable;
 
@@ -113,6 +113,20 @@ impl SceneTables {
         self.key_material.push_str(&format!("\n{name}@{key}"));
     }
 
+    /// A driver's material part written as a primitive, with its triangle count; `None` when
+    /// the part drew no triangle.
+    pub(crate) fn part_primitive(
+        &mut self,
+        out: &Vertices,
+        material: Option<usize>,
+    ) -> Option<(Value, usize)> {
+        if out.indices.is_empty() {
+            return None;
+        }
+        let value = primitive(out, &mut self.bin, &mut self.accessors, material);
+        Some((value, out.indices.len() / 3))
+    }
+
     /// Scene roots: nodes uncited as child by any other.
     fn roots(&self) -> Vec<usize> {
         let mut child = vec![false; self.nodes.len()];
@@ -128,15 +142,7 @@ impl SceneTables {
 }
 
 impl SceneOutput for SceneTables {
-    fn nodes(&self) -> &[Value] {
-        &self.nodes
-    }
-    fn counts(&self) -> &BTreeMap<&'static str, usize> {
-        &self.counts
-    }
-    fn key(&self) -> String {
-        hash(self.key_material.as_bytes())
-    }
+    scene_output_fields!();
     fn write(
         self,
         plugin: &dyn ScenePlugin,

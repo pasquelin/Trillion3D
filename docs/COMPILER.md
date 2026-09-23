@@ -725,7 +725,7 @@ A Unity scene also carries the report of the driver that read each model it refe
 
 ## Using it from Node
 
-`web-geometry` resolves to a thin Node relay over the executable ([`packages/sdk-node/index.mts`](../packages/sdk-node/index.mts)):
+`web-geometry` resolves to a thin Node relay over the executable ([`packages/sdk-node/src/index.mts`](../packages/sdk-node/src/index.mts)):
 
 ```ts
 import { prepare, prepareMany, type CompilationResult, type PrepareOptions } from 'web-geometry';

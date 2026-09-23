@@ -62,16 +62,16 @@ pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Ve
 }
 
 #[cfg(test)]
-#[path = "geometry_page_tests_lotb.rs"]
-mod tests_lotb;
+#[path = "geometry_page_batch_b_tests.rs"]
+mod tests_batch_b;
 
 #[cfg(test)]
 #[path = "geometry_page_codec_tests.rs"]
 pub(crate) mod tests_codec;
 
 #[cfg(test)]
-#[path = "geometry_page_codec_refus_tests.rs"]
-mod tests_codec_refus;
+#[path = "geometry_page_codec_refusal_tests.rs"]
+mod tests_codec_refusal;
 
 #[cfg(test)]
 #[path = "geometry_page_grid_tests.rs"]

@@ -3,7 +3,7 @@ import type {
   LightParameters,
   Light,
   World,
-} from '../../packages/sdk-browser/index.ts';
+} from '../../packages/sdk-browser/src/index.ts';
 import type { RendererLessonItem } from './rendererLessonTypes.ts';
 
 function paramsFor(kind: string | undefined, state: Record<string, number>): LightParameters {

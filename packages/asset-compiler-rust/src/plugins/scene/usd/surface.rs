@@ -6,7 +6,7 @@
 //! than flipping the normals. Texture coordinates go from USD's origin at bottom-left to
 //! glTF's, at the top.
 use super::*;
-use crate::import::{primitive, Vertices};
+use crate::import::Vertices;
 use crate::plugins::scene::ngon::Ngon;
 
 /// Tables of a surface, read once for all its parts.
@@ -104,13 +104,7 @@ impl Surface {
                 }
             }
         }
-        if out.indices.is_empty() {
-            return None;
-        }
-        let triangles = out.indices.len() / 3;
-        let scene = &mut world.scene;
-        let value = primitive(&out, &mut scene.bin, &mut scene.accessors, part.material);
-        Some((value, triangles))
+        world.scene.part_primitive(&out, part.material)
     }
 
     /// Position of a corner, as a double, as the polygon cut reads it. A corner outside the

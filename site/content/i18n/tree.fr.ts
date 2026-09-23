@@ -19,7 +19,7 @@ export const treeFr: LocaleOverlay = {
   },
   frustumKeepsBoxBatch: {
     description:
-      '`n` boîtes de six nombres (min puis max) contre les vingt-quatre flottants d’un frustum : `kept[i]` vaut 1 où la boîte coupe ou tient dans le volume, et le nombre gardé est renvoyé — `frustumExcludesBox` inversé, la polarité de la référence. Le lot de sphères écrit `SPHERE_VALUES` nombres par boîte, centre puis rayon jusqu’au coin, comme `sphereFromBounds`. Les deux boucles vivent dans `mathBatchCulling.ts`.',
+      '`n` boîtes de six nombres (min puis max) contre les vingt-quatre flottants d’un frustum : `kept[i]` vaut 1 où la boîte coupe ou tient dans le volume, et le nombre gardé est renvoyé — `frustumExcludesBox` inversé, la polarité de la référence. Le lot de sphères écrit `SPHERE_VALUES` nombres par boîte, centre puis rayon jusqu’au coin, comme `sphereFromBounds`. Les deux boucles vivent dans `packages/sdk-core/src/math/batch/culling.ts`.',
   },
   boxUnionBatch: {
     description:
@@ -27,7 +27,7 @@ export const treeFr: LocaleOverlay = {
   },
   invertMatrix4Batch: {
     description:
-      '`n` inverses, `n` matrices normales de `NORMAL_MATRIX_VALUES` nombres, `n` compositions `T · R · S`, `n` décompositions. Une matrice de déterminant nul est inversée en identité et signalée dans `singular[i]` — jamais d’exception au milieu d’un lot. `composeMatrix4Batch` prend tout à plat ou tout en sous-vues, et tranche la forme avant la boucle. Les quatre boucles vivent dans `mathBatchTransforms.ts`.',
+      '`n` inverses, `n` matrices normales de `NORMAL_MATRIX_VALUES` nombres, `n` compositions `T · R · S`, `n` décompositions. Une matrice de déterminant nul est inversée en identité et signalée dans `singular[i]` — jamais d’exception au milieu d’un lot. `composeMatrix4Batch` prend tout à plat ou tout en sous-vues, et tranche la forme avant la boucle. Les quatre boucles vivent dans `packages/sdk-core/src/math/batch/transforms.ts`.',
   },
   transformPointsBatch: {
     description:
@@ -35,7 +35,7 @@ export const treeFr: LocaleOverlay = {
   },
   srgbToLinearBatch: {
     description:
-      'Un canal par élément, les courbes exactes de `mathColor.ts` : la référence multiplie par des constantes arrondies, et l’écart — invisible sur 8 bits — est borné une fois, dans le banc qui les oppose.',
+      'Un canal par élément, les courbes exactes de `packages/sdk-core/src/math/primitives/color.ts` : la référence multiplie par des constantes arrondies, et l’écart — invisible sur 8 bits — est borné une fois, dans le banc qui les oppose.',
   },
   createTransformTree: {
     description:

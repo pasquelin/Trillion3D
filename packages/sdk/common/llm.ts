@@ -8,18 +8,18 @@ export type {
   McpToolDefinition,
   OpenAiToolDefinition,
   WebGeometryTool,
-} from '../../sdk-core/llm/types.ts';
-export { COMPILER_OPTIONS_SCHEMA } from '../../sdk-core/llm/compilerOptionsSchema.ts';
-export { EXPLORER_OPTIONS_SCHEMA } from '../../sdk-core/llm/explorerOptionsSchema.ts';
+} from '../../sdk-core/src/llm/types.ts';
+export { COMPILER_OPTIONS_SCHEMA } from '../../sdk-core/src/llm/compilerOptionsSchema.ts';
+export { EXPLORER_OPTIONS_SCHEMA } from '../../sdk-core/src/llm/explorerOptionsSchema.ts';
 export {
   getWebGeometryLlmPrompt,
   WEB_GEOMETRY_SYSTEM_PROMPT,
-} from '../../sdk-core/llm/systemPrompt.ts';
+} from '../../sdk-core/src/llm/systemPrompt.ts';
 export {
   getWebGeometryTools,
   toAnthropicTool,
   toGeminiTool,
   toMcpTool,
   toOpenAiTool,
-} from '../../sdk-core/llm/toolDefinitions.ts';
-export { WEB_GEOMETRY_RUNTIME_TOOLS } from '../../sdk-core/llm/runtimeToolsSchema.ts';
+} from '../../sdk-core/src/llm/toolDefinitions.ts';
+export { WEB_GEOMETRY_RUNTIME_TOOLS } from '../../sdk-core/src/llm/runtimeToolsSchema.ts';

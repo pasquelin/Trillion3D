@@ -3,8 +3,8 @@ import test from 'node:test';
 import { rendererInitialState, rendererLessons } from '../site/lessons/rendererLessons.ts';
 import { applyRendererLesson } from '../site/lessons/rendererLessonRuntime.ts';
 import { requiredLesson } from './docs/lesson-manifest.ts';
-import { light } from '../packages/sdk-core/world/light/index.ts';
-import type { Light, World } from '../packages/sdk-browser/index.ts';
+import { light } from '../packages/sdk-core/src/world/light/index.ts';
+import type { Light, World } from '../packages/sdk-browser/src/index.ts';
 
 type RecordedCall = [string, ...unknown[]];
 

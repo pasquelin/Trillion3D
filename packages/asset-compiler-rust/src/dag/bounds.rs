@@ -38,7 +38,7 @@ pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
 }
 
 /// Merging two bounding spheres. Engine side mirror is `growSphere` in
-/// `packages/sdk-browser/pageSelectionCutBounds.ts`: same formula, two languages, no code
+/// `packages/sdk-browser/src/page/cut/bounds.ts`: same formula, two languages, no code
 /// shared. Fallback is sequential and non-commutative — sphere order decides result,
 /// so `enclosing_sphere` neither reorders nor parallelizes its list.
 pub(super) fn merge_spheres(left: [f64; 4], right: [f64; 4]) -> [f64; 4] {

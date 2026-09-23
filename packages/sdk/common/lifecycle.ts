@@ -7,21 +7,21 @@ export {
   DEFAULT_SCOPE,
   FORMAT_VERSION,
   SDK_VERSION,
-} from '../../sdk-core/contractsBase.ts';
+} from '../../sdk-core/src/contracts/base.ts';
 export type {
   AssetScope,
   CameraPose,
   PreparationProgress,
   StablePreview,
-} from '../../sdk-core/contractsBase.ts';
-export { createSafetyPolicy } from '../../sdk-core/safety.ts';
+} from '../../sdk-core/src/contracts/base.ts';
+export { createSafetyPolicy } from '../../sdk-core/src/runtime/safety.ts';
 export type {
   CapabilityTier,
   MeasuredCosts,
   SafetyConfig,
   SafetyDecision,
-} from '../../sdk-core/safety.ts';
-export { createJob } from '../../sdk-core/jobs.ts';
-export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/jobs.ts';
-export { userNotice } from '../../sdk-core/events.ts';
-export type { RuntimeEvent, UserNotice } from '../../sdk-core/events.ts';
+} from '../../sdk-core/src/runtime/safety.ts';
+export { createJob } from '../../sdk-core/src/runtime/jobs.ts';
+export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs.ts';
+export { userNotice } from '../../sdk-core/src/runtime/events.ts';
+export type { RuntimeEvent, UserNotice } from '../../sdk-core/src/runtime/events.ts';

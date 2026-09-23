@@ -1,7 +1,11 @@
 import type { PortalEntry } from '../model.ts';
 
 /** Batch math: `n` elements per call on flat buffers, the governor that arbitrates the paths. */
-const BATCH = { section: 'batches', kind: 'Function', module: 'packages/sdk-core/mathBatch.ts' };
+const BATCH = {
+  section: 'batches',
+  kind: 'Function',
+  module: 'packages/sdk-core/src/math/batch/batch.ts',
+};
 
 export const BATCHES: PortalEntry[] = [
   {
@@ -38,7 +42,7 @@ export const BATCHES: PortalEntry[] = [
     signature:
       'hierarchyUpdateBatch(worldViews, positions, rotations, scales, parents: Uint32Array, n, local)\nHIERARCHY_ROOT = 0xffffffff · MATRIX_VALUES = 16 · POSITION_VALUES = 3 · QUATERNION_VALUES = 4',
     description:
-      "A full hierarchy updated in one pass: `n` nodes ordered parents before children, each composing its local matrix then multiplying it by its parent's world matrix — the traversal of `mathTransformTreeUpdate.ts`, the same two formulas in the same order, on flat buffers. `parents[i]` **must** index an already updated node, hence strictly less than `i`; any other value — the `HIERARCHY_ROOT` sentinel included — makes the node a root whose world matrix is its local matrix. The rule is identical on both paths: no input, however hostile, can make them diverge. `local` is one scratch matrix, reused by every element.",
+      "A full hierarchy updated in one pass: `n` nodes ordered parents before children, each composing its local matrix then multiplying it by its parent's world matrix — the traversal of `packages/sdk-core/src/math/transform-tree/update.ts`, the same two formulas in the same order, on flat buffers. `parents[i]` **must** index an already updated node, hence strictly less than `i`; any other value — the `HIERARCHY_ROOT` sentinel included — makes the node a root whose world matrix is its local matrix. The rule is identical on both paths: no input, however hostile, can make them diverge. `local` is one scratch matrix, reused by every element.",
     replaces: 'Object3D.updateMatrixWorld over a whole scene',
   },
   {
@@ -46,7 +50,7 @@ export const BATCHES: PortalEntry[] = [
     id: 'createPathGovernor',
     exports: ['createPathGovernor', 'PATH_MIN_SAMPLES', 'PATH_SWITCH_RUNS', 'PATH_EXPLORE_EVERY'],
     title: 'createPathGovernor()',
-    module: 'packages/sdk-core/mathPathGovernor.ts',
+    module: 'packages/sdk-core/src/math/path/governor.ts',
     signature:
       "createPathGovernor(now: () => number, mode: MathPathMode = 'auto'): PathGovernor\nPATH_MIN_SAMPLES = 5 · PATH_SWITCH_RUNS = 5 · PATH_EXPLORE_EVERY = 50",
     description:
@@ -60,7 +64,7 @@ export const BATCHES: PortalEntry[] = [
     signature:
       'frustumKeepsBoxBatch(kept: Uint8Array, planes: Float64Array, boxes, n): number\nsphereFromBoundsBatch(out: Float64Array, boxes, n) · SPHERE_VALUES = 4',
     description:
-      '`n` boxes of six numbers (min then max) against the twenty-four floats of a frustum: `kept[i]` is 1 where the box intersects or sits inside, and the count kept is returned — `frustumExcludesBox` negated, the polarity the reference answers in. The sphere batch writes `SPHERE_VALUES` numbers per box, centre then radius to the corner, as `sphereFromBounds` does. Both loops live in `mathBatchCulling.ts`.',
+      '`n` boxes of six numbers (min then max) against the twenty-four floats of a frustum: `kept[i]` is 1 where the box intersects or sits inside, and the count kept is returned — `frustumExcludesBox` negated, the polarity the reference answers in. The sphere batch writes `SPHERE_VALUES` numbers per box, centre then radius to the corner, as `sphereFromBounds` does. Both loops live in `packages/sdk-core/src/math/batch/culling.ts`.',
     replaces: 'a loop of Frustum.intersectsBox, of Box3.getBoundingSphere',
   },
   {
@@ -89,7 +93,7 @@ export const BATCHES: PortalEntry[] = [
     signature:
       'invertMatrix4Batch(out: Float64Array[], mats, n, singular?: Uint8Array)\nnormalMatrix3Batch(out: Float64Array, mats, n) · NORMAL_MATRIX_VALUES = 9\ncomposeMatrix4Batch(out, positions, quaternions, scales, n)\ndecomposeMatrix4Batch(positions, quaternions, scales, mats, n)',
     description:
-      '`n` inverses, `n` normal matrices of `NORMAL_MATRIX_VALUES` numbers, `n` compositions `T · R · S`, `n` decompositions. A matrix with a zero determinant is inverted to the identity and flagged in `singular[i]` — never a throw in the middle of a batch. `composeMatrix4Batch` takes everything flat or everything as sub-views, and settles the form before the loop. The four loops live in `mathBatchTransforms.ts`.',
+      '`n` inverses, `n` normal matrices of `NORMAL_MATRIX_VALUES` numbers, `n` compositions `T · R · S`, `n` decompositions. A matrix with a zero determinant is inverted to the identity and flagged in `singular[i]` — never a throw in the middle of a batch. `composeMatrix4Batch` takes everything flat or everything as sub-views, and settles the form before the loop. The four loops live in `packages/sdk-core/src/math/batch/transforms.ts`.',
     replaces: 'a loop of Matrix4.invert, getNormalMatrix, compose, decompose',
   },
   {
@@ -97,7 +101,7 @@ export const BATCHES: PortalEntry[] = [
     id: 'transformPointsBatch',
     exports: ['transformPointsBatch', 'transformPointsByMatricesBatch', 'transformDirectionsBatch'],
     title: 'transformPointsBatch() · transformPointsByMatricesBatch() · transformDirectionsBatch()',
-    module: 'packages/sdk-core/mathBatchPoints.ts',
+    module: 'packages/sdk-core/src/math/batch/points.ts',
     signature:
       'transformPointsBatch(out: Float64Array, m, points, n)\ntransformPointsByMatricesBatch(out: Float64Array, mats: ArrayLike<number>[], points, n)\ntransformDirectionsBatch(out: Float64Array, m, dirs, n)',
     description:
@@ -109,11 +113,11 @@ export const BATCHES: PortalEntry[] = [
     id: 'srgbToLinearBatch',
     exports: ['srgbToLinearBatch', 'linearToSrgbBatch'],
     title: 'srgbToLinearBatch() · linearToSrgbBatch()',
-    module: 'packages/sdk-core/mathBatchColor.ts',
+    module: 'packages/sdk-core/src/math/batch/color.ts',
     signature:
       'srgbToLinearBatch(out: Float64Array, values, n)\nlinearToSrgbBatch(out: Float64Array, values, n)',
     description:
-      'One channel per element, the exact curves of `mathColor.ts`: the reference multiplies by rounded constants, and the gap — invisible at 8 bits — is bounded once, in the bench that duels it.',
+      'One channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts`: the reference multiplies by rounded constants, and the gap — invisible at 8 bits — is bounded once, in the bench that duels it.',
     replaces: 'a loop of Color.convertSRGBToLinear, convertLinearToSRGB',
   },
 ];

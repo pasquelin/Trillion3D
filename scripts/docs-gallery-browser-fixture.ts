@@ -1,6 +1,6 @@
 // Shared Chrome + docs-server pairing for the gallery browser proofs that mount more than one
 // page against the same server (cold load, startup deadline): open once, close both together.
-import { launchChrome } from './mesure/chrome.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 
 export async function openDocsBrowser() {

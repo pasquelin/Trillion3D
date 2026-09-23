@@ -9,7 +9,7 @@ use super::codec::{self, Codec};
 use super::{
     CODEC_UNSUPPORTED, DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
 };
-use crate::plugins::image::{Transfer, MAX_LEVELS};
+use crate::plugins::image::{word, Transfer, MAX_LEVELS};
 
 /// End of `DDS_HEADER`: four magic-number bytes and one hundred and twenty-four of header.
 const HEADER_END: usize = 128;
@@ -44,11 +44,6 @@ pub(super) struct Surface {
     /// or `_UNORM` variant of its `dxgiFormat`; a legacy DDS stays silent, and convention lends
     /// it sRGB — Direct3D 9 had no sRGB format, and its colour textures carry the curve.
     pub(super) transfer: Transfer,
-}
-
-/// The thirty-two-bit word at this offset, little-endian like the whole format.
-fn word(bytes: &[u8], at: usize) -> u32 {
-    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
 }
 
 /// Dimension of a mip level: each level halves and stops at one pixel.

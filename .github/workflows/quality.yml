@@ -50,7 +50,6 @@ jobs:
     env:
       NATIVE_BINARIES: |
         packages/asset-compiler-rust/target/release/web-geometry-compiler
-        packages/asset-compiler-rust/target/release/web-geometry-oracle
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/node
@@ -58,15 +57,15 @@ jobs:
         id: rust
         with:
           components: clippy, rustfmt
-      # The native binaries, keyed on the CONTENT of the Rust sources and the compiler. A hit means
-      # a green run already built these exact sources: the group skips its Rust steps
-      # (`scripts/validate-steps.ts` says why Cargo cannot decide this itself). The save is a
-      # separate step after the gates, so a red run never publishes its binaries.
+      # The native binary, keyed on the CONTENT of the Rust sources, the compiler and the golden
+      # fixtures its tests read. A hit means a green run already built these exact sources: the
+      # group skips its Rust steps (`scripts/validate-steps.ts` says why Cargo cannot decide this
+      # itself). The save is a separate step after the gates, so a red run never publishes it.
       - uses: actions/cache/restore@v4
         id: native
         with:
           path: ${{ env.NATIVE_BINARIES }}
-          key: native-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**') }}
+          key: native-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**', 'tests/fixtures/formats/**') }}
       # Dependency crates of both crates (`lint:native` runs Clippy on each, from its own
       # `Cargo.lock` into its own `target/`), only when Cargo will run: the key includes the rustc
       # version, hence after the toolchain.

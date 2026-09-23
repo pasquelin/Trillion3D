@@ -5,7 +5,7 @@
 use super::*;
 use std::fs;
 
-mod paquet;
+mod package;
 mod usdz;
 mod zip;
 

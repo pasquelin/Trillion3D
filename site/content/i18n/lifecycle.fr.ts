@@ -83,7 +83,7 @@ export const lifecycleFr: LocaleOverlay = {
   },
   replicateInstances: {
     description:
-      'Instancie la source 1, 4 ou 9 fois en partageant géométrie et matériaux — l’option `replicaCount` passe par là. Outil de mesure atteint seulement par le point d’entrée de mesure (`packages/sdk-browser/measurement.ts`), pour des scènes plus grandes que l’actif présent sur disque ; hors du point d’entrée publié de `web-geometry`.',
+      'Instancie la source 1, 4 ou 9 fois en partageant géométrie et matériaux — l’option `replicaCount` passe par là. Outil de mesure atteint seulement par le point d’entrée de mesure (`packages/sdk-browser/src/measurement/measurement.ts`), pour des scènes plus grandes que l’actif présent sur disque ; hors du point d’entrée publié de `web-geometry`.',
   },
   createGpuPageCache: {
     title: 'page.createCache() · page.httpSource()',

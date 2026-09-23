@@ -1,16 +1,20 @@
 import type { PortalEntry } from '../model.ts';
 
 /** Camera and projection (`sdk-core`), then the host-camera bridge and sides (`sdk-browser`). */
-const CAM = { section: 'camera', kind: 'Function', module: 'packages/sdk-core/mathCamera.ts' };
+const CAM = {
+  section: 'camera',
+  kind: 'Function',
+  module: 'packages/sdk-core/src/math/primitives/camera.ts',
+};
 const ORIGIN = {
   section: 'camera',
   kind: 'Function',
-  module: 'packages/sdk-core/mathRenderOrigin.ts',
+  module: 'packages/sdk-core/src/math/primitives/renderOrigin.ts',
 };
 const HOST = {
   section: 'host',
   kind: 'Function',
-  module: 'packages/sdk-browser/engineCamera.ts',
+  module: 'packages/sdk-browser/src/camera/engineCamera.ts',
 };
 
 export const CAMERA: PortalEntry[] = [
@@ -98,7 +102,7 @@ export const HOST_CAMERA: PortalEntry[] = [
     id: 'writeEngineCamera',
     exports: ['writeEngineCamera', 'CameraOptics'],
     title: 'writeEngineCamera()',
-    module: 'packages/sdk-browser/engineCamera.ts',
+    module: 'packages/sdk-browser/src/camera/engineCamera.ts',
     signature: 'writeEngineCamera(into: EngineCamera, optics: { fov, aspect, near, far, zoom })',
     description:
       'Everything a frame reads, derived from the `into.world` already set and the declared optics.',
@@ -119,12 +123,13 @@ export const HOST_CAMERA: PortalEntry[] = [
     id: 'readCameraWorld',
     exports: ['readCameraWorld', 'HostCamera'],
     title: 'readCameraWorld()',
-    module: 'packages/sdk-browser/cameraWorld.ts',
+    module: 'packages/sdk-browser/src/camera/world.ts',
     signature:
       'readCameraWorld(into: EngineCamera, camera: HostCamera, aspect?: number): EngineCamera',
     description:
       "Resolves the host camera's ancestors, copies its world matrix, then applies `writeEngineCamera`. The only translation from a host camera, once per frame; `HostCamera` is a shape — pose, optics, world matrix, the host's own projection — not a type of the host's rendering library. `aspect` is the ratio the view is drawn at when it is not the one the camera declares: a surface capture renders the same camera aside, at the shape of the surface it writes into. The clip-depth convention is the engine's own, composed from the declared optics in reversed depth with an infinite far plane; nothing of the host's is read here.",
-    proof: 'cameraWorld.test.ts under a hostile rig; test/integration/moteur-sans-three.test.mjs',
+    proof:
+      'packages/sdk-browser/src/camera/world.test.ts under a hostile rig; tests/integration/engine-without-three.test.ts',
   },
   {
     ...HOST,
@@ -140,7 +145,7 @@ export const HOST_CAMERA: PortalEntry[] = [
     id: 'enginePose',
     exports: ['enginePose'],
     title: 'enginePose()',
-    module: 'packages/sdk-browser/cameraWorld.ts',
+    module: 'packages/sdk-browser/src/camera/world.ts',
     signature: 'enginePose(cam: EngineCamera): { position, quaternion }',
     description: 'The position and rotation of the drawn frame, read from the engine camera.',
     replaces: 'getWorldPosition(), getWorldQuaternion()',

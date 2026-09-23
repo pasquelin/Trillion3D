@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { launchChrome } from './mesure/chrome.ts';
-import { startServer, serverPort } from './mesure/serveur.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
+import { startServer, serverPort } from '../tests/kit/server/staticServer.ts';
 import { buildSite, SITE_OUTPUT } from './docs/site.ts';
 
 interface FossilProof {
