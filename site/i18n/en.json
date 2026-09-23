@@ -588,7 +588,7 @@
       "ambient": "Ambient light"
     },
     "model": {
-      "bust": "Marble bust",
+      "marble-bust": "Marble bust",
       "crates": "Crates",
       "hall": "Hall",
       "street-corner": "Street corner"
@@ -601,6 +601,8 @@
       "world": "World axes",
       "local": "Local axes"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Snap",
     "outliner": "Scene",
     "empty": "The scene is empty: add an object from the Add menu.",
@@ -640,13 +642,6 @@
       "radialSegments": "Radial segments",
       "tubularSegments": "Tube segments"
     },
-    "stats": "Engine statistics",
-    "cpu": "CPU frame (ms)",
-    "gpu": "GPU frame (ms)",
-    "triangles": "Triangles",
-    "pages": "Pages resident",
-    "sessions": "Sessions opened",
-    "statsHint": "Read from the last frame drawn; a still scene draws none.",
     "error": {
       "format": "This file holds a scene format this editor does not read.",
       "read": "The scene could not be read:"
