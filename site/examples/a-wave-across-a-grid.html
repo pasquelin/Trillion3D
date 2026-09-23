@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A wave across a grid of cubes</title>
+    <title>Wave of cubes</title>
     <meta name="thumbnail" content="3.2" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0b1020;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -22,11 +22,9 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { controls } from '../runtime/kit.js';
 
-      const info = banner('A wave across a grid of cubes', 'Double-click the floor to drop a stone. Drag to turn, scroll to zoom.');
       const world = createWorld('view', { controls: 'orbit' });
-      world.scene.background = math.color('#0b1020');
 
       // One box shape shared by every cube, and a palette of twelve materials from the centre
       // outwards: the engine groups what shares a shape and a material into one draw.
@@ -65,7 +63,6 @@
           mesh.scale.y = 0.2 + ui.height * (1 + wave);
           mesh.position.y = mesh.scale.y / 2;
         }
-        info.status(`${cubes.length.toLocaleString('en')} cubes, one shape, twelve materials`);
         world.invalidate();
       });
 

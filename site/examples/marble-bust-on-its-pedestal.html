@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A marble bust on its pedestal</title>
+    <title>Marble bust</title>
     <meta name="thumbnail" content="3" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0e1621;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -30,19 +30,17 @@
     <p>Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md</p>
     <script type="module">
       import { createWorld, light } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { controls } from '../runtime/kit.js';
 
-      const info = banner('A marble bust on its pedestal', 'A scanned model, loaded from its compiled file. Walk the lamp around the face; let the camera circle it.');
       const world = createWorld('view', { controls: 'orbit' });
       // A loaded model is a compiled cache: the compiler cut the glTF file and its textures into
       // clusters, and the engine streams in the ones the view needs.
       const bust = await world.scene.load('../assets/examples/bust/cache/native/full/manifest.json');
-      info.status(`${bust.metadata.sourceTriangles?.toLocaleString('en') ?? '?'} triangles in ${bust.metadata.clusters ?? '?'} clusters`);
 
       // A warm lamp that walks around the head, and a cool fill from the far side.
       const lamp = light.point({ intensity: 3, distance: 6, radius: 0.05, castShadow: true });
       world.scene.add(lamp, light.directional({ intensity: 0.5, color: '#8ca6e6', position: [-14, 4, 10] }));
-      world.camera.position.set(0.55, 0.45, 0.8);
+      world.camera.position.set(0.45, 0.4, 0.66);
       world.camera.lookAt(0, 0.22, 0);
       world.controls.target.set(0, 0.22, 0);
 

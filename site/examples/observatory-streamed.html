@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>An observatory streamed in clusters</title>
+    <title>Streamed clusters</title>
     <meta name="thumbnail" content="5" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0e1621;
+        background: #171d28;
       }
       canvas {
         display: block;
@@ -22,9 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, pose } from '../runtime/engine.js';
-      import { controls, banner } from '../runtime/kit.js';
+      import { controls } from '../runtime/kit.js';
 
-      const info = banner('An observatory streamed in clusters', 'Look inside the engine: colour the clusters, the pages or the level of detail. Raise the pixel error to draw coarser pieces.');
       const world = createWorld('view', { controls: 'orbit' });
       // The compiler cut the model into clusters of triangles, and each cluster into coarser
       // versions of itself. Every frame the engine picks, for each part of the view, the
@@ -33,15 +32,12 @@
       const framing = pose.fromBounds(model.bounds);
       world.camera.set(framing);
       world.controls.target.set(...framing.target);
-      world.camera.position.lerp(world.controls.target, 0.3);
+      world.camera.position.lerp(world.controls.target, 0.4);
 
       // `world.diagnostic.mode` swaps the image for a view of the engine's own work.
       controls({ view: ['clusters', 'beauty', 'pages', 'lod', 'triangles'], pixelError: [0, 16, 0, 0.5] }, (values) => {
         world.diagnostic.mode = values.view;
         world.pixelError = values.pixelError;
-      });
-      world.onFrame(({ metrics }) => {
-        info.status(`${metrics.selectedTriangles?.toLocaleString('en') ?? '?'} triangles drawn of ${model.metadata.sourceTriangles?.toLocaleString('en') ?? '?'} — ${metrics.residentPages ?? '?'} pages in memory`);
       });
       world.invalidate();
     </script>
