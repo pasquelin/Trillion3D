@@ -9,9 +9,9 @@
 use super::super::image as registry;
 
 mod bytes;
-mod refus;
-mod sans_compression;
-mod transfert;
+mod refusal;
+mod transfer;
+mod uncompressed;
 
 const MAX_ALLOC: u64 = 64 * 1024 * 1024;
 /// BCn blocks cover 4 × 4 pixels: the golden places exactly one per codec.

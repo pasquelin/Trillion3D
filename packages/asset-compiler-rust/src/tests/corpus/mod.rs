@@ -18,7 +18,7 @@ mod topology;
 mod uv;
 mod uv_degenerate;
 
-pub(super) use crate::bench_calculs::inputs::Xorshift;
+pub(super) use crate::compute_bench::inputs::Xorshift;
 
 /// The generator of a case: the benches' xorshift, its seed spread over the whole state so that
 /// neighbouring seeds draw unrelated cases. The same case on every platform, no libm in the way.

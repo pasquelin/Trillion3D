@@ -1,4 +1,4 @@
-//! Golden of the OpenEXR driver: files of `fixtures/exr/`, written here from the public
+//! Golden of the OpenEXR driver: files of `tests/fixtures/formats/exr/`, written here from the public
 //! specification, must yield exactly the float values written in the open below — half and
 //! single precision together, since the half-float extends to `f32` without rounding. And what
 //! leaves the subset must come out by its name, never as a panic or as an approximated image.

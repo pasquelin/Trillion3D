@@ -23,7 +23,7 @@ declare global {
 const root = resolve(import.meta.dirname, '../../..');
 const out = resolve(root, 'benchmark-runs/controles-camera-natifs');
 await mkdir(out, { recursive: true });
-const fixture = resolve(root, 'packages/asset-compiler-rust/fixtures/coplanar/three-stack');
+const fixture = resolve(root, 'tests/fixtures/formats/coplanar/three-stack');
 const compiler =
   process.env.WG_COMPILER ??
   resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');

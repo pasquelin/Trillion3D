@@ -1,4 +1,4 @@
-//! Golden of the PSD driver: fixtures of `fixtures/psd/`, written here from the specification
+//! Golden of the PSD driver: fixtures of `tests/fixtures/formats/psd/`, written here from the specification
 //! Adobe publishes for third-party readers, must yield exactly the pixels written in the open
 //! below. Raw surface and run-length compressed lines are two ways of writing the same
 //! composite, in PSD as in PSB — the golden proves it by comparing them to the same reference.
