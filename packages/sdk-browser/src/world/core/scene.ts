@@ -2,6 +2,10 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import type { LoadedModel } from './loadedModel.ts';
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { saveScene } from '../saved/write.ts';
+import { readScene } from '../saved/read.ts';
+import type { SavedScene } from '../saved/format.ts';
 
 /** What `scene.load` may be told about the model it loads; every field is optional. */
 export interface LoadOptions {
@@ -54,4 +58,23 @@ export class Scene extends Object3D {
     this.add(model);
     return model;
   }
+  /** The scene as plain JSON, versioned: its objects, shapes by the call that built them,
+   *  materials, lights and loaded models by address; `camera`'s pose too when one is given.
+   *  @param camera - A camera to save with the scene, `world.camera` most often. */
+  toJSON(camera?: Camera): SavedScene {
+    return saveScene(this, camera);
+  }
+  /** Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept;
+   *  resolves once its models are loaded. Another format or version is refused
+   *  (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in
+   *  order, each on what the one before left: two saved scenes never merge.
+   *  @param json - The saved scene. @param camera - A camera to put where the scene was saved from. */
+  fromJSON(json: unknown, camera?: Camera) {
+    const read = () => readScene(this, json, camera);
+    const next = this.reading.then(read, read);
+    this.reading = next.catch(() => undefined);
+    return next;
+  }
+  /** The last `fromJSON` under way, settled or not: the next one waits for it. */
+  private reading: Promise<void> = Promise.resolve();
 }

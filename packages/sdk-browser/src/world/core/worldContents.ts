@@ -109,6 +109,8 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     get staleCount() {
       return stale.size;
     },
+    /** The material entries repainted in place since the last call (`worldMaterials.ts`). */
+    repainted: materials.takeRepainted,
     /** `parent`'s children changed: read at the next resolve. */
     changed: members.changed,
     reopenNeeded: () => batches.waiting() || !same(openedModels, members.models),

@@ -1,5 +1,6 @@
 import { Object3D } from '../object/object3d.ts';
 import { readVec3, type Vec3Input } from '../math/vector3.ts';
+import { Ray } from '../math/volumes.ts';
 
 /** A named view: where the eye is, what it looks at, and optionally its field. */
 export interface CameraPose {
@@ -89,6 +90,31 @@ export class Camera extends Object3D {
   /** Kept for pages written against a renderer that needs it: every optic write already redraws. */
   updateProjectionMatrix() {
     this._link?.pose(this);
+  }
+  /**
+   * The world ray through a point of the picture, in the engine's own projection
+   * (`engineCamera.ts`): from the eye along the view for a perspective camera, straight down the
+   * view from the box for an orthographic one. Its direction is a unit vector.
+   * @param x - Left edge −1 to right edge 1. @param y - Bottom −1 to top 1.
+   * @param aspect - Width over height of the picture drawn. @param out - The ray written.
+   */
+  rayThrough(x: number, y: number, aspect: number, out = new Ray()) {
+    this.updateWorldMatrix(true, false);
+    const m = this.matrixWorld;
+    if (this.projection === 'perspective') {
+      const t = Math.tan((this.fov * Math.PI) / 360) / this.zoom;
+      out.origin.setFromMatrixPosition(m);
+      out.direction.set(x * t * aspect, y * t, -1);
+    } else {
+      const w = (this.right - this.left) / 2 / this.zoom,
+        h = (this.top - this.bottom) / 2 / this.zoom;
+      out.origin
+        .set((this.right + this.left) / 2 + x * w, (this.top + this.bottom) / 2 + y * h, 0)
+        .applyMatrix4(m);
+      out.direction.set(0, 0, -1);
+    }
+    out.direction.transformDirection(m);
+    return out;
   }
   /** Puts the eye at `pose.position`, looking at `pose.target`, at the field it names. */
   set(pose: CameraPose) {

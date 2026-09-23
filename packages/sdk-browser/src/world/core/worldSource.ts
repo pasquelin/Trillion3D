@@ -125,6 +125,7 @@ export function buildWorldSource(plan: WorldPlan) {
   return {
     root: mirror.root,
     twins: mirror.twins,
+    repaint: mirror.repaint,
     source: {
       manifestUrl: first?.manifestUrl ?? base,
       metadataUrl: first?.metadataUrl ?? base,

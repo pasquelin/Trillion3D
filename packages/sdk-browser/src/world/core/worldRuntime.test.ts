@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { light } from '../../../../sdk-core/src/world/light/light.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
-import { worldModelLoader } from './loadedModel.ts';
+import { worldModelLoader } from './worldLoader.ts';
 import { Scene } from './scene.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
 
@@ -30,7 +30,7 @@ after(() => {
 
 test('a model loaded after the lights still opens a session', async () => {
   const ready = Promise.resolve();
-  const scene = new Scene(worldModelLoader(ready, () => 'webgpu', undefined));
+  const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
   let attempted = false;
   const runtime = createWorldRuntime({
     canvas: { width: 1, height: 1 } as HTMLCanvasElement,
