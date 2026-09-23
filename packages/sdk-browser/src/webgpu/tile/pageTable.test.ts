@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebgpuTilePageTable, PAGE_HEADER_WORDS } from './pageTable.ts';
+import {
+  createWebgpuTilePageTable,
+  PAGE_HEADER_WORDS,
+  PAGE_SAMPLING_WORD,
+  PAGE_SLOT_WORDS,
+} from './pageTable.ts';
+import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from './sampling.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { entryLevel, entryPlace, MAX_LEVELS, packEntry, tileLayout } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
@@ -32,11 +39,12 @@ test('the table lays out headers, levels and entries, and finds a tile from its 
   const w = table.words;
   assert.equal(w[0], 1000);
   assert.equal(w[1], 3);
-  assert.equal(w[3], PAGE_HEADER_WORDS + 3 * 4);
+  assert.equal(w[3], PAGE_HEADER_WORDS + 3 * PAGE_SLOT_WORDS);
   assert.equal(w[2], w[3] + 3 * MAX_LEVELS);
-  assert.equal(w[PAGE_HEADER_WORDS + 4], 2048 | (1024 << 16));
-  assert.equal(w[PAGE_HEADER_WORDS + 5], 5, 'queue of 2048×1024: level 5, 64×32');
-  assert.equal(w[PAGE_HEADER_WORDS + 6], 11);
+  const second = PAGE_HEADER_WORDS + PAGE_SLOT_WORDS;
+  assert.equal(w[second], 2048 | (1024 << 16));
+  assert.equal(w[second + 1], 5, 'queue of 2048×1024: level 5, 64×32');
+  assert.equal(w[second + 2], 11);
   assert.equal(w[w[3] + 1 * MAX_LEVELS + 1], w[2] + 128, 'level 1 of texture 1, absolute');
   const key = { slot: 2, level: 1, tx: 1, ty: 1 };
   assert.equal(table.feedbackIndexOf(key), 1000 + 171 + 16 + 3);
@@ -102,9 +110,38 @@ test("a texture's queue is posted in its header with its lane, and sent alone", 
   writes.length = 0;
   table.setTail(1, { x: 4, y: 2, layer: 1 }, 2);
   table.flush(device);
-  assert.deepEqual(writes, [[PAGE_HEADER_WORDS + 4 + 3, 1]]);
-  assert.equal(table.words[PAGE_HEADER_WORDS + 7], 4 | (2 << 8) | (1 << 16) | (2 << 24));
+  assert.deepEqual(writes, [[PAGE_HEADER_WORDS + PAGE_SLOT_WORDS + 3, 1]]);
+  assert.equal(
+    table.words[PAGE_HEADER_WORDS + PAGE_SLOT_WORDS + 3],
+    4 | (2 << 8) | (1 << 16) | (2 << 24),
+  );
   const word = packEntry({ x: 4, y: 2, layer: 1 }, 3);
   assert.equal(entryLevel(word), 3);
   assert.deepEqual(entryPlace(word), { x: 4, y: 2, layer: 1 });
+});
+
+test("a texture's sampling rides in its header, and only the words that moved are sent", () => {
+  const { device, writes } = fakeDevice();
+  const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 });
+  const map = {
+    magFilter: 'nearest',
+    minFilter: 'linear-mip-linear',
+    anisotropy: 1,
+    transform: [4, 0, 0, 0, 4, 0, 0, 0, 1],
+  } as unknown as Texture & { transform: number[] };
+  const at = PAGE_HEADER_WORDS + 2 * PAGE_SLOT_WORDS + PAGE_SAMPLING_WORD;
+  writes.length = 0;
+  table.setSampling(2, map);
+  table.flush(device);
+  assert.deepEqual(writes, [[at, 5]], 'the filter word to the second scale, one span');
+  assert.equal(table.words[at], SAMPLE_MAG_NEAREST | SAMPLE_TRANSFORMED);
+  assert.deepEqual([...new Float32Array(table.words.buffer, (at + 1) * 4, 6)], [4, 0, 0, 4, 0, 0]);
+  writes.length = 0;
+  table.setSampling(2, map);
+  table.flush(device);
+  assert.deepEqual(writes, [], 'nothing moved, nothing sent');
+  map.transform[6] = 0.5;
+  table.setSampling(2, map);
+  table.flush(device);
+  assert.deepEqual(writes, [[at + 5, 1]], 'an offset alone sends its word');
 });

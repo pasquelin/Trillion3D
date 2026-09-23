@@ -1,12 +1,13 @@
 // The material fixtures of the witness comparison, one per feature the engine claims: base
-// colour, its map, alpha MASK at its cutoff, BLEND, emissive, metal-roughness, normal map and
-// double-sided. Each fixture is a square facing the camera, its material, where it is read and
+// colour, its map — repeated and turned, nearest —, alpha MASK at its cutoff, BLEND, emissive,
+// metal-roughness, normal map and double-sided. Each fixture is a square facing the camera, its material, where it is read and
 // how far the two images may differ there — and why.
 //
 // This module is SERVED to the harness page and imported by its URL: the materials are built
 // in the page, with the `three` of its import map, the one the SDK under `dist/` also loads.
 import * as THREE from 'three';
 import { VIEWPORT } from './sharedSceneProof.ts';
+import { checkerMap, colourMap, texture } from './materialImages.ts';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
 
 /** Side of the square viewport every fixture is rendered in, in pixels: `rgbAt` reads both
@@ -37,42 +38,6 @@ const QUADRANTS = [
   [SIZE * 0.68, SIZE * 0.68],
 ].map((p) => p.map(Math.round));
 const INSIDE = [CENTRE, ...QUADRANTS];
-
-/** A 2×2 image whose texels colour the four quadrants of the square: top-left, top-right,
- *  bottom-left, bottom-right on screen (`flipY` off, plane UVs). */
-function quadrantImage(texels: [number, number, number, number][]): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 2;
-  const ctx = canvas.getContext('2d')!;
-  const at = [
-    [0, 1],
-    [1, 1],
-    [0, 0],
-    [1, 0],
-  ];
-  texels.forEach(([r, g, b, a], i) => {
-    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-    ctx.fillRect(at[i][0], at[i][1], 1, 1);
-  });
-  return canvas;
-}
-
-/** A texture the two engines read the same way: nearest, unrepeated, in the declared space. */
-function texture(
-  texels: [number, number, number, number][],
-  colorSpace: THREE.ColorSpace = THREE.NoColorSpace,
-): THREE.CanvasTexture {
-  const map = new THREE.CanvasTexture(quadrantImage(texels));
-  map.colorSpace = colorSpace;
-  map.magFilter = map.minFilter = THREE.NearestFilter;
-  map.generateMipmaps = false;
-  map.flipY = false;
-  return map;
-}
-
-/** A base-colour map of four quadrants, in sRGB like every base colour. */
-const colourMap = (texels: [number, number, number, number][]) =>
-  texture(texels, THREE.SRGBColorSpace);
 
 /** A constant tangent-space normal, tilted toward +x, +y: a flat square that shades as a slope. */
 const TILTED_NORMAL: [number, number, number, number][] = Array.from({ length: 4 }, () => [
@@ -177,6 +142,32 @@ export const fixtures: Fixture[] = [
     difference: [44, 46],
     reason: 'linear blend before the display encode, display-space blend in the witness',
   }),
+  // #360: the four-colour map repeated four times each way and turned 30°, mixed under
+  // magnification. A read at the raw UV shows the four quadrants once, upright.
+  unlit(
+    'map repeated and turned',
+    () => {
+      const map = colourMap([
+        [255, 0, 0, 255],
+        [0, 255, 0, 255],
+        [0, 0, 255, 255],
+        [255, 255, 0, 255],
+      ]);
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.magFilter = THREE.LinearFilter;
+      map.repeat.set(4, 4);
+      map.rotation = Math.PI / 6;
+      return { map };
+    },
+    {
+      points: INSIDE,
+      difference: [0, 2],
+      reason: 'a mixed read between two texels, and the period seam the engine mixes by hand',
+    },
+  ),
+  // #361: at the quadrant points the square's UV falls 0.15 to 0.3 of a texel from an edge of
+  // the 8×8 checker: nearest reads one texel, black or white, the mixed read a grey.
+  unlit('nearest checker magnified', () => ({ map: checkerMap() }), { points: QUADRANTS }),
   unlit('double-sided back face', () => ({ color: 0x2299cc, side: THREE.DoubleSide }), {
     back: true,
   }),

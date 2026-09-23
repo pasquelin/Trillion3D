@@ -62,6 +62,12 @@ export function createWebgpuTileStreamer(options: {
     feedbackOffset: color.pages.entries,
     textures: options.data,
   });
+  // Each texture's filter and UV transform, in its header: written here, sent with the tails.
+  const resample = () => {
+    for (const atlas of [color, data])
+      atlas.textures.forEach(({ map }, slot) => map && atlas.pages.setSampling(slot, map));
+  };
+  resample();
   const feedback = createWebgpuTileFeedback(device, color.pages.entries + data.pages.entries);
   const reduce = createWebgpuTileReduce(device);
   const counters = createTileCounters();
@@ -139,6 +145,12 @@ export function createWebgpuTileStreamer(options: {
       if (colorChanged.size) options.onColorChanged(colorChanged);
       counters.pass(now() - started, unbounded);
       return { served, pending: counters.pending };
+    },
+    /** Sends the sampling of every texture whose record moved: a filter or a UV transform
+     *  written after the session opened. */
+    resample() {
+      resample();
+      flushAll();
     },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
      *  pass wrote it — is reduced to counters for the phase, copied to their readback then zeroed. */

@@ -19,6 +19,7 @@ import {
   TEXTURE_PREVIEW_VERSION,
   type TexturePreview,
 } from '../../../../../sdk-core/src/index.ts';
+import { refreshSurface, type PageSurface } from '../../../page/surface.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { TileTexture } from '../../tile/atlas.ts';
 
@@ -154,4 +155,19 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     minFilter: 'linear',
     mipmapFilter: 'linear',
   });
+}
+
+/**
+ * A repaint wrote a texture's filter or UV transform after the session opened (#335): each
+ * surface is reread once — the record of a texture is refilled with it (`../../../host/surfaceImport.ts`)
+ * — and every header whose sampling moved is sent. Nothing is rebuilt: no pool, no sampler, no
+ * bind group.
+ */
+export function resampleWebgpuTextures(rt: WebgpuPagesRuntime) {
+  const { allPages, blendCopies } = rt.setup,
+    surfaces = new Set<PageSurface>();
+  for (const rec of allPages) surfaces.add(rec.material);
+  for (const copy of blendCopies) surfaces.add(copy.surface);
+  for (const surface of surfaces) refreshSurface(surface);
+  rt.vis.textures?.resample();
 }

@@ -9,13 +9,13 @@ counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks 
 ```
 packages/
   sdk-core/src/       73 *.test.ts — unit tests, next to their source
-  sdk-browser/src/    349 *.test.ts
+  sdk-browser/src/    350 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
   integration/        20 *.test.ts — architecture, boundaries, public contracts
   browser/renders/    42 *.browser.ts — rendering in real Chromium
   browser/probes/     20 GPU probes + 32 support modules
-  browser/support/    67 pages and cases served to the render proofs
+  browser/support/    68 pages and cases served to the render proofs
   kit/                28 shared test tools: fake GPU devices, servers, assertions
   fixtures/           12 test data builders; formats/ holds the compiler goldens
 bench/
