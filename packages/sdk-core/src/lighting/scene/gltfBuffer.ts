@@ -71,7 +71,7 @@ export function createLightingGltfBuffer() {
       offset += chunk.byteLength;
     }
     const gltf: Record<string, unknown> = {
-      asset: { version: '2.0', generator: 'trillion3D lighting experiment' },
+      asset: { version: '2.0', generator: 'Trillion3D lighting experiment' },
       scene: 0,
       scenes: [{ nodes: nodes.map((_, i) => i) }],
       nodes,

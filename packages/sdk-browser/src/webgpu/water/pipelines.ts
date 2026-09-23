@@ -37,7 +37,7 @@ export function createWaterCompositeLayout(device: GPUDevice) {
   const b = WATER_BINDINGS,
     fragment = GPUShaderStage.FRAGMENT;
   return device.createBindGroupLayout({
-    label: 'WG water composite',
+    label: 'Trillion3D water composite',
     entries: [
       ...deferredLayoutEntries(true, true, readOnly),
       { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },

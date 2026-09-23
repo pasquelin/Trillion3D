@@ -15,12 +15,12 @@ export async function readGpuBuffer(
 ): Promise<Uint32Array | undefined> {
   if (bytes < 4 || typeof device.createBuffer !== 'function') return undefined;
   const staging = device.createBuffer({
-    label: 'WG buffer readback',
+    label: 'Trillion3D buffer readback',
     size: bytes,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
   try {
-    const encoder = device.createCommandEncoder({ label: 'WG buffer readback' });
+    const encoder = device.createCommandEncoder({ label: 'Trillion3D buffer readback' });
     encoder.copyBufferToBuffer(source, 0, staging, 0, bytes);
     device.queue.submit([encoder.finish()]);
     await staging.mapAsync(GPUMapMode.READ);
@@ -47,12 +47,12 @@ export async function readGpuTextureR32F(
   if (width < 1 || height < 1 || typeof device.createBuffer !== 'function') return undefined;
   const bytesPerRow = readbackBytesPerRow(width);
   const staging = device.createBuffer({
-    label: 'WG r32float readback',
+    label: 'Trillion3D r32float readback',
     size: bytesPerRow * height,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
   try {
-    const encoder = device.createCommandEncoder({ label: 'WG r32float readback' });
+    const encoder = device.createCommandEncoder({ label: 'Trillion3D r32float readback' });
     encoder.copyTextureToBuffer(
       { texture },
       { buffer: staging, bytesPerRow, rowsPerImage: height },

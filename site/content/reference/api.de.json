@@ -1631,7 +1631,7 @@
     "summary": "Exklusive Präfixsumme."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "Vollständiges JSON-Schema, das alle Startoptionen des trillion3D-Explorers dokumentiert (MeasuredWorldOptions).",
+    "summary": "Vollständiges JSON-Schema, das alle Startoptionen des Trillion3D-Explorers dokumentiert (MeasuredWorldOptions).",
     "description": "Ermöglicht LLMs, die Konfiguration der 3D-Engine zu verstehen, zu prüfen und einzustellen."
   },
   "exportLightingGltf": {
@@ -2067,7 +2067,7 @@
     "summary": "Erstellt die einsatzbereite Experten-Systemaufforderung, um ein LLM vorzubereiten."
   },
   "getTrillion3dTools": {
-    "summary": "Gibt das vollständige Array der trillion3D-Werkzeugdefinitionen im Format des Ziel-LLM-Anbieters zurück.",
+    "summary": "Gibt das vollständige Array der Trillion3D-Werkzeugdefinitionen im Format des Ziel-LLM-Anbieters zurück.",
     "parameters": {
       "format": "Zielformat ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Standard: 'openai'."
     }
@@ -5946,13 +5946,13 @@
     }
   },
   "toAnthropicTool": {
-    "summary": "Wandelt ein generisches trillion3D-Werkzeug in das Tool-Use-Format von Anthropic um."
+    "summary": "Wandelt ein generisches Trillion3D-Werkzeug in das Tool-Use-Format von Anthropic um."
   },
   "toGeminiTool": {
-    "summary": "Wandelt ein generisches trillion3D-Werkzeug in das Function-Declaration-Format von Google Gemini um."
+    "summary": "Wandelt ein generisches Trillion3D-Werkzeug in das Function-Declaration-Format von Google Gemini um."
   },
   "toMcpTool": {
-    "summary": "Wandelt ein generisches trillion3D-Werkzeug in das Format des Model Context Protocol (MCP) um."
+    "summary": "Wandelt ein generisches Trillion3D-Werkzeug in das Format des Model Context Protocol (MCP) um."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Die Kurven, die die Radianz der Szene in den Bildschirmbereich zurückbringen, im Rang, den die Shader lesen.",
@@ -5994,7 +5994,7 @@
     "summary": "Der Name einer Kurve, die das Licht der Szene in Bildschirmfarben umwandelt."
   },
   "toOpenAiTool": {
-    "summary": "Wandelt ein generisches trillion3D-Werkzeug in das Function-Calling-Format von OpenAI um."
+    "summary": "Wandelt ein generisches Trillion3D-Werkzeug in das Function-Calling-Format von OpenAI um."
   },
   "Track": {
     "summary": "Zu Zeitpunkten abgetastete Werte: `values` enthält `values.length / times.length` Zahlen pro Schlüssel.",
@@ -6280,13 +6280,13 @@
     "summary": "Schreibt `view` ohne seine Translation: die Sicht einer Kamera derselben Ausrichtung, platziert am Ursprung des Render-Bezugssystems."
   },
   "TRILLION3D_RUNTIME_TOOLS": {
-    "summary": "Vollständiger Katalog der Werkzeuge und Laufzeitfunktionen, die zur Verfügung stehen, um trillion3D von einem LLM aus zu steuern."
+    "summary": "Vollständiger Katalog der Werkzeuge und Laufzeitfunktionen, die zur Verfügung stehen, um Trillion3D von einem LLM aus zu steuern."
   },
   "TRILLION3D_SYSTEM_PROMPT": {
-    "summary": "Systemaufforderung, die ein LLM zu den Prinzipien, Budgets und Rendering-Optionen von trillion3D anleitet."
+    "summary": "Systemaufforderung, die ein LLM zu den Prinzipien, Budgets und Rendering-Optionen von Trillion3D anleitet."
   },
   "Trillion3dTool": {
-    "summary": "Generische Definition eines trillion3D-Werkzeugs für LLMs.",
+    "summary": "Generische Definition eines Trillion3D-Werkzeugs für LLMs.",
     "members": {
       "name": "Der Name des Werkzeugs.",
       "description": "Was es tut.",

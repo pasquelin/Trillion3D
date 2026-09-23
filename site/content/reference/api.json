@@ -3537,7 +3537,7 @@
     "kind": "Constant",
     "title": "EXPLORER_OPTIONS_SCHEMA",
     "signature": "const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject",
-    "summary": "Comprehensive JSON Schema documenting all initialization options for the trillion3D explorer (MeasuredWorldOptions).",
+    "summary": "Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).",
     "description": "Enables LLMs to understand, validate, and tune the 3D engine configuration."
   },
   {
@@ -13919,7 +13919,7 @@
     "kind": "Constant",
     "title": "TRILLION3D_RUNTIME_TOOLS",
     "signature": "const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[]",
-    "summary": "Complete catalog of tools and runtime functions available to control trillion3D from an LLM.",
+    "summary": "Complete catalog of tools and runtime functions available to control Trillion3D from an LLM.",
     "description": ""
   },
   {
@@ -13929,8 +13929,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "TRILLION3D_SYSTEM_PROMPT",
-    "signature": "const TRILLION3D_SYSTEM_PROMPT: 'You are an expert on the trillion3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for the...",
-    "summary": "System prompt guiding an LLM on trillion3D principles, budgets, and rendering options.",
+    "signature": "const TRILLION3D_SYSTEM_PROMPT: 'You are an expert on the Trillion3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for the...",
+    "summary": "System prompt guiding an LLM on Trillion3D principles, budgets, and rendering options.",
     "description": ""
   },
   {
@@ -15826,7 +15826,7 @@
     "kind": "Type",
     "title": "Trillion3dTool",
     "signature": "interface Trillion3dTool",
-    "summary": "Generic trillion3D tool definition for LLMs.",
+    "summary": "Generic Trillion3D tool definition for LLMs.",
     "members": [
       {
         "name": "name",
@@ -23100,7 +23100,7 @@
     "kind": "Function",
     "title": "getTrillion3dTools()",
     "signature": "getTrillion3dTools(format: 'openai'): OpenAiToolDefinition[]\ngetTrillion3dTools(format: 'anthropic'): AnthropicToolDefinition[]\ngetTrillion3dTools(format: 'gemini'): GeminiFunctionDeclaration[]\ngetTrillion3dTools(format: 'mcp'): McpToolDefinition[]\ngetTrillion3dTools(format: 'json-schema'): Trillion3dTool[]\ngetTrillion3dTools(format?: LlmToolFormat): unknown[]",
-    "summary": "Returns the complete array of trillion3D tool definitions formatted for the target LLM provider.",
+    "summary": "Returns the complete array of Trillion3D tool definitions formatted for the target LLM provider.",
     "parameters": [
       {
         "name": "format",
@@ -30927,7 +30927,7 @@
     "kind": "Function",
     "title": "toAnthropicTool()",
     "signature": "toAnthropicTool(tool: Trillion3dTool): AnthropicToolDefinition",
-    "summary": "Converts a generic trillion3D tool into Anthropic Tool Use format.",
+    "summary": "Converts a generic Trillion3D tool into Anthropic Tool Use format.",
     "parameters": [
       {
         "name": "tool",
@@ -30949,7 +30949,7 @@
     "kind": "Function",
     "title": "toGeminiTool()",
     "signature": "toGeminiTool(tool: Trillion3dTool): GeminiFunctionDeclaration",
-    "summary": "Converts a generic trillion3D tool into Google Gemini Function Declaration format.",
+    "summary": "Converts a generic Trillion3D tool into Google Gemini Function Declaration format.",
     "parameters": [
       {
         "name": "tool",
@@ -30971,7 +30971,7 @@
     "kind": "Function",
     "title": "toMcpTool()",
     "signature": "toMcpTool(tool: Trillion3dTool): McpToolDefinition",
-    "summary": "Converts a generic trillion3D tool into Model Context Protocol (MCP) format.",
+    "summary": "Converts a generic Trillion3D tool into Model Context Protocol (MCP) format.",
     "parameters": [
       {
         "name": "tool",
@@ -30993,7 +30993,7 @@
     "kind": "Function",
     "title": "toOpenAiTool()",
     "signature": "toOpenAiTool(tool: Trillion3dTool): OpenAiToolDefinition",
-    "summary": "Converts a generic trillion3D tool into OpenAI Function Calling format.",
+    "summary": "Converts a generic Trillion3D tool into OpenAI Function Calling format.",
     "parameters": [
       {
         "name": "tool",

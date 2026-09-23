@@ -17,27 +17,27 @@ export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
   const rows = Math.max(1, slotCap);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const corners = device.createBuffer({
-    label: 'WG partition corners v1',
+    label: 'Trillion3D partition corners v1',
     size: rows * CORNER_VALUES * 4,
     usage: storage,
   });
   const rowData = device.createBuffer({
-    label: 'WG partition rows v1',
+    label: 'Trillion3D partition rows v1',
     size: rows * ROW_DATA_U32 * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });
   const tested = device.createBuffer({
-    label: 'WG partition tested bounds v1',
+    label: 'Trillion3D partition tested bounds v1',
     size: rows * TESTED_U32 * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });
   const state = device.createBuffer({
-    label: 'WG partition state v1',
+    label: 'Trillion3D partition state v1',
     size: STATE_WORDS * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });
   const uniforms = device.createBuffer({
-    label: 'WG partition uniform v1',
+    label: 'Trillion3D partition uniform v1',
     size: UNIFORM_U32 * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
