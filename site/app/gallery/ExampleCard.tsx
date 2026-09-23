@@ -1,12 +1,13 @@
+import { useWords } from '../i18n.ts';
+import { localized } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { CatalogExample } from '../../content/catalog.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Card } from '../ui/Card.tsx';
 import { Note } from '../ui/Text.tsx';
-import { t } from '../../content/i18n/index.ts';
 import { routeHref } from '../portal/routes.ts';
 import { GeometryPreview } from './WebGPUCanvas.tsx';
-import { themeLabel, themeOf } from './lessonThemes.ts';
+import { themeOf } from './lessonThemes.ts';
 import { local } from '../../content/locale.ts';
 import type { Localized } from '../../content/locale.ts';
 
@@ -15,11 +16,8 @@ export const engineExample: CatalogExample = {
   category: 'streaming',
   engine: true,
   functions: ['WebGPU', 'LOD', 'streaming'],
-  title: { en: 'Live streamed geometry', fr: 'Géométrie streamée en direct' },
-  description: {
-    en: 'Actual streaming and LOD pipeline.',
-    fr: 'Pipeline réel de streaming et LOD.',
-  },
+  title: localized(({ gallery }) => gallery.engineTitle),
+  description: localized(({ gallery }) => gallery.engineDescription),
 };
 
 interface PreviewProps {
@@ -29,6 +27,7 @@ interface PreviewProps {
 }
 
 function Preview({ example, locale, title }: PreviewProps) {
+  const t = useWords(locale);
   if (example.engine)
     return (
       <img
@@ -36,11 +35,7 @@ function Preview({ example, locale, title }: PreviewProps) {
         loading="lazy"
         decoding="async"
         src="./assets/kinetic-garden/preview.png"
-        alt={
-          locale === 'fr'
-            ? 'Jardin géométrique rendu par WebGPU'
-            : 'Geometry garden rendered by WebGPU'
-        }
+        alt={t('gallery.engineAlt')}
       />
     );
   if (example.renderer || example.preview)
@@ -50,7 +45,7 @@ function Preview({ example, locale, title }: PreviewProps) {
         loading="lazy"
         decoding="async"
         src={example.preview ?? './assets/kinetic-garden/preview.png'}
-        alt={locale === 'fr' ? 'Aperçu de la scène WebGPU' : 'WebGPU scene preview'}
+        alt={t('gallery.previewAlt')}
       />
     );
   return (
@@ -71,8 +66,8 @@ interface ExampleCardProps {
 }
 
 export function ExampleCard({ example, locale = 'en', href, badge }: ExampleCardProps) {
+  const t = useWords(locale);
   const title = local(example.title, locale);
-  const engineBadge = locale === 'fr' ? 'Scène moteur' : 'Engine scene';
   return (
     <a
       className="block h-full rounded-box focus-visible:outline-2 focus-visible:outline-primary"
@@ -83,7 +78,7 @@ export function ExampleCard({ example, locale = 'en', href, badge }: ExampleCard
           <Preview example={example} locale={locale} title={title} />
         </div>
         <Badge tone="primary" soft>
-          {badge ?? (example.engine ? engineBadge : themeLabel(themeOf(example), locale))}
+          {badge ?? (example.engine ? t('gallery.engineBadge') : t(`themes.${themeOf(example)}`))}
         </Badge>
         <h2 className="card-title text-lg">{title}</h2>
         {example.description && (
@@ -107,6 +102,7 @@ interface PendingProps {
 /** An example still to come: its title, "in progress", and — when it waits for the engine — the
  * feature it waits for. It opens nothing. */
 export function PendingExampleCard({ title, locale, missing }: PendingProps) {
+  const t = useWords(locale);
   return (
     <div aria-disabled="true" className="h-full opacity-75">
       <Card className="h-full overflow-hidden shadow-sm">
@@ -117,10 +113,10 @@ export function PendingExampleCard({ title, locale, missing }: PendingProps) {
           loading="lazy"
         />
         <Badge tone="info" soft>
-          {t(locale, 'examples.inProgress')}
+          {t('examples.inProgress')}
         </Badge>
         <h2 className="card-title text-lg">{title}</h2>
-        {missing && <Note>{`${t(locale, 'examples.waitsFor')} ${missing}`}</Note>}
+        {missing && <Note>{`${t('examples.waitsFor')} ${missing}`}</Note>}
       </Card>
     </div>
   );

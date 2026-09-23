@@ -1,53 +1,6 @@
+import { dictionaryOf, wordFor } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 
-const labels: Record<Locale, Record<string, string>> = {
-  en: {
-    tx: 'Translation x',
-    angle: 'Rotation',
-    scale: 'Scale',
-    parent: 'Parent angle',
-    child: 'Child offset',
-    fov: 'Field of view',
-    depth: 'Depth',
-    x: 'X',
-    angleA: 'Arrow a',
-    angleB: 'Arrow b',
-    y: 'Y',
-    points: 'Points',
-    width: 'Width',
-    height: 'Height',
-    childX: 'Child offset',
-    left: 'Left grey',
-    right: 'Right grey',
-    base: 'Base error',
-    frame: 'Frame time',
-    budget: 'Budget',
-    scaleY: 'Vertical scale',
-  },
-  fr: {
-    tx: 'Translation x',
-    angle: 'Rotation',
-    scale: 'Échelle',
-    parent: 'Angle parent',
-    child: 'Décalage enfant',
-    fov: 'Champ de vision',
-    depth: 'Profondeur',
-    x: 'X',
-    angleA: 'Flèche a',
-    angleB: 'Flèche b',
-    y: 'Y',
-    points: 'Points',
-    width: 'Largeur',
-    height: 'Hauteur',
-    childX: 'Décalage enfant',
-    left: 'Gris gauche',
-    right: 'Gris droit',
-    base: 'Erreur de base',
-    frame: 'Temps de trame',
-    budget: 'Budget',
-    scaleY: 'Échelle verticale',
-  },
-};
-
-export const controlLabel = (name: string, locale: Locale): string | undefined =>
-  labels[locale][name];
+/** The label of a lesson's control in `locale`, its `controls.<name>`, when the name has one. */
+export const controlLabel = (name: string, locale: Locale) =>
+  wordFor(dictionaryOf(locale).controls, name);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useWords } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import { routeHref } from '../portal/routes.ts';
 import { Card } from '../ui/Card.tsx';
@@ -6,7 +7,7 @@ import { local } from '../../content/locale.ts';
 import { showcaseScenes as scenes } from '../../content/showcase.ts';
 
 export function GalleryShowcase({ locale }: { locale: Locale }) {
-  const french = locale === 'fr',
+  const t = useWords(locale),
     [selectedId, setSelectedId] = useState(scenes[0].id),
     selected = scenes.find(({ id }) => id === selectedId) ?? scenes[0];
   return (
@@ -15,7 +16,7 @@ export function GalleryShowcase({ locale }: { locale: Locale }) {
         <div
           className="grid grid-cols-1 gap-3 sm:grid-cols-2"
           role="list"
-          aria-label={french ? 'Scènes à la une' : 'Featured scenes'}
+          aria-label={t('gallery.featuredScenes')}
         >
           {scenes.map((scene) => (
             <div key={scene.id} role="listitem">
@@ -42,7 +43,7 @@ export function GalleryShowcase({ locale }: { locale: Locale }) {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-primary">
-                {french ? 'Scène à la une' : 'Featured scene'}
+                {t('gallery.featuredScene')}
               </p>
               <h2 className="mt-1 text-2xl font-bold">{local(selected.title, locale)}</h2>
               <p className="mt-2 max-w-3xl opacity-75">{local(selected.description, locale)}</p>

@@ -1,3 +1,4 @@
+import { createOrbitCameraControls } from './orbitControls.ts';
 import type { ControlCamera, ControlVector } from './types.ts';
 
 /**
@@ -160,4 +161,20 @@ export function fixturePinch(
   fire('pointerdown', from);
   fire('pointermove', to);
   fire('pointerup', to);
+}
+
+/** Rounded, and `+ 0` so a negative zero reads as the zero a reader expects. */
+export const round = (value: number, digits = 6) => Number(value.toFixed(digits)) + 0;
+/** Where a camera stands, rounded. */
+export const at = ({ position }: { position: { x: number; y: number; z: number } }) =>
+  [round(position.x), round(position.y), round(position.z)] as const;
+
+/** An orbit `distance` away on +Z of a 400-pixel surface, with its emissions counted. */
+export function fixtureOrbit(distance = 10) {
+  const camera = fixtureCamera(0, 0, distance),
+    surface = fixtureSurface(400);
+  const controls = createOrbitCameraControls(camera, surface.element);
+  let changes = 0;
+  controls.addEventListener('change', () => changes++);
+  return { camera, surface, controls, changes: () => changes };
 }

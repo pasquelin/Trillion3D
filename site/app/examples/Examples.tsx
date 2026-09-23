@@ -1,4 +1,4 @@
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import { ExampleCard, PendingExampleCard } from '../gallery/ExampleCard.tsx';
@@ -11,8 +11,9 @@ import { themedEntries, thumbnailOf } from './list.ts';
 /** The Examples landing page, theme by theme: one card per ready example, its settled render as
  * thumbnail, opening the example; then one card per example still in progress, opening nothing. */
 export function Examples({ locale }: { locale: Locale }) {
+  const t = useWords(locale);
   return (
-    <DocPage data-examples title={t(locale, 'nav.examples')} lead={t(locale, 'examples.lead')}>
+    <DocPage data-examples title={t('nav.examples')} lead={t('examples.lead')}>
       {themedEntries.map(({ theme, entries }) => (
         <Section key={theme.id} title={local(theme.title, locale)}>
           <Grid>

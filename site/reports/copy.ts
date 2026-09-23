@@ -1,3 +1,4 @@
+import { local } from '../content/locale.ts';
 import type { Locale } from '../content/locale.ts';
 import type { MetricKey } from './metrics.ts';
 
@@ -164,7 +165,7 @@ const COPY = {
       'Une durée plus basse signifie moins de temps passé. Les triangles et la mémoire décrivent le travail et les allocations ; ce ne sont pas des mesures de vitesse.',
   },
 };
-export const reportCopy = (locale: Locale) => COPY[locale] ?? COPY.en;
+export const reportCopy = (locale: Locale) => local(COPY, locale);
 export const METRIC_COPY: Record<MetricKey, [string, string]> = {
   textureBudget: ['Recorded texture budget', 'Budget de textures enregistré'],
   gpu: ['GPU frame envelope', 'Enveloppe GPU de l’image'],

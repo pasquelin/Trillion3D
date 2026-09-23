@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useWords } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import { LearningCards } from '../ui/LearningCards.tsx';
 import { CodeEditor } from '../ui/CodeEditor.tsx';
@@ -52,16 +53,16 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   }, [example.id]);
   const result = useMemo(() => evaluate(example.id, state, locale), [example.id, state, locale]),
     guidance = guidanceFor(example.id, locale),
-    french = locale === 'fr',
     initialCode = useMemo(() => codeFor(example.id, initialState(example.id)), [example.id]);
   const motion = usePlaygroundMotion(scenario, setState);
+  const t = useWords(locale);
   const choose = (next: string) => {
     setState(initialState(next));
     onSelect?.(next);
   };
   const controls = (
     <LessonControls
-      title={french ? 'Commandes de l’expérience' : 'Experiment controls'}
+      title={t('playground.controls')}
       picker={experimentPicker(example.id, locale, choose)}
       controls={scenario.controls.map(([name, min, max, , step]): LessonControl => ({
         kind: 'range',
@@ -84,14 +85,14 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
               setState(initialState(example.id));
             }}
           >
-            {french ? 'Réinitialiser' : 'Reset'}
+            {t('playground.reset')}
           </Button>
           <Button size="sm" variant="outline" onClick={motion.applyPreset}>
-            {french ? 'Préréglage' : 'Preset'}
+            {t('playground.preset')}
           </Button>
           {scenario.animated && (
             <Button size="sm" variant="primary" onClick={motion.toggle}>
-              {motion.playing ? (french ? 'Pause' : 'Pause') : french ? 'Animer' : 'Animate'}
+              {t(motion.playing ? 'playground.pause' : 'playground.animate')}
             </Button>
           )}
         </>
@@ -126,11 +127,7 @@ function MathPlayground({ id, locale = 'en', onSelect }: PlaygroundProps) {
   );
   const note = (
     <>
-      <Note>
-        {french
-          ? 'Illustration mathématique 3D ; la scène moteur montre le streaming réel.'
-          : '3D mathematical illustration; the engine scene shows actual streaming.'}
-      </Note>
+      <Note>{t('playground.mathNote')}</Note>
       <Diagram id={example.id} state={state} locale={locale} label={local(example.title, locale)} />
     </>
   );

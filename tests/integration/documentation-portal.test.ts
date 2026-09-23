@@ -138,7 +138,7 @@ test('every demo belongs to an entry of the portal', () => {
 });
 
 test('an entry in development names a listed issue, and every section is filled', () => {
-  const sections = new Set(SECTIONS.map((section) => section.id));
+  const sections = new Set(SECTIONS);
   const filled = new Set();
   const ids = new Set();
   for (const entry of ENTRIES) {

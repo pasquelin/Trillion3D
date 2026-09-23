@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useWords, wordsOf } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { IllustrationSession } from '../../lessons/webgpuSession.ts';
 import { Canvas } from '../ui/Canvas.tsx';
@@ -75,11 +76,7 @@ export function WebGPUCanvas({
             value.update(latestState.current);
           } else value.dispose();
         })
-        .catch(
-          () =>
-            active &&
-            setError(locale === 'fr' ? 'Rendu 3D indisponible.' : '3D rendering unavailable.'),
-        );
+        .catch(() => active && setError(wordsOf(locale)('playground.unavailable3d')));
     };
     if (preview && 'IntersectionObserver' in window) {
       observer = new IntersectionObserver(
@@ -106,7 +103,7 @@ export function WebGPUCanvas({
   useEffect(() => {
     mounted.current?.setAnimating?.(animating);
   }, [animating]);
-  const french = locale === 'fr';
+  const t = useWords(locale);
   // A card preview keeps its 16/9 box and a related illustration its own size; a lesson's viewport
   // is the one that fills the column it is given.
   const shell = preview
@@ -118,18 +115,12 @@ export function WebGPUCanvas({
       {!preview && (
         <StatGroup data-geometry-stats>
           <Stat title="FPS" valueProps={{ 'data-geometry-fps': true }}>
-            {french ? 'Pause' : 'Paused'}
+            {t('playground.paused')}
           </Stat>
-          <Stat
-            title={french ? 'Encodage CPU' : 'CPU encode'}
-            valueProps={{ 'data-geometry-cpu': true }}
-          >
+          <Stat title={t('playground.cpuEncode')} valueProps={{ 'data-geometry-cpu': true }}>
             —
           </Stat>
-          <Stat
-            title={french ? 'Buffers visuels' : 'Visual buffers'}
-            valueProps={{ 'data-geometry-memory': true }}
-          >
+          <Stat title={t('playground.visualBuffers')} valueProps={{ 'data-geometry-memory': true }}>
             —
           </Stat>
         </StatGroup>

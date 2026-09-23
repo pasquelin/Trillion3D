@@ -1,17 +1,15 @@
 // The API reference covers the whole published interface of `web-geometry`: every export of its
 // three conditions (common, browser, Node), every member of every family and of the world, each
-// with a summary of its own and every row explained, in English and in French.
+// with a summary of its own and every row explained; its translations are `scripts/i18n-keys.ts`'s.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import generated from '../site/content/reference/api.json' with { type: 'json' };
-import french from '../site/content/reference/api.fr.json' with { type: 'json' };
 import * as browser from '../packages/sdk/browser.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { expandEntryLinks } from '../site/app/portal/entryLinks.ts';
 import { LEARN_SECTIONS } from '../site/app/portal/routes.ts';
-import { NOTES, REFERENCE } from '../site/content/entries/reference.ts';
-import { rowKey, type ReferenceFrench } from '../site/content/i18n/reference.fr.ts';
+import { NOTES } from '../site/content/entries/reference.ts';
 import { entrySummary, FAMILIES, SECTIONS } from '../site/content/model.ts';
 import type { PortalEntry } from '../site/content/model.ts';
 import { repositoryFiles } from './repository-files.ts';
@@ -61,12 +59,11 @@ test('no two items of the index lead to the same page', () => {
 });
 
 test('the reference opens on the world and its families, each entry in its module section', () => {
-  const order = SECTIONS.map(({ id }) => id);
-  const families = order.slice(order.indexOf('world'), order.indexOf('math-utilities'));
+  const families = SECTIONS.slice(SECTIONS.indexOf('world'), SECTIONS.indexOf('math-utilities'));
   assert.equal(families[0], 'world');
   for (const id of families.slice(1))
     assert.ok(id === 'constants' || FAMILIES.includes(id), `${id} is not a family`);
-  const sections = new Set(order);
+  const sections = new Set(SECTIONS);
   for (const entry of api)
     assert.ok(sections.has(entry.section), `${entry.id}: unknown section ${entry.section}`);
 });
@@ -88,28 +85,4 @@ test('every code an EngineError is thrown with is explained on its page', () => 
 test('a written note completes a generated entry, never stands alone', () => {
   const generatedIds = new Set((generated as PortalEntry[]).map(({ id }) => id));
   for (const id of NOTES.keys()) assert.ok(generatedIds.has(id), `note ${id} completes nothing`);
-});
-
-test('every generated entry and row is in French, and the French names nothing else', () => {
-  const table = french as Record<string, ReferenceFrench>;
-  const shown = new Map(REFERENCE.map((entry) => [entry.id, entry]));
-  for (const id of Object.keys(table)) assert.ok(shown.has(id), `api.fr.json: ${id} is not shown`);
-  for (const entry of REFERENCE) {
-    const text = table[entry.id];
-    assert.ok(text?.summary, `${entry.id} has no French summary`);
-    if (entry.description && !NOTES.get(entry.id)?.description)
-      assert.ok(text.description, `${entry.id} has no French description`);
-    if (entry.returns?.desc) assert.ok(text.returns, `${entry.id} has no French return`);
-    const values = NOTES.get(entry.id)?.values ? undefined : entry.values;
-    for (const [rows, french] of [
-      [entry.parameters, text.parameters],
-      [entry.members, text.members],
-      [values, text.values],
-    ] as const) {
-      const keys = new Set((rows ?? []).filter(({ desc }) => desc).map(({ name }) => rowKey(name)));
-      for (const key of keys) assert.ok(french?.[key], `${entry.id}: ${key} has no French`);
-      for (const key of Object.keys(french ?? {}))
-        assert.ok(keys.has(key), `api.fr.json: ${entry.id}.${key} names no row`);
-    }
-  }
 });

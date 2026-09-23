@@ -29,6 +29,7 @@ export const VALIDATE_GROUPS = {
     'check:docs-three',
     'check:sdk-facade',
     'check:api-reference',
+    'check:i18n',
   ],
   typescript: [
     'build',
