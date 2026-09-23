@@ -78,6 +78,12 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     updatePlacements(rows, from, to) {
       updateWebgpuPlacements(rt, rows, from, to);
     },
+    refreshMaterials() {
+      // Every row is written again at the next frame, and the writer rereads each surface whose
+      // version moved (`row/pageRowConstants.ts`); only values changed, so no resolve class did.
+      rt.layout.rows.tableEpoch++;
+      run.gate.sceneMoved();
+    },
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     async prepare() {
       context.signal?.throwIfAborted();
@@ -91,6 +97,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
         await prepareWebgpuPages(rt, gpuDevice);
         // The batch of root world boxes is reserved last: the module's linear memory will no
         // longer grow behind it, and a node move will allocate nothing more.
+        context.preparationStep?.('root boxes');
         rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
       } catch (error) {
         diag.diagnosticFailure('webgpu-prepare-failed', error);

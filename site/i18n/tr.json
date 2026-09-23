@@ -405,7 +405,6 @@
       "gltf-material-variants": "more glTF extensions: material variants",
       "compressed-mesh-input": "more glTF extensions: Draco, meshopt, quantisation",
       "a-medical-scan": "volume rendering",
-      "save-the-scene": "scene export",
       "a-city-from-3d-tiles": "3D Tiles input",
       "rendering-in-a-worker": "OffscreenCanvas worker rendering",
       "a-video-panorama": "live video textures",
@@ -435,14 +434,12 @@
       "flames-and-a-tornado": "custom shader materials",
       "point-clouds-from-a-scan": "point-cloud import",
       "gaussian-splats": "gaussian splat rendering",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) and transform gizmo",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "positional audio",
       "smooth-edges-over-time": "the temporal antialiasing setting",
@@ -558,6 +555,103 @@
     "title": "Canlı dene",
     "start": "Bir örnekten başla",
     "open": "Sandbox'ta aç"
+  },
+  "editor": {
+    "title": "Scene editor",
+    "group": "Tools",
+    "showcase": "Open the scene editor",
+    "loading": "Preparing the editor…",
+    "canvas": "Scene view: click an object to select it, drag to turn the camera",
+    "menu": {
+      "file": "File",
+      "add": "Add",
+      "edit": "Edit",
+      "models": "Models"
+    },
+    "new": "New",
+    "openFile": "Open…",
+    "save": "Save",
+    "undo": "Undo",
+    "redo": "Redo",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "add": {
+      "box": "Box",
+      "sphere": "Sphere",
+      "cylinder": "Cylinder",
+      "cone": "Cone",
+      "torus": "Torus",
+      "plane": "Plane",
+      "group": "Group",
+      "point": "Point light",
+      "spot": "Spot light",
+      "directional": "Directional light",
+      "ambient": "Ambient light"
+    },
+    "model": {
+      "bust": "Marble bust",
+      "crates": "Crates",
+      "hall": "Hall",
+      "street-corner": "Street corner"
+    },
+    "tools": "Transform tools",
+    "translate": "Move (W)",
+    "rotate": "Rotate (E)",
+    "scale": "Scale (R)",
+    "space": {
+      "world": "World axes",
+      "local": "Local axes"
+    },
+    "snap": "Snap",
+    "outliner": "Scene",
+    "empty": "The scene is empty: add an object from the Add menu.",
+    "show": "Show",
+    "hide": "Hide",
+    "rename": "Rename",
+    "dropRoot": "Drag a row onto another to put it inside; drop it here to bring it back to the top.",
+    "inspector": "Properties",
+    "nothing": "Select an object to edit it.",
+    "name": "Name",
+    "position": "Position",
+    "rotation": "Rotation (°)",
+    "scaleField": "Scale",
+    "geometry": "Shape",
+    "material": "Material",
+    "color": "Colour",
+    "metalness": "Metalness",
+    "roughness": "Roughness",
+    "emissive": "Emissive",
+    "opacity": "Opacity",
+    "light": "Light",
+    "intensity": "Intensity",
+    "range": "Range (0: no limit)",
+    "shadow": "Casts shadows",
+    "param": {
+      "width": "Width",
+      "height": "Height",
+      "depth": "Depth",
+      "radius": "Radius",
+      "radiusTop": "Top radius",
+      "radiusBottom": "Bottom radius",
+      "tube": "Tube radius",
+      "arc": "Arc (radians)",
+      "widthSegments": "Width segments",
+      "heightSegments": "Height segments",
+      "depthSegments": "Depth segments",
+      "radialSegments": "Radial segments",
+      "tubularSegments": "Tube segments"
+    },
+    "stats": "Engine statistics",
+    "cpu": "CPU frame (ms)",
+    "gpu": "GPU frame (ms)",
+    "triangles": "Triangles",
+    "pages": "Pages resident",
+    "sessions": "Sessions opened",
+    "statsHint": "Read from the last frame drawn; a still scene draws none.",
+    "error": {
+      "format": "This file holds a scene format this editor does not read.",
+      "read": "The scene could not be read:"
+    }
   },
   "section": {
     "course": "Kurs",
@@ -1278,6 +1372,26 @@
     },
     "srgbToLinearBatch": {
       "description": "Eleman başına bir kanal, `packages/sdk-core/src/math/primitives/color.ts`'nin tam eğrileriyle: referans yuvarlanmış sabitlerle çarpar, ve 8 bitte görünmez olan fark, onları karşı karşıya getiren bench'te bir kez sınırlanır."
+    },
+    "scene-editor": {
+      "title": "Düzenleyiciyle bir sahne kurmak",
+      "description": "Şekiller ve ışıklar eklemek, onları fareyle seçmek, tutamaçlarla taşımak, yeniden renklendirmek, sahneyi kaydedip yeniden açmak — portalda, yalnızca genel API ile.",
+      "html": "<p><a href=\"#/tr/examples/scene-editor\">Sahne düzenleyicisi</a>, bu portalın motorun üç kapısı üzerine kurulu, başka hiçbir şey kullanmayan bir sayfasıdır. Boş bir sahneyle başlayın: <b>Add → Box</b>, ardından <b>Add → Directional light</b>. Kutuya tıklayın: <code>world.raycast</code> onu işaretçinin altında bulur ve <code>controls.transform</code> tutamaçları üzerinde belirir. Taşımak için bir oku sürükleyin — bir tutamaç tutulurken kamera durur — döndürmek için <kbd>E</kbd>, ölçeklemek için <kbd>R</kbd> tuşuna basın. Rengini denetleyicide değiştirin: motor malzemeyi yerinde yeniden boyar, karenin maliyeti istatistik köşesinde kalır. <b>Save</b>, <code>scene.toJSON</code> dosyasını indirir; <b>New</b>, ardından <b>Open</b>, aynı sahneyi <code>scene.fromJSON</code> ile yeniden kurar.</p>\n<p>Her adım <kbd>Ctrl</kbd>+<kbd>Z</kbd> ile geri alınır ve sahne iki ziyaret arasında tarayıcıda saklanır. Sayfa kendi başına hiçbir şey çizmez ya da taşımaz: gördüğünüz motordur.</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "İşaretçiyle bir nesne seçmek",
+      "description": "`world.raycast`, bir canvas noktasının altındaki en yakın nesneyi döndürür: sayfanın eklediği düğüm, vurulan nokta ve normal, uzaklık.",
+      "html": "<p>Test, CPU üzerinde sahnenin kendi geometrisinde çalışır: üçgen mesh'ler üçgen üçgen, yüklenmiş bir model kutusu üzerinden, çizgiler ve noktalar asla. Gizli alt ağaçlar ve <code>helper</code> işaretleri atlanır. <a href=\"#/tr/examples/click-to-pick\">Click to pick</a> içinde görün.</p>"
+    },
+    "move-with-handles": {
+      "title": "Tutamaçlarla taşımak, döndürmek ve ölçeklemek",
+      "description": "`controls.transform(world)` bir nesneye tutamaçlar koyar; bir sürükleme pozunu ebeveynleri üzerinden yazar ve bu sırada kamera durur.",
+      "html": "<p><code>translate</code>, <code>rotate</code> ve <code>scale</code> kipleri, dünya ya da yerel eksenler, isteğe bağlı adımlar. <code>dragStart</code> ve <code>dragEnd</code> olayları bir sürüklemeyi çerçeveler — bir geri alma adımı. <a href=\"#/tr/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a> içinde görün.</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "Bir sahneyi kaydetmek ve açmak",
+      "description": "`scene.toJSON(camera)` sahneyi düz, sürümlü JSON olarak yazar; `scene.fromJSON(json, camera)` onu yeniden kurar.",
+      "html": "<p>Şekiller onları kuran çağrıyla, malzemeler değerleriyle, yüklenmiş modeller adresleriyle — asla gömülmeden — saklanır, <code>helper</code> işaretleri ise hiç saklanmaz. Başka bir biçim sürümü adıyla reddedilir. <a href=\"#/tr/examples/save-the-scene\">Save the scene</a> içinde görün.</p>"
     }
   },
   "canvas": {

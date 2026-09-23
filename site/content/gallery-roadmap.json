@@ -903,8 +903,7 @@
     {
       "id": "save-the-scene",
       "theme": "loaders",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/save-the-scene.html"
     },
     {
       "id": "see-the-triangles",
@@ -1174,8 +1173,7 @@
     {
       "id": "click-to-pick",
       "theme": "interaction",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/click-to-pick.html"
     },
     {
       "id": "hover-over-triangles",
@@ -1216,8 +1214,7 @@
     {
       "id": "move-rotate-scale-gizmo",
       "theme": "interaction",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/move-rotate-scale-gizmo.html"
     },
     {
       "id": "edit-a-spline",

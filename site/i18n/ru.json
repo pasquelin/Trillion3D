@@ -405,7 +405,6 @@
       "gltf-material-variants": "more glTF extensions: material variants",
       "compressed-mesh-input": "more glTF extensions: Draco, meshopt, quantisation",
       "a-medical-scan": "volume rendering",
-      "save-the-scene": "scene export",
       "a-city-from-3d-tiles": "3D Tiles input",
       "rendering-in-a-worker": "OffscreenCanvas worker rendering",
       "a-video-panorama": "live video textures",
@@ -435,14 +434,12 @@
       "flames-and-a-tornado": "custom shader materials",
       "point-clouds-from-a-scan": "point-cloud import",
       "gaussian-splats": "gaussian splat rendering",
-      "click-to-pick": "picking (raycast)",
       "hover-over-triangles": "picking (raycast)",
       "pick-lines-and-points": "picking (raycast)",
       "pick-an-instance": "picking (raycast)",
       "paint-where-you-click": "picking (raycast)",
       "a-voxel-painter": "picking (raycast)",
       "drag-objects": "picking (raycast)",
-      "move-rotate-scale-gizmo": "picking (raycast) and transform gizmo",
       "edit-a-spline": "picking (raycast)",
       "sound-in-space": "positional audio",
       "smooth-edges-over-time": "the temporal antialiasing setting",
@@ -558,6 +555,103 @@
     "title": "Попробовать вживую",
     "start": "Начать с примера",
     "open": "Открыть в песочнице"
+  },
+  "editor": {
+    "title": "Scene editor",
+    "group": "Tools",
+    "showcase": "Open the scene editor",
+    "loading": "Preparing the editor…",
+    "canvas": "Scene view: click an object to select it, drag to turn the camera",
+    "menu": {
+      "file": "File",
+      "add": "Add",
+      "edit": "Edit",
+      "models": "Models"
+    },
+    "new": "New",
+    "openFile": "Open…",
+    "save": "Save",
+    "undo": "Undo",
+    "redo": "Redo",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "add": {
+      "box": "Box",
+      "sphere": "Sphere",
+      "cylinder": "Cylinder",
+      "cone": "Cone",
+      "torus": "Torus",
+      "plane": "Plane",
+      "group": "Group",
+      "point": "Point light",
+      "spot": "Spot light",
+      "directional": "Directional light",
+      "ambient": "Ambient light"
+    },
+    "model": {
+      "bust": "Marble bust",
+      "crates": "Crates",
+      "hall": "Hall",
+      "street-corner": "Street corner"
+    },
+    "tools": "Transform tools",
+    "translate": "Move (W)",
+    "rotate": "Rotate (E)",
+    "scale": "Scale (R)",
+    "space": {
+      "world": "World axes",
+      "local": "Local axes"
+    },
+    "snap": "Snap",
+    "outliner": "Scene",
+    "empty": "The scene is empty: add an object from the Add menu.",
+    "show": "Show",
+    "hide": "Hide",
+    "rename": "Rename",
+    "dropRoot": "Drag a row onto another to put it inside; drop it here to bring it back to the top.",
+    "inspector": "Properties",
+    "nothing": "Select an object to edit it.",
+    "name": "Name",
+    "position": "Position",
+    "rotation": "Rotation (°)",
+    "scaleField": "Scale",
+    "geometry": "Shape",
+    "material": "Material",
+    "color": "Colour",
+    "metalness": "Metalness",
+    "roughness": "Roughness",
+    "emissive": "Emissive",
+    "opacity": "Opacity",
+    "light": "Light",
+    "intensity": "Intensity",
+    "range": "Range (0: no limit)",
+    "shadow": "Casts shadows",
+    "param": {
+      "width": "Width",
+      "height": "Height",
+      "depth": "Depth",
+      "radius": "Radius",
+      "radiusTop": "Top radius",
+      "radiusBottom": "Bottom radius",
+      "tube": "Tube radius",
+      "arc": "Arc (radians)",
+      "widthSegments": "Width segments",
+      "heightSegments": "Height segments",
+      "depthSegments": "Depth segments",
+      "radialSegments": "Radial segments",
+      "tubularSegments": "Tube segments"
+    },
+    "stats": "Engine statistics",
+    "cpu": "CPU frame (ms)",
+    "gpu": "GPU frame (ms)",
+    "triangles": "Triangles",
+    "pages": "Pages resident",
+    "sessions": "Sessions opened",
+    "statsHint": "Read from the last frame drawn; a still scene draws none.",
+    "error": {
+      "format": "This file holds a scene format this editor does not read.",
+      "read": "The scene could not be read:"
+    }
   },
   "section": {
     "course": "Курс",
@@ -1278,6 +1372,26 @@
     },
     "srgbToLinearBatch": {
       "description": "Один канал на элемент, с точными кривыми из `packages/sdk-core/src/math/primitives/color.ts`: эталон умножает на округлённые константы, и разница — невидимая при 8 битах — ограничивается один раз, в бенчмарке, который их сталкивает."
+    },
+    "scene-editor": {
+      "title": "Собрать сцену в редакторе",
+      "description": "Добавлять фигуры и источники света, выбирать их мышью, двигать ручками, перекрашивать, сохранять сцену и открывать её снова — в портале, только на публичном API.",
+      "html": "<p><a href=\"#/ru/examples/scene-editor\">Редактор сцен</a> — страница этого портала, построенная на трёх дверях движка и ни на чём больше. Начните с пустой сцены: <b>Add → Box</b>, затем <b>Add → Directional light</b>. Щёлкните по коробке: <code>world.raycast</code> находит её под указателем, и на ней появляются ручки <code>controls.transform</code>. Потяните стрелку, чтобы сдвинуть её — камера стоит, пока ручка удерживается, — нажмите <kbd>E</kbd>, чтобы повернуть, <kbd>R</kbd>, чтобы масштабировать. Измените её цвет в инспекторе: движок перекрашивает материал на месте, а стоимость кадра остаётся в углу статистики. <b>Save</b> скачивает <code>scene.toJSON</code>; <b>New</b>, затем <b>Open</b> заново строит ту же сцену через <code>scene.fromJSON</code>.</p>\n<p>Каждый шаг отменяется через <kbd>Ctrl</kbd>+<kbd>Z</kbd>, а сцена хранится в браузере между двумя визитами. Страница сама ничего не рисует и не двигает: вы видите движок.</p>"
+    },
+    "pick-with-the-pointer": {
+      "title": "Выбрать объект указателем",
+      "description": "`world.raycast` возвращает ближайший объект под точкой canvas: узел, добавленный страницей, точку и нормаль попадания, расстояние.",
+      "html": "<p>Проверка идёт на CPU по собственной геометрии сцены: треугольные меши — треугольник за треугольником, загруженная модель — по её боксу, линии и точки — никогда. Скрытые поддеревья и метки <code>helper</code> пропускаются. Смотрите в <a href=\"#/ru/examples/click-to-pick\">Click to pick</a>.</p>"
+    },
+    "move-with-handles": {
+      "title": "Двигать, вращать и масштабировать ручками",
+      "description": "`controls.transform(world)` ставит ручки на объект; перетаскивание записывает его позу через родителей, а камера тем временем стоит.",
+      "html": "<p>Режимы <code>translate</code>, <code>rotate</code> и <code>scale</code>, мировые или локальные оси, необязательные шаги. События <code>dragStart</code> и <code>dragEnd</code> обрамляют одно перетаскивание — один шаг отмены. Смотрите в <a href=\"#/ru/examples/move-rotate-scale-gizmo\">Move, rotate, scale</a>.</p>"
+    },
+    "save-and-open-a-scene": {
+      "title": "Сохранить и открыть сцену",
+      "description": "`scene.toJSON(camera)` записывает сцену как простой версионированный JSON; `scene.fromJSON(json, camera)` строит её заново.",
+      "html": "<p>Фигуры сохраняются вызовом, который их построил, материалы — своими значениями, загруженные модели — своим адресом (никогда не встраиваются), а метки <code>helper</code> — никак. Другая версия формата отклоняется с указанием имени. Смотрите в <a href=\"#/ru/examples/save-the-scene\">Save the scene</a>.</p>"
     }
   },
   "canvas": {

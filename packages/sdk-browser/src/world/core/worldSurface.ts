@@ -169,3 +169,20 @@ export function hostSurface(material: Material, vertexColors: boolean, textures:
   surface.depthTest = material.depthTest;
   return surface;
 }
+
+/**
+ * Writes a material's value fields — colour, glow, metalness, roughness — into the host surface
+ * built for it, as `hostSurface` wrote them, and bumps the surface's version: every reader of
+ * the surface (`page/surface.ts`) takes them at its next read, no surface built again (#335).
+ */
+export function repaintHostSurface(surface: THREE.Material, material: Material) {
+  const into = surface as THREE.Material & Record<string, unknown>;
+  const { color, emissive } = material;
+  (into.color as THREE.Color | undefined)?.setRGB(color.r, color.g, color.b);
+  (into.emissive as THREE.Color | undefined)
+    ?.setRGB(emissive.r, emissive.g, emissive.b)
+    .multiplyScalar(material.emissiveIntensity);
+  if (typeof into.metalness === 'number') into.metalness = material.metalness;
+  if (typeof into.roughness === 'number') into.roughness = material.roughness;
+  surface.needsUpdate = true;
+}

@@ -5,17 +5,19 @@ import { hasSidebar } from '../portal/routes.ts';
 import { SearchInput } from '../ui/Input.tsx';
 import { Note } from '../ui/Text.tsx';
 import { PrimaryNavigation } from './Header.tsx';
-import { apiMenu, examplesMenu, learnMenu, reportMenu } from './menus.ts';
+import { apiMenu, editorMenu, examplesMenu, learnMenu, reportMenu } from './menus.ts';
 import { usePortal } from './PortalContext.ts';
 import { ExampleList } from './ExampleList.tsx';
 import { SidebarMenu } from './SidebarMenu.tsx';
 
-/** The Examples sidebar: a filter box over the ready examples, theme by theme. */
+/** The Examples sidebar: a filter box over the scene editor and the ready examples, theme by
+ * theme. */
 function ExamplesMenu() {
   const { route } = usePortal();
   const t = useWords(route.locale);
   const [query, setQuery] = useState('');
   const groups = examplesMenu(route, query);
+  const editor = editorMenu(route, query);
   return (
     <>
       <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-2 bg-base-200 p-4">
@@ -26,11 +28,13 @@ function ExamplesMenu() {
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      {groups.length > 0 ? (
-        <ExampleList groups={groups} />
-      ) : (
-        <Note role="status">{t('sidebar.noResults')}</Note>
+      {editor.length > 0 && (
+        <div className="mb-4">
+          <SidebarMenu groups={editor} />
+        </div>
       )}
+      {groups.length > 0 && <ExampleList groups={groups} />}
+      {groups.length + editor.length === 0 && <Note role="status">{t('sidebar.noResults')}</Note>}
     </>
   );
 }
@@ -69,7 +73,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
   }, [panel, route]);
   return (
     <div
-      className={`contents ${hasSidebar(route) ? 'lg:block lg:min-h-0 lg:border-r lg:border-base-300 lg:bg-base-200' : 'lg:hidden'}`}
+      className={`contents ${hasSidebar(route) ? 'lg:block lg:min-h-0 lg:border-e lg:border-base-300 lg:bg-base-200' : 'lg:hidden'}`}
     >
       <aside
         ref={panel}
@@ -78,7 +82,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('a')) onClose();
         }}
-        className={`fixed bottom-0 left-0 top-16 z-50 w-[min(20rem,88vw)] overflow-x-hidden overflow-y-auto bg-base-200 p-4 shadow-xl transition-transform lg:static lg:z-auto lg:h-full lg:w-auto lg:translate-x-0 lg:shadow-none lg:visible ${open ? 'translate-x-0' : 'invisible -translate-x-full'}`}
+        className={`fixed bottom-0 start-0 top-16 z-50 w-[min(20rem,88vw)] overflow-x-hidden overflow-y-auto bg-base-200 p-4 shadow-xl transition-transform lg:static lg:z-auto lg:h-full lg:w-auto lg:translate-x-0 lg:shadow-none lg:visible ${open ? 'translate-x-0' : 'invisible -translate-x-full rtl:translate-x-full'}`}
       >
         <PrimaryNavigation drawer />
         <AreaMenu key={route.area} />

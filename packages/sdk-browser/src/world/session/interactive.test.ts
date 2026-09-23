@@ -42,3 +42,29 @@ test('a frame that throws after the first stops the loop and says so on the cons
   assert.match(String(logged.mock.calls[0].arguments[0]), /Automatic rendering stopped/);
   assert.match(String(logged.mock.calls[0].arguments[1]), /WEBGPU_LOST/);
 });
+
+test('the first image is drawn at start even for a host with no frame hook', async () => {
+  let frames = 0;
+  const view = {
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame() {},
+    matchMedia: () => ({ addEventListener() {}, removeEventListener() {} }),
+    addEventListener() {},
+    removeEventListener() {},
+    devicePixelRatio: 1,
+  };
+  const canvas = { clientWidth: 4, clientHeight: 4, ownerDocument: { defaultView: view } };
+  startInteractiveExplorer(
+    { render: () => (frames++, {}), resize() {} } as never,
+    {
+      canvas,
+      options: { width: 4, height: 4, pixelRatio: 1 },
+      hostedControls: [],
+      state: { disposed: false },
+      pendingFrame: async () => false,
+    } as never,
+    { ownControls: false, pixelRatio: 1 } as never,
+    { emit() {}, diagnose() {} },
+  );
+  assert.equal(frames, 1);
+});

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Save the scene</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, helper } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.add(helper.grid(8, 8));
+      world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4] }), light.ambient({ intensity: 0.3 }));
+      const colours = ['#e0663c', '#3c8ce0', '#5fbf6a', '#d8b43c'];
+      const tower = object.group();
+      tower.name = 'tower';
+      colours.forEach((colour, i) => {
+        const block = object.mesh(geometry.box(1, 0.5, 1), material.meshStandard({ color: colour }));
+        block.position.set(0, 0.25 + i * 0.5, 0);
+        block.rotation.y = i * 0.3;
+        tower.add(block);
+      });
+      world.scene.add(tower);
+      world.camera.position.set(3, 3, 4);
+      world.camera.lookAt(0, 1, 0);
+      world.controls.target.set(0, 1, 0);
+
+      // `toJSON` writes the scene as plain JSON — shapes by the call that built them, materials by
+      // their values; `fromJSON` builds it again. The grid is a helper mark: it is not saved.
+      let saved = world.scene.toJSON(world.camera);
+      controls({
+        help: 'Knock the tower down, then open the saved scene again.',
+        knockDown: () => {
+          // Found by name: the tower `fromJSON` builds again is a new group.
+          world.scene.getObjectByName('tower').children.forEach((block, i) => {
+            block.position.set(Math.sin(i * 2) * 2, 0.25, Math.cos(i * 2) * 2);
+            block.rotation.y = i;
+          });
+        },
+        save: () => {
+          saved = world.scene.toJSON(world.camera);
+          size(`${JSON.stringify(saved).length} bytes`);
+        },
+        open: () => world.scene.fromJSON(JSON.parse(JSON.stringify(saved)), world.camera),
+      });
+      const size = readout('Saved');
+      size(`${JSON.stringify(saved).length} bytes`);
+    </script>
+  </body>
+</html>
