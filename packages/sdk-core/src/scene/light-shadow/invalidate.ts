@@ -3,7 +3,7 @@ import type { createShadowChanges } from './changes.ts';
 import { writeFace } from './faces.ts';
 import type { ShadowPool } from './pool.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { POOL_PAGES, lampPagesAt, sunPageMetres } from './virtual.ts';
+import { lampPagesAt, sunPageMetres } from './virtual.ts';
 import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 
 type Changes = ReturnType<typeof createShadowChanges>;
@@ -120,7 +120,7 @@ export function invalidateLightPages(
     if (moved && isSun) sunRect(sun, slice, moved.min, moved.max);
     if (moved && !isSun)
       for (let face = 0; face < faces; face++) faceRect(face, moved.min, moved.max);
-    for (let page = 0; page < POOL_PAGES; page++) {
+    for (let page = 0; page < pool.pages; page++) {
       if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
       const key = pool.view[page];
       const meets =

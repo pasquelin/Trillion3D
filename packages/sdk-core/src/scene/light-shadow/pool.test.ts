@@ -6,8 +6,8 @@ import { createShadowPool, DRAW_ALL, DRAW_DYNAMIC, DRAW_FULL, STALE_DYNAMIC } fr
 import { createShadowTable } from './table.ts';
 
 function mapped() {
-  const table = createShadowTable(),
-    pool = createShadowPool();
+  const table = createShadowTable(1024),
+    pool = createShadowPool(32);
   pool.beginAllocation(0);
   const page = pool.take(table, 7, 0, 0, 0);
   return { table, pool, page };

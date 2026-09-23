@@ -13,7 +13,7 @@ import { CASTERS_ALL, CASTERS_MOVING, CASTERS_STATIC } from '../../gpu/shadow/cu
 import { createShadowRegionList, REGION_CLEAR, REGION_RESTORE, REGION_STATIC } from './regions.ts';
 
 test('regions follow the draw mode: whole, layer then moving casters, or moving casters alone', () => {
-  const list = createShadowRegionList();
+  const list = createShadowRegionList(32);
   const volumes = new Float32Array(8 * SHADOW_CULL_FLOATS),
     words = new Uint32Array(volumes.buffer);
   volumes[0] = 42;

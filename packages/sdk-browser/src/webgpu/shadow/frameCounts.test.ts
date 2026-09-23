@@ -17,7 +17,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 installGpuGlobals();
 
 test('shadowPagesTotal accumulates drawn pages and skips a frame whose pass was refused', () => {
-  const lights = createWebgpuLightState();
+  const lights = createWebgpuLightState(32);
   lights.shadowPages = 12;
   lights.pagesByFrame[3] = 12;
   noteShadowFrame(lights, 3, true);
@@ -58,7 +58,7 @@ const SUN: SceneLight = {
 
 test('a deferred representation change keeps the frame from holding until a plan consumes or releases it', () => {
   const rt = settledRt();
-  const lights = createWebgpuLightState();
+  const lights = createWebgpuLightState(32);
   (rt as unknown as { lights: unknown }).lights = lights;
   lights.plan.representationChanged([0, 0, 0], [1, 1, 1]);
   assert.notEqual(unsettledMask(rt), 0, 'a change waits: the next frame must plan it');
@@ -70,7 +70,7 @@ test('a deferred representation change keeps the frame from holding until a plan
 
 test('a representation change under an unlit frame stales its pages once the view is lit', () => {
   const rt = settledRt();
-  const lights = createWebgpuLightState();
+  const lights = createWebgpuLightState(32);
   (rt as unknown as { lights: unknown }).lights = lights;
   rt.gpu.targetSize = [8, 8];
   const { store, plan } = lights;

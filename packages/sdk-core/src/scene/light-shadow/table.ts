@@ -1,9 +1,6 @@
 import { LIGHT_SETTINGS, MAX_SHADOW_SLICES } from '../light/contracts.ts';
-import { POOL_PAGES } from './virtual.ts';
 
 const ENTRIES: number = LIGHT_SETTINGS.shadowTableEntries;
-/** Words rewritten in one frame before the upload falls back to the whole table. */
-const CHANGED_CAP = POOL_PAGES * 4;
 
 /**
  * THE PAGE TABLE, host side: one word per virtual page of every shadow light — the physical page
@@ -13,12 +10,14 @@ const CHANGED_CAP = POOL_PAGES * 4;
  * in contiguous runs. A light's range is claimed first-fit when it takes a slice and freed when
  * it leaves: the table is fixed, and a light that finds no room is denied its shadow.
  */
-export function createShadowTable() {
+export function createShadowTable(poolPages: number) {
+  /** Words rewritten in one frame before the upload falls back to the whole table. */
+  const changedCap = poolPages * 4;
   const words = new Uint32Array(ENTRIES);
   const base = new Int32Array(MAX_SHADOW_SLICES).fill(-1),
     size = new Int32Array(MAX_SHADOW_SLICES);
   const queued = new Uint8Array(ENTRIES),
-    changed = new Int32Array(CHANGED_CAP);
+    changed = new Int32Array(changedCap);
   let changedCount = 0,
     whole = true,
     layoutEpoch = 0,
@@ -42,7 +41,7 @@ export function createShadowTable() {
     words[entry] = value;
     version++;
     if (whole || queued[entry]) return;
-    if (changedCount >= CHANGED_CAP) {
+    if (changedCount >= changedCap) {
       whole = true;
       return;
     }

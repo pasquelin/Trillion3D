@@ -96,8 +96,8 @@ export const LIGHT_SETTINGS = {
   shadowAgingPerFrame: 0.05,
   /** Share of a frame's sample in the average cost of a page: exponential smoothing of the timer. */
   shadowCostBlend: 0.25,
-  /** Side of the physical shadow pool, in texels: 32 × 32 pages of 128, a 64 MiB depth texture. */
-  shadowAtlasSize: 4096,
+  /** Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (the pool: `shadowPoolSide`). */
+  lampFaceSize: 4096,
   /**
    * Entries of the shadow page table, one word per virtual page: a fixed 4 MiB buffer. It holds
    * sixteen suns or 128 point lights; a light that finds no room is denied its shadow, and counted.

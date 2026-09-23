@@ -8,7 +8,7 @@ import {
   SHADOW_RECORD_INFO,
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { POOL_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
 
 /**
@@ -25,7 +25,8 @@ export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
  * is pushed only when one of its numbers changed: a still light, and a still camera for a sun,
  * push nothing.
  */
-export function createShadowRecordPack(faceStride: number) {
+export function createShadowRecordPack(faceStride: number, poolSide: number) {
+  const size = poolSide * SHADOW_PAGE;
   const records = new Float32Array(MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS);
   const words = new Int32Array(records.buffer);
   const facePacked = new Float32Array((MAX_SHADOW_REGIONS * faceStride) / 4);
@@ -58,11 +59,10 @@ export function createShadowRecordPack(faceStride: number) {
       center: readonly number[] | undefined,
       radius: number,
     ) {
-      const uniform = (index * faceStride) / 4,
-        size = LIGHT_SETTINGS.shadowAtlasSize;
+      const uniform = (index * faceStride) / 4;
       for (let i = 0; i < 16; i++) facePacked[uniform + i] = matrices[matrixBase + i];
-      facePacked[uniform + 16] = ((phys % POOL_SIDE) * SHADOW_PAGE) / size;
-      facePacked[uniform + 17] = (Math.floor(phys / POOL_SIDE) * SHADOW_PAGE) / size;
+      facePacked[uniform + 16] = ((phys % poolSide) * SHADOW_PAGE) / size;
+      facePacked[uniform + 17] = (Math.floor(phys / poolSide) * SHADOW_PAGE) / size;
       facePacked[uniform + 18] = SHADOW_PAGE / size;
       facePacked[uniform + 19] = SHADOW_PAGE;
       facePacked[uniform + 20] = center ? center[0] : 0;

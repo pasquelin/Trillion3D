@@ -1,7 +1,7 @@
 import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import { castsShadow } from './casters.ts';
-import { POOL_PAGES, tableEntriesOf } from './virtual.ts';
+import { tableEntriesOf } from './virtual.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -24,7 +24,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     claimed = new Uint8Array(MAX_SHADOW_SLICES);
   /** Every page of `slice` back to the pool. */
   const dropPages = (slice: number) => {
-    for (let page = 0; page < POOL_PAGES; page++)
+    for (let page = 0; page < pool.pages; page++)
       if (pool.owner[page] >= 0 && pool.slice[page] === slice) pool.release(table, page);
   };
   const free = (slice: number) => {

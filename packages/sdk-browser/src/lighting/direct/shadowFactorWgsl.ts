@@ -2,7 +2,7 @@ import { POINT_FACES } from '../../../../sdk-core/src/index.ts';
 import {
   LAMP_FACE_ENTRIES,
   LAMP_MIPS,
-  POOL_SIDE,
+  LAMP_SIDE,
   SUN_LEVELS,
   SUN_LEVEL_ENTRIES,
   SUN_WINDOW,
@@ -26,7 +26,7 @@ export const SHADOW_FACTOR_WGSL = `
 const SUN_LEVEL_COUNT:i32=${SUN_LEVELS};
 const SUN_LEVEL_WORDS:u32=${SUN_LEVEL_ENTRIES}u;
 const SUN_WINDOW_PAGES:i32=${SUN_WINDOW};
-const LAMP_PAGE_COUNT:u32=${POOL_SIDE}u;
+const LAMP_PAGE_COUNT:u32=${LAMP_SIDE}u;
 const LAMP_MIP_COUNT:u32=${LAMP_MIPS}u;
 const LAMP_FACE_WORDS:u32=${LAMP_FACE_ENTRIES}u;
 /** Window origin of clipmap slot \`slot\` of record \`index\`. */

@@ -1,7 +1,6 @@
 import { LIGHT_KIND, LIGHT_SETTINGS } from '../light/contracts.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
-import { POOL_PAGES } from './virtual.ts';
 
 /**
  * What the shadow scheduler did in a frame, in pages, never durations: pages staled, drawn,
@@ -52,7 +51,7 @@ export function createShadowCounts() {
       counts.poolPages = pool.used;
       counts.waitedMs = 0;
       counts.waitedFrames = 0;
-      for (let page = 0; page < POOL_PAGES; page++) {
+      for (let page = 0; page < pool.pages; page++) {
         if (pool.owner[page] < 0 || !records.taken[pool.slice[page]]) continue;
         if (pool.requested[page] < latest || latest < 0) continue;
         if (!pool.dirty[page]) {

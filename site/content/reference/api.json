@@ -6381,9 +6381,9 @@
         "desc": "Share of a frame's sample in the average cost of a page: exponential smoothing of the timer."
       },
       {
-        "name": "shadowAtlasSize",
+        "name": "lampFaceSize",
         "type": "4096",
-        "desc": "Side of the physical shadow pool, in texels: 32 × 32 pages of 128, a 64 MiB depth texture."
+        "desc": "Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (the pool: `shadowPoolSide`)."
       },
       {
         "name": "shadowTableEntries",
@@ -19766,11 +19766,16 @@
     "section": "types",
     "kind": "Function",
     "title": "createShadowPlan()",
-    "signature": "createShadowPlan(capacity: number): ShadowPlan",
+    "signature": "createShadowPlan(capacity: number, poolSide: number): ShadowPlan",
     "summary": "The shadow scheduler of the virtual maps.",
     "parameters": [
       {
         "name": "capacity",
+        "type": "number",
+        "desc": ""
+      },
+      {
+        "name": "poolSide",
         "type": "number",
         "desc": ""
       }

@@ -4,6 +4,7 @@ import {
   SHADOW_RECORD_FLOATS,
 } from '../../../../sdk-core/src/index.ts';
 import type { ShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
@@ -20,18 +21,24 @@ const FACE_STRIDE = 256;
 const FACE_BYTES = 96;
 /** Bytes of the records, before the page table in the same buffer. */
 const RECORD_BYTES = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
-export const shadowAtlasBytes = () => LIGHT_SETTINGS.shadowAtlasSize ** 2 * 4;
+/** Bytes of a pool of `poolSide` pages a side: one 32-bit depth texel each. */
+export const shadowAtlasBytes = (poolSide: number) => (poolSide * SHADOW_PAGE) ** 2 * 4;
 
 export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 
 /**
- * The shadow pool and what reads and fills it: a 4096² depth texture of 1024 physical pages; one
+ * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages
+ * (`shadowPoolSide`, derived from the screen when the world is created); one
  * buffer holding every light's record then the page table (`SHADOW_DATA_WGSL`); the buffer the
  * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
  * by dynamic offset.
  */
-export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
-  const size = LIGHT_SETTINGS.shadowAtlasSize;
+export async function createGpuShadowAtlas(
+  device: GPUDevice,
+  pageLayout: GPUBindGroupLayout,
+  poolSide: number,
+) {
+  const size = poolSide * SHADOW_PAGE;
   const texture = device.createTexture({
     label: 'WG shadow depth atlas v1',
     size: [size, size, 1],
@@ -59,7 +66,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     size: SHADOW_REQUEST_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
-  const pack = createShadowRecordPack(FACE_STRIDE),
+  const pack = createShadowRecordPack(FACE_STRIDE, poolSide),
     { records, facePacked } = pack;
   const release = () => {
     texture.destroy();
@@ -119,7 +126,8 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       faceGroup,
       faceUniform,
       faceStride: FACE_STRIDE,
-      allocationBytes: shadowAtlasBytes() + faceUniform.size + dataBuffer.size + requestBuffer.size,
+      allocationBytes:
+        shadowAtlasBytes(poolSide) + faceUniform.size + dataBuffer.size + requestBuffer.size,
       writePage: pack.writePage,
       writeLamp: pack.writeLamp,
       writeSun: pack.writeSun,

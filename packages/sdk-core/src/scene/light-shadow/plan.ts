@@ -11,7 +11,6 @@ import { DRAW_ALL, createShadowPool } from './pool.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
-import { POOL_PAGES } from './virtual.ts';
 
 /** The frame's shadow work: which virtual pages are drawn, and which wait. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
@@ -25,16 +24,16 @@ export type ShadowPlan = ReturnType<typeof createShadowPlan>;
  *
  * All arrays are allocated once; `plan()` allocates nothing.
  */
-export function createShadowPlan(capacity: number) {
-  const table = createShadowTable(),
-    pool = createShadowPool(),
+export function createShadowPlan(capacity: number, poolSide: number) {
+  const table = createShadowTable(poolSide * poolSide),
+    pool = createShadowPool(poolSide),
     sun = createSunLevels(),
     records = createShadowRecords(table, pool, sun),
     requests = createShadowRequests(table, pool, records, sun),
     changes = createShadowChanges(),
     budget = createShadowBudget(),
     counts = createShadowCounts(),
-    admission = createShadowAdmission(capacity);
+    admission = createShadowAdmission(capacity, pool.pages);
   let byPage = true,
     report: ShadowRequestReport | null = null,
     views = 0,
@@ -118,7 +117,7 @@ export function createShadowPlan(capacity: number) {
         if (rank === LIGHT_KIND.directional) {
           if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
             whole = true;
-          for (let page = 0; page < POOL_PAGES; page++)
+          for (let page = 0; page < pool.pages; page++)
             if (pool.owner[page] >= 0 && pool.slice[page] === slice)
               if (sun.movedLevel(slice, pool.view[page]))
                 if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))

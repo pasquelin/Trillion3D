@@ -3,7 +3,6 @@ import {
   LAMP_MIPS,
   PAGE_INDEX_MASK,
   PAGE_VALID,
-  POOL_SIDE,
   SHADOW_PAGE,
   SUN_LEVELS,
   lampMipOffset,
@@ -83,8 +82,6 @@ const SHADOW_SLOPE:f32=${LIGHT_SETTINGS.shadowSlopeBias};
 const SHADOW_SLOPE_MAX:f32=${LIGHT_SETTINGS.shadowSlopeBiasMax};
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PAGE:f32=${SHADOW_PAGE}.0;
-const SHADOW_POOL_SIDE:u32=${POOL_SIDE}u;
-const SHADOW_ATLAS:f32=${LIGHT_SETTINGS.shadowAtlasSize}.0;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
 const LAMP_MIP_OFFSET:array<u32,${LAMP_MIPS}>=array<u32,${LAMP_MIPS}>(${Array.from({ length: LAMP_MIPS }, (_, mip) => `${lampMipOffset(mip)}u`).join(',')});
@@ -117,11 +114,13 @@ fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
 /** Atlas texel offset of page \`p\`, held by physical page \`word\`: added to a texel coordinate
  *  of the map, it gives that texel's place in the atlas. */
 fn shadowOffset(word:u32,p:vec2i)->vec2f{
- let phys=word&PAGE_INDEX_MASK;
- return (vec2f(f32(phys%SHADOW_POOL_SIDE),f32(phys/SHADOW_POOL_SIDE))-vec2f(p))*SHADOW_PAGE;
+ let phys=word&PAGE_INDEX_MASK;let side=textureDimensions(shadowAtlas).x/u32(SHADOW_PAGE);
+ return (vec2f(f32(phys%side),f32(phys/side))-vec2f(p))*SHADOW_PAGE;
 }
+/** Texels a side of the pool: its size is the world's, derived from the screen (\`shadowPoolSide\`). */
+fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
 fn shadowCompare(offset:vec2f,t:vec2f,reference:f32)->f32{
- return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/SHADOW_ATLAS,reference);
+ return textureSampleCompareLevel(shadowAtlas,shadowSampler,(offset+t)/shadowAtlasTexels(),reference);
 }
 /** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
 fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec2f)->vec3f{
@@ -148,9 +147,9 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
  let offset=shadowOffset(homeWord,home);
  var lit=0.0;
  if(!any(edge)){
-  let uv=(offset+t)/SHADOW_ATLAS;
+  let texels=shadowAtlasTexels();let uv=(offset+t)/texels;
   for(var tap=0u;tap<PCF_TAPS;tap++){
-   lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/SHADOW_ATLAS,reference);
+   lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv+POISSON[tap]/texels,reference);
   }
   return lit/f32(PCF_TAPS);
  }

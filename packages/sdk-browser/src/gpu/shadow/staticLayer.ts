@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 
 /**
@@ -22,8 +22,9 @@ const RESTORE_WGSL = `@group(0) @binding(0) var layer:texture_depth_2d;
  return textureLoad(layer,vec2i(p.xy),0);
 }`;
 
-export async function createShadowStaticLayer(device: GPUDevice) {
-  const size = LIGHT_SETTINGS.shadowAtlasSize;
+/** The pool's twin, `poolSide` pages a side: the same page at the same place. */
+export async function createShadowStaticLayer(device: GPUDevice, poolSide: number) {
+  const size = poolSide * SHADOW_PAGE;
   const texture = device.createTexture({
     label: 'WG shadow static layer v1',
     size: [size, size, 1],

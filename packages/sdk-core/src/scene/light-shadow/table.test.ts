@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createShadowTable } from './table.ts';
 
 test('ranges are claimed first-fit, a freed hole is reused, and a range too large is refused', () => {
-  const table = createShadowTable();
+  const table = createShadowTable(1024);
   assert.equal(table.claim(0, 100), true);
   assert.equal(table.claim(1, 50), true);
   assert.deepEqual([table.baseOf(0), table.baseOf(1)], [0, 100]);
@@ -17,7 +17,7 @@ test('ranges are claimed first-fit, a freed hole is reused, and a range too larg
 });
 
 test('an upload carries the changed words in contiguous runs, and nothing on a still frame', () => {
-  const table = createShadowTable();
+  const table = createShadowTable(1024);
   table.flush(() => {});
   for (const entry of [9, 7, 8, 40]) table.write(entry, entry + 1);
   table.write(40, 41);

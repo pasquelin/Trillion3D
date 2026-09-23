@@ -102,10 +102,13 @@ export interface WebgpuLightState {
 /** Images kept in the page ring: well beyond the lag of a timestamp sample. */
 export const PAGES_RING = 64;
 
-export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightState {
+export function createWebgpuLightState(
+  poolSide: number,
+  store?: SceneLightStore,
+): WebgpuLightState {
   return {
     store: store ?? createSceneLightStore(),
-    plan: createShadowPlan(MAX_SHADOW_PAGES),
+    plan: createShadowPlan(MAX_SHADOW_PAGES, poolSide),
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
@@ -125,7 +128,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     uploadedEpoch: 0,
     faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),
     runs: createShadowRuns(),
-    regions: createShadowRegionList(),
+    regions: createShadowRegionList(poolSide),
     lightThreshold: -1,
     plannedFrame: -1,
     lightRuns: 0,

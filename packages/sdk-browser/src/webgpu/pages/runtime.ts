@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MOTION_CAPABILITY, TAA_CAPABILITY } from '../../taa/prepare.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
@@ -73,7 +74,8 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const vis = createWebgpuVisState();
   const run = createWebgpuRunState();
   const blendState = createWebgpuBlendState();
-  const lights = createWebgpuLightState(context.sceneLights);
+  // The shadow pool is a budget fixed here, from the screen the world opens on (`shadowPoolSide`).
+  const lights = createWebgpuLightState(shadowPoolSide(...setup.viewport), context.sceneLights);
   const capabilities: BackendCapabilities = {
     renderer: 'WebGPU page raster',
     materials: UNTEXTURED_MATERIALS,

@@ -42,7 +42,11 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
   // The atlas and per-face cull go together: the shadow pass draws from the list cull produces.
   // One without the other would light nothing, so failure of one yields both.
   try {
-    lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
+    lights.shadows = await createGpuShadowAtlas(
+      device,
+      vis.visBindGroupLayout,
+      lights.plan.pool.side,
+    );
     lights.cull = await createGpuShadowCull(device, drawSlots);
     lights.pageRequests = createShadowPageRequests(device, lights.shadows.requestBuffer);
   } catch (error) {
@@ -62,7 +66,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     tileLists: !!lights.tiles,
     shadowAtlas: lights.shadows ? lights.shadows.size : null,
     shadowCullRows: lights.cull ? drawSlots : null,
-    shadowAtlasBytes: lights.shadows ? shadowAtlasBytes() : 0,
+    shadowAtlasBytes: lights.shadows ? shadowAtlasBytes(lights.plan.pool.side) : 0,
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowPageInvalidation: lights.plan.pageInvalidation,
     unavailable: lights.shadowReason,

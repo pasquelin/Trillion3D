@@ -14,7 +14,7 @@ const BOX_MIN = [-1e3, 0, -1e3],
 /** A sun whose pages around the eye are all mapped and drawn. */
 function settled() {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24);
+  const plan = createShadowPlan(24, 32);
   store.add(SUN);
   planFrame(plan, store, 0);
   const slice = store.sliceOf(0);

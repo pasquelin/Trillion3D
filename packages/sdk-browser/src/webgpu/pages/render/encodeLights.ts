@@ -10,7 +10,6 @@ import { pageModes } from '../../shadow/pages.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { POOL_PAGES } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** The floats the deferred pass rereads: lights, tiles in X and Y, exposure, display curve. */
 const directParams = new Float32Array(8);
@@ -180,7 +179,9 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowBudgetMs: lights.plan.budget.budgetMs,
     shadowMsPerPage: lights.plan.budget.msPerPage,
     shadowsDenied: lights.plan.counts.denied,
-    poolPages: lights.shadows ? { used: lights.plan.counts.poolPages, total: POOL_PAGES } : null,
+    poolPages: lights.shadows
+      ? { used: lights.plan.counts.poolPages, total: lights.plan.pool.pages }
+      : null,
     unavailable: lights.shadowReason,
   };
 }

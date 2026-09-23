@@ -2859,7 +2859,7 @@
       "shadowBudgetMs": "Budget de l’étape des ombres, en millisecondes GPU par image (X4, RX3). Les pages invalidées au-delà attendent leur tour ; elles ne sont jamais perdues, et leur retard est publié.",
       "shadowAgingPerFrame": "Poids de l’attente dans la priorité d’une page, par image passée en file : contre l’abandon.",
       "shadowCostBlend": "Part de la mesure d’une image dans le coût moyen d’une page : un lissage exponentiel de la minuterie.",
-      "shadowAtlasSize": "Côté de l’atlas d’ombres de profondeur, en texels.",
+      "lampFaceSize": "Côté du mip le plus fin d’une face de lampe, en texels : 32 × 32 pages de 128. Le pool physique n’est pas réglé ici : il se déduit de l’écran à la création du monde (`shadowPoolSide`).",
       "pcfTaps": "Prises PCF par pixel et par lumière à ombre (X2).",
       "spotEdgeSoftness": "Largeur du bord adouci du cône d’un spot, en unités de cosinus : contre l’effet d’escalier.",
       "sunFarShadowOffsetMetres": "Décalage de l’origine du rayon d’ombre lointaine le long de la normale, en mètres. Il ne sert qu’à quitter le plan de la surface éclairée ; le vrai remède contre l’auto-ombrage est le départ le long du rayon, plus bas.",

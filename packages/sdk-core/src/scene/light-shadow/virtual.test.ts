@@ -5,7 +5,6 @@ import assert from 'node:assert/strict';
 import {
   LAMP_FACE_ENTRIES,
   LAMP_MIPS,
-  POOL_PAGES,
   SUN_ENTRIES,
   SUN_LEVELS,
   SUN_WINDOW,
@@ -13,6 +12,7 @@ import {
   finestSunLevel,
   lampEntry,
   lampPagesAt,
+  shadowPoolSide,
   sunEntry,
   tableEntriesOf,
 } from './virtual.ts';
@@ -32,7 +32,17 @@ test('a lamp entry decodes to the face, mip and page it was built from, every en
   assert.equal(seen.size, 6 * LAMP_FACE_ENTRIES);
   assert.equal(tableEntriesOf(LIGHT_KIND.point), 6 * LAMP_FACE_ENTRIES);
   assert.equal(tableEntriesOf(LIGHT_KIND.spot), LAMP_FACE_ENTRIES);
-  assert.equal(lampPagesAt(0) ** 2, POOL_PAGES, 'the finest mip of a face is the pool');
+});
+
+test('the pool holds a screen read at every sun level, within the portable texture side', () => {
+  // 1280 × 720 at up to four texels a pixel: 225 pages a level, sixteen levels, 60 pages a side.
+  assert.equal(shadowPoolSide(1280, 720), 60);
+  assert.ok(shadowPoolSide(1280, 720) ** 2 >= 225 * SUN_LEVELS);
+  assert.ok(
+    shadowPoolSide(640, 360) < shadowPoolSide(1280, 720),
+    'a smaller screen, a smaller pool',
+  );
+  assert.equal(shadowPoolSide(3840, 2160), 64, 'never past an 8192-texel atlas');
 });
 
 test('a sun page keeps its entry whichever extent sees it: absolute page modulo the extent', () => {

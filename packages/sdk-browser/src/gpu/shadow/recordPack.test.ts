@@ -20,7 +20,7 @@ function flushed(pack: ReturnType<typeof createShadowRecordPack>) {
 }
 
 test("a lamp's record is its face matrices and header, and the same numbers push nothing", () => {
-  const pack = createShadowRecordPack(256);
+  const pack = createShadowRecordPack(256, 32);
   const faces = new Float32Array(6 * 16).map((_, i) => i);
   pack.writeLamp(3, faces, 6, 1, 0.05, 4096);
   const at = 3 * SHADOW_RECORD_FLOATS;
@@ -38,7 +38,7 @@ test("a lamp's record is its face matrices and header, and the same numbers push
 });
 
 test("a sun's record is its frame, depth range, window origins as integers, and levels", () => {
-  const pack = createShadowRecordPack(256),
+  const pack = createShadowRecordPack(256, 32),
     sun = createSunLevels();
   sun.update(0, [0, -1, 0], VIEW, [-8, 0, -8], [8, 4, 8], 1);
   pack.writeSun(0, sun, 16, 0);

@@ -3,7 +3,7 @@ import type { ShadowBudget } from './budget.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { LAMP_MIPS, POOL_PAGES, SUN_LEVELS } from './virtual.ts';
+import { LAMP_MIPS, SUN_LEVELS } from './virtual.ts';
 
 /**
  * THE PAGES A FRAME DRAWS: stale pages the latest request report named — what the image reads
@@ -17,9 +17,9 @@ import { LAMP_MIPS, POOL_PAGES, SUN_LEVELS } from './virtual.ts';
  * prevents starvation. The first page always passes: on a device whose single page exceeds the
  * budget, the wait would otherwise never end. All arrays are allocated once.
  */
-export function createShadowAdmission(capacity: number) {
+export function createShadowAdmission(capacity: number, poolPages: number) {
   const candidates = new Int32Array(capacity),
-    score = new Float64Array(POOL_PAGES),
+    score = new Float64Array(poolPages),
     list = new Int32Array(capacity);
   let count = 0;
   const coarseness = (records: ShadowRecords, sun: SunLevels, page: number, pool: ShadowPool) => {
@@ -46,7 +46,7 @@ export function createShadowAdmission(capacity: number) {
       if (latest < 0) return 0;
       let found = 0,
         kept = 0;
-      for (let page = 0; page < POOL_PAGES; page++) {
+      for (let page = 0; page < pool.pages; page++) {
         if (pool.owner[page] < 0 || !pool.dirty[page] || pool.requested[page] < latest) continue;
         const value =
           (pool.valid[page] ? 0 : 1) +

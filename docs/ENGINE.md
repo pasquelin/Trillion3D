@@ -173,7 +173,15 @@ history.
 
 **Shadow maps are virtual, and only the pages the image reads exist.** Every shadow light has a
 virtual map cut into pages of 128 texels, and one page-table word per virtual page; the pages are
-drawn in a fixed pool, a 4096² depth texture of 1024 physical pages (`shadowAtlasSize`, 64 MiB).
+drawn in a pool whose size is a budget fixed when the world is created, derived from its screen
+(`shadowPoolSide`): a pixel reads the sun level whose texel is at most its footprint and more than
+half of it, so up to four texels, and one level seen by the whole screen reads at most
+`width · height · 4 / 128²` pages; a pixel can pick any of the sixteen levels, and the pool holds
+all of them at once, so the camera can sweep the screen over every level without evicting a page it
+reads. At 1280 × 720 that is 225 pages a level, 3 600 pages in all, a 7 680² depth texture of
+225 MiB. The atlas stops at the 8 192-texel side every WebGPU device offers (4 096 pages, 256 MiB),
+reached at 1920 × 1080; above it the sweep over every level no longer fits and pages are evicted,
+least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
 The table holds 2^20 words, 4 MiB (`shadowTableEntries`): sixteen suns or 128 point lights, and a
 light that finds no room is denied its shadow and counted (`shadowsDenied`).
 
@@ -213,8 +221,8 @@ light that finds no room is denied its shadow and counted (`shadowsDenied`).
 
 **Moving objects redraw their own casters, never the static set under them.** A placement turns
 moving the first time it moves (`webgpu/shadow/mobility.ts`) and stays so; from then on the pool
-keeps a static layer, a second 4096² depth texture allocated at that first move — a scene where
-nothing moves pays neither its 64 MiB nor its pass. A page drawn in full writes its static casters
+keeps a static layer, a second depth texture the pool's size, allocated at that first move — a scene where
+nothing moves pays neither its bytes nor its pass. A page drawn in full writes its static casters
 into the layer, then restores itself from it and draws its moving casters over; a page that only
 a moving object crossed is restored and gets its moving casters alone, split by one word per row
 in the page cull. A still moving object stales nothing; it is never demoted, since a rule that

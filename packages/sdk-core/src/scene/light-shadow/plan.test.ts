@@ -5,14 +5,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { PAGE_MAPPED, PAGE_VALID, POOL_PAGES } from './virtual.ts';
+import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
 import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 import { SUN, VIEW, cycle, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
 
 /** A sun, planned once so its slice and clipmap exist; returns what the tests read it by. */
 function sunScene() {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24);
+  const plan = createShadowPlan(24, 32);
   store.add(SUN);
   planFrame(plan, store, 0);
   const slice = store.sliceOf(0),
@@ -86,7 +86,7 @@ test('a light removed gives its pages back to the pool and its range back to the
 
 test('coarse pages are served first, and a full pool evicts only pages no report still names', () => {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24);
+  const plan = createShadowPlan(24, 32);
   store.add({ ...SUN, kind: 'point', position: [0, 3, 0], range: 20, direction: undefined });
   planFrame(plan, store, 0);
   const slice = store.sliceOf(0);
@@ -98,8 +98,9 @@ test('coarse pages are served first, and a full pool evicts only pages no report
   const mapped = (entries: number[]) =>
     entries.filter((e) => plan.table.words[e] & PAGE_MAPPED).length;
   assert.equal(mapped(coarse), coarse.length, 'every coarse page');
-  assert.equal(mapped(fine), POOL_PAGES - coarse.length, 'the fine ones, as far as the pool goes');
-  assert.equal(plan.requests.counts.refused, fine.length + coarse.length - POOL_PAGES);
+  const pages = plan.pool.pages;
+  assert.equal(mapped(fine), pages - coarse.length, 'the fine ones, as far as the pool goes');
+  assert.equal(plan.requests.counts.refused, fine.length + coarse.length - pages);
   // A report names a third face: among pages of the same age, the fine ones are evicted first.
   report(plan, store, 1, lampPages(plan, slice, 2, 1));
   planFrame(plan, store, 2);

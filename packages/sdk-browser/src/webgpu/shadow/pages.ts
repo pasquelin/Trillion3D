@@ -2,7 +2,6 @@ import { LIGHT_KIND, SHADOW_CULL_FLOATS, writeFace } from '../../../../sdk-core/
 import { writeLampPage } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
 import {
-  POOL_PAGES,
   SHADOW_PAGE,
   SUN_LEVELS,
   lampFacesOf,
@@ -16,8 +15,9 @@ const lampMatrices = new Float32Array(6 * 16),
   scratch = new Float32Array(16);
 const slotOf = new Int32Array(64),
   pageXs = new Int32Array(MAX_SHADOW_PAGES),
-  pageYs = new Int32Array(MAX_SHADOW_PAGES),
-  keys = new Float64Array(POOL_PAGES);
+  pageYs = new Int32Array(MAX_SHADOW_PAGES);
+/** One sort key per physical page, sized by the first pool it serves. */
+let keys = new Float64Array(0);
 
 /**
  * Every shadow light's record, the one the shading reads: a lamp's face matrices, a sun's frame,
@@ -99,6 +99,7 @@ export function writeShadowPages(
 ) {
   const { plan, shadows, cull, runs, regions, faceMatrices } = lights,
     { pool, admission } = plan;
+  if (keys.length < pool.pages) keys = new Float64Array(pool.pages);
   runs.reset();
   regions.reset();
   if (!shadows || !cull) return 0;

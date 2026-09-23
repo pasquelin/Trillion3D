@@ -28,7 +28,7 @@ function pointLight(id: string, castsShadow: boolean): SceneLight {
 
 function scene(points: number, sun: boolean, shadows: boolean) {
   const store = createSceneLightStore();
-  const plan = createShadowPlan(24);
+  const plan = createShadowPlan(24, 32);
   if (sun) store.add({ ...SUN, castsShadow: shadows });
   for (let i = 0; i < points; i++) store.add(pointLight(`l${i}`, shadows));
   planFrame(plan, store, 0);

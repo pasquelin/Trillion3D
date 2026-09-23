@@ -60,7 +60,7 @@ test('`unlit` stays the diagnostic view, lights or not', () => {
 });
 
 test('a new light-cut threshold stales every shadow page, an unchanged one none', () => {
-  const lights = createWebgpuLightState();
+  const lights = createWebgpuLightState(32);
   const staled = () => lights.plan.deferredChanges;
   assert.equal(followLightThreshold(lights, 1, 0), 1);
   assert.equal(staled(), false, 'the first threshold draws the maps, it stales nothing');

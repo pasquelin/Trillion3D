@@ -1,7 +1,7 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_CULL_CASTERS } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { DRAW_ALL, DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
-import { POOL_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import { CASTERS_ALL, CASTERS_MOVING, CASTERS_STATIC } from '../../gpu/shadow/cullShader.ts';
 
@@ -16,9 +16,10 @@ export const REGION_CLEAR = 0,
  * its static casters in the static layer and the moving ones over a copy of it; a page whose moving
  * casters alone changed is the copy and the moving casters; without a static layer — nothing has
  * moved yet — a page is its casters, all at once. Each region names its physical page, its start
- * and the casters its cull keeps. Allocated once for a frame's budget.
+ * and the casters its cull keeps. Allocated once for a frame's budget, on a pool of `poolSide`
+ * pages a side.
  */
-export function createShadowRegionList() {
+export function createShadowRegionList(poolSide: number) {
   const page = new Int32Array(MAX_SHADOW_REGIONS),
     start = new Uint8Array(MAX_SHADOW_REGIONS);
   let count = 0,
@@ -38,8 +39,8 @@ export function createShadowRegionList() {
     pageOf: (region: number) => page[region],
     startOf: (region: number) => start[region],
     /** Viewport of a region: its physical page, the same square in the pool and in the layer. */
-    x: (region: number) => (page[region] % POOL_SIDE) * SHADOW_PAGE,
-    y: (region: number) => Math.floor(page[region] / POOL_SIDE) * SHADOW_PAGE,
+    x: (region: number) => (page[region] % poolSide) * SHADOW_PAGE,
+    y: (region: number) => Math.floor(page[region] / poolSide) * SHADOW_PAGE,
     /**
      * Appends the regions of physical page `phys` drawn in `mode` (`DRAW_*`), their caster words
      * in `volumeWords`. The first region's volume is written by the caller; a second one copies

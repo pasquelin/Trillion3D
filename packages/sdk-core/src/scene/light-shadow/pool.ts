@@ -1,4 +1,4 @@
-import { PAGE_MAPPED, PAGE_VALID, POOL_PAGES } from './virtual.ts';
+import { PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
 /** Ranks an ordering key spans, centred on zero: a sun level or a lamp mip lies far inside it. */
@@ -23,27 +23,29 @@ export const DRAW_ALL = 0,
  *
  * A page is taken from the free list, or from the page least recently requested; a page the
  * latest request report named is never taken. Only mapped pages can be stale, so the scheduler
- * walks this table — at most `POOL_PAGES` records — never the virtual one. Allocated once.
+ * walks this table — at most `pages` records — never the virtual one. Allocated once, `side ×
+ * side` pages (`shadowPoolSide`).
  */
-export function createShadowPool() {
-  const owner = new Int32Array(POOL_PAGES).fill(-1),
-    slice = new Int32Array(POOL_PAGES),
+export function createShadowPool(side: number) {
+  const pages = side * side;
+  const owner = new Int32Array(pages).fill(-1),
+    slice = new Int32Array(pages),
     /** Sun: level. Lamp: `face · 16 + mip`. */
-    view = new Int32Array(POOL_PAGES),
-    x = new Int32Array(POOL_PAGES),
-    y = new Int32Array(POOL_PAGES),
+    view = new Int32Array(pages),
+    x = new Int32Array(pages),
+    y = new Int32Array(pages),
     /** How coarse the page is within its light — a sun level, a lamp mip —: the finer goes first. */
-    rank = new Int32Array(POOL_PAGES),
-    requested = new Int32Array(POOL_PAGES).fill(-1),
-    dirty = new Uint8Array(POOL_PAGES),
-    valid = new Uint8Array(POOL_PAGES),
+    rank = new Int32Array(pages),
+    requested = new Int32Array(pages).fill(-1),
+    dirty = new Uint8Array(pages),
+    valid = new Uint8Array(pages),
     /** The static layer holds this page's static casters, current. */
-    layered = new Uint8Array(POOL_PAGES),
-    since = new Float64Array(POOL_PAGES),
-    sinceFrame = new Int32Array(POOL_PAGES);
-  const free = new Int32Array(POOL_PAGES),
+    layered = new Uint8Array(pages),
+    since = new Float64Array(pages),
+    sinceFrame = new Int32Array(pages);
+  const free = new Int32Array(pages),
     /** Eviction keys: last request, then rank, then page, packed into one exact number. */
-    order = new Float64Array(POOL_PAGES);
+    order = new Float64Array(pages);
   let freeCount = 0,
     orderCount = -1,
     orderAt = 0,
@@ -53,10 +55,10 @@ export function createShadowPool() {
   const buildOrder = () => {
     orderCount = 0;
     orderAt = 0;
-    for (let page = 0; page < POOL_PAGES; page++)
+    for (let page = 0; page < pages; page++)
       if (owner[page] >= 0 && requested[page] < orderFrame)
         order[orderCount++] =
-          ((requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * POOL_PAGES + page;
+          ((requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * pages + page;
     order.subarray(0, orderCount).sort();
   };
   const init = () => {
@@ -65,8 +67,8 @@ export function createShadowPool() {
     dirty.fill(0);
     valid.fill(0);
     layered.fill(0);
-    for (let page = 0; page < POOL_PAGES; page++) free[page] = POOL_PAGES - 1 - page;
-    freeCount = POOL_PAGES;
+    for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
+    freeCount = pages;
   };
   init();
   const pool = {
@@ -82,8 +84,11 @@ export function createShadowPool() {
     layered,
     since,
     sinceFrame,
+    /** Physical pages per side of the atlas, and in all. */
+    side,
+    pages,
     get used() {
-      return POOL_PAGES - freeCount;
+      return pages - freeCount;
     },
     /**
      * The page is stale from now on — its moving casters only, or its static ones too —, at the
@@ -138,7 +143,7 @@ export function createShadowPool() {
       else {
         if (orderCount < 0) buildOrder();
         while (orderAt < orderCount && page < 0) {
-          const candidate = order[orderAt++] % POOL_PAGES;
+          const candidate = order[orderAt++] % pages;
           if (owner[candidate] >= 0 && requested[candidate] < reportFrame) {
             pool.release(table, candidate);
             page = free[--freeCount];
