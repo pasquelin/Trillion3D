@@ -83,7 +83,8 @@ export interface PlayWorld {
   canvas: HTMLCanvasElement;
   camera: CameraNode;
   scene: Node3;
-  onFrame(hook: (frame: { delta: number }) => void): unknown;
+  /** Adds a hook run every frame; what it returns removes it. */
+  onFrame(hook: (frame: { delta: number }) => void): () => void;
   invalidate(): void;
 }
 
