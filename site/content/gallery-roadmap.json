@@ -635,8 +635,7 @@
         "fr": "Rendu cartoon"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/toon-shading.html"
     },
     {
       "id": "a-matcap-sculpture",
@@ -645,8 +644,7 @@
         "fr": "Une sculpture matcap"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-matcap-sculpture.html"
     },
     {
       "id": "normals-and-depth-seen",
