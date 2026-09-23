@@ -75,46 +75,56 @@ export function profileLines(latest: ProfileWindow): [string, string][] {
 }
 
 /** Whether the page asked for the profile: `?profile` in its address. */
-export const profiling = () => new URLSearchParams(location.search).has('profile');
+export const profiling = () =>
+  new URLSearchParams(globalThis.location?.search ?? '').has('profile');
 
 /**
- * Starts profiling the world: every animation-frame callback is timed, and every frame hook the
- * page adds from now on; each second, `publish` receives the window just closed, and the engine's
- * CPU-step window opens again. Callbacks scheduled or hooks added before this call are not seen.
+ * The frames' clock: every animation-frame callback timed, a frame's callbacks sharing one
+ * timestamp, so the frame closes when the next one begins. An engine session binds
+ * `requestAnimationFrame` when it opens, so the clock is wound at the kit's import under
+ * `?profile`, before any world opens; a frame counts only once `drew` is set by the world.
  */
-export function startProfile<Frame>(
-  world: ProfiledWorld<Frame>,
-  publish: (latest: ProfileWindow) => void,
-) {
-  const frameMs: number[] = [],
-    hooksMs: number[] = [];
-  let stamp = -1,
-    tick = 0,
-    hooks = 0,
-    drew = false;
-  // A frame's callbacks share one timestamp: the tick closes when the next one begins.
+const clock = { frameMs: [] as number[], hooksMs: [] as number[], stamp: -1, tick: 0, hooks: 0 };
+let drew = false,
+  wound = false;
+function windClock() {
+  if (wound) return;
+  wound = true;
   const close = () => {
     if (drew) {
-      frameMs.push(tick);
-      hooksMs.push(hooks);
+      clock.frameMs.push(clock.tick);
+      clock.hooksMs.push(clock.hooks);
     }
-    tick = hooks = 0;
+    clock.tick = clock.hooks = 0;
     drew = false;
   };
   const request = requestAnimationFrame.bind(globalThis);
   globalThis.requestAnimationFrame = (callback) =>
     request((time) => {
-      if (time !== stamp) {
+      if (time !== clock.stamp) {
         close();
-        stamp = time;
+        clock.stamp = time;
       }
       const start = performance.now();
       try {
         callback(time);
       } finally {
-        tick += performance.now() - start;
+        clock.tick += performance.now() - start;
       }
     });
+}
+if (profiling()) windClock();
+
+/**
+ * Starts profiling the world: every animation-frame callback is timed, and every frame hook the
+ * page adds from now on; each second, `publish` receives the window just closed, and the engine's
+ * CPU-step window opens again. Hooks added before this call are not seen.
+ */
+export function startProfile<Frame>(
+  world: ProfiledWorld<Frame>,
+  publish: (latest: ProfileWindow) => void,
+) {
+  windClock();
   const timed =
     <Hook extends (...args: never[]) => void>(hook: Hook) =>
     (...args: Parameters<Hook>) => {
@@ -122,7 +132,7 @@ export function startProfile<Frame>(
       try {
         hook(...args);
       } finally {
-        hooks += performance.now() - start;
+        clock.hooks += performance.now() - start;
       }
     };
   const onFrame = world.onFrame.bind(world),
@@ -134,6 +144,7 @@ export function startProfile<Frame>(
   if (beforeFrame) world.beforeFrame = (hook) => beforeFrame(timed(hook));
   world.resetCpuSteps?.();
   setInterval(() => {
+    const { frameMs, hooksMs } = clock;
     publish(profileWindow(frameMs.splice(0), hooksMs.splice(0), world.cpuSteps?.() ?? null));
     world.resetCpuSteps?.();
   }, 1000);
