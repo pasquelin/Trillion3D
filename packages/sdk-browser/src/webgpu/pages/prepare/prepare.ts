@@ -38,10 +38,8 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
       let xyz = xyzCache.get(rec.attributes);
       if (!xyz) {
         xyz = new Float32Array(attr.count * 3);
-        // A simple unnormalized three-component attribute is already that array: `getX/getY/getZ` then
-        // yield `array[i * 3 + c]`, and the block copy writes the same values, rounded to the same 32-bit
-        // float. Any other attribute — interleaved, normalized, another stride — goes back through the
-        // accessors, the only ones able to say what it holds.
+        // A plain three-component attribute is already that array, copied as a block; any other —
+        // interleaved, normalized, another stride — goes through the accessors that can read it.
         const flat = attr.array as ArrayLike<number> & {
           subarray?(begin: number, end: number): ArrayLike<number>;
           isInterleavedBufferAttribute?: boolean;
@@ -74,6 +72,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, viewport, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
+  const step = <T>(name: string, work: Promise<T>) => (rt.context.preparationStep?.(name), work);
   rt.lights.buffer = createSceneLightContractBuffer(gpuDevice);
   // No more light written into the scene, on either side: opaques and transparents read the same
   // declared-light buffer, with the same shadows and the same exposure (P6).
@@ -85,13 +84,15 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     shadows: false,
     globalIllumination: false,
   });
-  // The contract program finishes compiling between two images: its arrival is a new resource, and
-  // without this counter the held image would keep presenting raw albedo.
-  // The two programs compile side by side: they share only the device.
-  [gpu.deferred] = await Promise.all([
-    createDeferredLighting(gpuDevice, rt.lights.buffer, () => run.gate.resourcesChanged()),
-    prepareTemporalAntialiasing(rt, gpuDevice),
-  ]);
+  // The contract program finishes compiling between two images: its arrival is a new resource, or
+  // the held image would keep presenting raw albedo. The two programs compile side by side.
+  [gpu.deferred] = await step(
+    'lighting and antialiasing programs',
+    Promise.all([
+      createDeferredLighting(gpuDevice, rt.lights.buffer, () => run.gate.resourcesChanged()),
+      prepareTemporalAntialiasing(rt, gpuDevice),
+    ]),
+  );
   context.signal?.throwIfAborted();
   gpu.presenter = prepareWebgpuPresentation(gpuDevice, context.gpuCanvas);
   if (gpu.presenter) grantCapability(capabilities, 'direct WebGPU present');
@@ -128,12 +129,14 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   blendState.transmissive = prepareWebgpuBlend(gpuDevice, blendCopies, gpu, blendState, scene);
   blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS);
   gpu.volumeBuffer = createVolumeBuffer(gpuDevice, blendState.transmissive);
-  // The transparent draw order is the scene's and is settled here, once: an image only chooses which
-  // of its entries survive.
+  // The transparent draw order is the scene's, settled here once: an image only picks survivors.
   blendState.table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu);
   for (let i = 0; i < blendState.table.pagedItems.length; i++)
     blendState.table.pagedItems[i].pagedIndex = i;
-  blendState.compaction = await createTransparentCompaction(gpuDevice, blendState.table);
+  blendState.compaction = await step(
+    'transparent compaction',
+    createTransparentCompaction(gpuDevice, blendState.table),
+  );
   diag.engineDiagnostic('transparent-clusters', 'Transparent cluster table', {
     version: 1,
     items: blendState.table.pagedItems.length,
@@ -146,10 +149,10 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   ensureUniform(rt, gpuDevice, cap);
   try {
-    await prepareWebgpuTextures(rt, gpuDevice);
+    await step('textures', prepareWebgpuTextures(rt, gpuDevice));
     // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
-    await prepareBlendResources(rt, gpuDevice);
-    await prepareWebgpuVisibility(rt, gpuDevice);
+    await step('blend resources', prepareBlendResources(rt, gpuDevice));
+    await step('visibility programs', prepareWebgpuVisibility(rt, gpuDevice));
   } catch (error) {
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
@@ -158,20 +161,23 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
-  await prepareDirectLights(rt, gpuDevice);
+  await step('direct lights', prepareDirectLights(rt, gpuDevice));
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
   if (vis.gpuDraw && selectionRoots.length) {
-    run.gpuSelection = await createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
-      residentCut: true,
-      diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
-    });
+    run.gpuSelection = await step(
+      'GPU cut',
+      createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
+        residentCut: true,
+        diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
+      }),
+    );
     // The GPU has just received ABSOLUTE world matrices: no render origin is posted there yet, and
     // the first image will bring them back to the eye wherever it is then.
     run.worldUploadOrigin.fill(NaN);
   }
   capabilities.gpuDriven = !!run.gpuSelection;
-  await services.bootstrapState.ensure();
+  await step('coverage bootstrap', services.bootstrapState.ensure());
   diag.engineDiagnostic('render-capabilities', 'Render paths ready', {
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,
