@@ -15489,7 +15489,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.controls",
-    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; update(delta?: number): void; follow: () => void; dispose(): void; }",
+    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; minDistance: number; maxDistance: number; minPolarAngle: number; maxPolarAngle: number; mi...",
     "summary": "The mouse and keyboard controller that moves the camera.",
     "members": [
       {
@@ -15506,6 +15506,36 @@
         "name": "target",
         "type": "Vector3",
         "desc": "The point a pivot controller turns around."
+      },
+      {
+        "name": "minDistance",
+        "type": "number",
+        "desc": "Closest a pivot controller brings the camera to `target`."
+      },
+      {
+        "name": "maxDistance",
+        "type": "number",
+        "desc": "Farthest a pivot controller takes the camera from `target`."
+      },
+      {
+        "name": "minPolarAngle",
+        "type": "number",
+        "desc": "Orbit only: smallest polar angle, in radians from straight up."
+      },
+      {
+        "name": "maxPolarAngle",
+        "type": "number",
+        "desc": "Orbit only: largest polar angle; `Math.PI / 2` keeps the camera above the ground."
+      },
+      {
+        "name": "minAzimuthAngle",
+        "type": "number",
+        "desc": "Orbit only: start of the arc of azimuth allowed, in radians from +Z towards +X."
+      },
+      {
+        "name": "maxAzimuthAngle",
+        "type": "number",
+        "desc": "Orbit only: end of that arc; it may be smaller than `minAzimuthAngle`."
       },
       {
         "name": "update(delta?: number)",

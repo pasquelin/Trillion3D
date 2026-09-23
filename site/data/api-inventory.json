@@ -910,7 +910,8 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/world.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts",
+        "packages/sdk-browser/src/world/core/worldControlsHandle.test.ts",
+        "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
         "packages/sdk-browser/src/world/core/worldRuntime.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "scripts/docs-camera-lessons.test.ts",
@@ -8198,7 +8199,7 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/world/core/loadedModel.ts",
         "packages/sdk-browser/src/world/core/worldCamera.ts",
-        "packages/sdk-browser/src/world/core/worldHandles.ts",
+        "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/pose/index.ts",
