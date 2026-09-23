@@ -139,7 +139,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
     const recs = byUrl.get(url);
-    if (!recs) return;
+    if (!recs?.length) return false;
     const descriptor = descriptors.get(url);
     if (
       !descriptor ||
@@ -171,10 +171,11 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       state.allocationBytes += data.indices.byteLength;
       for (const array of Object.values(data.attributes)) state.allocationBytes += array.byteLength;
     }
+    return true;
   };
-  const acceptGeometryPage = (url: string, data: DecodedGeometryPage) => {
-    if (!modifiedPages.has(url)) storeGeometryPage(url, data);
-  };
+  // True when the store now holds the page: the host did not replace it, and a record draws it.
+  const acceptGeometryPage = (url: string, data: DecodedGeometryPage) =>
+    !modifiedPages.has(url) && storeGeometryPage(url, data);
   return {
     state,
     /** The one twin cache of the backend: whoever paints a surface reads it through here. */

@@ -52,18 +52,22 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
       for (const url of uniques) retained.push(url);
       return retained;
     },
+    /** Gives a page's geometry back, in every record that draws it: one eviction per page, as the
+     *  WebGPU page cache counts them, and none for a page that held nothing. */
     dropPage(url: string) {
       if (bootstrapUrls.has(url) || modifiedPages.has(url)) return;
       const recs = byUrl.get(url);
       if (!recs) return;
+      let held = false;
       for (const rec of recs) {
+        held ||= !!rec.array;
         detach(rec);
         releaseGeometry(geometryStore.state, rec);
         rec.geometry = undefined;
         rec.mesh = undefined;
         rec.array = undefined;
-        state.cacheEvictions++;
       }
+      if (held) state.cacheEvictions++;
     },
   };
 }

@@ -25,8 +25,8 @@ function fakeGeometryStore() {
     rowsWritten: () => {},
     dispose: () => {},
     removeRecords: () => {},
-    storeGeometryPage: () => {},
-    acceptGeometryPage: () => {},
+    storeGeometryPage: () => false,
+    acceptGeometryPage: () => false,
   };
 }
 
@@ -128,4 +128,23 @@ test('comptePagesResidentes counts resident pages without building an intermedia
   assert.equal(comptePagesResidentes(pages), 2);
   assert.equal(comptePagesResidentes(pages), pages.filter((p) => !!p.array).length);
   assert.equal(comptePagesResidentes([]), 0);
+});
+
+test('dropPage counts one eviction per page, whatever records draw it, and none for an empty page', () => {
+  const instances = [
+    fakePageRec('g.bin', new Uint32Array(3)),
+    fakePageRec('g.bin', new Uint32Array(3)),
+  ];
+  const residency = createAutonomousResidency({
+    ...makeEnv(),
+    pending: [],
+    retained: [],
+    byUrl: new Map([['g.bin', instances]]),
+    geometryStore: fakeGeometryStore(),
+  });
+  residency.dropPage('g.bin');
+  assert.equal(residency.cacheEvictions, 1, 'as the WebGPU page cache counts');
+  assert.ok(instances.every((rec) => !rec.array));
+  residency.dropPage('g.bin');
+  assert.equal(residency.cacheEvictions, 1, 'a page that held nothing is not evicted again');
 });
