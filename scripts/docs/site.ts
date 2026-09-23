@@ -21,8 +21,11 @@ export const SITE_URL = 'https://www.trillion3d.com/';
 
 /** What the site serves as is: examples, scene assets, data records and the reports. */
 const STATIC_ENTRIES = ['examples', 'assets', 'data', 'reports'];
-/** What the build writes at the root from `SITE_URL`: the portal page and the crawler rules. */
-const METADATA_ENTRIES = ['index.html', 'robots.txt'];
+/** The pages the portal replaced, each moved to its route: an old link still lands on it. */
+const REDIRECTS: Record<string, string> = { 'report.html': '#/en/reports' };
+/** What the build writes at the root from `SITE_URL`: the portal page, the crawler rules and the
+ *  redirects. */
+const METADATA_ENTRIES = ['index.html', 'robots.txt', ...Object.keys(REDIRECTS)];
 /** Source modules living beside the reports' records are not served. */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 
@@ -93,6 +96,14 @@ async function writeMetadata(source: string, out: string, published: boolean) {
      one published without it. */
   await writeFile(resolve(out, 'index.html'), published ? withMeasurement(written) : written);
   await writeFile(resolve(out, 'robots.txt'), 'User-agent: *\nAllow: /\n');
+  for (const [page, route] of Object.entries(REDIRECTS))
+    await writeFile(
+      resolve(out, page),
+      `<!doctype html>\n<meta charset="utf-8" />\n<title>Trillion3D</title>\n` +
+        `<link rel="canonical" href="${SITE_URL}${route}" />\n` +
+        `<meta http-equiv="refresh" content="0; url=./${route}" />\n` +
+        `<a href="./${route}">${SITE_URL}${route}</a>\n`,
+    );
 }
 
 /** Copies the served statics of the site `source` tree into `out`, sources excluded, and writes
