@@ -6428,6 +6428,12 @@
   "world.stageProfile": {
     "summary": "Mesure étape par étape des images de la session."
   },
+  "world.cpuSteps": {
+    "summary": "Durées CPU des images depuis `resetCpuSteps()` (p50, p95, max par étape) ; `null` non mesuré."
+  },
+  "world.resetCpuSteps": {
+    "summary": "Ouvre une nouvelle fenêtre `cpuSteps()`."
+  },
   "world.awaitPages": {
     "summary": "Se termine quand les pages que lit la vue actuelle sont résidentes (`awaitViewPages`)."
   },
