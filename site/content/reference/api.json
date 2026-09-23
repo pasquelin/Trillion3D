@@ -3721,15 +3721,15 @@
       },
       {
         "name": "INVALID_SCENE_TABLES",
-        "desc": "The model's node and material tables are missing, of another version, or disagree with its scene."
+        "desc": "The model's scene tables are missing, of another version, or do not lay out the scene it draws."
       },
       {
         "name": "UNSUPPORTED_SCENE_TABLES",
-        "desc": "The model's node and material tables are missing, of another version, or disagree with its scene."
+        "desc": "The model's scene tables are missing, of another version, or do not lay out the scene it draws."
       },
       {
         "name": "PREPARED_SCENE_MISMATCH",
-        "desc": "The model's node and material tables are missing, of another version, or disagree with its scene."
+        "desc": "The model's scene tables are missing, of another version, or do not lay out the scene it draws."
       },
       {
         "name": "AUTONOMOUS_SCENE_UNAVAILABLE",
@@ -7299,7 +7299,7 @@
     "section": "types",
     "kind": "Constant",
     "title": "MATERIAL_TABLE_VERSION",
-    "signature": "const MATERIAL_TABLE_VERSION: 1",
+    "signature": "const MATERIAL_TABLE_VERSION: 2",
     "summary": "The version of the material table this runtime reads.",
     "description": ""
   },
@@ -8518,7 +8518,7 @@
       {
         "name": "scene",
         "type": "{ source: HostGraphNode; sceneLightingSource: HostTraversable; associations: Map<HostNode, { meshes?: number; primitives?: number; placements?: PlacementRows...",
-        "desc": "The scene graph the loader built from the manifest."
+        "desc": "The scene graph built from the cache's scene tables."
       },
       {
         "name": "textureSource",
@@ -8574,8 +8574,8 @@
     "section": "types",
     "kind": "Constant",
     "title": "NODE_TABLE_VERSION",
-    "signature": "const NODE_TABLE_VERSION: 1",
-    "summary": "The version of the node table this runtime reads.",
+    "signature": "const NODE_TABLE_VERSION: 2",
+    "summary": "The version of the node table this runtime reads: every node, with its local pose.",
     "description": ""
   },
   {
@@ -10561,7 +10561,7 @@
     "kind": "Type",
     "title": "PreparedSceneTables",
     "signature": "interface PreparedSceneTables",
-    "summary": "The node and material tables a compiled model carries.",
+    "summary": "The tables a compiled model carries.",
     "members": [
       {
         "name": "version",
@@ -10579,19 +10579,39 @@
         "desc": "Material table version."
       },
       {
+        "name": "geometryTableVersion",
+        "type": "number",
+        "desc": "Geometry layout version."
+      },
+      {
+        "name": "scene",
+        "type": "{ name: string; nodes: readonly number[]; }",
+        "desc": "The scene the host opens, and the nodes at its top."
+      },
+      {
         "name": "nodes",
         "type": "TableNode[]",
-        "desc": "The nodes."
+        "desc": "Every node."
+      },
+      {
+        "name": "lights",
+        "type": "TableLight[]",
+        "desc": "The lights the nodes hang."
       },
       {
         "name": "materials",
         "type": "TableMaterial[]",
-        "desc": "The materials."
+        "desc": "The surfaces."
       },
       {
         "name": "textures",
         "type": "TableTexture[]",
         "desc": "The textures."
+      },
+      {
+        "name": "documents",
+        "type": "Readonly<Record<string, TableDocument>>",
+        "desc": "The geometry layout of each published scene file, by its name."
       }
     ],
     "description": ""
@@ -11345,7 +11365,7 @@
     "kind": "Constant",
     "title": "SCENE_TABLES_FILE",
     "signature": "const SCENE_TABLES_FILE: 'scene-tables.json'",
-    "summary": "The name of the file that holds the node and material tables.",
+    "summary": "The name of the file that holds the scene tables.",
     "description": ""
   },
   {
@@ -11355,7 +11375,7 @@
     "section": "types",
     "kind": "Constant",
     "title": "SCENE_TABLES_VERSION",
-    "signature": "const SCENE_TABLES_VERSION: 1",
+    "signature": "const SCENE_TABLES_VERSION: 2",
     "summary": "Version of the product as a whole; each table it carries is versioned in turn.",
     "description": ""
   },
@@ -13810,7 +13830,7 @@
   },
   {
     "id": "TABLE_FLAGS",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
+    "module": "packages/sdk-core/src/scene/core/tableSurfaces.ts",
     "exports": ["TABLE_FLAGS"],
     "section": "types",
     "kind": "Constant",
@@ -13821,7 +13841,7 @@
   },
   {
     "id": "TABLE_NUMBERS",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
+    "module": "packages/sdk-core/src/scene/core/tableSurfaces.ts",
     "exports": ["TABLE_NUMBERS"],
     "section": "types",
     "kind": "Constant",
@@ -13832,7 +13852,7 @@
   },
   {
     "id": "TABLE_SLOTS",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
+    "module": "packages/sdk-core/src/scene/core/tableSurfaces.ts",
     "exports": ["TABLE_SLOTS"],
     "section": "types",
     "kind": "Constant",
@@ -13843,7 +13863,7 @@
   },
   {
     "id": "TABLE_TRIPLETS",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
+    "module": "packages/sdk-core/src/scene/core/tableSurfaces.ts",
     "exports": ["TABLE_TRIPLETS"],
     "section": "types",
     "kind": "Constant",
@@ -13935,7 +13955,7 @@
   },
   {
     "id": "TableMaterial",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
+    "module": "packages/sdk-core/src/scene/core/tableSurfaces.ts",
     "exports": ["TableMaterial"],
     "section": "types",
     "kind": "Type",
@@ -13952,6 +13972,26 @@
         "name": "derivativeTangents",
         "type": "boolean",
         "desc": "Whether it was written for tangents rebuilt on screen."
+      },
+      {
+        "name": "kind",
+        "type": "'unlit' | 'standard' | 'physical'",
+        "desc": "Which surface the host builds: unlit, standard, or physical when a physical extension is declared."
+      },
+      {
+        "name": "alphaMode",
+        "type": "'OPAQUE' | 'MASK' | 'BLEND'",
+        "desc": "How alpha is read: ignored, cut at `alphaTest`, or blended."
+      },
+      {
+        "name": "opacity",
+        "type": "number",
+        "desc": "The alpha of the base colour factor."
+      },
+      {
+        "name": "extensions",
+        "type": "Readonly<Record<string, number | TableTextureSlot | readonly number[]>>",
+        "desc": "What the physical extensions add, under the host's own parameter names: a factor, a colour or a range as numbers, a map as a slot."
       },
       {
         "name": "lit",
@@ -14074,7 +14114,7 @@
     "kind": "Type",
     "title": "TableNode",
     "signature": "interface TableNode",
-    "summary": "One drawn primitive: the node that carries it, its world pose, the surface it wears and its rank among the copies of that same primitive — which is what instancing is here, one geometry named by several nodes.",
+    "summary": "One node of the scene graph, at its glTF rank: its children, the mesh and the punctual light it carries, and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation and scale, each `null` when silent.",
     "members": [
       {
         "name": "name",
@@ -14082,51 +14122,46 @@
         "desc": "The node's name."
       },
       {
-        "name": "node",
-        "type": "number",
-        "desc": "The node's number."
-      },
-      {
-        "name": "parent",
-        "type": "number | null",
-        "desc": "Its parent's number."
+        "name": "children",
+        "type": "readonly number[]",
+        "desc": "Its children, in order."
       },
       {
         "name": "mesh",
-        "type": "number",
-        "desc": "Its mesh's number."
+        "type": "number | null",
+        "desc": "The mesh it draws."
       },
       {
-        "name": "primitive",
-        "type": "number",
-        "desc": "Its primitive's number."
-      },
-      {
-        "name": "material",
-        "type": "number",
-        "desc": "Its material's rank."
-      },
-      {
-        "name": "instance",
-        "type": "number",
-        "desc": "Which copy it is."
+        "name": "light",
+        "type": "number | null",
+        "desc": "The light it hangs."
       },
       {
         "name": "matrix",
-        "type": "readonly number[]",
-        "desc": "Its world matrix."
+        "type": "readonly number[] | null",
+        "desc": "Its local matrix, column-major."
       },
       {
-        "name": "bounds",
-        "type": "{ min: readonly [number, number, number]; max: readonly [number, number, number]; } | null",
-        "desc": "Its world box."
+        "name": "translation",
+        "type": "readonly number[] | null",
+        "desc": "Where it stands."
+      },
+      {
+        "name": "rotation",
+        "type": "readonly number[] | null",
+        "desc": "How it is turned, as a quaternion."
+      },
+      {
+        "name": "scale",
+        "type": "readonly number[] | null",
+        "desc": "How it is stretched."
       }
     ],
-    "description": "`bounds` is the world box of the source geometry; the autonomous scene publishes degenerate triangles in its place, so it is the cache's answer, not the loader's."
+    "description": "Several nodes naming one mesh is what instancing is here."
   },
   {
     "id": "TableTexture",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
+    "module": "packages/sdk-core/src/scene/core/tableSurfaces.ts",
     "exports": ["TableTexture"],
     "section": "types",
     "kind": "Type",
@@ -14134,6 +14169,16 @@
     "signature": "interface TableTexture",
     "summary": "Sampler state of one glTF texture, in the engine's words.",
     "members": [
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "Its name."
+      },
+      {
+        "name": "sampler",
+        "type": "number | null",
+        "desc": "The rank of the glTF sampler it declares, `null` for none."
+      },
       {
         "name": "image",
         "type": "number | null",
@@ -14164,13 +14209,13 @@
   },
   {
     "id": "TableTextureSlot",
-    "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
+    "module": "packages/sdk-core/src/scene/core/tableSurfaces.ts",
     "exports": ["TableTextureSlot"],
     "section": "types",
     "kind": "Type",
     "title": "TableTextureSlot",
     "signature": "interface TableTextureSlot",
-    "summary": "One filled map slot: which texture, which coordinate set, and the 3×3 composed for it.",
+    "summary": "One filled map slot: which texture, which coordinate set, and the transform it declares.",
     "members": [
       {
         "name": "texture",
@@ -14184,8 +14229,8 @@
       },
       {
         "name": "transform",
-        "type": "readonly number[]",
-        "desc": "The UV transform, 3×3."
+        "type": "{ offset: readonly [number, number] | null; rotation: number | null; scale: readonly [number, number] | null; } | null",
+        "desc": "The `KHR_texture_transform` the slot declares — offset, turn in radians, stretch, each `null` when silent — or `null` for none."
       }
     ],
     "description": ""
@@ -18409,7 +18454,7 @@
       "type": "PreparedSceneTables",
       "desc": ""
     },
-    "description": "An unknown version is never guessed at: a product written by another compiler, or before a table changed shape, says nothing this reader can check a scene against, and reading it half way would turn a format change into a wrong comparison."
+    "description": "An unknown version is never guessed at: a product written by another compiler, or before a table changed shape, cannot be built into a scene, and reading it half way would turn a format change into a wrong image."
   },
   {
     "id": "axisAngleQuaternion",

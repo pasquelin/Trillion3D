@@ -2610,9 +2610,13 @@
       "version": "Phiên bản sản phẩm.",
       "nodeTableVersion": "Phiên bản bảng node.",
       "materialTableVersion": "Phiên bản bảng vật liệu.",
-      "nodes": "Các node.",
+      "geometryTableVersion": "Phiên bản bố cục hình học.",
+      "scene": "Cảnh mà máy chủ mở, và các nút ở đỉnh của nó.",
+      "nodes": "Mọi nút.",
+      "lights": "Các đèn mà các nút mang.",
       "materials": "Các vật liệu.",
-      "textures": "Các kết cấu."
+      "textures": "Các kết cấu.",
+      "documents": "Bố cục hình học của từng tệp cảnh đã xuất bản, theo tên của nó."
     }
   },
   "Primitive": {
@@ -3455,27 +3459,32 @@
       "roughnessMap": "Hình ảnh độ nhám.",
       "normalMap": "Hình ảnh pháp tuyến.",
       "aoMap": "Hình ảnh occlusion môi trường.",
-      "emissiveMap": "Hình ảnh phát sáng."
+      "emissiveMap": "Hình ảnh phát sáng.",
+      "kind": "Bề mặt mà máy chủ dựng: không chiếu sáng, tiêu chuẩn, hoặc vật lý khi có khai báo một phần mở rộng vật lý.",
+      "alphaMode": "Cách đọc alpha: bỏ qua, cắt tại `alphaTest`, hoặc hòa trộn.",
+      "opacity": "Alpha của hệ số màu cơ bản.",
+      "extensions": "Những gì các phần mở rộng vật lý thêm vào, theo tên tham số của máy chủ: một hệ số, một màu hoặc một khoảng dưới dạng số, một bản đồ dưới dạng khe."
     }
   },
   "TableNode": {
-    "summary": "Một nguyên thủy được vẽ: node mang nó, tư thế thế giới của nó, bề mặt nó mặc và thứ hạng của nó trong số các bản sao của cùng nguyên thủy đó — đây chính là điều mà nhân bản (instancing) nghĩa là ở đây, một hình học được nhiều node đặt tên.",
-    "description": "`bounds` là hộp thế giới của hình học nguồn; cảnh tự trị công bố các tam giác suy biến ở vị trí đó, nên đây là câu trả lời của bộ nhớ đệm, không phải của trình tải.",
+    "summary": "Một nút của đồ thị cảnh, ở thứ hạng glTF của nó: các nút con, lưới và đèn điểm mà nó mang, và tư thế CỤC BỘ đúng như được khai báo — một ma trận, hoặc bất kỳ phép tịnh tiến, xoay và tỉ lệ nào, mỗi cái là `null` khi không nêu.",
+    "description": "Nhiều nút cùng gọi một lưới: đó chính là việc tạo thể hiện ở đây.",
     "members": {
-      "name": "Tên của node.",
-      "node": "Số hiệu của node.",
-      "parent": "Số hiệu của cha nó.",
-      "mesh": "Số hiệu mesh của nó.",
-      "primitive": "Số hiệu nguyên thủy của nó.",
-      "material": "Thứ hạng vật liệu của nó.",
-      "instance": "Đây là bản sao thứ mấy.",
-      "matrix": "Ma trận thế giới của nó.",
-      "bounds": "Hộp thế giới của nó."
+      "name": "Tên của nút.",
+      "children": "Các nút con, theo thứ tự.",
+      "mesh": "Lưới mà nó vẽ.",
+      "light": "Đèn mà nó mang.",
+      "matrix": "Ma trận cục bộ của nó, theo cột.",
+      "translation": "Nơi nó đứng.",
+      "rotation": "Nó được xoay thế nào, dưới dạng quaternion.",
+      "scale": "Nó được kéo giãn thế nào."
     }
   },
   "TableTexture": {
     "summary": "Trạng thái bộ lấy mẫu của một kết cấu glTF, theo lời của bộ máy.",
     "members": {
+      "name": "Tên của nó.",
+      "sampler": "Thứ hạng của bộ lấy mẫu glTF mà nó khai báo, `null` nếu không có.",
       "image": "Hình ảnh nào.",
       "wrapS": "Lặp lại theo chiều ngang.",
       "wrapT": "Lặp lại theo chiều dọc.",
@@ -3484,11 +3493,11 @@
     }
   },
   "TableTextureSlot": {
-    "summary": "Một khe bản đồ đã lấp đầy: kết cấu nào, tập tọa độ nào, và ma trận 3×3 được dựng cho nó.",
+    "summary": "Một khe bản đồ đã điền: texture nào, bộ tọa độ nào, và phép biến đổi mà nó khai báo.",
     "members": {
       "texture": "Kết cấu nào.",
       "texCoord": "Tập UV nào.",
-      "transform": "Phép biến đổi UV, 3×3."
+      "transform": "`KHR_texture_transform` mà khe khai báo — độ dời, góc xoay tính bằng radian, độ giãn, mỗi cái là `null` khi không nêu — hoặc `null` nếu không có."
     }
   },
   "TelemetryReport": {
