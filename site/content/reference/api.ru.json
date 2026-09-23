@@ -6712,6 +6712,18 @@
       "tree": "Дерево, из которого приходят ответы: его `triangleCount` и `bytes` — это стоимость мира."
     }
   },
+  "TriangleTree": {
+    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
+    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "members": {
+      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
+      "bounds": "Per node: min xyz, max xyz.",
+      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
+      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
+      "bytes": "Bytes the tree keeps.",
+      "triangleCount": "Triangles the tree holds."
+    }
+  },
   "world.beforeFrame": {
     "summary": "Запускает функцию перед каждым отрисованным кадром, с `{ delta, time }`; возвращает свою функцию удаления.",
     "description": "Кадр цикла мира выполняется так: контроллер продвигает камеру (если только `controls.autoUpdate` не ложно), клипы продвигаются, эти хуки в порядке их добавления, сцена записывается и рисуется, затем хуки `onFrame`. То, что размещает хук — тело на камере, кабина — рисуется в этом же самом кадре, никогда не с опозданием на один. `render()`, ведомый хостом, тоже их запускает, но не продвигает ни один контроллер. Хук, вызывающий `invalidate()`, поддерживает поступление кадров.",
