@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
+import { compileFullCache } from './native-compiler.ts';
 
 /**
  * Writes the sources of the example scenes, under `site/assets/examples/<scene>/source` — an
@@ -11,10 +11,7 @@ import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
  */
 const root = resolve(import.meta.dirname, '..'),
   examples = resolve(root, 'site/assets/examples'),
-  only = process.argv.slice(2).find((argument) => !argument.startsWith('-')),
-  compiler =
-    process.env.TRILLION3D_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
+  only = process.argv.slice(2).find((argument) => !argument.startsWith('-'));
 
 const names = Object.keys(modelScenes).filter((name) => !only || name === only);
 if (!names.length) throw new Error(`Unknown example scene: ${only}`);
@@ -25,15 +22,12 @@ if (process.argv.includes('--source-only')) process.exit(0);
 for (const name of names) {
   const directory = resolve(examples, name);
   await rm(resolve(directory, 'cache'), { recursive: true, force: true });
-  // The source folder holds one glTF or the OBJ files to merge; relative paths, from the scene
-  // folder, since the compiler records the paths it was given and a cache that names the machine
-  // it was built on is refused (`self-contained-repository.test.ts`).
-  const result = spawnSync(
-    compiler,
-    ['source', 'cache', 'full', '150000', '2', '256', '../../../../source/', 'qem-endpoints'],
-    { cwd: directory, stdio: ['ignore', 'ignore', 'inherit'] },
-  );
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`Example scene compilation failed: ${name}`);
+  // The source folder holds one glTF or the OBJ files to merge.
+  compileFullCache({
+    cwd: directory,
+    source: 'source',
+    simplification: 'qem-endpoints',
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
   await rm(resolve(directory, 'cache/native/.lock'), { force: true });
 }

@@ -44,10 +44,10 @@ export const VALIDATE_GROUPS = {
   native: ['lint:native', 'build:native', 'test:native', 'build', 'test'],
 } as const satisfies Record<string, readonly string[]>;
 
-export type ValidateGroup = keyof typeof VALIDATE_GROUPS;
+type ValidateGroup = keyof typeof VALIDATE_GROUPS;
 
 /** Whether `name` is one of the three groups, and not a caller's typo. */
-export function isValidateGroup(name: string): name is ValidateGroup {
+function isValidateGroup(name: string): name is ValidateGroup {
   return Object.hasOwn(VALIDATE_GROUPS, name);
 }
 
