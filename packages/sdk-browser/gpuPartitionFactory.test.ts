@@ -7,7 +7,7 @@ import {
   PARTITION_KERNEL_BINDINGS,
   UNI_SCALARS,
 } from './gpuPartitionContract.ts';
-import { hizDevice } from './gpuHizMockDevice.ts';
+import { hizDevice } from '../../tests/kit/gpu/hizDevice.ts';
 import type { PartitionFrame } from './gpuPartitionUniform.ts';
 
 const STORAGE_BUFFERS_PER_STAGE = 8;

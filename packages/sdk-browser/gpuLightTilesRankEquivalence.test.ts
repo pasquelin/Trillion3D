@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
-import { compactRank, compactSerial } from './bench/oracles/gpuLightTilesRankOracle.ts';
+import { compactRank, compactSerial } from '../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 
 // D4: gpuLightTilesShader.ts now compacts retained lights by rank (countOneBits, one thread
 // per light) instead of a loop on thread zero. compactSerial (the legacy kernel) and compactRank

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TEMPLATES, sha } from '../../test/fixtures/manifestBinary.ts';
-import { preview } from '../../test/fixtures/manifestBinaryPreview.ts';
+import { TEMPLATES, sha } from '../../tests/fixtures/manifestBinary.ts';
+import { preview } from '../../tests/fixtures/manifestBinaryPreview.ts';
 import {
   encodeManifestBinary,
   decodeManifestBinary,

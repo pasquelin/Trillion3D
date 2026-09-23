@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exactPagesBackend } from './measurement.ts';
-import { fixture, camera } from '../../test/fixtures/bootstrapOrder.ts';
+import { fixture, camera } from '../../tests/fixtures/bootstrapOrder.ts';
 
 test('the root cover is the first thing a cold explorer asks for, and the only thing', () => {
   const scene = fixture();

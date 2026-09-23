@@ -4,8 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { anneauFroid, empileEnAttente } from './explorerDraw.ts';
-import { referenceAnneauFroid } from './bench/oracles/cadre-vue.ts';
-import { referenceEmpileEnAttente } from './bench/oracles/recherches-streaming.ts';
+import { referenceAnneauFroid } from '../../bench/oracles/browser/cadre-vue.ts';
+import { referenceEmpileEnAttente } from '../../bench/oracles/browser/recherches-streaming.ts';
 
 function streamer(has: Set<string>, loading: Set<string>, failed: Set<string>) {
   return {
@@ -67,7 +67,7 @@ test('a large ring, a large number of batches of varied sizes, stays identical t
 
 // G6: missing addresses that an in-flight request will send again later accumulate in a
 // `Set` (`empileEnAttente`) instead of an array tested by `includes` on every added address.
-// Oracle: the hand-deduped array from before batch G, copied into `bench/oracles/recherches-streaming.ts`.
+// Oracle: the hand-deduped array from before batch G, copied into `../../bench/oracles/browser/recherches-streaming.ts`.
 test('an empty set receives the same addresses, in the same order, as a hand-deduped array', () => {
   const ensemble = new Set<string>();
   const tableau: string[] = [];

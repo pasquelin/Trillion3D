@@ -8,12 +8,15 @@
 // depth conventions. Three is used only as a reference, never in a `math*.ts` file.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { joueNous } from '../sdk-browser/bench/appui/hierarchieRejeuNous.ts';
-import { joueThree } from '../sdk-browser/bench/appui/hierarchieRejeuThree.ts';
-import { chainesFigees } from '../sdk-browser/bench/appui/hierarchieScenarios.ts';
-import type { HierarchyOp } from '../sdk-browser/bench/appui/hierarchieScenarios.ts';
-import { objectifs, visees } from '../sdk-browser/bench/appui/hierarchieScenariosCamera.ts';
-import { marquages, liveScenario } from '../sdk-browser/bench/appui/hierarchieScenariosVivants.ts';
+import { joueNous } from '../../bench/perf/browser/support/hierarchieRejeuNous.ts';
+import { joueThree } from '../../bench/perf/browser/support/hierarchieRejeuThree.ts';
+import { chainesFigees } from '../../bench/perf/browser/support/hierarchieScenarios.ts';
+import type { HierarchyOp } from '../../bench/perf/browser/support/hierarchieScenarios.ts';
+import { objectifs, visees } from '../../bench/perf/browser/support/hierarchieScenariosCamera.ts';
+import {
+  marquages,
+  liveScenario,
+} from '../../bench/perf/browser/support/hierarchieScenariosVivants.ts';
 
 function compare(scenario: HierarchyOp[], label: string) {
   const attendu = joueThree(scenario);

@@ -5,7 +5,7 @@ import { rasterVisibilityIds } from './visibilityBuffer.ts';
 import { buildHizPyramid, countUnoccluded, visibilityDepth } from './hiz.ts';
 import { HIZ_TEST_VALUES, hizTestRect } from './hizOcclusion.ts';
 import { createHizCounts, HIZ_KERNEL_TEXELS } from './hizCounts.ts';
-import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
+import { cameraAt, quad } from '../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 test('hizTestRect clips rectangle to viewport: entirely inside', () => {

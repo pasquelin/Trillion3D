@@ -1,13 +1,13 @@
 // G3: visibilityLighting.ts hoists the hemispheric-lighting constants (sun direction, its
 // length, ground and sky colour) out of `shadeLit`, called per pixel, instead of recomputing and
 // reallocating them at every call. Oracle: the pre-lot-G version, copied as-is into
-// `bench/oracles/eclairage-pixel.ts`, its ground colour on the exact sRGB curve since #76.
+// `../../bench/oracles/browser/eclairage-pixel.ts`, its ground colour on the exact sRGB curve since #76.
 import type { Texture } from '../sdk-core/index.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadeLit } from './visibilityLighting.ts';
-import { referenceShadeLit } from './bench/oracles/eclairage-pixel.ts';
+import { referenceShadeLit } from '../../bench/oracles/browser/eclairage-pixel.ts';
 import type { VisPage, VisMaterial } from './visibilityTypes.ts';
 import type { Projected } from './visibilityProjection.ts';
 import { cameraMoteur } from './cameraFixture.ts';

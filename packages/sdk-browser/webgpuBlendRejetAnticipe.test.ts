@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 
 /**

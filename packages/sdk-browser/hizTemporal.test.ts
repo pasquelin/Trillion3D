@@ -15,7 +15,7 @@ import {
   type TemporalHizState,
 } from './hiz.ts';
 import { splitOccludersFlat, splitOccludersInto } from './hizSplit.ts';
-import { cameraAt, projectBoxToScreen, quad } from '../../test/fixtures/hiz.ts';
+import { cameraAt, projectBoxToScreen, quad } from '../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 test('Hi-Z remaining pages are a subset of the selected cut and never punch a beauty hole', () => {

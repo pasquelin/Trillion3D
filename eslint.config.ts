@@ -54,7 +54,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.ts', 'test/fixtures/**/*.ts'],
+    files: ['**/*.test.ts', '**/*.fixture.ts', 'tests/fixtures/**/*.ts', 'tests/kit/**/*.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
 );

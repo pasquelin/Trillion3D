@@ -1,13 +1,16 @@
 // A3 and A4: splitOccludersInto returns the radix-sort pages flat, and countUnoccluded projects
 // through projectBoxesFlat with an epoch cache instead of a HizBounds allocated per page and
-// per frame. Oracle: the reference from before batch A in `bench/oracles/occlusion.ts`.
+// per frame. Oracle: the reference from before batch A in `../../bench/oracles/browser/occlusion.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildHizPyramid, countUnoccluded, createHizCounts, type HizPage } from './hiz.ts';
 import { splitOccludersInto } from './hizSplit.ts';
-import { referenceCountUnoccluded, referenceSplitOccluders } from './bench/oracles/occlusion.ts';
-import { cameraAt } from '../../test/fixtures/hiz.ts';
+import {
+  referenceCountUnoccluded,
+  referenceSplitOccluders,
+} from '../../bench/oracles/browser/occlusion.ts';
+import { cameraAt } from '../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 

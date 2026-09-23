@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { prefixParallel, prefixSerial } from './bench/oracles/gpuDrawPrefixOracle.ts';
+import { prefixParallel, prefixSerial } from '../../bench/oracles/browser/gpuDrawPrefixOracle.ts';
 
 // D3: the per-slot parallel prefix (workgroup_size(64)), in place in gpuDrawShader.ts since the
 // visibility batch, produces exactly the same totals (indirect[slot*4+1]) and groupOffsets as the

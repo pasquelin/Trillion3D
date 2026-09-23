@@ -45,7 +45,7 @@ export type PageRec = {
   /** The host declaration the record was read from, carried for the ONE use that needs the object
    *  itself: handing a surface back to the library that owns it — the WebGL2 witness draw, the
    *  transparent copy, the diagnostic materials. The closed list of
-   *  `test/integration/moteur-sans-three.test.ts` says who may read it. */
+   *  `tests/integration/moteur-sans-three.test.ts` says who may read it. */
   declaration: HostMaterials;
   transparent?: boolean;
   sourceMesh?: HostMesh;

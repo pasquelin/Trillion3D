@@ -2,7 +2,7 @@
 // `multiplyMatrix4`, which starts from no zero: `mathMatrix4.test.ts` proves that form can
 // yield -0 where the old one always yielded +0. This test checks whether that gap reaches the
 // public output of `composeFace`, on directions and eyes hostile to signed zeros; the oracle is the
-// previous code, copied as-is into `sdk-browser/bench/oracles/socle-math-ombres.ts`.
+// previous code, copied as-is into `bench/oracles/browser/socle-math-ombres.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { composeFace, shadowOrthographic, shadowProjection } from './sceneLightShadowMath.ts';
@@ -10,7 +10,7 @@ import {
   referenceComposeFace,
   referenceShadowOrthographic,
   referenceShadowProjection,
-} from '../sdk-browser/bench/oracles/socle-math-ombres.ts';
+} from '../../bench/oracles/browser/socle-math-ombres.ts';
 
 /** The six point axes, then each with its zero components made negative, one by one and
  *  all together: the same hostility as the bench's `POINT_FACE_AXES`. */
