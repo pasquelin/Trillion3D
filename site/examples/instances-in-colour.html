@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Instances in colour</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #070912;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      // A sequence in [0, 1) from a seed: the same galaxy on every run.
+      function random(seed) {
+        let state = seed >>> 0;
+        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
+      }
+
+      // One small crystal shape and twelve colours, from the core's to the rim's. Twelve
+      // thousand placements of that one shape share its geometry: the engine draws every
+      // placement of the same shape and material together.
+      const MAX = 12000, BANDS = 12, RADIUS = 6;
+      const t = 1.618;
+      const crystal = geometry.polyhedron(
+        [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1],
+        [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1],
+        0.05,
+      );
+      const bands = Array.from({ length: BANDS }, () => material.meshStandard({ roughness: 0.4, emissive: '#000000', emissiveIntensity: 0.9 }));
+
+      const world = createWorld('view', { controls: 'orbit' });
+      const galaxy = object.group();
+      world.scene.add(galaxy);
+      const next = random(11);
+      const stars = Array.from({ length: MAX }, () => {
+        // Each placement keeps its own draw: how far out, how far off its arm, how high.
+        const star = { mesh: null, reach: next() ** 0.7, spread: (next() - 0.5) * (next() + 0.2), height: (next() + next() + next() - 1.5) * 0.35, arm: next() };
+        const band = Math.min(BANDS - 1, Math.floor(star.reach * BANDS));
+        star.mesh = object.mesh(crystal, bands[band]);
+        star.mesh.rotation.set(next() * 6.3, next() * 6.3, 0);
+        star.mesh.scale.setScalar(0.6 + next() * 1.4);
+        galaxy.add(star.mesh);
+        return star;
+      });
+      // The core: a glowing ball and the lamp inside it.
+      const core = object.mesh(geometry.sphere(0.45, 48, 24), material.meshStandard({ color: '#000000', emissive: '#ffd27a', emissiveIntensity: 6 }));
+      world.scene.add(core, light.point({ intensity: 60, color: '#ffd9a0', distance: 14 }));
+      world.scene.add(light.ambient({ intensity: 0.3, color: '#8090ff' }));
+      world.camera.position.set(0, 5.5, 8.5);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+
+      // Arms and twist move every placement; the colours rewrite the twelve materials once.
+      let shown = null;
+      const ui = controls({
+        mouse: 'Drag to tilt the galaxy; scroll to dive into it',
+        count: [500, MAX, 8000, 100],
+        arms: [1, 6, 3, 1],
+        twist: [0, 6, 2.6],
+        core: '#ffcf70',
+        rim: '#4f6bff',
+        spin: true,
+      }, (values, key) => {
+        if (key === undefined || key === 'core' || key === 'rim')
+          bands.forEach((band, index) => {
+            band.color.set(values.core).lerp(math.color(values.rim), index / (BANDS - 1));
+            band.emissive.copy(band.color).multiplyScalar(0.35);
+          });
+        if (key === undefined || key === 'arms' || key === 'twist')
+          for (const star of stars) {
+            const r = 0.6 + star.reach * RADIUS, arm = Math.floor(star.arm * values.arms);
+            const angle = (arm / values.arms) * Math.PI * 2 + star.reach * values.twist + star.spread * (0.3 + star.reach * 0.5);
+            star.mesh.position.set(Math.cos(angle) * r, star.height * (1.2 - star.reach), Math.sin(angle) * r);
+          }
+        if (key === undefined || key === 'count') stars.forEach((star, index) => (star.mesh.visible = index < values.count));
+        shown?.(values.count.toLocaleString('en'));
+        world.invalidate();
+      }, world);
+      shown = readout('Placements drawn');
+      shown(ui.count.toLocaleString('en'));
+      readout('Materials')(String(BANDS));
+
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        time += delta;
+        // One turn for the whole galaxy: the group carries every placement with it.
+        galaxy.rotation.y = -time * 0.12;
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
