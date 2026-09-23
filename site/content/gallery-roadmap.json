@@ -2522,8 +2522,7 @@
         "fr": "Étiquettes qui suivent"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/labels-that-follow.html"
     },
     {
       "id": "select-with-a-box",
@@ -2532,8 +2531,7 @@
         "fr": "Sélection au cadre"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/select-with-a-box.html"
     },
     {
       "id": "sound-made-visible",
@@ -2542,8 +2540,7 @@
         "fr": "Le son rendu visible"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/sound-made-visible.html"
     },
     {
       "id": "click-to-pick",
