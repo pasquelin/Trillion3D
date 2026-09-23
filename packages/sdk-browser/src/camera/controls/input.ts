@@ -141,7 +141,8 @@ function editable(target: EventTarget | null) {
  * listeners sit on the document that owns the surface: a key pressed while the canvas has no
  * focus still steers, as a viewer expects, and `dispose()` takes them back off. The keys of
  * `used` — the ones the controller steers with — keep their default action from the page (Space
- * and the arrows would scroll it), unless typed into a field, a list or an editor.
+ * and the arrows would scroll it). A key typed into a field, a list or an editor is the field's:
+ * it neither steers nor loses its action.
  */
 export function trackKeys(
   surface: HTMLElement,
@@ -153,8 +154,8 @@ export function trackKeys(
     steering = new Set(used.flat(2));
   const document = surface.ownerDocument;
   base.listen<KeyboardEvent>(document, 'keydown', (event) => {
-    if (event.metaKey || event.ctrlKey) return;
-    if (steering.has(event.code) && !editable(event.target)) event.preventDefault();
+    if (event.metaKey || event.ctrlKey || editable(event.target)) return;
+    if (steering.has(event.code)) event.preventDefault();
     if (pressed.has(event.code)) return;
     pressed.add(event.code);
     onChange();

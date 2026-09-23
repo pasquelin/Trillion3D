@@ -82,10 +82,11 @@ export function sceneActions(
       }
     },
     /** The scene saved in this browser on the last visit, the starter scene when there is none;
-     *  a saved one that fails is forgotten. */
+     *  a saved one that fails is forgotten, a starter that fails is never saved, so the next
+     *  visit builds it again. */
     async restore(starter: StarterNames) {
       const json = readAutosave();
-      if (!json) return buildStarter(session, starter).catch(failed).finally(session.replaced);
+      if (!json) return buildStarter(session, starter).then(session.replaced, failed);
       await read(json).catch((error: unknown) => {
         clearAutosave();
         failed(error);

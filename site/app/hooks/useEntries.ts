@@ -21,8 +21,10 @@ export function useEntries(locale: Locale, wanted: boolean) {
   useEffect(() => {
     if (!load) return;
     let live = true;
+    // A chunk that cannot be fetched ends the wait on the written entries, never a spinner.
     void import('../portal/data.ts')
       .then(({ loadEntries }) => loadEntries(locale))
+      .catch(() => writtenEntries(locale))
       .then((entries) => {
         if (live) setAll({ locale, entries });
       });

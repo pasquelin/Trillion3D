@@ -4,6 +4,7 @@
  */
 import { HEAD_DEFAULTS } from '../../camera/controls/look.ts';
 import { FLY_DEFAULTS } from '../../camera/controls/flyControls.ts';
+import { PIVOT_DEFAULTS } from '../../camera/controls/pivot.ts';
 import { ORBIT_DEFAULTS } from '../../camera/controls/orbitControls.ts';
 import { HUMAN_BODY } from '../../../../sdk-core/src/collision/characterSettings.ts';
 import type { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
@@ -11,14 +12,11 @@ import type { worldControls } from './worldCamera.ts';
 
 /** The limits and speeds the handle keeps for its controller, at the controllers' own defaults. */
 export const CONTROL_SETTINGS = {
-  minDistance: 0,
-  maxDistance: Infinity,
+  ...PIVOT_DEFAULTS,
   ...ORBIT_DEFAULTS,
   movementSpeed: 1,
   ...HEAD_DEFAULTS,
   ...FLY_DEFAULTS,
-  rotateSpeed: 1,
-  zoomSpeed: 1,
   ...HUMAN_BODY,
   onLand: null as ((impact: number) => void) | null,
   onJump: null as (() => void) | null,
