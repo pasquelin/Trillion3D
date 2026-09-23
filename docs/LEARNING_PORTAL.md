@@ -62,10 +62,8 @@ dispose them before the next route. `docs/` holds the repository documentation o
   `scripts/docs-examples-thumbnails.ts`) that opens it, one still to come as an "in progress"
   card that opens nothing and names the engine feature it waits for. One example is the file on
   `DemoPage`: the iframe fills the content area, and one DaisyUI floating action button carries
-  Code (the source in the code editor, in a panel beside the demo, which keeps running: Run — or
-  ⌘/Ctrl+Enter — loads the edited source as the iframe's `srcdoc` with a `<base href>` at the
-  file's address, so `../runtime/engine.js` and `../assets/` resolve; Reset returns to the file;
-  Copy; Close), Share (copies the page link), Controls, Fullscreen and Restart.
+  Code (the file's source, highlighted, in a modal, with Copy — reading only; editing and running
+  code belongs to the sandbox), Share (copies the page link), Controls, Fullscreen and Restart.
   The compiled scenes live under `site/assets/examples/`, each `<scene>/source` beside its
   `cache`, built by `scripts/docs-examples-assets.ts` with this checkout's native compiler; the
   models that some scenes import, and their licences, are listed in
@@ -74,9 +72,9 @@ dispose them before the next route. `docs/` holds the repository documentation o
   **The page ↔ example contract.** The page posts one message to the example's window, and only
   one: `{ type: 'wg:controls', visible: boolean }`, to show or hide the example's controls panel —
   when the reader presses Controls, and again after every load of the iframe with the current
-  state. An example that has a panel listens for it; one without ignores it. Nothing else goes
-  through `postMessage`: Restart remounts the iframe on the file (or on the edited source after a
-  Run), and Run remounts it on the edited source.
+  state. The kit listens from its import, before the example runs, so an example that builds its
+  panel after an `await` still hears it; an example without a panel ignores it. Nothing else goes
+  through `postMessage`: Restart remounts the iframe on the file.
 
 - `site/demos/` contains the pure per-entry demonstration models; `kit.ts` declares their controls
   and result views, `registry.ts` maps entry ids to demos, and `engine.ts` is the one list of what
@@ -143,7 +141,9 @@ packages; none stays external or is loaded from a CDN.
    `controls({ light: [0, 10, 3], colour: '#88aaff', spin: true, view: ['a', 'b'], reset: () => {} },
    onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb'`), lines of
    help (any other text, such as the keys to press), toggles, choices and buttons, returns the live values and calls `onChange(values, key)` once at start and after every
-   change. Name each control so that its label says what to try; there is no caption over the
+   change. `readout(label)`, declared after it, adds a live line to that panel and returns the
+   function that writes it (a counter read every frame). Name each control so that its label says
+   what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting
    `{ type: 'wg:controls', visible }` to its frame.
 2. A scene of primitives is built in code, with `geometry.*`, directly in the example's HTML. A

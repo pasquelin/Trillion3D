@@ -1,6 +1,6 @@
 import { t } from '../../content/i18n/index.ts';
 import { useTheme } from '../hooks/useTheme.ts';
-import { Button, LinkButton } from '../ui/Button.tsx';
+import { Button, LinkButton, NavLink } from '../ui/Button.tsx';
 import { Icon } from '../ui/Icon.tsx';
 import { navLinks, routeHref } from '../portal/routes.ts';
 import { usePortal } from './PortalContext.ts';
@@ -11,20 +11,21 @@ export function PrimaryNavigation({ drawer = false }: { drawer?: boolean }) {
   const { route } = usePortal();
   return (
     <nav
-      className={drawer ? 'mb-4 grid grid-cols-2 gap-2 lg:hidden' : 'hidden gap-1 lg:flex'}
+      className={
+        drawer ? 'mb-4 grid grid-cols-2 gap-2 lg:hidden' : 'hidden items-center gap-1 lg:flex'
+      }
       aria-label={t(route.locale, 'nav.primary')}
     >
       {navLinks(route).map(({ area, href, current }) => (
-        <LinkButton
+        <NavLink
           key={area}
           data-nav={area}
-          size={drawer ? 'sm' : 'md'}
-          className={`whitespace-nowrap ${current ? 'text-primary underline decoration-2 underline-offset-8' : drawer ? '' : 'text-neutral-content'}`}
+          current={current}
+          className={drawer ? 'text-center' : current ? '' : 'text-neutral-content'}
           href={href}
-          aria-current={current ? 'page' : undefined}
         >
           {t(route.locale, `nav.${area}`)}
-        </LinkButton>
+        </NavLink>
       ))}
     </nav>
   );
