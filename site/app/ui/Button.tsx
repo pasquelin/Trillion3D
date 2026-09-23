@@ -39,3 +39,17 @@ export function Actions({ children }: { children: ReactNode }) {
 export function LinkButton({ variant, size, circle, className, ...props }: LinkButtonProps) {
   return <a className={look({ variant, size, circle }, className)} {...props} />;
 }
+
+type NavLinkProps = ComponentPropsWithoutRef<'a'> & { current: boolean };
+
+/** A navigation link: plain text, the current one in the primary colour and underlined, named
+ * current for assistive technology. */
+export function NavLink({ current, className = '', ...props }: NavLinkProps) {
+  return (
+    <a
+      className={`whitespace-nowrap rounded-field px-3 py-2 text-sm font-medium hover:bg-base-content/10 ${current ? 'text-primary underline decoration-2 underline-offset-8' : ''} ${className}`}
+      aria-current={current ? 'page' : undefined}
+      {...props}
+    />
+  );
+}
