@@ -13,7 +13,7 @@ const COUNT = 10_000;
 /** A lumpy rock pressed with six craters, stretched out of round; its normals follow the stretch. */
 function rock(seed: number) {
   const random = randomStream(seed),
-    stretch = [1, 0.6 + random.uniform(0, 0.3), 0.8 + random.uniform(0, 0.3)],
+    stretch: Vec3 = [1, 0.6 + random.uniform(0, 0.3), 0.8 + random.uniform(0, 0.3)],
     lumps = sineNoise(seed, 5),
     craters = Array.from({ length: 6 }, () => ({
       centre: random.direction(),
@@ -31,7 +31,7 @@ function rock(seed: number) {
       1 + 0.22 * lumps(point),
     ),
   );
-  return moved(sphere, [0, 0, 0], stretch as Vec3);
+  return moved(sphere, [0, 0, 0], stretch);
 }
 
 /** Rounds a placement to a tenth of a millimetre at the ring's scale: shorter JSON, same scene. */
