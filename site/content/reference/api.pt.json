@@ -2596,6 +2596,7 @@
       "scene": "A cena que o anfitrião abre e os nós no seu topo.",
       "nodes": "Todos os nós.",
       "lights": "As luzes que os nós carregam.",
+      "cameras": "As câmaras que os nós carregam.",
       "materials": "Os materiais.",
       "textures": "As texturas.",
       "documents": "A disposição da geometria de cada ficheiro de cena publicado, pelo seu nome."
@@ -3393,6 +3394,7 @@
       "children": "Os seus filhos, por ordem.",
       "mesh": "A malha que desenha.",
       "light": "A luz que carrega.",
+      "camera": "A câmara que carrega.",
       "matrix": "A sua matriz local, por colunas.",
       "translation": "Onde está.",
       "rotation": "Como está rodado, como quaternião.",

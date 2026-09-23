@@ -2596,6 +2596,7 @@
       "scene": "Ana makinenin açtığı sahne ve tepesindeki düğümler.",
       "nodes": "Her düğüm.",
       "lights": "Düğümlerin taşıdığı ışıklar.",
+      "cameras": "Düğümlerin taşıdığı kameralar.",
       "materials": "Malzemeler.",
       "textures": "Dokular.",
       "documents": "Yayımlanan her sahne dosyasının geometri düzeni, adına göre."
@@ -3393,6 +3394,7 @@
       "children": "Çocukları, sırasıyla.",
       "mesh": "Çizdiği ağ.",
       "light": "Taşıdığı ışık.",
+      "camera": "Taşıdığı kamera.",
       "matrix": "Yerel matrisi, sütun sütun.",
       "translation": "Nerede durduğu.",
       "rotation": "Nasıl döndürüldüğü, bir kuaterniyon olarak.",

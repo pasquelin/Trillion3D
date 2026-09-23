@@ -4679,6 +4679,7 @@
       "scene": "Die Szene, die der Host öffnet, und die Knoten an ihrer Spitze.",
       "nodes": "Jeder Knoten.",
       "lights": "Die Lichter, die die Knoten tragen.",
+      "cameras": "Die Kameras, die die Knoten tragen.",
       "materials": "Die Materialien.",
       "textures": "Die Texturen.",
       "documents": "Das Geometrie-Layout jeder veröffentlichten Szenendatei, nach ihrem Namen."
@@ -5680,6 +5681,7 @@
       "children": "Seine Kinder, der Reihe nach.",
       "mesh": "Das Mesh, das er zeichnet.",
       "light": "Das Licht, das er trägt.",
+      "camera": "Die Kamera, die er trägt.",
       "matrix": "Seine lokale Matrix, spaltenweise.",
       "translation": "Wo er steht.",
       "rotation": "Wie er gedreht ist, als Quaternion.",

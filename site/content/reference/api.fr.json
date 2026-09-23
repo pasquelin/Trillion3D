@@ -4687,6 +4687,7 @@
       "scene": "La scène que l’hôte ouvre, et les nœuds à son sommet.",
       "nodes": "Tous les nœuds.",
       "lights": "Les lumières que portent les nœuds.",
+      "cameras": "Les caméras que portent les nœuds.",
       "materials": "Les matériaux.",
       "textures": "Les textures.",
       "documents": "La disposition de la géométrie de chaque fichier de scène publié, par son nom."
@@ -5688,6 +5689,7 @@
       "children": "Ses enfants, dans l’ordre.",
       "mesh": "Le maillage qu’il dessine.",
       "light": "La lumière qu’il porte.",
+      "camera": "La caméra qu’il porte.",
       "matrix": "Sa matrice locale, par colonnes.",
       "translation": "Où il se tient.",
       "rotation": "Comment il est tourné, en quaternion.",

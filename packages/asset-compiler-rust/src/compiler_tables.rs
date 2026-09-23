@@ -1,5 +1,5 @@
 //! The tables that describe the prepared scene: its node graph with the local pose of every node,
-//! the lights it hangs, the surfaces it wears and, per published document, the geometry layout of
+//! the lights and cameras it hangs, the surfaces it wears and, per published document, the geometry layout of
 //! every primitive. A cache product under its own name, beside `lights.json`, from which
 //! `packages/sdk-browser/src/world/scene/scene.ts` builds the scene the engine draws — no glTF is
 //! parsed at runtime.
@@ -15,7 +15,7 @@ mod graph;
 mod materials;
 mod physical;
 use documents::document_table;
-use graph::{light_table, node_table, scene_roots};
+use graph::{camera_table, light_table, node_table, scene_roots};
 use materials::{material_entry, texture_table};
 
 /// Version of the `scene-tables.json` cache product. It lives outside the manifest: its version is
@@ -87,6 +87,7 @@ pub(super) fn stage_scene_tables(
     }
     let nodes = node_table(published)?;
     let lights = light_table(published)?;
+    let cameras = camera_table(published)?;
     let textures = texture_table(published);
     let counts = json!({"nodes":nodes.len(),"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
     let tables = json!({
@@ -97,6 +98,7 @@ pub(super) fn stage_scene_tables(
         "scene": scene_roots(published)?,
         "nodes": nodes,
         "lights": lights,
+        "cameras": cameras,
         "materials": surfaces.table,
         "textures": textures,
         "documents": documents,

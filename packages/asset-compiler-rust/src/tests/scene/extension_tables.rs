@@ -10,7 +10,7 @@ use super::*;
 use super::scene_tables::published;
 
 #[test]
-fn the_lights_are_carried_as_the_document_declares_them() {
+fn the_lights_and_cameras_are_carried_as_the_document_declares_them() {
     let (_root, tables) = published(|gltf| {
         gltf["extensionsUsed"] = json!(["KHR_lights_punctual"]);
         gltf["extensions"] = json!({"KHR_lights_punctual":{"lights":[
@@ -21,9 +21,18 @@ fn the_lights_are_carried_as_the_document_declares_them() {
         gltf["nodes"] = json!([
             {"mesh":0,"children":[1,2]},
             {"extensions":{"KHR_lights_punctual":{"light":0}}},
-            {"extensions":{"KHR_lights_punctual":{"light":1}}},
+            {"extensions":{"KHR_lights_punctual":{"light":1}},"camera":0},
         ]);
+        gltf["cameras"] =
+            json!([{"name":"eye","type":"perspective","perspective":{"yfov":0.8,"znear":0.1}}]);
     });
+    assert_eq!(tables["nodes"][2]["camera"], json!(0));
+    assert_eq!(
+        tables["cameras"][0],
+        json!({"name":"eye","type":"perspective","yfov":0.8,"aspectRatio":null,"xmag":null,
+            "ymag":null,"znear":0.1,"zfar":null}),
+        "a camera as declared, its silent fields silent"
+    );
     assert_eq!(tables["nodes"][1]["light"], json!(0));
     assert_eq!(tables["nodes"][2]["light"], json!(1));
     assert_eq!(

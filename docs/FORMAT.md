@@ -138,13 +138,15 @@ Every value is read from the `source.gltf` the same compilation publishes (and, 
 ranks already remapped.
 
 - `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
-- `nodes[]` — every node at its glTF rank: `{ name, children, mesh, light, matrix, translation,
-  rotation, scale }`. The pose is the LOCAL one exactly as declared, each part `null` when silent:
+- `nodes[]` — every node at its glTF rank: `{ name, children, mesh, light, camera, matrix,
+  translation, rotation, scale }`. The pose is the LOCAL one exactly as declared, each part `null` when silent:
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
   range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
   applies). `lights.json` stays the radiometric product the engine lights with.
+- `cameras[]` — the cameras the nodes carry: `{ name, type, yfov, aspectRatio, xmag, ymag, znear,
+  zfar }`, each silent field `null`.
 - `materials[]` — the surface fields the engine reads: `lit`, `baseColor`, `metalness`,
   `roughness`, `doubleSided`, `backSide`, `alphaTest`, the six map slots (`map`, `metalnessMap`,
   `roughnessMap`, `normalMap`, `aoMap`, `emissiveMap`), `normalScale`, `normalScaleY`,
@@ -176,7 +178,7 @@ ranks already remapped.
 The runtime builds its host scene from these alone (`packages/sdk-browser/src/host/prepared/`):
 attributes viewed on the binary, the local box the positions declare, textures folded on image
 source and sampler, surfaces and their vertex-colour and flat-shading variants, nodes, meshes and
-lights assembled and named as the host loader assembled and named them — proven equal to the
+cameras and lights assembled and named as the host loader assembled and named them — proven equal to the
 loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
 (`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
 do not carry, or a view outside its binary, is `PREPARED_SCENE_MISMATCH`.
