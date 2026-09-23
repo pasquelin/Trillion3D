@@ -48,17 +48,17 @@ const mesureCpu = await mesure({
 // A sample carries known passes, one unknown pass — which joins "geometry" — and, once
 // in ten, a `null` duration that leaves its stage unmeasured.
 const ETIQUETTES = [
-  'WG DAG selection',
-  'WG partition',
-  'WG HiZ pyramid',
-  'WG material surfaces v1',
-  'WG shadow atlas v1',
-  'WG shadow cull',
-  'WG light tiles v1',
-  'WG bounce probes v1',
-  'WG deferred lighting',
-  'WG HDR composition + present',
-  'WG unknown pass',
+  'Trillion3D DAG selection',
+  'Trillion3D partition',
+  'Trillion3D HiZ pyramid',
+  'Trillion3D material surfaces v1',
+  'Trillion3D shadow atlas v1',
+  'Trillion3D shadow cull',
+  'Trillion3D light tiles v1',
+  'Trillion3D bounce probes v1',
+  'Trillion3D deferred lighting',
+  'Trillion3D HDR composition + present',
+  'Trillion3D unknown pass',
 ];
 const releve = (passes: number): GpuPassTimings => ({
   frame: 0,
@@ -110,7 +110,7 @@ await stress({
         frame: 0,
         totalMs: null,
         truncated: false,
-        passes: [{ name: 'WG partition', gpuMs: NaN }],
+        passes: [{ name: 'Trillion3D partition', gpuMs: NaN }],
       },
     },
   ],

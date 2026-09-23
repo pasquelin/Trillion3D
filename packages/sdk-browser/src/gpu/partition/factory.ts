@@ -128,7 +128,7 @@ export async function createGpuPartition(
           projectGroup = createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers);
         }
         const groups = Math.max(1, Math.ceil(rows / PARTITION_WORKGROUP));
-        const pass = encoder.beginComputePass({ label: 'WG partition' });
+        const pass = encoder.beginComputePass({ label: 'Trillion3D partition' });
         pass.setPipeline(project);
         pass.setBindGroup(0, projectGroup);
         pass.dispatchWorkgroups(groups);

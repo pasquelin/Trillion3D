@@ -74,7 +74,7 @@ export function createWebgpuTilePageTable(
       words[levelsAt + slot * MAX_LEVELS + level] = entriesAt + bases[slot] + layout.offsets[level];
   }
   const buffer = device.createBuffer({
-    label: `WG texture pages ${options.kind}`,
+    label: `Trillion3D texture pages ${options.kind}`,
     size: Math.max(16, words.byteLength),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

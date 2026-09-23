@@ -1,4 +1,4 @@
-# Contributing to trillion3D
+# Contributing to Trillion3D
 
 ## The mission
 

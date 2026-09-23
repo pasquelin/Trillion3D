@@ -34,7 +34,7 @@ function copySurfaces(
   let depth: GPUTexture;
   try {
     depth = gpuDevice.createTexture({
-      label: 'WG owned surface depth',
+      label: 'Trillion3D owned surface depth',
       size: { width: options.width, height: options.height },
       format: 'depth32float',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,

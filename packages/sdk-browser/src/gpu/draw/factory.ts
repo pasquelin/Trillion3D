@@ -96,7 +96,7 @@ export async function createGpuDraw(
           bindGroup = makeBindGroup(mask);
         }
         device.queue.writeBuffer(uniforms, 0, uniData);
-        const pass = encoder.beginComputePass({ label: 'WG draw compaction' });
+        const pass = encoder.beginComputePass({ label: 'Trillion3D draw compaction' });
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(countPipeline);
         pass.dispatchWorkgroups(Math.ceil((liveGroups * SLOTS) / WORKGROUP));
