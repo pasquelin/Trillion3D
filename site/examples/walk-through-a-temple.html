@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Walk through a temple</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // `firstPerson`: a walker's head. A click takes the mouse (pointer lock) to look around; the
+      // keys walk on the level. Escape gives the mouse back.
+      const world = createWorld('view', { controls: 'firstPerson' });
+      const stone = material.meshStandard({ color: '#cbbd9f', roughness: 0.85 });
+      const marble = material.meshStandard({ color: '#ece6da', roughness: 0.4 });
+      const dark = material.meshStandard({ color: '#3b2f28', roughness: 0.9 });
+      function box(size, at, matter) {
+        const mesh = object.mesh(geometry.box(...size), matter);
+        mesh.position.set(...at);
+        world.scene.add(mesh);
+        return mesh;
+      }
+      // The hall: a floor, outer walls with a doorway, two rows of columns, a roof.
+      box([14, 0.2, 22], [0, -0.1, -4], stone);
+      box([0.4, 5, 22], [-7, 2.5, -4], stone);
+      box([0.4, 5, 22], [7, 2.5, -4], stone);
+      box([14, 5, 0.4], [0, 2.5, -15], stone);
+      box([5.5, 5, 0.4], [-4.25, 2.5, 7], stone);
+      box([5.5, 5, 0.4], [4.25, 2.5, 7], stone);
+      box([3, 1.4, 0.4], [0, 4.3, 7], stone);
+      box([14.4, 0.3, 22.4], [0, 5.15, -4], dark);
+      const profile = [[0, 0], [0.45, 0], [0.45, 0.3], [0.32, 0.3], [0.3, 4.2], [0.45, 4.3], [0.5, 4.6], [0, 4.6]];
+      for (const side of [-1, 1])
+        for (let index = 0; index < 5; index++) {
+          const column = object.mesh(geometry.lathe(profile, 32), marble);
+          column.position.set(side * 3.5, 0, 4 - index * 3.4);
+          world.scene.add(column);
+        }
+      // Steps up to a raised altar at the back, and the idol on it: the thing to walk to.
+      const STEP = 0.18, STEPS = 5, ALTAR = -9;
+      for (let index = 0; index < STEPS; index++) box([6, STEP, 0.5], [0, STEP * (index + 0.5), ALTAR + 2.5 - index * 0.5], marble);
+      box([6, STEP * STEPS, 3.5], [0, (STEP * STEPS) / 2, -12.75], marble);
+      const idol = object.mesh(geometry.torusKnot(0.45, 0.15, 180, 24), material.meshStandard({ color: '#d4a24c', metalness: 0.9, roughness: 0.25 }));
+      idol.position.set(0, STEP * STEPS + 1.4, -12.5);
+      world.scene.add(idol);
+      // Braziers along the walls: flames that flicker, each a warm point light.
+      const flame = material.meshStandard({ color: '#000000', emissive: '#ff9a3c', emissiveIntensity: 6 });
+      const fires = [[-6, 2], [6, 2], [-6, -6], [6, -6], [-2.5, -12], [2.5, -12]].map(([x, z]) => {
+        const bowl = object.mesh(geometry.cylinder(0.3, 0.15, 0.3, 24), dark);
+        bowl.position.set(x, 1.2, z);
+        const fire = object.mesh(geometry.sphere(0.2, 16, 12), flame);
+        fire.position.set(x, 1.45, z);
+        const lamp = light.point({ position: [x, 1.7, z], color: '#ff9a3c', intensity: 10, distance: 9, radius: 0.25, castShadow: true });
+        world.scene.add(bowl, fire, lamp);
+        return lamp;
+      });
+      world.scene.add(light.ambient({ intensity: 0.12, color: '#8fb4ff' }));
+
+      // The floor under the head: the altar's steps raise it; eyes stay 1.6 m above it.
+      const EYES = 1.6;
+      function floorAt(x, z) {
+        if (Math.abs(x) > 3 || z > ALTAR + 2.75) return 0;
+        return Math.min(STEPS, Math.max(0, Math.ceil((ALTAR + 2.75 - z) / 0.5))) * STEP;
+      }
+      world.camera.position.set(1.2, EYES, 5);
+      world.camera.lookAt(0, EYES + 0.3, -12);
+
+      const ui = controls({ keys: 'Click to look with the mouse · W A S D to walk · Escape to stop', fire: [0, 30, 10], flame: '#ff9a3c' }, (values) => {
+        for (const lamp of fires) lamp.color.set(values.flame);
+        flame.emissive.set(values.flame);
+        world.invalidate();
+      });
+      world.onFrame(({ time }) => {
+        fires.forEach((lamp, index) => (lamp.intensity = ui.fire * (0.8 + 0.2 * Math.sin(time * 13 + index * 7) * Math.sin(time * 5 + index))));
+        idol.rotation.y = time * 0.5;
+        // The walker stays inside the hall, and at eye height above whatever floor is under it.
+        const { position } = world.camera;
+        position.set(Math.max(-6.4, Math.min(6.4, position.x)), floorAt(position.x, position.z) + EYES, Math.max(-14.4, Math.min(12, position.z)));
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
