@@ -3848,6 +3848,14 @@
         "desc": "A picture point was asked of a canvas with no size: there is no picture to aim through."
       },
       {
+        "name": "SESSION_OPEN_FAILED",
+        "desc": "The world's session could not open (`world.diagnostic.error`): WebGPU lost its device, or the reason is in `details.cause`."
+      },
+      {
+        "name": "WEBGPU_LOST",
+        "desc": "The world's session could not open (`world.diagnostic.error`): WebGPU lost its device, or the reason is in `details.cause`."
+      },
+      {
         "name": "UNSUPPORTED_SCENE_FORMAT",
         "desc": "A saved scene is of another format or version, or holds what a saved scene cannot store."
       },
@@ -16800,7 +16808,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.diagnostic",
-    "signature": "world.diagnostic: { mode: string; readonly sessions: number; readonly modes: string[]; }",
+    "signature": "world.diagnostic: { mode: string; readonly sessions: number; readonly error: EngineError | null; readonly modes: string[]; }",
     "summary": "What the page holds: the mode, read and written.",
     "members": [
       {
@@ -16812,6 +16820,11 @@
         "name": "sessions",
         "type": "number",
         "desc": "Sessions the world has opened so far: a change that reopens one shows here."
+      },
+      {
+        "name": "error",
+        "type": "EngineError | null",
+        "desc": "Why the last session could not open, as a named engine error (`code`: `WEBGPU_LOST`, or `SESSION_OPEN_FAILED` with the words in `details.cause`); `null` once a session opens."
       },
       {
         "name": "modes",

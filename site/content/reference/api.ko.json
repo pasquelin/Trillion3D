@@ -919,6 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "이 그리기 경로는 씬에 그런 변경을 가할 수 없다.",
       "BATCHED_WORLD_VIEW": "이 그리기 경로는 씬에 그런 변경을 가할 수 없다.",
       "RAYCAST_NO_VIEW": "크기가 없는 canvas에 그림의 점을 요청했습니다: 겨눌 그림이 없습니다.",
+      "SESSION_OPEN_FAILED": "월드의 세션을 열 수 없었습니다 (`world.diagnostic.error`): WebGPU가 장치를 잃었거나, 이유가 `details.cause`에 있습니다.",
+      "WEBGPU_LOST": "월드의 세션을 열 수 없었습니다 (`world.diagnostic.error`): WebGPU가 장치를 잃었거나, 이유가 `details.cause`에 있습니다.",
       "UNSUPPORTED_SCENE_FORMAT": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다.",
       "SCENE_NOT_SAVABLE": "저장된 장면이 다른 형식이나 버전이거나, 저장된 장면이 담을 수 없는 것을 담고 있습니다."
     }
@@ -3942,6 +3944,7 @@
     "members": {
       "mode": "뷰 모드: 일반 이미지면 `'beauty'`, 또는 엔진이 어떻게 작동하는지 보여주는 모드.",
       "sessions": "월드가 지금까지 연 세션: 세션을 다시 여는 변경이 여기에 보입니다.",
+      "error": "마지막 세션이 열리지 못한 이유를 이름 있는 엔진 오류로 알려 줍니다 (`code`: `WEBGPU_LOST`, 또는 `details.cause`에 설명이 담긴 `SESSION_OPEN_FAILED`). 세션이 열리면 `null`입니다.",
       "modes": "현재 렌더러가 제공하는 모든 뷰 모드."
     }
   },

@@ -919,6 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "この描画経路は、シーンに対するその変更を行えない。",
       "BATCHED_WORLD_VIEW": "この描画経路は、シーンに対するその変更を行えない。",
       "RAYCAST_NO_VIEW": "サイズのない canvas に画像の点を求めました: 狙いをつける画像がありません。",
+      "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした（`world.diagnostic.error`）：WebGPU がデバイスを失ったか、理由が `details.cause` にあります。",
+      "WEBGPU_LOST": "ワールドのセッションを開けませんでした（`world.diagnostic.error`）：WebGPU がデバイスを失ったか、理由が `details.cause` にあります。",
       "UNSUPPORTED_SCENE_FORMAT": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
       "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。"
     }
@@ -3942,6 +3944,7 @@
     "members": {
       "mode": "ビューモード: 通常の画像なら`'beauty'`、あるいはエンジンの動作を示すモード。",
       "sessions": "ワールドがこれまでに開いたセッション: セッションを開き直す変更はここに表れます。",
+      "error": "直前のセッションが開けなかった理由を、名前付きのエンジンエラーで示します（`code`：`WEBGPU_LOST`、または `details.cause` に説明のある `SESSION_OPEN_FAILED`）。セッションが開くと `null`。",
       "modes": "現在のレンダラーが提供するすべてのビューモード。"
     }
   },

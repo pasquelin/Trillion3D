@@ -1578,6 +1578,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "BATCHED_WORLD_VIEW": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "RAYCAST_NO_VIEW": "Ein Bildpunkt wurde von einem Canvas ohne Größe verlangt: Es gibt kein Bild, durch das man zielen kann.",
+      "SESSION_OPEN_FAILED": "Die Sitzung der Welt konnte nicht geöffnet werden (`world.diagnostic.error`): WebGPU hat sein Gerät verloren, oder der Grund steht in `details.cause`.",
+      "WEBGPU_LOST": "Die Sitzung der Welt konnte nicht geöffnet werden (`world.diagnostic.error`): WebGPU hat sein Gerät verloren, oder der Grund steht in `details.cause`.",
       "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann."
     }
@@ -6396,6 +6398,7 @@
     "members": {
       "mode": "Der Ansichtsmodus: `'beauty'` für das normale Bild, oder ein Modus, der zeigt, wie die Engine arbeitet.",
       "sessions": "Sitzungen, die die Welt bisher geöffnet hat: Eine Änderung, die eine wieder öffnet, zeigt sich hier.",
+      "error": "Warum sich die letzte Sitzung nicht öffnen ließ, als benannter Engine-Fehler (`code`: `WEBGPU_LOST`, oder `SESSION_OPEN_FAILED` mit dem Text in `details.cause`); `null`, sobald eine Sitzung offen ist.",
       "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
   },
