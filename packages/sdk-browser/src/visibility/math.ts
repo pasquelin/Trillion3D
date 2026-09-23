@@ -89,8 +89,26 @@ for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(o
 
 export { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
 
-/** Rank of the texel in the image, not its components: that byte indexes the sRGB table. */
-function texelAt(image: { width: number; height: number }, map: Texture, u: number, v: number) {
+/** True when a map's UV transform (`Texture.transform`, three columns of three) moves its
+ *  coordinate: the only case it is applied, here and on the GPU (`../webgpu/tile/sampling.ts`). */
+export function uvTransformed(m: readonly number[]) {
+  return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0;
+}
+
+/**
+ * Rank of the texel a map reads at a coordinate, not its components: that byte indexes the sRGB
+ * table. The coordinate goes through the map's UV transform first — its affine part, as both GPU
+ * paths apply it —, untouched when it is the identity. No footprint here: the texel the
+ * coordinate falls in, the `nearest` rule.
+ */
+export function mapTexel(
+  image: { width: number; height: number },
+  map: Texture,
+  u: number,
+  v: number,
+) {
+  const m = map.transform;
+  if (uvTransformed(m)) [u, v] = [m[0] * u + m[3] * v + m[6], m[1] * u + m[4] * v + m[7]];
   const x = wrapTexel(u, image.width, map.wrapS),
     y = wrapTexel(v, image.height, map.wrapT);
   return (y * image.width + x) * 4;
@@ -100,7 +118,7 @@ export function sampleMap(map: Texture, u: number, v: number): [number, number, 
   const image = textureRgba(map);
   if (!image) return [1, 1, 1];
   const d = image.data,
-    i = texelAt(image, map, u, v);
+    i = mapTexel(image, map, u, v);
   return [
     SRGB8_LINEAIRE[d[i]] ?? NaN,
     SRGB8_LINEAIRE[d[i + 1]] ?? NaN,
@@ -111,7 +129,7 @@ export function sampleLinear(map: Texture, u: number, v: number): [number, numbe
   const image = textureRgba(map);
   if (!image) return [1, 1, 1];
   const d = image.data,
-    i = texelAt(image, map, u, v);
+    i = mapTexel(image, map, u, v);
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255];
 }
 

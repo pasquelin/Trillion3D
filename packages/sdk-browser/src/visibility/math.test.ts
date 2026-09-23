@@ -170,3 +170,19 @@ test('the same width/height but an image resized without changing buffer also in
   assert.notEqual(second, premier);
   assert.deepEqual(second, referenceTextureRgba(imported));
 });
+
+// #360: the CPU twins read a map through its UV transform, as the GPU reads it: a map repeated
+// twice across reads, at u = 0.3, the texel the raw coordinate 0.6 names.
+test('a map is read through its UV transform, the raw coordinate when it is the identity', () => {
+  const host = new THREE.Texture();
+  host.image = { data: Uint8Array.from({ length: 16 }, (_, i) => i * 16), width: 4, height: 1 };
+  host.wrapS = host.wrapT = THREE.RepeatWrapping;
+  const plain = importHostTexture(host);
+  const at = (u: number) => sampleLinear(plain, u, 0.5);
+  const before = at(0.6);
+  host.repeat.set(2, 1);
+  host.needsUpdate = true;
+  const repeated = importHostTexture(host);
+  assert.deepEqual(sampleLinear(repeated, 0.3, 0.5), before);
+  assert.deepEqual(sampleLinear(repeated, 0.8, 0.5), before, 'the second period');
+});
