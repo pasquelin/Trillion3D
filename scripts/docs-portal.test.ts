@@ -10,10 +10,14 @@ import {
 } from '../site/app/portal/routes.ts';
 import { search } from '../site/app/portal/search.ts';
 import { searchIndex } from '../site/app/portal/searchIndex.ts';
-import { readyEntries } from '../site/app/examples/list.ts';
-import { entriesIn, rawEntries } from '../site/app/portal/data.ts';
+import { exampleTitle, readyEntries } from '../site/app/examples/list.ts';
+import { entriesIn, loadEntries } from '../site/app/portal/data.ts';
 import { canonicalEntryId, expandEntryLinks } from '../site/app/portal/entryLinks.ts';
 import type { PortalEntry } from '../site/content/model.ts';
+
+// The French words are read as a page in French reads them; English is bundled.
+await loadEntries('fr');
+const english = entriesIn('en');
 
 test('canonical routes preserve locale, area, and multi-part identifier', () => {
   assert.deepEqual(parseRoute('#/fr/api/geometry/matrix4'), {
@@ -45,9 +49,9 @@ test('the removed legacy routes no longer lead anywhere', () => {
   ]) {
     const route = parseRoute(hash);
     assert.equal(route.area, 'learn');
-    assert.equal(resolvePage(route, rawEntries).kind, 'not-found', hash);
+    assert.equal(resolvePage(route, english).kind, 'not-found', hash);
   }
-  assert.ok(!rawEntries.some(({ section }) => section === 'demo'));
+  assert.ok(!english.some(({ section }) => section === 'demo'));
 });
 
 test('the header marks the area of the route', () => {
@@ -99,7 +103,7 @@ test('the site search reads every guide, API entry and ready example in the lang
   assert.equal(new Set(index.map(({ key }) => key)).size, index.length);
   for (const entry of entries) assert.ok(index.some(({ key }) => key === `entry:${entry.id}`));
   const [ready] = readyEntries;
-  const [example] = search(index, ready.title.fr);
+  const [example] = search(index, exampleTitle(ready.id, 'fr'));
   assert.equal(example.href, `#/fr/examples/${ready.id}`);
   assert.equal(example.kind, 'Exemple');
 });

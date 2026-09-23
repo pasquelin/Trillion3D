@@ -1,8 +1,7 @@
 import { kindName } from '../../content/i18n/dictionary.ts';
-import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { PortalEntry } from '../../content/model.ts';
-import { readyEntries } from '../examples/list.ts';
+import { exampleTitle, readyEntries } from '../examples/list.ts';
 import { entryRoute, routeHref } from './routes.ts';
 import type { SearchItem } from './search.ts';
 import type { BadgeTone } from '../ui/Badge.tsx';
@@ -31,7 +30,7 @@ export function searchIndex(entries: PortalEntry[], locale: Locale): SearchItem[
   }));
   const examples = readyEntries.map((entry) => ({
     key: `example:${entry.id}`,
-    title: local(entry.title, locale),
+    title: exampleTitle(entry.id, locale),
     text: entry.id,
     kind: t('kind.Example'),
     tone: TONES.Example,

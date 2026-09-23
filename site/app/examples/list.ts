@@ -1,16 +1,17 @@
 import roadmap from '../../content/gallery-roadmap.json' with { type: 'json' };
+import { dictionaryOf, wordFor } from '../../content/i18n/dictionary.ts';
+import type { Locale } from '../../content/locale.ts';
 
 /** One entry of the gallery roadmap. A ready example has a file and no status. One still to write
- *  is `buildable`, or `needs-engine` with the feature it lacks (`missing`). One written against
- *  the intended API but parked until the engine draws it is `waiting-engine`: its `file`, the
- *  feature it lacks and the `issue` that delivers it. */
+ *  is `buildable`, or `needs-engine` with the feature it lacks. One written against the intended
+ *  API but parked until the engine draws it is `waiting-engine`: its `file`, the feature it lacks
+ *  and the `issue` that delivers it. Its words — title, the feature it lacks — are each
+ *  language's `gallery`, by its id. */
 interface RoadmapEntry {
   id: string;
-  title: { en: string; fr: string };
   theme: string;
   file: string;
   status?: 'buildable' | 'needs-engine' | 'waiting-engine';
-  missing?: { en: string; fr: string };
   issue?: number;
 }
 
@@ -25,14 +26,26 @@ export const readyExampleIds = readyEntries.map(({ id }) => id);
 
 /** The ready examples, theme by theme, in the order of the file; a theme with none is left out. */
 export const readyThemes = roadmap.themes
-  .map((theme) => ({ theme, entries: readyEntries.filter((entry) => entry.theme === theme.id) }))
+  .map((theme) => ({ theme, entries: readyEntries.filter((entry) => entry.theme === theme) }))
   .filter(({ entries }) => entries.length > 0);
 
 /** Every entry of the list, theme by theme: the ready examples, and those still to come. */
 export const themedEntries = roadmap.themes.map((theme) => ({
   theme,
-  entries: roadmapEntries.filter((entry) => entry.theme === theme.id),
+  entries: roadmapEntries.filter((entry) => entry.theme === theme),
 }));
+
+/** A theme's title in `locale`: `gallery.themes.<id>`. */
+export const themeTitle = (id: string, locale: Locale) =>
+  wordFor(dictionaryOf(locale).gallery.themes, id) ?? id;
+
+/** An example's title in `locale`: `gallery.titles.<id>`. */
+export const exampleTitle = (id: string, locale: Locale) =>
+  wordFor(dictionaryOf(locale).gallery.titles, id) ?? id;
+
+/** The engine feature an example waits for, in `locale`, when it waits for one. */
+export const exampleMissing = (id: string, locale: Locale) =>
+  wordFor(dictionaryOf(locale).gallery.missing, id);
 
 /** The flagships, shown large on the home page, one per band of its mosaic. */
 const FLAGSHIPS = [

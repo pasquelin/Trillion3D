@@ -1,9 +1,15 @@
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_LANGUAGE, isLanguage } from '../content/i18n/dictionary.ts';
-import { DICTIONARIES } from '../content/i18n/languages.inline.ts';
-import type { Dictionary } from '../content/i18n/languages.inline.ts';
+import {
+  DEFAULT_LANGUAGE,
+  dictionaryOf,
+  isLanguage,
+  LANGUAGES,
+  loadDictionary,
+} from '../content/i18n/dictionary.ts';
+import type { Dictionary } from '../content/i18n/dictionary.ts';
+import type { Locale } from '../content/locale.ts';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -12,7 +18,8 @@ declare module 'i18next' {
 }
 
 /**
- * The portal's words, one i18next instance over every dictionary of `site/i18n/`. The route
+ * The portal's words, one i18next instance over the dictionaries of `site/i18n/`: English
+ * bundled, each other language added once `loadLanguage` has read it. The route
  * (`#/<language>/…`) names the language (`parseRoute`, then `useRoute` switches to it); a route
  * that names none takes what this detects: the reader's last choice, then the browser, then
  * English. A language the route names is remembered.
@@ -24,10 +31,8 @@ export const i18n = i18next.createInstance();
 const nearestLanguage = (code: string) => (isLanguage(code) ? code : code.split('-')[0]);
 
 void i18n.use(LanguageDetector).init({
-  resources: Object.fromEntries(
-    Object.entries(DICTIONARIES).map(([code, translation]) => [code, { translation }]),
-  ),
-  supportedLngs: Object.keys(DICTIONARIES),
+  resources: { [DEFAULT_LANGUAGE]: { translation: dictionaryOf(DEFAULT_LANGUAGE) } },
+  supportedLngs: LANGUAGES.map(({ code }) => code),
   fallbackLng: DEFAULT_LANGUAGE,
   initAsync: false,
   interpolation: { escapeValue: false },
@@ -38,6 +43,18 @@ void i18n.use(LanguageDetector).init({
     caches: ['localStorage'],
   },
 });
+
+/** The language detected for a route that names none: one the portal has, else English. */
+export const detectedLanguage = (): Locale =>
+  isLanguage(i18n.language) ? i18n.language : DEFAULT_LANGUAGE;
+
+/** Reads the dictionary of `locale` and gives it to i18next, once; a page in `locale` renders
+ *  after it. */
+export async function loadLanguage(locale: Locale) {
+  const dictionary = await loadDictionary(locale);
+  if (!i18n.hasResourceBundle(locale, 'translation'))
+    i18n.addResourceBundle(locale, 'translation', dictionary);
+}
 
 /** The words of `locale`, outside a component: a menu, a search index. */
 export const wordsOf = (locale: string) => i18n.getFixedT(locale);

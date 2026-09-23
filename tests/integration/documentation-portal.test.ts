@@ -10,10 +10,10 @@ import ts from 'typescript';
 import { ISSUES, SECTIONS } from '../../site/content/model.ts';
 import type { PortalEntry } from '../../site/content/model.ts';
 import { DEMOS } from '../../site/demos/registry.ts';
-import { rawEntries } from '../../site/app/portal/data.ts';
+import { entriesIn } from '../../site/app/portal/data.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const ENTRIES: PortalEntry[] = rawEntries;
+const ENTRIES: PortalEntry[] = entriesIn('en');
 
 /** Names a file declares or re-exports, read once per file from its syntax tree. */
 const exportsOf = new Map<string, Set<string>>();

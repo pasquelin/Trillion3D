@@ -3,7 +3,7 @@ import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { formatValue } from '../../reports/metrics.ts';
 import type { ReportRecord } from '../../reports/types.ts';
-import type { Dictionary } from '../../content/i18n/languages.inline.ts';
+import type { Dictionary } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ConditionsProps {
