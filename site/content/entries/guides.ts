@@ -1,7 +1,7 @@
 import type { PortalEntry } from '../model.ts';
 
 /** Guides: prose in `html`, rendered by the React Entry component. */
-export const GUIDE = { section: 'guides', kind: 'Guide' };
+const GUIDE = { section: 'guides', kind: 'Guide' };
 
 export const GUIDES: PortalEntry[] = [
   {
