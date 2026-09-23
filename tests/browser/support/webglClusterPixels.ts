@@ -64,8 +64,9 @@ export interface DrawMatrix {
 }
 
 export function drawMatrix(): DrawMatrix {
+  // Identity from the start, as a host matrix is: a zero matrix collapses every vertex to one point.
   const scratch = new THREE.Matrix4(),
-    elements = new Float64Array(16);
+    elements = new Float64Array(scratch.elements);
   const sync = () => elements.set(scratch.elements);
   return {
     elements,
