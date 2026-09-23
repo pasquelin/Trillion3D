@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import type { MenuActions } from '../site/examples/kit/gameMenu.ts';
-import { play, type PlayDocument } from '../site/examples/kit/play.ts';
+import { isCapture, play, type PlayDocument } from '../site/examples/kit/play.ts';
 
 type Listener = (event: { relatedTarget?: unknown }) => void;
 
@@ -41,6 +41,14 @@ function game(answer: () => unknown = () => undefined) {
   };
   return { state, world, canvas, actions, shown, calls, fire, last: () => shown.at(-1) };
 }
+
+test('the capture flag is read from the URL alone, and only its own key', () => {
+  assert.equal(isCapture({ location: { search: '?capture' } }), true);
+  assert.equal(isCapture({ location: { search: '?x=1&capture=1' } }), true);
+  assert.equal(isCapture({ location: { search: '?captured=1' } }), false);
+  assert.equal(isCapture({ location: { search: '' } }), false);
+  assert.equal(isCapture({}), false);
+});
 
 test('a game starts on its menu, runs while locked, pauses on Escape and resumes on a press', () => {
   const { state, world, canvas, actions, calls, fire, last } = game();

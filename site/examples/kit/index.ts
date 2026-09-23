@@ -6,5 +6,5 @@
 export { controls, type ControlSpec, type ControlValues } from './controls.ts';
 export { readout } from './readout.ts';
 export { stats } from './stats.ts';
-export { play, type Game, type PlayOptions } from './play.ts';
+export { isCapture, play, type Game, type PlayOptions } from './play.ts';
 export type { GameKey, GameOption, MenuLabels } from './gameMenu.ts';
