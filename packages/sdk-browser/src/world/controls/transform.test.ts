@@ -17,7 +17,8 @@ function rig(at: { x: number; y: number; z: number }) {
   const orbit = createOrbitCameraControls(camera, surface.element);
   orbit.target.set(at.x, at.y, at.z);
   const scene = new Group();
-  const host = { canvas: surface.element, scene, camera, onFrame: () => () => {} };
+  const canvas = surface.element as HTMLCanvasElement;
+  const host = { canvas, scene, camera, onFrame: () => () => {} };
   return { surface, camera, orbit, scene, gizmo: createTransformControls(host) };
 }
 /** World units per canvas pixel on the plane ten units ahead. */
@@ -61,4 +62,22 @@ test('a child under a moved, turned and scaled parent moves in the world as the 
   assert.ok(
     Math.abs(at.x - 5 - 40 * unit) < 1e-9 && Math.abs(at.y) < 1e-9 && Math.abs(at.z) < 1e-9,
   );
+});
+
+test('attaching another object during a drag ends the drag: dragEnd, and the old object rests', () => {
+  const { surface, scene, gizmo } = rig({ x: 0, y: 0, z: 0 });
+  const first = object.mesh(geometry.box(1, 1, 1)),
+    second = object.mesh(geometry.box(1, 1, 1));
+  scene.add(first, second);
+  const events: string[] = [];
+  gizmo.addEventListener('dragEnd', () => events.push('dragEnd'));
+  gizmo.attach(first);
+  const press = { pointerId: 1, button: 0, clientX: 243, clientY: 200 };
+  surface.fire('pointerdown', press);
+  assert.equal(gizmo.dragging, true);
+  gizmo.attach(second);
+  assert.deepEqual(events, ['dragEnd']);
+  assert.equal(gizmo.dragging, false);
+  surface.fire('pointermove', { ...press, clientX: 283 });
+  assert.deepEqual([first.position.x, second.position.x], [0, 0], 'no drag carried over');
 });

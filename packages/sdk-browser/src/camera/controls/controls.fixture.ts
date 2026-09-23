@@ -98,6 +98,9 @@ export function fixtureSurface(height = 400) {
     ...view.target,
     clientHeight: height,
     clientWidth: height,
+    // The drawing buffer, as square as the CSS box.
+    width: height,
+    height,
     getBoundingClientRect: () => ({ left: 0, top: 0, width: height, height }),
     style: { touchAction: 'pan-y' },
     setPointerCapture(pointerId: number) {

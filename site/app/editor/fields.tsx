@@ -42,10 +42,12 @@ export function NumberField({ label, value, step = 0.1, min, max, onCommit }: Nu
         max={max}
         onKeyDown={(event) => keys(event, text)}
         onBlur={(event) => {
-          const next = Number(event.currentTarget.value);
-          if (event.currentTarget.value !== '' && Number.isFinite(next) && next !== shown(value))
-            onCommit(next);
-          else event.currentTarget.value = text;
+          const typed = event.currentTarget.value,
+            next = Number(typed);
+          // The field shows the object's value: the new one once the edit lands, which may be
+          // another than typed (a count below a shape's fewest), or the old one again.
+          event.currentTarget.value = text;
+          if (typed !== '' && Number.isFinite(next) && next !== shown(value)) onCommit(next);
         }}
       />
     </label>

@@ -1,5 +1,11 @@
 import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
-import { attachCommand, isWithin, reparentCommand, reversed, valueCommand } from './commands.ts';
+import {
+  attachCommand,
+  isWithin,
+  removeCommand,
+  reparentCommand,
+  valueCommand,
+} from './commands.ts';
 import { build, duplicate, type AddKind } from './objects.ts';
 import type { Session } from './session.ts';
 import { clearAutosave, readAutosave } from './storage.ts';
@@ -28,7 +34,7 @@ export function sceneActions(
     },
     remove() {
       const node = session.selected;
-      if (node?.parent) session.run(reversed(attachCommand(node, node.parent)));
+      if (node?.parent) session.run(removeCommand(node, session.select));
     },
     duplicate() {
       const node = session.selected;

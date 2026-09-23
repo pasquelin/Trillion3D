@@ -91,17 +91,22 @@ export function trackTransformDrag(
     control.fit();
     control.emit('change');
   });
-  const release = (event: PointerEvent) => {
-    if (!drag || event.pointerId !== drag.pointer) return;
-    host.canvas.releasePointerCapture?.(event.pointerId);
+  /** Ends the drag under way, if any: the pointer let go, the handle's colour back, `dragEnd`. */
+  const end = () => {
+    if (!drag) return;
+    host.canvas.releasePointerCapture?.(drag.pointer);
     paint(drag.start.handle);
     drag = null;
     control.emit('dragEnd');
+  };
+  const release = (event: PointerEvent) => {
+    if (drag && event.pointerId === drag.pointer) end();
   };
   base.listen<PointerEvent>(host.canvas, 'pointerup', release);
   base.listen<PointerEvent>(host.canvas, 'pointercancel', release);
   return {
     dragging: () => drag !== null,
+    end,
     /** Removes every listener from the canvas. */
     dispose: base.api.dispose,
   };

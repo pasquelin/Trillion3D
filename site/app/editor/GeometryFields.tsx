@@ -22,8 +22,12 @@ export function GeometryFields({ editor, node }: { editor: Editor; node: Object3
   const setArg = (index: number, value: number) => {
     const args = [...recipe.args];
     args[index] = value;
-    const swap = (shape: Geometry) => (node.geometry = shape);
-    session.run(valueCommand(swap, node.geometry, rebuild(...args)));
+    // The family builds at least the pieces a shape closes with, and its recipe says how many:
+    // a count below that comes back as the fewest, and one that changes nothing is no edit.
+    const shape = rebuild(...args);
+    if (String(shape.recipe?.args) === String(recipe.args)) return;
+    const swap = (next: Geometry) => (node.geometry = next);
+    session.run(valueCommand(swap, node.geometry, shape));
   };
   return (
     <Field label={`${t(locale, 'editor.geometry')} · ${recipe.type}`}>

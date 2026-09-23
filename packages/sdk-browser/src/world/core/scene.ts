@@ -66,9 +66,15 @@ export class Scene extends Object3D {
   }
   /** Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept;
    *  resolves once its models are loaded. Another format or version is refused
-   *  (`UNSUPPORTED_SCENE_FORMAT`).
+   *  (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in
+   *  order, each on what the one before left: two saved scenes never merge.
    *  @param json - The saved scene. @param camera - A camera to put where the scene was saved from. */
   fromJSON(json: unknown, camera?: Camera) {
-    return readScene(this, json, camera);
+    const read = () => readScene(this, json, camera);
+    const next = this.reading.then(read, read);
+    this.reading = next.catch(() => undefined);
+    return next;
   }
+  /** The last `fromJSON` under way, settled or not: the next one waits for it. */
+  private reading: Promise<void> = Promise.resolve();
 }

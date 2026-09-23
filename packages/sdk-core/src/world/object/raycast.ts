@@ -100,7 +100,8 @@ function boxNormal(box: Box3, at: Vector3) {
 /** Where `ray` meets one node's own content, in world terms, or null. A triangle mesh is tested
  *  triangle by triangle; lines, points and sprites have no area and are never hit; a node with a
  *  box and no triangles of its own — a loaded model, whose triangles live in GPU pages — is hit
- *  on that box. */
+ *  on that box: where the ray enters it, or at the ray's origin (distance 0, the normal facing
+ *  back along the ray) when the ray starts inside it. */
 function hitNode(node: Object3D, ray: Ray): Intersection | null {
   const mesh = node as Mesh;
   if (mesh.isMesh && mesh.primitive !== 'triangles') return null;
@@ -113,6 +114,10 @@ function hitNode(node: Object3D, ray: Ray): Intersection | null {
   far.copy(ray.origin).add(ray.direction).applyMatrix4(inverse);
   local.direction.copy(far).sub(local.origin);
   if (!local.intersectBox(box, entry)) return null;
+  if (!mesh.isMesh && box.containsPoint(local.origin)) {
+    const back = ray.direction.clone().negate();
+    return { object: node, point: ray.origin.clone(), normal: back, distance: 0, face: -1 };
+  }
   let hit: { t: number; face: number; normal: Vector3 } | null;
   if (mesh.isMesh) hit = nearestTriangle(mesh);
   else {
@@ -125,9 +130,11 @@ function hitNode(node: Object3D, ray: Ray): Intersection | null {
 }
 
 /**
- * Every object under `roots` that `ray` meets — its direction a unit vector — nearest first, one
- * hit per object: the nearest of its own. Hidden subtrees are skipped, and so are the nodes
- * `skip` names with their subtrees: the marks a page works with, never its content.
+ * Every object under `roots` that `ray` meets, nearest first, one hit per object: the nearest of
+ * its own. The direction is made a unit vector at the door, so every `distance` is in world units
+ * whatever length the page gave it. Hidden subtrees are skipped — a root under a hidden ancestor
+ * too — and so are the nodes `skip` names with their subtrees: the marks a page works with, never
+ * its content.
  */
 export function raycast(
   roots: Object3D | readonly Object3D[],
@@ -135,12 +142,18 @@ export function raycast(
   skip: (node: Object3D) => boolean = () => false,
 ): Intersection[] {
   const hits: Intersection[] = [];
+  const unit = new Ray(ray.origin, ray.direction.clone().normalize());
+  const shown = (node: Object3D) => {
+    for (let at = node.parent; at; at = at.parent) if (!at.visible || skip(at)) return false;
+    return true;
+  };
   const walk = (node: Object3D) => {
     if (!node.visible || skip(node)) return;
-    const hit = hitNode(node, ray);
+    const hit = hitNode(node, unit);
     if (hit) hits.push(hit);
     for (const child of node.children) walk(child);
   };
-  for (const root of Array.isArray(roots) ? roots : [roots as Object3D]) walk(root);
+  for (const root of Array.isArray(roots) ? roots : [roots as Object3D])
+    if (shown(root)) walk(root);
   return hits.sort((a, b) => a.distance - b.distance);
 }

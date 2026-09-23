@@ -77,20 +77,23 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
     changed();
   };
 
-  let dragFrom: Pose | null = null;
+  /** The object a drag began on and its pose then: a drag cut short by a new selection ends
+   *  on the object it moved, not on the one selected since. */
+  let dragFrom: { node: Object3D; pose: Pose } | null = null;
   gizmo.addEventListener('dragStart', () => {
-    dragFrom = selected && poseOf(selected);
+    dragFrom = selected && { node: selected, pose: poseOf(selected) };
   });
   gizmo.addEventListener('change', () => {
     follow();
     changed();
   });
   gizmo.addEventListener('dragEnd', () => {
-    const after = selected && poseOf(selected);
-    // A press on a handle that moved nothing is no edit: it must not clear what redo holds.
-    if (selected && dragFrom && after && !samePose(dragFrom, after))
-      session.record(poseCommand(selected, dragFrom, after));
+    const from = dragFrom;
     dragFrom = null;
+    const after = from && poseOf(from.node);
+    // A press on a handle that moved nothing is no edit: it must not clear what redo holds.
+    if (from && after && !samePose(from.pose, after))
+      session.record(poseCommand(from.node, from.pose, after));
   });
 
   const session = {

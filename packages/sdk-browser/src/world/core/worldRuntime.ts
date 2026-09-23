@@ -9,7 +9,7 @@ import { createRequestLoop } from './requestLoop.ts';
 import { createWorldContents } from './worldContents.ts';
 import { releaseWorldMirror } from './worldMirror.ts';
 import { createWorldLights, isLight, lightsUnder } from './worldLights.ts';
-import { copyWorldCamera, createCanvasFit } from './worldCamera.ts';
+import { copyWorldCamera, createCanvasFit, drawnAspect } from './worldCamera.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
 import type { Scene } from './scene.ts';
@@ -146,7 +146,7 @@ export function createWorldRuntime(inputs: Inputs) {
     apply();
     if (!explorer) return;
     fit.apply(explorer);
-    copyWorldCamera(camera(), explorer.camera, canvas.width / Math.max(1, canvas.height));
+    copyWorldCamera(camera(), explorer.camera, drawnAspect(canvas));
   };
   const link: SceneLink = {
     pose(node: Object3D) {

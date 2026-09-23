@@ -118,3 +118,17 @@ test('a parameter cleared to null is read back null, not an empty object', async
   await again.fromJSON(saved);
   assert.equal((again.children[0] as typeof box).material.map, null);
 });
+
+test('two scenes read at once are read one after the other, never merged', async () => {
+  const scene = sceneWithLoads([]);
+  const saved = (url: string) => {
+    const one = sceneWithLoads([]);
+    one.add(Object.assign(new Object3D(), { isLoadedModel: true, record: { manifestUrl: url } }));
+    return JSON.parse(JSON.stringify(one.toJSON()));
+  };
+  await Promise.all([scene.fromJSON(saved('first')), scene.fromJSON(saved('second'))]);
+  const urls = scene.children.map(
+    (child) => (child as { record?: { manifestUrl: string } }).record,
+  );
+  assert.deepEqual(urls, [{ manifestUrl: 'second' }], 'the second scene alone');
+});

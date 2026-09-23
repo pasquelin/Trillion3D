@@ -11657,7 +11657,7 @@
       {
         "name": "fromJSON(json: unknown, camera?: Camera)",
         "type": "Promise<void>",
-        "desc": "Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`)."
+        "desc": "Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in order, each on what the one before left: two saved scenes never merge."
       }
     ],
     "description": ""
@@ -14773,12 +14773,12 @@
       {
         "name": "attach(target: Object3D)",
         "type": "TransformControls",
-        "desc": "Puts the handles on `target`, and in the scene."
+        "desc": "Puts the handles on `target`, and in the scene; a drag under way ends first (`dragEnd`)."
       },
       {
         "name": "detach()",
         "type": "TransformControls",
-        "desc": "Takes the handles off their object, and out of the scene."
+        "desc": "Takes the handles off their object, and out of the scene; a drag under way ends first."
       },
       {
         "name": "setMode(next: TransformMode)",
@@ -14875,7 +14875,7 @@
     "members": [
       {
         "name": "canvas",
-        "type": "HTMLElement",
+        "type": "HTMLCanvasElement",
         "desc": "The canvas the pointer presses on."
       },
       {
@@ -29051,7 +29051,7 @@
     "kind": "Function",
     "title": "raycast()",
     "signature": "raycast(roots: Object3D | readonly Object3D[], ray: Ray, skip?: (node: Object3D) => boolean): Intersection[]",
-    "summary": "Every object under `roots` that `ray` meets — its direction a unit vector — nearest first, one hit per object: the nearest of its own.",
+    "summary": "Every object under `roots` that `ray` meets, nearest first, one hit per object: the nearest of its own.",
     "parameters": [
       {
         "name": "roots",
@@ -29074,7 +29074,7 @@
       "type": "Intersection[]",
       "desc": ""
     },
-    "description": "Hidden subtrees are skipped, and so are the nodes `skip` names with their subtrees: the marks a page works with, never its content."
+    "description": "The direction is made a unit vector at the door, so every `distance` is in world units whatever length the page gave it. Hidden subtrees are skipped — a root under a hidden ancestor too — and so are the nodes `skip` names with their subtrees: the marks a page works with, never its content."
   },
   {
     "id": "readCameraWorld",
