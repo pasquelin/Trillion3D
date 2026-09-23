@@ -8,6 +8,7 @@
   "nav": {
     "primary": "Navigation principale",
     "learn": "Apprendre",
+    "sandbox": "Tester en direct",
     "examples": "Exemples",
     "api": "Référence API",
     "reports": "Mesures"
@@ -87,6 +88,11 @@
     "copyFailed": "Le lien n’a pas pu être copié",
     "demoControls": "Commandes de la démonstration"
   },
+  "sandbox": {
+    "title": "Tester en direct",
+    "start": "Partir d’un exemple",
+    "open": "Ouvrir dans le bac à sable"
+  },
   "section": {
     "course": "Cours",
     "guides": "Guides",
@@ -101,15 +107,9 @@
     "copied": "Copié",
     "copyFailed": "Échec de la copie",
     "copy": "Copier le code",
-    "timeout": "Exécution interrompue après 3 secondes.",
-    "cancelled": "Exécution annulée.",
-    "editable": "Code modifiable",
     "run": "Exécuter",
-    "cancel": "Annuler",
-    "reset": "Reprendre les paramètres",
-    "editor": "Éditeur JavaScript",
-    "result": "Résultat du code",
-    "stopped": "Exécution arrêtée",
+    "reset": "Réinitialiser",
+    "editor": "Éditeur de code",
     "runnable": "Code exécutable"
   },
   "learning": {

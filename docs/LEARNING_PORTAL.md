@@ -25,7 +25,9 @@ dispose them before the next route. `docs/` holds the repository documentation o
   shell through `layout/PortalContext.ts`; the theme, the drawer and the search shortcut are the
   hooks `useTheme`, `useDrawer` and `useSearchShortcut`. Strings come from `t()`, imported where
   they are used. `portal/routes.ts` is the only place that translates URLs into page kinds: every
-  link carries the locale as `#/en/...` or `#/fr/...`; the areas are Learn, Examples, API
+  link carries the locale as `#/en/...` or `#/fr/...`; the areas are Learn, Try it live (the
+  sandbox, `#/<locale>/sandbox/<example>`: an example's source edited beside its render, run in a
+  `srcdoc` frame whose `<base>` is the example's file, kept in the browser), Examples, API
   reference and Measurements, and a hash without a locale opens the home page. `portal/data.ts` gathers the content entries, `portal/searchIndex.ts` builds what the
   site search reads — every guide, API entry and ready example in the current language —
   and `layout/SearchModal.tsx` shows it (the header button, `/` or ⌘K; arrows and Enter).
