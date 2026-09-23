@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useWords } from './i18n.ts';
 import { formatNumber, localizedCanvasContext } from '../demos/kit.ts';
-import { localizeDemoText } from '../content/i18n/demo.fr.ts';
+import { localizeDemoText } from '../content/i18n/canvas.ts';
 import { Canvas } from './ui/Canvas.tsx';
 import { Card } from './ui/Card.tsx';
 import { Alert } from './ui/Alert.tsx';
@@ -139,6 +140,7 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }) {
 }
 
 export function ApiDemo({ demo, locale = 'en' }: { demo: DemoDef; locale?: Locale }) {
+  const t = useWords(locale);
   const controls = demo.controls ?? [];
   const initial = (): DemoState =>
     Object.fromEntries(controls.map((control) => [control.name, control.value]));
@@ -147,10 +149,7 @@ export function ApiDemo({ demo, locale = 'en' }: { demo: DemoDef; locale?: Local
   return (
     <section className="api-demo">
       {controls.length > 0 && (
-        <Card
-          className="mb-4"
-          title={locale === 'fr' ? 'Commandes de la démonstration' : 'Demo controls'}
-        >
+        <Card className="mb-4" title={t('demo.demoControls')}>
           <Form className="flex flex-wrap items-end">
             {controls.map((control) => (
               <DemoControl

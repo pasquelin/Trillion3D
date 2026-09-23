@@ -1,4 +1,5 @@
 import generated from '../reference/api.json' with { type: 'json' };
+import type { EntryFrame } from '../i18n/entries.ts';
 import type { EntryNote, PortalEntry } from '../model.ts';
 import { BATCHES } from './batches.ts';
 import { BOUNDS } from './bounds.ts';
@@ -28,8 +29,9 @@ export const NOTES = new Map<string, EntryNote>(
 );
 
 /** The API reference: every public export, family member and world member the generator found
- *  (`scripts/generate-api-reference.ts`), each with what its written note adds. */
-export const REFERENCE: PortalEntry[] = (generated as PortalEntry[]).map((entry) => ({
+ *  (`scripts/generate-api-reference.ts`), each with what its written note adds; the note's words
+ *  are the language's, given when the entries are localized. */
+export const REFERENCE: EntryFrame[] = (generated as PortalEntry[]).map((entry) => ({
   ...entry,
   ...NOTES.get(entry.id),
 }));
