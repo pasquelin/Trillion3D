@@ -919,8 +919,8 @@
       "UNSUPPORTED_SCENE_UPDATE": "この描画経路は、シーンに対するその変更を行えない。",
       "BATCHED_WORLD_VIEW": "この描画経路は、シーンに対するその変更を行えない。",
       "RAYCAST_NO_VIEW": "サイズのない canvas に画像の点を求めました: 狙いをつける画像がありません。",
-      "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした（`world.diagnostic.error`）: WebGPU がデバイスを失ったか、投げられたエラーが `details.cause` にあります。",
-      "WEBGPU_LOST": "ワールドのセッションを開けませんでした（`world.diagnostic.error`）: WebGPU がデバイスを失ったか、投げられたエラーが `details.cause` にあります。",
+      "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした。専用のコードを持たない理由によるものです（`world.diagnostic.error`）。スローされたエラーは `details.cause` にあります。",
+      "WEBGPU_LOST": "WebGPU がデバイスを失ったか、デバイス上のエラーによって何も描画できない状態になりました。`render`、`flush`、およびデバイスを必要とする読み取りがスローし、診断 `gpu-device-lost` がこの名前で報告し、そのためにセッションを開けなかったときは `world.diagnostic.error` に現れます。",
       "UNSUPPORTED_SCENE_FORMAT": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
       "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。"
     }
@@ -3944,7 +3944,7 @@
     "members": {
       "mode": "ビューモード: 通常の画像なら`'beauty'`、あるいはエンジンの動作を示すモード。",
       "sessions": "ワールドがこれまでに開いたセッション: セッションを開き直す変更はここに表れます。",
-      "error": "直前のセッションが開けなかった理由を、名前付きのエンジンエラーで示します。`code` は、WebGPU がデバイスを失ったときは `WEBGPU_LOST`、エンジンエラーならその固有のコード、それ以外は `SESSION_OPEN_FAILED` で、投げられたエラーが `details.cause` に入ります。セッションが開くと、または描くものがなくセッションを試みないときは `null`。",
+      "error": "最後のセッションを開けなかった理由を、名前付きのエンジンエラーとして示します。その `code` は `EngineError` に記載されたコードのいずれか（WebGPU がデバイスを失ったときは `WEBGPU_LOST`）、または専用のコードがない理由の場合は `SESSION_OPEN_FAILED` です。スローされたエラーは `details.cause` にあります。セッションが開くと、または描画するものがなくセッションを試みないときは `null` です。",
       "modes": "現在のレンダラーが提供するすべてのビューモード。"
     }
   },

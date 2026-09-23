@@ -24,7 +24,8 @@ import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geome
  * @errorCode SCENE_ROOT_PARENT, SCENE_ROOT_DESTROY, SCENE_ROOT_MISMATCH, SCENE_COPY_OVERLAP - Something the scene root forbids: a parent for it, destroying it, mixing two roots, copying a node into itself.
  * @errorCode UNSUPPORTED_SCENE_UPDATE, BATCHED_WORLD_VIEW - This drawing path cannot make that change to the scene.
  * @errorCode RAYCAST_NO_VIEW - A picture point was asked of a canvas with no size: there is no picture to aim through.
- * @errorCode SESSION_OPEN_FAILED, WEBGPU_LOST - The world's session could not open (`world.diagnostic.error`): WebGPU lost its device, or the error thrown is in `details.cause`.
+ * @errorCode WEBGPU_LOST - WebGPU lost its device, or an error on it left a state nothing can draw from: thrown by `render`, `flush` and the reads that need the device, named by the `gpu-device-lost` diagnostic, and on `world.diagnostic.error` when a session could not open for it.
+ * @errorCode SESSION_OPEN_FAILED - The world's session could not open, for a reason with no code of its own (`world.diagnostic.error`): the error thrown is in `details.cause`.
  * @errorCode UNSUPPORTED_SCENE_FORMAT, SCENE_NOT_SAVABLE - A saved scene is of another format or version, or holds what a saved scene cannot store.
  */
 export class EngineError extends Error {

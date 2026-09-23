@@ -63,8 +63,10 @@ test('a session that fails to open is named on the handle until one opens or non
   assert.equal(error()?.code, 'WEBGPU_LOST');
   assert.equal(error()?.details.cause, lost, 'the error thrown is kept, stack included');
   assert.equal(logged.mock.calls[0]?.arguments[1], lost, 'and said on the console');
-  // Only the documented code is taken from a message: any other word in capitals is a reason.
-  diagnostic.failed(new Error('NO_COMPACT'));
+  // Only a documented code is taken from a message: any other word in capitals is a reason.
+  diagnostic.failed(new Error('WEBGPU_UNAVAILABLE'));
+  assert.equal(error()?.code, 'WEBGPU_UNAVAILABLE');
+  diagnostic.failed(new Error('PAGE_HTTP_404'));
   assert.equal(error()?.code, 'SESSION_OPEN_FAILED');
   const thrown = new TypeError('x is undefined');
   diagnostic.failed(thrown);
