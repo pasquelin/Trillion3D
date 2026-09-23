@@ -6889,15 +6889,15 @@
     }
   },
   "TriangleTree": {
-    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
-    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "summary": "दुनिया के त्रिभुजों पर एक बाउंडिंग-वॉल्यूम पदानुक्रम, बॉक्स से क्वेरी किया जाता है: `triangleCollision` और `capsulePass` के पीछे की ब्रॉड फेज़।",
+    "description": "`buildTriangleTree` द्वारा एक बार बनाया जाता है, उसके बाद केवल पठनीय।",
     "members": {
-      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
-      "bounds": "Per node: min xyz, max xyz.",
-      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
-      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
-      "bytes": "Bytes the tree keeps.",
-      "triangleCount": "Triangles the tree holds."
+      "triangles": "प्रति त्रिभुज नौ संख्याएँ — तीन कोने — पत्तों के क्रम में।",
+      "bounds": "प्रति नोड: न्यूनतम xyz, अधिकतम xyz।",
+      "links": "प्रति नोड: पत्ते का पहला त्रिभुज, या आंतरिक नोड का दायाँ संतान (बायाँ अपने अभिभावक के तुरंत बाद आता है)।",
+      "counts": "प्रति नोड: पत्ते की त्रिभुज संख्या, आंतरिक नोड के लिए 0।",
+      "bytes": "पेड़ जितने बाइट रखता है।",
+      "triangleCount": "पेड़ जितने त्रिभुज रखता है।"
     }
   }
 }

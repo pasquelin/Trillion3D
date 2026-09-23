@@ -6713,15 +6713,15 @@
     }
   },
   "TriangleTree": {
-    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
-    "description": "Built once by `buildTriangleTree`, read-only afterwards.",
+    "summary": "世界三角形上的一个包围体层级结构,以盒子查询: `triangleCollision` 和 `capsulePass` 背后的粗筛阶段。",
+    "description": "由 `buildTriangleTree` 构建一次,此后只读。",
     "members": {
-      "triangles": "Nine numbers per triangle — three corners — in leaf order.",
-      "bounds": "Per node: min xyz, max xyz.",
-      "links": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent).",
-      "counts": "Per node: triangle count of a leaf, 0 for an inner node.",
-      "bytes": "Bytes the tree keeps.",
-      "triangleCount": "Triangles the tree holds."
+      "triangles": "每个三角形九个数——三个顶点——按叶子顺序排列。",
+      "bounds": "每个节点: 最小 xyz、最大 xyz。",
+      "links": "每个节点: 叶子的第一个三角形,或内部节点的右子节点(左子节点紧跟其父节点)。",
+      "counts": "每个节点: 叶子的三角形数,内部节点为 0。",
+      "bytes": "树占用的字节数。",
+      "triangleCount": "树持有的三角形数。"
     }
   },
   "world.beforeFrame": {
