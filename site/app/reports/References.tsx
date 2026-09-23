@@ -41,7 +41,7 @@ export function References({ locale }: ReferencesProps) {
           ))}
         </tbody>
       </Table>
-      <a className="link" href="REFERENCE_UE5.md">
+      <a className="link" href="REFERENCE.md">
         {c.referenceLink}
       </a>
     </Section>

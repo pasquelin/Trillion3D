@@ -1,22 +1,30 @@
 # Web Geometry Documentation
 
-[Contributing](../CONTRIBUTING.md): engineering practices, validation and review.
+The one index of the repository's documentation. The learning portal — guides, every public
+function, live demos, examples and the measurement reports — is built from `site/` into
+`dist/site/` and published on [GitHub Pages](https://pasquelin.github.io/WebGeometry/); how it is
+maintained is [LEARNING_PORTAL.md](LEARNING_PORTAL.md).
 
-[Create a world](SDK.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the camera, the renderer and the loop; every family a page writes with is listed in [SDK.md#families](SDK.md#families).
+Start with [Create a world](SDK.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the
+camera, the renderer and the loop.
 
-This folder is the repository documentation only. The learning portal lives under `site/`, one TypeScript folder organised by role, and is published from the tree `pnpm build:docs` writes into `dist/site/` (see [LEARNING_PORTAL.md](LEARNING_PORTAL.md)): `index.html` is the portal (guides, constants and enums, every public function, the live WebGPU demo, the measurement reports staged by `node bench/runner/publishReport.ts`); the demos run the engine's own kernels, bundled into `js/engine.js` at build time.
+| Document                                                             | Role                                                                                                                                     |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| [SDK guide](SDK.md)                                                  | The public API: a world, its families, the loop, the renderer option, lights, budgets, current limits                                    |
+| [Engine internals](ENGINE.md)                                        | How a world draws: backend choice, page raster, surfaces, TAA, lighting, bounce, memory, diagnostics                                     |
+| [Engine maths API](API.md)                                           | The unit and batch maths functions, each with its proof and its measured ratio                                                           |
+| [Native compiler](COMPILER.md)                                       | `web-geometry-compiler`: arguments, events, pointer, batch mode, cancellation, imports, error codes                                      |
+| [Compiler input formats](../packages/asset-compiler-rust/FORMATS.md) | Which source formats are read, on what legal basis, and how a driver is added ([PLUGINS.md](../packages/asset-compiler-rust/PLUGINS.md)) |
+| [Cache format](FORMAT.md)                                            | Pointer, `clusters.json` and `clusters.bin`, cluster DAG, pages, textures, prepared scene tables                                         |
+| [SDK facade](SDK_FACADE.md)                                          | The one `web-geometry` specifier and its common, browser, Node and measurement branches                                                  |
+| [Package architecture](../packages/README.md)                        | What each package owns, the native library, release work still required                                                                  |
+| [Product principles](PRODUCT_PRINCIPLES.md)                          | Portable core, compiled preparation, capabilities, silent fallback                                                                       |
+| [Web / Electron / Node integration](INTEGRATION.md)                  | Who owns the canvas, the loop, the preparation and the fallback                                                                          |
+| [Tests and benchmarks](TESTS.md)                                     | Test layout, GPU proofs, performance benchmarks, quality gates                                                                           |
+| [Measurement harness](../bench/runner/README.md)                     | The bench, its options, the witnesses, the report                                                                                        |
+| [The reference in numbers](REFERENCE.md)                             | The reference's published constants, bytes per triangle and profile, against ours                                                        |
+| [Lighting strategy](LIGHTING_STRATEGY.md)                            | The end goal — dynamic global illumination, reflections, shadows — and the stages it is reached by                                       |
+| [Contributing](../CONTRIBUTING.md)                                   | Engineering rules, measurement rules, the contribution workflow                                                                          |
 
-The delivered SDK is described by the [SDK guide](SDK.md), [package architecture](../packages/README.md), [native compiler](COMPILER.md), and [cache format](FORMAT.md). Anything not listed here is not part of the release.
-
-| Document                                            | Role                                                                                                                               |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [SDK guide — families](SDK.md#families)             | Every family `createWorld` hands a page — `geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`, `capability`, `capture`, `pose`, `batch`, … — one example each |
-| [Native compiler](COMPILER.md)                      | `web-geometry-compiler`: CLI arguments, events, pointer, batch mode, cancellation, FBX/OBJ import, error codes                     |
-| [Cache format](FORMAT.md)                           | Pointer, `clusters.json` and its binary sidecar `clusters.bin`, cluster DAG, culling hierarchy, streaming bundles, SHA objects     |
-| [Product principles](PRODUCT_PRINCIPLES.md)         | Behavioral requirements: portable core, capabilities, source ownership, fallback                                                   |
-| [Web / Electron / Node integration](INTEGRATION.md) | Canvas ownership, render loop, preparation, and fallback                                                                           |
-| [Engine API, batch by batch](API.md)                | Functions each merged batch delivers: signature, what it computes, the host-library call replaced, the proof                       |
-| [Tests and performance benchmarks](TESTS.md)        | Unit tests organization, GPU correctness probes, and 39 performance benchmarks                                                     |
-| [Reference UE5 in numbers](REFERENCE_UE5.md)        | Published constants, bytes per triangle, and performance profile of the reference versus our engine; valid comparisons and caveats |
-
-The end goal the engine is built for — dynamic global illumination, reflections and shadows — and the stages it is reached by are maintained in [`docs/LIGHTING_STRATEGY.md`](LIGHTING_STRATEGY.md). The backlog of open tasks is kept in the [GitHub issues](https://github.com/pasquelin/WebGeometry/issues); a finished task is closed.
+Anything not described here is not part of the release. Open tasks are the
+[GitHub issues](https://github.com/pasquelin/WebGeometry/issues).

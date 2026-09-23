@@ -15,7 +15,7 @@ export const GUIDES: PortalEntry[] = [
 <li><strong>Compile</strong> on the machine that holds the source, with <code>web-geometry</code>. The Node condition provides preparation. The cache directory receives the manifest, the pages and the texture sidecars; <code>resourceBaseUrl</code> is the URL the browser will read them from.</li>
 <li><strong>Explore</strong> in the browser, also with <code>web-geometry</code>. The browser condition provides rendering. <code>createWorld</code> accepts a canvas ID or element and returns an empty world; <code>scene.load</code> then adds a compiled model to it, like anything else added to the scene. The world submits frames on demand and pauses once the image has held; give the canvas a CSS width and height, and dispose on unmount.</li>
 </ol>
-<p>The full contract — options, budgets, lighting, temporal antialiasing, diagnostics — is in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a>.</p>`,
+<p>The full contract — options, budgets, lighting, temporal antialiasing, diagnostics — is in <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a> and <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md">docs/ENGINE.md</a>.</p>`,
     example: `// 1. Node — compile once (set \`executable\` or WEB_GEOMETRY_COMPILER_BIN).
 import { prepare, type PrepareOptions } from 'web-geometry';
 const compilation: PrepareOptions = { resourceBaseUrl: '/cache/city/' };

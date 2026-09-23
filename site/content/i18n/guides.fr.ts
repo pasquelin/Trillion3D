@@ -44,7 +44,7 @@ export const guidesFr: LocaleOverlay = {
 <li><strong>Compilez</strong> sur la machine qui détient la source avec <code>web-geometry</code>. Le cache reçoit manifeste, pages et textures annexes ; <code>resourceBaseUrl</code> est l’URL que lira le navigateur.</li>
 <li><strong>Explorez</strong> dans le navigateur avec le même import <code>web-geometry</code>. <code>createWorld</code> accepte un ID ou un élément canevas et renvoie un monde vide ; <code>scene.load</code> y ajoute ensuite un modèle compilé, comme tout ce qu’on ajoute à la scène. Le monde soumet des images à la demande et se met en pause une fois l’image tenue. Donnez au canevas une largeur et une hauteur CSS ; appelez <code>dispose()</code> à la fermeture.</li>
 </ol>
-<p>Le contrat complet — options, budgets, éclairage, anticrénelage temporel et diagnostics — se trouve dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a>.</p>`,
+<p>Le contrat complet — options, budgets, éclairage, anticrénelage temporel et diagnostics — se trouve dans <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/SDK.md">docs/SDK.md</a> et <a class="link link-primary" href="https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md">docs/ENGINE.md</a>.</p>`,
   },
   'occlusion-two-phase': {
     title: 'Occlusion : le Hi-Z en deux passes',

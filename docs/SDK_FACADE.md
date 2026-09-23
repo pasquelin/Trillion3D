@@ -30,14 +30,9 @@ Resolvers that ignore `browser` therefore receive the safe common facade instead
 `api-inventory.json` is generated with the TypeScript checker. It follows aliases and transitive
 star exports, records binding identity and lists every current entry point. It also records the
 documented source-path imports that the facade newly exposes. Experimental comparison and oracle
-bindings stay classified as experimental. The world facade is a declared exception to "no binding is
-removed": `createExplorer`, `createExplorerJob` and the six backend factories left the browser
-branch for the measurement entry point above — renamed there to `openMeasuredWorld` and
-`createMeasuredWorldJob` — so a host that imported them from `web-geometry` now imports
-`createWorld` and its families instead.
+bindings stay classified as experimental.
 
-With esbuild 0.25.12, ESM format, browser platform, minification and tree shaking enabled, a
-consumer importing only `hierarchyUpdateBatch` is 5,245 bytes from the existing core entry and
-1,780 bytes from the proposed common facade. The browser facade is 3,289 bytes because it retains
-its existing public maths surface, while eliminating unrelated rendering code and every Node
-module. This is a bundle-content measurement, not a runtime-performance claim.
+Measured with esbuild 0.25.12 (ESM, browser platform, minification and tree shaking), a consumer
+importing only `hierarchyUpdateBatch` weighs 1,780 bytes from the common facade and 3,289 bytes from
+the browser facade, which keeps its public maths surface while shedding unrelated rendering code and
+every Node module. This is a bundle-content measurement, not a runtime-performance claim.
