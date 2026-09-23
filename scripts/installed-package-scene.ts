@@ -2,12 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Run } from './installed-package-contracts.ts';
 
-function writeInstalledScene(
-  directory: string,
-  variant = 0,
-  columns = 96,
-  rows = 48,
-): string {
+function writeInstalledScene(directory: string, variant = 0, columns = 96, rows = 48): string {
   mkdirSync(directory, { recursive: true });
   const lines: string[] = [];
   for (let row = 0; row <= rows; row++)
