@@ -91,6 +91,10 @@ export function createTransformControls(
   const controls = {
     /** Steps drags are rounded to: `{ translate, rotate, scale }`, each optional. */
     snap: { ...options.snap } as TransformSnap,
+    /** The group of the handles — a `helper` mark — in the scene while attached. */
+    get handles() {
+      return root;
+    },
     /** The object the handles are on, or `null`. */
     get object() {
       return object;

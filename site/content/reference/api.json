@@ -14746,6 +14746,11 @@
         "desc": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional."
       },
       {
+        "name": "handles",
+        "type": "Group",
+        "desc": "The group of the handles — a `helper` mark — in the scene while attached."
+      },
+      {
         "name": "object",
         "type": "Object3D | null",
         "desc": "The object the handles are on, or `null`."
@@ -22667,13 +22672,13 @@
     "section": "helper",
     "kind": "Function",
     "title": "helper.box()",
-    "signature": "helper.box(target: Object3D, color?: ColorInput): Mesh",
-    "summary": "The outline of the box around an object.",
+    "signature": "helper.box(target: Object3D | Box3, color?: ColorInput): Mesh",
+    "summary": "The outline of the box around an object, or of a box itself — a shape's own `geometry.boundingBox`, to be posed with its mesh.",
     "parameters": [
       {
         "name": "target",
-        "type": "Object3D",
-        "desc": "The object to outline."
+        "type": "Object3D | Box3",
+        "desc": "The object or the box to outline."
       },
       {
         "name": "color",

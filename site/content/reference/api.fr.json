@@ -2178,9 +2178,9 @@
     }
   },
   "helper.box": {
-    "summary": "Le contour de la boîte autour d’un objet.",
+    "summary": "Le contour de la boîte autour d’un objet, ou d’une boîte elle-même — la `geometry.boundingBox` d’une forme, à poser avec son maillage.",
     "parameters": {
-      "target": "L’objet à entourer.",
+      "target": "L’objet ou la boîte à entourer.",
       "color": "Couleur des lignes."
     }
   },
@@ -6669,7 +6669,8 @@
       "setSpace": "Poignées selon les axes du monde ou ceux de l’objet.",
       "addEventListener": "Appelle `listener` à chaque événement de type `type`.",
       "removeEventListener": "Arrête d’appeler `listener` pour les événements de type `type`.",
-      "dispose": "Retire les poignées de la scène et tous les écouteurs du canvas."
+      "dispose": "Retire les poignées de la scène et tous les écouteurs du canvas.",
+      "handles": "Le groupe des poignées — un repère `helper` — dans la scène tant qu’elles sont attachées."
     }
   },
   "TransformControlsOptions": {
