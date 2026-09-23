@@ -30,6 +30,7 @@
   "examples": {
     "lead": "Each example is one short file: watch it run, open its code, change it.",
     "inProgress": "In progress",
+    "waitingEngine": "Waiting for the engine",
     "waitsFor": "Waits for the engine:"
   },
   "api": {

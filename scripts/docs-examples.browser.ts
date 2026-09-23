@@ -4,9 +4,7 @@ import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { openExample, RENDER_ONLY } from './docs/examples/capture.ts';
-import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
-
-const ready = roadmap.entries.filter(({ file }) => file);
+import { readyEntries as ready } from '../site/app/examples/list.ts';
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>

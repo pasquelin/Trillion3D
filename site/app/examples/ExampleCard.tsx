@@ -1,7 +1,8 @@
 import { useWords } from '../i18n.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Card } from '../ui/Card.tsx';
-import { Note } from '../ui/Text.tsx';
+import { Note, TextLink } from '../ui/Text.tsx';
+import { issueUrl } from '../../content/model.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ExampleCardProps {
@@ -46,11 +47,13 @@ interface PendingProps {
   locale: Locale;
   /** The engine feature the example waits for, when it waits for one. */
   missing?: string;
+  /** The issue that delivers it, for an example already written and waiting for the engine. */
+  issue?: number;
 }
 
-/** An example still to come: its title, "in progress", and — when it waits for the engine — the
- * feature it waits for. It opens nothing. */
-export function PendingExampleCard({ title, locale, missing }: PendingProps) {
+/** An example still to come: its title, "in progress" — or "waiting for the engine" and its issue
+ * when it is written already —, and the feature it waits for. It opens nothing. */
+export function PendingExampleCard({ title, locale, missing, issue }: PendingProps) {
   const t = useWords(locale);
   return (
     <div aria-disabled="true" className="h-full opacity-75">
@@ -62,10 +65,20 @@ export function PendingExampleCard({ title, locale, missing }: PendingProps) {
           loading="lazy"
         />
         <Badge tone="info" soft>
-          {t('examples.inProgress')}
+          {t(issue ? 'examples.waitingEngine' : 'examples.inProgress')}
         </Badge>
         <h2 className="card-title text-lg">{title}</h2>
-        {missing && <Note>{`${t('examples.waitsFor')} ${missing}`}</Note>}
+        {missing && (
+          <Note>
+            {`${t('examples.waitsFor')} ${missing}`}
+            {issue && (
+              <>
+                {' — '}
+                <TextLink href={issueUrl(issue)}>#{issue}</TextLink>
+              </>
+            )}
+          </Note>
+        )}
       </Card>
     </div>
   );
