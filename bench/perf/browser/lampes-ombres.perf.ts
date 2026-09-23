@@ -5,14 +5,14 @@ import * as THREE from 'three';
 import { screenCoverage } from '../../../packages/sdk-core/src/scene/light-shadow/counts.ts';
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts';
 import { createShadowPlan } from '../../../packages/sdk-core/src/scene/light-shadow/plan.ts';
-import { packClusterSpheres } from '../../../packages/sdk-browser/webgpuShadowBounds.ts';
+import { packClusterSpheres } from '../../../packages/sdk-browser/src/webgpu/shadow/bounds.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceClusterSphere,
   referenceScreenCoverage,
 } from '../../oracles/browser/lampes-ombres.ts';
 import { pageRecFixture } from './support/pageRecFixture.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 import type { ShadowViewpoint } from '../../../packages/sdk-core/src/index.ts';
 
 const alea = graine(83);
@@ -37,7 +37,7 @@ function clusters(nombre: number) {
 
 const mesSpheres = await mesure({
   name: 'world-space cluster spheres',
-  fichier: 'packages/sdk-browser/webgpuShadowBounds.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/shadow/bounds.ts',
   cas: [
     { name: '20 000 clusters', input: clusters(20000), size: 20000 },
     { name: '1 cluster', input: clusters(1), size: 1 },

@@ -35,10 +35,10 @@ test('the packed distribution is self-contained at its declared boundaries', () 
     assert.ok(archive, 'pnpm pack did not report an archive');
     const entries = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).split('\n');
     for (const path of [
-      'package/dist/sdk-browser/pageCodec.wasm',
-      'package/dist/sdk-browser/pageDecodeWorker.js',
-      'package/dist/sdk-browser/pageIntegrationWorker.js',
-      'package/dist/sdk-node/cli.mjs',
+      'package/dist/sdk-browser/src/page/decode/pageCodec.wasm',
+      'package/dist/sdk-browser/src/page/decode/pageDecodeWorker.js',
+      'package/dist/sdk-browser/src/page/integration/pageIntegrationWorker.js',
+      'package/dist/sdk-node/src/cli/cli.mjs',
     ])
       assert.ok(entries.includes(path), `${path} missing from the package`);
     assert.equal(
@@ -57,7 +57,7 @@ test('the packed distribution is self-contained at its declared boundaries', () 
     assert.equal(manifest.scripts?.preinstall, undefined);
     assert.equal(manifest.scripts?.prepare, undefined);
     assert.equal(manifest.sideEffects, false);
-    assert.ok(statSync(join(root, 'package/dist/sdk-node/cli.mjs')).mode & 0o111);
+    assert.ok(statSync(join(root, 'package/dist/sdk-node/src/cli/cli.mjs')).mode & 0o111);
 
     const consumer = join(root, 'consumer');
     const installed = join(consumer, 'node_modules/web-geometry');

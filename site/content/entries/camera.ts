@@ -14,7 +14,7 @@ const ORIGIN = {
 const HOST = {
   section: 'host',
   kind: 'Function',
-  module: 'packages/sdk-browser/engineCamera.ts',
+  module: 'packages/sdk-browser/src/camera/engineCamera.ts',
 };
 
 export const CAMERA: PortalEntry[] = [
@@ -102,7 +102,7 @@ export const HOST_CAMERA: PortalEntry[] = [
     id: 'writeEngineCamera',
     exports: ['writeEngineCamera', 'CameraOptics'],
     title: 'writeEngineCamera()',
-    module: 'packages/sdk-browser/engineCamera.ts',
+    module: 'packages/sdk-browser/src/camera/engineCamera.ts',
     signature: 'writeEngineCamera(into: EngineCamera, optics: { fov, aspect, near, far, zoom })',
     description:
       'Everything a frame reads, derived from the `into.world` already set and the declared optics.',
@@ -123,7 +123,7 @@ export const HOST_CAMERA: PortalEntry[] = [
     id: 'readCameraWorld',
     exports: ['readCameraWorld', 'HostCamera'],
     title: 'readCameraWorld()',
-    module: 'packages/sdk-browser/cameraWorld.ts',
+    module: 'packages/sdk-browser/src/camera/world.ts',
     signature:
       'readCameraWorld(into: EngineCamera, camera: HostCamera, aspect?: number): EngineCamera',
     description:
@@ -144,7 +144,7 @@ export const HOST_CAMERA: PortalEntry[] = [
     id: 'enginePose',
     exports: ['enginePose'],
     title: 'enginePose()',
-    module: 'packages/sdk-browser/cameraWorld.ts',
+    module: 'packages/sdk-browser/src/camera/world.ts',
     signature: 'enginePose(cam: EngineCamera): { position, quaternion }',
     description: 'The position and rotation of the drawn frame, read from the engine camera.',
     replaces: 'getWorldPosition(), getWorldQuaternion()',

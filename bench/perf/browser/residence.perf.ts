@@ -1,13 +1,13 @@
 // counting resident pages and GPU selection.
 import { maxStretch } from '../../../packages/sdk-core/src/index.ts';
-import { comptePagesResidentes } from '../../../packages/sdk-browser/autonomousResidency.ts';
-import { updateResidencyBits } from '../../../packages/sdk-browser/gpuDagRuntime.ts';
-import { parseDagOutput } from '../../../packages/sdk-browser/gpuDagUniforms.ts';
-import { residentBase, residentWords } from '../../../packages/sdk-browser/gpuDagLayout.ts';
+import { comptePagesResidentes } from '../../../packages/sdk-browser/src/backend/autonomous/residency.ts';
+import { updateResidencyBits } from '../../../packages/sdk-browser/src/gpu/dag/runtime.ts';
+import { parseDagOutput } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
+import { residentBase, residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceUpdateResidency, residencyColumn } from '../../oracles/browser/residence.ts';
 import { pageRecFixture } from './support/pageRecFixture.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelectionTypes.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 
 const CONE_FLOATS = 12,
   FLAG = 11;
@@ -52,7 +52,7 @@ for (let i = 0; i < 20000; i++) sortieGpu[4 + 12000 + i] = i % 7 ? 1 : 0;
 
 const resCompte = await mesure({
   name: 'resident pages',
-  fichier: 'packages/sdk-browser/autonomousResidency.ts',
+  fichier: 'packages/sdk-browser/src/backend/autonomous/residency.ts',
   cas: [
     { name: '40 000 pages', input: pages, size: pages.length },
     { name: 'no pages', input: [], size: 0 },
@@ -64,7 +64,7 @@ const resCompte = await mesure({
 
 const resResidencyBits = await mesure({
   name: 'residency-bit update',
-  fichier: 'packages/sdk-browser/gpuDagRuntime.ts',
+  fichier: 'packages/sdk-browser/src/gpu/dag/runtime.ts',
   cas: [{ name: '8 frames, 20 000 pages', input: images, size: PAGES * 8 }],
   calcul: (imgs) => ({
     drapeaux: imgs.map((next) => updateResidencyBits(next, bits, base, undefined, motsTouches) > 0),
@@ -79,7 +79,7 @@ const resResidencyBits = await mesure({
 
 const resParseDag = await mesure({
   name: 'GPU cut read',
-  fichier: 'packages/sdk-browser/gpuDagUniforms.ts',
+  fichier: 'packages/sdk-browser/src/gpu/dag/uniforms.ts',
   cas: [
     { name: 'cut read, 12 000 pages', input: 20000, size: 12000 },
     { name: 'empty cut', input: 0, size: 0 },

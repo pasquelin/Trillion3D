@@ -1,4 +1,4 @@
-import { surfaceOf, type PageSurface } from '../../../../packages/sdk-browser/pageSurface.ts';
+import { surfaceOf, type PageSurface } from '../../../../packages/sdk-browser/src/page/surface.ts';
 // Bench inputs: realistic (a cut of thousands of pages in front of a camera) and hostile
 // (degenerate triangles, vertices behind the camera, NaN, Infinity, -0, empty or inverted boxes).
 // Everything comes from a seeded generator: two runs see the exact same floats.

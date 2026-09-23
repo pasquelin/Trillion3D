@@ -1,7 +1,7 @@
 // transfer admission and draining arrivals.
-import { findAdmissible } from '../../../packages/sdk-browser/streamingQueueOrder.ts';
-import { sortStreamJobs } from '../../../packages/sdk-browser/streamingQueueOrderFixture.ts';
-import { createArrivalQueue } from '../../../packages/sdk-browser/arrivalQueue.ts';
+import { findAdmissible } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts';
+import { sortStreamJobs } from '../../../packages/sdk-browser/src/streaming/queueOrder.fixture.ts';
+import { createArrivalQueue } from '../../../packages/sdk-browser/src/page/integration/arrivalQueue.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceAdmission,
@@ -83,7 +83,7 @@ function arrivees(fabrique: (byteBudget: number, countBudget: number) => Fabriqu
 
 const resAdmission = await mesure({
   name: 'admission streaming',
-  fichier: 'packages/sdk-browser/streamingQueueOrder.ts',
+  fichier: 'packages/sdk-browser/src/streaming/queueOrder.ts',
   cas: [
     { name: '5 000 ordered jobs', input: travaux, size: 5000 },
     { name: 'no jobs', input: [], size: 0 },
@@ -95,7 +95,7 @@ const resAdmission = await mesure({
 
 const resArrivees = await mesure({
   name: 'arrival queue',
-  fichier: 'packages/sdk-browser/arrivalQueue.ts',
+  fichier: 'packages/sdk-browser/src/page/integration/arrivalQueue.ts',
   cas: [{ name: '5 000 arrivals on 8 targets', input: null, size: 5000 }],
   calcul: () => arrivees(createArrivalQueue),
   attendu: () => arrivees(referenceArrivalQueue),

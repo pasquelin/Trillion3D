@@ -51,7 +51,7 @@ function cacheAvecTransparents() {
   );
 }
 assert.ok(
-  existsSync(join(ROOT, 'dist/sdk-browser/measurement.js')),
+  existsSync(join(ROOT, 'dist/sdk-browser/src/measurement/measurement.js')),
   'dist missing: run `pnpm run build` before this proof',
 );
 // The page module is bundled from the repository SOURCES, so it reads the production reference

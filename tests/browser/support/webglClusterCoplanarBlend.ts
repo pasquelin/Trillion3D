@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import type { WebglClusterRenderer } from '../../../packages/sdk-browser/webglClusterRenderer.ts';
-import type { WebglClusterScene } from '../../../packages/sdk-browser/webglClusterLights.ts';
-import type { ClusterDrawMesh } from '../../../packages/sdk-browser/clusterBatchMesh.ts';
-import type { HostDrawCamera } from '../../../packages/sdk-browser/cameraWorld.ts';
+import type { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
+import type { WebglClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/lights.ts';
+import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
+import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 
 /** A geometry factory as the transparency proof's fixtures build it. */
 type GeometryFactory = (reverseFirst?: boolean) => THREE.BufferGeometry;

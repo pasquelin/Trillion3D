@@ -5,20 +5,22 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { mesure, rapport } from '../../core/index.ts';
 import type { MesureCas } from '../../core/index.ts';
-import { prepareSdkWasm } from '../../../packages/sdk-browser/geometryPageWasm.ts';
+import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts';
 import {
   prepareMathBatch,
   mathBatchMetrics,
-} from '../../../packages/sdk-browser/mathBatchState.ts';
+} from '../../../packages/sdk-browser/src/math/batchState.ts';
 import {
   createBoxTransformLot,
   createMultiplyLot,
-} from '../../../packages/sdk-browser/mathBatchRuntime.ts';
-import type { MathLot } from '../../../packages/sdk-browser/mathBatchLot.ts';
+} from '../../../packages/sdk-browser/src/math/batchRuntime.ts';
+import type { MathLot } from '../../../packages/sdk-browser/src/math/batchLot.ts';
 import { TAILLES, remplitBoites, remplitMatrices } from './support/casLotsWasm.ts';
 
 await prepareSdkWasm(
-  readFileSync(join(import.meta.dirname, '../../../packages/sdk-browser/pageCodec.wasm')),
+  readFileSync(
+    join(import.meta.dirname, '../../../packages/sdk-browser/src/page/decode/pageCodec.wasm'),
+  ),
 );
 await prepareMathBatch('auto');
 
@@ -41,7 +43,7 @@ async function benchLot<T extends MathLot & { readonly out: Float64Array }>(
   }
   return mesure({
     name: `lots-wasm ${operation}`,
-    fichier: 'packages/sdk-browser/mathBatchRuntime.ts',
+    fichier: 'packages/sdk-browser/src/math/batchRuntime.ts',
     cas,
     calcul: async (lot) => {
       await prepareMathBatch('wasm');

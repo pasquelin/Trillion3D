@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
 import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
-import { encodePng } from '../../packages/sdk-node/png.mts';
+import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
 import { distribution, machineLoad } from './rapport.ts';
 import { passesGpu } from './seriePasses.ts';
 import { budgetPages, poolGeometrie } from './serieReservoirs.ts';

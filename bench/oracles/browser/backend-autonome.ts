@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { asHostLibrary } from '../../../packages/sdk-browser/hostResources.ts';
-import type { PageRec } from '../../../packages/sdk-browser/pageSelection.ts';
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 
 /**
  * `autonomousGeometry.ts` before batch G: `attach` and `detach` held no set, and

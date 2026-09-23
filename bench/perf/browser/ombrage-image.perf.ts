@@ -1,11 +1,11 @@
 // CPU visbuffer shading, pixel by pixel.
 import * as THREE from 'three';
-import { shadeVisibility } from '../../../packages/sdk-browser/visibilityShade.ts';
-import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
+import { shadeVisibility } from '../../../packages/sdk-browser/src/visibility/shader/shade.ts';
+import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
 import { camera, coupe } from './support/scenes.ts';
 import { referenceShadeVisibility } from '../../oracles/browser/ombrage-image.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { ScenePage } from './support/scenes.ts';
 
 const image = (
@@ -39,7 +39,7 @@ const cas = [
 
 const res = await mesure({
   name: 'shadeVisibility',
-  fichier: 'packages/sdk-browser/visibilityShadePixel.ts',
+  fichier: 'packages/sdk-browser/src/visibility/shader/shadePixel.ts',
   cas,
   calcul: ({ ids, pages, cam, viewport }) =>
     shadeVisibility(ids, pages, cameraMoteur(cam), viewport),

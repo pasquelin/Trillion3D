@@ -11,18 +11,18 @@
 // node --experimental-strip-types tests/browser/probes/erreur-ecran-hors-axe.ts
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { selectVisiblePages } from '../../../packages/sdk-browser/pageSelectionCut.ts';
-import { projectedClusterError } from '../../../packages/sdk-browser/pageSelectionMath.ts';
-import { cullingBounds } from '../../../packages/sdk-browser/pageSelectionCutBounds.ts';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/gpuSelection.ts';
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
+import { projectedClusterError } from '../../../packages/sdk-browser/src/page/selection/math.ts';
+import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
+import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import {
   evaluateDagSelectionKernel,
   packDagSelection,
   packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/gpuDagSelection.ts';
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { selectionGpu } from './noyauSelectionGpu.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 
 const SEUIL = 0.4;
 const VIEWPORT: [number, number] = [1920, 1080];

@@ -6,11 +6,14 @@
 //
 // Pixels are read the way a host reads them (`createSynchronousCanvasCapture`): before the loss
 // the image must hold the fixture's triangles, so that a stale copy would have been visible.
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
-import { createSynchronousCanvasCapture } from '../../../packages/sdk-browser/gpuPresentation.ts';
-import { dagFixture, wideCamera } from '../../../packages/sdk-browser/pageSelectionDagFixture.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
+import { createSynchronousCanvasCapture } from '../../../packages/sdk-browser/src/gpu/core/presentation.ts';
+import {
+  dagFixture,
+  wideCamera,
+} from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
 import { ouvrirAppareil } from '../probes/appareilWebgpu.ts';
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/backendTypes.ts';
+import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 
 const litPixels = (pixels: Uint8Array) =>
   pixels.reduce((n, v, i) => (i % 4 !== 3 && v !== 0 ? n + 1 : n), 0);

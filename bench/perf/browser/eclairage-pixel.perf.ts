@@ -1,13 +1,13 @@
 // per-pixel shading of the CPU visbuffer.
-import { importHostTexture } from '../../../packages/sdk-browser/hostSurfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
 import * as THREE from 'three';
-import { surfaceOf } from '../../../packages/sdk-browser/pageSurface.ts';
-import { shadeLit } from '../../../packages/sdk-browser/visibilityLighting.ts';
-import { triangleAt } from '../../../packages/sdk-browser/visibilityMath.ts';
-import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { shadeLit } from '../../../packages/sdk-browser/src/visibility/shader/lighting.ts';
+import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts';
+import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceShadeLit } from '../../oracles/browser/eclairage-pixel.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
 
 const alea = graine(0x6017);
@@ -160,7 +160,7 @@ const passe =
 
 const resOmbrage = await mesure({
   name: 'per-pixel visbuffer shading',
-  fichier: 'packages/sdk-browser/visibilityLighting.ts',
+  fichier: 'packages/sdk-browser/src/visibility/shader/lighting.ts',
   cas: [
     {
       name: '20 000 pixels with maps',

@@ -1,4 +1,4 @@
-import type { pose as poseFamily, Box3, World } from '../../../packages/sdk-browser/index.ts';
+import type { pose as poseFamily, Box3, World } from '../../../packages/sdk-browser/src/index.ts';
 
 /** Reset and zoom for a mounted scene: the world keeps its own orbit controls live on
  *  `world.camera`, so zoom reads its current position rather than a separate controls handle.

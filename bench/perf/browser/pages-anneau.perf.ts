@@ -2,12 +2,15 @@
 import {
   createSelectionResult,
   selectVisiblePages,
-} from '../../../packages/sdk-browser/pageSelection.ts';
-import type { ClusterRoot, SelectionResult } from '../../../packages/sdk-browser/pageSelection.ts';
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type {
+  ClusterRoot,
+  SelectionResult,
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { compteur, mesure, parcours, rapport, stress } from '../../core/index.ts';
 import { camera } from './support/scenes.ts';
 import { dag, racine, type DagPage } from './support/dagCoupe.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/cameraFixture.ts';
+import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 
 interface Scene {
   roots: ClusterRoot<DagPage>[];
@@ -95,7 +98,7 @@ const rare = scene({ feuilles: 2000, seed: 83, pixelError: 32 });
 
 const resC3 = await mesure({
   name: 'ring via a second cut',
-  fichier: 'packages/sdk-browser/exactPagesRequests.ts',
+  fichier: 'packages/sdk-browser/src/backend/exact/requests.ts',
   cas: [
     { name: '20 000 pages, threshold 8 against 4', input: dense, size: 20000 },
     { name: '4 000 pages, threshold 32 against 16', input: rare, size: 4000 },

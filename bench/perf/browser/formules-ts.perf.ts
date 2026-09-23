@@ -1,11 +1,17 @@
 // Equivalence bench for the "shared TS formulas" batch.
-import { DEFAULT_PIXEL_RATIO, devicePixels } from '../../../packages/sdk-browser/backendCommon.ts';
+import {
+  DEFAULT_PIXEL_RATIO,
+  devicePixels,
+} from '../../../packages/sdk-browser/src/backend/common.ts';
 import { frustumExcludesBox } from '../../../packages/sdk-core/src/index.ts';
-import { nanosecondsToMs } from '../../../packages/sdk-browser/gpuTimingTypes.ts';
-import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/visibilityTypes.ts';
-import { barycentric } from '../../../packages/sdk-browser/visibilityMath.ts';
-import { barycentricAt, signedArea } from '../../../packages/sdk-browser/visibilityProjection.ts';
-import { packedRowBase } from '../../../packages/sdk-browser/webgpuPageRow.ts';
+import { nanosecondsToMs } from '../../../packages/sdk-browser/src/gpu/timing/types.ts';
+import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/types.ts';
+import { barycentric } from '../../../packages/sdk-browser/src/visibility/math.ts';
+import {
+  barycentricAt,
+  signedArea,
+} from '../../../packages/sdk-browser/src/visibility/projection.ts';
+import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
 import { plancherDuModele } from '../../runner/poses.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
 import {
@@ -59,7 +65,7 @@ const resPlanes = await mesure({
 
 const resArea = await mesure({
   name: 'signed screen-triangle area',
-  fichier: 'packages/sdk-browser/visibilityProjection.ts',
+  fichier: 'packages/sdk-browser/src/visibility/projection.ts',
   cas: un('3 000 hostile triangles', triangles, triangles.length),
   calcul: (liste) => liste.map((t) => signedArea(t.a, t.b, t.c)),
   attendu: (liste) => liste.map((t) => referenceSignedArea(t.a, t.b, t.c)),
@@ -68,7 +74,7 @@ const resArea = await mesure({
 
 const resWeights = await mesure({
   name: 'affine barycentric weights',
-  fichier: 'packages/sdk-browser/visibilityProjection.ts',
+  fichier: 'packages/sdk-browser/src/visibility/projection.ts',
   cas: un('3 000 hostile triangles', triangles, triangles.length),
   calcul: (liste) => {
     const output = new Float64Array(liste.length * 3);
@@ -97,7 +103,7 @@ const resWeights = await mesure({
 
 const resBary = await mesure({
   name: 'barycentriques visbuffer',
-  fichier: 'packages/sdk-browser/visibilityMath.ts',
+  fichier: 'packages/sdk-browser/src/visibility/math.ts',
   cas: un('3 000 hostile triangles', triangles, triangles.length),
   calcul: (liste) => liste.map((t) => barycentric(t.a, t.b, t.c, t.x, t.y)),
   attendu: (liste) => liste.map((t) => referenceBarycentric(t.a, t.b, t.c, t.x, t.y)),
@@ -106,7 +112,7 @@ const resBary = await mesure({
 
 const resRow = await mesure({
   name: 'row-identifier foundation',
-  fichier: 'packages/sdk-browser/webgpuPageRow.ts',
+  fichier: 'packages/sdk-browser/src/webgpu/row/pageRow.ts',
   cas: un('2 000 ranks', rangs, rangs.length),
   calcul: (liste) => liste.map((row) => packedRowBase(row)),
   attendu: (liste) => liste.map((row) => referencePackedRowBase(row, VIS_TRIANGLE_BITS)),
@@ -115,7 +121,7 @@ const resRow = await mesure({
 
 const resPixels = await mesure({
   name: 'device pixels from logical size',
-  fichier: 'packages/sdk-browser/backendCommon.ts',
+  fichier: 'packages/sdk-browser/src/backend/common.ts',
   cas: un('2 000 sizes and ratios', tailles, tailles.length),
   calcul: (liste) => liste.map((t) => devicePixels(t.logical, t.ratio)),
   attendu: (liste) =>
@@ -125,7 +131,7 @@ const resPixels = await mesure({
 
 const resNs = await mesure({
   name: 'nanoseconds to milliseconds',
-  fichier: 'packages/sdk-browser/gpuTimingTypes.ts',
+  fichier: 'packages/sdk-browser/src/gpu/timing/types.ts',
   cas: un('2 000 durations', durees, durees.length),
   calcul: (liste) => liste.map((ns) => nanosecondsToMs(ns)),
   attendu: (liste) => liste.map((ns) => referenceNsToMs(ns)),

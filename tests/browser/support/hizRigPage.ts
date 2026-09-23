@@ -14,8 +14,8 @@ import * as THREE from 'three';
 import type {
   BackendDiagnostic,
   RenderBackend,
-} from '../../../packages/sdk-browser/backendTypes.ts';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { cameraFace, comptesEtape, libere, engine } from './preuveSceneCommune.ts';
 import { image } from './preuveSceneImage.ts';
 import { dallePixels, sceneOccultante, surSceneOccultante } from './sceneOccultante.ts';

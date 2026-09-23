@@ -64,7 +64,7 @@ try {
       `const n=2,views=(b,s)=>Array.from({length:n},(_,i)=>b.subarray(i*s,(i+1)*s));\n` +
       `const world=new Float64Array(n*MATRIX_VALUES),positions=new Float64Array(n*POSITION_VALUES),rotations=new Float64Array(n*QUATERNION_VALUES),scales=new Float64Array(n*POSITION_VALUES).fill(1),parents=new Uint32Array([HIERARCHY_ROOT,0]),local=new Float64Array(MATRIX_VALUES);\n` +
       `positions.set([2,3,4,5,7,11]);rotations[3]=rotations[7]=1;hierarchyUpdateBatch(views(world,MATRIX_VALUES),views(positions,POSITION_VALUES),views(rotations,QUATERNION_VALUES),views(scales,POSITION_VALUES),parents,n,local);if(world[28]!==7||world[29]!==10||world[30]!==15)process.exit(4);\n` +
-      `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/index.mjs'])process.exit(3);\n` +
+      `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/src/index.mjs'])process.exit(3);\n` +
       `for(const path of ['/core','/node','/browser','/dist/sdk-core/src/index.js'])try{await import('${packageName}'+path);process.exit(5)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(6)}\n`,
   );
   run(process.execPath, ['runtime.mjs'], fixture);
@@ -127,7 +127,7 @@ try {
     ? await proveInstalledBrowserModes({
         fixture,
         packageName: source.name,
-        browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/index.js',
+        browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/src/index.js',
         bundler: join(root, 'node_modules/.bin/esbuild'),
         run,
       })

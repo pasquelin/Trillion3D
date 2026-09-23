@@ -2,13 +2,13 @@
 // so that view parallax takes the slab out from behind the wall and the occlusion verdict of
 // its clusters flips with the camera.
 import * as THREE from 'three';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/webgpuPages.ts';
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import { ouvrirAppareil } from '../probes/appareilWebgpu.ts';
 import type {
   BackendContext,
   BackendDiagnostic,
   RenderBackend,
-} from '../../../packages/sdk-browser/backendTypes.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts';
 import { batisseur, carre, engine, libere, type ScenePreparee } from './preuveSceneCommune.ts';
 
 export function sceneOccultante(): ScenePreparee {

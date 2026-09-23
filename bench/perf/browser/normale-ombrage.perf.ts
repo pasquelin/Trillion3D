@@ -1,12 +1,12 @@
 // Benchmark for batch 4: shading normal.
-import { importHostTexture } from '../../../packages/sdk-browser/hostSurfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
 import * as THREE from 'three';
-import { shadingNormal } from '../../../packages/sdk-browser/visibilityShadingNormal.ts';
+import { shadingNormal } from '../../../packages/sdk-browser/src/visibility/shader/shadingNormal.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceShadingNormal } from '../../oracles/browser/normale-ombrage.ts';
 import { reperes } from './support/scenesNormale.ts';
-import { triangleAt } from '../../../packages/sdk-browser/visibilityMath.ts';
-import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/visibilityTypes.ts';
+import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts';
+import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
 const alea = graine(0x4e07);
 
@@ -100,7 +100,7 @@ const passe =
 
 const res = await mesure({
   name: 'shadingNormal hostile frames',
-  fichier: 'packages/sdk-browser/visibilityShadingNormal.ts',
+  fichier: 'packages/sdk-browser/src/visibility/shader/shadingNormal.ts',
   cas: [
     { name: `${lot.length} hostile frames`, input: lot, size: lot.length },
     { name: 'one frame', input: lot.slice(0, 1), size: 1 },

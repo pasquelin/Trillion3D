@@ -5,8 +5,11 @@
 import * as THREE from 'three';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../../packages/sdk-core/src/index.ts';
 import { graine } from '../../../core/index.ts';
-import type { ClusterRoot, PageRec } from '../../../../packages/sdk-browser/pageSelectionTypes.ts';
-import type { SelectionResult } from '../../../../packages/sdk-browser/pageSelectionCutState.ts';
+import type {
+  ClusterRoot,
+  PageRec,
+} from '../../../../packages/sdk-browser/src/page/selection/types.ts';
+import type { SelectionResult } from '../../../../packages/sdk-browser/src/page/cut/state.ts';
 
 export type DagPage = Pick<
   PageRec,

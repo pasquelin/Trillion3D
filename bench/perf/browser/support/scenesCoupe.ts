@@ -2,7 +2,7 @@
 // triangles that share their diagonal is the fill's edge case, and it is the one the bench
 // must see before the random scenes.
 import * as THREE from 'three';
-import { surfaceOf } from '../../../../packages/sdk-browser/pageSurface.ts';
+import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 
 /**
  * Quads split into two triangles that share their diagonal, facing the camera

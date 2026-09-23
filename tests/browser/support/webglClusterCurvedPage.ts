@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { WebglClusterRenderer } from '../../../packages/sdk-browser/webglClusterRenderer.ts';
+import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import {
   createHostDrawCamera,
   readHostDrawCamera,
-} from '../../../packages/sdk-browser/cameraWorld.ts';
+} from '../../../packages/sdk-browser/src/camera/world.ts';
 import { drawMatrix } from './webglClusterPixels.ts';
 
 export const curvedPixels = (gl: WebGLRenderingContext | WebGL2RenderingContext, size: number) => {

@@ -34,7 +34,7 @@ dispose them before the next route. `docs/` holds the repository documentation o
   `engine-scene/` for the WebGPU scene lifecycle, camera controls, diagnostic modes and pure
   bilingual copy. Each catalogue item declares the API functions it demonstrates;
   `findExampleForFunction()` connects an API page to its relevant playground. The lesson runtimes
-  import the browser SDK by its source entry, `packages/sdk-browser/index.ts`, so the type checker
+  import the browser SDK by its source entry, `packages/sdk-browser/src/index.ts`, so the type checker
   sees the engine's own types; the build keeps that import external and resolves it to the
   `runtime/engine.js` bundle beside `portal.js`.
 - `site/examples/` owns the examples: one standalone HTML file per example, `<id>.html`, which
@@ -185,7 +185,7 @@ the streaming pipeline. Neither proves a speedup over another renderer. Comparat
 the repository measurement harness described in `bench/runner/README.md`, identical input, camera,
 quality and resource budgets, plus resolution, DPR, commit, display cap and run-to-run spread.
 A witness (bare Three.js, `THREE.LOD`, …) is never imported by a portal example or demo: it is
-named only through the measurement entry point (`packages/sdk-browser/measurement.ts`) the bench
+named only through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) the bench
 and the report pipeline use.
 
 API pages may show a related concept beside their original snippet. The panel labels this

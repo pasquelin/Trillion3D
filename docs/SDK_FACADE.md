@@ -15,7 +15,7 @@ browser rendering APIs. Importing any branch has no startup action: it does not 
 worker, DOM object, GPU object or compiler process.
 
 A fourth branch exists beside these three, and it is not a `web-geometry` resolver condition: the
-measurement entry point, `packages/sdk-browser/measurement.ts`. It re-exports everything the
+measurement entry point, `packages/sdk-browser/src/measurement/measurement.ts`. It re-exports everything the
 browser branch does, plus `openMeasuredWorld`/`createMeasuredWorldJob` (the internal session a
 world opens on itself), the witness backend factories, `chooseBackends`/`autonomousCacheReady` and
 `replicateInstances`. `package.json`'s `exports` map has no subpath for it — the bench, the proofs

@@ -1,13 +1,13 @@
 // sRGB to linear in texture sampling.
 import type { Texture } from '../../../packages/sdk-core/src/index.ts';
-import { importHostTexture } from '../../../packages/sdk-browser/hostSurfaceImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/surfaceImport.ts';
 import * as THREE from 'three';
 import {
   sampleLinear,
   sampleMap,
   wrapTexel,
-} from '../../../packages/sdk-browser/visibilityMath.ts';
-import { textureRgba } from '../../../packages/sdk-browser/visibilityTypes.ts';
+} from '../../../packages/sdk-browser/src/visibility/math.ts';
+import { textureRgba } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 
 function referenceSrgbToLinear(c: number) {
@@ -90,7 +90,7 @@ const cas = [
 
 const resSrgb = await mesure({
   name: 'sRGB to linear',
-  fichier: 'packages/sdk-browser/visibilityMath.ts',
+  fichier: 'packages/sdk-browser/src/visibility/math.ts',
   cas,
   calcul: parcours(sampleMap),
   attendu: parcours(referenceSampleMap),
@@ -99,7 +99,7 @@ const resSrgb = await mesure({
 
 const resLinear = await mesure({
   name: 'linear sampling',
-  fichier: 'packages/sdk-browser/visibilityMath.ts',
+  fichier: 'packages/sdk-browser/src/visibility/math.ts',
   cas,
   calcul: parcours(sampleLinear),
   attendu: parcours(referenceSampleLinear),

@@ -1,10 +1,10 @@
 // What both measurement pages (`pageEclairage.ts`, `pageThreeNu.ts`) do the same: the moving
 // light on its small circle, the capture sent to Node, the bytes transferred on the network.
 // Served to the page under `/mesure/` and imported by URL, with nothing from the SDK.
-import type { MeasuredWorld } from '../../packages/sdk-browser/measurement.ts';
+import type { MeasuredWorld } from '../../packages/sdk-browser/src/measurement/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
-import type { BackendDiagnostic } from '../../packages/sdk-browser/backendTypes.ts';
-import type { MemoryBudgets } from '../../packages/sdk-browser/measurement.ts';
+import type { BackendDiagnostic } from '../../packages/sdk-browser/src/backend/types.ts';
+import type { MemoryBudgets } from '../../packages/sdk-browser/src/measurement/measurement.ts';
 import type { ReglageVivant, Reseau } from './report/types.ts';
 import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 

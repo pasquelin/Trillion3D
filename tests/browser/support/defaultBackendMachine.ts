@@ -8,7 +8,7 @@ import { serverPort } from '../../kit/server/serveur.ts';
 import type { runDefaultBackendCase } from './defaultBackendCase.ts';
 
 declare global {
-  var sdk: typeof import('../../../packages/sdk-browser/measurement.ts');
+  var sdk: typeof import('../../../packages/sdk-browser/src/measurement/measurement.ts');
   var proof: { images: Record<string, number[]> } | undefined;
 }
 
