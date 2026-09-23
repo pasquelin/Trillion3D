@@ -165,7 +165,7 @@
       world.controls.minDistance = 6;
       world.controls.maxDistance = 40;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
-      controls({ mouse: 'Drag to turn around · scroll to come closer', sky: Object.keys(SKIES), fieldOfView: [35, 100, 60, 1] }, (values, key) => {
+      controls({ sky: Object.keys(SKIES), fieldOfView: [35, 100, 60, 1] }, (values, key) => {
         if (key === undefined || key === 'sky') {
           const sky = SKIES[values.sky];
           for (const [name, dome] of Object.entries(domes)) dome.visible = name === values.sky;
