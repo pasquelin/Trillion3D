@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A game board from above</title>
+    <meta name="thumbnail" content="2" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // A sequence in [0, 1) from a seed: the same scene on every run.
+      function random(seed) {
+        let state = seed >>> 0;
+        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
+      }
+
+      // `panZoom`: a flat view that never turns. The camera looks straight down at the board.
+      const world = createWorld('view', { controls: 'panZoom' });
+      const light1 = material.meshStandard({ color: '#e9dcc0', roughness: 0.6 });
+      const dark1 = material.meshStandard({ color: '#6b4630', roughness: 0.6 });
+      const table = object.mesh(geometry.box(14, 0.2, 14), material.meshStandard({ color: '#2b3a2f', roughness: 0.9 }));
+      table.position.y = -0.2;
+      world.scene.add(table);
+      for (let row = 0; row < 8; row++)
+        for (let column = 0; column < 8; column++) {
+          const tile = object.mesh(geometry.box(1, 0.1, 1), (row + column) % 2 ? dark1 : light1);
+          tile.position.set(column - 3.5, -0.05, row - 3.5);
+          world.scene.add(tile);
+        }
+      // Two armies of pieces: pawns, towers and a queen with a crown, each a small stack of shapes.
+      const sides = [material.meshStandard({ color: '#f4efe6', roughness: 0.35 }), material.meshStandard({ color: '#c0392b', roughness: 0.35 })];
+      function piece(kind, matter) {
+        const group = object.group();
+        const foot = object.mesh(geometry.cylinder(0.32, 0.36, 0.12, 32), matter);
+        foot.position.y = 0.06;
+        const body = object.mesh(kind === 'tower' ? geometry.cylinder(0.24, 0.28, 0.6, 32) : geometry.cone(0.25, 0.55, 32), matter);
+        body.position.y = kind === 'tower' ? 0.42 : 0.4;
+        const head = object.mesh(kind === 'queen' ? geometry.torus(0.14, 0.05, 12, 24) : geometry.sphere(0.14, 24, 16), matter);
+        head.position.y = kind === 'tower' ? 0.8 : 0.72;
+        if (kind === 'queen') head.rotation.x = Math.PI / 2;
+        group.add(foot, body, head);
+        return group;
+      }
+      const pieces = [];
+      sides.forEach((matter, side) => {
+        for (let column = 0; column < 8; column++) {
+          const kind = column === 0 || column === 7 ? 'tower' : column === 3 ? 'queen' : 'pawn';
+          const item = piece(kind, matter);
+          const row = side ? 0 : 7, pawnRow = side ? 1 : 6;
+          item.position.set(column - 3.5, 0, row - 3.5);
+          const pawn = piece('pawn', matter);
+          pawn.position.set(column - 3.5, 0, pawnRow - 3.5);
+          world.scene.add(item, pawn);
+          pieces.push(pawn, item);
+        }
+      });
+      world.scene.add(light.directional({ intensity: 3, color: '#fff1dc', position: [4, 10, 3], castShadow: true }));
+      world.scene.add(light.point({ intensity: 20, color: '#ffb45e', position: [-5, 3, -5], distance: 14 }));
+      world.scene.add(light.ambient({ intensity: 0.25 }));
+      world.camera.position.set(0, 10, 0.01);
+      world.camera.lookAt(0, 0, 0);
+
+      const ui = controls({ mouse: 'Drag to slide the board · scroll to zoom · arrow keys to pan', play: true });
+      // A piece at a time hops to a free square nearby: a parabola from where it stood.
+      const next = random(3);
+      let moving = null;
+      world.onFrame(({ delta }) => {
+        if (!ui.play) return;
+        if (!moving) {
+          const item = pieces[Math.floor(next() * pieces.length)];
+          const to = [Math.max(-3.5, Math.min(3.5, item.position.x + Math.round(next() * 2 - 1))), Math.max(-3.5, Math.min(3.5, item.position.z + (next() < 0.5 ? -1 : 1)))];
+          moving = { item, from: [item.position.x, item.position.z], to, t: 0 };
+        }
+        moving.t = Math.min(1, moving.t + delta * 1.5);
+        const { item, from, to, t } = moving;
+        item.position.set(from[0] + (to[0] - from[0]) * t, Math.sin(t * Math.PI) * 0.8, from[1] + (to[1] - from[1]) * t);
+        if (t === 1) moving = null;
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>
