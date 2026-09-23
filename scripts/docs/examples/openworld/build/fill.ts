@@ -10,7 +10,7 @@ import type { TerrainPlan } from '../plan/plan.ts';
 import { hash01 } from '../props/index.ts';
 
 /** Side of a checked cell, metres, and the props one empty cell receives. */
-export const FILL_CELL = 100;
+const FILL_CELL = 100;
 const PER_CELL = 4;
 /** A region's prop counts as scattered when it places at least this many copies of it. */
 const SCATTERED = 24;

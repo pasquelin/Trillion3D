@@ -12,7 +12,7 @@ import type { FlatPart } from './water.ts';
  * The texture coordinate of a local position along one axis, for a `size`-texel image whose first
  * and last texel centres sit on the tile's edges: always inside (0, 1).
  */
-export const texelCoordinate = (local: number, size: number) =>
+const texelCoordinate = (local: number, size: number) =>
   (0.5 + (local / WORLD.tile) * (size - 1)) / size;
 
 export function tileMesh(

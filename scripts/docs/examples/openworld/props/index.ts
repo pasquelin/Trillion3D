@@ -36,13 +36,6 @@ export { foliage, grow, wood, type GrowthRule } from './branches.ts';
 export { fractalNoise, valueNoise } from './noise.ts';
 export { propProblems } from './validate.ts';
 export { tree } from './trees.ts';
-export {
-  forestStands,
-  STAND_SIDE,
-  standExtent,
-  standTolerance,
-  type StandBiome,
-  type StandVariant,
-} from './stands.ts';
+export { forestStands, STAND_SIDE, standExtent, standTolerance } from './stands.ts';
 export { VEHICLE_SPECS, vehicleProps } from './vehicles.ts';
 export { partMeshes, vehicleProp } from './vehicle-parts.ts';

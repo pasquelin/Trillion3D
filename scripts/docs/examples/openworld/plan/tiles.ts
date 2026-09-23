@@ -127,7 +127,7 @@ function isDeep(plan: TerrainPlan, grid: TileGrid): boolean {
 }
 
 /** The file name of a tile's baked image in the source folder. */
-export const tileTexture = (tx: number, tz: number) => `terrain-${tx}_${tz}.png`;
+const tileTexture = (tx: number, tz: number) => `terrain-${tx}_${tz}.png`;
 
 /**
  * Every textured tile's image, by file name, and the surface they share: one roughness, the mean
