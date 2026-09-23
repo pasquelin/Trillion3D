@@ -47,15 +47,23 @@
       world.camera.lookAt(0, 0, 0);
       world.controls.target.set(0, 0, 0);
 
-      // The palette runs from one colour to the other, through linear light.
-      const ui = controls({ height: [0, 3, 1.4], speed: [0, 3, 1], ripples: [1, 8, 3, 1], inner: '#ff4f7b', outer: '#2fd4ff' }, (values) => {
-        const from = math.color(values.inner), to = math.color(values.outer);
-        palette.forEach((matter, band) => matter.color.copy(from).lerp(to, band / 11));
+      // The palette runs from one colour to the other, through linear light; its materials are
+      // written only when a colour changes.
+      let stone = [0, 0], time = 0, resting = false;
+      const ui = controls({ height: [0, 3, 1.4], speed: [0, 3, 1], ripples: [1, 8, 3, 1], inner: '#ff4f7b', outer: '#2fd4ff' }, (values, key) => {
+        resting = false;
+        if (key === undefined || key === 'inner' || key === 'outer') {
+          const from = math.color(values.inner), to = math.color(values.outer);
+          palette.forEach((matter, band) => matter.color.copy(from).lerp(to, band / 11));
+        }
+        world.invalidate();
       }, world);
 
-      // Every frame each cube's height reads the distance to the last stone dropped.
-      let stone = [0, 0], time = 0;
+      // Every frame each cube's height reads the distance to the last stone dropped. At speed
+      // zero the grid is shaped once more after a change, then asks for no new frame.
       world.onFrame(({ delta }) => {
+        if (resting) return;
+        resting = !ui.speed;
         time += delta * ui.speed;
         for (const mesh of cubes) {
           const distance = Math.hypot(mesh.position.x - stone[0], mesh.position.z - stone[1]);
@@ -72,6 +80,8 @@
         if (!floor) return;
         stone = floor;
         time = 0;
+        resting = false;
+        world.invalidate();
       });
     </script>
   </body>

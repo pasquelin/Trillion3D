@@ -112,7 +112,10 @@
 
       // The pen runs along the path; a piece shows once the pen has entered it.
       let drawn = 0, shown = null, current = null;
-      const restart = () => (drawn = 0);
+      const restart = () => {
+        drawn = 0;
+        world.invalidate();
+      };
       const ui = controls({
         mouse: 'Drag to turn around the figure; pick another rule and the pen draws it from the start',
         figure: Object.keys(FIGURES),
@@ -135,22 +138,31 @@
       shown = readout('Coloured pieces');
 
       let turn = 0, waited = 0;
+      // A figure drawn to its end and not turning asks for no new frame; a light is written only
+      // when the pen lifts or lands, never once a frame.
       world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.05);
-        waited += step;
-        if (waited > 1) Object.values(drawings).forEach(join);
-        const { points, pieces } = current;
-        // About twelve seconds for a whole figure at the usual pace.
-        drawn = Math.min(points.length - 1, drawn + (step * ui.pace * points.length) / 12);
-        const head = points[Math.floor(drawn)], reached = Math.min(PIECES, Math.floor((drawn / points.length) * PIECES) + 1);
-        pieces.forEach(({ line }, index) => (line.visible = index < reached));
-        pen.position.set(...head);
-        glow.position.set(...head);
-        pen.visible = drawn < points.length - 1;
-        glow.intensity = pen.visible ? 14 : 0;
-        shown(`${reached} / ${PIECES}`);
-        if (ui.spin) turn += step * 0.18;
-        figure.rotation.set(0, turn, 0);
+        if (waited <= 1 && (waited += step) > 1) Object.values(drawings).forEach(join);
+        const { points, pieces } = current, drawing = drawn < points.length - 1;
+        if (!drawing && !ui.spin) return;
+        if (drawing) {
+          // About twelve seconds for a whole figure at the usual pace.
+          drawn = Math.min(points.length - 1, drawn + (step * ui.pace * points.length) / 12);
+          const head = points[Math.floor(drawn)], reached = Math.min(PIECES, Math.floor((drawn / points.length) * PIECES) + 1);
+          pieces.forEach(({ line }, index) => (line.visible = index < reached));
+          pen.position.set(...head);
+          glow.position.set(...head);
+          shown(`${reached} / ${PIECES}`);
+        }
+        const lit = drawn < points.length - 1;
+        if (pen.visible !== lit) {
+          pen.visible = lit;
+          glow.intensity = lit ? 14 : 0;
+        }
+        if (ui.spin) {
+          turn += step * 0.18;
+          figure.rotation.set(0, turn, 0);
+        }
         world.invalidate();
       });
     </script>

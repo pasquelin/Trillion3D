@@ -182,6 +182,9 @@
       const ease = (t) => 1 - (1 - t) ** 3;
       let time = 0, waited = 0;
       world.onFrame(({ delta }) => {
+        // Nothing turning, growing, joining or gliding: no new frame.
+        const settled = (shape) => !shape.root.visible || shape.grow === (shape === current ? 1 : 0);
+        if (!ui.spin && !steps.length && intro >= 1 && Object.values(SHAPES).every(settled)) return;
         const step = Math.min(delta, 0.05);
         if (ui.spin) time += step;
         // The next step joins once the frame before it has drawn, a second apart.

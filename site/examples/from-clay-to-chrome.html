@@ -59,13 +59,18 @@
         for (const lamp of lamps) lamp.intensity = values.lamps;
       }, world);
       let angle = 0.6;
-      world.onFrame(({ delta }) => {
-        if (ui.swing) angle += delta * 0.5;
+      const placeLamps = () =>
         lamps.forEach((lamp, index) => {
           const at = angle + index * Math.PI;
           lamp.position.set(Math.sin(at) * 4, 2.6, Math.cos(at) * 4);
         });
-        if (ui.swing) world.invalidate();
+      placeLamps();
+      // A lamp is moved only while they swing: a still scene asks for no new frame.
+      world.onFrame(({ delta }) => {
+        if (!ui.swing) return;
+        angle += delta * 0.5;
+        placeLamps();
+        world.invalidate();
       });
       world.invalidate();
     </script>

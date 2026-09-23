@@ -194,9 +194,10 @@
         flyAgain: () => {
           time = 0;
           flying = true;
+          world.invalidate();
         },
       }, (values, key) => {
-        if (key !== undefined && key !== 'hour') return;
+        if (key !== undefined && key !== 'hour') return world.invalidate();
         const late = (values.hour - 15) / 5.5;
         elevation = math.degToRad(Math.max(0.6, 46 * (1 - late)));
         const round = math.degToRad(22 + late * 38);
@@ -238,7 +239,8 @@
             if (item.car.position.z > HALF) item.car.position.z -= LENGTH;
             if (item.car.position.z < -HALF) item.car.position.z += LENGTH;
           }
-        world.invalidate();
+        // No flight and no traffic: a still street asks for no new frame.
+        if (flying || ui.traffic) world.invalidate();
       });
       world.camera.position.set(...HIGH);
       world.controls.target.set(0, 0, 0);
