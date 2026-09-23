@@ -418,7 +418,7 @@
       },
       "add-a-shape": {
         "title": "添加一个形状",
-        "description": "你看到的一切都是网格(mesh):形状加上材质。用 <code>geometry</code> 做出形状,用 <code>object.mesh</code> 把它包成网格,再加进场景里。",
+        "description": "你看到的一切都是网格(mesh):形状加上材质。用 `geometry` 做出形状,用 `object.mesh` 把它包成网格,再加进场景里。",
         "steps": [
           "形状,也就是 <em>几何体(geometry)</em>,只是外形:它的顶点和面。<code>geometry.box(1, 1, 1)</code> 是一个边长 1 米的立方体,<code>geometry.sphere(0.75)</code> 是一个球。还有圆柱、圆锥、圆环、圆环面等等。",
           "<em>网格(mesh)</em> 是形状加上材质:<code>object.mesh(shape, material)</code>。材质在下一章讲。",
@@ -430,7 +430,7 @@
       },
       "give-it-a-material": {
         "title": "给它一个材质",
-        "description": "材质说明一个表面是用什么做的:它的颜色、是不是金属、有多粗糙。<code>material.meshStandard</code> 几乎能覆盖所有情况。",
+        "description": "材质说明一个表面是用什么做的:它的颜色、是不是金属、有多粗糙。`material.meshStandard` 几乎能覆盖所有情况。",
         "steps": [
           "<code>color</code> 就是颜料,写法和网页颜色一样:<code>'#e8a25a'</code>。",
           "<code>metalness</code> 从 0(塑料、陶土、木头)到 1(金属)。金属会映出周围的颜色。",
@@ -442,7 +442,7 @@
       },
       "light-it": {
         "title": "给它打光",
-        "description": "没有光,一切都是黑的。用 <code>light</code> 家族添加光源,再让它们投下阴影。",
+        "description": "没有光,一切都是黑的。用 `light` 家族添加光源,再让它们投下阴影。",
         "steps": [
           "<code>light.directional</code> 是太阳光:所有光线朝着同一个方向,<code>position</code> 决定光从哪个方向照过来。",
           "<code>light.point</code> 是一盏灯泡:它向四周发光,随 <code>distance</code> 逐渐变弱。<code>light.spot</code> 是一个手电筒:一束锥形的光。",
@@ -454,7 +454,7 @@
       },
       "move-the-camera": {
         "title": "移动摄像机",
-        "description": "摄像机就是你在这个世界里的眼睛。先在代码里摆好它,再用 <code>world.controls</code> 让使用者自己移动它。",
+        "description": "摄像机就是你在这个世界里的眼睛。先在代码里摆好它,再用 `world.controls` 让使用者自己移动它。",
         "steps": [
           "<code>world.camera.position.set(x, y, z)</code> 把眼睛放到某个位置;<code>world.camera.lookAt(x, y, z)</code> 让它转向某一点。",
           "<em>控制器(controller)</em> 把鼠标、手指和键盘的操作转换成摄像机的移动。创建世界时就可以选择:<code>createWorld('view', { controls: 'orbit' })</code>。",
@@ -466,7 +466,7 @@
       },
       "animate": {
         "title": "让它动起来",
-        "description": "要让东西动起来,用 <code>world.onFrame</code> 给世界一个函数,让它在每次画面绘制之前运行。",
+        "description": "要让东西动起来,用 `world.onFrame` 给世界一个函数,让它在每次画面绘制之前运行。",
         "steps": [
           "世界每秒会绘制很多次新画面。每一幅画面叫做一个 <em>帧(frame)</em>。<code>world.onFrame(fn)</code> 会在每一帧之前运行 <code>fn</code>。",
           "<code>fn</code> 会收到 <code>delta</code>:距离上一帧过去的秒数。把速度乘上它,无论是快的屏幕还是慢的屏幕,东西移动的速度都会一样。",

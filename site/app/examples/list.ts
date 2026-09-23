@@ -34,5 +34,31 @@ export const themedEntries = roadmap.themes.map((theme) => ({
   entries: roadmapEntries.filter((entry) => entry.theme === theme.id),
 }));
 
+/** The flagships, shown large on the home page, one per band of its mosaic. */
+const FLAGSHIPS = [
+  'a-ring-of-lamps',
+  'glass-on-the-table',
+  'orbit-around-a-clockwork',
+  'walk-through-a-temple',
+  'spin-an-astrolabe',
+  'a-terrain-from-a-height-map',
+];
+
+/** Examples kept off the home while a defect of the engine shows in them. */
+const HELD_BACK = ['a-robot-that-walks-and-waves'];
+
+const shown = readyEntries.filter(({ id }) => !HELD_BACK.includes(id));
+const others = shown.filter(({ id }) => !FLAGSHIPS.includes(id));
+
+/** Every ready example not held back, in the home mosaic's order: each flagship, then four of
+ *  the others — a large tile and the four small ones beside it fill one band —, then the rest. */
+export const mosaicEntries = [
+  ...FLAGSHIPS.flatMap((id, index) => [
+    ...shown.filter((entry) => entry.id === id),
+    ...others.slice(index * 4, index * 4 + 4),
+  ]),
+  ...others.slice(FLAGSHIPS.length * 4),
+].map((entry) => ({ entry, large: FLAGSHIPS.includes(entry.id) }));
+
 /** The thumbnail an example's card and menu row show: its settled render. */
 export const thumbnailOf = (id: string) => `./assets/examples/thumbnails/${id}.png`;
