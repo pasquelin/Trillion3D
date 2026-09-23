@@ -658,7 +658,7 @@
       "bottom": "Bordo inferiore del riquadro ortografico.",
       "projection": "`'perspective'` rimpicciolisce ciò che è lontano; `'orthographic'` mantiene tutte le dimensioni.",
       "updateProjectionMatrix": "Mantenuto per le pagine scritte per un motore di rendering che ne ha bisogno: ogni scrittura di ottica già ridisegna.",
-      "rayThrough": "Il raggio del mondo che passa per un punto dell’immagine, secondo la proiezione propria del motore (`engineCamera.ts`): dall’occhio lungo la vista per una telecamera prospettica, dritto lungo la vista dalla scatola per una ortografica. La sua direzione è un vettore unitario.",
+      "rayThrough": "Il raggio del mondo che passa per un punto dell'immagine, secondo la proiezione propria del motore (`engineCamera.ts`): dall'occhio lungo la vista per una telecamera prospettica, dritto lungo la vista dalla scatola per una ortografica. La sua direzione è un vettore unitario.",
       "set": "Posiziona l'occhio a `pose.position`, rivolto verso `pose.target`, con il campo indicato."
     }
   },
@@ -1577,7 +1577,7 @@
       "SCENE_COPY_OVERLAP": "Qualcosa che la radice della scena vieta: darle un genitore, distruggerla, mescolare due radici, copiare un nodo dentro sé stesso.",
       "UNSUPPORTED_SCENE_UPDATE": "Questo percorso di disegno non sa fare questo cambiamento nella scena.",
       "BATCHED_WORLD_VIEW": "Questo percorso di disegno non sa fare questo cambiamento nella scena.",
-      "RAYCAST_NO_VIEW": "È stato chiesto un punto dell’immagine a un canvas senza dimensioni: non c’è un’immagine attraverso cui mirare.",
+      "RAYCAST_NO_VIEW": "È stato chiesto un punto dell'immagine a un canvas senza dimensioni: non c'è un'immagine attraverso cui mirare.",
       "UNSUPPORTED_SCENE_FORMAT": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
       "SCENE_NOT_SAVABLE": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare."
     }
@@ -2181,9 +2181,9 @@
     }
   },
   "helper.box": {
-    "summary": "Il contorno della scatola attorno a un oggetto.",
+    "summary": "Il contorno della scatola attorno a un oggetto, o di una scatola stessa — la `geometry.boundingBox` propria di una forma, da posizionare con la sua mesh.",
     "parameters": {
-      "target": "L'oggetto da circondare.",
+      "target": "L'oggetto o la scatola da circondare.",
       "color": "Colore delle linee."
     }
   },
@@ -4200,7 +4200,7 @@
       "minAzimuthAngle": "Inizio dell'arco di azimut consentito, in radianti da +Z verso +X; senza limite a `-Infinity`. Solo una coppia di limiti finiti più stretta di un giro completo trattiene la camera.",
       "maxAzimuthAngle": "Fine di questo arco; senza limite a `Infinity`. Può essere più piccolo di `minAzimuthAngle`.",
       "autoRotate": "Radianti al secondo di cui la camera ruota da sola attorno a `target`, azimut da +Z verso +X; 0, il valore predefinito, la tiene ferma. La rotazione è integrata da `update(delta)` e si ferma per sempre alla prima pressione o scatto di rotellina sulla superficie: lo spettatore ha preso la camera.",
-      "update": "Come l’`update()` del pivot, con i secondi su cui ruota `autoRotate`; 0 di default."
+      "update": "Come l'`update()` del pivot, con i secondi su cui ruota `autoRotate`; 0 di default."
     }
   },
   "OrthographicBox": {
@@ -5012,7 +5012,7 @@
       "background": "Ciò che riempie l'immagine dietro ogni oggetto: un colore, un'immagine, o `null` per lo sfondo predefinito.",
       "load": "Carica un modello compilato — l'URL del suo manifesto — e lo aggiunge a questa scena.",
       "toJSON": "La scena come JSON semplice e versionato: i suoi oggetti, le forme tramite la chiamata che le ha costruite, i materiali, le luci e i modelli caricati tramite indirizzo; anche la posa di `camera` quando ne viene data una.",
-      "fromJSON": "Sostituisce il contenuto della scena con una scena salvata da `toJSON`, mantenendo i suoi segni `helper`; si risolve quando i suoi modelli sono caricati. Un altro formato o un’altra versione viene rifiutato (`UNSUPPORTED_SCENE_FORMAT`). Le chiamate fatte mentre se ne legge una vengono eseguite una dopo l’altra, in ordine, ciascuna su ciò che ha lasciato la precedente: due scene salvate non si mescolano mai."
+      "fromJSON": "Sostituisce il contenuto della scena con una scena salvata da `toJSON`, mantenendo i suoi segni `helper`; si risolve quando i suoi modelli sono caricati. Un altro formato o un'altra versione viene rifiutato (`UNSUPPORTED_SCENE_FORMAT`). Le chiamate fatte mentre se ne legge una vengono eseguite una dopo l'altra, in ordine, ciascuna su ciò che ha lasciato la precedente: due scene salvate non si mescolano mai."
     }
   },
   "SCENE_ENVIRONMENT_FLOATS": {
@@ -6312,11 +6312,11 @@
       "enabled": "Se il controller ascolta mouse e tastiera e muove la camera. `false` lo mette in pausa — nessun input, nessun `update` — senza ricrearlo: velocità, appoggio, passo, orientamento e rotazione restano, e `true` riprende esattamente da dove si era fermato.",
       "target": "Il punto attorno a cui ruota un controller a perno.",
       "autoUpdate": "Se il ciclo del mondo chiama `update` prima di ogni fotogramma, prima degli hook di `world.beforeFrame`. `false` affida il passo alla pagina, che chiama `update` da un tale hook, tanto spesso e con i sotto-passi che integra; il mondo allora non lo fa più mai.",
-      "colliders": "Solo personaggio: le mesh con cui collide il corpo — un oggetto o un elenco, discendenti inclusi — o `null`. Impostarle costruisce un albero di triangoli statico dai loro triangoli in spazio mondo così come stanno ora: un passaggio sui triangoli e una costruzione `O(T log T)`, circa 52 byte per triangolo. I modelli compilati non vengono ancora letti: dai loro una mesh semplice come sostituto. Un `CharacterCollision` — il mondo di un motore fisico, qualsiasi cosa risponda a `resolveCapsule` e `groundBelow` — viene usato così com’è.",
+      "colliders": "Solo personaggio: le mesh con cui collide il corpo — un oggetto o un elenco, discendenti inclusi — o `null`. Impostarle costruisce un albero di triangoli statico dai loro triangoli in spazio mondo così come stanno ora: un passaggio sui triangoli e una costruzione `O(T log T)`, circa 52 byte per triangolo. I modelli compilati non vengono ancora letti: dai loro una mesh semplice come sostituto. Un `CharacterCollision` — il mondo di un motore fisico, qualsiasi cosa risponda a `resolveCapsule` e `groundBelow` — viene usato così com'è.",
       "rebuildColliders": "Solo personaggio: ricostruisce l'albero di collisione, dopo che i collisori si sono spostati o sono cambiati. Un `CharacterCollision` è il proprio mondo e viene passato invariato.",
       "velocity": "Solo personaggio: la velocità del corpo in metri al secondo, una copia; altrimenti zero.",
       "onGround": "Solo personaggio: se i piedi sono su un pavimento; `false` per ogni altro controller.",
-      "update": "Integra un controller guidato su `delta` secondi; uno a pivot rilegge la propria posa, e un’orbita ruota di `autoRotate`. Un controller in pausa non fa nulla.",
+      "update": "Integra un controller guidato su `delta` secondi; uno a pivot rilegge la propria posa, e un'orbita ruota di `autoRotate`. Un controller in pausa non fa nulla.",
       "follow": "La camera del mondo è cambiata: il controller la segue.",
       "dispose": "Ferma il controller e rimuove i suoi listener dal canvas.",
       "minDistance": "Distanza minima a cui un controller a perno avvicina la camera a `target`.",
@@ -6684,7 +6684,7 @@
   },
   "CharacterCameraControls": {
     "summary": "UN PERSONAGGIO, visto attraverso i suoi occhi: un corpo con massa che cammina, corre, salta e cade, e collide con i triangoli del mondo come una capsula verticale.",
-    "description": "Il puntatore gira la testa come in prima persona (`look.ts`). I tasti, per `KeyboardEvent.code`, così ogni disposizione di tastiera suona gli stessi tasti: W/S o le frecce su e giù camminano avanti e indietro, A/D o le frecce laterali si spostano di lato, Maiusc scatta, Spazio salta. Il corpo non parte né si ferma di colpo: prende velocità e frena in `responseTime`, mantiene lo slancio in aria, cade sotto `gravity`, sale cornici fino a `stepHeight`, scivola lungo le pareti e sta in piedi su pendii fino a `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La telecamera è l'occhio, a `eyeHeight` sopra i piedi. Un host che muove la telecamera da sé vi teletrasporta il corpo, a riposo. Un personaggio fermo — a terra, senza velocità, senza tasto — non emette nulla, così la scena resta ferma.",
+    "description": "Il puntatore gira la testa come in prima persona (`look.ts`). I tasti, per `KeyboardEvent.code`, così ogni disposizione di tastiera suona gli stessi tasti: W/S o le frecce su e giù camminano avanti e indietro, A/D o le frecce laterali si spostano di lato, Maiusc scatta, Spazio salta. Il corpo non parte né si ferma di colpo: prende velocità in `responseTime` e frena in `stopTime`, mantiene lo slancio in aria, sale sotto `gravity` e cade sotto `fallGravity`, sale cornici fino a `stepHeight`, scivola lungo le pareti e sta in piedi su pendii fino a `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La telecamera è l'occhio, a `eyeHeight` sopra i piedi, che ondeggia con il passo secondo `headBob` e si abbassa all'atterraggio secondo `landingDip` (`sdk-core/src/collision/characterEye.ts`); entrambi agiscono sull'occhio dopo il passo del corpo e non muovono mai il corpo. Un host che muove la telecamera da sé vi teletrasporta il corpo, a riposo. Un personaggio fermo — a terra, senza velocità, senza tasto, senza rimbalzo residuo — non emette nulla, così la scena resta ferma.",
     "members": {
       "velocity": "La velocità del corpo in metri al secondo, in diretta: `[x, y, z]`, y verso l'alto.",
       "onGround": "Se i piedi sono su un pavimento.",
@@ -6746,12 +6746,12 @@
     }
   },
   "Intersection": {
-    "summary": "Dove un raggio incontra un oggetto: l’oggetto stesso, il punto del mondo e la normale della superficie in quel punto, la distanza lungo il raggio e quale triangolo (`-1` quando è stato colpito il box dell’oggetto).",
+    "summary": "Dove un raggio incontra un oggetto: l'oggetto stesso, il punto del mondo e la normale della superficie in quel punto, la distanza lungo il raggio e quale triangolo (`-1` quando è stato colpito il box dell'oggetto).",
     "members": {
-      "object": "L’oggetto colpito: proprio il nodo che la pagina ha aggiunto.",
+      "object": "L'oggetto colpito: proprio il nodo che la pagina ha aggiunto.",
       "point": "Il punto del mondo colpito.",
       "normal": "La normale nel mondo della faccia colpita, orientata dal suo verso di percorrenza.",
-      "distance": "Distanza dall’origine del raggio a `point`, in unità del mondo.",
+      "distance": "Distanza dall'origine del raggio a `point`, in unità del mondo.",
       "face": "Il numero del triangolo colpito, oppure `-1` per una scatola."
     }
   },
@@ -6762,16 +6762,16 @@
     }
   },
   "SavedCamera": {
-    "summary": "La camera con cui una scena è stata salvata: la sua posa, la proiezione e l’ottica.",
+    "summary": "La camera con cui una scena è stata salvata: la sua posa, la proiezione e l'ottica.",
     "members": {
       "projection": "Prospettica o ortografica.",
-      "position": "Dove si trova l’occhio.",
-      "quaternion": "Come è ruotato l’occhio.",
+      "position": "Dove si trova l'occhio.",
+      "quaternion": "Come è ruotato l'occhio.",
       "optics": "Campo, near, far, zoom e scatola, per nome."
     }
   },
   "SavedGeometry": {
-    "summary": "Una geometria: la chiamata di famiglia che l’ha costruita, o i suoi vertici quando nessuna chiamata può ricostruirla.",
+    "summary": "Una geometria: la chiamata di famiglia che l'ha costruita, o i suoi vertici quando nessuna chiamata può ricostruirla.",
     "members": {
       "recipe": "Il membro della famiglia e ogni argomento con cui è stata costruita.",
       "attributes": "Ogni lista per vertice, quando nessuna chiamata ricostruisce la forma.",
@@ -6789,7 +6789,7 @@
   "SavedNode": {
     "summary": "Un nodo: la sua posa e ciò che è — un gruppo, una mesh, una luce o un modello caricato — e ciò che sta sotto.",
     "members": {
-      "kind": "Che cos’è il nodo.",
+      "kind": "Che cos'è il nodo.",
       "name": "Il suo nome.",
       "position": "Dove si trova, rispetto al suo genitore.",
       "quaternion": "Come è ruotato, come quaternione.",
@@ -6802,14 +6802,14 @@
       "children": "I nodi sotto di esso, in ordine.",
       "mesh": "Numeri in `geometries` e `materials`, e come vengono letti i triangoli.",
       "light": "Il tipo di una luce, i suoi colori, i suoi numeri, la sua direzione e i coefficienti della sonda.",
-      "model": "Un modello compilato, tramite l’indirizzo del manifesto da cui è stato caricato: mai copiato dentro."
+      "model": "Un modello compilato, tramite l'indirizzo del manifesto da cui è stato caricato: mai copiato dentro."
     }
   },
   "SavedScene": {
     "summary": "Una scena come `scene.toJSON` la scrive e `scene.fromJSON` la legge: JSON semplice.",
     "members": {
       "format": "Sempre `'web-geometry-scene'`.",
-      "formatVersion": "La versione di questa struttura; un’altra viene rifiutata.",
+      "formatVersion": "La versione di questa struttura; un'altra viene rifiutata.",
       "background": "Il colore di sfondo, oppure `null`.",
       "fog": "La nebbia, oppure `null`.",
       "camera": "La telecamera salvata con la scena, oppure `null`.",
@@ -6823,14 +6823,14 @@
     "members": {
       "snap": "Passi a cui vengono arrotondati i trascinamenti: `{ translate, rotate, scale }`, ciascuno facoltativo.",
       "handles": "Il gruppo delle maniglie — un segno `helper` — nella scena finché sono agganciate.",
-      "object": "L’oggetto su cui si trovano le maniglie, oppure `null`.",
+      "object": "L'oggetto su cui si trovano le maniglie, oppure `null`.",
       "dragging": "Vero mentre una maniglia viene trascinata.",
       "mode": "Cosa fa un trascinamento: `'translate'`, `'rotate'` o `'scale'`.",
       "space": "Assi `'world'` o `'local'`.",
       "attach": "Mette le maniglie su `target`, e nella scena; un trascinamento in corso termina prima (`dragEnd`).",
       "detach": "Toglie le maniglie dal loro oggetto, e dalla scena; un trascinamento in corso termina prima.",
       "setMode": "Sposta, ruota o scala da adesso in poi.",
-      "setSpace": "Maniglie lungo gli assi del mondo o quelli propri dell’oggetto.",
+      "setSpace": "Maniglie lungo gli assi del mondo o quelli propri dell'oggetto.",
       "addEventListener": "Chiama `listener` a ogni evento di tipo `type`.",
       "removeEventListener": "Smette di chiamare `listener` per gli eventi di tipo `type`.",
       "dispose": "Toglie le maniglie dalla scena e tutti gli ascoltatori dal canvas."
@@ -6840,13 +6840,13 @@
     "summary": "Ciò che si può indicare a `controls.transform`; ogni campo è facoltativo.",
     "members": {
       "mode": "Spostare, ruotare o scalare; `'translate'` per impostazione predefinita.",
-      "space": "Maniglie lungo gli assi del mondo o quelli propri dell’oggetto; `'world'` per impostazione predefinita.",
+      "space": "Maniglie lungo gli assi del mondo o quelli propri dell'oggetto; `'world'` per impostazione predefinita.",
       "snap": "Passi a cui viene arrotondato ogni trascinamento; nessuno per impostazione predefinita.",
-      "size": "La lunghezza delle maniglie come frazione dell’altezza del canvas, la stessa ovunque si trovi l’oggetto; un quarto per impostazione predefinita."
+      "size": "La lunghezza delle maniglie come frazione dell'altezza del canvas, la stessa ovunque si trovi l'oggetto; un quarto per impostazione predefinita."
     }
   },
   "TransformEvent": {
-    "summary": "Gli eventi che un controllo di trasformazione emette: ogni posa che scrive, e l’inizio e la fine di un trascinamento."
+    "summary": "Gli eventi che un controllo di trasformazione emette: ogni posa che scrive, e l'inizio e la fine di un trascinamento."
   },
   "TransformHandle": {
     "summary": "Una maniglia: un asse, il piano di due, o `'xyz'` — il centro: spostamento libero, scala uniforme."
@@ -6872,10 +6872,10 @@
     }
   },
   "TransformSpace": {
-    "summary": "Il sistema a cui sono allineate le maniglie; una scala segue sempre gli assi propri dell’oggetto."
+    "summary": "Il sistema a cui sono allineate le maniglie; una scala segue sempre gli assi propri dell'oggetto."
   },
   "world.raycast": {
-    "summary": "L’oggetto più vicino sotto un punto del canvas (pixel CSS) o lungo un raggio del mondo, oppure `null`: il nodo aggiunto dalla pagina, il punto del mondo e la normale colpiti, la distanza (`worldRaycast`).",
+    "summary": "L'oggetto più vicino sotto un punto del canvas (pixel CSS) o lungo un raggio del mondo, oppure `null`: il nodo aggiunto dalla pagina, il punto del mondo e la normale colpiti, la distanza (`worldRaycast`).",
     "parameters": {
       "options": "Ciò che si può dire a `world.raycast`; ogni campo è facoltativo.",
       "options.objects": "Gli oggetti testati, con i loro sottoalberi; se non indicato, tutta la scena."
@@ -6890,13 +6890,13 @@
       "host": "Il mondo nella cui scena e telecamera vivono le maniglie.",
       "options": "Modalità, assi, aggancio e dimensione sullo schermo; non dire nulla è il caso normale.",
       "options.mode": "Spostare, ruotare o scalare; `'translate'` per impostazione predefinita.",
-      "options.space": "Maniglie lungo gli assi del mondo o quelli propri dell’oggetto; `'world'` per impostazione predefinita.",
+      "options.space": "Maniglie lungo gli assi del mondo o quelli propri dell'oggetto; `'world'` per impostazione predefinita.",
       "options.snap": "Passi a cui viene arrotondato ogni trascinamento; nessuno per impostazione predefinita.",
-      "options.size": "La lunghezza delle maniglie come frazione dell’altezza del canvas, la stessa ovunque si trovi l’oggetto; un quarto per impostazione predefinita."
+      "options.size": "La lunghezza delle maniglie come frazione dell'altezza del canvas, la stessa ovunque si trovi l'oggetto; un quarto per impostazione predefinita."
     }
   },
   "raycast": {
     "summary": "Ogni oggetto sotto `roots` che `ray` incontra, il più vicino per primo, un impatto per oggetto: il più vicino dei suoi.",
-    "description": "La direzione viene resa unitaria all’ingresso, così ogni `distance` è in unità del mondo qualunque lunghezza abbia dato la pagina. I sottoalberi nascosti vengono saltati — anche una radice sotto un antenato nascosto — così come i nodi che `skip` nomina, con i loro sottoalberi: i segni con cui lavora una pagina, mai il suo contenuto."
+    "description": "La direzione viene resa unitaria all'ingresso, così ogni `distance` è in unità del mondo qualunque lunghezza abbia dato la pagina. I sottoalberi nascosti vengono saltati — anche una radice sotto un antenato nascosto — così come i nodi che `skip` nomina, con i loro sottoalberi: i segni con cui lavora una pagina, mai il suo contenuto."
   }
 }
