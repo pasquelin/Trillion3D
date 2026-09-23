@@ -2,7 +2,8 @@
  * What `world.controls` keeps and drives: the settings it hands to every controller it makes,
  * and the shape of those controllers as it sees them.
  */
-import { FIRST_PERSON_PITCH } from '../../camera/controls/firstPersonControls.ts';
+import { FIRST_PERSON_PITCH } from '../../camera/controls/look.ts';
+import { HUMAN_BODY } from '../../../../sdk-core/src/collision/characterSettings.ts';
 import type { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import type { worldControls } from './worldCamera.ts';
 
@@ -26,6 +27,9 @@ export const CONTROL_SETTINGS = {
   zoomSpeed: 1,
   autoForward: false,
   pointerLook: true,
+  ...HUMAN_BODY,
+  onLand: null as ((impact: number) => void) | null,
+  onJump: null as (() => void) | null,
 };
 export type ControlSetting = keyof typeof CONTROL_SETTINGS;
 
