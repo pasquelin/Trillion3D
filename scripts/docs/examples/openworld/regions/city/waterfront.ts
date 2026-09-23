@@ -3,10 +3,11 @@
  * looping the basin between them and sailing boats circling offshore. Positions are given in the
  * harbour's frame: `a` metres out to sea from the coast point, `b` metres along the coast.
  */
-import type { Vec3 } from '../../plan/contract.ts';
+import type { Marker, Vec3 } from '../../plan/contract.ts';
 import { hash01 } from '../../props/index.ts';
 import { corners, type Obb, type Xz } from './frame.ts';
 import { SAMPLE } from './grid.ts';
+import { QUAY, ROOT } from './harbour-props.ts';
 import { RANK, type Extras, type Placer } from './placement.ts';
 import { CHIMNEY_TOP } from './signs.ts';
 import { dry, groundUnder, inBounds } from './site.ts';
@@ -108,5 +109,38 @@ export function boats(
         speed: 4,
         loop: true,
       });
+  }
+}
+
+/** The kit's cargo ship draws 10 m, and its funnel's mouth stands 32.4 m over the waterline. */
+const SHIP = { draft: 10, funnel: 32.4, half: [15, 90] as Xz };
+
+/**
+ * The cargo ship alongside the quay at `b`, slid out along the berth until the sea under its
+ * whole hull is deeper than its draft; none when the berth never gets that deep.
+ */
+export function moor(
+  placer: Placer,
+  at: (a: number, b: number, y: number) => Vec3,
+  box: (a: number, b: number, half: Xz, yaw: number) => Obb,
+  along: number,
+  b: number,
+) {
+  for (let a = ROOT + QUAY.length - 100; a <= ROOT + QUAY.length + 60; a += 20) {
+    const hull = box(a, b, SHIP.half, along);
+    if (!groundUnder(placer.site, hull, SAMPLE).every((g) => g < -SHIP.draft)) continue;
+    const funnel: Marker = {
+      kind: 'emitter',
+      effect: 'smoke',
+      name: 'city/ship-funnel',
+      position: at(a - 76, b, SHIP.funnel),
+      radius: 3,
+    };
+    if (
+      placer.place('cargo-ship', at(a, b, 0), along, 'solid', RANK.structure, hull, {
+        markers: [funnel],
+      })
+    )
+      return;
   }
 }
