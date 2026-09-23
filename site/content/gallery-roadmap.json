@@ -1488,8 +1488,7 @@
         "fr": "Se tourner vers une cible"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/turn-toward-a-target.html"
     },
     {
       "id": "ride-a-roller-coaster",
@@ -1498,8 +1497,7 @@
         "fr": "Tour de montagnes russes"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/ride-a-roller-coaster.html"
     },
     {
       "id": "from-a-grain-to-a-planet",
@@ -1508,8 +1506,7 @@
         "fr": "Du grain à la planète"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/from-a-grain-to-a-planet.html"
     },
     {
       "id": "a-wall-of-cameras",
@@ -1518,8 +1515,7 @@
         "fr": "Un mur de caméras"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-wall-of-cameras.html"
     },
     {
       "id": "several-views-one-page",
@@ -1528,8 +1524,7 @@
         "fr": "Plusieurs vues, une page"
       },
       "theme": "camera",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/several-views-one-page.html"
     },
     {
       "id": "before-and-after-slider",
