@@ -52,6 +52,23 @@ test('a course chapter reads as steps, highlighted code, its example live, then 
   }
 });
 
+test('the course pager has no previous on the first chapter and leads to the examples from the last', async () => {
+  const { Chapter } = (await loadReactComponents('site/app/course/Chapter.tsx')) as {
+    Chapter: typeof ChapterComponent;
+  };
+  const chapters = entriesIn('en').filter(({ chapter }) => chapter);
+  const [first, second] = chapters;
+  const [before, last] = chapters.slice(-2);
+  const page = (entry: (typeof chapters)[number]) =>
+    renderToStaticMarkup(createElement(Chapter, { entry, locale: 'en' }));
+  const opening = page(first);
+  assert.doesNotMatch(opening, /rel="prev"/);
+  assert.match(opening, new RegExp(`href="#/en/learn/${second.id}" rel="next"`));
+  const closing = page(last);
+  assert.match(closing, new RegExp(`href="#/en/learn/${before.id}" rel="prev"`));
+  assert.match(closing, /href="#\/en\/examples" rel="next"/);
+});
+
 test('the generated reference loads apart from the portal, with the API area', async () => {
   const out = await mkdtemp(join(tmpdir(), 'wg-portal-'));
   try {
