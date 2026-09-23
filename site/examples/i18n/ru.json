@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "Кадров/с",
-      "fpsHeld": "Кадров/с (стоп)",
+      "FPS": "Кадров/с",
+      "FPS (held)": "Кадров/с (стоп)",
       "triangles": "треугольники",
-      "sceneTriangles": "треугольники (сцена)",
-      "drawCalls": "вызовы отрисовки",
+      "triangles (scene)": "треугольники (сцена)",
+      "draw calls": "вызовы отрисовки",
       "pages": "страницы",
-      "geometryPool": "запас геометрии",
+      "geometry pool": "запас геометрии",
       "lights": "источники света",
-      "gpuFrame": "кадр GPU",
-      "cpuFrame": "кадр CPU",
-      "pageHooks": "код страницы",
-      "engineCpu": "CPU движка"
+      "GPU frame": "кадр GPU",
+      "CPU frame": "кадр CPU",
+      "page hooks": "код страницы",
+      "engine CPU": "CPU движка"
     }
   },
   "a-city-from-rules": {

@@ -8,6 +8,7 @@ import {
 } from './commands.ts';
 import { build, duplicate, type AddKind } from './objects.ts';
 import type { Session } from './session.ts';
+import { buildStarter, type StarterNames } from './starter.ts';
 import { clearAutosave, readAutosave } from './storage.ts';
 
 /**
@@ -80,10 +81,11 @@ export function sceneActions(
         failed(error);
       }
     },
-    /** The scene saved in this browser on the last visit, if any; one that fails is forgotten. */
-    async restore() {
+    /** The scene saved in this browser on the last visit, the starter scene when there is none;
+     *  a saved one that fails is forgotten. */
+    async restore(starter: StarterNames) {
       const json = readAutosave();
-      if (!json) return;
+      if (!json) return buildStarter(session, starter).catch(failed).finally(session.replaced);
       await read(json).catch((error: unknown) => {
         clearAutosave();
         failed(error);

@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "إطار/ث",
-      "fpsHeld": "إطار/ث (متوقف)",
+      "FPS": "إطار/ث",
+      "FPS (held)": "إطار/ث (متوقف)",
       "triangles": "مثلثات",
-      "sceneTriangles": "مثلثات (المشهد)",
-      "drawCalls": "أوامر رسم",
+      "triangles (scene)": "مثلثات (المشهد)",
+      "draw calls": "أوامر رسم",
       "pages": "صفحات",
-      "geometryPool": "مخزن الأشكال",
+      "geometry pool": "مخزن الأشكال",
       "lights": "أضواء",
-      "gpuFrame": "إطار GPU",
-      "cpuFrame": "إطار CPU",
-      "pageHooks": "شيفرة الصفحة",
-      "engineCpu": "CPU المحرك"
+      "GPU frame": "إطار GPU",
+      "CPU frame": "إطار CPU",
+      "page hooks": "شيفرة الصفحة",
+      "engine CPU": "CPU المحرك"
     }
   },
   "a-city-from-rules": {

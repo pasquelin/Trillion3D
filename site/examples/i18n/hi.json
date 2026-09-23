@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "फ़्रेम/से",
-      "fpsHeld": "फ़्रेम/से (रुका)",
+      "FPS": "फ़्रेम/से",
+      "FPS (held)": "फ़्रेम/से (रुका)",
       "triangles": "त्रिभुज",
-      "sceneTriangles": "त्रिभुज (दृश्य)",
-      "drawCalls": "ड्रॉ कॉल",
+      "triangles (scene)": "त्रिभुज (दृश्य)",
+      "draw calls": "ड्रॉ कॉल",
       "pages": "पेज",
-      "geometryPool": "ज्यामिति भंडार",
+      "geometry pool": "ज्यामिति भंडार",
       "lights": "रोशनियाँ",
-      "gpuFrame": "GPU फ़्रेम",
-      "cpuFrame": "CPU फ़्रेम",
-      "pageHooks": "पेज का कोड",
-      "engineCpu": "इंजन CPU"
+      "GPU frame": "GPU फ़्रेम",
+      "CPU frame": "CPU फ़्रेम",
+      "page hooks": "पेज का कोड",
+      "engine CPU": "इंजन CPU"
     }
   },
   "a-city-from-rules": {

@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "FPS",
-      "fpsHeld": "FPS（停止中）",
+      "FPS": "FPS",
+      "FPS (held)": "FPS（停止中）",
       "triangles": "三角形",
-      "sceneTriangles": "三角形（シーン）",
-      "drawCalls": "描画呼び出し",
+      "triangles (scene)": "三角形（シーン）",
+      "draw calls": "描画呼び出し",
       "pages": "ページ",
-      "geometryPool": "ジオメトリ置き場",
+      "geometry pool": "ジオメトリ置き場",
       "lights": "ライト",
-      "gpuFrame": "GPUフレーム",
-      "cpuFrame": "CPUフレーム",
-      "pageHooks": "ページのコード",
-      "engineCpu": "エンジンCPU"
+      "GPU frame": "GPUフレーム",
+      "CPU frame": "CPUフレーム",
+      "page hooks": "ページのコード",
+      "engine CPU": "エンジンCPU"
     }
   },
   "a-city-from-rules": {

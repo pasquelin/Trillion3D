@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "FPS",
-      "fpsHeld": "FPS (held)",
+      "FPS": "FPS",
+      "FPS (held)": "FPS (held)",
       "triangles": "triangles",
-      "sceneTriangles": "triangles (scene)",
-      "drawCalls": "draw calls",
+      "triangles (scene)": "triangles (scene)",
+      "draw calls": "draw calls",
       "pages": "pages",
-      "geometryPool": "geometry pool",
+      "geometry pool": "geometry pool",
       "lights": "lights",
-      "gpuFrame": "GPU frame",
-      "cpuFrame": "CPU frame",
-      "pageHooks": "page hooks",
-      "engineCpu": "engine CPU"
+      "GPU frame": "GPU frame",
+      "CPU frame": "CPU frame",
+      "page hooks": "page hooks",
+      "engine CPU": "engine CPU"
     }
   },
   "a-city-from-rules": {

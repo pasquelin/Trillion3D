@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "Khung/giây",
-      "fpsHeld": "Khung/giây (đứng yên)",
+      "FPS": "Khung/giây",
+      "FPS (held)": "Khung/giây (đứng yên)",
       "triangles": "tam giác",
-      "sceneTriangles": "tam giác (cảnh)",
-      "drawCalls": "lệnh vẽ",
+      "triangles (scene)": "tam giác (cảnh)",
+      "draw calls": "lệnh vẽ",
       "pages": "trang",
-      "geometryPool": "kho hình học",
+      "geometry pool": "kho hình học",
       "lights": "đèn",
-      "gpuFrame": "khung GPU",
-      "cpuFrame": "khung CPU",
-      "pageHooks": "mã của trang",
-      "engineCpu": "CPU của engine"
+      "GPU frame": "khung GPU",
+      "CPU frame": "khung CPU",
+      "page hooks": "mã của trang",
+      "engine CPU": "CPU của engine"
     }
   },
   "a-city-from-rules": {

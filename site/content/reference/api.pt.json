@@ -6712,6 +6712,18 @@
       "tree": "A árvore de onde vêm as respostas: seu `triangleCount` e `bytes` são o custo do mundo."
     }
   },
+  "TriangleTree": {
+    "summary": "Uma hierarquia de volumes envolventes sobre os triângulos do mundo, consultada por caixa: a fase ampla por trás de `triangleCollision` e `capsulePass`.",
+    "description": "Construída uma vez por `buildTriangleTree`, somente leitura depois.",
+    "members": {
+      "triangles": "Nove números por triângulo — três cantos — na ordem das folhas.",
+      "bounds": "Por nó: min xyz, max xyz.",
+      "links": "Por nó: o primeiro triângulo de uma folha, ou o filho direito de um nó interno (o esquerdo segue seu pai).",
+      "counts": "Por nó: número de triângulos de uma folha, 0 para um nó interno.",
+      "bytes": "Bytes que a árvore ocupa.",
+      "triangleCount": "Triângulos que a árvore contém."
+    }
+  },
   "world.beforeFrame": {
     "summary": "Roda uma função antes de cada quadro desenhado, com `{ delta, time }`; devolve seu removedor.",
     "description": "Um quadro do laço do mundo roda: o controlador avança a câmera (a menos que `controls.autoUpdate` seja falso), clipes avançam, esses hooks na ordem em que foram adicionados, a cena é escrita e desenhada, depois os hooks de `onFrame`. O que um hook posiciona — um corpo na câmera, um cockpit — é desenhado neste mesmo quadro, nunca um atrasado. Um `render()` conduzido pelo host também os roda, mas não avança nenhum controlador. Um hook que chama `invalidate()` mantém os quadros vindo.",

@@ -5,19 +5,17 @@ import { hasSidebar } from '../portal/routes.ts';
 import { SearchInput } from '../ui/Input.tsx';
 import { Note } from '../ui/Text.tsx';
 import { PrimaryNavigation } from './Header.tsx';
-import { apiMenu, editorMenu, examplesMenu, learnMenu, reportMenu } from './menus.ts';
+import { apiMenu, examplesMenu, learnMenu, reportMenu } from './menus.ts';
 import { usePortal } from './PortalContext.ts';
 import { ExampleList } from './ExampleList.tsx';
 import { SidebarMenu } from './SidebarMenu.tsx';
 
-/** The Examples sidebar: a filter box over the scene editor and the ready examples, theme by
- * theme. */
+/** The Examples sidebar: a filter box over the ready examples, theme by theme. */
 function ExamplesMenu() {
   const { route } = usePortal();
   const t = useWords(route.locale);
   const [query, setQuery] = useState('');
   const groups = examplesMenu(route, query);
-  const editor = editorMenu(route, query);
   return (
     <>
       <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-2 bg-base-200 p-4">
@@ -28,13 +26,8 @@ function ExamplesMenu() {
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      {editor.length > 0 && (
-        <div className="mb-4">
-          <SidebarMenu groups={editor} />
-        </div>
-      )}
       {groups.length > 0 && <ExampleList groups={groups} />}
-      {groups.length + editor.length === 0 && <Note role="status">{t('sidebar.noResults')}</Note>}
+      {groups.length === 0 && <Note role="status">{t('sidebar.noResults')}</Note>}
     </>
   );
 }

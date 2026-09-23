@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "Quadros/s",
-      "fpsHeld": "Quadros/s (parado)",
+      "FPS": "Quadros/s",
+      "FPS (held)": "Quadros/s (parado)",
       "triangles": "triângulos",
-      "sceneTriangles": "triângulos (cena)",
-      "drawCalls": "chamadas de desenho",
+      "triangles (scene)": "triângulos (cena)",
+      "draw calls": "chamadas de desenho",
       "pages": "páginas",
-      "geometryPool": "reserva de geometria",
+      "geometry pool": "reserva de geometria",
       "lights": "luzes",
-      "gpuFrame": "quadro GPU",
-      "cpuFrame": "quadro CPU",
-      "pageHooks": "código da página",
-      "engineCpu": "CPU do motor"
+      "GPU frame": "quadro GPU",
+      "CPU frame": "quadro CPU",
+      "page hooks": "código da página",
+      "engine CPU": "CPU do motor"
     }
   },
   "a-city-from-rules": {

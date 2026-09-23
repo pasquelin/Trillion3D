@@ -559,8 +559,6 @@
   },
   "editor": {
     "title": "Scene editor",
-    "group": "Tools",
-    "showcase": "Open the scene editor",
     "loading": "Preparing the editor…",
     "canvas": "Scene view: click an object to select it, drag to turn the camera",
     "menu": {
@@ -590,7 +588,7 @@
       "ambient": "Ambient light"
     },
     "model": {
-      "bust": "Marble bust",
+      "marble-bust": "Marble bust",
       "crates": "Crates",
       "hall": "Hall",
       "street-corner": "Street corner"
@@ -603,6 +601,8 @@
       "world": "World axes",
       "local": "Local axes"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Snap",
     "outliner": "Scene",
     "empty": "The scene is empty: add an object from the Add menu.",
@@ -642,13 +642,6 @@
       "radialSegments": "Radial segments",
       "tubularSegments": "Tube segments"
     },
-    "stats": "Engine statistics",
-    "cpu": "CPU frame (ms)",
-    "gpu": "GPU frame (ms)",
-    "triangles": "Triangles",
-    "pages": "Pages resident",
-    "sessions": "Sessions opened",
-    "statsHint": "Read from the last frame drawn; a still scene draws none.",
     "error": {
       "format": "This file holds a scene format this editor does not read.",
       "read": "The scene could not be read:"
@@ -1377,7 +1370,7 @@
     "scene-editor": {
       "title": "Build a scene with the editor",
       "description": "Add shapes and lights, pick them with the mouse, move them with handles, recolour them, save the scene and open it again — in the portal, on the public API alone.",
-      "html": "<p>The <a href=\"#/en/examples/scene-editor\">scene editor</a> is a page of this portal built on three doors of the engine and nothing else. Start from an empty scene: <b>Add → Box</b>, then <b>Add → Directional light</b>. Click the box: <code>world.raycast</code> finds it under the pointer, and the handles of <code>controls.transform</code> appear on it. Drag an arrow to move it — the camera rests while a handle is held — press <kbd>E</kbd> to turn it, <kbd>R</kbd> to scale it. Change its colour in the inspector: the engine repaints the material in place, the frame's cost stays in the stats corner. <b>Save</b> downloads <code>scene.toJSON</code>; <b>New</b>, then <b>Open</b>, builds the same scene again with <code>scene.fromJSON</code>.</p>\n<p>Every step is undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>, and the scene is kept in the browser between two visits. Nothing is drawn or moved by the page itself: what you see is the engine.</p>"
+      "html": "<p>The <a href=\"#/en/editor\">scene editor</a> is a page of this portal built on three doors of the engine and nothing else. Start from an empty scene: <b>Add → Box</b>, then <b>Add → Directional light</b>. Click the box: <code>world.raycast</code> finds it under the pointer, and the handles of <code>controls.transform</code> appear on it. Drag an arrow to move it — the camera rests while a handle is held — press <kbd>E</kbd> to turn it, <kbd>R</kbd> to scale it. Change its colour in the inspector: the engine repaints the material in place, the frame's cost stays in the stats corner. <b>Save</b> downloads <code>scene.toJSON</code>; <b>New</b>, then <b>Open</b>, builds the same scene again with <code>scene.fromJSON</code>.</p>\n<p>Every step is undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>, and the scene is kept in the browser between two visits. Nothing is drawn or moved by the page itself: what you see is the engine.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Pick an object with the pointer",

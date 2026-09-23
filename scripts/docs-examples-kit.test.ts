@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { describe, printed } from '../site/examples/kit/controls.ts';
 import { labelOf } from '../site/examples/kit/words.ts';
-import { sceneTriangles, statLines, statsCorners } from '../site/examples/kit/stats.ts';
+import { sceneTriangles, statLines, statsCorners } from '../site/examples/kit/statsLines.ts';
 import { profileLines, profileWindow } from '../site/examples/kit/profile.ts';
 
 test('a declared control takes its kind from its value, and starts at it', () => {
@@ -78,18 +78,18 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
       gpuFrameMs: 1.234,
     }),
     [
-      ['fps', '60'],
+      ['FPS', '60'],
       ['triangles', '17,504'],
-      ['geometryPool', '3.0 MiB'],
-      ['gpuFrame', '1.23 ms'],
+      ['geometry pool', '3.0 MiB'],
+      ['GPU frame', '1.23 ms'],
     ],
   );
   // A still image keeps its last rate; a frame with no triangle count falls back on the scene's.
   assert.deepEqual(
     statLines({ ...unmeasured, fps: 60, held: true, selectedTriangles: null, sceneTriangles: 12 }),
     [
-      ['fpsHeld', '60'],
-      ['sceneTriangles', '12'],
+      ['FPS (held)', '60'],
+      ['triangles (scene)', '12'],
     ],
   );
   // A frame that measured no triangle at all shows none: never the scene's count in its place.
@@ -129,8 +129,8 @@ test('the profile ranks the engine steps by p95, leaves the sums out, and shows 
     ['lightsMs', 'worldMs'],
   );
   assert.deepEqual(profileLines(latest), [
-    ['cpuFrame', '4.00 / 10.00 ms'],
-    ['engineCpu', '3.00 / 5.00 ms'],
+    ['CPU frame', '4.00 / 10.00 ms'],
+    ['engine CPU', '3.00 / 5.00 ms'],
     ['lights', '0.20 / 2.00 ms'],
     ['world', '0.50 / 1.00 ms'],
   ]);

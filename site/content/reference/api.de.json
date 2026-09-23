@@ -6726,6 +6726,18 @@
       "tree": "Der Baum, aus dem geantwortet wird: sein `triangleCount` und seine `bytes` sind die Kosten der Welt."
     }
   },
+  "TriangleTree": {
+    "summary": "Eine Bounding-Volume-Hierarchie über die Dreiecke der Welt, abgefragt per Box: die Broad Phase hinter `triangleCollision` und `capsulePass`.",
+    "description": "Einmal von `buildTriangleTree` gebaut, danach nur lesbar.",
+    "members": {
+      "triangles": "Neun Zahlen pro Dreieck — drei Ecken — in Blattreihenfolge.",
+      "bounds": "Pro Knoten: min xyz, max xyz.",
+      "links": "Pro Knoten: das erste Dreieck eines Blatts, oder das rechte Kind eines inneren Knotens (das linke folgt seinem Elternknoten).",
+      "counts": "Pro Knoten: Dreieckszahl eines Blatts, 0 für einen inneren Knoten.",
+      "bytes": "Bytes, die der Baum belegt.",
+      "triangleCount": "Dreiecke, die der Baum hält."
+    }
+  },
   "CanvasPoint": {
     "summary": "Ein Punkt des Canvas, in CSS-Pixeln ab seiner oberen linken Ecke: `event.offsetX`, `offsetY`.",
     "members": {
