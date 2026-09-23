@@ -6678,7 +6678,7 @@
       "mode": "Déplacer, tourner ou mettre à l’échelle ; `'translate'` par défaut.",
       "space": "Poignées selon les axes du monde ou ceux de l’objet ; `'world'` par défaut.",
       "snap": "Les pas auxquels chaque glissement est arrondi ; aucun par défaut.",
-      "size": "La longueur des poignées, en part de la hauteur du canvas, la même où que se trouve l’objet."
+      "size": "La longueur des poignées, en part de la hauteur du canvas, la même où que se trouve l’objet ; un quart par défaut."
     }
   },
   "TransformEvent": {
@@ -6728,7 +6728,7 @@
       "options.mode": "Déplacer, tourner ou mettre à l’échelle ; `'translate'` par défaut.",
       "options.space": "Poignées selon les axes du monde ou ceux de l’objet ; `'world'` par défaut.",
       "options.snap": "Les pas auxquels chaque glissement est arrondi ; aucun par défaut.",
-      "options.size": "La longueur des poignées, en part de la hauteur du canvas, la même où que se trouve l’objet."
+      "options.size": "La longueur des poignées, en part de la hauteur du canvas, la même où que se trouve l’objet ; un quart par défaut."
     }
   },
   "raycast": {
