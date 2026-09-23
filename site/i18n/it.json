@@ -1,0 +1,1072 @@
+{
+  "meta": {
+    "name": "Italiano",
+    "abbr": "IT",
+    "hreflang": "it",
+    "rtl": false
+  },
+  "nav": {
+    "primary": "Navigazione principale",
+    "learn": "Imparare",
+    "sandbox": "Provalo dal vivo",
+    "examples": "Esempi",
+    "api": "Riferimento API",
+    "reports": "Misurazioni"
+  },
+  "search": {
+    "placeholder": "Cerca guide, API ed esempi",
+    "label": "Cerca",
+    "short": "Cerca…"
+  },
+  "sidebar": {
+    "navigation": "Navigazione della documentazione",
+    "noResults": "Nessun risultato.",
+    "filterExamples": "Filtra gli esempi"
+  },
+  "home": {
+    "title": "Trasmetti mondi 3D enormi nel browser",
+    "start": "Inizia il corso"
+  },
+  "examples": {
+    "lead": "Ogni esempio è un file breve: guardalo funzionare, apri il suo codice, cambialo.",
+    "inProgress": "In corso",
+    "waitsFor": "In attesa del motore:",
+    "waitingEngine": "In attesa del motore"
+  },
+  "api": {
+    "title": "Riferimento del motore",
+    "lead": "Funzioni, tipi e costanti pubbliche, raggruppati secondo la loro funzione."
+  },
+  "reports": {
+    "campaign": "Campagna"
+  },
+  "actions": {
+    "openMenu": "Apri il menu",
+    "closeMenu": "Chiudi il menu",
+    "switchLanguage": "Cambia lingua",
+    "theme": "Cambia tema",
+    "close": "Chiudi",
+    "skip": "Vai al contenuto"
+  },
+  "common": {
+    "inDevelopment": "In sviluppo"
+  },
+  "entry": {
+    "signature": "Firma",
+    "values": "Valori",
+    "arguments": "Argomenti",
+    "example": "Esempio",
+    "replaces": "Sostituisce",
+    "proof": "Prova",
+    "parameters": "Parametri",
+    "returns": "Restituisce",
+    "members": "Membri",
+    "name": "Nome",
+    "type": "Tipo",
+    "default": "Valore predefinito",
+    "meaning": "Cosa fa",
+    "details": "Dettagli",
+    "live": "Viene eseguito qui, dal vivo",
+    "liveHint": "Muovi i controlli: questi valori provengono dalla funzione del motore eseguita in questo browser."
+  },
+  "kind": {
+    "Function": "Funzione",
+    "Constant": "Costante",
+    "Type": "Tipo",
+    "Guide": "Guida",
+    "Chapter": "Corso",
+    "Example": "Esempio"
+  },
+  "demo": {
+    "loading": "Preparazione della scena…",
+    "actions": "Azioni della demo",
+    "code": "Codice",
+    "share": "Condividi",
+    "controls": "Controlli",
+    "fullscreen": "Schermo intero",
+    "restart": "Riavvia",
+    "linkCopied": "Link copiato",
+    "copyFailed": "Impossibile copiare il link",
+    "demoControls": "Controlli della demo",
+    "keyboardHint": "Fai clic sulla demo per usare la tastiera"
+  },
+  "sandbox": {
+    "title": "Provalo dal vivo",
+    "start": "Inizia da un esempio",
+    "open": "Apri nell'ambiente di prova"
+  },
+  "section": {
+    "course": "Corso",
+    "guides": "Guide",
+    "internals": "Come funziona",
+    "world": "Mondo",
+    "constants": "Costanti",
+    "math-utilities": "Utilità matematiche",
+    "node": "Nodo e compilazione",
+    "types": "Tipi ed errori"
+  },
+  "code": {
+    "copied": "Copiato",
+    "copyFailed": "Impossibile copiare",
+    "copy": "Copia il codice",
+    "run": "Esegui",
+    "reset": "Ripristina",
+    "editor": "Editor di codice",
+    "runnable": "Codice eseguibile"
+  },
+  "learning": {
+    "input": "Input",
+    "output": "Output del motore",
+    "try": "Cosa provare",
+    "changes": "Cosa cambia"
+  },
+  "notFound": {
+    "title": "Pagina non trovata",
+    "lead": "Questo indirizzo non corrisponde a nessuna pagina del portale.",
+    "wayBack": "Trova la via del ritorno",
+    "home": "Torna alla home",
+    "examples": "Esplora gli esempi"
+  },
+  "report": {
+    "comparedEngines": "Confrontato con Web Geometry. Muovi il cursore per confrontare le immagini.",
+    "singlesOnly": "Catture singole: nessuna immagine di confronto è stata registrata per queste viste.",
+    "compareHandle": "Muovi il cursore di ciascuna immagine per confrontare i due render.",
+    "enlarge": "Ingrandisci",
+    "families": {
+      "engines": "Motori",
+      "drawing": "Metodi di disegno",
+      "lighting": "Illuminazione",
+      "single": "Catture singole"
+    },
+    "comparisonType": "Tipo di confronto visivo",
+    "experiment": "Esperimento",
+    "engineColors": "Ogni motore conserva il proprio colore in tutti i grafici. Per le durate, una barra più corta significa meno tempo.",
+    "green": "Verde: ≤ 13,33 ms",
+    "yellow": "Giallo: ≤ 16,67 ms",
+    "red": "Rosso: > 16,67 ms",
+    "timingColors": "Colori dei tempi per CPU, GPU e rendering sincronizzato: 20% di margine, vicino al budget, oltre il budget. Un obiettivo di 60 fps, non il frame rate misurato. Le grandezze senza un obiettivo numerico restano neutre.",
+    "differenceNote": "Differenza osservata = secondo valore meno primo valore. Descrive queste letture; senza un protocollo completo ed esecuzioni ripetute, non dimostra un miglioramento riproducibile.",
+    "difference": "Differenza osservata",
+    "notCalculable": "Non calcolabile",
+    "sceneLimit": "Questa scena ha una limitazione documentata.",
+    "originalNote": "Nota originale della campagna",
+    "status": {
+      "complete": "Completo",
+      "failed": "Fallito o incompleto",
+      "missing": "Nessun file di misurazione"
+    },
+    "viewpoint": "Punto di vista",
+    "sceneReading": "soglia: 1 px · valori mediani · durata minore = migliore",
+    "exactFigures": "Cifre esatte, p95 e limiti del confronto",
+    "notRecorded": "Non registrato",
+    "yes": "Sì",
+    "no": "No",
+    "allValues": "Tutti i valori registrati, senza filtro",
+    "allValuesLead": "Una colonna per lettura, una riga per campo di origine. Le impostazioni, la provenienza, le distribuzioni complete e ogni contatore sono disponibili nei dettagli. Scorri orizzontalmente per confrontare le esecuzioni. I nomi tecnici corrispondono esattamente ai file di origine; i byte restano byte.",
+    "sourceField": "Campo di origine",
+    "repeatCapture": "cattura ripetuta",
+    "primaryReading": "lettura principale",
+    "cutTitle": "Da dove vengono i triangoli della cattura",
+    "cutUnknown": "triangoli · pagine sconosciute:",
+    "cutNote": "Taglio stabilizzato della cattura; può differire dall'ultimo fotogramma in movimento misurato.",
+    "notMeasured": "Non misurato",
+    "missing": "Misurazioni mancanti",
+    "measurement": "Misurazione",
+    "case": "Caso",
+    "explanation": "Spiegazione",
+    "runsAndSources": "Esecuzioni e fonti",
+    "readFigures": "Come leggo le cifre?",
+    "counts": "{{readings}} letture · {{runs}} esecuzioni",
+    "view": "Vista",
+    "threshold": "Soglia del dettaglio",
+    "computeDrawing": "disegno per calcolo",
+    "detail": "Dettaglio",
+    "title": "Il motore, misurato",
+    "loading": "Caricamento delle misurazioni…",
+    "unavailable": "Impossibile caricare le misurazioni. Verifica il link dei dati o riprova.",
+    "empty": "Nessuna campagna pubblicata per il momento.",
+    "download": "Scarica i dati della campagna",
+    "p95": "p50 è la mediana. p95 significa che il 95% delle durate di fotogramma campionate è pari o inferiore a quel valore. Nessuno dei due descrive la variazione tra esecuzioni ripetute.",
+    "timing": "L'invio della CPU, il margine della GPU e la cadenza dello schermo sono orologi distinti. Non sommarli mai. I timestamp dei pass GPU localizzano il lavoro; la loro somma non è la durata del fotogramma.",
+    "sourceTextures": "Limitazione di origine: questa esportazione della scena ha omesso la maggior parte delle texture. I suoi risultati visivi non stabiliscono una fedeltà completa dei materiali.",
+    "runs": "Esecuzioni",
+    "reading": "Lettura",
+    "scene": "Scena",
+    "source": "Misurazioni di origine",
+    "unknown": "Non disponibile in questa campagna",
+    "protocol": "Condizioni registrate",
+    "references": "Punti di riferimento pubblicati",
+    "referenceNote": "Le cifre pubblicate dai motori desktop usano il proprio hardware, le proprie scene e i propri protocolli. Non entrano nei confronti precedenti.",
+    "referenceLink": "Leggi le fonti e i limiti",
+    "commit": "Commit del repository",
+    "date": "Data della misurazione",
+    "browser": "Browser",
+    "machine": "Macchina o browser",
+    "display": "Limite dello schermo (Hz)",
+    "method": "Metodo di cronometraggio",
+    "assetKey": "Impronta della risorsa",
+    "canvas": "Risoluzione / DPR",
+    "idle": "Fotogramma trattenuto: l'immagine è stata riutilizzata. Un conteggio di disegno pari a zero non significa che la scena sia vuota.",
+    "cpuSteps": "Fasi della CPU",
+    "gpuPasses": "Pass della GPU (solo diagnostica)",
+    "detailsNote": "Usa il file di origine per la diagnostica completa di illuminazione, residenza, streaming, risoluzione e fedeltà.",
+    "sections": {
+      "overview": "Panoramica",
+      "compare": "Confronti",
+      "evidence": "Render",
+      "experiments": "Risoluzione e opzioni",
+      "detail": "CPU / GPU",
+      "all-values": "Cifre complete",
+      "references": "Riferimenti"
+    },
+    "metrics": {
+      "textureBudget": "Budget di texture registrato",
+      "gpu": "Margine di fotogramma della GPU",
+      "cpu": "Invio della CPU",
+      "cadence": "Intervallo dello schermo",
+      "sync": "Rendering sincronizzato + attesa",
+      "triangles": "Triangoli disegnati",
+      "selected": "Triangoli selezionati",
+      "uncovered": "Triangoli scoperti",
+      "geometry": "Allocazione della geometria",
+      "textures": "Texture residenti",
+      "pool": "Riserva di texture",
+      "calls": "Chiamate di disegno",
+      "preparation": "Preparazione"
+    },
+    "assessment": {
+      "within": "Entro il budget",
+      "near": "Vicino al limite",
+      "over": "Oltre il budget",
+      "missing": "Non misurato",
+      "incomplete": "Esecuzione incompleta",
+      "holes": "Triangoli scoperti",
+      "covered": "Nessun triangolo scoperto",
+      "noTarget": "Nessun obiettivo definito"
+    },
+    "views": {
+      "generale": "Vista generale",
+      "sol": "Livello strada",
+      "rue": "Angolo di strada",
+      "detail": "Primo piano"
+    },
+    "runNames": {
+      "raster-1248": "Due modi di disegnare la stessa immagine · 1248 × 702",
+      "raster-2496": "Due modi di disegnare la stessa immagine · 2496 × 1404",
+      "mobile": "Camera in movimento · sole e ombre",
+      "fixe": "Camera fissa · immagine trattenuta",
+      "sans-lumiere": "Immagine non illuminata",
+      "soleil-sans-ombres": "Sole senza ombre",
+      "aa-off": "Senza antialiasing temporale",
+      "profil-off": "Senza profilazione",
+      "textures-host": "Texture di origine",
+      "isolation": "Isolamento tra origini",
+      "math-js": "Calcoli in JavaScript",
+      "math-wasm": "Calcoli in WebAssembly",
+      "rebond": "Illuminazione indiretta attivata",
+      "three-nu": "Three.js puro / Web Geometry",
+      "three-lod": "Three.js LOD / Web Geometry",
+      "temoin-three": "Testimone dell'SDK senza texture",
+      "ombres-pages-off": "Paginazione delle ombre disattivata",
+      "budget-ombres-0-25": "Budget di tempo per le ombre: 0,25 ms",
+      "budget-3000": "Budget di geometria: 3000 pagine",
+      "webgl": "Renderer WebGL",
+      "webgl2": "Renderer WebGL 2",
+      "lampe-mobile": "Luce in movimento",
+      "visible": "Finestra del browser visibile"
+    },
+    "runPatterns": {
+      "imageWidth": "Larghezza immagine {{width}} px",
+      "threshold": "soglia {{threshold}} px",
+      "lights": "{{count}} luci",
+      "withoutShadows": "senza ombre",
+      "sceneCopies": "{{count}} copie della scena"
+    },
+    "diagnostics": {
+      "shadows": "Ombre e illuminazione indiretta",
+      "shadowPagesRedrawn": "Pagine d'ombra ridisegnate",
+      "shadowPagesPending": "Pagine d'ombra in attesa",
+      "shadowDelay": "Ritardo massimo dell'ombra",
+      "probesUpdated": "Sonde aggiornate",
+      "raysPerFrame": "Raggi per fotogramma",
+      "residency": "Residenza e streaming",
+      "residentPages": "Pagine residenti",
+      "requestedPages": "Pagine richieste",
+      "budgetThreshold": "Soglia del budget",
+      "texturesPending": "Texture in attesa",
+      "texturesEvicted": "Texture espulse",
+      "gpuAllocations": "Allocazioni GPU registrate",
+      "lighting": "Illuminazione e lavoro sull'immagine",
+      "lightsActive": "Luci attive",
+      "trianglesSubmitted": "Triangoli inviati, tutti i pass",
+      "opaqueTrianglesSubmitted": "Triangoli opachi inviati",
+      "trianglesOccluded": "Triangoli respinti per occlusione",
+      "pagesDecodedWasm": "Pagine decodificate (Wasm)"
+    },
+    "missingWhy": {
+      "noReading": "Lettura mancante",
+      "noClusters": "Non applicabile: questo renderer non seleziona cluster",
+      "gpuIsolated": "Tempo isolato di GPU non misurato; vedi rendering + attesa",
+      "syncMissing": "Rendering + attesa non misurato; vedi margine della GPU",
+      "cadence": "Intervallo dello schermo non registrato",
+      "notRecorded": "Non registrato in questa lettura"
+    }
+  },
+  "findings": {
+    "lead": "Vista a livello strada, camera in movimento, soglia di 1 px. Le due scene mostrano situazioni molto diverse.",
+    "over": "Il rendering supera il budget di tempo obiettivo.",
+    "noGpu": "Il tempo della GPU non è stato misurato.",
+    "under": "Il tempo mediano della GPU resta sotto i 16,67 ms.",
+    "gpuTime": "Tempo GPU",
+    "medianPerFrame": "Mediana per fotogramma",
+    "cpuTime": "Tempo CPU",
+    "measuredSeparately": "Misurato separatamente",
+    "overDetail": "La GPU impiega troppo tempo per ottenere un fotogramma ogni 16,67 ms. I suoi pass e fasi sono dettagliati nella scheda CPU/GPU.",
+    "noGpuDetail": "Questa lettura non permette di stabilire la velocità della GPU.",
+    "underDetail": "La GPU ha margine rispetto a questo obiettivo, ma questo non misura il frame rate mostrato.",
+    "textures": "Texture residenti:",
+    "texturesNote": "Questa allocazione non è la memoria fisica totale della GPU.",
+    "missingTitle": "Cosa manca prima di trarre conclusioni",
+    "runsOutOf": "{{failed}} su {{total}} esecuzioni",
+    "someFailed": "mancano o sono incomplete, quindi i confronti non coprono tutti i casi.",
+    "noneFailed": "mancano o sono incomplete: tutte le esecuzioni sono disponibili.",
+    "noMachine": "L'identità della macchina manca in alcune letture.",
+    "noDpr": "Il DPR manca in alcune letture.",
+    "campaignOnly": "Le differenze visibili descrivono questa campagna, senza garantire una prestazione riproducibile.",
+    "readTimings": "Come leggere i tempi",
+    "timingsNote": "16,67 ms è il budget di tempo per fotogramma quando l'obiettivo è 60 fps. CPU e GPU sono misurate separatamente e non vanno sommate. p50 è la mediana; p95 è la durata sotto la quale cade il 95% dei campioni. La variabilità tra esecuzioni non è stata misurata."
+  },
+  "references": {
+    "clusterTriangles": "Triangoli per cluster",
+    "groupClusters": "Cluster per gruppo",
+    "streamingPage": "Pagina di streaming",
+    "geometryPool": "Riserva di geometria predefinita (fonte secondaria)",
+    "triangleFormat": "Formato di memoria per triangolo",
+    "gpuVisibility": "Visibilità GPU, demo PS5",
+    "gpuMaterials": "Materiali GPU, demo PS5",
+    "cpu": "CPU, demo PS5"
+  },
+  "conditions": {
+    "frames": "Fotogrammi misurati",
+    "warmup": "Fotogrammi di riscaldamento",
+    "movingCamera": "Camera in movimento",
+    "sun": "Sole",
+    "lights": "Luci aggiuntive",
+    "lightShadows": "Ombre attivate",
+    "bounce": "Illuminazione indiretta",
+    "temporalAntialiasing": "Antialiasing temporale",
+    "stageProfile": "Profilazione attivata",
+    "visible": "Finestra del browser visibile",
+    "shadowBudgetMs": "Budget delle ombre",
+    "geometryPoolBytes": "Budget della riserva di geometria",
+    "texturePoolBytes": "Budget della riserva di texture"
+  },
+  "profile": {
+    "cpu": "CPU · preparare l'immagine",
+    "cpuOverall": "Tempo totale della CPU",
+    "gpu": "GPU · disegnare l'immagine",
+    "conditions": "Camera in movimento, sole e ombre.",
+    "work": "Lavoro misurato",
+    "cpuNote": "La barra mostra la durata totale misurata. Le mediane delle fasi non sommano a questo totale.",
+    "reused": "Questa immagine è stata riutilizzata, evitando parte del lavoro di rendering.",
+    "coarseClock": "Orologio a bassa risoluzione: 0 ms non dimostra che una fase sia gratuita. Le letture esatte sono nei dettagli.",
+    "gpuNote": "Queste fasi mostrano dove lavora la GPU. I loro tempi si sovrappongono: non sommarli.",
+    "noTimings": "Nessun tempo registrato per queste fasi.",
+    "exact": "Valori esatti e condizioni di misurazione"
+  },
+  "experiments": {
+    "resolution": "Risoluzione e soglia di errore",
+    "lights": "Luci, ombre e rimbalzo",
+    "execution": "Fotogramma fisso, antialiasing e opzioni di esecuzione",
+    "memory": "Memoria, istanze e altri renderer"
+  },
+  "evidence": {
+    "computeDrawing": "Disegno per calcolo",
+    "standardDrawing": "Disegno standard",
+    "left": "Sinistra",
+    "right": "Destra",
+    "slide": "Scorri per confrontare le immagini",
+    "figures": "Cifre e immagini originali",
+    "original": "immagine originale",
+    "repeatability": "Ripetibilità: pixel diversi tra catture ripetute",
+    "differentPixels": "Pixel diversi tra le due immagini",
+    "notSpeed": "Questa differenza visiva non misura la velocità."
+  },
+  "course": {
+    "words": {
+      "steps": "Passo dopo passo",
+      "code": "Il codice",
+      "tryIt": "Provalo",
+      "open": "Aprilo in grande, leggi tutto il suo codice e cambialo",
+      "previous": "Capitolo precedente",
+      "next": "Capitolo successivo",
+      "end": "Ora esplora gli esempi",
+      "navigation": "Navigazione tra i capitoli"
+    },
+    "chapters": {
+      "create-a-world": {
+        "title": "Crea un mondo",
+        "description": "Un mondo è il luogo dove vive la tua scena 3D. Una sola chiamata lo crea, e disegna su un canvas della tua pagina.",
+        "steps": [
+          "Procurati il motore. Non è ancora su npm: clona il repository, esegui al suo interno <code>pnpm install</code> e <code>pnpm run build</code>, poi aggiungilo al tuo progetto da quella cartella.",
+          "Metti un <code>&lt;canvas&gt;</code> nella tua pagina. Un canvas è un rettangolo della pagina su cui un programma può disegnare. Dagli una larghezza e un'altezza.",
+          "Chiama <code>createWorld</code> con l'id del canvas. Ottieni un mondo: una <em>scena</em> (l'elenco delle cose da disegnare), una <em>camera</em> (l'occhio che le guarda) e tutto ciò che disegna l'immagine.",
+          "Aggiungi un cubo e una luce, così c'è qualcosa da vedere. I prossimi capitoli spiegano queste righe una per una.",
+          "Quando la tua pagina si chiude, chiama <code>world.dispose()</code> per restituire la memoria."
+        ],
+        "tryIt": "Trascina l'immagine per ruotare intorno al cubo. Scegli un altro colore nel pannello."
+      },
+      "add-a-shape": {
+        "title": "Aggiungi una forma",
+        "description": "Tutto ciò che vedi è una mesh: una forma con sopra un materiale. Crea la forma con `geometry`, avvolgila in una mesh con `object.mesh`, e aggiungila alla scena.",
+        "steps": [
+          "Una forma, o <em>geometria</em>, è solo la figura: i suoi angoli e le sue facce. <code>geometry.box(1, 1, 1)</code> è un cubo largo un metro, <code>geometry.sphere(0.75)</code> una palla. Esistono anche cilindri, coni, anelli, tori e altro ancora.",
+          "Una <em>mesh</em> è una forma più un materiale: <code>object.mesh(shape, material)</code>. Il materiale è il prossimo capitolo.",
+          "Posiziona una mesh con <code>position</code>, ruotala con <code>rotation</code> e cambia la sua dimensione con <code>scale</code>. Le rotazioni sono in radianti: un giro completo è <code>Math.PI * 2</code>.",
+          "<code>object.group()</code> raggruppa più mesh, così si muovono insieme, come il piatto di un giradischi.",
+          "Non viene mostrato nulla finché non chiami <code>world.scene.add(mesh)</code>."
+        ],
+        "tryIt": "Cambia il colore delle forme, ferma la rotazione, oppure fallo girare più velocemente."
+      },
+      "give-it-a-material": {
+        "title": "Dagli un materiale",
+        "description": "Un materiale indica di cosa è fatta una superficie: il suo colore, se è metallo, quanto è ruvida. `material.meshStandard` copre quasi tutto.",
+        "steps": [
+          "<code>color</code> è la vernice, scritta come un colore web: <code>'#e8a25a'</code>.",
+          "<code>metalness</code> va da 0 (plastica, argilla, legno) a 1 (metallo). Un metallo mostra i colori di ciò che riflette.",
+          "<code>roughness</code> va da 0 (liscio come uno specchio, con piccoli riflessi netti) a 1 (ruvido come il gesso, con luce morbida ovunque).",
+          "Cambia un materiale quando vuoi: <code>chrome.roughness = 0.3</code>. Tutte le mesh che lo usano cambiano all'istante.",
+          "Il vetro è <code>material.meshPhysical</code> con <code>transmission: 1</code>: la luce lo attraversa. <code>ior</code>, l'indice di rifrazione, indica quanto piega la luce: 1,5 per il vetro di una finestra. Guarda l'esempio in <a href=\"#/it/examples/glass-on-the-table\">Vetro sul tavolo</a>."
+        ],
+        "tryIt": "Ogni colonna è più metallica della precedente, e ogni riga è più ruvida. Scegli un colore per tutte, e rendi le lampade più luminose."
+      },
+      "light-it": {
+        "title": "Illuminalo",
+        "description": "Senza una luce, tutto è nero. Aggiungi luci con la famiglia `light`, e lascia che proiettino ombre.",
+        "steps": [
+          "<code>light.directional</code> è il sole: tutti i suoi raggi vanno nella stessa direzione, e <code>position</code> indica da dove brilla.",
+          "<code>light.point</code> è una lampadina: brilla in tutte le direzioni e si attenua con <code>distance</code>. <code>light.spot</code> è una torcia: un cono di luce.",
+          "<code>light.ambient</code> è una luce morbida che viene da ogni parte. Un po' di essa evita che le ombre siano completamente nere.",
+          "Aggiungi <code>castShadow: true</code> e ciò che la luce tocca proietta un'ombra.",
+          "<code>intensity</code> indica quanto è forte una luce, <code>color</code> il suo colore. Cambiali quando vuoi: <code>sun.intensity = 1</code>."
+        ],
+        "tryIt": "Sposta l'ora: il sole attraversa il cielo, diventa rosso al tramonto, e ogni ombra ruota con lui."
+      },
+      "move-the-camera": {
+        "title": "Muovi la camera",
+        "description": "La camera è il tuo occhio nel mondo. Posizionala nel codice, poi lascia che il lettore la muova con `world.controls`.",
+        "steps": [
+          "<code>world.camera.position.set(x, y, z)</code> colloca l'occhio da qualche parte; <code>world.camera.lookAt(x, y, z)</code> lo gira verso un punto.",
+          "Un <em>controller</em> trasforma il mouse, le dita e la tastiera in movimenti della camera. Scegline uno alla creazione del mondo: <code>createWorld('view', { controls: 'orbit' })</code>.",
+          "<code>'orbit'</code> ruota intorno a un punto: trascina per girare, trascina con il tasto destro per spostare, usa la rotella per lo zoom. <code>world.controls.target</code> è il punto intorno al quale ruota.",
+          "Ce ne sono altri: <code>'fly'</code> (tasti W A S D, vedi <a href=\"#/it/examples/fly-over-a-model-town\">Pilotare un aereo attraverso anelli</a>), <code>'firstPerson'</code> (camminare, vedi <a href=\"#/it/examples/walk-through-a-temple\">Parkour in un tempio</a>), <code>'trackball'</code>, <code>'panZoom'</code> per una mappa piatta, e <code>'none'</code> quando è il tuo stesso codice a muovere la camera.",
+          "Cambia in qualsiasi momento: <code>world.controls.kind = 'fly'</code>."
+        ],
+        "tryIt": "Trascina per ruotare intorno all'orologio, usa la rotella per guardare da vicino i denti degli ingranaggi."
+      },
+      "animate": {
+        "title": "Anima",
+        "description": "Per far muovere le cose, dai al mondo una funzione da eseguire prima di ogni immagine, con `world.onFrame`.",
+        "steps": [
+          "Il mondo disegna una nuova immagine molte volte al secondo. Ogni immagine è un <em>fotogramma</em>. <code>world.onFrame(fn)</code> esegue <code>fn</code> prima di ciascuno.",
+          "<code>fn</code> riceve <code>delta</code>: i secondi trascorsi dall'ultimo fotogramma. Moltiplica le tue velocità per esso, e le cose si muoveranno alla stessa velocità su uno schermo veloce e su uno lento.",
+          "Chiama <code>world.invalidate()</code> per dire «disegna di nuovo». Quando nessuno chiede un nuovo fotogramma, il mondo riposa: una scena che non si muove non costa nulla.",
+          "Per un movimento fatto di pose, come camminare, usa il mixer di animazione. <code>animation.clip</code> elenca le pose e quando avvengono; <code>animation.createMixer(robot).play(clip)</code> le riproduce e riempie i momenti intermedi. Guardalo in <a href=\"#/it/examples/a-robot-that-walks-and-waves\">Mescolare i movimenti di un robot</a>."
+        ],
+        "tryIt": "Cambia l'altezza e la velocità dell'onda. Fai doppio clic sul terreno per far cadere una nuova pietra."
+      },
+      "load-a-compiled-model": {
+        "title": "Carica un modello compilato",
+        "description": "Un modello creato in un programma 3D viene compilato una volta, e poi una sola riga lo aggiunge al tuo mondo. Il motore carica allora solo le parti di cui la camera ha bisogno.",
+        "steps": [
+          "La maggior parte dei programmi 3D esporta file <em>glTF</em> (<code>.gltf</code> o <code>.glb</code>), il formato comune per i modelli 3D.",
+          "Il compilatore taglia il modello in piccoli pezzi chiamati <em>cluster</em>, porzioni di un centinaio di triangoli, e salva ciascuno a più livelli di dettaglio. Eseguilo una volta, in un terminale: il modello, la cartella di output, <code>full</code> per conservare il modello completo, un budget di triangoli, e l'indirizzo web da cui la cartella verrà servita.",
+          "Metti la cartella di output sul tuo server web, a quell'indirizzo.",
+          "Nella pagina, <code>await world.scene.load(url)</code> aggiunge il modello. Restituisce il modello, con la sua dimensione in <code>bounds</code>, per inquadrare la camera.",
+          "Il modello non viene mai scaricato per intero. Il motore recupera i pezzi che la camera vede, più fini quanto più ti avvicini. Questo si chiama <em>streaming</em>."
+        ],
+        "tryIt": "Ruota la lampada intorno alla testa, alzala, cambia il suo colore."
+      },
+      "stay-within-memory": {
+        "title": "Resta entro la memoria",
+        "description": "Un modello grande non deve necessariamente entrare nella memoria. Dai al motore una quantità fissa, e lui mantiene entro quel limite ciò di cui la vista ha più bisogno.",
+        "steps": [
+          "La <em>GPU</em>, il chip che disegna l'immagine, ha una propria memoria, e una pagina web non può chiedere quanta ne sia libera. Quindi scegli tu stesso la quantità.",
+          "<code>world.budget.geometryPool</code> è la memoria per le forme; <code>world.budget.texturePool</code> è la memoria per le immagini dipinte sulle superfici, chiamate <em>texture</em>. Entrambe si contano in byte.",
+          "Quando la vista ha bisogno di più di quanto offre il budget, nulla si rompe: le parti lontane e piccole vengono disegnate con meno triangoli finché tutto entra. L'immagine resta completa, solo con meno dettaglio.",
+          "Rileggi il valore per vedere ciò che il motore conserva davvero.",
+          "Vedi i pezzi con <code>world.diagnostic.mode = 'clusters'</code>: ogni cluster riceve il proprio colore."
+        ],
+        "tryIt": "Abbassa la memoria con il controllo: i pezzi diventano più grandi, l'edificio resta intero. Cambia la vista su <code>clusters</code> per vederli."
+      },
+      "your-own-scene": {
+        "title": "La tua scena",
+        "description": "Ora conosci ogni pezzo. Questo capitolo li unisce in una piccola scena che puoi copiare e rendere tua.",
+        "steps": [
+          "Inizia come nel capitolo 1: un canvas, e <code>createWorld</code> con il controller <code>orbit</code>.",
+          "Costruisci con forme e materiali, come nei capitoli 2 e 3: un'isola, una casa, un albero e un mulino a vento.",
+          "Illuminala con un sole che proietta ombre (capitolo 4), e muovi il sole con l'ora.",
+          "Fai girare le pale in <code>world.onFrame</code> (capitolo 6). Sono quattro scatole in un gruppo, quindi ruotando il gruppo ruotano tutte.",
+          "Apri il codice completo, cambia un numero, premi Esegui: la scena è tua. Poi carica un modello tuo (capitolo 7)."
+        ],
+        "tryIt": "Cambia l'ora, il vento e il colore del tetto."
+      }
+    }
+  },
+  "written": {
+    "three-migration": {
+      "title": "Migrazione da Three.js",
+      "description": "A sinistra un programma completo di Three.js, a destra il programma del motore che disegna la stessa scena, sezione per sezione."
+    },
+    "measurement-entry": {
+      "title": "Il punto di ingresso di misurazione",
+      "description": "Dove un testimone, un backend forzato o una sessione interna possono ancora essere nominati — mai attraverso il punto di ingresso pubblicato `web-geometry`.",
+      "html": "<p>Una pagina importa <code>web-geometry</code> e non vede mai un backend, un testimone o una sessione interna: <code>createWorld</code> disegna con un motore di rendering, scelto dalla macchina o rifiutato per nome se ne viene forzato uno mancante. Il banco, i test e le viste di confronto devono comunque nominare un testimone — Three.js puro, <code>THREE.LOD</code>, la sessione interna <code>openMeasuredWorld</code> — ed è questo l'unico compito del punto di ingresso di misurazione a parte, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Riesporta tutto ciò che fa il punto di ingresso pubblicato, più ciò di cui un host non ha mai bisogno: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (la sessione interna che un mondo apre su se stesso), le fabbriche di backend (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), e aiutanti solo di misurazione come <code>replicateInstances</code>. Nulla di tutto ciò raggiunge un mondo pubblicato, e nulla di tutto ciò viene importato da un'applicazione.</p>"
+    },
+    "createWorldJob": {
+      "title": "Un caricamento di mondo come compito annullabile",
+      "description": "Un mondo non ha un proprio involucro di compito: `scene.load` è una semplice promise, e l'aiutante generico `createJob` la trasforma in un compito annullabile con progresso quando un host ha bisogno dello stesso contratto di compito usato dalla compilazione."
+    },
+    "architecture": {
+      "title": "Come viene disegnato un fotogramma",
+      "description": "Il percorso dalla tua scena all'immagine: i pezzi che vengono conservati, i pixel che vengono riempiti, la luce che viene aggiunta.",
+      "html": "<ol>\n<li><strong>Scegliere i pezzi.</strong> Ogni modello è fatto di piccole porzioni di triangoli, i <em>cluster</em>, salvati a più livelli di dettaglio. Ad ogni fotogramma, la GPU sceglie per ogni parte del modello il livello più grossolano che appare ancora esatto sullo schermo.</li>\n<li><strong>Scrivere cosa c'è dove.</strong> I triangoli scelti vengono disegnati una volta in un <em>buffer di visibilità</em>: per ogni pixel, solo il numero del triangolo che vi appare.</li>\n<li><strong>Colorare le superfici.</strong> Poi ogni pixel legge il materiale del proprio triangolo: colore, ruvidità, metallo, mappa delle normali. Le superfici dello stesso tipo vengono colorate insieme, in un unico passaggio.</li>\n<li><strong>Illuminare, poi ammorbidire.</strong> Vengono aggiunte le luci e le ombre, le superfici trasparenti arrivano per ultime, e l'<em>antialiasing temporale</em> mescola ogni fotogramma con quelli precedenti, per mantenere i bordi morbidi.</li>\n</ol>\n<p>Quando nulla si muove, niente di tutto ciò viene eseguito: il mondo conserva l'ultima immagine.</p>\n<p>Il percorso completo: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
+    },
+    "occlusion-two-phase": {
+      "title": "Saltare ciò che è nascosto",
+      "description": "Perché un muro nasconde gratuitamente la stanza dietro di esso: il motore non disegna ciò che l'ultimo fotogramma ha dimostrato essere nascosto.",
+      "html": "<p>Un villaggio ha migliaia di oggetti dietro la prima fila di case. Disegnarli costerebbe tempo per pixel che nessuno vede. Quindi il motore disegna in due passaggi:</p>\n<ol>\n<li>Prima, ciò che era visibile nel fotogramma precedente. Questo dà un'immagine approssimativa della profondità: quanto è lontana la superficie più vicina in ogni punto dello schermo.</li>\n<li>Poi ogni altro pezzo viene testato contro quella profondità. Un pezzo completamente nascosto dietro viene saltato; il resto viene disegnato.</li>\n</ol>\n<p>Il test salta solo ciò che è sicuramente nascosto: una supposizione sbagliata costa un secondo test, mai un pixel mancante. Non c'è nulla da regolare; è sempre attivo.</p>\n<p>In dettaglio: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#webgpu-page-raster\">docs/ENGINE.md</a>.</p>"
+    },
+    "cluster-format": {
+      "title": "Come vengono impacchettati i modelli",
+      "description": "Ciò che scrive il compilatore: piccole pagine di triangoli, salvate in modo compatto, ciascuna leggibile da sola.",
+      "html": "<p>Il compilatore taglia un modello in cluster di al massimo centoventotto triangoli, e salva ciascuno come una <em>pagina</em> che il browser può leggere da solo.</p>\n<ul>\n<li>Le posizioni, le coordinate delle texture e le normali vengono arrotondate su griglie fini. Questo rende una pagina più volte più piccola dei numeri semplici, e l'arrotondamento resta ben al di sotto di un pixel.</li>\n<li>Ogni pagina dice quanto il suo arrotondamento ha spostato un punto, così il motore non deve mai indovinare.</li>\n<li>Le pagine sono nominate in base al loro contenuto: due modelli che condividono un pezzo condividono la loro pagina.</li>\n</ul>\n<p>La disposizione esatta è in <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/FORMAT.md\">docs/FORMAT.md</a>.</p>"
+    },
+    "water-pass": {
+      "title": "Acqua e vetro",
+      "description": "Come un materiale trasparente piega ciò che c'è dietro: il motore rilegge l'immagine che ha già disegnato.",
+      "html": "<p>L'acqua e il vetro spesso non vengono disegnati come vernice. Il motore disegna prima tutto ciò che è solido, ne salva una copia, e poi, per ogni pixel di acqua o vetro, legge la copia leggermente spostata, come la luce si piega attraverso la superficie.</p>\n<ul>\n<li>Quanto si piega e quale colore assume provengono dal materiale importato: il suo indice di rifrazione, il suo spessore e la sua tinta.</li>\n<li>La superficie riflette anche il cielo e le luci, di più con angolazione radente, come l'acqua reale.</li>\n<li>Un limite: un vetro non mostra un altro vetro dietro di sé.</li>\n</ul>\n<p>In dettaglio: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#transparent-surfaces\">docs/ENGINE.md</a>.</p>"
+    },
+    "memory-pools": {
+      "title": "Dove va la memoria",
+      "description": "Due quantità fisse di memoria GPU, una per le forme e una per le texture, e cosa succede quando una vista ne chiede di più.",
+      "html": "<p>Il motore mantiene due <em>riserve</em> nella memoria GPU: una per le pagine delle forme, una per i tile delle texture. Ne fissi la dimensione con <code>world.budget</code> (capitolo 8); il motore non legge mai la macchina per indovinarla.</p>\n<ul>\n<li>La versione più grossolana di ogni modello resta sempre dentro, quindi non c'è mai un buco.</li>\n<li>Quando una vista ha bisogno di più di quanto contenga una riserva, il motore disegna con pezzi più grossolani finché tutto entra: meno dettaglio, mai una parte mancante.</li>\n<li>Cambiare una riserva mentre la scena è in esecuzione conserva ciò che entra ancora e libera il resto.</li>\n</ul>\n<p>In dettaglio: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#memory\">docs/ENGINE.md</a>.</p>"
+    },
+    "texture-compression": {
+      "title": "Texture più piccole",
+      "description": "Le texture sono tagliate in tile, caricate solo dove l'immagine ne ha bisogno, e compresse quando ciò non cambia l'immagine.",
+      "html": "<p>Una texture è un'immagine dipinta su una superficie. Il compilatore ne prepara ciascuna a ogni dimensione, dal completo al minuscolo, e le taglia in tile quadrati. Il browser carica solo i tile che l'immagine mostra, alla dimensione in cui li mostra.</p>\n<p>Il compilatore può anche salvare i tile in un formato compresso che la GPU legge direttamente, circa quattro volte più piccolo. Conserva la versione compressa solo quando appare identica all'originale; altrimenti, il tile resta non compresso. Un tile non ancora arrivato mostra una versione più piccola di se stesso, mai un buco.</p>\n<p>In dettaglio: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#virtual-textures\">docs/ENGINE.md</a>.</p>"
+    },
+    "shadow-pages": {
+      "title": "Ombre a pezzi",
+      "description": "Perché una camera in movimento ridisegna solo una striscia delle sue ombre: la mappa delle ombre è tagliata in pagine, come i modelli.",
+      "html": "<p>Per sapere cosa è in ombra, ogni luce esegue il rendering della scena dal proprio punto di vista in una <em>mappa delle ombre</em>: un'immagine di distanze. Il motore taglia queste mappe in pagine.</p>\n<ul>\n<li>Il sole copre la vista con alcune mappe, fini vicino alla camera e più grossolane in lontananza.</li>\n<li>Quando la camera si muove leggermente, viene ridisegnata solo la striscia di pagine entrata nella vista; le altre vengono conservate.</li>\n<li>Una pagina non ancora pronta prende in prestito la mappa più grossolana, così un'ombra non manca mai.</li>\n</ul>\n<p>In dettaglio: <a href=\"https://github.com/pasquelin/WebGeometry/blob/develop/docs/ENGINE.md#direct-lighting\">docs/ENGINE.md</a>.</p>"
+    },
+    "IDENTITY_MATRIX4": {
+      "description": "Identità colonna per colonna, letta e mai scritta: la posa di un nodo o di una radice senza posa.",
+      "values": ["Sedici numeri, colonna per colonna."]
+    },
+    "DiagnosticMode": {
+      "description": "Ciò che disegna un fotogramma. La disponibilità descrive uscite reali del rendering, mai sovrapposizioni inventate: `DIAGNOSTICS` indica, modalità per modalità, se il renderer attivo può produrla e perché no.",
+      "values": [
+        "L'immagine illuminata, a partire dai materiali glTF.",
+        "Un colore unico e pieno per triangolo inviato — non GL_LINES, non `MeshBasicMaterial.wireframe`.",
+        "Identità stabile di primitiva/pagina, un colore per cluster; WebGL2 e WebGPU allo stesso modo.",
+        "Cluster di livello 0 rispetto alle riduzioni del DAG più grossolane effettivamente selezionate in questo fotogramma.",
+        "L'errore per cluster proiettato attraverso la sfera del cluster, così come lo usa il taglio.",
+        "Un colore per classe di materiale: il pass di classe che ha risolto il pixel. Solo il percorso di visibilità di WebGPU.",
+        "Pagine visibili selezionate; i nodi di gerarchia respinti vengono contati, non disegnati.",
+        "Pagine di indice collegate; le pagine mancanti non vengono disegnate. Non è VRAM fisica.",
+        "Non disponibile: la residenza dei mip delle texture non è strumentata.",
+        "Non disponibile: nessun contatore di frammenti."
+      ]
+    },
+    "LodQualityId": {
+      "description": "Preset di LOD a runtime. `pixelError` è la soglia sullo schermo usata dalla selezione dei cluster esatti; `0` conserva le foglie esatte.",
+      "values": [
+        "Massimo dettaglio di origine — `pixelError: 0`, anisotropia di origine.",
+        "Alta qualità — `pixelError: 1`, anisotropia massima.",
+        "Bilanciato — `pixelError: 4`.",
+        "Adattivo — `pixelError: 2`, aumentato con la velocità della camera tramite `adaptivePixelError(base, speed, radius)`; una vista ferma conserva la base."
+      ]
+    },
+    "ScreenErrorVariant": {
+      "description": "Quale proiezione dell'errore del cluster confronta il taglio con la soglia. Stato di modulo per l'intera pagina, letto dalla metrica della CPU e integrato nello shader di selezione alla compilazione; ogni lato di un banco viene eseguito nella propria pagina. Fonte pubblica della formula: Karis, Stubbe e Wihlidal, SIGGRAPH 2021, «Advances in Real-Time Rendering in Games».",
+      "values": [
+        "La nostra (predefinita): un limite che non sottostima mai l'errore.",
+        "La formula pubblicata, per il banco di confronto."
+      ]
+    },
+    "MathPathMode": {
+      "description": "Quale percorso segue un lotto. `auto` decide tramite misurazione: il regolatore mantiene una mediana mobile di nanosecondi per elemento su ciascun lato e cambia dopo una serie di esecuzioni con quel vantaggio, mantenendo JS come riferimento e ripiego. `MATH_PATH_CONTRACT` versiona il report pubblicato.",
+      "values": [
+        "Decisione tramite misurazione (predefinita).",
+        "Il percorso JavaScript imposto, per una campagna.",
+        "Il kernel WebAssembly imposto, quando ne esiste uno per quell'operazione."
+      ]
+    },
+    "JobStatus": {
+      "description": "Ciclo di vita di un compito creato da `createJob` — una compilazione, una creazione di mondo. Un compito annullato o fallito rilascia il risultato che possedeva.",
+      "values": [
+        "Creato, non avviato.",
+        "In corso; gli eventi `progress` portano una fase e un conteggio.",
+        "Risolto; `result` contiene il valore.",
+        "Annullato tramite il suo `AbortSignal`.",
+        "Ha generato un errore; `error` contiene `{ code, message }`."
+      ]
+    },
+    "CapabilityTier": {
+      "description": "Ciò che la politica di sicurezza decide che una sessione può eseguire, a partire da costi misurati. Una `SafetyDecision` porta il livello, se la funzione è attivata, la ragione, e quando è cambiata.",
+      "values": [
+        "Ogni costo misurato entro il budget.",
+        "Un budget superato: la funzione viene ridotta.",
+        "Il percorso sicuro, la funzione disattivata."
+      ]
+    },
+    "GpuTimingMethod": {
+      "description": "Come sono state prese le durate GPU di un profilo di fasi. Una durata per pass indica dove, mai quanto: su una GPU basata su tile i pass si sovrappongono e un pass assorbe i suoi vicini. Il totale del fotogramma è `gpuImageMs`, il margine — le durate delle fasi non si sommano ad esso.",
+      "values": ["Timestamp nativi di WebGPU.", "L'estensione di WebGL2, per quel percorso."]
+    },
+    "ColumnKind": {
+      "description": "Archiviazione di una colonna del manifest binario. `COLUMN_KIND` assegna a ogni nome di colonna il proprio tipo, così un lettore sa quale vista adottare sui byte che l'accompagnano.",
+      "values": [
+        "Limiti, sfere, errori, nodi di selezione.",
+        "Indici con segno — interi di pagina, livelli di gruppo.",
+        "Contatori e offset senza segno.",
+        "Byte grezzi — oggetti SHA, pixel di anteprima."
+      ]
+    },
+    "Side-common": {
+      "description": "Quali facce di una superficie vengono disegnate — ogni decisione di rasterizzazione, cono, pipeline e piano di miscelazione viene confrontata con questo. Due lettori di `packages/sdk-browser/src/scene/materialSide.ts` si collocano tra questo e un host: `sideOf(material: HostMaterials): Side` legge ciò che un materiale dell'host dichiara, una volta al confine dell'importazione, l'unico luogo che nomina le costanti dell'host; `materialSide(material: HostMaterials): number` restituisce quella stessa costante dell'host, per i materiali diagnostici ancora costruiti con la libreria dell'host.",
+      "values": [
+        "Solo facce anteriori (un array di materiali vuoto dà questo).",
+        "Solo facce posteriori.",
+        "Entrambe, per foglie, tessuto e ritagli sottili."
+      ]
+    },
+    "prepare": {
+      "description": "Compila una scena sorgente nella cache che il browser legge. Esegue il compilatore nativo — il percorso di produzione — e restituisce il manifest letto dal disco, con le sue `metrics` completate da ciò che solo il puntatore possiede (`wallMs`, `pruneMs`). Una sorgente il cui prodotto è già in cache non viene ricompilata: la cartella viene verificata file per file e conservata, e `reused` indica cosa è stato controllato (`null` quando il compito ha compilato). `resourceBaseUrl` è obbligatorio: è l'URL da cui il browser recupererà le pagine e le texture. Ciò che fa ciascun lettore con la propria sorgente — facce poligonali tagliate a ventaglio se convesse, altrimenti tramite ear clipping — è in `docs/COMPILER.md`."
+    },
+    "prepareMany": {
+      "description": "Prepara più modelli in un unico processo del compilatore. Il compilatore esegue `workers` compiti contemporaneamente e ripartisce `ramBudgetMb` tra loro. Si risolve con il riepilogo del lotto — solo puntatori, nulla riletto dal disco."
+    },
+    "createJob": {
+      "description": "Avvolge qualsiasi operazione in sospeso nel contratto di compito del motore: un'istantanea (`JobStatus`, progresso, risultato, errore), un abbonamento, e un annullamento che rilascia ciò che il compito possedeva. L'operazione deve supportare l'annullamento tramite il proprio proprietario (RAF, rilettura, …)."
+    },
+    "detectCapabilities": {
+      "description": "Ciò che questa macchina supporta davvero, prima di creare un mondo: `{ tier, renderer, adapter, extensions, reason }`. La ragione viene sempre fornita, così una capacità non supportata viene segnalata anziché presunta. L'involucro pubblico letto da un mondo è `capability.detect()` — `{ webgpu, webgl2, ... }`, una forma più semplice dello stesso test. Il test WebGL2 viene messo in cache."
+    },
+    "perspectiveProjection": {
+      "description": "Proiezione in prospettiva di una camera con `fov` verticale in gradi, rapporto `aspect`, piano vicino `near`, zoom `zoom`. **Profondità invertita, piano lontano infinito**: `near` si proietta su 1, l'infinito su 0. Nessun piano lontano entra qui, da cui l'assenza di divisione per esso — che è ciò che compra la precisione della profondità."
+    },
+    "createCameraFrame": {
+      "description": "Le matrici di un frame di camera, allocate una volta e riscritte a ogni fotogramma: `view` (l'inversa della matrice del mondo della camera), `viewProjection`, e `planes`, i sei piani normalizzati di quel frustum."
+    },
+    "updateCameraFrame": {
+      "description": "Riscrive il frame: vista = l'inversa di `world` (zero per una matrice del mondo singolare, come il riferimento), vista-proiezione = `projection · view`, e i sei piani di quel frustum. Una convenzione di profondità attraversa tutte e tre. `far` è il piano **dichiarato dall'host**: la proiezione non ne ha uno — è infinita, che è tutto il senso della profondità invertita — ma il frustum lo conserva, altrimenti un fotogramma guadagnerebbe improvvisamente tutti gli oggetti che la camera non mostrava. Assente o non finito, il piano lontano resta illimitato."
+    },
+    "worldToRenderOrigin": {
+      "description": "Scrive `world` con la sua traslazione riferita a `origin`. La sottrazione avviene alla precisione degli input — il doppio delle matrici del mondo del motore —, e scrivere in un buffer a precisione singola arrotonda **dopo**, mai prima: è tutto ciò che separa un'immagine nitida da una che trema. `at` è l'intervallo del primo dei sedici numeri scritti, così un buffer di molte matrici viene riempito senza tagliare una vista per matrice e per fotogramma."
+    },
+    "matrixAtRenderOrigin": {
+      "description": "Scrive `m · T(origin)`: la stessa matrice, applicata a un punto riferito a `origin`. Cambia solo la quarta colonna, ed è uguale a `m · (origin, 1)`, calcolata alla precisione degli input prima dell'arrotondamento di scrittura."
+    },
+    "viewToRenderOrigin": {
+      "description": "Scrive `view` senza la sua traslazione: la vista di una camera della stessa orientazione posta all'origine del sistema di rendering — la controparte esatta di `worldToRenderOrigin`, che porta il mondo relativo già alla traslazione dell'occhio."
+    },
+    "createEngineCamera": {
+      "description": "Una `EngineCamera`: un frame di camera più `world`, `projection`, `eye`, `near`, `far`, `fov`, `aspect`, ciascun buffer allocato una volta. Questa è la camera propria del motore — nessun oggetto dell'host attraversa fino al runtime."
+    },
+    "writeEngineCamera": {
+      "description": "Tutto ciò che legge un fotogramma, derivato dal `into.world` già impostato e dall'ottica dichiarata."
+    },
+    "defaultEngineCamera": {
+      "description": "La camera all'origine con fov 50, aspect 1, near 0,1, far 2000, zoom 1 — il ripiego degli oracoli chiamati prima del primo fotogramma."
+    },
+    "readCameraWorld": {
+      "description": "Risolve gli antenati della camera dell'host, copia la sua matrice del mondo, poi applica `writeEngineCamera`. L'unica traduzione da una camera dell'host, una volta per fotogramma; `HostCamera` è una forma — posa, ottica, matrice del mondo, la proiezione stessa dell'host — non un tipo della libreria di rendering dell'host. `aspect` è il rapporto in cui viene disegnata la vista quando non è quello dichiarato dalla camera: una cattura di superficie esegue il rendering della stessa camera a parte, nella forma della superficie su cui scrive. La convenzione di profondità del ritaglio è quella propria del motore, composta a partire dall'ottica dichiarata in profondità invertita con un piano lontano infinito; nulla dell'host viene letto qui."
+    },
+    "holdCameraWorld": {
+      "description": "Una copia bit a bit di una camera del motore, nulla ricalcolato."
+    },
+    "enginePose": {
+      "description": "La posizione e la rotazione del fotogramma disegnato, lette dalla camera del motore."
+    },
+    "multiplyMatrix4": {
+      "description": "`out = a · b`. Le trentadue voci vengono lette prima della prima scrittura, così `out` può essere `a` o `b`. Ogni termine è la somma di quattro prodotti senza zero iniziale — una somma iniziata a `0` cambierebbe il segno di uno zero negativo. **Un solo tipo di buffer, `Float64Array`, in ingresso e in uscita**: un unico chiamante che passasse un array semplice renderebbe polimorfici i quarantotto punti di accesso e ogni ciclo caldo lo pagherebbe, quindi un chiamante che parte da una matrice dell'host la copia prima."
+    },
+    "invertMatrix4": {
+      "description": "`out = m⁻¹` per cofattori. Un determinante esattamente nullo dà la matrice nulla, come il riferimento — un chiamante che debba distinguere questo caso testa il determinante, mai l'uscita. Quella soglia è parità con il riferimento, non la regola di singolarità del motore, che si applica solo dove viene trasportata una normale. Le sedici voci vengono lette prima della prima scrittura, così `out` può essere `m`."
+    },
+    "composeMatrix4": {
+      "description": "`out = T · R · S`, il quaternione ordinato `(x, y, z, w)`. L'ultima riga viene scritta esattamente `(0, 0, 0, 1)`; i prodotti di quaternioni vengono raddoppiati per somma (`x + x`), come il riferimento, mai moltiplicati per due."
+    },
+    "decomposeMatrix4": {
+      "description": "L'inversa: la scala di una colonna è la sua lunghezza, e un determinante negativo viene portato solo dall'asse `x`, qualunque sia l'asse invertito nella sorgente. Una matrice cesoiata non ha tale scomposizione — la rotazione restituita è allora quella della matrice normalizzata colonna per colonna e ricomporla non dà più `m`, uno scarto identico a quello del riferimento e quantificato dal banco."
+    },
+    "copyMatrix4": {
+      "description": "Copia i sedici numeri di `m` in `out`, ciascuno al proprio offset. Un ciclo invece di `TypedArray.set`: in una vista, `set` costa una chiamata nativa, e le uscite non sono tutte tipizzate — una matrice dell'host, un buffer GPU a precisione singola, che è l'unica conversione."
+    },
+    "determinantMatrix4": {
+      "description": "Il determinante 4×4, sviluppato sull'ultima riga come il riferimento, parentesi e segni unari inclusi, e quello della sola parte lineare (il blocco 3×3), sviluppato sulla prima colonna. Il segno del secondo dice se la trasformazione inverte l'orientamento, e quindi quale faccia deve eliminare un disegno. Il secondo non è lo sviluppo del primo: lo scarto relativo è di alcuni ulp, e i segni possono differire solo vicino a una matrice singolare, dove nessun arrotondamento decide."
+    },
+    "normalMatrix3": {
+      "description": "`out = transpose(inverse(blocco 3×3 di m))` su nove numeri, colonna per colonna: la matrice che trasporta le normali di una superficie trasformata da `m`, cesoiatura e scala non uniforme incluse. L'inversa è quella del riferimento, cofattori e ordine di prodotto inclusi, poi trasposta senza operazione in virgola mobile. **Su una matrice singolare scrive l'aggiunta, senza dividere**, non la matrice nulla del riferimento: una posa singolare non cancella una superficie, la appiattisce su un piano, e l'aggiunta applicata a una normale locale *è* il prodotto vettoriale dei bordi trasformati, segno incluso — ogni consumatore normalizza dopo. Solo una scala nulla, infinita o NaN viene scritta a parte, come nove zeri."
+    },
+    "linearPartScale": {
+      "description": "L'unica regola di singolarità del motore, nella forma del kernel WGSL. La scala è la somma dei valori assoluti dei nove termini della parte lineare; il determinante viene preso sulle colonne **divise per quella scala prima del prodotto**, mai sul determinante grezzo diviso per il suo cubo — `t³` deborda oltre 1e103 e scompare sotto 1e-103, proprio dove la regola deve decidere. `adjugateFactor` restituisce quindi `1 / determinant` per una matrice regolare (i bit di riferimento), `1` per una singolare (l'aggiunta così com'è), e `null` quando la scala non è finita e strettamente positiva, dove l'aggiunta stessa deve essere sostituita da zero. `SINGULAR_DETERMINANT_WGSL` è la stessa soglia così come la scrive lo shader: un numero, due linguaggi."
+    },
+    "basisMatrix4": {
+      "description": "Le colonne `u`, `v`, `n` poi l'origine, ultima riga `(0, 0, 0, 1)`; e una scala uniforme `s` posta in `center`. Entrambe sostituiscono una sequenza di due chiamate della libreria dell'host con un'unica scrittura."
+    },
+    "dotVector3": {
+      "description": "`a · b` su tre componenti lette a `aAt` e `bAt`: un buffer più un offset, mai una vista — è ciò che lo rende economico dentro un ciclo su migliaia di vettori."
+    },
+    "crossVector3": {
+      "description": "`out = a × b`. Le sei componenti vengono lette prima della prima scrittura, così `out` può essere `a` o `b`."
+    },
+    "lengthSqVector3": {
+      "description": "`x² + y² + z²`, i tre quadrati sommati nell'ordine del riferimento. `Math.sqrt` di ciò è il `length()` del riferimento, bit per bit."
+    },
+    "normalizeVector3": {
+      "description": "`v / ‖v‖` sul posto — ogni componente moltiplicata per `1 / (length || 1)`, così un vettore nullo resta invariato."
+    },
+    "scaleVector3": {
+      "description": "Le tre componenti moltiplicate sul posto; `out = a · s` scritto a un offset; e `out += a · s`."
+    },
+    "transformAffinePoint": {
+      "description": "`M · (x, y, z, 1)` senza divisione prospettica — la forma di una matrice affine, la cui ultima riga è `(0, 0, 0, 1)`. Per tale matrice e un punto finito, questa è bit per bit la trasformazione proiettiva, il cui fattore `1 / w` è allora 1. Le coordinate arrivano come parametri, così `out` può essere il vettore in ingresso."
+    },
+    "transformHomogeneousPoint": {
+      "description": "Le quattro componenti omogenee, senza divisione: il punto nello spazio di ritaglio quando `M` è una vista-proiezione. Il chiamante divide per la quarta, dopo aver scartato quella nulla o non finita."
+    },
+    "transformDirectionVector3": {
+      "description": "Il blocco 3×3 di una 4×4 affine applicato a una direzione, poi la normalizzazione di riferimento — traslazione ignorata, come per ogni direzione. E `M · (x, y, z)` per una matrice 3×3 memorizzata colonna per colonna su nove numeri."
+    },
+    "srgbToLinear": {
+      "description": "La curva sRGB esatta — `c / 12,92` sotto 0,04045, `((c + 0,055) / 1,055)^2,4` sopra — e la sua inversa, negativi portati a zero prima dell'esponente."
+    },
+    "hslToLinearRgb": {
+      "description": "Tonalità, saturazione e luminosità a tre componenti lineari scritte in `out[o..o+2]`. Il `setHSL` del riferimento, termine per termine: tonalità avvolta, saturazione e luminosità limitate a `[0, 1]`, saturazione nulla restituita come grigio, poi la rampa a tratti. Nessuna curva di trasferimento viene applicata — lo spazio di lavoro del riferimento è già lineare."
+    },
+    "boxUnion": {
+      "description": "Un box sono sei numeri memorizzati in modo piatto da `o`: tre limiti inferiori, tre superiori. Un box vuoto ha i suoi limiti inferiori a `+Infinity` e i suoi superiori a `-Infinity`; un limite NaN non rende un box vuoto. Espandere e unire prendono i limiti come parametri, così nessun oggetto temporaneo viene costruito per chiamata."
+    },
+    "boxTransform": {
+      "description": "Il box che racchiude l'immagine di `box` tramite `m`: l'unione dei suoi otto angoli trasformati. Un box vuoto resta tale, limiti inclusi, e `out` può essere `box` — i limiti vengono letti prima della prima scrittura. `boxCornersInto` scrive quegli otto angoli in modo piatto, ventiquattro numeri: l'angolo `i` prende il limite superiore su `x` quando il bit 1 è attivo, su `y` per il bit 2, su `z` per il bit 4, essendo ogni angolo la trasformazione omogenea `(m·p) / (m₃·p)`."
+    },
+    "sphereFromBounds": {
+      "description": "La sfera avvolgente di un box, scritta in modo piatto da `o`: centro `x, y, z` poi raggio. Il centro è `(min + max) * 0,5`, il raggio metà della diagonale. Un box vuoto — un limite superiore sotto il suo inferiore — dà la sfera vuota, centro zero e raggio `-1`. Questa è l'aritmetica dei box del riferimento termine per termine, NaN, zeri con segno e infiniti inclusi."
+    },
+    "frustumPlanesFromMatrix": {
+      "description": "I sei piani del frustum di una matrice di ritaglio — una vista-proiezione, o una proiezione sola per piani nello spazio di vista. La prima li normalizza, così `a·x + b·y + c·z + d` è una distanza con segno; la seconda lascia le somme e differenze grezze delle righe, dove solo il segno decide, senza radice quadrata né divisione: la forma del test di ritaglio esatto, dove normalizzare sposterebbe l'arrotondamento. Una matrice degenere dà piani NaN o infiniti senza generare errore."
+    },
+    "frustumFarPlane": {
+      "description": "Il piano lontano di un frustum la cui proiezione non ne ha uno. La proiezione del motore è infinita: la sua riga di profondità non limita più nulla, così il piano lontano viene letto dalla matrice di **vista**, la cui terza riga dà la profondità di vista — un punto è dentro quando `far + z >= 0`. Un `far` non finito lascia il piano nullo al suo posto, un piano lontano davvero illimitato. `frustumPlanesToLocal` porta i piani nello spazio locale di una trasformazione, così un box locale viene testato senza essere trasformato."
+    },
+    "frustumExcludesBox": {
+      "description": "Il box contro il frustum: il primo è vero quando un piano lascia tutti e otto gli angoli dietro. Il secondo restituisce tre stati — 0 fuori, 1 a cavallo, 2 interamente dentro — in due passaggi, il primo che respinge soltanto, il secondo che legge l'angolo più arretrato per distinguere «a cavallo» da «dentro». Un sottoalbero interamente dentro fa risparmiare un test per ogni box sottostante."
+    },
+    "boxConeRejects": {
+      "description": "Rifiuto di un box locale dal suo cono di normali, visto da un punto del mondo: il box viene sostituito dalla sua sfera, l'asse del cono viene portato dalla matrice delle normali e normalizzato, il verdetto viene preso sul prodotto scalare limitato, l'angolo del cono e la dispersione in prospettiva della sfera. Una trasformazione è conforme quando le sue colonne hanno la stessa lunghezza con un margine di `CONE_LENGTH_RATIO` e sono ortogonali con un margine di `CONE_ORTHO_EPS`; un cono di angolo ≥ `HALF_PI` non rifiuta mai, e un parametro che il test rifiuta non rifiuta nemmeno. Le varianti `_WGSL` sono le stesse costanti del testo dello shader, così che lo specchio della CPU e il pass della GPU non possano divergere."
+    },
+    "createTransformTree": {
+      "description": "La gerarchia di trasformazioni del motore, orientata ai dati: un nodo è un indice in array piatti — genitore, flag, posizione, quaternione `(x, y, z, w)`, scala, matrice locale, matrice del mondo. `localViews[i]` e `worldViews[i]` sono viste di sedici numeri create alla crescita e mai durante un aggiornamento: la GPU legge l'intero buffer, un kernel legge la vista di un nodo. Un nuovo nodo è l'oggetto nuovo del riferimento: posizione nulla, rotazione identità, scala 1, matrici identità, aggiornamento automatico. Una crescita sostituisce ogni array, così un chiamante rilegge `tree.world` o `tree.worldViews` dopo un'aggiunta."
+    },
+    "setNodePosition": {
+      "description": "Le scritture passano attraverso i setter, che marcano ciò che hanno cambiato — quel marcatore è ciò che un aggiornamento legge per decidere chi visitare. In aggiornamento automatico, il prossimo aggiornamento ricompone la matrice locale a partire dalla posa, come il riferimento sovrascrive `matrix`; `setNodeAutoUpdate(tree, node, false)` conserva la matrice che un chiamante ha scritto."
+    },
+    "reparentTransformNode": {
+      "description": "Collega `node` sotto `parent` (`-1`: una radice) come l'`add` del riferimento — le matrici non si muovono fino al prossimo aggiornamento — e genera un errore se `parent` è `node` o uno dei suoi discendenti. Rimuovere prende il nodo e tutti i suoi discendenti, i loro indici vengono riutilizzati dopo; per scollegare un sottoalbero mantenendolo, ricollegalo a `-1`."
+    },
+    "updateNodeMatrixWorld": {
+      "description": "Il nodo e tutto il suo sottoalbero, genitori prima. Un nodo viene raggiunto se è ad aggiornamento automatico, se è marcato, o se `force`. Il marcatore di un nodo visitato è `2 · traversal + reached`, così una lettura dice a un figlio se è nel sottoalbero e cosa gli trasmette il genitore. La seconda forma attraversa anche gli antenati dalla radice, quando richiesto."
+    },
+    "nodeWorldPosition": {
+      "description": "Letture della matrice del mondo: la colonna di traslazione; la rotazione e la scala della sua scomposizione, un determinante negativo portato solo da `x`; la terza colonna normalizzata come direzione, invertita quando `cameraForward` — una camera e una luce guardano verso il loro `−z`. `nodeWorldMirrorsFaces` è vero quando la matrice del mondo inverte l'orientamento, e il disegno scambia allora le sue facce anteriore e posteriore; viene letto così com'è, senza aggiornare, e un determinante nullo o NaN non inverte nulla."
+    },
+    "lookAtNode": {
+      "description": "Ruota `node` verso il punto del mondo `(x, y, z)`. `viewer` è vero per una camera o una luce, che guardano verso il loro `−z`, falso per un oggetto, che presenta il suo `+z`. `up` è l'alto del nodo, `(0, 1, 0)` nel riferimento. Gli antenati e il nodo vengono aggiornati prima."
+    },
+    "multiplyMatrix4Batch": {
+      "description": "`n` prodotti `out[i] = a[i] · b[i]`, i tre lati dati come sottoviste di sedici numeri. Le sottoviste vengono costruite una volta, mai per fotogramma; un kernel WebAssembly ripete la stessa formula termine per termine e il regolatore sceglie il percorso misurato più veloce."
+    },
+    "boxTransformBatch": {
+      "description": "`n` box trasformati da `n` matrici: `out[i] = boxTransform(boxes[i], mats[i])`. `out` e `boxes` portano sei numeri per elemento, `mats` una sottovista di sedici."
+    },
+    "hierarchyUpdateBatch": {
+      "description": "Un'intera gerarchia aggiornata in un unico passaggio: `n` nodi ordinati genitori prima dei figli, ciascuno che compone la propria matrice locale e poi la moltiplica per la matrice del mondo del proprio genitore — l'attraversamento di `packages/sdk-core/src/math/transform-tree/update.ts`, le stesse due formule nello stesso ordine, su buffer piatti. `parents[i]` **deve** indicizzare un nodo già aggiornato, quindi strettamente minore di `i`; qualsiasi altro valore — la sentinella `HIERARCHY_ROOT` inclusa — rende il nodo una radice la cui matrice del mondo è la sua matrice locale. La regola è identica su entrambi i percorsi: nessun input, per quanto ostile, può farli divergere. `local` è un'unica matrice di lavoro, riutilizzata da ogni elemento."
+    },
+    "createPathGovernor": {
+      "description": "Ciò che decide tra JS e WebAssembly, per operazione nominata: mediane mobili di nanosecondi per elemento, un cambio solo dopo cinque esecuzioni consecutive con quel vantaggio, e un'esecuzione ogni cinquanta che ripete l'altro percorso per aggiornare la sua mediana. Sotto le cinque campioni non viene deciso nulla — un solo valore formerebbe la mediana. `metrics()` pubblica, per operazione, `path`, `jsNsPerElement`, `wasmNsPerElement`, il conteggio dei cambi e la risoluzione dell'orologio su cui riposa la misurazione."
+    },
+    "frustumKeepsBoxBatch": {
+      "description": "`n` box di sei numeri (min poi max) contro i ventiquattro float di un frustum: `kept[i]` è 1 dove il box interseca il frustum o è dentro, e il conteggio conservato viene restituito — `frustumExcludesBox` negato, la polarità con cui risponde il riferimento. Il batch di sfere scrive `SPHERE_VALUES` numeri per box, centro poi raggio fino all'angolo, come fa `sphereFromBounds`. Entrambi i cicli vivono in `packages/sdk-core/src/math/batch/culling.ts`."
+    },
+    "boxUnionBatch": {
+      "description": "`into` ampliato con `n` box, oppure con `n` box ciascuno trasformato prima dalla propria matrice — un unico passaggio, un box di lavoro, senza allocazione. Entrambi ripetono `boxUnion`, il secondo `boxTransform` prima: i limiti del mondo di un'intera scena in un'unica chiamata."
+    },
+    "invertMatrix4Batch": {
+      "description": "`n` inverse, `n` matrici di normali da `NORMAL_MATRIX_VALUES` numeri, `n` composizioni `T · R · S`, `n` scomposizioni. Una matrice con determinante nullo viene invertita nell'identità e marcata in `singular[i]` — mai un errore a metà di un batch. `composeMatrix4Batch` prende tutto piatto o tutto come sottoviste e fissa la forma prima del ciclo. I quattro cicli vivono in `packages/sdk-core/src/math/batch/transforms.ts`."
+    },
+    "transformPointsBatch": {
+      "description": "`n` punti di tre numeri tramite una matrice affine, o una matrice per punto; `n` direzioni tramite il blocco 3×3 superiore, poi normalizzate, traslazione ignorata. Ripetono `transformAffinePoint` e `transformDirectionVector3`."
+    },
+    "srgbToLinearBatch": {
+      "description": "Un canale per elemento, le curve esatte di `packages/sdk-core/src/math/primitives/color.ts`: il riferimento moltiplica per costanti arrotondate, e lo scarto — invisibile a 8 bit — viene limitato una volta, nel banco che li confronta."
+    }
+  },
+  "canvas": {
+    "phrases": {
+      "kept": "conservato",
+      "rejected": "respinto",
+      "note": "nota",
+      "yes": "sì",
+      "no": "no",
+      "scale": "scala",
+      "length": "lunghezza",
+      "radius": "raggio",
+      "determinant": "determinante",
+      "determinant 1": "determinante 1",
+      "near": "vicino",
+      "far": "lontano",
+      "beauty": "beauty",
+      "wireframe": "wireframe",
+      "clusters": "cluster",
+      "lod": "lod",
+      "screen-error": "errore sullo schermo",
+      "materials": "materiali",
+      "visibility": "visibilità",
+      "pages": "pagine",
+      "texture-mip": "mip di texture",
+      "overdraw": "overdraw",
+      "high": "alto",
+      "balanced": "bilanciato",
+      "adaptive": "adattivo",
+      "switches": "cambi",
+      "arbitration": "decisione",
+      "box 0": "box 0",
+      "box 1": "box 1",
+      "box 2": "box 2",
+      "box 3": "box 3",
+      "what the engine returns": "ciò che restituisce il motore",
+      "what the arrays hold": "ciò che contengono gli array",
+      "what the test read": "ciò che ha letto il test",
+      "what those numbers are": "cosa sono quei numeri",
+      "what the two determinants say": "cosa dicono i due determinanti",
+      "the matrix under test": "la matrice testata",
+      "the six planes it rewrote": "i sei piani che ha riscritto",
+      "the six normalised planes (a, b, c, d)": "i sei piani normalizzati (a, b, c, d)",
+      "the buffer": "il buffer",
+      "the zero vector": "il vettore zero",
+      "in place": "sul posto",
+      "the curve, both ways": "la curva, in entrambi i sensi",
+      "the same value, encoded and linear": "lo stesso valore, codificato e lineare",
+      "the same point, both ways": "lo stesso punto, nei due modi",
+      "the point before and after, from above": "il punto prima e dopo, dall'alto",
+      "from above": "dall'alto",
+      "camera speed (m/s)": "velocità della camera (m/s)",
+      "field of view (°)": "campo visivo (°)",
+      "near plane": "piano vicino",
+      "aspect ratio": "rapporto d'aspetto",
+      "declared far plane": "piano lontano dichiarato",
+      "camera heading (rad)": "direzione della camera (rad)",
+      "distance of the scene from the origin (m)": "distanza della scena dall'origine (m)",
+      "rotation of the matrix (rad)": "rotazione della matrice (rad)",
+      "scale of the matrix": "scala della matrice",
+      "uniform scale": "scala uniforme",
+      "rotation (rad)": "rotazione (rad)",
+      "translation x": "traslazione x",
+      "destination offset (matrices)": "offset di destinazione (matrici)",
+      "turn of the basis (rad)": "rotazione della base (rad)",
+      "encoded sRGB value": "valore sRGB codificato",
+      "hue": "tonalità",
+      "saturation": "saturazione",
+      "lightness": "luminosità",
+      "scalar": "scalare",
+      "nodes in the batch": "nodi nel batch",
+      "products in the batch": "prodotti nel batch",
+      "boxes in the batch": "box nel batch",
+      "boxes tested": "box testati",
+      "kept by the frustum": "conservati dal frustum",
+      "rejected by the frustum": "respinti dal frustum",
+      "behind the camera, by construction": "dietro la camera, per costruzione",
+      "first survivor, view-space z": "primo sopravvissuto, z nello spazio vista",
+      "cull, then transform the survivors: two calls, no allocation between them": "selezionare, poi trasformare i sopravvissuti: due chiamate, nessuna allocazione tra di esse",
+      "root position x": "posizione x della radice",
+      "root rotation (rad)": "rotazione della radice (rad)",
+      "target x": "obiettivo x",
+      "target z": "obiettivo z",
+      "second box, x": "secondo box, x",
+      "second box, z": "secondo box, z",
+      "cone half-angle (rad)": "semiangolo del cono (rad)",
+      "cone axis, heading (rad)": "asse del cono, direzione (rad)",
+      "viewer distance": "distanza dell'osservatore",
+      "JS nanoseconds per element": "nanosecondi JS per elemento",
+      "Wasm nanoseconds per element": "nanosecondi Wasm per elemento",
+      "executions observed": "esecuzioni osservate",
+      "contract version": "versione del contratto",
+      "path chosen": "percorso scelto",
+      "not decided yet": "non ancora deciso",
+      "read and never written": "letto e mai scritto",
+      "the constant itself, read from the engine": "la costante stessa, letta dal motore",
+      "reversed depth, infinite far plane": "profondità invertita, piano lontano infinito",
+      "the constants the engine writes": "le costanti che scrive il motore",
+      "the translation, written into a single-precision buffer": "la traslazione, scritta in un buffer a precisione singola",
+      "world matrix, rounded as-is": "matrice del mondo, arrotondata così com'è",
+      "error carried into the image": "errore trasportato nell'immagine",
+      "nodes served": "nodi serviti",
+      "root world position": "posizione del mondo della radice",
+      "after the first update": "dopo il primo aggiornamento",
+      "root moved, nothing updated yet": "radice spostata, nulla ancora aggiornato",
+      "its forward direction": "la sua direzione in avanti",
+      "under the root": "sotto la radice",
+      "reparented to the world": "riassegnato al mondo",
+      "allocations during the call": "allocazioni durante la chiamata",
+      "largest difference on the last element": "differenza maggiore sull'ultimo elemento",
+      "this frame": "questo fotogramma",
+      "a box beyond the declared far plane": "un box oltre il piano lontano dichiarato",
+      "a box three metres ahead": "un box tre metri più avanti",
+      "B · A — the product does not commute": "B · A — il prodotto non commuta",
+      "a pose written is a pose marked; the update decides whom to visit": "una posa scritta è una posa marcata; l'aggiornamento decide chi visitare",
+      "a still view keeps the base; a moving view may coarsen": "una vista ferma conserva la base; una vista in movimento può ingrossare",
+      "a viewer turned toward the target": "un osservatore rivolto verso l'obiettivo",
+      "angle between them": "angolo tra loro",
+      "height of a": "altezza di a",
+      "point x": "punto x",
+      "point z": "punto z",
+      "lower bounds": "limiti inferiori",
+      "upper bounds": "limiti superiori",
+      "cone axis": "asse del cono",
+      "half-angle": "semiangolo",
+      "encoded for the screen": "codificato per lo schermo",
+      "linear rgb": "rgb lineare",
+      "linearToSrgb of that": "linearToSrgb di questo",
+      "boxUnion of the unit box and the one you move": "boxUnion del box unitario e di quello che sposti",
+      "sphereFromBounds of that union": "sphereFromBounds di quell'unione",
+      "the unit box carried by that matrix": "il box unitario trasportato da quella matrice",
+      "the union of the eight transformed corners, never the eight of the result": "l'unione degli otto angoli trasformati, mai gli otto del risultato",
+      "one buffer holds many matrices; no view is sliced per frame": "un buffer contiene molte matrici; nessuna vista viene affettata per fotogramma",
+      "one chain of nodes, parents before children, in one call": "una catena di nodi, genitori prima dei figli, in un'unica chiamata",
+      "none: the buffers are the caller’s": "nessuna: i buffer sono del chiamante",
+      "the unit function stays the oracle; the WebAssembly kernel repeats it term by term": "la funzione unitaria resta l'oracolo; il kernel WebAssembly la ripete termine per termine",
+      "the governor, after those executions": "il regolatore, dopo quelle esecuzioni",
+      "the kernel leads by enough, for long enough, to be worth the switch": "il kernel è in vantaggio abbastanza, per abbastanza tempo, da rendere utile il cambio",
+      "the reads of one node": "le letture di un nodo",
+      "the sign alone decides, with no square root: the exact clip test": "il segno da solo decide, senza radice quadrata: il test di ritaglio esatto",
+      "the subtraction happens in double; only the write rounds": "la sottrazione avviene in doppia precisione; solo la scrittura arrotonda",
+      "the curve over the whole range": "la curva su tutto l'intervallo",
+      "m · m⁻¹ — the identity, up to the last bits": "m · m⁻¹ — l'identità, fino agli ultimi bit",
+      "round-trip error": "errore di andata e ritorno",
+      "non-zero values": "valori diversi da zero",
+      "positive: the draw keeps its front faces": "positivo: il disegno conserva le sue facce anteriori",
+      "kept: the cone may still face the viewer": "conservato: il cono può ancora guardare l'osservatore",
+      "rejected — the projection has no far plane, the frustum keeps the one the host declared": "respinto — la proiezione non ha piano lontano, il frustum conserva quello dichiarato dall'host",
+      "threshold at this speed": "soglia a questa velocità",
+      "translation x of A": "traslazione x di A",
+      "the same (1, 2, 3), three ways": "lo stesso (1, 2, 3), in tre modi",
+      "composeMatrix4(out, position, quaternion, scale)": "composeMatrix4(out, position, quaternion, scale)",
+      "column-major; the translation is [12..14]": "colonna per colonna; la traslazione è [12..14]",
+      "scale of B": "scala di B",
+      "normalMatrix3(out, m) — nine numbers, column-major": "normalMatrix3(out, m) — nove numeri, colonna per colonna",
+      "the engine's singularity rule": "la regola di singolarità del motore",
+      "regular: the inverse-transpose, at the reference bits": "regolare: l'inversa-trasposta, ai bit di riferimento",
+      "uniformScaleMatrix4(out, s, center) — the centre stays put": "uniformScaleMatrix4(out, s, center) — il centro resta fermo",
+      "a and b, seen from above (x to the right, z down)": "a e b, visti dall'alto (x a destra, z in basso)",
+      "its length": "la sua lunghezza",
+      "a, b and their cross product, from above": "a, b e il loro prodotto vettoriale, dall'alto",
+      "Math.sqrt of it — the reference length, bit for bit": "Math.sqrt di questo — la lunghezza di riferimento, bit per bit",
+      "length of the normalised vector": "lunghezza del vettore normalizzato",
+      "all three at zero: nothing changes — the divisor is `length || 1`": "tutti e tre a zero: nulla cambia — il divisore è `length || 1`",
+      "addScaledVector3(out, a, s) onto (1, 1, 1)": "addScaledVector3(out, a, s) su (1, 1, 1)",
+      "transformDirectionVector3 — normalised, translation ignored": "transformDirectionVector3 — normalizzato, traslazione ignorata",
+      "applyMatrix3Vector3 on the 3×3 block — not normalised": "applyMatrix3Vector3 sul blocco 3×3 — non normalizzato",
+      "the world from above, each box coloured by what the engine decided": "il mondo dall'alto, ogni box colorato secondo ciò che ha deciso il motore",
+      "frustumClipBox — 0 outside, 1 straddling, 2 entirely inside": "frustumClipBox — 0 fuori, 1 a cavallo, 2 interamente dentro",
+      "clipPlanesFromMatrix — the same planes, unnormalised": "clipPlanesFromMatrix — gli stessi piani, non normalizzati",
+      "the tree from above: the root and its children, after one update": "l'albero dall'alto: la radice e i suoi figli, dopo un aggiornamento",
+      "the child, before and after the root moves": "il figlio, prima e dopo che la radice si muove",
+      "the child, attached then detached": "il figlio, collegato e poi scollegato",
+      "matrices do not move until the next update, like the reference `add`": "le matrici non si muovono fino al prossimo aggiornamento, come l'`add` di riferimento",
+      "the batch against the unit function it repeats": "il batch contro la funzione unitaria che ripete",
+      "frame.view — the inverse of the camera world matrix": "frame.view — l'inversa della matrice del mondo della camera",
+      "DIAGNOSTICS — the engine says which modes it can produce, and why not": "DIAGNOSTICS — il motore dice quali modalità può produrre, e perché no",
+      "LOD_QUALITY, as the engine holds it": "LOD_QUALITY, così come lo mantiene il motore",
+      "near 1, clear 0": "vicino 1, chiaro 0",
+      "negative: the transform mirrors, and the draw swaps front and back": "negativo: la trasformazione specchia, e il disegno scambia davanti e dietro",
+      "null — the adjugate itself is replaced by zero": "null — l'aggiunta stessa viene sostituita da zero",
+      "singular: the adjugate as-is, so the flattened surface keeps a normal": "singolare: l'aggiunta così com'è, così la superficie appiattita conserva una normale",
+      "no finite scale: nine zeros": "nessuna scala finita: nove zeri",
+      "rejected: every normal of that cluster faces away from the viewer": "respinto: ogni normale di quel cluster è rivolta lontano dall'osservatore",
+      "JS keeps the work: under five samples, or the lead is not a burst": "JS mantiene il lavoro: sotto le cinque campioni, o il vantaggio non è una serie",
+      "nodeWorldDirection (object, +z)": "nodeWorldDirection (oggetto, +z)",
+      "nodeWorldDirection (viewer, −z)": "nodeWorldDirection (osservatore, −z)",
+      "root": "radice",
+      "forward": "avanti",
+      "the colour": "il colore",
+      "4 of 4 boxes survive the six planes": "4 box su 4 sopravvivono ai sei piani",
+      "Adaptive mode — pixelError 2, anisotropy source, adaptive": "Modalità adattiva — pixelError 2, anisotropia di origine, adattiva",
+      "Balanced quality — pixelError 4, anisotropy source": "Qualità bilanciata — pixelError 4, anisotropia di origine",
+      "High quality — pixelError 1, anisotropy maximum": "Alta qualità — pixelError 1, anisotropia massima",
+      "Maximum source detail — pixelError 0, anisotropy source": "Massimo dettaglio di origine — pixelError 0, anisotropia di origine",
+      "COLUMN_KIND — every column of the binary manifest, by storage": "COLUMN_KIND — ogni colonna del manifest binario, per archiviazione",
+      "adaptivePixelError(base, speed, radius) on the adaptive preset": "adaptivePixelError(base, speed, radius) sul preset adattivo",
+      "an angle at or above π/2 never rejects": "un angolo pari o superiore a π/2 non respinge mai",
+      "after updateNodeMatrixWorld(tree, root)": "dopo updateNodeMatrixWorld(tree, root)",
+      "available — Attached index pages; missing pages are not drawn; not physical VRAM": "disponibile — pagine di indice collegate; le pagine mancanti non vengono disegnate; non è VRAM fisica",
+      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "disponibile — colore unico e pieno per triangolo inviato, non wireframe GL_LINES",
+      "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "disponibile — cluster di livello 0 rispetto alle riduzioni del DAG più grossolane effettivamente selezionate in questo fotogramma",
+      "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "disponibile — errore sullo schermo per cluster proiettato attraverso la sfera del cluster, così come lo usa il taglio",
+      "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "disponibile — pagine visibili selezionate; i nodi di gerarchia respinti vengono contati, non disegnati",
+      "available — Stable primitive/page ID, exact-cluster backend only": "disponibile — ID stabile di primitiva/pagina, solo backend a cluster esatto",
+      "available — glTF materials": "disponibile — materiali glTF",
+      "unavailable — No fragment counter": "non disponibile — nessun contatore di frammenti",
+      "unavailable — Texture mip residency not instrumented": "non disponibile — residenza dei mip delle texture non strumentata",
+      "child 0 world position": "posizione del mondo del figlio 0",
+      "child 1 world position": "posizione del mondo del figlio 1",
+      "child 2 world position": "posizione del mondo del figlio 2",
+      "column 0": "colonna 0",
+      "column 1": "colonna 1",
+      "column 2": "colonna 2",
+      "out = a, aliased": "out = a, con alias",
+      "clock resolution the measurement rests on (ms)": "risoluzione dell'orologio su cui riposa la misurazione (ms)",
+      "decomposeMatrix4 of that matrix — the round trip": "decomposeMatrix4 di quella matrice — l'andata e ritorno",
+      "depth against distance: it falls from 1 at the near plane toward 0 at infinity": "profondità rispetto alla distanza: scende da 1 al piano vicino verso 0 all'infinito",
+      "depth at the near plane (0.1 m)": "profondità al piano vicino (0,1 m)",
+      "depth at 1 m": "profondità a 1 m",
+      "depth at 10 m": "profondità a 10 m",
+      "depth at 100 m": "profondità a 100 m",
+      "depth at 1000 m": "profondità a 1000 m",
+      "depth at 100000 m": "profondità a 100000 m",
+      "direction of a (rad)": "direzione di a (rad)",
+      "direction of b (rad)": "direzione di b (rad)",
+      "radius of what is on screen (m)": "raggio di ciò che è sullo schermo (m)",
+      "rotation about y (rad)": "rotazione attorno a y (rad)",
+      "rotation of A (rad)": "rotazione di A (rad)",
+      "the direction (1, 0, 0) under that matrix": "la direzione (1, 0, 0) sotto quella matrice",
+      "the identity written at offset 16 of one large buffer": "l'identità scritta all'offset 16 di un grande buffer",
+      "x of the last node — the sum 0 + 1 + … + (n − 1)": "x dell'ultimo nodo — la somma 0 + 1 + … + (n − 1)",
+      "transformHomogeneousPoint — four components": "transformHomogeneousPoint — quattro componenti",
+      "matrixAtRenderOrigin — the same matrix, applied at the origin": "matrixAtRenderOrigin — la stessa matrice, applicata all'origine",
+      "viewToRenderOrigin — the view without its translation": "viewToRenderOrigin — la vista senza la sua traslazione",
+      "worldToRenderOrigin, subtracted first": "worldToRenderOrigin, sottratta per prima",
+      "before": "prima",
+      "after": "dopo",
+      "left": "sinistra",
+      "right": "destra",
+      "top": "sopra",
+      "bottom": "sotto",
+      "centre": "centro",
+      "surface": "superficie",
+      "target": "obiettivo",
+      "viewer": "osservatore",
+      "expected": "previsto",
+      "orientation": "orientamento",
+      "products": "prodotti",
+      "nodes": "nodi"
+    },
+    "patterns": {
+      "singular": "determinante {{value}}: sedici zeri, come il riferimento — testa il determinante, mai l'uscita"
+    }
+  }
+}
