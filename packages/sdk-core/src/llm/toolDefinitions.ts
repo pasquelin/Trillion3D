@@ -9,7 +9,7 @@ import type {
 import { TRILLION3D_RUNTIME_TOOLS } from './runtimeToolsSchema.ts';
 
 /**
- * Converts a generic trillion3D tool into OpenAI Function Calling format.
+ * Converts a generic Trillion3D tool into OpenAI Function Calling format.
  */
 export function toOpenAiTool(tool: Trillion3dTool): OpenAiToolDefinition {
   return {
@@ -23,7 +23,7 @@ export function toOpenAiTool(tool: Trillion3dTool): OpenAiToolDefinition {
 }
 
 /**
- * Converts a generic trillion3D tool into Anthropic Tool Use format.
+ * Converts a generic Trillion3D tool into Anthropic Tool Use format.
  */
 export function toAnthropicTool(tool: Trillion3dTool): AnthropicToolDefinition {
   return {
@@ -34,7 +34,7 @@ export function toAnthropicTool(tool: Trillion3dTool): AnthropicToolDefinition {
 }
 
 /**
- * Converts a generic trillion3D tool into Google Gemini Function Declaration format.
+ * Converts a generic Trillion3D tool into Google Gemini Function Declaration format.
  */
 export function toGeminiTool(tool: Trillion3dTool): GeminiFunctionDeclaration {
   return {
@@ -45,7 +45,7 @@ export function toGeminiTool(tool: Trillion3dTool): GeminiFunctionDeclaration {
 }
 
 /**
- * Converts a generic trillion3D tool into Model Context Protocol (MCP) format.
+ * Converts a generic Trillion3D tool into Model Context Protocol (MCP) format.
  */
 export function toMcpTool(tool: Trillion3dTool): McpToolDefinition {
   return {
@@ -56,7 +56,7 @@ export function toMcpTool(tool: Trillion3dTool): McpToolDefinition {
 }
 
 /**
- * Returns the complete array of trillion3D tool definitions formatted for the target LLM provider.
+ * Returns the complete array of Trillion3D tool definitions formatted for the target LLM provider.
  *
  * @param format Target format ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Default: 'openai'.
  */

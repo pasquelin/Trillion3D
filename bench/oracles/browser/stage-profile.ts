@@ -6,18 +6,18 @@ import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
 import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts';
 
 const ETAPE_DE: Record<string, string> = {
-  'WG DAG selection': 'selection',
-  'WG partition': 'partition',
-  'WG draw compaction': 'selection',
-  'WG HiZ pyramid': 'hiZ',
-  'WG material surfaces v1': 'geometry',
-  'WG shadow atlas v1': 'shadows',
-  'WG shadow cull': 'shadows',
-  'WG light tiles v1': 'lightLists',
-  'WG bounce probes v1': 'bounce',
-  'WG bounce surface cache v1': 'bounce',
-  'WG deferred lighting': 'lighting',
-  'WG HDR composition + present': 'present',
+  'Trillion3D DAG selection': 'selection',
+  'Trillion3D partition': 'partition',
+  'Trillion3D draw compaction': 'selection',
+  'Trillion3D HiZ pyramid': 'hiZ',
+  'Trillion3D material surfaces v1': 'geometry',
+  'Trillion3D shadow atlas v1': 'shadows',
+  'Trillion3D shadow cull': 'shadows',
+  'Trillion3D light tiles v1': 'lightLists',
+  'Trillion3D bounce probes v1': 'bounce',
+  'Trillion3D bounce surface cache v1': 'bounce',
+  'Trillion3D deferred lighting': 'lighting',
+  'Trillion3D HDR composition + present': 'present',
 };
 
 export function referenceAddCpuSteps(

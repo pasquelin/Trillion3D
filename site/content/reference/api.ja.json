@@ -841,7 +841,7 @@
     "summary": "診断チャンネルが報告する各事項を受け取る関数。"
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "trillion3Dエクスプローラー(MeasuredWorldOptions)のすべての初期化オプションを記述する、包括的なJSON Schema。",
+    "summary": "Trillion3Dエクスプローラー(MeasuredWorldOptions)のすべての初期化オプションを記述する、包括的なJSON Schema。",
     "description": "LLMが3Dエンジンの設定を理解し、検証し、調整できるようにする。"
   },
   "EngineCamera": {
@@ -3826,13 +3826,13 @@
     }
   },
   "TRILLION3D_RUNTIME_TOOLS": {
-    "summary": "LLMからtrillion3Dを制御するために利用できる、ツールとランタイム関数の完全なカタログ。"
+    "summary": "LLMからTrillion3Dを制御するために利用できる、ツールとランタイム関数の完全なカタログ。"
   },
   "TRILLION3D_SYSTEM_PROMPT": {
-    "summary": "trillion3Dの原則、予算、描画オプションについてLLMを導くシステムプロンプト。"
+    "summary": "Trillion3Dの原則、予算、描画オプションについてLLMを導くシステムプロンプト。"
   },
   "Trillion3dTool": {
-    "summary": "LLM向けの、汎用的なtrillion3Dツール定義。",
+    "summary": "LLM向けの、汎用的なTrillion3Dツール定義。",
     "members": {
       "name": "ツールの名前。",
       "description": "その役割。",
@@ -5072,7 +5072,7 @@
     "summary": "LLMを準備するための、すぐに使えるエキスパートシステムプロンプトを生成する。"
   },
   "getTrillion3dTools": {
-    "summary": "対象のLLMプロバイダー向けにフォーマットされた、trillion3Dツール定義の完全な配列を返す。",
+    "summary": "対象のLLMプロバイダー向けにフォーマットされた、Trillion3Dツール定義の完全な配列を返す。",
     "parameters": {
       "format": "対象フォーマット('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema')。デフォルト: 'openai'。"
     }
@@ -6535,16 +6535,16 @@
     "description": "このテンプレートはコンパイラに由来し、エンジンはキャッシュのレイアウトを知らない; ページと同じく、真実は1つだけだ。4つのフィールドを持たないテンプレートは拒否される: それらとともに変わらないアドレスは、すべてのテクスチャに同じ画像を提供してしまうことになる。"
   },
   "toAnthropicTool": {
-    "summary": "汎用のtrillion3Dツールを、Anthropic Tool Use形式に変換する。"
+    "summary": "汎用のTrillion3Dツールを、Anthropic Tool Use形式に変換する。"
   },
   "toGeminiTool": {
-    "summary": "汎用のtrillion3Dツールを、Google Gemini Function Declaration形式に変換する。"
+    "summary": "汎用のTrillion3Dツールを、Google Gemini Function Declaration形式に変換する。"
   },
   "toMcpTool": {
-    "summary": "汎用のtrillion3Dツールを、Model Context Protocol(MCP)形式に変換する。"
+    "summary": "汎用のTrillion3Dツールを、Model Context Protocol(MCP)形式に変換する。"
   },
   "toOpenAiTool": {
-    "summary": "汎用のtrillion3Dツールを、OpenAI Function Calling形式に変換する。"
+    "summary": "汎用のTrillion3Dツールを、OpenAI Function Calling形式に変換する。"
   },
   "toneMapping": {
     "summary": "シーンの放射輝度を表示範囲にもたらすカーブ: エンジンが順位づけるすべてのカーブ。"

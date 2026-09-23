@@ -24,7 +24,7 @@ export function logFrameCostAudit(backend: string, context: Record<string, unkno
   if (!frameCostAuditEnabled()) return;
   queueMicrotask(() => {
     try {
-      console.info('[WG frame audit]', JSON.stringify({ backend, ...context }));
+      console.info('[Trillion3D frame audit]', JSON.stringify({ backend, ...context }));
     } catch {
       // An observer must never interrupt the render.
     }

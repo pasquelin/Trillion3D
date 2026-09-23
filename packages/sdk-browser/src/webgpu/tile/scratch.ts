@@ -29,7 +29,7 @@ export function createTileScratch(
 ): TileScratch {
   const { width, height, format, rgba } = options;
   const texture = device.createTexture({
-    label: 'WG texture scratch',
+    label: 'Trillion3D texture scratch',
     size: { width, height, depthOrArrayLayers: 1 },
     format,
     mipLevelCount: mipLevelCountFor(width, height),

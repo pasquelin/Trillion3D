@@ -314,7 +314,7 @@
             },
             "passes": [
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 85.29176486666667,
@@ -325,7 +325,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 85.03710924050635,
@@ -336,7 +336,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 10.912310225,
@@ -347,7 +347,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 7.302587608333331,
@@ -358,7 +358,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 6.950296700000001,
@@ -369,7 +369,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 5.956481349999995,
@@ -380,7 +380,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 4.409728575000002,
@@ -391,7 +391,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 2.520452891666666,
@@ -402,7 +402,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.6197575443037975,
@@ -413,7 +413,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 2.0656871999999997,
@@ -424,7 +424,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.9617818916666665,
@@ -435,7 +435,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.3718825166666665,
@@ -446,7 +446,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.23256168333333332,
@@ -457,7 +457,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.4532989333333334,
@@ -468,7 +468,7 @@
                 }
               },
               {
-                "name": "WG texture feedback reduce",
+                "name": "Trillion3D texture feedback reduce",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.3218491916666667,
@@ -749,64 +749,64 @@
             "gpuSelectionFallback": true,
             "gpuAllocatedBytes": 3996163704,
             "gpuAllocatedByLabel": {
-              "WG transparent geometry": 818546496,
+              "Trillion3D transparent geometry": 818546496,
               "sans étiquette": 621247168,
-              "WG page table": 549815808,
-              "WG partition corners v1": 412361856,
-              "WG texture pool color": 266342400,
-              "WG texture pool data": 266342400,
-              "WG shadow kept clusters v1": 206180928,
-              "WG positions": 204636624,
-              "WG geometry page cache": 127701504,
-              "WG partition tested bounds v1": 103090464,
-              "WG surface v1 rgba16float": 84105216,
-              "WG partition rows v1": 68726976,
-              "WG shadow depth atlas v1": 67108864,
-              "WG cluster spheres v1": 34363488,
-              "WG HDR lighting": 28035072,
-              "WG TAA history 0": 28035072,
-              "WG TAA history 1": 28035072,
-              "WG display color": 14017536,
-              "WG opaque depth": 14017536,
-              "WG texture feedback target": 14017536,
-              "WG surface v1 r32uint": 14017536,
-              "WG visibility": 14017536,
-              "WG resident proxy v2": 6248568,
-              "WG light tiles v1": 3734016,
-              "WG TAA placement motion v1": 720832,
-              "WG bounce proxy albedo v2": 580024,
-              "WG shadow slices v1": 31744,
-              "WG partition state v1": 16448,
-              "WG partition counts readback": 16448,
-              "WG shadow faces v1": 6144,
-              "WG shadow draw slots v1": 6144,
-              "WG texture feedback": 5792,
-              "WG texture feedback readback 0": 5792,
-              "WG texture feedback readback 1": 5792,
-              "WG texture pages data": 4756,
-              "WG direct lights v1": 4112,
-              "WG timestamp resolve": 4096,
-              "WG timestamp readback": 4096,
-              "WG texture pages color": 2188,
-              "WG shadow face volumes v1": 768,
-              "WG empty shadow slices": 496,
-              "WG shadow indirect v1": 384,
-              "WG partition uniform v1": 320,
-              "WG empty light tiles": 256,
-              "WG transmissive volumes": 256,
-              "WG TAA view v1": 208,
-              "WG rest last survivor": 192,
-              "WG empty bounce grid": 176,
-              "WG empty bounce probes": 176,
-              "WG deferred view v1": 128,
-              "WG light tile view v1": 112,
-              "WG empty resident proxy": 64,
-              "WG HiZ idle bounds v1": 48,
-              "WG texture feedback reduce uniform": 16,
-              "WG backdrop color": 8,
-              "WG sun far shadow counts readback": 8,
-              "WG empty shadow atlas": 4,
-              "WG backdrop depth": 4
+              "Trillion3D page table": 549815808,
+              "Trillion3D partition corners v1": 412361856,
+              "Trillion3D texture pool color": 266342400,
+              "Trillion3D texture pool data": 266342400,
+              "Trillion3D shadow kept clusters v1": 206180928,
+              "Trillion3D positions": 204636624,
+              "Trillion3D geometry page cache": 127701504,
+              "Trillion3D partition tested bounds v1": 103090464,
+              "Trillion3D surface v1 rgba16float": 84105216,
+              "Trillion3D partition rows v1": 68726976,
+              "Trillion3D shadow depth atlas v1": 67108864,
+              "Trillion3D cluster spheres v1": 34363488,
+              "Trillion3D HDR lighting": 28035072,
+              "Trillion3D TAA history 0": 28035072,
+              "Trillion3D TAA history 1": 28035072,
+              "Trillion3D display color": 14017536,
+              "Trillion3D opaque depth": 14017536,
+              "Trillion3D texture feedback target": 14017536,
+              "Trillion3D surface v1 r32uint": 14017536,
+              "Trillion3D visibility": 14017536,
+              "Trillion3D resident proxy v2": 6248568,
+              "Trillion3D light tiles v1": 3734016,
+              "Trillion3D TAA placement motion v1": 720832,
+              "Trillion3D bounce proxy albedo v2": 580024,
+              "Trillion3D shadow slices v1": 31744,
+              "Trillion3D partition state v1": 16448,
+              "Trillion3D partition counts readback": 16448,
+              "Trillion3D shadow faces v1": 6144,
+              "Trillion3D shadow draw slots v1": 6144,
+              "Trillion3D texture feedback": 5792,
+              "Trillion3D texture feedback readback 0": 5792,
+              "Trillion3D texture feedback readback 1": 5792,
+              "Trillion3D texture pages data": 4756,
+              "Trillion3D direct lights v1": 4112,
+              "Trillion3D timestamp resolve": 4096,
+              "Trillion3D timestamp readback": 4096,
+              "Trillion3D texture pages color": 2188,
+              "Trillion3D shadow face volumes v1": 768,
+              "Trillion3D empty shadow slices": 496,
+              "Trillion3D shadow indirect v1": 384,
+              "Trillion3D partition uniform v1": 320,
+              "Trillion3D empty light tiles": 256,
+              "Trillion3D transmissive volumes": 256,
+              "Trillion3D TAA view v1": 208,
+              "Trillion3D rest last survivor": 192,
+              "Trillion3D empty bounce grid": 176,
+              "Trillion3D empty bounce probes": 176,
+              "Trillion3D deferred view v1": 128,
+              "Trillion3D light tile view v1": 112,
+              "Trillion3D empty resident proxy": 64,
+              "Trillion3D HiZ idle bounds v1": 48,
+              "Trillion3D texture feedback reduce uniform": 16,
+              "Trillion3D backdrop color": 8,
+              "Trillion3D sun far shadow counts readback": 8,
+              "Trillion3D empty shadow atlas": 4,
+              "Trillion3D backdrop depth": 4
             },
             "gpuAllocationsUnknownFormat": 0,
             "gpuFrameTargetBytes": 289697552,
@@ -1187,7 +1187,7 @@
             },
             "passes": [
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 85.17023353164555,
@@ -1198,7 +1198,7 @@
                 }
               },
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 86.30996118333333,
@@ -1209,7 +1209,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 11.250731524999999,
@@ -1220,7 +1220,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 7.121828075000004,
@@ -1231,7 +1231,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 6.84535575,
@@ -1242,7 +1242,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 5.916824574999997,
@@ -1253,7 +1253,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 4.594250724999998,
@@ -1264,7 +1264,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 2.7267906916666673,
@@ -1275,7 +1275,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.6236138734177217,
@@ -1286,7 +1286,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 2.0563887666666654,
@@ -1297,7 +1297,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.8771293250000003,
@@ -1308,7 +1308,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.37681644999999997,
@@ -1319,7 +1319,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.23144130833333346,
@@ -1330,7 +1330,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.42035053333333333,
@@ -1341,7 +1341,7 @@
                 }
               },
               {
-                "name": "WG texture feedback reduce",
+                "name": "Trillion3D texture feedback reduce",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.25263570833333326,
@@ -1622,64 +1622,64 @@
             "gpuSelectionFallback": true,
             "gpuAllocatedBytes": 3996163704,
             "gpuAllocatedByLabel": {
-              "WG transparent geometry": 818546496,
+              "Trillion3D transparent geometry": 818546496,
               "sans étiquette": 621247168,
-              "WG page table": 549815808,
-              "WG partition corners v1": 412361856,
-              "WG texture pool color": 266342400,
-              "WG texture pool data": 266342400,
-              "WG shadow kept clusters v1": 206180928,
-              "WG positions": 204636624,
-              "WG geometry page cache": 127701504,
-              "WG partition tested bounds v1": 103090464,
-              "WG surface v1 rgba16float": 84105216,
-              "WG partition rows v1": 68726976,
-              "WG shadow depth atlas v1": 67108864,
-              "WG cluster spheres v1": 34363488,
-              "WG HDR lighting": 28035072,
-              "WG TAA history 0": 28035072,
-              "WG TAA history 1": 28035072,
-              "WG display color": 14017536,
-              "WG opaque depth": 14017536,
-              "WG texture feedback target": 14017536,
-              "WG surface v1 r32uint": 14017536,
-              "WG visibility": 14017536,
-              "WG resident proxy v2": 6248568,
-              "WG light tiles v1": 3734016,
-              "WG TAA placement motion v1": 720832,
-              "WG bounce proxy albedo v2": 580024,
-              "WG shadow slices v1": 31744,
-              "WG partition state v1": 16448,
-              "WG partition counts readback": 16448,
-              "WG shadow faces v1": 6144,
-              "WG shadow draw slots v1": 6144,
-              "WG texture feedback": 5792,
-              "WG texture feedback readback 0": 5792,
-              "WG texture feedback readback 1": 5792,
-              "WG texture pages data": 4756,
-              "WG direct lights v1": 4112,
-              "WG timestamp resolve": 4096,
-              "WG timestamp readback": 4096,
-              "WG texture pages color": 2188,
-              "WG shadow face volumes v1": 768,
-              "WG empty shadow slices": 496,
-              "WG shadow indirect v1": 384,
-              "WG partition uniform v1": 320,
-              "WG empty light tiles": 256,
-              "WG transmissive volumes": 256,
-              "WG TAA view v1": 208,
-              "WG rest last survivor": 192,
-              "WG empty bounce grid": 176,
-              "WG empty bounce probes": 176,
-              "WG deferred view v1": 128,
-              "WG light tile view v1": 112,
-              "WG empty resident proxy": 64,
-              "WG HiZ idle bounds v1": 48,
-              "WG texture feedback reduce uniform": 16,
-              "WG backdrop color": 8,
-              "WG sun far shadow counts readback": 8,
-              "WG empty shadow atlas": 4,
-              "WG backdrop depth": 4
+              "Trillion3D page table": 549815808,
+              "Trillion3D partition corners v1": 412361856,
+              "Trillion3D texture pool color": 266342400,
+              "Trillion3D texture pool data": 266342400,
+              "Trillion3D shadow kept clusters v1": 206180928,
+              "Trillion3D positions": 204636624,
+              "Trillion3D geometry page cache": 127701504,
+              "Trillion3D partition tested bounds v1": 103090464,
+              "Trillion3D surface v1 rgba16float": 84105216,
+              "Trillion3D partition rows v1": 68726976,
+              "Trillion3D shadow depth atlas v1": 67108864,
+              "Trillion3D cluster spheres v1": 34363488,
+              "Trillion3D HDR lighting": 28035072,
+              "Trillion3D TAA history 0": 28035072,
+              "Trillion3D TAA history 1": 28035072,
+              "Trillion3D display color": 14017536,
+              "Trillion3D opaque depth": 14017536,
+              "Trillion3D texture feedback target": 14017536,
+              "Trillion3D surface v1 r32uint": 14017536,
+              "Trillion3D visibility": 14017536,
+              "Trillion3D resident proxy v2": 6248568,
+              "Trillion3D light tiles v1": 3734016,
+              "Trillion3D TAA placement motion v1": 720832,
+              "Trillion3D bounce proxy albedo v2": 580024,
+              "Trillion3D shadow slices v1": 31744,
+              "Trillion3D partition state v1": 16448,
+              "Trillion3D partition counts readback": 16448,
+              "Trillion3D shadow faces v1": 6144,
+              "Trillion3D shadow draw slots v1": 6144,
+              "Trillion3D texture feedback": 5792,
+              "Trillion3D texture feedback readback 0": 5792,
+              "Trillion3D texture feedback readback 1": 5792,
+              "Trillion3D texture pages data": 4756,
+              "Trillion3D direct lights v1": 4112,
+              "Trillion3D timestamp resolve": 4096,
+              "Trillion3D timestamp readback": 4096,
+              "Trillion3D texture pages color": 2188,
+              "Trillion3D shadow face volumes v1": 768,
+              "Trillion3D empty shadow slices": 496,
+              "Trillion3D shadow indirect v1": 384,
+              "Trillion3D partition uniform v1": 320,
+              "Trillion3D empty light tiles": 256,
+              "Trillion3D transmissive volumes": 256,
+              "Trillion3D TAA view v1": 208,
+              "Trillion3D rest last survivor": 192,
+              "Trillion3D empty bounce grid": 176,
+              "Trillion3D empty bounce probes": 176,
+              "Trillion3D deferred view v1": 128,
+              "Trillion3D light tile view v1": 112,
+              "Trillion3D empty resident proxy": 64,
+              "Trillion3D HiZ idle bounds v1": 48,
+              "Trillion3D texture feedback reduce uniform": 16,
+              "Trillion3D backdrop color": 8,
+              "Trillion3D sun far shadow counts readback": 8,
+              "Trillion3D empty shadow atlas": 4,
+              "Trillion3D backdrop depth": 4
             },
             "gpuAllocationsUnknownFormat": 0,
             "gpuFrameTargetBytes": 289697552,
@@ -1974,7 +1974,7 @@
             },
             "passes": [
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 35.284722316666674,
@@ -1985,7 +1985,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 33.343584462500004,
@@ -1996,7 +1996,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 9.969359791666665,
@@ -2007,7 +2007,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 9.281704891666665,
@@ -2018,7 +2018,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 7.898889533333335,
@@ -2029,7 +2029,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 4.357073816666666,
@@ -2040,7 +2040,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 3.9390878833333343,
@@ -2051,7 +2051,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.6632791250000003,
@@ -2062,7 +2062,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.2337762999999995,
@@ -2073,7 +2073,7 @@
                 }
               },
               {
-                "name": "WG texture feedback reduce",
+                "name": "Trillion3D texture feedback reduce",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.9232980166666668,
@@ -2084,7 +2084,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.4400759999999997,
@@ -2095,7 +2095,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.6190169583333334,
@@ -2106,7 +2106,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.6342012375000003,
@@ -2117,7 +2117,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.3158145333333333,
@@ -2128,7 +2128,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.10305020000000001,
@@ -2412,64 +2412,64 @@
             "gpuSelectionFallback": true,
             "gpuAllocatedBytes": 3995539832,
             "gpuAllocatedByLabel": {
-              "WG transparent geometry": 818546496,
+              "Trillion3D transparent geometry": 818546496,
               "sans étiquette": 620623296,
-              "WG page table": 549815808,
-              "WG partition corners v1": 412361856,
-              "WG texture pool color": 266342400,
-              "WG texture pool data": 266342400,
-              "WG shadow kept clusters v1": 206180928,
-              "WG positions": 204636624,
-              "WG geometry page cache": 127701504,
-              "WG partition tested bounds v1": 103090464,
-              "WG surface v1 rgba16float": 84105216,
-              "WG partition rows v1": 68726976,
-              "WG shadow depth atlas v1": 67108864,
-              "WG cluster spheres v1": 34363488,
-              "WG HDR lighting": 28035072,
-              "WG TAA history 0": 28035072,
-              "WG TAA history 1": 28035072,
-              "WG display color": 14017536,
-              "WG opaque depth": 14017536,
-              "WG texture feedback target": 14017536,
-              "WG surface v1 r32uint": 14017536,
-              "WG visibility": 14017536,
-              "WG resident proxy v2": 6248568,
-              "WG light tiles v1": 3734016,
-              "WG TAA placement motion v1": 720832,
-              "WG bounce proxy albedo v2": 580024,
-              "WG shadow slices v1": 31744,
-              "WG partition state v1": 16448,
-              "WG partition counts readback": 16448,
-              "WG shadow faces v1": 6144,
-              "WG shadow draw slots v1": 6144,
-              "WG texture feedback": 5792,
-              "WG texture feedback readback 0": 5792,
-              "WG texture feedback readback 1": 5792,
-              "WG texture pages data": 4756,
-              "WG direct lights v1": 4112,
-              "WG timestamp resolve": 4096,
-              "WG timestamp readback": 4096,
-              "WG texture pages color": 2188,
-              "WG shadow face volumes v1": 768,
-              "WG empty shadow slices": 496,
-              "WG shadow indirect v1": 384,
-              "WG partition uniform v1": 320,
-              "WG empty light tiles": 256,
-              "WG transmissive volumes": 256,
-              "WG TAA view v1": 208,
-              "WG rest last survivor": 192,
-              "WG empty bounce grid": 176,
-              "WG empty bounce probes": 176,
-              "WG deferred view v1": 128,
-              "WG light tile view v1": 112,
-              "WG empty resident proxy": 64,
-              "WG HiZ idle bounds v1": 48,
-              "WG texture feedback reduce uniform": 16,
-              "WG backdrop color": 8,
-              "WG sun far shadow counts readback": 8,
-              "WG empty shadow atlas": 4,
-              "WG backdrop depth": 4
+              "Trillion3D page table": 549815808,
+              "Trillion3D partition corners v1": 412361856,
+              "Trillion3D texture pool color": 266342400,
+              "Trillion3D texture pool data": 266342400,
+              "Trillion3D shadow kept clusters v1": 206180928,
+              "Trillion3D positions": 204636624,
+              "Trillion3D geometry page cache": 127701504,
+              "Trillion3D partition tested bounds v1": 103090464,
+              "Trillion3D surface v1 rgba16float": 84105216,
+              "Trillion3D partition rows v1": 68726976,
+              "Trillion3D shadow depth atlas v1": 67108864,
+              "Trillion3D cluster spheres v1": 34363488,
+              "Trillion3D HDR lighting": 28035072,
+              "Trillion3D TAA history 0": 28035072,
+              "Trillion3D TAA history 1": 28035072,
+              "Trillion3D display color": 14017536,
+              "Trillion3D opaque depth": 14017536,
+              "Trillion3D texture feedback target": 14017536,
+              "Trillion3D surface v1 r32uint": 14017536,
+              "Trillion3D visibility": 14017536,
+              "Trillion3D resident proxy v2": 6248568,
+              "Trillion3D light tiles v1": 3734016,
+              "Trillion3D TAA placement motion v1": 720832,
+              "Trillion3D bounce proxy albedo v2": 580024,
+              "Trillion3D shadow slices v1": 31744,
+              "Trillion3D partition state v1": 16448,
+              "Trillion3D partition counts readback": 16448,
+              "Trillion3D shadow faces v1": 6144,
+              "Trillion3D shadow draw slots v1": 6144,
+              "Trillion3D texture feedback": 5792,
+              "Trillion3D texture feedback readback 0": 5792,
+              "Trillion3D texture feedback readback 1": 5792,
+              "Trillion3D texture pages data": 4756,
+              "Trillion3D direct lights v1": 4112,
+              "Trillion3D timestamp resolve": 4096,
+              "Trillion3D timestamp readback": 4096,
+              "Trillion3D texture pages color": 2188,
+              "Trillion3D shadow face volumes v1": 768,
+              "Trillion3D empty shadow slices": 496,
+              "Trillion3D shadow indirect v1": 384,
+              "Trillion3D partition uniform v1": 320,
+              "Trillion3D empty light tiles": 256,
+              "Trillion3D transmissive volumes": 256,
+              "Trillion3D TAA view v1": 208,
+              "Trillion3D rest last survivor": 192,
+              "Trillion3D empty bounce grid": 176,
+              "Trillion3D empty bounce probes": 176,
+              "Trillion3D deferred view v1": 128,
+              "Trillion3D light tile view v1": 112,
+              "Trillion3D empty resident proxy": 64,
+              "Trillion3D HiZ idle bounds v1": 48,
+              "Trillion3D texture feedback reduce uniform": 16,
+              "Trillion3D backdrop color": 8,
+              "Trillion3D sun far shadow counts readback": 8,
+              "Trillion3D empty shadow atlas": 4,
+              "Trillion3D backdrop depth": 4
             },
             "gpuAllocationsUnknownFormat": 0,
             "gpuFrameTargetBytes": 289697552,
@@ -2850,7 +2850,7 @@
             },
             "passes": [
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 47.90033962500002,
@@ -2861,7 +2861,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 40.788510949999996,
@@ -2872,7 +2872,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 18.944866408333322,
@@ -2883,7 +2883,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 16.731083974999994,
@@ -2894,7 +2894,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 13.549841199999994,
@@ -2905,7 +2905,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 9.901665391666663,
@@ -2916,7 +2916,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 5.834600458333333,
@@ -2927,7 +2927,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 5.211291708333334,
@@ -2938,7 +2938,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.7315031000000003,
@@ -2949,7 +2949,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.958181233333333,
@@ -2960,7 +2960,7 @@
                 }
               },
               {
-                "name": "WG texture feedback reduce",
+                "name": "Trillion3D texture feedback reduce",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.9235879250000004,
@@ -2971,7 +2971,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.5447010374999999,
@@ -2982,7 +2982,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.32940539166666677,
@@ -2993,7 +2993,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.6000259416666668,
@@ -3004,7 +3004,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.1345764916666666,
@@ -3288,64 +3288,64 @@
             "gpuSelectionFallback": true,
             "gpuAllocatedBytes": 3995539832,
             "gpuAllocatedByLabel": {
-              "WG transparent geometry": 818546496,
+              "Trillion3D transparent geometry": 818546496,
               "sans étiquette": 620623296,
-              "WG page table": 549815808,
-              "WG partition corners v1": 412361856,
-              "WG texture pool color": 266342400,
-              "WG texture pool data": 266342400,
-              "WG shadow kept clusters v1": 206180928,
-              "WG positions": 204636624,
-              "WG geometry page cache": 127701504,
-              "WG partition tested bounds v1": 103090464,
-              "WG surface v1 rgba16float": 84105216,
-              "WG partition rows v1": 68726976,
-              "WG shadow depth atlas v1": 67108864,
-              "WG cluster spheres v1": 34363488,
-              "WG HDR lighting": 28035072,
-              "WG TAA history 0": 28035072,
-              "WG TAA history 1": 28035072,
-              "WG display color": 14017536,
-              "WG opaque depth": 14017536,
-              "WG texture feedback target": 14017536,
-              "WG surface v1 r32uint": 14017536,
-              "WG visibility": 14017536,
-              "WG resident proxy v2": 6248568,
-              "WG light tiles v1": 3734016,
-              "WG TAA placement motion v1": 720832,
-              "WG bounce proxy albedo v2": 580024,
-              "WG shadow slices v1": 31744,
-              "WG partition state v1": 16448,
-              "WG partition counts readback": 16448,
-              "WG shadow faces v1": 6144,
-              "WG shadow draw slots v1": 6144,
-              "WG texture feedback": 5792,
-              "WG texture feedback readback 0": 5792,
-              "WG texture feedback readback 1": 5792,
-              "WG texture pages data": 4756,
-              "WG direct lights v1": 4112,
-              "WG timestamp resolve": 4096,
-              "WG timestamp readback": 4096,
-              "WG texture pages color": 2188,
-              "WG shadow face volumes v1": 768,
-              "WG empty shadow slices": 496,
-              "WG shadow indirect v1": 384,
-              "WG partition uniform v1": 320,
-              "WG empty light tiles": 256,
-              "WG transmissive volumes": 256,
-              "WG TAA view v1": 208,
-              "WG rest last survivor": 192,
-              "WG empty bounce grid": 176,
-              "WG empty bounce probes": 176,
-              "WG deferred view v1": 128,
-              "WG light tile view v1": 112,
-              "WG empty resident proxy": 64,
-              "WG HiZ idle bounds v1": 48,
-              "WG texture feedback reduce uniform": 16,
-              "WG backdrop color": 8,
-              "WG sun far shadow counts readback": 8,
-              "WG empty shadow atlas": 4,
-              "WG backdrop depth": 4
+              "Trillion3D page table": 549815808,
+              "Trillion3D partition corners v1": 412361856,
+              "Trillion3D texture pool color": 266342400,
+              "Trillion3D texture pool data": 266342400,
+              "Trillion3D shadow kept clusters v1": 206180928,
+              "Trillion3D positions": 204636624,
+              "Trillion3D geometry page cache": 127701504,
+              "Trillion3D partition tested bounds v1": 103090464,
+              "Trillion3D surface v1 rgba16float": 84105216,
+              "Trillion3D partition rows v1": 68726976,
+              "Trillion3D shadow depth atlas v1": 67108864,
+              "Trillion3D cluster spheres v1": 34363488,
+              "Trillion3D HDR lighting": 28035072,
+              "Trillion3D TAA history 0": 28035072,
+              "Trillion3D TAA history 1": 28035072,
+              "Trillion3D display color": 14017536,
+              "Trillion3D opaque depth": 14017536,
+              "Trillion3D texture feedback target": 14017536,
+              "Trillion3D surface v1 r32uint": 14017536,
+              "Trillion3D visibility": 14017536,
+              "Trillion3D resident proxy v2": 6248568,
+              "Trillion3D light tiles v1": 3734016,
+              "Trillion3D TAA placement motion v1": 720832,
+              "Trillion3D bounce proxy albedo v2": 580024,
+              "Trillion3D shadow slices v1": 31744,
+              "Trillion3D partition state v1": 16448,
+              "Trillion3D partition counts readback": 16448,
+              "Trillion3D shadow faces v1": 6144,
+              "Trillion3D shadow draw slots v1": 6144,
+              "Trillion3D texture feedback": 5792,
+              "Trillion3D texture feedback readback 0": 5792,
+              "Trillion3D texture feedback readback 1": 5792,
+              "Trillion3D texture pages data": 4756,
+              "Trillion3D direct lights v1": 4112,
+              "Trillion3D timestamp resolve": 4096,
+              "Trillion3D timestamp readback": 4096,
+              "Trillion3D texture pages color": 2188,
+              "Trillion3D shadow face volumes v1": 768,
+              "Trillion3D empty shadow slices": 496,
+              "Trillion3D shadow indirect v1": 384,
+              "Trillion3D partition uniform v1": 320,
+              "Trillion3D empty light tiles": 256,
+              "Trillion3D transmissive volumes": 256,
+              "Trillion3D TAA view v1": 208,
+              "Trillion3D rest last survivor": 192,
+              "Trillion3D empty bounce grid": 176,
+              "Trillion3D empty bounce probes": 176,
+              "Trillion3D deferred view v1": 128,
+              "Trillion3D light tile view v1": 112,
+              "Trillion3D empty resident proxy": 64,
+              "Trillion3D HiZ idle bounds v1": 48,
+              "Trillion3D texture feedback reduce uniform": 16,
+              "Trillion3D backdrop color": 8,
+              "Trillion3D sun far shadow counts readback": 8,
+              "Trillion3D empty shadow atlas": 4,
+              "Trillion3D backdrop depth": 4
             },
             "gpuAllocationsUnknownFormat": 0,
             "gpuFrameTargetBytes": 289697552,
@@ -3640,7 +3640,7 @@
             },
             "passes": [
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 36.565420158333346,
@@ -3651,7 +3651,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 33.22459716666667,
@@ -3662,7 +3662,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 8.090042166666667,
@@ -3673,7 +3673,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 7.611730650000002,
@@ -3684,7 +3684,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 6.661520199999998,
@@ -3695,7 +3695,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 4.019787583333334,
@@ -3706,7 +3706,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 2.832133141666666,
@@ -3717,7 +3717,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.640257175,
@@ -3728,7 +3728,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.1679113000000003,
@@ -3739,7 +3739,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.8911615083333333,
@@ -3750,7 +3750,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.6260111794871797,
@@ -3761,7 +3761,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.4721531666666665,
@@ -3772,7 +3772,7 @@
                 }
               },
               {
-                "name": "WG texture feedback reduce",
+                "name": "Trillion3D texture feedback reduce",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.4564955000000001,
@@ -3783,7 +3783,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.18255755833333334,
@@ -3794,7 +3794,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.08410388333333338,
@@ -4073,64 +4073,64 @@
             "gpuSelectionFallback": true,
             "gpuAllocatedBytes": 3995539832,
             "gpuAllocatedByLabel": {
-              "WG transparent geometry": 818546496,
+              "Trillion3D transparent geometry": 818546496,
               "sans étiquette": 620623296,
-              "WG page table": 549815808,
-              "WG partition corners v1": 412361856,
-              "WG texture pool color": 266342400,
-              "WG texture pool data": 266342400,
-              "WG shadow kept clusters v1": 206180928,
-              "WG positions": 204636624,
-              "WG geometry page cache": 127701504,
-              "WG partition tested bounds v1": 103090464,
-              "WG surface v1 rgba16float": 84105216,
-              "WG partition rows v1": 68726976,
-              "WG shadow depth atlas v1": 67108864,
-              "WG cluster spheres v1": 34363488,
-              "WG HDR lighting": 28035072,
-              "WG TAA history 0": 28035072,
-              "WG TAA history 1": 28035072,
-              "WG display color": 14017536,
-              "WG opaque depth": 14017536,
-              "WG texture feedback target": 14017536,
-              "WG surface v1 r32uint": 14017536,
-              "WG visibility": 14017536,
-              "WG resident proxy v2": 6248568,
-              "WG light tiles v1": 3734016,
-              "WG TAA placement motion v1": 720832,
-              "WG bounce proxy albedo v2": 580024,
-              "WG shadow slices v1": 31744,
-              "WG partition state v1": 16448,
-              "WG partition counts readback": 16448,
-              "WG shadow faces v1": 6144,
-              "WG shadow draw slots v1": 6144,
-              "WG texture feedback": 5792,
-              "WG texture feedback readback 0": 5792,
-              "WG texture feedback readback 1": 5792,
-              "WG texture pages data": 4756,
-              "WG direct lights v1": 4112,
-              "WG timestamp resolve": 4096,
-              "WG timestamp readback": 4096,
-              "WG texture pages color": 2188,
-              "WG shadow face volumes v1": 768,
-              "WG empty shadow slices": 496,
-              "WG shadow indirect v1": 384,
-              "WG partition uniform v1": 320,
-              "WG empty light tiles": 256,
-              "WG transmissive volumes": 256,
-              "WG TAA view v1": 208,
-              "WG rest last survivor": 192,
-              "WG empty bounce grid": 176,
-              "WG empty bounce probes": 176,
-              "WG deferred view v1": 128,
-              "WG light tile view v1": 112,
-              "WG empty resident proxy": 64,
-              "WG HiZ idle bounds v1": 48,
-              "WG texture feedback reduce uniform": 16,
-              "WG backdrop color": 8,
-              "WG sun far shadow counts readback": 8,
-              "WG empty shadow atlas": 4,
-              "WG backdrop depth": 4
+              "Trillion3D page table": 549815808,
+              "Trillion3D partition corners v1": 412361856,
+              "Trillion3D texture pool color": 266342400,
+              "Trillion3D texture pool data": 266342400,
+              "Trillion3D shadow kept clusters v1": 206180928,
+              "Trillion3D positions": 204636624,
+              "Trillion3D geometry page cache": 127701504,
+              "Trillion3D partition tested bounds v1": 103090464,
+              "Trillion3D surface v1 rgba16float": 84105216,
+              "Trillion3D partition rows v1": 68726976,
+              "Trillion3D shadow depth atlas v1": 67108864,
+              "Trillion3D cluster spheres v1": 34363488,
+              "Trillion3D HDR lighting": 28035072,
+              "Trillion3D TAA history 0": 28035072,
+              "Trillion3D TAA history 1": 28035072,
+              "Trillion3D display color": 14017536,
+              "Trillion3D opaque depth": 14017536,
+              "Trillion3D texture feedback target": 14017536,
+              "Trillion3D surface v1 r32uint": 14017536,
+              "Trillion3D visibility": 14017536,
+              "Trillion3D resident proxy v2": 6248568,
+              "Trillion3D light tiles v1": 3734016,
+              "Trillion3D TAA placement motion v1": 720832,
+              "Trillion3D bounce proxy albedo v2": 580024,
+              "Trillion3D shadow slices v1": 31744,
+              "Trillion3D partition state v1": 16448,
+              "Trillion3D partition counts readback": 16448,
+              "Trillion3D shadow faces v1": 6144,
+              "Trillion3D shadow draw slots v1": 6144,
+              "Trillion3D texture feedback": 5792,
+              "Trillion3D texture feedback readback 0": 5792,
+              "Trillion3D texture feedback readback 1": 5792,
+              "Trillion3D texture pages data": 4756,
+              "Trillion3D direct lights v1": 4112,
+              "Trillion3D timestamp resolve": 4096,
+              "Trillion3D timestamp readback": 4096,
+              "Trillion3D texture pages color": 2188,
+              "Trillion3D shadow face volumes v1": 768,
+              "Trillion3D empty shadow slices": 496,
+              "Trillion3D shadow indirect v1": 384,
+              "Trillion3D partition uniform v1": 320,
+              "Trillion3D empty light tiles": 256,
+              "Trillion3D transmissive volumes": 256,
+              "Trillion3D TAA view v1": 208,
+              "Trillion3D rest last survivor": 192,
+              "Trillion3D empty bounce grid": 176,
+              "Trillion3D empty bounce probes": 176,
+              "Trillion3D deferred view v1": 128,
+              "Trillion3D light tile view v1": 112,
+              "Trillion3D empty resident proxy": 64,
+              "Trillion3D HiZ idle bounds v1": 48,
+              "Trillion3D texture feedback reduce uniform": 16,
+              "Trillion3D backdrop color": 8,
+              "Trillion3D sun far shadow counts readback": 8,
+              "Trillion3D empty shadow atlas": 4,
+              "Trillion3D backdrop depth": 4
             },
             "gpuAllocationsUnknownFormat": 0,
             "gpuFrameTargetBytes": 289697552,
@@ -4511,7 +4511,7 @@
             },
             "passes": [
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 37.72032450000002,
@@ -4522,7 +4522,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 34.46923049999999,
@@ -4533,7 +4533,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 8.301562633333331,
@@ -4544,7 +4544,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 7.965345849999999,
@@ -4555,7 +4555,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 6.952543533333334,
@@ -4566,7 +4566,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 4.046316700000002,
@@ -4577,7 +4577,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 2.9139627916666675,
@@ -4588,7 +4588,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.6536664416666669,
@@ -4599,7 +4599,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.2146078833333334,
@@ -4610,7 +4610,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.0386712833333336,
@@ -4621,7 +4621,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.6453469615384614,
@@ -4632,7 +4632,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.6015119333333337,
@@ -4643,7 +4643,7 @@
                 }
               },
               {
-                "name": "WG texture feedback reduce",
+                "name": "Trillion3D texture feedback reduce",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.5627872416666668,
@@ -4654,7 +4654,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.1668728000000001,
@@ -4665,7 +4665,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.10678656666666665,
@@ -4944,64 +4944,64 @@
             "gpuSelectionFallback": true,
             "gpuAllocatedBytes": 3995539832,
             "gpuAllocatedByLabel": {
-              "WG transparent geometry": 818546496,
+              "Trillion3D transparent geometry": 818546496,
               "sans étiquette": 620623296,
-              "WG page table": 549815808,
-              "WG partition corners v1": 412361856,
-              "WG texture pool color": 266342400,
-              "WG texture pool data": 266342400,
-              "WG shadow kept clusters v1": 206180928,
-              "WG positions": 204636624,
-              "WG geometry page cache": 127701504,
-              "WG partition tested bounds v1": 103090464,
-              "WG surface v1 rgba16float": 84105216,
-              "WG partition rows v1": 68726976,
-              "WG shadow depth atlas v1": 67108864,
-              "WG cluster spheres v1": 34363488,
-              "WG HDR lighting": 28035072,
-              "WG TAA history 0": 28035072,
-              "WG TAA history 1": 28035072,
-              "WG display color": 14017536,
-              "WG opaque depth": 14017536,
-              "WG texture feedback target": 14017536,
-              "WG surface v1 r32uint": 14017536,
-              "WG visibility": 14017536,
-              "WG resident proxy v2": 6248568,
-              "WG light tiles v1": 3734016,
-              "WG TAA placement motion v1": 720832,
-              "WG bounce proxy albedo v2": 580024,
-              "WG shadow slices v1": 31744,
-              "WG partition state v1": 16448,
-              "WG partition counts readback": 16448,
-              "WG shadow faces v1": 6144,
-              "WG shadow draw slots v1": 6144,
-              "WG texture feedback": 5792,
-              "WG texture feedback readback 0": 5792,
-              "WG texture feedback readback 1": 5792,
-              "WG texture pages data": 4756,
-              "WG direct lights v1": 4112,
-              "WG timestamp resolve": 4096,
-              "WG timestamp readback": 4096,
-              "WG texture pages color": 2188,
-              "WG shadow face volumes v1": 768,
-              "WG empty shadow slices": 496,
-              "WG shadow indirect v1": 384,
-              "WG partition uniform v1": 320,
-              "WG empty light tiles": 256,
-              "WG transmissive volumes": 256,
-              "WG TAA view v1": 208,
-              "WG rest last survivor": 192,
-              "WG empty bounce grid": 176,
-              "WG empty bounce probes": 176,
-              "WG deferred view v1": 128,
-              "WG light tile view v1": 112,
-              "WG empty resident proxy": 64,
-              "WG HiZ idle bounds v1": 48,
-              "WG texture feedback reduce uniform": 16,
-              "WG backdrop color": 8,
-              "WG sun far shadow counts readback": 8,
-              "WG empty shadow atlas": 4,
-              "WG backdrop depth": 4
+              "Trillion3D page table": 549815808,
+              "Trillion3D partition corners v1": 412361856,
+              "Trillion3D texture pool color": 266342400,
+              "Trillion3D texture pool data": 266342400,
+              "Trillion3D shadow kept clusters v1": 206180928,
+              "Trillion3D positions": 204636624,
+              "Trillion3D geometry page cache": 127701504,
+              "Trillion3D partition tested bounds v1": 103090464,
+              "Trillion3D surface v1 rgba16float": 84105216,
+              "Trillion3D partition rows v1": 68726976,
+              "Trillion3D shadow depth atlas v1": 67108864,
+              "Trillion3D cluster spheres v1": 34363488,
+              "Trillion3D HDR lighting": 28035072,
+              "Trillion3D TAA history 0": 28035072,
+              "Trillion3D TAA history 1": 28035072,
+              "Trillion3D display color": 14017536,
+              "Trillion3D opaque depth": 14017536,
+              "Trillion3D texture feedback target": 14017536,
+              "Trillion3D surface v1 r32uint": 14017536,
+              "Trillion3D visibility": 14017536,
+              "Trillion3D resident proxy v2": 6248568,
+              "Trillion3D light tiles v1": 3734016,
+              "Trillion3D TAA placement motion v1": 720832,
+              "Trillion3D bounce proxy albedo v2": 580024,
+              "Trillion3D shadow slices v1": 31744,
+              "Trillion3D partition state v1": 16448,
+              "Trillion3D partition counts readback": 16448,
+              "Trillion3D shadow faces v1": 6144,
+              "Trillion3D shadow draw slots v1": 6144,
+              "Trillion3D texture feedback": 5792,
+              "Trillion3D texture feedback readback 0": 5792,
+              "Trillion3D texture feedback readback 1": 5792,
+              "Trillion3D texture pages data": 4756,
+              "Trillion3D direct lights v1": 4112,
+              "Trillion3D timestamp resolve": 4096,
+              "Trillion3D timestamp readback": 4096,
+              "Trillion3D texture pages color": 2188,
+              "Trillion3D shadow face volumes v1": 768,
+              "Trillion3D empty shadow slices": 496,
+              "Trillion3D shadow indirect v1": 384,
+              "Trillion3D partition uniform v1": 320,
+              "Trillion3D empty light tiles": 256,
+              "Trillion3D transmissive volumes": 256,
+              "Trillion3D TAA view v1": 208,
+              "Trillion3D rest last survivor": 192,
+              "Trillion3D empty bounce grid": 176,
+              "Trillion3D empty bounce probes": 176,
+              "Trillion3D deferred view v1": 128,
+              "Trillion3D light tile view v1": 112,
+              "Trillion3D empty resident proxy": 64,
+              "Trillion3D HiZ idle bounds v1": 48,
+              "Trillion3D texture feedback reduce uniform": 16,
+              "Trillion3D backdrop color": 8,
+              "Trillion3D sun far shadow counts readback": 8,
+              "Trillion3D empty shadow atlas": 4,
+              "Trillion3D backdrop depth": 4
             },
             "gpuAllocationsUnknownFormat": 0,
             "gpuFrameTargetBytes": 289697552,
@@ -5296,7 +5296,7 @@
             },
             "passes": [
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 51.14772927160494,
@@ -5307,7 +5307,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 14.963876592592591,
@@ -5318,7 +5318,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 14.472813172839508,
@@ -5329,7 +5329,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 12.883423839506175,
@@ -5340,7 +5340,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 6.669311777777778,
@@ -5351,7 +5351,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 3.871284530864198,
@@ -5362,7 +5362,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 2.429392012345678,
@@ -5373,7 +5373,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.8472727160493834,
@@ -5384,7 +5384,7 @@
                 }
               },
               {
-                "name": "WG texture feedback reduce",
+                "name": "Trillion3D texture feedback reduce",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.332317086419753,
@@ -5395,7 +5395,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.6802076666666668,
@@ -5406,7 +5406,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.38218960493827164,
@@ -5417,7 +5417,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.1372730864197531,
@@ -5428,7 +5428,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.10218116049382721,
@@ -5588,64 +5588,64 @@
             "gpuSelectionFallback": true,
             "gpuAllocatedBytes": 3995539832,
             "gpuAllocatedByLabel": {
-              "WG transparent geometry": 818546496,
+              "Trillion3D transparent geometry": 818546496,
               "sans étiquette": 620623296,
-              "WG page table": 549815808,
-              "WG partition corners v1": 412361856,
-              "WG texture pool color": 266342400,
-              "WG texture pool data": 266342400,
-              "WG shadow kept clusters v1": 206180928,
-              "WG positions": 204636624,
-              "WG geometry page cache": 127701504,
-              "WG partition tested bounds v1": 103090464,
-              "WG surface v1 rgba16float": 84105216,
-              "WG partition rows v1": 68726976,
-              "WG shadow depth atlas v1": 67108864,
-              "WG cluster spheres v1": 34363488,
-              "WG HDR lighting": 28035072,
-              "WG TAA history 0": 28035072,
-              "WG TAA history 1": 28035072,
-              "WG display color": 14017536,
-              "WG opaque depth": 14017536,
-              "WG texture feedback target": 14017536,
-              "WG surface v1 r32uint": 14017536,
-              "WG visibility": 14017536,
-              "WG resident proxy v2": 6248568,
-              "WG light tiles v1": 3734016,
-              "WG TAA placement motion v1": 720832,
-              "WG bounce proxy albedo v2": 580024,
-              "WG shadow slices v1": 31744,
-              "WG partition state v1": 16448,
-              "WG partition counts readback": 16448,
-              "WG shadow faces v1": 6144,
-              "WG shadow draw slots v1": 6144,
-              "WG texture feedback": 5792,
-              "WG texture feedback readback 0": 5792,
-              "WG texture feedback readback 1": 5792,
-              "WG texture pages data": 4756,
-              "WG direct lights v1": 4112,
-              "WG timestamp resolve": 4096,
-              "WG timestamp readback": 4096,
-              "WG texture pages color": 2188,
-              "WG shadow face volumes v1": 768,
-              "WG empty shadow slices": 496,
-              "WG shadow indirect v1": 384,
-              "WG partition uniform v1": 320,
-              "WG empty light tiles": 256,
-              "WG transmissive volumes": 256,
-              "WG TAA view v1": 208,
-              "WG rest last survivor": 192,
-              "WG empty bounce grid": 176,
-              "WG empty bounce probes": 176,
-              "WG deferred view v1": 128,
-              "WG light tile view v1": 112,
-              "WG empty resident proxy": 64,
-              "WG HiZ idle bounds v1": 48,
-              "WG texture feedback reduce uniform": 16,
-              "WG backdrop color": 8,
-              "WG sun far shadow counts readback": 8,
-              "WG empty shadow atlas": 4,
-              "WG backdrop depth": 4
+              "Trillion3D page table": 549815808,
+              "Trillion3D partition corners v1": 412361856,
+              "Trillion3D texture pool color": 266342400,
+              "Trillion3D texture pool data": 266342400,
+              "Trillion3D shadow kept clusters v1": 206180928,
+              "Trillion3D positions": 204636624,
+              "Trillion3D geometry page cache": 127701504,
+              "Trillion3D partition tested bounds v1": 103090464,
+              "Trillion3D surface v1 rgba16float": 84105216,
+              "Trillion3D partition rows v1": 68726976,
+              "Trillion3D shadow depth atlas v1": 67108864,
+              "Trillion3D cluster spheres v1": 34363488,
+              "Trillion3D HDR lighting": 28035072,
+              "Trillion3D TAA history 0": 28035072,
+              "Trillion3D TAA history 1": 28035072,
+              "Trillion3D display color": 14017536,
+              "Trillion3D opaque depth": 14017536,
+              "Trillion3D texture feedback target": 14017536,
+              "Trillion3D surface v1 r32uint": 14017536,
+              "Trillion3D visibility": 14017536,
+              "Trillion3D resident proxy v2": 6248568,
+              "Trillion3D light tiles v1": 3734016,
+              "Trillion3D TAA placement motion v1": 720832,
+              "Trillion3D bounce proxy albedo v2": 580024,
+              "Trillion3D shadow slices v1": 31744,
+              "Trillion3D partition state v1": 16448,
+              "Trillion3D partition counts readback": 16448,
+              "Trillion3D shadow faces v1": 6144,
+              "Trillion3D shadow draw slots v1": 6144,
+              "Trillion3D texture feedback": 5792,
+              "Trillion3D texture feedback readback 0": 5792,
+              "Trillion3D texture feedback readback 1": 5792,
+              "Trillion3D texture pages data": 4756,
+              "Trillion3D direct lights v1": 4112,
+              "Trillion3D timestamp resolve": 4096,
+              "Trillion3D timestamp readback": 4096,
+              "Trillion3D texture pages color": 2188,
+              "Trillion3D shadow face volumes v1": 768,
+              "Trillion3D empty shadow slices": 496,
+              "Trillion3D shadow indirect v1": 384,
+              "Trillion3D partition uniform v1": 320,
+              "Trillion3D empty light tiles": 256,
+              "Trillion3D transmissive volumes": 256,
+              "Trillion3D TAA view v1": 208,
+              "Trillion3D rest last survivor": 192,
+              "Trillion3D empty bounce grid": 176,
+              "Trillion3D empty bounce probes": 176,
+              "Trillion3D deferred view v1": 128,
+              "Trillion3D light tile view v1": 112,
+              "Trillion3D empty resident proxy": 64,
+              "Trillion3D HiZ idle bounds v1": 48,
+              "Trillion3D texture feedback reduce uniform": 16,
+              "Trillion3D backdrop color": 8,
+              "Trillion3D sun far shadow counts readback": 8,
+              "Trillion3D empty shadow atlas": 4,
+              "Trillion3D backdrop depth": 4
             },
             "gpuAllocationsUnknownFormat": 0,
             "gpuFrameTargetBytes": 289697552,
@@ -6026,7 +6026,7 @@
             },
             "passes": [
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 47.12578250617284,
@@ -6037,7 +6037,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 15.419721987654317,
@@ -6048,7 +6048,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 14.632262419753086,
@@ -6059,7 +6059,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 12.29834782716049,
@@ -6070,7 +6070,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 5.959524814814815,
@@ -6081,7 +6081,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 3.450529679012345,
@@ -6092,7 +6092,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 2.1792985308641977,
@@ -6103,7 +6103,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.7500492716049387,
@@ -6114,7 +6114,7 @@
                 }
               },
               {
-                "name": "WG texture feedback reduce",
+                "name": "Trillion3D texture feedback reduce",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.277181592592593,
@@ -6125,7 +6125,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.683140827160494,
@@ -6136,7 +6136,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.7039372962962962,
@@ -6147,7 +6147,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.11206058024691357,
@@ -6158,7 +6158,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.07243659259259262,
@@ -6318,64 +6318,64 @@
             "gpuSelectionFallback": true,
             "gpuAllocatedBytes": 3995539832,
             "gpuAllocatedByLabel": {
-              "WG transparent geometry": 818546496,
+              "Trillion3D transparent geometry": 818546496,
               "sans étiquette": 620623296,
-              "WG page table": 549815808,
-              "WG partition corners v1": 412361856,
-              "WG texture pool color": 266342400,
-              "WG texture pool data": 266342400,
-              "WG shadow kept clusters v1": 206180928,
-              "WG positions": 204636624,
-              "WG geometry page cache": 127701504,
-              "WG partition tested bounds v1": 103090464,
-              "WG surface v1 rgba16float": 84105216,
-              "WG partition rows v1": 68726976,
-              "WG shadow depth atlas v1": 67108864,
-              "WG cluster spheres v1": 34363488,
-              "WG HDR lighting": 28035072,
-              "WG TAA history 0": 28035072,
-              "WG TAA history 1": 28035072,
-              "WG display color": 14017536,
-              "WG opaque depth": 14017536,
-              "WG texture feedback target": 14017536,
-              "WG surface v1 r32uint": 14017536,
-              "WG visibility": 14017536,
-              "WG resident proxy v2": 6248568,
-              "WG light tiles v1": 3734016,
-              "WG TAA placement motion v1": 720832,
-              "WG bounce proxy albedo v2": 580024,
-              "WG shadow slices v1": 31744,
-              "WG partition state v1": 16448,
-              "WG partition counts readback": 16448,
-              "WG shadow faces v1": 6144,
-              "WG shadow draw slots v1": 6144,
-              "WG texture feedback": 5792,
-              "WG texture feedback readback 0": 5792,
-              "WG texture feedback readback 1": 5792,
-              "WG texture pages data": 4756,
-              "WG direct lights v1": 4112,
-              "WG timestamp resolve": 4096,
-              "WG timestamp readback": 4096,
-              "WG texture pages color": 2188,
-              "WG shadow face volumes v1": 768,
-              "WG empty shadow slices": 496,
-              "WG shadow indirect v1": 384,
-              "WG partition uniform v1": 320,
-              "WG empty light tiles": 256,
-              "WG transmissive volumes": 256,
-              "WG TAA view v1": 208,
-              "WG rest last survivor": 192,
-              "WG empty bounce grid": 176,
-              "WG empty bounce probes": 176,
-              "WG deferred view v1": 128,
-              "WG light tile view v1": 112,
-              "WG empty resident proxy": 64,
-              "WG HiZ idle bounds v1": 48,
-              "WG texture feedback reduce uniform": 16,
-              "WG backdrop color": 8,
-              "WG sun far shadow counts readback": 8,
-              "WG empty shadow atlas": 4,
-              "WG backdrop depth": 4
+              "Trillion3D page table": 549815808,
+              "Trillion3D partition corners v1": 412361856,
+              "Trillion3D texture pool color": 266342400,
+              "Trillion3D texture pool data": 266342400,
+              "Trillion3D shadow kept clusters v1": 206180928,
+              "Trillion3D positions": 204636624,
+              "Trillion3D geometry page cache": 127701504,
+              "Trillion3D partition tested bounds v1": 103090464,
+              "Trillion3D surface v1 rgba16float": 84105216,
+              "Trillion3D partition rows v1": 68726976,
+              "Trillion3D shadow depth atlas v1": 67108864,
+              "Trillion3D cluster spheres v1": 34363488,
+              "Trillion3D HDR lighting": 28035072,
+              "Trillion3D TAA history 0": 28035072,
+              "Trillion3D TAA history 1": 28035072,
+              "Trillion3D display color": 14017536,
+              "Trillion3D opaque depth": 14017536,
+              "Trillion3D texture feedback target": 14017536,
+              "Trillion3D surface v1 r32uint": 14017536,
+              "Trillion3D visibility": 14017536,
+              "Trillion3D resident proxy v2": 6248568,
+              "Trillion3D light tiles v1": 3734016,
+              "Trillion3D TAA placement motion v1": 720832,
+              "Trillion3D bounce proxy albedo v2": 580024,
+              "Trillion3D shadow slices v1": 31744,
+              "Trillion3D partition state v1": 16448,
+              "Trillion3D partition counts readback": 16448,
+              "Trillion3D shadow faces v1": 6144,
+              "Trillion3D shadow draw slots v1": 6144,
+              "Trillion3D texture feedback": 5792,
+              "Trillion3D texture feedback readback 0": 5792,
+              "Trillion3D texture feedback readback 1": 5792,
+              "Trillion3D texture pages data": 4756,
+              "Trillion3D direct lights v1": 4112,
+              "Trillion3D timestamp resolve": 4096,
+              "Trillion3D timestamp readback": 4096,
+              "Trillion3D texture pages color": 2188,
+              "Trillion3D shadow face volumes v1": 768,
+              "Trillion3D empty shadow slices": 496,
+              "Trillion3D shadow indirect v1": 384,
+              "Trillion3D partition uniform v1": 320,
+              "Trillion3D empty light tiles": 256,
+              "Trillion3D transmissive volumes": 256,
+              "Trillion3D TAA view v1": 208,
+              "Trillion3D rest last survivor": 192,
+              "Trillion3D empty bounce grid": 176,
+              "Trillion3D empty bounce probes": 176,
+              "Trillion3D deferred view v1": 128,
+              "Trillion3D light tile view v1": 112,
+              "Trillion3D empty resident proxy": 64,
+              "Trillion3D HiZ idle bounds v1": 48,
+              "Trillion3D texture feedback reduce uniform": 16,
+              "Trillion3D backdrop color": 8,
+              "Trillion3D sun far shadow counts readback": 8,
+              "Trillion3D empty shadow atlas": 4,
+              "Trillion3D backdrop depth": 4
             },
             "gpuAllocationsUnknownFormat": 0,
             "gpuFrameTargetBytes": 289697552,
