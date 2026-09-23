@@ -1,13 +1,12 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
-import { worldControls, type WorldControls } from './worldCamera.ts';
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
 } from '../../webgpu/residency/memoryBudgets.ts';
+
+export { worldControlsHandle } from './worldControlsHandle.ts';
 
 /** The pools a page asks for, kept to open every later session with them. */
 export type Pools = { geometryPool?: number; texturePool?: number };
@@ -94,73 +93,6 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     /** Puts the mode on a session just opened; the world's own, never the page's. */
     apply(opened: MeasuredWorld) {
       if (mode !== 'beauty') opened.setDiagnostic(engineMode(mode));
-    },
-  };
-}
-
-/** A controller as the world drives it: a pivot one carries a `target`, a steered one integrates
- *  over a delta in `update`. */
-type Controller = NonNullable<ReturnType<typeof worldControls>> & {
-  target?: Vector3;
-  update?: (delta?: number) => boolean;
-};
-
-/**
- * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
- * `kind` or `enabled` releases the one in place and makes the next; a gesture redraws.
- */
-export function worldControlsHandle(
-  initial: WorldControls,
-  camera: () => Camera,
-  surface: HTMLElement,
-  invalidate: () => void,
-) {
-  let kind = initial,
-    enabled = true,
-    current: Controller | null = null;
-  const standingTarget = new Vector3();
-  const rebuild = () => {
-    standingTarget.copy(current?.target ?? standingTarget);
-    current?.dispose();
-    current = enabled ? (worldControls(kind, camera(), surface) as Controller | null) : null;
-    if (current?.target) {
-      current.target.copy(standingTarget);
-      current.update?.();
-    }
-    current?.addEventListener('change', invalidate);
-  };
-  rebuild();
-  return {
-    /** Which controller steers the camera; set another name to switch. */
-    get kind() {
-      return kind;
-    },
-    set kind(next: WorldControls) {
-      kind = next;
-      rebuild();
-    },
-    /** Whether the controller listens to the mouse and keyboard. */
-    get enabled() {
-      return enabled;
-    },
-    set enabled(on: boolean) {
-      enabled = on;
-      rebuild();
-    },
-    /** The point a pivot controller turns around. */
-    get target(): Vector3 {
-      return current?.target ?? standingTarget;
-    },
-    /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
-    update(delta = 0) {
-      current?.update?.(delta);
-    },
-    /** The world's camera changed: the controller follows it. */
-    follow: rebuild,
-    /** Stops the controller and removes its listeners from the canvas. */
-    dispose() {
-      current?.dispose();
-      current = null;
     },
   };
 }

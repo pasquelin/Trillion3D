@@ -62,7 +62,10 @@ export function createOrbitCameraControls(
     spherical = new Float64Array(3),
     orientation = new Float64Array(4),
     pan = new Float64Array(3),
-    moved = new Float64Array(6);
+    moved = new Float64Array(6),
+    bounds = new Float64Array(6),
+    applied = new Float64Array(6);
+  let posed = false;
   const gate = createChangeGate(base, 6);
   const height = () => surface.clientHeight || 1;
   const sample = () => {
@@ -71,7 +74,31 @@ export function createOrbitCameraControls(
     for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i];
     toSpherical(spherical, offset);
   };
+  const readBounds = () => {
+    bounds[0] = api.minDistance;
+    bounds[1] = api.maxDistance;
+    bounds[2] = api.minPolarAngle;
+    bounds[3] = api.maxPolarAngle;
+    bounds[4] = api.minAzimuthAngle;
+    bounds[5] = api.maxAzimuthAngle;
+  };
+  /**
+   * Whether the sampled pose is the one last written, under the bounds it was written with.
+   * Re-clamping it would not be a no-op: an angle read back from a pose on a bound lands one
+   * ULP to either side of it, and a still scene would emit on every `update()`.
+   */
+  const still = () => {
+    readBounds();
+    if (!posed) return false;
+    for (let i = 0; i < 3; i++)
+      if (position[i] !== moved[i] || center[i] !== moved[3 + i]) return false;
+    for (let i = 0; i < 6; i++) if (bounds[i] !== applied[i]) return false;
+    return true;
+  };
   const apply = () => {
+    readBounds();
+    applied.set(bounds);
+    posed = true;
     const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON);
     spherical[0] = clampNumber(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far);
     spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle);
@@ -112,7 +139,7 @@ export function createOrbitCameraControls(
   const api: OrbitCameraControls = Object.assign(
     pivotControlsApi(base, pose, () => {
       sample();
-      return apply();
+      return !still() && apply();
     }),
     {
       minPolarAngle: 0,
