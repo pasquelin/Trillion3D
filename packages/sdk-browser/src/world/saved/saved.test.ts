@@ -68,20 +68,29 @@ test('another format version is refused, and the scene is left as it was', async
 });
 
 test('a model that cannot be loaded leaves the scene as it was, late arrivals included', async () => {
-  const scene = new Scene(async (url) => {
+  /** The slow load, awaited below so the check runs once its model has reached the scene. */
+  let late: Promise<LoadedModel> | undefined;
+  const load = async (url: string) => {
     if (url === 'broken') throw new Error('unreachable');
     await new Promise((resolve) => setTimeout(resolve, 20));
     const model = new Object3D() as unknown as LoadedModel;
     scene.add(model);
     return model;
-  });
+  };
+  const scene = new Scene((url) => (url === 'late' ? (late = load(url)) : load(url)));
   const kept = object.group();
   scene.add(kept);
   const saved = scene.toJSON();
   const model = (url: string) => ({ ...saved.children[0], kind: 'model' as const, model: { url } });
   saved.children.push(model('late'), model('broken'));
   await assert.rejects(scene.fromJSON(saved), /unreachable/);
-  assert.deepEqual(scene.children, [kept]);
+  await late;
+  await new Promise(setImmediate);
+  const left = scene.children;
+  assert.ok(
+    left.length === 1 && left[0] === kept,
+    `${left.length} children, the kept node alone expected`,
+  );
 });
 
 test('a shape written by hand comes back in its array type, normalized or not', async () => {
