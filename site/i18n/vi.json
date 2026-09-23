@@ -27,7 +27,8 @@
   },
   "home": {
     "title": "Truyền tải thế giới 3D khổng lồ ngay trên trình duyệt",
-    "start": "Bắt đầu khóa học"
+    "start": "Bắt đầu khóa học",
+    "editor": "Open the scene editor"
   },
   "examples": {
     "lead": "Mỗi ví dụ là một tệp ngắn: xem nó chạy, mở mã nguồn, rồi thay đổi nó.",
