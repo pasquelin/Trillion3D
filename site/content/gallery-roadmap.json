@@ -188,8 +188,13 @@
         "fr": "Couleurs aux sommets"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/colours-on-the-vertices.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "per-vertex colours on WebGPU",
+        "fr": "couleurs par sommet sous WebGPU"
+      },
+      "issue": 347
     },
     {
       "id": "uvs-of-every-shape",
@@ -234,8 +239,13 @@
         "fr": "Lignes pointillées"
       },
       "theme": "geometry",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/dashed-lines.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "dashed lines",
+        "fr": "lignes pointillées"
+      },
+      "issue": 359
     },
     {
       "id": "shapes-cut-and-extruded",
@@ -574,8 +584,13 @@
         "fr": "Texture tournée, répétée"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-texture-turned-and-tiled.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "texture repeat, offset and rotation on WebGPU",
+        "fr": "répétition, décalage et rotation de texture sous WebGPU"
+      },
+      "issue": 360
     },
     {
       "id": "texture-filters-compared",
@@ -584,8 +599,13 @@
         "fr": "Filtres de texture"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/texture-filters-compared.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "texture filters and anisotropy on WebGPU",
+        "fr": "filtres de texture et anisotropie sous WebGPU"
+      },
+      "issue": 361
     },
     {
       "id": "every-image-format",
@@ -603,8 +623,13 @@
         "fr": "Une vidéo sur un écran"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-video-on-a-screen.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "live video textures",
+        "fr": "textures vidéo en direct"
+      },
+      "issue": 362
     },
     {
       "id": "the-webcam-as-a-texture",
@@ -613,8 +638,13 @@
         "fr": "La webcam en texture"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/the-webcam-as-a-texture.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "live video textures",
+        "fr": "textures vidéo en direct"
+      },
+      "issue": 362
     },
     {
       "id": "four-ways-to-blend",
@@ -623,8 +653,13 @@
         "fr": "Quatre mélanges"
       },
       "theme": "materials",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/four-ways-to-blend.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "every blending mode",
+        "fr": "tous les modes de mélange"
+      },
+      "issue": 346
     },
     {
       "id": "toon-shading",
@@ -2101,8 +2136,13 @@
         "fr": "Un panorama vidéo"
       },
       "theme": "environment",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/a-video-panorama.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "live video textures",
+        "fr": "textures vidéo en direct"
+      },
+      "issue": 362
     },
     {
       "id": "an-atmospheric-sky",
@@ -2669,8 +2709,13 @@
         "fr": "Bords lissés dans le temps"
       },
       "theme": "effects",
-      "file": "",
-      "status": "buildable"
+      "file": "examples/smooth-edges-over-time.html",
+      "status": "waiting-engine",
+      "missing": {
+        "en": "the temporal antialiasing setting",
+        "fr": "le réglage de l’antialiasing temporel"
+      },
+      "issue": 363
     },
     {
       "id": "tone-mapping-compared",
