@@ -1,6 +1,6 @@
 import { foldPanels, overlay } from './overlay.ts';
 import { HUD_RULE, MENU_STYLE } from './gameMenuStyle.ts';
-import { exampleWord, kitWord, labelOf, lookup } from './words.ts';
+import { exampleWord, kitWord, labelOf } from './words.ts';
 
 /**
  * A game's menu, drawn over its paused frame: the start screen before the first play, the pause
@@ -72,7 +72,7 @@ const button = (text: string, press: () => void, primary = false) => {
 /** One keycap per key; the AZERTY keys, when they differ, on a line of their own. */
 function keycaps({ keys, azerty }: GameKey) {
   const caps = make('div', 'wg-caps');
-  const cap = (key: string) => make('kbd', 'wg-cap', lookup(['kit', 'keys', key]) ?? key);
+  const cap = (key: string) => make('kbd', 'wg-cap', kitWord('keys', key, key));
   caps.append(...keys.map(cap));
   if (azerty) caps.append(make('small', '', 'AZERTY'), ...azerty.map(cap));
   return caps;

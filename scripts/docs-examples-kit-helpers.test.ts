@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { playPickedVideo } from '../site/examples/kit/media.ts';
 import { perFrame } from '../site/examples/kit/perFrame.ts';
 import { pointerOnPlane } from '../site/examples/kit/pointer.ts';
@@ -8,11 +9,11 @@ import { seeded } from '../site/examples/kit/random.ts';
 test('the pointer meets the ground under the ray through it, and never behind the eye', () => {
   const box = { left: 0, top: 0, width: 200, height: 100 };
   // Looking straight down from 10 m: the centre of the view is the point below the eye.
-  const down = { x: -Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 };
-  const world = {
-    canvas: { getBoundingClientRect: () => box },
-    camera: { fov: 90, position: { x: 3, y: 10, z: -2 }, quaternion: down },
-  };
+  const camera = new Camera('perspective');
+  camera.fov = 90;
+  camera.position.set(3, 10, -2);
+  camera.quaternion.set(-Math.SQRT1_2, 0, 0, Math.SQRT1_2);
+  const world = { canvas: { getBoundingClientRect: () => box }, camera };
   const [x, z] = pointerOnPlane(world, { clientX: 100, clientY: 50 }) ?? [NaN, NaN];
   assert.ok(Math.abs(x - 3) < 1e-9 && Math.abs(z + 2) < 1e-9);
   // The plane at the eye's height, or one looked away from, is never met.
