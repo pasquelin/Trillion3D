@@ -2753,7 +2753,7 @@
     }
   },
   "light.rectArea": {
-    "summary": "Un rectangle lumineux, comme une fenêtre ou un écran.",
+    "summary": "Un rectangle lumineux, comme un panneau éclairé ou un écran.",
     "parameters": {
       "p": "Ce qu’une page peut donner à un membre de lumière.",
       "p.color": "La couleur de la lumière.",
@@ -5503,7 +5503,7 @@
       "backend": "Le moteur de rendu mesuré.",
       "cpuFrames": "Images CPU et mesures GPU vraiment gardées sur la période.",
       "gpuSamples": "Mesures GPU prises.",
-      "windowFrames": "Images dans la fenêtre.",
+      "windowFrames": "Images dans la fenêtre glissante.",
       "gpuMethod": "Comment le GPU a été chronométré.",
       "gpuReason": "Pourquoi le temps GPU manque.",
       "gpuImageMs": "Temps GPU des images entières.",
