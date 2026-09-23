@@ -12,7 +12,7 @@ export function mockDagDevice(
   let pipeline: { entryPoint: string } | undefined,
     uniformWriteCount = 0,
     copyCount = 0,
-    destroyedCalls = 0;
+    destroyedMaps = 0;
   const device = {
     limits: { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
     createBuffer: ({ size, usage }: { size: number; usage: number }) => ({
@@ -23,11 +23,11 @@ export function mockDagDevice(
       destroy(this: Buf) {
         this.destroyed = true;
       },
-      // As on a real device: a call on a destroyed buffer is a validation error, seen by every
-      // listener on the device; a mapping the destruction cuts short rejects with `AbortError`.
+      // As on a real device: mapping a destroyed buffer is a validation error on the device; a
+      // mapping the destruction cuts short rejects with `AbortError`. Unmapping one does nothing.
       mapAsync: async function (this: Buf) {
         if (this.destroyed) {
-          destroyedCalls++;
+          destroyedMaps++;
           throw new DOMException('destroyed', 'OperationError');
         }
         if (options.failMap) throw new Error('MAP_FAILED');
@@ -37,9 +37,7 @@ export function mockDagDevice(
       getMappedRange: function (this: Buf) {
         return this.data.buffer;
       },
-      unmap(this: Buf) {
-        if (this.destroyed) destroyedCalls++;
-      },
+      unmap() {},
     }),
     createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
     createBindGroupLayout: () => ({}),
@@ -140,7 +138,7 @@ export function mockDagDevice(
     uniformWrites: () => uniformWriteCount,
     /** Copies to a READABLE slot: one per due readback, never one per send. */
     readbackCopies: () => copyCount,
-    /** Maps and unmaps asked of a destroyed buffer: each one a device-wide validation error. */
-    destroyedCalls: () => destroyedCalls,
+    /** Mappings asked of a destroyed buffer: each one a validation error on the device. */
+    destroyedMaps: () => destroyedMaps,
   };
 }
