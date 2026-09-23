@@ -8815,6 +8815,16 @@
         "name": "maxAzimuthAngle",
         "type": "number",
         "desc": "End of that arc; unlimited at `Infinity`. It may be smaller than `minAzimuthAngle`."
+      },
+      {
+        "name": "autoRotate",
+        "type": "number",
+        "desc": "Radians per second the camera turns around `target` on its own, azimuth from +Z towards +X; 0, the default, holds it still. The turn is integrated by `update(delta)`, and it stops for good at the first press or wheel notch on the surface: the viewer has taken the camera."
+      },
+      {
+        "name": "update(delta?: number)",
+        "type": "boolean",
+        "desc": "As the pivot's `update()`, with the seconds `autoRotate` turns over; 0 by default."
       }
     ],
     "description": "Primary drag rotates, secondary drag or two fingers pan, wheel and pinch zoom between `minDistance` and `maxDistance`. No damping: a pointer that stops, stops the camera, and the scene is still. THE POSE IS THE STATE. Every gesture starts by reading `object.position` and `target` back into spherical coordinates, and ends by writing them out again. A host that moves the camera itself — the portal's zoom buttons do — is therefore understood on the next `update()`, and the round trip is what `math.test.ts` pins down. THE ANGLES ARE BOUNDED like the distance, on every drag and every `update()`: the polar angle between `minPolarAngle` and `maxPolarAngle`, the azimuth on the arc from `minAzimuthAngle` to `maxAzimuthAngle`. Their names and meanings are the ones web 3D libraries commonly use, so a page that already sets them keeps its numbers."
@@ -15829,7 +15839,7 @@
       {
         "name": "enabled",
         "type": "boolean",
-        "desc": "Whether the controller listens to the mouse and keyboard."
+        "desc": "Whether the controller listens to the mouse and keyboard and moves the camera. `false` pauses it — no input, no `update` — without remaking it: velocity, footing, stride, orientation and turn are kept, and `true` resumes exactly where it stopped."
       },
       {
         "name": "target",
@@ -15869,7 +15879,7 @@
       {
         "name": "update(delta?: number)",
         "type": "void",
-        "desc": "Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose."
+        "desc": "Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose, and an orbit turns by `autoRotate`. A paused controller does nothing."
       },
       {
         "name": "follow",
@@ -15910,6 +15920,11 @@
         "name": "maxAzimuthAngle",
         "type": "number",
         "desc": "Orbit only: end of that arc; it may be smaller than `minAzimuthAngle`."
+      },
+      {
+        "name": "autoRotate",
+        "type": "number",
+        "desc": "Orbit only: radians per second it turns around `target` on its own, until the first press or wheel notch; 0 by default."
       },
       {
         "name": "movementSpeed",
