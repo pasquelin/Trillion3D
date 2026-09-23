@@ -33,11 +33,14 @@
       "CPU frame": "CPU 프레임",
       "page hooks": "페이지 코드",
       "engine CPU": "엔진 CPU"
+    },
+    "failure": {
+      "title": "이 예제는 오류로 멈췄어"
     }
   },
   "a-city-from-rules": {
+    "banner": "끌어서 주위를 날아 봐. 슬라이더를 움직이면 도시가 다시 지어져.",
     "controls": {
-      "mouse": "드래그해서 날아다녀 봐. 설정을 바꿀 때마다 도시가 규칙대로 다시 지어져",
       "blocks": "블록",
       "maxHeight": "최대 높이",
       "density": "밀도",
@@ -52,8 +55,8 @@
     }
   },
   "a-cloud-of-points": {
+    "banner": "끌어서 구름 주위를 돌아 봐. 다른 모양을 고르고 바뀌는 걸 봐.",
     "controls": {
-      "mouse": "드래그해서 구름 주위를 돌아 봐. 다른 모양을 고르면 옛 모양은 감겨 사라지고 새 모양이 펼쳐져",
       "shape": "모양",
       "spin": "회전"
     },
@@ -71,6 +74,7 @@
     }
   },
   "a-colour-ramp-in-linear-light": {
+    "banner": "색을 골라 빛이 어두운 쪽에서 밝은 쪽으로 바꾸는 걸 봐.",
     "controls": {
       "colour": "색",
       "glow": "빛남",
@@ -78,6 +82,7 @@
     }
   },
   "a-field-of-pebbles": {
+    "banner": "끌어서 둘러봐. 해를 움직여서 조약돌 그림자를 봐.",
     "controls": {
       "sunTurn": "태양 방향",
       "sunHeight": "태양 높이",
@@ -86,13 +91,14 @@
     }
   },
   "a-first-world": {
+    "banner": "끌어서 정육면체 주위를 돌아 봐. 새 색을 골라 줘.",
     "controls": {
       "colour": "색"
     }
   },
   "a-game-board-seen-from-above": {
+    "banner": "끌어서 판을 옮겨 봐. 스크롤하거나 손가락을 모아 확대해.",
     "controls": {
-      "mouse": "드래그해서 판 옮기기 · 휠이나 두 손가락으로 확대 · 화살표 키로 이동",
       "play": "시작",
       "speed": "속도",
       "follow": "따라가기",
@@ -106,6 +112,7 @@
     }
   },
   "a-lamp-in-its-glass": {
+    "banner": "끌어서 둘러봐. 랜턴을 흔들고 빛이 움직이는 걸 봐.",
     "controls": {
       "swing": "흔들림",
       "lamp": "램프",
@@ -114,6 +121,7 @@
     }
   },
   "a-lighthouse-beam": {
+    "banner": "끌어서 둘러봐. 빛줄기를 더 빠르게, 더 넓게 돌려 봐.",
     "controls": {
       "turnsPerMinute": "분당 회전 수",
       "beamWidth": "빛줄기 폭",
@@ -121,8 +129,8 @@
     }
   },
   "a-long-shadowed-street": {
+    "banner": "끌어서 거리를 봐. 시간을 움직이면 그림자가 길어져.",
     "controls": {
-      "mouse": "드래그해서 거리를 둘러보고, 휠로 앞으로 가 봐. 시각을 옮기면 그림자가 길 위로 늘어나 건물 벽을 타고 올라가",
       "hour": "시각",
       "traffic": "교통",
       "flyAgain": "다시 날기"
@@ -133,8 +141,8 @@
     }
   },
   "a-matcap-sculpture": {
+    "banner": "끌어서 조각 주위를 걸어 봐. 빛도 너와 함께 돌아.",
     "controls": {
-      "mouse": "드래그해서 조각 주위를 걸어 봐. 빛이 너와 함께 돌아. 빛이 그림 속에 살고 있거든",
       "matcap": "Matcap",
       "sculpture": "조각",
       "gallery": "갤러리",
@@ -157,8 +165,8 @@
     }
   },
   "a-mesh-built-by-hand": {
+    "banner": "끌어서 보석 주위를 돌아 봐. 하나하나 점을 찍어 만들었어.",
     "controls": {
-      "mouse": "드래그해서 보석 주위를 돌아 봐. 날카로운 면을 끄면 모서리를 함께 써",
       "points": "점",
       "waist": "허리",
       "height": "높이",
@@ -172,8 +180,8 @@
     }
   },
   "a-model-from-obj": {
+    "banner": "끌어서 판 주위를 돌아 봐. 스크롤해서 가까이 가.",
     "controls": {
-      "mouse": "드래그해서 판 주위를 돌고, 휠로 가까이 가 봐. OBJ가 무엇이 되었는지 봐",
       "view": "보기",
       "sunAngle": "태양 각도",
       "sunHeight": "태양 높이",
@@ -192,8 +200,8 @@
     }
   },
   "a-model-from-usdz": {
+    "banner": "끌어서 체스판 주위를 걸어 봐. 스크롤해서 말까지 내려가.",
     "controls": {
-      "mouse": "드래그해서 판 주위를 걸어 봐. 휠로 말까지 내려가",
       "view": "보기",
       "turn": "돌리기"
     },
@@ -216,8 +224,8 @@
     }
   },
   "a-molecule": {
+    "banner": "끌어서 분자 주위를 돌아 봐. 다른 걸 고르면 원자들이 날아가.",
     "controls": {
-      "mouse": "드래그해서 분자 주위를 돌아 봐. 다른 걸 고르면 원자들이 새 자리로 날아가",
       "molecule": "분자",
       "style": "스타일",
       "spin": "회전"
@@ -241,6 +249,7 @@
     }
   },
   "a-neon-sign": {
+    "banner": "끌어서 둘러봐. 네온을 빛나고 깜빡이게 해 봐.",
     "controls": {
       "star": "별",
       "wave": "물결",
@@ -261,6 +270,7 @@
     }
   },
   "a-ring-of-lamps": {
+    "banner": "끌어서 둘러봐. 램프를 더하고 빙글빙글 돌려 봐.",
     "controls": {
       "lamps": "램프",
       "speed": "속도",
@@ -269,6 +279,7 @@
     }
   },
   "a-robot-that-walks-and-waves": {
+    "banner": "끌어서 둘러봐. 걷기, 손 흔들기, 춤을 섞어 봐.",
     "controls": {
       "walk": "걷기",
       "wave": "물결",
@@ -278,6 +289,7 @@
     }
   },
   "a-scene-of-your-own": {
+    "banner": "끌어서 둘러봐. 시간, 바람, 지붕을 바꿔 봐.",
     "controls": {
       "hour": "시각",
       "wind": "바람",
@@ -285,8 +297,8 @@
     }
   },
   "a-softbox-panel": {
+    "banner": "끌어서 주위를 걸어 봐. 조명 판을 키우면 반짝임이 부드러워져.",
     "controls": {
-      "mouse": "드래그해서 세트 주위를 걸어 봐. 패널을 키우면 반짝임이 부드러워져",
       "panelWidth": "패널 폭",
       "power": "세기",
       "colour": "색",
@@ -298,6 +310,7 @@
     }
   },
   "a-staircase-from-one-step": {
+    "banner": "끌어서 둘러봐. 계단 칸을 바꾸면 계단이 다시 지어져.",
     "controls": {
       "climb": "오르기",
       "turnPerStep": "계단마다 회전",
@@ -305,6 +318,7 @@
     }
   },
   "a-terrain-from-a-height-map": {
+    "banner": "끌어서 산 위를 날아 봐. 하루의 시간을 움직여 봐.",
     "controls": {
       "hour": "시각",
       "sunColour": "태양 색",
@@ -312,8 +326,8 @@
     }
   },
   "a-texture-turned-and-tiled": {
+    "banner": "끌어서 둘러봐. 벽의 그림을 돌리고 반복해 봐.",
     "controls": {
-      "mouse": "드래그해서 둘러봐. 뒤쪽 패널은 칠한 그대로의 타일이야",
       "tile": "타일",
       "wrap": "가장자리",
       "tilesAcross": "가로 타일 수",
@@ -342,8 +356,8 @@
     }
   },
   "a-tube-along-a-spline": {
+    "banner": "끌어서 둘러봐. 구슬이 관을 따라 달려.",
     "controls": {
-      "mouse": "드래그해서 둘러봐. 구슬이 튜브가 따라가는 곡선을 타고 가",
       "path": "경로",
       "radius": "반지름",
       "sides": "옆면",
@@ -364,6 +378,7 @@
     }
   },
   "a-vase-turned-on-the-lathe": {
+    "banner": "끌어서 둘러봐. 꽃병의 너비와 높이를 바꿔 봐.",
     "controls": {
       "width": "폭",
       "height": "높이",
@@ -372,8 +387,8 @@
     }
   },
   "a-video-on-a-screen": {
+    "banner": "끌어서 방을 둘러봐. 화면에 진짜 동영상이 나와.",
     "controls": {
-      "mouse": "드래그해서 방을 둘러봐. 화면은 진짜 비디오 요소를 재생해",
       "playing": "재생 중",
       "openVideo": "비디오 열기"
     },
@@ -387,8 +402,8 @@
     }
   },
   "a-video-panorama": {
+    "banner": "끌어서 사방을 둘러봐. 원하면 네 동영상을 열어 봐.",
     "controls": {
-      "mouse": "드래그해서 둘러봐. 누르기 전까지 화면이 혼자 돌아",
       "playing": "재생 중",
       "fieldOfView": "시야",
       "openVideo": "비디오 열기"
@@ -402,8 +417,8 @@
     }
   },
   "a-wall-of-cameras": {
+    "banner": "작은 화면을 클릭하면 크게 보여. 카메라마다 무엇을 볼지 골라 봐.",
     "controls": {
-      "mouse": "화면을 클릭하면 큰 화면에 나와. 카메라에게 무엇을 볼지 알려 줘",
       "watch": "감시"
     },
     "choices": {
@@ -431,6 +446,7 @@
     }
   },
   "a-wave-across-a-grid": {
+    "banner": "끌어서 둘러봐. 정육면체 파도를 더 높게, 더 빠르게 해 봐.",
     "controls": {
       "height": "높이",
       "speed": "속도",
@@ -440,8 +456,8 @@
     }
   },
   "a-world-of-blocks": {
+    "banner": "끌어서 섬 주위를 날아 봐. 바다를 올려 골짜기를 잠기게 해 봐.",
     "controls": {
-      "mouse": "드래그해서 섬 주위를 날아 봐. 바다를 높이면 골짜기가 물에 잠겨",
       "seed": "시드",
       "seaLevel": "해수면",
       "hour": "시각",
@@ -452,8 +468,8 @@
     }
   },
   "before-and-after-slider": {
+    "banner": "둥근 손잡이를 끌어서 비교해 봐. 그림을 끌면 돌아.",
     "controls": {
-      "mouse": "둥근 손잡이를 드래그해서 경계를 옮겨. 그림을 드래그하면 광장 주위를 돌아",
       "before": "이전"
     },
     "choices": {
@@ -473,8 +489,8 @@
     }
   },
   "blobs-that-merge": {
+    "banner": "끌어서 램프 주위를 걸어 봐. 데우면 방울들이 녹아 합쳐져.",
     "controls": {
-      "mouse": "드래그해서 램프 주위를 걸어 봐. 끈적임을 올리면 방울들이 서로 녹아 붙어",
       "stickiness": "끈적임",
       "heat": "열",
       "wax": "밀랍"
@@ -484,6 +500,7 @@
     }
   },
   "bricks-with-a-normal-map": {
+    "banner": "끌어서 둘러봐. 램프를 움직여 벽돌의 울퉁불퉁함을 봐.",
     "controls": {
       "sweep": "쓸기",
       "lamp": "램프",
@@ -492,9 +509,7 @@
     }
   },
   "click-to-pick": {
-    "controls": {
-      "help": "모양을 클릭해 봐. 불이 켜지고, 광선이 어디에 닿았는지 패널이 알려 줘."
-    },
+    "banner": "모양을 클릭해 봐. 불이 켜지고 패널이 어디를 맞혔는지 알려 줘.",
     "readouts": {
       "picked": "고른 것",
       "point": "점",
@@ -511,8 +526,8 @@
     }
   },
   "colours-on-the-vertices": {
+    "banner": "끌어서 행성을 돌려 봐. 꼭짓점마다 자기 색이 있어.",
     "controls": {
-      "mouse": "드래그해서 행성을 돌려 봐. 꼭짓점마다 자기 색을 가지고 있어",
       "palette": "팔레트",
       "seaLevel": "해수면",
       "relief": "지형 높이",
@@ -528,8 +543,8 @@
     }
   },
   "compressed-textures": {
+    "banner": "끌어서 분수 주위를 걸어 봐. 가까이 가면 자세한 모습이 나타나.",
     "controls": {
-      "mouse": "드래그해서 분수 주위를 걸어 봐. 타일 하나까지 내려가서 세부가 도착하는 걸 봐",
       "sunTurn": "태양 방향",
       "sunHeight": "태양 높이"
     },
@@ -548,8 +563,8 @@
     }
   },
   "copies-along-a-path": {
+    "banner": "끌어서 공원을 둘러봐. 복사본을 늘려 터널을 만들어 봐.",
     "controls": {
-      "mouse": "드래그해서 공원을 둘러봐. 복사본을 늘리면 아치가 이어져 터널이 돼",
       "copies": "복사본",
       "twist": "비틀기",
       "speed": "속도",
@@ -560,6 +575,7 @@
     }
   },
   "crates-under-a-spotlight": {
+    "banner": "끌어서 둘러봐. 스포트라이트의 각도와 색을 바꿔 봐.",
     "controls": {
       "angle": "각도",
       "softness": "부드러움",
@@ -571,8 +587,8 @@
     }
   },
   "create-and-dispose": {
+    "banner": "끌어서 주위를 걸어 봐. 조각들이 계속 나타났다 사라지는 걸 봐.",
     "controls": {
-      "mouse": "드래그해서 분수 주위를 걷기 · 휠로 가까이",
       "perSecond": "초당",
       "copies": "복사본",
       "burst": "한꺼번에",
@@ -595,8 +611,8 @@
     }
   },
   "curved-surfaces": {
+    "banner": "끌어서 주위를 걸어 봐. 격자를 줄이면 곡면의 삼각형이 보여.",
     "controls": {
-      "mouse": "드래그해서 갤러리를 걸어 봐. 격자를 줄이면 곡면을 이루는 삼각형이 보여",
       "grid": "격자",
       "facets": "면",
       "turntable": "회전판"
@@ -614,8 +630,8 @@
     }
   },
   "dashed-lines": {
+    "banner": "끌어서 해 주위를 돌아 봐. 점선의 선과 틈을 바꿔 봐.",
     "controls": {
-      "mouse": "드래그해서 태양 주위를 돌아 봐. 선과 틈을 바꾸면 모든 궤도가 따라 바뀌어",
       "lines": "선",
       "dash": "선 길이",
       "gap": "틈",
@@ -632,8 +648,8 @@
     }
   },
   "detail-by-pixel-error": {
+    "banner": "끌어서 큰길을 걸어 봐. 항아리에 가까이 갔다가 멀리 떨어져 봐.",
     "controls": {
-      "mouse": "드래그해서 거리를 걸어 봐. 항아리 하나에 가까이 갔다가 멀리 떨어져 봐",
       "pixelError": "픽셀 오차",
       "view": "보기"
     },
@@ -656,8 +672,8 @@
     }
   },
   "edges-and-wireframe": {
+    "banner": "끌어서 둘러봐. 기준을 높이면 날카로운 모서리만 남아.",
     "controls": {
-      "mouse": "드래그해서 둘러봐. 기준값을 올리면 날카로운 주름만 남아",
       "view": "보기",
       "threshold": "기준값",
       "lines": "선",
@@ -678,8 +694,8 @@
     }
   },
   "every-image-format": {
+    "banner": "끌어서 이젤을 따라 걸어 봐. 화질을 낮추고 가까이 봐.",
     "controls": {
-      "mouse": "드래그해서 이젤을 따라 걸어 봐. 품질을 낮추고 JPEG와 WebP를 가까이서 봐",
       "quality": "품질",
       "lookAt": "보기"
     },
@@ -720,8 +736,8 @@
     }
   },
   "flat-shadows-on-the-floor": {
+    "banner": "끌어서 해시계 주위를 걸어 봐. 시간을 움직이면 그림자가 돌아.",
     "controls": {
-      "mouse": "드래그해서 해시계 주위를 걸어 봐. 시각을 옮기면 그림자가 모두 해와 함께 돌아",
       "hour": "시각",
       "darkness": "어둠",
       "timeLapse": "빨리 감기",
@@ -735,6 +751,7 @@
     }
   },
   "fly-over-a-model-town": {
+    "banner": "제트기로 고리를 통과해 봐. 스로틀을 올려 이륙해.",
     "choices": {
       "view": {
         "cockpit": "조종석",
@@ -800,8 +817,8 @@
     }
   },
   "four-ways-to-blend": {
+    "banner": "끌어서 옆에서 봐. 판마다 색을 섞는 방법이 달라.",
     "controls": {
-      "mouse": "왼쪽에서 오른쪽으로: 보통, 더하기, 빼기, 곱하기. 드래그해서 옆에서 봐",
       "inks": "잉크",
       "opacity": "불투명도",
       "circle": "돌기"
@@ -815,8 +832,8 @@
     }
   },
   "frame-the-model": {
+    "banner": "물체를 두 번 클릭하면 그쪽으로 확대돼. 끌어서 돌려 봐.",
     "controls": {
-      "mouse": "물체를 더블클릭하면 화면에 딱 맞춰. 드래그로 돌리고, 휠로 확대해",
       "model": "물체",
       "margin": "여백",
       "drift": "떠돌기"
@@ -845,8 +862,8 @@
     }
   },
   "from-a-grain-to-a-planet": {
+    "banner": "스크롤해서 모래알에서 행성 전체까지 확대해 봐.",
     "controls": {
-      "mouse": "휠로 모래 한 알부터 행성 전체까지 확대해 봐. 드래그해서 돌려",
       "toTheGrain": "모래알로",
       "toTheBeach": "해변으로",
       "toTheIsland": "섬으로",
@@ -867,6 +884,7 @@
     }
   },
   "from-clay-to-chrome": {
+    "banner": "끌어서 둘러봐. 같은 색을 찰흙, 금속, 크롬으로 봐.",
     "controls": {
       "colour": "색",
       "lamps": "램프",
@@ -874,6 +892,7 @@
     }
   },
   "from-noon-to-dusk": {
+    "banner": "끌어서 둘러봐. 시간을 한낮부터 밤까지 움직여 봐.",
     "controls": {
       "speed": "속도",
       "hour": "시각",
@@ -881,6 +900,7 @@
     }
   },
   "glass-on-the-table": {
+    "banner": "끌어서 둘러봐. 유리가 빛을 굽히는 정도를 바꿔 봐.",
     "controls": {
       "refraction": "굴절",
       "thickness": "두께",
@@ -889,8 +909,8 @@
     }
   },
   "helpers-to-see-the-scene": {
+    "banner": "끌어서 주위를 걸어 봐. 도우미를 끄면 그대로의 그림이 보여.",
     "controls": {
-      "mouse": "드래그해서 세트 주위를 걸어 봐. 도우미를 끄면 촬영 장면을 그대로 볼 수 있어",
       "helpers": "도우미",
       "dolly": "돌리",
       "bulb": "전구"
@@ -908,8 +928,8 @@
     }
   },
   "inside-a-panorama": {
+    "banner": "끌어서 돌아 봐. 스크롤해서 가까이 가. 다른 하늘을 골라 봐.",
     "controls": {
-      "mouse": "드래그해서 돌기 · 휠로 가까이",
       "sky": "하늘",
       "fieldOfView": "시야"
     },
@@ -925,8 +945,8 @@
     }
   },
   "inside-the-g-buffer": {
+    "banner": "끌어서 주위를 걸어 봐. 버퍼를 골라 그림 속을 들여다봐.",
     "controls": {
-      "mouse": "드래그해서 코트 주위를 걷기 · 버퍼를 골라 화면 속을 들여다봐",
       "buffer": "버퍼",
       "turning": "회전"
     },
@@ -954,8 +974,8 @@
     }
   },
   "instances-in-colour": {
+    "banner": "끌어서 은하를 기울여 봐. 스크롤해서 안으로 뛰어들어.",
     "controls": {
-      "mouse": "드래그해서 은하를 기울여 봐. 휠로 안으로 뛰어들어",
       "count": "개수",
       "arms": "팔",
       "twist": "비틀기",
@@ -969,8 +989,8 @@
     }
   },
   "keyframes-by-hand": {
+    "banner": "끌어서 책상 주위를 돌아 봐. 램프가 키에서 키로 뛰는 걸 봐.",
     "controls": {
-      "mouse": "드래그해서 책상 주위를 돌아 봐. 한 번 뛰는 동작의 키를 램프의 흐린 복사본으로 보여 줘",
       "timing": "타이밍",
       "onionSkin": "어니언 스킨",
       "speed": "속도"
@@ -997,8 +1017,8 @@
     }
   },
   "labels-that-follow": {
+    "banner": "끌어서 태양 주위를 돌아 봐. 이름표가 행성을 따라가.",
     "controls": {
-      "mouse": "드래그해서 태양 주위를 돌고, 휠로 가까이 가 봐. 이름표가 행성을 따라 움직여",
       "show": "보이기",
       "speed": "속도",
       "lineThemUp": "한 줄로 세우기"
@@ -1034,6 +1054,7 @@
     }
   },
   "leaves-cut-by-alpha": {
+    "banner": "끌어서 둘러봐. 기준을 움직여 잎 가장자리를 봐.",
     "controls": {
       "branches": "가지",
       "leaves": "잎",
@@ -1042,6 +1063,7 @@
     }
   },
   "letters-carved-in-relief": {
+    "banner": "끌어서 둘러봐. 새겨진 글자 위로 빛을 옮겨 봐.",
     "controls": {
       "rake": "빛 기울기",
       "warm": "따뜻한 색",
@@ -1050,8 +1072,8 @@
     }
   },
   "light-from-a-probe": {
+    "banner": "끌어서 정원 주위를 돌아 봐. 장소를 고르고 그곳의 빛을 봐.",
     "controls": {
-      "mouse": "드래그해서 정원을 걸어 봐. 장소를 고르면 조각들이 그곳의 빛을 입어",
       "place": "장소",
       "turn": "돌리기",
       "strength": "세기",
@@ -1071,8 +1093,8 @@
     }
   },
   "light-in-real-units": {
+    "banner": "끌어서 광장을 걸어 봐. 한낮부터 달밤까지 순간을 골라 봐.",
     "controls": {
-      "mouse": "드래그해서 광장을 걸어 봐. 순간을 고르면 카메라가 10만 럭스부터 달밤까지 적응하는 걸 볼 수 있어",
       "moment": "순간",
       "lampLumens": "가로등 루멘",
       "autoExposure": "자동 노출",
@@ -1100,6 +1122,7 @@
     }
   },
   "lights-from-the-scene-file": {
+    "banner": "끌어서 둘러봐. 이 램프들은 모델 파일에 들어 있었어.",
     "controls": {
       "lamp": "램프",
       "power": "세기",
@@ -1107,8 +1130,8 @@
     }
   },
   "lines-in-colour": {
+    "banner": "끌어서 돌아 봐. 다른 규칙을 고르면 펜이 그려 줘.",
     "controls": {
-      "mouse": "드래그해서 도형 주위를 돌아 봐. 다른 규칙을 고르면 펜이 처음부터 다시 그려",
       "figure": "도형",
       "palette": "팔레트",
       "pace": "빠르기",
@@ -1134,6 +1157,7 @@
     }
   },
   "marble-bust-on-its-pedestal": {
+    "banner": "끌어서 흉상 주위를 돌아 봐. 램프를 머리 주위로 옮겨 봐.",
     "controls": {
       "lampTurn": "램프 방향",
       "lampHeight": "램프 높이",
@@ -1146,6 +1170,7 @@
     }
   },
   "memory-on-a-budget": {
+    "banner": "끌어서 둘러봐. 메모리를 줄이고 무엇이 또렷하게 남는지 봐.",
     "controls": {
       "memory": "메모리",
       "view": "보기"
@@ -1159,13 +1184,14 @@
     }
   },
   "migrating-from-three": {
+    "banner": "끌어서 흉상, 상자, 유리공 주위를 돌아 봐.",
     "words": {
       "credit": "Marble Bust 01, 제작 Rico Cilliers, Poly Haven, CC0; 상자 제작 W. Sitters, CC BY 3.0 — assets/examples/CREDITS.md 참고"
     }
   },
   "move-rotate-scale-gizmo": {
+    "banner": "손잡이를 끌어서 물체를 옮기고, 돌리고, 키워 봐. 옆을 끌면 둘러볼 수 있어.",
     "controls": {
-      "help": "손잡이를 드래그해. 옆을 드래그하면 카메라가 돌아.",
       "mode": "모드",
       "axes": "축",
       "snap": "맞춤"
@@ -1187,8 +1213,8 @@
     }
   },
   "no-hitch-on-first-draw": {
+    "banner": "끌어서 둘러봐. 그래프는 그림과 그림 사이의 시간이야.",
     "controls": {
-      "mouse": "드래그해서 갤러리를 둘러보기 · 그래프는 프레임 사이 시간이야",
       "turning": "회전",
       "revealAgain": "다시 보여 주기"
     },
@@ -1203,8 +1229,8 @@
     }
   },
   "normals-and-depth-seen": {
+    "banner": "끌어서 주위를 걸어 봐. 보기를 바꿔 렌더러가 저장하는 걸 봐.",
     "controls": {
-      "mouse": "드래그해서 코트 주위를 걸어 봐. 보기를 바꾸면 렌더러가 저장한 면의 모습을 볼 수 있어",
       "see": "보기",
       "spin": "회전"
     },
@@ -1225,6 +1251,7 @@
     }
   },
   "observatory-streamed": {
+    "banner": "끌어서 둘러봐. 보기를 바꿔 모델이 어떻게 나뉘는지 봐.",
     "controls": {
       "view": "보기",
       "pixelError": "픽셀 오차"
@@ -1240,8 +1267,8 @@
     }
   },
   "one-clip-many-objects": {
+    "banner": "끌어서 경기장 주위를 돌아 봐. 파도타기가 관중 사이로 어떻게 지나갈지 골라.",
     "controls": {
-      "mouse": "드래그해서 경기장 주위를 돌아 봐. 하나의 클립을 팬들에게 어떻게 나눌지 골라",
       "pattern": "무늬",
       "speed": "속도"
     },
@@ -1258,8 +1285,8 @@
     }
   },
   "orbit-around-a-clockwork": {
+    "banner": "끌어서 돌려. 오른쪽으로 끌면 옮겨져. 스크롤해서 톱니바퀴를 확대해.",
     "controls": {
-      "mouse": "제품 뷰어: 드래그로 돌리기 · 오른쪽 드래그로 밀기 · 휠로 톱니 확대",
       "view": "보기",
       "speed": "속도",
       "brass": "황동"
@@ -1274,6 +1301,7 @@
     }
   },
   "painted-and-textured": {
+    "banner": "끌어서 둘러봐. 모양의 칠과 체크 무늬를 바꿔 봐.",
     "controls": {
       "checks": "체크",
       "paint": "페인트",
@@ -1282,8 +1310,8 @@
     }
   },
   "reading-pixels-back": {
+    "banner": "끌어서 둘러봐. 작은 그림은 화면을 숫자로 다시 읽은 거야.",
     "controls": {
-      "mouse": "드래그해서 둘러보기 · 오른쪽 아래 그림은 화면을 숫자로 다시 읽은 거야",
       "sunHeight": "태양 높이",
       "live": "실시간",
       "turning": "회전",
@@ -1300,8 +1328,8 @@
     }
   },
   "ride-a-roller-coaster": {
+    "banner": "타는 동안 끌어서 고개를 돌려 봐. 멈추면 공원을 둘러볼 수 있어.",
     "controls": {
-      "mouse": "놀이기구를 탈 때는 드래그해서 고개를 돌려. 놀이기구를 끄면 공원 주위를 돌 수 있어",
       "ride": "타기",
       "loops": "루프"
     },
@@ -1311,8 +1339,8 @@
     }
   },
   "save-the-scene": {
+    "banner": "탑을 무너뜨리고, 저장한 장면을 다시 열어 봐.",
     "controls": {
-      "help": "탑을 무너뜨린 다음, 저장한 장면을 다시 열어 봐.",
       "knockDown": "무너뜨리기",
       "save": "저장",
       "open": "열기"
@@ -1325,8 +1353,8 @@
     }
   },
   "scattered-on-a-surface": {
+    "banner": "끌어서 행성을 돌려 봐. 숲이 산을 타고 올라가게 해 봐.",
     "controls": {
-      "mouse": "드래그해서 행성 주위를 돌아 봐. 가장 가파른 경사를 올리면 숲이 산을 타고 올라가",
       "trees": "나무",
       "rocks": "바위",
       "steepest": "가장 가파른 경사",
@@ -1339,8 +1367,8 @@
     }
   },
   "see-the-triangles": {
+    "banner": "스크롤해서 멀어졌다 가까워져 봐. 멀리서는 흉상에 더 적고 큰 삼각형이면 돼.",
     "controls": {
-      "mouse": "휠로 멀어졌다 가까워져 봐. 멀리서는 흉상에 더 적고 더 큰 삼각형이 필요해",
       "view": "보기",
       "pixelError": "픽셀 오차",
       "sideBySide": "나란히"
@@ -1363,8 +1391,8 @@
     }
   },
   "select-with-a-box": {
+    "banner": "상자를 끌어 선택해. Shift는 더하고 Alt는 빼. 돌아서기로 바꾸면 둘러볼 수 있어.",
     "controls": {
-      "help": "선택: 상자를 드래그해. Shift는 더하고, Alt는 빼. 돌기: 드래그해서 정원 위를 날아",
       "mouse": "마우스",
       "selectAll": "모두 선택",
       "clear": "지우기"
@@ -1380,8 +1408,8 @@
     }
   },
   "several-views-one-page": {
+    "banner": "큰 화면을 끌어서 돌려 봐. 작은 화면은 스크롤하고 끌어 봐.",
     "controls": {
-      "mouse": "큰 화면을 드래그해서 돌려. 작은 화면은 휠과 드래그로 확대하고 밀고, 더블클릭하면 원래대로",
       "explode": "분해",
       "windFrom": "바람 방향",
       "windSpeed": "바람 속도"
@@ -1397,8 +1425,8 @@
     }
   },
   "shadows-from-the-sun": {
+    "banner": "끌어서 정원을 걸어 봐. 시간을 움직이면 그림자가 돌아.",
     "controls": {
-      "mouse": "드래그해서 정원을 걸어 봐. 시각을 옮기면 그림자가 돌고, 오벨리스크 끝이 시간 돌 위를 걸어가",
       "hour": "시각",
       "day": "날",
       "latitude": "위도",
@@ -1430,8 +1458,8 @@
     }
   },
   "shapes-cut-and-extruded": {
+    "banner": "끌어서 둘러봐. 깊이를 0으로 하면 납작한 모양이 보여.",
     "controls": {
-      "mouse": "드래그해서 둘러봐. 깊이가 0이면 납작하게 오린 모양만 남아",
       "depth": "깊이",
       "bevel": "모따기",
       "bevelSize": "모따기 크기",
@@ -1444,6 +1472,7 @@
     }
   },
   "shapes-on-a-turntable": {
+    "banner": "끌어서 둘러봐. 색과 회전을 바꿔 봐.",
     "controls": {
       "colour": "색",
       "speed": "속도",
@@ -1451,8 +1480,8 @@
     }
   },
   "side-by-side-stereo": {
+    "banner": "왼쪽 그림을 끌어서 돌려 봐. 두 점이 하나가 될 때까지 눈을 모아 봐.",
     "controls": {
-      "mouse": "왼쪽 그림을 드래그해서 돌려. 두 점이 하나가 될 때까지 눈을 모아 봐",
       "viewing": "보는 방법",
       "separation": "간격",
       "speed": "속도"
@@ -1469,8 +1498,8 @@
     }
   },
   "sky-and-ground-light": {
+    "banner": "끌어서 아래와 위에서 봐. 장소를 골라 하늘을 바꿔 봐.",
     "controls": {
-      "mouse": "드래그해서 아래와 위에서 봐. 장소마다 윗면은 하늘색으로, 아랫면은 땅색으로 칠해",
       "place": "장소",
       "skyStrength": "하늘 세기",
       "sun": "태양",
@@ -1492,8 +1521,8 @@
     }
   },
   "smooth-edges-over-time": {
+    "banner": "끌어서 전선을 봐. 부드럽게 하기를 끄면 계단이 보여.",
     "controls": {
-      "mouse": "드래그해서 전선을 봐. 부드럽게 하기를 끄면 선이 계단처럼 깨져",
       "smoothing": "부드럽게 하기",
       "circle": "돌기"
     },
@@ -1506,8 +1535,8 @@
     }
   },
   "snow-of-sprites": {
+    "banner": "끌어서 오두막 주위를 걸어 봐. 눈을 눈보라로 바꿔 봐.",
     "controls": {
-      "mouse": "드래그해서 오두막 주위를 걸어 봐. 눈보라로 바꾸면 눈송이가 짙어지고 옆으로 날려",
       "weather": "날씨",
       "wind": "바람"
     },
@@ -1523,8 +1552,8 @@
     }
   },
   "sound-made-visible": {
+    "banner": "무대를 클릭해서 멜로디를 들어 봐",
     "controls": {
-      "mouse": "드래그해서 무대 주위를 걸어 봐. 막대는 음높이, 진주는 소리 파동 자체야",
       "layout": "배치",
       "height": "높이",
       "playMelody": "멜로디 연주",
@@ -1539,20 +1568,20 @@
       }
     },
     "words": {
-      "hint": "무대를 클릭해서 멜로디를 들어 봐",
       "listening": "마이크를 듣는 중: 노래하고, 휘파람 불고, 손뼉 쳐",
       "refused": "마이크가 거절됐어: 대신 멜로디가 나와",
       "silence": "조용해. 무대를 클릭하면 멜로디를 다시 들을 수 있어"
     }
   },
   "spin-an-astrolabe": {
+    "banner": "끌어서 어느 쪽으로든, 거꾸로도 돌려 봐. 스크롤해서 확대해.",
     "controls": {
-      "mouse": "드래그해서 어느 방향으로든, 거꾸로도 돌려 봐 · 휠로 확대",
       "turning": "회전",
       "sun": "태양"
     }
   },
   "street-lamp-at-night": {
+    "banner": "끌어서 둘러봐. 밤을 켜고 가로등을 밝혀 봐.",
     "controls": {
       "night": "밤",
       "bounce": "반사광",
@@ -1564,8 +1593,8 @@
     }
   },
   "ten-thousand-objects": {
+    "banner": "끌어서 행성 주위를 돌아 봐. 스크롤해서 바위 고리 안으로 들어가.",
     "controls": {
-      "mouse": "드래그해서 행성 주위를 돌아 봐. 휠로 고리 안에 들어가 바위 하나가 화면을 채울 때까지 가 봐",
       "view": "보기",
       "pixelError": "픽셀 오차",
       "drift": "떠돌기"
@@ -1589,8 +1618,8 @@
     }
   },
   "texture-filters-compared": {
+    "banner": "끌어서 길을 따라 봐. 길마다 그림을 부드럽게 하는 방법이 달라.",
     "controls": {
-      "mouse": "드래그해서 길을 따라 봐. 왼쪽에서 오른쪽으로: 최근접, 선형, 삼선형, 비등방",
       "picture": "그림",
       "anisotropy": "비등방성"
     },
@@ -1605,8 +1634,8 @@
     }
   },
   "the-material-family": {
+    "banner": "끌어서 주위를 걸어 봐. 빛을 밤으로 바꾸고 아직 빛나는 걸 봐.",
     "controls": {
-      "mouse": "드래그해서 가족 주위를 걸어 봐. 빛을 밤으로 바꾸고 어떤 종류가 아직 빛나는지 봐",
       "light": "빛",
       "shape": "모양",
       "lookAt": "보기",
@@ -1657,8 +1686,8 @@
     }
   },
   "the-webcam-as-a-texture": {
+    "banner": "버튼을 누르면 네 카메라를 써. 끌어서 벽을 따라 봐.",
     "controls": {
-      "mouse": "드래그해서 벽을 따라 봐. 카메라는 버튼을 누를 때만 요청해",
       "useMyCamera": "내 카메라 쓰기",
       "layout": "배치",
       "mirror": "거울"
@@ -1680,8 +1709,8 @@
     }
   },
   "toon-shading": {
+    "banner": "끌어서 섬 주위를 돌아 봐. 음영을 만화 띠로 바꿔 봐.",
     "controls": {
-      "mouse": "드래그해서 섬 주위를 돌아 봐. 셰이딩을 바꾸면 빛이 띠 모양으로 떨어져",
       "shading": "셰이딩",
       "outlines": "외곽선",
       "sun": "태양",
@@ -1696,8 +1725,8 @@
     }
   },
   "turn-toward-a-target": {
+    "banner": "끌어서 둘러봐. 포인터를 켜서 드론을 조종해 봐.",
     "controls": {
-      "mouse": "드래그해서 둘러봐. 포인터를 켜고 드론을 조종하면 안테나가 모두 따라가",
       "turn": "돌리기",
       "turnSpeed": "회전 속도",
       "followPointer": "포인터 따라가기"
@@ -1714,8 +1743,8 @@
     }
   },
   "two-lenses-one-scene": {
+    "banner": "끌어서 마을 주위를 돌아 봐. 렌즈를 바꾸고 거리를 봐.",
     "controls": {
-      "mouse": "드래그해서 마을 주위를 돌아 봐. 렌즈를 바꾸면 길이 곧게 펴져",
       "lens": "렌즈",
       "fieldOfView": "시야",
       "isometric": "아이소메트릭",
@@ -1736,8 +1765,8 @@
     }
   },
   "uvs-of-every-shape": {
+    "banner": "끌어서 둘러봐. 글자와 숫자가 칸마다 이름을 붙여.",
     "controls": {
-      "mouse": "드래그해서 둘러봐. 글자 하나와 숫자 하나가 그림의 칸마다 이름을 붙여",
       "pattern": "무늬",
       "repeat": "반복",
       "slide": "밀기",
@@ -1752,6 +1781,7 @@
     }
   },
   "walk-through-a-temple": {
+    "banner": "시작을 누르고, W A S D로 달리고 스페이스로 뛰어.",
     "controls": {
       "keys": "엔진의 캐릭터 조작: 메뉴의 ‘시작’이 마우스를 잠가 둘러보게 해, W A S D로 달리기 (AZERTY에서는 Z Q S D), Shift로 전력 질주, 스페이스로 점프, Esc로 마우스 풀기. 이 페이지는 R로 다시 달리기, M으로 소리 끄기를 더했어.",
       "look": "시점",
@@ -1778,8 +1808,8 @@
     }
   },
   "waves-of-points": {
+    "banner": "끌어서 들판 주위를 돌아 봐. 무늬를 골라 파도를 바꿔 봐.",
     "controls": {
-      "mouse": "드래그해서 들판 주위를 돌아 봐. 무늬를 고르면 부표 아래 물결의 모양이 바뀌어",
       "pattern": "무늬",
       "height": "높이",
       "speed": "속도"
@@ -1798,8 +1828,8 @@
     }
   },
   "what-hides-what": {
+    "banner": "끌어서 둘러봐. 산울타리가 금빛 매듭을 숨기고 있어.",
     "controls": {
-      "mouse": "드래그해서 둘러봐. 산울타리가 막다른 길 끝의 황금 매듭을 가리고 있어",
       "hedgeHeight": "산울타리 높이",
       "view": "보기",
       "aboveOrInside": "위 또는 안"
@@ -1821,12 +1851,14 @@
     }
   },
   "zoom-down-the-colonnade": {
+    "banner": "돌리 줌을 누르고 기둥이 늘어나는 걸 봐.",
     "controls": {
       "fieldOfView": "시야",
       "dollyZoom": "돌리 줌"
     }
   },
   "openworld": {
+    "banner": "W A S D로 걸어. 차나 비행기 옆에서 E를 누르면 탈 수 있어.",
     "controls": {
       "keys": "WASD 걷기 · Shift 달리기 · Space 점프 · C 웅크리기 · E 자동차나 비행기 타고 내리기",
       "teleport": "순간이동",

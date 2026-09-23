@@ -214,7 +214,6 @@
       for (const atom of atoms) atom.mesh.position.set(scatter() * 30, scatter() * 20, scatter() * 30);
 
       const ui = controls({
-        mouse: 'Drag to turn around the molecule; pick another and its atoms fly to their new places',
         molecule: Object.keys(STRUCTURES),
         style: Object.keys(STYLES),
         spin: true,

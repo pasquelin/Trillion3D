@@ -11,6 +11,7 @@ import { RenderFrame } from '../ui/RenderFrame.tsx';
 import { Toast, useToast } from '../ui/Toast.tsx';
 import { SITE_NAME } from './DocPage.tsx';
 import { usePortal } from './PortalContext.ts';
+import { useBanner } from './useBanner.ts';
 import { useDemo } from './useDemo.ts';
 import { sandboxDocument, useSandbox } from './useSandbox.ts';
 
@@ -31,13 +32,15 @@ interface DemoPageProps {
 /**
  * The page of a live demo: the demo fills the content area, and one floating button carries its
  * actions — its source (in a modal, to read and copy), the link to share, the demo's own controls
- * panel, fullscreen and restart. In the sandbox, the source is edited beside the demo instead —
+ * panel, fullscreen and restart. A banner over the render says what to do, in a line the example
+ * gives, and what its game announces. In the sandbox, the source is edited beside the demo instead —
  * left of it on wide screens, above it on narrow ones — and runs when asked.
  */
 export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
   const { locale } = usePortal().route;
   const t = useWords(locale);
   const demo = useDemo(file);
+  const [banner, closeBanner] = useBanner(demo.frame, demo.run);
   const edits = useSandbox(file, demo.source);
   const [reading, setReading] = useState(false);
   const [toast, showToast] = useToast();
@@ -91,6 +94,19 @@ export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
         ref={view}
         pending={demo.pending}
         loadingLabel={t('demo.loading')}
+        overlay={
+          banner && (
+            <Alert tone="info" role="status" className="max-w-md py-2 text-sm">
+              <p>
+                {banner.title && <strong className="block text-base">{banner.title}</strong>}
+                {banner.line}
+              </p>
+              <Button size="sm" circle onClick={closeBanner} aria-label={t('actions.close')}>
+                ×
+              </Button>
+            </Alert>
+          )
+        }
         keyboard={demo.failed ? undefined : { mode: 'load', hint: t('demo.keyboardHint') }}
       >
         {/* A failed read says so, and offers to try again; the sandbox runs nothing before the
