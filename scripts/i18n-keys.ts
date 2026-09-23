@@ -97,6 +97,16 @@ function exampleMismatch(code: string, english: string[]): KeyMismatch[] {
   return compareKeys(file, english, leafKeys(given, '', blanks));
 }
 
+/** The files of `folder` for a language the portal has no dictionary of: nothing checks them. */
+const orphans = (files: object, languages: string[], prefix: string): KeyMismatch[] =>
+  Object.keys(files)
+    .filter((code) => !languages.includes(code))
+    .map((code) => ({
+      file: `${prefix}${code}.json`,
+      missing: [`site/i18n/${code}.json`],
+      extra: [],
+    }));
+
 /** Every file of a language whose keys are not English's, or whose flag is not served: none
  *  when the languages agree. */
 export function keyMismatches(): KeyMismatch[] {
@@ -117,13 +127,8 @@ export function keyMismatches(): KeyMismatch[] {
             leafKeys(REFERENCE_TRANSLATIONS[code] ?? {}),
           )),
     ]),
-    ...Object.keys(REFERENCE_TRANSLATIONS)
-      .filter((code) => !languages.includes(code))
-      .map((code) => ({
-        file: `site/content/reference/api.${code}.json`,
-        missing: [`site/i18n/${code}.json`],
-        extra: [],
-      })),
+    ...orphans(REFERENCE_TRANSLATIONS, languages, 'site/content/reference/api.'),
+    ...orphans(EXAMPLE_WORDS, languages, 'site/examples/i18n/'),
   ];
 }
 
