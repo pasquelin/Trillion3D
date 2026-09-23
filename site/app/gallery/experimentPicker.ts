@@ -1,7 +1,7 @@
 import type { Locale } from '../../content/locale.ts';
 import { local } from '../../content/locale.ts';
 import { examples } from '../../content/catalog.ts';
-import type { LessonControl } from '../components/LessonControls.tsx';
+import type { LessonControl } from '../ui/LessonControls.tsx';
 
 /** The experiment picker every lesson shows first: the catalogue, in the reader's language. */
 export const experimentPicker = (

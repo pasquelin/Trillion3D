@@ -1,43 +1,35 @@
+import { t } from '../../content/i18n/index.ts';
 import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import { ExampleCard } from '../gallery/ExampleCard.tsx';
-import { ProgressiveList } from '../components/ProgressiveList.tsx';
+import { DocPage } from '../layout/DocPage.tsx';
 import { routeHref } from '../portal/routes.ts';
-import { themedEntries } from './list.ts';
+import { Grid } from '../ui/Grid.tsx';
+import { readyThemes, thumbnailOf } from './list.ts';
 
-/** The Examples landing page: the lessons' card grid, one card per entry of the list, theme by
- * theme — a done example with its settled render as thumbnail, opening the example; one still
- * to write greyed out, so what is done and what is not shows at a glance. */
+/** The Examples landing page: one card per ready example, theme by theme, its settled render as
+ * thumbnail, opening the example. */
 export function Examples({ locale }: { locale: Locale }) {
-  const french = locale === 'fr';
   return (
-    <section data-examples>
-      <h1 className="text-3xl font-bold mb-6">{french ? 'Exemples' : 'Examples'}</h1>
-      <ProgressiveList
-        items={themedEntries.flatMap(({ theme, entries }) =>
-          entries.map((entry) => ({ ...entry, badge: local(theme.title, locale) })),
+    <DocPage data-examples title={t(locale, 'nav.examples')} lead={t(locale, 'examples.lead')}>
+      <Grid>
+        {readyThemes.flatMap(({ theme, entries }) =>
+          entries.map((entry) => (
+            <ExampleCard
+              key={entry.id}
+              locale={locale}
+              href={routeHref({ locale, area: 'examples', id: entry.id })}
+              badge={local(theme.title, locale)}
+              example={{
+                id: entry.id,
+                category: entry.theme,
+                title: entry.title,
+                preview: thumbnailOf(entry.id),
+              }}
+            />
+          )),
         )}
-        labels={{
-          previous: french ? 'Charger les exemples précédents' : 'Load previous examples',
-          next: french ? 'Charger plus d’exemples' : 'Load more examples',
-          loading: french ? 'Chargement…' : 'Loading…',
-          end: french ? 'Fin des exemples' : 'End of examples',
-        }}
-        renderItem={(entry) => (
-          <ExampleCard
-            key={entry.id}
-            locale={locale}
-            href={entry.file ? routeHref({ locale, area: 'examples', id: entry.id }) : null}
-            badge={entry.badge}
-            example={{
-              id: entry.id,
-              category: entry.theme,
-              title: entry.title,
-              preview: `./assets/examples/thumbnails/${entry.id}.png`,
-            }}
-          />
-        )}
-      />
-    </section>
+      </Grid>
+    </DocPage>
   );
 }

@@ -17,7 +17,7 @@ import { COLORS, VECTORS } from '../site/content/entries/vector.ts';
 import { localizeEntries, supportedLocales, t } from '../site/content/i18n/index.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { localizeDemoText } from '../site/content/i18n/demo.fr.ts';
-import { localizedHref, parseRoute } from '../site/app/portal/routes.ts';
+import { STRINGS } from '../site/content/i18n/strings.ts';
 import type { Locale } from '../site/content/locale.ts';
 
 const entries = [
@@ -79,6 +79,7 @@ test('UI strings support both locales and fall back to English by key', () => {
   // Same deliberate out-of-union locale as above: t() falls back to English by key.
   assert.equal(t('de' as Locale, 'entry.example'), 'Example');
   assert.equal(t('fr', 'missing.key'), 'missing.key');
+  assert.deepEqual(Object.keys(STRINGS.fr).sort(), Object.keys(STRINGS.en).sort());
 });
 
 test('legacy demo labels are localized without changing technical symbols', () => {
@@ -101,15 +102,6 @@ test('legacy demo labels are localized without changing technical symbols', () =
     'déterminant 0 : seize zéros comme la référence ; testez le déterminant, jamais la sortie',
   );
   assert.equal(localizeDemoText('multiplyMatrix4(out, a, b)', 'fr'), 'multiplyMatrix4(out, a, b)');
-});
-
-test('legacy documentation hashes retain the active locale', () => {
-  assert.deepEqual(parseRoute('#matrices/multiplyMatrix4', 'fr'), {
-    locale: 'fr',
-    area: 'api',
-    id: 'multiplyMatrix4',
-  });
-  assert.equal(localizedHref('#guides/quick-start', 'fr'), '#/fr/learn/quick-start');
 });
 
 test('both locales describe interactive startup and align every method description', () => {

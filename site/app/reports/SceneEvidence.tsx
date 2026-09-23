@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { SceneNotice } from './SceneNotice.tsx';
-import { ImageCard } from '../components/ImageCard.tsx';
-import { Modal } from '../components/Modal.tsx';
-import { Card, Select } from '../components/UI.tsx';
-import { Section } from '../components/Section.tsx';
-import { Tabs } from '../components/Tabs.tsx';
+import { ImageCard } from '../ui/ImageCard.tsx';
+import { ModalTrigger } from '../ui/Modal.tsx';
+import { Card } from '../ui/Card.tsx';
+import { Select } from '../ui/Input.tsx';
+import { Tabs } from '../ui/Tabs.tsx';
 import { pairedImages, sceneName, runOf } from '../../reports/presentation.ts';
 import { engineName, runName, viewName } from '../../reports/names.ts';
 import { Evidence } from './Evidence.tsx';
@@ -55,20 +55,20 @@ function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsPr
               ? 'Individual captures: no comparison image was recorded for these views.'
               : 'Move the handle on each image to compare both renders.'}
       </p>
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {pairs
           .filter(([a]) => runOf(report, a) === name)
           .map(([a, b]) => (
             <Card surface="nested" key={a.differencePair}>
               <Evidence {...{ a, b, locale }} campaign={report.id} />
-              <Modal
-                imageOnly
+              <ModalTrigger
+                size="image"
                 title={`${sceneName(a.scene)} · ${viewName(a.view, locale)}`}
-                triggerLabel={fr ? 'Agrandir' : 'Enlarge'}
+                label={fr ? 'Agrandir' : 'Enlarge'}
                 closeLabel={fr ? 'Fermer' : 'Close'}
               >
-                {() => <Evidence imageOnly {...{ a, b, locale }} campaign={report.id} />}
-              </Modal>
+                <Evidence imageOnly {...{ a, b, locale }} campaign={report.id} />
+              </ModalTrigger>
             </Card>
           ))}
         {singles
@@ -117,7 +117,7 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
       : runName(run, locale);
   }
   return (
-    <Section title={sceneName(scene)}>
+    <Card title={sceneName(scene)}>
       <SceneNotice
         note={report.records.find((r) => r.scene === scene && r.sceneNote)?.sceneNote}
         locale={locale}
@@ -160,6 +160,6 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
           ),
         }))}
       />
-    </Section>
+    </Card>
   );
 }

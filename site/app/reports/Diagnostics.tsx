@@ -1,4 +1,4 @@
-import { Table } from '../components/Table.tsx';
+import { Table } from '../ui/Table.tsx';
 import { readingName } from '../../reports/presentation.ts';
 import { DIAGNOSTICS, diagnosticValue } from '../../reports/diagnostics.ts';
 import { formatValue } from '../../reports/metrics.ts';
@@ -16,7 +16,7 @@ export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
   return (
     <>
       {DIAGNOSTICS.map((group) => (
-        <section className="grid min-w-0 gap-3" key={group.title[0]}>
+        <section className="grid min-w-0 grid-cols-1 gap-3" key={group.title[0]}>
           <h3 className="text-lg font-semibold">{group.title[language]}</h3>
           <Table>
             <thead>

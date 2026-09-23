@@ -8,17 +8,31 @@ dispose them before the next route. `docs/` holds the repository documentation o
 
 ## Source layout
 
-- `site/app/` owns the shell, pages, reusable presentation components and routing.
-  `portal/routes.ts` is the only place that translates URLs into page kinds; all generated links
-  include the locale as `#/en/...` or `#/fr/...`, and old hashes are accepted using the current
-  locale. `portal/data.ts` gathers the content entries. `Entry.tsx` renders API entries,
-  `ApiDemo.tsx` renders the pure demo models, `engine-scene/` hosts the real WebGPU preview while
-  keeping its imperative renderer behind a ref effect. `components/` contains the shared DaisyUI
-  primitives: `CodeBlock.tsx` owns one inner scrolling region for all numbered lines and copies the
-  original source string; `Stats.tsx` owns metric presentation; `gallery/ExampleCard.tsx` composes
-  the same `Card` primitive for both the home page and the gallery. `components/highlighter.ts`
-  wraps Highlight.js with the TypeScript grammar (including JavaScript); `code/` runs an edited
-  snippet off the UI thread.
+- `site/app/` owns the portal, in three layers and nothing outside them:
+  - **primitives**, `ui/`: each DaisyUI component wrapped once — `Button` (and `LinkButton`,
+    `Actions`), `Card`, `Badge`, `Alert`, `Modal`, `Fab`, `Tabs`, `Table`, `Input` (fields and
+    `SearchInput`), `CodeBlock`, `RenderFrame`, `Grid`, `List`, `Split`, `Text`, `Toast`, `Icon`,
+    and the richer pieces built on them (charts, stats, the code editor, the lesson controls).
+    `CodeBlock.tsx` owns one inner scrolling region for all numbered lines and copies the original
+    source string; `highlighter.ts` wraps Highlight.js with the TypeScript grammar;
+  - **layouts**, `layout/`: `Shell.tsx` (the header, one sidebar per area, the page, the site
+    search), and the two page templates — `DocPage.tsx` (eyebrow, title, lead, actions, body and
+    an optional aside) for every page that is read, `DemoPage.tsx` for every page that is played;
+  - **pages**, composed only from layouts and primitives: no class of their own, no inline style,
+    no DOM written by hand. A page that needs something new adds a primitive.
+
+  `App.tsx` reads the route (`hooks/useRoute.ts`), localizes the entries and hands both to the
+  shell through `layout/PortalContext.ts`; the theme, the drawer and the search shortcut are the
+  hooks `useTheme`, `useDrawer` and `useSearchShortcut`. Strings come from `t()`, imported where
+  they are used. `portal/routes.ts` is the only place that translates URLs into page kinds: every
+  link carries the locale as `#/en/...` or `#/fr/...`; the areas are Learn, Examples, API
+  reference and Measurements (the lessons live under Learn), and a hash without a locale opens the
+  home page. `portal/data.ts` gathers the content entries, `portal/searchIndex.ts` builds what the
+  site search reads — every guide, API entry, ready example and lesson in the current language —
+  and `layout/SearchModal.tsx` shows it (the header button, `/` or ⌘K; arrows and Enter).
+  `Entry.tsx` renders API entries, `ApiDemo.tsx` the pure demo models, `engine-scene/` the real
+  WebGPU preview behind a ref effect; `code/` runs an edited lesson snippet off the UI thread.
+
 - `site/content/` owns the copy: `entries/*.ts` are the English API and guide entries (keep
   identifiers, signatures, module paths and executable examples in these source entries),
   `model.ts` declares the entry shape and the sections, `i18n/` contains French overlays and
@@ -33,7 +47,7 @@ dispose them before the next route. `docs/` holds the repository documentation o
   and occlusion lessons with their runtimes, `offline/` for the compiled offline examples, and
   `engine-scene/` for the WebGPU scene lifecycle, camera controls, diagnostic modes and pure
   bilingual copy. Each catalogue item declares the API functions it demonstrates;
-  `findExampleForFunction()` connects an API page to its relevant playground. The lesson runtimes
+  `apiScenario()` connects an API page to its related lesson. The lesson runtimes
   import the browser SDK by its source entry, `packages/sdk-browser/src/index.ts`, so the type checker
   sees the engine's own types; the build keeps that import external and resolves it to the
   `runtime/engine.js` bundle beside `portal.js`.
@@ -41,16 +55,27 @@ dispose them before the next route. `docs/` holds the repository documentation o
   imports the built engine as `../runtime/engine.js`, loads a compiled scene from `../assets/` and
   runs as-is from the built site — or copied into a user's project, paths adjusted. The list is
   `site/content/gallery-roadmap.json`: the themes, then one entry per example with `id`, a
-  bilingual `title`, its `theme` and its `file`, empty until the example exists. The sidebar of the
-  area is that list by theme, through the same `portal/SidebarMenu.tsx` as the Learn tree; the
-  landing page is the lessons' card grid, one card per example with its settled render as
-  thumbnail (`site/assets/examples/thumbnails/<id>.png`, captured by
-  `scripts/docs-examples-thumbnails.ts`); `site/app/examples/Example.tsx` shows one example, the
-  file's source on the left (highlighted, copy button) and the same file in an iframe on the
-  right; nothing else. The compiled scenes live under
-  `site/assets/examples/`, each `<scene>/source` beside its `cache`, built by
-  `scripts/docs-examples-assets.ts` with this checkout's native compiler; the models that some
-  scenes import, and their licences, are listed in `site/assets/examples/CREDITS.md`.
+  bilingual `title`, its `theme` and its `file`, empty until the example exists. The Examples area
+  shows the ready ones only (an entry with a `file`): its sidebar lists them theme by theme with
+  their thumbnail and a filter box, its landing page is one card per example with its settled
+  render (`site/assets/examples/thumbnails/<id>.png`, captured by
+  `scripts/docs-examples-thumbnails.ts`). One example is the file on `DemoPage`: the iframe fills
+  the content area under a one-line banner, and one DaisyUI floating action button carries Code (a
+  modal with the source in the code editor: Run loads the edited source as the iframe's `srcdoc`
+  with a `<base href>` at the file's address, so `../runtime/engine.js` and `../assets/` resolve;
+  Reset returns to the file; Copy), Share (copies the page link), Controls, Fullscreen and Restart.
+  The compiled scenes live under `site/assets/examples/`, each `<scene>/source` beside its
+  `cache`, built by `scripts/docs-examples-assets.ts` with this checkout's native compiler; the
+  models that some scenes import, and their licences, are listed in
+  `site/assets/examples/CREDITS.md`.
+
+  **The page ↔ example contract.** The page posts one message to the example's window, and only
+  one: `{ type: 'wg:controls', visible: boolean }`, to show or hide the example's controls panel —
+  when the reader presses Controls, and again after every load of the iframe with the current
+  state. An example that has a panel listens for it; one without ignores it. Nothing else goes
+  through `postMessage`: Restart remounts the iframe on the file (or on the edited source after a
+  Run), and Run remounts it on the edited source.
+
 - `site/demos/` contains the pure per-entry demonstration models; `kit.ts` declares their controls
   and result views, `registry.ts` maps entry ids to demos, and `engine.ts` is the one list of what
   the demos import from the engine — bundled as `js/engine.js`, the module the code editor's
@@ -58,8 +83,8 @@ dispose them before the next route. `docs/` holds the repository documentation o
 - `site/reports/` owns the report contract (`contract.ts`), metric semantics, comparison
   eligibility and bilingual labels, beside the measurement records it reads (`index.json`, one
   folder per campaign).
-- `site/styles/`, `site/assets/`, `site/data/`, `site/index.html` and `site/report.html` are served
-  as they are.
+- `site/styles/` holds `tailwind.css` and `portal.css`, which keeps only the design tokens and the
+  primitives' own rules; `site/assets/`, `site/data/` and `site/index.html` are served as they are.
 
 Types are declared where the data is: the entry shape in `content/model.ts`, the catalogue item in
 `content/catalog.ts`, the scenarios and lessons in `lessons/`, the demo model in `demos/kit.ts`,
@@ -81,7 +106,7 @@ pnpm docs:serve
 after scanning the handwritten HTML and TypeScript for class names, bundles the browser SDK and its
 workers into `runtime/`, the demo maths into `js/engine.js` and the React portal into
 `runtime/portal.js` with the areas `App.tsx` imports on demand — the examples, the lessons
-gallery, the playground and its code editor, the reports — as `runtime/portal-<hash>.js` chunks
+gallery, the lessons and their code editor, the reports — as `runtime/portal-<hash>.js` chunks
 beside it, then copies the statics (pages, examples, assets, data, reports) — files only when
 missing or older. Nothing under `site/` is a build product and nothing built is committed: the
 docs server, the browser proofs and the Pages workflow (`.github/workflows/pages.yml`, on every
@@ -118,8 +143,8 @@ packages; none stays external or is loaded from a CDN.
    `node scripts/docs-examples-assets.ts <scene>`.
 3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, and
    capture its thumbnail: `node scripts/docs-examples-thumbnails.ts <id>`.
-4. Run `node --test scripts/docs-examples.test.ts`, then the browser proof
-   `node --test scripts/docs-examples.browser.ts`.
+4. Run `node --test scripts/docs-examples.test.ts`, then the browser proofs
+   `node --test scripts/docs-examples.browser.ts` and `node --test scripts/docs-shell.browser.ts`.
 
 ## Adding a lesson
 
@@ -131,7 +156,7 @@ packages; none stays external or is loaded from a CDN.
 3. Add every visible sentence to both languages in the relevant catalogue, guidance or control-label
    module; keep API names and code unchanged.
 4. Run `node --test scripts/docs-gallery.test.ts`. Confirm that the API pages for the declared
-   functions link to the new playground and that changing language preserves the example route.
+   functions link to the new lesson and that changing language preserves the example route.
 
 ## Adding or translating documentation
 
@@ -139,7 +164,8 @@ Add the English entry to the relevant `site/content/entries/*.ts` array with a s
 French overlay with the same id to the matching file under `site/content/i18n/`. Translate the title only when
 it is editorial; function, type and constant names remain exact. Translate descriptions, argument
 descriptions and guide HTML, while signatures, exports, module paths and code examples remain the
-source contract. Add new navigation or component text to both locale tables used by `t()`.
+source contract. Add new navigation or component text to both locale tables of
+`site/content/i18n/strings.ts`, read by `t()`; the i18n test refuses a key missing from one.
 
 Run `node --test scripts/docs-i18n.test.ts tests/integration/documentation-portal.test.ts` after
 content changes. The localization test requires parity across all entries and verifies that the
@@ -196,5 +222,5 @@ function mappings in the catalogue limited to functions actually called by the e
 The Measurements route (`#/en/reports` or `#/fr/reports`) reads versioned campaign data from
 `site/reports/`. Shared React components own its presentation; the modules of `site/reports/` own
 the contract, metric semantics, comparison eligibility and bilingual labels. See the
-[report pipeline](../bench/runner/README.md#published-reports) for export and staging. The legacy
-`report.html` URL forwards to this route. Campaign data is independent of the site build.
+[report pipeline](../bench/runner/README.md#published-reports) for export and staging. The page is
+a `DocPage`, its sidebar the parts of the campaign. Campaign data is independent of the site build.

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Locale } from '../../content/locale.ts';
 import type { IllustrationSession } from '../../lessons/webgpuSession.ts';
-import { Canvas } from '../components/Canvas.tsx';
-import { Alert } from '../components/UI.tsx';
-import { Stat, StatGroup } from '../components/Stats.tsx';
+import { Canvas } from '../ui/Canvas.tsx';
+import { Alert } from '../ui/Alert.tsx';
+import { Stat, StatGroup } from '../ui/Stats.tsx';
 import { mountIllustration } from '../../lessons/webgpuRenderer.ts';
 import { initialState } from '../../lessons/scenarios.ts';
 
@@ -110,7 +110,7 @@ export function WebGPUCanvas({
   // A card preview keeps its 16/9 box and a related illustration its own size; a lesson's viewport
   // is the one that fills the column it is given.
   const shell = preview
-    ? 'geometry-3d-preview gallery-preview'
+    ? 'geometry-3d-preview h-full'
     : `flex flex-col gap-4 ${related ? 'geometry-3d-related' : 'geometry-3d-viewport'}`;
   return (
     <div className={`geometry-3d ${shell}`} data-geometry-3d={id}>

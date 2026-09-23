@@ -17,7 +17,7 @@ import type { Locale } from '../site/content/locale.ts';
 import type { Gallery as GalleryComponent } from '../site/app/gallery/Gallery.tsx';
 import type { Playground as PlaygroundComponent } from '../site/app/gallery/Playground.tsx';
 import type { Home as HomeComponent } from '../site/app/portal/Home.tsx';
-import type { CodeBlock as CodeBlockComponent } from '../site/app/components/CodeBlock.tsx';
+import type { CodeBlock as CodeBlockComponent } from '../site/app/ui/CodeBlock.tsx';
 
 const root = new URL('../site/lessons/', import.meta.url);
 const { Gallery } = (await loadReactComponents('site/app/gallery/Gallery.tsx')) as {
@@ -29,7 +29,7 @@ const { Playground } = (await loadReactComponents('site/app/gallery/Playground.t
 const { Home } = (await loadReactComponents('site/app/portal/Home.tsx')) as {
   Home: typeof HomeComponent;
 };
-const { CodeBlock } = (await loadReactComponents('site/app/components/CodeBlock.tsx')) as {
+const { CodeBlock } = (await loadReactComponents('site/app/ui/CodeBlock.tsx')) as {
   CodeBlock: typeof CodeBlockComponent;
 };
 const renderGallery = (locale: Locale) => renderToStaticMarkup(createElement(Gallery, { locale }));
@@ -114,9 +114,8 @@ test('all four advanced lessons mount their complementary diagram with finite ge
   }
 });
 
-test('gallery renders visual, searchable cards and the real engine scene', () => {
+test('gallery renders visual cards and the real engine scene', () => {
   const gallery = renderGallery('en');
-  assert.match(gallery, /type="search"/);
   assert.match(gallery, /aria-pressed="true"/);
   assert.match(gallery, /tabs tabs-box bg-base-200/);
   assert.match(gallery, />Lights and shadows<\/button>/);
@@ -128,19 +127,16 @@ test('gallery renders visual, searchable cards and the real engine scene', () =>
   assert.match(renderPlayground('compose-transform', 'en'), /data-geometry-fps/);
   assert.match(gallery, /#\/en\/lessons\/engine-scene/);
   assert.match(gallery, /assets\/kinetic-garden\/preview\.png/);
-  assert.equal((gallery.match(/class="gallery-preview/g) ?? []).length, 24);
+  assert.equal((gallery.match(/<a class="block h-full rounded-box/g) ?? []).length, 24);
   assert.match(gallery, /58 lessons shown/);
   assert.doesNotMatch(gallery, /Try it|À essayer/);
-  assert.match(gallery, /#\/en\/playground\/compose-transform/);
+  assert.match(gallery, /#\/en\/lessons\/compose-transform/);
 });
 
 test('home and gallery reuse the same linked example card', () => {
-  const home = renderToStaticMarkup(
-    createElement(Home, { locale: 'en', t: (_locale, key) => key }),
-  );
-  assert.equal((home.match(/class="gallery-preview/g) ?? []).length, 3);
-  assert.equal((home.match(/href="#\/en\/playground\//g) ?? []).length, 3);
-  assert.doesNotMatch(home, /featured-card/);
+  const home = renderToStaticMarkup(createElement(Home, { locale: 'en' }));
+  assert.equal((home.match(/<a class="block h-full rounded-box/g) ?? []).length, 3);
+  assert.equal((home.match(/href="#\/en\/lessons\//g) ?? []).length, 3);
 });
 
 test('all scenarios produce real 3D triangle geometry from SDK results', () => {

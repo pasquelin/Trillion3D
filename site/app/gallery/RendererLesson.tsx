@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Locale } from '../../content/locale.ts';
 import type { RendererLessonItem } from '../../lessons/rendererLessonTypes.ts';
-import { LearningCards } from '../components/LearningCards.tsx';
-import { CodeBlock } from '../components/CodeBlock.tsx';
-import { LessonTemplate } from '../components/LessonTemplate.tsx';
-import { ApiBadges } from '../components/ApiBadges.tsx';
-import { Alert } from '../components/UI.tsx';
+import { LearningCards } from '../ui/LearningCards.tsx';
+import { CodeBlock } from '../ui/CodeBlock.tsx';
+import { LessonTemplate } from './LessonTemplate.tsx';
+import { ApiBadges } from '../ui/ApiBadges.tsx';
+import { Alert } from '../ui/Alert.tsx';
 import { rendererInitialState } from '../../lessons/rendererLessons.ts';
 import { rendererCodeFor } from '../../lessons/rendererLessonCode.ts';
 import { RendererControls, controlValue } from './RendererControls.tsx';
@@ -23,7 +23,9 @@ export function RendererLesson({ lesson, locale = 'en', onSelect }: RendererLess
   const [state, setState] = useState(initial);
   const french = locale === 'fr';
   const title = local(lesson.title, locale);
-  useEffect(() => setState(initial), [initial]);
+  useEffect(() => {
+    setState(initial);
+  }, [initial]);
   const controls = (
     <RendererControls
       lesson={lesson}

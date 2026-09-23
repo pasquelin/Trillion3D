@@ -37,7 +37,6 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await writeFile(join(source, '.nojekyll'), '');
     await writeFile(join(source, 'examples/cube.html'), '<!doctype html>');
     await writeFile(join(source, 'index.html'), '<!doctype html>');
-    await writeFile(join(source, 'report.html'), '<!doctype html>');
     await writeFile(join(source, 'reports/index.json'), '[]');
     await writeFile(join(source, 'reports/contract.ts'), 'export {};');
     await writeFile(join(source, 'reports/campaign/report.json'), '{}');

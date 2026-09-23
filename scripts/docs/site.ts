@@ -15,15 +15,7 @@ const ROOT = resolve(import.meta.dirname, '../..');
 export const SITE_OUTPUT = resolve(ROOT, 'dist/site');
 
 /** What the site serves as is: pages, examples, scene assets, data records and the reports. */
-const STATIC_ENTRIES = [
-  '.nojekyll',
-  'index.html',
-  'report.html',
-  'examples',
-  'assets',
-  'data',
-  'reports',
-];
+const STATIC_ENTRIES = ['.nojekyll', 'index.html', 'examples', 'assets', 'data', 'reports'];
 /** Source modules living beside the reports' records are not served. */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 

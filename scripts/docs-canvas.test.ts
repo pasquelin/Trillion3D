@@ -12,7 +12,7 @@ import { Vector3 } from '../packages/sdk-core/src/world/math/vector3.ts';
 import { Box3 } from '../packages/sdk-core/src/world/math/box3.ts';
 import type { World } from '../packages/sdk-browser/src/index.ts';
 
-const { Canvas } = (await loadReactComponents('site/app/components/Canvas.tsx')) as {
+const { Canvas } = (await loadReactComponents('site/app/ui/Canvas.tsx')) as {
   Canvas: ComponentType<{
     label?: string;
     pending?: boolean;
