@@ -10,12 +10,12 @@ import { createAutonomousGeometry } from './geometry.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './manifest.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './residency.ts';
+import { createAutonomousPool } from './pool.ts';
 import { createContractLighting } from '../../lighting/contractLightingApi.ts';
 import { createThreeSceneDraw, hostDiagnostics } from '../../host/three/sceneAdapter.ts';
 import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
-import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
@@ -86,6 +86,16 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     byUrl,
     geometryStore,
   });
+  // The fixed geometry budget, drawn by the WebGPU pool's rule; `setMemoryBudgets` redraws it.
+  const pool = createAutonomousPool({
+    context,
+    descriptors,
+    bootstrapUrls,
+    allPages,
+    gate,
+    geometryStore,
+    residency,
+  });
   const renderFrame = createAutonomousRender({
     state,
     context,
@@ -98,6 +108,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     bootstrap,
     cap,
     sync,
+    pool: pool.budget,
   });
   return {
     id: 'autonomous-pages-webgl',
@@ -121,6 +132,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
           acceptGeometryPage(url, await decodePageOffThread(bytes, context.signal));
         }),
       );
+      pool.budget.rooted();
       ready = true;
       shown.push(...bootstrap);
       sync();
@@ -140,14 +152,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     }),
     ...lightingApi,
     ...residency,
-    dropPage(url: string) {
-      gate.resourcesChanged();
-      residency.dropPage(url);
-    },
-    acceptGeometryPage(url: string, data: DecodedGeometryPage) {
-      gate.resourcesChanged();
-      acceptGeometryPage(url, data);
-    },
+    ...pool.api,
     replaceGeometryPage(url, data) {
       if (!byUrl.has(url)) throw new Error('AUTONOMOUS_PAGE_MISSING');
       gate.resourcesChanged();
@@ -169,6 +174,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         selectedTriangles: state.selectedTriangles,
         residentPages: comptePagesResidentes(allPages),
         geometryAllocationBytes: geometryStore.state.allocationBytes,
+        ...pool.metrics,
         cacheEvictions: residency.cacheEvictions,
         frustumRejected: state.frustumRejected,
         lodLevel: state.lodLevel,
@@ -177,6 +183,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         drawCalls: attachedPages(shown),
         coverageReady: ready,
         coverageBudgetLimited: state.overBudget,
+        budgetPixelError: state.budgetPixelError,
         frameHeld: state.frameHeld,
       };
     },
