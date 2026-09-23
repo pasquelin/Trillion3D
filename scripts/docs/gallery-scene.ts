@@ -13,7 +13,7 @@ import { join, resolve } from 'node:path';
 export function compileGalleryScene(root: string, directory: string, simplification: string) {
   const compiler =
     process.env.WG_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
   const result = spawnSync(
     compiler,
     [

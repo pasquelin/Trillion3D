@@ -28,7 +28,7 @@ export function threeStackMounts(root: string, out: string): Mount[] {
   const fixture = resolve(root, 'tests/fixtures/formats/coplanar/three-stack');
   const compiler =
     process.env.WG_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
   execFileSync(compiler, [fixture, resolve(out, 'cache'), 'full', '150000', '/fixture/'], {
     stdio: 'pipe',
   });

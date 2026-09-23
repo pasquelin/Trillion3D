@@ -22,7 +22,7 @@ const { parseRoute } = await import('../site/app/portal/routes.ts');
 /** The language a visit to `hash` settles on, with this remembered choice and browser. */
 const languageOf = async (hash: string, remembered: string | null, languages: string[]) => {
   storage.clear();
-  if (remembered) storage.set('web-geometry.language', remembered);
+  if (remembered) storage.set('trillion3d.language', remembered);
   browser.languages = languages;
   await i18n.changeLanguage();
   return parseRoute(hash, detectedLanguage()).locale;
@@ -41,7 +41,7 @@ test('a language the route names becomes the remembered choice, its words read f
   await loadLanguage('fr');
   await i18n.changeLanguage('fr');
   assert.notEqual(i18n.getFixedT('fr')('nav.learn'), 'Learn');
-  assert.equal(storage.get('web-geometry.language'), 'fr');
+  assert.equal(storage.get('trillion3d.language'), 'fr');
 });
 
 test('a regional dictionary gives its own words, not its language’s or English', () => {

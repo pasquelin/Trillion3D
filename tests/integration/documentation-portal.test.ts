@@ -96,7 +96,7 @@ function resolveFrom(directory: string, specifier: string): string {
 }
 
 const ENTRY_POINTS: Record<string, string[]> = {
-  'web-geometry': ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'],
+  trillion3d: ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'],
 };
 
 function exampleModule(specifier: string): string[] | null {

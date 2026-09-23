@@ -1,18 +1,18 @@
 # Package architecture — version 0.2.0
 
 This repository builds ESM JavaScript and TypeScript declarations into `dist/`, behind one public
-specifier, `web-geometry` ([SDK.md, "Entry points"](../docs/SDK.md#entry-points)). npm publication and
+specifier, `trillion3d` ([SDK.md, "Entry points"](../docs/SDK.md#entry-points)). npm publication and
 cross-platform binary distribution are not configured.
 
 | Package               | Public API                                                                             | Implementation                                                                                                                                                       |
 | --------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sdk-core`            | versioned contracts, maths and batches, jobs, progress and cancellation, safety policy | pure TypeScript, no DOM, platform or UI import                                                                                                                       |
 | `sdk-browser`         | `createWorld` and its families ([SDK.md](../docs/SDK.md#families))                     | the WebGPU page raster and the WebGL2 page path, streaming, virtual textures, lighting, controls; witnesses and internal sessions behind the measurement entry point |
-| `sdk-node`            | `prepare`, `prepareMany`, `createCompilationJob`, the `web-geometry-compile` CLI       | native process and job adapter and its filesystem boundary                                                                                                           |
-| `sdk`                 | the `web-geometry` facade                                                              | the common, browser and Node branches                                                                                                                                |
+| `sdk-node`            | `prepare`, `prepareMany`, `createCompilationJob`, the `trillion3d-compile` CLI       | native process and job adapter and its filesystem boundary                                                                                                           |
+| `sdk`                 | the `trillion3d` facade                                                              | the common, browser and Node branches                                                                                                                                |
 | `page-codec`          | `encodeGeometryPage(indices, attributes)`                                              | a second, TypeScript encoder of geometry pages, so the browser decoder is tested against an independent implementation; not a production path                        |
 | `page-codec-wasm`     | none directly                                                                          | the WebAssembly page decoder and the three math kernels the governor may play ([SDK.md](../docs/SDK.md#batch-math-for-hosts))                                        |
-| `asset-compiler-rust` | Rust `compile(options, progress)` and the `web-geometry-compiler` binary               | format drivers, cluster DAG, culling hierarchy, quantized pages, baked and block-compressed textures, lights, proxy, SHA-addressed objects, Rayon pool               |
+| `asset-compiler-rust` | Rust `compile(options, progress)` and the `trillion3d-compiler` binary               | format drivers, cluster DAG, culling hierarchy, quantized pages, baked and block-compressed textures, lights, proxy, SHA-addressed objects, Rayon pool               |
 
 How a world draws is [ENGINE.md](../docs/ENGINE.md); the compiler is
 [COMPILER.md](../docs/COMPILER.md); the cache is [FORMAT.md](../docs/FORMAT.md).
@@ -49,7 +49,7 @@ adapter cancels the subprocess through `AbortSignal` and bounds both stdout and 
 
 ## Hosts
 
-An Electron main process imports `prepare` from `web-geometry`; source and cache directories, the
+An Electron main process imports `prepare` from `trillion3d`; source and cache directories, the
 resource URL and the executable are host configuration. The host serves the outputs and the original
 textures through its own URL or protocol, and the renderer process loads them with
 `world.scene.load(manifestUrl)`. Progress travels through host-owned IPC; no core package imports

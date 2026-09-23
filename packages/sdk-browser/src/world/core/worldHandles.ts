@@ -82,7 +82,7 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
   const warn = (text: string) => {
     if (said.has(text)) return;
     said.add(text);
-    console.warn(`[web-geometry] world.diagnostic.mode: ${text}`);
+    console.warn(`[trillion3d] world.diagnostic.mode: ${text}`);
   };
   // `triangles` is the page's word for the per-triangle view, which the engine names `wireframe`
   // (one colour per submitted triangle, `triangleDiagnostic.ts`).

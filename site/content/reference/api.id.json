@@ -848,7 +848,7 @@
     "summary": "Sebuah fungsi yang mendengar setiap hal yang dilaporkan sebuah kanal diagnostik."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "Skema JSON menyeluruh yang mendokumentasikan semua opsi inisialisasi untuk explorer WebGeometry (MeasuredWorldOptions).",
+    "summary": "Skema JSON menyeluruh yang mendokumentasikan semua opsi inisialisasi untuk explorer trillion3D (MeasuredWorldOptions).",
     "description": "Memungkinkan LLM memahami, memvalidasi, dan menyetel konfigurasi mesin 3D."
   },
   "EngineCamera": {
@@ -2923,7 +2923,7 @@
   "SavedScene": {
     "summary": "Scene seperti yang ditulis `scene.toJSON` dan dibaca `scene.fromJSON`: JSON sederhana.",
     "members": {
-      "format": "Selalu `'web-geometry-scene'`.",
+      "format": "Selalu `'trillion3d-scene'`.",
       "formatVersion": "Versi tata letak ini; versi lain ditolak.",
       "background": "Warna latar belakang, atau `null`.",
       "fog": "Kabut, atau `null`.",
@@ -3962,14 +3962,14 @@
       "toArray": "Keempat angka itu sebagai sebuah daftar."
     }
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "Katalog lengkap tool dan fungsi runtime yang tersedia untuk mengendalikan WebGeometry dari sebuah LLM."
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "Katalog lengkap tool dan fungsi runtime yang tersedia untuk mengendalikan trillion3D dari sebuah LLM."
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "Prompt sistem yang membimbing sebuah LLM tentang prinsip, anggaran, dan opsi rendering WebGeometry."
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "Prompt sistem yang membimbing sebuah LLM tentang prinsip, anggaran, dan opsi rendering trillion3D."
   },
-  "WebGeometryTool": {
-    "summary": "Definisi tool WebGeometry generik untuk LLM.",
+  "Trillion3DTool": {
+    "summary": "Definisi tool trillion3D generik untuk LLM.",
     "members": {
       "name": "Nama tool-nya.",
       "description": "Apa yang dilakukannya.",
@@ -5080,11 +5080,11 @@
     "summary": "Batas provenans publik: konsumen tidak pernah membaca jalur implementasi SDK sendiri.",
     "description": "Hanya hash — sumber lengkap tidak dimuat ke dalam snapshot."
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3DLlmPrompt": {
     "summary": "Menghasilkan system prompt ahli siap pakai untuk mempersiapkan sebuah LLM."
   },
-  "getWebGeometryTools": {
-    "summary": "Mengembalikan array lengkap definisi alat WebGeometry yang diformat untuk penyedia LLM target.",
+  "getTrillion3DTools": {
+    "summary": "Mengembalikan array lengkap definisi alat trillion3D yang diformat untuk penyedia LLM target.",
     "parameters": {
       "format": "Format target ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Default: 'openai'."
     }
@@ -6551,16 +6551,16 @@
     "description": "Template berasal dari kompiler dan mesin tidak tahu tata letak cache; satu kebenaran, seperti untuk halaman. Sebuah template tanpa keempat bidangnya ditolak: sebuah alamat yang tidak bervariasi dengannya akan menyajikan gambar yang sama ke setiap tekstur."
   },
   "toAnthropicTool": {
-    "summary": "Mengonversi sebuah alat WebGeometry generik menjadi format Anthropic Tool Use."
+    "summary": "Mengonversi sebuah alat trillion3D generik menjadi format Anthropic Tool Use."
   },
   "toGeminiTool": {
-    "summary": "Mengonversi sebuah alat WebGeometry generik menjadi format Google Gemini Function Declaration."
+    "summary": "Mengonversi sebuah alat trillion3D generik menjadi format Google Gemini Function Declaration."
   },
   "toMcpTool": {
-    "summary": "Mengonversi sebuah alat WebGeometry generik menjadi format Model Context Protocol (MCP)."
+    "summary": "Mengonversi sebuah alat trillion3D generik menjadi format Model Context Protocol (MCP)."
   },
   "toOpenAiTool": {
-    "summary": "Mengonversi sebuah alat WebGeometry generik menjadi format OpenAI Function Calling."
+    "summary": "Mengonversi sebuah alat trillion3D generik menjadi format OpenAI Function Calling."
   },
   "toneMapping": {
     "summary": "Kurva yang membawa radiansi scene ke rentang tampilan: setiap kurva yang diberi peringkat mesin."

@@ -195,7 +195,7 @@ in the portal's language. The kit loads it before the example's script runs:
 ## The API reference
 
 The reference is generated, never written by hand: `scripts/generate-api-reference.ts` reads the
-TypeScript declarations of the three public entries of `web-geometry` (`packages/sdk/index.ts`,
+TypeScript declarations of the three public entries of `trillion3d` (`packages/sdk/index.ts`,
 `browser.ts`, `node.mts`) and writes `site/content/reference/api.json` — one entry per export, one
 per member of every family (`geometry.box`, `material.meshStandard`, …) and one per member of the
 world (`world.scene`, `world.onFrame`, …). Each entry carries its summary (the first sentence of

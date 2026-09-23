@@ -32,8 +32,8 @@ test('ignored personal content stays outside shared checks and force-addition is
     git('rm', '--cached', 'docs/PRIVATE.md');
     const changed = new Set(['docs/PRIVATE.md', 'docs/guide.md']);
     assert.deepEqual(existingChangedFiles(changed, root), ['docs/guide.md']);
-    writeFileSync(join(root, 'personal/helper.ts'), "import { hidden } from 'web-geometry';");
-    writeFileSync(join(root, 'consumer.ts'), "import { visible } from 'web-geometry';");
+    writeFileSync(join(root, 'personal/helper.ts'), "import { hidden } from 'trillion3d';");
+    writeFileSync(join(root, 'consumer.ts'), "import { visible } from 'trillion3d';");
     assert.deepEqual([...consumerImports(root)], [['visible', new Set(['consumer.ts'])]]);
   } finally {
     rmSync(root, { recursive: true, force: true });

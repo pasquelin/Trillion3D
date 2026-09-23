@@ -151,7 +151,7 @@ export function entryRest(entry: Pick<PortalEntry, 'description' | 'summary'>): 
   return (description.startsWith(summary) ? description.slice(summary.length) : description).trim();
 }
 
-const REPOSITORY = 'https://github.com/pasquelin/WebGeometry';
+const REPOSITORY = 'https://github.com/pasquelin/trillion3D';
 
 /** What each open issue delivers, as the badge of an entry in development says it. */
 export const ISSUES: Record<number, string> = {};

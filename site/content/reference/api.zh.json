@@ -841,7 +841,7 @@
     "summary": "监听诊断通道所报告的每一件事的函数。"
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "描述 WebGeometry 探索器(MeasuredWorldOptions)全部初始化选项的完整 JSON Schema。",
+    "summary": "描述 trillion3D 探索器(MeasuredWorldOptions)全部初始化选项的完整 JSON Schema。",
     "description": "让 LLM 能够理解、校验并调整这个 3D 引擎的配置。"
   },
   "EngineCamera": {
@@ -3825,14 +3825,14 @@
       "toArray": "把这四个数字作为一个列表返回。"
     }
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "供 LLM 用来控制 WebGeometry 的完整工具与运行时函数目录。"
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "供 LLM 用来控制 trillion3D 的完整工具与运行时函数目录。"
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "引导 LLM 了解 WebGeometry 原则、预算和渲染选项的系统提示词。"
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "引导 LLM 了解 trillion3D 原则、预算和渲染选项的系统提示词。"
   },
-  "WebGeometryTool": {
-    "summary": "面向 LLM 的通用 WebGeometry 工具定义。",
+  "Trillion3DTool": {
+    "summary": "面向 LLM 的通用 trillion3D 工具定义。",
     "members": {
       "name": "该工具的名称。",
       "description": "它的作用。",
@@ -5068,11 +5068,11 @@
     "summary": "公开的来源边界:消费者绝不会自己去读取 SDK 的实现路径。",
     "description": "只提供哈希值——完整源码不会被载入这份快照。"
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3DLlmPrompt": {
     "summary": "生成一份可直接使用的专家系统提示词,用于初始化一个 LLM。"
   },
-  "getWebGeometryTools": {
-    "summary": "返回按目标 LLM 提供方格式化的完整 WebGeometry 工具定义数组。",
+  "getTrillion3DTools": {
+    "summary": "返回按目标 LLM 提供方格式化的完整 trillion3D 工具定义数组。",
     "parameters": {
       "format": "目标格式('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema')。默认值:'openai'。"
     }
@@ -6535,16 +6535,16 @@
     "description": "这个模板来自编译器,引擎并不知道缓存的具体布局;这和页面的情况一样,只有唯一的真实来源。一个缺少这四个字段的模板会被拒绝:一个不随它们变化的地址,会让所有纹理都得到同一张图像。"
   },
   "toAnthropicTool": {
-    "summary": "把一个通用的 WebGeometry 工具转换为 Anthropic Tool Use 格式。"
+    "summary": "把一个通用的 trillion3D 工具转换为 Anthropic Tool Use 格式。"
   },
   "toGeminiTool": {
-    "summary": "把一个通用的 WebGeometry 工具转换为 Google Gemini Function Declaration 格式。"
+    "summary": "把一个通用的 trillion3D 工具转换为 Google Gemini Function Declaration 格式。"
   },
   "toMcpTool": {
-    "summary": "把一个通用的 WebGeometry 工具转换为 Model Context Protocol(MCP)格式。"
+    "summary": "把一个通用的 trillion3D 工具转换为 Model Context Protocol(MCP)格式。"
   },
   "toOpenAiTool": {
-    "summary": "把一个通用的 WebGeometry 工具转换为 OpenAI Function Calling 格式。"
+    "summary": "把一个通用的 trillion3D 工具转换为 OpenAI Function Calling 格式。"
   },
   "toneMapping": {
     "summary": "把场景辐亮度带入显示范围的曲线:引擎所支持排序的每一种曲线。"
@@ -6808,7 +6808,7 @@
   "SavedScene": {
     "summary": "`scene.toJSON` 写出、`scene.fromJSON` 读取的场景:纯 JSON。",
     "members": {
-      "format": "总是 `'web-geometry-scene'`。",
+      "format": "总是 `'trillion3d-scene'`。",
       "formatVersion": "这种布局的版本；其他版本会被拒绝。",
       "background": "背景颜色，或 `null`。",
       "fog": "雾，或 `null`。",

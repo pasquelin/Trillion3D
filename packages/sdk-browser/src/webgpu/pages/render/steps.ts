@@ -102,7 +102,7 @@ export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
   };
   diag.engineDiagnostic('first-render-path', 'WebGPU first render configuration', details);
   if (typeof window !== 'undefined')
-    console.info('[web-geometry] WebGPU first render configuration', details);
+    console.info('[trillion3d] WebGPU first render configuration', details);
 }
 
 /** The CPU sample of an image, with `null` for the steps an image that did not draw never ran. */

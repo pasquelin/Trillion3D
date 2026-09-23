@@ -6,7 +6,7 @@ export const ENUMS_RUNTIME: EntryNote[] = [
   {
     id: 'MathPathMode',
     valueNames: ["'auto'", "'js'", "'wasm'"],
-    example: `import { MATH_PATH_CONTRACT, createPathGovernor } from 'web-geometry';
+    example: `import { MATH_PATH_CONTRACT, createPathGovernor } from 'trillion3d';
 
 const governor = createPathGovernor(performance.now.bind(performance), 'auto');
 console.log(MATH_PATH_CONTRACT, governor.metrics()); // per operation: jsNsPerElement, wasmNsPerElement, path, switches`,
@@ -34,7 +34,7 @@ console.log(frame.gpuFrameMs); // null when nothing measured it`,
   {
     id: 'ColumnKind',
     valueNames: ["'f64'", "'i32'", "'u32'", "'u8'"],
-    example: `import { COLUMN_KIND } from 'web-geometry';
+    example: `import { COLUMN_KIND } from 'trillion3d';
 
 console.log(COLUMN_KIND.pageBounds); // 'f64'`,
   },
@@ -44,7 +44,7 @@ console.log(COLUMN_KIND.pageBounds); // 'f64'`,
     replaces: 'FrontSide, BackSide, DoubleSide',
     proof: 'materialSide.test.ts',
     example: `// Read once at the import boundary.
-import { sideOf } from 'web-geometry';
+import { sideOf } from 'trillion3d';
 
 if (sideOf(material) === 'double') { /* rasterize without backface culling */ }`,
   },

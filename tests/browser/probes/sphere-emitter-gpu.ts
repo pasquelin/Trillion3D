@@ -170,7 +170,7 @@ const argument = {
   depthClear: depth.DEPTH_CLEAR,
 };
 const resultat = await dansPageWebgpu(executer, argument, {
-  titre: 'WebGeometry spherical exclusion',
+  titre: 'trillion3D spherical exclusion',
 });
 console.log(JSON.stringify({ source, centre, rayon, ...resultat }, null, 2));
 

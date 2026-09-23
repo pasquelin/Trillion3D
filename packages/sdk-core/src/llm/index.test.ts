@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import {
   EXPLORER_OPTIONS_SCHEMA,
   COMPILER_OPTIONS_SCHEMA,
-  WEB_GEOMETRY_RUNTIME_TOOLS,
-  getWebGeometryTools,
-  getWebGeometryLlmPrompt,
+  TRILLION3D_RUNTIME_TOOLS,
+  getTrillion3DTools,
+  getTrillion3DLlmPrompt,
   toOpenAiTool,
   toAnthropicTool,
   toGeminiTool,
   toMcpTool,
 } from '../index.ts';
 
-describe('WebGeometry LLM Module', () => {
+describe('trillion3D LLM Module', () => {
   it('exposes a valid JSON Schema for MeasuredWorldOptions', () => {
     assert.equal(EXPLORER_OPTIONS_SCHEMA.type, 'object');
     assert.ok(EXPLORER_OPTIONS_SCHEMA.properties.manifestUrl);
@@ -35,20 +35,20 @@ describe('WebGeometry LLM Module', () => {
   });
 
   it('declares runtime tools including memory, lighting and diagnostics', () => {
-    assert.ok(WEB_GEOMETRY_RUNTIME_TOOLS.length >= 7);
-    const names = WEB_GEOMETRY_RUNTIME_TOOLS.map((t) => t.name);
-    assert.ok(names.includes('web_geometry_create_explorer'));
-    assert.ok(names.includes('web_geometry_set_memory_budgets'));
-    assert.ok(names.includes('web_geometry_set_lod_error'));
-    assert.ok(names.includes('web_geometry_set_temporal_antialiasing'));
-    assert.ok(names.includes('web_geometry_add_light'));
-    assert.ok(names.includes('web_geometry_remove_light'));
-    assert.ok(names.includes('web_geometry_set_diagnostic'));
+    assert.ok(TRILLION3D_RUNTIME_TOOLS.length >= 7);
+    const names = TRILLION3D_RUNTIME_TOOLS.map((t) => t.name);
+    assert.ok(names.includes('trillion3d_create_explorer'));
+    assert.ok(names.includes('trillion3d_set_memory_budgets'));
+    assert.ok(names.includes('trillion3d_set_lod_error'));
+    assert.ok(names.includes('trillion3d_set_temporal_antialiasing'));
+    assert.ok(names.includes('trillion3d_add_light'));
+    assert.ok(names.includes('trillion3d_remove_light'));
+    assert.ok(names.includes('trillion3d_set_diagnostic'));
   });
 
   it('formats tools correctly for OpenAI Function Calling', () => {
-    const openaiTools = getWebGeometryTools('openai');
-    assert.equal(openaiTools.length, WEB_GEOMETRY_RUNTIME_TOOLS.length);
+    const openaiTools = getTrillion3DTools('openai');
+    assert.equal(openaiTools.length, TRILLION3D_RUNTIME_TOOLS.length);
     for (const tool of openaiTools) {
       assert.equal(tool.type, 'function');
       assert.ok(tool.function.name);
@@ -58,8 +58,8 @@ describe('WebGeometry LLM Module', () => {
   });
 
   it('formats tools correctly for Anthropic Tool Use', () => {
-    const anthropicTools = getWebGeometryTools('anthropic');
-    assert.equal(anthropicTools.length, WEB_GEOMETRY_RUNTIME_TOOLS.length);
+    const anthropicTools = getTrillion3DTools('anthropic');
+    assert.equal(anthropicTools.length, TRILLION3D_RUNTIME_TOOLS.length);
     for (const tool of anthropicTools) {
       assert.ok(tool.name);
       assert.ok(tool.description);
@@ -68,8 +68,8 @@ describe('WebGeometry LLM Module', () => {
   });
 
   it('formats tools correctly for Gemini Function Declarations', () => {
-    const geminiTools = getWebGeometryTools('gemini');
-    assert.equal(geminiTools.length, WEB_GEOMETRY_RUNTIME_TOOLS.length);
+    const geminiTools = getTrillion3DTools('gemini');
+    assert.equal(geminiTools.length, TRILLION3D_RUNTIME_TOOLS.length);
     for (const tool of geminiTools) {
       assert.ok(tool.name);
       assert.ok(tool.description);
@@ -78,8 +78,8 @@ describe('WebGeometry LLM Module', () => {
   });
 
   it('formats tools correctly for Model Context Protocol (MCP)', () => {
-    const mcpTools = getWebGeometryTools('mcp');
-    assert.equal(mcpTools.length, WEB_GEOMETRY_RUNTIME_TOOLS.length);
+    const mcpTools = getTrillion3DTools('mcp');
+    assert.equal(mcpTools.length, TRILLION3D_RUNTIME_TOOLS.length);
     for (const tool of mcpTools) {
       assert.ok(tool.name);
       assert.ok(tool.description);
@@ -88,7 +88,7 @@ describe('WebGeometry LLM Module', () => {
   });
 
   it('converts individual tools directly with converter helpers', () => {
-    const sampleTool = WEB_GEOMETRY_RUNTIME_TOOLS[0];
+    const sampleTool = TRILLION3D_RUNTIME_TOOLS[0];
     assert.equal(toOpenAiTool(sampleTool).function.name, sampleTool.name);
     assert.equal(toAnthropicTool(sampleTool).name, sampleTool.name);
     assert.equal(toGeminiTool(sampleTool).name, sampleTool.name);
@@ -96,8 +96,8 @@ describe('WebGeometry LLM Module', () => {
   });
 
   it('generates an expert system prompt guide', () => {
-    const prompt = getWebGeometryLlmPrompt();
-    assert.ok(prompt.includes('WebGeometry'));
+    const prompt = getTrillion3DLlmPrompt();
+    assert.ok(prompt.includes('trillion3D'));
     assert.ok(prompt.includes('Nanite'));
     assert.ok(prompt.includes('TAA'));
     assert.ok(prompt.includes('Lumen'));

@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Instant,
 };
-use web_geometry_compiler::shared_math::elapsed_ms;
+use trillion3d_compiler::shared_math::elapsed_ms;
 
 pub(super) fn run_batch(spec_path: &str, cancellation: Arc<Cancellation>) -> Result<i32, String> {
     let started = Instant::now();

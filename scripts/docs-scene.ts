@@ -7,7 +7,7 @@ const scene = resolve(root, 'site/assets/kinetic-garden');
 await writeGarden(resolve(scene, 'source'));
 const executable =
   process.env.WG_COMPILER ??
-  resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+  resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
 const result = spawnSync(
   executable,
   [

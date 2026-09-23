@@ -14,7 +14,7 @@ const root = resolve(import.meta.dirname, '..'),
   only = process.argv.slice(2).find((argument) => !argument.startsWith('-')),
   compiler =
     process.env.WG_COMPILER ??
-    resolve(root, 'packages/asset-compiler-rust/target/release/web-geometry-compiler');
+    resolve(root, 'packages/asset-compiler-rust/target/release/trillion3d-compiler');
 
 const names = Object.keys(modelScenes).filter((name) => !only || name === only);
 if (!names.length) throw new Error(`Unknown example scene: ${only}`);

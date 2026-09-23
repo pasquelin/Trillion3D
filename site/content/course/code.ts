@@ -16,9 +16,9 @@ export const CHAPTERS: ChapterCode[] = [
     id: 'create-a-world',
     example: 'a-first-world',
     code: [
-      `pnpm add ../webGeometry   # the folder where you cloned and built the engine`,
+      `pnpm add ../trillion3D   # the folder where you cloned and built the engine`,
       `<canvas id="view" style="width: 100%; height: 400px"></canvas>`,
-      `import { createWorld, geometry, material, object, light } from 'web-geometry';
+      `import { createWorld, geometry, material, object, light } from 'trillion3d';
 
 const world = createWorld('view', { controls: 'orbit' });
 const cube = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ color: '#3c8ce0' }));
@@ -97,7 +97,7 @@ animation.createMixer(robot).play(wave);`,
     id: 'load-a-compiled-model',
     example: 'marble-bust-on-its-pedestal',
     code: [
-      `pnpm exec web-geometry-compile models/bust.glb public/bust full 150000 /bust/`,
+      `pnpm exec trillion3d-compile models/bust.glb public/bust full 150000 /bust/`,
       `const bust = await world.scene.load('/bust/native/full/manifest.json');
 world.camera.set(pose.fromBounds(bust.bounds)); // frame the whole model`,
     ],

@@ -32,7 +32,7 @@ export function ThreeMigration({ entry, locale }: { entry: PortalEntry; locale: 
           <CodeBlock
             code={engineProgram}
             locale={locale}
-            label="Web Geometry · examples/migrating-from-three.html"
+            label="trillion3D · examples/migrating-from-three.html"
             language="html"
             gaps={engineGaps}
             whole

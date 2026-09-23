@@ -20,7 +20,7 @@ use std::{
     },
     time::Instant,
 };
-use web_geometry_compiler::{
+use trillion3d_compiler::{
     compile, parse_compiler_args, plugins, shared_math::elapsed_ms, CompilerError, Options,
     COMPILER_VERSION, FORMAT_VERSION,
 };
@@ -161,7 +161,7 @@ fn main() {
                 }
             },
             None => {
-                eprintln!("Usage: web-geometry-compiler --jobs FILE|-");
+                eprintln!("Usage: trillion3d-compiler --jobs FILE|-");
                 2
             }
         },

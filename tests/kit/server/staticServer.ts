@@ -31,7 +31,7 @@ export interface Mount {
 export type Capture = { body: Buffer; w: number; h: number } | null;
 
 /** The harness page: an import map, and nothing else. Everything else comes from `evaluate`. */
-const PAGE = `<!doctype html><meta charset="utf-8"><title>WebGeometry measurement bench</title>
+const PAGE = `<!doctype html><meta charset="utf-8"><title>trillion3D measurement bench</title>
 <script type="importmap">{"imports":{
  "three":"/vendor/three/build/three.module.js",
  "three/addons/":"/vendor/three/examples/jsm/",

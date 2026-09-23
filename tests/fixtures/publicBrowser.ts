@@ -12,7 +12,7 @@ import {
   type TelemetryReport,
   type World,
   type WorldOptions,
-} from 'web-geometry';
+} from 'trillion3d';
 
 const pose: CameraPose = {
   position: [0, 1, 2],

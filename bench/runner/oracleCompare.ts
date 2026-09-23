@@ -7,7 +7,7 @@ import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contrac
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
 
 /** Compiler oracle binary, built by `pnpm run build:native`: a measurement tool, not the compiler. */
-const ORACLE_BIN = 'packages/asset-compiler-rust/target/release/web-geometry-oracle';
+const ORACLE_BIN = 'packages/asset-compiler-rust/target/release/trillion3d-oracle';
 /** True when binary exists: without it, campaign stops before opening browser. */
 export const oracleBuilt = (root: string) => existsSync(join(root, ORACLE_BIN));
 

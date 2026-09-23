@@ -18,7 +18,7 @@ export function startInteractiveExplorer(
   const controls = original.ownControls === false ? undefined : explorer.controls();
   // The loop stops for good: said on the console too, or the canvas would freeze without a word.
   const reportFailure = (error: unknown) => {
-    console.error('[web-geometry] Automatic rendering stopped', error);
+    console.error('[trillion3d] Automatic rendering stopped', error);
     events.emit({
       eventVersion: 1,
       type: 'fatal',
