@@ -741,8 +741,8 @@
         "exterior": "Dış"
       },
       "mode": {
-        "arcade": "Arcade — jet nişana doğru uçar; stall yok, kendi kendine toparlanır",
-        "expert": "Uzman — fare lövyedir; stall olur ve viril yapar"
+        "arcade": "Arcade — jet nişana doğru uçar; stol yok, kendi kendine toparlanır",
+        "expert": "Uzman — fare lövyedir; stol olur ve viril yapar"
       },
       "sensitivity": {
         "Low": "Düşük",
@@ -788,7 +788,7 @@
       "rings": "HALKALAR {passed}/{all}",
       "complete": "PARKUR TAMAM",
       "flyAgain": "{time} — yeniden uçmak için R",
-      "stall": "STALL",
+      "stall": "STOL",
       "pullUp": "YÜKSEL",
       "turnBack": "GERİ DÖN",
       "crashed": "DÜŞTÜ",
