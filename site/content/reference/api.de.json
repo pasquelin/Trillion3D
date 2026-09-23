@@ -4192,7 +4192,9 @@
       "minPolarAngle": "Kleinster Polarwinkel, in Radiant von der Senkrechten: `0` lässt die Kamera geradewegs nach unten schauen. Der Pol selbst bleibt außer Reichweite, wo der Azimut aufhören würde, definiert zu sein.",
       "maxPolarAngle": "Größter Polarwinkel, in Radiant von der Senkrechten: `Math.PI / 2` hält sie über dem Boden.",
       "minAzimuthAngle": "Beginn des erlaubten Azimutbogens, in Radiant von +Z zu +X; ohne Grenze bei `-Infinity`. Nur ein Paar endlicher Grenzen, enger als eine volle Umdrehung, hält die Kamera fest.",
-      "maxAzimuthAngle": "Ende dieses Bogens; ohne Grenze bei `Infinity`. Er kann kleiner sein als `minAzimuthAngle`."
+      "maxAzimuthAngle": "Ende dieses Bogens; ohne Grenze bei `Infinity`. Er kann kleiner sein als `minAzimuthAngle`.",
+      "autoRotate": "Radiant pro Sekunde, um die sich die Kamera von selbst um `target` dreht, Azimut von +Z nach +X; 0, der Standard, hält sie still. Die Drehung wird von `update(delta)` integriert und endet endgültig beim ersten Drücken oder Mausradschritt auf der Fläche: Der Betrachter hat die Kamera übernommen.",
+      "update": "Wie das `update()` des Pivots, mit den Sekunden, über die `autoRotate` dreht; standardmäßig 0."
     }
   },
   "OrthographicBox": {
@@ -6299,14 +6301,14 @@
     "summary": "Der Maus- und Tastatur-Controller, der die Kamera bewegt.",
     "members": {
       "kind": "Welcher Controller die Kamera lenkt; gib einen anderen Namen an, um zu wechseln.",
-      "enabled": "Ob der Controller auf Maus und Tastatur hört.",
+      "enabled": "Ob der Controller auf Maus und Tastatur hört und die Kamera bewegt. `false` pausiert ihn — keine Eingabe, kein `update` —, ohne ihn neu zu erzeugen: Geschwindigkeit, Bodenkontakt, Schritt, Ausrichtung und Drehung bleiben erhalten, und `true` setzt genau dort fort, wo er stand.",
       "target": "Der Punkt, um den sich ein Drehpunkt-Controller dreht.",
       "autoUpdate": "Ob die Schleife der Welt `update` vor jedem Bild aufruft, vor den `world.beforeFrame`-Hooks. `false` überlässt den Schritt der Seite, die `update` aus einem solchen Hook aufruft, so oft und über so viele Teilschritte, wie sie integriert; die Welt macht ihn dann nie mehr.",
       "colliders": "Nur Charakter: die Meshes, mit denen der Körper kollidiert — ein Objekt oder eine Liste, Nachkommen eingeschlossen — oder `null`. Sie zu setzen baut einen statischen Dreiecksbaum aus ihren Dreiecken im Weltraum, so wie sie jetzt stehen: ein Durchlauf über die Dreiecke und ein `O(T log T)`-Aufbau, etwa 52 Bytes pro Dreieck. Kompilierte Modelle werden noch nicht gelesen: gib ihnen ein einfaches Mesh als Platzhalter. Eine `CharacterCollision` — die Welt einer Physik-Engine, alles, was `resolveCapsule` und `groundBelow` beantwortet — wird unverändert verwendet.",
       "rebuildColliders": "Nur Charakter: baut den Kollisionsbaum erneut, nachdem sich die Kollidierer bewegt oder geändert haben. Eine `CharacterCollision` ist ihre eigene Welt und wird unverändert weitergegeben.",
       "velocity": "Nur Charakter: die Geschwindigkeit des Körpers in Metern pro Sekunde, eine Kopie; sonst null.",
       "onGround": "Nur Charakter: ob die Füße auf einem Boden stehen; `false` für jeden anderen Controller.",
-      "update": "Lässt einen gesteuerten Controller um `delta` Sekunden voranschreiten; ein Drehpunkt-Controller liest seine Pose erneut.",
+      "update": "Integriert einen gesteuerten Controller über `delta` Sekunden; ein Pivot-Controller liest seine Pose neu, und ein Orbit dreht um `autoRotate`. Ein pausierter Controller tut nichts.",
       "follow": "Die Kamera der Welt hat sich geändert: der Controller folgt ihr.",
       "dispose": "Stoppt den Controller und entfernt seine Listener vom Canvas.",
       "minDistance": "Mindestentfernung, auf die ein Drehpunkt-Controller die Kamera an `target` heranbringt.",
@@ -6315,6 +6317,7 @@
       "maxPolarAngle": "Nur Umlaufbahn: größter Polarwinkel; `Math.PI / 2` hält die Kamera über dem Boden.",
       "minAzimuthAngle": "Nur Umlaufbahn: Beginn des erlaubten Azimutbogens, in Radiant von +Z zu +X.",
       "maxAzimuthAngle": "Nur Umlaufbahn: Ende dieses Bogens; er kann kleiner sein als `minAzimuthAngle`.",
+      "autoRotate": "Nur Orbit: Radiant pro Sekunde, um die sie sich von selbst um `target` dreht, bis zum ersten Drücken oder Mausradschritt; standardmäßig 0.",
       "movementSpeed": "Flug und Ich-Perspektive: Welteinheiten pro Sekunde bei voller Taste; standardmäßig 1.",
       "lookSpeed": "Ich-Perspektive und Figur: Radiant, um die sich die Ansicht pro Pixel Zeigerbewegung dreht.",
       "minPitch": "Ich-Perspektive und Figur: am tiefsten, wohin der Kopf blickt, in Radiant (0 ist der Horizont, negativ nach unten).",
