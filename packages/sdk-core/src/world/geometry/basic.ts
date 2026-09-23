@@ -1,4 +1,5 @@
-import { GeometryBuilder, fromArrays, normalize } from './builder.ts';
+import { withRecipe } from './geometry.ts';
+import { GeometryBuilder, fromArrays, normalize, pieces } from './builder.ts';
 import { sphereArrays, turnPoint } from './sphere.ts';
 
 type V3 = [number, number, number];
@@ -44,6 +45,7 @@ function sheet(
  * @param ds - Slices along the depth.
  */
 export function box(width = 1, height = 1, depth = 1, ws = 1, hs = 1, ds = 1) {
+  [ws, hs, ds] = [pieces(ws, 1), pieces(hs, 1), pieces(ds, 1)];
   const b = new GeometryBuilder();
   const w = width / 2,
     h = height / 2,
@@ -54,7 +56,7 @@ export function box(width = 1, height = 1, depth = 1, ws = 1, hs = 1, ds = 1) {
   sheet(b, [0, -1, 0], [1, 0, 0], [0, 0, 1], [width, depth, h], [ws, ds]);
   sheet(b, [0, 0, 1], [1, 0, 0], [0, 1, 0], [width, height, d], [ws, hs]);
   sheet(b, [0, 0, -1], [-1, 0, 0], [0, 1, 0], [width, height, d], [ws, hs]);
-  return b.build();
+  return withRecipe(b.build(), 'box', [width, height, depth, ws, hs, ds]);
 }
 
 /**
@@ -65,9 +67,10 @@ export function box(width = 1, height = 1, depth = 1, ws = 1, hs = 1, ds = 1) {
  * @param hs - Slices along the height.
  */
 export function plane(width = 1, height = 1, ws = 1, hs = 1) {
+  [ws, hs] = [pieces(ws, 1), pieces(hs, 1)];
   const b = new GeometryBuilder();
   sheet(b, [0, 0, 1], [1, 0, 0], [0, 1, 0], [width, height, 0], [ws, hs]);
-  return b.build();
+  return withRecipe(b.build(), 'plane', [width, height, ws, hs]);
 }
 
 /**
@@ -77,8 +80,10 @@ export function plane(width = 1, height = 1, ws = 1, hs = 1) {
  * @param hs - Slices from pole to pole.
  */
 export function sphere(radius = 1, ws = 32, hs = 16) {
+  [ws, hs] = [pieces(ws, 3), pieces(hs, 2)];
   const arrays = sphereArrays([0, 0, 0], radius, ws, hs);
-  return fromArrays(arrays.positions, arrays.normals, arrays.uv, arrays.indices);
+  const built = fromArrays(arrays.positions, arrays.normals, arrays.uv, arrays.indices);
+  return withRecipe(built, 'sphere', [radius, ws, hs]);
 }
 
 /**
@@ -90,14 +95,14 @@ export function sphere(radius = 1, ws = 32, hs = 16) {
  */
 export function circle(radius = 1, segments = 32, thetaStart = 0, thetaLength = TAU) {
   const b = new GeometryBuilder();
-  const count = Math.max(3, Math.floor(segments));
+  const count = (segments = pieces(segments, 3));
   const centre = b.vertex([0, 0, 0], [0, 0, 1], [0.5, 0.5]);
   for (let i = 0; i <= count; i++) {
     const [c, s] = turnPoint(i / count, thetaStart, thetaLength);
     b.vertex([radius * c, radius * s, 0], [0, 0, 1], [(c + 1) / 2, (s + 1) / 2]);
     if (i > 0) b.triangle(centre, centre + i, centre + i + 1);
   }
-  return b.build();
+  return withRecipe(b.build(), 'circle', [radius, segments, thetaStart, thetaLength]);
 }
 
 /**
@@ -109,14 +114,15 @@ export function circle(radius = 1, segments = 32, thetaStart = 0, thetaLength = 
  */
 export function ring(inner = 0.5, outer = 1, segments = 32, phiSegments = 1) {
   const b = new GeometryBuilder();
-  b.grid(Math.max(3, Math.floor(segments)), Math.max(1, Math.floor(phiSegments)), (u, v) => {
+  [segments, phiSegments] = [pieces(segments, 3), pieces(phiSegments, 1)];
+  b.grid(segments, phiSegments, (u, v) => {
     const [c, s] = turnPoint(u),
       r = inner + (outer - inner) * v;
     const x = r * c,
       y = r * s;
     return { p: [x, y, 0], n: [0, 0, 1], uv: [(x / outer + 1) / 2, (y / outer + 1) / 2] };
   });
-  return b.build();
+  return withRecipe(b.build(), 'ring', [inner, outer, segments, phiSegments]);
 }
 
 /**
@@ -137,9 +143,9 @@ export function cylinder(
   openEnded = false,
 ) {
   const b = new GeometryBuilder();
-  const rs = Math.max(3, Math.floor(radialSegments));
+  const rs = (radialSegments = pieces(radialSegments, 3));
   const slope = (radiusBottom - radiusTop) / height;
-  b.grid(rs, Math.max(1, Math.floor(heightSegments)), (u, v) => {
+  b.grid(rs, (heightSegments = pieces(heightSegments, 1)), (u, v) => {
     const [c, s] = turnPoint(u),
       r = radiusTop + (radiusBottom - radiusTop) * v;
     return {
@@ -163,7 +169,14 @@ export function cylinder(
           else b.triangle(centre, centre + i + 1, centre + i);
       }
     }
-  return b.build();
+  return withRecipe(b.build(), 'cylinder', [
+    radiusTop,
+    radiusBottom,
+    height,
+    radialSegments,
+    heightSegments,
+    openEnded,
+  ]);
 }
 
 /**
@@ -181,5 +194,7 @@ export function cone(
   heightSegments = 1,
   open = false,
 ) {
-  return cylinder(0, radius, height, radialSegments, heightSegments, open);
+  const built = cylinder(0, radius, height, radialSegments, heightSegments, open);
+  const [, , , around, along] = built.recipe!.args;
+  return withRecipe(built, 'cone', [radius, height, around, along, open]);
 }

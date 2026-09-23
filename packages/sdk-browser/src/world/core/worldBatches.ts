@@ -37,7 +37,7 @@ export function createWorldBatches() {
   let waiting = 0;
   const short = new Set<Batch>();
   const batchOf = (cut: Cut, entry: MaterialEntry) => {
-    const key = `${cut.key}/${entry.key}`;
+    const key = `${cut.key}/${entry.id}`;
     let batch = batches.get(key);
     if (!batch)
       batches.set(
