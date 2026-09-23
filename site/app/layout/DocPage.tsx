@@ -1,5 +1,8 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
+/** The site's name: the home's title, and the end of every other page's. */
+export const SITE_NAME = 'Web Geometry';
+
 interface DocPageProps extends Omit<ComponentPropsWithoutRef<'article'>, 'title'> {
   /** A short line above the title: the area or the kind of page. */
   eyebrow?: ReactNode;
@@ -16,7 +19,9 @@ interface DocPageProps extends Omit<ComponentPropsWithoutRef<'article'>, 'title'
 export function DocPage({ eyebrow, title, lead, actions, children, ...props }: DocPageProps) {
   return (
     <article className="grid w-full min-w-0 grid-cols-1 gap-8" {...props}>
-      {typeof title === 'string' && <title>{`${title} · Web Geometry`}</title>}
+      {typeof title === 'string' && (
+        <title>{title === SITE_NAME ? title : `${title} · ${SITE_NAME}`}</title>
+      )}
       <header className="grid grid-cols-1 gap-3">
         {eyebrow && (
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-primary">
