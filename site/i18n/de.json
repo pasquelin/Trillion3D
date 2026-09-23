@@ -1123,9 +1123,7 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Spaltenweise Einheitsmatrix, gelesen und nie geschrieben: die Pose eines Knotens oder einer Wurzel ohne Pose.",
-      "values": [
-        "Sechzehn Zahlen, spaltenweise."
-      ]
+      "values": ["Sechzehn Zahlen, spaltenweise."]
     },
     "DiagnosticMode": {
       "description": "Was ein Bild zeichnet. Verfügbarkeit beschreibt echte Pipeline-Ausgaben, nie synthetische Überlagerungen: `DIAGNOSTICS` gibt pro Modus an, ob der aktive Renderer es erzeugen kann und warum nicht.",
@@ -1186,10 +1184,7 @@
     },
     "GpuTimingMethod": {
       "description": "Wie die GPU-Dauern eines Phasenprofils erfasst wurden. Eine Dauer pro Durchgang sagt wo, nie wie viel: auf einer kachelbasierten GPU überlappen sich Durchgänge, und einer nimmt seine Nachbarn in sich auf. Die Bildsumme ist `gpuImageMs`, die Rahmenzeit — Phasendauern summieren sich nicht darauf.",
-      "values": [
-        "Native WebGPU-Zeitstempelabfragen.",
-        "Die WebGL2-Erweiterung, für diesen Pfad."
-      ]
+      "values": ["Native WebGPU-Zeitstempelabfragen.", "Die WebGL2-Erweiterung, für diesen Pfad."]
     },
     "ColumnKind": {
       "description": "Speicherung einer Spalte des binären Manifests. `COLUMN_KIND` ordnet jedem Spaltennamen seine Art zu, damit ein Leser weiß, welche Sicht er über die Begleitbytes nehmen muss.",

@@ -1123,9 +1123,7 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Identità colonna per colonna, letta e mai scritta: la posa di un nodo o di una radice senza posa.",
-      "values": [
-        "Sedici numeri, colonna per colonna."
-      ]
+      "values": ["Sedici numeri, colonna per colonna."]
     },
     "DiagnosticMode": {
       "description": "Ciò che disegna un fotogramma. La disponibilità descrive uscite reali del rendering, mai sovrapposizioni inventate: `DIAGNOSTICS` indica, modalità per modalità, se il renderer attivo può produrla e perché no.",
@@ -1186,10 +1184,7 @@
     },
     "GpuTimingMethod": {
       "description": "Come sono state prese le durate GPU di un profilo di fasi. Una durata per pass indica dove, mai quanto: su una GPU basata su tile i pass si sovrappongono e un pass assorbe i suoi vicini. Il totale del fotogramma è `gpuImageMs`, il margine — le durate delle fasi non si sommano ad esso.",
-      "values": [
-        "Timestamp nativi di WebGPU.",
-        "L'estensione di WebGL2, per quel percorso."
-      ]
+      "values": ["Timestamp nativi di WebGPU.", "L'estensione di WebGL2, per quel percorso."]
     },
     "ColumnKind": {
       "description": "Archiviazione di una colonna del manifest binario. `COLUMN_KIND` assegna a ogni nome di colonna il proprio tipo, così un lettore sa quale vista adottare sui byte che l'accompagnano.",

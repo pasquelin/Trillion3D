@@ -1123,9 +1123,7 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Column-major sırada birim matris, yalnızca okunur ve asla yazılmaz: bir düğümün ya da pozu olmayan bir kökün duruşu.",
-      "values": [
-        "On altı sayı, column-major sırada."
-      ]
+      "values": ["On altı sayı, column-major sırada."]
     },
     "DiagnosticMode": {
       "description": "Bir karenin çizdiği şey. Kullanılabilirlik, gerçek pipeline çıktılarını betimler, asla sentetik katmanları değil: `DIAGNOSTICS`, her mod için, etkin render motorunun onu üretip üretemeyeceğini ve neden üretemediğini bildirir.",
@@ -1186,10 +1184,7 @@
     },
     "GpuTimingMethod": {
       "description": "Bir aşama profilinin GPU sürelerinin nasıl alındığı. Geçiş başına bir süre nerede olduğunu söyler, asla ne kadar olduğunu değil: tile-based bir GPU'da geçişler çakışır ve bir geçiş komşularını içine alır. Kare toplamı `gpuImageMs`'tir, zarf — aşama süreleri bunun içine toplanmaz.",
-      "values": [
-        "Yerel WebGPU zaman damgası sorguları.",
-        "O yol için WebGL2 uzantısı."
-      ]
+      "values": ["Yerel WebGPU zaman damgası sorguları.", "O yol için WebGL2 uzantısı."]
     },
     "ColumnKind": {
       "description": "İkili manifestin bir sütununun depolanması. `COLUMN_KIND`, her sütun adını kendi türüne eşler, böylece bir okuyucu yardımcı baytlar üzerinde hangi görünümü alacağını bilir.",

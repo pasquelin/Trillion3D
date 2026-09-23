@@ -1123,9 +1123,7 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Identidad columna por columna, leída y nunca escrita: la pose de un nodo o de una raíz sin pose.",
-      "values": [
-        "Dieciséis números, columna por columna."
-      ]
+      "values": ["Dieciséis números, columna por columna."]
     },
     "DiagnosticMode": {
       "description": "Lo que dibuja un fotograma. La disponibilidad describe salidas reales del renderizado, nunca superposiciones inventadas: `DIAGNOSTICS` da, por modo, si el renderizador activo puede producirlo y por qué no.",
@@ -1186,10 +1184,7 @@
     },
     "GpuTimingMethod": {
       "description": "Cómo se tomaron las duraciones de GPU de un perfil de etapas. Una duración por pase dice dónde, nunca cuánto: en una GPU basada en teselas los pases se solapan y un pase absorbe a sus vecinos. El total del fotograma es `gpuImageMs`, el margen — las duraciones de etapa no se suman a él.",
-      "values": [
-        "Marcas de tiempo nativas de WebGPU.",
-        "La extensión de WebGL2, para ese camino."
-      ]
+      "values": ["Marcas de tiempo nativas de WebGPU.", "La extensión de WebGL2, para ese camino."]
     },
     "ColumnKind": {
       "description": "Almacenamiento de una columna del manifiesto binario. `COLUMN_KIND` asigna a cada nombre de columna su tipo, para que un lector sepa qué vista tomar sobre los bytes acompañantes.",

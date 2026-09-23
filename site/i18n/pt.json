@@ -1123,9 +1123,7 @@
     },
     "IDENTITY_MATRIX4": {
       "description": "Identidade em ordem de coluna (column-major), lida e nunca escrita: a pose de um nó ou de uma raiz sem pose.",
-      "values": [
-        "Dezesseis números, em ordem de coluna (column-major)."
-      ]
+      "values": ["Dezesseis números, em ordem de coluna (column-major)."]
     },
     "DiagnosticMode": {
       "description": "O que um quadro desenha. A disponibilidade descreve saídas reais do pipeline, nunca sobreposições sintéticas: `DIAGNOSTICS` informa, para cada modo, se o renderizador ativo pode produzi-lo e por que não.",
