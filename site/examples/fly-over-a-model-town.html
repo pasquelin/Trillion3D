@@ -9,35 +9,304 @@
       body {
         margin: 0;
         height: 100%;
-        background: #9cc6ec;
+        overflow: hidden;
+        background: #f6c592;
+        font-family: ui-sans-serif, system-ui, sans-serif;
       }
       canvas {
         display: block;
         width: 100%;
         height: 100%;
       }
+      /* The glass cockpit: dark translucent instruments at the bottom centre of the frame. */
+      #hud {
+        position: fixed;
+        left: 50%;
+        bottom: 12px;
+        transform: translateX(-50%);
+        display: grid;
+        gap: 6px;
+        justify-items: center;
+        pointer-events: none;
+        color: #e8f1ff;
+        font: 600 12px/1 ui-monospace, 'SF Mono', Menlo, monospace;
+        text-shadow: 0 1px 2px #0008;
+      }
+      #hud .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 14px;
+        background: #0b1422b8;
+        box-shadow: 0 6px 24px #0006, inset 0 0 0 1px #9fc4ff33;
+        backdrop-filter: blur(6px);
+      }
+      #hud .status {
+        display: flex;
+        gap: 14px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: #0b1422b8;
+        letter-spacing: 0.08em;
+      }
+      #hud .warn {
+        color: #ff5a4f;
+        animation: blink 0.5s steps(2) infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0.2;
+        }
+      }
+      .tape {
+        position: relative;
+        width: 58px;
+        height: 132px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #1b2536cc;
+      }
+      .tape .strip,
+      .heading .strip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        will-change: transform;
+      }
+      .tape .strip span {
+        position: absolute;
+        right: 6px;
+        transform: translateY(-50%);
+        font-size: 11px;
+        opacity: 0.85;
+      }
+      .tape .strip i {
+        position: absolute;
+        right: 0;
+        width: 5px;
+        height: 1px;
+        background: #cfe0ff;
+      }
+      .tape .strip {
+        width: 58px;
+      }
+      .tape.left .strip span {
+        right: auto;
+        left: 6px;
+      }
+      .tape.left .strip i {
+        right: auto;
+        left: 0;
+      }
+      .tape b,
+      .gauge b {
+        position: absolute;
+        left: 3px;
+        right: 3px;
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 4px 0;
+        border-radius: 5px;
+        background: #000d;
+        box-shadow: inset 0 0 0 1px #7fd1ff;
+        color: #7fffb0;
+        font-size: 14px;
+        text-align: center;
+      }
+      .unit {
+        display: block;
+        margin-top: 4px;
+        text-align: center;
+        font-size: 10px;
+        opacity: 0.7;
+      }
+      .adi {
+        position: relative;
+        width: 132px;
+        height: 132px;
+        overflow: hidden;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 2px #9fc4ff55;
+      }
+      .adi .world {
+        position: absolute;
+        left: -100%;
+        top: -100%;
+        width: 300%;
+        height: 300%;
+        background: linear-gradient(#3d7fd6 50%, #fff 50%, #fff calc(50% + 1px), #8a5a2b calc(50% + 1px));
+        will-change: transform;
+      }
+      .adi .world i {
+        position: absolute;
+        left: 50%;
+        height: 1px;
+        background: #fffc;
+        transform: translateX(-50%);
+      }
+      .adi .plane {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 70px;
+        height: 3px;
+        margin: -1px 0 0 -35px;
+        background: linear-gradient(90deg, #ffd23a 35%, transparent 35% 65%, #ffd23a 65%);
+      }
+      .adi .plane::after {
+        content: '';
+        position: absolute;
+        left: 32px;
+        top: -2px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #ffd23a;
+      }
+      .adi .bank {
+        position: absolute;
+        left: 50%;
+        top: 4px;
+        border: 6px solid transparent;
+        border-bottom: 9px solid #ffd23a;
+        margin-left: -6px;
+        transform-origin: 6px 62px;
+      }
+      .gauge {
+        position: relative;
+        width: 34px;
+        height: 132px;
+        border-radius: 8px;
+        background: #1b2536cc;
+        overflow: hidden;
+      }
+      .gauge .fill {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 100%;
+        background: linear-gradient(#ffb347, #ff7a2f);
+        transform-origin: bottom;
+        will-change: transform;
+      }
+      .gauge .needle {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 2px;
+        background: #7fd1ff;
+        will-change: transform;
+      }
+      .gauge b {
+        font-size: 11px;
+        left: 1px;
+        right: 1px;
+      }
+      .heading {
+        position: relative;
+        width: 330px;
+        height: 26px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #0b1422b8;
+      }
+      .heading .strip span {
+        position: absolute;
+        top: 12px;
+        transform: translateX(-50%);
+        font-size: 11px;
+      }
+      .heading .strip i {
+        position: absolute;
+        top: 0;
+        width: 1px;
+        height: 6px;
+        background: #cfe0ff;
+      }
+      .heading b {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        margin-left: -1px;
+        background: #ffd23a;
+      }
+      /* The big messages: the prompt at the start, a crash, the time at the finish. */
+      #banner {
+        position: fixed;
+        left: 50%;
+        top: 30%;
+        transform: translate(-50%, -50%);
+        width: min(90vw, 900px);
+        text-align: center;
+        color: #fff;
+        pointer-events: none;
+        text-shadow: 0 2px 12px #0009;
+      }
+      #banner h1 {
+        margin: 0;
+        font: 800 clamp(28px, 6vw, 64px) / 1.05 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.02em;
+      }
+      #banner p {
+        margin: 10px 0 0;
+        font: 600 clamp(14px, 2vw, 20px) / 1.3 ui-sans-serif, system-ui, sans-serif;
+      }
+      @media (max-width: 560px) {
+        #hud {
+          transform: translateX(-50%) scale(0.72);
+          transform-origin: bottom center;
+        }
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
+    <div id="banner"><h1></h1><p></p></div>
+    <div id="hud">
+      <div class="status"><span id="rings"></span><span id="clock"></span><span id="warning" class="warn"></span></div>
+      <div class="row">
+        <div><div class="tape" id="speed"><div class="strip"></div><b></b></div><span class="unit">km/h</span></div>
+        <div class="adi"><div class="world"></div><div class="bank"></div><div class="plane"></div></div>
+        <div><div class="tape left" id="altitude"><div class="strip"></div><b></b></div><span class="unit">ALT m</span></div>
+        <div><div class="gauge" id="climb"><div class="needle"></div><b></b></div><span class="unit">V/S</span></div>
+        <div><div class="gauge" id="throttle"><div class="fill"></div><b></b></div><span class="unit">THR</span></div>
+      </div>
+      <div class="heading"><div class="strip"></div><b></b></div>
+    </div>
     <script type="module">
-      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, stats } from '../runtime/kit.js';
 
-      // A sequence in [0, 1) from a seed: the same scene on every run.
+      // What flies is the engine's own `fly` controller: six degrees of freedom and no up axis kept,
+      // every key read by its place on the keyboard (`KeyboardEvent.code`), so a French keyboard
+      // flies the same. The page only sets the controller's speed from a throttle and draws around
+      // it: the plane riding the camera, the instruments, the valley, the rings, the sound.
+      const world = createWorld('view', { controls: 'fly' });
+      const HORIZON = '#f6c592';
+      world.scene.background = math.color(HORIZON);
+      const camera = world.camera;
+      [camera.near, camera.far, camera.fov] = [0.3, 12000, 60];
+      world.controls.rollSpeed = 0.9;
+
+      // A sequence in [0, 1) from a seed: the same valley on every run.
       function random(seed) {
         let state = seed >>> 0;
         return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
       }
-      const matte = (color, roughness = 0.8) => material.meshStandard({ color, roughness });
-
-      // `fly`: six degrees of freedom, no up axis kept. The controller steers the plane; the engine
-      // in front of it is this page's: every frame pushes the camera forward at the throttle.
-      const world = createWorld('view', { controls: 'fly' });
-      world.scene.background = math.color('#9cc6ec');
-      world.camera.far = 120;
-      world.camera.near = 0.05;
-      const next = random(9);
+      const next = random(7);
+      const smooth = (a, b, x) => {
+        const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+        return t * t * (3 - 2 * t);
+      };
+      const matte = (color, roughness = 0.85) => material.meshStandard({ color, roughness });
+      // Sky, distant ranges, sun and trails are see-through materials: drawn after the valley,
+      // they cast no shadow, so the dome around everything never hides the sun.
+      const sheer = (color, opacity = 1) => material.meshBasic({ color, transparent: true, opacity, depthWrite: false, side: 'double' });
       function place(shape, matter, [x, y, z], parent = world.scene) {
         const mesh = object.mesh(shape, matter);
         mesh.position.set(x, y, z);
@@ -45,101 +314,497 @@
         return mesh;
       }
 
-      // The valley: meadows, a river, a ring of mountains with snow caps, forests on the slopes.
-      place(geometry.box(90, 0.1, 90), matte('#5f8a45', 0.95), [0, -0.05, 0]);
-      place(geometry.box(1.6, 0.02, 90), matte('#2f6f9f', 0.15), [0, 0.01, 0]);
-      const rock = matte('#7b7468', 0.9), snow = matte('#f4f6fa', 0.5), pine = matte('#2f5a33', 0.9);
-      for (let index = 0; index < 22; index++) {
-        const angle = (index / 22) * Math.PI * 2 + next() * 0.2, far = 22 + next() * 12;
-        const [x, z, height, width] = [Math.sin(angle) * far, Math.cos(angle) * far, 6 + next() * 8, 5 + next() * 5];
-        place(geometry.cone(width, height, 40), rock, [x, height / 2, z]);
-        place(geometry.cone(width * 0.3, height * 0.3, 40), snow, [x, height * 0.86, z]);
+      // THE VALLEY, in metres. A long flat floor with the runway and the town levelled, a river
+      // winding through it, and a ring of peaks — ridges, shoulders and summits stacked — around.
+      const riverX = (z) => 170 + 80 * Math.sin(z / 300);
+      const RUNWAY = [-30, 30, -560, 560], TOWN = [300, 720, -680, -120], WATER = -2.5;
+      const levelled = (x, z, [x0, x1, z0, z1]) => 1 - smooth(0, 80, Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1)));
+      const PEAKS = Array.from({ length: 18 }, (_, index) => {
+        const angle = (index / 18) * Math.PI * 2 + next() * 0.3, far = 1650 + next() * 650;
+        return [Math.sin(angle) * far, Math.cos(angle) * far * 1.3, 260 + next() * 420, 170 + next() * 220];
+      });
+      function terrain(x, z) {
+        const around = Math.atan2(x, z), rise = smooth(950, 2050, Math.hypot(x, z / 1.3));
+        let height = rise * (330 + 120 * Math.sin(3 * around + 1) + 90 * Math.sin(7 * around + 2));
+        height += rise * 45 * Math.sin(x / 97 + Math.sin(z / 140)) * Math.sin(z / 83 + 1);
+        for (const [px, pz, top, width] of PEAKS) height += top * Math.exp(-((x - px) ** 2 + (z - pz) ** 2) / width ** 2);
+        const floor = (1 - rise) * (1 - Math.max(levelled(x, z, RUNWAY), levelled(x, z, TOWN)));
+        height += floor * (3 + 5 * Math.sin(x / 210) * Math.sin(z / 260));
+        return height - (1 - rise) * 7 * Math.exp(-(((x - riverX(z)) / 38) ** 2));
       }
-      for (let index = 0; index < 90; index++) {
-        const angle = next() * Math.PI * 2, far = 11 + next() * 10, size = 0.3 + next() * 0.5;
-        place(geometry.cone(size * 0.4, size * 1.6, 12), pine, [Math.sin(angle) * far, size * 0.8, Math.cos(angle) * far]);
-      }
-      // The town in the middle of the valley: towers of five colours on both banks, three bridges.
-      const walls = ['#e0d6c2', '#c9785a', '#8fa3b8', '#d9b86a', '#b9c7a3'].map((colour) => matte(colour, 0.7));
-      const roofs = matte('#3a3d45', 0.5), block = geometry.box(1, 1, 1);
-      for (let row = -5.4; row <= 5.4; row += 1.2)
-        for (let column = -5.4; column <= 5.4; column += 1.2) {
-          if (Math.abs(column) < 1.4 || next() < 0.25) continue;
-          const height = 0.3 + next() ** 2 * 2.2;
-          place(block, walls[Math.floor(next() * 5)], [column, height / 2, row]).scale.set(0.8, height, 0.8);
-          place(block, roofs, [column, height + 0.025, row]).scale.set(0.85, 0.05, 0.85);
+      // Sampled every 36 m over 5.4 km, the normal from the slope. Each triangle takes a band by
+      // its height and steepness — meadow, forest floor, rock, snow — and each band is one mesh.
+      const SIZE = 5400, CELLS = 150, STEP = SIZE / CELLS;
+      const sample = (x, z) => {
+        const nx = (terrain(x - 4, z) - terrain(x + 4, z)) / 8, nz = (terrain(x, z - 4) - terrain(x, z + 4)) / 8, length = Math.hypot(nx, 1, nz);
+        return [x, terrain(x, z), z, nx / length, 1 / length, nz / length];
+      };
+      const grid = [];
+      for (let i = 0; i <= CELLS; i++) for (let j = 0; j <= CELLS; j++) grid.push(sample(i * STEP - SIZE / 2, j * STEP - SIZE / 2));
+      const bands = [[], [], [], []];
+      const bandOf = (height, up, x, z) => {
+        const ragged = 45 * Math.sin(x / 61) * Math.sin(z / 47);
+        if (height > 430 + ragged && up > 0.6) return 3;
+        if (up < 0.8 || height > 250 + ragged) return 2;
+        return height > 60 ? 1 : 0;
+      };
+      for (let i = 0; i < CELLS; i++)
+        for (let j = 0; j < CELLS; j++) {
+          const at = (a, b) => grid[(i + a) * (CELLS + 1) + j + b];
+          for (const triangle of [[at(0, 0), at(0, 1), at(1, 1)], [at(0, 0), at(1, 1), at(1, 0)]]) {
+            const mean = (k) => (triangle[0][k] + triangle[1][k] + triangle[2][k]) / 3;
+            bands[bandOf(mean(1), mean(4), mean(0), mean(2))].push(...triangle.flat());
+          }
         }
-      for (const z of [-4, 0, 4]) place(geometry.box(2.4, 0.08, 0.5), matte('#8a8580'), [0, 0.25, z]);
-      // A few clouds.
-      const cloud = matte('#ffffff', 1);
-      for (let index = 0; index < 8; index++) {
-        const [x, y, z] = [(next() - 0.5) * 40, 8 + next() * 3, (next() - 0.5) * 40];
-        for (let puff = 0; puff < 4; puff++) place(geometry.sphere(0.8 + next() * 0.6, 20, 14), cloud, [x + puff * 0.9, y + next() * 0.4, z + next()]);
+      ['#6f8f47', '#4f6b36', '#7d7264', '#f2f4f8'].forEach((colour, index) => {
+        const flat = new Float32Array(bands[index]), count = flat.length / 6;
+        const position = new Float32Array(count * 3), normal = new Float32Array(count * 3);
+        for (let v = 0; v < count; v++) position.set(flat.subarray(v * 6, v * 6 + 3), v * 3), normal.set(flat.subarray(v * 6 + 3, v * 6 + 6), v * 3);
+        const shape = geometry.createBuffer({ position: buffer.float32(position, 3), normal: buffer.float32(normal, 3), index: buffer.uint32(Array.from({ length: count }, (_, v) => v)) });
+        world.scene.add(object.mesh(shape, matte(colour, index === 3 ? 0.6 : 0.92)));
+      });
+      place(geometry.plane(SIZE, SIZE), material.meshStandard({ color: '#3f7394', metalness: 0.1, roughness: 0.18 }), [0, WATER, 0]).rotation.set(-Math.PI / 2, 0, 0);
+
+      // The airfield: a runway with its centre line and thresholds, a hangar beside it.
+      const paint = matte('#f1efe8', 0.6);
+      place(geometry.box(34, 0.3, 1100), matte('#3b3d42', 0.9), [0, 0, 0]);
+      for (let z = -500; z <= 500; z += 52) place(geometry.box(1.2, 0.05, 24), paint, [0, 0.17, z]);
+      for (const end of [-530, 530]) for (let k = -3; k <= 3; k++) if (k) place(geometry.box(2.2, 0.05, 30), paint, [k * 4, 0.17, end]);
+      place(geometry.box(30, 14, 24), matte('#b9b2a4', 0.7), [-70, 7, 380]);
+      place(geometry.box(32, 1, 26), matte('#7a3b2e', 0.6), [-70, 14.5, 380]);
+
+      // The town: blocks of five colours with dark roofs, a church tower in the middle. Each block
+      // is kept as ground for the plane: a roof it cannot land on.
+      const walls = ['#e6dac4', '#c9785a', '#8fa3b8', '#d9b86a', '#b9c7a3'].map((colour) => matte(colour, 0.7));
+      const roofs = matte('#4a3d3a', 0.55), block = geometry.box(1, 1, 1), buildings = [];
+      for (let x = 330; x <= 690; x += 34)
+        for (let z = -650; z <= -150; z += 34) {
+          if (next() < 0.3 || Math.hypot(x - 510, z + 400) < 30) continue;
+          const [width, depth, height] = [14 + next() * 10, 14 + next() * 10, 8 + next() ** 2 * 38];
+          place(block, walls[Math.floor(next() * 5)], [x, height / 2, z]).scale.set(width, height, depth);
+          place(block, roofs, [x, height + 0.6, z]).scale.set(width + 1, 1.2, depth + 1);
+          buildings.push([x, z, width / 2 + 0.5, depth / 2 + 0.5, height + 1.2]);
+        }
+      place(geometry.box(12, 46, 12), walls[0], [510, 23, -400]);
+      place(geometry.cone(8.5, 26, 4), roofs, [510, 59, -400]).rotation.y = Math.PI / 4;
+      buildings.push([510, -400, 6, 6, 72]);
+
+      // Forests on the lower slopes, and round trees along the river.
+      const pines = [matte('#2f5a33', 0.9), matte('#3b6a38', 0.9)], pine = geometry.cone(4, 14, 7);
+      const leaves = matte('#5f8a3a', 0.9), crown = geometry.sphere(5, 12, 8), trunk = geometry.cylinder(0.6, 0.8, 5, 6), bark = matte('#5a4332');
+      for (let planted = 0, tries = 0; planted < 190 && tries < 5000; tries++) {
+        const [x, z] = [(next() - 0.5) * 3000, (next() - 0.5) * 3600], [, height, , , up] = sample(x, z);
+        if (height < 1 || height > 170 || up < 0.93 || levelled(x, z, RUNWAY) > 0 || levelled(x, z, TOWN) > 0 || Math.abs(x - riverX(z)) < 60) continue;
+        const size = 0.7 + next() * 0.7;
+        place(pine, pines[planted++ % 2], [x, height + 7 * size - 1, z]).scale.setScalar(size);
+      }
+      for (let index = 0; index < 36; index++) {
+        const z = -900 + index * 52 + next() * 20, x = riverX(z) + (index % 2 ? 50 : -50) + next() * 12, height = terrain(x, z);
+        place(trunk, bark, [x, height + 2.5, z]);
+        place(crown, leaves, [x, height + 7.5, z]);
       }
 
-      // The rings: a loop around the town, rising and falling. Each is gold until flown through,
-      // then its green twin shows instead — two meshes, never a material changed on the fly.
-      const RADIUS = 0.6, gold = material.meshStandard({ color: '#ffc23a', metalness: 0.6, roughness: 0.3, emissive: '#6b4a00' });
+      // THE SKY at golden hour: bands of a dome from a warm horizon to a deep blue zenith, a low
+      // sun, and three distant ranges paling into the haze — the farther, the lighter and bluer.
+      const mix = (a, b, t) => '#' + [1, 3, 5].map((k) => Math.round(parseInt(a.slice(k, k + 2), 16) * (1 - t) + parseInt(b.slice(k, k + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+      const KEYS = [[-12, '#e9b98c'], [0, HORIZON], [6, '#f3d3ae'], [14, '#d6cfc8'], [26, '#a9bddb'], [48, '#7f9fd0'], [90, '#5a7dbf']];
+      const SKY = 8000, deg = Math.PI / 180;
+      for (let band = 0; band < 18; band++) {
+        const [from, to] = [-12 + (band / 18) * 102, -12 + ((band + 1) / 18) * 102], middle = (from + to) / 2;
+        const key = KEYS.findIndex(([at]) => at > middle), [a, low] = KEYS[key - 1], [b, high] = KEYS[key];
+        const shape = geometry.cylinder(SKY * Math.cos(to * deg), SKY * Math.cos(from * deg), SKY * (Math.sin(to * deg) - Math.sin(from * deg)), 64, 1, true);
+        place(shape, sheer(mix(low, high, (middle - a) / (b - a))), [0, (SKY * (Math.sin(to * deg) + Math.sin(from * deg))) / 2, 0]).renderOrder = -20;
+      }
+      const SUN = math.vector3(-2600, 900, 1500), toSun = SUN.clone().normalize().multiplyScalar(7000);
+      place(geometry.sphere(420, 32, 16), sheer('#ffd9a0', 0.35), [toSun.x, toSun.y, toSun.z]).renderOrder = -19;
+      place(geometry.sphere(160, 32, 16), sheer('#fff4d6'), [toSun.x, toSun.y, toSun.z]).renderOrder = -18;
+      [[3300, 520, '#8d8fa6'], [4300, 760, '#aaa6b6'], [5400, 980, '#c9b8b4']].forEach(([radius, tall, colour], layer) => {
+        const corners = [], cuts = [], SEGMENTS = 220;
+        for (let k = 0; k <= SEGMENTS; k++) {
+          const a = (k / SEGMENTS) * Math.PI * 2, s = layer * 2.1;
+          const top = tall * (0.45 + 0.3 * Math.abs(Math.sin(a * 5 + s)) + 0.18 * Math.sin(a * 13 + 2 * s) + 0.1 * Math.sin(a * 31 + s) + 0.08 * next());
+          corners.push(Math.sin(a) * radius, -200, Math.cos(a) * radius, Math.sin(a) * radius, top, Math.cos(a) * radius);
+          if (k < SEGMENTS) cuts.push(2 * k, 2 * k + 1, 2 * k + 3, 2 * k, 2 * k + 3, 2 * k + 2);
+        }
+        const ridge = geometry.createBuffer({ position: buffer.float32(new Float32Array(corners), 3), index: buffer.uint32(cuts) });
+        ridge.computeVertexNormals();
+        // The farthest range is drawn first, the nearer ones over it.
+        place(ridge, sheer(colour), [0, 0, 0]).renderOrder = -15 - layer;
+      });
+      // A still sun — its shadows are cast once, never moved — and a cool sky filling them.
+      world.scene.add(light.directional({ intensity: 3.4, color: '#ffb56b', position: [SUN.x, SUN.y, SUN.z], castShadow: true }));
+      world.scene.add(light.hemisphere({ color: '#9db8e8', groundColor: '#5e5040', intensity: 0.85 }));
+
+      // Clouds: clusters of soft puffs, three of them across the course to fly through.
+      const puff = geometry.sphere(1, 18, 12), vapour = material.meshStandard({ color: '#fff4ea', roughness: 1, transparent: true, opacity: 0.82, depthWrite: false });
+      const banks = [[610, 240, 420], [-120, 300, 950], [-520, 170, 500]];
+      while (banks.length < 17) banks.push([(next() - 0.5) * 3600, 380 + next() * 300, (next() - 0.5) * 4200]);
+      for (const [x, y, z] of banks)
+        for (let k = 0; k < 7; k++) place(puff, vapour, [x + (next() - 0.5) * 120, y + (next() - 0.5) * 30, z + (next() - 0.5) * 80]).scale.setScalar(22 + next() * 24);
+
+      // The course: ten rings in a loop around the valley. Each is gold until flown through, then
+      // its green twin shows instead — two meshes, never a material changed on the fly.
+      const COURSE = [[0, 50, -650], [180, 90, -1100], [520, 140, -900], [520, 110, -420], [700, 180, 100], [560, 250, 650], [150, 320, 1000], [-350, 220, 800], [-600, 140, 200], [-400, 70, -300]];
+      const HOOP = 16, hoop = geometry.torus(HOOP, 1.3, 12, 56);
+      const gold = material.meshStandard({ color: '#ffc23a', metalness: 0.7, roughness: 0.3, emissive: '#6b4a00' });
       const green = material.meshStandard({ color: '#3ddc84', roughness: 0.4, emissive: '#0f5a2c' });
-      const hoop = geometry.torus(RADIUS, 0.06, 16, 64), along = (a) => [8 * Math.sin(a), 2.5 + 1.2 * Math.sin(3 * a), 8 * Math.cos(a)];
-      const rings = Array.from({ length: 10 }, (_, index) => {
-        const angle = (index / 10) * Math.PI * 2;
-        const ring = object.group();
-        ring.position.set(...along(angle));
-        ring.lookAt(...along(angle + 0.05));
-        const todo = place(hoop, gold, [0, 0, 0], ring), passed = place(hoop, green, [0, 0, 0], ring);
+      const rings = COURSE.map(([x, y, z], index) => {
+        const ring = object.group(), [nx, ny, nz] = COURSE[(index + 1) % COURSE.length];
+        ring.position.set(x, y, z);
         world.scene.add(ring);
-        return { ring, todo, passed };
+        ring.lookAt(nx, ny, nz);
+        return { ring, todo: place(hoop, gold, [0, 0, 0], ring), passed: place(hoop, green, [0, 0, 0], ring) };
       });
 
-      // The plane, built along -z like the camera: fuselage, wings, tail, a spinning propeller.
-      const plane = object.group();
-      const body = matte('#d0342c', 0.4), wing = matte('#f2efe6', 0.5);
-      place(geometry.cylinder(0.025, 0.018, 0.3, 20), body, [0, 0, 0], plane).rotation.x = Math.PI / 2;
-      place(geometry.sphere(0.025, 20, 14), body, [0, 0, -0.15], plane);
-      place(geometry.sphere(0.02, 16, 12), matte('#2a3d55', 0.2), [0, 0.02, -0.06], plane);
-      place(geometry.box(0.36, 0.008, 0.07), wing, [0, 0, -0.03], plane);
-      place(geometry.box(0.12, 0.006, 0.04), wing, [0, 0, 0.13], plane);
-      place(geometry.box(0.006, 0.05, 0.04), body, [0, 0.025, 0.13], plane);
-      const propeller = place(geometry.box(0.12, 0.01, 0.004), matte('#303030', 0.6), [0, 0, -0.178], plane);
-      world.scene.add(plane);
-
-      world.scene.add(light.directional({ intensity: 3, color: '#ffe6c0', position: [10, 14, 6], castShadow: true }));
-      world.scene.add(light.hemisphere({ color: '#cfe4ff', groundColor: '#6f8a4f', intensity: 1 }));
-
-      let through, started, finished;
-      function takeOff() {
-        world.camera.position.set(0, 2.7, 13);
-        world.camera.lookAt(...along(0));
-        for (const ring of rings) [ring.todo.visible, ring.passed.visible] = [true, false];
-        [through, started, finished] = [0, null, null];
+      // The plane, in metres, nose along -z like the camera: fuselage, cowling, canopy, wings with
+      // red tips, tail, wheels and a two-bladed propeller with its blurred disc.
+      const plane = object.group(), red = matte('#c8312a', 0.35), white = matte('#f4f1ea', 0.45), dark = matte('#262626', 0.5);
+      place(geometry.cylinder(0.65, 0.32, 7.4, 20), white, [0, 0, 0.2], plane).rotation.x = Math.PI / 2;
+      place(geometry.sphere(0.66, 20, 14), red, [0, 0, -3.55], plane).scale.set(1, 1, 1.25);
+      const canopy = place(geometry.sphere(0.55, 20, 12), matte('#223347', 0.15), [0, 0.55, -0.9], plane);
+      canopy.scale.set(1, 0.75, 1.9);
+      place(geometry.box(10.4, 0.18, 1.6), white, [0, 0.05, -0.8], plane);
+      for (const side of [-1, 1]) {
+        place(geometry.box(0.9, 0.2, 1.62), red, [side * 4.8, 0.05, -0.8], plane);
+        place(geometry.cylinder(0.08, 0.08, 1, 6), dark, [side * 1.2, -0.55, -1.2], plane);
+        place(geometry.cylinder(0.35, 0.35, 0.22, 14), dark, [side * 1.2, -1, -1.2], plane).rotation.z = Math.PI / 2;
       }
-      takeOff();
-      const ui = controls({
-        keys: 'Arrows to pitch and turn · Q E to roll · drag to look around',
-        more: 'W S boost and brake · A D slide sideways · R F climb and dive',
-        throttle: [0.5, 4, 1.5],
-        takeOff,
-      }, world);
-      const ringsShown = readout('Rings'), timeShown = readout('Time');
-      const chase = math.vector3(), WHERE = [0, -0.13, -0.9];
+      place(geometry.box(3.4, 0.12, 0.9), white, [0, 0.1, 3.5], plane);
+      place(geometry.box(0.12, 1.5, 1.1), red, [0, 0.8, 3.55], plane);
+      const propeller = object.group();
+      propeller.position.set(0, 0, -4.4);
+      plane.add(propeller);
+      place(geometry.box(0.18, 2.3, 0.06), dark, [0, 0, 0], propeller);
+      place(geometry.cone(0.25, 0.5, 12), red, [0, 0, -0.25], propeller).rotation.x = -Math.PI / 2;
+      const blur = place(geometry.circle(1.15, 32), sheer('#d8d8d8', 0.22), [0, 0, -4.38], plane);
+      world.scene.add(plane);
+      const GEAR = 1.35, TIPS = [math.vector3(-5.2, 0.05, -0.4), math.vector3(5.2, 0.05, -0.4)];
+
+      // Wing-tip trails: a pool of thin strips reused every frame, never made or dropped in flight.
+      const TRAIL = 22, streak = geometry.box(0.25, 0.06, 3.2), mist = sheer('#ffffff', 0.45);
+      const trails = TIPS.map(() => Array.from({ length: TRAIL }, () => place(streak, mist, [0, -500, 0])));
+      const history = Array.from({ length: TRAIL }, () => ({ at: TIPS.map(() => math.vector3()), turn: math.quaternion() }));
+
+      // The instruments. Each tape is a strip of marks slid behind a window; every write below
+      // happens only when what it shows changes.
+      const $ = (selector) => document.querySelector(selector);
+      function tape(strip, from, to, every, label, scale, horizontal = false) {
+        for (let value = from; value <= to; value += every) {
+          const at = `${(horizontal ? value - from : to - value) * scale}px`, tick = document.createElement('i');
+          tick.style[horizontal ? 'left' : 'top'] = at;
+          strip.append(tick);
+          if (label(value) === null) continue;
+          const mark = document.createElement('span');
+          mark.textContent = label(value);
+          mark.style[horizontal ? 'left' : 'top'] = at;
+          strip.append(mark);
+        }
+      }
+      const SPEED_PX = 1.1, ALT_PX = 0.5, HEADING_PX = 3, PITCH_PX = 2.4;
+      tape($('#speed .strip'), 0, 500, 10, (v) => (v % 20 ? null : v), SPEED_PX);
+      tape($('#altitude .strip'), -100, 1500, 20, (v) => (v % 100 ? null : v), ALT_PX);
+      const compass = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' };
+      const bearing = (v) => {
+        const h = (v + 360) % 360;
+        return compass[h] ?? (h % 30 ? null : String(h / 10).padStart(2, '0'));
+      };
+      tape($('.heading .strip'), -180, 540, 10, bearing, HEADING_PX, true);
+      const horizon = $('.adi .world');
+      for (let p = -60; p <= 60; p += 10) {
+        if (!p) continue;
+        const rung = document.createElement('i');
+        Object.assign(rung.style, { top: `calc(50% - ${p * PITCH_PX}px)`, width: `${p % 20 ? 22 : 44}px` });
+        horizon.append(rung);
+      }
+      const shown = new Map();
+      const write = (element, value, apply) => {
+        if (shown.get(element) === value) return;
+        shown.set(element, value);
+        apply(element, value);
+      };
+      const text = (element, value) => write(element, value, (e, v) => (e.textContent = v));
+      const move = (element, value) => write(element, value, (e, v) => (e.style.transform = v));
+      const hud = Object.fromEntries(Object.entries({
+        speedStrip: '#speed .strip', speed: '#speed b', altStrip: '#altitude .strip', alt: '#altitude b',
+        climb: '#climb .needle', climbText: '#climb b', fill: '#throttle .fill', throttle: '#throttle b',
+        heading: '.heading .strip', bank: '.adi .bank', rings: '#rings', clock: '#clock', warning: '#warning',
+        title: '#banner h1', line: '#banner p',
+      }).map(([name, selector]) => [name, $(selector)]));
+      const clockOf = (seconds) => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(1).padStart(4, '0')}`;
+      function instruments({ speed, altitude, climb, pitch, bank, heading }) {
+        const kmh = Math.max(0, speed * 3.6);
+        move(hud.speedStrip, `translateY(${(66 - (500 - kmh) * SPEED_PX).toFixed(1)}px)`);
+        text(hud.speed, String(Math.round(kmh)));
+        move(hud.altStrip, `translateY(${(66 - (1500 - altitude) * ALT_PX).toFixed(1)}px)`);
+        text(hud.alt, String(Math.round(altitude)));
+        move(hud.climb, `translateY(${(-Math.max(-15, Math.min(15, climb)) * 4).toFixed(1)}px)`);
+        text(hud.climbText, (climb >= 0.05 ? '+' : '') + climb.toFixed(1));
+        move(hud.fill, `scaleY(${throttle.toFixed(3)})`);
+        text(hud.throttle, `${Math.round(throttle * 100)}%`);
+        move(hud.heading, `translateX(${(165 - (heading + 180) * HEADING_PX).toFixed(1)}px)`);
+        move(horizon, `rotate(${(-bank).toFixed(1)}deg) translateY(${(pitch * PITCH_PX).toFixed(1)}px)`);
+        move(hud.bank, `rotate(${(-bank).toFixed(1)}deg)`);
+      }
+      const banner = (title, line = '') => (text(hud.title, title), text(hud.line, line));
+
+      // SOUND, started by the first key or click, as browsers ask: an engine drone that follows
+      // the throttle, the wind that grows with speed, a chime per ring, a horn near the ground.
+      let audio = null, muted = false;
+      function startSound() {
+        if (audio) return;
+        const context = new AudioContext(), out = context.createGain(), silent = () => {
+          const gain = context.createGain();
+          gain.gain.value = 0;
+          return gain;
+        };
+        const chain = (...nodes) => nodes.reduce((from, to) => from.connect(to));
+        out.gain.value = muted ? 0 : 0.8;
+        out.connect(context.destination);
+        const drone = silent(), filter = context.createBiquadFilter();
+        filter.frequency.value = 900;
+        chain(filter, drone, out);
+        const engines = ['sawtooth', 'square'].map((type) => {
+          const oscillator = context.createOscillator();
+          oscillator.type = type;
+          chain(oscillator, filter);
+          oscillator.start();
+          return oscillator;
+        });
+        const noise = context.createBuffer(1, context.sampleRate * 2, context.sampleRate), samples = noise.getChannelData(0);
+        for (let k = 0; k < samples.length; k++) samples[k] = Math.random() * 2 - 1;
+        const air = context.createBufferSource(), band = context.createBiquadFilter(), wind = silent();
+        Object.assign(air, { buffer: noise, loop: true });
+        band.type = 'bandpass';
+        chain(air, band, wind, out);
+        air.start();
+        const horn = context.createOscillator(), hornGain = silent();
+        horn.type = 'square';
+        horn.frequency.value = 420;
+        chain(horn, hornGain, out);
+        horn.start();
+        audio = { context, out, drone, engines, band, wind, hornGain };
+      }
+      function chime() {
+        if (!audio) return;
+        const { context, out } = audio, now = context.currentTime;
+        [880, 1320, 1760].forEach((pitch, k) => {
+          const tone = context.createOscillator(), gain = context.createGain(), at = now + k * 0.07;
+          tone.frequency.value = pitch;
+          gain.gain.setValueAtTime(0.0001, at);
+          gain.gain.exponentialRampToValueAtTime(0.18, at + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.7);
+          tone.connect(gain).connect(out);
+          tone.start(at);
+          tone.stop(at + 0.8);
+        });
+      }
+      function sound(speed, horn, time) {
+        if (!audio) return;
+        const { context, drone, engines, band, wind, hornGain } = audio, now = context.currentTime;
+        const pitch = 48 + 95 * throttle + speed * 0.35;
+        engines.forEach((oscillator, k) => oscillator.frequency.setTargetAtTime(pitch * (k ? 0.5 : 1), now, 0.1));
+        drone.gain.setTargetAtTime(0.03 + 0.13 * throttle, now, 0.1);
+        band.frequency.setTargetAtTime(300 + speed * 12, now, 0.2);
+        wind.gain.setTargetAtTime(Math.min(0.3, (speed / 90) ** 2 * 0.3), now, 0.2);
+        hornGain.gain.setTargetAtTime(horn && (time * 4) % 1 < 0.5 ? 0.06 : 0, now, 0.01);
+      }
+
+      // The panel: the keys the controller answers to, on both keyboard layouts, and the sound.
+      controls({
+        fly: 'The engine’s fly controller: six degrees of freedom, every key read by its place on the keyboard',
+        stick: 'Arrows ↑ ↓ pitch, ← → turn · Q E roll (A E on AZERTY)',
+        engine: 'Shift throttle up · X throttle down · hold W to fly, S to slow (Z S on AZERTY)',
+        slide: 'A D slide sideways (Q D on AZERTY) · R F rise and sink',
+        view: 'C chase or cockpit view · drag to look around · Enter to start over',
+        sound: true,
+      }, (values) => {
+        muted = !values.sound;
+        if (audio) audio.out.gain.value = muted ? 0 : 0.8;
+      });
+      stats(world, 'top-left');
+
+      // THE FLIGHT. The plane rides the camera the controller moves: ahead of and below it in the
+      // chase view, under the pilot's eye in the cockpit. Phases: an orbit around the parked plane,
+      // the ease into the chase, flight, a crash, the slow fly-by after the last ring.
+      const CHASE = math.vector3(0, -3.2, -17), COCKPIT = math.vector3(0, -0.95, 0.9), MAX_SPEED = 90;
+      const PARK = math.vector3(0, 0.15 + GEAR, 470);
+      let offset = CHASE, phase, phaseTime, throttle, through, started, finished, crashAt;
+      const held = new Set(), from = { at: math.vector3(), turn: math.quaternion() };
+      const shake = math.vector3(), was = math.vector3(), velocity = math.vector3(), scratch = math.vector3(), axis = math.vector3();
+      const turned = math.quaternion(), spin = math.quaternion(), aim = math.quaternion();
+      let lastSample = 0, speed = 0, climb = 0;
+      const steering = (on) => (world.controls.enabled = on);
+      const easeFrom = (next) => {
+        [phase, phaseTime] = [next, 0];
+        from.at.copy(camera.position);
+        from.turn.copy(camera.quaternion);
+      };
+      function park() {
+        // On the runway threshold, level, nose north (-z), the camera behind it.
+        camera.quaternion.set(0, 0, 0, 1);
+        camera.position.copy(PARK).sub(offset);
+        plane.position.copy(PARK);
+        plane.quaternion.set(0, 0, 0, 1);
+        was.copy(PARK);
+        velocity.set(0, 0, 0);
+        [speed, climb, throttle] = [0, 0, 0];
+      }
+      function startOver() {
+        for (const ring of rings) [ring.todo.visible, ring.passed.visible] = [true, false];
+        [through, started, finished, offset] = [0, null, null, CHASE];
+        [phase, phaseTime] = ['intro', 0];
+        canopy.visible = true;
+        steering(false);
+        park();
+        banner('Press Shift to throttle up', 'then hold W (Z on AZERTY) to roll, and ↑ to lift off');
+      }
+      startOver();
+
+      addEventListener('keydown', (event) => {
+        startSound();
+        held.add(event.code);
+        if (event.code === 'Enter' || event.code === 'NumpadEnter') startOver();
+        if (event.code === 'KeyC' && phase === 'flying') {
+          // The camera jumps so that the plane stays where it is.
+          const other = offset === CHASE ? COCKPIT : CHASE;
+          camera.position.add(scratch.copy(offset).sub(other).applyQuaternion(camera.quaternion));
+          offset = other;
+          canopy.visible = offset === CHASE;
+        }
+        if (event.code.startsWith('Shift') && phase === 'intro') {
+          easeFrom('boarding');
+          banner('');
+        }
+      });
+      addEventListener('keyup', (event) => held.delete(event.code));
+      addEventListener('blur', () => held.clear());
+      addEventListener('pointerdown', startSound);
+
+      // The ground under a point: a roof, the runway, the water or the terrain, and whether a
+      // plane may touch down there.
+      function ground(x, z) {
+        for (const [bx, bz, hx, hz, top] of buildings) if (Math.abs(x - bx) < hx && Math.abs(z - bz) < hz) return [top, false];
+        if (Math.abs(x) < 17 && Math.abs(z) < 550) return [0.15, true];
+        const [, height, , , up] = sample(x, z);
+        return height < WATER ? [WATER, false] : [height, up > 0.97];
+      }
+      function crash(time) {
+        [phase, crashAt] = ['crashed', time];
+        steering(false);
+        banner('Crashed!', 'Back to the runway…');
+      }
       world.onFrame(({ delta, time }) => {
-        const dt = Math.min(delta, 0.05), camera = world.camera;
-        camera.translateOnAxis({ x: 0, y: 0, z: -1 }, ui.throttle * dt);
-        camera.position.y = Math.max(0.25, camera.position.y);
-        // The plane rides just ahead of and below the camera, turned with it: a chase view.
-        plane.position.copy(chase.set(...WHERE).applyQuaternion(camera.quaternion).add(camera.position));
-        plane.quaternion.copy(camera.quaternion);
-        propeller.rotation.z = time * 40;
-        started ??= time;
-        for (const ring of rings)
-          if (ring.todo.visible && plane.position.distanceTo(ring.ring.position) < RADIUS * 0.85) {
-            [ring.todo.visible, ring.passed.visible] = [false, true];
-            through += 1;
-            if (through === rings.length) finished = time - started;
+        const dt = Math.min(delta, 0.1);
+        camera.position.sub(shake);
+        phaseTime += dt;
+        const shift = held.has('ShiftLeft') || held.has('ShiftRight');
+        throttle = Math.min(1, Math.max(0, throttle + (shift - held.has('KeyX')) * 0.45 * dt));
+        world.controls.movementSpeed = throttle * MAX_SPEED;
+        if (phase === 'intro') {
+          // The camera circles the parked plane, slowly.
+          const angle = time * 0.25;
+          camera.position.set(PARK.x + Math.sin(angle) * 26, PARK.y + 6, PARK.z + Math.cos(angle) * 26);
+          camera.lookAt(PARK.x, PARK.y + 1, PARK.z);
+        } else if (phase === 'boarding' || phase === 'returning') {
+          // From wherever the camera was, it eases into the chase view behind the plane.
+          const t = smooth(0, 1.6, phaseTime);
+          aim.copy(plane.quaternion);
+          scratch.copy(offset).applyQuaternion(aim).multiplyScalar(-1).add(plane.position);
+          camera.position.lerpVectors(from.at, scratch, t);
+          camera.quaternion.copy(from.turn).slerp(aim, t);
+          if (t === 1) {
+            [phase, phaseTime] = ['flying', 0];
+            started ??= time;
+            steering(true);
           }
-        ringsShown(`${through} / ${rings.length}`);
-        timeShown(finished !== null ? `${finished.toFixed(1)} s, all rings!` : `${(time - started).toFixed(1)} s`);
+        } else if (phase === 'crashed' && time - crashAt > 2.2) {
+          park();
+          banner('');
+          [phase, phaseTime] = ['flying', 0];
+          steering(true);
+        } else if (phase === 'flyby') {
+          // Slow motion: the plane glides on at a quarter of its speed, the camera watches it pass.
+          plane.position.addScaledVector(velocity, dt * 0.25);
+          camera.lookAt(plane.position);
+          if (phaseTime > 4.5) easeFrom('returning');
+        }
+        const flying = phase === 'flying';
+        if (flying) {
+          // The plane where the controller put the camera, its turn eased a little and banked
+          // into the turns the arrows make, so a yaw reads as a turn.
+          plane.position.copy(scratch.copy(offset).applyQuaternion(camera.quaternion).add(camera.position));
+          const chasing = offset === CHASE, turning = (held.has('ArrowLeft') - held.has('ArrowRight')) * (speed > 5) * chasing;
+          turned.copy(camera.quaternion).multiply(spin.setFromAxisAngle(axis.set(0, 0, 1), turning * 0.45));
+          plane.quaternion.slerp(turned, chasing ? 1 - Math.exp(-dt * 7) : 1);
+          // Touching the ground: roll on the runway and flat meadows, crash anywhere else, or
+          // when coming down too hard or too tilted.
+          const [floor, landable] = ground(plane.position.x, plane.position.z), under = plane.position.y - GEAR - floor;
+          if (under < 0) {
+            const upright = scratch.set(0, 1, 0).applyQuaternion(camera.quaternion).y;
+            if (!landable || climb < -7 || upright < 0.85) crash(time);
+            else camera.position.y -= under, plane.position.y -= under;
+          }
+        }
+        // Speed and climb from the plane's own motion, smoothed a little.
+        if (dt > 0 && phase !== 'flyby') {
+          velocity.lerp(scratch.copy(plane.position).sub(was).divideScalar(dt), 1 - Math.exp(-dt * 6));
+          [speed, climb] = [velocity.length(), velocity.y];
+          was.copy(plane.position);
+        }
+        // Rings: flown through when the plane passes close to a centre.
+        if (flying)
+          for (const ring of rings)
+            if (ring.todo.visible && plane.position.distanceTo(ring.ring.position) < HOOP - 2) {
+              [ring.todo.visible, ring.passed.visible] = [false, true];
+              through += 1;
+              chime();
+              if (through < rings.length) continue;
+              finished = time - started;
+              [phase, phaseTime] = ['flyby', 0];
+              steering(false);
+              camera.position.copy(axis.set(28, 8, -90).applyQuaternion(plane.quaternion).add(plane.position));
+              banner(clockOf(finished), 'All ten rings! Enter to fly again');
+            }
+        propeller.rotation.z += (4 + throttle * 55) * dt * (phase === 'flyby' ? 0.25 : 1);
+        if (blur.visible !== throttle > 0.4) blur.visible = throttle > 0.4;
+        // Wing-tip trails: one sample every 1/30 s, the oldest shrinking away.
+        if (time - lastSample > 1 / 30) {
+          lastSample = time;
+          const oldest = history.pop();
+          TIPS.forEach((tip, side) => oldest.at[side].copy(tip).applyQuaternion(plane.quaternion).add(plane.position));
+          oldest.turn.copy(plane.quaternion);
+          history.unshift(oldest);
+        }
+        const streaming = speed > 45;
+        trails.forEach((strips, side) =>
+          strips.forEach((strip, k) => {
+            if (strip.visible !== streaming) strip.visible = streaming;
+            if (!streaming) return;
+            strip.position.copy(history[k].at[side]);
+            strip.quaternion.copy(history[k].turn);
+            strip.scale.setScalar(1 - k / TRAIL);
+          }),
+        );
+        // The instruments, from the plane's pose and motion.
+        const forward = scratch.set(0, 0, -1).applyQuaternion(plane.quaternion);
+        const pitch = Math.asin(Math.max(-1, Math.min(1, forward.y))) / deg, heading = (Math.atan2(forward.x, -forward.z) / deg + 360) % 360;
+        const rightY = axis.set(1, 0, 0).applyQuaternion(plane.quaternion).y, upY = scratch.set(0, 1, 0).applyQuaternion(plane.quaternion).y;
+        const altitude = plane.position.y - GEAR;
+        instruments({ speed, altitude, climb, pitch, bank: Math.atan2(-rightY, upY) / deg, heading });
+        const clearance = altitude - ground(plane.position.x, plane.position.z)[0];
+        const pullUp = flying && climb < -5 && clearance < 150 && clearance / -climb < 6;
+        const outside = Math.hypot(plane.position.x, plane.position.z / 1.3) > 2300;
+        text(hud.warning, pullUp ? 'PULL UP' : outside ? 'TURN BACK' : '');
+        text(hud.rings, `RINGS ${through} / ${rings.length}`);
+        text(hud.clock, started === null ? '0:00.0' : clockOf(finished ?? time - started));
+        sound(speed, pullUp, time);
+        // The sense of speed: a wider view the faster the plane goes, and a light shake at high
+        // speed or rolling on the runway — taken back out before the controller reads the pose.
+        camera.fov = phase === 'flyby' ? 38 : 60 + 14 * Math.min(1, speed / MAX_SPEED);
+        const rolling = altitude - ground(plane.position.x, plane.position.z)[0] < 0.5 ? 0.04 * Math.min(1, speed / 30) : 0;
+        const rough = flying ? 0.05 * smooth(55, 90, speed) + rolling : 0;
+        shake.set(Math.sin(time * 37) * rough, Math.sin(time * 43 + 1) * rough, 0).applyQuaternion(camera.quaternion);
+        camera.position.add(shake);
         world.invalidate();
       });
     </script>

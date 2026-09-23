@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { describe, labelOf, printed } from '../site/examples/kit/controls.ts';
-import { sceneTriangles, statLines } from '../site/examples/kit/stats.ts';
+import { sceneTriangles, statLines, statsCorners } from '../site/examples/kit/stats.ts';
 
 test('a declared control takes its kind from its value, and starts at it', () => {
   const press = () => {};
@@ -89,6 +89,11 @@ test('the stats corner shows only what was measured, and never a dash or a zero'
       ['triangles (scene)', '12'],
     ],
   );
+});
+
+test('the stats corner sits at the bottom left or, moved, at the top left', () => {
+  assert.equal(statsCorners['bottom-left'], 'bottom-3 left-3');
+  assert.equal(statsCorners['top-left'], 'top-3 left-3');
 });
 
 test('the scene count reads indexed and plain geometries of the visible nodes', () => {

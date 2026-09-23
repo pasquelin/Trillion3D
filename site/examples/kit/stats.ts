@@ -63,14 +63,18 @@ export function sceneTriangles(scene: SceneNode): number {
   return total;
 }
 
+/** Where the corner may sit: the bottom left by default, the top left for an example whose own
+ *  display takes the bottom of the frame. */
+export const statsCorners = { 'bottom-left': 'bottom-3 left-3', 'top-left': 'top-3 left-3' };
+
 /**
- * A small corner at the bottom left of the example: the frames the world drew per second, and
- * the engine's counters of the last frame, refreshed twice a second.
+ * A small corner of the example, at the bottom left unless `corner` says otherwise: the frames
+ * the world drew per second, and the engine's counters of the last frame, refreshed twice a
+ * second.
  */
-export function stats(world: StatsWorld) {
+export function stats(world: StatsWorld, corner: keyof typeof statsCorners = 'bottom-left') {
   const card = document.createElement('dl');
-  card.className =
-    'pointer-events-none absolute bottom-3 left-3 grid grid-cols-[auto_auto] gap-x-3 rounded-box bg-base-100/60 px-3 py-2 font-mono text-[11px] leading-4 opacity-90 backdrop-blur';
+  card.className = `pointer-events-none absolute ${statsCorners[corner]} grid grid-cols-[auto_auto] gap-x-3 rounded-box bg-base-100/60 px-3 py-2 font-mono text-[11px] leading-4 opacity-90 backdrop-blur`;
   overlay().append(card);
   hideable(card);
   const drawn: number[] = [];
