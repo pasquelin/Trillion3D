@@ -27,5 +27,5 @@ them credits the author. Nothing else of that bank was taken: the items without 
 source, and its `imagerie/` sheets, are not redistributable; the `jeep` by Psionic ships only in
 formats the compiler does not read (`.3ds`, `.ms3d`).
 
-The streamed example reuses `site/assets/gallery/signature-architecture/`, an original scene of the
-lessons.
+The streaming and memory examples reuse `site/assets/gallery/signature-architecture/`, an original
+scene of the lessons.

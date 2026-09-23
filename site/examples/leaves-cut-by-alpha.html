@@ -2,81 +2,103 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Leaves cut out by their alpha</title>
+    <title>Leaves cut by alpha</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, texture, math, side } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       function random(seed) {
         let state = seed >>> 0;
         return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
       }
-      // A leaf: green inside an almond outline with a darker midrib, transparent outside it.
+      // A leaf picture: green inside an almond outline with a darker midrib, see-through outside it.
       function leafTexture() {
-        const size = 256,
-          canvas = document.createElement('canvas');
+        const size = 256, canvas = document.createElement('canvas');
         canvas.width = canvas.height = size;
-        const ctx = canvas.getContext('2d'),
-          imageData = ctx.createImageData(size, size),
-          pixels = imageData.data;
+        const context = canvas.getContext('2d'), image = context.createImageData(size, size);
         for (let py = 0; py < size; py++)
           for (let px = 0; px < size; px++) {
-            const u = px / size, v = py / size,
-              along = v,
-              width = 0.42 * Math.sin(Math.PI * along) ** 0.8,
-              across = Math.abs(u - 0.5),
-              inside = across < width,
-              rib = across < 0.012 && along > 0.05 && along < 0.9,
-              rgba = inside
-                ? [rib ? 0.2 : 0.3 - along * 0.08, rib ? 0.35 : 0.55, 0.12, 1]
-                : [0, 0, 0, 0];
-            rgba.forEach((value, channel) => {
-              pixels[(py * size + px) * 4 + channel] = Math.round(Math.min(1, Math.max(0, value)) * 255);
-            });
+            const along = py / size, across = Math.abs(px / size - 0.5);
+            const width = 0.42 * Math.sin(Math.PI * along) ** 0.8, rib = across < 0.012 && along > 0.05 && along < 0.9;
+            const alpha = Math.min(1, Math.max(0, (width - across) * 40 + 0.5));
+            const rgba = [rib ? 0.3 : 0.36 - along * 0.1, rib ? 0.5 : 0.68, 0.16, alpha];
+            rgba.forEach((value, channel) => (image.data[(py * size + px) * 4 + channel] = Math.round(value * 255)));
           }
-        ctx.putImageData(imageData, 0, 0);
+        context.putImageData(image, 0, 0);
         return texture.canvas(canvas);
       }
-
       const world = createWorld('view', { controls: 'orbit' });
-      const branch = object.mesh(geometry.cylinder(0.06, 0.06, 4.2, 12), material.meshStandard({ color: [0.3, 0.2, 0.12], roughness: 0.9 }));
-      branch.position.y = 2.1;
-      const moss = object.mesh(geometry.box(4, 0.3, 4), material.meshStandard({ color: [0.25, 0.3, 0.15], roughness: 0.95 }));
-      moss.position.y = -0.15;
-      world.scene.add(branch, moss);
+      const ground = object.mesh(geometry.cylinder(3.2, 3.2, 0.2, 64), material.meshStandard({ color: '#5b6b3a', roughness: 0.95 }));
+      ground.position.y = -0.1;
+      world.scene.add(ground);
 
-      // Every leaf is a flat quad; its outline is the alpha of its texture, and the material's
-      // alpha test is one half: the GPU keeps or discards each pixel, no geometry is cut.
-      const leafGeometry = geometry.plane(0.4, 0.9),
-        leafMaterial = material.meshStandard({ map: leafTexture(), alphaTest: 0.5, side: side.double }),
-        next = random(3);
-      for (let index = 0; index < 60; index++) {
-        const height = 0.8 + next() * 3.2, around = next() * Math.PI * 2;
-        const leaf = object.mesh(leafGeometry, leafMaterial);
-        leaf.position.set(Math.cos(around) * 0.05, height, Math.sin(around) * 0.05);
-        leaf.quaternion.copy(
-          math.quaternion().setFromAxisAngle(math.vector3(Math.sin(around), 0, -Math.cos(around)), 1.1 + next() * 0.6),
-        );
-        world.scene.add(leaf);
+      // The tree grows by one rule: a branch ends in two or three shorter, thinner branches, each
+      // turned away from its parent. Every level is built once; the slider shows as many as asked.
+      const bark = material.meshStandard({ color: '#6b4a2e', roughness: 0.9 });
+      // `alphaTest`: a leaf pixel whose alpha is under it is thrown away; the leaf is one rectangle.
+      const leafMaterial = material.meshStandard({ map: leafTexture(), alphaTest: 0.5, side: side.double, roughness: 0.6 });
+      const leafShape = geometry.plane(0.28, 0.6), next = random(5), up = math.vector3(0, 1, 0);
+      const branches = [], leaves = [];
+      function grow(from, direction, length, radius, level) {
+        const stick = object.mesh(geometry.cylinder(radius * 0.7, radius, length, 12), bark);
+        stick.quaternion.setFromUnitVectors(up, direction);
+        stick.position.copy(from).addScaledVector(direction, length / 2);
+        world.scene.add(stick);
+        branches.push({ mesh: stick, level });
+        const end = from.clone().addScaledVector(direction, length);
+        if (level >= 2)
+          for (let index = 0; index < 9; index++) {
+            const leaf = object.mesh(leafShape, leafMaterial);
+            leaf.position.copy(from).addScaledVector(direction, length * (0.3 + next() * 0.7));
+            leaf.position.x += (next() - 0.5) * 0.5;
+            leaf.position.z += (next() - 0.5) * 0.5;
+            leaf.rotation.set(next() * Math.PI, next() * Math.PI * 2, next() * Math.PI);
+            leaf.scale.setScalar(0.7 + next() * 0.7);
+            world.scene.add(leaf);
+            leaves.push({ mesh: leaf, level, rank: next() });
+          }
+        if (level === 5) return;
+        const children = 2 + Math.floor(next() * 2);
+        for (let child = 0; child < children; child++) {
+          const turn = (child / children) * Math.PI * 2 + next();
+          const bent = math.vector3(Math.cos(turn), 0.55 + next() * 0.5, Math.sin(turn)).normalize().lerp(direction, 0.2).normalize();
+          grow(end, bent, length * (0.72 + next() * 0.12), radius * 0.62, level + 1);
+        }
       }
+      grow(math.vector3(0, 0, 0), up.clone(), 1.5, 0.14, 1);
 
-      world.scene.add(light.directional({
-        intensity: 3, color: [1, 0.96, 0.85], position: [8, 15, 10], target: [0, 0, 0], castShadow: true,
-      }));
-      world.scene.add(light.directional({
-        intensity: 1.2, color: [0.5, 0.65, 0.9], position: [-8, 10, -14], target: [0, 0, 0],
-      }));
-      world.camera.position.set(2.4, 3, 3.6);
-      world.camera.lookAt(0, 2.1, 0);
-      world.controls.target.set(0, 2.1, 0);
-      world.invalidate();
+      const sun = light.directional({ intensity: 3, color: '#fff1d6', castShadow: true, radius: 0.5 });
+      world.scene.add(sun, light.ambient({ intensity: 0.6, color: '#b8d0ff' }));
+      world.scene.add(light.directional({ intensity: 1, color: '#9fc0ff', position: [-6, 3, -6] }));
+      world.camera.position.set(3.4, 2.5, 4.2);
+      world.camera.lookAt(0, 2.4, 0);
+      world.controls.target.set(0, 2.4, 0);
+
+      controls({ branches: [1, 5, 5, 1], leaves: [0, 1, 0.8], cutoff: [0.05, 0.95, 0.5], sun: [-180, 180, 40, 1] }, (values) => {
+        for (const { mesh, level } of branches) mesh.visible = level <= values.branches;
+        for (const { mesh, level, rank } of leaves) mesh.visible = level <= values.branches && rank < values.leaves;
+        leafMaterial.alphaTest = values.cutoff;
+        const turn = (values.sun * Math.PI) / 180;
+        sun.position.set(Math.sin(turn) * 8, 9, Math.cos(turn) * 8);
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

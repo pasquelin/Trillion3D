@@ -2,60 +2,68 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>A field of ten thousand pebbles</title>
+    <title>A field of pebbles</title>
+    <meta name="thumbnail" content="3" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
-    <p id="count"></p>
     <script type="module">
-      import { createWorld, geometry, material, object, light, metric } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
-      // A deterministic sequence in [0, 1): the same field from the same seed on every run.
+      // A sequence in [0, 1) from a seed: the same scene on every run.
       function random(seed) {
         let state = seed >>> 0;
         return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
       }
 
       const world = createWorld('view', { controls: 'orbit' });
-      const bed = object.mesh(geometry.box(20, 0.2, 20), material.meshStandard({ color: [0.68, 0.6, 0.45], roughness: 0.9 }));
+      const bed = object.mesh(geometry.box(20, 0.2, 20), material.meshStandard({ color: '#c9ad7f', roughness: 0.9 }));
       bed.position.y = -0.1;
       world.scene.add(bed);
 
-      // One pebble mesh, geometry and material shared, placed ten thousand times: the compiler
-      // would cut it once and the engine would draw every placement from the same pages.
-      const COUNT = 10000,
-        pebbleGeometry = geometry.sphere(0.08, 12, 12),
-        pebbleMaterial = material.meshStandard({ color: [0.55, 0.53, 0.5], roughness: 0.8 }),
-        next = random(7);
+      // One pebble shape and six materials, placed ten thousand times: the engine draws every
+      // placement of a shape and a material together.
+      const COUNT = 10000, pebble = geometry.sphere(0.08, 12, 12), next = random(7);
+      const stones = Array.from({ length: 6 }, () => material.meshStandard({ roughness: 0.35 }));
       for (let index = 0; index < COUNT; index++) {
-        const pebble = object.mesh(pebbleGeometry, pebbleMaterial);
-        pebble.position.set((next() - 0.5) * 18, 0.03, (next() - 0.5) * 18);
-        pebble.rotation.y = next() * Math.PI * 2;
-        pebble.scale.set(0.7 + next(), 0.5 + next() * 0.4, 0.7 + next() * 0.8);
-        world.scene.add(pebble);
+        const mesh = object.mesh(pebble, stones[index % 6]);
+        mesh.position.set((next() - 0.5) * 18, 0.03, (next() - 0.5) * 18);
+        mesh.rotation.y = next() * Math.PI * 2;
+        mesh.scale.set(0.7 + next(), 0.5 + next() * 0.4, 0.7 + next() * 0.8);
+        world.scene.add(mesh);
       }
+      // A low evening sun that circles the beach: every pebble drags a long shadow behind it.
+      const sun = light.directional({ intensity: 3.5, color: '#ffc58a', castShadow: true });
+      world.scene.add(sun, light.ambient({ intensity: 0.35, color: '#7f9cff' }));
+      world.camera.position.set(2.2, 0.9, 3.2);
+      world.camera.lookAt(-1, 0, -1);
+      world.controls.target.set(-1, 0, -1);
 
-      world.scene.add(light.directional({
-        intensity: 3, color: [1, 0.93, 0.82], position: [12, 9, 13], target: [0, 0, 0], castShadow: true,
-      }));
-      world.camera.position.set(4, 1.1, 6);
-      world.camera.lookAt(-3, 0, -4);
-      world.controls.target.set(-3, 0, -4);
-
-      // Every pebble shares one geometry and one material: the counter reads how few draw calls
-      // ten thousand placements actually take.
-      const count = document.getElementById('count');
-      world.onFrame(() => {
-        const { drawCalls } = metric.frame(world);
-        const text = `${COUNT} pebbles and their bed — ${drawCalls ?? '?'} draw calls`;
-        if (count.textContent !== text) count.textContent = text;
+      // The six colours run from one picked colour to the other.
+      const ui = controls({ sunSpeed: [0, 1, 0.25], sunHeight: [0.1, 1.5, 0.35], first: '#f4efe4', last: '#2f6f8f' }, ({ first, last }) => {
+        stones.forEach((stone, index) => stone.color.copy(math.color(first)).lerp(math.color(last), index / 5));
+        world.invalidate();
       });
-      world.invalidate();
+      let turn = 0.6;
+      world.onFrame(({ delta }) => {
+        turn += delta * ui.sunSpeed;
+        sun.position.set(Math.cos(turn) * 10, ui.sunHeight * 10, Math.sin(turn) * 10);
+        world.invalidate();
+      });
     </script>
   </body>
 </html>

@@ -2,17 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Letters carved in relief</title>
+    <title>Carved letters</title>
+    <meta name="thumbnail" content="2" />
     <style>
-      html, body { margin: 0; height: 100%; background: #0e1621; }
-      canvas { display: block; width: 100%; height: 100%; }
-      p { position: absolute; bottom: 0; margin: 0.5rem; color: #cbd5e1; font: 12px system-ui; }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
 
       // Strokes of a five-by-seven glyph, as [column, row, width, height] in cells, rows counted
       // from the top; each stroke is one raised block.
@@ -22,34 +32,42 @@
         B: [[0, 0, 4, 1], [0, 1, 1, 5], [4, 1, 1, 2], [1, 3, 3, 1], [4, 4, 1, 2], [0, 6, 4, 1]],
       };
       const cell = 0.22, word = 'WEB';
-
       const world = createWorld('view', { controls: 'orbit' });
-      const plaque = material.meshStandard({ color: [0.78, 0.74, 0.66], roughness: 0.85 });
-      const letters = material.meshStandard({ color: [0.8, 0.76, 0.68], roughness: 0.8 });
-      const base = object.mesh(geometry.box(word.length * 6 * cell + 0.6, 7 * cell + 0.8, 0.2), plaque);
-      base.position.set(0, 1.1, -0.1);
-      const slab = object.mesh(geometry.box(6, 0.3, 6), plaque);
-      slab.position.y = -0.15;
-      world.scene.add(base, slab);
-
+      const stone = material.meshStandard({ color: '#d8cfbf', roughness: 0.85 });
+      const letters = material.meshStandard({ roughness: 0.4, metalness: 0.1 });
+      const plaque = object.mesh(geometry.box(word.length * 6 * cell + 0.6, 7 * cell + 0.8, 0.2), stone);
+      plaque.position.set(0, 1.1, -0.1);
+      world.scene.add(plaque);
       word.split('').forEach((letter, index) =>
         glyphs[letter].forEach(([column, row, width, height]) => {
-          const left = (index - word.length / 2) * 6 * cell + column * cell,
-            top = 1.1 + (3.5 - row) * cell;
+          const left = (index - word.length / 2) * 6 * cell + column * cell, top = 1.1 + (3.5 - row) * cell;
           const stroke = object.mesh(geometry.box(width * cell, height * cell, 0.2), letters);
           stroke.position.set(left + (width * cell) / 2, top - (height * cell) / 2, 0.1);
           world.scene.add(stroke);
         }),
       );
-
-      // A light raking across the plaque from the left is what makes the relief legible.
-      world.scene.add(light.directional({
-        intensity: 3, color: [1, 0.94, 0.85], position: [-14, 11, 10], target: [0, 0, 0], castShadow: true,
-      }));
-      world.camera.position.set(1.2, 1.9, 4.2);
+      // Two lamps rake across the plaque from opposite sides, one warm, one cool: each letter
+      // throws two coloured shadows that cross as the lamps swing.
+      const warm = light.point({ intensity: 16, distance: 10, radius: 0.05, castShadow: true });
+      const cool = light.point({ intensity: 16, distance: 10, radius: 0.05, castShadow: true });
+      world.scene.add(warm, cool, light.ambient({ intensity: 0.15 }));
+      world.camera.position.set(0.5, 1.3, 3.6);
       world.camera.lookAt(0, 1.1, 0);
       world.controls.target.set(0, 1.1, 0);
-      world.invalidate();
+
+      const ui = controls({ swing: [0, 2, 0.6], warm: '#ff8a3c', cool: '#3ca8ff', letters: '#d8b070' }, (values) => {
+        warm.color.set(values.warm);
+        cool.color.set(values.cool);
+        letters.color.set(values.letters);
+        world.invalidate();
+      });
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        time += delta * ui.swing;
+        warm.position.set(-2.4, 1.1 + Math.sin(time) * 1.2, 1.2);
+        cool.position.set(2.4, 1.1 - Math.sin(time) * 1.2, 1.2);
+        world.invalidate();
+      });
     </script>
   </body>
 </html>
