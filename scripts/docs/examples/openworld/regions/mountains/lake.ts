@@ -15,6 +15,8 @@ import { downhill } from './terrain.ts';
 /** The ring the outlet is looked for on, metres past the shore, and its samples. */
 const OUTLET = 40;
 const RING = 48;
+/** The foam mound's radius at the waterfall's foot, metres. */
+const FOAM = 6;
 /** The waterfall's step down the slope, and where it ends: the ground has levelled out. */
 const STEP = 5;
 const LEVEL = 0.1;
@@ -35,8 +37,21 @@ function waterfall(placer: Placer, spill: Vec3): Vec3[] {
     [x, z] = [x + dir[0] * STEP, z + dir[1] * STEP];
     if (!placer.owns(x, z, 10)) break;
     path.push([x, placer.plan.height(x, z) + 0.4, z]);
+    // The fall ends before the circle its mesh stands in reaches a road.
+    if (reachesRoad(placer, path)) {
+      path.pop();
+      break;
+    }
   }
   return path;
+}
+
+/** Whether the footprint of a fall along `path` (its foam included) reaches a road. */
+function reachesRoad(placer: Placer, path: readonly Vec3[]) {
+  const [a, b] = [path[0], path[path.length - 1]],
+    [x, z] = [(a[0] + b[0]) / 2, (a[2] + b[2]) / 2],
+    r = Math.max(...path.map((p) => Math.hypot(p[0] - x, p[2] - z))) + FOAM;
+  return placer.roads.clearance(x, z, r + 30) < r;
 }
 
 /** Every plan lake inside the region, with its outlet and waterfall. */
@@ -78,7 +93,7 @@ function waterfallMesh(lake: Lake, origin: Vec3): PropMesh {
   }
   const foot = lake.fall[lake.fall.length - 1],
     parts: MeshPart[] = [
-      transform(blob(S.whiteWater, [6, 1, 6], 3, { detail: 4 }), {
+      transform(blob(S.whiteWater, [FOAM, 1, FOAM], 3, { detail: 4 }), {
         at: local([foot[0], foot[1] - 0.8, foot[2]]),
       }),
     ];

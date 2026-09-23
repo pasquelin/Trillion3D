@@ -39,11 +39,7 @@ function portalPair(placer: Placer, run: TunnelRun, id: string, n: number): Inst
 
 export function dressPass(placer: Placer, avoid: (x: number, z: number) => boolean): Pass {
   const pass: Pass = { props: [], lights: [], markers: [], portals: 0 },
-    roads = placer.plan.roads.filter(
-      (road) =>
-        (road.class === 'pass' || road.class === 'secondary') &&
-        road.points.some(([x, , z]) => placer.owns(x, z)),
-    ),
+    roads = placer.plan.roads.filter((road) => road.points.some(([x, , z]) => placer.owns(x, z))),
     meshes = new Map<number, PropMesh>();
   for (const road of roads) {
     const w = widthOf(road),
@@ -56,6 +52,8 @@ export function dressPass(placer: Placer, avoid: (x: number, z: number) => boole
         pass.lights.push(...placeLamps(PORTAL_LAMPS(w), portal));
       }
     }
+    // Every road bored through a ridge gets its portals; only the mountain roads get poles.
+    if (road.class !== 'pass' && road.class !== 'secondary') continue;
     const stations = resample(road, 10);
     stations.forEach((s, i) => {
       if (i % (POLE_EVERY / 10) || covered.has(s.along)) return;
@@ -85,7 +83,8 @@ export function dressPass(placer: Placer, avoid: (x: number, z: number) => boole
           kind: 'spawn',
           vehicle: 'car',
           name: 'mountains/pass-car',
-          position: [...top.at],
+          // On the ground the road levelled, not on the chord between two road points.
+          position: [top.at[0], placer.plan.height(top.at[0], top.at[2]), top.at[2]],
           yaw: headingYaw(...top.dir),
         },
       );
