@@ -17,6 +17,8 @@ test('every spelling of the library is caught', () => {
     'add @types/three',
     'the same as Three does',
     "the witness is Three's renderer",
+    'see https://threejs.org/docs',
+    'Three would need one shadow map per light',
   ])
     assert.equal(libraryMentions(`# Guide\n\n${line}\n`).length, 1, line);
 });
