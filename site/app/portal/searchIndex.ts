@@ -14,6 +14,7 @@ const TONES: Record<string, BadgeTone> = {
   Function: 'primary',
   Type: 'secondary',
   Constant: 'warning',
+  Chapter: 'accent',
 };
 
 /** Everything the site search reads, in `locale`: every guide and API entry, and every ready
