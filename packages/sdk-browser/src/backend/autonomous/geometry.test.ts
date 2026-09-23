@@ -168,3 +168,13 @@ test('an attached page wears the host declaration, not the engine surface record
   assert.equal((attached.material as THREE.Material).visible, true);
   declaration.dispose();
 });
+
+test('the store says whether it kept a page: a replaced page or one no record draws is not', () => {
+  const { scene } = fakeScene();
+  const env = environnement(scene, [], []);
+  env.modifiedPages.add('replaced.bin');
+  const store = createAutonomousGeometry(env);
+  const page = {} as Parameters<typeof store.acceptGeometryPage>[1];
+  assert.equal(store.acceptGeometryPage('replaced.bin', page), false);
+  assert.equal(store.acceptGeometryPage('unknown.bin', page), false);
+});

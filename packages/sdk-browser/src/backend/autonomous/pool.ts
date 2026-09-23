@@ -1,26 +1,27 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
-import type { MemoryBudgets, MemoryBudgetsReport } from '../../webgpu/pages/io/memory.ts';
-import type { BackendContext } from '../types.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
-import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
-import type { createAutonomousGeometry } from './geometry.ts';
-import { comptePagesResidentes, type createAutonomousResidency } from './residency.ts';
+import { sessionGeometryPool } from '../../webgpu/residency/sessionPool.ts';
+import type { GeometryPool } from '../../webgpu/residency/memoryBudgets.ts';
 import {
-  DEFAULT_GEOMETRY_POOL_BUDGET,
-  geometryPoolFor,
-  type GeometryPool,
-} from '../../webgpu/residency/memoryBudgets.ts';
+  createPageBudgetLadder,
+  releasePassedFloor,
+  stepPageBudgetLadder,
+} from '../../webgpu/residency/budgetState.ts';
 import { evictOldest } from '../../streaming/evictOldest.ts';
 
 type PoolEnvironment = {
-  /** The host's budget, `DEFAULT_GEOMETRY_POOL_BUDGET` when it names none. */
+  /** The host's budget, and the most `resize` may ask for; the defaults when it names none. */
   budgetBytes?: number;
+  ceilingBytes?: number;
+  /** The page ceiling of the display graph, which bounds the slots as it does on WebGPU. */
+  maxResidentPages?: number;
   descriptors: ReadonlyMap<string, GeometryPageDescriptor>;
   /** Pages of the root cover, which the pool never goes below. */
-  rootPages: number;
+  rootUrls: ReadonlySet<string>;
   /** Decoded bytes the pages hold, which the geometry store keeps. */
   state: { readonly allocationBytes: number };
+  /** Decoded bytes the root cover holds now, read again after `rootsChanged`. */
+  rootBytes: () => number;
   /** Pages the frame keeps: the root cover, the host's own, the cut drawn and the cut wanted. */
   kept: () => readonly string[];
   /** Gives a page's geometry back; a kept page is never named. */
@@ -29,154 +30,163 @@ type PoolEnvironment = {
 
 /**
  * The WebGL2 geometry pool: the same fixed budget in bytes as the WebGPU pool, drawn by the same
- * rule (`geometryPoolFor`) — slots of the catalogue's largest decoded page, the root cover always
- * held. The slots bound the cut (`pageBudget`), which draws coarser when the view does not fit;
- * the bytes bound what stays resident: when the pages hold more than the budget, those no frame
- * keeps leave oldest first, as the page streamer's cache evicts (`evictOldest`). A page the cut
- * draws is never evicted, so the image never shows a hole: a shrink takes effect as the coarser
- * cut arrives. Under the budget, nothing is walked: an arrival costs a set insertion, a frame one
- * comparison.
+ * rule (`sessionGeometryPool`) — slots of the catalogue's largest decoded page, the root cover
+ * always held, the page cap and the session ceiling applied.
+ *
+ * The slots bound the cut by the ladder both engines climb (`stepPageBudgetLadder`): the cut is
+ * drawn at the floor the previous images' verdict left (`threshold`), and its distinct pages are
+ * weighed against the slots after it (`admit`), so the cut the image asks for fits the pool, not
+ * only the one it draws.
+ *
+ * The bytes bound what stays resident: once the pages hold more than the budget, those no frame
+ * keeps leave oldest first (`evictOldest`, the page streamer's order). What the last cut keeps,
+ * and every page that arrived since, never leaves: the image shows no hole and a page is not
+ * evicted on arrival. When what is kept fills the budget alone, arrivals stay until the next cut
+ * decides, and nothing is walked again before it.
+ *
+ * Under the budget nothing is walked: an arrival costs two set insertions, an image one comparison
+ * of bytes and one of counts.
  */
 export function createGeometryBudget(env: PoolEnvironment) {
-  const { descriptors, rootPages, state, kept, drop } = env;
+  const { descriptors, rootUrls, state, kept, drop } = env;
   // A page's decoded size is the bytes it holds resident: its indices and its float attributes.
   let pageBytes = 1;
   for (const descriptor of descriptors.values())
     pageBytes = Math.max(pageBytes, descriptor.uncompressedBytes);
-  const poolFor = (budgetBytes: number) =>
-    geometryPoolFor({ budgetBytes, pageBytes, uniquePages: descriptors.size, rootPages });
-  let pool = poolFor(env.budgetBytes ?? DEFAULT_GEOMETRY_POOL_BUDGET),
-    rootBytes = 0;
-  // Resident pages, oldest first; an eviction pass moves the kept ones to the end.
+  const session = sessionGeometryPool(
+    {
+      pageBytes,
+      uniquePages: descriptors.size,
+      rootPages: rootUrls.size,
+      maxResidentPages: env.maxResidentPages,
+    },
+    env.budgetBytes,
+    env.ceilingBytes,
+  );
+  let pool = session.pool;
+  const ladder = createPageBudgetLadder();
+  // Distinct pages of a cut, counted only when the ladder has something to weigh.
+  const counted = new Set<string>();
+  // Resident pages, oldest first. Once over the budget, `keep` holds what the last cut keeps and
+  // what arrived since; those are moved to the end, so the `candidates` a pass may evict are
+  // exactly the front of the order.
   const order = new Set<string>(),
-    keep = new Set<string>();
+    keep = new Set<string>(),
+    arrivals = new Set<string>();
+  let keepStale = true,
+    candidates = 0,
+    rootBytes = 0,
+    rootsStale = true;
   const over = () => state.allocationBytes > Math.max(pool.budgetBytes, rootBytes);
+  const refreshKeep = () => {
+    keep.clear();
+    for (const url of kept()) keep.add(url);
+    for (const url of arrivals) keep.add(url);
+    let moved = 0;
+    for (const url of keep)
+      if (order.delete(url)) {
+        order.add(url);
+        moved++;
+      }
+    candidates = order.size - moved;
+    keepStale = false;
+  };
+  const forget = (url: string) => {
+    if (order.delete(url) && !keepStale && !keep.has(url)) candidates--;
+  };
   const evictOne = (url: string) => {
-    order.delete(url);
+    forget(url);
     drop(url);
   };
-  const trim = () => {
-    if (!over()) return 0;
-    keep.clear();
-    for (const url of kept()) {
-      keep.add(url);
-      if (order.delete(url)) order.add(url);
+  const evictable = () => candidates > 0 && over(),
+    isKept = (url: string) => keep.has(url);
+  const shed = () => {
+    // The root cover only raises the bar: under the budget it is not even read.
+    if (state.allocationBytes <= pool.budgetBytes) return 0;
+    if (rootsStale) {
+      rootBytes = env.rootBytes();
+      rootsStale = false;
     }
-    return evictOldest(order, over, (url) => keep.has(url), evictOne);
+    if (!over()) return 0;
+    if (keepStale) refreshKeep();
+    return evictOldest(order, evictable, isKept, evictOne);
   };
   return {
     /** The pool as drawn from the budget; its `allocatedBytes` is the most it may hold. */
     get held(): GeometryPool {
       return pool;
     },
-    /** The pool as it stands, for a report: `allocatedBytes` is what the pages hold. */
-    report(): GeometryPool {
-      return { ...pool, allocatedBytes: state.allocationBytes };
+    /** The floor the pool puts under the cut's screen error, 0 when the requested detail fits. */
+    get budgetPixelError() {
+      return ladder.budgetPixelError;
     },
-    /** Pages the cut may draw: the budget in the catalogue's largest page, or 0 — no bound — when
-     *  every page of the scene fits: records drawn from one page then count once each. */
-    get cutPages() {
-      return pool.clamp === 'scene' ? 0 : pool.slots;
+    /** The last cut weighed did not fit the slots. */
+    get coverageBudgetLimited() {
+      return ladder.coverageBudgetLimited;
     },
-    /** The root cover has arrived: its bytes are the floor the pool never goes below. */
-    rooted() {
-      rootBytes = state.allocationBytes;
+    /** The threshold this image's cut is drawn at: the host's, or the floor the pool imposes. */
+    threshold(pixelError: number) {
+      releasePassedFloor(ladder, pixelError);
+      return Math.max(pixelError, ladder.budgetPixelError);
     },
-    /** A page has arrived: it enters the order, and the pool sheds what no frame keeps. */
+    /**
+     * Weighs the cut just drawn at `sampled`: the distinct pages it asks for, with the root cover,
+     * and those it holds, with what it still draws. True when the floor moved, so that the next
+     * image cuts again. Nothing is counted while no floor rules and the records, even all distinct,
+     * fit the slots.
+     */
+    admit(
+      pixelError: number,
+      sampled: number,
+      view: number,
+      wanted: readonly PageRec[],
+      shown: readonly PageRec[],
+    ) {
+      const floor = ladder.budgetPixelError,
+        { slots } = pool;
+      if (
+        floor === 0 &&
+        !ladder.coverageBudgetLimited &&
+        (pool.clamp === 'scene' || rootUrls.size + wanted.length + shown.length <= slots)
+      )
+        return false;
+      counted.clear();
+      for (const url of rootUrls) counted.add(url);
+      for (let i = 0; i < wanted.length; i++) counted.add(wanted[i].url);
+      const requested = counted.size;
+      for (let i = 0; i < shown.length; i++) counted.add(shown[i].url);
+      stepPageBudgetLadder(ladder, pixelError, sampled, view, slots, requested, counted.size);
+      return ladder.budgetPixelError !== floor;
+    },
+    /** The root cover changed — instances, rows, a replaced page: its bytes are read again. */
+    rootsChanged() {
+      rootsStale = true;
+    },
+    /** A page has arrived, or arrived again: it is the most recent, kept until the next cut. */
     arrived(url: string) {
+      forget(url);
       order.add(url);
-      trim();
+      arrivals.add(url);
+      if (!keepStale) keep.add(url);
+      shed();
     },
     /** A page left by another way — the streamer evicted it. */
     left(url: string) {
-      order.delete(url);
+      forget(url);
+      arrivals.delete(url);
     },
-    /** Sheds what the last cut left, once over the budget; returns the pages evicted. */
-    trim,
-    /** Another budget, mid-session; returns the pages evicted at once. */
+    /** A cut was drawn: what it no longer keeps can go, once over the budget; returns the pages
+     *  evicted. */
+    trim() {
+      keepStale = true;
+      arrivals.clear();
+      return shed();
+    },
+    /** Another budget, mid-session, under the session ceiling; returns the pages evicted at once.
+     *  An invalid budget is refused before anything changes. */
     resize(budgetBytes: number) {
-      pool = poolFor(budgetBytes);
-      return trim();
-    },
-  };
-}
-
-/**
- * The pool wired into the backend: page arrivals and departures go through it, the host sets its
- * budget mid-session and reads it in the frame metrics.
- */
-export function createAutonomousPool(env: {
-  context: BackendContext;
-  descriptors: ReadonlyMap<string, GeometryPageDescriptor>;
-  bootstrapUrls: ReadonlySet<string>;
-  allPages: readonly PageRec[];
-  gate: WebglFrameGate;
-  geometryStore: ReturnType<typeof createAutonomousGeometry>;
-  residency: ReturnType<typeof createAutonomousResidency>;
-}) {
-  const { context, allPages, gate, geometryStore, residency } = env;
-  const { state } = geometryStore;
-  const budget = createGeometryBudget({
-    budgetBytes: context.geometryPoolBytes,
-    descriptors: env.descriptors,
-    rootPages: env.bootstrapUrls.size,
-    state,
-    kept: residency.pageUrls,
-    drop: residency.dropPage,
-  });
-  return {
-    budget,
-    /** Read with the frame metrics: the budget, and what the pages hold under it — no pool is
-     *  reserved on this path. Accessors, so a spread copies the values without allocating. */
-    metrics: {
-      get geometryPoolBytes() {
-        return budget.held.budgetBytes;
-      },
-      get geometryPoolSlots() {
-        return budget.held.slots;
-      },
-      get geometryPoolAllocatedBytes() {
-        return state.allocationBytes;
-      },
-      get geometryPoolClamp() {
-        return budget.held.clamp;
-      },
-    },
-    api: {
-      dropPage(url: string) {
-        gate.resourcesChanged();
-        residency.dropPage(url);
-        budget.left(url);
-      },
-      acceptGeometryPage(url: string, data: DecodedGeometryPage) {
-        gate.resourcesChanged();
-        geometryStore.acceptGeometryPage(url, data);
-        budget.arrived(url);
-      },
-      /** The geometry pool only: the texture pools are the WebGPU engine's, this path samples the
-       *  host's textures whole (`texturePool: null`). */
-      async setMemoryBudgets(budgets: MemoryBudgets): Promise<MemoryBudgetsReport> {
-        const started = performance.now(),
-          before = comptePagesResidentes(allPages);
-        const evictedPages =
-          budgets.geometryPoolBytes === undefined ? 0 : budget.resize(budgets.geometryPoolBytes);
-        gate.resourcesChanged();
-        const report = {
-          geometryPool: budget.report(),
-          texturePool: null,
-          evictedPages,
-          evictedTiles: 0,
-          residentPages: { before, after: comptePagesResidentes(allPages) },
-          residentTiles: { before: 0, after: 0 },
-          durationMs: performance.now() - started,
-        };
-        context.onDiagnostic?.({
-          phase: 'memory-budgets',
-          message: 'Memory pools set',
-          context: report,
-        });
-        return report;
-      },
+      pool = session.poolFor(budgetBytes);
+      return shed();
     },
   };
 }
