@@ -24,9 +24,7 @@ export function DocPage({ eyebrow, title, lead, actions, children, ...props }: D
           </p>
         )}
         <h1 className="text-3xl font-bold break-words md:text-4xl">{title}</h1>
-        {lead && (
-          <div className="max-w-prose text-lg leading-relaxed text-base-content/80">{lead}</div>
-        )}
+        {lead && <div className="text-lg leading-relaxed text-base-content/80">{lead}</div>}
         {actions && <div className="flex flex-wrap gap-3 pt-2">{actions}</div>}
       </header>
       <div className="grid min-w-0 grid-cols-1 content-start gap-6">{children}</div>
