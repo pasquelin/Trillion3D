@@ -30,10 +30,15 @@ export function frameTargetBytes(width: number, height: number, withHiz: boolean
   }
   return bytes;
 }
+/** Per-pixel surface data of a frame, kept on the GPU: depth, normals, material. */
 export interface SurfaceBuffer {
+  /** Format version. */
   readonly version: 1;
+  /** Width in pixels. */
   readonly width: number;
+  /** Height in pixels. */
   readonly height: number;
+  /** GPU bytes it holds. */
   readonly allocationBytes: number;
   /** RGB base color, A metalness. */
   readonly baseMetal: GPUTexture;
@@ -43,7 +48,9 @@ export interface SurfaceBuffer {
   readonly emissiveAo: GPUTexture;
   /** 0 background, 1 unlit, 2 reads, 3 display-space diagnostic. */
   readonly flags: GPUTexture;
+  /** Its GPU texture views. */
   views(): GPUTextureView[];
+  /** Frees it. */
   dispose(): void;
 }
 /**
@@ -116,11 +123,15 @@ export function createSurfaceBuffer(
     },
   };
 }
+/** A surface buffer with the camera it was drawn from. */
 export interface SurfaceCapture extends SurfaceBuffer {
   /** Reversed depth in [0,1], background at the far plane (`../camera/depthConvention.ts`). Opaque and
    *  masked geometry only. */
   readonly depth: GPUTexture;
+  /** Undoes the camera projection. */
   readonly inverseViewProjection: ReadonlyArray<number>;
+  /** Where the camera was. */
   readonly cameraWorld: readonly [number, number, number];
+  /** Triangles drawn. */
   readonly selectedTriangles: number;
 }

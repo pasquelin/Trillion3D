@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+import prettier from 'prettier';
 import ts from 'typescript';
 import { repositoryFiles } from './repository-files.ts';
 
@@ -10,6 +11,13 @@ export const ENTRIES = {
   node: 'packages/sdk-node/src/index.mts',
 } as const;
 export type ExportEntry = keyof typeof ENTRIES;
+/** The published facade of `web-geometry` (`package.json` exports), one file per condition: what a
+ *  consumer imports, the entries above plus the symbols the facade adds (`sdk-api-documented.ts`). */
+export const PUBLIC_ENTRIES: Record<ExportEntry, string> = {
+  core: 'packages/sdk/index.ts',
+  browser: 'packages/sdk/browser.ts',
+  node: 'packages/sdk/node.mts',
+};
 export type ExportKind = 'value' | 'type' | 'both';
 
 export interface ExportRow {
@@ -35,9 +43,10 @@ function definingModule(symbol: ts.Symbol, checker: ts.TypeChecker): string {
   return file ? relative(ROOT, file) : 'unknown';
 }
 
-export function analyzeEntries(): ExportRow[] {
-  const files = Object.values(ENTRIES).map((file) => join(ROOT, file));
-  const program = ts.createProgram(files, {
+/** One program over three entry files: the checker every export inventory reads. */
+export function apiProgram(entries: Record<ExportEntry, string> = ENTRIES): ts.Program {
+  const files = Object.values(entries).map((file) => join(ROOT, file));
+  return ts.createProgram(files, {
     target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.NodeNext,
     moduleResolution: ts.ModuleResolutionKind.NodeNext,
@@ -45,13 +54,28 @@ export function analyzeEntries(): ExportRow[] {
     skipLibCheck: true,
     types: ['node', '@webgpu/types'],
   });
+}
+
+/** The module symbol of each entry file, in the order `entries` lists them. */
+export function entryModules(
+  program: ts.Program,
+  entries: Record<ExportEntry, string> = ENTRIES,
+): [ExportEntry, ts.Symbol][] {
   const checker = program.getTypeChecker();
-  const rows = new Map<string, ExportRow>();
-  // `Object.entries` always widens object keys to `string`: the entry names are known from `ENTRIES`.
-  for (const [entry, file] of Object.entries(ENTRIES) as [ExportEntry, string][]) {
+  // `Object.entries` always widens object keys to `string`: the entry names are `ExportEntry`.
+  return (Object.entries(entries) as [ExportEntry, string][]).map(([entry, file]) => {
     const source = program.getSourceFile(join(ROOT, file));
     const module = source && checker.getSymbolAtLocation(source);
     if (!module) throw new Error(`Cannot resolve ${file}`);
+    return [entry, module];
+  });
+}
+
+export function analyzeEntries(): ExportRow[] {
+  const program = apiProgram();
+  const checker = program.getTypeChecker();
+  const rows = new Map<string, ExportRow>();
+  for (const [entry, module] of entryModules(program)) {
     for (const symbol of checker.getExportsOfModule(module)) {
       const target =
         symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
@@ -110,4 +134,17 @@ function addConsumer(consumers: Map<string, Set<string>>, name: string, file: st
   const paths = consumers.get(name) ?? new Set<string>();
   paths.add(file);
   consumers.set(name, paths);
+}
+
+/**
+ * Writes a generated file, formatted by the repository's Prettier settings; with `--check` on the
+ * command line, fails instead when the file on disk differs from what would be written.
+ */
+export async function writeGenerated(path: string, content: string): Promise<void> {
+  const absolute = join(ROOT, path);
+  const prettierConfig = await prettier.resolveConfig(absolute);
+  const formatted = await prettier.format(content, { ...prettierConfig, filepath: absolute });
+  mkdirSync(dirname(absolute), { recursive: true });
+  if (!process.argv.includes('--check')) writeFileSync(absolute, formatted);
+  else if (readFileSync(absolute, 'utf8') !== formatted) throw new Error(`${path} is stale`);
 }
