@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { mountainsRegion } from '../regions/mountains/index.ts';
 import { bridgeDeck } from './bridges.ts';
 import { WORLD } from './contract.ts';
-import { REGION_BOUNDS } from './layout.ts';
+import { BAND, REGION_BOUNDS } from './layout.ts';
 import { createPlan, isTerrainPlan, subSeedOf } from './plan.ts';
 import { ROAD_STEP } from './roads.ts';
 import { COVER, CROWN, MIN_RUN } from './tunnels.ts';
@@ -30,22 +30,24 @@ describe('open world plan: places, shores, seeds, bridges and tunnels', () => {
       border = REGION_BOUNDS.desert.maxX;
     const near = (value: number, expected: number) =>
       assert.ok(Math.abs(value - expected) < 1e-9, `${value}`);
-    near(lift(border - 5_000, 0), 40);
-    near(lift(border + 5_000, 0), 0);
+    near(lift(border - BAND, 0), 40);
+    near(lift(border + BAND, 0), 0);
     near(lift(border, 0), 20);
-    for (let x = border - 1_000; x < border + 1_000; x += 10)
-      assert.ok(Math.abs(lift(x + 10, 0) - lift(x, 0)) < 1, `step at ${x}`);
+    // A smoothstep over the band climbs at most 1.5 times its mean slope.
+    const steepest = (1.5 * 40 * 10) / BAND;
+    for (let x = border - BAND; x < border + BAND; x += 10)
+      assert.ok(Math.abs(lift(x + 10, 0) - lift(x, 0)) <= steepest, `step at ${x}`);
   });
   it('grows every shore through sea level without a step, with a beach band', () => {
     let beach = 0;
     for (let along = -3_500; along <= 3_500; along += 500)
       for (const [x0, z0, dx, dz] of [[along, plan.relief.southCoastZ(along), 0, 1]]) {
-        let previous = plan.relief.height(x0 - 300 * dx, z0 - 300 * dz);
         for (let t = -299; t <= 300; t++) {
-          const h = plan.relief.height(x0 + t * dx, z0 + t * dz);
-          assert.ok(Math.abs(h - previous) < 0.2, `step of ${h - previous} m at ${x0}, ${z0}`);
+          // A slope shrinks with the sampling distance, a step does not: over 1 mm, no 5 mm.
+          const h = plan.relief.height(x0 + t * dx, z0 + t * dz),
+            before = plan.relief.height(x0 + (t - 1e-3) * dx, z0 + (t - 1e-3) * dz);
+          assert.ok(Math.abs(h - before) < 5e-3, `step of ${h - before} m at ${x0}, ${z0}`);
           if (h > 0 && h < 2.5) beach++;
-          previous = h;
         }
       }
     assert.ok(beach > 1_000, `${beach} beach samples`);

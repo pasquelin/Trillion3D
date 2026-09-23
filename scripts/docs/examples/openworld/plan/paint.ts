@@ -21,7 +21,7 @@ const SOIL = Math.atan(REPOSE) / (Math.PI / 2);
 /** Steepest slope snow lies on: 45°, where it slides off as avalanches. */
 const SNOW_SLOPE = 0.5;
 /** The snowline: three quarters of the highest peak, waving by 150 m over a few kilometres. */
-const SNOWLINE = WORLD.peak * 0.75;
+export const SNOWLINE = WORLD.peak * 0.75;
 /** Highest a beach reaches above sea level, metres: a storm swash. */
 const BEACH = 2.5;
 /**

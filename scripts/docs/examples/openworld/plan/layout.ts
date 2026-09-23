@@ -35,7 +35,7 @@ export const REGION_BOUNDS: Record<RegionName, Bounds> = {
 };
 
 /** Width of a transition band between two regions, metres: short, so no land is a blur. */
-const BAND = 200;
+export const BAND = 200;
 
 /** Signed distance to a rectangle, negative inside; the map's outer edges are not borders. */
 function signedDistance(bounds: Bounds, x: number, z: number): number {

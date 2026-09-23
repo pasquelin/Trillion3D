@@ -8,6 +8,7 @@ import { cacheBytes, MARGIN, regionBudgets, TERRAIN_BYTES, textureBytes } from '
 import { COOK_COST, WORLD } from './contract.ts';
 import { EROSION_CELL } from './erosion.ts';
 import { HEIGHT_SAMPLES, tileHeights, writeHeights } from './heights.ts';
+import { SNOWLINE } from './paint.ts';
 import { createPlan } from './plan.ts';
 
 const plan = createPlan();
@@ -31,10 +32,16 @@ describe('open world plan', () => {
     assert.notEqual(plan.subSeed('sky'), plan.subSeed('traffic'));
   });
   it('rises to the peak over one continent with the sea to the south', () => {
-    let highest = -Infinity;
-    for (let z = -HALF; z <= HALF; z += 250)
-      for (let x = -HALF; x <= HALF; x += 250) highest = Math.max(highest, plan.height(x, z));
-    assert.ok(highest > WORLD.peak * 0.9 && highest < WORLD.peak * 1.05, `peak ${highest}`);
+    const range = plan.regions.mountains.bounds;
+    let [raised, highest] = [-Infinity, -Infinity];
+    for (let z = range.minZ; z <= range.maxZ; z += 50)
+      for (let x = range.minX; x <= range.maxX; x += 50) {
+        raised = Math.max(raised, plan.relief.height(x, z));
+        highest = Math.max(highest, plan.height(x, z));
+      }
+    assert.ok(raised > WORLD.peak * 0.95, `relief ${raised}`);
+    // Erosion wears the summit down, on the mountains' 50 m grid, but leaves it snow-capped.
+    assert.ok(highest > SNOWLINE && highest < raised, `peak ${highest}`);
     assert.ok(plan.height(0, HALF - 100) < 0);
     assert.ok(plan.height(-HALF + 100, 0) > 0 && plan.height(0, -HALF + 100) > 0);
   });
@@ -51,10 +58,11 @@ describe('open world plan', () => {
     const everyPoint = plan.courses.flatMap(({ road }) =>
       road.points.map((p, k) => ({ p, road, k })),
     );
-    let checked = 0;
+    let [checked, onLand] = [0, 0];
     for (const { road, bridge, tunnel } of plan.courses)
       road.points.forEach((p, k) => {
         if (bridge[k] || bridge[k - 1] || tunnel[k] || tunnel[k - 1]) return;
+        onLand++;
         assert.ok(plan.height(p[0], p[2]) > WORLD.seaLevel, `${road.id} ${k} under the sea`);
         // Level check away from junctions, hairpins, bridge and tunnel ends, where works meet.
         if (k < 2 || k > road.points.length - 3) return;
@@ -84,7 +92,8 @@ describe('open world plan', () => {
         }
         checked++;
       });
-    assert.ok(checked > 1_000, `${checked} road points checked`);
+    // Junctions, bends and crowded points aside, a fifth of the land points is still checked.
+    assert.ok(checked > onLand / 5, `${checked} of ${onLand} road points checked`);
   });
   it('plans every road class, a bridge over each river and trails to walk', () => {
     const classes = new Set(plan.roads.map((road) => road.class));
@@ -114,10 +123,12 @@ describe('open world plan', () => {
   });
   it('shares identical physics heights along every tile border of a row and a column', () => {
     const side = HEIGHT_SAMPLES + 1,
-      last = HEIGHT_SAMPLES;
-    for (let k = 0; k < 49; k++) {
-      const [west, east] = [tileHeights(plan, k, 25), tileHeights(plan, k + 1, 25)],
-        [north, south] = [tileHeights(plan, 25, k), tileHeights(plan, 25, k + 1)];
+      last = HEIGHT_SAMPLES,
+      count = WORLD.size / WORLD.tile,
+      middle = count / 2;
+    for (let k = 0; k < count - 1; k++) {
+      const [west, east] = [tileHeights(plan, k, middle), tileHeights(plan, k + 1, middle)],
+        [north, south] = [tileHeights(plan, middle, k), tileHeights(plan, middle, k + 1)];
       for (let j = 0; j < side; j++) {
         assert.equal(west[j * side + last], east[j * side], `tile ${k} row ${j}`);
         assert.equal(north[last * side + j], south[j], `tile ${k} column ${j}`);
@@ -158,15 +169,16 @@ describe('open world plan', () => {
   it('writes one Float32 height file per tile, row-major from its -X, -Z corner', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'openworld-heights-'));
     try {
-      const flat = { height: (x: number, z: number) => x + 2 * z };
-      assert.equal(await writeHeights(dir, flat, 4), 2_500);
-      assert.equal((await readdir(join(dir, 'heights'))).length, 2_500);
+      const flat = { height: (x: number, z: number) => x + 2 * z },
+        tiles = (WORLD.size / WORLD.tile) ** 2;
+      assert.equal(await writeHeights(dir, flat, 4), tiles);
+      assert.equal((await readdir(join(dir, 'heights'))).length, tiles);
       const bytes = await readFile(join(dir, 'heights', '1_0.bin')),
         values = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
       assert.equal(values.length, 25);
-      assert.equal(values[0], -HALF + 1_000 + 2 * -HALF);
-      assert.equal(values[1], values[0] + 250);
-      assert.equal(values[5], values[0] + 500);
+      assert.equal(values[0], -HALF + WORLD.tile + 2 * -HALF);
+      assert.equal(values[1], values[0] + WORLD.tile / 4);
+      assert.equal(values[5], values[0] + WORLD.tile / 2);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
