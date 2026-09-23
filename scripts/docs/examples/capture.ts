@@ -7,7 +7,7 @@ export interface GalleryEntry {
 }
 
 /** The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. */
-async function drawnShare(page: Page): Promise<number> {
+export async function drawnShare(page: Page): Promise<number> {
   const png = await page.locator('canvas').screenshot();
   return page.evaluate(
     async (dataUrl: string) => {
