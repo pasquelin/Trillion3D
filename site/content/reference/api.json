@@ -1889,6 +1889,11 @@
         "desc": "Whether the feet are on a floor."
       },
       {
+        "name": "stride",
+        "type": "number",
+        "desc": "The stride's phase in radians, in [0, 2π): one foot strikes at 0, the other at π."
+      },
+      {
         "name": "onLand",
         "type": "((impact: number) => void) | null",
         "desc": "Called on landing with the downward speed, in metres per second: a sound, a shake."
@@ -1909,7 +1914,7 @@
         "desc": "Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did."
       }
     ],
-    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed and brakes over `responseTime`, keeps its momentum in the air, falls under `gravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`). The camera is the eye, `eyeHeight` above the feet. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key — emits nothing, so the scene stays still."
+    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed over `responseTime` and brakes over `stopTime`, keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`). The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on the eye after the body's step and never move the body. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key, no dip left — emits nothing, so the scene stays still."
   },
   {
     "id": "CharacterCollision",
@@ -15786,6 +15791,11 @@
         "desc": "Character only: whether the feet are on a floor; `false` for any other controller."
       },
       {
+        "name": "stride",
+        "type": "number",
+        "desc": "Character only: the stride's phase in radians, a foot striking at 0 and π; 0 otherwise."
+      },
+      {
         "name": "update(delta?: number)",
         "type": "void",
         "desc": "Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose."
@@ -15908,32 +15918,42 @@
       {
         "name": "walkSpeed",
         "type": "number",
-        "desc": "Character only: metres per second on foot; 4.5 by default, a steady run."
+        "desc": "Character only: metres per second on foot; 3.5 by default, a jog."
       },
       {
         "name": "sprintSpeed",
         "type": "number",
-        "desc": "Character only: metres per second with Shift held; 7 by default."
+        "desc": "Character only: metres per second with Shift held; 6.5 by default, an untrained adult's top speed."
       },
       {
         "name": "jumpSpeed",
         "type": "number",
-        "desc": "Character only: upward speed a jump starts with, m/s; `sqrt(2 g h)` reaches `h`, 1.1 m by default."
+        "desc": "Character only: upward speed a jump starts with, m/s; `sqrt(2 g h)` reaches `h`, 0.5 m by default, a standing jump."
       },
       {
         "name": "gravity",
         "type": "number",
-        "desc": "Character only: downward acceleration, m/s²; 9.80665 by default."
+        "desc": "Character only: downward acceleration while rising, m/s²; 9.80665 by default."
+      },
+      {
+        "name": "fallGravity",
+        "type": "number",
+        "desc": "Character only: downward acceleration while falling, m/s²; 1.6 g by default, so a jump does not float."
       },
       {
         "name": "airControl",
         "type": "number",
-        "desc": "Character only: how fast the keys steer in the air, as a fraction of the ground response; 0.3 by default, 0 is ballistic."
+        "desc": "Character only: how fast the keys steer in the air, as a fraction of the ground start; 0.05 by default, 0 is ballistic."
       },
       {
         "name": "responseTime",
         "type": "number",
-        "desc": "Character only: seconds to reach 95 % of the wished speed, or to stop, on the ground; one gait step (1 / 1.8 s) by default."
+        "desc": "Character only: seconds to reach 95 % of the wished speed on the ground; 0.12 by default."
+      },
+      {
+        "name": "stopTime",
+        "type": "number",
+        "desc": "Character only: seconds to lose 95 % of the speed once no key is held, on the ground; 0.08 by default."
       },
       {
         "name": "capsuleRadius",
@@ -15969,6 +15989,16 @@
         "name": "jumpBuffer",
         "type": "number",
         "desc": "Character only: seconds a jump pressed before landing is kept for the landing; 0.1 by default."
+      },
+      {
+        "name": "headBob",
+        "type": "number",
+        "desc": "Character only: metres the eye rises and falls each step at a jog; 0.035 by default, 0 keeps it level."
+      },
+      {
+        "name": "landingDip",
+        "type": "number",
+        "desc": "Character only: seconds from touch-down to the lowest point of the eye's landing dip, as deep as the impact is fast; 0.06 by default, 0 turns it off."
       },
       {
         "name": "onLand",
