@@ -15,9 +15,10 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
  * - the held frame: `frameHeld` is cleared, so nothing redisplays the target as this frame.
  *
  * Then, given a cause, the loss is announced once under `gpu-device-lost` with
- * `code: 'WEBGPU_LOST'`: a host that reacts to it by drawing already finds nothing stale. A
- * dispose gives no cause: it withdraws the same things and announces nothing. Returns true the
- * first time only; the later causes change nothing.
+ * `code: 'WEBGPU_LOST'`, and on the console, since a canvas gone blank says nothing by itself: a
+ * host that reacts to it by drawing already finds nothing stale. A dispose gives no cause: it
+ * withdraws the same things and announces nothing. Returns true the first time only; the later
+ * causes change nothing.
  */
 export function markWebgpuLost(
   rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | 'diag'>,
@@ -29,10 +30,8 @@ export function markWebgpuLost(
   run.frameHeld = false;
   gpu.presenter?.dispose();
   gpu.presenter = undefined;
-  if (cause)
-    diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', {
-      code: 'WEBGPU_LOST',
-      ...cause,
-    });
+  if (!cause) return true;
+  console.error(`[web-geometry] WebGPU device lost (${cause.reason}): ${cause.message}`);
+  diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', { code: 'WEBGPU_LOST', ...cause });
   return true;
 }
