@@ -936,7 +936,8 @@
         "packages/sdk-browser/src/world/helper/index.ts",
         "packages/sdk-browser/src/world/saved/read.ts",
         "packages/sdk-browser/src/world/saved/saved.test.ts",
-        "packages/sdk-browser/src/world/saved/write.ts"
+        "packages/sdk-browser/src/world/saved/write.ts",
+        "scripts/docs-examples-kit-helpers.test.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/camera/camera\".Camera"

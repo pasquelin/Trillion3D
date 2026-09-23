@@ -11,8 +11,8 @@ export type FrameKeyboard = 'load' | 'press';
 /** Whether a wheel over `target` scrolls something of the demo's own, a panel or a list. */
 const scrollsInside = (target: EventTarget | null, view: Window) => {
   for (let node = target as Element | null; node; node = node.parentElement) {
-    const { overflowY } = view.getComputedStyle(node);
-    if (/auto|scroll/.test(overflowY) && node.scrollHeight > node.clientHeight) return true;
+    if (node.scrollHeight <= node.clientHeight) continue;
+    if (/auto|scroll/.test(view.getComputedStyle(node).overflowY)) return true;
   }
   return false;
 };

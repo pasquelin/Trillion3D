@@ -2,35 +2,21 @@
  * What `world.controls` keeps and drives: the settings it hands to every controller it makes,
  * and the shape of those controllers as it sees them.
  */
-import { FIRST_PERSON_PITCH } from '../../camera/controls/look.ts';
+import { HEAD_DEFAULTS } from '../../camera/controls/look.ts';
+import { FLY_DEFAULTS } from '../../camera/controls/flyControls.ts';
+import { PIVOT_DEFAULTS } from '../../camera/controls/pivot.ts';
+import { ORBIT_DEFAULTS } from '../../camera/controls/orbitControls.ts';
 import { HUMAN_BODY } from '../../../../sdk-core/src/collision/characterSettings.ts';
 import type { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import type { worldControls } from './worldCamera.ts';
 
 /** The limits and speeds the handle keeps for its controller, at the controllers' own defaults. */
 export const CONTROL_SETTINGS = {
-  minDistance: 0,
-  maxDistance: Infinity,
-  minPolarAngle: 0,
-  maxPolarAngle: Math.PI,
-  minAzimuthAngle: -Infinity,
-  maxAzimuthAngle: Infinity,
-  autoRotate: 0,
+  ...PIVOT_DEFAULTS,
+  ...ORBIT_DEFAULTS,
   movementSpeed: 1,
-  lookSpeed: 0.002,
-  minPitch: FIRST_PERSON_PITCH[0],
-  maxPitch: FIRST_PERSON_PITCH[1],
-  rollSpeed: 0.4,
-  pitchSpeed: null as number | null,
-  yawSpeed: null as number | null,
-  inputResponse: 0,
-  pitchInput: 0,
-  yawInput: 0,
-  rollInput: 0,
-  rotateSpeed: 1,
-  zoomSpeed: 1,
-  autoForward: false,
-  pointerLook: true,
+  ...HEAD_DEFAULTS,
+  ...FLY_DEFAULTS,
   ...HUMAN_BODY,
   onLand: null as ((impact: number) => void) | null,
   onJump: null as (() => void) | null,

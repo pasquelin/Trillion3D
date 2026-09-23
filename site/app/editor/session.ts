@@ -68,8 +68,10 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
     refreshOutline();
     changed();
   };
+  let disposed = false;
+  // A load that settles after the editor closed has a disposed world: nothing of it is saved.
   const saved = () => {
-    writeAutosave(() => JSON.stringify(scene.toJSON(world.camera)));
+    if (!disposed) writeAutosave(() => JSON.stringify(scene.toJSON(world.camera)));
   };
   /** What follows every edit, done, undone or redone. */
   const edited = () => {
@@ -152,6 +154,7 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
       changed();
     },
     dispose() {
+      disposed = true;
       gizmo.dispose();
       world.dispose();
     },

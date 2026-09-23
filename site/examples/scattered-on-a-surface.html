@@ -22,14 +22,9 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
 
       // A sequence in [0, 1) from a seed: the same planet on every run.
-      function random(seed) {
-        let state = seed >>> 0;
-        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
-      }
-
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#04060c');
 
@@ -147,7 +142,7 @@
 
       // The candidates: ten thousand spots spread evenly over the ball. Each keeps its height and
       // its slope — the angle between the ground's normal and straight up from the centre.
-      const next = random(3), CANDIDATES = 10000, step = 0.004;
+      const next = seeded(3), CANDIDATES = 10000, step = 0.004;
       const candidates = Array.from({ length: CANDIDATES }, () => {
         const y = next() * 2 - 1, around = next() * Math.PI * 2, ring = Math.sqrt(1 - y * y);
         const d = [ring * Math.cos(around), y, ring * Math.sin(around)];

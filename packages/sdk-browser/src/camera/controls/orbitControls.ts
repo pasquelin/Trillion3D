@@ -58,6 +58,15 @@ export interface OrbitCameraControls extends PivotCameraControls {
   update(delta?: number): boolean;
 }
 
+/** An orbit's default angle limits and turn, which `world.controls` keeps as its own. */
+export const ORBIT_DEFAULTS = {
+  minPolarAngle: 0,
+  maxPolarAngle: Math.PI,
+  minAzimuthAngle: -Infinity,
+  maxAzimuthAngle: Infinity,
+  autoRotate: 0,
+};
+
 export function createOrbitCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
@@ -155,11 +164,7 @@ export function createOrbitCameraControls(
   };
   // Unbounded angles by default: only the poles are out of reach.
   const api: OrbitCameraControls = Object.assign(pivotControlsApi(base, pose, update), {
-    minPolarAngle: 0,
-    maxPolarAngle: Math.PI,
-    minAzimuthAngle: -Infinity,
-    maxAzimuthAngle: Infinity,
-    autoRotate: 0,
+    ...ORBIT_DEFAULTS,
     update,
   });
   const interrupt = () => void (spinning = false);
