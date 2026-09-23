@@ -30,56 +30,57 @@
     <p>Chess set modelled for these examples, CC0 — see assets/examples/CREDITS.md</p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#231d24');
-      // The model was written as a plain OBJ file — `v` positions, `vn` a smooth normal per vertex,
-      // `f` triangles, an `o` per piece and a `usemtl` per material from its `.mtl` — then compiled
-      // once by the repository's compiler: the OBJ became clusters, and the engine streams the ones
-      // the view needs. Everything in the picture comes from that one file; the page adds the light.
-      await world.scene.load('../assets/examples/a-model-from-obj/cache/native/full/manifest.json');
-
-      // The pieces stand five to ten centimetres tall: the near plane comes in to half a centimetre
-      // so the camera can lean down among them without clipping them.
-      world.camera.near = 0.005;
-      world.camera.far = 20;
-
       // A late-afternoon sun through a window rakes the board and draws every piece's shadow; a cool
-      // rim from behind and the room's soft light keep the black pieces from going flat black.
-      const sun = light.directional({ color: '#ffc58a', intensity: 3.4, castShadow: true });
+      // rim from behind and the room's soft light keep the black pieces from going flat black. The
+      // lights are in the scene before the model arrives, the sun already in its place.
+      const sunAt = (degrees, height) => {
+        const turn = (degrees * Math.PI) / 180;
+        return [Math.cos(turn) * 3, height, Math.sin(turn) * 3];
+      };
+      const sun = light.directional({
+        color: '#ffc58a',
+        intensity: 3.4,
+        position: sunAt(30, 2.4),
+        castShadow: true,
+      });
       world.scene.add(
         sun,
         light.directional({ intensity: 1.1, color: '#9fb6ff', position: [-3, 2, -4] }),
         light.hemisphere({ color: '#fff1e0', groundColor: '#4a3426', intensity: 0.6 }),
       );
-      const placeSun = (degrees, height) => {
-        const turn = (degrees * Math.PI) / 180;
-        sun.position.set(Math.cos(turn) * 3, height, Math.sin(turn) * 3);
-      };
 
-      const VIEWS = {
-        finished: 'beauty',
-        triangles: 'triangles',
-        clusters: 'clusters',
-        'level of detail': 'lod',
-      };
+      // The model was written as a plain OBJ file — `v` positions, `vn` a smooth normal per vertex,
+      // `f` triangles, an `o` per piece and a `usemtl` per material from its `.mtl` — then compiled
+      // once by the repository's compiler: the OBJ became clusters, and the engine streams the ones
+      // the view needs. Everything in the picture comes from that one file; the page adds the light.
+      await world.scene.load('../assets/examples/a-model-from-obj/cache/native/full/manifest.json');
+      // The pieces stand five to ten centimetres tall: the near plane comes in to half a centimetre
+      // so the camera can lean down among them without clipping them.
+      world.camera.near = 0.005;
+      world.camera.far = 20;
+
+      // `clusters` and `triangles` show what the compiler cut the OBJ into, `lod` which level of
+      // detail each cluster is drawn at.
       let turning = true;
       controls(
         {
           mouse: 'Drag to turn round the board, scroll to lean in: see what the OBJ became',
-          view: Object.keys(VIEWS),
+          view: ['beauty', 'triangles', 'clusters', 'lod'],
           sunAngle: [-180, 180, 30, 1],
           sunHeight: [0.6, 5, 2.4],
           turn: () => ((turning = true), world.invalidate()),
         },
         (values) => {
-          world.diagnostic.mode = VIEWS[values.view];
-          placeSun(values.sunAngle, values.sunHeight);
+          world.diagnostic.mode = values.view;
+          sun.position.set(...sunAt(values.sunAngle, values.sunHeight));
           world.invalidate();
         },
+        world,
       );
-      const triangles = readout('Triangles drawn');
 
       // The opening: the whole board first, from above white's side; then the eye comes down behind
       // the white pawns to the height of the pieces, rises again over the game and circles the
@@ -106,8 +107,7 @@
       world.controls.maxDistance = 2.2;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
       world.controls.update();
-      world.onFrame(({ delta, metrics }) => {
-        triangles(metrics.selectedTriangles?.toLocaleString('en') ?? '?');
+      world.onFrame(({ delta }) => {
         const step = Math.min(delta, 0.1);
         if (leg < PATH.length) {
           const [to, seconds] = PATH[leg];
