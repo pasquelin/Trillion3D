@@ -86,3 +86,27 @@ fn a_blended_surface_and_its_physical_extensions_are_carried() {
         "the host's names and defaults, and nothing the material does not declare"
     );
 }
+
+#[test]
+fn morph_targets_and_their_weights_are_laid_out() {
+    // One target moving the fixture triangle's positions, a default weight on the mesh and an
+    // override on the node: what the host blends, laid out as the document declares it.
+    let (_root, tables) = published(|gltf| {
+        gltf["accessors"].as_array_mut().expect("accessors").push(
+            json!({"bufferView":0,"componentType":5126,"type":"VEC3","count":3,
+                "min":[0.0,0.0,0.0],"max":[1.0,1.0,0.0]}),
+        );
+        gltf["meshes"][0]["primitives"][0]["targets"] = json!([{"POSITION":2}]);
+        gltf["meshes"][0]["weights"] = json!([0.5]);
+        gltf["nodes"][0]["weights"] = json!([0.25]);
+    });
+    let source = &tables["documents"]["source.gltf"];
+    let targets = &source["meshes"][0]["primitives"][0]["targets"];
+    assert_eq!(targets.as_array().map(Vec::len), Some(1), "{tables}");
+    assert!(
+        targets[0]["POSITION"].is_u64(),
+        "the target names its accessor"
+    );
+    assert_eq!(source["meshes"][0]["weights"], json!([0.5]));
+    assert_eq!(tables["nodes"][0]["weights"], json!([0.25]));
+}

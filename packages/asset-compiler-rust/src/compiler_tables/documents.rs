@@ -5,6 +5,7 @@
 //! The runtime views the binary through these numbers and nothing else: it neither parses the
 //! document nor decodes anything the compiler has not already laid out. The compiler writes one
 //! buffer per document (`source.bin`, `scene.bin`), so every view offset is an offset into it.
+use super::sparse::sparse;
 use super::*;
 
 /// The element types a reader knows the width of.
@@ -41,11 +42,6 @@ fn accessors(g: &Value, views: usize) -> Result<Vec<Value>> {
     accessors
         .iter()
         .map(|accessor| {
-            // The published document decodes sparse accessors into plain views; one still sparse
-            // here would be a compiler bug, and reading it as dense would draw the wrong values.
-            if accessor.get("sparse").is_some() {
-                return Err(invalid("a published accessor is sparse"));
-            }
             let view = match accessor.get("bufferView") {
                 Some(view) => Some(required_index(Some(view), "accessor.bufferView")?),
                 None => None,
@@ -67,12 +63,32 @@ fn accessors(g: &Value, views: usize) -> Result<Vec<Value>> {
                 "type": kind,
                 "min": accessor.get("min").cloned().unwrap_or(Value::Null),
                 "max": accessor.get("max").cloned().unwrap_or(Value::Null),
+                "sparse": sparse(accessor.get("sparse"), views)?,
             }))
         })
         .collect()
 }
 
-/// One primitive: its attributes by glTF semantic, its index list and the surface rank it wears.
+/// Accessor ranks by glTF semantic, each checked against the accessor table; `None` when absent.
+fn semantics(
+    declared: Option<&Value>,
+    accessors: usize,
+) -> Result<Option<serde_json::Map<String, Value>>> {
+    let Some(declared) = declared.and_then(Value::as_object) else {
+        return Ok(None);
+    };
+    let mut out = serde_json::Map::new();
+    for (semantic, id) in declared {
+        let id = required_index(Some(id), "primitive attribute")?;
+        if id >= accessors {
+            return Err(invalid("primitive attribute index is out of bounds"));
+        }
+        out.insert(semantic.clone(), json!(id));
+    }
+    Ok(Some(out))
+}
+
+/// One primitive: its attributes by glTF semantic, its morph targets, its index list and the surface rank it wears.
 fn primitive(g: &Value, p: &Value, accessors: usize, surfaces: &mut Materials) -> Result<Value> {
     if optional_index(p.get("mode"), "primitive.mode", 4)? != 4 {
         return Err(CompilerError::new(
@@ -80,18 +96,20 @@ fn primitive(g: &Value, p: &Value, accessors: usize, surfaces: &mut Materials) -
             "Only static triangles are supported",
         ));
     }
-    let mut attributes = serde_json::Map::new();
-    for (semantic, id) in p
-        .get("attributes")
-        .and_then(Value::as_object)
-        .ok_or_else(|| invalid("primitive.attributes is required"))?
-    {
-        let id = required_index(Some(id), "primitive.attributes")?;
-        if id >= accessors {
-            return Err(invalid("primitive attribute index is out of bounds"));
-        }
-        attributes.insert(semantic.clone(), json!(id));
-    }
+    let attributes = semantics(p.get("attributes"), accessors)?
+        .ok_or_else(|| invalid("primitive.attributes is required"))?;
+    // Morph targets, each a set of attributes the host adds to the base ones by a weight.
+    let targets = match p.get("targets").and_then(Value::as_array) {
+        Some(targets) => Value::Array(
+            targets
+                .iter()
+                .map(|target| {
+                    semantics(Some(target), accessors).map(|t| t.unwrap_or_default().into())
+                })
+                .collect::<Result<_>>()?,
+        ),
+        None => Value::Null,
+    };
     let indices = match p.get("indices") {
         Some(value) => Some(required_index(Some(value), "primitive.indices")?),
         None => None,
@@ -99,7 +117,9 @@ fn primitive(g: &Value, p: &Value, accessors: usize, surfaces: &mut Materials) -
     if indices.is_some_and(|id| id >= accessors) {
         return Err(invalid("primitive.indices index is out of bounds"));
     }
-    Ok(json!({"attributes":attributes,"indices":indices,"material":surfaces.rank(g, p)?}))
+    Ok(
+        json!({"attributes":attributes,"targets":targets,"indices":indices,"material":surfaces.rank(g, p)?}),
+    )
 }
 
 fn images(g: &Value, views: usize) -> Result<Vec<Value>> {
@@ -143,6 +163,7 @@ pub(super) fn document_table(g: &Value, buffer: &str, surfaces: &mut Materials) 
         }
         meshes.push(json!({
             "name": mesh.get("name").and_then(Value::as_str).unwrap_or(""),
+            "weights": mesh.get("weights").cloned().unwrap_or(Value::Null),
             "primitives": parts,
         }));
     }

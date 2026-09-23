@@ -138,8 +138,8 @@ Every value is read from the `source.gltf` the same compilation publishes (and, 
 ranks already remapped.
 
 - `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
-- `nodes[]` — every node at its glTF rank: `{ name, children, mesh, light, camera, matrix,
-  translation, rotation, scale }`. The pose is the LOCAL one exactly as declared, each part `null` when silent:
+- `nodes[]` — every node at its glTF rank: `{ name, children, mesh, light, camera, weights,
+  matrix, translation, rotation, scale }` (`weights` overrides its mesh's morph weights). The pose is the LOCAL one exactly as declared, each part `null` when silent:
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
@@ -169,10 +169,12 @@ ranks already remapped.
 - `documents` — the geometry layout of each published document, keyed by its file name
   (`source.gltf`, and `scene.gltf` when written): `{ buffer, views, accessors, meshes, images }`.
   `buffer` names the one binary the document is published with; a view is `{ offset, length,
-  stride }` into it; an accessor `{ view, offset, componentType, normalized, count, type, min, max }`
-  (never sparse: the compiler decodes sparse accessors); a mesh `{ name, primitives }`, each
-  primitive `{ attributes, indices, material }` — accessor ranks by glTF semantic, and the rank of
-  the surface it wears in `materials[]`, for that document's own tangent variant; an image
+  stride }` into it; an accessor `{ view, offset, componentType, normalized, count, type, min, max,
+  sparse }`, `sparse` being `{ count, indices: { view, offset, componentType }, values: { view,
+  offset } }` or `null`; a mesh `{ name, weights, primitives }`, each primitive `{ attributes,
+  targets, indices, material }` — accessor ranks by glTF semantic, its morph targets (each a set of
+  accessor ranks, `null` for none), and the rank of the surface it wears in `materials[]`, for that
+  document's own tangent variant; an image
   `{ name, uri, view, mimeType }`, an address relative to the document or a view of its binary.
 
 The runtime builds its host scene from these alone (`packages/sdk-browser/src/host/prepared/`):
