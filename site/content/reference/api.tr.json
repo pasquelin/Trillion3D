@@ -6712,6 +6712,18 @@
       "tree": "Yanıtların geldiği ağaç: `triangleCount`'u ve `bytes`'ı dünyanın maliyetidir."
     }
   },
+  "TriangleTree": {
+    "summary": "Dünyanın üçgenleri üzerinde bir sınırlayıcı hacim hiyerarşisi, kutuyla sorgulanır: `triangleCollision` ve `capsulePass`'in arkasındaki geniş faz.",
+    "description": "`buildTriangleTree` tarafından bir kez inşa edilir, sonrasında salt okunur.",
+    "members": {
+      "triangles": "Üçgen başına dokuz sayı — üç köşe — yaprak sırasına göre.",
+      "bounds": "Düğüm başına: min xyz, max xyz.",
+      "links": "Düğüm başına: bir yaprağın ilk üçgeni, veya iç düğümün sağ çocuğu (sol çocuk ebeveyninin hemen ardından gelir).",
+      "counts": "Düğüm başına: bir yaprağın üçgen sayısı, iç düğüm için 0.",
+      "bytes": "Ağacın tuttuğu bayt sayısı.",
+      "triangleCount": "Ağacın tuttuğu üçgenler."
+    }
+  },
   "world.beforeFrame": {
     "summary": "`{ delta, time }` ile, çizilen her kareden önce bir fonksiyon çalıştırır; kaldırıcısını döndürür.",
     "description": "Dünyanın döngüsünün bir karesi çalışır: kontrolcü kamerayı ilerletir (`controls.autoUpdate` yanlış olmadıkça), klipler ilerler, bu kancalar eklendikleri sırada, sahne yazılır ve çizilir, sonra `onFrame` kancaları. Bir kancanın yerleştirdiği şey — kameradaki bir gövde, bir kokpit — tam olarak bu karede çizilir, asla bir geç kalmışta değil. Host güdümlü bir `render()` de onları çalıştırır ama hiçbir kontrolcüyü ilerletmez. `invalidate()`'i çağıran bir kanca karelerin gelmeye devam etmesini sağlar.",

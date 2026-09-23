@@ -101,8 +101,6 @@
   },
   "editor": {
     "title": "Trình chỉnh sửa cảnh",
-    "group": "Công cụ",
-    "showcase": "Mở trình chỉnh sửa cảnh",
     "loading": "Đang chuẩn bị trình chỉnh sửa…",
     "canvas": "Khung nhìn cảnh: nhấp vào một vật thể để chọn nó, kéo để xoay camera",
     "menu": {
@@ -132,7 +130,7 @@
       "ambient": "Ánh sáng môi trường"
     },
     "model": {
-      "bust": "Tượng bán thân bằng đá cẩm thạch",
+      "marble-bust": "Tượng bán thân bằng đá cẩm thạch",
       "crates": "Thùng gỗ",
       "hall": "Sảnh",
       "street-corner": "Góc phố"
@@ -145,6 +143,8 @@
       "world": "Trục thế giới",
       "local": "Trục của vật thể"
     },
+    "pedestal": "Bệ",
+    "panels": "Bảng điều khiển",
     "snap": "Hít lưới",
     "outliner": "Cảnh",
     "empty": "Cảnh đang trống: hãy thêm một vật thể từ menu Thêm.",
@@ -184,13 +184,6 @@
       "radialSegments": "Số đoạn quanh trục",
       "tubularSegments": "Số đoạn của ống"
     },
-    "stats": "Thống kê bộ máy",
-    "cpu": "Khung hình CPU (ms)",
-    "gpu": "Khung hình GPU (ms)",
-    "triangles": "Tam giác",
-    "pages": "Trang đang nạp",
-    "sessions": "Phiên đã mở",
-    "statsHint": "Đọc từ khung hình vẽ gần nhất; một cảnh đứng yên không vẽ khung hình nào.",
     "error": {
       "format": "Tệp này chứa một định dạng cảnh mà trình chỉnh sửa này không đọc được.",
       "read": "Không đọc được cảnh:"
@@ -919,7 +912,7 @@
     "scene-editor": {
       "title": "Dựng một cảnh bằng trình chỉnh sửa",
       "description": "Thêm hình khối và ánh sáng, chọn chúng bằng chuột, di chuyển chúng bằng tay cầm, đổi màu chúng, lưu cảnh rồi mở lại — ngay trong cổng tài liệu, chỉ với API công khai.",
-      "html": "<p><a href=\"#/en/examples/scene-editor\">Trình chỉnh sửa cảnh</a> là một trang của cổng tài liệu này, được xây trên ba cánh cửa của bộ máy và không gì khác. Hãy bắt đầu từ một cảnh trống: <b>Thêm → Hộp</b>, rồi <b>Thêm → Ánh sáng định hướng</b>. Nhấp vào hộp: <code>world.raycast</code> tìm thấy nó dưới con trỏ, và các tay cầm của <code>controls.transform</code> hiện lên trên nó. Kéo một mũi tên để di chuyển nó — camera đứng yên khi bạn đang giữ tay cầm — nhấn <kbd>E</kbd> để xoay nó, <kbd>R</kbd> để co giãn nó. Đổi màu của nó trong bảng thuộc tính: bộ máy tô lại vật liệu ngay tại chỗ, và chi phí của khung hình vẫn hiện ở góc thống kê. <b>Lưu</b> tải xuống <code>scene.toJSON</code>; <b>Mới</b>, rồi <b>Mở</b>, dựng lại đúng cảnh đó bằng <code>scene.fromJSON</code>.</p>\n<p>Mọi bước đều hoàn tác được bằng <kbd>Ctrl</kbd>+<kbd>Z</kbd>, và cảnh được giữ trong trình duyệt giữa hai lần ghé thăm. Bản thân trang không vẽ hay di chuyển gì cả: những gì bạn thấy chính là bộ máy.</p>"
+      "html": "<p><a href=\"#/en/editor\">Trình chỉnh sửa cảnh</a> là một trang của cổng tài liệu này, được xây trên ba cánh cửa của bộ máy và không gì khác. Hãy bắt đầu từ một cảnh trống: <b>Thêm → Hộp</b>, rồi <b>Thêm → Ánh sáng định hướng</b>. Nhấp vào hộp: <code>world.raycast</code> tìm thấy nó dưới con trỏ, và các tay cầm của <code>controls.transform</code> hiện lên trên nó. Kéo một mũi tên để di chuyển nó — camera đứng yên khi bạn đang giữ tay cầm — nhấn <kbd>E</kbd> để xoay nó, <kbd>R</kbd> để co giãn nó. Đổi màu của nó trong bảng thuộc tính: bộ máy tô lại vật liệu ngay tại chỗ, và chi phí của khung hình vẫn hiện ở góc thống kê. <b>Lưu</b> tải xuống <code>scene.toJSON</code>; <b>Mới</b>, rồi <b>Mở</b>, dựng lại đúng cảnh đó bằng <code>scene.fromJSON</code>.</p>\n<p>Mọi bước đều hoàn tác được bằng <kbd>Ctrl</kbd>+<kbd>Z</kbd>, và cảnh được giữ trong trình duyệt giữa hai lần ghé thăm. Bản thân trang không vẽ hay di chuyển gì cả: những gì bạn thấy chính là bộ máy.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Chọn một vật thể bằng con trỏ",
@@ -1486,8 +1479,8 @@
       "a-section-cut": "mặt phẳng cắt",
       "cut-by-several-planes": "mặt phẳng cắt",
       "a-capped-section": "mặt phẳng cắt: nắp stencil",
-      "decals-on-a-surface": "picking (raycast)",
-      "sculpt-a-sphere": "picking (raycast)",
+      "decals-on-a-surface": "chọn bằng tia (raycast)",
+      "sculpt-a-sphere": "chọn bằng tia (raycast)",
       "a-texture-turned-and-tiled": "lặp lại, dịch chuyển và xoay kết cấu trên WebGPU",
       "texture-filters-compared": "bộ lọc kết cấu và anisotropy trên WebGPU",
       "a-video-on-a-screen": "kết cấu video trực tiếp",
@@ -1590,13 +1583,13 @@
       "flames-and-a-tornado": "vật liệu shader tùy chỉnh",
       "point-clouds-from-a-scan": "nhập đám mây điểm",
       "gaussian-splats": "dựng hình gaussian splat",
-      "hover-over-triangles": "picking (raycast)",
-      "pick-lines-and-points": "picking (raycast)",
-      "pick-an-instance": "picking (raycast)",
-      "paint-where-you-click": "picking (raycast)",
-      "a-voxel-painter": "picking (raycast)",
-      "drag-objects": "picking (raycast)",
-      "edit-a-spline": "picking (raycast)",
+      "hover-over-triangles": "chọn bằng tia (raycast)",
+      "pick-lines-and-points": "chọn bằng tia (raycast)",
+      "pick-an-instance": "chọn bằng tia (raycast)",
+      "paint-where-you-click": "chọn bằng tia (raycast)",
+      "a-voxel-painter": "chọn bằng tia (raycast)",
+      "drag-objects": "chọn bằng tia (raycast)",
+      "edit-a-spline": "chọn bằng tia (raycast)",
       "sound-in-space": "âm thanh định vị",
       "smooth-edges-over-time": "cài đặt khử răng cưa theo thời gian",
       "tone-mapping-compared": "lựa chọn toán tử tone-mapping",

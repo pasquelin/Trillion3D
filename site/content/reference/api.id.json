@@ -6887,5 +6887,17 @@
     "members": {
       "tree": "Pohon yang dijawab darinya: `triangleCount` dan `bytes`-nya adalah biaya dunia."
     }
+  },
+  "TriangleTree": {
+    "summary": "Sebuah hierarki volume pembatas atas segitiga-segitiga dunia, dikueri dengan kotak: fase luas di balik `triangleCollision` dan `capsulePass`.",
+    "description": "Dibangun sekali oleh `buildTriangleTree`, hanya-baca setelahnya.",
+    "members": {
+      "triangles": "Sembilan angka per segitiga — tiga sudut — dalam urutan daun.",
+      "bounds": "Untuk setiap node: xyz minimum, xyz maksimum.",
+      "links": "Untuk setiap node: segitiga pertama dari sebuah daun, atau anak kanan dari node internal (yang kiri mengikuti induknya).",
+      "counts": "Untuk setiap node: jumlah segitiga sebuah daun, 0 untuk node internal.",
+      "bytes": "Byte yang disimpan pohon.",
+      "triangleCount": "Segitiga yang disimpan pohon."
+    }
   }
 }

@@ -6887,5 +6887,17 @@
     "members": {
       "tree": "Cây được trả lời từ đó: `triangleCount` và `bytes` của nó là chi phí của thế giới."
     }
+  },
+  "TriangleTree": {
+    "summary": "Một hệ thống phân cấp khối bao quanh trên các tam giác của thế giới, được truy vấn bằng hộp: giai đoạn rộng phía sau `triangleCollision` và `capsulePass`.",
+    "description": "Được xây dựng một lần bởi `buildTriangleTree`, chỉ đọc sau đó.",
+    "members": {
+      "triangles": "Chín số cho mỗi tam giác — ba đỉnh — theo thứ tự lá.",
+      "bounds": "Theo mỗi nút: min xyz, max xyz.",
+      "links": "Theo mỗi nút: tam giác đầu tiên của một lá, hoặc con bên phải của một nút trong (con bên trái theo ngay sau cha của nó).",
+      "counts": "Theo mỗi nút: số tam giác của một lá, 0 cho nút trong.",
+      "bytes": "Số byte mà cây giữ.",
+      "triangleCount": "Số tam giác mà cây giữ."
+    }
   }
 }

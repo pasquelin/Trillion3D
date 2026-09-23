@@ -21,18 +21,18 @@
       "Esc": "Esc"
     },
     "stats": {
-      "fps": "Bingkai/dtk",
-      "fpsHeld": "Bingkai/dtk (diam)",
+      "FPS": "Bingkai/dtk",
+      "FPS (held)": "Bingkai/dtk (diam)",
       "triangles": "segitiga",
-      "sceneTriangles": "segitiga (adegan)",
-      "drawCalls": "panggilan gambar",
+      "triangles (scene)": "segitiga (adegan)",
+      "draw calls": "panggilan gambar",
       "pages": "halaman",
-      "geometryPool": "gudang geometri",
+      "geometry pool": "gudang geometri",
       "lights": "lampu",
-      "gpuFrame": "bingkai GPU",
-      "cpuFrame": "bingkai CPU",
-      "pageHooks": "kode halaman",
-      "engineCpu": "CPU mesin"
+      "GPU frame": "bingkai GPU",
+      "CPU frame": "bingkai CPU",
+      "page hooks": "kode halaman",
+      "engine CPU": "CPU mesin"
     }
   },
   "a-city-from-rules": {

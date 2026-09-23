@@ -15754,6 +15754,49 @@
     "description": ""
   },
   {
+    "id": "TriangleTree",
+    "module": "packages/sdk-core/src/collision/triangleTree.ts",
+    "exports": ["TriangleTree"],
+    "section": "types",
+    "kind": "Type",
+    "title": "TriangleTree",
+    "signature": "interface TriangleTree",
+    "summary": "A bounding-volume hierarchy over world-space triangles, queried by box: the broad phase behind `triangleCollision` and `capsulePass`.",
+    "members": [
+      {
+        "name": "triangles",
+        "type": "Float32Array<ArrayBufferLike>",
+        "desc": "Nine numbers per triangle — three corners — in leaf order."
+      },
+      {
+        "name": "bounds",
+        "type": "Float32Array<ArrayBufferLike>",
+        "desc": "Per node: min xyz, max xyz."
+      },
+      {
+        "name": "links",
+        "type": "Int32Array<ArrayBufferLike>",
+        "desc": "Per node: first triangle of a leaf, or the right child of an inner node (the left one follows its parent)."
+      },
+      {
+        "name": "counts",
+        "type": "Int32Array<ArrayBufferLike>",
+        "desc": "Per node: triangle count of a leaf, 0 for an inner node."
+      },
+      {
+        "name": "triangleCount",
+        "type": "number",
+        "desc": "Triangles the tree holds."
+      },
+      {
+        "name": "bytes",
+        "type": "number",
+        "desc": "Bytes the tree keeps."
+      }
+    ],
+    "description": "Built once by `buildTriangleTree`, read-only afterwards."
+  },
+  {
     "id": "UNSPLIT_PASS",
     "module": "packages/sdk-core/src/contracts/geometry.ts",
     "exports": ["UNSPLIT_PASS"],
