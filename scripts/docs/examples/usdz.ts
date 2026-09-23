@@ -1,9 +1,10 @@
 import { writeFile } from 'node:fs/promises';
 import { crc32 } from 'node:zlib';
 import type { Mesh } from './mesh.ts';
+import { snap } from './random.ts';
 
 /** A number as a USD layer prints it: at most three decimals, no trailing zero, no `-0`. */
-const decimal = (value: number) => String(Math.round(value * 1000) / 1000 + 0);
+const decimal = (value: number) => String(Math.round(snap(value) * 1000) / 1000 + 0);
 
 const vectors = (values: readonly number[]) => {
   const tuples: string[] = [];

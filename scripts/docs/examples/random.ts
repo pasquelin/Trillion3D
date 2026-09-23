@@ -1,9 +1,19 @@
 export type Vec3 = readonly [number, number, number];
 
 /**
- * A seeded random stream for the scenes modelled in code: the same seed gives the same scene on
- * every machine, since it rests on integer arithmetic alone (a 32-bit mulberry generator) and
- * the few transcendental functions V8 computes identically everywhere.
+ * `value` on a grid of 2⁻²⁰, about a micrometre. `Math.sin`, `Math.exp` and their kin may differ
+ * in their last bit from one machine or runtime to the next, and a number that falls either side
+ * of a rounding — to a float, a decimal, a byte — then changes the bytes a scene writes. Every
+ * number a writer rounds is snapped first, to a grid far coarser than that noise and far finer
+ * than anything the scene shows; what follows — products, sums, square roots — is exactly
+ * rounded on every machine. Below 16 a single-precision float holds a grid value exactly.
+ */
+export const snap = (value: number) => Math.round(value * 2 ** 20) / 2 ** 20;
+
+/**
+ * A seeded random stream for the scenes modelled in code: the same seed gives the same uniform
+ * draws on every machine, since they rest on integer arithmetic alone (a 32-bit mulberry
+ * generator); what `normal` and `direction` derive through `Math` is snapped where it is written.
  */
 export function randomStream(seed: number) {
   let state = seed >>> 0;

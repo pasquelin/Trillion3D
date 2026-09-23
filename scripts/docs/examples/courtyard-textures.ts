@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { randomStream, type RandomStream } from './random.ts';
+import { randomStream, snap, type RandomStream } from './random.ts';
 import {
   blur,
   fillPolygon,
@@ -69,7 +69,7 @@ function tiles(random: RandomStream) {
         ],
         star = Array.from({ length: 16 }, (_, k): [number, number] => {
           const [r, angle] = [k % 2 ? inner : outer, (k * Math.PI) / 8 + Math.PI / 8];
-          return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+          return [snap(cx + r * Math.cos(angle)), snap(cy + r * Math.sin(angle))];
         }),
         brightness = base.reduce((sum, value) => sum + value, 0) / 3;
       fillPolygon(colour, star, glazes[brightness < 150 ? 2 : 0]);
