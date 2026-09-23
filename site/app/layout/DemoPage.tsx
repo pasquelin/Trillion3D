@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { CodeBlock } from '../ui/CodeBlock.tsx';
 import { Fab } from '../ui/Fab.tsx';
 import { Modal } from '../ui/Modal.tsx';
@@ -22,20 +22,21 @@ interface DemoPageProps {
  */
 export function DemoPage({ file, title }: DemoPageProps) {
   const { locale } = usePortal().route;
+  const t = useWords(locale);
   const demo = useDemo(file);
   const [reading, setReading] = useState(false);
   const [toast, showToast] = useToast();
   const view = useRef<HTMLDivElement | null>(null);
   const share = () =>
     navigator.clipboard.writeText(location.href).then(
-      () => showToast(t(locale, 'demo.linkCopied')),
-      () => showToast(t(locale, 'demo.copyFailed')),
+      () => showToast(t('demo.linkCopied')),
+      () => showToast(t('demo.copyFailed')),
     );
   return (
     <section className="grid h-full min-h-80 grid-cols-1 grid-rows-1" data-demo={file}>
       <title>{`${title} · ${SITE_NAME}`}</title>
       <h1 className="sr-only">{title}</h1>
-      <RenderFrame fill ref={view} pending={demo.pending} loadingLabel={t(locale, 'demo.loading')}>
+      <RenderFrame fill ref={view} pending={demo.pending} loadingLabel={t('demo.loading')}>
         <iframe
           key={demo.run}
           ref={demo.frame}
@@ -45,32 +46,32 @@ export function DemoPage({ file, title }: DemoPageProps) {
         />
       </RenderFrame>
       <Fab
-        label={t(locale, 'demo.actions')}
+        label={t('demo.actions')}
         actions={[
           {
             id: 'code',
             icon: 'code',
-            label: t(locale, 'demo.code'),
+            label: t('demo.code'),
             onClick: () => setReading(true),
           },
-          { id: 'share', icon: 'share', label: t(locale, 'demo.share'), onClick: share },
+          { id: 'share', icon: 'share', label: t('demo.share'), onClick: share },
           {
             id: 'controls',
             icon: 'controls',
-            label: t(locale, 'demo.controls'),
+            label: t('demo.controls'),
             pressed: demo.controls,
             onClick: demo.toggleControls,
           },
           {
             id: 'fullscreen',
             icon: 'fullscreen',
-            label: t(locale, 'demo.fullscreen'),
+            label: t('demo.fullscreen'),
             onClick: () => void view.current?.requestFullscreen().catch(() => {}),
           },
           {
             id: 'restart',
             icon: 'restart',
-            label: t(locale, 'demo.restart'),
+            label: t('demo.restart'),
             onClick: demo.restart,
           },
         ]}
@@ -80,7 +81,7 @@ export function DemoPage({ file, title }: DemoPageProps) {
         onClose={() => setReading(false)}
         size="wide"
         title={file}
-        closeLabel={t(locale, 'actions.close')}
+        closeLabel={t('actions.close')}
       >
         <CodeBlock code={demo.source} locale={locale} language="html" label={file} />
       </Modal>

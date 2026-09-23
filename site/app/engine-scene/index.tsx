@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { DiagnosticMode } from '../../lessons/engine-scene/diagnosticModes.ts';
 import { CodeBlock } from '../ui/CodeBlock.tsx';
@@ -26,7 +27,7 @@ export function EngineExample({
   const copy = engineCopy(locale);
   useEffect(() => {
     if (host.current) {
-      return mountScene(host.current, sceneCopy[locale], locale);
+      return mountScene(host.current, local(sceneCopy, locale), locale);
     }
   }, [locale, diagnostic]);
   return (

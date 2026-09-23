@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { SearchInput } from '../ui/Input.tsx';
 import { Note } from '../ui/Text.tsx';
 import { PrimaryNavigation } from './Header.tsx';
@@ -12,6 +12,7 @@ import { SidebarMenu } from './SidebarMenu.tsx';
 /** The Examples sidebar: a filter box over the ready examples, theme by theme. */
 function ExamplesMenu() {
   const { route } = usePortal();
+  const t = useWords(route.locale);
   const [query, setQuery] = useState('');
   const groups = examplesMenu(route, query);
   return (
@@ -19,15 +20,15 @@ function ExamplesMenu() {
       <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-2 bg-base-200 p-4">
         <SearchInput
           value={query}
-          placeholder={t(route.locale, 'sidebar.filterExamples')}
-          aria-label={t(route.locale, 'sidebar.filterExamples')}
+          placeholder={t('sidebar.filterExamples')}
+          aria-label={t('sidebar.filterExamples')}
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
       {groups.length > 0 ? (
         <ExampleList groups={groups} />
       ) : (
-        <Note role="status">{t(route.locale, 'sidebar.noResults')}</Note>
+        <Note role="status">{t('sidebar.noResults')}</Note>
       )}
     </>
   );
@@ -52,6 +53,7 @@ interface SidebarProps {
  * page scrolls; a drawer over the page on narrow ones, with the areas at its top. */
 export function Sidebar({ open, panel, onClose }: SidebarProps) {
   const { route } = usePortal();
+  const t = useWords(route.locale);
   // The current page's entry comes into view, in the sidebar's own scroll only.
   useEffect(() => {
     const aside = panel.current;
@@ -67,7 +69,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
       <aside
         ref={panel}
         id="sidebar"
-        aria-label={t(route.locale, 'sidebar.navigation')}
+        aria-label={t('sidebar.navigation')}
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('a')) onClose();
         }}
@@ -80,7 +82,7 @@ export function Sidebar({ open, panel, onClose }: SidebarProps) {
         <button
           type="button"
           className="fixed inset-0 top-16 z-40 bg-black/50 lg:hidden"
-          aria-label={t(route.locale, 'actions.closeMenu')}
+          aria-label={t('actions.closeMenu')}
           onClick={onClose}
         />
       )}

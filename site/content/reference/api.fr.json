@@ -1519,6 +1519,7 @@
   },
   "EngineError": {
     "summary": "L’erreur que lance le moteur : un `code` stable qu’une page peut tester, des mots pour une personne, et des détails.",
+    "valuesTitle": "Codes d’erreur",
     "members": {
       "code": "Quelle erreur c’est, en majuscules : le mot qu’une page teste.",
       "details": "Des faits sur l’erreur : le fichier, la valeur, la limite."

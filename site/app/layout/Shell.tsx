@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { useDrawer } from '../hooks/useDrawer.ts';
 import { useSearchShortcut } from '../hooks/useSearchShortcut.ts';
 import { Header } from './Header.tsx';
@@ -12,6 +12,7 @@ import { Sidebar } from './Sidebar.tsx';
  * area and the page, each scrolling on its own; the site search over them. */
 export function Shell({ children }: { children: ReactNode }) {
   const { route } = usePortal();
+  const t = useWords(route.locale);
   const drawer = useDrawer();
   const [searching, setSearching] = useState(false);
   const openSearch = useCallback(() => setSearching(true), []);
@@ -33,7 +34,7 @@ export function Shell({ children }: { children: ReactNode }) {
           document.getElementById('main-content')?.focus();
         }}
       >
-        {t(route.locale, 'actions.skip')}
+        {t('actions.skip')}
       </a>
       <Header drawerOpen={drawer.open} onMenu={drawer.toggle} onSearch={openSearch} />
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)]">

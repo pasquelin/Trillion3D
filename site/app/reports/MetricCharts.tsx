@@ -1,3 +1,4 @@
+import { useWords } from '../i18n.ts';
 import { assessment, ASSESSMENT_LABELS, engineTone } from '../../reports/assessment.ts';
 import { engineName } from '../../reports/names.ts';
 import { missingMetric } from '../../reports/availability.ts';
@@ -8,6 +9,7 @@ import { ChartGrid } from '../ui/ChartGrid.tsx';
 import { BarChart } from '../ui/BarChart.tsx';
 import { Collapse } from '../ui/Collapse.tsx';
 import { Table } from '../ui/Table.tsx';
+import { fromPair } from './fromPair.ts';
 import type { Report, ReportRecord } from '../../reports/types.ts';
 import type { MetricKey } from '../../reports/metrics.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -33,6 +35,7 @@ export function MetricCharts({
   colorByEngine = false,
   columns = 2,
 }: MetricChartsProps) {
+  const t = useWords(locale);
   const label = (r: ReportRecord) =>
     labelRecord
       ? labelRecord(r)
@@ -51,7 +54,7 @@ export function MetricCharts({
               key={key}
               title={metricLabel(key, locale)}
               format={(v) => formatValue(v, locale, METRICS[key].unit)}
-              missingLabel={locale === 'fr' ? 'Non mesuré' : 'Not measured'}
+              missingLabel={t('report.notMeasured')}
               rows={records.map((r) => ({
                 id: colorByEngine
                   ? r.engine
@@ -62,23 +65,20 @@ export function MetricCharts({
                 status:
                   colorByEngine || assessment(r, key).code === 'noTarget'
                     ? null
-                    : ASSESSMENT_LABELS[assessment(r, key).code][locale === 'fr' ? 1 : 0],
+                    : fromPair(ASSESSMENT_LABELS[assessment(r, key).code], locale),
               }))}
             />
           );
         })}
       </ChartGrid>
       {missing.length > 0 && (
-        <Collapse
-          surface="nested"
-          title={`${locale === 'fr' ? 'Mesures manquantes' : 'Missing measurements'} · ${missing.length}`}
-        >
+        <Collapse surface="nested" title={`${t('report.missing')} · ${missing.length}`}>
           <Table>
             <thead>
               <tr>
-                <th scope="col">{locale === 'fr' ? 'Mesure' : 'Measurement'}</th>
-                <th scope="col">{locale === 'fr' ? 'Cas' : 'Case'}</th>
-                <th scope="col">{locale === 'fr' ? 'Explication' : 'Explanation'}</th>
+                <th scope="col">{t('report.measurement')}</th>
+                <th scope="col">{t('report.case')}</th>
+                <th scope="col">{t('report.explanation')}</th>
               </tr>
             </thead>
             <tbody>

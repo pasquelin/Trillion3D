@@ -1,4 +1,4 @@
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { apiIndex } from '../layout/menus.ts';
 import { DocPage } from '../layout/DocPage.tsx';
 import { usePortal } from '../layout/PortalContext.ts';
@@ -10,12 +10,9 @@ import { Inline } from '../ui/Prose.tsx';
  * does. */
 export function ApiIndex() {
   const { route, entries } = usePortal();
+  const t = useWords(route.locale);
   return (
-    <DocPage
-      eyebrow={t(route.locale, 'nav.api')}
-      title={t(route.locale, 'api.title')}
-      lead={t(route.locale, 'api.lead')}
-    >
+    <DocPage eyebrow={t('nav.api')} title={t('api.title')} lead={t('api.lead')}>
       {apiIndex(entries, route).map((group) => (
         <Card key={group.id} title={group.title}>
           <LinkMenu
