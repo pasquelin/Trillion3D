@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A cloud of points</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #03040a;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, math, buffer } from '../runtime/engine.js';
+      import { controls, readout, seeded, language } from '../runtime/kit.js';
+
+      // A bell curve drawn from a seeded sequence (the kit's `seeded`): the same sky on every run.
+      const next = seeded(21);
+      const bell = () => Math.sqrt(-2 * Math.log(1 - next())) * Math.cos(Math.PI * 2 * next());
+      // A direction taken evenly over the ball.
+      const direction = () => {
+        const y = next() * 2 - 1, around = next() * Math.PI * 2, ring = Math.sqrt(1 - y * y);
+        return [ring * Math.cos(around), y, ring * Math.sin(around)];
+      };
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#03040a');
+      world.camera.far = 400;
+
+      // A cloud is drawn in colour groups: every point of a group is one vertex of one geometry,
+      // and one points material gives the whole group its colour and its size.
+      const colourGroup = (colour, size, count, place) => {
+        const at = new Float32Array(count * 3);
+        for (let k = 0; k < count; k++) at.set(place(k), k * 3);
+        const cloud = object.points(geometry.createBuffer({ position: buffer.float32(at, 3) }), material.points({ color: colour, size }));
+        cloud.userData.count = count;
+        return cloud;
+      };
+
+      // A spiral galaxy: a bright core, a warm bulge, two arms wound as they leave the centre,
+      // pink star nurseries strung along them and a faint disc between. Each group turns at its
+      // own speed, the inside faster than the outside, as a real galaxy does.
+      function galaxy() {
+        const arm = (from, span, twist = 0.95) => () => {
+          const t = from + next() * span, r = 0.5 + t * 5.6, side = next() < 0.5 ? 0 : Math.PI, spread = 0.18 + 0.4 * t;
+          const angle = side + r * twist;
+          return [r * Math.cos(angle) + bell() * spread, bell() * 0.1 * (1.2 - t), r * Math.sin(angle) + bell() * spread];
+        };
+        const nurseries = Array.from({ length: 64 }, () => arm(0.15, 0.8)());
+        return [
+          [colourGroup('#fff4dc', 0.06, 3000, () => [bell() * 0.45, bell() * 0.3, bell() * 0.45]), 0.32],
+          [colourGroup('#ffc98a', 0.05, 4000, () => [bell() * 1.2, bell() * 0.45, bell() * 1.2]), 0.22],
+          [colourGroup('#bcd8ff', 0.045, 6000, arm(0, 0.55)), 0.1],
+          [colourGroup('#6f9dff', 0.045, 7000, arm(0.45, 0.55)), 0.1],
+          [colourGroup('#ff7ab8', 0.07, 1600, (k) => nurseries[k % 64].map((value) => value + bell() * 0.14)), 0.1],
+          [colourGroup('#8a86c8', 0.035, 4000, () => {
+            const r = -Math.log(1 - next() * 0.97) * 2, angle = next() * Math.PI * 2;
+            return [r * Math.cos(angle), bell() * 0.18, r * Math.sin(angle)];
+          }), 0.07],
+        ];
+      }
+      // A globular cluster: a ball of old stars packed to the centre (the Plummer law), a few
+      // swollen orange and red giants, and blue stragglers sunk to the heart.
+      function cluster() {
+        const plummer = (scale) => () => {
+          const r = Math.min(6, scale / Math.sqrt(Math.max(1e-4, next()) ** (-2 / 3) - 1));
+          return direction().map((value) => value * r);
+        };
+        return [
+          [colourGroup('#fffbe8', 0.035, 5000, plummer(1.3)), 0.05],
+          [colourGroup('#fff1c9', 0.05, 4000, plummer(1.3)), 0.05],
+          [colourGroup('#ffb35c', 0.07, 2200, plummer(1.5)), 0.05],
+          [colourGroup('#ff6a4a', 0.09, 700, plummer(1.7)), 0.05],
+          [colourGroup('#9ec5ff', 0.07, 600, plummer(0.6)), 0.05],
+        ];
+      }
+      // A ring nebula: the shell a dying star blew off, seen as a ring — red outside, orange,
+      // then teal within, a blue haze in the hole and the white dwarf at the heart.
+      function nebula() {
+        const ring = (radius, width, height) => () => {
+          const angle = next() * Math.PI * 2, r = radius + bell() * width;
+          return [r * Math.cos(angle), bell() * height, r * Math.sin(angle)];
+        };
+        return [
+          [colourGroup('#ff5a4a', 0.05, 5000, ring(3.6, 0.45, 0.7)), 0.03],
+          [colourGroup('#ffb04a', 0.05, 4000, ring(3.1, 0.32, 0.55)), 0.03],
+          [colourGroup('#4ae0d0', 0.05, 3500, ring(2.5, 0.35, 0.45)), 0.03],
+          [colourGroup('#ff8ab0', 0.035, 1500, ring(5.2, 0.7, 1.1)), 0.02],
+          [colourGroup('#5a7dff', 0.04, 2500, () => direction().map((value, axis) => value * Math.cbrt(next()) * (axis === 1 ? 1.1 : 2.3))), 0.03],
+          [colourGroup('#ffffff', 0.3, 1, () => [0, 0, 0]), 0],
+        ];
+      }
+      // The Lorenz attractor: the path of a point pushed by three coupled rates, sampled along
+      // its flight and painted by height, from the cold bottom of its wings to their warm top.
+      function attractor() {
+        let x = 0.1, y = 0, z = 0;
+        const path = [];
+        for (let step = 0; step < 1000 + 14000 * 2; step++) {
+          const dx = 10 * (y - x), dy = x * (28 - z) - y, dz = x * y - (8 / 3) * z;
+          x += dx * 0.005, y += dy * 0.005, z += dz * 0.005;
+          if (step >= 1000 && step % 2 === 0) path.push([x * 0.2, (z - 25) * 0.2, y * 0.2]);
+        }
+        const bands = ['#3a5bff', '#5a8cff', '#9a7bff', '#ff6ab0', '#ffb35c'];
+        const sorted = path.map(([, h]) => h).sort((a, b) => a - b);
+        const edges = bands.map((_, band) => sorted[Math.floor((band / bands.length) * sorted.length)]);
+        return bands.map((colour, band) => {
+          const mine = path.filter(([, h]) => h >= edges[band] && (band === bands.length - 1 || h < edges[band + 1]));
+          return [colourGroup(colour, 0.045, mine.length, (k) => mine[k]), 0.04];
+        });
+      }
+
+      // Every shape built before the first frame, only the first one shown; each has its tilt,
+      // the angle it is seen at best.
+      const SHAPES = {
+        'spiral galaxy': { layers: galaxy(), tilt: 0.42 },
+        'globular cluster': { layers: cluster(), tilt: 0 },
+        'ring nebula': { layers: nebula(), tilt: 0.95 },
+        'Lorenz attractor': { layers: attractor(), tilt: 0.1 },
+      };
+      // The world turns every point into a small solid it cuts into pages before it draws: a
+      // cost that grows with the points. So the scene opens on the galaxy's bright core alone,
+      // and the rest joins it in two steps — the galaxy's bulge, arms and disc, then the other
+      // three shapes — while the first points are already on screen.
+      for (const shape of Object.values(SHAPES)) {
+        shape.root = object.group();
+        shape.points = shape.layers.reduce((sum, [layer]) => sum + layer.userData.count, 0);
+        shape.root.visible = false;
+        shape.root.scale.setScalar(0.001);
+        shape.grow = 0;
+        world.scene.add(shape.root);
+      }
+      const [first, ...others] = Object.values(SHAPES);
+      const placed = (shape, layers) => layers.map(([layer]) => [shape.root, layer]);
+      first.root.add(first.layers[0][0]);
+      const steps = [placed(first, first.layers.slice(1)), others.flatMap((shape) => placed(shape, shape.layers))];
+
+      // The sky: a far shell of white and warm stars, still.
+      const shell = (colour, count) => colourGroup(colour, 0.35, count, () => direction().map((value) => value * (110 + next() * 40)));
+      world.scene.add(shell('#cfd8ff', 1800), shell('#ffd9b0', 500));
+
+      world.camera.position.set(2, 6, 13.5);
+      world.camera.lookAt(0, 0, 0);
+      world.controls.target.set(0, 0, 0);
+      world.controls.minDistance = 4;
+      world.controls.maxDistance = 60;
+
+      // The chosen shape grows in, unwinding as it does; the one before shrinks away, winding up.
+      let current = null, pointCount = null, groupCount = null;
+      const choose = (name) => {
+        current = SHAPES[name];
+        current.root.visible = true;
+        pointCount?.(current.points.toLocaleString(language()));
+        groupCount?.(String(current.layers.length));
+      };
+      const ui = controls({
+        mouse: 'Drag to turn around the cloud; pick another shape and the old one winds away as the new one unfolds',
+        shape: Object.keys(SHAPES),
+        spin: true,
+      }, (values, key) => {
+        if (key === undefined || key === 'shape') choose(values.shape);
+        world.invalidate();
+      }, world);
+      pointCount = readout('points');
+      groupCount = readout('colourGroups');
+      choose(ui.shape);
+
+      // The opening: the camera falls from high above the disc to a three-quarter view.
+      const from = [0, 34, 30], to = [2, 6, 13.5];
+      let intro = 0;
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (intro = 1), { passive: true });
+      const ease = (t) => 1 - (1 - t) ** 3;
+      let time = 0, waited = 0;
+      world.onFrame(({ delta }) => {
+        // Nothing turning, growing, joining or gliding: no new frame.
+        const settled = (shape) => !shape.root.visible || shape.grow === (shape === current ? 1 : 0);
+        if (!ui.spin && !steps.length && intro >= 1 && Object.values(SHAPES).every(settled)) return;
+        const step = Math.min(delta, 0.05);
+        if (ui.spin) time += step;
+        // The next step joins once the frame before it has drawn, a second apart.
+        waited += step;
+        if (steps.length && waited > 1) {
+          for (const [root, layer] of steps.shift()) root.add(layer);
+          waited = 0;
+        }
+        for (const shape of Object.values(SHAPES)) {
+          if (!shape.root.visible) continue;
+          shape.grow = shape === current ? Math.min(1, shape.grow + step / 2.2) : Math.max(0, shape.grow - step / 1.1);
+          const g = ease(shape.grow);
+          shape.root.scale.setScalar(Math.max(0.001, g));
+          shape.root.rotation.set(shape.tilt, (1 - g) * 2.4, 0);
+          shape.layers.forEach(([layer, speed], index) => (layer.rotation.y = time * speed + (1 - g) * (index + 1) * 0.6));
+          if (shape !== current && shape.grow === 0) shape.root.visible = false;
+        }
+        if (intro < 1) {
+          intro = Math.min(1, intro + step / 4);
+          const k = ease(intro);
+          world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+          world.controls.target.set(0, 0, 0);
+          world.controls.update();
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

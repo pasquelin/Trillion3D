@@ -1,9 +1,10 @@
 import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { usePortal } from '../layout/PortalContext.ts';
 import { Note } from '../ui/Text.tsx';
 import { poseCommand, poseOf } from './commands.ts';
-import { Field, NumberField, TextField } from '../ui/Input.tsx';
+import { Field } from '../ui/Input.tsx';
+import { NumberField, TextField } from '../ui/NumberField.tsx';
 import { GeometryFields } from './GeometryFields.tsx';
 import type { Editor } from './useEditor.ts';
 import { SurfaceFields } from './SurfaceFields.tsx';
@@ -27,9 +28,10 @@ function poseRows(node: Object3D) {
  */
 export function Inspector({ editor }: { editor: Editor }) {
   const { locale } = usePortal().route;
+  const t = useWords(locale);
   const { session, actions } = editor;
   const node = session.selected;
-  if (!node) return <Note>{t(locale, 'editor.nothing')}</Note>;
+  if (!node) return <Note>{t('editor.nothing')}</Note>;
   /** One axis of one row set to `value`, recorded as a change of pose. */
   const setAxis = (row: ReturnType<typeof poseRows>[number], axis: number, value: number) => {
     const before = poseOf(node);
@@ -39,19 +41,20 @@ export function Inspector({ editor }: { editor: Editor }) {
     session.record(poseCommand(node, before, poseOf(node)));
   };
   return (
-    <div className="grid grid-cols-1 gap-2">
+    <div className="@container grid grid-cols-1 gap-2">
       <TextField
-        label={t(locale, 'editor.name')}
+        label={t('editor.name')}
         value={node.name}
         onCommit={(name) => actions.rename(node, name)}
       />
       {poseRows(node).map((row) => (
-        <Field key={row.key} label={t(locale, row.key)}>
-          <div className="grid grid-cols-3 gap-1">
+        <Field key={row.key} label={t(row.key)}>
+          <div className="grid grid-cols-1 gap-1 @min-[17rem]:grid-cols-3">
             {AXES.map((name, axis) => (
               <NumberField
                 key={name}
                 label={name}
+                axis={name}
                 value={row.read[name] * row.factor}
                 step={row.step}
                 onCommit={(value) => setAxis(row, axis, value)}

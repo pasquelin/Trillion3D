@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A city from rules</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1b2231;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      // Three unit shapes standing on their base; every building, tree and car is one of them,
+      // placed, stretched and dressed. The meshes are made once and handed out on each rebuild.
+      const cube = geometry.box(1, 1, 1).translate(0, 0.5, 0);
+      const drum = geometry.cylinder(0.5, 0.5, 1, 32).translate(0, 0.5, 0);
+      const crown = geometry.cone(0.5, 1, 12).translate(0, 0.5, 0);
+      const matte = (color, roughness = 0.8, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const facades = [matte('#d8d2c4'), matte('#9fb3c8', 0.25, 0.6), matte('#b0603f'), matte('#e8dcc0'), matte('#6d7a8c', 0.35, 0.4), matte('#f2f0ea')];
+      const roof = matte('#3d4250'), pavement = matte('#8a8f98', 0.9), lawn = matte('#4f8a3c'), leaves = matte('#2f6b34'), bark = matte('#5a3d2a');
+      const paints = ['#e04040', '#f2c14e', '#3c8ee0', '#f4f4f4'].map((colour) => matte(colour, 0.3, 0.3));
+
+      const world = createWorld('view', { controls: 'orbit' });
+      const asphalt = object.mesh(geometry.box(1, 0.1, 1), matte('#2b2e35', 0.95));
+      asphalt.position.y = -0.05;
+      world.scene.add(asphalt);
+      // Each pool holds what the largest city could ask of it: a block at most is a pavement and
+      // four towers of four boxes, or a park's nine trees; four round towers of two drums each.
+      const MOST = 12, pool = (shape, perBlock) => ({ shape, meshes: [], used: 0, size: perBlock * MOST * MOST });
+      const pools = [pool(cube, 17), pool(drum, 8), pool(crown, 9)];
+      for (const each of pools)
+        for (let k = 0; k < each.size; k++) {
+          const mesh = object.mesh(each.shape, roof);
+          mesh.visible = false;
+          world.scene.add(mesh);
+          each.meshes.push(mesh);
+        }
+      function place(kind, dress, x, y, z, width, height, depth) {
+        const mesh = kind.meshes[kind.used++];
+        if (!mesh) return;
+        mesh.material = dress;
+        mesh.position.set(x, y, z);
+        mesh.scale.set(width, height, depth);
+        mesh.visible = true;
+      }
+      const [boxes, drums, cones] = pools;
+
+      // The rules. Blocks sit on a grid between roads. Height falls off from the centre, with a
+      // draw of chance; a block far enough out may be a park; a tall lot becomes a tower that
+      // steps back as it rises, a few become round towers, the rest are blocks with a cornice.
+      const PITCH = 5, LOT = 1.9;
+      let counts = { buildings: 0, parks: 0 };
+      function build({ blocks, maxHeight, density, parks, seed }) {
+        for (const each of pools) each.used = 0;
+        counts = { buildings: 0, parks: 0 };
+        // The kit's seeded sequence: the same city for the same seed.
+        const next = seeded(seed), half = (blocks * PITCH) / 2;
+        asphalt.scale.set(blocks * PITCH + 6, 1, blocks * PITCH + 6);
+        for (let i = 0; i < blocks; i++)
+          for (let j = 0; j < blocks; j++) {
+            const bx = (i + 0.5) * PITCH - half, bz = (j + 0.5) * PITCH - half;
+            const reach = Math.hypot(bx, bz) / half;
+            place(boxes, pavement, bx, 0, bz, PITCH - 1, 0.12, PITCH - 1);
+            if (reach > 0.3 && next() < parks) {
+              counts.parks++;
+              place(boxes, lawn, bx, 0.12, bz, PITCH - 1.4, 0.05, PITCH - 1.4);
+              for (let k = 0; k < 9; k++) {
+                const tx = bx + ((k % 3) - 1) * 1.1 + (next() - 0.5) * 0.4, tz = bz + (Math.floor(k / 3) - 1) * 1.1 + (next() - 0.5) * 0.4, tall = 0.8 + next() * 0.8;
+                place(boxes, bark, tx, 0.17, tz, 0.12, tall * 0.4, 0.12);
+                place(cones, leaves, tx, 0.17 + tall * 0.3, tz, tall * 0.7, tall, tall * 0.7);
+              }
+              continue;
+            }
+            for (let lot = 0; lot < 4; lot++) {
+              if (next() > density) continue;
+              const x = bx + ((lot % 2) - 0.5) * 2.05, z = bz + (Math.floor(lot / 2) - 0.5) * 2.05;
+              const height = Math.max(0.8, maxHeight * Math.exp(-2.4 * reach * reach) * (0.45 + 0.55 * next()));
+              const facade = facades[Math.floor(next() * facades.length)], style = next();
+              counts.buildings++;
+              if (height > maxHeight * 0.5) {
+                let base = 0.12, width = LOT;
+                for (const share of [0.55, 0.3, 0.15]) {
+                  place(boxes, facade, x, base, z, width, height * share, width);
+                  base += height * share;
+                  width *= 0.78;
+                }
+                place(boxes, roof, x, base, z, 0.08, height * 0.12, 0.08);
+              } else if (style < 0.18) {
+                place(drums, facade, x, 0.12, z, LOT, height, LOT);
+                place(drums, roof, x, 0.12 + height, z, LOT * 0.7, 0.25, LOT * 0.7);
+              } else {
+                place(boxes, facade, x, 0.12, z, LOT, height, LOT);
+                place(boxes, roof, x, 0.12 + height, z, LOT + 0.08, 0.15, LOT + 0.08);
+              }
+            }
+          }
+        for (const each of pools) for (let k = each.used; k < each.size; k++) each.meshes[k].visible = false;
+        placeTraffic(blocks, next);
+      }
+
+      // Cars run along the roads between the blocks, each on its lane, in both directions.
+      const cars = Array.from({ length: 160 }, (_, index) => {
+        const mesh = object.mesh(cube, paints[index % paints.length]);
+        world.scene.add(mesh);
+        return { mesh, road: 0, along: 0, speed: 0, alongX: false, half: 0 };
+      });
+      function placeTraffic(blocks, next) {
+        const half = (blocks * PITCH) / 2;
+        for (const car of cars) {
+          car.alongX = next() < 0.5;
+          car.road = Math.floor(next() * (blocks + 1)) * PITCH - half;
+          car.along = next() * blocks * PITCH;
+          car.speed = (next() < 0.5 ? -1 : 1) * (1.5 + next() * 2);
+          car.half = half;
+          car.mesh.scale.set(car.alongX ? 0.55 : 0.28, 0.25, car.alongX ? 0.28 : 0.55);
+        }
+      }
+
+      const sun = light.directional({ intensity: 3.2, castShadow: true });
+      world.scene.add(sun, light.hemisphere({ color: '#a9c1ff', groundColor: '#3a2e25', intensity: 0.7 }));
+      world.camera.position.set(26, 22, 32);
+      world.camera.lookAt(0, 2, 0);
+      world.controls.target.set(0, 2, 0);
+
+      let buildings = null, parksShown = null;
+      // The sun moves on the hour control only: its shadows are redrawn then, not every frame.
+      const ui = controls({
+        mouse: 'Drag to fly around; every control rebuilds the city from its rules',
+        blocks: [3, MOST, 8, 1],
+        maxHeight: [4, 40, 22],
+        density: [0.2, 1, 0.85],
+        parks: [0, 0.6, 0.15],
+        seed: [1, 100, 7, 1],
+        hour: [6, 20, 16],
+        traffic: true,
+      }, (values, key) => {
+        if (key === undefined || key === 'hour') {
+          const angle = ((values.hour - 6) / 14) * Math.PI, height = Math.sin(angle);
+          sun.position.set(Math.cos(angle) * 40, 6 + height * 36, 18);
+          sun.color.set('#ffae66').lerp(math.color('#fff6e8'), height);
+        }
+        if (key !== 'hour' && key !== 'traffic') build(values);
+        buildings?.(String(counts.buildings));
+        parksShown?.(String(counts.parks));
+        world.invalidate();
+      }, world);
+      buildings = readout('buildings');
+      parksShown = readout('parks');
+      buildings(String(counts.buildings));
+      parksShown(String(counts.parks));
+
+      world.onFrame(({ delta }) => {
+        if (!ui.traffic) return;
+        for (const car of cars) {
+          const span = car.half * 2;
+          car.along = (((car.along + car.speed * delta) % span) + span) % span;
+          const lane = car.speed > 0 ? 0.22 : -0.22, run = car.along - car.half;
+          if (car.alongX) car.mesh.position.set(run, 0.02, car.road + lane);
+          else car.mesh.position.set(car.road + lane, 0.02, run);
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>
