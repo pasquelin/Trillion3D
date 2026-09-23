@@ -96,6 +96,7 @@ export type {
 } from '../../sdk-browser/src/texture/levelReader.ts';
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts';
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
+export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
 export {
   createEngineCamera,
   defaultEngineCamera,

@@ -8418,6 +8418,17 @@
       "bindingIdentity": "\"packages/sdk-core/src/collision/characterCollision\".TriangleCollision"
     },
     {
+      "name": "TriangleTree",
+      "kind": "type",
+      "definingModule": "packages/sdk-core/src/collision/triangleTree.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-core/src/collision/triangleTree\".TriangleTree"
+    },
+    {
       "name": "uniformScaleMatrix4",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/matrix/matrix4Trs.ts",
