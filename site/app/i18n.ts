@@ -1,7 +1,7 @@
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_LANGUAGE } from '../content/i18n/dictionary.ts';
+import { DEFAULT_LANGUAGE, isLanguage } from '../content/i18n/dictionary.ts';
 import { DICTIONARIES } from '../content/i18n/languages.inline.ts';
 import type { Dictionary } from '../content/i18n/languages.inline.ts';
 
@@ -12,11 +12,16 @@ declare module 'i18next' {
 }
 
 /**
- * The portal's words, one i18next instance over every dictionary of `site/i18n/`. The language
- * comes from the route (`#/<language>/…`), then the reader's last choice, then the browser, then
- * English; a route that names one remembers it.
+ * The portal's words, one i18next instance over every dictionary of `site/i18n/`. The route
+ * (`#/<language>/…`) names the language (`parseRoute`, then `useRoute` switches to it); a route
+ * that names none takes what this detects: the reader's last choice, then the browser, then
+ * English. A language the route names is remembered.
  */
 export const i18n = i18next.createInstance();
+
+/** A browser's language as the portal's: its own dictionary, else its language's (`fr-CA` → `fr`),
+ *  so a preferred regional variant outranks a less preferred language given exactly. */
+const nearestLanguage = (code: string) => (isLanguage(code) ? code : code.split('-')[0]);
 
 void i18n.use(LanguageDetector).init({
   resources: Object.fromEntries(
@@ -24,13 +29,11 @@ void i18n.use(LanguageDetector).init({
   ),
   supportedLngs: Object.keys(DICTIONARIES),
   fallbackLng: DEFAULT_LANGUAGE,
-  nonExplicitSupportedLngs: true,
-  load: 'languageOnly',
   initAsync: false,
   interpolation: { escapeValue: false },
   detection: {
-    order: ['hash', 'localStorage', 'navigator'],
-    lookupFromHashIndex: 0,
+    order: ['localStorage', 'navigator'],
+    convertDetectedLanguage: nearestLanguage,
     lookupLocalStorage: 'web-geometry.language',
     caches: ['localStorage'],
   },

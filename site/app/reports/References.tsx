@@ -1,7 +1,6 @@
 import { useWords } from '../i18n.ts';
 import { Table } from '../ui/Table.tsx';
 import { Card } from '../ui/Card.tsx';
-import { reportCopy } from '../../reports/copy.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ReferencesProps {
@@ -9,7 +8,6 @@ interface ReferencesProps {
 }
 
 export function References({ locale }: ReferencesProps) {
-  const c = reportCopy(locale);
   const t = useWords(locale);
   const rows = [
     [t('references.clusterTriangles'), '128'],
@@ -22,8 +20,8 @@ export function References({ locale }: ReferencesProps) {
     [t('references.cpu'), '0.05 ms'],
   ];
   return (
-    <Card id="report-references" title={c.references}>
-      <p>{c.referenceNote}</p>
+    <Card id="report-references" title={t('report.references')}>
+      <p>{t('report.referenceNote')}</p>
       <p>
         Unreal Engine · SIGGRAPH 2021 · <em>A Deep Dive into Nanite Virtualized Geometry</em>
       </p>
@@ -38,7 +36,7 @@ export function References({ locale }: ReferencesProps) {
         </tbody>
       </Table>
       <a className="link" href="REFERENCE.md">
-        {c.referenceLink}
+        {t('report.referenceLink')}
       </a>
     </Card>
   );

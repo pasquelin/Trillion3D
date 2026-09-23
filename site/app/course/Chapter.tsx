@@ -7,12 +7,9 @@ import { DocPage } from '../layout/DocPage.tsx';
 import { routeHref } from '../portal/routes.ts';
 import { Actions, LinkButton } from '../ui/Button.tsx';
 import { CodeBlock } from '../ui/CodeBlock.tsx';
-import { Inline, Prose } from '../ui/Prose.tsx';
+import { Inline, Prose, Steps } from '../ui/Prose.tsx';
 import { RenderFrame } from '../ui/RenderFrame.tsx';
 import { Figure, Section, TextLink } from '../ui/Text.tsx';
-
-/** A block of the chapter's code: markup reads as HTML, the rest as script. */
-const languageOf = (block: string) => (block.trimStart().startsWith('<') ? 'html' : undefined);
 
 /**
  * One chapter of the course: a picture of what it builds, the steps, the few lines of code, the
@@ -35,21 +32,15 @@ export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale 
         <Figure href={example} src={thumbnailOf(chapter.example)} alt={title} />
       </Section>
       <Section title={words.steps}>
-        <Prose html={`<ol>${chapter.steps.map((step) => `<li>${step}</li>`).join('')}</ol>`} />
+        <Steps steps={chapter.steps} />
       </Section>
       <Section title={words.code}>
         {chapter.code.map((block) => (
-          <CodeBlock
-            key={block}
-            code={block}
-            locale={locale}
-            label={words.code}
-            language={languageOf(block)}
-          />
+          <CodeBlock key={block} code={block} locale={locale} label={words.code} />
         ))}
       </Section>
       <Section title={words.tryIt}>
-        <Prose html={`<p>${chapter.tryIt}</p>`} />
+        <Prose html={chapter.tryIt} />
         <RenderFrame>
           <iframe src={`examples/${chapter.example}.html`} title={title} loading="lazy" />
         </RenderFrame>

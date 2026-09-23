@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { ReadingLegend } from './ReadingLegend.tsx';
-import { reportCopy } from '../../reports/copy.ts';
 import { sceneName } from '../../reports/presentation.ts';
 import { useReports } from './useReports.ts';
 import { Alert } from '../ui/Alert.tsx';
@@ -25,14 +24,15 @@ interface ReportProps {
 export function Report({ route }: ReportProps) {
   const [campaign, active = 'overview'] = route.id.split('/');
   const state = useReports(campaign);
-  const locale = route.locale,
-    c = reportCopy(locale);
+  const locale = route.locale;
   const t = useWords(locale);
   if (!state.report)
     return (
-      <DocPage title={c.title}>
+      <DocPage title={t('report.title')}>
         <Alert tone={state.error ? 'warning' : 'info'}>
-          {c[state.loading ? 'loading' : state.error ? 'unavailable' : 'empty']}
+          {t(
+            state.loading ? 'report.loading' : state.error ? 'report.unavailable' : 'report.empty',
+          )}
         </Alert>
       </DocPage>
     );
@@ -46,7 +46,7 @@ export function Report({ route }: ReportProps) {
         <Collapse title={t('report.runsAndSources')}>
           <CampaignRuns {...props} />
           <TextLink href={`reports/${report.id}/report.json`} download>
-            {c.download}
+            {t('report.download')}
           </TextLink>
         </Collapse>
       </>
@@ -56,7 +56,7 @@ export function Report({ route }: ReportProps) {
         <ReadingLegend locale={locale} engines />
         <Collapse title={t('report.readFigures')}>
           <p>
-            {c.p95} {c.timing}
+            {t('report.p95')} {t('report.timing')}
           </p>
         </Collapse>
         {scenes.map((scene) => (
@@ -79,7 +79,7 @@ export function Report({ route }: ReportProps) {
   };
   return (
     <DocPage
-      title={c.title}
+      title={t('report.title')}
       eyebrow={`${t('reports.campaign')} ${report.id}`}
       lead={`${t('report.counts', { readings: report.records.length, runs: report.runs.length })} · ${scenes.map(sceneName).join(' / ')}`}
     >
