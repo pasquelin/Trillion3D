@@ -1,0 +1,65 @@
+{
+  "formatVersion": 1,
+  "notes": [],
+  "runtime": {
+    "bytes": 32735,
+    "file": "model.gltf",
+    "meshNodes": 41,
+    "sha256": "595412b2ee7d973745f3e80e6d073b077c7c060b045046f18f5bfa512d452878",
+    "sidecars": [
+      {
+        "file": "model.bin",
+        "sha256": "0246fe995cc1c6305fbe87152358152e560ea0626c5a3cb949b08943857094d4"
+      }
+    ],
+    "trianglesAcrossNodes": 45636
+  },
+  "source": {
+    "external": [
+      {
+        "file": "chess.mtl",
+        "kind": "material-library",
+        "sha256": "8e6ca902b3604b6d57111b7f03ba360c8101c49d449e4998659274dfcac6c244",
+        "truncated": false
+      }
+    ],
+    "files": [
+      {
+        "ascii": true,
+        "bytes": 3163798,
+        "creator": "",
+        "fbxVersion": 0,
+        "file": "chess.obj",
+        "format": "obj",
+        "hiddenNodes": 0,
+        "lights": 0,
+        "lodGroups": 0,
+        "materials": 7,
+        "meshNodes": 41,
+        "meshes": 41,
+        "ms": 15.604958,
+        "originalUnitMeters": 1.0,
+        "parseMs": 11.279416000000001,
+        "sha256": "0a3ba79401666313f2c1d503e29a92173886ba3268fc9cfce403a82c3c0dcb73",
+        "textures": 0,
+        "triangles": 45636,
+        "unitMeters": 1.0
+      }
+    ],
+    "images": 0,
+    "importMs": 28.585333000000002,
+    "key": "21d4e3f586e461c8384b80ce1e54af075094a4956b7d4c652c7fc56229e27ecd",
+    "lights": 0,
+    "materials": 7,
+    "meshes": 41,
+    "path": "source/chess.obj",
+    "plugin": {
+      "name": "obj",
+      "version": "obj-ufbx-0.11.3-gltf-7"
+    }
+  },
+  "status": "ready",
+  "unsupported": {
+    "material-specular-color": 7
+  }
+}

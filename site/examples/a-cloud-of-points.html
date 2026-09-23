@@ -22,14 +22,10 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, math, buffer } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
 
-      // A sequence in [0, 1) from a seed, and a bell curve drawn from it: the same sky on every run.
-      function random(seed) {
-        let state = seed >>> 0;
-        return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
-      }
-      const next = random(21);
+      // A bell curve drawn from a seeded sequence (the kit's `seeded`): the same sky on every run.
+      const next = seeded(21);
       const bell = () => Math.sqrt(-2 * Math.log(1 - next())) * Math.cos(Math.PI * 2 * next());
       // A direction taken evenly over the ball.
       const direction = () => {
@@ -186,6 +182,9 @@
       const ease = (t) => 1 - (1 - t) ** 3;
       let time = 0, waited = 0;
       world.onFrame(({ delta }) => {
+        // Nothing turning, growing, joining or gliding: no new frame.
+        const settled = (shape) => !shape.root.visible || shape.grow === (shape === current ? 1 : 0);
+        if (!ui.spin && !steps.length && intro >= 1 && Object.values(SHAPES).every(settled)) return;
         const step = Math.min(delta, 0.05);
         if (ui.spin) time += step;
         // The next step joins once the frame before it has drawn, a second apart.
