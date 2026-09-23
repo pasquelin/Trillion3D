@@ -186,7 +186,7 @@ export const light = {
   spot: kind('spot'),
   /** A sky colour from above and a ground colour from below. */
   hemisphere: kind('hemisphere'),
-  /** A glowing rectangle, like a window or a screen. */
+  /** A glowing rectangle, like a lit panel or a screen. */
   rectArea: kind('rectArea'),
   /** Light measured around a point and given back to what is near it. */
   probe: kind('probe'),

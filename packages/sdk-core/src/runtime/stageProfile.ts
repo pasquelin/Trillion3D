@@ -47,7 +47,7 @@ export interface StageProfile {
   cpuFrames: number;
   /** GPU samples taken. */
   gpuSamples: number;
-  /** Frames in the window. */
+  /** Frames in the sliding span. */
   windowFrames: number;
   /** How the GPU was timed. */
   gpuMethod: GpuTimingMethod | null;

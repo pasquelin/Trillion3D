@@ -19,8 +19,9 @@ dispose them before the next route. `docs/` holds the repository documentation o
   the same `Card` primitive for both the home page and the gallery. `components/highlighter.ts`
   wraps Highlight.js with the TypeScript grammar (including JavaScript); `code/` runs an edited
   snippet off the UI thread.
-- `site/content/` owns the copy: `entries/*.ts` are the English API and guide entries (keep
-  identifiers, signatures, module paths and executable examples in these source entries),
+- `site/content/` owns the copy: `entries/*.ts` are the English guide entries and the written
+  notes that complete a generated API entry, `reference/` the generated API reference and its
+  French (see "The API reference" below),
   `model.ts` declares the entry shape and the sections, `i18n/` contains French overlays and
   interface strings (`localizeEntries()` applies an overlay by entry id while preserving technical
   fields; missing fields and unsupported locales fall back to English through `t()`),
@@ -132,6 +133,27 @@ packages; none stays external or is loaded from a CDN.
    module; keep API names and code unchanged.
 4. Run `node --test scripts/docs-gallery.test.ts`. Confirm that the API pages for the declared
    functions link to the new playground and that changing language preserves the example route.
+
+## The API reference
+
+The reference is generated, never written by hand: `scripts/generate-api-reference.ts` reads the
+TypeScript declarations of the three public entries of `web-geometry` (`packages/sdk/index.ts`,
+`browser.ts`, `node.mts`) and writes `site/content/reference/api.json` — one entry per export, one
+per member of every family (`geometry.box`, `material.meshStandard`, …) and one per member of the
+world (`world.scene`, `world.onFrame`, …). Each entry carries its summary (the first sentence of
+the TSDoc), its parameters (an options object field by field, with the `@defaultValue` of each
+field), its return, its `@example`, its members and the rest of the TSDoc as its description;
+`EngineError` lists every code it is thrown with, from its `@errorCode` lines. A member built from a
+list of keys has no declaration of its own: its owner documents it with `@property <name> - <text>`.
+The section follows the defining module (`scripts/api-reference/sections.ts`): the world and its
+families first, the constant families under "Constants", then the maths, the Node compiler and
+every other public type. To document a symbol, write its TSDoc in the source, run
+`node scripts/generate-api-reference.ts`, and add its French to `site/content/reference/api.fr.json`
+(keyed by entry id; rows by name). `check:api-reference` in `validate` fails on a stale file, and
+`scripts/docs-api-reference.test.ts` on an export, a family member or a row without an entry or a
+summary, on two entries sharing a summary, on a thrown error code left unexplained, and on missing
+French. The written notes of `site/content/entries/*.ts` (matrices, vectors, bounds…) only add a
+longer text, an example or a proof to the generated entry of the same id.
 
 ## Adding or translating documentation
 
