@@ -140,7 +140,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/world/core/world.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/world/core/worldFrames.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/world/animation/index\".advanceMixers"
     },
@@ -452,6 +452,17 @@
       "affectedConsumers": [],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-node/src/compiler/contracts\".BatchSummary"
+    },
+    {
+      "name": "BeforeFrameInfo",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/world/core/worldFrames.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/world/core/worldFrames\".BeforeFrameInfo"
     },
     {
       "name": "biasedDepthBits",
@@ -4865,6 +4876,8 @@
         "packages/sdk-browser/src/world/core/scene.ts",
         "packages/sdk-browser/src/world/core/worldContents.ts",
         "packages/sdk-browser/src/world/core/worldControlsHandle.ts",
+        "packages/sdk-browser/src/world/core/worldFrames.test.ts",
+        "packages/sdk-browser/src/world/core/worldFrames.ts",
         "packages/sdk-browser/src/world/core/worldLights.ts",
         "packages/sdk-browser/src/world/core/worldMembers.ts",
         "packages/sdk-browser/src/world/core/worldMirror.ts",

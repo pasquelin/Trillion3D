@@ -634,6 +634,29 @@
     "description": ""
   },
   {
+    "id": "BeforeFrameInfo",
+    "module": "packages/sdk-browser/src/world/core/worldFrames.ts",
+    "exports": ["BeforeFrameInfo"],
+    "section": "world",
+    "kind": "Type",
+    "title": "BeforeFrameInfo",
+    "signature": "type BeforeFrameInfo = Pick<FrameInfo, 'delta' | 'time'>",
+    "summary": "What a before-frame hook receives: the seconds the controllers just integrated, and since the world began.",
+    "members": [
+      {
+        "name": "delta",
+        "type": "number",
+        "desc": "Seconds since the previous frame, at most two frame intervals after a pause; 0 on the first."
+      },
+      {
+        "name": "time",
+        "type": "number",
+        "desc": "Seconds since the world began."
+      }
+    ],
+    "description": "The world's one object, rewritten each frame: a hook that keeps a value copies it."
+  },
+  {
     "id": "Blending",
     "module": "packages/sdk-core/src/world/constants/index.ts",
     "exports": ["Blending"],
@@ -15719,7 +15742,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.controls",
-    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; colliders: Object3D | readonly Object3D[] | null; rebuildColliders(): void; readonly veloc...",
+    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; autoUpdate: boolean; colliders: Object3D | readonly Object3D[] | null; rebuildColliders():...",
     "summary": "The mouse and keyboard controller that moves the camera.",
     "members": [
       {
@@ -15736,6 +15759,11 @@
         "name": "target",
         "type": "Vector3",
         "desc": "The point a pivot controller turns around."
+      },
+      {
+        "name": "autoUpdate",
+        "type": "boolean",
+        "desc": "Whether the world's loop calls `update` ahead of each frame, before `world.beforeFrame` hooks. `false` hands the step to the page, which calls `update` from such a hook, as often and over whatever sub-steps it integrates; the world then never steps it."
       },
       {
         "name": "colliders",
@@ -16085,7 +16113,7 @@
     "kind": "Function",
     "title": "world.onFrame()",
     "signature": "world.onFrame(hook: (frame: FrameInfo) => void): () => void",
-    "summary": "Runs a function before every frame, with the frame's time.",
+    "summary": "Runs a function after every drawn frame, with its time and metrics; returns its remover.",
     "parameters": [
       {
         "name": "hook",
@@ -16098,6 +16126,28 @@
       "desc": "A function that stops the hook."
     },
     "description": ""
+  },
+  {
+    "id": "world.beforeFrame",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.beforeFrame()",
+    "signature": "world.beforeFrame(hook: (frame: BeforeFrameInfo) => void): () => void",
+    "summary": "Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.",
+    "parameters": [
+      {
+        "name": "hook",
+        "type": "(frame: BeforeFrameInfo) => void",
+        "desc": "The function to run; it gets the seconds just integrated and the world's time."
+      }
+    ],
+    "returns": {
+      "type": "() => void",
+      "desc": "A function that stops the hook."
+    },
+    "description": "A frame of the world's loop runs: the controller steps the camera (unless `controls.autoUpdate` is false), clips advance, these hooks in the order they were added, the scene is written and drawn, then the `onFrame` hooks. What a hook places — a body on the camera, a cockpit — is drawn in this very frame, never one late. A host-led `render()` runs them too but steps no controller. A hook calling `invalidate()` keeps frames coming."
   },
   {
     "id": "world.loop",
