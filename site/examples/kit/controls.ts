@@ -1,4 +1,5 @@
-import { overlay } from './overlay.ts';
+import { hideable, overlay } from './overlay.ts';
+import { stats, type StatsWorld } from './stats.ts';
 
 /**
  * What an example declares for one control, the kind read from the value itself:
@@ -45,19 +46,6 @@ export function labelOf(key: string): string {
   const words = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
-
-/** Whether the hosting page shows the panels, and the panels it applies to. Listened for from
- * the kit's import, before the example runs: a page posts its choice when the frame loads, which
- * an example that builds its panel after an `await` would otherwise miss. */
-let visible = true;
-const panels = new Set<HTMLElement>();
-// A page, not a test importing the kit in Node, has messages to hear.
-globalThis.addEventListener?.('message', (event) => {
-  const data = event.data as { type?: unknown; visible?: unknown } | null;
-  if (event.source !== parent || data?.type !== 'wg:controls') return;
-  visible = Boolean(data.visible);
-  for (const panel of panels) panel.hidden = !visible;
-});
 
 const isSlider = (spec: readonly (number | string)[]): spec is readonly number[] =>
   typeof spec[0] === 'number';
@@ -157,16 +145,22 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
   return row;
 }
 
+type OnChange<Specs> = (values: ControlValues<Specs>, key?: keyof ControlValues<Specs>) => void;
+
 /**
  * A settings panel in the top-right corner of the example, one row per declared control. The
  * returned object holds the live values; `onChange(values, key)` runs once at start, with no
- * key, then after every change. The page hosting the example shows or hides the panel by posting
- * `{ type: 'wg:controls', visible }`; standalone, it is shown.
+ * key, then after every change. Given the example's world (after `onChange`, or in its place),
+ * it also starts the stats corner (`stats.ts`). The page hosting the example shows or hides both
+ * by posting `{ type: 'wg:controls', visible }`; standalone, they are shown.
  */
 export function controls<const Specs extends Record<string, ControlSpec>>(
   specs: Specs,
-  onChange: (values: ControlValues<Specs>, key?: keyof ControlValues<Specs>) => void = () => {},
+  changeOrWorld?: OnChange<Specs> | StatsWorld,
+  world?: StatsWorld,
 ): ControlValues<Specs> {
+  const onChange: OnChange<Specs> = typeof changeOrWorld === 'function' ? changeOrWorld : () => {};
+  const watched = typeof changeOrWorld === 'function' ? world : changeOrWorld;
   const { controls: declared, values } = describe(specs);
   const live = values as ControlValues<Specs>;
   const box = document.createElement('details');
@@ -183,8 +177,8 @@ export function controls<const Specs extends Record<string, ControlSpec>>(
     rows.append(field(control, values, () => onChange(live, control.key as never)));
   box.append(title, rows);
   overlay().append(box);
-  panels.add(box);
-  box.hidden = !visible;
+  hideable(box);
+  if (watched) stats(watched);
   onChange(live);
   return live;
 }

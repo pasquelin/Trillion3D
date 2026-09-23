@@ -61,7 +61,7 @@
           // Off by default: each moving lamp that casts a shadow redraws its shadow map every frame.
           glow.castShadow = values.shadows;
         });
-      });
+      }, world);
       let time = 0;
       world.onFrame(({ delta }) => {
         time += delta * ui.speed;
