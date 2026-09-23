@@ -4679,6 +4679,7 @@
       "scene": "La scena che l’host apre, e i nodi alla sua sommità.",
       "nodes": "Ogni nodo.",
       "lights": "Le luci che i nodi portano.",
+      "cameras": "Le telecamere che i nodi portano.",
       "materials": "I materiali.",
       "textures": "Le texture.",
       "documents": "La disposizione della geometria di ogni file di scena pubblicato, per nome."
@@ -5680,6 +5681,7 @@
       "children": "I suoi figli, in ordine.",
       "mesh": "La mesh che disegna.",
       "light": "La luce che porta.",
+      "camera": "La telecamera che porta.",
       "matrix": "La sua matrice locale, per colonne.",
       "translation": "Dove si trova.",
       "rotation": "Come è ruotato, come quaternione.",

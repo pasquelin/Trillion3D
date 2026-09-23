@@ -2,22 +2,19 @@
  * The host scene graph of the prepared scene, assembled from the node table under the rules the
  * host loader applied, since the scene the engine draws is proven by being the same scene:
  *
- * - a node carrying one thing IS that thing (a mesh, a light), one carrying several is a group of
+ * - a node carrying one thing IS that thing (a mesh, a camera, a light), one carrying several is a group of
  *   them, one carrying nothing is a bare node; its children follow what it carries;
  * - a mesh of one primitive is one host mesh, a mesh of several a group of one host mesh each;
- * - a mesh or a light several nodes name is copied per node, the copies sharing geometry and
+ * - a mesh, a camera or a light several nodes name is copied per node, the copies sharing geometry and
  *   surface, and named `_instance_<n>` in turn;
- * - names are made unique in the order the loader reserved them: scene, then each node and its
- *   light depth first, then each mesh in the order it is first named;
+ * - names are made unique in the order the loader reserved them: scene, then each node, its
+ *   camera and its light depth first, then each mesh in the order it is first named;
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
 import * as THREE from 'three';
-import type {
-  PreparedSceneTables,
-  TableLight,
-  TableNode,
-} from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import { camera, light, pose, uniqueNames } from './nodes.ts';
 import type { SurfaceVariant } from './materials.ts';
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks. */
@@ -30,56 +27,6 @@ type Inputs = {
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<THREE.Material>;
 };
 
-/** The loader's unique-name rule: sanitised, then numbered from the second use on. */
-function uniqueNames() {
-  const used = new Map<string, number>();
-  return (original: string) => {
-    const name = THREE.PropertyBinding.sanitizeNodeName(original);
-    const count = used.get(name);
-    used.set(name, count === undefined ? 0 : count + 1);
-    return count === undefined ? name : `${name}_${count + 1}`;
-  };
-}
-
-function light(declared: TableLight, name: string) {
-  const colour = new THREE.Color(0xffffff);
-  if (declared.color)
-    colour.setRGB(
-      declared.color[0],
-      declared.color[1],
-      declared.color[2],
-      THREE.LinearSRGBColorSpace,
-    );
-  let made: THREE.DirectionalLight | THREE.PointLight | THREE.SpotLight;
-  if (declared.type === 'point') made = new THREE.PointLight(colour);
-  else if (declared.type === 'directional') made = new THREE.DirectionalLight(colour);
-  else {
-    const inner = declared.innerConeAngle ?? 0,
-      outer = declared.outerConeAngle ?? Math.PI / 4;
-    made = new THREE.SpotLight(colour);
-    made.angle = outer;
-    made.penumbra = 1 - inner / outer;
-  }
-  if (!(made instanceof THREE.DirectionalLight)) made.distance = declared.range ?? 0;
-  if (!(made instanceof THREE.PointLight)) {
-    made.target.position.set(0, 0, -1);
-    made.add(made.target);
-  }
-  made.position.set(0, 0, 0);
-  if (declared.intensity !== null) made.intensity = declared.intensity;
-  made.name = name;
-  return made;
-}
-
-function pose(node: THREE.Object3D, declared: TableNode) {
-  if (declared.matrix) node.applyMatrix4(new THREE.Matrix4().fromArray(declared.matrix));
-  else {
-    if (declared.translation) node.position.fromArray(declared.translation);
-    if (declared.rotation) node.quaternion.fromArray(declared.rotation);
-    if (declared.scale) node.scale.fromArray(declared.scale);
-  }
-}
-
 /** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
 export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: Inputs) {
   const unique = uniqueNames();
@@ -87,16 +34,16 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   const scene = new THREE.Group();
   if (tables.scene.name) scene.name = unique(tables.scene.name);
   // References are counted over every node, reached or not, as the loader counted them.
-  const refs = (field: 'mesh' | 'light') => {
+  const refs = (field: 'mesh' | 'light' | 'camera') => {
     const counts = new Map<number, number>();
     for (const node of tables.nodes)
       if (node[field] !== null) counts.set(node[field], (counts.get(node[field]) ?? 0) + 1);
     return counts;
   };
-  const counts = { mesh: refs('mesh'), light: refs('light') };
+  const counts = { mesh: refs('mesh'), light: refs('light'), camera: refs('camera') };
   const uses = new Map<string, number>();
   /** The object a node names, or its copy when several nodes name it. */
-  const reference = (kind: 'mesh' | 'light', rank: number, made: THREE.Object3D) => {
+  const reference = (kind: keyof typeof counts, rank: number, made: THREE.Object3D) => {
     if ((counts[kind].get(rank) ?? 0) <= 1) return made;
     const copy = made.clone();
     const walk = (from: THREE.Object3D, to: THREE.Object3D) => {
@@ -111,7 +58,9 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     copy.name += `_instance_${use}`;
     return copy;
   };
-  // Names first, depth first: node, then its light; each light is built at its first use.
+  // Names first, depth first: node, then its camera, then its light; each camera and each light
+  // is built at its first use.
+  const cameras = new Map<number, THREE.Camera>();
   const lights = new Map<number, THREE.Light>();
   const nodeNames = new Map<number, string>();
   const order: number[] = [];
@@ -122,6 +71,12 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     if (node.mesh !== null && !named.has(node.mesh)) {
       named.add(node.mesh);
       order.push(node.mesh);
+    }
+    if (node.camera !== null && !cameras.has(node.camera)) {
+      const declared = tables.cameras[node.camera];
+      const made = camera(declared);
+      if (declared.name) made.name = unique(declared.name);
+      cameras.set(node.camera, made);
     }
     if (node.light !== null && !lights.has(node.light)) {
       const declared = tables.lights[node.light];
@@ -164,6 +119,8 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     const carried: THREE.Object3D[] = [];
     if (declared.mesh !== null)
       carried.push(reference('mesh', declared.mesh, built.get(declared.mesh)!));
+    if (declared.camera !== null)
+      carried.push(reference('camera', declared.camera, cameras.get(declared.camera)!));
     if (declared.light !== null)
       carried.push(reference('light', declared.light, lights.get(declared.light)!));
     const node =

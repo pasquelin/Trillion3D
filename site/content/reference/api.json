@@ -10599,6 +10599,11 @@
         "desc": "The lights the nodes hang."
       },
       {
+        "name": "cameras",
+        "type": "TableCamera[]",
+        "desc": "The cameras the nodes carry."
+      },
+      {
         "name": "materials",
         "type": "TableMaterial[]",
         "desc": "The surfaces."
@@ -14114,7 +14119,7 @@
     "kind": "Type",
     "title": "TableNode",
     "signature": "interface TableNode",
-    "summary": "One node of the scene graph, at its glTF rank: its children, the mesh and the punctual light it carries, and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation and scale, each `null` when silent.",
+    "summary": "One node of the scene graph, at its glTF rank: its children, the mesh, the punctual light and the camera it carries, and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation and scale, each `null` when silent.",
     "members": [
       {
         "name": "name",
@@ -14135,6 +14140,11 @@
         "name": "light",
         "type": "number | null",
         "desc": "The light it hangs."
+      },
+      {
+        "name": "camera",
+        "type": "number | null",
+        "desc": "The camera it carries."
       },
       {
         "name": "matrix",
