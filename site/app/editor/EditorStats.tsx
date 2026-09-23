@@ -1,51 +1,33 @@
 import { useEffect, useState } from 'react';
-import { useWords } from '../i18n.ts';
-import { usePortal } from '../layout/PortalContext.ts';
-import { Stat, StatGroup } from '../ui/Stats.tsx';
+import {
+  STATS_CARD,
+  STATS_TERM,
+  STATS_VALUE,
+  statsCorners,
+  watchStats,
+} from '../../examples/kit/statsLines.ts';
 import type { Session } from './session.ts';
 
-interface Reading {
-  cpu: number | null;
-  gpu: number | null;
-  triangles: number | null;
-  pages: number | null;
-  sessions: number;
-}
-
-const ms = (value: number | null) => (value == null ? '—' : value.toFixed(2));
-const count = (value: number | null) => (value == null ? '—' : value.toLocaleString());
-
 /**
- * What the engine says of its last frame: CPU and GPU time, triangles drawn, pages resident, and
- * the sessions the world has opened. Read in the world's own frame hook, never on a timer: a still
- * scene draws no frame, and this panel then costs nothing either.
+ * The examples' stats corner, over the editor's view: the frames the world drew per second and
+ * the engine's counters of its last frame — triangles, draw calls, pages, pool — read twice a
+ * second. A still scene draws no frame, and the corner then keeps its last reading.
  */
 export function EditorStats({ session }: { session: Session }) {
-  const { locale } = usePortal().route;
-  const t = useWords(locale);
-  const [reading, setReading] = useState<Reading | null>(null);
+  const [lines, setLines] = useState<[string, string][]>([]);
   useEffect(() => {
-    const { world } = session;
-    return world.onFrame(({ metrics }) =>
-      setReading({
-        cpu: metrics.cpuFrameMs,
-        gpu: metrics.gpuFrameMs,
-        triangles: metrics.selectedTriangles ?? metrics.triangles,
-        pages: metrics.residentPages,
-        sessions: world.diagnostic.sessions,
-      }),
-    );
+    const stop = watchStats(session.world, setLines);
+    return stop;
   }, [session]);
-  const hint = t('editor.statsHint');
+  if (lines.length === 0) return null;
   return (
-    <StatGroup aria-label={t('editor.stats')} className="w-full">
-      <Stat title={t('editor.cpu')} description={hint}>
-        {ms(reading?.cpu ?? null)}
-      </Stat>
-      <Stat title={t('editor.gpu')}>{ms(reading?.gpu ?? null)}</Stat>
-      <Stat title={t('editor.triangles')}>{count(reading?.triangles ?? null)}</Stat>
-      <Stat title={t('editor.pages')}>{count(reading?.pages ?? null)}</Stat>
-      <Stat title={t('editor.sessions')}>{reading?.sessions ?? '—'}</Stat>
-    </StatGroup>
+    <dl className={`${STATS_CARD} ${statsCorners['bottom-left']} z-10`}>
+      {lines.map(([label, value]) => (
+        <div key={label} className="contents">
+          <dt className={STATS_TERM}>{label}</dt>
+          <dd className={STATS_VALUE}>{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

@@ -559,8 +559,6 @@
   },
   "editor": {
     "title": "Sahne düzenleyici",
-    "group": "Araçlar",
-    "showcase": "Sahne düzenleyiciyi aç",
     "loading": "Düzenleyici hazırlanıyor…",
     "canvas": "Sahne görünümü: seçmek için bir nesneye tıklayın, kamerayı döndürmek için sürükleyin",
     "menu": {
@@ -590,7 +588,7 @@
       "ambient": "Ortam ışığı"
     },
     "model": {
-      "bust": "Mermer büst",
+      "marble-bust": "Mermer büst",
       "crates": "Sandıklar",
       "hall": "Salon",
       "street-corner": "Sokak köşesi"
@@ -603,6 +601,8 @@
       "world": "Dünya eksenleri",
       "local": "Nesne eksenleri"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Yapıştır",
     "outliner": "Sahne",
     "empty": "Sahne boş: Ekle menüsünden bir nesne ekleyin.",
@@ -642,13 +642,6 @@
       "radialSegments": "Çevre bölümleri",
       "tubularSegments": "Boru bölümleri"
     },
-    "stats": "Motor istatistikleri",
-    "cpu": "CPU karesi (ms)",
-    "gpu": "GPU karesi (ms)",
-    "triangles": "Triangles",
-    "pages": "Bellekteki sayfalar",
-    "sessions": "Açılan oturumlar",
-    "statsHint": "Çizilen son kareden okunur; hareketsiz bir sahne hiç kare çizmez.",
     "error": {
       "format": "Bu dosya, bu düzenleyicinin okuyamadığı bir sahne biçimi içeriyor.",
       "read": "Sahne okunamadı:"
@@ -1377,7 +1370,7 @@
     "scene-editor": {
       "title": "Düzenleyiciyle bir sahne kurmak",
       "description": "Şekiller ve ışıklar eklemek, onları fareyle seçmek, tutamaçlarla taşımak, yeniden renklendirmek, sahneyi kaydedip yeniden açmak — portalda, yalnızca genel API ile.",
-      "html": "<p><a href=\"#/tr/examples/scene-editor\">Sahne düzenleyicisi</a>, bu portalın motorun üç kapısı üzerine kurulu, başka hiçbir şey kullanmayan bir sayfasıdır. Boş bir sahneyle başlayın: <b>Add → Box</b>, ardından <b>Add → Directional light</b>. Kutuya tıklayın: <code>world.raycast</code> onu işaretçinin altında bulur ve <code>controls.transform</code> tutamaçları üzerinde belirir. Taşımak için bir oku sürükleyin — bir tutamaç tutulurken kamera durur — döndürmek için <kbd>E</kbd>, ölçeklemek için <kbd>R</kbd> tuşuna basın. Rengini denetleyicide değiştirin: motor malzemeyi yerinde yeniden boyar, karenin maliyeti istatistik köşesinde kalır. <b>Save</b>, <code>scene.toJSON</code> dosyasını indirir; <b>New</b>, ardından <b>Open</b>, aynı sahneyi <code>scene.fromJSON</code> ile yeniden kurar.</p>\n<p>Her adım <kbd>Ctrl</kbd>+<kbd>Z</kbd> ile geri alınır ve sahne iki ziyaret arasında tarayıcıda saklanır. Sayfa kendi başına hiçbir şey çizmez ya da taşımaz: gördüğünüz motordur.</p>"
+      "html": "<p><a href=\"#/tr/editor\">Sahne düzenleyicisi</a>, bu portalın motorun üç kapısı üzerine kurulu, başka hiçbir şey kullanmayan bir sayfasıdır. Boş bir sahneyle başlayın: <b>Add → Box</b>, ardından <b>Add → Directional light</b>. Kutuya tıklayın: <code>world.raycast</code> onu işaretçinin altında bulur ve <code>controls.transform</code> tutamaçları üzerinde belirir. Taşımak için bir oku sürükleyin — bir tutamaç tutulurken kamera durur — döndürmek için <kbd>E</kbd>, ölçeklemek için <kbd>R</kbd> tuşuna basın. Rengini denetleyicide değiştirin: motor malzemeyi yerinde yeniden boyar, karenin maliyeti istatistik köşesinde kalır. <b>Save</b>, <code>scene.toJSON</code> dosyasını indirir; <b>New</b>, ardından <b>Open</b>, aynı sahneyi <code>scene.fromJSON</code> ile yeniden kurar.</p>\n<p>Her adım <kbd>Ctrl</kbd>+<kbd>Z</kbd> ile geri alınır ve sahne iki ziyaret arasında tarayıcıda saklanır. Sayfa kendi başına hiçbir şey çizmez ya da taşımaz: gördüğünüz motordur.</p>"
     },
     "pick-with-the-pointer": {
       "title": "İşaretçiyle bir nesne seçmek",

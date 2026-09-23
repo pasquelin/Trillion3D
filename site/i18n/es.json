@@ -559,8 +559,6 @@
   },
   "editor": {
     "title": "Editor de escena",
-    "group": "Herramientas",
-    "showcase": "Abrir el editor de escena",
     "loading": "Preparando el editor…",
     "canvas": "Vista de la escena: haz clic en un objeto para seleccionarlo, arrastra para girar la cámara",
     "menu": {
@@ -590,7 +588,7 @@
       "ambient": "Luz ambiental"
     },
     "model": {
-      "bust": "Busto de mármol",
+      "marble-bust": "Busto de mármol",
       "crates": "Cajas",
       "hall": "Sala",
       "street-corner": "Esquina de calle"
@@ -603,6 +601,8 @@
       "world": "Ejes del mundo",
       "local": "Ejes del objeto"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Ajuste",
     "outliner": "Escena",
     "empty": "La escena está vacía: añade un objeto desde el menú Añadir.",
@@ -642,13 +642,6 @@
       "radialSegments": "Segmentos alrededor",
       "tubularSegments": "Segmentos del tubo"
     },
-    "stats": "Estadísticas del motor",
-    "cpu": "Fotograma CPU (ms)",
-    "gpu": "Fotograma GPU (ms)",
-    "triangles": "Triangles",
-    "pages": "Páginas residentes",
-    "sessions": "Sesiones abiertas",
-    "statsHint": "Leído en el último fotograma dibujado; una escena quieta no dibuja ninguno.",
     "error": {
       "format": "Este archivo contiene un formato de escena que este editor no lee.",
       "read": "No se pudo leer la escena:"
@@ -1377,7 +1370,7 @@
     "scene-editor": {
       "title": "Construir una escena con el editor",
       "description": "Añadir formas y luces, elegirlas con el ratón, moverlas con tiradores, cambiarles el color, guardar la escena y volver a abrirla — en el portal, solo con la API pública.",
-      "html": "<p>El <a href=\"#/es/examples/scene-editor\">editor de escenas</a> es una página de este portal construida sobre tres puertas del motor y nada más. Empiece por una escena vacía: <b>Add → Box</b>, luego <b>Add → Directional light</b>. Haga clic en la caja: <code>world.raycast</code> la encuentra bajo el puntero, y los tiradores de <code>controls.transform</code> aparecen sobre ella. Arrastre una flecha para moverla — la cámara se queda quieta mientras se sujeta un tirador — pulse <kbd>E</kbd> para girarla, <kbd>R</kbd> para escalarla. Cambie su color en el inspector: el motor repinta el material en su sitio, y el coste de la imagen queda en la esquina de estadísticas. <b>Save</b> descarga <code>scene.toJSON</code>; <b>New</b> y luego <b>Open</b> reconstruye la misma escena con <code>scene.fromJSON</code>.</p>\n<p>Cada paso se deshace con <kbd>Ctrl</kbd>+<kbd>Z</kbd>, y la escena se guarda en el navegador entre dos visitas. La página no dibuja ni mueve nada por sí misma: lo que ve es el motor.</p>"
+      "html": "<p>El <a href=\"#/es/editor\">editor de escenas</a> es una página de este portal construida sobre tres puertas del motor y nada más. Empiece por una escena vacía: <b>Add → Box</b>, luego <b>Add → Directional light</b>. Haga clic en la caja: <code>world.raycast</code> la encuentra bajo el puntero, y los tiradores de <code>controls.transform</code> aparecen sobre ella. Arrastre una flecha para moverla — la cámara se queda quieta mientras se sujeta un tirador — pulse <kbd>E</kbd> para girarla, <kbd>R</kbd> para escalarla. Cambie su color en el inspector: el motor repinta el material en su sitio, y el coste de la imagen queda en la esquina de estadísticas. <b>Save</b> descarga <code>scene.toJSON</code>; <b>New</b> y luego <b>Open</b> reconstruye la misma escena con <code>scene.fromJSON</code>.</p>\n<p>Cada paso se deshace con <kbd>Ctrl</kbd>+<kbd>Z</kbd>, y la escena se guarda en el navegador entre dos visitas. La página no dibuja ni mueve nada por sí misma: lo que ve es el motor.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Elegir un objeto con el puntero",

@@ -101,8 +101,6 @@
   },
   "editor": {
     "title": "Editor scene",
-    "group": "Alat",
-    "showcase": "Buka editor scene",
     "loading": "Menyiapkan editor…",
     "canvas": "Tampilan scene: klik sebuah objek untuk memilihnya, seret untuk memutar kamera",
     "menu": {
@@ -132,7 +130,7 @@
       "ambient": "Cahaya sekitar"
     },
     "model": {
-      "bust": "Patung dada marmer",
+      "marble-bust": "Patung dada marmer",
       "crates": "Peti kayu",
       "hall": "Aula",
       "street-corner": "Sudut jalan"
@@ -145,6 +143,8 @@
       "world": "Sumbu dunia",
       "local": "Sumbu objek"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Magnet",
     "outliner": "Scene",
     "empty": "Scene masih kosong: tambahkan objek dari menu Tambah.",
@@ -184,13 +184,6 @@
       "radialSegments": "Segmen melingkar",
       "tubularSegments": "Segmen tabung"
     },
-    "stats": "Statistik mesin",
-    "cpu": "Bingkai CPU (ms)",
-    "gpu": "Bingkai GPU (ms)",
-    "triangles": "Segitiga",
-    "pages": "Halaman dimuat",
-    "sessions": "Sesi dibuka",
-    "statsHint": "Dibaca dari bingkai terakhir yang digambar; scene yang diam tidak menggambar apa pun.",
     "error": {
       "format": "File ini berisi format scene yang tidak bisa dibaca editor ini.",
       "read": "Scene tidak bisa dibaca:"
@@ -919,7 +912,7 @@
     "scene-editor": {
       "title": "Membangun scene dengan editor",
       "description": "Tambahkan bentuk dan cahaya, pilih dengan mouse, pindahkan dengan pegangan, ganti warnanya, simpan scene lalu buka lagi — di dalam portal, hanya dengan API publik.",
-      "html": "<p><a href=\"#/en/examples/scene-editor\">Editor scene</a> adalah halaman portal ini yang dibangun di atas tiga pintu mesin dan tidak ada yang lain. Mulailah dari scene kosong: <b>Tambah → Kotak</b>, lalu <b>Tambah → Cahaya terarah</b>. Klik kotaknya: <code>world.raycast</code> menemukannya di bawah penunjuk, dan pegangan <code>controls.transform</code> muncul di atasnya. Seret sebuah panah untuk memindahkannya — kamera diam selama pegangan ditahan — tekan <kbd>E</kbd> untuk memutarnya, <kbd>R</kbd> untuk mengubah ukurannya. Ganti warnanya di panel properti: mesin mewarnai ulang material di tempat, dan biaya bingkai tetap tampil di pojok statistik. <b>Simpan</b> mengunduh <code>scene.toJSON</code>; <b>Baru</b>, lalu <b>Buka</b>, membangun scene yang sama lagi dengan <code>scene.fromJSON</code>.</p>\n<p>Setiap langkah bisa diurungkan dengan <kbd>Ctrl</kbd>+<kbd>Z</kbd>, dan scene disimpan di browser dari satu kunjungan ke kunjungan berikutnya. Halaman itu sendiri tidak menggambar atau memindahkan apa pun: yang kamu lihat adalah mesinnya.</p>"
+      "html": "<p><a href=\"#/en/editor\">Editor scene</a> adalah halaman portal ini yang dibangun di atas tiga pintu mesin dan tidak ada yang lain. Mulailah dari scene kosong: <b>Tambah → Kotak</b>, lalu <b>Tambah → Cahaya terarah</b>. Klik kotaknya: <code>world.raycast</code> menemukannya di bawah penunjuk, dan pegangan <code>controls.transform</code> muncul di atasnya. Seret sebuah panah untuk memindahkannya — kamera diam selama pegangan ditahan — tekan <kbd>E</kbd> untuk memutarnya, <kbd>R</kbd> untuk mengubah ukurannya. Ganti warnanya di panel properti: mesin mewarnai ulang material di tempat, dan biaya bingkai tetap tampil di pojok statistik. <b>Simpan</b> mengunduh <code>scene.toJSON</code>; <b>Baru</b>, lalu <b>Buka</b>, membangun scene yang sama lagi dengan <code>scene.fromJSON</code>.</p>\n<p>Setiap langkah bisa diurungkan dengan <kbd>Ctrl</kbd>+<kbd>Z</kbd>, dan scene disimpan di browser dari satu kunjungan ke kunjungan berikutnya. Halaman itu sendiri tidak menggambar atau memindahkan apa pun: yang kamu lihat adalah mesinnya.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Memilih objek dengan penunjuk",

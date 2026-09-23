@@ -20,15 +20,15 @@ export function PrimaryNavigation({ drawer = false }: { drawer?: boolean }) {
       }
       aria-label={t('nav.primary')}
     >
-      {navLinks(route).map(({ link, href, current }) => (
+      {navLinks(route).map(({ area, href, current }) => (
         <NavLink
-          key={link}
-          data-nav={link}
+          key={area}
+          data-nav={area}
           current={current}
           className={drawer ? 'text-center' : current ? '' : 'text-neutral-content'}
           href={href}
         >
-          {t(`nav.${link}`)}
+          {t(`nav.${area}`)}
         </NavLink>
       ))}
     </nav>

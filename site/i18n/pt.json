@@ -559,8 +559,6 @@
   },
   "editor": {
     "title": "Editor de cena",
-    "group": "Ferramentas",
-    "showcase": "Abrir o editor de cena",
     "loading": "Preparando o editor…",
     "canvas": "Vista da cena: clique em um objeto para selecioná-lo, arraste para girar a câmera",
     "menu": {
@@ -590,7 +588,7 @@
       "ambient": "Luz ambiente"
     },
     "model": {
-      "bust": "Busto de mármore",
+      "marble-bust": "Busto de mármore",
       "crates": "Caixotes",
       "hall": "Salão",
       "street-corner": "Esquina"
@@ -603,6 +601,8 @@
       "world": "Eixos do mundo",
       "local": "Eixos do objeto"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "Encaixe",
     "outliner": "Cena",
     "empty": "A cena está vazia: adicione um objeto pelo menu Adicionar.",
@@ -642,13 +642,6 @@
       "radialSegments": "Segmentos ao redor",
       "tubularSegments": "Segmentos do tubo"
     },
-    "stats": "Estatísticas do motor",
-    "cpu": "Quadro de CPU (ms)",
-    "gpu": "Quadro de GPU (ms)",
-    "triangles": "Triangles",
-    "pages": "Páginas residentes",
-    "sessions": "Sessões abertas",
-    "statsHint": "Lido no último quadro desenhado; uma cena parada não desenha nenhum.",
     "error": {
       "format": "Este arquivo contém um formato de cena que este editor não lê.",
       "read": "Não foi possível ler a cena:"
@@ -1380,7 +1373,7 @@
     "scene-editor": {
       "title": "Construir uma cena com o editor",
       "description": "Adicionar formas e luzes, escolhê-las com o mouse, movê-las com alças, recolori-las, salvar a cena e reabri-la — no portal, apenas com a API pública.",
-      "html": "<p>O <a href=\"#/pt/examples/scene-editor\">editor de cenas</a> é uma página deste portal construída sobre três portas do motor e nada mais. Comece com uma cena vazia: <b>Add → Box</b>, depois <b>Add → Directional light</b>. Clique na caixa: <code>world.raycast</code> a encontra sob o ponteiro, e as alças de <code>controls.transform</code> aparecem sobre ela. Arraste uma seta para movê-la — a câmera fica parada enquanto uma alça é segurada — pressione <kbd>E</kbd> para girá-la, <kbd>R</kbd> para escalá-la. Mude sua cor no inspetor: o motor repinta o material no lugar, e o custo da imagem fica no canto das estatísticas. <b>Save</b> baixa <code>scene.toJSON</code>; <b>New</b>, depois <b>Open</b>, reconstrói a mesma cena com <code>scene.fromJSON</code>.</p>\n<p>Cada passo é desfeito com <kbd>Ctrl</kbd>+<kbd>Z</kbd>, e a cena é guardada no navegador entre duas visitas. A página não desenha nem move nada por si mesma: o que você vê é o motor.</p>"
+      "html": "<p>O <a href=\"#/pt/editor\">editor de cenas</a> é uma página deste portal construída sobre três portas do motor e nada mais. Comece com uma cena vazia: <b>Add → Box</b>, depois <b>Add → Directional light</b>. Clique na caixa: <code>world.raycast</code> a encontra sob o ponteiro, e as alças de <code>controls.transform</code> aparecem sobre ela. Arraste uma seta para movê-la — a câmera fica parada enquanto uma alça é segurada — pressione <kbd>E</kbd> para girá-la, <kbd>R</kbd> para escalá-la. Mude sua cor no inspetor: o motor repinta o material no lugar, e o custo da imagem fica no canto das estatísticas. <b>Save</b> baixa <code>scene.toJSON</code>; <b>New</b>, depois <b>Open</b>, reconstrói a mesma cena com <code>scene.fromJSON</code>.</p>\n<p>Cada passo é desfeito com <kbd>Ctrl</kbd>+<kbd>Z</kbd>, e a cena é guardada no navegador entre duas visitas. A página não desenha nem move nada por si mesma: o que você vê é o motor.</p>"
     },
     "pick-with-the-pointer": {
       "title": "Escolher um objeto com o ponteiro",

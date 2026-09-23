@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useWords } from '../i18n.ts';
 import { useDrawer } from '../hooks/useDrawer.ts';
 import { useSearchShortcut } from '../hooks/useSearchShortcut.ts';
-import { hasSidebar } from '../portal/routes.ts';
+import { hasSidebar, isEdgeToEdge } from '../portal/routes.ts';
 import { Header } from './Header.tsx';
 import { usePortal } from './PortalContext.ts';
 import { SearchModal } from './SearchModal.tsx';
@@ -46,7 +46,7 @@ export function Shell({ children }: { children: ReactNode }) {
           ref={main}
           id="main-content"
           tabIndex={-1}
-          className="min-h-0 min-w-0 overflow-y-auto p-4 outline-none sm:p-6"
+          className={`min-h-0 min-w-0 overflow-y-auto outline-none ${isEdgeToEdge(route) ? '' : 'p-4 sm:p-6'}`}
         >
           {children}
         </main>

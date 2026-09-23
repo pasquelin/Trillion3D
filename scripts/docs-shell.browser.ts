@@ -166,7 +166,7 @@ test('the header marks the current area, and a long sidebar label ends on an ell
 });
 
 test('the editor is current in the header, and its menus close outside them and on Escape', async () => {
-  const { page, errors } = await open('#/en/examples/scene-editor');
+  const { page, errors } = await open('#/en/editor');
   const current = page.locator('header nav a[aria-current="page"]');
   assert.equal(await current.getAttribute('data-nav'), 'editor');
   const file = page.locator('details.dropdown', { hasText: 'File' });

@@ -559,8 +559,6 @@
   },
   "editor": {
     "title": "장면 편집기",
-    "group": "도구",
-    "showcase": "장면 편집기 열기",
     "loading": "편집기를 준비하는 중…",
     "canvas": "장면 보기: 물체를 클릭하면 선택되고, 드래그하면 카메라가 돌아갑니다",
     "menu": {
@@ -590,7 +588,7 @@
       "ambient": "주변광"
     },
     "model": {
-      "bust": "대리석 흉상",
+      "marble-bust": "대리석 흉상",
       "crates": "나무 상자",
       "hall": "홀",
       "street-corner": "길모퉁이"
@@ -603,6 +601,8 @@
       "world": "월드 축",
       "local": "물체 축"
     },
+    "pedestal": "Pedestal",
+    "panels": "Panels",
     "snap": "스냅",
     "outliner": "장면",
     "empty": "장면이 비어 있습니다: 추가 메뉴에서 물체를 추가하세요.",
@@ -642,13 +642,6 @@
       "radialSegments": "둘레 분할 수",
       "tubularSegments": "관 분할 수"
     },
-    "stats": "엔진 통계",
-    "cpu": "CPU 프레임 (ms)",
-    "gpu": "GPU 프레임 (ms)",
-    "triangles": "Triangles",
-    "pages": "메모리에 있는 페이지",
-    "sessions": "열린 세션",
-    "statsHint": "마지막으로 그린 프레임에서 읽습니다. 움직이지 않는 장면은 아무것도 그리지 않습니다.",
     "error": {
       "format": "이 파일에는 이 편집기가 읽을 수 없는 장면 형식이 들어 있습니다.",
       "read": "장면을 읽을 수 없습니다:"
@@ -1377,7 +1370,7 @@
     "scene-editor": {
       "title": "에디터로 장면 만들기",
       "description": "도형과 조명을 추가하고, 마우스로 고르고, 핸들로 옮기고, 색을 바꾸고, 장면을 저장했다가 다시 여세요 — 포털 안에서, 공개 API만으로.",
-      "html": "<p><a href=\"#/ko/examples/scene-editor\">장면 에디터</a>는 엔진의 세 가지 문 위에만 지어진 이 포털의 페이지입니다. 빈 장면에서 시작하세요: <b>Add → Box</b>, 그다음 <b>Add → Directional light</b>. 박스를 클릭하면 <code>world.raycast</code>가 포인터 아래에서 그것을 찾고, <code>controls.transform</code>의 핸들이 나타납니다. 화살표를 끌어 옮기세요 — 핸들을 잡고 있는 동안 카메라는 멈춥니다 — <kbd>E</kbd>로 회전, <kbd>R</kbd>로 크기 조절. 인스펙터에서 색을 바꾸면 엔진이 머티리얼을 그 자리에서 다시 칠하고, 프레임 비용은 통계 구석에 표시됩니다. <b>Save</b>는 <code>scene.toJSON</code>을 내려받고, <b>New</b> 다음 <b>Open</b>은 <code>scene.fromJSON</code>으로 같은 장면을 다시 만듭니다.</p>\n<p>모든 단계는 <kbd>Ctrl</kbd>+<kbd>Z</kbd>로 되돌릴 수 있고, 장면은 다음 방문까지 브라우저에 보관됩니다. 페이지는 스스로 아무것도 그리거나 움직이지 않습니다: 보이는 것은 엔진입니다.</p>"
+      "html": "<p><a href=\"#/ko/editor\">장면 에디터</a>는 엔진의 세 가지 문 위에만 지어진 이 포털의 페이지입니다. 빈 장면에서 시작하세요: <b>Add → Box</b>, 그다음 <b>Add → Directional light</b>. 박스를 클릭하면 <code>world.raycast</code>가 포인터 아래에서 그것을 찾고, <code>controls.transform</code>의 핸들이 나타납니다. 화살표를 끌어 옮기세요 — 핸들을 잡고 있는 동안 카메라는 멈춥니다 — <kbd>E</kbd>로 회전, <kbd>R</kbd>로 크기 조절. 인스펙터에서 색을 바꾸면 엔진이 머티리얼을 그 자리에서 다시 칠하고, 프레임 비용은 통계 구석에 표시됩니다. <b>Save</b>는 <code>scene.toJSON</code>을 내려받고, <b>New</b> 다음 <b>Open</b>은 <code>scene.fromJSON</code>으로 같은 장면을 다시 만듭니다.</p>\n<p>모든 단계는 <kbd>Ctrl</kbd>+<kbd>Z</kbd>로 되돌릴 수 있고, 장면은 다음 방문까지 브라우저에 보관됩니다. 페이지는 스스로 아무것도 그리거나 움직이지 않습니다: 보이는 것은 엔진입니다.</p>"
     },
     "pick-with-the-pointer": {
       "title": "포인터로 객체 고르기",
