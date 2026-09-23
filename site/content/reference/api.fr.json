@@ -658,7 +658,8 @@
       "bottom": "Bord du bas de la boîte orthographique.",
       "projection": "`'perspective'` rend petit ce qui est loin ; `'orthographic'` garde toutes les tailles.",
       "updateProjectionMatrix": "Gardé pour les pages écrites pour un moteur de rendu qui en a besoin : chaque écriture d’optique redessine déjà.",
-      "set": "Place l’œil en `pose.position`, qui regarde `pose.target`, avec le champ qu’elle donne."
+      "set": "Place l’œil en `pose.position`, qui regarde `pose.target`, avec le champ qu’elle donne.",
+      "rayThrough": "Le rayon du monde qui passe par un point de l’image, selon la projection du moteur (`engineCamera.ts`) : depuis l’œil le long de la vue pour une caméra en perspective, droit dans l’axe de la vue depuis la boîte pour une caméra orthographique. Sa direction est un vecteur unitaire."
     }
   },
   "CAMERA_SCENARIOS": {
@@ -1574,7 +1575,10 @@
       "SCENE_ROOT_MISMATCH": "Quelque chose que la racine de la scène interdit : lui donner un parent, la détruire, mélanger deux racines, copier un nœud dans lui-même.",
       "SCENE_COPY_OVERLAP": "Quelque chose que la racine de la scène interdit : lui donner un parent, la détruire, mélanger deux racines, copier un nœud dans lui-même.",
       "UNSUPPORTED_SCENE_UPDATE": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
-      "BATCHED_WORLD_VIEW": "Ce chemin de dessin ne sait pas faire ce changement dans la scène."
+      "BATCHED_WORLD_VIEW": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
+      "RAYCAST_NO_VIEW": "Un point d’image a été demandé à un canvas sans taille : il n’y a pas d’image à travers laquelle viser.",
+      "UNSUPPORTED_SCENE_FORMAT": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
+      "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker."
     }
   },
   "enginePose": {
@@ -2013,7 +2017,8 @@
       "scale": "Étire chaque sommet de `(x, y, z)`.",
       "center": "Déplace la géométrie pour que sa boîte soit centrée sur l’origine.",
       "clone": "Une nouvelle géométrie avec des copies de chaque liste.",
-      "dispose": "Oublie ceux qui la tiennent : une géométrie libérée n’est dessinée par personne."
+      "dispose": "Oublie ceux qui la tiennent : une géométrie libérée n’est dessinée par personne.",
+      "recipe": "Le membre de la famille et les arguments qui ont construit cette forme, tant qu’elle est encore ce qu’ils ont construit : ce qu’une scène enregistrée stocke au lieu des sommets. Tout changement ultérieur l’oublie."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2145,7 +2150,8 @@
     "summary": "`HALF_PI` en texte de shader."
   },
   "helper": {
-    "summary": "La famille `helper` : les repères avec lesquels on travaille une scène, faits de lignes et de maillages."
+    "summary": "La famille `helper` : les repères avec lesquels on travaille une scène, faits de lignes et de maillages.",
+    "description": "Un monde les dessine comme n’importe quel objet ; une sélection (`world.raycast`) et une scène enregistrée les ignorent."
   },
   "helper.axes": {
     "summary": "Trois lignes de couleur depuis l’origine : x rouge, y vert, z bleu.",
@@ -4989,7 +4995,9 @@
       "environment": "Une image de l’environnement que reflètent les surfaces brillantes ; `null` pour aucune.",
       "fog": "Un brouillard qui fond les objets dans `color` entre `near` et `far` ; `null` pour aucun.",
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, une image, ou `null` pour le fond par défaut.",
-      "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène."
+      "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
+      "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
+      "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON` ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
     }
   },
   "SCENE_ENVIRONMENT_FLOATS": {
@@ -6325,7 +6333,8 @@
     "summary": "Ce que tient la page : le mode, en lecture et en écriture.",
     "members": {
       "mode": "Le mode de vue : `'beauty'` pour l’image normale, ou un mode qui montre comment travaille le moteur.",
-      "modes": "Chaque mode de vue qu’offre le moteur de rendu actuel."
+      "modes": "Chaque mode de vue qu’offre le moteur de rendu actuel.",
+      "sessions": "Les sessions que le monde a ouvertes jusqu’ici : un changement qui en rouvre une se voit ici."
     }
   },
   "world.onFrame": {
@@ -6565,5 +6574,165 @@
       "w": "Le quatrième nombre.",
       "set": "Écrit les quatre nombres."
     }
+  },
+  "CanvasPoint": {
+    "summary": "Un point du canvas, en pixels CSS depuis son coin en haut à gauche : `event.offsetX`, `offsetY`.",
+    "members": {
+      "x": "Pixels CSS depuis le bord gauche du canvas.",
+      "y": "Pixels CSS depuis le bord haut du canvas."
+    }
+  },
+  "Intersection": {
+    "summary": "Là où un rayon rencontre un objet : l’objet lui-même, le point du monde et la normale de la surface à cet endroit, la distance le long du rayon, et quel triangle (`-1` quand c’est la boîte de l’objet qui est touchée).",
+    "members": {
+      "object": "L’objet touché : le nœud même que la page a ajouté.",
+      "point": "Le point du monde touché.",
+      "normal": "La normale, dans le monde, de la face touchée, orientée par son sens de parcours.",
+      "distance": "Distance de l’origine du rayon à `point`, en unités du monde.",
+      "face": "Le rang du triangle touché, ou `-1` pour une boîte."
+    }
+  },
+  "RaycastOptions": {
+    "summary": "Ce qu’on peut dire à `world.raycast` ; chaque champ est facultatif.",
+    "members": {
+      "objects": "Les objets testés, avec leurs sous-arbres ; sans rien, toute la scène."
+    }
+  },
+  "SavedCamera": {
+    "summary": "La caméra avec laquelle une scène a été enregistrée : sa pose, sa projection et son optique.",
+    "members": {
+      "projection": "Perspective ou orthographique.",
+      "position": "Où se tient l’œil.",
+      "quaternion": "Comment l’œil est tourné.",
+      "optics": "Champ, near, far, zoom et boîte, par nom."
+    }
+  },
+  "SavedGeometry": {
+    "summary": "Une géométrie : l’appel de la famille qui l’a construite, ou ses sommets quand aucun appel ne peut la reconstruire.",
+    "members": {
+      "recipe": "Le membre de la famille et chacun des arguments avec lesquels il l’a construite.",
+      "attributes": "Chaque liste par sommet, quand aucun appel ne reconstruit la forme.",
+      "index": "Quels sommets forment chaque triangle.",
+      "groups": "Plages d’index dessinées chacune avec un matériau."
+    }
+  },
+  "SavedMaterial": {
+    "summary": "Un matériau : son type et chacun de ses paramètres, les couleurs en `[r, g, b]` linéaire.",
+    "members": {
+      "kind": "Le type avec lequel le matériau a été créé : `'meshStandard'`, `'meshBasic'`…",
+      "parameters": "Chaque paramètre, par nom."
+    }
+  },
+  "SavedNode": {
+    "summary": "Un nœud : sa pose et ce qu’il est — un groupe, un maillage, une lumière ou un modèle chargé — et ce qu’il y a en dessous.",
+    "members": {
+      "kind": "Ce qu’est le nœud.",
+      "name": "Son nom.",
+      "position": "Où il se tient, depuis son parent.",
+      "quaternion": "Comment il est tourné, en quaternion.",
+      "scale": "Comment il est étiré sur chaque axe.",
+      "visible": "S’il est dessiné.",
+      "castShadow": "S’il projette des ombres.",
+      "receiveShadow": "Si des ombres tombent sur lui.",
+      "renderOrder": "Son ordre de dessin parmi les objets transparents.",
+      "userData": "Les données propres de la page, en JSON.",
+      "children": "Les nœuds en dessous, dans l’ordre.",
+      "mesh": "Rangs dans `geometries` et `materials`, et la façon de lire les triangles.",
+      "light": "Le type d’une lumière, ses couleurs, ses nombres, sa visée et les coefficients de sonde.",
+      "model": "Un modèle compilé, par l’adresse du manifeste d’où il a été chargé : jamais recopié dedans."
+    }
+  },
+  "SavedScene": {
+    "summary": "Une scène telle que `scene.toJSON` l’écrit et que `scene.fromJSON` la lit : du JSON simple.",
+    "members": {
+      "format": "Toujours `'web-geometry-scene'`.",
+      "formatVersion": "La version de cette disposition ; une autre est refusée.",
+      "background": "La couleur de fond, ou `null`.",
+      "fog": "Le brouillard, ou `null`.",
+      "camera": "La caméra enregistrée avec la scène, ou `null`.",
+      "geometries": "Chaque forme, une fois, quel que soit le nombre de maillages qui la portent.",
+      "materials": "Chaque matériau, une fois, quel que soit le nombre de maillages qui le portent.",
+      "children": "Les nœuds du haut de la scène, dans l’ordre."
+    }
+  },
+  "TransformControls": {
+    "summary": "Ce que renvoie `controls.transform`.",
+    "members": {
+      "snap": "Les pas auxquels les glissements sont arrondis : `{ translate, rotate, scale }`, chacun facultatif.",
+      "object": "L’objet sur lequel sont les poignées, ou `null`.",
+      "dragging": "Vrai pendant qu’une poignée est glissée.",
+      "mode": "Ce que fait un glissement : `'translate'`, `'rotate'` ou `'scale'`.",
+      "space": "Axes `'world'` ou `'local'`.",
+      "attach": "Met les poignées sur `target`, et dans la scène.",
+      "detach": "Retire les poignées de leur objet, et de la scène.",
+      "setMode": "Déplace, tourne ou met à l’échelle à partir de maintenant.",
+      "setSpace": "Poignées selon les axes du monde ou ceux de l’objet.",
+      "addEventListener": "Appelle `listener` à chaque événement de type `type`.",
+      "removeEventListener": "Arrête d’appeler `listener` pour les événements de type `type`.",
+      "dispose": "Retire les poignées de la scène et tous les écouteurs du canvas."
+    }
+  },
+  "TransformControlsOptions": {
+    "summary": "Ce qu’on peut dire à `controls.transform` ; chaque champ est facultatif.",
+    "members": {
+      "mode": "Déplacer, tourner ou mettre à l’échelle ; `'translate'` par défaut.",
+      "space": "Poignées selon les axes du monde ou ceux de l’objet ; `'world'` par défaut.",
+      "snap": "Les pas auxquels chaque glissement est arrondi ; aucun par défaut.",
+      "size": "La longueur des poignées, en part de la hauteur du canvas, la même où que se trouve l’objet."
+    }
+  },
+  "TransformEvent": {
+    "summary": "Les événements qu’émet un contrôle de transformation : chaque pose qu’il écrit, et le début et la fin d’un glissement."
+  },
+  "TransformHandle": {
+    "summary": "Une poignée : un axe, le plan de deux axes, ou `'xyz'` — le centre : déplacement libre, échelle uniforme."
+  },
+  "TransformHost": {
+    "summary": "Ce dont un contrôle de transformation a besoin d’un monde : `createWorld` en renvoie un.",
+    "members": {
+      "canvas": "Le canvas sur lequel appuie le pointeur.",
+      "scene": "La scène à laquelle les poignées sont ajoutées.",
+      "camera": "La caméra à travers laquelle le canvas est vu.",
+      "onFrame": "Lance `hook` après chaque image dessinée ; renvoie ce qui l’arrête."
+    }
+  },
+  "TransformMode": {
+    "summary": "Ce qu’un contrôle de transformation fait à son objet."
+  },
+  "TransformSnap": {
+    "summary": "Les pas auxquels un glissement est arrondi, chacun facultatif : unités du monde, radians, facteur d’échelle.",
+    "members": {
+      "translate": "Unités du monde auxquelles un déplacement est arrondi, le long de chaque axe.",
+      "rotate": "Radians auxquels une rotation est arrondie.",
+      "scale": "Le pas auquel un facteur d’échelle est arrondi."
+    }
+  },
+  "TransformSpace": {
+    "summary": "Le repère auquel les poignées sont alignées ; une mise à l’échelle suit toujours les axes propres de l’objet."
+  },
+  "world.raycast": {
+    "summary": "L’objet le plus proche sous un point du canvas (pixels CSS) ou le long d’un rayon du monde, ou `null` : le nœud que la page a ajouté, le point du monde et la normale touchés, la distance (`worldRaycast`).",
+    "parameters": {
+      "options": "Ce qu’on peut dire à `world.raycast` ; chaque champ est facultatif.",
+      "options.objects": "Les objets testés, avec leurs sous-arbres ; sans rien, toute la scène."
+    }
+  },
+  "controls": {
+    "summary": "La famille `controls` : des contrôleurs qu’une page attache à un monde, à côté du contrôleur de caméra que pilote déjà `world.controls`."
+  },
+  "controls.transform": {
+    "summary": "Des poignées qui déplacent, tournent et mettent à l’échelle un objet à la souris (`transform.ts`).",
+    "parameters": {
+      "host": "Le monde dans la scène et la caméra duquel vivent les poignées.",
+      "options": "Mode, axes, arrondi et taille à l’écran ; ne rien dire est le cas habituel.",
+      "options.mode": "Déplacer, tourner ou mettre à l’échelle ; `'translate'` par défaut.",
+      "options.space": "Poignées selon les axes du monde ou ceux de l’objet ; `'world'` par défaut.",
+      "options.snap": "Les pas auxquels chaque glissement est arrondi ; aucun par défaut.",
+      "options.size": "La longueur des poignées, en part de la hauteur du canvas, la même où que se trouve l’objet."
+    }
+  },
+  "raycast": {
+    "summary": "Chaque objet sous `roots` que `ray` rencontre — sa direction est un vecteur unitaire — le plus proche d’abord, un impact par objet : le plus proche des siens.",
+    "description": "Les sous-arbres cachés sont sautés, ainsi que les nœuds que `skip` désigne, avec leurs sous-arbres : les repères avec lesquels une page travaille, jamais son contenu."
   }
 }
