@@ -4183,6 +4183,16 @@
       "function": "L’outil lui-même."
     }
   },
+  "OrbitCameraControls": {
+    "summary": "ORBITE, le plateau tournant : la caméra tourne autour de `target` à une distance que l’hôte borne, le haut du monde gardé, donc un glissé horizontal change l’azimut et un glissé vertical l’élévation.",
+    "description": "Le glissé principal tourne, le glissé secondaire ou deux doigts font défiler, la molette et le pincement zooment entre `minDistance` et `maxDistance`. Pas d’amortissement : un pointeur qui s’arrête arrête la caméra, et la scène reste immobile. LA POSE EST L’ÉTAT. Chaque geste commence par relire `object.position` et `target` en coordonnées sphériques, et finit par les réécrire. Un hôte qui bouge lui-même la caméra — les boutons de zoom du portail le font — est donc compris au prochain `update()`, et cet aller-retour est ce que vérifie `math.test.ts`. LES ANGLES SONT BORNÉS comme la distance, à chaque glissé et à chaque `update()` : l’angle polaire entre `minPolarAngle` et `maxPolarAngle`, l’azimut sur l’arc de `minAzimuthAngle` à `maxAzimuthAngle`. Leurs noms et leurs sens sont ceux qu’utilisent couramment les bibliothèques 3D du web, donc une page qui les règle déjà garde ses nombres.",
+    "members": {
+      "minPolarAngle": "Plus petit angle polaire, en radians depuis la verticale : `0` laisse la caméra regarder tout droit vers le bas. Le pôle lui-même reste hors d’atteinte, là où l’azimut cesserait d’être défini.",
+      "maxPolarAngle": "Plus grand angle polaire, en radians depuis la verticale : `Math.PI / 2` la garde au-dessus du sol.",
+      "minAzimuthAngle": "Début de l’arc d’azimut permis, en radians de +Z vers +X ; sans limite à `-Infinity`. Seule une paire de bornes finies plus étroite qu’un tour complet retient la caméra.",
+      "maxAzimuthAngle": "Fin de cet arc ; sans limite à `Infinity`. Elle peut être plus petite que `minAzimuthAngle`."
+    }
+  },
   "OrthographicBox": {
     "summary": "La boîte que voit une caméra orthographique, dans son propre repère, avant son zoom.",
     "members": {

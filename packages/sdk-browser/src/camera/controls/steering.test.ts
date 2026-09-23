@@ -4,20 +4,19 @@ import { createFlyCameraControls } from './flyControls.ts';
 import { createFirstPersonCameraControls } from './firstPersonControls.ts';
 import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
 import {
+  at,
   fixtureCamera,
   fixtureDrag,
   fixtureSurface,
+  round,
   type FixtureCamera,
 } from './controls.fixture.ts';
 import type { SteeredCameraControls } from './types.ts';
 
-const round = (value: number, digits = 6) => Number(value.toFixed(digits)) + 0;
 const facing = (camera: { quaternion: { x: number; y: number; z: number; w: number } }) => {
   const q = camera.quaternion;
   return rotateByQuaternion(new Float64Array(3), [q.x, q.y, q.z, q.w], 0, 0, -1);
 };
-const at = (camera: { position: { x: number; y: number; z: number } }) =>
-  [round(camera.position.x), round(camera.position.y), round(camera.position.z)] as const;
 
 /** One camera, one surface and the named controller, with its emissions counted. */
 function steered<T extends SteeredCameraControls>(
