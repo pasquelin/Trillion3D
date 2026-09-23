@@ -7,7 +7,7 @@ import {
   chainesHostiles,
   lectureReference,
   lectureSocle,
-} from '../../../../../bench/perf/browser/support/socleHierarchie.ts';
+} from '../../../../../bench/perf/browser/support/coreHierarchy.ts';
 
 const CHAMPS = [
   'matrixWorld',

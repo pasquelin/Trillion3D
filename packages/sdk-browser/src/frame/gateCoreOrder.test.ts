@@ -1,5 +1,5 @@
 // `gateCore.ts` guarantees an ORDER: `enterFrame` copies the camera pose (`readCameraWorld`)
-// BEFORE the adaptive threshold and BEFORE the view fingerprint. `../camera/contrat.test.ts` proves it
+// BEFORE the adaptive threshold and BEFORE the view fingerprint. `../camera/contract.test.ts` proves it
 // by calling `resolveCameraWorld` then `viewChanged`/`readScene` by hand — never `enterFrame`
 // itself. These tests loop on the full public entry, so the order is the one `enterFrame` actually
 // applies, not the one a test recomposes.

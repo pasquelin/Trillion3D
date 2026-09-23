@@ -36,7 +36,7 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return modelLight(rgb,metal,N,incidence.xyz,energy,ao)*light.colorIntensity.rgb;}
  return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))*light.colorIntensity.rgb;
 }
-/** The environment's irradiance at the normal N (\`sceneEnvironment.ts\`), on the diffuse lobe:
+/** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
 fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  let e=directLights.environment;

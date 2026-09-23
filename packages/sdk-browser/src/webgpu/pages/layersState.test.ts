@@ -18,7 +18,7 @@ import { createWebgpuRunState } from './state/run.ts';
 import { createWebgpuBlendState } from '../blend/state.ts';
 
 // The coplanar-layer lot was reapplied in eleven WebGPU modules; each test below exercises the
-// layer in a module that `pages.19.test.ts` (`writePageRow` bias) does not cover.
+// layer in a module that `../row/pageRowDepthBias.test.ts` (`writePageRow` bias) does not cover.
 // `../row/pageRow.ts` stays covered there and has no test here. The suite continues in
 // `../visibility/drawLayers.test.ts` for the per-image draw modules.
 

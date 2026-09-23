@@ -2,18 +2,18 @@
 
 A single harness for all test batches. One command, no server to start manually, only this repository on the machine: Playwright and esbuild are its dev dependencies, Chrome is the system browser, assets live under `.mesure/assets/`.
 
-    node bench/runner/banc.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
+    node bench/runner/bench.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
          --vues generale,sol,rue --images 60 --pixelError 0,1
 
-    node bench/runner/campagne.ts
-    node bench/runner/rapportGlobal.ts --id my-campaign
+    node bench/runner/campaign.ts
+    node bench/runner/summaryGlobal.ts --id my-campaign
 
 The report is rendered by the bilingual React portal. See the [report publication pipeline](report/README.md)
 for export, immutable campaign staging, provenance and comparison rules. Rebuilding the site does not
 rerun benchmarks.
 
 - `--moteur`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
-  (autonomous-pages-webgl, the autonomous engine decoding geometry pages itself, hence the only one incrementing `pagesDecodedWasm`); it also sets Chromium flags (`optionsCote.ts`). `webgl2` requires a cache where all primitives are exact clusters: otherwise the compiler leaves `autonomousScene` null and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
+  (autonomous-pages-webgl, the autonomous engine decoding geometry pages itself, hence the only one incrementing `pagesDecodedWasm`); it also sets Chromium flags (`sideOptions.ts`). `webgl2` requires a cache where all primitives are exact clusters: otherwise the compiler leaves `autonomousScene` null and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
   Witnesses to pit on one side via `--moteur-avant`: `three-nu` (Three.js alone, everything drawn every frame) and `three-lod` (Three.js with a three-level `THREE.LOD` per mesh, simplified by meshoptimizer at load: the classic method).
 - `--avant` / `--apres`: a built `dist/` directory, or a git ref. Without `--avant`, a single side is measured; `--apres` defaults to `dist/`.
 - `--moteur-avant` / `--moteur-apres`: per-side engine overrides. This is how the engine is pitted against the Three witness in a single execution — same poses, same lights, same caches, same server —, making `ecartAvantApres` a fidelity metric rather than a cross-campaign comparison. Chromium flags are the union of both sides' requirements.
@@ -34,7 +34,7 @@ rerun benchmarks.
 
 ## The Three Witness and Contract Lights
 
-Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the `sceneLighting` option of `openMeasuredWorld`, the SDK's measurement entry (`pageTemoin.ts`, served to page under `/mesure/` and imported by URL). Nothing is hardcoded: everything comes from the measured world's `lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
+Three adapters do not read `SceneLight` store: they copy lights from the source scene graph and nothing else. The harness is an ordinary host — it creates in Three the lights declared in the store via the `sceneLighting` option of `openMeasuredWorld`, the SDK's measurement entry (`witnessPage.ts`, served to page under `/runner/` and imported by URL). Nothing is hardcoded: everything comes from the measured world's `lights()`, thus from compiled cache and contract — imported scene lights as well as benchmark lights —, and no scene is named.
 
 The mapping is exact in Three units: linear color, unscaled radiometric intensity, `distance` = range, `decay` = 2, yielding windowed inverse square of `directIncidence`; spotlight cone edge is matched by penumbra. Each side publishes in its `lampesTemoin` record what it received, or `null` if not rendered with Three.
 
@@ -78,7 +78,7 @@ Finer than the stages, `series[].sides[].bornesCpu` holds the engine's CPU bound
 
 "GPU Memory" section reports allocated and un-freed VRAM per side and view — textures and buffers tracked via device wrapper register, WebGPU having no native VRAM query —, split into three named categories (computed texture atlas, allocated geometry pool, resolution-dependent render targets), remaining by difference, with top labeled allocations; full breakdown in `series[].sides[].metrics.gpuAllocatedByLabel`. The nineteen virtual texture counters appear under each stage ("Textures", "Image Feedback", "Broadcaster"): pool is fixed, "resident" is active view usage.
 
-Capture is taken on a **still pose**: after warmup, pose renders until held — temporal accumulation converged, no pending work —, max 64 frames (`poseCalme`, `pageMesure.ts`). Mid-accumulation captures reflect trajectory history with non-deterministic tile streaming across runs. `series[].sides[].imagesCalme` records required frame count, `null` if engine does not hold frames (Three witness).
+Capture is taken on a **still pose**: after warmup, pose renders until held — temporal accumulation converged, no pending work —, max 64 frames (`poseCalme`, `measurePage.ts`). Mid-accumulation captures reflect trajectory history with non-deterministic tile streaming across runs. `series[].sides[].imagesCalme` records required frame count, `null` if engine does not hold frames (Three witness).
 
 Each series runs in a fresh page, closed immediately after. A large scene leaves hundreds of MBs active; reusing pages causes `new THREE.WebGLRenderer` to fail context creation ("Error creating WebGL context", observed Sept 14, 2026). Closing page restores WebGL context and heap to browser.
 
@@ -126,7 +126,7 @@ capture:
 
 The seed alone reproduces the block: plan, storeys and which bays are pierced are drawn from it,
 and the subdivision is whatever reaches the requested triangle count (a few hundred thousand by
-default, also drawn from the seed). `tests/browser/probes/scenes-publiques.ts` reads what these caches
+default, also drawn from the seed). `tests/browser/probes/public-scenes.ts` reads what these caches
 guarantee — a DAG that climbs above level 0 wherever there is more than one cluster to coarsen, and
 a mirrored mapping that costs the simplification nothing — in a tenth of a second, without a GPU.
 
@@ -146,7 +146,7 @@ IN-SESSION adjustment (app slider via `explorer.setMemoryBudgets`) measured via 
 
 ## What a Cache's Pages Cost in Precision
 
-    node bench/runner/quantificationPages.ts <cache>/native/full
+    node bench/runner/pageQuantization.ts <cache>/native/full
 
 The autonomous WebGL2 path draws decoded geometry pages — positions on the primitive's
 quantization grid, normals as octahedral bytes ([`docs/FORMAT.md`](../../docs/FORMAT.md)) — where

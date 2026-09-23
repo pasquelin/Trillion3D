@@ -1,14 +1,14 @@
 /**
- * Oracle: two faithful, line-by-line ports of the `prefixGroups` kernel of gpuDrawShader.ts.
+ * Oracle: two faithful, line-by-line ports of the `prefixGroups` kernel of packages/sdk-browser/src/gpu/draw/shader.ts.
  *
  * `prefixSerial` is the kernel from before the visibility batch (one thread, `@workgroup_size(1)`):
  * it walks slots in order and advances a single cursor. `prefixParallel` is the D3 kernel
- * (`@workgroup_size(64)`), the one `gpuDrawShader.ts` has carried since that batch: each thread
+ * (`@workgroup_size(64)`), the one `packages/sdk-browser/src/gpu/draw/shader.ts` has carried since that batch: each thread
  * (lane) totals the slots that fall to it in steps of 64; a workgroup barrier separates this
  * phase from the offset computation, then each thread rebuilds its cursor by resumming the
  * totals of the slots that precede it. Both compute in u32 (`>>> 0`), as WGSL does.
  *
- * This file depends on no real GPU run: `webgpuPagesMockCompute.ts` does not replay
+ * This file depends on no real GPU run: `tests/kit/gpu/mockCompute.ts` does not replay
  * `prefixGroups` (it short-circuits the whole compaction with the CPU oracle `evaluateDrawCompact`),
  * so equivalence of the two kernels is proved here by direct transcription and comparison.
  */

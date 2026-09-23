@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { startServer, serverPort } from '../../kit/server/serveur.ts';
+import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { buildSite, SITE_OUTPUT } from '../../../scripts/docs/site.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/measurement/measurement.ts';

@@ -1,8 +1,8 @@
 // TRUE ORIENTATION ORACLE of defect 6's cases: not a model of what the engine should draw, but
 // what it draws — the cases rasterised in Chromium WebGPU with the engine's face state
 // (`cullMode:'back'` and the `frontFace` that `windingCw` flips under reflection, as Three does on
-// WebGL), one fragment counter per case. `noyauRasterGpu.ts` for rasterisation,
-// `reflexionCas.ts` for the payload.
+// WebGL), one fragment counter per case. `rasterKernelGpu.ts` for rasterisation,
+// `reflectionCases.ts` for the payload.
 //
 // Why this one and not `veriteTerrain`: the raw geometric orientation of transformed vertices
 // (`cross(e1,e2)` against the camera) ignores that the engine swaps the culled face when the
@@ -11,9 +11,9 @@
 // fragments of it; otherwise the drop is correct. The two populations lived until now under the
 // same word "drop" and the same count.
 import assert from 'node:assert/strict';
-import { rasterGpu } from './noyauRasterGpu.ts';
-import { chargeRaster } from './reflexionCas.ts';
-import type { Cas, veriteTerrain } from './inverseTransposeCas.ts';
+import { rasterGpu } from './rasterKernelGpu.ts';
+import { chargeRaster } from './reflectionCases.ts';
+import type { Cas, veriteTerrain } from './inverseTransposeCases.ts';
 
 /** For each case: does the engine draw at least one fragment of it? Plus the adapter used. */
 export async function dessineParLeMoteur(cas: Cas[]) {

@@ -11,9 +11,9 @@ const buildDist = (dir: string) =>
   execFileSync(...pnpmCommand('run', 'build'), { cwd: dir, stdio: 'inherit' });
 
 /**
- * One side of the comparison, before `equipSide` (`optionsCote.ts`) turns it into a `Side` by
+ * One side of the comparison, before `equipSide` (`sideOptions.ts`) turns it into a `Side` by
  * filling its engine, variant and error metric. `dist`/`from` are set here; `cache` too, once a
- * side names its own; `manifestUrl`/`sourceUrl` are set by `banc.ts`/`oracle.ts` once the scene
+ * side names its own; `manifestUrl`/`sourceUrl` are set by `bench.ts`/`oracle.ts` once the scene
  * and cache are known.
  */
 export interface SideBase {

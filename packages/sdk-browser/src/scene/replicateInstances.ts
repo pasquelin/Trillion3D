@@ -11,7 +11,7 @@ import { copyElements } from '../math/matrixElements.ts';
 
 /**
  * Three owned buffers of replication: group pose, placed pose of copy,
- * and their product. Core reads and writes only `Float64Array` (`mathMatrix4.ts`); the matrices
+ * and their product. Core reads and writes only `Float64Array` (`packages/sdk-core/src/math/matrix/matrix4.ts`); the matrices
  * a host node carries are plain arrays, copied on input and output.
  */
 const groupWorld = new Float64Array(16),

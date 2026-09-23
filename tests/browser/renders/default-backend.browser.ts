@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
-import { startServer } from '../../kit/server/serveur.ts';
+import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { runDefaultBackendCase, type DefaultBackendCase } from '../support/defaultBackendCase.ts';
 import {

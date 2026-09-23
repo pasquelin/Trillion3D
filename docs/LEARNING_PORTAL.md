@@ -143,7 +143,7 @@ it is editorial; function, type and constant names remain exact. Translate descr
 descriptions and guide HTML, while signatures, exports, module paths and code examples remain the
 source contract. Add new navigation or component text to both locale tables used by `t()`.
 
-Run `node --test scripts/docs-i18n.test.ts tests/integration/portail-documentation.test.ts` after
+Run `node --test scripts/docs-i18n.test.ts tests/integration/documentation-portal.test.ts` after
 content changes. The localization test requires parity across all entries and verifies that the
 French overlays do not alter technical fields.
 

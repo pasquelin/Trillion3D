@@ -16,7 +16,7 @@ const views = (flat: FloatBatch, count: number) => {
 
 /**
  * The `batch` family: a thousand matrices at once instead of a loop, over the core's batched
- * kernels (`mathBatch.ts`, `mathBatchPoints.ts`, `mathMatrix4Compose.ts`, `mathBatchCulling.ts`).
+ * kernels (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`).
  */
 export const batch = {
   /** `out[i] = a[i] · b[i]` for `count` column-major matrices stored flat. */

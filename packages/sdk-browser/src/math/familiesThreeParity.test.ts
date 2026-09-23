@@ -1,10 +1,10 @@
 // Math families that replaced Three on per-frame path (batch M3b), compared with
 // reference down to exact bit (`Object.is`) on hostile cases: NaN, ±0, infinities, negative scale.
 //
-//  - `transformAffinePoint` (`mathVector.ts`) replaces `Vector3.applyMatrix4` at sites
+//  - `transformAffinePoint` (`packages/sdk-core/src/math/primitives/vector.ts`) replaces `Vector3.applyMatrix4` at sites
 //    reprojecting a point without perspective divide — `../visibility/projection.ts`,
 //    `../streaming/priority.ts`, `../webgpu/shadow/bounds.ts`.
-//  - `decomposeMatrix4` (`mathMatrix4Trs.ts`) replaces `Matrix4.decompose`, starting with
+//  - `decomposeMatrix4` (`packages/sdk-core/src/math/matrix/matrix4Trs.ts`) replaces `Matrix4.decompose`, starting with
 //    `enginePose` (`../camera/world.ts`), on negative scale — case distinguishing correct
 //    decomposition from one losing sign.
 //  - Eye speed measured by adaptive threshold (`../page/selection/requests.ts`,

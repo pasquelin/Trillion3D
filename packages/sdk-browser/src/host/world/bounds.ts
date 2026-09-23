@@ -13,7 +13,7 @@ import type { HierarchyLot } from '../../math/batchHierarchy.ts';
  * the eight corners is taken. The world matrix is the one THE ENGINE computes from the host's
  * local poses (`tree.ts`), never the one its library composes. An object that holds its
  * own box — instanced meshes — prefers it to that of its geometry, as the reference does. The
- * transform and the union are those of `mathBox.ts`: the same bits, empty boxes, NaN and
+ * transform and the union are those of `packages/sdk-core/src/math/primitives/box.ts`: the same bits, empty boxes, NaN and
  * infinities included.
  */
 

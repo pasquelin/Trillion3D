@@ -58,6 +58,6 @@ export function depthDistance(depth: number, near: number) {
  * A view-projection and nothing else: what a depth reader needs to know of a camera. An
  * `EngineCamera` is one. The type survives the disappearance of the two conventions because
  * an oracle can mount a view-projection without mounting a whole camera; it is an owned
- * buffer, as everywhere the core multiplies matrices (`mathMatrix4.ts`).
+ * buffer, as everywhere the core multiplies matrices (`packages/sdk-core/src/math/matrix/matrix4.ts`).
  */
 export type DepthCamera = { viewProjection: Float64Array };

@@ -1,11 +1,11 @@
 // A12: the transfer queue is sorted once per `while` pass, and `findAdmissible`
 // replaces the `queue.sort()` + `findIndex` repeated each turn. Oracle: the version that
-// systematically re-sorted, from before batch A, in `../../../../bench/oracles/browser/admission-arrivees.ts`.
+// systematically re-sorted, from before batch A, in `../../../../bench/oracles/browser/arrival-admission.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compacteFile, findAdmissible } from './queueOrder.ts';
 import { sortStreamJobs } from './queueOrder.fixture.ts';
-import { referenceAdmission } from '../../../../bench/oracles/browser/admission-arrivees.ts';
+import { referenceAdmission } from '../../../../bench/oracles/browser/arrival-admission.ts';
 import type { Job } from './types.ts';
 
 const LIMITE = 6,
@@ -113,10 +113,10 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
 // G5: a cancelled request is marked `dropped` then the queue is compacted in one pass
 // (`compacteFile`) on the next `pump`, instead of being found by `queue.indexOf` and removed by
 // `splice` on each cancellation. Oracle of the immediate remove: `referenceRetireDeLaFile`, copied
-// as-is from before batch G in `../../../../bench/oracles/browser/recherches-streaming.ts`.
+// as-is from before batch G in `../../../../bench/oracles/browser/streaming-lookups.ts`.
 {
   const { referenceRetireDeLaFile } =
-    await import('../../../../bench/oracles/browser/recherches-streaming.ts');
+    await import('../../../../bench/oracles/browser/streaming-lookups.ts');
 
   function job(url: string): Job {
     return {

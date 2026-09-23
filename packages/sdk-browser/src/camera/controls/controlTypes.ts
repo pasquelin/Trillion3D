@@ -3,7 +3,7 @@
  * controller, and what a controller is allowed to know about the camera it poses.
  *
  * The controllers of this package are written against these structural shapes alone, never
- * against a host-library class: `tests/integration/moteur-sans-three.test.ts` keeps every file
+ * against a host-library class: `tests/integration/engine-without-three.test.ts` keeps every file
  * but the declared boundaries free of the host library, and the camera a host hands over
  * satisfies these shapes as it is. A host that brings its own vector type only has to offer
  * the same operations.

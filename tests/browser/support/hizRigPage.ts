@@ -16,9 +16,9 @@ import type {
   RenderBackend,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { cameraFace, comptesEtape, libere, engine } from './preuveSceneCommune.ts';
-import { image } from './preuveSceneImage.ts';
-import { dallePixels, sceneOccultante, surSceneOccultante } from './sceneOccultante.ts';
+import { cameraFace, comptesEtape, libere, engine } from './sharedSceneProof.ts';
+import { image } from './sceneImageProof.ts';
+import { dallePixels, sceneOccultante, surSceneOccultante } from './occluderScene.ts';
 
 /** Rig poses. The camera itself never changes local pose. */
 const POSES = [0, 0.35, 0.7, 1.05, 1.4];

@@ -1,5 +1,5 @@
-// Lot 4: `shadingNormal.ts` rewritten on the core's flat vectors (`mathVector.ts`),
-// without the host library. Oracle: `../../../../../bench/oracles/browser/normale-ombrage.ts`, the previous file copied
+// Lot 4: `shadingNormal.ts` rewritten on the core's flat vectors (`packages/sdk-core/src/math/primitives/vector.ts`),
+// without the host library. Oracle: `../../../../../bench/oracles/browser/shading-normals.ts`, the previous file copied
 // as-is with its `Vector3`/`Matrix3`. The `bench/normale.bench.ts` bench replays 42 000 frames;
 // this test hard-codes a handful, two of which show the operation order:
 //   — a pose whose first row is (1e16, −1e16, 3), crossed by all-ones tangents:
@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadingNormal } from './shadingNormal.ts';
-import { referenceShadingNormal } from '../../../../../bench/oracles/browser/normale-ombrage.ts';
+import { referenceShadingNormal } from '../../../../../bench/oracles/browser/shading-normals.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
 
 const attribut = (valeurs: number[], taille: number) =>
@@ -133,7 +133,7 @@ test('negative scale and shear, with no vertex normal or map: the geometric norm
 // always returns `frameOut`, the same module buffer (documented at the top of the file: “no
 // allocation, [...] returned in one of them”); checking that on many chained calls, each with a
 // normal map and different frames, is the same method as the “allocation” test of
-// `mathTransformTreeUpdate.test.ts`: the identity of the returned buffer, not an allocation
+// `packages/sdk-core/src/math/transform-tree/update.test.ts`: the identity of the returned buffer, not an allocation
 // count, attests that no buffer is built along the way.
 test('normal-mapped surface: a thousand shaded pixels in a row always return the same buffer', () => {
   const matrix = new THREE.Matrix4().fromArray([

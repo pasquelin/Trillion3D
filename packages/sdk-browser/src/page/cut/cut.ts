@@ -16,7 +16,7 @@ import type { EngineCamera } from '../../camera/world.ts';
 
 /**
  * World pose of a root copied into an owned buffer, once per root and per pass: the base product
- * only reads and writes `Float64Array`s (`mathMatrix4.ts`), and host-library matrices are ordinary
+ * only reads and writes `Float64Array`s (`packages/sdk-core/src/math/matrix/matrix4.ts`), and host-library matrices are ordinary
  * arrays.
  */
 const rootWorld = new Float64Array(16);
