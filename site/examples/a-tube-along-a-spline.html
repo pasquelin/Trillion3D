@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, language } from '../runtime/kit.js';
 
       // Each path is a few points in space; `math.curve` passes a smooth spline through them.
       const sample = (count, at) => Array.from({ length: count }, (_, k) => at((k / count) * Math.PI * 2));
@@ -96,11 +96,11 @@
         curve = paths[values.path]();
         tube.geometry = geometry.tube(curve, values.slices, values.radius, values.sides, values.path !== 'spiral');
         placeBeads(values.path);
-        triangles?.((values.slices * values.sides * 2).toLocaleString('en'));
+        triangles?.((values.slices * values.sides * 2).toLocaleString(language()));
         world.invalidate();
       }, world);
-      triangles = readout('Triangles');
-      triangles((ui.slices * ui.sides * 2).toLocaleString('en'));
+      triangles = readout('triangles');
+      triangles((ui.slices * ui.sides * 2).toLocaleString(language()));
 
       // Still beads, or hidden ones, ask for no new frame.
       world.onFrame(({ delta }) => {

@@ -125,8 +125,8 @@
         vertices?.(String(shape.attributes.position.count));
         faces?.(String(shape.index.count / 3));
       }
-      vertices = readout('Vertices written');
-      faces = readout('Triangles');
+      vertices = readout('verticesWritten');
+      faces = readout('triangles');
       count();
 
       let time = 0;

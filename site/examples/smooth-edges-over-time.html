@@ -24,7 +24,8 @@
       // Waits for #363: `createWorld` takes `temporalAntialiasing`, and `world.temporalAntialiasing`
       // switches it on the next frame; until then the toggle changes nothing.
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       // Temporal antialiasing: each frame the image is drawn a fraction of a pixel aside, and mixed
       // with the frames before it, followed as the camera moves. A thin wire a pixel wide, which
@@ -95,11 +96,11 @@
         circle: true,
       }, (values, key) => {
         if (key === undefined || key === 'smoothing') world.temporalAntialiasing = values.smoothing;
-        state?.(world.temporalAntialiasing ? 'on' : 'off');
+        state?.(say(world.temporalAntialiasing ? 'on' : 'off'));
         world.invalidate();
       }, world);
-      state = readout('Temporal antialiasing');
-      state(world.temporalAntialiasing ? 'on' : 'off');
+      state = readout('temporalAntialiasing');
+      state(say(world.temporalAntialiasing ? 'on' : 'off'));
 
       // The camera circles slowly, so the wires cross the pixels, until the first press or wheel.
       let circling = true, azimuth = Math.PI / 4;

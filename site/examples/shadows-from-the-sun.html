@@ -22,7 +22,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#8fb3d9');
@@ -119,15 +120,15 @@
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       const DAYS = { 'summer solstice': 172, 'spring equinox': 80, 'winter solstice': 355 };
-      const COMPASS = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
+      const COMPASS = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'].map((point) => say(point));
       const deg = (radians) => `${Math.round(math.radToDeg(radians))}°`;
       let shown = null, now = null;
       // The three numbers of the moment: how high the sun stands, where it stands, and how long
       // the obelisk's shadow falls.
       const report = () => {
         const bearing = ((math.radToDeg(now.south) % 360) + 360) % 360;
-        shown.height(now.height > 0 ? deg(now.height) : 'below the horizon');
-        shown.bearing(`${COMPASS[Math.round(bearing / 45) % 8]} (${Math.round((bearing + 180) % 360)}° from north)`);
+        shown.height(now.height > 0 ? deg(now.height) : say('belowHorizon'));
+        shown.bearing(say('bearing', { point: COMPASS[Math.round(bearing / 45) % 8], degrees: Math.round((bearing + 180) % 360) }));
         shown.length(now.height > 0.01 ? `${Math.hypot(...tipOf(now)).toFixed(1)} m` : '—');
       };
       const ui = controls({
@@ -154,7 +155,7 @@
         if (shown) report();
         world.invalidate();
       }, world);
-      shown = { height: readout('Sun height'), bearing: readout('Sun bearing'), length: readout('Obelisk shadow') };
+      shown = { height: readout('sunHeight'), bearing: readout('sunBearing'), length: readout('obeliskShadow') };
       report();
 
       // The opening: the camera spirals down from high above the dial to eye level. A press or a

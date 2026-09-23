@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, side } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, language } from '../runtime/kit.js';
 
       // Flat outlines drawn like a pen on paper — lines, curves, arcs — with holes cut out of them.
       const circle = (x, y, radius) => math.shape().absarc(x, y, radius, 0, Math.PI * 2);
@@ -108,7 +108,7 @@
         if (key !== undefined && key !== 'spin') stale = true;
         world.invalidate();
       }, world);
-      const triangles = readout('Triangles');
+      const triangles = readout('triangles');
       function rebuild(values) {
         let count = 0;
         outlines.forEach(({ draw }, index) => {
@@ -127,7 +127,7 @@
           pieces[index].geometry = solid;
           count += solid.index ? solid.index.count / 3 : solid.attributes.position.count / 3;
         });
-        triangles(count.toLocaleString('en'));
+        triangles(count.toLocaleString(language()));
       }
       rebuild(ui);
       world.beforeFrame(() => {

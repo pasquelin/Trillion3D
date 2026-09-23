@@ -61,3 +61,7 @@ export const wordsOf = (locale: string) => i18n.getFixedT(locale);
 
 /** The words of `locale` in a component, which renders again when the words change. */
 export const useWords = (locale: string) => useTranslation(undefined, { lng: locale, i18n }).t;
+
+/** The address of the example `file` in `locale`: the example's kit reads its words in the
+ *  language `?lang=` names (`site/examples/kit/words.ts`). */
+export const exampleAddress = (file: string, locale: Locale) => `${file}?lang=${locale}`;

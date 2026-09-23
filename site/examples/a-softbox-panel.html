@@ -120,8 +120,8 @@
         radiance?.(softbox.intensity.toFixed(1));
         world.invalidate();
       }, world);
-      size = readout('Panel');
-      radiance = readout('Radiance');
+      size = readout('panel');
+      radiance = readout('radiance');
       size(`${softbox.width.toFixed(2)} × ${softbox.height.toFixed(2)} m`);
       radiance(softbox.intensity.toFixed(1));
 

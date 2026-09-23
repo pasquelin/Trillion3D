@@ -182,7 +182,7 @@
         counter?.(String(count));
         world.invalidate();
       }, world);
-      counter = readout('Flakes falling');
+      counter = readout('flakesFalling');
       counter(String(falling));
       // The first flakes are already on their way when the page opens.
       for (let k = 0; k < falling; k++) flakes[k].y = next() * TOP;

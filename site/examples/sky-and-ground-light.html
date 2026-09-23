@@ -104,8 +104,8 @@
         sun.intensity = values.sun ? 1.4 : 0;
         world.invalidate();
       }, world);
-      skyShown = readout('Sky from above');
-      groundShown = readout('Ground from below');
+      skyShown = readout('skyFromAbove');
+      groundShown = readout('groundFromBelow');
       skyShown(PLACES[ui.place].sky);
       groundShown(PLACES[ui.place].ground);
 

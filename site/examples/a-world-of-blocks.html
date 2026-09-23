@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded } from '../runtime/kit.js';
+      import { controls, readout, seeded, language } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#9cc8f0');
@@ -208,7 +208,7 @@
               mesh();
               flood(values.seaLevel);
             }
-            faces?.(faceCount.toLocaleString('en'));
+            faces?.(faceCount.toLocaleString(language()));
             world.invalidate();
           };
           if (key === undefined) remake();
@@ -221,8 +221,8 @@
         }
         world.invalidate();
       }, world);
-      faces = readout('Faces drawn');
-      faces(faceCount.toLocaleString('en'));
+      faces = readout('facesDrawn');
+      faces(faceCount.toLocaleString(language()));
 
       // The opening: the chunks rise into place from the centre outwards, then the sea fills in.
       let time = 0;

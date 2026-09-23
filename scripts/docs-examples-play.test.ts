@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import type { MenuActions } from '../site/examples/kit/gameMenu.ts';
 import { isCapture, play, type PlayDocument } from '../site/examples/kit/play.ts';
+import { useWords, type WordTree } from '../site/examples/kit/words.ts';
+import english from '../site/examples/i18n/en.json' with { type: 'json' };
+
+// The menu speaks the examples' English, as a page whose dictionary has loaded.
+useWords(english as WordTree, 'en');
 
 type Listener = (event: { relatedTarget?: unknown }) => void;
 

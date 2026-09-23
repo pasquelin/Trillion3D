@@ -41,10 +41,10 @@
   <body>
     <canvas id="view"></canvas>
     <canvas id="beauty"></canvas>
-    <p>Marble Bust 01 by Rico Cilliers, Poly Haven, CC0 — see assets/examples/CREDITS.md</p>
+    <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, language } from '../runtime/kit.js';
 
       const lit = (world) => {
         world.scene.add(light.directional({ intensity: 3.5, color: '#ffeedd', position: [12, 14, 8], castShadow: true }));
@@ -82,9 +82,9 @@
         if (beauty) beauty.pixelError = values.pixelError;
         world.invalidate();
       }, world);
-      const triangles = readout('Triangles drawn'), pages = readout('Pages in memory');
+      const triangles = readout('trianglesDrawn'), pages = readout('pagesMemory');
       world.onFrame(({ metrics }) => {
-        triangles(metrics.selectedTriangles?.toLocaleString('en') ?? '?');
+        triangles(metrics.selectedTriangles?.toLocaleString(language()) ?? '?');
         pages(String(metrics.residentPages ?? '?'));
         if (!beauty) return;
         beauty.camera.position.copy(world.camera.position);

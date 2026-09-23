@@ -135,7 +135,7 @@
             pieces.forEach(({ ink }, index) => ink.color.copy(colourAt(PALETTES[values.palette], index / (PIECES - 1))));
         world.invalidate();
       }, world);
-      shown = readout('Coloured pieces');
+      shown = readout('colouredPieces');
 
       let turn = 0, waited = 0;
       // A figure drawn to its end and not turning asks for no new frame; a light is written only

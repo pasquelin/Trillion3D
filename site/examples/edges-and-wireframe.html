@@ -94,9 +94,9 @@
         edgeCount?.(String(segments(pieces.map(({ edges }) => edges))));
         world.invalidate();
       }, world);
-      edgeCount = readout('Edge segments');
+      edgeCount = readout('edgeSegments');
       edgeCount(String(segments(pieces.map(({ edges }) => edges))));
-      readout('Wireframe segments')(String(segments(pieces.map(({ wire }) => wire))));
+      readout('wireframeSegments')(String(segments(pieces.map(({ wire }) => wire))));
 
       let time = 0;
       world.onFrame(({ delta }) => {

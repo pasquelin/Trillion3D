@@ -141,16 +141,17 @@ packages; none stays external or is loaded from a CDN.
    something to play with. `controls` from `../runtime/kit.js` (sources in `site/examples/kit/`,
    bundled beside the engine) draws a panel in the corner of the render:
    `controls({ light: [0, 10, 3], colour: '#88aaff', spin: true, view: ['a', 'b'], reset: () => {} },
-   onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb'`), lines of
+onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb'`), lines of
    help (any other text, such as the keys to press), toggles, choices and buttons, returns the live values and calls `onChange(values, key)` once at start and after every
    change. Given the world as its last argument (`controls({ … }, onChange, world)`, or
    `controls({ … }, world)`), it also opens the stats corner, bottom left: frames drawn per second
    (marked `held` while the image stands still) and the last frame's measured counters, a line
-   left out when the engine did not measure it; `stats(world)` opens it alone. `readout(label)`, declared after it, adds a live line to that panel and returns the
+   left out when the engine did not measure it; `stats(world)` opens it alone. `readout(key)`, declared after it, adds a live line to that panel and returns the
    function that writes it (a counter read every frame). Name each control so that its label says
    what to try; there is no caption over the
    render. The page hosting the example hides or shows the panel by posting
-   `{ type: 'wg:controls', visible }` to its frame.
+   `{ type: 'wg:controls', visible }` to its frame. Every word the reader sees goes in the
+   examples' dictionaries (see "Example words" below), never in the page.
 2. A scene of primitives is built in code, with `geometry.*`, directly in the example's HTML. A
    scene built around an imported model is added to `scripts/docs/examples/models.ts`, credited in
    `site/assets/examples/CREDITS.md`, then run `pnpm build:native` and
@@ -165,6 +166,31 @@ packages; none stays external or is loaded from a CDN.
    `<meta name="thumbnail" content="3">` (1.5 when it declares none).
 4. Run `node --test scripts/docs-examples.test.ts`, then the browser proofs
    `node --test scripts/docs-examples.browser.ts` and `node --test scripts/docs-shell.browser.ts`.
+
+## Example words
+
+What an example shows in words — its panel, readouts, banners, game menu and key sheet — reads
+in the portal's language. The kit loads it before the example's script runs:
+
+- **The language** is `?lang=<code>` on the example's address. `DemoPage` and the chapter's
+  "Try it" frame add it to the frame's `src` (`exampleAddress` in `site/app/i18n.ts`); the
+  sandbox adds it to the `<base>` of its `srcdoc`. A page opened on its own falls back on the
+  browser's language, then English. Arabic pages turn right to left (`dir="rtl"`), and the kit's
+  panels, which use logical sides, mirror with them.
+- **The dictionaries** are `site/examples/i18n/<code>.json`, one per portal language, English
+  the reference, copied with the examples by the build. `kit` holds the kit's own words (panel,
+  menu, key names, stats); each example has its part, named by its file name
+  (`a-field-of-pebbles.html` → `a-field-of-pebbles`): `controls.<key>` a control's label (or
+  a note's text), `choices.<key>.<value>` a choice's or a game option's shown value,
+  `readouts.<key>`, `game.title`, `game.goal`, `game.keys.<action>`, `game.options.<id>`, and
+  `words.<key>` for everything else.
+- **The code keeps identifiers.** Control keys, choice values and game actions stay the words the
+  code tests; the kit shows their translation, or the key humanised when a word is missing.
+  Free text goes through `const say = words();` then `say('key', { n: 3 })` (`{n}` blanks), or
+  `data-words="key"` on an element of the page, which the kit fills.
+- **The checks.** `pnpm run check:i18n` refuses a language whose keys or `{blanks}` differ from
+  English's; `scripts/docs-examples-words.test.ts` refuses a written key an example uses that
+  English lacks.
 
 ## The API reference
 
