@@ -34,3 +34,17 @@ it stands, with the same compiler arguments as the scenes above, and nothing is 
 
 The streaming and memory examples reuse `site/assets/gallery/signature-architecture/`, an original
 scene of the lessons.
+
+## Scenes modelled in code
+
+Four scenes were modelled in code for their example and are released under
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/): nothing in them was taken from another
+work. Each was compiled with the same command as the model scenes above (`full`, 2 threads,
+256 MB, `qem-endpoints`, the default `bc7` texture family), from its own folder.
+
+| Folder                   | Source                                                                                                                                 | Used by                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `a-model-from-usdz/`     | `source/chess-set.usdz`: one USD text layer in centimetres, six turned shapes instanced thirty-two times, five preview surfaces        | `a-model-from-usdz`     |
+| `compressed-textures/`   | `source/courtyard.gltf` and its five drawn images: glazed tiles, brick, marble, and the relief maps of the tiles and the brick          | `compressed-textures`   |
+| `detail-by-pixel-error/` | A glTF avenue of fluted urns and a bronze knot at a tenth of life size, kept by the cache as `source.gltf`                             | `detail-by-pixel-error` |
+| `ten-thousand-objects/`  | A glTF planet and ten thousand moonlets, twelve rock shapes placed ten thousand times, kept by the cache as `source.gltf`               | `ten-thousand-objects`  |
