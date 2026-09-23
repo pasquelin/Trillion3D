@@ -42,7 +42,9 @@ class Operation {
   avance = 0;
 }
 
+/** Picks, per batch operation, the faster of JavaScript and WebAssembly from measured times. */
 export interface PathGovernor {
+  /** Forces a path, or lets it choose. */
   setMode(mode: MathPathMode): void;
   /** Declares what the host managed to load, and why if applicable. */
   setWasm(available: boolean, simd: boolean | null, reason: string | null): void;
@@ -50,6 +52,7 @@ export interface PathGovernor {
   choose(operation: string): MathPath;
   /** What an execution cost. `ms` at `null`: the timer is missing, the operation falls back. */
   observe(operation: string, path: MathPath, ms: number | null, elements: number): void;
+  /** What it measured and chose. */
   metrics(): MathPathMetrics;
 }
 

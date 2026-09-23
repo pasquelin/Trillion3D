@@ -28,6 +28,7 @@ export const VALIDATE_GROUPS = {
     'check:links',
     'check:docs-three',
     'check:sdk-facade',
+    'check:api-reference',
   ],
   typescript: [
     'build',

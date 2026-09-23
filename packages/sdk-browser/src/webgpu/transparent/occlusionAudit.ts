@@ -18,10 +18,15 @@ const BOX_CORNER_VALUES = 24;
  * This is not a pass of the image: nothing exists until the host asks for it.
  */
 export interface TransparentOcclusionAudit {
+  /** Width in pixels. */
   width: number;
+  /** Height in pixels. */
   height: number;
+  /** Nearest distance. */
   near: number;
+  /** The camera's view matrix. */
   view: Float64Array;
+  /** The camera's view-projection. */
   viewProj: Float64Array;
   /** Coplanar layer whose bias served every entry: the highest of the image. */
   layer: number;

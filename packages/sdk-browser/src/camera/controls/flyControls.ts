@@ -23,6 +23,7 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
 export interface FlyCameraControls extends SteeredCameraControls {
   /** Radians per second at full deflection, for pitch, yaw and roll alike. */
   rollSpeed: number;
+  /** Whether dragging turns the view. */
   dragToLook: boolean;
 }
 

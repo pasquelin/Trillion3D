@@ -3,13 +3,19 @@ import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts';
 
 /** Where the binary sits and how a cluster, a packed page and a bundle name their object. */
 export interface ManifestBinaryDescriptor {
+  /** Format version. */
   version: number;
+  /** Where the binary file is. */
   url: string;
+  /** Fingerprint of its bytes. */
   sha256: string;
+  /** Its size. */
   bytes: number;
   /** `{sha}` is replaced by the 64 hexadecimal characters of the object digest. */
   pageUrl: string;
+  /** Address pattern of a geometry block. */
   geometryUrl: string;
+  /** Address pattern of a stream bundle. */
   bundleUrl: string;
   /** Entries of the progressive-level section; zero when the source has no decodable image. */
   texturePreviews: number;
@@ -17,35 +23,57 @@ export interface ManifestBinaryDescriptor {
   texturePreviewBytes: number;
   /** Bytes of each block column — the kept chains' tails, family by family — written here too. */
   texturePreviewBc7Bytes: number;
+  /** Bytes of the ASTC block column. */
   texturePreviewAstcBytes: number;
 }
+/** A primitive's culling tree, counted instead of listed. */
 export interface SlimCulling {
+  /** Numbers per node. */
   stride: number;
+  /** How many nodes. */
   count: number;
 }
+/** A primitive's group links, counted instead of listed. */
 export interface SlimStructure {
+  /** Format version. */
   version: number;
+  /** How many groups. */
   groups: number;
+  /** How many roots. */
   roots: number;
 }
+/** A primitive's stream bundles, counted instead of listed. */
 export interface SlimStreams {
+  /** Format version. */
   version: number;
+  /** Bundles always kept. */
   pinned: number;
+  /** Target bundle size. */
   bundleBytes: number;
+  /** How many bundles. */
   pages: number;
 }
 /** Counts and constants a primitive needs to find its own slice of every column. */
 export interface SlimPrimitiveBinary {
+  /** How many pages. */
   pages: number;
+  /** Its culling tree's counts. */
   culling?: SlimCulling | null;
+  /** Its group links' counts. */
   structure?: SlimStructure | null;
+  /** Its stream bundles' counts. */
   streams?: SlimStreams | null;
 }
+/** A primitive whose long lists live in the binary file. */
 export type SlimPrimitive = Omit<Primitive, 'pages' | 'culling' | 'structure' | 'streams'> & {
+  /** Where to find its lists. */
   binary: SlimPrimitiveBinary;
 };
+/** A manifest whose long lists live in a binary file beside it. */
 export type SlimClusterManifest = Omit<ClusterManifest, 'primitives'> & {
+  /** The binary file. */
   binary: ManifestBinaryDescriptor;
+  /** Its primitives. */
   primitives: SlimPrimitive[];
 };
 
@@ -59,6 +87,7 @@ const COUNT_KEYS = {
 } as const;
 type CountKey = keyof typeof COUNT_KEYS;
 
+/** Whether a manifest keeps its long lists in a binary file. */
 export function isBinaryManifest(value: { binary?: unknown }): boolean {
   const binary = value.binary;
   return (

@@ -1,65 +1,32 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BOUNDS } from '../site/content/entries/bounds.ts';
-import { CAMERA, HOST_CAMERA } from '../site/content/entries/camera.ts';
-import { ENUMS_IMAGE } from '../site/content/entries/enums.ts';
-import { ENUMS_RUNTIME } from '../site/content/entries/enumsRuntime.ts';
-import { EXAMPLES } from '../site/content/entries/examples.ts';
-import { FORMAT_GUIDES } from '../site/content/entries/format.ts';
-import { GUIDES } from '../site/content/entries/guides.ts';
-import { RENDERING_GUIDES } from '../site/content/entries/guidesRendering.ts';
-import { ENGINE_GUIDES } from '../site/content/entries/guidesEngine.ts';
-import { LIFECYCLE } from '../site/content/entries/lifecycle.ts';
-import { MATRICES } from '../site/content/entries/matrix.ts';
-import { TREE } from '../site/content/entries/tree.ts';
-import { BATCHES } from '../site/content/entries/batches.ts';
-import { COLORS, VECTORS } from '../site/content/entries/vector.ts';
+import { entrySummary } from '../site/content/model.ts';
 import { localizeEntries, supportedLocales, t } from '../site/content/i18n/index.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { localizeDemoText } from '../site/content/i18n/demo.fr.ts';
 import { STRINGS } from '../site/content/i18n/strings.ts';
 import type { Locale } from '../site/content/locale.ts';
 
-const entries = [
-  ...GUIDES,
-  ...FORMAT_GUIDES,
-  ...RENDERING_GUIDES,
-  ...ENGINE_GUIDES,
-  ...EXAMPLES,
-  ...ENUMS_IMAGE,
-  ...ENUMS_RUNTIME,
-  ...LIFECYCLE,
-  ...CAMERA,
-  ...HOST_CAMERA,
-  ...MATRICES,
-  ...VECTORS,
-  ...COLORS,
-  ...BOUNDS,
-  ...TREE,
-  ...BATCHES,
-];
-
 test('French content covers every documentation entry and preserves its technical contract', () => {
-  const localized = localizeEntries(entries, 'fr');
-  assert.equal(entries.length, 89);
-  assert.equal(localized.length, entries.length);
-  for (let index = 0; index < entries.length; index += 1) {
-    const source = entries[index];
+  const localized = localizeEntries(rawEntries, 'fr');
+  assert.equal(localized.length, rawEntries.length);
+  for (let index = 0; index < rawEntries.length; index += 1) {
+    const source = rawEntries[index];
     const french = localized[index];
     assert.equal(french.id, source.id);
     assert.equal(french.signature, source.signature);
     assert.equal(french.module, source.module);
     assert.equal(french.example, source.example);
     assert.equal(french.exports, source.exports);
-    assert.notEqual(
-      french.description,
-      source.description,
-      `${source.id} has no French description`,
-    );
-    assert.deepEqual(
-      french.values?.map(({ name }) => name),
-      source.values?.map(({ name }) => name),
-    );
+    const translated =
+      french.description !== source.description || entrySummary(french) !== entrySummary(source);
+    assert.ok(translated, `${source.id} has no French text`);
+    for (const rows of ['values', 'parameters', 'members'] as const)
+      assert.deepEqual(
+        french[rows]?.map(({ name }) => name),
+        source[rows]?.map(({ name }) => name),
+        `${source.id}: the French ${rows} rename a row`,
+      );
   }
 });
 
@@ -104,22 +71,18 @@ test('legacy demo labels are localized without changing technical symbols', () =
   assert.equal(localizeDemoText('multiplyMatrix4(out, a, b)', 'fr'), 'multiplyMatrix4(out, a, b)');
 });
 
-test('both locales describe interactive startup and align every method description', () => {
+test('both locales describe the world: its options row by row, and each of its members', () => {
   for (const locale of supportedLocales) {
     const localized = localizeEntries(rawEntries, locale);
     const world = localized.find(({ id }) => id === 'createWorld');
     assert(world);
-    assert.match(world.description, /`interactive`/);
-    assert.match(world.description, /`scene\.load`/);
-    const invalidate = world.values?.find(({ name }) => name.includes('invalidate()'));
-    const dispose = world.values?.find(({ name }) => name === 'dispose()');
-    assert(invalidate);
-    assert(dispose);
-    assert.match(invalidate.desc, /frame|image/i);
-    assert.match(dispose.desc, /Releases|Libère/);
+    const interactive = world.parameters?.find(({ name }) => name === 'options.interactive?');
+    assert.equal(interactive?.default, 'true');
+    assert.match(interactive.desc, /loop|boucle/);
+    for (const member of ['world.invalidate', 'world.dispose', 'world.scene'])
+      assert.ok(entrySummary(localized.find(({ id }) => id === member)!), member);
     const quickStart = localized.find(({ id }) => id === 'quick-start');
-    assert(quickStart);
-    assert(quickStart.html);
+    assert(quickStart?.html);
     assert.match(quickStart.html, /createWorld/);
   }
 });
