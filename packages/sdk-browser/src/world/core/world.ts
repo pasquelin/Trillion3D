@@ -73,8 +73,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     frame: frames.dispatch,
     drawn: () => frames.last !== null,
     display: () => ({ exposure, toneMapping }),
-    notices: diagnostic.notices,
-    failed: diagnostic.failed,
+    diagnostic,
   });
   /** The camera outside the scene still redraws when it moves. */
   const cameraLink: SceneLink = { pose: invalidate, structure: () => {}, content: () => {} };
