@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-
-const typing = () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName ?? '');
+import { typing } from './typing.ts';
 
 /** Opens the search on `/` (outside a text field) and on ⌘K or Ctrl+K (anywhere). */
 export function useSearchShortcut(open: () => void) {

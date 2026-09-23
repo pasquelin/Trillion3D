@@ -18,22 +18,26 @@ interface ChapterText {
 export function courseEntries(locale: Locale): PortalEntry[] {
   const { words, chapters } = dictionaryOf(locale).course;
   const texts: Record<string, ChapterText> = chapters;
+  const link = (caption: string, chapter: string) => ({
+    href: `#/${locale}/learn/${chapter}`,
+    caption,
+    title: texts[chapter].title,
+  });
   return CHAPTERS.map(({ id, example, code }, index) => {
     const text = texts[id];
-    const following = CHAPTERS[index + 1];
-    const next = following
-      ? {
-          href: `#/${locale}/learn/${following.id}`,
-          label: `${words.next} — ${texts[following.id].title}`,
-        }
-      : { href: `#/${locale}/examples`, label: words.end };
+    const before = CHAPTERS[index - 1];
+    const after = CHAPTERS[index + 1];
+    const previous = before && link(words.previous, before.id);
+    const next = after
+      ? link(words.next, after.id)
+      : { href: `#/${locale}/examples`, caption: words.end };
     return {
       id,
       section: 'course',
       kind: 'Chapter',
       title: `${index + 1}. ${text.title}`,
       description: text.description,
-      chapter: { example, code, steps: text.steps, tryIt: text.tryIt, next, words },
+      chapter: { example, code, steps: text.steps, tryIt: text.tryIt, previous, next, words },
     };
   });
 }
