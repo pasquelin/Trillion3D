@@ -1,5 +1,5 @@
 import { Object3D } from '../object/object3d.ts';
-import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts';
+import { readVec3, type Vec3Input } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
 
 /** A named view: where the eye is, what it looks at, and optionally its field. */
@@ -108,12 +108,9 @@ export class Camera extends Object3D {
     } else {
       const w = (this.right - this.left) / 2 / this.zoom,
         h = (this.top - this.bottom) / 2 / this.zoom;
-      const at = new Vector3(
-        (this.right + this.left) / 2 + x * w,
-        (this.top + this.bottom) / 2 + y * h,
-        0,
-      );
-      out.origin.copy(at.applyMatrix4(m));
+      out.origin
+        .set((this.right + this.left) / 2 + x * w, (this.top + this.bottom) / 2 + y * h, 0)
+        .applyMatrix4(m);
       out.direction.set(0, 0, -1);
     }
     out.direction.transformDirection(m);

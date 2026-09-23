@@ -106,3 +106,15 @@ test('a shape written by hand comes back in its array type, normalized or not', 
   const back = (scene.children[0] as ReturnType<typeof object.mesh>).geometry.attributes.color;
   assert.ok(back.array instanceof Uint8Array && back.normalized);
 });
+
+test('a parameter cleared to null is read back null, not an empty object', async () => {
+  const cleared = material.meshStandard({ color: 0x00ff00 });
+  cleared.map = null;
+  const scene = sceneWithLoads([]);
+  const box = object.mesh(geometry.box(1, 1, 1), cleared);
+  scene.add(box);
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()));
+  const again = sceneWithLoads([]);
+  await again.fromJSON(saved);
+  assert.equal((again.children[0] as typeof box).material.map, null);
+});

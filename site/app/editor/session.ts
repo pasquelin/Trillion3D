@@ -2,8 +2,7 @@ import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
 import type { Engine } from '../../lessons/lessonWorld.ts';
 import { SCENE_BACKGROUND } from '../../lessons/scenePalette.ts';
 import { createHistory, type Command } from './history.ts';
-import { isWithin, poseCommand, poseOf, type Pose } from './commands.ts';
-import { isMesh } from './objects.ts';
+import { isWithin, poseCommand, poseOf, samePose, type Pose } from './commands.ts';
 import { writeAutosave } from './storage.ts';
 
 /** Edits the history keeps: a UI capacity (how far back a person steps), not a memory budget —
@@ -39,22 +38,22 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
     selected.updateWorldMatrix(true, false);
     selected.matrixWorld.decompose(outline.position, outline.quaternion, outline.scale);
   };
-  /** The outline is the box of the selection's own shape: built again only when that changes. */
+  /** The outline is the selection's own box — a mesh's shape, a loaded model's bounds — built
+   *  again only when that box changes. */
   let outlined: unknown = null;
   const refreshOutline = () => {
-    const shape = selected && isMesh(selected) ? selected.geometry : null;
-    if (shape !== outlined) {
+    const box = selected?.localBounds() ?? null;
+    if (box !== outlined) {
       if (outline) {
         outline.removeFromParent();
         helpers.delete(outline);
       }
-      outline =
-        shape && engine.helper.box(shape.boundingBox ?? shape.computeBoundingBox(), '#ffcc00');
+      outline = box && engine.helper.box(box, '#ffcc00');
       if (outline) {
         helpers.add(outline);
         scene.add(outline);
       }
-      outlined = shape;
+      outlined = box;
     }
     follow();
   };
@@ -87,7 +86,10 @@ export function createSession(engine: Engine, canvas: HTMLCanvasElement, changed
     changed();
   });
   gizmo.addEventListener('dragEnd', () => {
-    if (selected && dragFrom) session.record(poseCommand(selected, dragFrom, poseOf(selected)));
+    const after = selected && poseOf(selected);
+    // A press on a handle that moved nothing is no edit: it must not clear what redo holds.
+    if (selected && dragFrom && after && !samePose(dragFrom, after))
+      session.record(poseCommand(selected, dragFrom, after));
     dragFrom = null;
   });
 
