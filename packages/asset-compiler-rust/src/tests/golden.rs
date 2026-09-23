@@ -27,10 +27,10 @@ impl Drop for GoldenRun {
     }
 }
 
-/// Folder of a golden fixture, named by its path under `fixtures/`.
-pub(super) fn golden_dir(relative: &str) -> PathBuf {
+/// Folder of a golden fixture, named by its path under `tests/fixtures/formats/`.
+pub(crate) fn golden_dir(relative: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures")
+        .join("../../tests/fixtures/formats")
         .join(relative)
 }
 
@@ -79,8 +79,9 @@ pub(super) fn refused_golden_source(source: &Path, name: &str) -> String {
     refusal.code.to_string()
 }
 
-/// Common options, and the throwaway root that carries them.
-fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
+/// Common options, and the throwaway root that carries them; the compute bench compiles
+/// its fixtures with them too.
+pub(crate) fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
     let root = std::env::temp_dir().join(format!(
         "wg-golden-{name}-{}-{}-{}",
         std::process::id(),

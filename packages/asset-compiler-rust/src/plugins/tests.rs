@@ -36,7 +36,7 @@ fn declared(pilote: &str, name: &str, max_alloc: u64) -> (image::Transfer, Vec<&
     (decoded.transfer, decoded.notes)
 }
 
-/// RGBA8 image the registry yields for a fixture of `fixtures/<pilote>/`: this driver claims it
+/// RGBA8 image the registry yields for a fixture of `tests/fixtures/formats/<pilote>/`: this driver claims it
 /// by its bytes, and it has the expected dimensions.
 fn decoded_rgba8(pilote: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> ::image::RgbaImage {
     let bytes = fixture(pilote, name);
@@ -88,10 +88,10 @@ fn rgba_f32(decoded: image::ImageDecoded) -> (u32, u32, Vec<f32>) {
     }
 }
 
-/// Bytes of a real corpus file, stored in `fixtures/<folder>/`.
+/// Bytes of a real corpus file, stored in `tests/fixtures/formats/<folder>/`.
 fn fixture(folder: &str, name: &str) -> Vec<u8> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures")
+        .join("../../tests/fixtures/formats")
         .join(folder)
         .join(name);
     fs::read(path).unwrap_or_else(|error| panic!("{folder}/{name}: {error}"))
@@ -110,3 +110,18 @@ fn temp_dir(tag: &str) -> PathBuf {
     fs::create_dir_all(&dir).expect("temp dir");
     dir
 }
+
+/// Reference image of the BMP and GIF fixtures, 4 × 2 pixels, top row first: four frank colours
+/// then three mixes whose each component is exactly carried by five bits, and each green also by
+/// six. That is what lets both 16-bit BMP writings yield those bytes and not their neighbours; GIF,
+/// being indexed, yields them out of its table without rounding.
+const REFERENCE_RGB: [[u8; 3]; 8] = [
+    [255, 0, 0],
+    [0, 255, 0],
+    [0, 0, 255],
+    [255, 255, 255],
+    [0, 0, 0],
+    [247, 206, 8],
+    [16, 49, 239],
+    [132, 239, 66],
+];

@@ -10,6 +10,7 @@ mod geometry_page_quant;
 pub mod import;
 mod join;
 mod manifest_binary;
+#[cfg(any(test, feature = "oracle"))]
 pub mod oracle;
 mod perf;
 pub mod plugins;
@@ -115,8 +116,6 @@ fn check(o: &Options) -> Result<()> {
 fn implementation_hash() -> &'static str {
     include_str!(concat!(env!("OUT_DIR"), "/implementation_hash.txt"))
 }
-#[cfg(test)]
-mod bench_calculs;
 mod compiler_accessor_create;
 mod compiler_accessor_decode;
 mod compiler_accessor_types;
@@ -154,6 +153,8 @@ mod compiler_textures;
 mod compiler_types;
 mod compiler_validate;
 mod compiler_world;
+#[cfg(test)]
+mod compute_bench;
 #[cfg(test)]
 mod shared_math_tests;
 #[cfg(test)]

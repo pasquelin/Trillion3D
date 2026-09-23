@@ -7,7 +7,7 @@ import type { PortalEntry } from './model.ts';
 export const NODE = {
   section: 'lifecycle',
   kind: 'Function',
-  module: 'packages/sdk-node/index.mts',
+  module: 'packages/sdk-node/src/index.mts',
 };
 export const BROWSER = { section: 'lifecycle', kind: 'Function' };
 
@@ -20,7 +20,7 @@ export const LIFECYCLE_WORLD: PortalEntry[] = [
     id: 'createWorldJob',
     exports: ['createJob'],
     title: 'A world load as a cancellable job',
-    module: 'packages/sdk-core/jobs.ts',
+    module: 'packages/sdk-core/src/runtime/jobs.ts',
     signature: 'createJob<World>(id, ({ signal, progress }) => Promise<World>, options?)',
     description:
       'A world has no dedicated job wrapper of its own: `scene.load` is a plain promise, and the generic `createJob` helper turns it into a cancellable one with progress when a host needs the same job contract compilation uses.',
@@ -37,7 +37,7 @@ const world = await job.promise;`,
     id: 'createJob',
     exports: ['createJob'],
     title: 'createJob()',
-    module: 'packages/sdk-core/jobs.ts',
+    module: 'packages/sdk-core/src/runtime/jobs.ts',
     signature:
       'createJob<T>(id, work: ({ signal, progress }) => Promise<T>, options?: { signal, telemetry })',
     description:
@@ -52,7 +52,7 @@ const world = await job.promise;`,
     id: 'detectCapabilities',
     exports: ['detectCapabilities'],
     title: 'detectCapabilities()',
-    module: 'packages/sdk-browser/capabilities.ts',
+    module: 'packages/sdk-browser/src/measurement/capabilities.ts',
     signature:
       "detectCapabilities(mode: 'webgl' | 'webgpu', canvas: HTMLCanvasElement, environment?: { gpu, createWebglCanvas })",
     description:
@@ -66,7 +66,7 @@ console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
     id: 'runCameraPath',
     exports: ['pose'],
     title: 'pose.runPath()',
-    module: 'packages/sdk-browser/world/pose/index.ts',
+    module: 'packages/sdk-browser/src/world/pose/index.ts',
     signature:
       'pose.runPath(world: World, poses: CameraPose[], options?: { images? }): Promise<void>',
     description:
@@ -79,10 +79,10 @@ console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
     id: 'replicateInstances',
     exports: ['replicateInstances'],
     title: 'replicateInstances()',
-    module: 'packages/sdk-browser/replicateInstances.ts',
+    module: 'packages/sdk-browser/src/scene/replicateInstances.ts',
     signature: 'replicateInstances(...)',
     description:
-      'Instances the source 1, 4 or 9 times while sharing geometry and materials — the `replicaCount` option goes through it. A measurement helper reached only through the measurement entry point (`packages/sdk-browser/measurement.ts`), for scenes larger than the asset on disk; not part of `web-geometry`’s published entry.',
+      'Instances the source 1, 4 or 9 times while sharing geometry and materials — the `replicaCount` option goes through it. A measurement helper reached only through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`), for scenes larger than the asset on disk; not part of `web-geometry`’s published entry.',
   },
   {
     ...BROWSER,
@@ -90,7 +90,7 @@ console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
     id: 'createGpuPageCache',
     exports: ['page'],
     title: 'page.createCache() · page.httpSource()',
-    module: 'packages/sdk-browser/world/page/index.ts',
+    module: 'packages/sdk-browser/src/world/page/index.ts',
     signature:
       'page.createCache(device: GPUDevice, source: PageSource, options: { pageBytes: number, slots: number }) · page.httpSource(baseUrl: string)',
     description:

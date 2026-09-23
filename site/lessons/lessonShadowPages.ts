@@ -3,7 +3,7 @@
  * `shadowPagesTotal` of each rendered frame — so the settle drains of the previous frame count
  * too. What a change cost the cached shadow maps, and what the lesson shows beside the triangles.
  */
-import type { FrameMetrics } from '../../packages/sdk-browser/index.ts';
+import type { FrameMetrics } from '../../packages/sdk-browser/src/index.ts';
 
 export function createShadowPageCounter() {
   let total = 0,

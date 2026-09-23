@@ -32,8 +32,8 @@
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
-  (`webgpuPagesCpuSteps.ts`, `cpu-timing` diagnostic) and the repository has its own bench
-  (`scripts/mesure/banc.ts`, README alongside). Read them before choosing a target.
+  (`packages/sdk-browser/src/webgpu/pages/render/cpuSteps.ts`, `cpu-timing` diagnostic) and the repository has its own bench
+  (`bench/runner/bench.ts`, README alongside). Read them before choosing a target.
 - When a measurement contradicts a plan, the measurement wins, and the
   plan is corrected in the same batch.
 - Compare identical input, camera, quality, machine and resource budget. Record DPR, error threshold,
@@ -75,8 +75,10 @@
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
   exceptions. Split by responsibility, preserve public contracts. Gate: `pnpm run check:lines`.
-- `pnpm run check:duplicates` rejects blocks ≥12 lines and ≥100 tokens across JS/TS/Rust. Resolve
-  every finding before integration; share logic only for identical behavior.
+- `pnpm run check:duplicates` rejects blocks ≥8 lines and ≥64 tokens across JS/TS/Rust, and
+  `pnpm run check:helpers` a small helper copied, name, signature and body alike, into a second
+  module of the same package or crate. Resolve every finding before integration; share logic only
+  for identical behavior.
 
 ## Engine and package boundaries
 
@@ -92,7 +94,7 @@
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
 - All generic Rust library/CLI code belongs in `packages/`, never numbered benchmarks.
-  `test/integration/structure-moteur.test.ts` checks core/adapter boundaries; `pnpm run check:structure` also
+  `tests/integration/engine-structure.test.ts` checks core/adapter boundaries; `pnpm run check:structure` also
   type-checks sdk-core without DOM.
 - Separate `formatVersion` from `compilerVersion`; reject unknown formats and incompatible caches.
   Compiler/cache-identity changes require correctness fixtures and source provenance. Never overwrite

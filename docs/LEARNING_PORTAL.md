@@ -34,7 +34,7 @@ dispose them before the next route. `docs/` holds the repository documentation o
   `engine-scene/` for the WebGPU scene lifecycle, camera controls, diagnostic modes and pure
   bilingual copy. Each catalogue item declares the API functions it demonstrates;
   `findExampleForFunction()` connects an API page to its relevant playground. The lesson runtimes
-  import the browser SDK by its source entry, `packages/sdk-browser/index.ts`, so the type checker
+  import the browser SDK by its source entry, `packages/sdk-browser/src/index.ts`, so the type checker
   sees the engine's own types; the build keeps that import external and resolves it to the
   `runtime/engine.js` bundle beside `portal.js`.
 - `site/examples/` owns the examples: one standalone HTML file per example, `<id>.html`, which
@@ -95,7 +95,7 @@ fallback route.
 ### Build products: never committed, built by Pages
 
 `dist/site/` is ignored by git and tracked on no branch: every consumer builds it on demand
-(`docs:serve` and the browser proofs under `scripts/` and `test/browser/` build the whole tree; the
+(`docs:serve` and the browser proofs under `scripts/` and `tests/browser/renders/` build the whole tree; the
 unit tests import the sources directly, the demos through `site/demos/engine.ts`, so no runner
 builds anything), and `check:docs-bundles` in `validate` (`node scripts/docs-build.ts --untracked`)
 fails when git tracks any file of it. The repository's Pages source is "GitHub Actions":
@@ -143,7 +143,7 @@ it is editorial; function, type and constant names remain exact. Translate descr
 descriptions and guide HTML, while signatures, exports, module paths and code examples remain the
 source contract. Add new navigation or component text to both locale tables used by `t()`.
 
-Run `node --test scripts/docs-i18n.test.ts test/integration/portail-documentation.test.ts` after
+Run `node --test scripts/docs-i18n.test.ts tests/integration/documentation-portal.test.ts` after
 content changes. The localization test requires parity across all entries and verifies that the
 French overlays do not alter technical fields.
 
@@ -182,10 +182,10 @@ not expose total physical GPU memory consumption to this application.
 
 The gallery's procedural 3D illustrations explain SDK calculations; the compiled garden executes
 the streaming pipeline. Neither proves a speedup over another renderer. Comparative claims require
-the repository measurement harness described in `scripts/mesure/README.md`, identical input, camera,
+the repository measurement harness described in `bench/runner/README.md`, identical input, camera,
 quality and resource budgets, plus resolution, DPR, commit, display cap and run-to-run spread.
 A witness (bare Three.js, `THREE.LOD`, …) is never imported by a portal example or demo: it is
-named only through the measurement entry point (`packages/sdk-browser/measurement.ts`) the bench
+named only through the measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`) the bench
 and the report pipeline use.
 
 API pages may show a related concept beside their original snippet. The panel labels this
@@ -198,5 +198,5 @@ function mappings in the catalogue limited to functions actually called by the e
 The Measurements route (`#/en/reports` or `#/fr/reports`) reads versioned campaign data from
 `site/reports/`. Shared React components own its presentation; the modules of `site/reports/` own
 the contract, metric semantics, comparison eligibility and bilingual labels. See the
-[report pipeline](../scripts/mesure/report/README.md) for export and staging. The legacy
+[report pipeline](../bench/runner/report/README.md) for export and staging. The legacy
 `report.html` URL forwards to this route. Campaign data is independent of the site build.

@@ -161,3 +161,16 @@ pub(super) fn obj_fixture(name: &str, mtl: bool) -> (PathBuf, Options) {
     options.triangle_budget = 150000;
     (root, options)
 }
+
+/// The two slopes of a symmetric roof, of length one: the flat normal of each of its faces,
+/// shared by every driver test that reads smoothing off such a roof.
+pub(crate) const ROOF_LEFT: [f32; 3] = [
+    -std::f32::consts::FRAC_1_SQRT_2,
+    0.0,
+    std::f32::consts::FRAC_1_SQRT_2,
+];
+pub(crate) const ROOF_RIGHT: [f32; 3] = [
+    std::f32::consts::FRAC_1_SQRT_2,
+    0.0,
+    std::f32::consts::FRAC_1_SQRT_2,
+];

@@ -63,7 +63,7 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
     id: 'createWorld',
     exports: ['createWorld'],
     title: 'createWorld()',
-    module: 'packages/sdk-browser/world/core/world.ts',
+    module: 'packages/sdk-browser/src/world/core/world.ts',
     signature:
       'createWorld(target: HTMLCanvasElement | HTMLElement | string, options?: WorldOptions): World',
     valuesTitle: 'What the world offers',

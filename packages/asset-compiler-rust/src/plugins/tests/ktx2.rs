@@ -1,6 +1,6 @@
 //! Golden of the KTX 2.0 driver: what the container carries must come out texel for texel.
 //!
-//! It works on two materials. Files of `fixtures/ktx2/` cover the driver's three paths end to
+//! It works on two materials. Files of `tests/fixtures/formats/ktx2/` cover the driver's three paths end to
 //! end — an uncompressed level, the same under Zstandard supercompression, and both Basis
 //! Universal payloads, UASTC LDR and ETC1S. Tiny containers of `bytes.rs`, written field by
 //! field from the specification, cover the codecs named by `vkFormat`: reference values there
@@ -15,8 +15,8 @@ use super::fixture;
 
 mod bytes;
 mod codecs;
-mod descripteur;
-mod refus;
+mod descriptor;
+mod refusal;
 
 const MAX_ALLOC: u64 = 64 * 1024 * 1024;
 /// Blocks of the declared codecs cover 4 × 4 texels: the golden places exactly one per case.

@@ -1,7 +1,7 @@
 use super::*;
 
 // Behavior 4: level alpha is MEDIAN of four texels, average of middle
-// two — exactly `(u + v) / 2` of `textureMips.ts` shader — never mean.
+// two — exactly `(u + v) / 2` of `packages/sdk-browser/src/texture/mips.ts` shader — never mean.
 // Coarse texel passes threshold when two of four passed: cutout coverage
 // preserved across levels, regardless of threshold, which mean fails to do.
 #[test]
