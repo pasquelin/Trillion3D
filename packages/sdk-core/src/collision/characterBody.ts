@@ -1,4 +1,4 @@
-import { freshReport, isFloor, slide, type MoveReport } from './characterMove.ts';
+import { arc, freshReport, isFloor, slide, type MoveReport } from './characterMove.ts';
 import type { CapsuleContact } from './capsule.ts';
 import {
   RESPONSE_LEFT,
@@ -11,16 +11,18 @@ import type { CharacterCollision } from './characterCollision.ts';
 /**
  * A CHARACTER BODY: a capsule with a velocity, integrated on a fixed tick against a collision
  * world (`characterCollision.ts`). The fixed tick makes the motion the same at any frame rate;
- * within a tick the motion is integrated in closed form — the exponential approach to the wished speed, the parabola of
- * gravity — so a jump reaches `v² / 2g` whatever the tick. The pose handed back is interpolated
- * between the last two ticks, which is how a fixed tick draws smoothly on any display, at the
- * price of one tick of latency.
+ * within a tick the motion is integrated in closed form — the exponential approach to the
+ * wished speed, the parabolas of gravity — so a jump reaches `v² / 2g` whatever the tick. The
+ * body is ticked up to one tick past the present and the pose handed back is interpolated at
+ * the present between the two ticks around it: smooth on any display, and drawn without delay.
  *
  * GROUND. On the ground the velocity closes 95 % of its gap to the wished one in
- * `responseTime`; in the air it does so `airControl` times as fast, and only while a key is
- * held, so an unsteered jump keeps its momentum. A walker blocked by a wall tries the same move
- * raised by `stepHeight` and keeps it if it ends on a floor further on; a walker whose floor
- * drops by less than `stepHeight` follows it down, and one whose floor drops by more falls.
+ * `responseTime` while a key is held and in `stopTime` once none is; in the air it does so
+ * `airControl` times as fast as a start, and only while a key is held, so an unsteered jump
+ * keeps its momentum. A body rises under `gravity` and falls under `fallGravity`. A walker
+ * blocked by a wall tries the same move raised by `stepHeight` and keeps it if it ends on a
+ * floor further on; a walker whose floor drops by less than `stepHeight` follows it down, and
+ * one whose floor drops by more falls.
  *
  * STILL. A grounded body with no speed and no key does no work at all. Without a world there is
  * nothing to stand on or fall onto: the body walks level where it was placed, with the same
@@ -130,15 +132,16 @@ export function createCharacterBody(settings: CharacterSettings) {
       events.onJump?.();
     }
     if (grounded && !wishing && velocity[0] === 0 && velocity[2] === 0) return;
-    const ground = -Math.log(RESPONSE_LEFT) / settings.responseTime;
-    const rate = grounded ? ground : wishing ? ground * settings.airControl : 0;
+    const gather = -Math.log(RESPONSE_LEFT) / settings.responseTime,
+      brake = -Math.log(RESPONSE_LEFT) / settings.stopTime;
+    const rate = grounded ? (wishing ? gather : brake) : wishing ? gather * settings.airControl : 0;
     const decay = Math.exp(-rate * h),
       reach = rate > 0 ? (1 - decay) / rate : h;
     const dx = tx * (h - reach) + velocity[0] * reach,
       dz = tz * (h - reach) + velocity[2] * reach;
     velocity[0] = tx + (velocity[0] - tx) * decay;
     velocity[2] = tz + (velocity[2] - tz) * decay;
-    if (grounded && !wishing && Math.hypot(velocity[0], velocity[2]) < REST * ground)
+    if (grounded && !wishing && Math.hypot(velocity[0], velocity[2]) < REST * rate)
       velocity[0] = velocity[2] = 0;
     start.set(capsule.feet);
     if (!world) {
@@ -147,9 +150,8 @@ export function createCharacterBody(settings: CharacterSettings) {
       return;
     }
     if (grounded) return walk(dx, dz);
-    const g = settings.gravity,
-      dy = velocity[1] * h - 0.5 * g * h * h;
-    velocity[1] -= g * h;
+    const [dy, vy] = arc(velocity[1], h, settings.gravity, settings.fallGravity);
+    velocity[1] = vy;
     move(dx, dy, dz, false);
     if (!report.ground || report.impact < 0 || jumped) return;
     [grounded, velocity[1]] = [true, 0];
@@ -182,14 +184,15 @@ export function createCharacterBody(settings: CharacterSettings) {
     pressJump() {
       sinceJump = 0;
     },
-    /** Lives `delta` seconds; returns the feet to draw, between the last two ticks. */
+    /** Lives `delta` seconds; returns the feet to draw at the present. */
     advance(delta: number, input: CharacterInput, events: CharacterEvents = {}) {
       shape();
-      for (carry += Math.max(0, delta); carry >= CHARACTER_TICK; carry -= CHARACTER_TICK) {
+      // `carry` is the present less the last tick's time, in (-tick, 0] between calls.
+      for (carry += Math.max(0, delta); carry > 0; carry -= CHARACTER_TICK) {
         previous.set(capsule.feet);
         tick(CHARACTER_TICK, input, events);
       }
-      const t = carry / CHARACTER_TICK;
+      const t = 1 + carry / CHARACTER_TICK;
       for (let k = 0; k < 3; k++) drawn[k] = previous[k] + (capsule.feet[k] - previous[k]) * t;
       return drawn;
     },
