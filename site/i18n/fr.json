@@ -30,6 +30,7 @@
   "examples": {
     "lead": "Chaque exemple est un court fichier : regardez-le tourner, ouvrez son code, modifiez-le.",
     "inProgress": "En cours de création",
+    "waitingEngine": "En attente du moteur",
     "waitsFor": "Attend du moteur :"
   },
   "api": {
