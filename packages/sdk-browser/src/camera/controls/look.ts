@@ -106,5 +106,9 @@ export function createHead(
   });
   base.listen<Event>(owner, 'pointerlockchange', () => base.emit());
   base.undo(() => head.unlock());
+  base.onPause(() => {
+    head.unlock();
+    lookX = lookY = 0;
+  });
   return head;
 }

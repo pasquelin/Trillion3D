@@ -4200,7 +4200,9 @@
       "minPolarAngle": "Plus petit angle polaire, en radians depuis la verticale : `0` laisse la caméra regarder tout droit vers le bas. Le pôle lui-même reste hors d’atteinte, là où l’azimut cesserait d’être défini.",
       "maxPolarAngle": "Plus grand angle polaire, en radians depuis la verticale : `Math.PI / 2` la garde au-dessus du sol.",
       "minAzimuthAngle": "Début de l’arc d’azimut permis, en radians de +Z vers +X ; sans limite à `-Infinity`. Seule une paire de bornes finies plus étroite qu’un tour complet retient la caméra.",
-      "maxAzimuthAngle": "Fin de cet arc ; sans limite à `Infinity`. Elle peut être plus petite que `minAzimuthAngle`."
+      "maxAzimuthAngle": "Fin de cet arc ; sans limite à `Infinity`. Elle peut être plus petite que `minAzimuthAngle`.",
+      "autoRotate": "Radians par seconde dont la caméra tourne seule autour de `target`, en azimut de +Z vers +X ; 0, la valeur par défaut, la garde immobile. Le tour est intégré par `update(delta)` et s’arrête pour de bon au premier appui ou cran de molette sur la surface : le spectateur a pris la caméra.",
+      "update": "Comme le `update()` du pivot, avec les secondes sur lesquelles `autoRotate` tourne ; 0 par défaut."
     }
   },
   "OrthographicBox": {
@@ -6307,7 +6309,7 @@
     "summary": "Le contrôleur à la souris et au clavier qui déplace la caméra.",
     "members": {
       "kind": "Quel contrôleur dirige la caméra ; donne un autre nom pour changer.",
-      "enabled": "Si le contrôleur écoute la souris et le clavier.",
+      "enabled": "Si le contrôleur écoute la souris et le clavier et bouge la caméra. `false` le met en pause — ni entrée, ni `update` — sans le refaire : vitesse, appui au sol, foulée, orientation et rotation sont gardées, et `true` reprend exactement là où il s’était arrêté.",
       "target": "Le point autour duquel tourne un contrôleur à pivot.",
       "autoUpdate": "Si la boucle du monde appelle `update` avant chaque image, avant les crochets de `world.beforeFrame`. `false` confie le pas à la page, qui appelle `update` depuis un tel crochet, aussi souvent et en autant de sous-pas qu’elle intègre ; le monde ne le fait alors plus jamais.",
       "minDistance": "Distance minimale à laquelle un contrôleur à pivot amène la caméra de `target`.",
@@ -6316,6 +6318,7 @@
       "maxPolarAngle": "Orbite seulement : plus grand angle polaire ; `Math.PI / 2` garde la caméra au-dessus du sol.",
       "minAzimuthAngle": "Orbite seulement : début de l’arc d’azimut permis, en radians de +Z vers +X.",
       "maxAzimuthAngle": "Orbite seulement : fin de cet arc ; elle peut être plus petite que `minAzimuthAngle`.",
+      "autoRotate": "Orbite seulement : radians par seconde dont elle tourne seule autour de `target`, jusqu’au premier appui ou cran de molette ; 0 par défaut.",
       "movementSpeed": "Vol et première personne : unités du monde par seconde à pleine touche ; 1 par défaut.",
       "lookSpeed": "Première personne et personnage : radians dont la vue tourne par pixel de mouvement du pointeur.",
       "minPitch": "Première personne et personnage : le plus bas que regarde la tête, en radians (0 est l’horizon, négatif vers le bas).",
@@ -6331,7 +6334,7 @@
       "rotateSpeed": "Orbite et trackball : vitesse à laquelle le glissé tourne ; 1 par défaut.",
       "zoomSpeed": "Contrôleurs à pivot : vitesse à laquelle la molette et le pincement zooment ; 1 par défaut.",
       "autoForward": "Vol seulement : avance à `movementSpeed` sans touche, W plus vite, S jusqu’à l’arrêt.",
-      "update": "Fait avancer un contrôleur piloté sur `delta` secondes ; un contrôleur à pivot relit sa pose.",
+      "update": "Fait avancer un contrôleur piloté sur `delta` secondes ; un contrôleur à pivot relit sa pose, et une orbite tourne de `autoRotate`. Un contrôleur en pause ne fait rien.",
       "follow": "La caméra du monde a changé : le contrôleur la suit.",
       "dispose": "Arrête le contrôleur et retire ses écouteurs du canevas.",
       "colliders": "Personnage seulement : les maillages que le corps heurte — un objet ou une liste, descendants compris — ou `null`. Les poser construit un arbre de triangles statique depuis leurs triangles en espace monde tels qu’ils sont maintenant : un passage sur les triangles et une construction en `O(T log T)`, environ 52 octets gardés par triangle. Les modèles compilés ne sont pas encore lus : donne-leur une doublure en maillage simple. Un `CharacterCollision` — le monde d’un moteur physique, tout ce qui répond à `resolveCapsule` et `groundBelow` — est utilisé tel quel.",
