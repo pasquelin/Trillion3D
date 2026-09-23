@@ -17,7 +17,7 @@ import { resolve } from 'node:path';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { resolveMounts } from '../../../bench/runner/options.ts';
 import { startServer, serverPort } from '../../kit/server/staticServer.ts';
-import { fixtures } from '../support/materialFixtures.ts';
+import { ANISOTROPY_GAIN, fixtures } from '../support/materialFixtures.ts';
 import type { run as runOnPage } from '../support/materialPixelsPage.ts';
 
 type RunResult = Awaited<ReturnType<typeof runOnPage>> & { pageErrors?: string[] };
@@ -113,6 +113,22 @@ for (const fixture of result.results) {
       `${fixture.name} (${point}): witness ${witness}, engine ${engine}, ` +
         `gap ${gap} outside ${least}–${most} (${fixture.reason})`,
     );
+}
+// #361: anisotropy 16 against 1 on the grazing stripes: each engine must gain contrast.
+const spread = (name: string, side: 'witness' | 'engine') => {
+  const means = result
+    .results!.find((fixture) => fixture.name === name)!
+    .samples.map((sample) => sample[side].reduce((sum, c) => sum + c, 0) / sample[side].length);
+  return Math.max(...means) - Math.min(...means);
+};
+for (const side of ['witness', 'engine'] as const) {
+  const flat = spread('grazing stripes, anisotropy 1', side),
+    sharp = spread('grazing stripes, anisotropy 16', side);
+  assert.ok(
+    sharp - flat >= ANISOTROPY_GAIN,
+    `${side}: anisotropy 16 spreads ${sharp} levels, anisotropy 1 ${flat}; ` +
+      `at least ${ANISOTROPY_GAIN} more expected`,
+  );
 }
 console.log(
   `OK: ${result.results.length} material fixtures agree with the witness — ${result.gpu}`,
