@@ -1,6 +1,7 @@
 import { useWords } from '../i18n.ts';
 import { Badge } from '../ui/Badge.tsx';
 import { Card } from '../ui/Card.tsx';
+import { Cover } from '../ui/Thumbnail.tsx';
 import { Note, TextLink } from '../ui/Text.tsx';
 import { issueUrl } from '../../content/model.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -20,20 +21,14 @@ export function ExampleCard({ title, href, badge, thumbnail }: ExampleCardProps)
       className="block h-full rounded-box focus-visible:outline-2 focus-visible:outline-primary"
       href={href}
     >
-      <Card className="h-full overflow-hidden shadow-sm">
-        <div className="aspect-[16/10] overflow-hidden rounded-box bg-base-300">
-          <img
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-            src={thumbnail}
-            alt=""
-          />
-        </div>
+      <Card
+        className="h-full overflow-hidden shadow-sm"
+        media={<Cover src={thumbnail} />}
+        title={title}
+      >
         <Badge tone="primary" soft>
           {badge}
         </Badge>
-        <h2 className="card-title text-lg">{title}</h2>
         <span className="self-end text-xl text-primary" aria-hidden="true">
           →
         </span>
@@ -57,17 +52,14 @@ export function PendingExampleCard({ title, locale, missing, issue }: PendingPro
   const t = useWords(locale);
   return (
     <div aria-disabled="true" className="h-full opacity-75">
-      <Card className="h-full overflow-hidden shadow-sm">
-        <img
-          className="aspect-[16/10] w-full rounded-box object-cover"
-          src="./assets/example-in-progress.svg"
-          alt=""
-          loading="lazy"
-        />
+      <Card
+        className="h-full overflow-hidden shadow-sm"
+        media={<Cover src="./assets/example-in-progress.svg" />}
+        title={title}
+      >
         <Badge tone="info" soft>
           {t(issue ? 'examples.waitingEngine' : 'examples.inProgress')}
         </Badge>
-        <h2 className="card-title text-lg">{title}</h2>
         {missing && (
           <Note>
             {`${t('examples.waitsFor')} ${missing}`}
