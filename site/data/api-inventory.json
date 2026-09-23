@@ -7806,8 +7806,13 @@
         "packages/sdk-browser/src/webgpu/row/pageRowMaterial.ts",
         "packages/sdk-browser/src/webgpu/tile/atlas.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
+        "packages/sdk-browser/src/webgpu/tile/pageTable.test.ts",
+        "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.ts",
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/texture/index.ts",
         "tests/browser/probes/addressingMaps.ts"
@@ -7845,8 +7850,13 @@
         "packages/sdk-browser/src/webgpu/row/pageRowMaterial.ts",
         "packages/sdk-browser/src/webgpu/tile/atlas.ts",
         "packages/sdk-browser/src/webgpu/tile/catalogue.ts",
+        "packages/sdk-browser/src/webgpu/tile/pageTable.test.ts",
+        "packages/sdk-browser/src/webgpu/tile/pageTable.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.test.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.ts",
         "packages/sdk-browser/src/webgpu/tile/scratch.ts",
         "packages/sdk-browser/src/world/core/scene.ts",
+        "packages/sdk-browser/src/world/core/worldSurface.test.ts",
         "packages/sdk-browser/src/world/core/worldSurface.ts",
         "packages/sdk-browser/src/world/texture/index.ts",
         "tests/browser/probes/addressingMaps.ts"
@@ -7907,7 +7917,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/host/surfaceImport.ts",
-        "packages/sdk-browser/src/webgl/cluster/textures.ts"
+        "packages/sdk-browser/src/webgl/cluster/textures.ts",
+        "packages/sdk-browser/src/webgpu/tile/sampling.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/texture/contract\".TextureFilter"
