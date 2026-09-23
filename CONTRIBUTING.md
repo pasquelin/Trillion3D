@@ -33,7 +33,7 @@
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
 - Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
   (`webgpuPagesCpuSteps.ts`, `cpu-timing` diagnostic) and the repository has its own bench
-  (`scripts/mesure/banc.ts`, README alongside). Read them before choosing a target.
+  (`bench/runner/banc.ts`, README alongside). Read them before choosing a target.
 - When a measurement contradicts a plan, the measurement wins, and the
   plan is corrected in the same batch.
 - Compare identical input, camera, quality, machine and resource budget. Record DPR, error threshold,
@@ -92,7 +92,7 @@
   use browser/filesystem adapters. Consume public entry points; packages never import application
   internals.
 - All generic Rust library/CLI code belongs in `packages/`, never numbered benchmarks.
-  `test/integration/structure-moteur.test.ts` checks core/adapter boundaries; `pnpm run check:structure` also
+  `tests/integration/structure-moteur.test.ts` checks core/adapter boundaries; `pnpm run check:structure` also
   type-checks sdk-core without DOM.
 - Separate `formatVersion` from `compilerVersion`; reject unknown formats and incompatible caches.
   Compiler/cache-identity changes require correctness fixtures and source provenance. Never overwrite

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_SCENE, sceneOf } from './mesure/scene.ts';
-import { ENGINES, engineOf, parseArgs, readOptions } from './mesure/options.ts';
+import { DEFAULT_SCENE, sceneOf } from '../bench/runner/scene.ts';
+import { ENGINES, engineOf, parseArgs, readOptions } from '../bench/runner/options.ts';
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test';

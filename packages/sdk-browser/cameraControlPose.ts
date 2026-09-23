@@ -2,7 +2,7 @@ import type { ControlCamera, ControlVector } from './cameraControlTypes.ts';
 
 /**
  * THE ONE PLACE A CONTROLLER TOUCHES A CAMERA. The controllers themselves only ever see the
- * flat numbers below, so `test/integration/structure-moteur.test.ts` has a single file to
+ * flat numbers below, so `tests/integration/structure-moteur.test.ts` has a single file to
  * declare: a controller writes a LOCAL pose, exactly where a host writing the same motion by
  * hand would write it, and never resolves a world pose — that remains `cameraWorld.ts`.
  *

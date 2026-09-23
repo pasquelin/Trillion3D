@@ -8,7 +8,7 @@
 //   typescript the `tsc` build and the gates that read its products;
 //   native     the Rust crates, and the unit suite, which needs both the compiled compiler
 //              (`scripts/docs-fossil-cache.test.ts` skips itself without it) and `dist/`
-//              (`test/integration/extensions-dts.test.ts`). `build` is seven seconds and is
+//              (`tests/integration/extensions-dts.test.ts`). `build` is seven seconds and is
 //              repeated here rather than making the job wait on another one.
 //
 // The CI skips the `*:native` gates when it has restored the binaries built from these exact

@@ -20,7 +20,7 @@ import { BASE_SLOTS, slotCount } from './gpuDrawContract.ts';
  * by re-summing the totals of the slots that precede it. The result is that of the serial walk
  * term for term — u32 addition is associative, and a slot's cursor depends only on the totals of
  * lower-index slots, which an unused slot leaves at zero.
- * `bench/oracles/gpuDrawPrefixOracle.ts` carries both kernels and `gpuDrawPrefixEquivalence.test.ts`
+ * `../../bench/oracles/browser/gpuDrawPrefixOracle.ts` carries both kernels and `gpuDrawPrefixEquivalence.test.ts`
  * the proof.
  */
 /** `GPUShaderStage.COMPUTE`, written in the clear: this module is also read from Node, without that global. */

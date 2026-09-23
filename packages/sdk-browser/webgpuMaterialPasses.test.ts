@@ -8,8 +8,8 @@ import {
   createPresentClasses,
   encodeMaterialPasses,
 } from './webgpuMaterialPasses.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { camera, quadScene } from './webgpuPagesTestScenes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';

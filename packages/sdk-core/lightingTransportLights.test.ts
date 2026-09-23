@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Vec3, Surface, Scene } from './lightingExperimentScene.ts';
 import { createTransport } from './lightingTransport.ts';
-import { sceneFromSurfaces } from '../../test/fixtures/lightingTransportScene.ts';
+import { sceneFromSurfaces } from '../../tests/fixtures/lightingTransportScene.ts';
 test('three colored emitters combine linearly, relight independently and preserve transport when moved', () => {
   const colors: Vec3[] = [
     [4, 0.2, 0.1],

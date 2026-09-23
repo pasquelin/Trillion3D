@@ -19,7 +19,7 @@ import {
 import { lookAtNode } from './mathTransformTreeLookAt.ts';
 import { nodeWorldDirection } from './mathTransformTreeRead.ts';
 import { updateNodeMatrixWorld } from './mathTransformTreeUpdate.ts';
-import { assertBits } from './bench/oracles/volumes.ts';
+import { assertBits } from '../../tests/kit/assert/bits.ts';
 
 const HAUT = [0, 1, 0];
 const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;

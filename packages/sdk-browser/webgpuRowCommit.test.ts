@@ -12,7 +12,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuRowState } from './webgpuRowState.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
-import { referenceRowCommit, referenceRowState } from './bench/oracles/lignes-dessinables.ts';
+import {
+  referenceRowCommit,
+  referenceRowState,
+} from '../../bench/oracles/browser/lignes-dessinables.ts';
 import type { PageRec } from './pageSelection.ts';
 import {
   catalogue,

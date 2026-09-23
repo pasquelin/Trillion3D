@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLightingScene, exportLightingGltf, type Vec3 } from './lightingExperimentScene.ts';
-import { sub, dot, cross, close } from '../../test/fixtures/lightingSceneTestHelpers.ts';
-import { readLightingGltf } from '../../test/fixtures/lightingSceneGltfTestHelpers.ts';
+import { sub, dot, cross, close } from '../../tests/fixtures/lightingSceneTestHelpers.ts';
+import { readLightingGltf } from '../../tests/fixtures/lightingSceneGltfTestHelpers.ts';
 
 test('glTF preserves each surface, HDR emission, sphere winding and adapter binding in its binary geometry', () => {
   const scene = createLightingScene({ doorAngle: 0.7, lightIntensity: 2, roughness: 0.37 });

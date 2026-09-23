@@ -13,7 +13,7 @@ import {
 } from './webgpuVisibilityItemWords.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import { pageRecFixture } from './bench/appui/pageRecFixture.ts';
+import { pageRecFixture } from '../../bench/perf/browser/support/pageRecFixture.ts';
 import { surfaceOf } from './pageSurface.ts';
 
 /** A minimal runtime of `n` rows: each carries a coplanar layer and a page index. */

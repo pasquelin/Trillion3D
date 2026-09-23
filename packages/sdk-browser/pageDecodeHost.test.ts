@@ -22,7 +22,7 @@ import {
   DeadNodeWorker,
   NodeDomWorker,
   withNodeWorkerShim,
-} from './bench/oracles/pageDecodeNodeWorker.ts';
+} from '../../bench/oracles/browser/pageDecodeNodeWorker.ts';
 
 async function page() {
   const { data } = encodeGeometryPage([0, 1, 2], {

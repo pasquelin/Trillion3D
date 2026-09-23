@@ -11,7 +11,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Browser, Page, Route } from 'playwright';
-import { launchChrome } from './mesure/chrome.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { createDocsServer, listen } from './docs-serve.ts';
 import { examples } from '../site/content/catalog.ts';
 import { rawEntries } from '../site/app/portal/data.ts';

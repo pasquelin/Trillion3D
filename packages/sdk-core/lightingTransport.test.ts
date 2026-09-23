@@ -5,7 +5,7 @@ import {
   solveTransportOracle,
   LightingTransportError,
 } from './lightingTransport.ts';
-import { sceneWithBlocker } from '../../test/fixtures/lightingTransportScene.ts';
+import { sceneWithBlocker } from '../../tests/fixtures/lightingTransportScene.ts';
 test('cached static intersections preserve the complete operator through blocker moves and relighting', () => {
   const firstScene = sceneWithBlocker(false, 1);
   const options = { raysPerPatch: 64, maxIterations: 128, tolerance: 1e-10 };

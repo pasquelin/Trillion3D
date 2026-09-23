@@ -1,13 +1,16 @@
 // A7: residency url sets (pendingUrls, pageUrls, collectPendingUrls) live as long as the
 // host instead of being rebuilt every frame; A8: comptePagesResidentes counts instead of
 // allocating an intermediate array. Oracle: the versions from before batch A, in
-// `bench/oracles/selection.ts`.
+// `../../bench/oracles/browser/selection.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { collectPendingUrls } from './pageSelectionRequests.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
-import { referenceCollectPendingUrls, referenceResidency } from './bench/oracles/selection.ts';
+import {
+  referenceCollectPendingUrls,
+  referenceResidency,
+} from '../../bench/oracles/browser/selection.ts';
 import type { PageRec } from './pageSelection.ts';
 import { surfaceOf } from './pageSurface.ts';
 

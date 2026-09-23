@@ -8,9 +8,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cross, length } from './lightingSceneMath.ts';
 import { validateScene } from './lightingTransportValidation.ts';
-import { sceneWithBlocker } from '../../test/fixtures/lightingTransportScene.ts';
-import { referenceLength } from './bench/oracles/vecteurs-transport.ts';
-import { referenceCross } from '../sdk-browser/bench/oracles/socle-math.ts';
+import { sceneWithBlocker } from '../../tests/fixtures/lightingTransportScene.ts';
+import { referenceLength } from '../../bench/oracles/core/vecteurs-transport.ts';
+import { referenceCross } from '../../bench/oracles/browser/socle-math.ts';
 import type { Vec3 } from './lightingSceneTypes.ts';
 
 test('length returns exactly Math.hypot(...v) on hostile vectors', () => {

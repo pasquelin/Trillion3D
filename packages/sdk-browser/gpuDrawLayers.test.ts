@@ -9,7 +9,7 @@ import {
   type DrawItem,
 } from './gpuDraw.ts';
 import { drawShader } from './gpuDrawShader.ts';
-import { PRE_LAYERS_GPU_DRAW_SHADER_SOURCE } from '../../test/fixtures/gpuDrawShaderPreLayers.ts';
+import { PRE_LAYERS_GPU_DRAW_SHADER_SOURCE } from '../../tests/fixtures/gpuDrawShaderPreLayers.ts';
 
 // Behaviour 16: a layer-n item goes to slot bin + 3·rest + 6·n, and layerSlots = 1
 // (a scene with no stacked coplanar layer) reproduces exactly the six slots from before.
@@ -49,7 +49,7 @@ test('layerSlots = 1 collapses every layer into the original six slots', () => {
 });
 
 // Behaviour 17: drawShader(k) opens exactly 6k slots in its own text, and drawShader(1) is
-// compared to the pre-batch version, frozen in `test/fixtures/gpuDrawShaderPreLayers.ts` (the
+// compared to the pre-batch version, frozen in `tests/fixtures/gpuDrawShaderPreLayers.ts` (the
 // text of commit 5ae3b83, the last to have touched this file before layers). A versioned fixture
 // rather than `git show` on that commit: once the batch is merged, `develop` would carry the
 // after version and a `git show` on the branch would compare to itself.

@@ -12,7 +12,7 @@ import {
   type HizPage,
 } from './hiz.ts';
 import { splitOccludersInto } from './hizSplit.ts';
-import { cameraAt, projectBoxToScreen, quad } from '../../test/fixtures/hiz.ts';
+import { cameraAt, projectBoxToScreen, quad } from '../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 test('Hi-Z history is invalidated by camera motion and projection cuts', () => {

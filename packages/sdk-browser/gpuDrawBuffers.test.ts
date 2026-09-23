@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals, mockDrawDevice } from '../../test/fixtures/gpuDraw.ts';
+import { mockDrawDevice } from '../../tests/kit/gpu/drawDevice.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { createGpuDrawBuffers } from './gpuDrawBuffers.ts';
 import {
   BASE_SLOTS,

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, quadBackend } from './webgpuPagesTestScenes.ts';
 
 test('webgpu pages never publish an incomplete initial cover', async () => {

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
 import { assertFiniteTransform, hostLocalInto, resolveHostSubtree } from './hostWorldMatrices.ts';
-import { assertBits } from '../sdk-core/bench/oracles/volumes.ts';
+import { assertBits } from '../../tests/kit/assert/bits.ts';
 
 /** Parent → child → grandchild → great-grandchild chain, hostile transforms included. */
 function hostileHierarchy() {

@@ -4,8 +4,8 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
 import { MODE_DEPTH_OCCLUDER, MODE_DEPTH_REST, MODE_ID, rasterEntry } from './gpuRasterContract.ts';
-import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
+import { drawnPageIds, installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 
 // The compute raster is created only under `raster-calcul` or `raster-hybride`: the cut then goes

@@ -7,15 +7,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { assertBits } from '../../tests/kit/assert/bits.ts';
 import { normalMatrix3 } from '../sdk-core/index.ts';
 import { coneContextFor, createConeContext } from './pageCone.ts';
 import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
-
-function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>, quoi: string) {
-  assert.equal(actual.length, expected.length, quoi);
-  for (let i = 0; i < expected.length; i++)
-    assert.ok(Object.is(actual[i], expected[i]), `${quoi}[${i}] : ${actual[i]} !== ${expected[i]}`);
-}
 
 /** The nine coefficients of Three's 3×3, column-major, flat. */
 const a9 = (m: THREE.Matrix3) => Float64Array.from(m.elements);

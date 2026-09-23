@@ -19,5 +19,14 @@
     "packages/sdk/**/*.ts",
     "packages/sdk/**/*.mts"
   ],
-  "exclude": ["**/*.test.ts", "**/bench/**", "**/target/**"]
+  "exclude": [
+    "**/*.test.ts",
+    "**/*Fixture.ts",
+    "**/*TestHelpers.ts",
+    "**/webgpuPagesTest*.ts",
+    "**/webglTestContext.ts",
+    "**/pagesBackendScenes.ts",
+    "**/gpuDagCutFrontierScene.ts",
+    "**/target/**"
+  ]
 }

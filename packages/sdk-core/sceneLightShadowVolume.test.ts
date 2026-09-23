@@ -10,7 +10,7 @@ import {
   referenceComposeFace,
   referenceConeAxisCosine,
   referenceShadowProjection,
-} from '../sdk-browser/bench/oracles/socle-math-ombres.ts';
+} from '../../bench/oracles/browser/socle-math-ombres.ts';
 
 const DIRECTIONS: ReadonlyArray<readonly [number, number, number]> = [
   [1, 0, 0],

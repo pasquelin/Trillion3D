@@ -12,7 +12,7 @@ import type { Material } from '../sdk-core/index.ts';
 
 /** The records carry the contract pose; the oracle and the assertions read a host matrix. */
 const pose = (matrix: MatrixElements) => asHostLibrary<THREE.Matrix4>(matrix);
-import { referenceUpdateInstance } from './bench/oracles/cadre-vue.ts';
+import { referenceUpdateInstance } from '../../bench/oracles/browser/cadre-vue.ts';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
 
 function page(matrice: THREE.Matrix4): PageRec {

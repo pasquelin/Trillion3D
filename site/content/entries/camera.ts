@@ -124,7 +124,7 @@ export const HOST_CAMERA: PortalEntry[] = [
       'readCameraWorld(into: EngineCamera, camera: HostCamera, aspect?: number): EngineCamera',
     description:
       "Resolves the host camera's ancestors, copies its world matrix, then applies `writeEngineCamera`. The only translation from a host camera, once per frame; `HostCamera` is a shape — pose, optics, world matrix, the host's own projection — not a type of the host's rendering library. `aspect` is the ratio the view is drawn at when it is not the one the camera declares: a surface capture renders the same camera aside, at the shape of the surface it writes into. The clip-depth convention is the engine's own, composed from the declared optics in reversed depth with an infinite far plane; nothing of the host's is read here.",
-    proof: 'cameraWorld.test.ts under a hostile rig; test/integration/moteur-sans-three.test.mjs',
+    proof: 'cameraWorld.test.ts under a hostile rig; tests/integration/moteur-sans-three.test.ts',
   },
   {
     ...HOST,

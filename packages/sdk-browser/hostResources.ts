@@ -7,7 +7,7 @@
  * a number the engine calculates, so the contract types below describe only what the engine reads. Any host object of the same shape satisfies them.
  *
  * Boundary files — the witness engines and the host adapters listed by
- * `test/integration/moteur-sans-three.test.ts` — own the conversion back to their library's types;
+ * `tests/integration/moteur-sans-three.test.ts` — own the conversion back to their library's types;
  * they are the only ones allowed to name it.
  *
  * The 4×4 pose has its own contract, `MatrixElements` of `matrixElements.ts`.
@@ -191,7 +191,7 @@ export type HostDiagnosticFactory = {
 /**
  * The crossing back: a host resource handed to the library its owner wrote it with. Only a
  * boundary file may call it — a witness engine or a host adapter, both declared by
- * `test/integration/moteur-sans-three.test.ts`, which fails on any other caller — and only to
+ * `tests/integration/moteur-sans-three.test.ts`, which fails on any other caller — and only to
  * give the resource back to its owner. Reading a contract through another of the engine's own
  * shapes is not this crossing and does not come through here: `asWholeMesh` of
  * `clusterBatchMesh.ts` is that reading for a mesh the engine placed and draws whole.

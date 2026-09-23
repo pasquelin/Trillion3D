@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { sampleLinear, sampleMap, wrapTexel } from './visibilityMath.ts';
 import { textureRgba } from './visibilityTypes.ts';
-import { referenceTextureRgba } from './bench/oracles/texture-echantillonnee.ts';
+import { referenceTextureRgba } from '../../bench/oracles/browser/texture-echantillonnee.ts';
 
 /** `visibilityMath.ts` before lot C: a power per component, without a table. */
 function referenceSrgbToLinear(c: number) {

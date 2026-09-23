@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTilePageTable, PAGE_HEADER_WORDS } from './webgpuTilePageTable.ts';
 import { entryLevel, entryPlace, MAX_LEVELS, packEntry, tileLayout } from './textureTiles.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 
 installGpuGlobals();
 

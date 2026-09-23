@@ -9,7 +9,7 @@
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import type { Browser, Route } from 'playwright';
-import { launchChrome } from './mesure/chrome.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { createDocsServer, listen } from './docs-serve.ts';
 import { SITE_OUTPUT } from './docs/site.ts';
 

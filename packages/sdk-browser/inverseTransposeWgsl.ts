@@ -94,11 +94,11 @@ export const INVERSE_TRANSPOSE_WGSL = NOYAU(PREP_LIVREE, 'porte');
  * lives here, against the shipped text, rather than copied into a bench: two neighbouring
  * forms in one file move together, while a copy pasted elsewhere stops matching the first
  * kernel change — without anyone seeing it. The whole block substitutes for the shipped
- * block, structure included, and `test/justesse/substitutionAvant.ts` establishes the
+ * block, structure included, and `tests/browser/probes/substitutionAvant.ts` establishes the
  * substitution instead of hoping for it. A reproduction is only worth as long as it
  * reproduces: GPU actually executed, and measured against what the engine DRAWS (real
  * rasterisation, face state included), this form drops 656 drawn clusters over 6 916 cases
- * where the shipped form drops none (`test/justesse/inverse-transposee-petite-echelle.ts`).
+ * where the shipped form drops none (`tests/browser/probes/inverse-transposee-petite-echelle.ts`).
  * The "560 before, 54 after" of an earlier sample read raw geometric orientation, which
  * ignores face swap under reflection: it counted 119 legitimate rejects as defects and missed
  * 215.

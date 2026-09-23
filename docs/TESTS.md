@@ -1,7 +1,7 @@
 # Tests and Performance Benchmarks
 
 One command per intent, one location per nature of test. Everything below is verified:
-counts reflect the repository tree, and `test/test-gpu.test.ts` tracks the probe list.
+counts reflect the repository tree, and `tests/browser/test-gpu.test.ts` tracks the probe list.
 
 ## 1. Directory Tree
 
@@ -54,16 +54,16 @@ any graphics device and run anywhere.
 
 ### GPU Correctness Probes
 
-`test/justesse/` verifies what the graphics device actually calculates: WGSL shader precision, error
+`tests/browser/probes/` verifies what the graphics device actually calculates: WGSL shader precision, error
 floors, projection matrices, texel coordinates, readbacks. A probe is a file whose name
 contains a hyphen; other files in the folder are its support modules, never run alone.
-`test/browser/` renders frames in real Chromium and compares them.
+`tests/browser/renders/` renders frames in real Chromium and compares them.
 
 Both folders are discovered **by rule, never by a hand-curated list**: every
-`test/browser/*.browser.ts` is executed, and names follow the same convention as probes and
+`tests/browser/renders/*.browser.ts` is executed, and names follow the same convention as probes and
 benchmarks — explicit kebab-case, e.g. `coupe-gpu-tenue`, `normale-eclairage-petite-echelle`.
 
-Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`test/test-gpu.ts`) with its
+Anything that cannot run is **explicitly declared** in `BROWSER_ECARTES` (`tests/browser/test-gpu.ts`) with its
 category and reason, and the command prints it before starting — never in silence:
 
 - **montage** (setup) — the proof is valid, but the machine is not ready: assets in `.mesure/assets/`
@@ -76,7 +76,7 @@ category and reason, and the command prints it before starting — never in sile
 ### Site proofs
 
 The learning portal under `site/` has its own proofs, run on demand in system Chrome. The four
-`scripts/docs-*.browser.ts` and `test/browser/explorer-startup.browser.ts` build the site into
+`scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
 `dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
 (entries and examples in both locales, gallery, API index, reports, engine scene, not found),
@@ -89,26 +89,26 @@ nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame
 (`scene-webgpu`) reads the compiled cache of `DEFAULT_SCENE` (`sponza-derived`) under
 `.mesure/assets/`, off git, and a sibling worktree has none of its own: point `WG_ASSETS` at the
 shared folder. Without it the proof stops by name on the cache it could not find, and
-`pnpm run test:gpu` fails with it — loudly, never in silence. `node scripts/mesure/assets.ts`
-fetches and compiles every scene the proofs read (`scripts/mesure/README.md` § Assets). The material proof (`materiaux-temoin`) needs no asset:
-its fixtures are built in the page and served from `test/appui/`, the SDK from `dist/`, so
+`pnpm run test:gpu` fails with it — loudly, never in silence. `node bench/runner/assets.ts`
+fetches and compiles every scene the proofs read (`bench/runner/README.md` § Assets). The material proof (`materiaux-temoin`) needs no asset:
+its fixtures are built in the page and served from `tests/browser/support/`, the SDK from `dist/`, so
 `pnpm run build` precedes it.
 
-`test/justesse/scenes-publiques.ts` needs no GPU and no browser: it opens the compiled caches of
+`tests/browser/probes/scenes-publiques.ts` needs no GPU and no browser: it opens the compiled caches of
 the public scenes and asserts what each one guarantees — a DAG that climbs above level 0 wherever a
 primitive holds more than one cluster, a mirrored mapping that locks no vertex — in a tenth of a
 second. It reads the caches, never builds them: without
-`node scripts/mesure/assets.ts` and a facade (`node scripts/mesure/scenes/facade.ts --seed 7`,
-then `node scripts/mesure/assets.ts --only facade-7`) it fails by name on the cache it could not
+`node bench/runner/assets.ts` and a facade (`node bench/runner/scenes/facade.ts --seed 7`,
+then `node bench/runner/assets.ts --only facade-7`) it fails by name on the cache it could not
 find.
 
-`test/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
+`tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
 never execute without notice.
 
 ```bash
 pnpm run test:gpu                                  # run all
-node test/test-gpu.ts test/justesse/reflexion-cone.ts   # run single target
+node tests/browser/test-gpu.ts tests/browser/probes/reflexion-cone.ts   # run single target
 ```
 
 #### Known failures of `test:gpu`, and where they were read
@@ -154,7 +154,7 @@ Three verdict types, never silence:
 
 `mesure()` refuses to run if the file reported as measured by a benchmark does not exist.
 
-**The reference-library duels** (`packages/sdk-core/bench/three-vs-core-*.perf.ts`,
+**The reference-library duels** (`bench/perf/core/three-vs-core-*.perf.ts`,
 `pnpm run perf:core`) put the host library and the engine on the same seeded inputs and refuse an
 engine that differs by a bit or runs slower. The four `three-vs-core-batch-*.perf.ts` files —
 `volumes` (frustum, spheres, unions, points, directions), `matrices` (invert, normal, compose),
@@ -169,7 +169,7 @@ published run.
 ## 3. Baselines and Report
 
 `pnpm run perf:all` outputs a fragment per domain into `.mesure/perf/`, then
-`scripts/mesure/perf/agrege.ts` aggregates them into a single table under
+`bench/runner/perf/agrege.ts` aggregates them into a single table under
 `.mesure/out/perf/perf-<date>.md` and `.json`.
 
 `pnpm run perf:baseline` converts fragments into baselines under `.mesure/baselines/`, one per domain,
@@ -185,7 +185,7 @@ The report flags any machine load higher than 4: above this threshold, timings a
 
 Timers run in the process that just executed the oracle, following warmup. This is sufficient to
 track regressions between batches on the same machine; it is not a campaign measurement. A publishable
-campaign is run with the `scripts/mesure/` harness (see its README), on a quiet machine, comparing
+campaign is run with the `bench/runner/` harness (see its README), on a quiet machine, comparing
 identical budgets, scenes, and poses.
 
 ## 4. Quality Gates

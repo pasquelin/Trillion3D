@@ -1,5 +1,5 @@
 // Lot 4: `visibilityShadingNormal.ts` rewritten on the core's flat vectors (`mathVector.ts`),
-// without the host library. Oracle: `bench/oracles/normale-ombrage.ts`, the previous file copied
+// without the host library. Oracle: `../../bench/oracles/browser/normale-ombrage.ts`, the previous file copied
 // as-is with its `Vector3`/`Matrix3`. The `bench/normale.bench.ts` bench replays 42 000 frames;
 // this test hard-codes a handful, two of which show the operation order:
 //   — a pose whose first row is (1e16, −1e16, 3), crossed by all-ones tangents:
@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadingNormal } from './visibilityShadingNormal.ts';
-import { referenceShadingNormal } from './bench/oracles/normale-ombrage.ts';
+import { referenceShadingNormal } from '../../bench/oracles/browser/normale-ombrage.ts';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
 
 const attribut = (valeurs: number[], taille: number) =>

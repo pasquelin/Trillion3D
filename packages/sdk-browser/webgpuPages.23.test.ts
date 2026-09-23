@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { frontCamera } from './pagesBackendScenes.ts';
 import { CLUSTER_PAGE_MAGIC } from './clusterFormat.ts';
 import {

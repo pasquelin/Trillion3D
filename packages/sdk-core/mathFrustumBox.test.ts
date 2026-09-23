@@ -13,7 +13,7 @@ import {
   frustumExcludesBox,
   frustumPlanesFromMatrix,
 } from './index.ts';
-import { boite3 } from './bench/oracles/volumes.ts';
+import { boite3 } from '../../bench/oracles/core/volumes.ts';
 
 function camera() {
   const cam = new THREE.PerspectiveCamera(50, 1.3, 0.5, 200);

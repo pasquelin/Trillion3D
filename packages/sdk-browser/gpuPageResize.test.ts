@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPageCache } from './gpuPages.ts';
-import { mockDevice } from '../../test/fixtures/gpuPages.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { mockDevice } from '../../tests/kit/gpu/pagesDevice.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 
 installGpuGlobals();
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 };

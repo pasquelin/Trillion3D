@@ -10,7 +10,12 @@ import { createFrameGateCore } from './frameGateCore.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
 import type { CameraMotion } from './cameraWorld.ts';
 import { cameraMoteur } from './cameraFixture.ts';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from '../../test/justesse/cameraRig.ts';
+import {
+  POSES_PARENT,
+  cameraAplatie,
+  creeRig,
+  poseRig,
+} from '../../tests/browser/probes/cameraRig.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
 const VIEWPORT: [number, number] = [800, 600];

@@ -7,7 +7,7 @@ import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { VOLUME_WORDS } from './webgpuTransmission.ts';
 import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
 import { orderBlendPasses } from './webgpuBlendOrder.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 

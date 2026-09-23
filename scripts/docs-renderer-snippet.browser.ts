@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { rendererCodeFor } from '../site/lessons/rendererLessonCode.ts';
 import { rendererInitialState, rendererLessons } from '../site/lessons/rendererLessons.ts';
-import { launchChrome } from './mesure/chrome.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 
 interface CanvasSize {

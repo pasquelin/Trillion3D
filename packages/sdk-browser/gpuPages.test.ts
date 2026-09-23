@@ -1,4 +1,4 @@
-import { mockDevice } from '../../test/fixtures/gpuPages.ts';
+import { mockDevice } from '../../tests/kit/gpu/pagesDevice.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPageCache } from './gpuPages.ts';

@@ -1,4 +1,4 @@
-import { TEMPLATES, sha, manifest } from '../../test/fixtures/manifestBinary.ts';
+import { TEMPLATES, sha, manifest } from '../../tests/fixtures/manifestBinary.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

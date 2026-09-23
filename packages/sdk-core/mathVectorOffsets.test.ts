@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { copyScaledVector3, crossVector3, dotVector3, lengthSqVector3 } from './mathVector.ts';
-import { assertBits } from './bench/oracles/volumes.ts';
+import { assertBits } from '../../tests/kit/assert/bits.ts';
 
 /** Four vectors flat in one buffer, read at an offset: the form the engine's batches use. */
 const buffer = new Float64Array([

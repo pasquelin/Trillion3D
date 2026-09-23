@@ -11,7 +11,7 @@ import {
   LARGE_SCALE,
   type Mat4,
   type Vec4,
-} from './bench/oracles/mat4HoistOracle.ts';
+} from '../../bench/oracles/browser/mat4HoistOracle.ts';
 
 // D1: gpuRasterShader.ts now computes viewProj*world and the linear determinant once per page
 // (per workgroup) instead of recomputing them for every triangle. Structure: the sharing really

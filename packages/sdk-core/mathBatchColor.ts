@@ -7,7 +7,7 @@ import { linearToSrgb, srgbToLinear } from './mathColor.ts';
  * Repeats `srgbToLinear`. Replaces Three.js loop: `for … color.convertSRGBToLinear()`.
  * DECLARED DIFFERENCE with the reference, inherited from the unit function: the engine writes
  * the exact curve where the reference multiplies by rounded constants. The gap per channel is
- * bounded by `SRGB_REFERENCE_GAP` (`bench/oracles/three-duel.ts`), invisible at 8 bits.
+ * bounded by `SRGB_REFERENCE_GAP` (`../../bench/oracles/core/three-duel.ts`), invisible at 8 bits.
  */
 export function srgbToLinearBatch(out: Float64Array, values: ArrayLike<number>, n: number): void {
   for (let i = 0; i < n; i++) {

@@ -6,7 +6,7 @@ import {
   LightingTransportError,
   LIGHTING_TRANSPORT_ALGORITHM_VERSION,
 } from './lightingTransport.ts';
-import { sceneWithBlocker } from '../../test/fixtures/lightingTransportScene.ts';
+import { sceneWithBlocker } from '../../tests/fixtures/lightingTransportScene.ts';
 test('dense oracle matches the closed-form two-surface multiple-bounce solution', () => {
   const source = Float64Array.of(1, 2, 3, 4, 5, 6);
   const albedo = Float64Array.of(0.6, 0.3, 0.9, 0.4, 0.7, 0.2);

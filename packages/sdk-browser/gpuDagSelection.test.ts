@@ -18,7 +18,8 @@ import {
   packed,
   VIEWPORT,
 } from './gpuDagSelectionTestHelpers.ts';
-import { installGpuGlobals, mockDagDevice } from './gpuDagSelectionFixture.ts';
+import { mockDagDevice } from './gpuDagSelectionFixture.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
 test('the kernel projects a cluster error exactly like clusterErrorPixels', () => {

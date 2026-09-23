@@ -5,7 +5,7 @@ import {
   createDefaultLightingSceneLights,
   type Scene,
 } from './lightingExperimentScene.ts';
-import { close } from '../../test/fixtures/lightingSceneTestHelpers.ts';
+import { close } from '../../tests/fixtures/lightingSceneTestHelpers.ts';
 
 test('lighting scene rejects nonfinite parameters and an excessive patch allocation', () => {
   for (const options of [

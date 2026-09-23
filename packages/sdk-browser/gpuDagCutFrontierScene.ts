@@ -1,7 +1,7 @@
 /**
  * Frontier-count scene: a pyramid of detail levels, as many poses, and the cut
  * hierarchy packing gives them. No host-library dependency — the world matrix
- * comes from the caller — `test/integration/moteur-sans-three.test.ts` forbids it here.
+ * comes from the caller — `tests/integration/moteur-sans-three.test.ts` forbids it here.
  */
 import { flatHierarchy } from './gpuDagHierarchy.ts';
 import { BOUND_STRIDE, cullingBounds, PARENT_SPHERE } from './pageSelectionCutBounds.ts';
@@ -133,7 +133,7 @@ function hierarchieParNiveaux(pages: ReturnType<typeof page>[]) {
 }
 
 /** Scene poses. The world matrix comes from the caller: this module does not know the
- *  host library, and the closed list in `test/integration/moteur-sans-three.test.ts` forbids it. */
+ *  host library, and the closed list in `tests/integration/moteur-sans-three.test.ts` forbids it. */
 export function sceneRoots(
   pages: ReturnType<typeof page>[],
   mondes: DagRoot['world'][],

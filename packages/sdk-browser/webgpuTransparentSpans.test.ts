@@ -6,8 +6,8 @@ import { prepareWebgpuPages } from './webgpuPagesPrepare.ts';
 import { ensurePageTable } from './webgpuPagesEncodeDraws.ts';
 import { refreshTransparentSpans } from './webgpuTransparentSpans.ts';
 import { disposeWebgpuPages } from './webgpuPagesMetrics.ts';
-import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { mockGpu } from '../../tests/kit/gpu/mockGpu.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 import { mixedBinScene } from './webgpuPagesTestScenes.ts';
 
 test('transparent spans follow only changed resident pages through arrival, eviction and slot reuse', async () => {

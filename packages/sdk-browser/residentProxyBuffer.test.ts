@@ -9,7 +9,7 @@ import {
 } from './bounceNodeWgsl.ts';
 import { createGpuBounceProxy } from './gpuBounceProxy.ts';
 import { createGpuSunFarShadow } from './gpuSunFarShadow.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { installGpuGlobals } from '../../tests/kit/gpu/globals.ts';
 
 /** Dummy harness: holds proxy buffer mapping and header writes. */
 function recordingDevice(writes: Array<[number, number]> = []) {

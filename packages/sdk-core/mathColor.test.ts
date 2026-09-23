@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { hslToLinearRgb, linearToSrgb, srgbToLinear } from './mathColor.ts';
-import { assertBits } from './bench/oracles/volumes.ts';
+import { assertBits } from '../../tests/kit/assert/bits.ts';
 
 /** Reference `Color.setHSL`, in its default working space (`srgb-linear`): no
  *  transfer curve is applied there, like `hslToLinearRgb`. */

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { launchChrome } from './mesure/chrome.ts';
+import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 
 test('gallery progressively loads a bounded window and restores navigation state', async () => {
