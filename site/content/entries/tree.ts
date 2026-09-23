@@ -4,7 +4,7 @@ import type { PortalEntry } from '../model.ts';
 const T = {
   section: 'tree',
   kind: 'Function',
-  module: 'packages/sdk-core/mathTransformTree.ts',
+  module: 'packages/sdk-core/src/math/transform-tree/transformTree.ts',
 };
 
 export const TREE: PortalEntry[] = [
@@ -41,7 +41,7 @@ export const TREE: PortalEntry[] = [
     id: 'reparentTransformNode',
     exports: ['reparentTransformNode', 'removeTransformNode'],
     title: 'reparentTransformNode() · removeTransformNode()',
-    module: 'packages/sdk-core/mathTransformTreeStructure.ts',
+    module: 'packages/sdk-core/src/math/transform-tree/structure.ts',
     signature: 'reparentTransformNode(tree, node, parent)\nremoveTransformNode(tree, node)',
     description:
       'Attaches `node` under `parent` (`-1`: a root) like the reference `add` — matrices do not move until the next update — and throws if `parent` is `node` or one of its descendants. Removing takes the node and all its descendants, their indices reused afterwards; to detach a subtree while keeping it, reparent it to `-1`.',
@@ -52,7 +52,7 @@ export const TREE: PortalEntry[] = [
     id: 'updateNodeMatrixWorld',
     exports: ['updateNodeMatrixWorld', 'updateNodeWorldMatrix'],
     title: 'updateNodeMatrixWorld() · updateNodeWorldMatrix()',
-    module: 'packages/sdk-core/mathTransformTreeUpdate.ts',
+    module: 'packages/sdk-core/src/math/transform-tree/update.ts',
     signature:
       'updateNodeMatrixWorld(tree, node, force = false)\nupdateNodeWorldMatrix(tree, node, updateParents, updateChildren)',
     description:
@@ -70,7 +70,7 @@ export const TREE: PortalEntry[] = [
       'nodeWorldMirrorsFaces',
     ],
     title: 'nodeWorldPosition() · nodeWorldQuaternion() · nodeWorldScale() · nodeWorldDirection()',
-    module: 'packages/sdk-core/mathTransformTreeRead.ts',
+    module: 'packages/sdk-core/src/math/transform-tree/read.ts',
     signature:
       'nodeWorldPosition(out, tree, node)\nnodeWorldQuaternion(out, tree, node)\nnodeWorldScale(out, tree, node)\nnodeWorldDirection(out, tree, node, cameraForward)\nnodeWorldMirrorsFaces(tree, node)',
     description:
@@ -82,7 +82,7 @@ export const TREE: PortalEntry[] = [
     id: 'lookAtNode',
     exports: ['lookAtNode'],
     title: 'lookAtNode()',
-    module: 'packages/sdk-core/mathTransformTreeLookAt.ts',
+    module: 'packages/sdk-core/src/math/transform-tree/lookAt.ts',
     signature: 'lookAtNode(tree, node, x, y, z, up, viewer)',
     description:
       "Turns `node` toward the world point `(x, y, z)`. `viewer` is true for a camera or a light, which look toward their `−z`, false for an object, which presents its `+z`. `up` is the node's up, `(0, 1, 0)` in the reference. Ancestors and the node are updated first.",

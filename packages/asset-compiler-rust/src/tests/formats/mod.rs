@@ -1,0 +1,14 @@
+use super::*;
+pub(in crate::tests) mod alembic_golden;
+pub(in crate::tests) mod blend_driver;
+pub(in crate::tests) mod blend_golden;
+pub(in crate::tests) mod driver_uris;
+pub(in crate::tests) mod gltf_cycle;
+pub(in crate::tests) mod gltf_scenes;
+pub(in crate::tests) mod import_opacity;
+pub(in crate::tests) mod ma;
+pub(in crate::tests) mod obj_golden;
+pub(in crate::tests) mod obj_mtl;
+pub(in crate::tests) mod unity;
+pub(in crate::tests) mod usd;
+pub(in crate::tests) mod zip_golden;

@@ -54,7 +54,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.ts', 'test/fixtures/**/*.ts'],
+    // Tests and golden fixtures; `timingDevice.ts` was a fixture before it joined the kit.
+    files: ['**/*.test.ts', 'tests/fixtures/**/*.ts', 'tests/kit/gpu/timingDevice.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
 );

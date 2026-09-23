@@ -3,9 +3,9 @@ import test from 'node:test';
 import { cameraLessonDefinitions } from '../site/lessons/cameraLessonDefinitions.ts';
 import { cameraLessonCode } from '../site/lessons/cameraLessonCode.ts';
 import { applyCameraLesson, cameraPoseFor } from '../site/lessons/cameraLessonRuntime.ts';
-import { Camera } from '../packages/sdk-core/world/camera/camera.ts';
+import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import type { RendererLessonItem } from '../site/lessons/rendererLessonTypes.ts';
-import type { CameraPose, World } from '../packages/sdk-browser/index.ts';
+import type { CameraPose, World } from '../packages/sdk-browser/src/index.ts';
 
 const home: CameraPose = { position: [4, 3, 6], target: [0, 1, 0], fov: 50 };
 const initial = (lesson: RendererLessonItem) =>

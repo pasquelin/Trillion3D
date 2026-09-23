@@ -1,0 +1,114 @@
+// C2: per-frame Hi-Z pyramid shifts from a reallocated `number[][][]` to a single
+// `Float32Array` reused from frame to frame (pyramidFlat.ts). Reference is the pre-batch C
+// implementation, still present and unchanged: `hizBuildPyramid`/`hizFootprintFar` from
+// `oracles.ts`, exported as is to continue serving as oracle. Expected equality is
+// bitwise (`Object.is`), without tolerance: reduction is a minimum, never an
+// arithmetic operation that could round differently.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  hizBuildPyramid,
+  hizFootprintFar,
+  hizBuildFlat,
+  hizFlatLayout,
+  hizFootprintFarFlat,
+  type HizFlat,
+} from '../index.ts';
+
+/** Expected nested levels, compared value by value with the flat buffer. */
+function assertSamePyramid(flat: HizFlat, nested: number[][][], message: string) {
+  assert.equal(flat.count, nested.length, `${message} : nombre de niveaux`);
+  for (let level = 0; level < flat.count; level++) {
+    const rows = nested[level];
+    const height = rows.length,
+      width = height ? rows[0].length : 0;
+    assert.equal(flat.widths[level], width, `${message} niveau ${level} largeur`);
+    assert.equal(flat.heights[level], height, `${message} niveau ${level} hauteur`);
+    const base = flat.offsets[level];
+    for (let y = 0; y < height; y++)
+      for (let x = 0; x < width; x++)
+        assert.ok(
+          Object.is(flat.data[base + y * width + x], rows[y][x]),
+          `${message} niveau ${level} [${y},${x}] : ${flat.data[base + y * width + x]} ≠ ${rows[y][x]}`,
+        );
+  }
+}
+
+function rows(depth: Float32Array, width: number, height: number) {
+  const out: number[][] = [];
+  for (let y = 0; y < height; y++) {
+    const row = new Array<number>(width);
+    for (let x = 0; x < width; x++) row[x] = depth[y * width + x];
+    out.push(row);
+  }
+  return out;
+}
+
+test('a zero-size image is rejected, flat as well as nested', () => {
+  assert.throws(() => hizFlatLayout(0, 4), /HIZ_DEPTH_SIZE/);
+  assert.throws(() => hizFlatLayout(4, 0), /HIZ_DEPTH_SIZE/);
+  assert.throws(() => hizBuildFlat(new Float32Array(0), 0, 0), /HIZ_DEPTH_SIZE/);
+});
+
+test('a 1×1 image reduces nothing, on both sides', () => {
+  const depth = new Float32Array([0.42]);
+  const flat = hizBuildFlat(depth, 1, 1);
+  const nested = hizBuildPyramid(rows(depth, 1, 1));
+  assertSamePyramid(flat, nested, '1×1');
+  assert.equal(flat.count, 1);
+});
+
+test('odd dimensions (33×19) reduce identically', () => {
+  const depth = new Float32Array(33 * 19);
+  for (let i = 0; i < depth.length; i++) depth[i] = Math.sin(i * 0.37) * 0.5 + 0.5;
+  const flat = hizBuildFlat(depth, 33, 19);
+  const nested = hizBuildPyramid(rows(depth, 33, 19));
+  assertSamePyramid(flat, nested, '33×19');
+});
+
+test('NaN, Infinity, -Infinity and -0 propagate identically', () => {
+  const depth = new Float32Array(8 * 8);
+  depth.fill(0.3);
+  const hostiles = [NaN, Infinity, -Infinity, -0];
+  for (let i = 0; i < hostiles.length; i++) depth[i * 9] = hostiles[i];
+  const flat = hizBuildFlat(depth, 8, 8);
+  const nested = hizBuildPyramid(rows(depth, 8, 8));
+  assertSamePyramid(flat, nested, 'valeurs hostiles');
+});
+
+test('`into` is reused from image to image without changing result', () => {
+  const first = new Float32Array(4 * 4);
+  first.fill(0.1);
+  let into = hizBuildFlat(first, 4, 4);
+  const buffer = into.data;
+  const second = new Float32Array(4 * 4);
+  second.fill(0.9);
+  second[5] = NaN;
+  into = hizBuildFlat(second, 4, 4, into);
+  assert.equal(into.data, buffer, 'same buffer reused');
+  const nested = hizBuildPyramid(rows(second, 4, 4));
+  assertSamePyramid(into, nested, 'reused frame');
+});
+
+test('hizFootprintFarFlat yields same verdict as hizFootprintFar, including out of bounds', () => {
+  const depth = new Float32Array(33 * 19);
+  for (let i = 0; i < depth.length; i++) depth[i] = ((i * 31) % 97) / 97;
+  depth[18 * 33 + 32] = 1;
+  const flat = hizBuildFlat(depth, 33, 19);
+  const nested = hizBuildPyramid(rows(depth, 33, 19));
+  const cas: Array<[number, number, number, number, number]> = [
+    [0, 0, 33, 19, 0],
+    [0, 0, 32, 18, 2],
+    [5, 5, 5, 5, 1],
+    [-3, -3, 40, 25, 0],
+    [0, 0, 1, 1, 99],
+  ];
+  for (const [x0, y0, x1, y1, level] of cas) {
+    const attendu = hizFootprintFar(nested, x0, y0, x1, y1, level);
+    const obtenu = hizFootprintFarFlat(flat, x0, y0, x1, y1, level);
+    assert.ok(
+      Object.is(attendu, obtenu),
+      `[${x0},${y0},${x1},${y1}]@${level}: ${attendu} ≠ ${obtenu}`,
+    );
+  }
+});

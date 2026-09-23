@@ -76,6 +76,12 @@ const FLOAT_PIXEL_BYTES: u64 = 16;
 /// Bytes occupied by one RGBA8 pixel.
 const RGBA8_PIXEL_BYTES: u64 = 4;
 
+/// The thirty-two-bit little-endian word at this offset, as the headers of the block containers
+/// (`dds`, `ktx2`) store every field: one reader for both, not one copy each.
+pub(super) fn word(bytes: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
+}
+
 /// The allocation ceiling of a surface, checked before decoding anything, at `pixel_bytes` bytes
 /// per pixel. `saturating_mul` keeps the comparison honest when a dimension is lying, where an
 /// overflowing multiply would let it through. Emptiness is not judged here: `dds` and `ktx2` refuse

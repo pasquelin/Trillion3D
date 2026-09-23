@@ -90,14 +90,14 @@ mod tests {
     // while the compiler moves. The stale reuse #290 hit came from the cook running a binary it
     // never rebuilt (#291); this is the same shape, one build earlier, and is closed here.
     #[test]
-    fn le_script_de_construction_surveille_le_dossier_des_sources() {
+    fn the_build_script_watches_the_source_folder() {
         assert!(include_str!("../build.rs").contains("cargo:rerun-if-changed=src\""));
     }
 
     // Behaviour: a measured time or a machine path leaves identity, at every
     // level; the rest of the manifest enters as-is.
     #[test]
-    fn les_mesures_et_la_provenance_sortent_de_lidentite() {
+    fn measures_and_provenance_leave_the_identity() {
         let manifest = json!({"runtime":{"sha256":"abc"},
             "source":{"plugin":"usd","path":"/chez/moi/s.usd","importMs":12.5,
                 "files":[{"file":"s.usd","sha256":"def","parseMs":3.0,"ms":4.0}]}});
