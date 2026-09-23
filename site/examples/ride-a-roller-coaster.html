@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Roller coaster ride</title>
+    <meta name="thumbnail" content="9" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #f3c28c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#f3c28c');
+      world.camera.far = 1500;
+      const random = ((state) => () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296)(23);
+
+      // Vectors as three numbers, and the turn of a vector about a unit axis (Rodrigues).
+      const plus = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
+      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+      const unit = (a) => plus([0, 0, 0], a, 1 / Math.hypot(...a));
+      const turn = (v, axis, angle) => plus(plus(plus([0, 0, 0], v, Math.cos(angle)), cross(axis, v), Math.sin(angle)), axis, dot(axis, v) * (1 - Math.cos(angle)));
+
+      // The track is drawn like a turtle: a point, the way ahead (T) and the way up (U), moved by
+      // commands — go straight, pitch the nose, turn flat, roll, loop. Every step keeps a sample of
+      // the three, so each rail, tie and seat knows its frame, upside down in a loop too.
+      const G = 9.81, STEP = 0.4, TOP = 34;
+      function layout(loops) {
+        let p = [0, 2, 0], t = [1, 0, 0], u = [0, 1, 0];
+        const samples = [{ p, t, u }], marks = {};
+        const walk = (length, change, drift = [0, 0, 0]) => {
+          const count = Math.max(1, Math.ceil(length / STEP));
+          for (let k = 0; k < count; k++) {
+            const before = t;
+            [t, u] = change(t, u, 1 / count);
+            p = plus(plus(p, unit(plus(before, t)), length / count), drift, 1 / count);
+            samples.push({ p, t, u });
+          }
+        };
+        const straight = (length) => walk(length, (t, u) => [t, u]);
+        const pitch = (angle, radius, drift) => walk(Math.abs(angle) * radius, (t, u, share) => {
+          const side = unit(cross(t, u));
+          return [turn(t, side, angle * share), turn(u, side, angle * share)];
+        }, drift);
+        const yaw = (angle, radius) => walk(Math.abs(angle) * radius, (t, u, share) => [turn(t, [0, 1, 0], angle * share), turn(u, [0, 1, 0], angle * share)]);
+        const roll = (angle, length) => walk(length, (t, u, share) => [t, turn(u, t, angle * share)]);
+        const hill = (angle, rise, crest) => (pitch(angle, 18), straight(rise), pitch(-2 * angle, crest), straight(rise), pitch(angle, 18));
+        const bankedTurn = (radius) => (roll(-0.9, 12), yaw(Math.PI, radius), roll(0.9, 12));
+
+        straight(24);
+        marks.lift = samples.length;
+        const climb = 0.62;
+        pitch(climb, 14);
+        straight((TOP - p[1] - 14 * (1 - Math.cos(climb))) / Math.sin(climb));
+        pitch(-climb, 14);
+        marks.crest = samples.length;
+        straight(5);
+        const dive = 1.05;
+        pitch(-dive, 14);
+        straight((p[1] - 3 - 18 * (1 - Math.cos(dive))) / Math.sin(dive));
+        pitch(dive, 18);
+        // Each loop slides a little sideways as it turns, so its way out passes beside its way in.
+        for (let k = 0; k < loops; k++) {
+          straight(9);
+          pitch(Math.PI * 2, 13 - k * 1.4, [0, 0, 3.4]);
+        }
+        straight(14);
+        bankedTurn(24);
+        hill(0.42, 12, 46);
+        straight(6);
+        hill(0.34, 8, 40);
+        straight(Math.max(4, p[0] + 30));
+        bankedTurn(20);
+        // Back to the station: a smooth cubic from where the turtle stands to where it started.
+        const end = p, gap = Math.hypot(...plus([0, 2, 0], end, -1)), count = Math.ceil(gap / STEP);
+        marks.brake = samples.length;
+        for (let k = 1; k < count; k++) {
+          const s = k / count, h00 = 2 * s ** 3 - 3 * s ** 2 + 1, h10 = s ** 3 - 2 * s ** 2 + s, h01 = -2 * s ** 3 + 3 * s ** 2, h11 = s ** 3 - s ** 2;
+          const d00 = 6 * s ** 2 - 6 * s, d10 = 3 * s ** 2 - 4 * s + 1, d01 = -d00, d11 = 3 * s ** 2 - 2 * s;
+          const at = [0, 1, 2].map((i) => h00 * end[i] + h10 * gap * t[i] + h01 * [0, 2, 0][i] + h11 * gap * [1, 0, 0][i]);
+          const ahead = unit([0, 1, 2].map((i) => d00 * end[i] + d10 * gap * t[i] + d01 * [0, 2, 0][i] + d11 * gap * [1, 0, 0][i]));
+          // The way up follows along, kept square to the way ahead.
+          u = unit(plus(u, ahead, -dot(u, ahead)));
+          samples.push({ p: at, t: ahead, u });
+        }
+        let length = 0;
+        samples.forEach((sample, k) => {
+          if (k) length += Math.hypot(...plus(sample.p, samples[k - 1].p, -1));
+          sample.s = length;
+        });
+        const total = length + Math.hypot(...plus(samples[0].p, samples[samples.length - 1].p, -1));
+        // How the ground pushes on a rider, in g: the turn's pull along the seat's up, plus gravity.
+        samples.forEach((sample, k) => {
+          const a = samples[(k + samples.length - 1) % samples.length], b = samples[(k + 1) % samples.length];
+          const span = Math.max(STEP, Math.hypot(...plus(b.p, a.p, -1)));
+          sample.bend = dot(plus(b.t, a.t, -1), sample.u) / span;
+        });
+        return { samples, total, lift: [samples[marks.lift].s, samples[marks.crest].s], brake: samples[marks.brake].s };
+      }
+
+      // A pose anywhere along the track: the two samples around it, blended.
+      function poseAt(track, distance) {
+        const { samples, total } = track, s = ((distance % total) + total) % total;
+        let low = 0, high = samples.length - 1;
+        if (s >= samples[high].s) return { ...samples[high] };
+        while (high - low > 1) {
+          const middle = (low + high) >> 1;
+          if (samples[middle].s <= s) low = middle;
+          else high = middle;
+        }
+        const a = samples[low], b = samples[high], k = (s - a.s) / (b.s - a.s || 1);
+        const mix = (x, y) => x.map((value, i) => value + (y[i] - value) * k);
+        return { p: mix(a.p, b.p), t: unit(mix(a.t, b.t)), u: unit(mix(a.u, b.u)), bend: a.bend + (b.bend - a.bend) * k };
+      }
+
+      // The speed the train carries: the chain's pace on the lift, then what its fall from the
+      // crest gives it, less a rolling loss of 2 cm of height per metre, and the brakes easing it
+      // back to the station.
+      function speedAt(track, s, y) {
+        const [liftStart, liftEnd] = track.lift, chain = 4.5;
+        if (s < liftEnd) return s < liftStart ? 5 : chain;
+        const free = Math.sqrt(Math.max(chain * chain, chain * chain + 2 * G * (TOP - y - 0.02 * (s - liftEnd))));
+        const braking = Math.min(1, Math.max(0, (s - track.brake) / 30));
+        return free + (5 - free) * braking * braking * (3 - 2 * braking);
+      }
+
+      // The track's meshes: two rails and a spine swept along the samples, ties every few metres.
+      const steel = material.meshStandard({ color: '#d9dde3', roughness: 0.28, metalness: 0.85 });
+      const spinePaint = material.meshStandard({ color: '#2f6fd6', roughness: 0.45, metalness: 0.3 });
+      const tiePaint = material.meshStandard({ color: '#27313f', roughness: 0.6, metalness: 0.4 });
+      const rails = object.mesh(geometry.box(0.01, 0.01, 0.01), steel), spine = object.mesh(geometry.box(0.01, 0.01, 0.01), spinePaint), ties = object.mesh(geometry.box(0.01, 0.01, 0.01), tiePaint);
+      world.scene.add(rails, spine, ties);
+      const built = (list) => geometry.createBuffer({ position: buffer.float32(new Float32Array(list.position), 3), normal: buffer.float32(new Float32Array(list.normal), 3), index: buffer.uint32(list.index) });
+      function sweep(list, samples, across, up, radius, sides) {
+        const first = list.position.length / 3;
+        for (const { p, t, u } of samples) {
+          const side = cross(t, u), centre = plus(plus(p, side, across), u, up);
+          for (let k = 0; k < sides; k++) {
+            const a = (k / sides) * Math.PI * 2, n = plus(plus([0, 0, 0], side, Math.cos(a)), u, Math.sin(a));
+            list.position.push(...plus(centre, n, radius));
+            list.normal.push(...n);
+          }
+        }
+        const rings = samples.length;
+        for (let r = 0; r < rings; r++)
+          for (let k = 0; k < sides; k++) {
+            const a = first + r * sides + k, b = first + r * sides + ((k + 1) % sides), c = first + ((r + 1) % rings) * sides + k, d = first + ((r + 1) % rings) * sides + ((k + 1) % sides);
+            list.index.push(a, c, b, b, c, d);
+          }
+      }
+      function box(list, centre, frame, half) {
+        // A box square to a frame: the three axes and their half-lengths.
+        for (let axis = 0; axis < 3; axis++)
+          for (const sign of [-1, 1]) {
+            const n = plus([0, 0, 0], frame[axis], sign), a = frame[(axis + 1) % 3], b = frame[(axis + 2) % 3];
+            const ha = half[(axis + 1) % 3], hb = half[(axis + 2) % 3], face = plus(centre, n, half[axis]), first = list.position.length / 3;
+            for (const [i, j] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+              list.position.push(...plus(plus(face, a, i * ha), b, j * hb));
+              list.normal.push(...n);
+            }
+            // Wound so the face looks out along its normal, whatever the handedness of the frame.
+            if (dot(cross(a, b), n) > 0) list.index.push(first, first + 1, first + 2, first, first + 2, first + 3);
+            else list.index.push(first, first + 2, first + 1, first, first + 3, first + 2);
+          }
+      }
+      // Supports: columns from the ground to the spine where the track runs upright, from a pool.
+      const column = geometry.cylinder(0.16, 0.22, 1, 10).translate(0, 0.5, 0), SUPPORTS = 260;
+      const supports = Array.from({ length: SUPPORTS }, () => {
+        const post = object.mesh(column, spinePaint);
+        post.visible = false;
+        world.scene.add(post);
+        return post;
+      });
+      let track = null;
+      function rebuild(loops) {
+        track = layout(loops);
+        const railList = { position: [], normal: [], index: [] }, spineList = { position: [], normal: [], index: [] }, tieList = { position: [], normal: [], index: [] };
+        for (const across of [-0.55, 0.55]) sweep(railList, track.samples, across, 0, 0.075, 10);
+        sweep(spineList, track.samples, 0, -0.5, 0.2, 12);
+        let used = 0;
+        for (let s = 0; s < track.total; s += 1.2) {
+          const { p, t, u } = poseAt(track, s), side = cross(t, u);
+          box(tieList, plus(p, u, -0.22), [side, u, t], [0.62, 0.06, 0.09]);
+          if (Math.round(s / 1.2) % 5 || u[1] < 0.85 || p[1] < 1.4 || used >= SUPPORTS) continue;
+          const post = supports[used++], foot = plus(p, u, -0.6);
+          post.position.set(foot[0], 0, foot[2]);
+          post.scale.set(1, foot[1], 1);
+          post.visible = true;
+        }
+        supports.forEach((post, k) => (post.visible = k < used));
+        rails.geometry = built(railList);
+        spine.geometry = built(spineList);
+        ties.geometry = built(tieList);
+      }
+
+      // The train: four cars, each a body, two seats and a lap bar, on its own frame of the track.
+      const red = material.meshStandard({ color: '#d7263d', roughness: 0.3, metalness: 0.35 });
+      const seat = material.meshStandard({ color: '#20242c', roughness: 0.7 }), chrome = material.meshStandard({ color: '#f1f1f1', roughness: 0.2, metalness: 0.9 });
+      const cars = Array.from({ length: 4 }, (_, k) => {
+        const car = object.group();
+        car.rotation.order = 'YXZ';
+        const body = object.mesh(geometry.capsule(0.62, 1.7, 6, 16).rotateX(Math.PI / 2).scale(1.35, 0.55, 1), red);
+        body.position.y = 0.42;
+        car.add(body);
+        for (const z of [-0.45, 0.55]) {
+          const back = object.mesh(geometry.box(1.3, 0.7, 0.16), seat);
+          back.position.set(0, 0.95, z - 0.4);
+          const bar = object.mesh(geometry.torus(0.36, 0.035, 8, 24, Math.PI), chrome);
+          bar.position.set(0, 0.78, z + 0.05);
+          car.add(back, bar);
+        }
+        if (k === 0) {
+          const nose = object.mesh(geometry.cone(0.55, 0.9, 20).rotateX(Math.PI / 2), red);
+          nose.position.set(0, 0.42, 1.55);
+          car.add(nose);
+        }
+        world.scene.add(car);
+        return car;
+      });
+      // A car on its frame: yaw and pitch from the way ahead, the roll from the way up.
+      function seatCar(car, pose) {
+        const { p, t, u } = pose, yaw = Math.atan2(t[0], t[2]), pitch = -Math.asin(Math.max(-1, Math.min(1, t[1])));
+        const up0 = [Math.sin(yaw) * Math.sin(pitch), Math.cos(pitch), Math.cos(yaw) * Math.sin(pitch)], side0 = [Math.cos(yaw), 0, -Math.sin(yaw)];
+        car.position.set(...p);
+        car.rotation.set(pitch, yaw, Math.atan2(-dot(u, side0), dot(u, up0)));
+      }
+
+      // The park: grass, a station, a lake, a Ferris wheel, trees clear of the track, far hills.
+      const paint = (color, roughness = 0.9, metalness = 0) => material.meshStandard({ color, roughness, metalness });
+      const grass = object.mesh(geometry.box(900, 0.4, 900), paint('#6c9440'));
+      grass.position.y = -0.2;
+      const lake = object.mesh(geometry.cylinder(26, 26, 0.1, 64), material.meshStandard({ color: '#3f7fb8', roughness: 0.08, metalness: 0.2 }));
+      lake.position.set(50, 0.02, 44);
+      const platform = object.mesh(geometry.box(26, 1.2, 4), paint('#c9b89a')), roof = object.mesh(geometry.box(28, 0.3, 7), paint('#b3372c', 0.6));
+      platform.position.set(10, 0.6, -3.2);
+      roof.position.set(10, 5.2, -1.6);
+      world.scene.add(grass, lake, platform, roof);
+      for (const x of [-2, 22]) {
+        const post = object.mesh(geometry.box(0.3, 4.5, 0.3), paint('#e8e2d4'));
+        post.position.set(x, 2.8, -4.8);
+        world.scene.add(post);
+      }
+      const hub = [-40, 24, -110], wheel = object.group(), enamel = paint('#f4f1ea', 0.4, 0.5);
+      wheel.position.set(...hub);
+      wheel.add(object.mesh(geometry.torus(20, 0.35, 10, 96), enamel), object.mesh(geometry.cylinder(1.2, 1.2, 2, 24).rotateX(Math.PI / 2), steel));
+      for (let k = 0; k < 16; k++) wheel.add(object.mesh(geometry.box(0.18, 40, 0.18).rotateZ((k / 16) * Math.PI), enamel));
+      world.scene.add(wheel);
+      for (const side of [-1, 1]) {
+        const leg = object.mesh(geometry.box(0.8, 27, 0.8).rotateZ(side * 0.32), steel);
+        leg.position.set(hub[0] + side * 4.2, 12.6, hub[2] - 2.5 * side);
+        world.scene.add(leg);
+      }
+      const gondolaPaints = ['#e63946', '#f4a261', '#2a9d8f', '#457b9d', '#e9c46a', '#8e6cff'].map((c) => paint(c, 0.5));
+      const gondolas = Array.from({ length: 16 }, (_, k) => {
+        const cabin = object.mesh(geometry.box(2, 2.2, 1.6).translate(0, -1.3, 0), gondolaPaints[k % gondolaPaints.length]);
+        world.scene.add(cabin);
+        return cabin;
+      });
+      const crown = geometry.cone(2.2, 7, 12).translate(0, 5.5, 0), trunk = geometry.cylinder(0.3, 0.4, 2.2, 8).translate(0, 1.1, 0);
+      const leaves = [paint('#3d6b2e'), paint('#4f7d32'), paint('#2f5a2a')], bark = paint('#5b4331');
+      const peak = geometry.cone(1, 1, 24), rock = paint('#6f7a6a'), snow = paint('#f3f1ec', 0.7);
+      for (let k = 0; k < 22; k++) {
+        const angle = (k / 22) * Math.PI * 2 + random() * 0.2, reach = 380 + random() * 140, high = 70 + random() * 110, wide = 90 + random() * 70;
+        const mountain = object.mesh(peak, rock), cap = object.mesh(peak, snow);
+        mountain.position.set(Math.cos(angle) * reach, high / 2, Math.sin(angle) * reach);
+        mountain.scale.set(wide, high, wide);
+        cap.position.set(Math.cos(angle) * reach, high * 0.855, Math.sin(angle) * reach);
+        cap.scale.set(wide * 0.31, high * 0.29, wide * 0.31);
+        world.scene.add(mountain, cap);
+      }
+      rebuild(3);
+      // Trees: kept clear of the widest track the loops control can build.
+      const widest = layout(4).samples.filter((_, k) => k % 8 === 0);
+      for (let k = 0; k < 260; k++) {
+        const x = (random() - 0.5) * 320, z = (random() - 0.5) * 300, size = 0.7 + random() * 0.9;
+        if (widest.some(({ p }) => Math.hypot(p[0] - x, p[2] - z) < 6 + 2 * size) || Math.hypot(x - 50, z - 44) < 30 || Math.hypot(x - hub[0], z - hub[2]) < 26) continue;
+        for (const part of [object.mesh(crown, leaves[k % 3]), object.mesh(trunk, bark)]) {
+          part.position.set(x, 0, z);
+          part.scale.setScalar(size);
+          world.scene.add(part);
+        }
+      }
+
+      // Golden hour: a low sun from the west, long shadows across the park, a cool sky fill.
+      world.scene.add(
+        light.directional({ color: '#ffbd78', intensity: 3.3, position: [-70, 26, 40], castShadow: true }),
+        light.hemisphere({ color: '#a8c2ff', groundColor: '#566b35', intensity: 0.9 }),
+      );
+      const OVERVIEW = [150, 70, 110], LOOK = [70, 8, -12];
+
+      // The ride holds the camera: the orbit lets go of it while the train carries the viewer, and
+      // gets it back as one pose — eye, target and an upright up — when the ride ends.
+      let intro = 0;
+      const ui = controls({
+        mouse: 'On the ride, drag to turn your head. Switch the ride off to orbit the park',
+        ride: true,
+        loops: [1, 4, 3, 1],
+      }, (values, key) => {
+        if (key === 'loops') rebuild(values.loops);
+        if (key === 'ride') {
+          world.controls.enabled = !values.ride;
+          if (!values.ride) {
+            world.camera.up.set(0, 1, 0);
+            world.camera.position.set(...OVERVIEW);
+            world.controls.target.set(...LOOK);
+            world.controls.update();
+          }
+        }
+        world.invalidate();
+      }, world);
+      world.controls.enabled = false;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.minDistance = 10;
+      world.controls.maxDistance = 400;
+      const speedShown = readout('Speed'), felt = readout('G-force');
+
+      // A drag while riding turns the rider's head; let go and it comes back to the track ahead.
+      let look = [0, 0], held = null;
+      world.canvas.addEventListener('pointerdown', (event) => {
+        intro = 1;
+        if (ui.ride) held = [event.clientX, event.clientY, ...look];
+      });
+      addEventListener('pointerup', () => (held = null));
+      world.canvas.addEventListener('pointermove', (event) => {
+        if (!held || !ui.ride) return;
+        look = [held[2] - (event.clientX - held[0]) * 0.005, Math.max(-1, Math.min(0.9, held[3] - (event.clientY - held[1]) * 0.005))];
+      });
+
+      // The opening: seen from high above the park, the camera drops into the front row of the
+      // first car while the train waits at the station, then the chain takes it up.
+      let travel = 6, wait = 3.2;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        wait -= step;
+        const front = poseAt(track, travel), speed = wait > 0 ? 0 : speedAt(track, travel % track.total, front.p[1]);
+        travel += speed * step;
+        cars.forEach((car, k) => seatCar(car, poseAt(track, travel - k * 3.3)));
+        wheel.rotation.set(0, 0, (travel / 600) * Math.PI);
+        gondolas.forEach((cabin, k) => {
+          const a = (k / 16) * Math.PI * 2 + (travel / 600) * Math.PI;
+          cabin.position.set(hub[0] + Math.cos(a) * 20, hub[1] + Math.sin(a) * 20, hub[2]);
+        });
+        // The rider sits in the front row of the first car: nothing of the train stands ahead.
+        const rider = poseAt(track, travel);
+        speedShown(`${Math.round(speed * 3.6)} km/h`);
+        felt(`${((speed * speed * rider.bend + G * rider.u[1]) / G).toFixed(1)} g`);
+        if (!held) look = look.map((value) => value * Math.exp(-step * 3));
+        if (ui.ride) {
+          const { p, t, u } = rider;
+          let ahead = turn(t, u, look[0]);
+          ahead = turn(ahead, unit(cross(ahead, u)), look[1] - 0.1);
+          // The eyes, 1.35 m above the car's frame: over the lap bar, just in front of the seat back.
+          const eye = plus(plus(p, u, 1.35), t, 0.35), target = plus(eye, ahead, 6);
+          if (intro < 1) {
+            intro = Math.min(1, intro + step / 3.2);
+            const e = intro * intro * (3 - 2 * intro), mix = (a, b) => a.map((value, i) => value + (b[i] - value) * e);
+            world.camera.up.set(...unit(mix([0, 1, 0], u)));
+            world.camera.position.set(...mix(OVERVIEW, eye));
+            world.camera.lookAt(...mix(LOOK, target));
+          } else {
+            world.camera.up.set(...u);
+            world.camera.position.set(...eye);
+            world.camera.lookAt(...target);
+          }
+        }
+        world.invalidate();
+      });
+    </script>
+  </body>
+</html>

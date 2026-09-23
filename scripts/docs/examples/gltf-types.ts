@@ -34,7 +34,7 @@ export interface Primitive {
 
 export interface GltfMaterial {
   name: string;
-  doubleSided: boolean;
+  doubleSided?: boolean;
   pbrMetallicRoughness: {
     baseColorFactor?: readonly [number, number, number, number];
     metallicFactor?: number;
@@ -50,13 +50,25 @@ export interface GltfMaterial {
 
 /** The shape read from and written to `geometry.gltf`, the fields this recipe touches. */
 export interface GltfDocument {
-  asset: { version: string; generator: string; copyright: string };
+  asset: { version: string; generator: string; copyright?: string };
   scene?: number;
   scenes: { nodes: number[] }[];
-  nodes: { name: string; mesh: number }[];
+  nodes: GltfNode[];
   meshes: { name: string; primitives: Primitive[] }[];
   materials: GltfMaterial[];
   buffers: { uri: string; byteLength: number }[];
   bufferViews: BufferView[];
   accessors: Accessor[];
+  images?: { uri: string }[];
+  textures?: { sampler: number; source: number }[];
+  samplers?: { magFilter: number; minFilter: number; wrapS: number; wrapT: number }[];
+}
+
+export interface GltfNode {
+  name?: string;
+  mesh?: number;
+  translation?: readonly number[];
+  rotation?: readonly number[];
+  scale?: readonly number[];
+  children?: number[];
 }
