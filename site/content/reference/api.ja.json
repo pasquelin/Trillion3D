@@ -369,8 +369,8 @@
       "bottom": "正投影ボックスの下端。",
       "projection": "`'perspective'`は遠くのものを小さくし、`'orthographic'`はすべての大きさを保つ。",
       "updateProjectionMatrix": "それを必要とするレンダラーを前提に書かれたページのために残されている: 光学系の書き込みはすでにすべて再描画を引き起こす。",
-      "set": "目を`pose.position`に置き、`pose.target`を見るようにし、指定された画角にする。",
-      "rayThrough": "The world ray through a point of the picture, in the engine's own projection (`engineCamera.ts`): from the eye along the view for a perspective camera, straight down the view from the box for an orthographic one. Its direction is a unit vector."
+      "rayThrough": "画像の一点を通るワールドの光線。エンジン自身の投影 (`engineCamera.ts`) に従います：透視カメラなら目から視線に沿って、正投影カメラなら箱から視線の方向にまっすぐ。向きは単位ベクトルです。",
+      "set": "目を`pose.position`に置き、`pose.target`を見るようにし、指定された画角にする。"
     }
   },
   "CameraFrame": {
@@ -918,9 +918,9 @@
       "SCENE_COPY_OVERLAP": "シーンのルートが禁じている何か: それに親をつける、それを破棄する、2つのルートを混ぜる、あるノードを自分自身にコピーする、など。",
       "UNSUPPORTED_SCENE_UPDATE": "この描画経路は、シーンに対するその変更を行えない。",
       "BATCHED_WORLD_VIEW": "この描画経路は、シーンに対するその変更を行えない。",
-      "RAYCAST_NO_VIEW": "A picture point was asked of a canvas with no size: there is no picture to aim through.",
-      "UNSUPPORTED_SCENE_FORMAT": "A saved scene is of another format or version, or holds what a saved scene cannot store.",
-      "SCENE_NOT_SAVABLE": "A saved scene is of another format or version, or holds what a saved scene cannot store."
+      "RAYCAST_NO_VIEW": "サイズのない canvas に画像の点を求めました：狙いをつける画像がありません。",
+      "UNSUPPORTED_SCENE_FORMAT": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。",
+      "SCENE_NOT_SAVABLE": "保存されたシーンが別の形式やバージョンであるか、保存されたシーンに入れられないものを含んでいます。"
     }
   },
   "EngineProfiler": {
@@ -1105,6 +1105,7 @@
       "groups": "メッシュが複数持つとき、`material[materialIndex]`で描かれるインデックス範囲。",
       "boundingBox": "計算後の、すべての頂点を囲むボックス。計算前は`null`。",
       "boundingSphere": "計算後の、すべての頂点を囲む球。計算前は`null`。",
+      "recipe": "この形を作ったファミリーのメンバーと引数。形がまだそれらで作られたままのあいだだけ保たれます：保存されたシーンが頂点の代わりに記録するものです。あとで変更するとすべて忘れられます。",
       "version": "形の変更ごとに増える: 世界がページを再度切り出すべきか比較するのに使う。",
       "setAttribute": "`name`のもとに頂点ごとのリストを保存する。",
       "getAttribute": "`name`のもとに保存された頂点ごとのリスト(あれば)。",
@@ -1124,8 +1125,7 @@
       "scale": "すべての頂点を`(x, y, z)`だけ拡大縮小する。",
       "center": "ジオメトリを、そのボックスが原点を中心にするように動かす。",
       "clone": "すべてのリストのコピーを持つ新しいジオメトリ。",
-      "dispose": "保持者を忘れる: dispose済みのジオメトリは誰にも描かれない。",
-      "recipe": "The family member and arguments that built this shape, while it is still what they built: what a saved scene stores instead of the vertices. Any later change forgets it."
+      "dispose": "保持者を忘れる: dispose済みのジオメトリは誰にも描かれない。"
     }
   },
   "GeometryPageDescriptor": {
@@ -2868,8 +2868,8 @@
       "fog": "`near`と`far`の間でオブジェクトを`color`へとフェードさせる霧; なければ`null`。",
       "background": "すべてのオブジェクトの背後を埋めるもの: 色、画像、あるいはデフォルトなら`null`。",
       "load": "コンパイル済みモデル(そのマニフェストURL)を読み込み、このシーンに追加する。",
-      "toJSON": "The scene as plain JSON, versioned: its objects, shapes by the call that built them, materials, lights and loaded models by address; `camera`'s pose too when one is given.",
-      "fromJSON": "Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in order, each on what the one before left: two saved scenes never merge."
+      "toJSON": "バージョン付きのシンプルな JSON にしたシーン：オブジェクト、形はそれを作った呼び出しで、マテリアル、ライト、読み込んだモデルはアドレスで記録します。`camera` を渡せばその姿勢も入ります。",
+      "fromJSON": "シーンの中身を `toJSON` で保存したシーンに置き換えます。`helper` の印は残します。モデルの読み込みが終わると完了します。別の形式やバージョンは拒否されます (`UNSUPPORTED_SCENE_FORMAT`)。読み込み中の呼び出しは順番に一つずつ実行され、それぞれ前の呼び出しが残したものの上で動きます：保存された二つのシーンが混ざることはありません。"
     }
   },
   "SceneEnvironment": {
@@ -3941,8 +3941,8 @@
     "summary": "ページが保持するもの: モード、読み書き可能。",
     "members": {
       "mode": "ビューモード: 通常の画像なら`'beauty'`、あるいはエンジンの動作を示すモード。",
-      "modes": "現在のレンダラーが提供するすべてのビューモード。",
-      "sessions": "Sessions the world has opened so far: a change that reopens one shows here."
+      "sessions": "ワールドがこれまでに開いたセッション：セッションを開き直す変更はここに表れます。",
+      "modes": "現在のレンダラーが提供するすべてのビューモード。"
     }
   },
   "world.onFrame": {
@@ -5091,7 +5091,7 @@
   },
   "helper": {
     "summary": "`helper`ファミリー: 線とメッシュから作られる、シーンを作業するためのマーク。",
-    "description": "A world draws them like any object; a pick (`world.raycast`) and a saved scene skip them."
+    "description": "ワールドはほかのオブジェクトと同じように描きますが、選択 (`world.raycast`) と保存されたシーンは無視します。"
   },
   "helper.axes": {
     "summary": "原点から伸びる3本の色つき線: xは赤、yは緑、zは青。",
@@ -6729,108 +6729,108 @@
   "CanvasPoint": {
     "summary": "キャンバス上の点。左上隅からの CSS ピクセル: `event.offsetX`、`offsetY`。",
     "members": {
-      "x": "CSS pixels from the canvas's left edge.",
-      "y": "CSS pixels from the canvas's top edge."
+      "x": "canvas の左端からの CSS ピクセル。",
+      "y": "canvas の上端からの CSS ピクセル。"
     }
   },
   "Intersection": {
     "summary": "レイがオブジェクトに当たった場所: オブジェクト自身、そこでのワールド座標の点と面の法線、レイに沿った距離、どの三角形か(オブジェクトのボックスに当たった場合は `-1`)。",
     "members": {
-      "object": "The object hit: the very node the page added.",
-      "point": "The world point hit.",
-      "normal": "The world normal of the face hit, as its winding orients it.",
-      "distance": "Distance from the ray's origin to `point`, world units.",
-      "face": "The rank of the triangle hit, or `-1` for a box."
+      "object": "当たったオブジェクト：ページが追加したノードそのものです。",
+      "point": "当たったワールドの点。",
+      "normal": "当たった面のワールドでの法線。頂点の並び順で向きが決まります。",
+      "distance": "光線の始点から `point` までの距離、ワールド単位。",
+      "face": "当たった三角形の番号、箱の場合は `-1`。"
     }
   },
   "RaycastOptions": {
     "summary": "`world.raycast` に渡せるもの。どのフィールドも省略可能です。",
     "members": {
-      "objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "objects": "調べるオブジェクトとその子孫。指定しなければシーン全体。"
     }
   },
   "SavedCamera": {
     "summary": "シーンを保存したときのカメラ: その姿勢、投影、光学設定。",
     "members": {
-      "projection": "Perspective or orthographic.",
-      "position": "Where the eye stands.",
-      "quaternion": "How the eye is turned.",
-      "optics": "Field, near, far, zoom and box, by name."
+      "projection": "透視投影または正投影。",
+      "position": "目の位置。",
+      "quaternion": "目の向き。",
+      "optics": "視野、near、far、zoom、箱を名前ごとに。"
     }
   },
   "SavedGeometry": {
     "summary": "ジオメトリ: それを作ったファミリーの呼び出し、または再構築できる呼び出しがない場合はその頂点。",
     "members": {
-      "recipe": "The family member and every argument it was built with.",
-      "attributes": "Each per-vertex list, when no call builds the shape again.",
-      "index": "Which vertices make each triangle.",
-      "groups": "Index ranges drawn with one material each."
+      "recipe": "ファミリーのメンバーと、形を作ったときのすべての引数。",
+      "attributes": "頂点ごとの各リスト。形を作り直す呼び出しがないときに使います。",
+      "index": "各三角形を作る頂点。",
+      "groups": "それぞれ一つのマテリアルで描くインデックスの範囲。"
     }
   },
   "SavedMaterial": {
     "summary": "マテリアル: その種類と各パラメーター。色はリニアな `[r, g, b]`。",
     "members": {
-      "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
-      "parameters": "Every parameter by name."
+      "kind": "マテリアルを作ったときの種類：`'meshStandard'`、`'meshBasic'`…",
+      "parameters": "すべてのパラメーターを名前ごとに。"
     }
   },
   "SavedNode": {
     "summary": "ノード: その姿勢と種類 — グループ、メッシュ、ライト、読み込まれたモデル — と、その下にあるもの。",
     "members": {
-      "kind": "What the node is.",
-      "name": "Its name.",
-      "position": "Where it stands, from its parent.",
-      "quaternion": "How it is turned, as a quaternion.",
-      "scale": "How it is stretched on each axis.",
-      "visible": "Whether it is drawn.",
-      "castShadow": "Whether it casts shadows.",
-      "receiveShadow": "Whether shadows fall on it.",
-      "renderOrder": "Its drawing order among see-through things.",
-      "userData": "The page's own data, as JSON.",
-      "children": "The nodes below it, in order.",
-      "mesh": "Ranks in `geometries` and `materials`, and how the triangles are read.",
-      "light": "A light's kind, colours, numbers, aim and probe coefficients.",
-      "model": "A compiled model, by the manifest address it was loaded from: never inlined."
+      "kind": "ノードの種類。",
+      "name": "名前。",
+      "position": "親から見た位置。",
+      "quaternion": "クォータニオンで表した向き。",
+      "scale": "各軸にどれだけ伸びているか。",
+      "visible": "描かれるかどうか。",
+      "castShadow": "影を落とすかどうか。",
+      "receiveShadow": "影が落ちるかどうか。",
+      "renderOrder": "透けて見えるもの同士での描く順番。",
+      "userData": "ページ自身のデータ、JSON 形式。",
+      "children": "その下のノード、順番どおり。",
+      "mesh": "`geometries` と `materials` の中の番号、そして三角形の読み方。",
+      "light": "ライトの種類、色、数値、向き、プローブの係数。",
+      "model": "コンパイル済みモデル。読み込んだマニフェストのアドレスで記録し、中身を埋め込むことはありません。"
     }
   },
   "SavedScene": {
     "summary": "`scene.toJSON` が書き、`scene.fromJSON` が読むシーン: プレーンな JSON。",
     "members": {
-      "format": "Always `'web-geometry-scene'`.",
-      "formatVersion": "The version of this layout; another one is refused.",
-      "background": "The background colour, or `null`.",
-      "fog": "The fog, or `null`.",
-      "camera": "The camera saved with the scene, or `null`.",
-      "geometries": "Every shape, once, however many meshes wear it.",
-      "materials": "Every material, once, however many meshes wear it.",
-      "children": "The scene's top nodes, in order."
+      "format": "常に `'web-geometry-scene'`。",
+      "formatVersion": "このレイアウトのバージョン。ほかのバージョンは拒否されます。",
+      "background": "背景色、または `null`。",
+      "fog": "霧、または `null`。",
+      "camera": "シーンと一緒に保存したカメラ、または `null`。",
+      "geometries": "すべての形を一度ずつ。いくつのメッシュが使っていても同じです。",
+      "materials": "すべてのマテリアルを一度ずつ。いくつのメッシュが使っていても同じです。",
+      "children": "シーンのいちばん上のノード、順番どおり。"
     }
   },
   "TransformControls": {
     "summary": "`controls.transform` が返すもの。",
     "members": {
-      "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
-      "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
-      "object": "The object the handles are on, or `null`.",
-      "dragging": "True while a handle is being dragged.",
-      "mode": "What a drag does: `'translate'`, `'rotate'` or `'scale'`.",
-      "space": "`'world'` or `'local'` axes.",
-      "attach": "Puts the handles on `target`, and in the scene; a drag under way ends first (`dragEnd`).",
-      "detach": "Takes the handles off their object, and out of the scene; a drag under way ends first.",
-      "setMode": "Moves, turns or scales from now on.",
-      "setSpace": "Handles along the world's axes or the object's own.",
-      "addEventListener": "Calls `listener` on each event of `type`.",
-      "removeEventListener": "Stops calling `listener` on events of `type`.",
-      "dispose": "Takes the handles out of the scene and every listener off the canvas."
+      "snap": "ドラッグを丸める刻み：`{ translate, rotate, scale }`、どれも省略できます。",
+      "handles": "ハンドルのグループ（`helper` の印）。取り付けているあいだシーンの中にあります。",
+      "object": "ハンドルが付いているオブジェクト、または `null`。",
+      "dragging": "ハンドルをドラッグしているあいだ true。",
+      "mode": "ドラッグで何をするか：`'translate'`、`'rotate'`、`'scale'` のどれか。",
+      "space": "`'world'` または `'local'` の軸。",
+      "attach": "ハンドルを `target` とシーンに付けます。ドラッグ中なら先に終わらせます (`dragEnd`)。",
+      "detach": "ハンドルをオブジェクトとシーンから外します。ドラッグ中なら先に終わらせます。",
+      "setMode": "これからは移動、回転、拡大縮小のどれかをします。",
+      "setSpace": "ハンドルをワールドの軸か、オブジェクト自身の軸に合わせます。",
+      "addEventListener": "`type` の各イベントで `listener` を呼びます。",
+      "removeEventListener": "`type` のイベントで `listener` を呼ぶのをやめます。",
+      "dispose": "ハンドルをシーンから外し、canvas のリスナーをすべて外します。"
     }
   },
   "TransformControlsOptions": {
     "summary": "`controls.transform` に渡せるもの。どのフィールドも省略可能です。",
     "members": {
-      "mode": "Move, turn or scale; `'translate'` by default.",
-      "space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "snap": "Steps each drag is rounded to; none by default.",
-      "size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "mode": "移動、回転、拡大縮小のどれか。既定は `'translate'`。",
+      "space": "ハンドルをワールドの軸か、オブジェクト自身の軸に合わせます。既定は `'world'`。",
+      "snap": "各ドラッグを丸める刻み。既定はなし。",
+      "size": "ハンドルの長さ。canvas の高さに対する割合で、オブジェクトがどこにあっても同じです。既定は 4 分の 1。"
     }
   },
   "TransformEvent": {
@@ -6842,10 +6842,10 @@
   "TransformHost": {
     "summary": "トランスフォームコントロールがワールドに求めるもの: `createWorld` が返します。",
     "members": {
-      "canvas": "The canvas the pointer presses on.",
-      "scene": "The scene the handles are added to.",
-      "camera": "The camera the canvas is seen through.",
-      "onFrame": "Runs `hook` after each frame drawn; returns what stops it."
+      "canvas": "ポインターが押す canvas。",
+      "scene": "ハンドルを追加するシーン。",
+      "camera": "canvas を映すカメラ。",
+      "onFrame": "フレームを描くたびに `hook` を実行します。止めるためのものを返します。"
     }
   },
   "TransformMode": {
@@ -6854,9 +6854,9 @@
   "TransformSnap": {
     "summary": "ドラッグを丸める刻み。どれも省略可能: ワールド単位、ラジアン、スケール係数。",
     "members": {
-      "translate": "World units a move is rounded to, along each axis.",
-      "rotate": "Radians a turn is rounded to.",
-      "scale": "The step a scale factor is rounded to."
+      "translate": "移動を各軸で丸めるワールド単位。",
+      "rotate": "回転を丸めるラジアン。",
+      "scale": "拡大縮小の倍率を丸める刻み。"
     }
   },
   "TransformSpace": {
@@ -6865,8 +6865,8 @@
   "world.raycast": {
     "summary": "キャンバス上の点(CSS ピクセル)の下、またはワールドのレイに沿った最も近いオブジェクト、または `null`: ページが追加したノード、当たったワールドの点と法線、距離(`worldRaycast`)。",
     "parameters": {
-      "options": "What `world.raycast` may be told; every field is optional.",
-      "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "options": "`world.raycast` に渡せるもの。どのフィールドも省略できます。",
+      "options.objects": "調べるオブジェクトとその子孫。指定しなければシーン全体。"
     }
   },
   "controls": {
@@ -6875,12 +6875,12 @@
   "controls.transform": {
     "summary": "1 つのオブジェクトをマウスで移動・回転・拡大縮小するハンドル(`transform.ts`)。",
     "parameters": {
-      "host": "The world whose scene and camera the handles live in.",
-      "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
-      "options.mode": "Move, turn or scale; `'translate'` by default.",
-      "options.space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "options.snap": "Steps each drag is rounded to; none by default.",
-      "options.size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "host": "ハンドルが入るシーンとカメラを持つワールド。",
+      "options": "モード、軸、スナップ、画面上の大きさ。ふつうは何も指定しません。",
+      "options.mode": "移動、回転、拡大縮小のどれか。既定は `'translate'`。",
+      "options.space": "ハンドルをワールドの軸か、オブジェクト自身の軸に合わせます。既定は `'world'`。",
+      "options.snap": "各ドラッグを丸める刻み。既定はなし。",
+      "options.size": "ハンドルの長さ。canvas の高さに対する割合で、オブジェクトがどこにあっても同じです。既定は 4 分の 1。"
     }
   },
   "raycast": {
