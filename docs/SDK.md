@@ -131,7 +131,7 @@ the thing (`geometry.box`); a member that sets up machinery is `create` + its na
 
 ## Families
 
-Twelve families describe the scene; one example each:
+Thirteen families describe the scene; one example each:
 
 ```js
 // geometry — the shape alone, with no matter
@@ -198,6 +198,12 @@ world.scene.add(helper.axes(2));
 ```
 
 ```js
+// controls — handles that move an object with the mouse
+const gizmo = controls.transform(world).attach(ball);
+gizmo.addEventListener('dragEnd', () => history.push(ball.position.clone()));
+```
+
+```js
 // animation
 const mixer = animation.createMixer(set);
 const bob = animation.clip('bob', 2, [
@@ -221,9 +227,9 @@ glass.blending = blending.normal;
 world.toneMapping = toneMapping.aces;
 ```
 
-| Family                                                                                                                                                                                                    | Members                                                                                                                                                                                                                                       |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
+| Family                                                                                                                                                                                                                | Members                                                                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `geometry`, `material`, `light`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `controls`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
 
 Eight families exist because geometry here is **cut into pages** the engine moves in and out of
 memory according to what the frame reads:
@@ -383,6 +389,60 @@ All five publish `object.position`, `addEventListener('change')`, `removeEventLi
 `dispose()`; the three that keep a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
 `enablePan` and `update()`, which reads back a pose the host wrote and clamps it. A controller emits
 `change` only when the pose moved, so a still scene schedules nothing.
+
+### Picking, moving and saving
+
+`world.raycast(at)` returns the nearest object under a canvas point — CSS pixels from its top-left
+corner, `event.offsetX`/`offsetY` — or along a world `Ray`, or `null`: the very node the page added,
+the world `point` and `normal` hit, the `distance` and the triangle rank `face`. It runs on the CPU
+over the scene's own geometry: triangle meshes are tested triangle by triangle, lines, points and
+sprites have no area and are never hit, a loaded model — its triangles live in GPU pages — is hit on
+its box, hidden subtrees and `helper` marks are skipped. `{ objects }` limits the test to some
+subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
+the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
+ray through a point of the picture. Live example: [click to pick](../site/examples/click-to-pick.html).
+
+```js
+world.canvas.addEventListener('click', (event) => {
+  const hit = world.raycast({ x: event.offsetX, y: event.offsetY });
+  hit?.object.material.color.set('#ffb347');
+});
+```
+
+`controls.transform(world, options)` puts handles on one object that move, turn and scale it with
+the mouse: `attach(object)`, `detach()`, `setMode('translate' | 'rotate' | 'scale')`,
+`setSpace('world' | 'local')`, `snap = { translate, rotate, scale }`, events `change`, `dragStart`,
+`dragEnd` — one drag, one undo step. The handles are meshes of the `geometry` family in unlit
+materials, depth-tested like any object, kept at one share of the canvas height (`size`, a quarter by
+default) and marked as `helper`s. A press is picked on them before the camera controller hears it,
+so an orbit rests while a handle is dragged and resumes after, with no page code. A drag writes the
+object's local pose from the world pose it asks for, through its parents; a scale always follows the
+object's own axes. The handles follow the view after each frame the world draws; a still scene
+draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-scale-gizmo.html).
+
+`scene.toJSON(camera)` writes the scene as plain, versioned JSON (`format: 'web-geometry-scene'`,
+`formatVersion: 1`): its hierarchy and poses, each shape by the family call that built it
+(`geometry.box(2, 1, 1)` is stored as that call; a shape changed after it was built, or written by
+hand, stores its vertices), each material by its parameters, lights, background, fog and the
+camera's pose; shapes and materials worn by several meshes are stored once; a loaded model is
+stored by its manifest address, never inlined; `helper` marks are left out. A texture, a picture
+background or a shader material cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
+`await scene.fromJSON(json, camera)` replaces the content — the `helper` marks stay — loads the
+models again, and refuses another format or version (`UNSUPPORTED_SCENE_FORMAT`) before removing
+anything. Live example: [save the scene](../site/examples/save-the-scene.html).
+
+The portal's scene editor (`site/app/editor/`) is these three doors and nothing else: pick,
+move, recolour, save and open a scene, the frame's cost read live.
+
+### Live material values
+
+A material already placed, written on its values — `color`, `emissive`, `emissiveIntensity`,
+`metalness`, `roughness` — is repainted in place: the session rewrites the rows that read it and
+opens nothing (#335). A colour picker dragged for ten seconds keeps one session. A change the
+session cannot hold in place — a texture, a kind, a side, transparency, a material object whose
+values another material shares — is copied on write and opens the session again, once per burst.
+`world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
+reopen.
 
 ## Installation and environment API
 

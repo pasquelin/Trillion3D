@@ -1976,12 +1976,7 @@
         "fr": "Enregistrer la scène"
       },
       "theme": "loaders",
-      "file": "",
-      "status": "needs-engine",
-      "missing": {
-        "en": "scene export",
-        "fr": "export de scène"
-      }
+      "file": "examples/save-the-scene.html"
     },
     {
       "id": "see-the-triangles",
@@ -2569,12 +2564,7 @@
         "fr": "Cliquer pour choisir"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "needs-engine",
-      "missing": {
-        "en": "picking (raycast)",
-        "fr": "sélection au pointeur (lancer de rayon)"
-      }
+      "file": "examples/click-to-pick.html"
     },
     {
       "id": "hover-over-triangles",
@@ -2667,12 +2657,7 @@
         "fr": "Déplacer, tourner, échelle"
       },
       "theme": "interaction",
-      "file": "",
-      "status": "needs-engine",
-      "missing": {
-        "en": "picking (raycast) and transform gizmo",
-        "fr": "sélection au pointeur et poignées de transformation"
-      }
+      "file": "examples/move-rotate-scale-gizmo.html"
     },
     {
       "id": "edit-a-spline",
