@@ -18,7 +18,7 @@
       }
       p {
         position: absolute;
-        bottom: 0;
+        top: 0;
         margin: 0.5rem;
         color: #cbd5e1;
         font: 12px system-ui;
@@ -29,28 +29,76 @@
     <canvas id="view"></canvas>
     <p>Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md</p>
     <script type="module">
-      import { createWorld, light, math } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
+      // The compiled corner: two facades behind a raised pavement and its kerb, the road a step
+      // lower, the buildings across it, a door and the street lamp.
       await world.scene.load('../assets/examples/street-corner/cache/native/full/manifest.json');
 
-      // By day a sun; by night one point light at the end of the lamp's arm. `radius` is the
-      // glass globe's: the lamp casts no shadow on itself.
+      // Windows, built here: a dark frame and a pane. A lit pane glows by itself (`emissive`);
+      // a dark one only mirrors the sky. `turn` faces the window away from its wall.
+      const frame = material.meshStandard({ color: '#2a2320', roughness: 0.7 });
+      const litPane = material.meshStandard({ color: '#000000', emissive: '#ffc27a', emissiveIntensity: 2.5 });
+      const darkPane = material.meshStandard({ color: '#1c2433', metalness: 0.4, roughness: 0.15 });
+      function addWindow(x, y, z, turn, lit) {
+        const pane = object.group();
+        pane.position.set(x, y, z);
+        pane.rotation.set(0, turn, 0);
+        const border = object.mesh(geometry.box(1.3, 1.5, 0.08), frame);
+        border.position.z = 0.04;
+        const glass = object.mesh(geometry.box(1.1, 1.3, 0.02), lit ? litPane : darkPane);
+        glass.position.z = 0.09;
+        pane.add(border, glass);
+        world.scene.add(pane);
+      }
+      addWindow(2.4, 1.5, -3, 0, true);
+      addWindow(-1.2, 3.7, -3, 0, true);
+      addWindow(2.4, 3.7, -3, 0, false);
+      addWindow(-4, 1.5, 0.5, Math.PI / 2, false);
+      addWindow(-4, 3.7, 3, Math.PI / 2, true);
+      addWindow(5.5, 1.6, 0, -Math.PI / 2, true);
+      addWindow(5.5, 3.7, 3, -Math.PI / 2, false);
+      addWindow(-1.5, 1.6, 5.5, Math.PI, false);
+      addWindow(2.5, 1.6, 5.5, Math.PI, true);
+      addWindow(0.5, 3.7, 5.5, Math.PI, true);
+
+      // By day a sun and a blue sky. By night the lamp at the end of its arm — `radius` is its
+      // glass globe's, so the lamp casts no shadow on itself —, a glowing bulb inside the globe,
+      // the ground-floor window pouring its light onto the pavement (a lit rectangle), and a
+      // dim sky, so what no lamp reaches is dark, not black.
       const sun = light.directional({ intensity: 3.5, color: '#fff3e2', castShadow: true });
-      const lamp = light.point({ position: [-0.55, 3.95, 0.4], intensity: 24, distance: 12, castShadow: true, radius: 0.25 });
-      world.scene.add(sun, lamp);
-      world.camera.position.set(5.5, 2.4, 7);
-      world.camera.lookAt(-0.5, 1.5, -0.5);
-      world.controls.target.set(-0.5, 1.5, -0.5);
+      const lamp = light.point({ position: [-0.55, 3.95, -1.9], intensity: 24, distance: 12, castShadow: true, radius: 0.25 });
+      const filament = material.meshStandard({ color: '#000000', emissive: '#ffb866', emissiveIntensity: 6 });
+      const bulb = object.mesh(geometry.sphere(0.1, 24, 16), filament);
+      bulb.position.set(-0.55, 3.95, -1.9);
+      const shopLight = light.rectArea({ position: [2.4, 1.5, -2.85], width: 1.1, height: 1.3, intensity: 6, color: '#ffc27a' });
+      shopLight.lookAt(2.4, 1.5, 5);
+      const sky = light.hemisphere({ color: '#bcd4ff', groundColor: '#6b5a48' });
+      world.scene.add(sun, lamp, bulb, shopLight, sky);
+
+      // The camera turns around the middle of the square, never farther than the nearest wall or
+      // the road, and below the roofs: no drag shows the back of a wall. Panning, which would
+      // carry the middle along, is off.
+      world.controls.target.set(0.75, 2, 1.1);
+      world.controls.maxDistance = 1.9;
+      world.controls.enablePan = false;
+      world.camera.fov = 70;
+      world.camera.position.set(1.65, 2.2, 2.75);
+      world.camera.lookAt(0.75, 2, 1.1);
 
       // `world.bounce` adds the light the surfaces send back, traced against the compiled model.
       controls({ night: true, bounce: true, sun: [-80, 80, 30, 1], lamp: '#ffb866' }, (values) => {
         sun.visible = !values.night;
-        lamp.visible = values.night;
+        lamp.visible = bulb.visible = shopLight.visible = values.night;
         lamp.color.set(values.lamp);
+        filament.emissive.set(values.lamp);
         const turn = math.degToRad(values.sun);
         sun.position.set(Math.sin(turn) * 15, 11, Math.cos(turn) * 15);
+        sky.intensity = values.night ? 0.25 : 1.2;
+        sky.color.set(values.night ? '#3a4c80' : '#bcd4ff');
+        world.scene.background = math.color(values.night ? '#0b1020' : '#8fb4e0');
         world.bounce = values.bounce;
         world.exposure = values.night ? 1.6 : 1;
         world.invalidate();

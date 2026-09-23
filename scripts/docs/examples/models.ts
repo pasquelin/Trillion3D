@@ -45,22 +45,39 @@ async function bust(models: string, directory: string) {
   );
 }
 
-/** A street lamp at a building corner: its post stands on the pavement, its arm reaches the wall. */
+/**
+ * A street corner closed on four sides, so a camera turning inside it never looks at the back of
+ * a wall: two facades meet at the corner behind a raised pavement and its kerb, a road runs a step
+ * lower, and the buildings across it close the square. The lamp's post stands on the pavement,
+ * its arm over the door, which is set 5 cm proud of the wall so the two never share a plane.
+ */
 async function streetCorner(models: string, directory: string) {
   await copyModel(models, 'lantern', ['lantaarn.mtl', 'lantaarn.png'], directory);
   await placeObj(resolve(models, 'lantern/lantaarn.obj'), resolve(directory, 'lantaarn.obj'), {
     scale: 0.033,
-    offset: [1.6, 0, 0.4],
+    offset: [1.6, 0, -1.9],
   });
   await writeBoxesObj(
     resolve(directory, 'corner.obj'),
     [
-      [[0, -0.1, 0], [12, 0.2, 12], 'pavement'],
-      [[0, 2.5, -3.15], [12, 5, 0.3], 'wall'],
-      [[-4.15, 2.5, 0], [0.3, 5, 6], 'wall'],
-      [[-1.2, 1.4, -3.05], [1.1, 2.2, 0.1], 'door'],
+      [[0, -0.25, 0], [12, 0.2, 12], 'road'],
+      [[0.75, -0.1, -2.175], [9.5, 0.2, 1.65], 'pavement'],
+      [[-3.175, -0.1, 2.075], [1.65, 0.2, 6.85], 'pavement'],
+      [[1.65, -0.1, -1.275], [7.7, 0.2, 0.15], 'kerb'],
+      [[-2.275, -0.1, 2.075], [0.15, 0.2, 6.85], 'kerb'],
+      [[0, 2.4, -3.15], [12, 5.2, 0.3], 'wall'],
+      [[-4.15, 2.4, 1.4], [0.3, 5.2, 8.8], 'wall'],
+      [[5.65, 2.4, 1.4], [0.3, 5.2, 8.8], 'wall'],
+      [[0.75, 2.4, 5.65], [9.5, 5.2, 0.3], 'wall'],
+      [[-1.2, 1.1, -3.025], [1.1, 2.2, 0.15], 'door'],
     ],
-    { pavement: [0.4, 0.4, 0.38], wall: [0.5, 0.44, 0.38], door: [0.2, 0.12, 0.08] },
+    {
+      road: [0.07, 0.07, 0.08],
+      pavement: [0.4, 0.4, 0.38],
+      kerb: [0.55, 0.55, 0.52],
+      wall: [0.5, 0.44, 0.38],
+      door: [0.2, 0.12, 0.08],
+    },
   );
 }
 
