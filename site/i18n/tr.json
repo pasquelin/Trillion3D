@@ -32,6 +32,7 @@
   },
   "examples": {
     "lead": "Her örnek kısa bir dosyadır: çalışırken izleyin, kodunu açın, değiştirin.",
+    "jumpTo": "Bir temaya git",
     "inProgress": "Yapım aşamasında",
     "waitsFor": "Motoru bekliyor:",
     "waitingEngine": "Motor bekleniyor"
