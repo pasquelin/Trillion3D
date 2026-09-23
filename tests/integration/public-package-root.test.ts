@@ -23,10 +23,10 @@ function diagnostics(file: string, options: ts.CompilerOptions): string[] {
 
 test('package metadata exposes one environment-aware root', async () => {
   const packageJson = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8'));
-  assert.equal(packageJson.name, 'web-geometry');
+  assert.equal(packageJson.name, 'trillion3d');
   assert.equal(packageJson.version, '0.2.0');
   assert.equal(packageJson.private, true);
-  assert.equal(packageJson.bin['web-geometry-compile'], './dist/sdk-node/src/cli/cli.mjs');
+  assert.equal(packageJson.bin['trillion3d-compile'], './dist/sdk-node/src/cli/cli.mjs');
   assert.deepEqual(Object.keys(packageJson.exports), ['.', './package.json']);
   assert.deepEqual(Object.keys(packageJson.exports['.']), [
     'browser',
@@ -75,12 +75,12 @@ test('type-only imports leave no runtime package import', async () => {
   const emitted = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  assert.doesNotMatch(emitted, /web-geometry/);
+  assert.doesNotMatch(emitted, /trillion3d/);
 });
 
 test('the browser condition imports rendering and common bindings without initialization', () => {
   const probe = `
-    const sdk = await import('web-geometry');
+    const sdk = await import('trillion3d');
     if (typeof sdk.createWorld !== 'function') throw new Error('missing createWorld');
     if ('openMeasuredWorld' in sdk) throw new Error('the measurement entry leaked into the package');
     if (typeof sdk.hierarchyUpdateBatch !== 'function') throw new Error('missing common maths');
@@ -93,7 +93,7 @@ test('the browser condition imports rendering and common bindings without initia
 });
 
 test('a packed installation resolves Node and browser runtime and declarations', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'web-geometry-contract-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-contract-'));
   try {
     execFileSync('pnpm', ['pack', '--pack-destination', directory], {
       cwd: ROOT,
@@ -109,7 +109,7 @@ test('a packed installation resolves Node and browser runtime and declarations',
         type: 'module',
         dependencies: {
           meshoptimizer: `link:${resolve(ROOT, 'node_modules/meshoptimizer')}`,
-          'web-geometry': `file:${join(directory, tarball)}`,
+          trillion3d: `file:${join(directory, tarball)}`,
           three: `file:${resolve(ROOT, 'node_modules/three')}`,
         },
         devDependencies: {
@@ -128,11 +128,11 @@ test('a packed installation resolves Node and browser runtime and declarations',
     });
     await writeFile(
       join(directory, 'node.ts'),
-      "import {prepare,hierarchyUpdateBatch} from 'web-geometry'; if (!prepare || !hierarchyUpdateBatch) throw Error('node');",
+      "import {prepare,hierarchyUpdateBatch} from 'trillion3d'; if (!prepare || !hierarchyUpdateBatch) throw Error('node');",
     );
     await writeFile(
       join(directory, 'browser.ts'),
-      "import {createWorld,hierarchyUpdateBatch} from 'web-geometry'; if (!createWorld || !hierarchyUpdateBatch) throw Error('browser');",
+      "import {createWorld,hierarchyUpdateBatch} from 'trillion3d'; if (!createWorld || !hierarchyUpdateBatch) throw Error('browser');",
     );
     execFileSync(process.execPath, ['node.ts'], { cwd: directory, stdio: 'pipe' });
     execFileSync(process.execPath, ['--conditions=browser', 'browser.ts'], {

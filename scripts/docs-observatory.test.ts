@@ -27,7 +27,7 @@ interface ObservatoryManifest {
 const directory = new URL('../site/assets/gallery/signature-architecture/', import.meta.url);
 
 test('the original observatory reproduces its source and retains distinct materials and reduced DAG levels', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'wg-observatory-'));
+  const temporary = await mkdtemp(join(tmpdir(), 'trillion3d-observatory-'));
   try {
     const gltf = await writeObservatory(temporary);
     await writeObservatory(join(temporary, 'repeat'));

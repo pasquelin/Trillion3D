@@ -29,7 +29,7 @@ export const missingModels = (assets: string, wanted: string[]) =>
 export function fetchModels(assets: string, wanted: string[]) {
   const missing = missingModels(assets, wanted);
   if (missing.length === 0) return [];
-  const clone = mkdtempSync(join(tmpdir(), 'wg-sample-assets-'));
+  const clone = mkdtempSync(join(tmpdir(), 'trillion3d-sample-assets-'));
   try {
     git(['clone', '--filter=blob:none', '--no-checkout', '--depth', '1', SAMPLE_REPOSITORY, clone]);
     git(['sparse-checkout', 'init', '--no-cone'], clone);

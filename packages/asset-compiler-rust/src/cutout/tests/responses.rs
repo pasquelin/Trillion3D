@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 fn fresh_folder(nom: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
-        "web-geometry-decoupes-{nom}-{}-{}",
+        "trillion3d-decoupes-{nom}-{}-{}",
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)

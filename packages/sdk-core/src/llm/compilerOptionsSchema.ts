@@ -6,7 +6,7 @@ import type { JsonSchemaObject } from './types.ts';
 export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = {
   type: 'object',
   description:
-    'Options for native web-geometry-compiler (FBX, OBJ, glTF to Nanite cluster DAG and hierarchical pages).',
+    'Options for native trillion3d-compiler (FBX, OBJ, glTF to Nanite cluster DAG and hierarchical pages).',
   properties: {
     source: {
       type: 'string',

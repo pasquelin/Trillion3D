@@ -313,7 +313,7 @@
             },
             "passes": [
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 5.99629768292683,
@@ -324,7 +324,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 5.922891292682926,
@@ -335,7 +335,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 5.5131415365853655,
@@ -346,7 +346,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.8682885853658537,
@@ -357,7 +357,7 @@
                 }
               },
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.993008073170732,
@@ -368,7 +368,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 1.7872043414634144,
@@ -379,7 +379,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.6029308780487803,
@@ -390,7 +390,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.3669555853658537,
@@ -401,7 +401,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.15642451219512196,
@@ -412,7 +412,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.12009980487804878,
@@ -423,7 +423,7 @@
                 }
               },
               {
-                "name": "WG DAG selection",
+                "name": "Trillion3D DAG selection",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.09462822764227646,
@@ -434,7 +434,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.04001756097560977,
@@ -445,7 +445,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.011885024390243904,
@@ -456,7 +456,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.02461963414634146,
@@ -467,7 +467,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.009954024390243902,
@@ -986,7 +986,7 @@
             },
             "passes": [
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 5.980883365853658,
@@ -997,7 +997,7 @@
                 }
               },
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 6.0384859756097535,
@@ -1008,7 +1008,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 5.620944658536584,
@@ -1019,7 +1019,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 2.001835243902439,
@@ -1030,7 +1030,7 @@
                 }
               },
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 2.0430826097560972,
@@ -1041,7 +1041,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 1.7866607073170728,
@@ -1052,7 +1052,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 1.7295589999999998,
@@ -1063,7 +1063,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.3828203414634147,
@@ -1074,7 +1074,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.1640716829268293,
@@ -1085,7 +1085,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.12101951219512193,
@@ -1096,7 +1096,7 @@
                 }
               },
               {
-                "name": "WG DAG selection",
+                "name": "Trillion3D DAG selection",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.07112459349593493,
@@ -1107,7 +1107,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.04100851219512195,
@@ -1118,7 +1118,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.015095268292682925,
@@ -1129,7 +1129,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.012739609756097562,
@@ -1140,7 +1140,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.010481682926829269,
@@ -1579,7 +1579,7 @@
             },
             "passes": [
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 11.171215731707315,
@@ -1590,7 +1590,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 11.09255334146342,
@@ -1601,7 +1601,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 10.688030024390244,
@@ -1612,7 +1612,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 2.784397658536586,
@@ -1623,7 +1623,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 2.831994219512196,
@@ -1634,7 +1634,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 2.311167926829268,
@@ -1645,7 +1645,7 @@
                 }
               },
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.4978582682926826,
@@ -1656,7 +1656,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.4443142195121952,
@@ -1667,7 +1667,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.16206780487804878,
@@ -1678,7 +1678,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.1254249756097561,
@@ -1689,7 +1689,7 @@
                 }
               },
               {
-                "name": "WG DAG selection",
+                "name": "Trillion3D DAG selection",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.060685349593495946,
@@ -1700,7 +1700,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.03657036585365853,
@@ -1711,7 +1711,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.013434853658536586,
@@ -1722,7 +1722,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.012555731707317072,
@@ -1733,7 +1733,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.05361412195121949,
@@ -2252,7 +2252,7 @@
             },
             "passes": [
               {
-                "name": "WG HDR composition + present",
+                "name": "Trillion3D HDR composition + present",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 11.12247763414634,
@@ -2263,7 +2263,7 @@
                 }
               },
               {
-                "name": "WG temporal antialiasing",
+                "name": "Trillion3D temporal antialiasing",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 11.061236658536584,
@@ -2274,7 +2274,7 @@
                 }
               },
               {
-                "name": "WG deferred lighting",
+                "name": "Trillion3D deferred lighting",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 10.72731807317073,
@@ -2285,7 +2285,7 @@
                 }
               },
               {
-                "name": "WG light tiles v1",
+                "name": "Trillion3D light tiles v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 2.786972707317074,
@@ -2296,7 +2296,7 @@
                 }
               },
               {
-                "name": "WG material surfaces v1",
+                "name": "Trillion3D material surfaces v1",
                 "bloc": "materials",
                 "gpuMs": {
                   "mean": 2.7327377560975608,
@@ -2307,7 +2307,7 @@
                 }
               },
               {
-                "name": "WG shadow atlas v1",
+                "name": "Trillion3D shadow atlas v1",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 2.384381195121952,
@@ -2318,7 +2318,7 @@
                 }
               },
               {
-                "name": "WG visibility primary",
+                "name": "Trillion3D visibility primary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 1.450559365853658,
@@ -2329,7 +2329,7 @@
                 }
               },
               {
-                "name": "WG draw compaction",
+                "name": "Trillion3D draw compaction",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.4270989999999999,
@@ -2340,7 +2340,7 @@
                 }
               },
               {
-                "name": "WG HiZ pyramid",
+                "name": "Trillion3D HiZ pyramid",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.16468141463414632,
@@ -2351,7 +2351,7 @@
                 }
               },
               {
-                "name": "WG partition",
+                "name": "Trillion3D partition",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.11835897560975611,
@@ -2362,7 +2362,7 @@
                 }
               },
               {
-                "name": "WG DAG selection",
+                "name": "Trillion3D DAG selection",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.0642789268292683,
@@ -2373,7 +2373,7 @@
                 }
               },
               {
-                "name": "WG HiZ test",
+                "name": "Trillion3D HiZ test",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.032618439024390246,
@@ -2384,7 +2384,7 @@
                 }
               },
               {
-                "name": "WG rest truncation",
+                "name": "Trillion3D rest truncation",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.013265024390243902,
@@ -2395,7 +2395,7 @@
                 }
               },
               {
-                "name": "WG shadow cull",
+                "name": "Trillion3D shadow cull",
                 "bloc": "other",
                 "gpuMs": {
                   "mean": 0.011011048780487805,
@@ -2406,7 +2406,7 @@
                 }
               },
               {
-                "name": "WG visibility secondary",
+                "name": "Trillion3D visibility secondary",
                 "bloc": "visibility",
                 "gpuMs": {
                   "mean": 0.01340939024390244,

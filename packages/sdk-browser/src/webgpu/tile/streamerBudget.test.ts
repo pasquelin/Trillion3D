@@ -106,7 +106,9 @@ function streamer(budgetMs: number) {
   const feed = async () => {
     const encoder = device as unknown as { createCommandEncoder: () => GPUCommandEncoder };
     textures.feedback.encode(encoder.createCommandEncoder());
-    const readback = staging.filter((b) => b.label?.startsWith('WG texture feedback readback'));
+    const readback = staging.filter((b) =>
+      b.label?.startsWith('Trillion3D texture feedback readback'),
+    );
     for (const buffer of readback)
       new Uint32Array(buffer.data.buffer).set([5, 4, 3, 2, 1].slice(0, layout.entries));
     textures.feedback.submitted();

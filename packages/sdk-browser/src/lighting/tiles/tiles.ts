@@ -6,7 +6,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
  *  then the two rank lists — they cover two depth slices of the same tile. */
 const TILE_STRIDE_WORDS = LIGHT_SETTINGS.maxLightsPerTile * 2 + 4;
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
-export const LIGHT_TILES_PASS = 'WG light tiles v1';
+export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Tiles on one axis: the list always covers the whole target, never one tile short. */
 const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
@@ -26,7 +26,7 @@ export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) 
     ],
   });
   const uniform = device.createBuffer({
-    label: 'WG light tile view v1',
+    label: 'Trillion3D light tile view v1',
     size: 112,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -66,7 +66,7 @@ export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) 
         tilesX = wantedX;
         tilesY = wantedY;
         tiles = device.createBuffer({
-          label: 'WG light tiles v1',
+          label: 'Trillion3D light tiles v1',
           size: tilesX * tilesY * TILE_STRIDE_WORDS * 4,
           usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });

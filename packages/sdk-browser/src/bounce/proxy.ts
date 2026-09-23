@@ -10,7 +10,7 @@ function albedoBuffer(device: GPUDevice, data: Uint32Array) {
   // A storage binding cannot be empty: an absent proxy keeps four bytes of zero, and the shader
   // sees it as a tree with no node, hence a ray that hits nothing.
   const buffer = device.createBuffer({
-    label: 'WG bounce proxy albedo v2',
+    label: 'Trillion3D bounce proxy albedo v2',
     size: Math.max(4, data.byteLength),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     mappedAtCreation: true,
@@ -47,7 +47,7 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   const starts = [0, columns[0].length, columns[0].length + columns[1].length];
   const total = starts[2] + columns[2].length;
   const buffer = device.createBuffer({
-    label: 'WG resident proxy v2',
+    label: 'Trillion3D resident proxy v2',
     size: (PROXY_HEADER_WORDS + Math.max(4, total)) * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     mappedAtCreation: true,

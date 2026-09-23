@@ -27,7 +27,7 @@ test('the water pass follows the blends: frozen backdrop, surfaces, then one com
   assert.equal(encodeWaterPass(rt, encoder), true, 'the pass was encoded');
   assert.deepEqual(
     passes.map((pass) => pass.label),
-    ['WG transparents', WATER_SURFACE_PASS, WATER_COMPOSITE_PASS],
+    ['Trillion3D transparents', WATER_SURFACE_PASS, WATER_COMPOSITE_PASS],
   );
   assert.deepEqual(passes[0].drawn, [0, 2], 'blends draw the two non-transmissive items');
   assert.deepEqual(passes[1].drawn, [1], 'the surface stage draws the transmissive one');

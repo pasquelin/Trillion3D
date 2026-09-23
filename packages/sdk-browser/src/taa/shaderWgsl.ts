@@ -3,7 +3,7 @@ import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 
 /** Pass label; its timestamp duration absorbs that of the passes that precede it on
  *  some devices (apple metal-3), and is only read safely by envelope difference. */
-export const TAA_PASS = 'WG temporal antialiasing';
+export const TAA_PASS = 'Trillion3D temporal antialiasing';
 
 /** Pass bindings, in the order of its layout entries. */
 export const TAA_BINDINGS = {

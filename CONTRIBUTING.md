@@ -1,4 +1,4 @@
-# Contributing to Web Geometry
+# Contributing to Trillion3D
 
 ## The mission
 

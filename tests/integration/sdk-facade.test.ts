@@ -119,14 +119,14 @@ test('generated inventory and explicit facade files are current', async () => {
       `${name} belongs to the measurement entry, not the package`,
     );
   for (const [name, entryPoint] of [
-    ['CameraPose', 'web-geometry (common)'],
-    ['CameraPose', 'web-geometry (browser condition)'],
-    ['JobSnapshot', 'web-geometry (common)'],
-    ['World', 'web-geometry (browser condition)'],
-    ['WorldOptions', 'web-geometry (browser condition)'],
-    ['CompilationJob', 'web-geometry (node condition)'],
-    ['CompilationResult', 'web-geometry (node condition)'],
-    ['PrepareOptions', 'web-geometry (node condition)'],
+    ['CameraPose', 'trillion3d (common)'],
+    ['CameraPose', 'trillion3d (browser condition)'],
+    ['JobSnapshot', 'trillion3d (common)'],
+    ['World', 'trillion3d (browser condition)'],
+    ['WorldOptions', 'trillion3d (browser condition)'],
+    ['CompilationJob', 'trillion3d (node condition)'],
+    ['CompilationResult', 'trillion3d (node condition)'],
+    ['PrepareOptions', 'trillion3d (node condition)'],
   ]) {
     const entry = inventory.exports.find(
       (row) => row.name === name && row.currentEntryPoints.includes(entryPoint),

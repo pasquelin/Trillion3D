@@ -120,9 +120,9 @@ await writeGenerated(
 await writeGenerated('packages/sdk/index.ts', "export * from './common/index.ts';\n");
 
 const entryLabel: Record<ExportEntry, string> = {
-  core: 'web-geometry (common)',
-  browser: 'web-geometry (browser condition)',
-  node: 'web-geometry (node condition)',
+  core: 'trillion3d (common)',
+  browser: 'trillion3d (browser condition)',
+  node: 'trillion3d (node condition)',
 };
 
 interface InventoryEntry {

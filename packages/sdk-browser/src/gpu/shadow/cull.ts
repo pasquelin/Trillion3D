@@ -35,12 +35,12 @@ export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
 export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const kept = device.createBuffer({
-    label: 'WG shadow kept clusters v1',
+    label: 'Trillion3D shadow kept clusters v1',
     size: Math.max(4, MAX_SHADOW_REGIONS * capacity * 4),
     usage: GPUBufferUsage.STORAGE,
   });
   const indirect = device.createBuffer({
-    label: 'WG shadow indirect v1',
+    label: 'Trillion3D shadow indirect v1',
     size: MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
     // `COPY_SRC` for the periodic sample of the kept counts, a diagnostic outside the pass.
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -48,12 +48,12 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   // The main compact's commands as it posted them, before occlusion truncates the tested half:
   // what casts a shadow cannot depend on what the camera sees of it.
   const sourceIndirect = device.createBuffer({
-    label: 'WG shadow source indirect v1',
+    label: 'Trillion3D shadow source indirect v1',
     size: MAX_DRAW_SLOTS * DRAW_INDIRECT_STRIDE,
     usage: storage,
   });
   const faceVolumes = device.createBuffer({
-    label: 'WG shadow face volumes v1',
+    label: 'Trillion3D shadow face volumes v1',
     size: MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS * 4,
     usage: storage,
   });
@@ -64,7 +64,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const live = device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE });
   const offsets = device.createBuffer({ size: MAX_SHADOW_REGIONS * 4, usage: storage });
   const drawUniform = device.createBuffer({
-    label: 'WG shadow draw slots v1',
+    label: 'Trillion3D shadow draw slots v1',
     size: MAX_SHADOW_REGIONS * PAGE_BIND_ALIGN,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -165,7 +165,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         uniData[2] = maxVertexCount;
         uniData[3] = capacity;
         device.queue.writeBuffer(uniforms, 0, uniData);
-        const pass = encoder.beginComputePass({ label: 'WG shadow cull' });
+        const pass = encoder.beginComputePass({ label: 'Trillion3D shadow cull' });
         pass.setBindGroup(0, group);
         pass.setPipeline(prepare);
         pass.dispatchWorkgroups(1);

@@ -11,7 +11,7 @@ import { existingChangedFiles } from './check-changed.ts';
 import { consumerImports } from './sdk-api-model.ts';
 
 test('ignored personal content stays outside shared checks and force-addition is rejected', () => {
-  const root = mkdtempSync(join(tmpdir(), 'wg-local-files-'));
+  const root = mkdtempSync(join(tmpdir(), 'trillion3d-local-files-'));
   const git = (...args: string[]) => execFileSync('git', args, { cwd: root, stdio: 'pipe' });
   try {
     git('init', '-q');
@@ -32,8 +32,8 @@ test('ignored personal content stays outside shared checks and force-addition is
     git('rm', '--cached', 'docs/PRIVATE.md');
     const changed = new Set(['docs/PRIVATE.md', 'docs/guide.md']);
     assert.deepEqual(existingChangedFiles(changed, root), ['docs/guide.md']);
-    writeFileSync(join(root, 'personal/helper.ts'), "import { hidden } from 'web-geometry';");
-    writeFileSync(join(root, 'consumer.ts'), "import { visible } from 'web-geometry';");
+    writeFileSync(join(root, 'personal/helper.ts'), "import { hidden } from 'trillion3d';");
+    writeFileSync(join(root, 'consumer.ts'), "import { visible } from 'trillion3d';");
     assert.deepEqual([...consumerImports(root)], [['visible', new Set(['consumer.ts'])]]);
   } finally {
     rmSync(root, { recursive: true, force: true });

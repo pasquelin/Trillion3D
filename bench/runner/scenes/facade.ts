@@ -91,7 +91,7 @@ export function facadeGltf(walls: WallMesh[]) {
   return {
     binary,
     gltf: {
-      asset: { version: '2.0', generator: 'Web Geometry facade scene generator' },
+      asset: { version: '2.0', generator: 'Trillion3D facade scene generator' },
       scene: 0,
       scenes: [{ nodes: [0] }],
       nodes: [{ name: 'facade-block', mesh: 0 }],

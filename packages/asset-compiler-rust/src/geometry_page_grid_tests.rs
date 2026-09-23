@@ -4,7 +4,7 @@
 
 use crate::geometry_page::{encode, Attribute, FLAG_COLOR};
 use crate::geometry_page_quant::primitive_exponent;
-use web_geometry_page_codec as codec;
+use trillion3d_page_codec as codec;
 
 #[test]
 fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_error() {

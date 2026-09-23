@@ -5,8 +5,8 @@ import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Labels of the two resolve passes, as the profile and the pass blocks read them. */
-export const MATERIAL_DEPTH_PASS = 'WG material depth';
-export const MATERIAL_SURFACES_PASS = 'WG material surfaces v1';
+export const MATERIAL_DEPTH_PASS = 'Trillion3D material depth';
+export const MATERIAL_SURFACES_PASS = 'Trillion3D material surfaces v1';
 
 /** Which classes an image draws: a stamp per class key, and the keys stamped by this image. */
 export type PresentClasses = { stamps: Uint32Array; keys: number[]; stamp: number };

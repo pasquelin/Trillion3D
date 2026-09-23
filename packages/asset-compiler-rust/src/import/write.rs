@@ -19,7 +19,7 @@ impl Tables<'_> {
     /// glTF document, named by producing driver, whose scene starts at `roots`.
     pub(crate) fn document(&self, plugin: &dyn ScenePlugin, roots: &[usize]) -> Value {
         let generator = format!(
-            "web-geometry-compiler {} ({})",
+            "trillion3d-compiler {} ({})",
             crate::COMPILER_VERSION,
             plugin.version()
         );

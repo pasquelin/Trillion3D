@@ -51,7 +51,7 @@ const job = (id: string): BatchJob => ({
 });
 
 test('A16 prepareMany returns the summary of a partially successful batch', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-batch-test-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-batch-test-'));
   try {
     const summary = summaryOf('partial', [
       {
@@ -82,7 +82,7 @@ test('A16 prepareMany returns the summary of a partially successful batch', asyn
 });
 
 test('A16 prepareMany returns the summary of a wholly failed batch', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-batch-test-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-batch-test-'));
   try {
     const summary = summaryOf('failed', [
       { job: 'a', status: 'error', code: 'IMPORT_IO_ERROR', message: 'no such file' },
@@ -97,7 +97,7 @@ test('A16 prepareMany returns the summary of a wholly failed batch', async () =>
 });
 
 test('A16 prepareMany still rejects a batch the compiler refused outright', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-batch-test-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-batch-test-'));
   try {
     const executable = await compilerPrinting(
       root,

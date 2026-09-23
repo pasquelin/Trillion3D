@@ -10,8 +10,8 @@ import { WATER_BINDINGS } from './compositeWgsl.ts';
 import { createWaterCompositeLayout, createWaterCompositePipeline } from './pipelines.ts';
 
 /** Labels of the two measured passes; their GPU durations are read under these names. */
-export const WATER_SURFACE_PASS = 'WG water surfaces';
-export const WATER_COMPOSITE_PASS = 'WG water composite';
+export const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
+export const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
 
 /**
  * The frame side of the water pass: the composite program, and everything an image reuses as long

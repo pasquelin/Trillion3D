@@ -10,7 +10,7 @@ import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
- *  off (no `wgFrameAudit` in the test URL). Only `directGpu` and the engine count vary. */
+ *  off (no `trillion3dFrameAudit` in the test URL). Only `directGpu` and the engine count vary. */
 function harness(options: { directGpu: boolean; counted?: number | null }) {
   const active = { id: 'test-backend' } as unknown as RenderBackend;
   const metricsScratch = { drawCalls: 0, totalSubmittedTriangles: null } as unknown as FrameMetrics;

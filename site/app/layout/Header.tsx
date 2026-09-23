@@ -74,9 +74,9 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
         href={routeHref({ locale, area: 'learn', id: 'home' })}
       >
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary font-mono text-xs text-primary-content">
-          WG
+          T3D
         </span>
-        <span className="hidden sm:inline">Web Geometry</span>
+        <span className="hidden sm:inline">Trillion3D</span>
       </a>
       <PrimaryNavigation />
       <div className="ms-auto flex items-center gap-2">

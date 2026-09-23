@@ -36,12 +36,12 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   blendState.itemPacked = new Float32Array(items.length * BLEND_ITEM_WORDS);
   blendState.itemInts = new Uint32Array(blendState.itemPacked.buffer);
   blendState.itemBuffer = device.createBuffer({
-    label: 'WG blend item records',
+    label: 'Trillion3D blend item records',
     size: items.length * BLEND_ITEM_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   blendState.viewBuffer = device.createBuffer({
-    label: 'WG blend view uniform',
+    label: 'Trillion3D blend view uniform',
     size: BLEND_VIEW_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -51,12 +51,12 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   const entries = blendState.maxPlanEntries;
   refreshBlendScene(rt, device);
   blendState.expandedBuffer = device.createBuffer({
-    label: 'WG blend expanded instances',
+    label: 'Trillion3D blend expanded instances',
     size: blendState.instanceCapacity * 8,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   blendState.argsBuffer = device.createBuffer({
-    label: 'WG blend indirect arguments',
+    label: 'Trillion3D blend indirect arguments',
     size: Math.max(16, entries * 16 * EXPAND_PASSES),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   });
@@ -132,7 +132,7 @@ export function encodeBlendExpansion(
     blendState.keepMoved = false;
   }
   const orders = blendState.orders;
-  const pass = encoder.beginComputePass({ label: 'WG blend expansion' });
+  const pass = encoder.beginComputePass({ label: 'Trillion3D blend expansion' });
   for (let slice = 0; slice < orders.length; slice++) {
     const order = orders[slice],
       region = blendState.planRegions[slice];

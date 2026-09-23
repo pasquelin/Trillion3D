@@ -28,13 +28,15 @@ export function createChecks(checks: CheckRecord[]) {
     );
   };
   const checkNormalPasses = (name: string, encoded: EncodedPass[]) => {
-    const composition = encoded.filter((pass) => pass.name.startsWith('WG HDR composition'));
+    const composition = encoded.filter((pass) =>
+      pass.name.startsWith('Trillion3D HDR composition'),
+    );
     check(
       composition.length === 1 && composition[0].colorAttachments === 2,
       name + ': expected one HDR composition with both display targets',
     );
     check(
-      !encoded.some((pass) => pass.name === 'WG direct present'),
+      !encoded.some((pass) => pass.name === 'Trillion3D direct present'),
       name + ': redundant presentation pass',
     );
     checks.push({ name: name + ' passes', passes: encoded });

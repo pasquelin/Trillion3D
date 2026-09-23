@@ -8,7 +8,7 @@ import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
 const root = resolve(import.meta.dirname, '..');
 
 test('the site build writes every bundle of the published tree', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'wg-site-build-'));
+  const temporary = await mkdtemp(join(tmpdir(), 'trillion3d-site-build-'));
   try {
     await buildBundles(root, temporary);
     for (const file of [
@@ -33,7 +33,7 @@ test('the site build writes every bundle of the published tree', async () => {
 });
 
 test('the statics are copied as served, sources excluded, up-to-date copies left alone, removed ones removed', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'wg-site-statics-'));
+  const temporary = await mkdtemp(join(tmpdir(), 'trillion3d-site-statics-'));
   const source = join(temporary, 'site');
   const out = join(temporary, 'out');
   try {
