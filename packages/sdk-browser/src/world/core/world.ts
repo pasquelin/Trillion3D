@@ -10,7 +10,6 @@ import { Scene, type LoadOptions } from './scene.ts';
 import { awaitViewPages, registerWorld } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldModelLoader } from './loadedModel.ts';
-import { watchFirstFrame } from '../session/openWatch.ts';
 import { worldBudget, worldControlsHandle, worldDiagnostic, type Pools } from './worldHandles.ts';
 import { worldTelemetry } from './worldTelemetry.ts';
 
@@ -70,13 +69,10 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       diagnostic.apply(explorer);
     },
     frame: frames.dispatch,
+    drawn: () => frames.last !== null,
     display: () => ({ exposure, toneMapping }),
     notices: diagnostic.notices,
     failed: (error) => console.error('World session failed to open', error),
-  });
-  watchFirstFrame(() => {
-    if (frames.last || disposed || !scene.children.length) return null;
-    return runtime.explorer ? 'its session is open and draws nothing' : 'no session has opened';
   });
   /** The camera outside the scene still redraws when it moves. */
   const cameraLink: SceneLink = { pose: invalidate, structure: () => {}, content: () => {} };
