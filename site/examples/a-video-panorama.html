@@ -83,12 +83,10 @@
       video.srcObject = studio.captureStream(30);
       video.play();
 
-      // The video on a great sphere seen from inside, unlit, and the camera at its centre. Seen
-      // from inside, the sphere's UVs run the wrong way round: they are turned across once.
+      // The video on a great sphere seen from inside, unlit, and the camera at its centre. The
+      // sphere's picture runs from +x towards +z, left to right for an eye at its centre.
       const world = createWorld('view', { controls: 'orbit' });
-      const ball = geometry.sphere(100, 96, 48), uv = ball.attributes.uv;
-      for (let v = 0; v < uv.count; v++) uv.setXY(v, 1 - uv.getX(v), uv.getY(v));
-      const dome = object.mesh(ball, material.meshBasic({ map: texture.video(video), side: side.back }));
+      const dome = object.mesh(geometry.sphere(100, 96, 48), material.meshBasic({ map: texture.video(video), side: side.back }));
       world.scene.add(dome);
       world.camera.far = 300;
       world.camera.position.set(0, 0, 0.01);

@@ -38,8 +38,10 @@
       const asphalt = object.mesh(geometry.box(1, 0.1, 1), matte('#2b2e35', 0.95));
       asphalt.position.y = -0.05;
       world.scene.add(asphalt);
-      const pool = (shape, size) => ({ shape, meshes: [], used: 0, size });
-      const pools = [pool(cube, 3600), pool(drum, 500), pool(crown, 600)];
+      // Each pool holds what the largest city could ask of it: a block at most is a pavement and
+      // four towers of four boxes, or a park's nine trees; four round towers of two drums each.
+      const MOST = 12, pool = (shape, perBlock) => ({ shape, meshes: [], used: 0, size: perBlock * MOST * MOST });
+      const pools = [pool(cube, 17), pool(drum, 8), pool(crown, 9)];
       for (const each of pools)
         for (let k = 0; k < each.size; k++) {
           const mesh = object.mesh(each.shape, roof);
@@ -138,7 +140,7 @@
       // The sun moves on the hour control only: its shadows are redrawn then, not every frame.
       const ui = controls({
         mouse: 'Drag to fly around; every control rebuilds the city from its rules',
-        blocks: [3, 12, 8, 1],
+        blocks: [3, MOST, 8, 1],
         maxHeight: [4, 40, 22],
         density: [0.2, 1, 0.85],
         parks: [0, 0.6, 0.15],
