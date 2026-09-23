@@ -32,6 +32,7 @@
   },
   "examples": {
     "lead": "Cada exemplo é um arquivo curto: veja-o rodando, abra o código, mude-o.",
+    "jumpTo": "Ir para um tema",
     "inProgress": "Em construção",
     "waitsFor": "Espera pelo motor:",
     "waitingEngine": "Esperando o motor"

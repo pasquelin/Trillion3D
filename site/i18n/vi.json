@@ -32,6 +32,7 @@
   },
   "examples": {
     "lead": "Mỗi ví dụ là một tệp ngắn: xem nó chạy, mở mã nguồn, rồi thay đổi nó.",
+    "jumpTo": "Chuyển đến chủ đề",
     "inProgress": "Đang thực hiện",
     "waitsFor": "Đang chờ bộ máy:",
     "waitingEngine": "Đang chờ bộ máy"

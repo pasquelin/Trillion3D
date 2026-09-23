@@ -4,6 +4,7 @@ import { ExampleCard, PendingExampleCard } from './ExampleCard.tsx';
 import { DocPage } from '../layout/DocPage.tsx';
 import { routeHref } from '../portal/routes.ts';
 import { Grid } from '../ui/Grid.tsx';
+import { JumpTo } from '../ui/JumpTo.tsx';
 import { Section } from '../ui/Text.tsx';
 import {
   exampleMissing,
@@ -14,15 +15,34 @@ import {
   thumbnailOf,
 } from './list.ts';
 
+/** The heading a theme's section scrolls to. */
+const themeAnchor = (theme: string) => `theme-${theme}`;
+
 /** The Examples landing page, theme by theme: one card per ready example, its settled render as
  * thumbnail, opening the example; then one card per example still in progress or waiting for the
  * engine, opening nothing. */
 export function Examples({ locale }: { locale: Locale }) {
   const t = useWords(locale);
   return (
-    <DocPage data-examples title={t('nav.examples')} lead={t('examples.lead')}>
+    <DocPage
+      data-examples
+      title={t('nav.examples')}
+      lead={t('examples.lead')}
+      inlineActions
+      actions={
+        <JumpTo
+          aria-label={t('examples.jumpTo')}
+          placeholder={t('examples.jumpTo')}
+          items={themedEntries.map(({ theme, entries }) => ({
+            id: themeAnchor(theme),
+            label: themeTitle(theme, locale),
+            count: entries.length,
+          }))}
+        />
+      }
+    >
       {themedEntries.map(({ theme, entries }) => (
-        <Section key={theme} title={themeTitle(theme, locale)}>
+        <Section key={theme} id={themeAnchor(theme)} title={themeTitle(theme, locale)}>
           <Grid>
             {entries.map((entry) =>
               isReady(entry) ? (

@@ -15,11 +15,22 @@ export function TextLink({ className = '', ...props }: ComponentPropsWithoutRef<
   return <a className={`link ${className}`} {...props} />;
 }
 
-/** A titled part of a page's body: its heading, then what it holds. */
-export function Section({ title, children }: { title: ReactNode; children: ReactNode }) {
+/** A titled part of a page's body: its heading, then what it holds. `id` names the heading, a
+ *  stable anchor a page can jump to. */
+export function Section({
+  id,
+  title,
+  children,
+}: {
+  id?: string;
+  title: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="grid min-w-0 grid-cols-1 gap-4">
-      <h2 className="text-xl font-bold md:text-2xl">{title}</h2>
+      <h2 id={id} className="text-xl font-bold md:text-2xl">
+        {title}
+      </h2>
       {children}
     </section>
   );
