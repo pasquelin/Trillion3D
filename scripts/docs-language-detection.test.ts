@@ -16,7 +16,7 @@ Object.assign(globalThis, {
 });
 const browser = { languages: ['en-US'] };
 Object.defineProperty(globalThis, 'navigator', { value: browser, configurable: true });
-const { i18n } = await import('../site/app/i18n.ts');
+const { detectedLanguage, i18n, loadLanguage } = await import('../site/app/i18n.ts');
 const { parseRoute } = await import('../site/app/portal/routes.ts');
 
 /** The language a visit to `hash` settles on, with this remembered choice and browser. */
@@ -25,7 +25,7 @@ const languageOf = async (hash: string, remembered: string | null, languages: st
   if (remembered) storage.set('web-geometry.language', remembered);
   browser.languages = languages;
   await i18n.changeLanguage();
-  return parseRoute(hash, i18n.resolvedLanguage).locale;
+  return parseRoute(hash, detectedLanguage()).locale;
 };
 
 test('the route names the language first, then the last choice, then the browser, then English', async () => {
@@ -35,9 +35,12 @@ test('the route names the language first, then the last choice, then the browser
   assert.equal(await languageOf('', null, ['xx-XX']), 'en');
 });
 
-test('a language the route names becomes the remembered choice', async () => {
+test('a language the route names becomes the remembered choice, its words read first', async () => {
   storage.clear();
+  assert.equal(i18n.getFixedT('fr')('nav.learn'), 'Learn');
+  await loadLanguage('fr');
   await i18n.changeLanguage('fr');
+  assert.notEqual(i18n.getFixedT('fr')('nav.learn'), 'Learn');
   assert.equal(storage.get('web-geometry.language'), 'fr');
 });
 
