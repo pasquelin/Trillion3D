@@ -8,6 +8,9 @@ import { loadClusterManifest } from '../../scene/manifestLoad.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
+import type { WorldRenderer } from '../capability/worldReady.ts';
+import { loadModelOfAnyFormat } from '../loader/modelFormat.ts';
+import type { LoadOptions } from './scene.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -72,7 +75,7 @@ export class LoadedModel extends Object3D {
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
  * WebGPU world's first model does; any other path samples the images themselves.
  */
-export async function loadModel(
+async function loadModel(
   manifestUrl: string,
   options: { scope?: AssetScope; signal?: AbortSignal; textureSource: 'host' | 'cache' },
 ): Promise<LoadedModel> {
@@ -113,4 +116,24 @@ export async function loadModel(
     model.add(lamp, lamp.target);
   }
   return model;
+}
+
+/** The scene's one door for every model, once the renderer is granted: its format is read from
+ *  its content, then its loader — today the compiled manifest's alone — reads it
+ *  (`modelFormat.ts`). The first model of a WebGPU world reads its textures from the cache. */
+export function worldModelLoader(
+  ready: Promise<unknown>,
+  renderer: () => WorldRenderer | null,
+  signal: AbortSignal | undefined,
+) {
+  let models = 0;
+  return async (url: string, load: LoadOptions) => {
+    await ready;
+    const read = {
+      scope: load.scope === undefined ? undefined : load.scope === 'full' ? 'full' : 'slice',
+      signal: load.signal ?? signal,
+      textureSource: renderer() === 'webgpu' && models++ === 0 ? 'cache' : 'host',
+    } as const;
+    return loadModelOfAnyFormat(url, read, { manifest: loadModel });
+  };
 }

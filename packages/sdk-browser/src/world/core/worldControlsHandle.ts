@@ -3,6 +3,10 @@ import { worldControls, type WorldControls } from './worldCamera.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts';
 import { controlSettingAccessors } from './worldControlsAccessors.ts';
+import { characterSettingAccessors } from './worldCharacterAccessors.ts';
+import { meshCollision } from '../../../../sdk-core/src/collision/meshTriangles.ts';
+import type { TriangleCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
@@ -13,9 +17,12 @@ import { controlSettingAccessors } from './worldControlsAccessors.ts';
  * `kind` makes later. A controller without that setting ignores it — the distances bound the
  * pivot controllers (orbit, trackball, pan-zoom), the angles the orbit alone; `movementSpeed`
  * drives flight and first person, `lookSpeed`, `minPitch` and `maxPitch` first person, the
- * turn speeds, `inputResponse`, `autoForward` and `pointerLook` flight, `rotateSpeed` and
- * `zoomSpeed` the pivot controllers — so a page may set them before or after it picks its
- * controller. A cruising flight moves on every frame, so the handle asks for the first one; a
+ * turn speeds, the stick inputs, `inputResponse`, `autoForward` and `pointerLook` flight,
+ * `rotateSpeed` and `zoomSpeed` the pivot controllers, the body, speeds, jump and hooks the
+ * character — so a page may set them before or after it picks its controller. The character's
+ * `colliders` are kept the same way: the triangle tree is built once when they are set, handed
+ * to every character `kind` makes, and rebuilt only on `rebuildColliders()`. A cruising flight
+ * moves on every frame, so the handle asks for the first one; a
  * disabled controller, or any other kind, leaves the scene still.
  */
 export function worldControlsHandle(
@@ -26,7 +33,9 @@ export function worldControlsHandle(
 ) {
   let kind = initial,
     enabled = true,
-    current: Controller | null = null;
+    current: Controller | null = null,
+    colliders: Object3D | readonly Object3D[] | null = null,
+    collision: TriangleCollision | null = null;
   const standingTarget = new Vector3(),
     settings = { ...CONTROL_SETTINGS };
   /** Hands the kept settings to the controller in place, where it has them; a controller that
@@ -36,6 +45,7 @@ export function worldControlsHandle(
     if (!live) return;
     for (const name of Object.keys(settings) as ControlSetting[])
       if (name in live) live[name] = settings[name];
+    if ('collision' in live && live.collision !== collision) live.collision = collision;
     if (live.autoForward === true) invalidate();
   };
   const setting = <K extends ControlSetting>(name: K, value: (typeof CONTROL_SETTINGS)[K]) => {
@@ -77,6 +87,43 @@ export function worldControlsHandle(
     get target(): Vector3 {
       return current?.target ?? standingTarget;
     },
+    /** Whether the world's loop calls `update` ahead of each frame, before `world.beforeFrame`
+     *  hooks. `false` hands the step to the page, which calls `update` from such a hook, as
+     *  often and over whatever sub-steps it integrates; the world then never steps it. */
+    autoUpdate: true,
+    /**
+     * Character only: the meshes the body collides with — one object or a list, their
+     * descendants included — or `null`. Setting them builds a static triangle tree from their
+     * world-space triangles as they stand now: one pass over the triangles and an
+     * `O(T log T)` build, about 52 bytes kept per triangle. Compiled models are not read yet:
+     * give a simple mesh stand-in for them.
+     */
+    get colliders() {
+      return colliders;
+    },
+    set colliders(next: Object3D | readonly Object3D[] | null) {
+      colliders = next;
+      handle.rebuildColliders();
+    },
+    /** Character only: builds the collision tree again, after the colliders moved or changed. */
+    rebuildColliders() {
+      collision = colliders ? meshCollision(colliders) : null;
+      bound();
+      invalidate();
+    },
+    /** Character only: the body's velocity in metres per second, a copy; zero otherwise. */
+    get velocity(): Vector3 {
+      const v = (current as { velocity?: ArrayLike<number> } | null)?.velocity;
+      return v ? new Vector3(v[0], v[1], v[2]) : new Vector3();
+    },
+    /** Character only: whether the feet are on a floor; `false` for any other controller. */
+    get onGround(): boolean {
+      return (current as { onGround?: boolean } | null)?.onGround === true;
+    },
+    /** Character only: the stride's phase in radians, a foot striking at 0 and π; 0 otherwise. */
+    get stride(): number {
+      return (current as { stride?: number } | null)?.stride ?? 0;
+    },
     /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose. */
     update(delta = 0) {
       current?.update?.(delta);
@@ -90,7 +137,11 @@ export function worldControlsHandle(
     },
   };
   // The settings are accessors of their own module; they join the handle as accessors, live.
-  const kept = controlSettingAccessors(settings, setting);
-  return Object.defineProperties(handle, Object.getOwnPropertyDescriptors(kept)) as typeof handle &
-    typeof kept;
+  const kept = {
+    ...Object.getOwnPropertyDescriptors(controlSettingAccessors(settings, setting)),
+    ...Object.getOwnPropertyDescriptors(characterSettingAccessors(settings, setting)),
+  };
+  type Kept = ReturnType<typeof controlSettingAccessors> &
+    ReturnType<typeof characterSettingAccessors>;
+  return Object.defineProperties(handle, kept) as typeof handle & Kept;
 }

@@ -129,5 +129,12 @@ export type {
 export type { OrbitCameraControls } from './camera/controls/orbitControls.ts';
 export type { FlyCameraControls } from './camera/controls/flyControls.ts';
 export type { FirstPersonCameraControls } from './camera/controls/firstPersonControls.ts';
+export type { HeadSettings, PersonHead } from './camera/controls/look.ts';
+export type { CharacterCameraControls } from './camera/controls/characterControls.ts';
+export type {
+  CharacterCollision,
+  TriangleCollision,
+} from '../../sdk-core/src/collision/characterCollision.ts';
+export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts';
 export type { PanZoomCameraControls } from './camera/controls/panZoomControls.ts';
