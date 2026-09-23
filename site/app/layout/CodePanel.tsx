@@ -27,7 +27,7 @@ export function CodePanel({ file, code, onChange, onRun, onReset, onClose }: Cod
   };
   return (
     <section
-      className="flex min-h-0 min-w-0 flex-col overflow-auto rounded-box border border-base-300 bg-base-200 p-3"
+      className="flex min-h-0 min-w-0 flex-col overflow-auto rounded-box border border-base-300 bg-base-200 p-3 pb-20"
       aria-label={file}
       data-code-panel
       onKeyDownCapture={keydown}
