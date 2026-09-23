@@ -16,6 +16,11 @@ export type {
 export type { BackendDiagnostic, DiagnosticDetail } from '../sdk-browser/src/diagnostic/types.ts';
 export { batch } from '../sdk-browser/src/world/batch/index.ts';
 export type { FloatBatch } from '../sdk-browser/src/world/batch/index.ts';
+export type {
+  BeforeFrameInfo,
+  FrameInfo,
+  WorldFrameMetrics,
+} from '../sdk-browser/src/world/core/worldFrames.ts';
 export {
   blending,
   colorSpace,
@@ -80,7 +85,6 @@ export type {
 export type { ExtrudeOptions } from '../sdk-core/src/world/geometry/shape.ts';
 export type { FirstPersonCameraControls } from '../sdk-browser/src/camera/controls/firstPersonControls.ts';
 export type { FlyCameraControls } from '../sdk-browser/src/camera/controls/flyControls.ts';
-export type { FrameInfo, WorldFrameMetrics } from '../sdk-browser/src/world/core/worldFrames.ts';
 export { framingFromBounds } from '../sdk-browser/src/camera/framing.ts';
 export { Frustum, Plane, Ray, Sphere, Triangle } from '../sdk-core/src/world/math/volumes.ts';
 export { geometry } from '../sdk-core/src/world/geometry/index.ts';
