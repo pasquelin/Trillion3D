@@ -31,6 +31,23 @@ export function orbitOrientation(out: Float64Array, spherical: ArrayLike<number>
   return out;
 }
 
+/**
+ * `theta` held on the arc of azimuth that runs from `min` towards +X up to `max`, in radians;
+ * the arc may cross the back of the target, where the azimuth jumps from π to −π, so `min`
+ * may be greater than `max`. An infinite bound or an arc of a full turn holds nothing. An
+ * azimuth already on the arc comes back as it was, and one outside it goes to the nearer end,
+ * measured around the circle.
+ */
+export function clampAzimuth(theta: number, min: number, max: number) {
+  const turn = 2 * Math.PI,
+    arc = max - min;
+  if (!Number.isFinite(arc) || arc >= turn) return theta;
+  const span = ((arc % turn) + turn) % turn,
+    past = (((theta - min) % turn) + turn) % turn;
+  if (past <= span) return theta;
+  return past - span < turn - past ? max : min;
+}
+
 /** World units a pixel is worth at `distance`, for a camera of vertical field `fov` degrees. */
 export function pixelWorldScale(distance: number, fov: number, height: number) {
   return (2 * distance * Math.tan(DEG2RAD * fov * 0.5)) / Math.max(1, height);
