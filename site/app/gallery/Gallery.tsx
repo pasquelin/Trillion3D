@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useWords } from '../i18n.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { ProgressiveListState } from '../ui/ProgressiveList.tsx';
 import type { CatalogExample } from '../../content/catalog.ts';
@@ -7,7 +8,7 @@ import { DocPage } from '../layout/DocPage.tsx';
 import { Note } from '../ui/Text.tsx';
 import { examples } from '../../content/catalog.ts';
 import { engineExample, ExampleCard } from './ExampleCard.tsx';
-import { themeOf, themes } from './lessonThemes.ts';
+import { THEMES, themeOf } from './lessonThemes.ts';
 import { ProgressiveList } from '../ui/ProgressiveList.tsx';
 import { ThemeTabs } from './ThemeTabs.tsx';
 import { GalleryShowcase } from './GalleryShowcase.tsx';
@@ -34,10 +35,8 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
     () => LESSONS.filter((entry) => category === 'all' || themeOf(entry) === category),
     [category],
   );
-  const categories = themes
-    .map(([value]) => value)
-    .filter((value) => LESSONS.some((entry) => themeOf(entry) === value));
-  const french = locale === 'fr';
+  const categories = THEMES.filter((value) => LESSONS.some((entry) => themeOf(entry) === value));
+  const t = useWords(locale);
   useEffect(() => {
     // The shell's content area is what scrolls.
     const area = document.getElementById('main-content');
@@ -57,11 +56,7 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
     };
   }, [locale]);
   return (
-    <DocPage
-      data-gallery
-      eyebrow={french ? 'Apprendre par l’image' : 'Learn by seeing'}
-      title={french ? 'Leçons' : 'Lessons'}
-    >
+    <DocPage data-gallery eyebrow={t('gallery.eyebrow')} title={t('gallery.title')}>
       <GalleryShowcase locale={locale} />
       <div>
         <ThemeTabs
@@ -74,9 +69,7 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
           }}
         />
       </div>
-      <Note role="status">
-        {entries.length} {french ? 'leçons affichées' : 'lessons shown'}
-      </Note>
+      <Note role="status">{t('gallery.shown', { count: entries.length })}</Note>
       {!!entries.length && (
         <ProgressiveList
           key={category}
@@ -88,17 +81,15 @@ export function Gallery({ locale = 'en' }: { locale?: Locale }) {
             progressive.current = state;
           }}
           labels={{
-            previous: french ? 'Charger les résultats précédents' : 'Load previous results',
-            next: french ? 'Charger plus de résultats' : 'Load more results',
-            loading: french ? 'Chargement…' : 'Loading…',
-            end: french ? 'Fin des résultats' : 'End of results',
+            previous: t('gallery.previous'),
+            next: t('gallery.next'),
+            loading: t('gallery.loading'),
+            end: t('gallery.end'),
           }}
           renderItem={(entry) => <ExampleCard key={entry.id} example={entry} locale={locale} />}
         />
       )}
-      {!entries.length && (
-        <Alert tone="info">{french ? 'Aucune leçon trouvée.' : 'No lessons found.'}</Alert>
-      )}
+      {!entries.length && <Alert tone="info">{t('gallery.none')}</Alert>}
     </DocPage>
   );
 }

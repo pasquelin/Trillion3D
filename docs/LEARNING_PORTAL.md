@@ -33,14 +33,23 @@ dispose them before the next route. `docs/` holds the repository documentation o
   `Entry.tsx` renders API entries, `ApiDemo.tsx` the pure demo models, `engine-scene/` the real
   WebGPU preview behind a ref effect; `code/` runs an edited lesson snippet off the UI thread.
 
-- `site/content/` owns the copy: `entries/*.ts` are the English guide entries and the written
-  notes that complete a generated API entry, `reference/` the generated API reference and its
-  French (see "The API reference" below),
-  `model.ts` declares the entry shape and the sections, `i18n/` contains French overlays and
-  interface strings (`localizeEntries()` applies an overlay by entry id while preserving technical
-  fields; missing fields and unsupported locales fall back to English through `t()`),
-  `catalog.ts` is the lesson catalogue with its bilingual copy, `gallery-roadmap.json` the list of
-  examples (see below), `locale.ts` the two languages.
+- `site/i18n/<language>.json` holds every word of the portal, one file per language, English the
+  reference and the fallback: a `meta` block (`lang`, `name`, `abbr`, `hreflang`, `rtl`), the
+  interface namespaces, then the content — the course (`course`), the written text of the guides
+  and notes (`written`), the lesson catalogue (`catalog`), the gallery showcase and the demo canvas
+  labels. The languages are the files of the folder: `site/content/i18n/languages.inline.ts` reads
+  it, and the portal build runs that module and bundles its result (`scripts/docs/inline-modules.ts`),
+  so adding a language is adding its file (and its `api.<language>.json`, below). `site/app/i18n.ts`
+  is the one i18next instance: the language comes from the route (`#/<language>/…`), then the
+  reader's last choice (`localStorage`), then the browser, then English; the header lists every
+  language. `check:i18n` in `validate`, and `scripts/docs-i18n.test.ts`, fail when a language's keys
+  differ from English's, naming each missing and extra key.
+- `site/content/` owns what no language changes: `entries/*.ts` are the guide entries and the
+  written notes that complete a generated API entry, without their words; `reference/` the
+  generated API reference and its translations (see "The API reference" below), `model.ts` the
+  entry shape and the sections, `i18n/` the dictionary helpers (`localizeEntries()` gives an entry
+  its words, keeping its technical fields), `catalog.ts` the lesson catalogue, `gallery-roadmap.json`
+  the list of examples (see below).
 - `site/lessons/` owns what drives the engine: the playground scenarios, evaluation, canvas
   drawings and 3D geometry (`scenarios.ts`, `evaluate*.ts`, `draw*.ts`, `sceneGeometry*.ts`),
   `webgpuRenderer.ts` which mounts the shared, disposable 3D illustrations (geometry is derived
@@ -190,25 +199,26 @@ list of keys has no declaration of its own: its owner documents it with `@proper
 The section follows the defining module (`scripts/api-reference/sections.ts`): the world and its
 families first, the constant families under "Constants", then the maths, the Node compiler and
 every other public type. To document a symbol, write its TSDoc in the source, run
-`node scripts/generate-api-reference.ts`, and add its French to `site/content/reference/api.fr.json`
-(keyed by entry id; rows by name). `check:api-reference` in `validate` fails on a stale file, and
+`node scripts/generate-api-reference.ts`, and add its text in every other language to
+`site/content/reference/api.<language>.json` (keyed by entry id; rows by name). `check:api-reference` in `validate` fails on a stale file, and
 `scripts/docs-api-reference.test.ts` on an export, a family member or a row without an entry or a
-summary, on two entries sharing a summary, on a thrown error code left unexplained, and on missing
-French. The written notes of `site/content/entries/*.ts` (matrices, vectors, bounds…) only add a
+summary, on two entries sharing a summary and on a thrown error code left unexplained; `check:i18n`
+on a translation missing a text or naming one English does not show. The written notes of `site/content/entries/*.ts` (matrices, vectors, bounds…) only add a
 longer text, an example or a proof to the generated entry of the same id.
 
 ## Adding or translating documentation
 
-Add the English entry to the relevant `site/content/entries/*.ts` array with a stable id. Add a
-French overlay with the same id to the matching file under `site/content/i18n/`. Translate the title only when
-it is editorial; function, type and constant names remain exact. Translate descriptions, argument
+Add the entry to the relevant `site/content/entries/*.ts` array with a stable id, and its words
+under `written.<id>` in every `site/i18n/<language>.json`. Translate the title only when it is
+editorial; function, type and constant names remain exact. Translate descriptions, argument
 descriptions and guide HTML, while signatures, exports, module paths and code examples remain the
-source contract. Add new navigation or component text to both locale tables of
-`site/content/i18n/strings.ts`, read by `t()`; the i18n test refuses a key missing from one.
+source contract. Add new navigation or component text to every dictionary, and read it in a
+component with `useWords(locale)` (`site/app/i18n.ts`); the keys are typed from the English file,
+and `check:i18n` refuses a key missing from one language.
 
-Run `node --test scripts/docs-i18n.test.ts tests/integration/documentation-portal.test.ts` after
-content changes. The localization test requires parity across all entries and verifies that the
-French overlays do not alter technical fields.
+Run `pnpm run check:i18n` and `node --test scripts/docs-i18n.test.ts
+tests/integration/documentation-portal.test.ts` after content changes: they require key parity
+across the languages and verify that a translation does not alter technical fields.
 
 ## Original scene and asset provenance
 

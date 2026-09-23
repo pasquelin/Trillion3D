@@ -5,7 +5,7 @@ import { sceneName } from '../../reports/presentation.ts';
 import { useReports } from './useReports.ts';
 import { Alert } from '../ui/Alert.tsx';
 import { DocPage } from '../layout/DocPage.tsx';
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { TextLink } from '../ui/Text.tsx';
 import { Collapse } from '../ui/Collapse.tsx';
 import { SceneReport } from './SceneReport.tsx';
@@ -26,8 +26,8 @@ export function Report({ route }: ReportProps) {
   const [campaign, active = 'overview'] = route.id.split('/');
   const state = useReports(campaign);
   const locale = route.locale,
-    c = reportCopy(locale),
-    fr = locale === 'fr';
+    c = reportCopy(locale);
+  const t = useWords(locale);
   if (!state.report)
     return (
       <DocPage title={c.title}>
@@ -43,7 +43,7 @@ export function Report({ route }: ReportProps) {
     overview: () => (
       <>
         <Findings {...props} />
-        <Collapse title={fr ? 'Exécutions et sources' : 'Runs and sources'}>
+        <Collapse title={t('report.runsAndSources')}>
           <CampaignRuns {...props} />
           <TextLink href={`reports/${report.id}/report.json`} download>
             {c.download}
@@ -54,7 +54,7 @@ export function Report({ route }: ReportProps) {
     compare: () => (
       <>
         <ReadingLegend locale={locale} engines />
-        <Collapse title={fr ? 'Comment lire les chiffres ?' : 'How do I read the figures?'}>
+        <Collapse title={t('report.readFigures')}>
           <p>
             {c.p95} {c.timing}
           </p>
@@ -80,8 +80,8 @@ export function Report({ route }: ReportProps) {
   return (
     <DocPage
       title={c.title}
-      eyebrow={`${t(locale, 'reports.campaign')} ${report.id}`}
-      lead={`${report.records.length} ${fr ? 'mesures' : 'readings'} · ${report.runs.length} ${fr ? 'exécutions' : 'runs'} · ${scenes.map(sceneName).join(' / ')}`}
+      eyebrow={`${t('reports.campaign')} ${report.id}`}
+      lead={`${t('report.counts', { readings: report.records.length, runs: report.runs.length })} · ${scenes.map(sceneName).join(' / ')}`}
     >
       {(Object.hasOwn(content, active) ? content[active] : content.overview)()}
     </DocPage>

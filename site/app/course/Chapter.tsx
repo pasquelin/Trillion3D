@@ -1,4 +1,4 @@
-import { t } from '../../content/i18n/index.ts';
+import { useWords } from '../i18n.ts';
 import { entrySummary } from '../../content/model.ts';
 import type { CourseChapter, PortalEntry } from '../../content/model.ts';
 import type { Locale } from '../../content/locale.ts';
@@ -19,6 +19,7 @@ const languageOf = (block: string) => (block.trimStart().startsWith('<') ? 'html
  * example live to change, then the button to the next chapter.
  */
 export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
+  const t = useWords(locale);
   const chapter: CourseChapter = entry.chapter!;
   const { words } = chapter;
   const title = entry.title || entry.id;
@@ -26,7 +27,7 @@ export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale 
   return (
     <DocPage
       data-chapter={entry.id}
-      eyebrow={t(locale, 'kind.Chapter')}
+      eyebrow={t('kind.Chapter')}
       title={title}
       lead={<Inline text={entrySummary(entry)} />}
     >

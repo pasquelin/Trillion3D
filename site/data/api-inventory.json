@@ -4855,6 +4855,17 @@
       "bindingIdentity": "\"packages/sdk-core/src/llm/types\".OpenAiToolDefinition"
     },
     {
+      "name": "OrbitCameraControls",
+      "kind": "type",
+      "definingModule": "packages/sdk-browser/src/camera/controls/orbitControls.ts",
+      "currentEntryPoints": ["web-geometry (browser condition)"],
+      "proposedEnvironments": "browser",
+      "classification": "public",
+      "affectedConsumers": [],
+      "disposition": "retained",
+      "bindingIdentity": "\"packages/sdk-browser/src/camera/controls/orbitControls\".OrbitCameraControls"
+    },
+    {
       "name": "orthographicProjection",
       "kind": "value",
       "definingModule": "packages/sdk-core/src/math/primitives/camera.ts",
