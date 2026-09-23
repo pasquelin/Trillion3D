@@ -35,7 +35,7 @@ fn forme() -> AlphaShape {
 // sum up. Otherwise page would put two switches on single answer, checking
 // one unchecking the other.
 #[test]
-fn deux_textures_dune_meme_image_ne_font_quune_ligne() {
+fn two_textures_of_one_image_make_a_single_row() {
     let g = json!({ "images": [{ "uri": "dossier/feuillage.png" }] });
     let previews = [apercu(3, 0, "abc"), apercu(7, 0, "abc")];
     let measures = BTreeMap::from([(3usize, forme()), (7usize, forme())]);
@@ -56,7 +56,7 @@ fn deux_textures_dune_meme_image_ne_font_quune_ligne() {
 
 // Behaviour: two distinct images keep two lines, and each has its own switch.
 #[test]
-fn deux_images_distinctes_gardent_deux_lignes() {
+fn two_distinct_images_keep_two_rows() {
     let g = json!({ "images": [{ "uri": "a.png" }, { "uri": "b.png" }] });
     let previews = [apercu(0, 0, "abc"), apercu(1, 1, "def")];
     let measures = BTreeMap::from([(0usize, forme()), (1usize, forme())]);

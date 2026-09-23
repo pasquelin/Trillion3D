@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLightingScene } from '../../../../sdk-core/src/lighting/scene/experimentScene.ts';
+import { createLightingScene } from '../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
 import { createObservationResources } from './resources.ts';
 import type { LightingExperimentRenderState } from './contracts.ts';
-import type { HostNode } from '../../host/resources.ts';
+import type { HostNode } from '../../../packages/sdk-browser/src/host/resources.ts';
 
 test('the observation backend publishes an engine scene: black, empty, and walkable', () => {
   const scene = createLightingScene({ doorAngle: 0, lightIntensity: 1 });

@@ -11,13 +11,13 @@ struct ColonneAncienne {
     octets: Vec<u8>,
 }
 impl ColonneAncienne {
-    fn nombre(&mut self, valeur: f64) {
+    fn number(&mut self, valeur: f64) {
         self.octets.extend_from_slice(&valeur.to_le_bytes());
     }
 }
 
 /// Copy of the old `number()`: the value name arrives already built.
-fn nombre_ancien(valeur: Option<&Value>, quoi: &str) -> f64 {
+fn legacy_number(valeur: Option<&Value>, quoi: &str) -> f64 {
     valeur
         .and_then(Value::as_f64)
         .unwrap_or_else(|| panic!("{quoi} is not a number"))
@@ -31,7 +31,7 @@ fn vecteur_ancien(valeur: Option<&Value>, longueur: usize, quoi: &str) -> Vec<f6
     entrees
         .iter()
         .enumerate()
-        .map(|(i, entree)| nombre_ancien(Some(entree), &format!("{quoi}[{i}]")))
+        .map(|(i, entree)| legacy_number(Some(entree), &format!("{quoi}[{i}]")))
         .collect()
 }
 
@@ -43,13 +43,13 @@ fn reference_colonnes(pages: &[Value]) -> Vec<Vec<u8>> {
         let bas = vecteur_ancien(page.get("min"), 3, "page.min");
         let haut = vecteur_ancien(page.get("max"), 3, "page.max");
         for valeur in bas.iter().chain(haut.iter()) {
-            bornes.nombre(*valeur);
+            bornes.number(*valeur);
         }
         for valeur in vecteur_ancien(page.get("sphere"), 4, "page.sphere") {
-            sphere.nombre(valeur);
+            sphere.number(valeur);
         }
         for valeur in vecteur_ancien(page.get("parentSphere"), 4, "page.parentSphere") {
-            parente.nombre(valeur);
+            parente.number(valeur);
         }
     }
     vec![bornes.octets, sphere.octets, parente.octets]

@@ -1,6 +1,8 @@
 //! What a prefab instance places, removes and replaces on its source prefab. Shared
 //! meshes are in `meshes.rs`, properties in `properties.rs`.
-use super::project::{cube, mat_blanc, materiau, node_named, objet, Projet, BUILTIN};
+use super::project::{
+    cube, game_object, material_entry, node_named, white_mat, UnityProject, BUILTIN,
+};
 use super::*;
 
 /// GUIDs of the files of each case.
@@ -10,7 +12,7 @@ const OUTER: &str = "000000000000000000000000000000a3";
 
 /// A plain `.mat`, the shortest the driver reads.
 fn matiere(name: &str) -> String {
-    mat_blanc(name, "    - _Metallic: 0\n")
+    white_mat(name, "    - _Metallic: 0\n")
 }
 
 /// A root prefab instance, on the source of this GUID, with the case's overrides.
@@ -30,7 +32,7 @@ fn retouche(target: u32, guid: &str, path: &str, value: &str) -> String {
 // the author changed from the scene on an object of the nested prefab is lost.
 #[test]
 fn the_outer_overrides_of_a_nested_prefab_reach_its_objects() {
-    let projet = Projet::new("prefab-imbrique");
+    let projet = UnityProject::new("prefab-imbrique");
     projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
     projet.data("Prefabs/Inner.prefab", SOURCE, &cube(100, "Boite", MAT));
     projet.data(
@@ -67,7 +69,7 @@ fn the_outer_overrides_of_a_nested_prefab_reach_its_objects() {
 // out of reach is counted by its name.
 #[test]
 fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
-    let projet = Projet::new("prefab-retire");
+    let projet = UnityProject::new("prefab-retire");
     projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
     projet.data(
         "Prefabs/Source.prefab",
@@ -81,7 +83,7 @@ fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
             SOURCE,
             "    m_Modifications: []\n    m_RemovedComponents:\n    - {fileID: 203, guid: 000000000000000000000000000000a2, type: 3}\n    m_AddedGameObjects:\n    - targetCorrespondingSourceObject: {fileID: 101, guid: 000000000000000000000000000000a2, type: 3}\n      insertionIndex: -1\n      addedObject: {fileID: 701}\n    m_AddedComponents:\n    - targetCorrespondingSourceObject: {fileID: 100, guid: 000000000000000000000000000000a2, type: 3}\n      addedObject: {fileID: 801}\n"
         ),
-        objet(700, "Ajoutee", BUILTIN, &materiau(MAT), 5001)
+        game_object(700, "Ajoutee", BUILTIN, &material_entry(MAT), 5001)
     ));
     let (manifest, gltf) = projet.compile("unity-prefab-retire").prepared("unity");
     assert!(
@@ -106,7 +108,7 @@ fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
 // not name, itself, still keeps the prefab's.
 #[test]
 fn a_null_material_override_leaves_its_slot_without_a_material() {
-    let projet = Projet::new("materiau-nul");
+    let projet = UnityProject::new("materiau-nul");
     projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
     projet.data("Prefabs/Source.prefab", SOURCE, &cube(100, "Boite", MAT));
     projet.scene(&instance(

@@ -121,7 +121,7 @@ export function ecart(cas: CasNormale, ligne: LigneGpu) {
   };
 }
 
-export const ECHELLES = [1e3, 1, 1e-3, 1e-4, 1e-5, 1e-6, 2e-7, 1e-7, 1e-8, 1e-9, 1e-12, 1e-16];
+const ECHELLES = [1e3, 1, 1e-3, 1e-4, 1e-5, 1e-6, 2e-7, 1e-7, 1e-8, 1e-9, 1e-12, 1e-16];
 const AXES = [
   [1, 0, 0],
   [0, 1, 0],

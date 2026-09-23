@@ -54,7 +54,7 @@ fn compile_scene(tag: &str, animated: bool) -> (Value, Option<Value>) {
 // animation, or declared out of autonomous mode under a named reason. What is
 // announced available must be.
 #[test]
-fn une_scene_animee_ne_peut_pas_etre_annoncee_autonome_puis_figee() {
+fn an_animated_scene_cannot_be_announced_autonomous_then_frozen() {
     let (result, scene) = compile_scene("animee", true);
     let carried = scene
         .as_ref()
@@ -80,7 +80,7 @@ fn une_scene_animee_ne_peut_pas_etre_annoncee_autonome_puis_figee() {
 
 // The other end: a scene without animation keeps its autonomous mode, and nothing is counted.
 #[test]
-fn une_scene_sans_animation_garde_sa_scene_autonome() {
+fn a_scene_without_animation_keeps_its_autonomous_scene() {
     let (result, scene) = compile_scene("figee", false);
     assert_eq!(result["autonomousScene"], json!("scene.gltf"));
     assert!(scene.is_some(), "the autonomous glTF is written");

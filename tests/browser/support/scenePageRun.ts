@@ -14,7 +14,7 @@ declare global {
 
 /** One trajectory point read on one backend: the engine's own render metrics, the readback
  * against a live capture, and (for the second backend) the pixel difference against the first. */
-export interface SceneReading {
+interface SceneReading {
   id: string;
   segment: number;
   pose: unknown;

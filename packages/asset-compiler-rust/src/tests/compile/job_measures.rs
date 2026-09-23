@@ -38,7 +38,7 @@ fn wait_for(flag: &AtomicBool) {
 // Behavior: two jobs follow in same process. Second has no group to
 // simplify; manifest must announce zero, not prior grid simplification.
 #[test]
-fn a14_un_travail_ne_publie_pas_les_phases_du_precedent() {
+fn a14_a_job_does_not_publish_the_previous_phases() {
     let (root_grille, grille) = grid_that_simplifies();
     let premier = compile(&grille, |_| {}).expect("grille");
     assert!(
@@ -65,7 +65,7 @@ fn a14_un_travail_ne_publie_pas_les_phases_du_precedent() {
 // Behavior: jobs overlap. Grid holds publication while
 // small mesh compiles alongside; neither manifest describes other.
 #[test]
-fn a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases() {
+fn a14_two_parallel_jobs_do_not_mix_their_phases() {
     let (root_grille, grille) = grid_that_simplifies();
     let (root_petit, petit) = fixture();
     let simplifie = AtomicBool::new(false);
@@ -102,7 +102,7 @@ fn a14_deux_travaux_paralleles_ne_melangent_pas_leurs_phases() {
 // Behavior: announced duration taken after purge, not when manifest
 // formatted. Test measures interval between import and purge.
 #[test]
-fn a14_la_duree_annoncee_contient_la_publication_et_la_purge() {
+fn a14_the_announced_duration_includes_publication_and_purge() {
     let (root, mut options) = grid_fixture_displaced(48, 48, 2.0);
     // First cache key in other mode gives work to second purge.
     options.simplification = "none".into();
@@ -136,7 +136,7 @@ fn a14_la_duree_annoncee_contient_la_publication_et_la_purge() {
 // phase, while no CPU worked. Published name says "wall",
 // `cpuMs` remains `null` until actually measured.
 #[test]
-fn v03_une_attente_dans_un_rappel_entre_dans_la_duree_ecoulee_de_la_phase() {
+fn v03_a_wait_in_a_callback_counts_in_the_phase_elapsed_time() {
     let (root, options) = fixture();
     let wait_time = Duration::from_millis(250);
     let result = compile(&options, |event| {

@@ -6,7 +6,7 @@
 //! that is a selection: taking it for transparency punched holes in the texture.
 use super::super::super::image as registry;
 use super::super::{fixture, rgba8};
-use super::{avec_alpha, GRIS, MAX_ALLOC, RVB, SIZE};
+use super::{with_alpha, GRIS, MAX_ALLOC, RVB, SIZE};
 
 /// Offset of the layers-section length in a PSD fixture whose two preceding sections are empty:
 /// twenty-six header bytes, then two null four-byte lengths.
@@ -17,7 +17,7 @@ const LAYERS_AT: usize = 26 + 4 + 4;
 /// composite's first alpha plane is the document's transparency. The driver reads only that
 /// field and skips the rest of the section by its length: these cases therefore do not pretend
 /// to write a whole layer record, they put in fault exactly the field that decides.
-fn avec_compte_de_calques(name: &str, count: i16) -> Vec<u8> {
+fn with_layer_count(name: &str, count: i16) -> Vec<u8> {
     let mut bytes = fixture("psd", name);
     let mut section = Vec::from(2u32.to_be_bytes());
     section.extend_from_slice(&count.to_be_bytes());
@@ -55,18 +55,12 @@ fn an_extra_plane_is_transparency_only_if_the_file_declares_it() {
         assert_eq!(raisons, vec!["psd-alpha-channel-ignored"], "{name}");
     }
     // Negative count: the composite does carry the document's transparency, alpha is honoured.
-    let (rendus, raisons) = decode(
-        "rgba-rle.psd -1",
-        &avec_compte_de_calques("rgba-rle.psd", -1),
-    );
-    assert_eq!(rendus, avec_alpha(RVB));
+    let (rendus, raisons) = decode("rgba-rle.psd -1", &with_layer_count("rgba-rle.psd", -1));
+    assert_eq!(rendus, with_alpha(RVB));
     assert_eq!(raisons, vec!["psd-layers-flattened"]);
     // Positive count: layers exist but transparency is not declared. The plane becomes a
     // selection again, and both reasons count side by side.
-    let (rendus, raisons) = decode(
-        "rgba-rle.psd +2",
-        &avec_compte_de_calques("rgba-rle.psd", 2),
-    );
+    let (rendus, raisons) = decode("rgba-rle.psd +2", &with_layer_count("rgba-rle.psd", 2));
     assert_eq!(rendus, RVB.to_vec());
     assert_eq!(
         raisons,
@@ -79,7 +73,7 @@ fn an_extra_plane_is_transparency_only_if_the_file_declares_it() {
 // when no alpha plane is in play.
 #[test]
 fn a_psd_s_layers_are_counted_since_only_the_composite_comes_out() {
-    let (rendus, raisons) = decode("rgb-rle.psd +3", &avec_compte_de_calques("rgb-rle.psd", 3));
+    let (rendus, raisons) = decode("rgb-rle.psd +3", &with_layer_count("rgb-rle.psd", 3));
     assert_eq!(rendus, RVB.to_vec(), "the composite's pixels do not move");
     assert_eq!(raisons, vec!["psd-layers-flattened"]);
     // With no layer, nothing is counted: a three-channel composite is exactly what it says.

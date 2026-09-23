@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { VIEWPORT, batisseur, carre, type ScenePreparee } from './sharedSceneProof.ts';
 
 /** Pixels of one world unit at this distance from the face-on camera, 55° vertical aperture. */
-export const pixelsParUnite = (distance: number): number =>
+const pixelsParUnite = (distance: number): number =>
   VIEWPORT[1] / 2 / Math.tan((55 / 2) * (Math.PI / 180)) / distance;
 
 /** Tiles tilted at angles that do not repeat, plus one that crosses the near plane. */

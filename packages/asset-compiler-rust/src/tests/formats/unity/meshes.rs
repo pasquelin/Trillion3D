@@ -1,7 +1,8 @@
 //! What a model mesh keeps of its own for each instance that cites it, and what
 //! a `LODGroup` sets aside. Instance overrides are in `instances.rs`.
 use super::project::{
-    enfants, mat_blanc, material_index, materiau, node_named, objet, Projet, BUILTIN,
+    game_object, material_entry, material_index, node_named, white_mat, with_children,
+    UnityProject, BUILTIN,
 };
 use super::*;
 
@@ -11,7 +12,7 @@ const MODEL: &str = "0000000000000000000000000000000a";
 
 /// A solid `.mat`, the shortest that the driver reads.
 fn matiere(name: &str) -> String {
-    mat_blanc(name, "    - _Metallic: 0\n")
+    white_mat(name, "    - _Metallic: 0\n")
 }
 
 // Finding 49: two renderers that point at the same model mesh do not carry the
@@ -20,7 +21,7 @@ fn matiere(name: &str) -> String {
 // rewritten under it.
 #[test]
 fn two_renderers_that_share_a_mesh_keep_their_own_materials() {
-    let projet = Projet::new("maillage-partage");
+    let projet = UnityProject::new("maillage-partage");
     let (rouge, verte) = (
         "000000000000000000000000000000b1",
         "000000000000000000000000000000b2",
@@ -36,9 +37,9 @@ fn two_renderers_that_share_a_mesh_keep_their_own_materials() {
     let mesh = format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}");
     projet.scene(&format!(
         "{}{}{}",
-        objet(100, "Nue", &mesh, "[]", 0),
-        objet(200, "Rouge", &mesh, &materiau(rouge), 0),
-        objet(300, "Verte", &mesh, &materiau(verte), 0)
+        game_object(100, "Nue", &mesh, "[]", 0),
+        game_object(200, "Rouge", &mesh, &material_entry(rouge), 0),
+        game_object(300, "Verte", &mesh, &material_entry(verte), 0)
     ));
     let (_, gltf) = projet.compile("unity-maillage-partage").prepared("unity");
     assert_eq!(
@@ -61,14 +62,14 @@ fn two_renderers_that_share_a_mesh_keep_their_own_materials() {
 // also cites it would drop from LOD0 a surface the scene shows there.
 #[test]
 fn a_renderer_listed_in_two_lod_levels_is_kept_at_the_finest_one() {
-    let projet = Projet::new("lod-partage");
+    let projet = UnityProject::new("lod-partage");
     projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
     let group = "--- !u!1 &400\nGameObject:\n  serializedVersion: 6\n  m_Component:\n  - component: {fileID: 401}\n  - component: {fileID: 402}\n  m_Name: Groupe\n  m_IsActive: 1\n--- !u!205 &402\nLODGroup:\n  m_GameObject: {fileID: 400}\n  m_LODs:\n  - renderers:\n    - renderer: {fileID: 103}\n    - renderer: {fileID: 203}\n  - renderers:\n    - renderer: {fileID: 203}\n";
     projet.scene(&format!(
         "{group}{}{}{}",
-        enfants(401, 400, 0, "\n  - {fileID: 101}\n  - {fileID: 201}"),
-        objet(100, "Fine", BUILTIN, &materiau(MAT), 401),
-        objet(200, "Partagee", BUILTIN, &materiau(MAT), 401)
+        with_children(401, 400, 0, "\n  - {fileID: 101}\n  - {fileID: 201}"),
+        game_object(100, "Fine", BUILTIN, &material_entry(MAT), 401),
+        game_object(200, "Partagee", BUILTIN, &material_entry(MAT), 401)
     ));
     let (manifest, gltf) = projet.compile("unity-lod-partage").prepared("unity");
     for name in ["Fine", "Partagee"] {

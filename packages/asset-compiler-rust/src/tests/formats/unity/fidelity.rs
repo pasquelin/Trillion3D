@@ -3,7 +3,7 @@
 //! at, a material's alpha mode, and the sixty-four-bit `fileID` that names a mesh.
 //!
 //! The driver's golden is in `golden.rs`, its refusals in `driver.rs`.
-use super::project::{cube, instancie, mat_blanc, material_named, node_named, Projet};
+use super::project::{cube, instance_of, material_named, node_named, white_mat, UnityProject};
 use super::*;
 
 /// GUID of each case's model, and that of the scene that cites it.
@@ -15,7 +15,7 @@ const MODEL: &str = "0000000000000000000000000000000a";
 // out at the place the model gives it, not at the origin.
 #[test]
 fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
-    let projet = Projet::new("modele-transformations");
+    let projet = UnityProject::new("modele-transformations");
     projet.model(
         "Models/Piece.glb",
         MODEL,
@@ -25,7 +25,7 @@ fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
         ]),
         "",
     );
-    projet.scene(&instancie(
+    projet.scene(&instance_of(
         "Socle",
         &format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}"),
     ));
@@ -45,7 +45,7 @@ fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
 // runs yield the same scene, byte for byte.
 #[test]
 fn each_prefab_override_names_its_own_object_and_ten_runs_agree() {
-    let projet = Projet::new("retouches");
+    let projet = UnityProject::new("retouches");
     projet.model(
         "Models/Paire.glb",
         MODEL,
@@ -80,14 +80,14 @@ fn each_prefab_override_names_its_own_object_and_ten_runs_agree() {
 // and the whole model is instanced in place of the only requested mesh.
 #[test]
 fn a_meta_file_id_beyond_the_float_range_still_names_its_mesh() {
-    let projet = Projet::new("fileid");
+    let projet = UnityProject::new("fileid");
     projet.model(
         "Models/Paire.glb",
         MODEL,
         json!([{"name":"Fine","mesh":0},{"name":"Grosse","mesh":0}]),
         "  - first:\n      43: 9007199254740993\n    second: Fine\n",
     );
-    projet.scene(&instancie(
+    projet.scene(&instance_of(
         "Socle",
         &format!("{{fileID: 9007199254740993, guid: {MODEL}, type: 3}}"),
     ));
@@ -109,13 +109,13 @@ fn a_meta_file_id_beyond_the_float_range_still_names_its_mesh() {
 // alone yields `MASK`.
 #[test]
 fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
-    let projet = Projet::new("alpha");
+    let projet = UnityProject::new("alpha");
     let melange = "000000000000000000000000000000b1";
     let decoupe = "000000000000000000000000000000c1";
     projet.data(
         "Materials/Melange.mat",
         melange,
-        &mat_blanc(
+        &white_mat(
             "Melange",
             "    - _Surface: 1\n    - _AlphaClip: 1\n    - _Cutoff: 0.25\n",
         ),
@@ -123,7 +123,7 @@ fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
     projet.data(
         "Materials/Decoupe.mat",
         decoupe,
-        &mat_blanc("Decoupe", "    - _Mode: 1\n    - _Cutoff: 0.25\n"),
+        &white_mat("Decoupe", "    - _Mode: 1\n    - _Cutoff: 0.25\n"),
     );
     projet.scene(&format!(
         "{}{}",

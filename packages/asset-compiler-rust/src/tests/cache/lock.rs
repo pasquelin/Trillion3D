@@ -25,7 +25,7 @@ fn assert_cache_coherent(o: &Options) {
 /// objects other just published. Each compilation must succeed or be refused,
 /// cache remaining readable in both cases.
 #[test]
-fn a02_deux_fils_sur_un_meme_cache_laissent_un_pointeur_lisible() {
+fn a02_two_threads_on_one_cache_leave_a_readable_pointer() {
     for _ in 0..4 {
         let (first_root, first) = fixture();
         let (second_root, second) = cube_fixture();

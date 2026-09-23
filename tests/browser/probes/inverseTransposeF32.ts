@@ -14,15 +14,14 @@ import { SINGULAR_DETERMINANT } from '../../../packages/sdk-core/src/math/matrix
 import type { Vec3, Mat3 } from './vecTypes.ts';
 
 export const f = Math.fround;
-export const croix = (a: Vec3, b: Vec3): Vec3 => [
+const croix = (a: Vec3, b: Vec3): Vec3 => [
   f(f(a[1] * b[2]) - f(a[2] * b[1])),
   f(f(a[2] * b[0]) - f(a[0] * b[2])),
   f(f(a[0] * b[1]) - f(a[1] * b[0])),
 ];
-export const point = (a: Vec3, b: Vec3): number =>
-  f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]));
-export const divise = (a: Vec3, t: number): Vec3 => [f(a[0] / t), f(a[1] / t), f(a[2] / t)];
-export const norme = (a: Vec3): number => Math.hypot(a[0], a[1], a[2]);
+const point = (a: Vec3, b: Vec3): number => f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]));
+const divise = (a: Vec3, t: number): Vec3 => [f(a[0] / t), f(a[1] / t), f(a[2] / t)];
+const norme = (a: Vec3): number => Math.hypot(a[0], a[1], a[2]);
 export const unitaire = (a: Vec3): Vec3 => divise(a, norme(a));
 
 /** Degrees per radian: the criterion is judged in degrees wherever it is read. */
@@ -39,7 +38,7 @@ export const DEG = 180 / Math.PI;
 export const TOLERANCE_NORME = 1e-6;
 
 /** A usable direction: three finite components, and not the zero vector. */
-export const direction = (v: Vec3): boolean =>
+const direction = (v: Vec3): boolean =>
   Array.isArray(v) && v.length === 3 && v.every(Number.isFinite) && norme(v) > 0;
 
 /**
@@ -87,14 +86,14 @@ export function verdictNormale(rendue: Vec3, attendue: Vec3, decrocheDeg: number
 }
 
 /** The upper-left 3×3 of a column-major 4×4 world matrix, as three columns. */
-export const colonnes3 = (world: number[]): Mat3 => [
+const colonnes3 = (world: number[]): Mat3 => [
   [world[0], world[1], world[2]],
   [world[4], world[5], world[6]],
   [world[8], world[9], world[10]],
 ];
 
 /** `mat3x3f(cross(b,c),cross(c,a),cross(a,b)) * v`, in WGSL order. */
-export function cofacteur([a, b, c]: Mat3, v: Vec3): Vec3 {
+function cofacteur([a, b, c]: Mat3, v: Vec3): Vec3 {
   const [x, y, z] = [croix(b, c), croix(c, a), croix(a, b)];
   return [0, 1, 2].map((k) => f(f(f(x[k] * v[0]) + f(y[k] * v[1])) + f(z[k] * v[2])));
 }
@@ -125,7 +124,7 @@ export function apresLeLot(m: Mat3, v: Vec3): Vec3 {
 }
 
 /** Kernel `uniteOuZero`: `normalize(v)`, except on a zero or non-finite vector where it returns zero. */
-export const uniteOuZero = (a: Vec3): Vec3 => (point(a, a) > 0 ? unitaire(a) : [0, 0, 0]);
+const uniteOuZero = (a: Vec3): Vec3 => (point(a, a) > 0 ? unitaire(a) : [0, 0, 0]);
 
 /**
  * Lighting-shader `xformNormal(world, n)`: the inverse-transpose of the world 3×3 applied to the

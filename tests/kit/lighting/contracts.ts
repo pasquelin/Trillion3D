@@ -1,4 +1,4 @@
-import type { Scene } from '../../../../sdk-core/src/lighting/scene/experimentScene.ts';
+import type { Scene } from '../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
 
 export interface LightingExperimentRayDiagnostics {
   rayTraversal: 'brute' | 'bvh';

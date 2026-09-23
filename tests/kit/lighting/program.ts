@@ -1,6 +1,6 @@
 import { fragmentShader, vertexShader } from './shaders.ts';
-import { OUTPUT_TRANSFER_GLSL } from '../../webgl/core/outputGlsl.ts';
-import { createWebglProgram } from '../../webgl/core/program.ts';
+import { OUTPUT_TRANSFER_GLSL } from '../../../packages/sdk-browser/src/webgl/core/outputGlsl.ts';
+import { createWebglProgram } from '../../../packages/sdk-browser/src/webgl/core/program.ts';
 
 /**
  * The observation shaders as an engine program. The GLSL is the experiment's own, written in

@@ -3,26 +3,20 @@
 // drawn twice — by the engine on its context, by the host renderer on its own canvas.
 import * as THREE from 'three';
 import { experimentScene, hostSource, renderState } from './lightingObservationScene.ts';
-import { createLightingExperimentBackend } from '../../../packages/sdk-browser/src/lighting/observation/experimentBackend.fixture.ts';
-import { createObservationResources } from '../../../packages/sdk-browser/src/lighting/observation/resources.ts';
-import { createObservationMeshes } from '../../../packages/sdk-browser/src/lighting/observation/meshes.ts';
-import { createObservationDraw } from '../../../packages/sdk-browser/src/lighting/observation/draw.ts';
-import { updateObservation } from '../../../packages/sdk-browser/src/lighting/observation/update.ts';
-import {
-  fragmentShader,
-  vertexShader,
-} from '../../../packages/sdk-browser/src/lighting/observation/shaders.ts';
+import { createLightingExperimentBackend } from '../../kit/lighting/experimentBackend.ts';
+import { createObservationResources } from '../../kit/lighting/resources.ts';
+import { createObservationMeshes } from '../../kit/lighting/meshes.ts';
+import { createObservationDraw } from '../../kit/lighting/draw.ts';
+import { updateObservation } from '../../kit/lighting/update.ts';
+import { fragmentShader, vertexShader } from '../../kit/lighting/shaders.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import {
   createHostDrawCamera,
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { MANIFEST_IDENTITY } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
-import type {
-  ObservationResources,
-  ObservationTexture,
-} from '../../../packages/sdk-browser/src/lighting/observation/resources.ts';
-import type { ObservationMeshes } from '../../../packages/sdk-browser/src/lighting/observation/meshes.ts';
+import type { ObservationResources, ObservationTexture } from '../../kit/lighting/resources.ts';
+import type { ObservationMeshes } from '../../kit/lighting/meshes.ts';
 
 const SIZE = 96;
 

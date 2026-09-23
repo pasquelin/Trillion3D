@@ -10,7 +10,7 @@ use crate::{CompilerError, Result};
 use serde_json::{json, Value};
 
 /// Copy of the old `number()`: the value name arrives already built.
-fn nombre_ancien(valeur: Option<&Value>, quoi: &str) -> Result<f64> {
+fn legacy_number(valeur: Option<&Value>, quoi: &str) -> Result<f64> {
     valeur
         .and_then(Value::as_f64)
         .ok_or_else(|| CompilerError::new("INVALID_MANIFEST", format!("{quoi} is not a number")))
@@ -19,7 +19,7 @@ fn nombre_ancien(valeur: Option<&Value>, quoi: &str) -> Result<f64> {
 /// Copy of the old loop: a formatted string at each node, valid or not.
 fn reference_nodes(nodes: &[Value], column: &mut Column) -> Result<()> {
     for (i, node) in nodes.iter().enumerate() {
-        column.f64(nombre_ancien(
+        column.f64(legacy_number(
             Some(node),
             &format!("primitive.culling.nodes[{i}]"),
         )?);
@@ -28,7 +28,7 @@ fn reference_nodes(nodes: &[Value], column: &mut Column) -> Result<()> {
 }
 
 /// Flat numbers of a culling hierarchy, and a set whose ninth entry is not one.
-fn noeuds(seed: u64, count: usize) -> (Vec<Value>, Vec<Value>) {
+fn nodes(seed: u64, count: usize) -> (Vec<Value>, Vec<Value>) {
     let mut rng = Xorshift::new(seed);
     let mut sains = Vec::with_capacity(count);
     for slot in 0..count {
@@ -55,7 +55,7 @@ fn empreinte(sortie: &Sortie) -> Bits {
 }
 
 pub(crate) fn row() -> Row {
-    let (sains, fautifs) = noeuds(0x6117, 20_000 * crate::CULLING_STRIDE);
+    let (sains, fautifs) = nodes(0x6117, 20_000 * crate::CULLING_STRIDE);
     let taille = format!("{} culling nodes, plus a faulty set", sains.len());
     compare(
         "G7 labels of the manifest columns",
@@ -91,7 +91,7 @@ mod tests {
     /// `numbers_into` (the label exists only in the error branch) must write the
     /// same bytes on a healthy set, and yield the same message on a faulty set —
     /// whatever the position of the faulty node in the array.
-    fn memes_octets_et_message(sains: &[Value], fautifs: &[Value], label: &str) {
+    fn same_bytes_and_message(sains: &[Value], fautifs: &[Value], label: &str) {
         let mut colonne_ref = Column::default();
         reference_nodes(sains, &mut colonne_ref).expect("healthy nodes, reference");
         let mut colonne_neuve = Column::default();
@@ -114,28 +114,28 @@ mod tests {
     }
 
     #[test]
-    fn tableau_vide_ne_produit_ni_octet_ni_erreur() {
-        memes_octets_et_message(&[], &[], "empty array");
+    fn an_empty_array_produces_no_byte_and_no_error() {
+        same_bytes_and_message(&[], &[], "empty array");
     }
 
     #[test]
-    fn un_seul_noeud_valide_ou_fautif() {
-        memes_octets_et_message(&[json!(3.5)], &[], "single valid node");
-        memes_octets_et_message(&[], &[json!("not a number")], "single faulty node");
+    fn a_single_node_valid_or_faulty() {
+        same_bytes_and_message(&[json!(3.5)], &[], "single valid node");
+        same_bytes_and_message(&[], &[json!("not a number")], "single faulty node");
     }
 
     #[test]
-    fn le_noeud_fautif_en_tete_au_milieu_ou_en_queue_donne_le_meme_message() {
+    fn the_faulty_node_at_head_middle_or_tail_gives_the_same_message() {
         let tete = vec![json!("x"), json!(1.0), json!(2.0)];
-        memes_octets_et_message(&[], &tete, "faulty at head");
+        same_bytes_and_message(&[], &tete, "faulty at head");
         let milieu = vec![json!(1.0), json!("x"), json!(2.0)];
-        memes_octets_et_message(&[], &milieu, "faulty in middle");
+        same_bytes_and_message(&[], &milieu, "faulty in middle");
         let queue = vec![json!(1.0), json!(2.0), json!("x")];
-        memes_octets_et_message(&[], &queue, "faulty at tail");
+        same_bytes_and_message(&[], &queue, "faulty at tail");
     }
 
     #[test]
-    fn poison_flottant_sans_erreur_ecrit_les_memes_octets() {
+    fn float_poison_without_error_writes_the_same_bytes() {
         let sains = vec![
             json!(-0.0),
             json!(f64::MAX),
@@ -143,12 +143,12 @@ mod tests {
             json!(0.0),
             json!(1.0 / 3.0),
         ];
-        memes_octets_et_message(&sains, &[], "floating poison");
+        same_bytes_and_message(&sains, &[], "floating poison");
     }
 
     #[test]
-    fn un_grand_jeu_sain_puis_le_meme_avec_une_seule_entree_fautive() {
-        let (sains, fautifs) = noeuds(0x707, 5_000);
-        memes_octets_et_message(&sains, &fautifs, "large set, nineteenth failed");
+    fn a_large_sound_set_then_the_same_with_one_faulty_entry() {
+        let (sains, fautifs) = nodes(0x707, 5_000);
+        same_bytes_and_message(&sains, &fautifs, "large set, nineteenth failed");
     }
 }

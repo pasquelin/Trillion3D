@@ -34,7 +34,7 @@ fn dag_of(mode: &str) -> (u64, usize, u64) {
 // Behaviour: in `none`, the DAG holds on its only level zero, which covers
 // exactly the source triangles. No simplified replacement is written, so no coarse root.
 #[test]
-fn simplification_none_ne_construit_aucun_niveau_grossier() {
+fn simplification_none_builds_no_coarse_level() {
     let (depth, racines, niveau_zero) = dag_of("none");
     assert_eq!(depth, 0, "a single level: exact clusters");
     assert_eq!(niveau_zero, 8192, "level zero covers the whole source");
@@ -49,7 +49,7 @@ fn simplification_none_ne_construit_aucun_niveau_grossier() {
 // aarch64, 127 on x86_64, the simplifier's floating-point results differing between the two. The
 // depth and the exact level-zero cover are the same everywhere.
 #[test]
-fn simplification_qem_endpoints_garde_son_dag() {
+fn simplification_qem_endpoints_keeps_its_dag() {
     let (depth, racines, niveau_zero) = dag_of("qem-endpoints");
     assert_eq!(depth, 6, "depth unchanged");
     assert_eq!(niveau_zero, 8192, "level zero covers the whole source");

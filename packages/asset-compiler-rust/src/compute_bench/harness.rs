@@ -64,7 +64,7 @@ impl Row {
             && matches!((self.avant, self.apres), (Some(a), Some(b)) if b < a)
     }
     /// Reason item not retained, measured or not.
-    pub(crate) fn ecarte(mut self, note: &str) -> Self {
+    pub(crate) fn spread(mut self, note: &str) -> Self {
         self.note = note.into();
         self
     }

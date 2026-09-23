@@ -10,7 +10,7 @@ use super::*;
 // Behavior: floating point texture passes through compiler without failure or 8-bit clipping;
 // reported in previews report, per image contract reason.
 #[test]
-fn une_texture_flottante_est_nommee_au_rapport_plutot_que_ramenee_a_huit_bits() {
+fn a_float_texture_is_named_in_the_report_rather_than_reduced_to_eight_bits() {
     for format in ["exr", "hdr"] {
         let fixture_dir = golden_dir(format);
         let run = compile_golden(&fixture_dir, "scene");

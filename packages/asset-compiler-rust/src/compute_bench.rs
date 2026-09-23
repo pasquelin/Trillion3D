@@ -40,7 +40,7 @@ fn rows() -> Vec<Row> {
     rows.push(b5_page::row());
     // The hash table was measured at 52.0 ms against 28.8 ms for the global sort: dropped.
     // The row therefore compares the bench copy to an unchanged library and is the control.
-    rows.push(b6_adjacency::row().ecarte(
+    rows.push(b6_adjacency::row().spread(
         "hash table measured at 52.0 ms against 28.8 ms for the global sort, without SmallVec \
          which the Cargo.lock lock forbids: change dropped, the row is the bench control",
     ));
@@ -55,7 +55,7 @@ fn rows() -> Vec<Row> {
         "import.rs",
         "already done: write_u32 is already redefined",
     ));
-    rows.push(b9_vectors::row().ecarte(
+    rows.push(b9_vectors::row().spread(
         "the gap between the bench copy and the library changes sign from one run to \
          another: no gain to prove, the attributes were not applied",
     ));

@@ -7,7 +7,7 @@ use super::*;
 use crate::tests::formats::import_opacity::{fbx_fixture, import_of};
 
 #[test]
-fn deux_coins_aux_memes_valeurs_sont_un_seul_sommet() {
+fn two_corners_with_equal_values_are_one_vertex() {
     let (root, options) = fbx_fixture(false);
     let (gltf, _) = import_of(&options);
     let primitive = &gltf["meshes"][0]["primitives"][0];

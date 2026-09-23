@@ -26,7 +26,7 @@ fn refusal(tag: &str, gltf_nodes: Value, scenes: Option<Value>) -> Option<String
 // declare each other children, are impossible hierarchies. They are refused
 // before publication, by the same code as any other contradiction of the document.
 #[test]
-fn un_cycle_de_noeuds_est_refuse_avant_publication() {
+fn a_node_cycle_is_refused_before_publication() {
     assert_eq!(
         refusal("auto", json!([{"mesh":0,"children":[0]},{"mesh":0}]), None),
         Some("auto:INVALID_GLTF".into()),
@@ -57,7 +57,7 @@ fn un_cycle_de_noeuds_est_refuse_avant_publication() {
 // The other end: a parentless node no scene names is not a cycle. It is ignored,
 // as it always was, and the scene compiles.
 #[test]
-fn un_noeud_orphelin_reste_accepte() {
+fn an_orphan_node_stays_accepted() {
     assert_eq!(
         refusal(
             "orphelin",

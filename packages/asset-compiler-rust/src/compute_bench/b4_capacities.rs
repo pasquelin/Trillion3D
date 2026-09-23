@@ -11,7 +11,7 @@ const NEUTRE: &str = "neutral capacity at this size (±0.3 %)";
 type Compacte = (Vec<f32>, Vec<u32>, Vec<u32>);
 
 fn reference_compacte(sommets: &[f32], indices: &[u32]) -> Compacte {
-    let nombre = sommets.len() / 3;
+    let number = sommets.len() / 3;
     let mut positions = Vec::new();
     let mut retour = Vec::new();
     let mut locaux = Vec::with_capacity(indices.len());
@@ -24,8 +24,8 @@ fn reference_compacte(sommets: &[f32], indices: &[u32]) -> Compacte {
         }
         retour.push(source);
     };
-    if indices.len() * 4 >= nombre {
-        let mut table = vec![u32::MAX; nombre];
+    if indices.len() * 4 >= number {
+        let mut table = vec![u32::MAX; number];
         for &source in indices {
             let case = table.get_mut(source as usize);
             let identifiant = match case {
@@ -65,8 +65,8 @@ fn reference_compacte(sommets: &[f32], indices: &[u32]) -> Compacte {
 fn empreinte_compacte(valeur: &Compacte) -> Bits {
     let mut bits = Bits::default();
     bits.len(valeur.0.len());
-    for nombre in &valeur.0 {
-        bits.f32(*nombre);
+    for number in &valeur.0 {
+        bits.f32(*number);
     }
     for liste in [&valeur.1, &valeur.2] {
         bits.len(liste.len());
@@ -77,7 +77,7 @@ fn empreinte_compacte(valeur: &Compacte) -> Bits {
     bits
 }
 
-fn reference_octets(indices: &[u32], sommets: usize) -> (Vec<u8>, u32) {
+fn reference_bytes(indices: &[u32], sommets: usize) -> (Vec<u8>, u32) {
     if sommets <= u16::MAX as usize {
         (
             indices
@@ -97,7 +97,7 @@ fn reference_octets(indices: &[u32], sommets: usize) -> (Vec<u8>, u32) {
     }
 }
 
-fn empreinte_octets(valeur: &(Vec<u8>, u32)) -> Bits {
+fn bytes_fingerprint(valeur: &(Vec<u8>, u32)) -> Bits {
     let mut bits = Bits::default();
     bits.bytes(&valeur.0);
     bits.u32(valeur.1);
@@ -123,19 +123,19 @@ pub(crate) fn rows() -> Vec<Row> {
             "B4 index bytes (u16)",
             "import/mesh.rs",
             "600,000 indices, 65,535 vertices".into(),
-            &mut || reference_octets(&courts, 65_535),
+            &mut || reference_bytes(&courts, 65_535),
             &mut || index_bytes(&courts, 65_535),
-            empreinte_octets,
+            bytes_fingerprint,
         )
-        .ecarte(NEUTRE),
+        .spread(NEUTRE),
         compare(
             "B4 index bytes (u32)",
             "import/mesh.rs",
             "600,000 indices, 65,536 vertices".into(),
-            &mut || reference_octets(&longs, 65_536),
+            &mut || reference_bytes(&longs, 65_536),
             &mut || index_bytes(&longs, 65_536),
-            empreinte_octets,
+            bytes_fingerprint,
         )
-        .ecarte(NEUTRE),
+        .spread(NEUTRE),
     ]
 }

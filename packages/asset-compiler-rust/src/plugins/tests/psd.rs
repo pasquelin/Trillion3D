@@ -44,7 +44,7 @@ const GRIS: [[u8; 4]; 8] = [
 const ALPHA: [u8; 8] = [255, 255, 255, 0, 64, 64, 64, 64];
 
 /// The reference, its alpha plane laid on top.
-fn avec_alpha(base: [[u8; 4]; 8]) -> Vec<[u8; 4]> {
+fn with_alpha(base: [[u8; 4]; 8]) -> Vec<[u8; 4]> {
     base.iter()
         .zip(ALPHA)
         .map(|(pixel, alpha)| [pixel[0], pixel[1], pixel[2], alpha])

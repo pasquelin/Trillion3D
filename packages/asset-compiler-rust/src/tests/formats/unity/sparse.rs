@@ -3,7 +3,7 @@
 //! a sparse accessor and a primitive's morph targets kept naming the model's ranks.
 //! A model alone therefore compiled, and the same model placed after a built-in cube
 //! — whose views take the first ranks — was refused or read another mesh's bytes.
-use super::project::{cube, mat_blanc, objet, Projet};
+use super::project::{cube, game_object, white_mat, UnityProject};
 use super::*;
 
 const MAT: &str = "000000000000000000000000000000a1";
@@ -63,17 +63,17 @@ fn model() -> (Value, Vec<u8>) {
 /// first ranks of the scene, which shifts all of the model's.
 fn compile_after_cube(tag: &str) -> (Value, Vec<u8>) {
     let (gltf, bin) = model();
-    let projet = Projet::new(tag);
+    let projet = UnityProject::new(tag);
     projet.data(
         "Materials/Uni.mat",
         MAT,
-        &mat_blanc("Uni", "    - _Metallic: 0\n"),
+        &white_mat("Uni", "    - _Metallic: 0\n"),
     );
     projet.model_bytes("Models/Creux.glb", MODEL, &encode_glb(&gltf, &bin), "");
     projet.scene(&format!(
         "{}{}",
         cube(100, "Cube", MAT),
-        objet(
+        game_object(
             200,
             "Modele",
             &format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}"),

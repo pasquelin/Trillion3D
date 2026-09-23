@@ -11,7 +11,7 @@ import type { Cas } from './inverseTransposeCases.ts';
 // (0,0,-9) from the origin. The two triangles are therefore actually face-on after rotation.
 // Below s ≈ 2.15e-7 (det = s³ < 1e-20), the absolute threshold kept the *local* axis (0,0,1) —
 // which points, itself, opposite the camera — and rejected the cluster.
-export const CONTRE_EXEMPLE = construireCas({
+const CONTRE_EXEMPLE = construireCas({
   s: 1e-8,
   kind: 'uniforme',
   worldSize: 2,
@@ -19,7 +19,7 @@ export const CONTRE_EXEMPLE = construireCas({
   angleDeg: 180,
 });
 // Large-scale witness: same geometry, same rotation, s outside the guard zone (det ≫ 1e-20).
-export const TEMOIN_GRANDE_ECHELLE = construireCas({
+const TEMOIN_GRANDE_ECHELLE = construireCas({
   s: 1e-3,
   kind: 'uniforme',
   worldSize: 2,
@@ -29,7 +29,7 @@ export const TEMOIN_GRANDE_ECHELLE = construireCas({
 // Witness without rotation: same tiny scale, but the local axis already coincides with the world
 // axis. The two triangles are then actually back to the camera: rejection is correct, before as
 // after, and it must stay so — the fix does not loosen legitimate rejection.
-export const TEMOIN_SANS_ROTATION = construireCas({
+const TEMOIN_SANS_ROTATION = construireCas({
   s: 1e-8,
   kind: 'uniforme',
   worldSize: 2,
@@ -38,7 +38,7 @@ export const TEMOIN_SANS_ROTATION = construireCas({
 });
 // Non-conformal witness: same rotation and same tiny scale, but non-uniform scale — conformity
 // (defect 1) excludes it before `inverseTranspose3`; never rejected by the cone.
-export const TEMOIN_NON_CONFORME = construireCas({
+const TEMOIN_NON_CONFORME = construireCas({
   s: 1e-8,
   kind: 'non-uniforme',
   worldSize: 2,
@@ -74,7 +74,7 @@ const AXES = [
 ];
 const ANGLES = Array.from({ length: 12 }, (_, i) => 10 + (i * 160) / 11);
 
-export const echantillon: Cas[] = [];
+const echantillon: Cas[] = [];
 for (const s of SCALES)
   for (const kind of KINDS)
     for (const worldSize of WORLD_SIZES)

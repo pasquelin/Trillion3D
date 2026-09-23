@@ -335,7 +335,8 @@
       "classification": "public",
       "affectedConsumers": [
         "packages/sdk-browser/src/backend/common.ts",
-        "packages/sdk-browser/src/backend/types.ts"
+        "packages/sdk-browser/src/backend/types.ts",
+        "tests/kit/lighting/diagnostics.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/contracts/metrics\".BackendCapabilities"
@@ -363,7 +364,8 @@
         "tests/browser/support/scenePageRun.ts",
         "tests/browser/support/sharedSceneProof.ts",
         "tests/browser/support/temporalAntialiasingPage.ts",
-        "tests/browser/support/waterPassPage.ts"
+        "tests/browser/support/waterPassPage.ts",
+        "tests/kit/lighting/diagnostics.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/diagnostic/types\".BackendDiagnostic"
@@ -391,7 +393,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-matrices.perf.ts",
-        "packages/sdk-browser/src/lighting/observation/transforms.ts"
+        "tests/kit/lighting/transforms.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/matrix4Trs\".basisMatrix4"
@@ -1770,7 +1772,7 @@
       "currentEntryPoints": ["web-geometry (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "experimental",
-      "affectedConsumers": ["packages/sdk-browser/src/lighting/observation/scene.test.ts"],
+      "affectedConsumers": ["tests/kit/lighting/scene.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lighting/scene/experimentScene\".createLightingScene"
     },
@@ -1922,8 +1924,8 @@
       "affectedConsumers": [
         "bench/perf/browser/support/coreEquivalence.ts",
         "bench/perf/core/three-vs-core-vectors.perf.ts",
-        "packages/sdk-browser/src/lighting/observation/transforms.ts",
-        "packages/sdk-browser/src/visibility/shader/shadingNormal.ts"
+        "packages/sdk-browser/src/visibility/shader/shadingNormal.ts",
+        "tests/kit/lighting/transforms.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".crossVector3"
@@ -2422,7 +2424,7 @@
       "affectedConsumers": [
         "bench/perf/browser/support/coreEquivalence.ts",
         "bench/perf/core/three-vs-core-vectors.perf.ts",
-        "packages/sdk-browser/src/lighting/observation/transforms.ts"
+        "tests/kit/lighting/transforms.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".dotVector3"
@@ -3450,7 +3452,8 @@
         "tests/browser/support/webglClusterCoplanarBlend.ts",
         "tests/browser/support/webglClusterNormalMapPage.ts",
         "tests/browser/support/webglClusterRestorePage.ts",
-        "tests/browser/support/webglClusterTexturePage.ts"
+        "tests/browser/support/webglClusterTexturePage.ts",
+        "tests/kit/lighting/draw.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/camera/world\".HostDrawCamera"
@@ -3462,7 +3465,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["tests/kit/lighting/draw.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/webgl/core/renderTarget\".HostDrawOutput"
     },
@@ -3528,7 +3531,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["tests/kit/lighting/resources.ts", "tests/kit/lighting/scene.test.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostNode"
     },
@@ -3583,7 +3586,7 @@
       "currentEntryPoints": ["web-geometry (browser condition)"],
       "proposedEnvironments": "browser",
       "classification": "public",
-      "affectedConsumers": [],
+      "affectedConsumers": ["tests/kit/lighting/resources.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/host/resources\".HostScene"
     },
@@ -3693,13 +3696,13 @@
         "bench/perf/browser/support/coreHierarchy.ts",
         "bench/perf/core/three-vs-core-matrices.perf.ts",
         "packages/sdk-browser/src/camera/world.ts",
-        "packages/sdk-browser/src/lighting/observation/meshes.ts",
         "packages/sdk-browser/src/page/raster.ts",
         "packages/sdk-browser/src/taa/frame.ts",
         "packages/sdk-browser/src/taa/motion.ts",
         "packages/sdk-browser/src/webgpu/pages/io/surfaceCapture.ts",
         "packages/sdk-browser/src/webgpu/pages/render/encodeBlend.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/transform.ts"
+        "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
+        "tests/kit/lighting/meshes.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/matrix4Inverse\".invertMatrix4"
@@ -3804,8 +3807,8 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-vectors.perf.ts",
-        "packages/sdk-browser/src/lighting/observation/transforms.ts",
-        "packages/sdk-browser/src/visibility/shader/shadingNormal.ts"
+        "packages/sdk-browser/src/visibility/shader/shadingNormal.ts",
+        "tests/kit/lighting/transforms.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".lengthSqVector3"
@@ -4590,7 +4593,6 @@
         "packages/sdk-browser/src/gpu/dag/oracle/math.ts",
         "packages/sdk-browser/src/gpu/dag/request.test.ts",
         "packages/sdk-browser/src/host/world/chain.ts",
-        "packages/sdk-browser/src/lighting/observation/meshes.ts",
         "packages/sdk-browser/src/page/cut/cut.ts",
         "packages/sdk-browser/src/page/cut/select.ts",
         "packages/sdk-browser/src/page/raster.ts",
@@ -4598,7 +4600,8 @@
         "packages/sdk-browser/src/scene/replicateInstances.ts",
         "packages/sdk-browser/src/streaming/priority.ts",
         "packages/sdk-browser/src/taa/motion.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/transform.ts"
+        "packages/sdk-browser/src/webgpu/pages/render/transform.ts",
+        "tests/kit/lighting/meshes.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/matrix4\".multiplyMatrix4"
@@ -6205,8 +6208,8 @@
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
       "affectedConsumers": [
-        "packages/sdk-browser/src/lighting/observation/transforms.ts",
-        "packages/sdk-browser/src/visibility/shader/shadingNormal.ts"
+        "packages/sdk-browser/src/visibility/shader/shadingNormal.ts",
+        "tests/kit/lighting/transforms.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/primitives/vector\".scaleVector3"
@@ -6223,10 +6226,10 @@
         "bench/oracles/core/transport-vectors.ts",
         "bench/perf/browser/support/coreConsumersCore.ts",
         "bench/perf/core/transport-vectors.perf.ts",
-        "packages/sdk-browser/src/lighting/observation/contracts.ts",
         "packages/sdk-browser/src/lighting/rectangleBvh.ts",
         "tests/fixtures/lightingSceneTestHelpers.ts",
-        "tests/fixtures/lightingTransportScene.ts"
+        "tests/fixtures/lightingTransportScene.ts",
+        "tests/kit/lighting/contracts.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-browser/src/world/core/scene\".Scene"
@@ -6243,10 +6246,10 @@
         "bench/oracles/core/transport-vectors.ts",
         "bench/perf/browser/support/coreConsumersCore.ts",
         "bench/perf/core/transport-vectors.perf.ts",
-        "packages/sdk-browser/src/lighting/observation/contracts.ts",
         "packages/sdk-browser/src/lighting/rectangleBvh.ts",
         "tests/fixtures/lightingSceneTestHelpers.ts",
-        "tests/fixtures/lightingTransportScene.ts"
+        "tests/fixtures/lightingTransportScene.ts",
+        "tests/kit/lighting/contracts.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/lighting/scene/types\".Scene"
@@ -7775,11 +7778,11 @@
       "affectedConsumers": [
         "packages/sdk-browser/src/backend/exact/clusterBatches.ts",
         "packages/sdk-browser/src/lighting/deferred/view.ts",
-        "packages/sdk-browser/src/lighting/observation/draw.ts",
         "packages/sdk-browser/src/lighting/toneMappingWgsl.ts",
         "packages/sdk-browser/src/webgl/cluster/renderer.ts",
         "packages/sdk-browser/src/webgl/core/outputGlsl.ts",
-        "packages/sdk-browser/src/webgpu/pages/render/encodeLights.ts"
+        "packages/sdk-browser/src/webgpu/pages/render/encodeLights.ts",
+        "tests/kit/lighting/draw.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/core/environment\".TONE_MAPPING_RANK"
@@ -8031,7 +8034,7 @@
       "classification": "public",
       "affectedConsumers": [
         "bench/perf/core/three-vs-core-matrices.perf.ts",
-        "packages/sdk-browser/src/lighting/observation/transforms.ts"
+        "tests/kit/lighting/transforms.ts"
       ],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/math/matrix/matrix4Trs\".uniformScaleMatrix4"

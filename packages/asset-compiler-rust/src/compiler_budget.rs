@@ -72,7 +72,7 @@ mod tests {
     // Behaviour: two workers under a 64 MiB total is one worker at 64 MiB. The
     // share never goes below the floor, so it is concurrency that yields.
     #[test]
-    fn deux_parts_plancher_sous_un_total_plancher_donnent_un_seul_ouvrier() {
+    fn two_floor_shares_under_a_floor_total_give_a_single_worker() {
         assert_eq!(batch_share(2, 64), Ok((1, 64)));
         assert_eq!(batch_share(2, 128), Ok((2, 64)));
         assert_eq!(batch_share(4, 1024), Ok((4, 256)));
@@ -80,13 +80,13 @@ mod tests {
 
     // Behaviour: a total that a single job could not honour is refused at once.
     #[test]
-    fn un_total_sous_le_plancher_est_refuse() {
+    fn a_total_under_the_floor_is_refused() {
         assert!(batch_share(1, 16).is_err());
     }
 
     // Behaviour: requested shares that do not fit together reduce concurrency.
     #[test]
-    fn des_parts_reclamees_trop_larges_reduisent_la_concurrence() {
+    fn oversized_claimed_shares_reduce_concurrency() {
         let jobs = [job("a", 200), job("b", 200)];
         assert_eq!(fit_workers(2, 256, &jobs), Ok(1));
         assert_eq!(fit_workers(2, 400, &jobs), Ok(2));
@@ -94,7 +94,7 @@ mod tests {
 
     // Behaviour: a job greedier than the whole batch is named, and the batch refused.
     #[test]
-    fn un_travail_plus_gourmand_que_le_lot_est_nomme() {
+    fn a_job_hungrier_than_the_batch_is_named() {
         let jobs = [job("enorme", 4096)];
         let refusal = fit_workers(1, 256, &jobs).expect_err("refus");
         assert!(refusal.contains("enorme"), "{refusal}");

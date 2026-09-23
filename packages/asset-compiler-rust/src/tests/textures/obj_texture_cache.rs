@@ -18,7 +18,7 @@ fn png(teinte: u8) -> Vec<u8> {
 }
 
 /// The source: an OBJ, its library that names `color.png`, and the path of that image.
-fn source_avec_texture(root: &Path) -> (PathBuf, PathBuf) {
+fn source_with_texture(root: &Path) -> (PathBuf, PathBuf) {
     let obj = obj_source(root, "obj", "newmtl Uni\nKd 1 1 1\nmap_Kd color.png\n");
     let image = obj.with_file_name("color.png");
     (obj, image)
@@ -32,9 +32,9 @@ fn uri(gltf: &Value) -> Value {
 // Behaviour: on a cache already served, a texture that appears, changes, then
 // disappears changes the import key each time — therefore the scene served.
 #[test]
-fn une_texture_ajoutee_apparait_dans_le_cache_existant() {
+fn an_added_texture_appears_in_the_existing_cache() {
     let (root, mut options) = fixture();
-    let (obj, image) = source_avec_texture(&root);
+    let (obj, image) = source_with_texture(&root);
     options.source = obj;
     let (absente, gltf, _) = import_key(&options);
     assert_eq!(uri(&gltf), Value::Null, "the image does not exist yet");
@@ -64,9 +64,9 @@ fn une_texture_ajoutee_apparait_dans_le_cache_existant() {
 
 // Behaviour: a fresh cache and a cache already served yield the same scene for the same source.
 #[test]
-fn un_cache_neuf_et_un_cache_servi_rendent_la_meme_scene() {
+fn a_fresh_cache_and_a_served_cache_render_the_same_scene() {
     let (root, mut options) = fixture();
-    let (obj, image) = source_avec_texture(&root);
+    let (obj, image) = source_with_texture(&root);
     options.source = obj;
     let (_, gltf, _) = import_key(&options);
     assert_eq!(uri(&gltf), Value::Null);

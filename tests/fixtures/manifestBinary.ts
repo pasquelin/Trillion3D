@@ -20,7 +20,7 @@ const PREVIEW_SIZE: [number, number] = [32, 16];
 
 /** The tail of a `width`×`height` source, each level `bytesOf` its dimensions, every byte
  *  deterministic and level-distinct so a round trip that mixed up two levels would show here. */
-export function previewTail(
+function previewTail(
   width: number,
   height: number,
   seed: number,

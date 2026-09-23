@@ -73,13 +73,13 @@ fn a_gif_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
     // of the blocks must cross it as well as 89a.
     let mut ancienne = fixture("gif", "palette-globale.gif");
     ancienne[..6].copy_from_slice(b"GIF87a");
-    assert_eq!(rendu_octets(&ancienne), expected(&OPAQUE));
+    assert_eq!(rendered_bytes(&ancienne), expected(&OPAQUE));
     // `anime.gif` cut at the end of its first image: no next block, and no terminator either.
     // The walk therefore does not conclude to animation, and the decoder reads the whole image
     // that remains — an image without a terminator is an image, not an animation.
     let anime = fixture("gif", "anime.gif");
     assert_eq!(
-        rendu_octets(&anime[..PREMIERE_IMAGE_FIN]),
+        rendered_bytes(&anime[..PREMIERE_IMAGE_FIN]),
         expected(&OPAQUE)
     );
     // Four bytes further, the second image separator is there and its descriptor is cut: that
@@ -100,7 +100,7 @@ fn a_gif_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
 }
 
 /// Bytes the registry yields for bytes held in memory, without going through a file.
-fn rendu_octets(bytes: &[u8]) -> Vec<u8> {
+fn rendered_bytes(bytes: &[u8]) -> Vec<u8> {
     rgba8(registry::decode(bytes, MAX_ALLOC).expect("decoded"))
         .as_raw()
         .clone()

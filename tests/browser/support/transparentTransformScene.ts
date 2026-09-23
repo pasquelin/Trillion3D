@@ -6,7 +6,7 @@ import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pag
 import { batisseur, cameraFace, carre, engine, type ScenePreparee } from './sharedSceneProof.ts';
 
 /** Half-width of the transparent tile: the sampling window depends on it, not the reverse. */
-export const DEMI = 0.35;
+const DEMI = 0.35;
 
 /**
  * `pagine` chooses the tile's pass — `clustered-blend` sends it through the DAG pages,

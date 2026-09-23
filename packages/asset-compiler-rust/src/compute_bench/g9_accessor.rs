@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn un_ensemble_valide_partiel_ou_vide_ne_change_rien_pour_les_ids_absents() {
+    fn a_partial_or_empty_valid_set_changes_nothing_for_absent_ids() {
         let count = 5;
         let (g, bin) = gltf(count);
         // Empty: no one marked validated, behavior identical to `None`.
@@ -153,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn un_id_hors_limites_echoue_pareillement_marque_absent_ou_ensemble_absent() {
+    fn an_out_of_range_id_fails_alike_marked_absent_or_set_absent() {
         let count = 3;
         let (g, bin) = gltf(count);
         let hors_limites = count + 5;
@@ -173,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn les_sept_lectures_dune_primitive_restent_identiques_sur_toutes_les_formes() {
+    fn the_seven_reads_of_a_primitive_stay_identical_on_every_shape() {
         let count = 400;
         let (g, bin) = gltf(count);
         let validated: BTreeSet<usize> = (0..count).collect();

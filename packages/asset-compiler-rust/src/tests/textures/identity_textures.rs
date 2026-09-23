@@ -38,7 +38,7 @@ pub(in crate::tests) fn source_texturee() -> (PathBuf, Options, PathBuf) {
 
 /// Compiles and returns the key exposed to the consumer with the fingerprint of
 /// the binary sidecar written under that key: this pair must move together, or not at all.
-fn cle_et_sidecar(options: &Options) -> (String, String) {
+fn key_and_sidecar(options: &Options) -> (String, String) {
     let result = compile(options, |_| {}).expect("compile");
     let key = result["key"].as_str().expect("key").to_string();
     let sidecar = options
@@ -55,11 +55,11 @@ fn cle_et_sidecar(options: &Options) -> (String, String) {
 // yields the same key,
 // and two identical compilations do as well.
 #[test]
-fn une_image_liee_modifiee_change_la_cle_exposee() {
+fn a_modified_linked_image_changes_the_exposed_key() {
     let (root, options, image) = source_texturee();
     fs::write(&image, png([255, 0, 0, 255])).expect("red image");
-    let (cle_rouge, sidecar_rouge) = cle_et_sidecar(&options);
-    let (cle_repetee, sidecar_repete) = cle_et_sidecar(&options);
+    let (cle_rouge, sidecar_rouge) = key_and_sidecar(&options);
+    let (cle_repetee, sidecar_repete) = key_and_sidecar(&options);
     assert_eq!(
         (&cle_rouge, &sidecar_rouge),
         (&cle_repetee, &sidecar_repete),
@@ -67,7 +67,7 @@ fn une_image_liee_modifiee_change_la_cle_exposee() {
     );
 
     fs::write(&image, png([0, 0, 255, 255])).expect("blue image");
-    let (cle_bleue, sidecar_bleu) = cle_et_sidecar(&options);
+    let (cle_bleue, sidecar_bleu) = key_and_sidecar(&options);
     assert_ne!(
         sidecar_rouge, sidecar_bleu,
         "changed pixels do change the product"
@@ -78,7 +78,7 @@ fn une_image_liee_modifiee_change_la_cle_exposee() {
     );
 
     fs::write(&image, png([255, 0, 0, 255])).expect("restored red image");
-    let (cle_revenue, sidecar_revenu) = cle_et_sidecar(&options);
+    let (cle_revenue, sidecar_revenu) = key_and_sidecar(&options);
     assert_eq!(
         (cle_rouge, sidecar_rouge),
         (cle_revenue, sidecar_revenu),
@@ -91,17 +91,17 @@ fn une_image_liee_modifiee_change_la_cle_exposee() {
 // changes the key as much as an image whose bytes change — absence is a state,
 // not silence.
 #[test]
-fn une_image_liee_absente_puis_presente_change_la_cle_exposee() {
+fn a_linked_image_absent_then_present_changes_the_exposed_key() {
     let (root, options, image) = source_texturee();
-    let (absente, _) = cle_et_sidecar(&options);
+    let (absente, _) = key_and_sidecar(&options);
     fs::write(&image, png([0, 255, 0, 255])).expect("green image");
-    let (presente, _) = cle_et_sidecar(&options);
+    let (presente, _) = key_and_sidecar(&options);
     assert_ne!(
         absente, presente,
         "an image that appeared must change the exposed key"
     );
     fs::remove_file(&image).expect("remove");
-    let (retiree, _) = cle_et_sidecar(&options);
+    let (retiree, _) = key_and_sidecar(&options);
     assert_eq!(
         absente, retiree,
         "the removed image yields the previous key"

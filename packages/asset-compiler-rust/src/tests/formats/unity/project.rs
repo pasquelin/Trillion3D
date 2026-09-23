@@ -11,21 +11,21 @@ pub(in crate::tests) const BUILTIN: &str =
     "{fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}";
 
 /// A throwaway project and its `Assets` folder.
-pub(in crate::tests) struct Projet {
+pub(in crate::tests) struct UnityProject {
     root: PathBuf,
 }
 
-impl Drop for Projet {
+impl Drop for UnityProject {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.root);
     }
 }
 
-impl Projet {
-    pub(in crate::tests) fn new(tag: &str) -> Projet {
+impl UnityProject {
+    pub(in crate::tests) fn new(tag: &str) -> UnityProject {
         let root = scratch("unity-projet", tag);
         fs::create_dir_all(root.join("Assets")).expect("Assets");
-        Projet { root }
+        UnityProject { root }
     }
 
     /// Any asset under `Assets`, its folders created as needed, and the `.meta` the
@@ -76,7 +76,7 @@ impl Projet {
 /// A complete GameObject, neutral transform under the parent the case names:
 /// `MeshFilter` on this mesh, `MeshRenderer` on these materials. `id` reserves four
 /// consecutive `fileID`s, the object then its three components.
-pub(in crate::tests) fn objet(
+pub(in crate::tests) fn game_object(
     id: u32,
     name: &str,
     mesh: &str,
@@ -92,29 +92,29 @@ pub(in crate::tests) fn objet(
 
 /// The `Transform` of an object, its children and its parent as the case names them.
 pub(in crate::tests) fn transformation(id: u32, object: u32, father: u32) -> String {
-    enfants(id, object, father, "[]")
+    with_children(id, object, father, "[]")
 }
 
 /// Likewise, for a `Transform` that carries children.
-pub(in crate::tests) fn enfants(id: u32, object: u32, father: u32, children: &str) -> String {
+pub(in crate::tests) fn with_children(id: u32, object: u32, father: u32, children: &str) -> String {
     format!(
         "--- !u!4 &{id}\nTransform:\n  m_GameObject: {{fileID: {object}}}\n  m_LocalRotation: {{x: 0, y: 0, z: 0, w: 1}}\n  m_LocalPosition: {{x: 0, y: 0, z: 0}}\n  m_LocalScale: {{x: 1, y: 1, z: 1}}\n  m_Children: {children}\n  m_Father: {{fileID: {father}}}\n"
     )
 }
 
 /// Material list of a `MeshRenderer`: a single one, that of this GUID.
-pub(in crate::tests) fn materiau(guid: &str) -> String {
+pub(in crate::tests) fn material_entry(guid: &str) -> String {
     format!("\n  - {{fileID: 2100000, guid: {guid}, type: 2}}")
 }
 
 /// An object that instantiates the whole model, neutral transform, no declared material.
-pub(in crate::tests) fn instancie(name: &str, mesh: &str) -> String {
-    objet(100, name, mesh, "[]", 0)
+pub(in crate::tests) fn instance_of(name: &str, mesh: &str) -> String {
+    game_object(100, name, mesh, "[]", 0)
 }
 
 /// An editor built-in cube, carrying the material of this GUID.
 pub(in crate::tests) fn cube(id: u32, name: &str, guid: &str) -> String {
-    objet(id, name, BUILTIN, &materiau(guid), 0)
+    game_object(id, name, BUILTIN, &material_entry(guid), 0)
 }
 
 /// A `.mat` whose floats and colours are those of the case.
@@ -125,7 +125,7 @@ pub(in crate::tests) fn mat(name: &str, floats: &str, colors: &str) -> String {
 }
 
 /// An opaque white `.mat`: only its floats distinguish the case.
-pub(in crate::tests) fn mat_blanc(name: &str, floats: &str) -> String {
+pub(in crate::tests) fn white_mat(name: &str, floats: &str) -> String {
     mat(name, floats, "    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}\n")
 }
 

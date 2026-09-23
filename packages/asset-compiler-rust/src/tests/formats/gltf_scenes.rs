@@ -8,7 +8,7 @@ use super::*;
 fn scenes_fixture(scenes: Option<Value>, scene: Option<usize>) -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
-    let lampe = json!({"type":"point","color":[1.0,1.0,1.0],"intensity":10.0});
+    let lamp = json!({"type":"point","color":[1.0,1.0,1.0],"intensity":10.0});
     gltf["nodes"] = json!([
         {"mesh":0},
         {"mesh":0},
@@ -16,7 +16,7 @@ fn scenes_fixture(scenes: Option<Value>, scene: Option<usize>) -> (PathBuf, Opti
         {"mesh":0,"extensions":{"KHR_lights_punctual":{"light":0}}},
         {"mesh":0},
     ]);
-    gltf["extensions"] = json!({"KHR_lights_punctual":{"lights":[lampe]}});
+    gltf["extensions"] = json!({"KHR_lights_punctual":{"lights":[lamp]}});
     gltf["extensionsUsed"] = json!(["KHR_lights_punctual"]);
     if let Some(scenes) = scenes {
         gltf["scenes"] = scenes;
@@ -61,7 +61,7 @@ fn compiled(options: &Options) -> (Vec<u64>, u64, u64) {
 // Behaviour: `scene: 0` compiles only nodes reachable from scene 0's roots.
 // Scene 1's nodes, the light they carry and the orphan node stay out.
 #[test]
-fn seule_la_scene_selectionnee_est_compilee() {
+fn only_the_selected_scene_is_compiled() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0,1]},{"nodes":[2,3]}])), Some(0));
     let (nodes, triangles, lampes) = compiled(&options);
     assert_eq!(nodes, vec![0, 1], "only scene 0's nodes");
@@ -72,7 +72,7 @@ fn seule_la_scene_selectionnee_est_compilee() {
 
 // Behaviour: the named scene takes its lights, and only those.
 #[test]
-fn la_scene_nommee_emporte_ses_propres_lampes() {
+fn the_named_scene_carries_its_own_lamps() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0,1]},{"nodes":[2,3]}])), Some(1));
     let (nodes, triangles, lampes) = compiled(&options);
     assert_eq!(nodes, vec![2, 3], "only scene 1's nodes");
@@ -83,7 +83,7 @@ fn la_scene_nommee_emporte_ses_propres_lampes() {
 
 // Behaviour: a child follows its parent in the scene, even named by no root.
 #[test]
-fn les_enfants_des_racines_de_la_scene_suivent() {
+fn the_children_of_the_scene_roots_follow() {
     let (root, options) = scenes_fixture(Some(json!([{"nodes":[0]},{"nodes":[2]}])), Some(0));
     let mut gltf = read_gltf(&options);
     gltf["nodes"][0]["children"] = json!([1]);
@@ -98,7 +98,7 @@ fn les_enfants_des_racines_de_la_scene_suivent() {
 // Behaviour: without `scene` or `scenes`, the document excludes no one — every
 // root, therefore every node, is compiled. That is the contract in `docs/COMPILER.md`.
 #[test]
-fn sans_scenes_toutes_les_racines_sont_compilees() {
+fn without_scenes_every_root_is_compiled() {
     let (root, options) = scenes_fixture(None, None);
     let (nodes, triangles, lampes) = compiled(&options);
     assert_eq!(nodes, vec![0, 1, 2, 3, 4]);

@@ -42,7 +42,7 @@ export function versPage(name: string, packed: PackedDag, uniforms: SelectionUni
   };
 }
 
-export type PageCase = ReturnType<typeof versPage>;
+type PageCase = ReturnType<typeof versPage>;
 export interface ExecuterEntree {
   shader: string;
   cas: PageCase[];

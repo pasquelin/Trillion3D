@@ -90,7 +90,7 @@ fn ribbon(holes: &str) -> String {
 // nothing. They now leave the surface and are counted, whichever the subdivision
 // scheme — an invisible face is so before any subdivision.
 #[test]
-fn les_faces_de_holeindices_sortent_de_la_surface_et_sont_comptees() {
+fn holeindices_faces_leave_the_surface_and_are_counted() {
     let run = mesh_layer("trou", &ribbon("1"), "none");
     assert_eq!(
         (

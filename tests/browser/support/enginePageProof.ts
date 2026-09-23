@@ -8,7 +8,7 @@ import { dansPageWebgpu, empaquetePage } from '../probes/pageWebgpu.ts';
 const ici = dirname(fileURLToPath(import.meta.url));
 
 /** One entry of the `evenements` array a page result reports diagnostics through. */
-export interface EvenementPagePreuve {
+interface EvenementPagePreuve {
   phase: string;
   context?: { reason?: string };
 }

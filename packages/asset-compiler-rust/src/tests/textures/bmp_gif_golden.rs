@@ -43,7 +43,7 @@ const RULE: &str = "Each colour texture carries the lossless tail of its mip cha
 // byte of their previews is compared to expected.json — provenance, level
 // geometry and pixels.
 #[test]
-fn les_apercus_des_deux_formats_herites_suivent_leur_expected_json() {
+fn the_previews_of_both_legacy_formats_follow_their_expected_json() {
     for (format, _) in FIXTURES {
         let dir = golden_dir(format);
         let run = compile_golden(&dir, "scene");

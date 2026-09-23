@@ -72,8 +72,7 @@
     "build:docs": "node scripts/docs-build.ts",
     "docs:scene": "node scripts/docs-scene.ts",
     "docs:serve": "node scripts/docs-serve.ts",
-    "check:local": "node scripts/check-local-files.ts",
-    "graphify:libelles": "node scripts/graphify-labels.ts"
+    "check:local": "node scripts/check-local-files.ts"
   },
   "jscpd": {
     "minLines": 8,

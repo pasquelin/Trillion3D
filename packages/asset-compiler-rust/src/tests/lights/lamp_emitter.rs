@@ -7,18 +7,18 @@
 use super::*;
 
 /// Punctual light of the synthetic cases, at 3 m range except when the case tightens it.
-fn lampe(range: f64) -> Value {
+fn point_lamp(range: f64) -> Value {
     json!({"type":"point","color":[1.0,1.0,1.0],"intensity":1000.0,"range":range})
 }
 /// A material that emits, and one that does not: that is the only thing that
 /// distinguishes an envelope from a wall, and the compiler looks at nothing else
 /// — neither the node name, nor the mesh name.
-fn emissif(yes: bool) -> Value {
+fn emissive(yes: bool) -> Value {
     let factor = if yes { 1.0 } else { 0.0 };
     json!({"name":"m","emissiveFactor":[factor,factor,factor]})
 }
 /// Nodes of the current case: two instances of the fixture triangle, then the light.
-fn a_cote(lamp_node: Value) -> Value {
+fn beside(lamp_node: Value) -> Value {
     json!([{"mesh":0},{"mesh":0}, lamp_node])
 }
 /// A direct glTF source carrying this material, this light and these nodes.
@@ -60,7 +60,7 @@ fn radius_and_counts(options: &Options) -> (Option<f64>, Value) {
 /// Expected half-diagonal of the synthetic cases: the fixture triangle carries
 /// its vertices at sqrt(2)/2 from the point (0.5; 0.5; 0) where the light sits.
 const DEMI_DIAGONALE: f64 = std::f64::consts::SQRT_2 / 2.0;
-fn lampe_a_cote() -> Value {
+fn lamp_node_beside() -> Value {
     json!({"name":"lampe","translation":[0.5,0.5,0.0],"extensions":{"KHR_lights_punctual":{"light":0}}})
 }
 
@@ -69,7 +69,7 @@ fn lampe_a_cote() -> Value {
 // provenance is counted.
 #[test]
 fn an_emissive_sibling_gives_the_envelope_radius() {
-    let (root, options) = scene(emissif(true), lampe(3.0), a_cote(lampe_a_cote()));
+    let (root, options) = scene(emissive(true), point_lamp(3.0), beside(lamp_node_beside()));
     let (radius, counts) = radius_and_counts(&options);
     assert!(
         (radius.expect("radius") - DEMI_DIAGONALE).abs() < 1e-12,
@@ -84,7 +84,7 @@ fn an_emissive_sibling_gives_the_envelope_radius() {
 fn the_parent_mesh_makes_an_envelope() {
     let lamp = json!({"name":"lampe","extensions":{"KHR_lights_punctual":{"light":0}}});
     let nodes = json!([{"mesh":0,"children":[2]},{"mesh":0}, lamp]);
-    let (root, options) = scene(emissif(true), lampe(3.0), nodes);
+    let (root, options) = scene(emissive(true), point_lamp(3.0), nodes);
     let (radius, counts) = radius_and_counts(&options);
     assert!((radius.expect("radius") - 1.0).abs() < 1e-12, "{radius:?}");
     assert_eq!(counts["light-emitter-radius-derived"], json!(1));
@@ -95,7 +95,7 @@ fn the_parent_mesh_makes_an_envelope() {
 // and nothing is counted — the product is word for word that of before this lot.
 #[test]
 fn without_an_emissive_body_the_field_stays_absent() {
-    let (root, options) = scene(emissif(false), lampe(3.0), a_cote(lampe_a_cote()));
+    let (root, options) = scene(emissive(false), point_lamp(3.0), beside(lamp_node_beside()));
     let (radius, counts) = radius_and_counts(&options);
     assert_eq!(radius, None);
     assert_eq!(counts, json!({}));
@@ -107,9 +107,9 @@ fn without_an_emissive_body_the_field_stays_absent() {
 // it comes from the file.
 #[test]
 fn the_source_declared_radius_wins_over_the_envelope() {
-    let mut light = lampe(3.0);
+    let mut light = point_lamp(3.0);
     light["extras"] = json!({"emitterRadius":0.25});
-    let (root, options) = scene(emissif(true), light, a_cote(lampe_a_cote()));
+    let (root, options) = scene(emissive(true), light, beside(lamp_node_beside()));
     let (radius, counts) = radius_and_counts(&options);
     assert_eq!(radius, Some(0.25));
     assert_eq!(counts, json!({}));
@@ -120,9 +120,9 @@ fn the_source_declared_radius_wins_over_the_envelope() {
 // even surrounded by an emissive body, and nothing is counted since nothing was tried.
 #[test]
 fn a_directional_never_receives_a_radius() {
-    let mut light = lampe(3.0);
+    let mut light = point_lamp(3.0);
     light["type"] = json!("directional");
-    let (root, options) = scene(emissif(true), light, a_cote(lampe_a_cote()));
+    let (root, options) = scene(emissive(true), light, beside(lamp_node_beside()));
     let (radius, counts) = radius_and_counts(&options);
     assert_eq!(radius, None);
     assert_eq!(counts, json!({}));
@@ -134,7 +134,7 @@ fn a_directional_never_receives_a_radius() {
 // beyond what it contains.
 #[test]
 fn a_radius_beyond_the_range_is_counted_and_omitted() {
-    let (root, options) = scene(emissif(true), lampe(0.5), a_cote(lampe_a_cote()));
+    let (root, options) = scene(emissive(true), point_lamp(0.5), beside(lamp_node_beside()));
     let (radius, counts) = radius_and_counts(&options);
     assert_eq!(radius, None);
     assert_eq!(counts["light-emitter-radius-invalid"], json!(1));
@@ -145,7 +145,7 @@ fn a_radius_beyond_the_range_is_counted_and_omitted() {
 // announces — 0.20 m, the distance from the light centre to the vertices of its
 // emissive envelope — without any retouch.
 #[test]
-fn the_emetteur_sphere_fixture_yields_its_radius() {
+fn the_emitter_sphere_fixture_yields_its_radius() {
     let run = compile_golden(&golden_dir("material-classes"), "emetteur-sphere");
     let key = run.result["key"].as_str().expect("key");
     let lights = read_json(&run.cache.join("native/full").join(key).join("lights.json"));

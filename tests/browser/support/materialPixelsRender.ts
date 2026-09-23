@@ -13,7 +13,7 @@ import type {
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */
-export const CLEAR_COLOR = 0x2a303c;
+const CLEAR_COLOR = 0x2a303c;
 
 /** The witness renderer, configured as the explorer configures its own. */
 export function witnessRenderer(): { renderer: THREE.WebGLRenderer; canvas: HTMLCanvasElement } {

@@ -103,7 +103,7 @@ fn a_unity_data_file_is_recognised_by_its_head() {
 #[test]
 fn a_material_slot_override_beyond_what_a_renderer_carries_is_counted() {
     const MODEL: &str = "0000000000000000000000000000000a";
-    let projet = super::project::Projet::new("emplacement");
+    let projet = super::project::UnityProject::new("emplacement");
     projet.model(
         "Models/Piece.glb",
         MODEL,

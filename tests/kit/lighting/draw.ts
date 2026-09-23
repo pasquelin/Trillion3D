@@ -1,14 +1,14 @@
 import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
-} from '../../../../sdk-core/src/scene/core/environment.ts';
-import type { HostDrawOutput } from '../../backend/types.ts';
-import type { HostDrawCamera } from '../../camera/world.ts';
+} from '../../../packages/sdk-core/src/scene/core/environment.ts';
+import type { HostDrawOutput } from '../../../packages/sdk-browser/src/backend/types.ts';
+import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { ObservationMeshes } from './meshes.ts';
 import { createObservationProgram } from './program.ts';
 import type { ObservationResources, ObservationTexture } from './resources.ts';
-import { WebglClusterGeometry } from '../../webgl/cluster/geometry.ts';
-import { submitDiagnosticMesh } from '../../webgl/cluster/submit.ts';
+import { WebglClusterGeometry } from '../../../packages/sdk-browser/src/webgl/cluster/geometry.ts';
+import { submitDiagnosticMesh } from '../../../packages/sdk-browser/src/webgl/cluster/submit.ts';
 
 /** Texture unit of each float texture, in the order the fragment shader samples them. */
 const SAMPLERS = ['indirectCache', 'surfaceData', 'bvhData'] as const;

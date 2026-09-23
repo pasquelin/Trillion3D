@@ -12,7 +12,7 @@ export interface ExecuterParams {
 }
 
 /** What one readback of the selection output carries: kept and drawn pages, bit for bit. */
-export interface Releve {
+interface Releve {
   pages: number[];
   dessinees: number[];
   frustumRejected: number;

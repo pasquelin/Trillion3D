@@ -44,7 +44,7 @@ pub(in crate::tests) fn import_of(options: &Options) -> (Value, Value) {
 }
 
 #[test]
-fn la_transparence_fbx_classique_devient_un_materiau_mele() {
+fn classic_fbx_transparency_becomes_a_blended_material() {
     let (root, options) = fbx_fixture(false);
     let (gltf, manifest) = import_of(&options);
     let material = &gltf["materials"][0];
@@ -69,7 +69,7 @@ fn la_transparence_fbx_classique_devient_un_materiau_mele() {
 }
 
 #[test]
-fn une_carte_dopacite_partagee_avec_la_couleur_de_base_se_branche_sans_rapport() {
+fn an_opacity_map_shared_with_base_colour_binds_without_a_report() {
     let (root, options) = fbx_fixture(true);
     let (gltf, manifest) = import_of(&options);
     let material = &gltf["materials"][0];

@@ -4,7 +4,7 @@
 use super::*;
 
 /// Disc of radius  entirely present, absent beyond , softened between the two.
-fn feuille(plein: f32, vide: f32) -> image::RgbaImage {
+fn sheet_image(plein: f32, vide: f32) -> image::RgbaImage {
     image::RgbaImage::from_fn(64, 64, |x, y| {
         let (dx, dy) = (x as f32 - 31.5, y as f32 - 31.5);
         let rayon = (dx * dx + dy * dy).sqrt();
@@ -13,15 +13,15 @@ fn feuille(plein: f32, vide: f32) -> image::RgbaImage {
     })
 }
 
-fn uniforme(alpha: u8) -> image::RgbaImage {
+fn uniform_image(alpha: u8) -> image::RgbaImage {
     image::RgbaImage::from_pixel(64, 64, image::Rgba([200, 200, 220, alpha]))
 }
 
 // Behavior: leaf with edge softened over three pixels proposed as cutout — almost all
 // its alpha is at 0 or 1, intermediate texels live only along contour.
 #[test]
-fn une_feuille_au_bord_adouci_est_proposee_en_decoupe() {
-    let shape = measure(&feuille(18.0, 21.0));
+fn a_leaf_with_a_soft_edge_is_proposed_as_cutout() {
+    let shape = measure(&sheet_image(18.0, 21.0));
     assert!(shape.between < 0.25, "in-between share {}", shape.between);
     assert!(
         shape.at_contour > 0.99,
@@ -34,8 +34,8 @@ fn une_feuille_au_bord_adouci_est_proposee_en_decoupe() {
 // Behavior: window — uniform veil halfway — never proposed as cutout. It
 // has no contour at all, so not a single intermediate is adjacent to border.
 #[test]
-fn une_vitre_uniforme_reste_en_melange() {
-    let shape = measure(&uniforme(77));
+fn a_uniform_pane_stays_blended() {
+    let shape = measure(&uniform_image(77));
     assert_eq!(shape.between, 1.0);
     assert_eq!(shape.at_contour, 0.0);
     assert!(!shape.looks_like_cutout());
@@ -45,7 +45,7 @@ fn une_vitre_uniforme_reste_en_melange() {
 // are far. Edge case intermediate fraction alone cannot separate from
 // very soft leaf, location decides.
 #[test]
-fn un_degrade_plein_cadre_reste_en_melange() {
+fn a_full_frame_gradient_stays_blended() {
     let image = image::RgbaImage::from_fn(64, 64, |x, _| {
         image::Rgba([180, 180, 180, (x * 255 / 63) as u8])
     });
@@ -63,8 +63,8 @@ fn un_degrade_plein_cadre_reste_en_melange() {
 // Behavior: texture with no empty space has nothing to cut out, even without intermediates. An
 // all-ones alpha is opaque surface, masking removes no pixels.
 #[test]
-fn une_texture_sans_vide_na_rien_a_decouper() {
-    let shape = measure(&uniforme(255));
+fn a_texture_without_holes_has_nothing_to_cut() {
+    let shape = measure(&uniform_image(255));
     assert_eq!(shape.present, 1.0);
     assert!(!shape.looks_like_cutout());
 }
@@ -72,7 +72,7 @@ fn une_texture_sans_vide_na_rien_a_decouper() {
 // Behavior: fence mesh — binary alpha, no intermediates — proposed as
 // cutout. Shape reference expects, measurement does not reject for lack of border.
 #[test]
-fn un_alpha_deja_binaire_est_propose_en_decoupe() {
+fn an_already_binary_alpha_is_proposed_as_cutout() {
     let image = image::RgbaImage::from_fn(64, 64, |x, y| {
         let plein = (x / 4) % 2 == 0 || (y / 4) % 2 == 0;
         image::Rgba([90, 90, 90, if plein { 255 } else { 0 }])
@@ -86,7 +86,7 @@ fn un_alpha_deja_binaire_est_propose_en_decoupe() {
 // pixels. Same disc in image twice as large keeps three-pixel border and
 // stays cutout; test fixes that band does not scale with image.
 #[test]
-fn la_bande_se_compte_en_pixels_de_la_source() {
+fn the_band_is_counted_in_source_pixels() {
     let large = image::RgbaImage::from_fn(128, 128, |x, y| {
         let (dx, dy) = (x as f32 - 63.5, y as f32 - 63.5);
         let rayon = (dx * dx + dy * dy).sqrt();
