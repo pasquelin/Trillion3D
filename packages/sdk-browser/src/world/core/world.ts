@@ -7,8 +7,9 @@ import { probeWorldRenderer, type WorldRenderer } from '../capability/worldReady
 import { createWorldFrames, type FrameInfo } from './worldFrames.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
 import { Scene, type LoadOptions } from './scene.ts';
-import { loadModel } from './loadedModel.ts';
-import { loadModelOfAnyFormat } from '../loader/modelFormat.ts';
+import { worldModelLoader } from './worldLoader.ts';
+import { worldRaycast, type CanvasPoint, type RaycastOptions } from './worldRaycast.ts';
+import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { awaitViewPages, registerWorld } from './worldSession.ts';
 import { advanceMixers } from '../../../../sdk-core/src/world/animation/index.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
@@ -30,7 +31,6 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     exposure = 1,
     pixelError: number | undefined,
     bounce = false,
-    models = 0,
     animating = false,
     disposed = false;
   const ready = probeWorldRenderer(canvas, options.renderer).then((granted) => {
@@ -40,17 +40,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     gpuDevice = granted.gpuDevice;
   });
   ready.catch(() => {});
-  const scene = new Scene(async (url: string, load: LoadOptions) => {
-    await ready;
-    // The one door for every model: its format is read from its content, then its loader —
-    // today the compiled manifest's alone — reads it (`modelFormat.ts`).
-    const read = {
-      scope: load.scope === undefined ? undefined : load.scope === 'full' ? 'full' : 'slice',
-      signal: load.signal ?? options.signal,
-      textureSource: renderer === 'webgpu' && models++ === 0 ? 'cache' : 'host',
-    } as const;
-    return loadModelOfAnyFormat(url, read, { manifest: loadModel });
-  });
+  const scene = new Scene(worldModelLoader(ready, options.signal, () => renderer));
   const invalidate = () => runtime.invalidate();
   const diagnostic = worldDiagnostic(() => runtime.explorer);
   const runtime = createWorldRuntime({
@@ -164,6 +154,10 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       () => frames.last,
     ),
     diagnostic: diagnostic.handle,
+    /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
+     *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
+    raycast: (at: CanvasPoint | Ray, options?: RaycastOptions) =>
+      worldRaycast(scene, camera, canvas, at, options),
     /** Runs a function before every frame, with the frame's time. */ onFrame: frames.add,
     /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks for a new frame after a change the world could not see. */ invalidate,
@@ -198,3 +192,4 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
 
 /** What `createWorld` returns: one view. */ export type World = ReturnType<typeof createWorld>;
 export type { FrameInfo, WorldTarget, WorldRenderer, LoadOptions, WorldOptions };
+export type { CanvasPoint, RaycastOptions };

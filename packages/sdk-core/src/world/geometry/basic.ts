@@ -1,3 +1,4 @@
+import { withRecipe } from './geometry.ts';
 import { GeometryBuilder, fromArrays, normalize } from './builder.ts';
 import { sphereArrays, turnPoint } from './sphere.ts';
 
@@ -54,7 +55,7 @@ export function box(width = 1, height = 1, depth = 1, ws = 1, hs = 1, ds = 1) {
   sheet(b, [0, -1, 0], [1, 0, 0], [0, 0, 1], [width, depth, h], [ws, ds]);
   sheet(b, [0, 0, 1], [1, 0, 0], [0, 1, 0], [width, height, d], [ws, hs]);
   sheet(b, [0, 0, -1], [-1, 0, 0], [0, 1, 0], [width, height, d], [ws, hs]);
-  return b.build();
+  return withRecipe(b.build(), 'box', [width, height, depth, ws, hs, ds]);
 }
 
 /**
@@ -67,7 +68,7 @@ export function box(width = 1, height = 1, depth = 1, ws = 1, hs = 1, ds = 1) {
 export function plane(width = 1, height = 1, ws = 1, hs = 1) {
   const b = new GeometryBuilder();
   sheet(b, [0, 0, 1], [1, 0, 0], [0, 1, 0], [width, height, 0], [ws, hs]);
-  return b.build();
+  return withRecipe(b.build(), 'plane', [width, height, ws, hs]);
 }
 
 /**
@@ -78,7 +79,8 @@ export function plane(width = 1, height = 1, ws = 1, hs = 1) {
  */
 export function sphere(radius = 1, ws = 32, hs = 16) {
   const arrays = sphereArrays([0, 0, 0], radius, ws, hs);
-  return fromArrays(arrays.positions, arrays.normals, arrays.uv, arrays.indices);
+  const built = fromArrays(arrays.positions, arrays.normals, arrays.uv, arrays.indices);
+  return withRecipe(built, 'sphere', [radius, ws, hs]);
 }
 
 /**
@@ -97,7 +99,7 @@ export function circle(radius = 1, segments = 32, thetaStart = 0, thetaLength = 
     b.vertex([radius * c, radius * s, 0], [0, 0, 1], [(c + 1) / 2, (s + 1) / 2]);
     if (i > 0) b.triangle(centre, centre + i, centre + i + 1);
   }
-  return b.build();
+  return withRecipe(b.build(), 'circle', [radius, segments, thetaStart, thetaLength]);
 }
 
 /**
@@ -116,7 +118,7 @@ export function ring(inner = 0.5, outer = 1, segments = 32, phiSegments = 1) {
       y = r * s;
     return { p: [x, y, 0], n: [0, 0, 1], uv: [(x / outer + 1) / 2, (y / outer + 1) / 2] };
   });
-  return b.build();
+  return withRecipe(b.build(), 'ring', [inner, outer, segments, phiSegments]);
 }
 
 /**
@@ -163,7 +165,14 @@ export function cylinder(
           else b.triangle(centre, centre + i + 1, centre + i);
       }
     }
-  return b.build();
+  return withRecipe(b.build(), 'cylinder', [
+    radiusTop,
+    radiusBottom,
+    height,
+    radialSegments,
+    heightSegments,
+    openEnded,
+  ]);
 }
 
 /**
@@ -181,5 +190,6 @@ export function cone(
   heightSegments = 1,
   open = false,
 ) {
-  return cylinder(0, radius, height, radialSegments, heightSegments, open);
+  const built = cylinder(0, radius, height, radialSegments, heightSegments, open);
+  return withRecipe(built, 'cone', [radius, height, radialSegments, heightSegments, open]);
 }

@@ -1526,6 +1526,11 @@
         "desc": "Kept for pages written against a renderer that needs it: every optic write already redraws."
       },
       {
+        "name": "rayThrough(x: number, y: number, aspect: number, out?: Ray)",
+        "type": "Ray",
+        "desc": "The world ray through a point of the picture, in the engine's own projection (`engineCamera.ts`): from the eye along the view for a perspective camera, straight down the view from the box for an orthographic one. Its direction is a unit vector."
+      },
+      {
         "name": "set(pose: CameraPose)",
         "type": "void",
         "desc": "Puts the eye at `pose.position`, looking at `pose.target`, at the field it names."
@@ -1724,6 +1729,29 @@
         "name": "fov?",
         "type": "number | undefined",
         "desc": "How wide the eye sees, top to bottom, in degrees."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "CanvasPoint",
+    "module": "packages/sdk-browser/src/world/core/worldRaycast.ts",
+    "exports": ["CanvasPoint"],
+    "section": "world",
+    "kind": "Type",
+    "title": "CanvasPoint",
+    "signature": "type CanvasPoint = {\n  /** CSS pixels from the canvas's left edge. */\n  x: number;\n  /** CSS pixels from the canvas's top edge. */\n  y: number;\n}",
+    "summary": "A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`.",
+    "members": [
+      {
+        "name": "x",
+        "type": "number",
+        "desc": "CSS pixels from the canvas's left edge."
+      },
+      {
+        "name": "y",
+        "type": "number",
+        "desc": "CSS pixels from the canvas's top edge."
       }
     ],
     "description": ""
@@ -3648,6 +3676,18 @@
       {
         "name": "BATCHED_WORLD_VIEW",
         "desc": "This drawing path cannot make that change to the scene."
+      },
+      {
+        "name": "RAYCAST_NO_VIEW",
+        "desc": "A picture point was asked of a canvas with no size: there is no picture to aim through."
+      },
+      {
+        "name": "UNSUPPORTED_SCENE_FORMAT",
+        "desc": "A saved scene is of another format or version, or holds what a saved scene cannot store."
+      },
+      {
+        "name": "SCENE_NOT_SAVABLE",
+        "desc": "A saved scene is of another format or version, or holds what a saved scene cannot store."
       }
     ],
     "description": ""
@@ -4416,6 +4456,11 @@
         "name": "boundingSphere",
         "type": "Sphere | null",
         "desc": "The ball around every vertex, once computed; `null` until then."
+      },
+      {
+        "name": "recipe",
+        "type": "{ type: string; args: unknown[]; } | null",
+        "desc": "The family member and arguments that built this shape, while it is still what they built: what a saved scene stores instead of the vertices. Any later change forgets it."
       },
       {
         "name": "version",
@@ -6032,6 +6077,44 @@
         "name": "attribute(itemSize: number, offset: number)",
         "type": "BufferAttribute",
         "desc": "One attribute read out of the pack, as its own float attribute."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "Intersection",
+    "module": "packages/sdk-core/src/world/object/raycast.ts",
+    "exports": ["Intersection"],
+    "section": "object",
+    "kind": "Type",
+    "title": "Intersection",
+    "signature": "interface Intersection",
+    "summary": "Where a ray meets an object: the object itself, the world point and the surface's normal there, how far along the ray, and which triangle (`-1` when the object's box was hit).",
+    "members": [
+      {
+        "name": "object",
+        "type": "Object3D",
+        "desc": "The object hit: the very node the page added."
+      },
+      {
+        "name": "point",
+        "type": "Vector3",
+        "desc": "The world point hit."
+      },
+      {
+        "name": "normal",
+        "type": "Vector3",
+        "desc": "The world normal of the face hit, as its winding orients it."
+      },
+      {
+        "name": "distance",
+        "type": "number",
+        "desc": "Distance from the ray's origin to `point`, world units."
+      },
+      {
+        "name": "face",
+        "type": "number",
+        "desc": "The rank of the triangle hit, or `-1` for a box."
       }
     ],
     "description": ""
@@ -10763,6 +10846,24 @@
     "description": ""
   },
   {
+    "id": "RaycastOptions",
+    "module": "packages/sdk-browser/src/world/core/worldRaycast.ts",
+    "exports": ["RaycastOptions"],
+    "section": "world",
+    "kind": "Type",
+    "title": "RaycastOptions",
+    "signature": "interface RaycastOptions",
+    "summary": "What `world.raycast` may be told; every field is optional.",
+    "members": [
+      {
+        "name": "objects?",
+        "type": "readonly Object3D[] | undefined",
+        "desc": "The objects tested, with their subtrees; unset, the whole scene."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "ResidentPage",
     "module": "packages/sdk-browser/src/gpu/page/types.ts",
     "exports": ["ResidentPage"],
@@ -11254,6 +11355,231 @@
     "description": ""
   },
   {
+    "id": "SavedCamera",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedCamera"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedCamera",
+    "signature": "interface SavedCamera",
+    "summary": "The camera a scene was saved with: its pose, projection and optics.",
+    "members": [
+      {
+        "name": "projection",
+        "type": "'perspective' | 'orthographic'",
+        "desc": "Perspective or orthographic."
+      },
+      {
+        "name": "position",
+        "type": "Numbers",
+        "desc": "Where the eye stands."
+      },
+      {
+        "name": "quaternion",
+        "type": "Numbers",
+        "desc": "How the eye is turned."
+      },
+      {
+        "name": "optics",
+        "type": "Record<string, number>",
+        "desc": "Field, near, far, zoom and box, by name."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SavedGeometry",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedGeometry"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedGeometry",
+    "signature": "interface SavedGeometry",
+    "summary": "A geometry: the family call that built it, or its vertices when no call can build it again.",
+    "members": [
+      {
+        "name": "recipe?",
+        "type": "{ type: string; args: (number | boolean)[]; } | undefined",
+        "desc": "The family member and every argument it was built with."
+      },
+      {
+        "name": "attributes?",
+        "type": "Record<string, { itemSize: number; array: number[]; }> | undefined",
+        "desc": "Each per-vertex list, when no call builds the shape again."
+      },
+      {
+        "name": "index?",
+        "type": "number[] | undefined",
+        "desc": "Which vertices make each triangle."
+      },
+      {
+        "name": "groups?",
+        "type": "{ start: number; count: number; materialIndex: number; }[] | undefined",
+        "desc": "Index ranges drawn with one material each."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SavedMaterial",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedMaterial"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedMaterial",
+    "signature": "interface SavedMaterial",
+    "summary": "A material: its kind and every parameter, colours as linear `[r, g, b]`.",
+    "members": [
+      {
+        "name": "kind",
+        "type": "string",
+        "desc": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…"
+      },
+      {
+        "name": "parameters",
+        "type": "Record<string, unknown>",
+        "desc": "Every parameter by name."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SavedNode",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedNode"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedNode",
+    "signature": "interface SavedNode",
+    "summary": "A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it.",
+    "members": [
+      {
+        "name": "kind",
+        "type": "'object' | 'mesh' | 'group' | 'light' | 'model'",
+        "desc": "What the node is."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "Its name."
+      },
+      {
+        "name": "position",
+        "type": "Numbers",
+        "desc": "Where it stands, from its parent."
+      },
+      {
+        "name": "quaternion",
+        "type": "Numbers",
+        "desc": "How it is turned, as a quaternion."
+      },
+      {
+        "name": "scale",
+        "type": "Numbers",
+        "desc": "How it is stretched on each axis."
+      },
+      {
+        "name": "visible",
+        "type": "boolean",
+        "desc": "Whether it is drawn."
+      },
+      {
+        "name": "castShadow",
+        "type": "boolean",
+        "desc": "Whether it casts shadows."
+      },
+      {
+        "name": "receiveShadow",
+        "type": "boolean",
+        "desc": "Whether shadows fall on it."
+      },
+      {
+        "name": "renderOrder",
+        "type": "number",
+        "desc": "Its drawing order among see-through things."
+      },
+      {
+        "name": "userData",
+        "type": "Record<string, unknown>",
+        "desc": "The page's own data, as JSON."
+      },
+      {
+        "name": "children",
+        "type": "SavedNode[]",
+        "desc": "The nodes below it, in order."
+      },
+      {
+        "name": "mesh?",
+        "type": "{ geometry: number; material: number | number[]; primitive: string; } | undefined",
+        "desc": "Ranks in `geometries` and `materials`, and how the triangles are read."
+      },
+      {
+        "name": "light?",
+        "type": "{ kind: string; color: Triple; groundColor: Triple; values: Record<string, number>; target: Triple; sh: number[] | null; } | undefined",
+        "desc": "A light's kind, colours, numbers, aim and probe coefficients."
+      },
+      {
+        "name": "model?",
+        "type": "{ url: string; } | undefined",
+        "desc": "A compiled model, by the manifest address it was loaded from: never inlined."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "SavedScene",
+    "module": "packages/sdk-browser/src/world/saved/format.ts",
+    "exports": ["SavedScene"],
+    "section": "world",
+    "kind": "Type",
+    "title": "SavedScene",
+    "signature": "interface SavedScene",
+    "summary": "A scene as `scene.toJSON` writes it and `scene.fromJSON` reads it: plain JSON.",
+    "members": [
+      {
+        "name": "format",
+        "type": "'web-geometry-scene'",
+        "desc": "Always `'web-geometry-scene'`."
+      },
+      {
+        "name": "formatVersion",
+        "type": "number",
+        "desc": "The version of this layout; another one is refused."
+      },
+      {
+        "name": "background",
+        "type": "Triple | null",
+        "desc": "The background colour, or `null`."
+      },
+      {
+        "name": "fog",
+        "type": "{ color: Triple; near: number; far: number; } | null",
+        "desc": "The fog, or `null`."
+      },
+      {
+        "name": "camera",
+        "type": "SavedCamera | null",
+        "desc": "The camera saved with the scene, or `null`."
+      },
+      {
+        "name": "geometries",
+        "type": "SavedGeometry[]",
+        "desc": "Every shape, once, however many meshes wear it."
+      },
+      {
+        "name": "materials",
+        "type": "SavedMaterial[]",
+        "desc": "Every material, once, however many meshes wear it."
+      },
+      {
+        "name": "children",
+        "type": "SavedNode[]",
+        "desc": "The scene's top nodes, in order."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "Scene-common",
     "module": "packages/sdk-core/src/lighting/scene/types.ts",
     "exports": ["Scene"],
@@ -11322,6 +11648,16 @@
         "name": "load(manifestUrl: string, options?: LoadOptions)",
         "type": "Promise<LoadedModel>",
         "desc": "Loads a compiled model — its manifest URL — and adds it to this scene."
+      },
+      {
+        "name": "toJSON(camera?: Camera)",
+        "type": "SavedScene",
+        "desc": "The scene as plain JSON, versioned: its objects, shapes by the call that built them, materials, lights and loaded models by address; `camera`'s pose too when one is given."
+      },
+      {
+        "name": "fromJSON(json: unknown, camera?: Camera)",
+        "type": "Promise<void>",
+        "desc": "Replaces what the scene holds with a scene `toJSON` saved; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`)."
       }
     ],
     "description": ""
@@ -14395,6 +14731,217 @@
     "description": "A drag spins it about the two axes of the SCREEN — the camera's own up and right — so the gesture never stalls at a pole and the horizon is free to tilt, which is the difference from the orbit controller, whose world up is fixed and whose elevation stops short of the poles. Secondary drag or two fingers pan, wheel and pinch dolly, both bounded. `turntable` swaps the horizontal axis for world up: the spin then stays level and no roll accumulates, the vertical drag keeping the free tilt. For a turntable that also clamps its elevation and rebuilds the orientation from its angles, use the orbit controller."
   },
   {
+    "id": "TransformControls",
+    "module": "packages/sdk-browser/src/world/controls/transform.ts",
+    "exports": ["TransformControls"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformControls",
+    "signature": "type TransformControls = ReturnType<typeof createTransformControls>",
+    "summary": "What `controls.transform` returns.",
+    "members": [
+      {
+        "name": "snap",
+        "type": "TransformSnap",
+        "desc": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional."
+      },
+      {
+        "name": "object",
+        "type": "Object3D | null",
+        "desc": "The object the handles are on, or `null`."
+      },
+      {
+        "name": "dragging",
+        "type": "boolean",
+        "desc": "True while a handle is being dragged."
+      },
+      {
+        "name": "mode",
+        "type": "TransformMode",
+        "desc": "What a drag does: `'translate'`, `'rotate'` or `'scale'`."
+      },
+      {
+        "name": "space",
+        "type": "TransformSpace",
+        "desc": "`'world'` or `'local'` axes."
+      },
+      {
+        "name": "attach(target: Object3D)",
+        "type": "TransformControls",
+        "desc": "Puts the handles on `target`, and in the scene."
+      },
+      {
+        "name": "detach()",
+        "type": "TransformControls",
+        "desc": "Takes the handles off their object, and out of the scene."
+      },
+      {
+        "name": "setMode(next: TransformMode)",
+        "type": "TransformControls",
+        "desc": "Moves, turns or scales from now on."
+      },
+      {
+        "name": "setSpace(next: TransformSpace)",
+        "type": "TransformControls",
+        "desc": "Handles along the world's axes or the object's own."
+      },
+      {
+        "name": "addEventListener(type: TransformEvent, listener: () => void)",
+        "type": "void",
+        "desc": "Calls `listener` on each event of `type`."
+      },
+      {
+        "name": "removeEventListener(type: TransformEvent, listener: () => void)",
+        "type": "void",
+        "desc": "Stops calling `listener` on events of `type`."
+      },
+      {
+        "name": "dispose()",
+        "type": "void",
+        "desc": "Takes the handles out of the scene and every listener off the canvas."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TransformControlsOptions",
+    "module": "packages/sdk-browser/src/world/controls/transform.ts",
+    "exports": ["TransformControlsOptions"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformControlsOptions",
+    "signature": "interface TransformControlsOptions",
+    "summary": "What `controls.transform` may be told; every field is optional.",
+    "members": [
+      {
+        "name": "mode?",
+        "type": "TransformMode | undefined",
+        "desc": "Move, turn or scale; `'translate'` by default."
+      },
+      {
+        "name": "space?",
+        "type": "TransformSpace | undefined",
+        "desc": "Handles along the world axes or the object's own; `'world'` by default."
+      },
+      {
+        "name": "snap?",
+        "type": "TransformSnap | undefined",
+        "desc": "Steps each drag is rounded to; none by default."
+      },
+      {
+        "name": "size?",
+        "type": "number | undefined",
+        "desc": "The handles' length as a share of the canvas height, the same wherever the object stands."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TransformEvent",
+    "module": "packages/sdk-browser/src/world/controls/transform.ts",
+    "exports": ["TransformEvent"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformEvent",
+    "signature": "type TransformEvent = 'change' | 'dragStart' | 'dragEnd'",
+    "summary": "The events a transform control emits: every pose it writes, and the start and end of a drag.",
+    "description": ""
+  },
+  {
+    "id": "TransformHandle",
+    "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
+    "exports": ["TransformHandle"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformHandle",
+    "signature": "type TransformHandle = 'x' | 'y' | 'z' | 'xy' | 'yz' | 'xz' | 'xyz'",
+    "summary": "A handle: one axis, the plane of two, or `'xyz'` — the centre: free move, uniform scale.",
+    "description": ""
+  },
+  {
+    "id": "TransformHost",
+    "module": "packages/sdk-browser/src/world/controls/transform.ts",
+    "exports": ["TransformHost"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformHost",
+    "signature": "type TransformHost",
+    "summary": "What a transform control needs of a world: `createWorld` returns one.",
+    "members": [
+      {
+        "name": "canvas",
+        "type": "HTMLElement",
+        "desc": "The canvas the pointer presses on."
+      },
+      {
+        "name": "scene",
+        "type": "Object3D",
+        "desc": "The scene the handles are added to."
+      },
+      {
+        "name": "camera",
+        "type": "Camera",
+        "desc": "The camera the canvas is seen through."
+      },
+      {
+        "name": "onFrame(hook: () => void)",
+        "type": "() => void",
+        "desc": "Runs `hook` after each frame drawn; returns what stops it."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TransformMode",
+    "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
+    "exports": ["TransformMode"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformMode",
+    "signature": "type TransformMode = 'translate' | 'rotate' | 'scale'",
+    "summary": "What a transform control does to its object.",
+    "description": ""
+  },
+  {
+    "id": "TransformSnap",
+    "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
+    "exports": ["TransformSnap"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformSnap",
+    "signature": "type TransformSnap = {\n  /** World units a move is rounded to, along each axis. */\n  translate?: number;\n  /** Radians a turn is rounded to. */\n  rotate?: number;\n  /** The step a scale factor is rounded to. */\n  scale?: number;\n}",
+    "summary": "Steps a drag is rounded to, each optional: world units, radians, scale factor.",
+    "members": [
+      {
+        "name": "translate?",
+        "type": "number | undefined",
+        "desc": "World units a move is rounded to, along each axis."
+      },
+      {
+        "name": "rotate?",
+        "type": "number | undefined",
+        "desc": "Radians a turn is rounded to."
+      },
+      {
+        "name": "scale?",
+        "type": "number | undefined",
+        "desc": "The step a scale factor is rounded to."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "TransformSpace",
+    "module": "packages/sdk-browser/src/world/controls/transformMath.ts",
+    "exports": ["TransformSpace"],
+    "section": "controls",
+    "kind": "Type",
+    "title": "TransformSpace",
+    "signature": "type TransformSpace = 'world' | 'local'",
+    "summary": "The frame the handles are aligned with; a scale is always along the object's own axes.",
+    "description": ""
+  },
+  {
     "id": "TransformTree",
     "module": "packages/sdk-core/src/math/transform-tree/transformTree.ts",
     "exports": ["TransformTree"],
@@ -15598,7 +16145,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.diagnostic",
-    "signature": "world.diagnostic: { mode: string; readonly modes: string[]; }",
+    "signature": "world.diagnostic: { mode: string; readonly sessions: number; readonly modes: string[]; }",
     "summary": "What the page holds: the mode, read and written.",
     "members": [
       {
@@ -15607,11 +16154,48 @@
         "desc": "The view mode: `'beauty'` for the normal image, or a mode that shows how the engine works."
       },
       {
+        "name": "sessions",
+        "type": "number",
+        "desc": "Sessions the world has opened so far: a change that reopens one shows here."
+      },
+      {
         "name": "modes",
         "type": "string[]",
         "desc": "Every view mode the current renderer offers."
       }
     ],
+    "description": ""
+  },
+  {
+    "id": "world.raycast",
+    "module": "packages/sdk-browser/src/world/core/world.ts",
+    "exports": ["createWorld"],
+    "section": "world",
+    "kind": "Function",
+    "title": "world.raycast()",
+    "signature": "world.raycast(at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null",
+    "summary": "The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`: the node the page added, the world point and normal hit, the distance (`worldRaycast`).",
+    "parameters": [
+      {
+        "name": "at",
+        "type": "CanvasPoint | Ray",
+        "desc": ""
+      },
+      {
+        "name": "options?",
+        "type": "RaycastOptions",
+        "desc": "What `world.raycast` may be told; every field is optional."
+      },
+      {
+        "name": "options.objects?",
+        "type": "readonly Object3D[]",
+        "desc": "The objects tested, with their subtrees; unset, the whole scene."
+      }
+    ],
+    "returns": {
+      "type": "Intersection | null",
+      "desc": ""
+    },
     "description": ""
   },
   {
@@ -19044,6 +19628,66 @@
     "description": ""
   },
   {
+    "id": "controls",
+    "module": "packages/sdk-browser/src/world/controls/index.ts",
+    "exports": ["controls"],
+    "section": "controls",
+    "kind": "Constant",
+    "title": "controls",
+    "signature": "const controls",
+    "summary": "The `controls` family: controllers a page attaches to a world, beside the camera controller `world.controls` already drives.",
+    "description": ""
+  },
+  {
+    "id": "controls.transform",
+    "module": "packages/sdk-browser/src/world/controls/index.ts",
+    "exports": ["controls"],
+    "section": "controls",
+    "kind": "Function",
+    "title": "controls.transform()",
+    "signature": "controls.transform(host: TransformHost, options?: TransformControlsOptions): TransformControls",
+    "summary": "Handles that move, turn and scale one object with the mouse (`transform.ts`).",
+    "parameters": [
+      {
+        "name": "host",
+        "type": "TransformHost",
+        "desc": "The world whose scene and camera the handles live in."
+      },
+      {
+        "name": "options",
+        "type": "TransformControlsOptions",
+        "default": "{}",
+        "desc": "Mode, axes, snapping and screen size; saying nothing is the usual case."
+      },
+      {
+        "name": "options.mode?",
+        "type": "TransformMode",
+        "desc": "Move, turn or scale; `'translate'` by default."
+      },
+      {
+        "name": "options.space?",
+        "type": "TransformSpace",
+        "desc": "Handles along the world axes or the object's own; `'world'` by default."
+      },
+      {
+        "name": "options.snap?",
+        "type": "TransformSnap",
+        "desc": "Steps each drag is rounded to; none by default."
+      },
+      {
+        "name": "options.size?",
+        "type": "number",
+        "desc": "The handles' length as a share of the canvas height, the same wherever the object stands."
+      }
+    ],
+    "returns": {
+      "type": "TransformControls",
+      "desc": ""
+    },
+    "example": "const gizmo = controls.transform(world).attach(box);\ngizmo.addEventListener('dragEnd', () => history.push(box.position.clone()));",
+    "description": ""
+  },
+  {
     "id": "copyMatrix4",
     "module": "packages/sdk-core/src/math/matrix/matrix4.ts",
     "exports": ["copyMatrix4"],
@@ -21909,7 +22553,7 @@
     "title": "helper",
     "signature": "const helper",
     "summary": "The `helper` family: the marks a scene is worked on with, built from lines and meshes.",
-    "description": ""
+    "description": "A world draws them like any object; a pick (`world.raycast`) and a saved scene skip them."
   },
   {
     "id": "helper.axes",
@@ -28393,6 +29037,39 @@
       "desc": ""
     },
     "description": "A forced path the machine lacks is refused by its name; left to the engine, WebGPU when an adapter is granted — and its device, requested once —, WebGL2 otherwise, and a machine with neither is refused. `chooseBackends` repeats the same decision on that device when a session opens."
+  },
+  {
+    "id": "raycast",
+    "module": "packages/sdk-core/src/world/object/raycast.ts",
+    "exports": ["raycast"],
+    "section": "object",
+    "kind": "Function",
+    "title": "raycast()",
+    "signature": "raycast(roots: Object3D | readonly Object3D[], ray: Ray, skip?: (node: Object3D) => boolean): Intersection[]",
+    "summary": "Every object under `roots` that `ray` meets — its direction a unit vector — nearest first, one hit per object: the nearest of its own.",
+    "parameters": [
+      {
+        "name": "roots",
+        "type": "Object3D | readonly Object3D[]",
+        "desc": ""
+      },
+      {
+        "name": "ray",
+        "type": "Ray",
+        "desc": ""
+      },
+      {
+        "name": "skip",
+        "type": "(node: Object3D) => boolean",
+        "default": "() => false",
+        "desc": ""
+      }
+    ],
+    "returns": {
+      "type": "Intersection[]",
+      "desc": ""
+    },
+    "description": "Hidden subtrees are skipped, and so are the nodes `skip` names with their subtrees: the marks a page works with, never its content."
   },
   {
     "id": "readCameraWorld",

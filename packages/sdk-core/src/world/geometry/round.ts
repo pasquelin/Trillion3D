@@ -1,3 +1,4 @@
+import { withRecipe } from './geometry.ts';
 import { crossVector3 } from '../../math/primitives/vector.ts';
 import { GeometryBuilder, normalize } from './builder.ts';
 import type { Curve } from '../math/curves.ts';
@@ -28,7 +29,7 @@ export function torus(
     const c: V3 = [radius * Math.cos(a), radius * Math.sin(a), 0];
     return { p: [c[0] + tube * n[0], c[1] + tube * n[1], c[2] + tube * n[2]], n, uv: [u, v] };
   });
-  return b.build();
+  return withRecipe(b.build(), 'torus', [radius, tube, radialSegments, tubularSegments, arc]);
 }
 
 /**
@@ -53,7 +54,8 @@ export function torusKnot(
       r = radius * (2 + Math.cos((q / p) * u)) * 0.5;
     return [r * Math.cos(u), r * Math.sin(u), radius * Math.sin((q / p) * u) * 0.5];
   };
-  return sweep(at, tubularSegments, radialSegments, () => tube, true);
+  const built = sweep(at, tubularSegments, radialSegments, () => tube, true);
+  return withRecipe(built, 'torusKnot', [radius, tube, tubularSegments, radialSegments, p, q]);
 }
 
 /**
@@ -129,7 +131,12 @@ export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments 
     const a = (i / caps) * (Math.PI / 2);
     profile.push([radius * Math.cos(a), length / 2 + radius * Math.sin(a)]);
   }
-  return lathe(profile, radialSegments);
+  return withRecipe(lathe(profile, radialSegments), 'capsule', [
+    radius,
+    length,
+    capSegments,
+    radialSegments,
+  ]);
 }
 
 /** Rings of radius `radiusAt(s)` along `centre(s)`, `s ∈ [0, 1]`, framed by parallel transport. */

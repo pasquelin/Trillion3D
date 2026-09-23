@@ -11,6 +11,7 @@ import type { ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
 import type { Plane } from '../../../../sdk-core/src/world/math/volumes.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { markedFamily } from './mark.ts';
 
 /** Line segments through `points` (two corners per segment), in one colour. */
 function lines(points: number[], color: ColorInput) {
@@ -56,8 +57,9 @@ function following(target: Object3D, marks: Object3D[]) {
   return group;
 }
 
-/** The `helper` family: the marks a scene is worked on with, built from lines and meshes. */
-export const helper = {
+/** The `helper` family: the marks a scene is worked on with, built from lines and meshes. A world
+ *  draws them like any object; a pick (`world.raycast`) and a saved scene skip them. */
+export const helper = markedFamily({
   /** Three coloured lines from the origin: x red, y green, z blue.
    *  @param size - Length of each line. */
   axes(size = 1) {
@@ -182,4 +184,4 @@ export const helper = {
       lines(circle(size, 32, 'xy'), l.groundColor),
     ]);
   },
-};
+});
