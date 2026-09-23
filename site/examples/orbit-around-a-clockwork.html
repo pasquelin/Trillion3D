@@ -136,7 +136,8 @@
         const ticks = Math.floor(time) + Math.min(1, (time % 1) * 6);
         const turn = (-ticks * Math.PI * 2) / escape.spec.teeth / escape.ratio;
         for (const { mesh, ratio, phase } of gears.values()) mesh.rotation.z = phase + turn * ratio;
-        world.invalidate();
+        // Stopped at speed zero, the clock is a still image.
+        if (ui.speed) world.invalidate();
       });
     </script>
   </body>

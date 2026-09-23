@@ -314,12 +314,9 @@
       // first sprint's — and three over tops.
       const glow = glowing('#7cf0ff', 6), pearl = geometry.sphere(0.2, 24, 16), hoop = geometry.torus(0.3, 0.03, 12, 40);
       const orbs = [[0, 1.45, -3.5], [2, 2.1, -12.5], [-2.3, 2.4, -19.4], [-2.3, 2.6, -26.4], [1, 3.35, -33.7]].map((at) => {
-        const orb = object.group();
-        orb.position.set(...at);
+        const orb = joint(world.scene, at);
         put(pearl, glow, [0, 0, 0], orb);
-        const ring = put(hoop, bronze, [0, 0, 0], orb);
-        world.scene.add(orb);
-        return { orb, ring };
+        return { orb, ring: put(hoop, bronze, [0, 0, 0], orb) };
       });
       // The golden idol on its pedestal: gold that glows, and a lamp of its own that stays put.
       box([1.4, 1.2, 1.4], [0, FINISH.top + 0.6, -41.4], marble, solid);
@@ -514,7 +511,8 @@
         if (event.key.toLowerCase() === 'r') restart();
         if (event.key.toLowerCase() === 'm') toggleSound();
       });
-      world.canvas.addEventListener('pointerdown', startAudio);
+      // Any press starts it, the menu's Play among them: the game is played without a click.
+      addEventListener('pointerdown', startAudio);
       // The sound's level: silent when muted or paused.
       const volume = () => master && master.gain.setTargetAtTime(muted || !game.running ? 0 : 0.8, audio.currentTime, 0.02);
       function toggleSound() {
