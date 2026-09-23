@@ -14,7 +14,7 @@
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://pasquelin.github.io/Trillion3D/)** · **[Live report ↗](https://pasquelin.github.io/Trillion3D/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE.md)** · **[Roadmap](#roadmap)**
+**[Documentation ↗](https://www.trillion3d.com/)** · **[Live report ↗](https://www.trillion3d.com/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE.md)** · **[Roadmap](#roadmap)**
 
 </div>
 
