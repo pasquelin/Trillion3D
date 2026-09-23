@@ -1,34 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFlyCameraControls } from './flyControls.ts';
-import { createFirstPersonCameraControls } from './firstPersonControls.ts';
-import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import {
-  at,
-  fixtureCamera,
-  fixtureDrag,
-  fixtureSurface,
-  round,
-  type FixtureCamera,
-} from './controls.fixture.ts';
-import type { SteeredCameraControls } from './types.ts';
-
-const facing = (camera: { quaternion: { x: number; y: number; z: number; w: number } }) => {
-  const q = camera.quaternion;
-  return rotateByQuaternion(new Float64Array(3), [q.x, q.y, q.z, q.w], 0, 0, -1);
-};
-
-/** One camera, one surface and the named controller, with its emissions counted. */
-function steered<T extends SteeredCameraControls>(
-  make: (camera: FixtureCamera, surface: HTMLElement) => T,
-) {
-  const camera = fixtureCamera(0, 0, 0),
-    surface = fixtureSurface(400);
-  const controls = make(camera, surface.element);
-  let changes = 0;
-  controls.addEventListener('change', () => changes++);
-  return { camera, surface, controls, changes: () => changes };
-}
+import { at, fixtureDrag, round } from './controls.fixture.ts';
+import { facing, steered } from './steering.fixture.ts';
 
 test('flight integrates the keys held over the time step it is given', () => {
   const { camera, surface, controls } = steered(createFlyCameraControls);
@@ -78,6 +52,35 @@ test('flight with `pointerLook` off keeps its orientation through a drag', () =>
     [...facing(camera)].map((v) => round(v)),
     [0, 0, -1],
   );
+});
+
+test('flight loops unbounded: pitch held for 2π/pitchSpeed comes back to the start', () => {
+  const { camera, surface, controls } = steered(createFlyCameraControls);
+  controls.pitchSpeed = Math.PI; // Apart from `rollSpeed`, which stays 0.4.
+  controls.update(0);
+  surface.key('keydown', { code: 'ArrowUp' });
+  for (let i = 0; i < 200; i++) controls.update(2 / 200);
+  const q = camera.quaternion;
+  // A whole turn is the identity orientation, whichever sign the quaternion ends on.
+  assert.ok(Math.abs(Math.abs(q.w) - 1) < 1e-9);
+  assert.deepEqual(
+    [...facing(camera)].map((v) => round(v)),
+    [0, 0, -1],
+  );
+});
+
+test('flight ramps a turn key over `inputResponse` seconds, and back once released', () => {
+  const { camera, surface, controls } = steered(createFlyCameraControls);
+  controls.rollSpeed = 1;
+  controls.inputResponse = 1;
+  controls.update(0);
+  surface.key('keydown', { code: 'KeyQ' });
+  controls.update(0.5); // Half the travel: half the rate over this step.
+  assert.ok(Math.abs(camera.quaternion.z - Math.sin(0.125)) < 1e-12);
+  surface.key('keyup', { code: 'KeyQ' });
+  // The stick still travels back: the camera keeps turning until it is centred.
+  assert.equal(controls.update(0.25), true);
+  assert.equal(controls.update(0.25), false);
 });
 
 test('flight strafes, rises and rolls on its own axes', () => {
@@ -135,49 +138,4 @@ test('a window that loses focus releases the keys it will get no release for', (
   surface.blur('blur', {});
   assert.equal(controls.update(1), false);
   assert.deepEqual(at(camera), [0, 0, 0]);
-});
-
-test('first person locks the pointer on the gesture and walks on the yaw alone', () => {
-  const { camera, surface, controls } = steered(createFirstPersonCameraControls);
-  controls.movementSpeed = 3;
-  controls.update(0);
-  surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
-  assert.equal(controls.locked(), true);
-  surface.fire('pointermove', { pointerId: 1, movementX: 0, movementY: -2000 });
-  controls.update(0);
-  // Looking up is clamped short of the zenith, and the walk stays in the horizontal plane.
-  const forward = facing(camera);
-  assert.ok(forward[1] > 0.999 && forward[1] < 1);
-  surface.key('keydown', { code: 'KeyW' });
-  controls.update(1);
-  assert.deepEqual(at(camera), [0, 0, -3]);
-  surface.key('keydown', { code: 'Space' });
-  controls.update(1);
-  assert.equal(round(camera.position.y), 3);
-});
-
-test('first person turns the head with the pointer and lets the lock go on dispose', () => {
-  const { camera, surface, controls } = steered(createFirstPersonCameraControls);
-  controls.lookSpeed = Math.PI / 400;
-  controls.update(0);
-  surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
-  surface.fire('pointermove', { pointerId: 1, movementX: 200, movementY: 0 });
-  controls.update(0);
-  assert.deepEqual(
-    [...facing(camera)].map((v) => round(v)),
-    [1, 0, 0],
-  );
-  controls.dispose();
-  assert.equal(controls.locked(), false);
-  assert.equal(surface.listeners(), 0);
-});
-
-test('first person stops a downward look at `minPitch`', () => {
-  const { camera, surface, controls } = steered(createFirstPersonCameraControls);
-  controls.minPitch = -Math.PI / 4;
-  controls.update(0);
-  surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
-  surface.fire('pointermove', { pointerId: 1, movementX: 0, movementY: 100000 });
-  controls.update(0);
-  assert.equal(round(facing(camera)[1]), round(-Math.SQRT1_2));
 });
