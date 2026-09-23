@@ -537,7 +537,7 @@
       "texturesBlocks": "Texturas en bloques",
       "allFullDetail": "Todo al máximo detalle",
       "poolFormat": "Formato de la reserva",
-      "tilesHeld": "Mosaicos guardados",
+      "tilesHeld": "Teselas guardadas",
       "heldGpu": "Guardado en la GPU"
     },
     "words": {
@@ -1165,7 +1165,7 @@
   },
   "move-rotate-scale-gizmo": {
     "controls": {
-      "help": "Arrastra un asa. Arrastra al lado para girar la cámara.",
+      "help": "Arrastra un tirador. Arrastra al lado para girar la cámara.",
       "mode": "Modo",
       "axes": "Ejes",
       "snap": "Imán"
