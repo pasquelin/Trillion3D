@@ -7,6 +7,7 @@ import {
   normalizeQuaternion,
   localTurnQuaternion,
 } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
+import { clampNumber } from '../../../../sdk-core/src/world/math/spherical.ts';
 import type { ControlCamera, SteeredCameraControls } from './types.ts';
 
 /**
@@ -18,15 +19,27 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
  * `update`, and asks for the next frame by emitting `change` each time.
  *
  * KEYS, by `KeyboardEvent.code`: W/S forward and back, A/D left and right, R/F up and down,
- * arrows pitch and yaw, Q/E roll. `dragToLook` (the default) looks while a pointer is held;
+ * arrows pitch and yaw, Q/E roll. Nothing bounds a turn: holding a key loops or rolls the
+ * camera round and round, so a loop, a barrel roll, an Immelmann or a split-S is flown as it is
+ * on a stick. `inputResponse` gives the keys that stick's travel. `dragToLook` (the default) looks while a pointer is held;
  * set false and the pointer looks as soon as it moves over the surface; set `pointerLook`
  * false and it never turns the view at all, the keys alone steer. A key pressed while Ctrl or
  * Meta is down is ignored, so a browser shortcut (Ctrl+W, Cmd+S) never steers; the modifier
  * must be released before the key that follows it counts.
  */
 export interface FlyCameraControls extends SteeredCameraControls {
-  /** Radians per second at full deflection, for pitch, yaw and roll alike. */
+  /** Radians per second the roll turns at full deflection; pitch and yaw follow it by default. */
   rollSpeed: number;
+  /** Radians per second the pitch turns at full deflection; `null` (the default) is `rollSpeed`. */
+  pitchSpeed: number | null;
+  /** Radians per second the yaw turns at full deflection; `null` (the default) is `rollSpeed`. */
+  yawSpeed: number | null;
+  /**
+   * Seconds a turn key takes to reach full deflection, and a released one to come back to
+   * none: the turn rate ramps like a stick moved by hand. 0, the default, is on or off at once.
+   * A stick still travelling moves the camera, so the frames go on until it is centred.
+   */
+  inputResponse: number;
   /** Whether dragging turns the view. */
   dragToLook: boolean;
   /** Whether the pointer turns the view at all, by drag or hover; true by default. */
@@ -56,6 +69,7 @@ export function createFlyCameraControls(
   const position = new Float64Array(3),
     orientation = new Float64Array(4),
     turn = new Float64Array(4),
+    stick = new Float64Array(3),
     moved = new Float64Array(7);
   const gate = createChangeGate(base, 7);
   let lookPitch = 0,
@@ -71,6 +85,9 @@ export function createFlyCameraControls(
     object: pose.object,
     movementSpeed: 1,
     rollSpeed: 0.4,
+    pitchSpeed: null,
+    yawSpeed: null,
+    inputResponse: 0,
     dragToLook: true,
     pointerLook: true,
     autoForward: false,
@@ -78,9 +95,14 @@ export function createFlyCameraControls(
       const dt = delta > 0 ? delta : 0;
       pose.readPosition(position);
       pose.readOrientation(orientation);
-      const pitch = lookPitch + axisOf(keys, ...PITCH) * api.rollSpeed * dt,
-        yaw = lookYaw + axisOf(keys, ...YAW) * api.rollSpeed * dt,
-        roll = axisOf(keys, ...ROLL) * api.rollSpeed * dt;
+      // The stick travels towards the keys held by at most `dt / inputResponse` of its range.
+      const travel = api.inputResponse > 0 ? dt / api.inputResponse : Infinity;
+      const deflect = (axis: number, wanted: number) =>
+        (stick[axis] += clampNumber(wanted - stick[axis], -travel, travel));
+      const pitch =
+          lookPitch + deflect(0, axisOf(keys, ...PITCH)) * (api.pitchSpeed ?? api.rollSpeed) * dt,
+        yaw = lookYaw + deflect(1, axisOf(keys, ...YAW)) * (api.yawSpeed ?? api.rollSpeed) * dt,
+        roll = deflect(2, axisOf(keys, ...ROLL)) * api.rollSpeed * dt;
       lookPitch = lookYaw = 0;
       if (pitch || yaw || roll)
         normalizeQuaternion(
