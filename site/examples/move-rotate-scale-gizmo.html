@@ -44,7 +44,7 @@
         },
       );
 
-      const pose = readout('Position'), turns = readout('Drags');
+      const pose = readout('position'), turns = readout('drags');
       let drags = 0;
       gizmo.addEventListener('change', () => pose(crate.position.toArray().map((v) => v.toFixed(2)).join(', ')));
       gizmo.addEventListener('dragEnd', () => turns(String(++drags)));

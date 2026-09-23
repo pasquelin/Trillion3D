@@ -1,25 +1,27 @@
-import { t } from '../content/i18n/index.ts';
+import { useWords } from './i18n.ts';
+import { kindName } from '../content/i18n/dictionary.ts';
 import { issueUrl } from '../content/model.ts';
 import { demoFor } from '../demos/registry.ts';
 import { ApiDemo } from './ApiDemo.tsx';
 import { DocPage } from './layout/DocPage.tsx';
 import { Collapse } from './ui/Collapse.tsx';
-import { entrySummary } from '../content/model.ts';
+import { entryRest, entrySummary } from '../content/model.ts';
 import { LEARN_SECTIONS } from './portal/routes.ts';
 import { CodeBlock } from './ui/CodeBlock.tsx';
 import { Card } from './ui/Card.tsx';
 import { Alert } from './ui/Alert.tsx';
 import { Inline, Prose } from './ui/Prose.tsx';
-import { DefinitionTable } from './ui/Table.tsx';
+import { Members, Parameters, Returns } from './EntryFields.tsx';
 import { Note, Paragraph, TextLink } from './ui/Text.tsx';
 import type { DemoDef } from '../demos/kit.ts';
 import type { Locale } from '../content/locale.ts';
 import type { PortalEntry } from '../content/model.ts';
 
 function LiveDemo({ demo, locale }: { demo: DemoDef; locale: Locale }) {
+  const t = useWords(locale);
   return (
-    <Card title={t(locale, 'entry.live')}>
-      <Note>{t(locale, 'entry.liveHint')}</Note>
+    <Card title={t('entry.live')}>
+      <Note>{t('entry.liveHint')}</Note>
       <ApiDemo demo={demo} locale={locale} />
     </Card>
   );
@@ -41,60 +43,47 @@ function Details({ rest, html }: { rest: string; html?: string }) {
 
 /**
  * One guide or API entry. A guide reads as text: its description, its prose, then its code. An
- * API entry keeps one order: its summary, the signature, the example, the members, then the long
- * description, folded under Details.
+ * API entry keeps one order: its summary, the signature, the parameters, what it returns, the
+ * example, the members, then the long description, folded under Details.
  */
-export function Entry({ entry, locale = 'en' }: { entry: PortalEntry; locale?: Locale }) {
+export function Entry({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
+  const t = useWords(locale);
   const demo = demoFor(entry.id);
   const summary = entrySummary(entry);
-  const rest = entry.description.slice(summary.length).trim();
+  const rest = entryRest(entry);
   const guide = LEARN_SECTIONS.includes(entry.section);
   const details = <Details rest={rest} html={entry.html} />;
   return (
     <DocPage
-      eyebrow={t(locale, `kind.${entry.kind}`)}
+      eyebrow={kindName(entry.kind, locale)}
       title={entry.title || entry.id}
       lead={<Inline text={summary} />}
     >
       {entry.issue && (
         <Alert tone="warning">
           <span>
-            {t(locale, 'common.inDevelopment')}:{' '}
+            {t('common.inDevelopment')}:{' '}
             <TextLink href={issueUrl(entry.issue)}>#{entry.issue}</TextLink>
           </span>
         </Alert>
       )}
       {guide && details}
       {entry.signature && (
-        <CodeBlock code={entry.signature} locale={locale} label={t(locale, 'entry.signature')} />
+        <CodeBlock code={entry.signature} locale={locale} label={t('entry.signature')} />
       )}
+      <Parameters entry={entry} locale={locale} />
+      <Returns entry={entry} locale={locale} />
       {entry.example && (
-        <CodeBlock code={entry.example} locale={locale} label={t(locale, 'entry.example')} />
+        <CodeBlock code={entry.example} locale={locale} label={t('entry.example')} />
       )}
+      <Members entry={entry} locale={locale} />
       {demo && <LiveDemo demo={demo} locale={locale} />}
-      {(entry.values?.length ?? 0) > 0 && (
-        <Card
-          title={
-            entry.valuesTitle ??
-            t(locale, entry.kind === 'Type' ? 'entry.values' : 'entry.arguments')
-          }
-        >
-          <DefinitionTable
-            rows={(entry.values ?? []).map((value) => ({
-              name: value.name,
-              value: <Inline text={value.desc} />,
-            }))}
-          />
-        </Card>
-      )}
-      {!guide && (rest || entry.html) && (
-        <Collapse title={t(locale, 'entry.details')}>{details}</Collapse>
-      )}
+      {!guide && (rest || entry.html) && <Collapse title={t('entry.details')}>{details}</Collapse>}
       {(entry.replaces || entry.proof) && (
-        <Card title={t(locale, 'entry.proof')}>
+        <Card title={t('entry.proof')}>
           {entry.replaces && (
             <p>
-              <strong>{t(locale, 'entry.replaces')}: </strong>
+              <strong>{t('entry.replaces')}: </strong>
               {entry.replaces}
             </p>
           )}

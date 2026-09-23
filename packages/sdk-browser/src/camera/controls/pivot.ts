@@ -100,6 +100,14 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
   };
 }
 
+/** A pivot's default distance range and speeds, which `world.controls` keeps as its own. */
+export const PIVOT_DEFAULTS = {
+  minDistance: 0,
+  maxDistance: Infinity,
+  rotateSpeed: 1,
+  zoomSpeed: 1,
+};
+
 /** The pivot contract at its defaults: unbounded distance, both gestures on, unit speeds. */
 export function pivotControlsApi(
   base: ControlBase,
@@ -110,12 +118,9 @@ export function pivotControlsApi(
     ...base.api,
     object: pose.object,
     target: pose.vector(),
-    minDistance: 0,
-    maxDistance: Infinity,
+    ...PIVOT_DEFAULTS,
     enableZoom: true,
     enablePan: true,
-    rotateSpeed: 1,
-    zoomSpeed: 1,
     update,
   };
 }

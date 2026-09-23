@@ -25,17 +25,37 @@ export function Table({ children, label, wide = false, className = '' }: TablePr
   );
 }
 
-/** A two-column table of names, in code, and what each one means. */
-export function DefinitionTable({ rows }: { rows: { name: string; value: ReactNode }[] }) {
+/** A table of named fields — a parameter, a member, a value — under its column heads: the name
+ * in code on one line, then what the other columns say of it. */
+export function FieldTable({
+  head,
+  rows,
+}: {
+  head: string[];
+  rows: { key: string; cells: ReactNode[] }[];
+}) {
   return (
     <Table>
+      <thead>
+        <tr>
+          {head.map((title) => (
+            <th key={title}>{title}</th>
+          ))}
+        </tr>
+      </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.name}>
-            <td className="max-w-xs align-top font-mono font-semibold whitespace-nowrap">
-              {row.name}
-            </td>
-            <td>{row.value}</td>
+          <tr key={row.key}>
+            {row.cells.map((cell, index) => (
+              <td
+                key={index}
+                className={
+                  index === 0 ? 'align-top font-mono font-semibold whitespace-nowrap' : 'align-top'
+                }
+              >
+                {cell}
+              </td>
+            ))}
           </tr>
         ))}
       </tbody>

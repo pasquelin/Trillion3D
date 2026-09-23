@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Every image format</title>
+    <meta name="thumbnail" content="6" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #e3a476;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math, texture, loader } from '../runtime/engine.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
+
+      // One picture, described once as a list of shapes: a sky at sunset, a sun, two ridges, a
+      // field hatched with thin lines, a strip of pure hues and a band with the format's name.
+      // Thin lines and pure hues are where a lossy format shows what it threw away.
+      const SIZE = 512;
+      const ridge = (seed, base, height) => {
+        const points = [[0, SIZE]];
+        for (let x = 0; x <= SIZE; x += 8)
+          points.push([x, Math.round(base - height * (0.55 + 0.3 * Math.sin(x / 61 + seed) + 0.15 * Math.sin(x / 19 + seed * 3)))]);
+        return [...points, [SIZE, SIZE]];
+      };
+      const drawing = (label) => [
+        { kind: 'sky', box: [0, 0, SIZE, 380], stops: [[0, '#231c52'], [0.5, '#c4487a'], [0.8, '#ffad5a'], [1, '#ffe09a']] },
+        { kind: 'circle', at: [350, 258, 50], fill: '#fff4c8' },
+        { kind: 'poly', points: ridge(1, 330, 150), fill: '#71406d' },
+        { kind: 'poly', points: ridge(4, 372, 90), fill: '#472a52' },
+        { kind: 'rect', box: [0, 372, SIZE, 70], fill: '#2e6a3c' },
+        { kind: 'lines', segments: Array.from({ length: 44 }, (_, k) => [k * 13 - 120, 442, k * 13 + 10, 372]), stroke: '#a8e070', width: 1.5 },
+        ...Array.from({ length: 16 }, (_, k) => ({ kind: 'rect', box: [k * 32, 0, 32, 20], fill: `hsl(${k * 22.5}, 95%, 55%)` })),
+        { kind: 'rect', box: [0, 442, SIZE, 70], fill: '#1b1426' },
+        { kind: 'text', at: [24, 492], text: label, size: 44, weight: 700, fill: '#fff4dc', anchor: 'start' },
+        { kind: 'text', at: [488, 488], text: say('samePicture'), size: 15, weight: 400, fill: '#d7c8e8', anchor: 'end' },
+      ];
+
+      // The same list, written by two hands: the canvas paints pixels, the SVG writes shapes.
+      function paint(context, shapes) {
+        for (const shape of shapes) {
+          if (shape.kind === 'sky') {
+            const [x, y, w, h] = shape.box, gradient = context.createLinearGradient(0, y, 0, y + h);
+            for (const [at, colour] of shape.stops) gradient.addColorStop(at, colour);
+            context.fillStyle = gradient;
+            context.fillRect(x, y, w, h);
+          } else if (shape.kind === 'rect') {
+            context.fillStyle = shape.fill;
+            context.fillRect(...shape.box);
+          } else if (shape.kind === 'circle') {
+            context.fillStyle = shape.fill;
+            context.beginPath();
+            context.arc(...shape.at, 0, Math.PI * 2);
+            context.fill();
+          } else if (shape.kind === 'poly') {
+            context.fillStyle = shape.fill;
+            context.beginPath();
+            for (const [x, y] of shape.points) context.lineTo(x, y);
+            context.fill();
+          } else if (shape.kind === 'lines') {
+            context.strokeStyle = shape.stroke;
+            context.lineWidth = shape.width;
+            context.beginPath();
+            for (const [x0, y0, x1, y1] of shape.segments) context.moveTo(x0, y0), context.lineTo(x1, y1);
+            context.stroke();
+          } else {
+            context.font = `${shape.weight} ${shape.size}px system-ui, sans-serif`;
+            context.fillStyle = shape.fill;
+            context.textAlign = shape.anchor === 'end' ? 'right' : 'left';
+            context.fillText(shape.text, ...shape.at);
+          }
+        }
+      }
+      function svg(shapes) {
+        const body = shapes.map((shape) => {
+          if (shape.kind === 'sky') {
+            const [x, y, w, h] = shape.box, stops = shape.stops.map(([at, colour]) => `<stop offset="${at}" stop-color="${colour}"/>`).join('');
+            return `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#sky)"/>`;
+          }
+          if (shape.kind === 'rect') {
+            const [x, y, w, h] = shape.box;
+            return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${shape.fill}"/>`;
+          }
+          if (shape.kind === 'circle') return `<circle cx="${shape.at[0]}" cy="${shape.at[1]}" r="${shape.at[2]}" fill="${shape.fill}"/>`;
+          if (shape.kind === 'poly') return `<polygon points="${shape.points.join(' ')}" fill="${shape.fill}"/>`;
+          if (shape.kind === 'lines') {
+            const path = shape.segments.map(([x0, y0, x1, y1]) => `M${x0} ${y0}L${x1} ${y1}`).join('');
+            return `<path d="${path}" stroke="${shape.stroke}" stroke-width="${shape.width}"/>`;
+          }
+          return `<text x="${shape.at[0]}" y="${shape.at[1]}" font-family="system-ui, sans-serif" font-size="${shape.size}" font-weight="${shape.weight}" fill="${shape.fill}" text-anchor="${shape.anchor}">${shape.text}</text>`;
+        });
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">${body.join('')}</svg>`;
+      }
+      const painted = (label) => {
+        const sheet = document.createElement('canvas');
+        sheet.width = sheet.height = SIZE;
+        paint(sheet.getContext('2d'), drawing(label));
+        return sheet;
+      };
+      const pixelsOf = (sheet) => sheet.getContext('2d').getImageData(0, 0, SIZE, SIZE).data;
+
+      // Two files written byte by byte. A BMP: a 54-byte header, then every pixel as blue, green,
+      // red, the rows from the bottom up, each padded to four bytes.
+      function bmp(rgba) {
+        const row = (SIZE * 3 + 3) & ~3, bytes = new DataView(new ArrayBuffer(54 + row * SIZE));
+        bytes.setUint16(0, 0x4d42, true);
+        bytes.setUint32(2, bytes.byteLength, true);
+        bytes.setUint32(10, 54, true);
+        bytes.setUint32(14, 40, true);
+        bytes.setInt32(18, SIZE, true);
+        bytes.setInt32(22, SIZE, true);
+        bytes.setUint16(26, 1, true);
+        bytes.setUint16(28, 24, true);
+        bytes.setUint32(34, row * SIZE, true);
+        for (let y = 0; y < SIZE; y++)
+          for (let x = 0; x < SIZE; x++) {
+            const from = ((SIZE - 1 - y) * SIZE + x) * 4, to = 54 + y * row + x * 3;
+            bytes.setUint8(to, rgba[from + 2]);
+            bytes.setUint8(to + 1, rgba[from + 1]);
+            bytes.setUint8(to + 2, rgba[from]);
+          }
+        return bytes.buffer;
+      }
+      // A GIF holds at most 256 colours: here a cube of 6 reds, 7 greens and 6 blues, each pixel
+      // taking the nearest. Its pixels are LZW codes; nine-bit codes with a clear code every 254
+      // keep the table from growing, a valid file without the compression.
+      function gif(rgba) {
+        const out = [], word = (value) => out.push(value & 255, value >> 8);
+        out.push(...[...'GIF89a'].map((c) => c.charCodeAt(0)));
+        word(SIZE), word(SIZE), out.push(0xf7, 0, 0);
+        for (let i = 0; i < 256; i++) out.push(...(i < 252 ? [Math.floor(i / 42) * 51, Math.round((Math.floor(i / 6) % 7) * 42.5), (i % 6) * 51] : [0, 0, 0]));
+        out.push(0x2c), word(0), word(0), word(SIZE), word(SIZE), out.push(0, 8);
+        const codes = [];
+        let bits = 0, held = 0, run = 0;
+        const emit = (code) => {
+          held |= code << bits;
+          for (bits += 9; bits >= 8; bits -= 8, held >>= 8) codes.push(held & 255);
+        };
+        emit(256);
+        for (let p = 0; p < rgba.length; p += 4) {
+          emit(Math.round(rgba[p] / 51) * 42 + Math.round(rgba[p + 1] / 42.5) * 6 + Math.round(rgba[p + 2] / 51));
+          if (++run === 254) emit(256), (run = 0);
+        }
+        emit(257);
+        if (bits > 0) codes.push(held & 255);
+        for (let i = 0; i < codes.length; i += 255) {
+          const block = codes.slice(i, i + 255);
+          out.push(block.length, ...block);
+        }
+        out.push(0, 0x3b);
+        return new Uint8Array(out);
+      }
+      const encoded = (sheet, type, quality) => new Promise((done) => sheet.toBlob(done, type, quality));
+
+      // Eight pictures: six files the browser decodes, through the one loader call, and two
+      // sources that are no file at all — a canvas and raw bytes.
+      const FORMATS = [
+        { name: 'PNG', note: say('lossless'), file: (sheet) => encoded(sheet, 'image/png') },
+        { name: 'JPEG', note: say('lossy'), lossy: 'image/jpeg' },
+        { name: 'WebP', note: say('lossy'), lossy: 'image/webp' },
+        { name: 'GIF', note: say('colours256'), file: (sheet) => new Blob([gif(pixelsOf(sheet))], { type: 'image/gif' }) },
+        { name: 'BMP', note: say('uncompressed'), file: (sheet) => new Blob([bmp(pixelsOf(sheet))], { type: 'image/bmp' }) },
+        { name: 'SVG', note: say('shapes'), file: () => new Blob([svg(drawing('SVG'))], { type: 'image/svg+xml' }) },
+        { name: 'Canvas', note: say('painted') },
+        { name: 'Raw pixels', note: say('bytes') },
+      ];
+      const QUALITY = 0.5;
+      // A file becomes a texture by its address; a page-made file gets one from `createObjectURL`.
+      async function load(blob) {
+        const url = URL.createObjectURL(blob);
+        try {
+          return await loader.texture(url);
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+      for (const format of FORMATS) {
+        const sheet = painted(format.name);
+        if (format.lossy) format.file = (from, quality = QUALITY) => encoded(from, format.lossy, quality);
+        if (format.file) {
+          format.sheet = sheet;
+          format.blob = await format.file(sheet);
+          format.texture = await load(format.blob);
+        } else if (format.name === 'Canvas') format.texture = texture.canvas(sheet);
+        else {
+          // Bytes of colour, not plain numbers: read as sRGB.
+          format.texture = texture.data(new Uint8Array(pixelsOf(sheet).buffer), SIZE, SIZE, 'rgba');
+          format.texture.colorSpace = 'srgb';
+        }
+        // Every source is kept as it arrives, its first row first: a decoded file, a canvas and
+        // raw bytes are then read the same way, and the picture's own coordinates (below) put
+        // that first row at the top.
+        format.texture.flipY = false;
+      }
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#e3a476');
+
+      // An open-air exhibition at the end of the day: a lawn, a paved half circle, cypresses
+      // behind, and the eight pictures on easels round the half circle.
+      const lawn = object.mesh(geometry.cylinder(46, 46, 0.4, 128), material.meshStandard({ color: '#5f7d3a', roughness: 0.95 }));
+      lawn.position.y = -0.2;
+      const paving = object.mesh(geometry.cylinder(9.5, 9.5, 0.08, 128), material.meshStandard({ color: '#c2ad90', roughness: 0.8 }));
+      paving.position.set(0, 0.04, 3);
+      world.scene.add(lawn, paving);
+      const bark = material.meshStandard({ color: '#5b3f2c', roughness: 0.9 }), leaves = material.meshStandard({ color: '#35592f', roughness: 0.85 });
+      const crown = geometry.cone(1, 5.2, 24), trunk = geometry.cylinder(0.14, 0.2, 1.2, 12);
+      for (let k = 0; k < 11; k++) {
+        const x = (k - 5) * 3.3 + Math.sin(k * 2.7) * 0.6, z = -9.5 - Math.abs(k - 5) * 0.7 + Math.cos(k * 1.9) * 0.8, tall = 0.8 + ((k * 7) % 5) * 0.1;
+        const tree = object.mesh(crown, leaves), foot = object.mesh(trunk, bark);
+        tree.position.set(x, 1.1 + 2.6 * tall, z);
+        tree.scale.set(1, tall, 1);
+        foot.position.set(x, 0.6, z);
+        world.scene.add(tree, foot);
+      }
+
+      const wood = material.meshStandard({ color: '#8a5a36', roughness: 0.7 });
+      const gilt = material.meshStandard({ color: '#d2a55a', metalness: 0.65, roughness: 0.35 });
+      const leg = geometry.box(0.07, 2.9, 0.07), ledge = geometry.box(1.9, 0.08, 0.2), board = geometry.box(1.8, 1.8, 0.05);
+      const bar = geometry.box(1.98, 0.09, 0.08), post = geometry.box(0.09, 1.8, 0.08), sheetShape = geometry.plane(1.8, 1.8);
+      // A plane's texture coordinates grow upward; an image's rows grow downward. Turned over
+      // here, the picture's first row sits at the top of the sheet and its text reads.
+      const sheetUv = sheetShape.attributes.uv;
+      for (let v = 0; v < sheetUv.count; v++) sheetUv.setXY(v, sheetUv.getX(v), 1 - sheetUv.getY(v));
+      const CENTRE = [0, 3], RADIUS = 7;
+      const easels = FORMATS.map((format, k) => {
+        const angle = ((k - (FORMATS.length - 1) / 2) / (FORMATS.length - 1)) * 2.4;
+        const x = CENTRE[0] + RADIUS * Math.sin(angle), z = CENTRE[1] - RADIUS * Math.cos(angle);
+        // The easel faces the middle of the half circle: its own +z points there.
+        const stand = object.group();
+        stand.position.set(x, 0, z);
+        stand.rotation.set(0, -angle, 0);
+        const left = object.mesh(leg, wood), right = object.mesh(leg, wood), back = object.mesh(leg, wood), shelf = object.mesh(ledge, wood);
+        left.position.set(-0.62, 1.42, 0);
+        left.rotation.set(-0.12, 0, 0.07);
+        right.position.set(0.62, 1.42, 0);
+        right.rotation.set(-0.12, 0, -0.07);
+        back.position.set(0, 1.35, -0.5);
+        back.rotation.set(0.3, 0, 0);
+        shelf.position.set(0, 0.86, 0.14);
+        // The picture on its board, framed; it turns about its own upright to show its face.
+        const frame = object.group();
+        frame.position.set(0, 1.85, 0.14);
+        const picture = object.mesh(sheetShape, material.meshStandard({ map: format.texture, roughness: 0.6 }));
+        picture.position.z = 0.03;
+        const backing = object.mesh(board, wood);
+        frame.add(picture, backing);
+        for (const y of [-0.94, 0.94]) {
+          const edge = object.mesh(bar, gilt);
+          edge.position.set(0, y, 0.04);
+          frame.add(edge);
+        }
+        for (const side of [-0.94, 0.94]) {
+          const edge = object.mesh(post, gilt);
+          edge.position.set(side, 0, 0.04);
+          frame.add(edge);
+        }
+        stand.add(left, right, back, shelf, frame);
+        world.scene.add(stand);
+        return { format, frame, at: [x, z], facing: [-Math.sin(angle), Math.cos(angle)] };
+      });
+
+      // A golden sun behind the visitor, high enough to reach every easel of the half circle
+      // face on, a cool sky above and a warm bounce from the ground.
+      world.scene.add(
+        light.directional({ color: '#ffc98a', intensity: 3, position: [-2, 11, 20], castShadow: true }),
+        light.hemisphere({ color: '#a3b6ec', groundColor: '#7a5a3c', intensity: 1.1 }),
+      );
+
+      const WIDE = { position: [0, 3.4, 12.5], target: [0, 1.7, -0.5] };
+      world.camera.position.set(0, 9, 24);
+      world.controls.target.set(0, 1.5, -2);
+      world.controls.minDistance = 1.2;
+      world.controls.maxDistance = 36;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      world.controls.update();
+      let flight = null;
+      const flyTo = ({ position, target }, seconds) => {
+        const { position: p } = world.camera, t = world.controls.target;
+        flight = { from: [p.x, p.y, p.z, t.x, t.y, t.z], to: [...position, ...target], seconds, time: 0 };
+      };
+      for (const type of ['pointerdown', 'wheel'])
+        world.canvas.addEventListener(type, () => (flight = null), { passive: true });
+
+      // The size of each picture as a file; the two that are no file take their bytes in memory.
+      const kb = (bytes) => `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`;
+      const sizeOf = (format) => {
+        if (!format.blob) return say('inMemory', { size: kb(SIZE * SIZE * 4), note: format.note });
+        // A browser that writes no WebP hands back a PNG: say so rather than call it WebP.
+        const wanted = format.lossy ?? format.blob.type;
+        return `${kb(format.blob.size)} · ${format.blob.type === wanted ? format.note : say('sentAs', { type: format.blob.type })}`;
+      };
+
+      // The quality of the two lossy files: each change writes them again and the easels show
+      // the new pictures, only once the new files are decoded.
+      let waiting = 0, asked = 0;
+      controls({
+        mouse: 'Drag to walk along the easels; lower the quality and look closely at JPEG and WebP',
+        quality: [0.02, 1, QUALITY, 0.01],
+        lookAt: ['allEight', ...FORMATS.map(({ name }) => name)],
+      }, (values, key) => {
+        if (key === 'quality') {
+          clearTimeout(waiting);
+          waiting = setTimeout(async () => {
+            const ask = ++asked;
+            const lossy = FORMATS.filter((format) => format.lossy);
+            const blobs = await Promise.all(lossy.map((format) => format.file(format.sheet, values.quality)));
+            const fresh = await Promise.all(blobs.map(load));
+            if (ask !== asked) return;
+            lossy.forEach((format, k) => {
+              format.blob = blobs[k];
+              format.texture.image = fresh[k].image;
+              format.line(sizeOf(format));
+            });
+            world.invalidate();
+          }, 150);
+        }
+        if (key === 'lookAt') {
+          const easel = easels.find(({ format }) => format.name === values.lookAt);
+          flyTo(easel ? { position: [easel.at[0] + easel.facing[0] * 2.6, 1.95, easel.at[1] + easel.facing[1] * 2.6], target: [easel.at[0], 1.85, easel.at[1]] } : WIDE, 1.8);
+        }
+        world.invalidate();
+      }, world);
+      for (const format of FORMATS) {
+        format.line = readout(format.name);
+        format.line(sizeOf(format));
+      }
+
+      // The opening: the camera comes down to the exhibition while the pictures, their backs to
+      // the viewer, turn one after another to show their faces.
+      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+      flyTo(WIDE, 4);
+      let time = 0;
+      world.onFrame(({ delta }) => {
+        const step = Math.min(delta, 0.05);
+        time += step;
+        // The last picture has turned by 4 s; after that the frames are never written again.
+        if (time < 4.5)
+          easels.forEach(({ frame }, k) => {
+            const turn = ease(Math.min(1, Math.max(0, (time - 0.8 - k * 0.3) / 1.1)));
+            frame.rotation.set(-0.12, Math.PI * (1 - turn), 0);
+          });
+        if (flight) {
+          flight.time = Math.min(1, flight.time + step / flight.seconds);
+          const e = ease(flight.time), [x, y, z, tx, ty, tz] = flight.from.map((value, i) => value + (flight.to[i] - value) * e);
+          world.camera.position.set(x, y, z);
+          world.controls.target.set(tx, ty, tz);
+          world.controls.update();
+          if (flight.time >= 1) flight = null;
+        }
+        if (flight || time < 4.5) world.invalidate();
+      });
+    </script>
+  </body>
+</html>

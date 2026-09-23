@@ -21,7 +21,8 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, helper } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4] }), light.ambient({ intensity: 0.3 }));
@@ -41,7 +42,7 @@
       world.camera.lookAt(0, 0, 0);
 
       controls({ help: 'Click a shape: it lights up, and the panel says where the ray met it.' });
-      const picked = readout('Picked'), where = readout('Point'), far = readout('Distance');
+      const picked = readout('picked'), where = readout('point'), far = readout('distance');
 
       // A click that did not drag the camera: the ray through the pointer, nearest object first.
       let down = null, chosen = null;
@@ -52,7 +53,7 @@
         chosen?.material.color.set('#7a8699');
         chosen = hit?.object ?? null;
         chosen?.material.color.set('#ffb347');
-        picked(chosen ? chosen.name : 'nothing');
+        picked(chosen ? say(chosen.name) : say('nothing'));
         where(hit ? hit.point.toArray().map((v) => v.toFixed(2)).join(', ') : '—');
         far(hit ? hit.distance.toFixed(2) : '—');
       });

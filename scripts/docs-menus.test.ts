@@ -3,14 +3,13 @@ import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadReactComponents } from './docs/render-react.ts';
-import { rawEntries } from '../site/app/portal/data.ts';
-import { localizeEntries } from '../site/content/i18n/index.ts';
+import { entriesIn } from '../site/app/portal/data.ts';
 import { apiIndex, apiMenu, learnMenu } from '../site/app/layout/menus.ts';
 import type { SidebarMenu as SidebarMenuComponent } from '../site/app/layout/SidebarMenu.tsx';
 
 test('the API index documents each symbol with its own sentence, and lists no guide', () => {
   for (const locale of ['en', 'fr'] as const) {
-    const items = apiIndex(localizeEntries(rawEntries, locale), {
+    const items = apiIndex(entriesIn(locale), {
       locale,
       area: 'api',
       id: '',
@@ -25,7 +24,7 @@ test('a sidebar is an accordion that opens on the group holding the current page
   const { SidebarMenu } = (await loadReactComponents('site/app/layout/SidebarMenu.tsx')) as {
     SidebarMenu: typeof SidebarMenuComponent;
   };
-  const entries = localizeEntries(rawEntries, 'en');
+  const entries = entriesIn('en');
   const groups = apiMenu(entries, { locale: 'en', area: 'api', id: 'multiplyMatrix4' });
   const holding = groups.findIndex((group) => group.items.some((item) => item.active));
   assert.ok(holding > 0);
@@ -48,7 +47,7 @@ test('a sidebar is an accordion that opens on the group holding the current page
 });
 
 test('one sidebar item at most is current, whatever the route', () => {
-  const entries = localizeEntries(rawEntries, 'en');
+  const entries = entriesIn('en');
   const ids = new Set(
     apiMenu(entries, { locale: 'en', area: 'api', id: '' }).flatMap((group) =>
       group.items.map(({ href }) => decodeURIComponent(href.split('/').pop()!)),
