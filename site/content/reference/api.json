@@ -1740,6 +1740,78 @@
     "description": ""
   },
   {
+    "id": "Capsule",
+    "module": "packages/sdk-core/src/collision/capsule.ts",
+    "exports": ["Capsule"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Capsule",
+    "signature": "interface Capsule",
+    "summary": "AN UPRIGHT CAPSULE against a triangle tree: the narrow phase of the character body.",
+    "members": [
+      {
+        "name": "feet",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "The lowest point, world space; `push` moves it."
+      },
+      {
+        "name": "radius",
+        "type": "number",
+        "desc": "Radius of the body, metres."
+      },
+      {
+        "name": "height",
+        "type": "number",
+        "desc": "Height from the feet to the top of the head, metres; at least two radii."
+      }
+    ],
+    "description": "The capsule stands on `feet` — the lowest point of its bottom sphere — and is every point within `radius` of the vertical segment from `feet + radius` to `feet + height - radius`. A pass finds every triangle nearer than `radius` to that segment and hands each overlap to `push` at once (`CapsuleContact`). The caller moves `feet`; the next triangle of the pass is measured from the moved capsule, so two walls meeting in a corner are both left in one pass."
+  },
+  {
+    "id": "CapsuleContact",
+    "module": "packages/sdk-core/src/collision/capsule.ts",
+    "exports": ["CapsuleContact"],
+    "section": "types",
+    "kind": "Type",
+    "title": "CapsuleContact",
+    "signature": "interface CapsuleContact",
+    "summary": "One overlap of a capsule and a surface.",
+    "members": [
+      {
+        "name": "normal",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "Unit direction out of the surface into the capsule: the way out."
+      },
+      {
+        "name": "surface",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "Unit normal of the surface itself, on the capsule's side. It differs from `normal` when the capsule touches an edge or a corner: it says which face that edge belongs to."
+      },
+      {
+        "name": "point",
+        "type": "Float64Array<ArrayBufferLike>",
+        "desc": "The touched point of the surface, world space."
+      },
+      {
+        "name": "depth",
+        "type": "number",
+        "desc": "How far the capsule is inside the surface along `normal`, > 0."
+      }
+    ],
+    "description": "The arrays are reused: a push reads them during the call only."
+  },
+  {
+    "id": "CapsulePush",
+    "module": "packages/sdk-core/src/collision/capsule.ts",
+    "exports": ["CapsulePush"],
+    "section": "types",
+    "kind": "Type",
+    "title": "CapsulePush",
+    "signature": "type CapsulePush = (contact: CapsuleContact) => void",
+    "summary": "Answers one contact, typically by moving the capsule's `feet` out of it.",
+    "description": ""
+  },
+  {
     "id": "CaptureSize",
     "module": "packages/sdk-browser/src/world/capture/index.ts",
     "exports": ["CaptureSize"],
@@ -1772,6 +1844,72 @@
     "signature": "type ChangeListener = () => void",
     "summary": "A function called when a controller moves the camera.",
     "description": ""
+  },
+  {
+    "id": "CharacterCameraControls",
+    "module": "packages/sdk-browser/src/camera/controls/characterControls.ts",
+    "exports": ["CharacterCameraControls"],
+    "section": "camera",
+    "kind": "Type",
+    "title": "CharacterCameraControls",
+    "signature": "interface CharacterCameraControls extends CameraControlBase, PersonHead, CharacterSettings",
+    "summary": "A CHARACTER, seen through its eyes: a body with mass that walks, runs, jumps and falls, and collides with the world's triangles as an upright capsule.",
+    "members": [
+      {
+        "name": "velocity",
+        "type": "Readonly<Float64Array<ArrayBufferLike>>",
+        "desc": "The body's velocity in metres per second, live: `[x, y, z]`, y up."
+      },
+      {
+        "name": "onGround",
+        "type": "boolean",
+        "desc": "Whether the feet are on a floor."
+      },
+      {
+        "name": "onLand",
+        "type": "((impact: number) => void) | null",
+        "desc": "Called on landing with the downward speed, in metres per second: a sound, a shake."
+      },
+      {
+        "name": "onJump",
+        "type": "(() => void) | null",
+        "desc": "Called when the body leaves the ground on a jump."
+      },
+      {
+        "name": "collision",
+        "type": "CharacterCollision | null",
+        "desc": "What the body collides with — the world's colliders, or a physics backend's world through the same seam (`CharacterCollision`). `null` walks level where the body stands, never falls."
+      },
+      {
+        "name": "update(delta?: number)",
+        "type": "boolean",
+        "desc": "Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did."
+      }
+    ],
+    "description": "The pointer turns the head as in first person (`look.ts`). The keys, by `KeyboardEvent.code` so every keyboard layout plays the same keys: W/S or the up and down arrows walk forward and back, A/D or the side arrows strafe, Shift sprints, Space jumps. The body does not start or stop at once: it gathers speed and brakes over `responseTime`, keeps its momentum in the air, falls under `gravity`, climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope` (`sdk-core/src/collision/characterBody.ts`). The camera is the eye, `eyeHeight` above the feet. A host that moves the camera itself teleports the body there, at rest. A still character — grounded, no speed, no key — emits nothing, so the scene stays still."
+  },
+  {
+    "id": "CharacterCollision",
+    "module": "packages/sdk-core/src/collision/characterCollision.ts",
+    "exports": ["CharacterCollision"],
+    "section": "types",
+    "kind": "Type",
+    "title": "CharacterCollision",
+    "signature": "interface CharacterCollision",
+    "summary": "THE SEAM BETWEEN A CHARACTER AND THE WORLD IT COLLIDES WITH.",
+    "members": [
+      {
+        "name": "resolveCapsule(capsule: Capsule, push: CapsulePush)",
+        "type": "boolean",
+        "desc": "Finds what `capsule` overlaps and calls `push(contact)` for each overlap, at once (`CapsuleContact`: the way out, the surface, the touched point, the depth). `push` moves `capsule.feet`; an implementation measures each next overlap from the moved capsule, so a corner is left in one call. Returns whether anything overlapped."
+      },
+      {
+        "name": "groundBelow(capsule: Capsule, depth: number, accepts: (contact: CapsuleContact) => boolean)",
+        "type": "number | null",
+        "desc": "Lowers the capsule's bottom sphere straight down, by at most `depth`, and returns how far it goes before it first rests on a surface `accepts` takes — the highest such support; negative when the capsule already sinks into it and must rise. `null` when there is none. `capsule.feet` is left where it was. `accepts` sees each candidate touch as a contact: `point`, `normal` from the point to the sphere's centre, `surface` the face turned up."
+      }
+    ],
+    "description": "The character body (`characterBody.ts`) never reads triangles: it moves its capsule in parts shorter than its radius and, after each, asks what the capsule overlaps and which way out; and a walker asks where the floor under its feet is. Everything else — speed, gravity, steps, slopes, jumps — is the body's own. A physics backend implements this interface to put a character in its world: it answers the overlap from its own shapes and broad phase, and the body walks on them unchanged. The default implementation is the static triangle tree of `triangleCollision`."
   },
   {
     "id": "Clip",
@@ -3933,40 +4071,8 @@
     "section": "camera",
     "kind": "Type",
     "title": "FirstPersonCameraControls",
-    "signature": "interface FirstPersonCameraControls extends SteeredCameraControls",
+    "signature": "interface FirstPersonCameraControls extends SteeredCameraControls, PersonHead",
     "summary": "FIRST PERSON, pointer locked: the pointer turns the head, the keys walk.",
-    "members": [
-      {
-        "name": "lookSpeed",
-        "type": "number",
-        "desc": "Radians turned per pixel of pointer motion."
-      },
-      {
-        "name": "minPitch",
-        "type": "number",
-        "desc": "Lowest the head looks, in radians below the horizon counted negative (0 is the horizon); by default just short of straight down. Raise it so a walker never looks into its own body."
-      },
-      {
-        "name": "maxPitch",
-        "type": "number",
-        "desc": "Highest the head looks, in radians above the horizon; by default just short of the zenith."
-      },
-      {
-        "name": "locked()",
-        "type": "boolean",
-        "desc": "Whether the pointer is locked to the view."
-      },
-      {
-        "name": "lock()",
-        "type": "void",
-        "desc": "Locks the pointer to the view."
-      },
-      {
-        "name": "unlock()",
-        "type": "void",
-        "desc": "Frees the pointer."
-      }
-    ],
     "description": "The horizon stays level — yaw about world up, pitch clamped to `[minPitch, maxPitch]`, never any roll — and the walk follows the yaw alone, so looking up does not lift the walker off the floor. THE LOCK IS THE HOST'S TO ASK FOR. A browser only grants a pointer lock inside a gesture, so the controller asks on `pointerdown` and publishes `lock()`, `unlock()` and `locked()` for a host that would rather choose its own moment; a lock the viewer escapes simply stops the look. Keys, by `KeyboardEvent.code`: W/S forward and back, A/D strafe, Space and left shift up and down."
   },
   {
@@ -4935,6 +5041,34 @@
     "signature": "const HIZ_NOTHING: number",
     "summary": "Value returned when no texels are read: cannot occlude anything.",
     "description": "Engine depth is REVERSED — near is 1, far is 0 (`../math/primitives/camera.ts`). A bounding box is occluded only if its nearest depth bound is FARTHER (smaller value) than the occluder depth."
+  },
+  {
+    "id": "HeadSettings",
+    "module": "packages/sdk-browser/src/camera/controls/look.ts",
+    "exports": ["HeadSettings"],
+    "section": "camera",
+    "kind": "Type",
+    "title": "HeadSettings",
+    "signature": "interface HeadSettings",
+    "summary": "THE HEAD OF A WALKER, pointer locked: the pointer turns it, the horizon stays level — yaw about world up, pitch clamped to `[minPitch, maxPitch]`, never any roll.",
+    "members": [
+      {
+        "name": "lookSpeed",
+        "type": "number",
+        "desc": "Radians turned per pixel of pointer motion."
+      },
+      {
+        "name": "minPitch",
+        "type": "number",
+        "desc": "Lowest the head looks, in radians below the horizon counted negative (0 is the horizon); by default just short of straight down. Raise it so a walker never looks into its own body."
+      },
+      {
+        "name": "maxPitch",
+        "type": "number",
+        "desc": "Highest the head looks, in radians above the horizon; by default just short of the zenith."
+      }
+    ],
+    "description": "Shared by every controller that looks through a person's eyes. THE LOCK IS THE HOST'S TO ASK FOR. A browser only grants a pointer lock inside a gesture, so the head asks on `pointerdown` and publishes `lock()`, `unlock()` and `locked()` for a host that would rather choose its own moment; a lock the viewer escapes simply stops the look, and an unlocked drag still turns the head."
   },
   {
     "id": "HizFlat",
@@ -9884,12 +10018,12 @@
     "section": "math",
     "kind": "Type",
     "title": "Path",
-    "signature": "class Path extends Curve\nnew Path(points?: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "class Path extends Curve\nnew Path(points?: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through every point, parameterised by arc length.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "default": "[]",
         "desc": ""
       }
@@ -9947,6 +10081,34 @@
         "name": "metrics()",
         "type": "MathPathMetrics",
         "desc": "What it measured and chose."
+      }
+    ],
+    "description": ""
+  },
+  {
+    "id": "PersonHead",
+    "module": "packages/sdk-browser/src/camera/controls/look.ts",
+    "exports": ["PersonHead"],
+    "section": "camera",
+    "kind": "Type",
+    "title": "PersonHead",
+    "signature": "interface PersonHead extends HeadSettings",
+    "summary": "What a controller that looks through a person's eyes publishes: the head and its lock.",
+    "members": [
+      {
+        "name": "locked()",
+        "type": "boolean",
+        "desc": "Whether the pointer is locked to the view."
+      },
+      {
+        "name": "lock()",
+        "type": "void",
+        "desc": "Locks the pointer to the view."
+      },
+      {
+        "name": "unlock()",
+        "type": "void",
+        "desc": "Frees the pointer."
       }
     ],
     "description": ""
@@ -14984,6 +15146,24 @@
     "description": ""
   },
   {
+    "id": "TriangleCollision",
+    "module": "packages/sdk-core/src/collision/characterCollision.ts",
+    "exports": ["TriangleCollision"],
+    "section": "types",
+    "kind": "Type",
+    "title": "TriangleCollision",
+    "signature": "interface TriangleCollision extends CharacterCollision",
+    "summary": "The default collision world: a static triangle tree.",
+    "members": [
+      {
+        "name": "tree",
+        "type": "TriangleTree",
+        "desc": "The tree answered from: its `triangleCount` and `bytes` are the world's cost."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "UNSPLIT_PASS",
     "module": "packages/sdk-core/src/contracts/geometry.ts",
     "exports": ["UNSPLIT_PASS"],
@@ -15539,7 +15719,7 @@
     "section": "world",
     "kind": "Constant",
     "title": "world.controls",
-    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; update(delta?: number): void; follow: () => void; dispose(): void; } & { minDistance: numb...",
+    "signature": "world.controls: { kind: WorldControls; enabled: boolean; readonly target: Vector3; colliders: Object3D | readonly Object3D[] | null; rebuildColliders(): void; readonly veloc...",
     "summary": "The mouse and keyboard controller that moves the camera.",
     "members": [
       {
@@ -15556,6 +15736,26 @@
         "name": "target",
         "type": "Vector3",
         "desc": "The point a pivot controller turns around."
+      },
+      {
+        "name": "colliders",
+        "type": "Object3D | readonly Object3D[] | null",
+        "desc": "Character only: the meshes the body collides with — one object or a list, their descendants included — or `null`. Setting them builds a static triangle tree from their world-space triangles as they stand now: one pass over the triangles and an `O(T log T)` build, about 52 bytes kept per triangle. Compiled models are not read yet: give a simple mesh stand-in for them."
+      },
+      {
+        "name": "rebuildColliders()",
+        "type": "void",
+        "desc": "Character only: builds the collision tree again, after the colliders moved or changed."
+      },
+      {
+        "name": "velocity",
+        "type": "Vector3",
+        "desc": "Character only: the body's velocity in metres per second, a copy; zero otherwise."
+      },
+      {
+        "name": "onGround",
+        "type": "boolean",
+        "desc": "Character only: whether the feet are on a floor; `false` for any other controller."
       },
       {
         "name": "update(delta?: number)",
@@ -15676,6 +15876,81 @@
         "name": "autoForward",
         "type": "boolean",
         "desc": "Flight only: flies forward at `movementSpeed` with no key, W faster, S to a halt."
+      },
+      {
+        "name": "walkSpeed",
+        "type": "number",
+        "desc": "Character only: metres per second on foot; 4.5 by default, a steady run."
+      },
+      {
+        "name": "sprintSpeed",
+        "type": "number",
+        "desc": "Character only: metres per second with Shift held; 7 by default."
+      },
+      {
+        "name": "jumpSpeed",
+        "type": "number",
+        "desc": "Character only: upward speed a jump starts with, m/s; `sqrt(2 g h)` reaches `h`, 1.1 m by default."
+      },
+      {
+        "name": "gravity",
+        "type": "number",
+        "desc": "Character only: downward acceleration, m/s²; 9.80665 by default."
+      },
+      {
+        "name": "airControl",
+        "type": "number",
+        "desc": "Character only: how fast the keys steer in the air, as a fraction of the ground response; 0.3 by default, 0 is ballistic."
+      },
+      {
+        "name": "responseTime",
+        "type": "number",
+        "desc": "Character only: seconds to reach 95 % of the wished speed, or to stop, on the ground; one gait step (1 / 1.8 s) by default."
+      },
+      {
+        "name": "capsuleRadius",
+        "type": "number",
+        "desc": "Character only: radius of the body, metres; half a shoulder breadth (0.23 m) by default."
+      },
+      {
+        "name": "capsuleHeight",
+        "type": "number",
+        "desc": "Character only: height of the body, metres; 1.75 by default."
+      },
+      {
+        "name": "eyeHeight",
+        "type": "number",
+        "desc": "Character only: height of the camera above the feet, metres; 1.64 by default."
+      },
+      {
+        "name": "stepHeight",
+        "type": "number",
+        "desc": "Character only: highest ledge climbed without a jump, metres; the knee height (0.5 m) by default."
+      },
+      {
+        "name": "maxSlope",
+        "type": "number",
+        "desc": "Character only: steepest floor stood on, radians from level; 45° by default."
+      },
+      {
+        "name": "coyoteTime",
+        "type": "number",
+        "desc": "Character only: seconds after walking off an edge a jump is still granted; 0.1 by default."
+      },
+      {
+        "name": "jumpBuffer",
+        "type": "number",
+        "desc": "Character only: seconds a jump pressed before landing is kept for the landing; 0.1 by default."
+      },
+      {
+        "name": "onLand",
+        "type": "((impact: number) => void) | null",
+        "desc": "Character only: called on landing with the downward speed in m/s; `null` by default."
+      },
+      {
+        "name": "onJump",
+        "type": "(() => void) | null",
+        "desc": "Character only: called when the body leaves the ground on a jump; `null` by default."
       }
     ],
     "description": ""
@@ -15945,9 +16220,9 @@
     "section": "world",
     "kind": "Type",
     "title": "WorldControls",
-    "signature": "type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'trackball' | 'panZoom' | 'none'",
+    "signature": "type WorldControls = 'orbit' | 'fly' | 'firstPerson' | 'character' | 'trackball' | 'panZoom' | 'none'",
     "summary": "The ways a page can steer the camera with the mouse and keyboard, or `'none'`.",
-    "description": ""
+    "description": "`'firstPerson'` moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with `world.controls.colliders` — and looks through its eyes."
   },
   {
     "id": "WorldFrameMetrics",
@@ -26779,12 +27054,12 @@
     "section": "math",
     "kind": "Function",
     "title": "math.path()",
-    "signature": "math.path(points: (Vec3Input | readonly [number, number])[]): Path",
+    "signature": "math.path(points: (readonly [number, number] | Vec3Input)[]): Path",
     "summary": "Straight segments through the points, 2D points lying in the `z = 0` plane.",
     "parameters": [
       {
         "name": "points",
-        "type": "(Vec3Input | readonly [number, number])[]",
+        "type": "(readonly [number, number] | Vec3Input)[]",
         "desc": "The corners, 2D or 3D."
       }
     ],

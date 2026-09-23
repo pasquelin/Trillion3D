@@ -42,6 +42,7 @@ export { camera } from '../sdk-core/src/world/camera/index.ts';
 export { Camera } from '../sdk-core/src/world/camera/camera.ts';
 export type { CameraParameters, CameraPose } from '../sdk-core/src/world/camera/camera.ts';
 export { capability } from '../sdk-browser/src/world/capability/index.ts';
+export type { Capsule, CapsuleContact, CapsulePush } from '../sdk-core/src/collision/capsule.ts';
 export { capture } from '../sdk-browser/src/world/capture/index.ts';
 export type { CaptureSize } from '../sdk-browser/src/world/capture/index.ts';
 export type {
@@ -49,6 +50,11 @@ export type {
   ControlVector,
   PivotCameraControls,
 } from '../sdk-browser/src/camera/controls/types.ts';
+export type { CharacterCameraControls } from '../sdk-browser/src/camera/controls/characterControls.ts';
+export type {
+  CharacterCollision,
+  TriangleCollision,
+} from '../sdk-core/src/collision/characterCollision.ts';
 export { Color } from '../sdk-core/src/world/math/color.ts';
 export type { ColorInput } from '../sdk-core/src/world/math/color.ts';
 export type { ComparisonLayout } from '../sdk-browser/src/measurement/comparison.ts';
@@ -96,6 +102,7 @@ export { gpuPassBlockTotals } from '../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../sdk-browser/src/gpu/core/passBlocks.ts';
 export { Group, Object3D } from '../sdk-core/src/world/object/object3d.ts';
 export type { SceneLink } from '../sdk-core/src/world/object/object3d.ts';
+export type { HeadSettings, PersonHead } from '../sdk-browser/src/camera/controls/look.ts';
 export { helper } from '../sdk-browser/src/world/helper/index.ts';
 export type {
   HostAttribute,
