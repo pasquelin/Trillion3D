@@ -137,5 +137,6 @@ export type {
   TriangleCollision,
 } from '../../sdk-core/src/collision/characterCollision.ts';
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
+export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts';
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts';
 export type { PanZoomCameraControls } from './camera/controls/panZoomControls.ts';
