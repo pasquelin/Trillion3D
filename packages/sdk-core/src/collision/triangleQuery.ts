@@ -70,7 +70,7 @@ const normal = new Float64Array(3);
  * plane is met first, then the point is tested inside the edges (`insideTriangle`, the rule the
  * capsule's contacts read).
  */
-export function crossTriangle(
+function crossTriangle(
   o: ArrayLike<number>,
   d: ArrayLike<number>,
   v: ArrayLike<number>,
