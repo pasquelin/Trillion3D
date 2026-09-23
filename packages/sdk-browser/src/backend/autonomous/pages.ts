@@ -10,7 +10,7 @@ import { createAutonomousGeometry } from './geometry.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './manifest.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './residency.ts';
-import { createAutonomousPool } from './pool.ts';
+import { createAutonomousPool } from './poolApi.ts';
 import { createContractLighting } from '../../lighting/contractLightingApi.ts';
 import { createThreeSceneDraw, hostDiagnostics } from '../../host/three/sceneAdapter.ts';
 import type { BackendFactory } from '../types.ts';
@@ -64,7 +64,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     colorMaterials,
     modifiedPages,
   });
-  const { sync, storeGeometryPage, acceptGeometryPage } = geometryStore;
+  const { sync, acceptGeometryPage } = geometryStore;
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
   const { disposeOwnedMaterials, ...instances } = createAutonomousInstances({
@@ -86,15 +86,26 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     byUrl,
     geometryStore,
   });
+  const placements = autonomousPlacements({
+    ...tables,
+    blendCopies,
+    scene,
+    gate,
+    rowsWritten: geometryStore.rowsWritten,
+  });
   // The fixed geometry budget, drawn by the WebGPU pool's rule; `setMemoryBudgets` redraws it.
   const pool = createAutonomousPool({
+    ...tables,
     context,
     descriptors,
     bootstrapUrls,
-    allPages,
+    modifiedPages,
+    cap,
     gate,
     geometryStore,
     residency,
+    instances,
+    placements,
   });
   const renderFrame = createAutonomousRender({
     state,
@@ -132,7 +143,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
           acceptGeometryPage(url, await decodePageOffThread(bytes, context.signal));
         }),
       );
-      pool.budget.rooted();
+      pool.budget.rootsChanged();
       ready = true;
       shown.push(...bootstrap);
       sync();
@@ -143,22 +154,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     drawHostGeometry: hostDraw.drawHostGeometry,
     ...instances,
-    ...autonomousPlacements({
-      ...tables,
-      blendCopies,
-      scene,
-      gate,
-      rowsWritten: geometryStore.rowsWritten,
-    }),
+    ...placements,
     ...lightingApi,
     ...residency,
     ...pool.api,
-    replaceGeometryPage(url, data) {
-      if (!byUrl.has(url)) throw new Error('AUTONOMOUS_PAGE_MISSING');
-      gate.resourcesChanged();
-      storeGeometryPage(url, data);
-      modifiedPages.add(url);
-    },
     syncResident() {
       gate.resourcesChanged();
       sync();
@@ -173,7 +172,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         clusters: state.visible,
         selectedTriangles: state.selectedTriangles,
         residentPages: comptePagesResidentes(allPages),
-        geometryAllocationBytes: geometryStore.state.allocationBytes,
         ...pool.metrics,
         cacheEvictions: residency.cacheEvictions,
         frustumRejected: state.frustumRejected,
@@ -182,8 +180,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
         drawCalls: attachedPages(shown),
         coverageReady: ready,
-        coverageBudgetLimited: state.overBudget,
-        budgetPixelError: state.budgetPixelError,
+        coverageBudgetLimited: state.overBudget || pool.budget.coverageBudgetLimited,
         frameHeld: state.frameHeld,
       };
     },

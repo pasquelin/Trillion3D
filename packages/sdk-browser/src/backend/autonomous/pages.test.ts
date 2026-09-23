@@ -170,7 +170,14 @@ test('the WebGL2 path holds the geometry pool and publishes it in its metrics', 
     const held = backend.metrics();
     assert.equal(held.geometryPoolBytes, 512 * 1024 * 1024);
     assert.equal(held.geometryPoolAllocatedBytes, encoded.uncompressedBytes);
+    assert.equal(held.geometryPoolAllocatedBytes, held.geometryAllocationBytes, 'one source');
     assert.equal(held.geometryPoolClamp, 'scene');
+    // Both budgets are checked before either changes, as on WebGPU.
+    await assert.rejects(
+      backend.setMemoryBudgets!({ geometryPoolBytes: 1, texturePoolBytes: 0 }),
+      /INVALID_TEXTURE_POOL_BUDGET/,
+    );
+    assert.equal(backend.metrics().geometryPoolBytes, 512 * 1024 * 1024, 'nothing changed');
     // A budget under the root cover is raised to it, by name, and evicts nothing drawn.
     const report = await backend.setMemoryBudgets!({ geometryPoolBytes: 1 });
     assert.equal(report.geometryPool.clamp, 'root-cover');
