@@ -67,7 +67,7 @@
         checks.needsUpdate = true;
         painted.color.set(values.paint);
         world.invalidate();
-      });
+      }, world);
       world.onFrame(({ delta }) => {
         if (!ui.spin) return;
         for (const mesh of shapes) mesh.rotation.y += delta * 0.6;

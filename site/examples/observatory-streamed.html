@@ -38,7 +38,7 @@
       controls({ view: ['clusters', 'beauty', 'pages', 'lod', 'triangles'], pixelError: [0, 16, 0, 0.5] }, (values) => {
         world.diagnostic.mode = values.view;
         world.pixelError = values.pixelError;
-      });
+      }, world);
       world.invalidate();
     </script>
   </body>

@@ -63,7 +63,7 @@
         });
         world.exposure = values.exposure;
         world.toneMapping = values.toneMapping;
-      });
+      }, world);
       // The light each sign throws on the wall breathes; the tubes' own material stays as set,
       // so nothing but a light changes from frame to frame.
       world.onFrame(({ time }) => {

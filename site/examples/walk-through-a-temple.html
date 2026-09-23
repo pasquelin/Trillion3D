@@ -85,7 +85,7 @@
         for (const lamp of fires) lamp.color.set(values.flame);
         flame.emissive.set(values.flame);
         world.invalidate();
-      });
+      }, world);
       world.onFrame(({ time }) => {
         fires.forEach((lamp, index) => (lamp.intensity = ui.fire * (0.8 + 0.2 * Math.sin(time * 13 + index * 7) * Math.sin(time * 5 + index))));
         idol.rotation.y = time * 0.5;

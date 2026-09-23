@@ -64,7 +64,7 @@
         glass.ior = values.refraction;
         glass.thickness = values.thickness;
         glass.color.set(values.tint);
-      });
+      }, world);
       world.onFrame(({ delta }) => {
         if (!ui.spin) return;
         for (const piece of pieces) piece.rotation.y += delta * 0.6;

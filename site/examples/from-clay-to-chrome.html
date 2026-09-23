@@ -57,7 +57,7 @@
       const ui = controls({ colour: '#e8a25a', lamps: [0, 80, 40], swing: true }, (values) => {
         for (const matter of spheres) matter.color.set(values.colour);
         for (const lamp of lamps) lamp.intensity = values.lamps;
-      });
+      }, world);
       let angle = 0.6;
       world.onFrame(({ delta }) => {
         if (ui.swing) angle += delta * 0.5;

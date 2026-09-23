@@ -64,7 +64,7 @@
         flights.forEach((flight, index) => (flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180));
         lantern.color.set(values.lantern);
         world.invalidate();
-      });
+      }, world);
       let at = 0;
       world.onFrame(({ delta }) => {
         at = (at + delta * ui.climb) % 34;

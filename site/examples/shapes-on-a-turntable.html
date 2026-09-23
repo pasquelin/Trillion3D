@@ -54,7 +54,7 @@
 
       const ui = controls({ colour: '#e0663c', speed: [0, 2, 0.5], spin: true }, ({ colour }) => {
         paint.color.set(colour);
-      });
+      }, world);
       // Every frame, the turntable turns and each shape spins on itself.
       world.onFrame(({ delta }) => {
         if (!ui.spin) return;
