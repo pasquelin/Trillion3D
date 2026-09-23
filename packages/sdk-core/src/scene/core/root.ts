@@ -5,8 +5,10 @@ import { sceneNodeFail, sceneNodeVisibility } from './nodeError.ts';
 
 /** Owner of one scene hierarchy and its stable node identifiers. */
 export class SceneRoot extends SceneNode {
+  /** Scene model version. */
   readonly version = SCENE_MODEL_VERSION;
 
+  /** Makes a new node. */
   createNode(options: SceneNodeOptions = {}) {
     const slot = this.reserve(options);
     return this.register(new SceneNode(slot.state, slot.id, slot.index, slot.visible));
@@ -38,6 +40,7 @@ export class SceneRoot extends SceneNode {
     return node;
   }
 
+  /** The node named `id`. */
   node(id: string) {
     return this.state.ids.get(id);
   }

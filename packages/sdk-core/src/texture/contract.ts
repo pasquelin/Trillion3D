@@ -37,14 +37,23 @@ export interface Texture {
   readonly image: unknown;
   /** UV set the sampler reads, `KHR_texture_transform`'s `texCoord`; the engine samples 0 and 1. */
   readonly channel: number;
+  /** Repeat across. */
   readonly wrapS: WrapMode;
+  /** Repeat up. */
   readonly wrapT: WrapMode;
+  /** Filter when bigger. */
   readonly magFilter: TextureFilter;
+  /** Filter when smaller. */
   readonly minFilter: TextureFilter;
+  /** Sharpness at a slant. */
   readonly anisotropy: number;
+  /** Whether rows are flipped. */
   readonly flipY: boolean;
+  /** Whether colour is pre-multiplied. */
   readonly premultiplyAlpha: boolean;
+  /** Whether smaller copies are made. */
   readonly generateMipmaps: boolean;
+  /** How its numbers are read. */
   readonly colorSpace: TextureColorSpace;
   /** UV transform of the sampler, `KHR_texture_transform` composed into three rows of three. */
   readonly transform: readonly number[];

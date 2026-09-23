@@ -19,6 +19,7 @@ export interface BounceBudget {
   readonly samples: number;
   /** Target duration in milliseconds set by host. */
   readonly budgetMs: number;
+  /** Records how long the stage took. */
   observe(ms: number | null): void;
 }
 
@@ -29,6 +30,7 @@ export function bounceBatchOf(ceiling: number, load: number) {
   return Math.max(1, Math.round(ceiling * load));
 }
 
+/** Keeps the light-bounce work under a time budget, frame after frame. */
 export function createBounceBudget(budgetMs: number): BounceBudget {
   const target = Number.isFinite(budgetMs) && budgetMs > 0 ? budgetMs : BOUNCE_SETTINGS.budgetMs;
   const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS;

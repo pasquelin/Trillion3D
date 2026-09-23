@@ -24,7 +24,10 @@ export function copyElements(into: { [index: number]: number }, from: ArrayLike<
  * Column-major 4×4 matrix owned by HOST — pose of a node in its scene. Engine only reads
  * its sixteen floats: no host library structure crosses a signature.
  */
-export type MatrixElements = { readonly elements: ArrayLike<number> };
+export type MatrixElements = {
+  /** The sixteen numbers, column by column. */
+  readonly elements: ArrayLike<number>;
+};
 
 /**
  * The same sixteen floats, WRITABLE term by term: the pose a boundary sets back on a host node
@@ -32,6 +35,7 @@ export type MatrixElements = { readonly elements: ArrayLike<number> };
  * it; nothing asks the host to compose them — `copyElements` writes them as they stand.
  */
 export type HostNodeMatrix = {
+  /** The sixteen numbers, by index. */
   readonly elements: { [index: number]: number; readonly length: number };
 };
 
