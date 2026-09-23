@@ -1,8 +1,6 @@
 import { examples } from '../content/catalog.ts';
 
 const related: Record<string, string> = {
-  'example-camera': 'perspective',
-  'example-batch': 'hierarchy',
   createCameraFrame: 'frustum',
   updateCameraFrame: 'frustum',
   frustumFarPlane: 'frustum',

@@ -48,7 +48,8 @@ function chapterHtml(
     `<ol>${text.steps.map((step) => `<li>${step}</li>`).join('')}</ol>`,
     heading(words.code),
     ...code.map(
-      (block) => `<pre class="rounded-box bg-base-200 p-4 text-sm"><code>${escape(block)}</code></pre>`,
+      (block) =>
+        `<pre class="rounded-box bg-base-200 p-4 text-sm"><code>${escape(block)}</code></pre>`,
     ),
     heading(words.tryIt),
     `<p>${text.tryIt}</p>`,
@@ -68,7 +69,10 @@ export function courseEntries(
     const text = texts[id];
     const following = CHAPTERS[index + 1];
     const next = following
-      ? { href: `#/${locale}/learn/${following.id}`, label: `${words.next}: ${texts[following.id].title}` }
+      ? {
+          href: `#/${locale}/learn/${following.id}`,
+          label: `${words.next}: ${texts[following.id].title}`,
+        }
       : { href: `#/${locale}/examples`, label: words.end };
     return {
       id,

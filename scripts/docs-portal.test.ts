@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   entryRoute,
+  LEARN_SECTIONS,
   navLinks,
   parseRoute,
   resolvePage,
@@ -50,7 +51,7 @@ test('the header marks the area of the route, the lessons under Learn', () => {
     navLinks(parseRoute(hash))
       .filter((link) => link.current)
       .map(({ area, href }) => `${area} ${href}`);
-  assert.deepEqual(current('#/fr/learn/quick-start'), ['learn #/fr/learn/home']);
+  assert.deepEqual(current('#/fr/learn/create-a-world'), ['learn #/fr/learn/home']);
   assert.deepEqual(current('#/en/lessons/rotate'), ['learn #/en/learn/home']);
   assert.deepEqual(current('#/en/examples/cube'), ['examples #/en/examples']);
   assert.deepEqual(current('#/en/api/createWorld'), ['api #/en/api']);
@@ -102,24 +103,24 @@ test('the site search reads every guide, API entry, ready example and lesson in 
 
 test('page resolution distinguishes entries, lessons, and unknown addresses', () => {
   const entries: PortalEntry[] = [
-    { id: 'quick-start', section: 'guides', kind: 'Guide', description: '' },
+    { id: 'create-a-world', section: 'course', kind: 'Chapter', description: '' },
     { id: 'matrix4', section: 'matrices', kind: 'Type', description: '' },
-    { id: 'example-camera', section: 'examples', kind: 'Guide', description: '' },
+    { id: 'architecture', section: 'internals', kind: 'Guide', description: '' },
   ];
   const locale = 'en' as const;
-  assert.equal(resolvePage({ locale, area: 'learn', id: 'quick-start' }, entries).kind, 'entry');
+  assert.equal(resolvePage({ locale, area: 'learn', id: 'create-a-world' }, entries).kind, 'entry');
   assert.equal(
     resolvePage({ locale, area: 'lessons', id: 'rotate' }, entries, ['rotate']).kind,
     'lesson',
   );
-  assert.equal(resolvePage({ locale, area: 'learn', id: 'example-camera' }, entries).kind, 'entry');
+  assert.equal(resolvePage({ locale, area: 'learn', id: 'architecture' }, entries).kind, 'entry');
   assert.equal(
-    resolvePage({ locale, area: 'examples', id: 'example-camera' }, entries).kind,
+    resolvePage({ locale, area: 'examples', id: 'architecture' }, entries).kind,
     'not-found',
   );
   assert.equal(
-    entryRoute({ id: 'example-camera', section: 'examples', kind: 'Guide', description: '' }, 'en'),
-    '#/en/learn/example-camera',
+    entryRoute({ id: 'architecture', section: 'internals', kind: 'Guide', description: '' }, 'en'),
+    '#/en/learn/architecture',
   );
   assert.equal(resolvePage({ locale, area: 'examples', id: '' }, entries).kind, 'examples');
   assert.equal(
@@ -176,7 +177,7 @@ test('localized prose titles keep canonical routes and old encoded links still r
 test('every bilingual API menu link resolves to its source entry', () => {
   for (const locale of ['en', 'fr'] as const) {
     const entries = localizeEntries(rawEntries, locale).filter(
-      ({ section }) => !['guides', 'examples'].includes(section),
+      ({ section }) => !LEARN_SECTIONS.includes(section),
     );
     for (const link of expandEntryLinks(entries)) {
       assert.equal(canonicalEntryId(entries, link.id), link.entry.id, `${locale}:${link.id}`);

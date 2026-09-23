@@ -35,8 +35,9 @@ export interface PortalEntry {
 }
 
 export const SECTIONS = [
+  { id: 'course', title: 'Course' },
   { id: 'guides', title: 'Guides' },
-  { id: 'examples', title: 'SDK examples' },
+  { id: 'internals', title: 'How it works' },
   { id: 'world', title: 'The world' },
   { id: 'families', title: 'Families' },
   { id: 'measurement', title: 'Measurement entry' },
