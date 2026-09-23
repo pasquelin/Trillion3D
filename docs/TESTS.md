@@ -23,7 +23,7 @@ bench/
   perf/core/          14 *.perf.ts
   perf/browser/       38 *.perf.ts + 32 support modules
   oracles/            45 reference implementations, copied verbatim
-  runner/             81 modules: the measurement harness (README)
+  runner/             82 modules: the measurement harness (README)
 ```
 <!-- tests-inventory:end -->
 
