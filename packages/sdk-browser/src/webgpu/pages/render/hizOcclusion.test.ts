@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from '../pages.ts';
-import { collectClusterPages, selectVisiblePages } from '../../../page/selection/selection.ts';
+import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts';
-import { assertOccluderImage, occluderScene } from '../testOccluder.fixture.ts';
-import { cameraMoteur } from '../../../camera/camera.fixture.ts';
+import {
+  assertOccluderImage,
+  occluderScene,
+  preparedOccluderRun,
+} from '../testOccluder.fixture.ts';
 import type { WebgpuPagesBackend } from '../runtime.ts';
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../../sdk-core/src/index.ts';
 
@@ -30,22 +33,9 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
   };
   const viewport: [number, number] = [32, 32];
   const collected = collectClusterPages(source, metadata, indices, associations);
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 4,
-    viewport,
-  }) as WebgpuPagesBackend;
-  const cam = camera();
-  const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
-    pixelError: 0,
-    viewport,
-  });
-  await backend.prepare();
-  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
+  const run = await preparedOccluderRun(scene, metadata, collected.roots, device, viewport);
+  const { cam, cpu } = run,
+    backend = run.backend as WebgpuPagesBackend;
   backend.render(cam);
   await backend.flush();
   backend.render(cam);
