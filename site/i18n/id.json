@@ -106,7 +106,7 @@
     "menu": {
       "file": "File",
       "add": "Tambah",
-      "edit": "Edit",
+      "edit": "Sunting",
       "models": "Model"
     },
     "new": "Baru",
@@ -143,10 +143,10 @@
       "world": "Sumbu dunia",
       "local": "Sumbu objek"
     },
-    "pedestal": "Pedestal",
-    "panels": "Panels",
+    "pedestal": "Alas",
+    "panels": "Panel",
     "snap": "Magnet",
-    "outliner": "Scene",
+    "outliner": "Adegan",
     "empty": "Scene masih kosong: tambahkan objek dari menu Tambah.",
     "show": "Tampilkan",
     "hide": "Sembunyikan",
