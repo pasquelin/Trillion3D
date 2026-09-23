@@ -6,9 +6,13 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { repositoryFiles } from './repository-files.ts';
 
-/** A sentence that names the library, not the number: the capitalised word mid-sentence counts. */
+/**
+ * A sentence that names the library, not the number: the capitalised word counts mid-sentence
+ * only, so a sentence opening on the number passes — and so does the library's name at the start
+ * of a wrapped line, a gap left open rather than refusing ordinary English.
+ */
 const LIBRARY =
-  /Three\.js|three\.?js|^\s*Three\b(?!\s+(?:[a-z]+s|of|to)\b)|THREE\.|@types\/three|[`'"]three(?:\/[^`'"]*)?[`'"]|(?<=[a-z,;:)] )Three(?:'s)?\b/;
+  /Three\.js|three\.?js|THREE\.|@types\/three|[`'"]three(?:\/[^`'"]*)?[`'"]|(?<=[a-z,;:)] )Three(?:'s)?\b/;
 const ALLOWED_SECTION = /\b(?:witness(?:es)?|migrat\w*|benchmarks?|measur\w*)\b/i;
 const HEADING = /^(#{1,6})\s+(.*)$/;
 const FENCE = /^\s*(```|~~~)/;
