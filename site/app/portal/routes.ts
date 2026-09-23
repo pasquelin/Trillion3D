@@ -8,9 +8,14 @@ function decodeId(value: string) {
     return value;
   }
 }
-/** The portal areas, in navigation order. */
-export const AREAS = ['learn', 'examples', 'lessons', 'playground', 'api', 'reports'] as const;
-export type RouteArea = (typeof AREAS)[number];
+
+/** The areas of the header, in navigation order; each has its own sidebar. */
+const AREAS = ['learn', 'examples', 'api', 'reports'] as const;
+export type NavArea = (typeof AREAS)[number];
+
+/** Every area a route may name: the header's, and the lessons, which live under Learn. */
+const ROUTE_AREAS = [...AREAS, 'lessons'] as const;
+type RouteArea = (typeof ROUTE_AREAS)[number];
 
 export interface PortalRoute {
   locale: Locale;
@@ -27,55 +32,39 @@ export type ResolvedPage =
   | { kind: 'example'; id: string }
   | { kind: 'gallery' }
   | { kind: 'engine-scene' }
-  | { kind: 'playground'; id: string }
+  | { kind: 'lesson'; id: string }
   | { kind: 'api-index' }
   | { kind: 'not-found' };
 
-const DEFAULT_ROUTE: PortalRoute = Object.freeze({
-  locale: 'en',
-  area: 'learn',
-  id: 'home',
-});
-const AREA_SET: ReadonlySet<string> = new Set(AREAS);
+const AREA_SET: ReadonlySet<string> = new Set(ROUTE_AREAS);
 const isArea = (value: string | undefined): value is RouteArea =>
   value !== undefined && AREA_SET.has(value);
-const LEGACY_SECTIONS = new Set([
-  'guides',
-  'demo',
-  'enums',
-  'lifecycle',
-  'camera',
-  'host',
-  'matrices',
-  'vectors',
-  'colors',
-  'bounds',
-  'tree',
-  'batches',
-]);
+const LEARN_SECTIONS = ['guides', 'examples'];
 
+/** The header area a route belongs to: the lessons are read from Learn. */
+const navArea = (area: RouteArea): NavArea => (area === 'lessons' ? 'learn' : area);
+
+/** The header's links for `route`: each area's first page, the route's own area current. */
+export const navLinks = (route: PortalRoute) =>
+  AREAS.map((area) => ({
+    area,
+    href: routeHref({ locale: route.locale, area, id: area === 'learn' ? 'home' : '' }),
+    current: navArea(route.area) === area,
+  }));
+
+/**
+ * Reads `#/<locale>/<area>/<id>`. A hash without a locale opens the home page in
+ * `fallbackLocale`; an unknown area keeps its whole path as the id, which then resolves to no page.
+ */
 export function parseRoute(hash: string, fallbackLocale: Locale = 'en'): PortalRoute {
   const parts = String(hash).replace(/^#\/?/, '').split('/').filter(Boolean);
-  if (parts[0] === 'en' || parts[0] === 'fr') {
-    const locale = parts[0];
-    const area = isArea(parts[1]) ? parts[1] : 'learn';
-    return {
-      locale,
-      area,
-      id: decodeId(parts.slice(2).join('/')) || (area === 'learn' ? 'home' : ''),
-    };
-  }
-  // The pre-portal docs listed the SDK examples under `#examples/<id>`; they live in Learn now.
-  if (parts[0] === 'examples')
-    return parts[1]
-      ? { locale: fallbackLocale, area: 'learn', id: parts[1] }
-      : { locale: fallbackLocale, area: 'lessons', id: '' };
-  if (parts[0] === 'demo') return { locale: fallbackLocale, area: 'lessons', id: 'engine-scene' };
-  if (LEGACY_SECTIONS.has(parts[0])) {
-    const area = parts[0] === 'guides' ? 'learn' : parts[0] === 'demo' ? 'playground' : 'api';
-    return { locale: fallbackLocale, area, id: parts.at(-1) || '' };
-  }
-  return { ...DEFAULT_ROUTE, locale: fallbackLocale };
+  if (parts[0] !== 'en' && parts[0] !== 'fr')
+    return { locale: fallbackLocale, area: 'learn', id: 'home' };
+  const [locale, area] = parts;
+  if (!area) return { locale, area: 'learn', id: 'home' };
+  if (!isArea(area)) return { locale, area: 'learn', id: decodeId(parts.slice(1).join('/')) };
+  const id = decodeId(parts.slice(2).join('/'));
+  return { locale, area, id: id || (area === 'learn' ? 'home' : '') };
 }
 
 export function routeHref(route: PortalRoute) {
@@ -83,15 +72,9 @@ export function routeHref(route: PortalRoute) {
   return `#/${route.locale}/${route.area}${id}`;
 }
 
-export function localizedHref(hash: string, locale: Locale) {
-  return routeHref({ ...parseRoute(hash, locale), locale });
-}
-
 export function entryRoute(entry: PortalEntry, locale: Locale) {
-  if (['guides', 'examples'].includes(entry.section))
-    return routeHref({ locale, area: 'learn', id: entry.id });
-  if (entry.section === 'demo') return routeHref({ locale, area: 'playground', id: entry.id });
-  return routeHref({ locale, area: 'api', id: entry.id });
+  const area = LEARN_SECTIONS.includes(entry.section) ? 'learn' : 'api';
+  return routeHref({ locale, area, id: entry.id });
 }
 
 export function resolvePage(
@@ -100,22 +83,18 @@ export function resolvePage(
   lessonIds: string[] = [],
   exampleIds: string[] = [],
 ): ResolvedPage {
-  if (route.area === 'reports') return { kind: 'report' };
-  const entry = entries.find((candidate) => candidate.id === route.id);
-  const isLesson = lessonIds.includes(route.id);
-  if (route.area === 'learn' && route.id === 'home') return { kind: 'home' };
-  if (route.area === 'learn' && entry && ['guides', 'examples'].includes(entry.section))
-    return { kind: 'entry', entry };
-  if (route.area === 'examples' && !route.id) return { kind: 'examples' };
-  if (route.area === 'examples' && exampleIds.includes(route.id))
-    return { kind: 'example', id: route.id };
-  if (route.area === 'lessons' && !route.id) return { kind: 'gallery' };
-  if (route.area === 'lessons' && route.id === 'engine-scene') return { kind: 'engine-scene' };
-  if (route.area === 'lessons' && isLesson) return { kind: 'playground', id: route.id };
-  if (route.area === 'playground' && isLesson) return { kind: 'playground', id: route.id };
-  if (route.area === 'api' && !route.id) return { kind: 'api-index' };
-  if (route.area === 'api' && entry && !['guides', 'examples'].includes(entry.section)) {
-    return { kind: 'entry', entry };
-  }
+  const { area, id } = route;
+  if (area === 'reports') return { kind: 'report' };
+  const entry = entries.find((candidate) => candidate.id === id);
+  const learnEntry = entry && LEARN_SECTIONS.includes(entry.section);
+  if (area === 'learn' && id === 'home') return { kind: 'home' };
+  if (area === 'learn' && entry && learnEntry) return { kind: 'entry', entry };
+  if (area === 'examples' && !id) return { kind: 'examples' };
+  if (area === 'examples' && exampleIds.includes(id)) return { kind: 'example', id };
+  if (area === 'lessons' && !id) return { kind: 'gallery' };
+  if (area === 'lessons' && id === 'engine-scene') return { kind: 'engine-scene' };
+  if (area === 'lessons' && lessonIds.includes(id)) return { kind: 'lesson', id };
+  if (area === 'api' && !id) return { kind: 'api-index' };
+  if (area === 'api' && entry && !learnEntry) return { kind: 'entry', entry };
   return { kind: 'not-found' };
 }

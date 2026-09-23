@@ -2,8 +2,8 @@ import type { Locale } from '../../content/locale.ts';
 import type { EngineCopy } from '../../lessons/engine-scene/content.ts';
 import { sceneCopy } from '../../lessons/engine-scene/content.ts';
 import { sceneControlsCopy } from '../../lessons/engine-scene/controlsCopy.ts';
-import { Canvas } from '../components/Canvas.tsx';
-import { Loading } from '../components/Loading.tsx';
+import { Canvas } from '../ui/Canvas.tsx';
+import { Loading } from '../ui/Loading.tsx';
 import { SCENE_BACKGROUND } from '../../lessons/scenePalette.ts';
 
 export const engineCopy = (locale: Locale): EngineCopy => ({

@@ -4,7 +4,6 @@ export const sectionStrings: Record<Locale, Record<string, string>> = {
   en: {
     'section.guides': 'Guides',
     'section.examples': 'SDK examples',
-    'section.demo': 'Live demo',
     'section.world': 'The world',
     'section.families': 'Families',
     'section.measurement': 'Measurement entry',
@@ -22,7 +21,6 @@ export const sectionStrings: Record<Locale, Record<string, string>> = {
   fr: {
     'section.guides': 'Guides',
     'section.examples': 'Exemples SDK',
-    'section.demo': 'Démo interactive',
     'section.world': 'Le monde',
     'section.families': 'Familles',
     'section.measurement': 'Point d’entrée de mesure',

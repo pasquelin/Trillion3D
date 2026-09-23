@@ -1,7 +1,7 @@
 import { SceneNotice } from './SceneNotice.tsx';
-import { Section } from '../components/Section.tsx';
-import { Collapse } from '../components/Collapse.tsx';
-import { Stat, StatGroup } from '../components/Stats.tsx';
+import { Card } from '../ui/Card.tsx';
+import { Collapse } from '../ui/Collapse.tsx';
+import { Stat, StatGroup } from '../ui/Stats.tsx';
 import { formatValue, metricValue } from '../../reports/metrics.ts';
 import { runOf, sceneName } from '../../reports/presentation.ts';
 import type { Report } from '../../reports/types.ts';
@@ -21,19 +21,19 @@ export function Findings({ report, locale }: FindingsProps) {
   const missingDpr = report.records.some((r) => !r.canvas?.dpr);
   const failed = report.runs.filter((r) => r.status !== 'complete').length;
   return (
-    <div className="grid min-w-0 gap-4">
+    <div className="grid min-w-0 grid-cols-1 gap-4">
       <p>
         {fr
           ? 'Vue au sol, caméra mobile, seuil de 1 px. Les deux scènes racontent des situations très différentes.'
           : 'Street-level view, moving camera, 1 px threshold. The two scenes show very different situations.'}
       </p>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
         {records.map((r) => {
           const gpu = metricValue(r, 'gpu'),
             cpu = metricValue(r, 'cpu');
           const over = gpu !== null && gpu > 1000 / 60;
           return (
-            <Section key={r.id} title={sceneName(r.scene)}>
+            <Card key={r.id} title={sceneName(r.scene)}>
               <SceneNotice note={r.sceneNote} locale={locale} />
               <p className="text-lg font-semibold">
                 {over
@@ -82,11 +82,11 @@ export function Findings({ report, locale }: FindingsProps) {
                   ? 'Cette allocation n’est pas la mémoire GPU physique totale.'
                   : 'This allocation is not total physical GPU memory.'}
               </p>
-            </Section>
+            </Card>
           );
         })}
       </div>
-      <Section
+      <Card
         title={fr ? 'Ce qui manque pour conclure' : 'What is missing before drawing conclusions'}
       >
         <p>
@@ -125,7 +125,7 @@ export function Findings({ report, locale }: FindingsProps) {
               : '16.67 ms is the per-frame time budget when targeting 60 fps. CPU and GPU are measured separately and must not be added. p50 is the median; p95 is the duration below which 95% of samples fall. Between-run variability was not measured.'}
           </p>
         </Collapse>
-      </Section>
+      </Card>
     </div>
   );
 }

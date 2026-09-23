@@ -1,5 +1,5 @@
 import type { Locale } from '../../content/locale.ts';
-import { TabsMenu } from '../components/TabsMenu.tsx';
+import { TabsMenu } from '../ui/TabsMenu.tsx';
 import { themeLabel } from './lessonThemes.ts';
 
 const primary = ['transforms', 'camera', 'geometry', 'lighting'];
