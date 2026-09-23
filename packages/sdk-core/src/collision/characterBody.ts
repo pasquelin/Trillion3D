@@ -29,7 +29,7 @@ import type { CharacterCollision } from './characterCollision.ts';
 
 /** Seconds per tick. The motion inside a tick is exact, so the tick only sets how often the
  *  contacts are read and how late a landing or a jump can be noticed: one tick, 8 ms. */
-export const CHARACTER_TICK = 1 / 120;
+const CHARACTER_TICK = 1 / 120;
 
 /** Remaining glide below which a grounded body with no key stops dead: 0.1 mm. */
 const REST = 1e-4;
@@ -195,5 +195,3 @@ export function createCharacterBody(settings: CharacterSettings) {
     },
   };
 }
-
-export type CharacterBody = ReturnType<typeof createCharacterBody>;
