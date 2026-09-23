@@ -658,8 +658,8 @@
       "bottom": "Unterer Rand der orthografischen Box.",
       "projection": "`'perspective'` macht Fernes klein; `'orthographic'` behält alle Größen.",
       "updateProjectionMatrix": "Für Seiten erhalten, die für ein Rendering-Backend geschrieben wurden, das sie braucht: jeder Optik-Schreibvorgang zeichnet bereits neu.",
-      "set": "Platziert das Auge bei `pose.position`, das zu `pose.target` schaut, mit dem angegebenen Sichtfeld.",
-      "rayThrough": "The world ray through a point of the picture, in the engine's own projection (`engineCamera.ts`): from the eye along the view for a perspective camera, straight down the view from the box for an orthographic one. Its direction is a unit vector."
+      "rayThrough": "Der Weltstrahl durch einen Punkt des Bildes, in der eigenen Projektion der Engine (`engineCamera.ts`): vom Auge entlang der Blickrichtung bei einer perspektivischen Kamera, gerade in Blickrichtung aus dem Quader bei einer orthografischen. Seine Richtung ist ein Einheitsvektor.",
+      "set": "Platziert das Auge bei `pose.position`, das zu `pose.target` schaut, mit dem angegebenen Sichtfeld."
     }
   },
   "CAMERA_SCENARIOS": {
@@ -1577,9 +1577,9 @@
       "SCENE_COPY_OVERLAP": "Etwas, das die Szenenwurzel verbietet: ihr einen Elternteil geben, sie zerstören, zwei Wurzeln mischen, einen Knoten in sich selbst kopieren.",
       "UNSUPPORTED_SCENE_UPDATE": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "BATCHED_WORLD_VIEW": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
-      "RAYCAST_NO_VIEW": "A picture point was asked of a canvas with no size: there is no picture to aim through.",
-      "UNSUPPORTED_SCENE_FORMAT": "A saved scene is of another format or version, or holds what a saved scene cannot store.",
-      "SCENE_NOT_SAVABLE": "A saved scene is of another format or version, or holds what a saved scene cannot store."
+      "RAYCAST_NO_VIEW": "Ein Bildpunkt wurde von einem Canvas ohne Größe verlangt: Es gibt kein Bild, durch das man zielen kann.",
+      "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
+      "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann."
     }
   },
   "enginePose": {
@@ -2001,6 +2001,7 @@
       "groups": "Indexbereiche, gezeichnet mit `material[materialIndex]`, wenn ein Mesh mehrere trägt.",
       "boundingBox": "Die Box um jeden Scheitelpunkt, sobald berechnet; `null` davor.",
       "boundingSphere": "Die Kugel um jeden Scheitelpunkt, sobald berechnet; `null` davor.",
+      "recipe": "Das Familienmitglied und die Argumente, die diese Form gebaut haben, solange sie noch das ist, was sie gebaut haben: das, was eine gespeicherte Szene statt der Eckpunkte speichert. Jede spätere Änderung vergisst es.",
       "version": "Bei jeder Formänderung erhöht: das, was die Welt vergleicht, um Seiten neu zu schneiden.",
       "setAttribute": "Ordnet eine Liste pro Scheitelpunkt unter `name` ein.",
       "getAttribute": "Die unter `name` eingeordnete Liste pro Scheitelpunkt, falls vorhanden.",
@@ -2020,8 +2021,7 @@
       "scale": "Streckt jeden Scheitelpunkt um `(x, y, z)`.",
       "center": "Verschiebt die Geometrie, sodass ihre Box am Ursprung zentriert ist.",
       "clone": "Eine neue Geometrie mit Kopien jeder Liste.",
-      "dispose": "Vergisst diejenigen, die sie halten: eine freigegebene Geometrie wird von niemandem gezeichnet.",
-      "recipe": "The family member and arguments that built this shape, while it is still what they built: what a saved scene stores instead of the vertices. Any later change forgets it."
+      "dispose": "Vergisst diejenigen, die sie halten: eine freigegebene Geometrie wird von niemandem gezeichnet."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2154,7 +2154,7 @@
   },
   "helper": {
     "summary": "Die Familie `helper`: die Hilfsmittel, mit denen man an einer Szene arbeitet, aus Linien und Meshes gemacht.",
-    "description": "A world draws them like any object; a pick (`world.raycast`) and a saved scene skip them."
+    "description": "Eine Welt zeichnet sie wie jedes Objekt; eine Auswahl (`world.raycast`) und eine gespeicherte Szene überspringen sie."
   },
   "helper.axes": {
     "summary": "Drei farbige Linien vom Ursprung: x rot, y grün, z blau.",
@@ -5011,8 +5011,8 @@
       "fog": "Ein Nebel, der Objekte in `color` zwischen `near` und `far` verschmelzen lässt; `null` für keinen.",
       "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe, ein Bild, oder `null` für den Standardhintergrund.",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
-      "toJSON": "The scene as plain JSON, versioned: its objects, shapes by the call that built them, materials, lights and loaded models by address; `camera`'s pose too when one is given.",
-      "fromJSON": "Replaces what the scene holds with a scene `toJSON` saved, its `helper` marks kept; resolves once its models are loaded. Another format or version is refused (`UNSUPPORTED_SCENE_FORMAT`). Calls made while one is reading run one after the other, in order, each on what the one before left: two saved scenes never merge."
+      "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
+      "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
     }
   },
   "SCENE_ENVIRONMENT_FLOATS": {
@@ -6395,8 +6395,8 @@
     "summary": "Was die Seite hält: der Modus, lesbar und schreibbar.",
     "members": {
       "mode": "Der Ansichtsmodus: `'beauty'` für das normale Bild, oder ein Modus, der zeigt, wie die Engine arbeitet.",
-      "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet.",
-      "sessions": "Sessions the world has opened so far: a change that reopens one shows here."
+      "sessions": "Sitzungen, die die Welt bisher geöffnet hat: Eine Änderung, die eine wieder öffnet, zeigt sich hier.",
+      "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
   },
   "world.onFrame": {
@@ -6729,108 +6729,108 @@
   "CanvasPoint": {
     "summary": "Ein Punkt des Canvas, in CSS-Pixeln ab seiner oberen linken Ecke: `event.offsetX`, `offsetY`.",
     "members": {
-      "x": "CSS pixels from the canvas's left edge.",
-      "y": "CSS pixels from the canvas's top edge."
+      "x": "CSS-Pixel vom linken Rand des Canvas.",
+      "y": "CSS-Pixel vom oberen Rand des Canvas."
     }
   },
   "Intersection": {
     "summary": "Wo ein Strahl auf ein Objekt trifft: das Objekt selbst, der Weltpunkt und die Normale der Oberfläche dort, die Entfernung entlang des Strahls und welches Dreieck (`-1`, wenn die Box des Objekts getroffen wurde).",
     "members": {
-      "object": "The object hit: the very node the page added.",
-      "point": "The world point hit.",
-      "normal": "The world normal of the face hit, as its winding orients it.",
-      "distance": "Distance from the ray's origin to `point`, world units.",
-      "face": "The rank of the triangle hit, or `-1` for a box."
+      "object": "Das getroffene Objekt: genau der Knoten, den die Seite hinzugefügt hat.",
+      "point": "Der getroffene Punkt in der Welt.",
+      "normal": "Die Weltnormale der getroffenen Fläche, ausgerichtet nach ihrer Umlaufrichtung.",
+      "distance": "Abstand vom Ursprung des Strahls bis `point`, in Welteinheiten.",
+      "face": "Die Nummer des getroffenen Dreiecks oder `-1` für einen Quader."
     }
   },
   "RaycastOptions": {
     "summary": "Was `world.raycast` mitgeteilt werden kann; jedes Feld ist optional.",
     "members": {
-      "objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "objects": "Die getesteten Objekte mit ihren Unterbäumen; ohne Angabe die ganze Szene."
     }
   },
   "SavedCamera": {
     "summary": "Die Kamera, mit der eine Szene gespeichert wurde: ihre Pose, Projektion und Optik.",
     "members": {
-      "projection": "Perspective or orthographic.",
-      "position": "Where the eye stands.",
-      "quaternion": "How the eye is turned.",
-      "optics": "Field, near, far, zoom and box, by name."
+      "projection": "Perspektivisch oder orthografisch.",
+      "position": "Wo das Auge steht.",
+      "quaternion": "Wie das Auge gedreht ist.",
+      "optics": "Sichtfeld, near, far, Zoom und Quader, nach Namen."
     }
   },
   "SavedGeometry": {
     "summary": "Eine Geometrie: der Familienaufruf, der sie gebaut hat, oder ihre Vertices, wenn kein Aufruf sie neu bauen kann.",
     "members": {
-      "recipe": "The family member and every argument it was built with.",
-      "attributes": "Each per-vertex list, when no call builds the shape again.",
-      "index": "Which vertices make each triangle.",
-      "groups": "Index ranges drawn with one material each."
+      "recipe": "Das Familienmitglied und jedes Argument, mit dem sie gebaut wurde.",
+      "attributes": "Jede Liste pro Eckpunkt, wenn kein Aufruf die Form neu baut.",
+      "index": "Welche Eckpunkte jedes Dreieck bilden.",
+      "groups": "Index-Bereiche, die jeweils mit einem Material gezeichnet werden."
     }
   },
   "SavedMaterial": {
     "summary": "Ein Material: seine Art und jeder Parameter, Farben als lineares `[r, g, b]`.",
     "members": {
-      "kind": "The kind the material was made as: `'meshStandard'`, `'meshBasic'`…",
-      "parameters": "Every parameter by name."
+      "kind": "Die Art, als die das Material erstellt wurde: `'meshStandard'`, `'meshBasic'`…",
+      "parameters": "Jeder Parameter nach Namen."
     }
   },
   "SavedNode": {
     "summary": "Ein Knoten: seine Pose und was er ist — eine Gruppe, ein Mesh, ein Licht oder ein geladenes Modell — und was unter ihm liegt.",
     "members": {
-      "kind": "What the node is.",
-      "name": "Its name.",
-      "position": "Where it stands, from its parent.",
-      "quaternion": "How it is turned, as a quaternion.",
-      "scale": "How it is stretched on each axis.",
-      "visible": "Whether it is drawn.",
-      "castShadow": "Whether it casts shadows.",
-      "receiveShadow": "Whether shadows fall on it.",
-      "renderOrder": "Its drawing order among see-through things.",
-      "userData": "The page's own data, as JSON.",
-      "children": "The nodes below it, in order.",
-      "mesh": "Ranks in `geometries` and `materials`, and how the triangles are read.",
-      "light": "A light's kind, colours, numbers, aim and probe coefficients.",
-      "model": "A compiled model, by the manifest address it was loaded from: never inlined."
+      "kind": "Was der Knoten ist.",
+      "name": "Sein Name.",
+      "position": "Wo er steht, von seinem Elternteil aus gesehen.",
+      "quaternion": "Wie er gedreht ist, als Quaternion.",
+      "scale": "Wie er auf jeder Achse gestreckt ist.",
+      "visible": "Ob er gezeichnet wird.",
+      "castShadow": "Ob er Schatten wirft.",
+      "receiveShadow": "Ob Schatten auf ihn fallen.",
+      "renderOrder": "Seine Zeichenreihenfolge unter den durchsichtigen Dingen.",
+      "userData": "Die eigenen Daten der Seite, als JSON.",
+      "children": "Die Knoten darunter, der Reihe nach.",
+      "mesh": "Nummern in `geometries` und `materials` und wie die Dreiecke gelesen werden.",
+      "light": "Art, Farben, Zahlen, Ausrichtung und Sondenkoeffizienten eines Lichts.",
+      "model": "Ein kompiliertes Modell, über die Manifest-Adresse, von der es geladen wurde: nie eingebettet."
     }
   },
   "SavedScene": {
     "summary": "Eine Szene, wie `scene.toJSON` sie schreibt und `scene.fromJSON` sie liest: einfaches JSON.",
     "members": {
-      "format": "Always `'web-geometry-scene'`.",
-      "formatVersion": "The version of this layout; another one is refused.",
-      "background": "The background colour, or `null`.",
-      "fog": "The fog, or `null`.",
-      "camera": "The camera saved with the scene, or `null`.",
-      "geometries": "Every shape, once, however many meshes wear it.",
-      "materials": "Every material, once, however many meshes wear it.",
-      "children": "The scene's top nodes, in order."
+      "format": "Immer `'web-geometry-scene'`.",
+      "formatVersion": "Die Version dieses Aufbaus; eine andere wird abgelehnt.",
+      "background": "Die Hintergrundfarbe oder `null`.",
+      "fog": "Der Nebel oder `null`.",
+      "camera": "Die mit der Szene gespeicherte Kamera oder `null`.",
+      "geometries": "Jede Form, einmal, egal wie viele Meshes sie tragen.",
+      "materials": "Jedes Material, einmal, egal wie viele Meshes es tragen.",
+      "children": "Die obersten Knoten der Szene, der Reihe nach."
     }
   },
   "TransformControls": {
     "summary": "Was `controls.transform` zurückgibt.",
     "members": {
-      "snap": "Steps drags are rounded to: `{ translate, rotate, scale }`, each optional.",
-      "handles": "The group of the handles — a `helper` mark — in the scene while attached.",
-      "object": "The object the handles are on, or `null`.",
-      "dragging": "True while a handle is being dragged.",
-      "mode": "What a drag does: `'translate'`, `'rotate'` or `'scale'`.",
-      "space": "`'world'` or `'local'` axes.",
-      "attach": "Puts the handles on `target`, and in the scene; a drag under way ends first (`dragEnd`).",
-      "detach": "Takes the handles off their object, and out of the scene; a drag under way ends first.",
-      "setMode": "Moves, turns or scales from now on.",
-      "setSpace": "Handles along the world's axes or the object's own.",
-      "addEventListener": "Calls `listener` on each event of `type`.",
-      "removeEventListener": "Stops calling `listener` on events of `type`.",
-      "dispose": "Takes the handles out of the scene and every listener off the canvas."
+      "snap": "Schritte, auf die Ziehbewegungen gerundet werden: `{ translate, rotate, scale }`, jeder optional.",
+      "handles": "Die Gruppe der Anfasser – eine `helper`-Markierung – in der Szene, solange sie angehängt sind.",
+      "object": "Das Objekt, auf dem die Anfasser sitzen, oder `null`.",
+      "dragging": "Wahr, während ein Anfasser gezogen wird.",
+      "mode": "Was eine Ziehbewegung macht: `'translate'`, `'rotate'` oder `'scale'`.",
+      "space": "Achsen `'world'` oder `'local'`.",
+      "attach": "Setzt die Anfasser auf `target` und in die Szene; eine laufende Ziehbewegung endet zuerst (`dragEnd`).",
+      "detach": "Nimmt die Anfasser von ihrem Objekt und aus der Szene; eine laufende Ziehbewegung endet zuerst.",
+      "setMode": "Verschiebt, dreht oder skaliert ab jetzt.",
+      "setSpace": "Anfasser entlang der Weltachsen oder der eigenen Achsen des Objekts.",
+      "addEventListener": "Ruft `listener` bei jedem Ereignis vom Typ `type` auf.",
+      "removeEventListener": "Hört auf, `listener` bei Ereignissen vom Typ `type` aufzurufen.",
+      "dispose": "Nimmt die Anfasser aus der Szene und alle Listener vom Canvas."
     }
   },
   "TransformControlsOptions": {
     "summary": "Was `controls.transform` mitgeteilt werden kann; jedes Feld ist optional.",
     "members": {
-      "mode": "Move, turn or scale; `'translate'` by default.",
-      "space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "snap": "Steps each drag is rounded to; none by default.",
-      "size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "mode": "Verschieben, drehen oder skalieren; standardmäßig `'translate'`.",
+      "space": "Anfasser entlang der Weltachsen oder der eigenen Achsen des Objekts; standardmäßig `'world'`.",
+      "snap": "Schritte, auf die jede Ziehbewegung gerundet wird; standardmäßig keine.",
+      "size": "Die Länge der Anfasser als Anteil der Canvas-Höhe, gleich, wo auch immer das Objekt steht; standardmäßig ein Viertel."
     }
   },
   "TransformEvent": {
@@ -6842,10 +6842,10 @@
   "TransformHost": {
     "summary": "Was eine Transform-Steuerung von einer Welt braucht: `createWorld` liefert eine.",
     "members": {
-      "canvas": "The canvas the pointer presses on.",
-      "scene": "The scene the handles are added to.",
-      "camera": "The camera the canvas is seen through.",
-      "onFrame": "Runs `hook` after each frame drawn; returns what stops it."
+      "canvas": "Der Canvas, auf den der Zeiger drückt.",
+      "scene": "Die Szene, zu der die Anfasser hinzugefügt werden.",
+      "camera": "Die Kamera, durch die der Canvas gesehen wird.",
+      "onFrame": "Führt `hook` nach jedem gezeichneten Bild aus; gibt zurück, was es stoppt."
     }
   },
   "TransformMode": {
@@ -6854,9 +6854,9 @@
   "TransformSnap": {
     "summary": "Schritte, auf die ein Ziehen gerundet wird, jeder optional: Welteinheiten, Radiant, Skalierungsfaktor.",
     "members": {
-      "translate": "World units a move is rounded to, along each axis.",
-      "rotate": "Radians a turn is rounded to.",
-      "scale": "The step a scale factor is rounded to."
+      "translate": "Welteinheiten, auf die eine Verschiebung entlang jeder Achse gerundet wird.",
+      "rotate": "Radiant, auf die eine Drehung gerundet wird.",
+      "scale": "Der Schritt, auf den ein Skalierungsfaktor gerundet wird."
     }
   },
   "TransformSpace": {
@@ -6865,8 +6865,8 @@
   "world.raycast": {
     "summary": "Das nächste Objekt unter einem Canvas-Punkt (CSS-Pixel) oder entlang eines Weltstrahls, oder `null`: der Knoten, den die Seite hinzugefügt hat, der getroffene Weltpunkt und die Normale, die Entfernung (`worldRaycast`).",
     "parameters": {
-      "options": "What `world.raycast` may be told; every field is optional.",
-      "options.objects": "The objects tested, with their subtrees; unset, the whole scene."
+      "options": "Was man `world.raycast` sagen kann; jedes Feld ist optional.",
+      "options.objects": "Die getesteten Objekte mit ihren Unterbäumen; ohne Angabe die ganze Szene."
     }
   },
   "controls": {
@@ -6875,12 +6875,12 @@
   "controls.transform": {
     "summary": "Griffe, die ein Objekt mit der Maus verschieben, drehen und skalieren (`transform.ts`).",
     "parameters": {
-      "host": "The world whose scene and camera the handles live in.",
-      "options": "Mode, axes, snapping and screen size; saying nothing is the usual case.",
-      "options.mode": "Move, turn or scale; `'translate'` by default.",
-      "options.space": "Handles along the world axes or the object's own; `'world'` by default.",
-      "options.snap": "Steps each drag is rounded to; none by default.",
-      "options.size": "The handles' length as a share of the canvas height, the same wherever the object stands; a quarter by default."
+      "host": "Die Welt, in deren Szene und Kamera die Anfasser leben.",
+      "options": "Modus, Achsen, Einrasten und Bildschirmgröße; nichts anzugeben ist der Normalfall.",
+      "options.mode": "Verschieben, drehen oder skalieren; standardmäßig `'translate'`.",
+      "options.space": "Anfasser entlang der Weltachsen oder der eigenen Achsen des Objekts; standardmäßig `'world'`.",
+      "options.snap": "Schritte, auf die jede Ziehbewegung gerundet wird; standardmäßig keine.",
+      "options.size": "Die Länge der Anfasser als Anteil der Canvas-Höhe, gleich, wo auch immer das Objekt steht; standardmäßig ein Viertel."
     }
   },
   "raycast": {
