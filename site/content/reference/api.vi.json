@@ -5121,7 +5121,7 @@
     }
   },
   "helper.box": {
-    "summary": "Đường viền của hộp bao quanh một đối tượng.",
+    "summary": "Đường viền của hộp bao quanh một đối tượng, hoặc của chính một hộp — `geometry.boundingBox` riêng của một hình khối, được đặt tư thế theo mesh của nó.",
     "parameters": {
       "target": "Đối tượng cần vẽ viền.",
       "color": "Màu của các đường."
@@ -6658,7 +6658,7 @@
     "summary": "Bộ điều khiển chuột và bàn phím di chuyển camera.",
     "members": {
       "kind": "Bộ điều khiển nào lái camera; đặt một tên khác để chuyển đổi.",
-      "enabled": "Liệu bộ điều khiển có lắng nghe chuột và bàn phím hay không.",
+      "enabled": "Liệu bộ điều khiển có lắng nghe chuột và bàn phím và di chuyển camera hay không. `false` tạm dừng nó — không nhận đầu vào, không `update` — mà không dựng lại nó: vận tốc, độ bám, sải bước, hướng và góc xoay vẫn được giữ nguyên, và `true` tiếp tục đúng từ chỗ nó đã dừng.",
       "target": "Điểm mà một bộ điều khiển xoay quanh trục quay.",
       "minDistance": "Khoảng cách gần nhất mà một bộ điều khiển trục quay đưa camera đến `target`.",
       "maxDistance": "Khoảng cách xa nhất mà một bộ điều khiển trục quay đưa camera ra khỏi `target`.",
@@ -6678,7 +6678,7 @@
       "rotateSpeed": "Orbit và trackball: kéo nhanh đến mức nào thì xoay; mặc định là 1.",
       "zoomSpeed": "Các bộ điều khiển trục quay: bánh xe và chụm ngón tay thu phóng nhanh đến mức nào; mặc định là 1.",
       "autoForward": "Chỉ flight: bay về phía trước ở `movementSpeed` không cần phím nào, W nhanh hơn, S để dừng lại.",
-      "update": "Tích hợp một bộ điều khiển được lái qua `delta` giây; một bộ trục quay đọc lại tư thế của nó.",
+      "update": "Tích hợp một bộ điều khiển được lái qua `delta` giây; một bộ điều khiển trục quay đọc lại tư thế của nó, và orbit tự xoay theo `autoRotate`. Một bộ điều khiển đang tạm dừng không làm gì cả.",
       "follow": "Camera của thế giới đã thay đổi: bộ điều khiển theo dõi nó.",
       "dispose": "Dừng bộ điều khiển và gỡ bỏ các trình lắng nghe của nó khỏi canvas.",
       "airControl": "Chỉ character: các phím điều khiển nhanh đến mức nào trên không, dưới dạng một phân số của tốc độ khởi đầu trên mặt đất; mặc định là 0,05, 0 là đạn đạo.",
