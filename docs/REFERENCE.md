@@ -21,7 +21,7 @@ here — only published figures.
 
 ## 1. Structure — Verified by Automated Tests
 
-| Metric                        | Reference    | WebGeometry | Evidence                        |
+| Metric                        | Reference    | trillion3D | Evidence                        |
 | ----------------------------- | ------------ | ----------- | ------------------------------- |
 | Triangles per cluster         | 128          | 128         | `dag.rs:DAG_CLUSTER_TRIANGLES`  |
 | Vertices per cluster          | —            | 255         | `dag.rs:DAG_CLUSTER_VERTICES`   |
@@ -60,7 +60,7 @@ That is 11.4 bytes per SOURCE triangle, and "1 M triangles = ~10.9 MB on disk".
 
 How they achieve it, and where we stand:
 
-| Area                 | Reference                                     | WebGeometry                                |
+| Area                 | Reference                                     | trillion3D                                |
 | -------------------- | --------------------------------------------- | ------------------------------------------ |
 | Indices              | base + two 5-bit offsets, ~17 bits/tri        | 3 × `u32` = 96 bits/tri (`docs/FORMAT.md`) |
 | Indices on disk      | ~5 bits/tri                                   | identical, meshopt compressed              |
@@ -85,7 +85,7 @@ not reached, by the rule that the image must not move.
 
 Their profile, PS5 demo, average 2496 × 1404 reconstructed to 4K, **25 M rasterized triangles per frame across all scenes**:
 
-| Pass                      | Cost       | WebGeometry Equivalent             |
+| Pass                      | Cost       | trillion3D Equivalent             |
 | ------------------------- | ---------- | ---------------------------------- |
 | Clear VisBuffer           | 66 µs      | —                                  |
 | Main Pass: InstanceCull   | 108 µs (1) | instance sort                      |
@@ -122,7 +122,7 @@ What can be concluded rigorously:
   opaque primitives, but one per item and face for the 29 primitives declared blended — up to 1,928
   when entering the field of view, causing frame rate drops in grass foliage.
 - **GPU milliseconds are inconclusive** until measured on identical hardware. The only rigorous
-  comparison requires running the reference and WebGeometry with the same scene, pose, resolution,
+  comparison requires running the reference and trillion3D with the same scene, pose, resolution,
   and hardware. Without this, any cross-engine GPU millisecond comparison remains an assumption, which
   the [measurement rules](../CONTRIBUTING.md#measure-before-optimising) strictly prohibit.
 

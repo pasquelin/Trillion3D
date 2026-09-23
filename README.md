@@ -1,6 +1,6 @@
 <div align="center">
 
-# Web Geometry
+# trillion3D
 
 ### Virtualized geometry for the web — a native Rust compiler, a WebGPU/WebGL2 runtime in TypeScript, and a bench that proves every number.
 
@@ -10,11 +10,11 @@
 [![WebGL2](https://img.shields.io/badge/WebGL2-fallback-2b2d30?logo=webgl&logoColor=e06666)](#what-it-does)
 [![Node 22](https://img.shields.io/badge/Node-%E2%89%A522.18-2b2d30?logo=node.js&logoColor=6da95f)](#quick-start)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-2b2d30?logo=pnpm&logoColor=f69220)](#quick-start)
-[![Quality](https://github.com/pasquelin/WebGeometry/actions/workflows/quality.yml/badge.svg)](https://github.com/pasquelin/WebGeometry/actions/workflows/quality.yml)
+[![Quality](https://github.com/pasquelin/trillion3D/actions/workflows/quality.yml/badge.svg)](https://github.com/pasquelin/trillion3D/actions/workflows/quality.yml)
 [![Tests](https://img.shields.io/badge/tests-node%20%2B%20cargo%20%2B%20GPU%20proofs-2b2d30?logo=checkmarx&logoColor=6da95f)](#quality-bar)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2b2d30)](#licence)
 
-**[Documentation ↗](https://pasquelin.github.io/WebGeometry/)** · **[Live report ↗](https://pasquelin.github.io/WebGeometry/#/en/reports)** · **[Why](#why-web-geometry)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE.md)** · **[Roadmap](#roadmap)**
+**[Documentation ↗](https://pasquelin.github.io/trillion3D/)** · **[Live report ↗](https://pasquelin.github.io/trillion3D/#/en/reports)** · **[Why](#why-trillion3d)** · **[Quick start](#quick-start)** · **[Compiler](docs/COMPILER.md)** · **[SDK](docs/SDK.md)** · **[Architecture](packages/README.md)** · **[Bench](bench/runner/README.md)** · **[The reference in numbers](docs/REFERENCE.md)** · **[Roadmap](#roadmap)**
 
 </div>
 
@@ -22,11 +22,11 @@
 
 ---
 
-## Why Web Geometry
+## Why trillion3D
 
 The best desktop engines changed what a scene can hold: geometry is streamed by clusters, one cut
 through a DAG per frame, drawn through a visibility buffer, resolved by temporal antialiasing, held
-under a fixed memory budget. None of that exists for the browser. **Web Geometry builds it for the
+under a fixed memory budget. None of that exists for the browser. **trillion3D builds it for the
 web's constraints** — no hardware ray tracing, bounded and unreadable GPU memory, one browser frame —
 from the published literature only, and measures itself against the numbers those engines publish.
 The geometry is the foundation; the lighting is what it is for.
@@ -60,7 +60,7 @@ Requirements: **Node.js 22.18 or newer**, **pnpm**, and a Rust toolchain with Ca
 ```sh
 pnpm install
 pnpm run build           # TypeScript → dist/ (ESM + declarations)
-pnpm run build:native    # → packages/asset-compiler-rust/target/release/web-geometry-compiler
+pnpm run build:native    # → packages/asset-compiler-rust/target/release/trillion3d-compiler
 pnpm test                # unit and integration tests (node --test)
 pnpm run test:native     # cargo test
 ```
@@ -69,7 +69,7 @@ The package is private and consumed locally; it is not published to npm. Scene a
 by the host and are not part of this repository.
 
 ```js
-import { createWorld, object, geometry, material, light } from 'web-geometry';
+import { createWorld, object, geometry, material, light } from 'trillion3d';
 
 const world = createWorld('viewer'); // a canvas element, or its id
 
@@ -87,22 +87,22 @@ world.onFrame(({ delta }) => {
 
 ## Native compiler
 
-All preparation happens in one executable, `web-geometry-compiler`. It reads the source, writes
+All preparation happens in one executable, `trillion3d-compiler`. It reads the source, writes
 the cache to disk and talks to its host through three streams only: JSON events on stderr, a small
 pointer on stdout, cancel requests on stdin.
 
 ```sh
-packages/asset-compiler-rust/target/release/web-geometry-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
-packages/asset-compiler-rust/target/release/web-geometry-compiler --jobs jobs.json   # many models, bounded workers, one process
+packages/asset-compiler-rust/target/release/trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
+packages/asset-compiler-rust/target/release/trillion3d-compiler --jobs jobs.json   # many models, bounded workers, one process
 ```
 
-`web-geometry` (`prepare`, `prepareMany` in Node) is a thin relay over it; any other host
+`trillion3d` (`prepare`, `prepareMany` in Node) is a thin relay over it; any other host
 (Electron, a CI script, another language) can drive it the same way. Full reference:
 [docs/COMPILER.md](docs/COMPILER.md).
 
 ## Public SDK
 
-Every consumer imports `web-geometry`. Conditional exports provide common maths and contracts in
+Every consumer imports `trillion3d`. Conditional exports provide common maths and contracts in
 all environments, rendering APIs to browser bundlers, and native preparation APIs to Node.
 
 | Environment       | Available API                                                                         |
@@ -195,7 +195,7 @@ stages, each measured before the next ([lighting strategy](docs/ENGINE.md#lighti
 | L5    | World radiance probes in cascades                                                   | planned                                                    |
 | L6    | Reflections through the distance field reading the cache                            | planned                                                    |
 
-Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/WebGeometry/issues); an issue is closed once it is done.
+Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/trillion3D/issues); an issue is closed once it is done.
 
 ## Current limits
 
@@ -212,7 +212,7 @@ Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/WebGeomet
 
 ## Licence
 
-Web Geometry is published under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for
+trillion3D is published under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for
 noncommercial use, study, research and personal projects. **Commercial use requires a separate
 licence** from the copyright holder — open an issue or contact the author.
 

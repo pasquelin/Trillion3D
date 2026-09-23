@@ -3,7 +3,7 @@
 How a world draws. A page writes against [SDK.md](SDK.md) and reads what follows through the `world`
 families (`metric.frame(world)`, `world.diagnostic.mode`, `capability.lighting(world)`, …). Two
 functions below are public, for a standalone host that drives pages or diagnostics itself:
-`createGpuPageCache` and `createDiagnosticChannel`, exported by `web-geometry`. Every other internal
+`createGpuPageCache` and `createDiagnosticChannel`, exported by `trillion3d`. Every other internal
 name — `openMeasuredWorld`, backend ids, session options — is reachable only through the measurement
 entry point (`packages/sdk-browser/src/measurement/measurement.ts`), for the bench, the proofs and the
 comparison views ([SDK.md, "Entry points"](SDK.md#entry-points)).
@@ -227,7 +227,7 @@ changing, neither pass is encoded: a still scene pays nothing.
 The deferred resolve adds the interpolated irradiance of the eight surrounding probes, weighted by
 the cell, the surface's facing and each probe's measured mean distances, which close leaks through a
 wall; where no level reaches, the term is zero. Against the compiler's path tracer
-(`web-geometry-oracle`) on a control room, the mean error is 18.6 %, above the 10 % target. The
+(`trillion3d-oracle`) on a control room, the mean error is 18.6 %, above the 10 % target. The
 bounce is **off by default**: its stage costs about 1.1 ms, above the one-millisecond bar. Emission,
 transparency and specular are not bounced. `setLightingView('bounce')` outputs the indirect
 irradiance alone, the quantity `bench/runner/oracle.ts` compares.

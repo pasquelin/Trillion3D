@@ -848,7 +848,7 @@
     "summary": "دالة تسمع كل شيء تبلّغه قناة تشخيصية."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "مخطط JSON شامل يوثّق كل خيارات التهيئة لمستكشف WebGeometry (MeasuredWorldOptions).",
+    "summary": "مخطط JSON شامل يوثّق كل خيارات التهيئة لمستكشف trillion3D (MeasuredWorldOptions).",
     "description": "يمكِّن نماذج اللغة الكبيرة من فهم إعدادات محرك ثلاثي الأبعاد والتحقّق منها وضبطها."
   },
   "EngineCamera": {
@@ -2923,7 +2923,7 @@
   "SavedScene": {
     "summary": "مشهد كما يكتبه `scene.toJSON` ويقرؤه `scene.fromJSON`: JSON بسيط.",
     "members": {
-      "format": "دائمًا `'web-geometry-scene'`.",
+      "format": "دائمًا `'trillion3d-scene'`.",
       "formatVersion": "إصدار هذا التنظيم؛ ويُرفض أي إصدار آخر.",
       "background": "لون الخلفية، أو `null`.",
       "fog": "الضباب، أو `null`.",
@@ -3962,14 +3962,14 @@
       "toArray": "الأعداد الأربعة كقائمة."
     }
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "كتالوج كامل للأدوات ودوال وقت التشغيل المتاحة للتحكّم في WebGeometry من نموذج لغة كبير."
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "كتالوج كامل للأدوات ودوال وقت التشغيل المتاحة للتحكّم في trillion3D من نموذج لغة كبير."
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "موجّه نظام يرشد نموذج لغة كبيرًا بشأن مبادئ WebGeometry وميزانياته وخيارات التصيير فيه."
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "موجّه نظام يرشد نموذج لغة كبيرًا بشأن مبادئ trillion3D وميزانياته وخيارات التصيير فيه."
   },
-  "WebGeometryTool": {
-    "summary": "تعريف أداة WebGeometry عام لنماذج اللغة الكبيرة.",
+  "Trillion3DTool": {
+    "summary": "تعريف أداة trillion3D عام لنماذج اللغة الكبيرة.",
     "members": {
       "name": "اسم الأداة.",
       "description": "ما تفعله.",
@@ -5080,11 +5080,11 @@
     "summary": "حد المنشأ العام: لا يقرأ المستهلكون أبدًا مسارات تنفيذ SDK بأنفسهم.",
     "description": "بصمات فقط — لا يُحمَّل المصدر الكامل في اللقطة (snapshot)."
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3DLlmPrompt": {
     "summary": "يولّد موجّه نظام خبير جاهزًا للاستخدام لتهيئة نموذج لغوي كبير (LLM)."
   },
-  "getWebGeometryTools": {
-    "summary": "يعيد المصفوفة الكاملة لتعريفات أدوات WebGeometry المنسّقة لمزوّد LLM المستهدف.",
+  "getTrillion3DTools": {
+    "summary": "يعيد المصفوفة الكاملة لتعريفات أدوات trillion3D المنسّقة لمزوّد LLM المستهدف.",
     "parameters": {
       "format": "الصيغة المستهدفة ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). الافتراضي: 'openai'."
     }
@@ -6551,16 +6551,16 @@
     "description": "يأتي القالب من المُصرِّف ولا يعرف المحرك تخطيط ذاكرة التخزين المؤقت؛ حقيقة واحدة، كما هو الحال للصفحات. يُرفض قالب بلا حقوله الأربعة: عنوان لا يتغيّر معها سيقدّم نفس الصورة لكل نسيج."
   },
   "toAnthropicTool": {
-    "summary": "يحوّل أداة WebGeometry عامة إلى صيغة Anthropic Tool Use."
+    "summary": "يحوّل أداة trillion3D عامة إلى صيغة Anthropic Tool Use."
   },
   "toGeminiTool": {
-    "summary": "يحوّل أداة WebGeometry عامة إلى صيغة Google Gemini Function Declaration."
+    "summary": "يحوّل أداة trillion3D عامة إلى صيغة Google Gemini Function Declaration."
   },
   "toMcpTool": {
-    "summary": "يحوّل أداة WebGeometry عامة إلى صيغة Model Context Protocol (MCP)."
+    "summary": "يحوّل أداة trillion3D عامة إلى صيغة Model Context Protocol (MCP)."
   },
   "toOpenAiTool": {
-    "summary": "يحوّل أداة WebGeometry عامة إلى صيغة OpenAI Function Calling."
+    "summary": "يحوّل أداة trillion3D عامة إلى صيغة OpenAI Function Calling."
   },
   "toneMapping": {
     "summary": "المنحنى الذي يجلب إشعاع المشهد إلى نطاق العرض: كل منحنى يصنّفه المحرك."

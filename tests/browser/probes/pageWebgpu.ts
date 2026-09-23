@@ -55,7 +55,7 @@ export async function dansPageWebgpu<A, R>(
   argument: A,
   options: { titre?: string; script?: string | null; erreursPage?: string[] | null } = {},
 ) {
-  const { titre = 'WebGeometry WebGPU', script = null, erreursPage = null } = options;
+  const { titre = 'trillion3D WebGPU', script = null, erreursPage = null } = options;
   const balise = script ? '<script src="/page.js"></script>' : '';
   const html = `<!doctype html><title>${titre}</title>${balise}`;
   const server = createServer((request, response) => {

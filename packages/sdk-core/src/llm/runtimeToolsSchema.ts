@@ -1,24 +1,24 @@
-import type { WebGeometryTool } from './types.ts';
+import type { Trillion3DTool } from './types.ts';
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts';
 
 /**
- * Complete catalog of tools and runtime functions available to control WebGeometry from an LLM.
+ * Complete catalog of tools and runtime functions available to control trillion3D from an LLM.
  */
-export const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[] = [
+export const TRILLION3D_RUNTIME_TOOLS: Trillion3DTool[] = [
   {
-    name: 'web_geometry_create_explorer',
-    description: 'Initializes the WebGeometry 3D explorer with specified rendering options.',
+    name: 'trillion3d_create_explorer',
+    description: 'Initializes the trillion3D 3D explorer with specified rendering options.',
     parameters: EXPLORER_OPTIONS_SCHEMA,
   },
   {
-    name: 'web_geometry_compile_asset',
+    name: 'trillion3d_compile_asset',
     description:
       'Compiles a source 3D asset (FBX, OBJ, glTF) to the Nanite virtualized geometry format.',
     parameters: COMPILER_OPTIONS_SCHEMA,
   },
   {
-    name: 'web_geometry_set_memory_budgets',
+    name: 'trillion3d_set_memory_budgets',
     description:
       'Dynamically adjusts GPU memory pools (virtualized geometry and virtual textures) during live execution.',
     parameters: {
@@ -39,7 +39,7 @@ export const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[] = [
     },
   },
   {
-    name: 'web_geometry_set_lod_error',
+    name: 'trillion3d_set_lod_error',
     description:
       'Adjusts the geometric screen-space error threshold in pixels to trade fidelity for performance.',
     parameters: {
@@ -57,7 +57,7 @@ export const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[] = [
     },
   },
   {
-    name: 'web_geometry_set_temporal_antialiasing',
+    name: 'trillion3d_set_temporal_antialiasing',
     description: 'Enables or disables temporal antialiasing (TAA).',
     parameters: {
       type: 'object',
@@ -73,7 +73,7 @@ export const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[] = [
     },
   },
   {
-    name: 'web_geometry_add_light',
+    name: 'trillion3d_add_light',
     description: 'Adds a punctual point light, spot light, or directional sunlight into the scene.',
     parameters: {
       type: 'object',
@@ -128,7 +128,7 @@ export const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[] = [
     },
   },
   {
-    name: 'web_geometry_remove_light',
+    name: 'trillion3d_remove_light',
     description: 'Removes a light source from the scene by its identifier.',
     parameters: {
       type: 'object',
@@ -140,7 +140,7 @@ export const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[] = [
     },
   },
   {
-    name: 'web_geometry_set_diagnostic',
+    name: 'trillion3d_set_diagnostic',
     description:
       'Activates an engine diagnostic mode to inspect underlying geometry, materials, or culling.',
     parameters: {
@@ -168,7 +168,7 @@ export const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[] = [
     },
   },
   {
-    name: 'web_geometry_get_metrics',
+    name: 'trillion3d_get_metrics',
     description:
       'Queries live telemetry metrics (FPS, resident cluster pages, visible triangles, shadow wait queues).',
     parameters: {

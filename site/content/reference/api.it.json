@@ -1631,7 +1631,7 @@
     "summary": "Somma prefisso esclusiva."
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "Schema JSON completo che documenta tutte le opzioni di avvio dell'esploratore WebGeometry (MeasuredWorldOptions).",
+    "summary": "Schema JSON completo che documenta tutte le opzioni di avvio dell'esploratore trillion3D (MeasuredWorldOptions).",
     "description": "Permette agli LLM di comprendere, verificare e regolare la configurazione del motore 3D."
   },
   "exportLightingGltf": {
@@ -2063,11 +2063,11 @@
     "summary": "Confine pubblico di provenienza: i consumatori non leggono mai da soli i percorsi interni dell'SDK.",
     "description": "Solo impronte — la sorgente completa non viene caricata nell'istantanea."
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3DLlmPrompt": {
     "summary": "Crea il prompt di sistema esperto, pronto all'uso, per preparare un LLM."
   },
-  "getWebGeometryTools": {
-    "summary": "Restituisce l'array completo delle definizioni di strumenti WebGeometry nel formato del fornitore di LLM di destinazione.",
+  "getTrillion3DTools": {
+    "summary": "Restituisce l'array completo delle definizioni di strumenti trillion3D nel formato del fornitore di LLM di destinazione.",
     "parameters": {
       "format": "Formato di destinazione ('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'). Predefinito: 'openai'."
     }
@@ -5946,13 +5946,13 @@
     }
   },
   "toAnthropicTool": {
-    "summary": "Converte uno strumento generico WebGeometry nel formato Tool Use di Anthropic."
+    "summary": "Converte uno strumento generico trillion3D nel formato Tool Use di Anthropic."
   },
   "toGeminiTool": {
-    "summary": "Converte uno strumento generico WebGeometry nel formato Function Declaration di Google Gemini."
+    "summary": "Converte uno strumento generico trillion3D nel formato Function Declaration di Google Gemini."
   },
   "toMcpTool": {
-    "summary": "Converte uno strumento generico WebGeometry nel formato del Model Context Protocol (MCP)."
+    "summary": "Converte uno strumento generico trillion3D nel formato del Model Context Protocol (MCP)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Le curve che riportano la radianza della scena nell'intervallo dello schermo, nel rango letto dagli shader.",
@@ -5994,7 +5994,7 @@
     "summary": "Il nome di una curva che trasforma la luce della scena in colori dello schermo."
   },
   "toOpenAiTool": {
-    "summary": "Converte uno strumento generico WebGeometry nel formato Function Calling di OpenAI."
+    "summary": "Converte uno strumento generico trillion3D nel formato Function Calling di OpenAI."
   },
   "Track": {
     "summary": "Valori campionati in istanti: `values` contiene `values.length / times.length` numeri per chiave.",
@@ -6279,14 +6279,14 @@
   "viewToRenderOrigin": {
     "summary": "Scrive `view` senza la sua traslazione: la vista di una camera dello stesso orientamento posizionata all'origine del sistema di rendering."
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "Catalogo completo degli strumenti e delle funzioni di esecuzione disponibili per pilotare WebGeometry da un LLM."
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "Catalogo completo degli strumenti e delle funzioni di esecuzione disponibili per pilotare trillion3D da un LLM."
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "Prompt di sistema che guida un LLM sui principi, i budget e le opzioni di rendering di WebGeometry."
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "Prompt di sistema che guida un LLM sui principi, i budget e le opzioni di rendering di trillion3D."
   },
-  "WebGeometryTool": {
-    "summary": "Definizione generica di uno strumento WebGeometry per gli LLM.",
+  "Trillion3DTool": {
+    "summary": "Definizione generica di uno strumento trillion3D per gli LLM.",
     "members": {
       "name": "Il nome dello strumento.",
       "description": "Cosa fa.",
@@ -6808,7 +6808,7 @@
   "SavedScene": {
     "summary": "Una scena come `scene.toJSON` la scrive e `scene.fromJSON` la legge: JSON semplice.",
     "members": {
-      "format": "Sempre `'web-geometry-scene'`.",
+      "format": "Sempre `'trillion3d-scene'`.",
       "formatVersion": "La versione di questa struttura; un'altra viene rifiutata.",
       "background": "Il colore di sfondo, oppure `null`.",
       "fog": "La nebbia, oppure `null`.",

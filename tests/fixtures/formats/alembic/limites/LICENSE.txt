@@ -1,5 +1,5 @@
 SPDX-License-Identifier: CC0-1.0
-Author: WebGeometry, fixtures de robustesse du pilote alembic, 2026-09-15
+Author: trillion3D, fixtures de robustesse du pilote alembic, 2026-09-15
 Origin: written for this repository from the public Alembic specification
 License URL: https://creativecommons.org/publicdomain/zero/1.0/
 Original synthetic fixtures; dedicated to the public domain under CC0.

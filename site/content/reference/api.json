@@ -3537,7 +3537,7 @@
     "kind": "Constant",
     "title": "EXPLORER_OPTIONS_SCHEMA",
     "signature": "const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject",
-    "summary": "Comprehensive JSON Schema documenting all initialization options for the WebGeometry explorer (MeasuredWorldOptions).",
+    "summary": "Comprehensive JSON Schema documenting all initialization options for the trillion3D explorer (MeasuredWorldOptions).",
     "description": "Enables LLMs to understand, validate, and tune the 3D engine configuration."
   },
   {
@@ -11821,8 +11821,8 @@
     "members": [
       {
         "name": "format",
-        "type": "'web-geometry-scene'",
-        "desc": "Always `'web-geometry-scene'`."
+        "type": "'trillion3d-scene'",
+        "desc": "Always `'trillion3d-scene'`."
       },
       {
         "name": "formatVersion",
@@ -13912,6 +13912,28 @@
     "description": ""
   },
   {
+    "id": "TRILLION3D_RUNTIME_TOOLS",
+    "module": "packages/sdk-core/src/llm/runtimeToolsSchema.ts",
+    "exports": ["TRILLION3D_RUNTIME_TOOLS"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "TRILLION3D_RUNTIME_TOOLS",
+    "signature": "const TRILLION3D_RUNTIME_TOOLS: Trillion3DTool[]",
+    "summary": "Complete catalog of tools and runtime functions available to control trillion3D from an LLM.",
+    "description": ""
+  },
+  {
+    "id": "TRILLION3D_SYSTEM_PROMPT",
+    "module": "packages/sdk-core/src/llm/systemPrompt.ts",
+    "exports": ["TRILLION3D_SYSTEM_PROMPT"],
+    "section": "types",
+    "kind": "Constant",
+    "title": "TRILLION3D_SYSTEM_PROMPT",
+    "signature": "const TRILLION3D_SYSTEM_PROMPT: 'You are an expert on the trillion3D 3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for ...",
+    "summary": "System prompt guiding an LLM on trillion3D principles, budgets, and rendering options.",
+    "description": ""
+  },
+  {
     "id": "TableMaterial",
     "module": "packages/sdk-core/src/scene/core/tableContracts.ts",
     "exports": ["TableMaterial"],
@@ -15797,6 +15819,34 @@
     "description": "Built once by `buildTriangleTree`, read-only afterwards."
   },
   {
+    "id": "Trillion3DTool",
+    "module": "packages/sdk-core/src/llm/types.ts",
+    "exports": ["Trillion3DTool"],
+    "section": "types",
+    "kind": "Type",
+    "title": "Trillion3DTool",
+    "signature": "interface Trillion3DTool",
+    "summary": "Generic trillion3D tool definition for LLMs.",
+    "members": [
+      {
+        "name": "name",
+        "type": "string",
+        "desc": "The tool's name."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "desc": "What it does."
+      },
+      {
+        "name": "parameters",
+        "type": "JsonSchemaObject",
+        "desc": "Its arguments."
+      }
+    ],
+    "description": ""
+  },
+  {
     "id": "UNSPLIT_PASS",
     "module": "packages/sdk-core/src/contracts/geometry.ts",
     "exports": ["UNSPLIT_PASS"],
@@ -16247,56 +16297,6 @@
         "name": "toArray()",
         "type": "[number, number, number, number]",
         "desc": "The four numbers as a list."
-      }
-    ],
-    "description": ""
-  },
-  {
-    "id": "WEB_GEOMETRY_RUNTIME_TOOLS",
-    "module": "packages/sdk-core/src/llm/runtimeToolsSchema.ts",
-    "exports": ["WEB_GEOMETRY_RUNTIME_TOOLS"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "WEB_GEOMETRY_RUNTIME_TOOLS",
-    "signature": "const WEB_GEOMETRY_RUNTIME_TOOLS: WebGeometryTool[]",
-    "summary": "Complete catalog of tools and runtime functions available to control WebGeometry from an LLM.",
-    "description": ""
-  },
-  {
-    "id": "WEB_GEOMETRY_SYSTEM_PROMPT",
-    "module": "packages/sdk-core/src/llm/systemPrompt.ts",
-    "exports": ["WEB_GEOMETRY_SYSTEM_PROMPT"],
-    "section": "types",
-    "kind": "Constant",
-    "title": "WEB_GEOMETRY_SYSTEM_PROMPT",
-    "signature": "const WEB_GEOMETRY_SYSTEM_PROMPT: 'You are an expert on the WebGeometry 3D engine, a virtualized geometry renderer (inspired by Unreal Engine 5 Nanite) and dynamic lighting pipeline built for...",
-    "summary": "System prompt guiding an LLM on WebGeometry principles, budgets, and rendering options.",
-    "description": ""
-  },
-  {
-    "id": "WebGeometryTool",
-    "module": "packages/sdk-core/src/llm/types.ts",
-    "exports": ["WebGeometryTool"],
-    "section": "types",
-    "kind": "Type",
-    "title": "WebGeometryTool",
-    "signature": "interface WebGeometryTool",
-    "summary": "Generic WebGeometry tool definition for LLMs.",
-    "members": [
-      {
-        "name": "name",
-        "type": "string",
-        "desc": "The tool's name."
-      },
-      {
-        "name": "description",
-        "type": "string",
-        "desc": "What it does."
-      },
-      {
-        "name": "parameters",
-        "type": "JsonSchemaObject",
-        "desc": "Its arguments."
       }
     ],
     "description": ""
@@ -23078,13 +23078,13 @@
     "description": "Hashes only — full source is not loaded into the snapshot."
   },
   {
-    "id": "getWebGeometryLlmPrompt",
+    "id": "getTrillion3DLlmPrompt",
     "module": "packages/sdk-core/src/llm/systemPrompt.ts",
-    "exports": ["getWebGeometryLlmPrompt"],
+    "exports": ["getTrillion3DLlmPrompt"],
     "section": "types",
     "kind": "Function",
-    "title": "getWebGeometryLlmPrompt()",
-    "signature": "getWebGeometryLlmPrompt(): string",
+    "title": "getTrillion3DLlmPrompt()",
+    "signature": "getTrillion3DLlmPrompt(): string",
     "summary": "Generates the ready-to-use expert system prompt to prime an LLM.",
     "returns": {
       "type": "string",
@@ -23093,14 +23093,14 @@
     "description": ""
   },
   {
-    "id": "getWebGeometryTools",
+    "id": "getTrillion3DTools",
     "module": "packages/sdk-core/src/llm/toolDefinitions.ts",
-    "exports": ["getWebGeometryTools"],
+    "exports": ["getTrillion3DTools"],
     "section": "types",
     "kind": "Function",
-    "title": "getWebGeometryTools()",
-    "signature": "getWebGeometryTools(format: 'openai'): OpenAiToolDefinition[]\ngetWebGeometryTools(format: 'anthropic'): AnthropicToolDefinition[]\ngetWebGeometryTools(format: 'gemini'): GeminiFunctionDeclaration[]\ngetWebGeometryTools(format: 'mcp'): McpToolDefinition[]\ngetWebGeometryTools(format: 'json-schema'): WebGeometryTool[]\ngetWebGeometryTools(format?: LlmToolFormat): unknown[]",
-    "summary": "Returns the complete array of WebGeometry tool definitions formatted for the target LLM provider.",
+    "title": "getTrillion3DTools()",
+    "signature": "getTrillion3DTools(format: 'openai'): OpenAiToolDefinition[]\ngetTrillion3DTools(format: 'anthropic'): AnthropicToolDefinition[]\ngetTrillion3DTools(format: 'gemini'): GeminiFunctionDeclaration[]\ngetTrillion3DTools(format: 'mcp'): McpToolDefinition[]\ngetTrillion3DTools(format: 'json-schema'): Trillion3DTool[]\ngetTrillion3DTools(format?: LlmToolFormat): unknown[]",
+    "summary": "Returns the complete array of trillion3D tool definitions formatted for the target LLM provider.",
     "parameters": [
       {
         "name": "format",
@@ -30926,12 +30926,12 @@
     "section": "types",
     "kind": "Function",
     "title": "toAnthropicTool()",
-    "signature": "toAnthropicTool(tool: WebGeometryTool): AnthropicToolDefinition",
-    "summary": "Converts a generic WebGeometry tool into Anthropic Tool Use format.",
+    "signature": "toAnthropicTool(tool: Trillion3DTool): AnthropicToolDefinition",
+    "summary": "Converts a generic trillion3D tool into Anthropic Tool Use format.",
     "parameters": [
       {
         "name": "tool",
-        "type": "WebGeometryTool",
+        "type": "Trillion3DTool",
         "desc": ""
       }
     ],
@@ -30948,12 +30948,12 @@
     "section": "types",
     "kind": "Function",
     "title": "toGeminiTool()",
-    "signature": "toGeminiTool(tool: WebGeometryTool): GeminiFunctionDeclaration",
-    "summary": "Converts a generic WebGeometry tool into Google Gemini Function Declaration format.",
+    "signature": "toGeminiTool(tool: Trillion3DTool): GeminiFunctionDeclaration",
+    "summary": "Converts a generic trillion3D tool into Google Gemini Function Declaration format.",
     "parameters": [
       {
         "name": "tool",
-        "type": "WebGeometryTool",
+        "type": "Trillion3DTool",
         "desc": ""
       }
     ],
@@ -30970,12 +30970,12 @@
     "section": "types",
     "kind": "Function",
     "title": "toMcpTool()",
-    "signature": "toMcpTool(tool: WebGeometryTool): McpToolDefinition",
-    "summary": "Converts a generic WebGeometry tool into Model Context Protocol (MCP) format.",
+    "signature": "toMcpTool(tool: Trillion3DTool): McpToolDefinition",
+    "summary": "Converts a generic trillion3D tool into Model Context Protocol (MCP) format.",
     "parameters": [
       {
         "name": "tool",
-        "type": "WebGeometryTool",
+        "type": "Trillion3DTool",
         "desc": ""
       }
     ],
@@ -30992,12 +30992,12 @@
     "section": "types",
     "kind": "Function",
     "title": "toOpenAiTool()",
-    "signature": "toOpenAiTool(tool: WebGeometryTool): OpenAiToolDefinition",
-    "summary": "Converts a generic WebGeometry tool into OpenAI Function Calling format.",
+    "signature": "toOpenAiTool(tool: Trillion3DTool): OpenAiToolDefinition",
+    "summary": "Converts a generic trillion3D tool into OpenAI Function Calling format.",
     "parameters": [
       {
         "name": "tool",
-        "type": "WebGeometryTool",
+        "type": "Trillion3DTool",
         "desc": ""
       }
     ],

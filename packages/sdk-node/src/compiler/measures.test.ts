@@ -29,7 +29,7 @@ interface ReusedPrepareMetrics {
 function compilerBinary(): string | undefined {
   const target = fileURLToPath(new URL('../../../asset-compiler-rust/target/', import.meta.url));
   return ['release', 'debug']
-    .map((profile) => join(target, profile, 'web-geometry-compiler'))
+    .map((profile) => join(target, profile, 'trillion3d-compiler'))
     .find((path) => existsSync(path));
 }
 /** A quad on disk: the smallest source the compiler accepts. */
@@ -45,7 +45,7 @@ async function quad(root: string): Promise<string> {
 test('V02 prepare() returns the pointer’s final measurements with the manifest’s', async (t) => {
   const executable = compilerBinary();
   if (!executable) return t.skip('native compiler missing: run `pnpm run build:native`');
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-mesures-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-mesures-'));
   try {
     const result = await prepare(await quad(root), join(root, 'cache'), 'full', 150000, {
       executable,
@@ -70,7 +70,7 @@ test('V02 prepare() returns the pointer’s final measurements with the manifest
 test('prepare() reports the folder reused by a second identical run', async (t) => {
   const executable = compilerBinary();
   if (!executable) return t.skip('native compiler missing: run `pnpm run build:native`');
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-reuse-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-reuse-'));
   try {
     const source = await quad(root);
     const options = { executable, resourceBaseUrl: '/assets/' };
@@ -130,7 +130,7 @@ process.stdout.write(JSON.stringify(pointeur));
 }
 
 test('the manifest keeps priority, the pointer fills in the final measurements', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'web-geometry-fusion-'));
+  const root = await mkdtemp(join(tmpdir(), 'trillion3d-fusion-'));
   try {
     const manifeste = { status: 'ready', metrics: { importMs: 1, compileMs: 2 } };
     const pointeur = {

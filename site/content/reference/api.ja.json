@@ -841,7 +841,7 @@
     "summary": "診断チャンネルが報告する各事項を受け取る関数。"
   },
   "EXPLORER_OPTIONS_SCHEMA": {
-    "summary": "WebGeometryエクスプローラー(MeasuredWorldOptions)のすべての初期化オプションを記述する、包括的なJSON Schema。",
+    "summary": "trillion3Dエクスプローラー(MeasuredWorldOptions)のすべての初期化オプションを記述する、包括的なJSON Schema。",
     "description": "LLMが3Dエンジンの設定を理解し、検証し、調整できるようにする。"
   },
   "EngineCamera": {
@@ -3825,14 +3825,14 @@
       "toArray": "4つの数値をリストとして。"
     }
   },
-  "WEB_GEOMETRY_RUNTIME_TOOLS": {
-    "summary": "LLMからWebGeometryを制御するために利用できる、ツールとランタイム関数の完全なカタログ。"
+  "TRILLION3D_RUNTIME_TOOLS": {
+    "summary": "LLMからtrillion3Dを制御するために利用できる、ツールとランタイム関数の完全なカタログ。"
   },
-  "WEB_GEOMETRY_SYSTEM_PROMPT": {
-    "summary": "WebGeometryの原則、予算、描画オプションについてLLMを導くシステムプロンプト。"
+  "TRILLION3D_SYSTEM_PROMPT": {
+    "summary": "trillion3Dの原則、予算、描画オプションについてLLMを導くシステムプロンプト。"
   },
-  "WebGeometryTool": {
-    "summary": "LLM向けの、汎用的なWebGeometryツール定義。",
+  "Trillion3DTool": {
+    "summary": "LLM向けの、汎用的なtrillion3Dツール定義。",
     "members": {
       "name": "ツールの名前。",
       "description": "その役割。",
@@ -5068,11 +5068,11 @@
     "summary": "公開された出所の境界: 利用者はSDKの実装パス自体を決して読まない。",
     "description": "ハッシュのみ; 完全なソースはスナップショットに読み込まれない。"
   },
-  "getWebGeometryLlmPrompt": {
+  "getTrillion3DLlmPrompt": {
     "summary": "LLMを準備するための、すぐに使えるエキスパートシステムプロンプトを生成する。"
   },
-  "getWebGeometryTools": {
-    "summary": "対象のLLMプロバイダー向けにフォーマットされた、WebGeometryツール定義の完全な配列を返す。",
+  "getTrillion3DTools": {
+    "summary": "対象のLLMプロバイダー向けにフォーマットされた、trillion3Dツール定義の完全な配列を返す。",
     "parameters": {
       "format": "対象フォーマット('openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema')。デフォルト: 'openai'。"
     }
@@ -6535,16 +6535,16 @@
     "description": "このテンプレートはコンパイラに由来し、エンジンはキャッシュのレイアウトを知らない; ページと同じく、真実は1つだけだ。4つのフィールドを持たないテンプレートは拒否される: それらとともに変わらないアドレスは、すべてのテクスチャに同じ画像を提供してしまうことになる。"
   },
   "toAnthropicTool": {
-    "summary": "汎用のWebGeometryツールを、Anthropic Tool Use形式に変換する。"
+    "summary": "汎用のtrillion3Dツールを、Anthropic Tool Use形式に変換する。"
   },
   "toGeminiTool": {
-    "summary": "汎用のWebGeometryツールを、Google Gemini Function Declaration形式に変換する。"
+    "summary": "汎用のtrillion3Dツールを、Google Gemini Function Declaration形式に変換する。"
   },
   "toMcpTool": {
-    "summary": "汎用のWebGeometryツールを、Model Context Protocol(MCP)形式に変換する。"
+    "summary": "汎用のtrillion3Dツールを、Model Context Protocol(MCP)形式に変換する。"
   },
   "toOpenAiTool": {
-    "summary": "汎用のWebGeometryツールを、OpenAI Function Calling形式に変換する。"
+    "summary": "汎用のtrillion3Dツールを、OpenAI Function Calling形式に変換する。"
   },
   "toneMapping": {
     "summary": "シーンの放射輝度を表示範囲にもたらすカーブ: エンジンが順位づけるすべてのカーブ。"
@@ -6808,7 +6808,7 @@
   "SavedScene": {
     "summary": "`scene.toJSON` が書き、`scene.fromJSON` が読むシーン: プレーンな JSON。",
     "members": {
-      "format": "常に `'web-geometry-scene'`。",
+      "format": "常に `'trillion3d-scene'`。",
       "formatVersion": "このレイアウトのバージョン。ほかのバージョンは拒否されます。",
       "background": "背景色、または `null`。",
       "fog": "霧、または `null`。",

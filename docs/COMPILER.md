@@ -1,8 +1,8 @@
-# The native compiler — `web-geometry-compiler`
+# The native compiler — `trillion3d-compiler`
 
 One executable does all of the preparation work: it reads a source model through one driver per format — glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII, Unity scenes and packages, ZIP, and a dozen image formats ([Input formats](#input-formats)) — builds the cluster hierarchy and writes the cache described in [FORMAT.md](FORMAT.md). Everything else — the Node adapter, an Electron host, a shell script — only launches it, forwards a few paths and options, and listens to what it says. No external application is needed: every driver is compiled into the binary.
 
-Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.rs` compiles, `import.rs` imports, `main.rs` is the command line). Build with `pnpm run build:native`; the binary lands in `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
+Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.rs` compiles, `import.rs` imports, `main.rs` is the command line). Build with `pnpm run build:native`; the binary lands in `packages/asset-compiler-rust/target/release/trillion3d-compiler` (`.exe` on Windows).
 
 ## Contents
 
@@ -28,10 +28,10 @@ Source: [`packages/asset-compiler-rust`](../packages/asset-compiler-rust) (`lib.
 ## Invocation
 
 ```
-web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL
-web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=bc7|astc|both|none]
-web-geometry-compiler --jobs FILE|-
-web-geometry-compiler --version
+trillion3d-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL
+trillion3d-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=bc7|astc|both|none]
+trillion3d-compiler --jobs FILE|-
+trillion3d-compiler --version
 ```
 
 | Argument            | Meaning                                                                                                                                                                                                                                                         | Default  |
@@ -49,9 +49,9 @@ web-geometry-compiler --version
 Examples:
 
 ```sh
-web-geometry-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
-web-geometry-compiler scenes/london cache/london full 150000 8 8192 /assets/london/ qem-endpoints   # a folder of FBX files
-web-geometry-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/emerald/ qem-endpoints # a glTF folder with manifest.json
+trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
+trillion3d-compiler scenes/london cache/london full 150000 8 8192 /assets/london/ qem-endpoints   # a folder of FBX files
+trillion3d-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/emerald/ qem-endpoints # a glTF folder with manifest.json
 ```
 
 `simplification` says what the cluster DAG is allowed to hold, not how fast it is built. In `none` the DAG stops at level 0: its clusters partition the source triangles exactly, nothing replaces them, every cluster is a root, and `"simplification": false` in the manifest means precisely that no cluster carries a surface the source does not have. In `qem-endpoints` each level groups 8 to 32 clusters, simplifies the group with its border locked and re-splits the result; the level-0 partition is the same in both modes.
@@ -461,7 +461,7 @@ The compiler knows no format. It routes each source to a driver (interpretation 
 ### Content Licenses — Independent of Format
 
 - FAB Standard License: use with other tools and engines permitted, standalone asset redistribution prohibited; historical licenses apply for some items, keep purchase EULA.
-- Quixel Megascans under Epic Engine plan: restricted to Epic Engine, unusable in WebGeometry.
+- Quixel Megascans under Epic Engine plan: restricted to Epic Engine, unusable in trillion3D.
 - Unity Asset Store: use in other engines permitted, but not a product whose purpose is raw asset distribution; model library distributor is not a finished game.
 - Sketchfab: per-download license (CC-BY requires attribution and change notice).
 - Demos and public repo tests: assets with full rights owned or under redistributable license.
@@ -589,7 +589,7 @@ is byte-identical to before.
 **The compiler draws nothing.** It publishes what is pending — in the manifest and in a `cutouts`
 progress event — and whoever called it presents the question: a terminal asks it, an application
 shows it in its own panel, and a log or an automated chain is asked nothing at all. `reviewCutouts`
-in `web-geometry` on Node is the terminal side of that: it gathers the pending textures of a whole
+in `trillion3d` on Node is the terminal side of that: it gathers the pending textures of a whole
 batch (a single import is a batch of one), shows each one — a real picture where the terminal has an
 image protocol, a mosaic of half-blocks where it has none, plus a link to the full-resolution
 texture — takes one keypress per texture, writes the answers into every sheet that knows the image,
@@ -847,10 +847,10 @@ A Unity scene also carries the report of the driver that read each model it refe
 
 ## Using it from Node
 
-`web-geometry` resolves to a thin Node relay over the executable ([`packages/sdk-node/src/index.mts`](../packages/sdk-node/src/index.mts)):
+`trillion3d` resolves to a thin Node relay over the executable ([`packages/sdk-node/src/index.mts`](../packages/sdk-node/src/index.mts)):
 
 ```ts
-import { prepare, prepareMany, type CompilationResult, type PrepareOptions } from 'web-geometry';
+import { prepare, prepareMany, type CompilationResult, type PrepareOptions } from 'trillion3d';
 
 // One model: events → onProgress, pointer read from stdout, manifest read back from disk.
 const options: PrepareOptions = {
@@ -876,7 +876,7 @@ const summary = await prepareMany(jobs, { workers: 4, ramBudgetMb: 32768, thread
 summary.jobs[0].pointer; // pointers only; nothing is read from disk
 ```
 
-Terminal display comes with the adapter: `createTerminalProgress({label, index, total})` returns an object whose `event` method accepts every compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, or one plain line per phase change elsewhere; `createBatchProgress()` does the same per job for `prepareMany({onEvent})`. `progress.note(text)` shows a host-side step (a copy, a manifest check) on the same line before the compiler starts. The `web-geometry-compile` CLI uses it on a TTY and prints raw JSON events on a pipe (`WEB_GEOMETRY_RAW_EVENTS=1` forces raw events).
+Terminal display comes with the adapter: `createTerminalProgress({label, index, total})` returns an object whose `event` method accepts every compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, or one plain line per phase change elsewhere; `createBatchProgress()` does the same per job for `prepareMany({onEvent})`. `progress.note(text)` shows a host-side step (a copy, a manifest check) on the same line before the compiler starts. The `trillion3d-compile` CLI uses it on a TTY and prints raw JSON events on a pipe (`TRILLION3D_RAW_EVENTS=1` forces raw events).
 
 ```js
 const progress = createTerminalProgress({ label: 'city', index: 0, total: 8 });
@@ -885,8 +885,8 @@ await prepare(source, cache, 'full', 150000, { resourceBaseUrl, onProgress: prog
 // ✔ 1/8 city 1,132,930 triangles, 412 primitives, 3395 ms 4.1s
 ```
 
-The executable is found at `packages/asset-compiler-rust/target/release/`, or through `options.executable`, or `WEB_GEOMETRY_COMPILER_BIN`. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
+The executable is found at `packages/asset-compiler-rust/target/release/`, or through `options.executable`, or `TRILLION3D_COMPILER_BIN`. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
 
 ## Using it from any other host
 
-Spawn the executable, read stderr line by line, read stdout once at exit, write a cancel line on stdin when the user asks. That is the whole contract; it is the same on macOS, Linux and Windows. A host that prefers a library can call `web_geometry_compiler::compile(&Options, progress)` from Rust directly (`main.rs` is 100 lines over it); an N-API or WebAssembly binding is not provided (`unsupported: "N-API binding"`).
+Spawn the executable, read stderr line by line, read stdout once at exit, write a cancel line on stdin when the user asks. That is the whole contract; it is the same on macOS, Linux and Windows. A host that prefers a library can call `trillion3d_compiler::compile(&Options, progress)` from Rust directly (`main.rs` is 100 lines over it); an N-API or WebAssembly binding is not provided (`unsupported: "N-API binding"`).

@@ -1,6 +1,6 @@
 /** Where the editor keeps the scene between visits, in this browser only; named after its
  *  route, `#/<language>/editor`. */
-const KEY = 'web-geometry.editor';
+const KEY = 'trillion3d.editor';
 
 /** Saves the scene `serialize` writes; a browser that refuses storage keeps nothing, silently. */
 export function writeAutosave(serialize: () => string) {
