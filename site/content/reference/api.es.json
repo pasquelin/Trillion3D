@@ -4679,6 +4679,7 @@
       "scene": "La escena que abre el anfitrión y los nodos en su cima.",
       "nodes": "Todos los nodos.",
       "lights": "Las luces que llevan los nodos.",
+      "cameras": "Las cámaras que llevan los nodos.",
       "materials": "Los materiales.",
       "textures": "Las texturas.",
       "documents": "La disposición de la geometría de cada archivo de escena publicado, por su nombre."
@@ -5680,6 +5681,7 @@
       "children": "Sus hijos, en orden.",
       "mesh": "La malla que dibuja.",
       "light": "La luz que lleva.",
+      "camera": "La cámara que lleva.",
       "matrix": "Su matriz local, por columnas.",
       "translation": "Dónde está.",
       "rotation": "Cómo está girado, como cuaternión.",

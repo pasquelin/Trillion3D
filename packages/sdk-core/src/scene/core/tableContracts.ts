@@ -23,8 +23,8 @@ export const MATERIAL_TABLE_VERSION = 2;
 export const GEOMETRY_TABLE_VERSION = 1;
 
 /**
- * One node of the scene graph, at its glTF rank: its children, the mesh and the punctual light
- * it carries, and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation
+ * One node of the scene graph, at its glTF rank: its children, the mesh, the punctual light and
+ * the camera it carries, and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation
  * and scale, each `null` when silent. Several nodes naming one mesh is what instancing is here.
  */
 export interface TableNode {
@@ -36,6 +36,8 @@ export interface TableNode {
   mesh: number | null;
   /** The light it hangs. */
   light: number | null;
+  /** The camera it carries. */
+  camera: number | null;
   /** Its local matrix, column-major. */
   matrix: readonly number[] | null;
   /** Where it stands. */
@@ -62,6 +64,25 @@ export interface TableLight {
   /** Outer cone of a spot. */
   outerConeAngle: number | null;
 }
+/** A camera as the glTF file declares it, each silent field `null`. */
+export interface TableCamera {
+  /** Its name. */
+  name: string;
+  /** Its projection. */
+  type: 'perspective' | 'orthographic';
+  /** Vertical field of view of a perspective camera, in radians. */
+  yfov: number | null;
+  /** Width over height of a perspective camera. */
+  aspectRatio: number | null;
+  /** Half width of an orthographic camera. */
+  xmag: number | null;
+  /** Half height of an orthographic camera. */
+  ymag: number | null;
+  /** Nearest distance drawn. */
+  znear: number | null;
+  /** Farthest distance drawn. */
+  zfar: number | null;
+}
 /** The tables a compiled model carries. */
 export interface PreparedSceneTables {
   /** Product version. */
@@ -78,6 +99,8 @@ export interface PreparedSceneTables {
   nodes: TableNode[];
   /** The lights the nodes hang. */
   lights: TableLight[];
+  /** The cameras the nodes carry. */
+  cameras: TableCamera[];
   /** The surfaces. */
   materials: TableMaterial[];
   /** The textures. */
@@ -107,7 +130,7 @@ export function assertSceneTables(value: unknown): PreparedSceneTables {
         `scene tables ${field} ${String(tables[field])} is not the ${expected} this runtime reads`,
         { [field]: tables[field] ?? null },
       );
-  const missing = (['nodes', 'lights', 'materials', 'textures'] as const).filter(
+  const missing = (['nodes', 'lights', 'cameras', 'materials', 'textures'] as const).filter(
     (field) => !Array.isArray(tables[field]),
   );
   if (missing.length || !tables.scene || !tables.documents || typeof tables.documents !== 'object')

@@ -7699,7 +7699,7 @@
       "currentEntryPoints": ["trillion3d (common)"],
       "proposedEnvironments": "common, browser, node, worker",
       "classification": "public",
-      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/graph.ts"],
+      "affectedConsumers": ["packages/sdk-browser/src/host/prepared/nodes.ts"],
       "disposition": "retained",
       "bindingIdentity": "\"packages/sdk-core/src/scene/core/tableContracts\".TableNode"
     },
