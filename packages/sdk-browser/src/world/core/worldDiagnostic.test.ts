@@ -52,21 +52,31 @@ test('a mode written before the session opens is put on it; one it refuses leave
   assert.deepEqual(live.put, ['wireframe']);
 });
 
-test('a session that fails to open is named on the handle until one opens', (t) => {
+test('a session that fails to open is named on the handle until one opens or none is tried', (t) => {
   const logged = t.mock.method(console, 'error', () => {});
   const diagnostic = worldDiagnostic(() => null);
   // Read through a function: a direct read after the null check narrows the getter to `never`.
   const error = () => diagnostic.handle.error;
   assert.equal(error(), null);
-  diagnostic.failed(new Error('WEBGPU_LOST'));
+  const lost = new Error('WEBGPU_LOST');
+  diagnostic.failed(lost);
   assert.equal(error()?.code, 'WEBGPU_LOST');
-  assert.equal(logged.mock.callCount(), 1);
-  diagnostic.failed(new TypeError('x is undefined'));
+  assert.equal(error()?.details.cause, lost, 'the error thrown is kept, stack included');
+  assert.equal(logged.mock.calls[0]?.arguments[1], lost, 'and said on the console');
+  // Only the documented code is taken from a message: any other word in capitals is a reason.
+  diagnostic.failed(new Error('NO_COMPACT'));
   assert.equal(error()?.code, 'SESSION_OPEN_FAILED');
-  assert.equal(error()?.details.cause, 'x is undefined');
+  const thrown = new TypeError('x is undefined');
+  diagnostic.failed(thrown);
+  assert.equal(error()?.code, 'SESSION_OPEN_FAILED');
+  assert.equal(error()?.details.cause, thrown);
   const named = new EngineError('PAGE_BUDGET', 'too many pages');
   diagnostic.failed(named);
   assert.equal(error(), named);
   diagnostic.apply(session().opened);
+  assert.equal(error(), null);
+  // The scene emptied after a failure: nothing is tried, so nothing failed.
+  diagnostic.failed(thrown);
+  diagnostic.idle();
   assert.equal(error(), null);
 });
