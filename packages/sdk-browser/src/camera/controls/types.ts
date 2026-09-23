@@ -9,9 +9,8 @@
  * the same operations.
  *
  * `target`, `object.position`, `minDistance`, `maxDistance`, `enableZoom`, `update()`,
- * `addEventListener('change')` and `dispose()` are the ORBIT contract the learning portal
- * consumes (`site/lessons/engine-scene/cameraControls.ts`); nothing outside that list is part
- * of it. The other controllers publish the same base plus what their own motion needs.
+ * `addEventListener('change')` and `dispose()` are the ORBIT contract a world's `controls`
+ * publishes (`world/core/worldCamera.ts`); nothing outside that list is part of it. The other controllers publish the same base plus what their own motion needs.
  */
 import type { HostRotation } from '../../host/scene/graphNodes.ts';
 
@@ -44,8 +43,8 @@ export interface ControlVector {
 }
 
 /**
- * The camera a controller poses: its LOCAL position and orientation, and the vertical field
- * a pan needs to turn pixels into world units. A controller never resolves a world pose —
+ * The camera a controller poses: its LOCAL position and orientation, and the vertical field and
+ * zoom a pan needs to turn pixels into world units. A controller never resolves a world pose —
  * that is the business of `../world.ts`, and a controller writes exactly where the host
  * would have written by hand.
  */
@@ -54,6 +53,8 @@ export interface ControlCamera {
   /** The orientation the host stores, declared once in `../../host/scene/graphNodes.ts`. */
   quaternion: HostRotation;
   fov: number;
+  /** Magnification, 1 when the host has none: a pan at zoom 2 moves half as far per pixel. */
+  zoom?: number;
   updateMatrixWorld(force?: boolean): void;
 }
 

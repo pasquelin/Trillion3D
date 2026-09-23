@@ -145,13 +145,14 @@ export class Geometry {
     const c = this.computeBoundingBox().getCenter();
     return this.translate(-c.x, -c.y, -c.z);
   }
-  /** A new geometry with copies of every list. */
+  /** A new geometry with copies of every list, and the recipe that still builds it. */
   clone() {
     const copy = new Geometry();
     for (const [name, attribute] of Object.entries(this.attributes))
       copy.setAttribute(name, attribute.clone());
     if (this.index) copy.setIndex(this.index.clone());
     for (const g of this.groups) copy.addGroup(g.start, g.count, g.materialIndex);
+    copy.recipe = this.recipe && { type: this.recipe.type, args: [...this.recipe.args] };
     return copy;
   }
   /** Forgets the holders: a disposed geometry is drawn by nobody. */

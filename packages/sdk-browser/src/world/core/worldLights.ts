@@ -73,12 +73,19 @@ export function createWorldLights() {
       const lights = new Set<Light>();
       const sh = emptyIrradiance();
       let surrounding = false;
-      scene.traverse((node) => {
-        if (!isLight(node)) return;
-        lights.add(node as Light);
-        if (addLightIrradiance(node as Light, sh)) surrounding = true;
-      });
-      held = lights.size;
+      held = 0;
+      // A light lights while it and every node above it are visible, as a mesh is drawn; a
+      // hidden one is still held, so showing it again relights.
+      const visit = (node: Object3D, shown: boolean) => {
+        shown &&= node.visible;
+        if (isLight(node)) {
+          held++;
+          if (shown) lights.add(node as Light);
+          if (shown && addLightIrradiance(node as Light, sh)) surrounding = true;
+        }
+        for (const child of node.children) visit(child, shown);
+      };
+      visit(scene, true);
       if (boundsStale) bounds.setFromObject(scene);
       boundsStale = false;
       const drop = (light: Light, id: string) => {

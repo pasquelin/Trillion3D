@@ -6177,6 +6177,13 @@
   "object.group": {
     "summary": "Một node trống giữ các đối tượng khác, để chúng di chuyển cùng nhau."
   },
+  "object.clone": {
+    "summary": "Một bản sao của một đối tượng và mọi thứ bên dưới nó, không dùng chung gì với nó: hình dạng, vật liệu, đèn và các trường đều được sao chép.",
+    "description": "Một mô hình đã tải không được sao chép: trả về `null` cho nó, và nó bị bỏ ra khỏi một nhóm được sao chép.",
+    "parameters": {
+      "source": "Đối tượng cần sao chép."
+    }
+  },
   "object.line": {
     "summary": "Vẽ một đường thẳng qua các đỉnh, lần lượt từng cái một.",
     "parameters": {

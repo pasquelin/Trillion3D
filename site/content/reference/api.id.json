@@ -6177,6 +6177,13 @@
   "object.group": {
     "summary": "Sebuah node kosong yang memegang objek lain, jadi mereka bergerak bersama."
   },
+  "object.clone": {
+    "summary": "Salinan sebuah objek dan semua yang ada di bawahnya, tanpa berbagi apa pun dengannya: bentuk, material, lampu, dan bidangnya disalin.",
+    "description": "Model yang dimuat tidak disalin: `null` untuknya, dan ia ditinggalkan dari grup yang disalin.",
+    "parameters": {
+      "source": "Objek yang disalin."
+    }
+  },
   "object.line": {
     "summary": "Menggambar sebuah garis melewati vertex-vertex, satu demi satu.",
     "parameters": {

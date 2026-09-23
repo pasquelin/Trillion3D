@@ -6172,6 +6172,13 @@
   "object.group": {
     "summary": "Um nó vazio que contém outros objetos, para que se movam juntos."
   },
+  "object.clone": {
+    "summary": "Uma cópia de um objeto e de tudo o que está sob ele, sem partilhar nada com ele: a forma, os materiais, as luzes e os campos são copiados.",
+    "description": "Um modelo carregado não é copiado: `null` para ele, e fica fora de um grupo copiado.",
+    "parameters": {
+      "source": "O objeto a copiar."
+    }
+  },
   "object.points": {
     "summary": "Desenha cada vértice de uma geometria como um ponto.",
     "parameters": {

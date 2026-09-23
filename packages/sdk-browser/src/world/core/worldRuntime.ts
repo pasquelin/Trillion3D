@@ -27,11 +27,9 @@ type Inputs = {
   frame: (metrics: FrameMetrics) => void;
   /** The display chain the page set: exposure and curve; the lights add their irradiance. */
   display: () => { exposure: number; toneMapping: SceneToneMapping };
-  /** Whether the world has drawn a frame yet. */
-  drawn: () => boolean;
-  /** Settles once the world's renderer — and its device — is granted. */
-  ready: Promise<unknown>;
-  /** A session that could not open: the world reports it, and keeps the scene. */
+  /** Whether the world has drawn a frame yet. */ drawn: () => boolean;
+  /** Settles once the world's renderer — and its device — is granted. */ ready: Promise<unknown>;
+  /** A session that failed to open, or a scene that failed to resolve: reported, scene kept. */
   failed: (error: unknown) => void;
   notices: WorldNotices;
 };
@@ -110,17 +108,22 @@ export function createWorldRuntime(inputs: Inputs) {
       inputs.opened(explorer);
     }
   };
-  const reopens = createRequestLoop(reopen);
-  const requestReopen = reopens.request;
-  // Every change made before the renderer is granted, and while a resolution runs, is folded
-  // into the next resolution: one for the burst, never one per call.
+  const reopens = createRequestLoop(reopen),
+    requestReopen = reopens.request;
+  // Every change made before the renderer is granted, and while a resolution runs, is folded into
+  // the next one. One that throws is reported and ends the burst; the next change starts another.
   const resolve = async () => {
-    while ((structureChanged || contents.staleCount) && !disposed) {
-      structureChanged = false;
-      if (await contents.resolve()) lightsChanged = true;
-      seatWanted = true;
-      if (!explorer && !reopens.running) apply();
-      invalidate();
+    try {
+      while ((structureChanged || contents.staleCount) && !disposed) {
+        structureChanged = false;
+        if (await contents.resolve()) lightsChanged = true;
+        seatWanted = true;
+        if (!explorer && !reopens.running) apply();
+        invalidate();
+      }
+    } catch (error) {
+      closed = 'the scene could not be resolved';
+      if (!disposed) inputs.failed(new Error('World scene resolution failed', { cause: error }));
     }
     resolving = null;
   };
