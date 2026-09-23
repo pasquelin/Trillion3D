@@ -56,6 +56,7 @@ export function CodeInput({ value, onChange, label }: CodeInputProps) {
   const view = useRef<EditorView | null>(null);
   const change = useRef(onChange);
   const latest = useRef(value);
+  const replacing = useRef(false);
   useEffect(() => {
     change.current = onChange;
   });
@@ -69,8 +70,9 @@ export function CodeInput({ value, onChange, label }: CodeInputProps) {
         highlight,
         look,
         EditorView.contentAttributes.of({ 'aria-label': label }),
+        // Only the reader's own changes are reported: a source set from outside is not an edit.
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) change.current(update.state.doc.toString());
+          if (update.docChanged && !replacing.current) change.current(update.state.doc.toString());
         }),
       ],
     });
@@ -85,8 +87,10 @@ export function CodeInput({ value, onChange, label }: CodeInputProps) {
   useEffect(() => {
     latest.current = value;
     const editor = view.current;
-    if (editor && editor.state.doc.toString() !== value)
-      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
+    if (!editor || editor.state.doc.toString() === value) return;
+    replacing.current = true;
+    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
+    replacing.current = false;
   }, [value]);
   return <div className="min-h-0 flex-1" ref={parent} />;
 }
