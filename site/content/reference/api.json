@@ -4026,7 +4026,7 @@
       {
         "name": "delta",
         "type": "number",
-        "desc": "Seconds since the previous frame."
+        "desc": "Seconds since the previous frame, at most two frame intervals after a pause; 0 on the first."
       },
       {
         "name": "time",
