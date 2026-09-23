@@ -12,7 +12,7 @@ packages/
   sdk-browser/src/    340 *.test.ts
   sdk-node/src/       10 *.test.ts
 tests/
-  integration/        21 *.test.ts — architecture, boundaries, public contracts
+  integration/        20 *.test.ts — architecture, boundaries, public contracts
   browser/renders/    42 *.browser.ts — rendering in real Chromium
   browser/probes/     20 GPU probes + 32 support modules
   browser/support/    67 pages and cases served to the render proofs
