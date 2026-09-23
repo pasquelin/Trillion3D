@@ -1674,15 +1674,7 @@
   },
   "FirstPersonCameraControls": {
     "summary": "PRIMA PERSONA, puntatore bloccato: il puntatore gira la testa, i tasti fanno camminare.",
-    "description": "L'orizzonte resta dritto — imbardata attorno alla sommità del mondo, beccheggio limitato a `[minPitch, maxPitch]`, mai rollio — e la camminata segue solo l'imbardata, così alzare lo sguardo non solleva il camminatore dal suolo. È COMPITO DELL'HOST RICHIEDERE IL BLOCCO. Un browser concede il blocco del puntatore solo durante un gesto, quindi il controller lo richiede su `pointerdown` e pubblica `lock()`, `unlock()` e `locked()` per un host che preferisce scegliere il proprio momento; un blocco da cui l'utente esce interrompe semplicemente lo sguardo. Tasti, secondo `KeyboardEvent.code`: W/S avanti e indietro, A/D laterale, Spazio e Shift sinistro per salire e scendere.",
-    "members": {
-      "lookSpeed": "Radianti girati per pixel di movimento del puntatore.",
-      "locked": "Se il puntatore è bloccato nella vista.",
-      "lock": "Blocca il puntatore nella vista.",
-      "unlock": "Libera il puntatore.",
-      "minPitch": "Il punto più basso in cui guarda la testa, in radianti sotto l'orizzonte contati come negativi (0 è l'orizzonte); per impostazione predefinita appena prima di guardare dritto verso il basso. Alzalo affinché un camminatore non guardi mai dentro il proprio corpo.",
-      "maxPitch": "Il punto più alto in cui guarda la testa, in radianti sopra l'orizzonte; per impostazione predefinita appena prima dello zenit."
-    }
+    "description": "L'orizzonte resta dritto — imbardata attorno alla sommità del mondo, beccheggio limitato a `[minPitch, maxPitch]`, mai rollio — e la camminata segue solo l'imbardata, così alzare lo sguardo non solleva il camminatore dal suolo. È COMPITO DELL'HOST RICHIEDERE IL BLOCCO. Un browser concede il blocco del puntatore solo durante un gesto, quindi il controller lo richiede su `pointerdown` e pubblica `lock()`, `unlock()` e `locked()` per un host che preferisce scegliere il proprio momento; un blocco da cui l'utente esce interrompe semplicemente lo sguardo. Tasti, secondo `KeyboardEvent.code`: W/S avanti e indietro, A/D laterale, Spazio e Shift sinistro per salire e scendere."
   },
   "FloatBatch": {
     "summary": "Gli array di numeri che un lotto legge e scrive."
@@ -6309,6 +6301,14 @@
       "kind": "Quale controller dirige la camera; fornisci un altro nome per cambiare.",
       "enabled": "Se il controller ascolta il mouse e la tastiera.",
       "target": "Il punto attorno a cui ruota un controller a perno.",
+      "autoUpdate": "Se il ciclo del mondo chiama `update` prima di ogni fotogramma, prima degli hook di `world.beforeFrame`. `false` affida il passo alla pagina, che chiama `update` da un tale hook, tanto spesso e con i sotto-passi che integra; il mondo allora non lo fa più mai.",
+      "colliders": "Solo personaggio: le mesh con cui collide il corpo — un oggetto o un elenco, discendenti inclusi — o `null`. Impostarle costruisce un albero di triangoli statico dai loro triangoli in spazio mondo così come stanno ora: un passaggio sui triangoli e una costruzione `O(T log T)`, circa 52 byte per triangolo. I modelli compilati non vengono ancora letti: dai loro una mesh semplice come sostituto.",
+      "rebuildColliders": "Solo personaggio: ricostruisce l'albero di collisione, dopo che i collisori si sono spostati o sono cambiati.",
+      "velocity": "Solo personaggio: la velocità del corpo in metri al secondo, una copia; altrimenti zero.",
+      "onGround": "Solo personaggio: se i piedi sono su un pavimento; `false` per ogni altro controller.",
+      "update": "Fa avanzare un controller pilotato di `delta` secondi; un controller a perno rilegge la sua posa.",
+      "follow": "La camera del mondo è cambiata: il controller la segue.",
+      "dispose": "Ferma il controller e rimuove i suoi listener dal canvas.",
       "minDistance": "Distanza minima a cui un controller a perno avvicina la camera a `target`.",
       "maxDistance": "Distanza massima a cui un controller a perno allontana la camera da `target`.",
       "minPolarAngle": "Solo orbita: angolo polare più piccolo, in radianti dalla verticale.",
@@ -6317,22 +6317,34 @@
       "maxAzimuthAngle": "Solo orbita: fine di questo arco; può essere più piccolo di `minAzimuthAngle`.",
       "movementSpeed": "Volo e prima persona: unità del mondo al secondo a tasto pieno; 1 per impostazione predefinita.",
       "lookSpeed": "Solo prima persona: radianti di cui ruota la vista per pixel di movimento del puntatore.",
-      "rollSpeed": "Solo volo: radianti al secondo di cui i tasti fanno beccheggiare, imbardare e rollare.",
-      "rotateSpeed": "Orbita e trackball: velocità a cui ruota il trascinamento; 1 per impostazione predefinita.",
-      "zoomSpeed": "Controller a perno: velocità a cui la rotellina e il pizzico zoomano; 1 per impostazione predefinita.",
-      "update": "Fa avanzare un controller pilotato di `delta` secondi; un controller a perno rilegge la sua posa.",
-      "follow": "La camera del mondo è cambiata: il controller la segue.",
-      "dispose": "Ferma il controller e rimuove i suoi listener dal canvas.",
       "minPitch": "Solo prima persona: il punto più basso in cui guarda la testa, in radianti (0 è l'orizzonte, negativo verso il basso).",
       "maxPitch": "Solo prima persona: il punto più alto in cui guarda la testa, in radianti sopra l'orizzonte.",
       "pointerLook": "Solo volo: se il puntatore gira la vista; su false, solo i tasti pilotano.",
+      "rollSpeed": "Solo volo: radianti al secondo di cui i tasti fanno beccheggiare, imbardare e rollare.",
       "pitchSpeed": "Solo volo: radianti al secondo di beccheggio dei tasti; `null` (predefinito) equivale a `rollSpeed`.",
       "yawSpeed": "Solo volo: radianti al secondo di imbardata dei tasti; `null` (predefinito) equivale a `rollSpeed`.",
       "inputResponse": "Solo volo: secondi che un tasto di virata impiega fino alla piena deflessione e ritorno; 0 è immediato.",
       "pitchInput": "Solo volo: leva di beccheggio in [-1, 1] (muso in su), sommata alle frecce; 0 per impostazione predefinita.",
       "yawInput": "Solo volo: leva di imbardata in [-1, 1] (sinistra), sommata alle frecce; 0 per impostazione predefinita.",
       "rollInput": "Solo volo: leva di rollio in [-1, 1] (sinistra), sommata a Q ed E; 0 per impostazione predefinita.",
-      "autoForward": "Solo volo: avanza a `movementSpeed` senza tasto, W più veloce, S fino all'arresto."
+      "rotateSpeed": "Orbita e trackball: velocità a cui ruota il trascinamento; 1 per impostazione predefinita.",
+      "zoomSpeed": "Controller a perno: velocità a cui la rotellina e il pizzico zoomano; 1 per impostazione predefinita.",
+      "autoForward": "Solo volo: avanza a `movementSpeed` senza tasto, W più veloce, S fino all'arresto.",
+      "walkSpeed": "Solo personaggio: metri al secondo a piedi; 4,5 di default, una corsa costante.",
+      "sprintSpeed": "Solo personaggio: metri al secondo con Maiusc premuto; 7 di default.",
+      "jumpSpeed": "Solo personaggio: velocità verso l'alto con cui inizia un salto, in m/s; `sqrt(2 g h)` raggiunge `h`, 1,1 m di default.",
+      "gravity": "Solo personaggio: accelerazione verso il basso, in m/s²; 9,80665 di default.",
+      "airControl": "Solo personaggio: quanto velocemente i tasti dirigono in aria, come frazione della risposta al suolo; 0,3 di default, 0 è balistico.",
+      "responseTime": "Solo personaggio: secondi per raggiungere il 95 % della velocità desiderata, o per fermarsi, al suolo; di default un passo di andatura (1 / 1,8 s).",
+      "capsuleRadius": "Solo personaggio: raggio del corpo, in metri; mezza larghezza di spalle (0,23 m) di default.",
+      "capsuleHeight": "Solo personaggio: altezza del corpo, in metri; 1,75 di default.",
+      "eyeHeight": "Solo personaggio: altezza della telecamera sopra i piedi, in metri; 1,64 di default.",
+      "stepHeight": "Solo personaggio: cornice più alta scalata senza saltare, in metri; l'altezza del ginocchio (0,5 m) di default.",
+      "maxSlope": "Solo personaggio: pavimento più ripido su cui si sta in piedi, in radianti dall'orizzontale; 45° di default.",
+      "coyoteTime": "Solo personaggio: secondi dopo essere usciti da un bordo durante i quali un salto viene ancora concesso; 0,1 di default.",
+      "jumpBuffer": "Solo personaggio: secondi durante i quali un salto premuto prima dell'atterraggio viene conservato per l'atterraggio; 0,1 di default.",
+      "onLand": "Solo personaggio: chiamata all'atterraggio con la velocità di discesa in m/s; `null` di default.",
+      "onJump": "Solo personaggio: chiamata quando il corpo lascia il suolo con un salto; `null` di default."
     }
   },
   "world.renderer": {
@@ -6377,6 +6389,14 @@
     },
     "returns": "Una funzione che ferma l'hook."
   },
+  "world.beforeFrame": {
+    "summary": "Esegue una funzione prima di ogni fotogramma disegnato, con `{ delta, time }`; restituisce ciò che lo ferma.",
+    "description": "Un fotogramma del ciclo del mondo si svolge così: il controller fa avanzare la telecamera (a meno che `controls.autoUpdate` sia false), le clip avanzano, questi hook nell'ordine in cui sono stati aggiunti, la scena viene scritta e disegnata, poi gli hook di `onFrame`. Ciò che un hook posiziona — un corpo sulla telecamera, un cockpit — viene disegnato in questo stesso fotogramma, mai uno in ritardo. Un `render()` guidato dall'host li esegue anch'esso, ma non fa avanzare alcun controller. Un hook che chiama `invalidate()` fa continuare ad arrivare fotogrammi.",
+    "parameters": {
+      "hook": "La funzione da eseguire; riceve i secondi appena integrati e il tempo del mondo."
+    },
+    "returns": "Una funzione che ferma l'hook."
+  },
   "world.loop": {
     "summary": "Un altro nome per `onFrame`.",
     "parameters": {
@@ -6407,7 +6427,8 @@
     "summary": "Ferma il mondo e restituisce tutto ciò che ha preso: memoria GPU, ciclo, controlli."
   },
   "WorldControls": {
-    "summary": "I modi in cui una pagina può dirigere la camera con mouse e tastiera, o `'none'`."
+    "summary": "I modi in cui una pagina può dirigere la camera con mouse e tastiera, o `'none'`.",
+    "description": "`'firstPerson'` muove una telecamera; `'character'` muove un corpo — massa, gravità, salti, collisioni con `world.controls.colliders` — e guarda attraverso i suoi occhi."
   },
   "WorldFrameMetrics": {
     "summary": "Le misure di un fotogramma, con i nomi sotto cui una pagina le legge; `null` dove il percorso non conta.",
@@ -6606,6 +6627,79 @@
       "z": "Il terzo numero.",
       "w": "Il quarto numero.",
       "set": "Scrive i quattro numeri."
+    }
+  },
+  "BeforeFrameInfo": {
+    "summary": "Cosa riceve un hook prima del fotogramma: i secondi che i controller hanno appena integrato, e dall'inizio del mondo.",
+    "description": "L'unico oggetto del mondo, riscritto a ogni fotogramma: un hook che vuole conservare un valore lo copia.",
+    "members": {
+      "delta": "Secondi dal fotogramma precedente, al massimo due intervalli di fotogramma dopo una pausa; 0 al primo.",
+      "time": "Secondi dall'inizio del mondo."
+    }
+  },
+  "Capsule": {
+    "summary": "UNA CAPSULA VERTICALE contro un albero di triangoli: la fase stretta del corpo del personaggio.",
+    "description": "La capsula poggia su `feet` — il punto più basso della sua sfera inferiore — ed è ogni punto entro `radius` dal segmento verticale che va da `feet + radius` a `feet + height - radius`. Un passaggio trova ogni triangolo più vicino di `radius` a quel segmento e consegna subito ogni sovrapposizione a `push` (`CapsuleContact`). Chi chiama sposta `feet`; il triangolo successivo del passaggio viene misurato dalla capsula spostata, così due pareti che si incontrano in un angolo vengono lasciate entrambe in un solo passaggio.",
+    "members": {
+      "feet": "Il punto più basso, in spazio mondo; `push` lo sposta.",
+      "radius": "Raggio del corpo, in metri.",
+      "height": "Altezza dai piedi alla sommità della testa, in metri; almeno due raggi."
+    }
+  },
+  "CapsuleContact": {
+    "summary": "Una sovrapposizione tra una capsula e una superficie.",
+    "description": "Gli array vengono riutilizzati: una push li legge solo durante la chiamata.",
+    "members": {
+      "normal": "Direzione unitaria che esce dalla superficie verso la capsula: la via d'uscita.",
+      "surface": "Normale unitaria della superficie stessa, dal lato della capsula. Differisce da `normal` quando la capsula tocca uno spigolo o un angolo: indica a quale faccia appartiene quello spigolo.",
+      "point": "Il punto toccato della superficie, in spazio mondo.",
+      "depth": "Quanto la capsula è dentro la superficie lungo `normal`, > 0."
+    }
+  },
+  "CapsulePush": {
+    "summary": "Risponde a un contatto, tipicamente spostando i `feet` della capsula fuori da esso."
+  },
+  "CharacterCameraControls": {
+    "summary": "UN PERSONAGGIO, visto attraverso i suoi occhi: un corpo con massa che cammina, corre, salta e cade, e collide con i triangoli del mondo come una capsula verticale.",
+    "description": "Il puntatore gira la testa come in prima persona (`look.ts`). I tasti, per `KeyboardEvent.code`, così ogni disposizione di tastiera suona gli stessi tasti: W/S o le frecce su e giù camminano avanti e indietro, A/D o le frecce laterali si spostano di lato, Maiusc scatta, Spazio salta. Il corpo non parte né si ferma di colpo: prende velocità e frena in `responseTime`, mantiene lo slancio in aria, cade sotto `gravity`, sale cornici fino a `stepHeight`, scivola lungo le pareti e sta in piedi su pendii fino a `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La telecamera è l'occhio, a `eyeHeight` sopra i piedi. Un host che muove la telecamera da sé vi teletrasporta il corpo, a riposo. Un personaggio fermo — a terra, senza velocità, senza tasto — non emette nulla, così la scena resta ferma.",
+    "members": {
+      "velocity": "La velocità del corpo in metri al secondo, in diretta: `[x, y, z]`, y verso l'alto.",
+      "onGround": "Se i piedi sono su un pavimento.",
+      "onLand": "Chiamata all'atterraggio con la velocità di discesa, in metri al secondo: un suono, uno scossone.",
+      "onJump": "Chiamata quando il corpo lascia il suolo con un salto.",
+      "collision": "Con cosa collide il corpo — i collisori del mondo, o il mondo di un backend fisico tramite la stessa giuntura (`CharacterCollision`). `null` cammina in piano dove si trova il corpo, senza mai cadere.",
+      "update": "Vive `delta` secondi; restituisce se la telecamera si è mossa, ed emette `change` quando è successo."
+    }
+  },
+  "CharacterCollision": {
+    "summary": "LA GIUNTURA TRA UN PERSONAGGIO E IL MONDO CON CUI COLLIDE.",
+    "description": "Il corpo del personaggio (`characterBody.ts`) non legge mai triangoli: sposta la sua capsula in tratti più corti del suo raggio e, dopo ciascuno, chiede cosa sovrappone la capsula e da che parte uscire; e chi cammina chiede dove sia il pavimento sotto i piedi. Tutto il resto — velocità, gravità, gradini, pendii, salti — appartiene al corpo. Un backend fisico implementa questa interfaccia per mettere un personaggio nel proprio mondo: risponde alla sovrapposizione dalle proprie forme e dalla propria fase ampia, e il corpo vi cammina sopra senza modifiche. L'implementazione predefinita è l'albero di triangoli statico di `triangleCollision`.",
+    "members": {
+      "resolveCapsule": "Trova cosa sovrappone `capsule` e chiama `push(contact)` per ogni sovrapposizione, subito (`CapsuleContact`: la via d'uscita, la superficie, il punto toccato, la profondità). `push` sposta `capsule.feet`; un'implementazione misura ogni sovrapposizione successiva dalla capsula spostata, così un angolo viene lasciato in una sola chiamata. Restituisce se qualcosa si sovrapponeva.",
+      "groundBelow": "Abbassa la sfera inferiore della capsula dritta verso il basso, di al massimo `depth`, e restituisce quanto scende prima di posarsi per la prima volta su una superficie che `accepts` accetta — il sostegno più alto tra questi; negativo quando la capsula vi affonda già e deve risalire. `null` quando non ce n'è nessuno. `capsule.feet` resta dove era. `accepts` vede ogni contatto candidato come un contatto: `point`, `normal` dal punto al centro della sfera, `surface` la faccia rivolta verso l'alto."
+    }
+  },
+  "HeadSettings": {
+    "summary": "LA TESTA DI UN CAMMINATORE, puntatore bloccato: il puntatore la gira, l'orizzonte resta livellato — imbardata attorno allo zenit del mondo, beccheggio limitato a `[minPitch, maxPitch]`, mai rollio.",
+    "description": "Condivisa da ogni controller che guarda attraverso gli occhi di una persona. IL BLOCCO SPETTA ALL'HOST RICHIEDERLO. Un browser concede un blocco del puntatore solo all'interno di un gesto, quindi la testa lo richiede su `pointerdown` e pubblica `lock()`, `unlock()` e `locked()` per un host che preferisca scegliere il proprio momento; un blocco da cui lo spettatore fugge interrompe semplicemente lo sguardo, e un trascinamento senza blocco gira comunque la testa.",
+    "members": {
+      "lookSpeed": "Radianti ruotati per pixel di movimento del puntatore.",
+      "minPitch": "Il punto più basso guardato dalla testa, in radianti sotto l'orizzonte contati negativi (0 è l'orizzonte); di default appena prima della verticale verso il basso. Alzalo perché un camminatore non guardi mai dentro il proprio corpo.",
+      "maxPitch": "Il punto più alto guardato dalla testa, in radianti sopra l'orizzonte; di default appena prima dello zenit."
+    }
+  },
+  "PersonHead": {
+    "summary": "Cosa pubblica un controller che guarda attraverso gli occhi di una persona: la testa e il suo blocco.",
+    "members": {
+      "locked": "Se il puntatore è bloccato sulla vista.",
+      "lock": "Blocca il puntatore sulla vista.",
+      "unlock": "Libera il puntatore."
+    }
+  },
+  "TriangleCollision": {
+    "summary": "Il mondo di collisione predefinito: un albero di triangoli statico.",
+    "members": {
+      "tree": "L'albero da cui si risponde: il suo `triangleCount` e i suoi `bytes` sono il costo del mondo."
     }
   }
 }
