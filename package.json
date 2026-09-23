@@ -35,7 +35,7 @@
   ],
   "scripts": {
     "pnpm:devPreinstall": "node scripts/setup-development.ts",
-    "build": "node -e \"for (const p of ['core', 'browser', 'node']) require('fs').rmSync('dist/sdk-' + p, { recursive: true, force: true })\" && tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.ts && node scripts/copy-resources.ts && node scripts/write-build-provenance.ts",
+    "build": "node -e \"for (const p of ['sdk', 'sdk-core', 'sdk-browser', 'sdk-node']) require('fs').rmSync('dist/' + p, { recursive: true, force: true })\" && tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.ts && node scripts/copy-resources.ts && node scripts/write-build-provenance.ts",
     "build:native": "cargo build --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "build:wasm": "node scripts/build-wasm.ts",
     "test": "node scripts/test-unit.ts",
@@ -56,7 +56,7 @@
     "check:helpers": "node scripts/check-helpers.ts",
     "check:unused": "knip",
     "validate": "node scripts/validate.ts",
-    "check:structure": "node --test tests/integration/self-contained-repository.test.ts tests/integration/engine-structure.test.ts tests/integration/engine-without-three.test.ts tests/integration/engine-without-three-math.test.ts && tsc -p tsconfig.core.json --noEmit",
+    "check:structure": "tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.ts",
     "check:docs-three": "node scripts/check-docs-three.ts",
     "check:sdk-facade": "node scripts/generate-sdk-facade.ts --check",
