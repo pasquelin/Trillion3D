@@ -1,8 +1,7 @@
-import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
 import { useWords } from '../i18n.ts';
 import { DemoPage } from '../layout/DemoPage.tsx';
-import { readyEntries } from '../examples/list.ts';
+import { exampleTitle, readyEntries } from '../examples/list.ts';
 import { routeHref } from '../portal/routes.ts';
 import { Select } from '../ui/Input.tsx';
 
@@ -28,7 +27,7 @@ export function Sandbox({ id, locale }: { id: string; locale: Locale }) {
         >
           {readyEntries.map((example) => (
             <option key={example.id} value={example.id}>
-              {local(example.title, locale)}
+              {exampleTitle(example.id, locale)}
             </option>
           ))}
         </Select>

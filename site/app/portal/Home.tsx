@@ -1,7 +1,6 @@
 import { useWords } from '../i18n.ts';
-import { local } from '../../content/locale.ts';
 import type { Locale } from '../../content/locale.ts';
-import { mosaicEntries, thumbnailOf } from '../examples/list.ts';
+import { exampleTitle, mosaicEntries, thumbnailOf } from '../examples/list.ts';
 import { DocPage, SITE_NAME } from '../layout/DocPage.tsx';
 import { LinkButton } from '../ui/Button.tsx';
 import { Mosaic } from '../ui/Mosaic.tsx';
@@ -34,7 +33,7 @@ export function Home({ locale }: { locale: Locale }) {
           id: entry.id,
           href: routeHref({ locale, area: 'examples', id: entry.id }),
           src: thumbnailOf(entry.id),
-          label: local(entry.title, locale),
+          label: exampleTitle(entry.id, locale),
           large,
         }))}
       />

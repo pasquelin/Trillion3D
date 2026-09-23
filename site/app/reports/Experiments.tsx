@@ -8,7 +8,7 @@ import { sceneName, runOf } from '../../reports/presentation.ts';
 import { MetricCharts } from './MetricCharts.tsx';
 import type { Report } from '../../reports/types.ts';
 import type { MetricKey } from '../../reports/metrics.ts';
-import type { Dictionary } from '../../content/i18n/languages.inline.ts';
+import type { Dictionary } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 
 interface ExperimentsProps {

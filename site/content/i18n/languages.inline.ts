@@ -1,10 +1,17 @@
 import { readJsonFolder } from './jsonFolder.ts';
 
-/** A language's dictionary: its `meta`, then the portal's words by namespace, English the model. */
-export type Dictionary = typeof import('../../i18n/en.json', { with: { type: 'json' } });
+/** How a language names itself, in its dictionary's `meta`. */
+interface LanguageMeta {
+  name: string;
+  abbr: string;
+  hreflang: string;
+  rtl: boolean;
+}
 
-/** Every dictionary of `site/i18n/`, by language code: a language is added by adding its file. */
-export const DICTIONARIES = readJsonFolder<Dictionary>(
-  new URL('../../i18n/', import.meta.url),
-  /^(.+)\.json$/,
+/** The `meta` of every dictionary of `site/i18n/`, by language code: what the selector lists and
+ *  the route accepts before any other dictionary loads. A language is added by adding its file. */
+export const LANGUAGE_META = Object.fromEntries(
+  Object.entries(
+    readJsonFolder<{ meta: LanguageMeta }>(new URL('../../i18n/', import.meta.url), /^(.+)\.json$/),
+  ).map(([code, { meta }]) => [code, meta]),
 );

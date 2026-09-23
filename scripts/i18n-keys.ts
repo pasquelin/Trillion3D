@@ -4,10 +4,21 @@
 // side only is a page that would show a raw key, or a word nothing reads.
 import generated from '../site/content/reference/api.json' with { type: 'json' };
 import { DEFAULT_LANGUAGE } from '../site/content/i18n/dictionary.ts';
-import { DICTIONARIES } from '../site/content/i18n/languages.inline.ts';
+import { readJsonFolder } from '../site/content/i18n/jsonFolder.ts';
 import { referenceKeys } from '../site/content/reference/translate.ts';
-import { REFERENCE_TRANSLATIONS } from '../site/content/reference/translations.inline.ts';
+import type { Dictionary } from '../site/content/i18n/dictionary.ts';
 import type { PortalEntry } from '../site/content/model.ts';
+import type { ReferenceText } from '../site/content/reference/translate.ts';
+
+/** Every dictionary of `site/i18n/` and every translation of the reference, by language code. */
+const DICTIONARIES = readJsonFolder<Dictionary>(
+  new URL('../site/i18n/', import.meta.url),
+  /^(.+)\.json$/,
+);
+const REFERENCE_TRANSLATIONS = readJsonFolder<Record<string, ReferenceText>>(
+  new URL('../site/content/reference/', import.meta.url),
+  /^api\.(.+)\.json$/,
+);
 
 /** One file whose keys differ from English's, and how. */
 export interface KeyMismatch {
