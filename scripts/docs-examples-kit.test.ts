@@ -10,6 +10,7 @@ test('a declared control takes its kind from its value, and starts at it', () =>
     colour: '#88AAFF',
     spin: true,
     view: ['beauty', 'clusters'],
+    keys: 'W A S D to fly',
     backHome: press,
   });
   assert.deepEqual(values, {
@@ -27,6 +28,7 @@ test('a declared control takes its kind from its value, and starts at it', () =>
       ['colour', 'Colour'],
       ['toggle', 'Spin'],
       ['choice', 'View'],
+      ['note', 'Keys'],
       ['button', 'Back home'],
     ],
   );
@@ -46,7 +48,7 @@ test('a declared control takes its kind from its value, and starts at it', () =>
 test('a control that cannot be drawn is refused by name', () => {
   assert.throws(() => describe({ light: [0, 10, 12] }), /light: a slider is \[min, max, value\]/);
   assert.throws(() => describe({ light: [5, 5, 5] }), /light: a slider/);
-  assert.throws(() => describe({ tint: '#abc' as `#${string}` }), /tint: a colour is '#rrggbb'/);
+  assert.throws(() => describe({ tint: '#abc' }), /tint: a colour is '#rrggbb'/);
   assert.throws(() => describe({ view: [] }), /view: a choice needs at least one option/);
 });
 
