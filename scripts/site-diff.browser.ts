@@ -17,13 +17,13 @@ import { createDocsServer, listen } from './docs-serve.ts';
 import { examples } from '../site/content/catalog.ts';
 import { rawEntries } from '../site/app/portal/data.ts';
 import { entryRoute, routeHref } from '../site/app/portal/routes.ts';
-import type { Locale } from '../site/content/locale.ts';
+import { LANGUAGES } from '../site/content/i18n/dictionary.ts';
 
 const SETTLE_MS = 1500;
 const OUT = resolve(import.meta.dirname, '../benchmark-runs/site-diff');
-const LOCALES: Locale[] = ['en', 'fr'];
+const LOCALES = LANGUAGES.map(({ code }) => code);
 
-/** Every route the portal resolves: entries and examples in both locales, plus the fixed pages. */
+/** Every route the portal resolves: entries and examples in every language, plus the fixed pages. */
 export function portalRoutes() {
   const routes: string[] = [];
   for (const locale of LOCALES) {

@@ -9,6 +9,7 @@ interface CodeBlockProps {
   code: string;
   locale?: Locale;
   label?: string;
+  /** The code's language; by default markup reads as HTML, the rest as script. */
   language?: CodeLanguage;
   /** Blank rows shown after some lines (line index → rows), never copied: aligns two blocks. */
   gaps?: ReadonlyMap<number, number>;
@@ -16,7 +17,14 @@ interface CodeBlockProps {
   whole?: boolean;
 }
 
-export function CodeBlock({ code, locale = 'en', label, language, gaps, whole }: CodeBlockProps) {
+export function CodeBlock({
+  code,
+  locale = 'en',
+  label,
+  language = code.trimStart().startsWith('<') ? 'html' : undefined,
+  gaps,
+  whole,
+}: CodeBlockProps) {
   const t = useWords(locale);
   const title = label ?? t('code.runnable');
   const lines = useMemo(() => highlightLines(code, language), [code, language]);
