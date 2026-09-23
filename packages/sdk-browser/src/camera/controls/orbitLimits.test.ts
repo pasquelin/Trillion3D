@@ -51,3 +51,30 @@ test('orbit holds the azimuth on its arc, the arc behind the target included', (
   fixtureDrag(surface, 100, 0);
   assert.deepEqual(at(camera), [LEG, 0, -LEG]);
 });
+
+/** Twenty `update()` calls on a scene nobody touches: how many of them emitted. */
+function restingChanges(controls: { update(): boolean }, changes: () => number) {
+  const before = changes();
+  for (let i = 0; i < 20; i++) controls.update();
+  return changes() - before;
+}
+
+test('orbit resting on a bound stays still: `update()` emits nothing, polar or wrapped azimuth', () => {
+  // Re-clamped from the pose, an angle on a bound reads back one ULP to either side of it:
+  // these two drags are ones where it did, and the scene then emitted on every update.
+  const polar = orbit(10);
+  polar.controls.maxPolarAngle = 1.3;
+  polar.controls.update();
+  fixtureDrag(polar.surface, 13, -433);
+  assert.equal(restingChanges(polar.controls, polar.changes), 0);
+  const azimuth = orbit(10);
+  azimuth.camera.position.set(1.7, 2.3, -9);
+  azimuth.controls.minAzimuthAngle = (3 * Math.PI) / 4;
+  azimuth.controls.maxAzimuthAngle = (-3 * Math.PI) / 4;
+  azimuth.controls.update();
+  fixtureDrag(azimuth.surface, 300, 37);
+  assert.equal(restingChanges(azimuth.controls, azimuth.changes), 0);
+  // A bound the host moves is still obeyed on the next `update()`.
+  polar.controls.maxPolarAngle = 1;
+  assert.equal(polar.controls.update(), true);
+});
