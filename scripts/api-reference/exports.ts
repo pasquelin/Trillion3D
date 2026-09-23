@@ -147,7 +147,7 @@ export function buildReference(families: ReadonlySet<string>): PortalEntry[] {
         shapes.names.set(type, symbol.name);
     }
   const walk = new ReferenceWalk(shapes, families);
-  for (const [name, list] of [...bindings].sort(([a], [b]) => a.localeCompare(b)))
+  for (const [name, list] of [...bindings].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
     for (const { symbol, entries } of list)
       walk.add(
         name,
