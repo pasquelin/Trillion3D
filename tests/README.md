@@ -1,14 +1,22 @@
 # Cross-cutting Tests
 
-This directory contains what does not belong to any specific package. Unit tests live alongside their source code under `packages/*/`.
+Everything that is not a unit test lives here; a unit test sits next to the file it tests, under
+`packages/*/src/`.
 
-- **`integration/`** — 10 architecture and contract tests (`engineStructure`, `engineNoThree`, `public`, `dts-extensions`…), run by `pnpm test`.
-- **`browser/renders/`** — 32 rendering proofs executed in real Chromium (WebGPU / WebGL2): all launched, none excluded (`BROWSER_ECARTES`, `tests/browser/test-gpu.ts`).
-- **`browser/probes/`** — 18 hardware precision probes, plus their 25 support modules. A probe is a file whose name contains a hyphen; others are never executed standalone.
-- **`browser/support/`** — modules shared by rendering tests: fixture server, pages served to browser, case suites.
-- **`fixtures/`** — test scenes and data.
-- **`assets/`** — source format corpus, delivered outside repo and gitignored.
+- **`integration/`** — architecture and contract tests: package boundaries, engine without the host
+  library, the public facade and the installed package. Run by `pnpm test`.
+- **`browser/renders/`** — rendering proofs executed in real Chromium (WebGPU / WebGL2), one
+  `*.browser.ts` each: all launched, none excluded (`BROWSER_ECARTES`, `browser/test-gpu.ts`).
+- **`browser/probes/`** — hardware precision probes. A probe is a file whose name contains a hyphen;
+  the other files are its support modules, never run alone.
+- **`browser/support/`** — the pages, scenes and cases the render proofs serve to the browser.
+- **`kit/`** — the shared test tools: fake GPU devices (`gpu/`), the static server and the fixture
+  route (`server/`), the bit-exact comparison and the hostile-value list (`assert/`).
+- **`fixtures/`** — test data builders; `formats/` holds the golden inputs and expected outputs of the
+  native compiler, read by its Rust tests.
 
-The two folders are discovered by rule and their names follow benchmark and probe convention: explicit kebab-case. `browser/renders/` and `browser/probes/` run together via `pnpm run test:gpu` (`tests/browser/test-gpu.ts`), and `tests/browser/test-gpu.test.ts` preserves the equality **launched ∪ skipped == disk** in both: no file can silently stop running.
+`browser/renders/` and `browser/probes/` run together via `pnpm run test:gpu`
+(`browser/test-gpu.ts`), and `browser/test-gpu.test.ts` keeps **launched ∪ skipped == disk** in both:
+no file can silently stop running. The local corpus of source formats stays off git.
 
-Full documentation: [`docs/TESTS.md`](../docs/TESTS.md).
+Full documentation, with the counts of each folder: [`docs/TESTS.md`](../docs/TESTS.md).

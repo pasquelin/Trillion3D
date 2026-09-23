@@ -9,12 +9,12 @@
 // CALCULATION — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n)) — on f32 model from
 // `tests/browser/probes/inverseTransposeF32.ts`: rotation tracked across all scales, singular poses —
 // flattened then collapsed — and threshold crossed on both sides.
-// This model is not the shader: `tests/browser/renders/normal-transform-arithmetique.browser.ts` executes text
-// shipped in Chromium WebGPU on EXACTELY these cases (`tests/browser/probes/normalTransformCas.ts`) and
+// This model is not the shader: `tests/browser/renders/normal-transform-arithmetic.browser.ts` executes text
+// shipped in Chromium WebGPU on EXACTELY these cases (`tests/browser/probes/normalTransformCases.ts`) and
 // mandates rendering what model renders — which is also where non-compiling shader fails proof.
 // Only text checks remaining here cover COMPILATION and single writing: duplicate declaration
 // would not compile, and two arithmetic copies would drift — exactly Bug 9. CRITERION judging
-// a rendered normal is tested separately in `normalTransformCritere.test.ts`.
+// a rendered normal is tested separately in `normalTransformCriterion.test.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
@@ -35,7 +35,7 @@ import {
   EFFONDREES,
   REGULIERE_MINUSCULE,
   SEUIL,
-} from '../../../../tests/browser/probes/normalTransformCas.ts';
+} from '../../../../tests/browser/probes/normalTransformCases.ts';
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
 const verdict = (cas: { vraie: number[] }, rendue: number[]) =>
@@ -86,7 +86,7 @@ test('outside threshold band, batch did not move rendered normal', () => {
 });
 
 test('singular poses: flattened face keeps normal, collapsed face has none', () => {
-  // One expectation per case, calculated by hand in `normalTransformCas.ts`: cross product of
+  // One expectation per case, calculated by hand in `normalTransformCases.ts`: cross product of
   // transformed edges for rank 2, zero vector for collapsed. Former expectation — LOCAL normal
   // rendered as is — described bug, not convention: on `scale (1,1,0) then 90° around Y` it left +Z
   // where transformed face looks at +X.

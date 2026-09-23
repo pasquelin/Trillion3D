@@ -1,10 +1,10 @@
 // Measure a discrepancy, not just observe it. Certain optimizations reorder
 // floating point operations: this file counts differing values and states by how much, in ULP,
 // so that the table displays a number where strict equality would only show a "no".
-// Type list and key comparison come from `ecart.ts`: single rule for two
+// Type list and key comparison come from `diff.ts`: single rule for two
 // traversals, otherwise one knows a type that the other ignores.
-import { differenceDeCles, estTypedArray, memesCles } from './ecart.ts';
-import type { TypedArray } from './ecart.ts';
+import { differenceDeCles, estTypedArray, memesCles } from './diff.ts';
+import type { TypedArray } from './diff.ts';
 
 /** How many values differ, by at most how many ULP, and the first discrepancy seen. */
 export interface Compteur {

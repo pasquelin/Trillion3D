@@ -11,9 +11,9 @@ import {
   engine,
   libere,
   type ScenePreparee,
-} from './preuveSceneCommune.ts';
-import { difference, image } from './preuveSceneImage.ts';
-import { ouvrirAppareil } from '../probes/appareilWebgpu.ts';
+} from './sharedSceneProof.ts';
+import { difference, image } from './sceneImageProof.ts';
+import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
 import { BACKGROUND, CASES, GROUND, WATER, type WaterCase } from './waterPassCases.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 

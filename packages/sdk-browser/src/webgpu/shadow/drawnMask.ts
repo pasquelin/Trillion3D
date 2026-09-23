@@ -6,7 +6,7 @@ import type { WebgpuLightState } from '../pages/state/lights.ts';
  * the slice mirror, after the frame's scheduling: the pages that hold a depth of the face's
  * extent, not the complement of the stale mask — a page awaiting a redraw still holds one —,
  * and the physical page of the extent origin. The two words are the held rows read four by
- * four (`sceneLightShadowHeld.ts`). A face whose words changed flags its slice to push even
+ * four (`packages/sdk-core/src/scene/light-shadow/held.ts`). A face whose words changed flags its slice to push even
  * when nothing was drawn in it: an extent that slid has a strip the read must fall through,
  * and only the slice buffer can tell it so.
  */

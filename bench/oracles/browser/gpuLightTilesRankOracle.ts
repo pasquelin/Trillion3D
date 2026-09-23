@@ -1,6 +1,6 @@
 /**
  * Oracle D4: two faithful, line-by-line ports of the end compaction of `lightTiles` in
- * gpuLightTilesShader.ts. `compactSerial` is the old kernel (thread zero alone, a loop
+ * packages/sdk-browser/src/lighting/tiles/shader.ts. `compactSerial` is the old kernel (thread zero alone, a loop
  * `index<count`). `compactRank` is the D4-batch kernel: each kept thread reads its rank by
  * `countOneBits` on the already-built mask (word by word before its own, then the bits before
  * it in its word) and writes its lamp at that place, without depending on thread execution order.

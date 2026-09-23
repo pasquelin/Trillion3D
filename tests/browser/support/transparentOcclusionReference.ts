@@ -1,8 +1,8 @@
 // Refutation, cluster by cluster, of the transparent occlusion test's rejects.
 //
 // The reference is not transcribed: it is production code itself — `projectCornersInto`
-// (hizCorners.ts) in double precision, `hizNearestBound` (hizNearestBound.ts) for the lift and
-// layer bias, `buildHizPyramid` then `hizRejectsFlat` (hizDepth.ts, hizOcclusion.ts) for the
+// (packages/sdk-browser/src/hiz/corners.ts) in double precision, `hizNearestBound` (packages/sdk-browser/src/hiz/nearestBound.ts) for the lift and
+// layer bias, `buildHizPyramid` then `hizRejectsFlat` (packages/sdk-browser/src/hiz/depth.ts, packages/sdk-browser/src/hiz/occlusion.ts) for the
 // readout. The readout depth is what the GPU actually left at the end of the opaque pass,
 // reread at full resolution.
 //

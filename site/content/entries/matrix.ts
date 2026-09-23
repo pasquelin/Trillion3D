@@ -87,7 +87,7 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
     description:
       'The 4×4 determinant, expanded along the last row like the reference, and that of the linear part alone (the 3×3 block), expanded along the first column. The sign of the second says whether the transform reverses orientation, hence which face a draw must cull. The second is not the expansion of the first: the relative gap is a few ulps, and the signs can differ only near a singular matrix, where neither rounding decides.',
     replaces: 'Matrix4.determinant',
-    proof: 'mathMatrix4.test.ts',
+    proof: 'packages/sdk-core/src/math/matrix/matrix4.test.ts',
   },
   {
     ...M4,

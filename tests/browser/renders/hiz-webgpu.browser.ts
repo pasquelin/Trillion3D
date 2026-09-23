@@ -10,8 +10,8 @@ import {
   ST_TESTED,
   TESTED_U32,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
-import { BOX_NEAREST, cases, height, width } from '../support/hizCas.ts';
-import { executerHiz } from './hizWebgpuPage.ts';
+import { BOX_NEAREST, cases, height, width } from '../support/hizCases.ts';
+import { executerHiz } from '../support/hizWebgpuPage.ts';
 
 interface HizReport {
   version: number;

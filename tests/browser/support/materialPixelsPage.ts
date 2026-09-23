@@ -3,12 +3,12 @@
 // explorer draws a Three-rendered engine — sRGB output, ACES once a light exists, identity
 // without one — and the engine presents into its own canvas and answers `capture()`.
 //
-// This module is SERVED to the harness page (mount `/test/`) and imported by its URL, since the
+// This module is SERVED to the harness page (mount `/tests/`) and imported by its URL, since the
 // evaluated function is serialised and cannot reach a module of its own.
 import * as THREE from 'three';
-import { cameraFace } from './preuveSceneCommune.ts';
-import { ouvrirAppareil } from '../probes/appareilWebgpu.ts';
-import { creer, appliquer } from '/mesure/pageTemoin.ts';
+import { cameraFace } from './sharedSceneProof.ts';
+import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { creer, appliquer } from '/runner/witnessPage.ts';
 import { SUN, fixtures, type Fixture } from './materialFixtures.ts';
 import {
   witnessRenderer,
@@ -16,7 +16,7 @@ import {
   rgbAt,
   witnessImage,
   engineImage,
-} from './materialPixelsRendu.ts';
+} from './materialPixelsRender.ts';
 import type {
   BackendFactory,
   BackendDiagnostic,

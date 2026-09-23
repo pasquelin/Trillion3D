@@ -140,7 +140,7 @@ export class Triangle {
   }
 }
 
-/** Six planes, read from a view-projection by the core (`mathFrustum.ts`). */
+/** Six planes, read from a view-projection by the core (`math/frustum/frustum.ts`). */
 export class Frustum {
   readonly isFrustum = true as const;
   /** Six normalised planes, four numbers each: the core's layout. */

@@ -7,7 +7,7 @@
  * - `directional`: the sun or an overcast sky — a propagation direction, no position and
  *   no range, the same irradiance everywhere, and cascade shadows that follow the camera;
  * - `rect`: a one-sided rectangle of `size` metres centred on `position`, emitting along
- *   `direction`, its width along `right`; no cast shadow (`directRectLightWgsl.ts`).
+ *   `direction`, its width along `right`; no cast shadow (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`).
  *
  * Fields a kind does not use are rejected at validation: a directional light with
  * a position would be a promise the engine would not keep.

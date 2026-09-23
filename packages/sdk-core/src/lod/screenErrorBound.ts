@@ -25,7 +25,7 @@ import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.t
  * more. Along the ray (C → k·C, k > 1, centre depth C_d > 0), (kℓ + ρ)/(k·C_d − ρ) and
  * 1/(k·C_d − ρ − δ) decrease: the announced error decreases with distance. The two bounds of
  * step 2 come from two different points of the ball: E is tight for a small sphere,
- * loose when the ball grazes the near plane far from the axis (`tests/browser/probes/erreur-ecran-borne.ts`).
+ * loose when the ball grazes the near plane far from the axis (`tests/browser/probes/screen-error-bound.ts`).
  *
  * ONE CAMERA, ONE FORMULA. `perspective` is the camera's clip-w weight: a point at view depth d
  * has w = perspective·d + (1 − perspective) — 1 for a perspective projection (w = d, all of the
@@ -37,7 +37,7 @@ import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.t
  * No guard here: the caller has already handled a null, infinite or invalid error. A non-finite
  * depth or distance to the axis yields infinity. Operation order, (δ·f)/m then a factor
  * √/(m − δ) ≥ 1, keeps the rounded result above sdk-browser's `errorFloorAt` floor.
- * WGSL mirror: `projected` of `gpuDagShader.ts`, same operands, same order.
+ * WGSL mirror: `projected` of `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, same operands, same order.
  */
 export function screenErrorBound(
   error: number,

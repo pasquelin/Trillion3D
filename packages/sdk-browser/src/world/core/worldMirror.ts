@@ -3,7 +3,7 @@
  * per placement.
  *
  * The engine paths read a scene as a host graph: meshes holding a geometry and a surface
- * (`hostGraphNodes.ts`). A world hands them one host mesh per drawn resource — a geometry
+ * (`host/scene/graphNodes.ts`). A world hands them one host mesh per drawn resource — a geometry
  * resource worn with one material entry — whose association carries the resource's instance
  * buffer (`placementRows.ts`): ten thousand placements of one pebble are one host mesh and ten
  * thousand rows the engine reads in place — a blended or transmissive resource too, whose rows the

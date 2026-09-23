@@ -23,7 +23,7 @@ const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
 const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,}
 /** Every light slot, then the environment's irradiance: nine spherical-harmonic coefficients
- *  (\`sceneEnvironment.ts\`), zero where the host declared none; then the fitted specular lobe
+ *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; then the fitted specular lobe
  *  a rectangle is integrated with, written once (\`ltcTable.ts\`). */
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight,MAX_LIGHTS>,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,}
 /** The type rank is a float in the buffer: a single place knows how to reread it. */

@@ -13,7 +13,7 @@ import {
   scenesOf,
 } from './scene.ts';
 import { catalogueScenes } from './assetsCatalogue.ts';
-import { CAMPAGNE } from './campagne.ts';
+import { CAMPAGNE } from './campaign.ts';
 import { parseArgs } from './options.ts';
 
 test('the reference scenes are the public ones, the cut first and the mirror next', () => {

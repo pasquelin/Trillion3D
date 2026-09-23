@@ -1,6 +1,6 @@
 /**
- * A DOM `Worker` carried by a real `worker_threads` thread, to prove `pageDecodePool.ts` and
- * `pageDecodeHost.ts` with a real worker rather than a mock. `pageDecodeWorker.ts` reads and writes
+ * A DOM `Worker` carried by a real `worker_threads` thread, to prove `packages/sdk-browser/src/page/decode/pool.ts` and
+ * `packages/sdk-browser/src/page/decode/host.ts` with a real worker rather than a mock. `pageDecodeWorker.ts` reads and writes
  * `globalThis.postMessage` / `globalThis.onmessage`, which `worker_threads` does not know: a small
  * bridge file, written once per worker in a temporary folder, joins the two without touching the
  * real file. The worker imports `pageDecodeWorker.ts` by its URL, exactly as the pool does in a

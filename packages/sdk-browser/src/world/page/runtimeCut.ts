@@ -2,7 +2,7 @@
  * THE RUNTIME CUTTER: drawn triangles cut into engine pages, off the main thread.
  *
  * What runs here touches no platform object — no URL, no DOM, no host library — so the page
- * worker runs it (`pageDecodeTask.ts`, op `cut`) and the main thread runs the same function when
+ * worker runs it (`page/decode/task.ts`, op `cut`) and the main thread runs the same function when
  * no worker lives. The triangles travel as one buffer (`packDrawn`), and the pages come back as
  * bytes with their descriptors and digests: serving them at an address is the caller's.
  */

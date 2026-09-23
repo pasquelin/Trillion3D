@@ -4,7 +4,7 @@
 // it, `navigator.gpu`, and nothing else about the context changes.
 import type { Browser, Page } from 'playwright';
 import type { Server } from 'node:http';
-import { serverPort } from '../../kit/server/serveur.ts';
+import { serverPort } from '../../kit/server/staticServer.ts';
 import type { runDefaultBackendCase } from './defaultBackendCase.ts';
 
 declare global {

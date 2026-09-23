@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { surfaceColorAttachments } from './attachments.ts';
-import { referenceAttachments } from '../../../../../../bench/oracles/browser/cadre-vue.ts';
+import { referenceAttachments } from '../../../../../../bench/oracles/browser/view-frame.ts';
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 
 const surfacesWith = (views: GPUTextureView[]) =>

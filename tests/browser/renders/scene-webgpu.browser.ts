@@ -2,17 +2,17 @@ import { sceneProvenance, MEASURE_WIDTH, MEASURE_HEIGHT } from '../support/scene
 import { routeBaseline } from '../support/sceneBaseline.ts';
 import assert from 'node:assert/strict';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { startServer, serverPort } from '../../kit/server/serveur.ts';
+import { startServer, serverPort } from '../../kit/server/staticServer.ts';
 import { resolveMounts } from '../../../bench/runner/options.ts';
 import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/scene.ts';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { runOnPage } from './scenePageRun.ts';
+import { runOnPage } from '../support/scenePageRun.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 const run = process.argv[2] ?? new Date().toISOString().replaceAll(':', '-');
 const out = resolve('benchmark-runs/webgpu-visual', run);
-// The harness page and its import map, the trajectory under `/mesure/`, and the engine this run
+// The harness page and its import map, the trajectory under `/runner/`, and the engine this run
 // proves — `routeBaseline` intercepts `/dist/sdk-browser/`, so the engine keeps that prefix.
 const mounts = [...resolveMounts(ROOT, []), { prefix: '/dist/', dir: resolve(ROOT, 'dist') }];
 const server = await startServer({ port: 0, mounts, captures: new Map() });
@@ -39,7 +39,7 @@ try {
   });
   const result = await page.evaluate(runOnPage, {
     sdkUrl: '/dist/sdk-browser/src/measurement/measurement.js',
-    posesUrl: '/mesure/poses.ts',
+    posesUrl: '/runner/poses.ts',
     manifestUrl: assetsManifest(DEFAULT_SCENE, true),
     // `WEBGPU_TAA=off` yields the `--avant` of the Lumiere 16 batch, with no jitter and no history.
     temporalAntialiasing: taa,

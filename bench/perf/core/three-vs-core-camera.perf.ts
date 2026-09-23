@@ -1,5 +1,5 @@
 // Three.js vs sdk-core, camera: the perspective projection and the frustum planes of a clip
-// matrix. The engine's depth is reversed and its far plane infinite by design (`mathCamera.ts`),
+// matrix. The engine's depth is reversed and its far plane infinite by design (`packages/sdk-core/src/math/primitives/camera.ts`),
 // so the projection compares its x and y terms only, and the frustum its four side planes, the
 // ones both conventions share. Both sides store the compared terms in the same loop, four or
 // sixteen stores per element. The view and view-projection are the inverse and the product
