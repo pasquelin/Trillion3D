@@ -1,8 +1,8 @@
-import { copyFile, cp, mkdir, readFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { theatreWorkshop } from '../shadow-theatre/geometry.ts';
 import { appendSurfacesGltf } from './gltf.ts';
-import { placeObj, writeBoxesObj } from './obj.ts';
+import { placeObj, writeBoxesObj, type BoxRow } from './obj.ts';
 import type { GltfDocument } from './gltf-types.ts';
 
 /**
@@ -50,6 +50,8 @@ async function bust(models: string, directory: string) {
  * a wall: two facades meet at the corner behind a raised pavement and its kerb, a road runs a step
  * lower, and the buildings across it close the square. The lamp's post stands on the pavement,
  * its arm over the door, which is set 5 cm proud of the wall so the two never share a plane.
+ * The windows, the shop window and the bulb inside the lamp's globe belong to the model too: a
+ * lit pane and the bulb glow by themselves (`Ke`), a dark pane only mirrors the sky.
  */
 async function streetCorner(models: string, directory: string) {
   await copyModel(models, 'lantern', ['lantaarn.mtl', 'lantaarn.png'], directory);
@@ -79,6 +81,51 @@ async function streetCorner(models: string, directory: string) {
       door: [0.2, 0.12, 0.08],
     },
   );
+  const lights = [
+    ...cornerWindow([2.4, 1.4, -3], 'z', 1, [1.8, 1.4], true),
+    ...cornerWindow([-1.2, 3.7, -3], 'z', 1, [1.1, 1.3], true),
+    ...cornerWindow([2.4, 3.7, -3], 'z', 1, [1.1, 1.3], false),
+    ...cornerWindow([-4, 1.5, 0.5], 'x', 1, [1.1, 1.3], false),
+    ...cornerWindow([-4, 3.7, 3], 'x', 1, [1.1, 1.3], true),
+    ...cornerWindow([5.5, 1.6, 0], 'x', -1, [1.1, 1.3], true),
+    ...cornerWindow([5.5, 3.7, 3], 'x', -1, [1.1, 1.3], false),
+    ...cornerWindow([-1.5, 1.6, 5.5], 'z', -1, [1.1, 1.3], false),
+    ...cornerWindow([2.5, 1.6, 5.5], 'z', -1, [1.1, 1.3], true),
+    ...cornerWindow([0.5, 3.7, 5.5], 'z', -1, [1.1, 1.3], true),
+    [[-0.55, 3.95, -1.9], [0.12, 0.12, 0.12], 'bulb'],
+  ] satisfies BoxRow[];
+  const windows = resolve(directory, 'windows.obj');
+  await writeBoxesObj(windows, lights, {});
+  await writeFile(
+    windows.replace(/\.obj$/, '.mtl'),
+    [
+      'newmtl frame\nKd 0.16 0.13 0.12\nKs 0 0 0\n',
+      'newmtl darkPane\nKd 0.07 0.09 0.13\nKs 0 0 0\n',
+      'newmtl litPane\nKd 0 0 0\nKe 1 0.76 0.48\n',
+      'newmtl bulb\nKd 0 0 0\nKe 1 0.72 0.4\n',
+    ].join('\n'),
+  );
+}
+
+/**
+ * One window on a wall's inner face at `center`: a dark frame 8 cm deep and its pane 2 cm proud
+ * of the frame, `axis` the wall's normal and `side` the way it faces into the square.
+ */
+function cornerWindow(
+  [x, y, z]: readonly [number, number, number],
+  axis: 'x' | 'z',
+  side: 1 | -1,
+  [width, height]: readonly [number, number],
+  lit: boolean,
+): BoxRow[] {
+  const box = (depth: number, grow: number): BoxRow['1'] =>
+    axis === 'x' ? [depth, height + grow, width + grow] : [width + grow, height + grow, depth];
+  const at = (offset: number): BoxRow['0'] =>
+    axis === 'x' ? [x + side * offset, y, z] : [x, y, z + side * offset];
+  return [
+    [at(0.04), box(0.08, 0.2), 'frame'],
+    [at(0.085), box(0.03, 0), lit ? 'litPane' : 'darkPane'],
+  ];
 }
 
 /** Three crates on a dark floor, stacked so one spotlight draws their edges and shadows. */
