@@ -6,6 +6,8 @@ import { directLightTimings } from '../../../stage/mapping.ts';
 import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
+import { unwatchGpuDevice } from '../prepare/timing.ts';
+import { abandonFrameEncoder } from '../render/encoder.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -111,9 +113,11 @@ export function disposeWebgpuPages(
 ) {
   const { gpu, vis, capture, timing, blendState, services } = rt,
     { gpuDevice, scene, pagedBlendCopies } = rt.setup;
-  gpuDevice?.removeEventListener?.('uncapturederror', onGpuError);
-  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
+  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included. Its
+  // listener stays until the device is handed over, and ignores what it hears: it is marked lost.
   markWebgpuLost(rt);
+  // A command buffer left open is never submitted: nothing encoded in it reaches what goes below.
+  abandonFrameEncoder(rt);
   rt.run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
@@ -170,5 +174,7 @@ export function disposeWebgpuPages(
   gpu.cache = undefined;
   scene.clear();
   rt.diag.drainTraceNow();
-  return Promise.resolve(closing).then(() => {});
+  return Promise.all([closing, gpuDevice && unwatchGpuDevice(gpuDevice, onGpuError)]).then(
+    () => {},
+  );
 }
