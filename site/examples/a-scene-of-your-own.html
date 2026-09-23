@@ -56,14 +56,16 @@
       }
       world.scene.add(island, house, roof, trunk, leaves, tower, sails);
 
-      // 4. A sun that casts shadows, and the sky's soft blue light.
+      // 4. A sun that casts shadows, and the sky's soft light: blue from above, the grass's
+      // green-brown from below, so the sides the sun misses stay readable.
       const sun = light.directional({ intensity: 3, color: '#fff2e0', castShadow: true });
-      world.scene.add(sun, light.ambient({ intensity: 0.25, color: '#8fb4ff' }));
+      world.scene.add(sun, light.hemisphere({ intensity: 1.4, color: '#c8dcff', groundColor: '#5f6a44' }));
 
       // 5. Where the eye starts, and the point it turns around.
       world.camera.position.set(5, 4, 6.5);
       world.camera.lookAt(0, 0.8, 0);
       world.controls.target.set(0, 0.8, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
       const ui = controls({ hour: [7, 19, 10, 0.5], wind: [0, 4, 1.5], roof: '#c0492b' }, (values) => {
         const arc = ((values.hour - 6) / 14) * Math.PI;

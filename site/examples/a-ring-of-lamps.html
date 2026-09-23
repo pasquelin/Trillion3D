@@ -41,11 +41,15 @@
           world.scene.add(mesh);
         }
 
+      // A dim night sky, so a pillar's shaded side reads against the floor.
+      world.scene.add(light.hemisphere({ intensity: 0.4, color: '#6f7fa8', groundColor: '#2a2c33' }));
+
       // Sixty-four lamps: each a point light and a small glowing bulb of its colour. The engine
       // sorts the lights into screen tiles, so each pixel only adds up the lamps that reach it.
+      // They fly above the tallest pillar (2 m), so every top catches their light.
       const lamps = Array.from({ length: 64 }, (_, index) => {
         const colour = math.color().setHSL((index * 0.618) % 1, 0.9, 0.55);
-        const glow = light.point({ color: colour, intensity: 6, distance: 5, radius: 0.08 });
+        const glow = light.point({ color: colour, intensity: 14, distance: 6, radius: 0.08 });
         const bulb = object.mesh(geometry.sphere(0.08, 16, 12), material.meshStandard({ color: '#000000', emissive: colour, emissiveIntensity: 6 }));
         world.scene.add(glow, bulb);
         return { glow, bulb, phase: index * 2.39996, orbit: 1.5 + (index % 8) * 0.8 };
@@ -53,8 +57,9 @@
       world.camera.position.set(0, 7, 9.5);
       world.camera.lookAt(0, 0, 0);
       world.controls.target.set(0, 0, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
-      const ui = controls({ lamps: [1, 64, 32, 1], speed: [0, 2, 0.6], power: [1, 20, 6], shadows: false }, (values) => {
+      const ui = controls({ lamps: [1, 64, 32, 1], speed: [0, 2, 0.6], power: [1, 40, 14], shadows: false }, (values) => {
         lamps.forEach(({ glow, bulb }, index) => {
           glow.visible = bulb.visible = index < values.lamps;
           glow.intensity = values.power;
@@ -67,7 +72,7 @@
         time += delta * ui.speed;
         for (const { glow, bulb, phase, orbit } of lamps) {
           const angle = time * (6 / orbit) * 0.3 + phase;
-          const at = [Math.cos(angle) * orbit, 0.9 + Math.sin(time * 1.3 + phase) * 0.5, Math.sin(angle) * orbit];
+          const at = [Math.cos(angle) * orbit, 2.5 + Math.sin(time * 1.3 + phase) * 0.3, Math.sin(angle) * orbit];
           glow.position.set(...at);
           bulb.position.set(...at);
         }
